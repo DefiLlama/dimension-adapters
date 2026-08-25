@@ -44,32 +44,31 @@ export async function fetchSarcophagusFundingUSD({
   startTimestamp: number;
   endTimestamp: number;
 }) {
-  let offset = 0;
-  let total = 0;
-
-  while (true) {
+  const rows = await paginate(async (limit, offset) => {
     const data = await request<{ SarcophagusFunding: { amountUSD: string }[] }>(endpoint, query, {
       chainId,
       poolType,
       // FetchOptions starts one second before the requested window.
       from: String(startTimestamp + 1),
       to: String(endTimestamp),
-      limit: subgraphQueryLimit,
+      limit,
       offset,
     });
-    const rows = data.SarcophagusFunding;
+    return data.SarcophagusFunding;
+  }, subgraphQueryLimit);
 
-    for (const row of rows) {
-      const amountUSD = Number(row.amountUSD);
-      if (!Number.isFinite(amountUSD)) {
-        throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
-      }
-      total += amountUSD;
+  let total = 0;
+  for (const row of rows) {
+    if (!row.amountUSD.trim()) {
+      throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
     }
-
-    if (rows.length < subgraphQueryLimit) return total;
-    offset += subgraphQueryLimit;
+    const amountUSD = Number(row.amountUSD);
+    if (!Number.isFinite(amountUSD)) {
+      throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
+    }
+    total += amountUSD;
   }
+  return total;
 }
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
