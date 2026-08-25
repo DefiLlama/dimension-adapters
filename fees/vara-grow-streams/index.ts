@@ -318,6 +318,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.VARA],
+  // Launch date is 2026-06-21 (first StreamCreated at 2026-06-21 11:49 UTC, id 1).
+  // Start is set to 2026-06-20 to satisfy hourly validStart (cleanPreviousDay = endTimestamp - 86400) so all 24 hourly slots of 2026-06-21 are queryable.
+  // 2026-06-20 has 0 streams/volume/fees, so no data outside stated scope. Aligns with review: keep 2026-06-20 or document as above.
   start: "2026-06-20",
   fetch,
   methodology,
