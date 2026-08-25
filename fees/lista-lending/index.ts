@@ -168,7 +168,7 @@ const fetch = async (options: FetchOptions) => {
     // Move it out of supply-side and into holders/revenue; Fees stay the same.
     dailyHoldersRevenue.addBalances(daoYieldToBuyback, METRIC.TOKEN_BUY_BACK);
     dailyRevenue.addBalances(daoYieldToBuyback, METRIC.TOKEN_BUY_BACK);
-    dailySupplySideRevenue.addBalances(daoYieldToBuyback.clone(-1), METRIC.TOKEN_BUY_BACK);
+    dailySupplySideRevenue.addBalances(daoYieldToBuyback.clone(-1), METRIC.BORROW_INTEREST);
   }
 
   return {
