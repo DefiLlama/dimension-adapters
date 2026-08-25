@@ -25,8 +25,10 @@ import ADDRESSES from "../helpers/coreAssets.json";
 //                                   launches x the on-chain constant
 //   Legacy (Jul 13-27 2026, before Hook V5; most of the all-time volume):
 //     Simple launches   Uniswap V3 pools (1% tier) enumerated from the Simple
-//                       launcher's TokenLaunched; fee = 1% of the WETH leg of
-//                       each Swap, split 70% creator / 30% treasury as the
+//                       launcher's TokenLaunched; fee = 1% of the WETH paid
+//                       into the pool on each WETH-input swap (V3 charges the
+//                       fee in the input token; the token-side fee on sells is
+//                       not priced), split 70% creator / 30% treasury as the
 //                       FeeLocker does when it collects
 //     Advanced hook V3  EffectiveSwapV3 on the hook, ETH-side fee per swap
 //     Advanced hook V1/V2  no per-swap event; PoolManager Swap for the pools
@@ -147,9 +149,12 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(NATIVE, launchFees, LABEL.launch);
   }
 
-  // 5. Legacy Simple launches: plain Uniswap V3 pools on the 1% tier. The LP fee accrues to the
-  //    permanently locked launch position and the FeeLocker later collects it 70/30
-  //    creator/treasury, so it is counted per swap on the WETH leg with that split.
+  // 5. Legacy Simple launches: plain Uniswap V3 pools on the 1% tier. Uniswap V3 takes the LP fee
+  //    in the input token, so only swaps that pay WETH into the pool produce a WETH fee; the
+  //    token-denominated fee on sells is reserved by the FeeLocker and never paid out as WETH,
+  //    so it is not counted. The WETH fee accrues to the permanently locked launch position and
+  //    the FeeLocker later collects it 70/30 creator/treasury, so it is counted per swap with
+  //    that split.
   const simplePools: Record<string, boolean> = {}; // pool -> launched token is token0
   for (const log of simpleLaunches) simplePools[String(log.pool).toLowerCase()] = Boolean(log.isToken0);
   const simplePoolList = Object.keys(simplePools);
@@ -159,7 +164,9 @@ const fetch = async (options: FetchOptions) => {
       const args = log.args ?? log;
       const tokenIsToken0 = simplePools[String(log.address).toLowerCase()];
       if (tokenIsToken0 === undefined) continue;
-      const fee = abs(tokenIsToken0 ? args.amount1 : args.amount0) * SIMPLE_LP_FEE_PIPS / PIPS;
+      const wethDelta = BigInt(tokenIsToken0 ? args.amount1 : args.amount0); // positive when WETH enters the pool
+      if (wethDelta <= 0n) continue;
+      const fee = wethDelta * SIMPLE_LP_FEE_PIPS / PIPS;
       const treasuryShare = fee * SIMPLE_TREASURY_BPS / BPS;
       dailyFees.add(WETH, fee, LABEL.lp);
       dailyRevenue.add(WETH, treasuryShare, LABEL.lp);
@@ -217,7 +224,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: "Hook fee on each swap (platform fee + creator fee) in the pool's quote asset: QuoteFeeAccrued.totalFee on Hook V5, EffectiveSwapV3 on the legacy V3 hook, and PoolManager swaps times the registered buy/sell pips for the legacy V1/V2 hooks.",
-    [LABEL.lp]: "Uniswap LP fees on the locked launch positions: 1% of the WETH leg of every swap on the Simple launches' Uniswap V3 pools, plus LP fees swept from the Uniswap V4 positions (FeesCollected on the position vault, WETH side). These fees are also inside Uniswap's own fee reporting for Robinhood Chain.",
+    [LABEL.lp]: "Uniswap LP fees on the locked launch positions: 1% of the WETH paid into the Simple launches' Uniswap V3 pools on WETH-input swaps (the token-side fee on sells is not priced), plus LP fees swept from the Uniswap V4 positions (FeesCollected on the position vault, WETH side). These fees are also inside Uniswap's own fee reporting for Robinhood Chain.",
     [LABEL.launch]: "Fixed 0.0005 ETH service fee per launch, counted as UnifiedV5TokenLaunched events times the launcher's launchFee constant.",
   },
   Revenue: {
