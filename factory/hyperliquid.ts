@@ -969,6 +969,7 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
 const hip3DexConfigs: Record<string, { dexId: string; start: string; methodologyName: string }> = {
   "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
+  "entropy": { dexId: "io", start: "2026-08-19", methodologyName: "Entropy" },
   "felix-perp": { dexId: "flx", start: "2025-11-13", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
@@ -980,6 +981,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
 // HIP3 deployer OI configs: protocol name -> dexId
 const hip3OiConfigs: Record<string, string> = {
   "dreamcash-markets-oi": "cash",
+  "entropy-oi": "io",
   "felix-perp-oi": "flx",
   "hyena-oi": "hyna",
   "kinetiq-markets-oi": "mkts",
