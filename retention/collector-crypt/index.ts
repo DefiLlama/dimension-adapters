@@ -56,6 +56,8 @@ export const retentionManifest = defineRetentionManifest({
   // The current sink went live on Sunday 2025-12-07; cohorts start with the next
   // full UTC week, backed by eleven months of predecessor history.
   firstCohortStart: "2025-12-08",
+  // Dune's indexed Solana tables can trail the completed UTC day.
+  dataAvailabilityLagHours: 10,
   sources: [purchases],
   methodology:
     "Daily rolling weekly cohort retention for Collector Crypt on Solana. Each daily row ends a complete seven-day return window; W4 and W12 compare it with the same seven-day window shifted 4 or 12 weeks earlier. The cohort contains wallets whose first observed USDC pack purchase into one of the on-chain gacha sinks occurred in that earlier window, with team and treasury wallets excluded. Purchases paid by card settle off-chain in bundled top-ups without a per-buyer identity and are not counted. Activity is observed from 2025-01-01 across both the current sink and its predecessor, so buyers who migrated to the 2025-12-07 sink are not counted as new; cohorts start on 2025-12-08.",

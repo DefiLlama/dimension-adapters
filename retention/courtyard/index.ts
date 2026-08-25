@@ -143,6 +143,8 @@ export const retentionManifest = defineRetentionManifest({
   // lookback and reduces the chance of treating an existing buyer as first-seen.
   observationStart: "2025-01-16",
   firstCohortStart: "2025-10-01",
+  // Polygon logs are read directly; completion of the UTC day is sufficient.
+  dataAvailabilityLagHours: 0,
   maxQueryDays: 7,
   sources: [primarySales, marketplaceSales],
   methodology:

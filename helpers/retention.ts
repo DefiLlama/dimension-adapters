@@ -85,6 +85,8 @@ export interface RetentionManifest {
   stateVersion: number;
   observationStart: string;
   firstCohortStart: string;
+  /** Delay after a UTC day ends before its source data is safe to index. */
+  dataAvailabilityLagHours: number;
   maxQueryDays?: number;
   methodology: string;
   sources: RetentionSource[];
@@ -97,6 +99,14 @@ export function defineRetentionManifest(
   validateDate(manifest.project, "firstCohortStart", manifest.firstCohortStart);
   if (manifest.firstCohortStart < manifest.observationStart) {
     throw new Error(`${manifest.project}: firstCohortStart precedes observationStart`);
+  }
+  if (
+    !Number.isFinite(manifest.dataAvailabilityLagHours) ||
+    manifest.dataAvailabilityLagHours < 0
+  ) {
+    throw new Error(
+      `${manifest.project}: dataAvailabilityLagHours must be a non-negative number`,
+    );
   }
   if (!Number.isInteger(manifest.stateVersion) || manifest.stateVersion < 1) {
     throw new Error(`${manifest.project}: stateVersion must be a positive integer`);
