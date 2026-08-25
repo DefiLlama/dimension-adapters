@@ -11,6 +11,10 @@ const PLATFORM_MANAGER = "0x7940575377C3c2ABdA23813c123b4C880E217d6d";
 const COMMISSION_FEE = 3;
 const MARGIN_CHANGE_FEE = 4;
 
+// Order sizes carry 4 decimals on-chain (TypeLibrary.BPS_SCALING_FACTOR = 1e4);
+// notional (AUSD base units) = size * executionPrice / SIZE_SCALE.
+const SIZE_SCALE = 10_000n;
+
 type FeeSplit = { vault: number; treasury: number };
 type SplitSchedule = Array<{ fromBlock: number } & FeeSplit>;
 
@@ -48,12 +52,15 @@ const fetch = async (options: FetchOptions) => {
     trades.forEach((t: any) => {
         const ob = BigInt(t.args.orderbookVolume);
         const amm = BigInt(t.args.vaultVolume);
+        const totalSize = ob + amm;
 
-        const total =
-            ((ob + amm) * BigInt(t.args.executionPrice)) / BigInt(1e4);
-        dailyVolume.add(AUSD, total);
-        if (total > 0n)
-            fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
+        dailyVolume.add(
+            AUSD,
+            (totalSize * BigInt(t.args.executionPrice)) / SIZE_SCALE,
+        );
+        // Venue split is a size ratio (both legs share the same execution price).
+        if (totalSize > 0n)
+            fillRatioByTx[t.transactionHash] = Number(ob) / Number(totalSize);
     });
 
     const transfers = await options.getLogs({
