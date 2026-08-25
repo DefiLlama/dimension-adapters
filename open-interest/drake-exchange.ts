@@ -30,23 +30,54 @@ const ABI = {
 };
 
 /**
- * Stale-oracle retry parameters.
+ * Oracle-revert retry parameters.
  *
- * openInterestLong/Short price positions through oracle (maxPublishAge = 12s on-chain),
- * so a read at a block with no fresh oracle update reverts.
- * On failure the adapter walks *backwards* from the period-end block in steps of
+ * openInterestLong/Short price positions through the oracle (maxPublishAge = 12s on-chain),
+ * so a read at a block with no fresh, valid oracle price reverts. Only those reverts are
+ * retried: the adapter walks *backwards* from the period-end block in steps of
  * RETRY_STEP_BLOCKS (Monad ~0.4s blocks, so 25 blocks ~= 10s) for up to MAX_ATTEMPTS
- * attempts, keeping the reported value at-or-before period end.
+ * attempts, keeping the reported value at-or-before period end. Any other error (RPC or
+ * transport failure, unrelated contract revert) is rethrown immediately so the run fails
+ * rather than reporting OI from an earlier block.
  */
 const RETRY_STEP_BLOCKS = 25;
 const MAX_ATTEMPTS = 6; // covers ~1 minute before the end block
+
+/**
+ * 4-byte selectors of the transient oracle-validation reverts raised while pricing OI:
+ * Pyth `StalePrice()` and OracleRouter `ConfidenceTooHigh()` / `FuturePriceTimestamp()`.
+ */
+const ORACLE_REVERT_SELECTORS = [
+    "0x19abf40e", // StalePrice()
+    "0x9ebd92e3", // ConfidenceTooHigh()
+    "0x06a874f5", // FuturePriceTimestamp()
+];
+
+/**
+ * True when `error` is a contract revert carrying one of ORACLE_REVERT_SELECTORS.
+ *
+ * The sdk's multiCall wraps per-call reverts into `_underlyingErrors` strings that embed the
+ * revert data (e.g. `invalid length for result data (value="0x19abf40e", ...)`), so the
+ * selector can be matched by substring. RPC/transport failures carry no selector and are
+ * therefore never treated as retryable.
+ */
+function isOracleRevert(error: any): boolean {
+    const parts = [
+        error?.message,
+        error?._underlyingError,
+        ...(Array.isArray(error?._underlyingErrors) ? error._underlyingErrors : []),
+    ].map((part) => String(part ?? "").toLowerCase());
+    return parts.some((part) =>
+        ORACLE_REVERT_SELECTORS.some((selector) => part.includes(selector)),
+    );
+}
 
 /**
  * Reads long and short OI for every live instrument at the block pinned on `api`.
  *
  * @param api ChainApi bound to the block to read state at.
  * @returns Raw per-instrument OI arrays (index i => instrument id i+1), in AUSD base units.
- * @throws If any underlying call reverts (e.g. no fresh oracle update) or the RPC fails.
+ * @throws If any underlying call reverts (e.g. stale oracle price) or the RPC fails.
  */
 async function readOpenInterest(api: ChainApi) {
     const nextInstId = Number(
@@ -69,7 +100,9 @@ async function readOpenInterest(api: ChainApi) {
  *
  * Attempt 0 uses `options.api` (already pinned to the period-end block); subsequent
  * attempts construct a ChainApi at progressively earlier blocks per the retry parameters
- * above.
+ * above. Only oracle-validation reverts (see `isOracleRevert`) trigger a retry; every other
+ * error is rethrown at once. If all attempts fail the last oracle error is rethrown so the
+ * run fails loudly instead of recording zero OI.
  *
  * @param options DefiLlama fetch options for the period.
  * @returns `openInterestAtEnd`, `longOpenInterestAtEnd`, `shortOpenInterestAtEnd` as Balances.
@@ -89,12 +122,13 @@ const fetch = async (options: FetchOptions) => {
         try {
             result = await readOpenInterest(api);
         } catch (e) {
+            if (!isOracleRevert(e)) throw e;
             lastError = e;
         }
     }
     if (!result)
         throw new Error(
-            `drake-exchange OI: no fresh oracle price within ${MAX_ATTEMPTS} attempts before block ${toBlock}: ${lastError}`,
+            `drake-exchange OI: no valid oracle price within ${MAX_ATTEMPTS} attempts before block ${toBlock}: ${lastError}`,
         );
 
     const longOpenInterestAtEnd = options.createBalances();
