@@ -1,7 +1,6 @@
 import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 
 // Astro is a crash game. Every round is settled on-chain against the
 // BankrollVault, which custodies the LP bankroll, the player balances and the
@@ -18,6 +17,11 @@ const ROUND_SETTLED =
 // gain (50% of the eligible profit, minted to the operator as vault shares).
 const PROFIT_RECORDED =
   "event ProfitRecorded(uint256 grossProfit, uint256 operatorFeeUSDC, uint256 operatorSharesMinted, uint256 newHWM)";
+
+// Breakdown labels: source of fees for dailyFees, destination for the splits.
+const HOUSE_WIN = "Crash Round House Win";
+const PERFORMANCE_FEE_TO_OPERATOR = "Bankroll Performance Fee To Operator";
+const HOUSE_WIN_TO_LPS = "Crash Round House Win To Liquidity Providers";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -46,15 +50,15 @@ const fetch = async (options: FetchOptions) => {
     operatorFees += operatorFeeUSDC;
   }
 
-  dailyFees.add(ADDRESSES.robinhood.USDG, grossGamingRevenue, METRIC.PROTOCOL_FEES);
-  dailyRevenue.add(ADDRESSES.robinhood.USDG, operatorFees, METRIC.PERFORMANCE_FEES);
+  dailyFees.add(ADDRESSES.robinhood.USDG, grossGamingRevenue, HOUSE_WIN);
+  dailyRevenue.add(ADDRESSES.robinhood.USDG, operatorFees, PERFORMANCE_FEE_TO_OPERATOR);
   // Everything the protocol does not take stays in the bankroll and accrues to
   // the LPs through the ASTROLP share price. On a losing day this is negative:
   // the LPs, not the protocol, absorb the players' winnings.
   dailySupplySideRevenue.add(
     ADDRESSES.robinhood.USDG,
     grossGamingRevenue - operatorFees,
-    METRIC.LP_FEES
+    HOUSE_WIN_TO_LPS
   );
 
   return {
@@ -82,16 +86,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.PROTOCOL_FEES]: "Gross gaming revenue from settled crash rounds, in USDG.",
+      [HOUSE_WIN]: "Gross gaming revenue from settled crash rounds, in USDG.",
     },
     Revenue: {
-      [METRIC.PERFORMANCE_FEES]: "Performance fee on bankroll profit above the high water mark, minted to the operator as ASTROLP shares.",
+      [PERFORMANCE_FEE_TO_OPERATOR]: "Performance fee on bankroll profit above the high water mark, minted to the operator as ASTROLP shares.",
     },
     SupplySideRevenue: {
-      [METRIC.LP_FEES]: "Gross gaming revenue net of the performance fee, accruing to the bankroll liquidity providers.",
+      [HOUSE_WIN_TO_LPS]: "Gross gaming revenue net of the performance fee, accruing to the bankroll liquidity providers.",
     },
     ProtocolRevenue: {
-      [METRIC.PERFORMANCE_FEES]: "Performance fee on bankroll profit above the high water mark, minted to the operator as ASTROLP shares.",
+      [PERFORMANCE_FEE_TO_OPERATOR]: "Performance fee on bankroll profit above the high water mark, minted to the operator as ASTROLP shares.",
     },
   },
 };
