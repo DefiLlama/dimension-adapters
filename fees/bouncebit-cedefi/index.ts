@@ -13,6 +13,11 @@ interface DailyStats {
 const fetch = async (options: FetchOptions) => {
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
+  const lastStat = stats[stats.length - 1];
+  if (!lastStat || options.startOfDay > lastStat.timestamp) {
+    throw new Error(`api has no fee stats for ${options.dateString} yet, last available day is ${lastStat?.date}`);
+  }
+
   const dailyFees = (() => {
     const idx = stats.findIndex(stat => stat.timestamp === options.startOfDay);
     if (idx === -1) return 0;
