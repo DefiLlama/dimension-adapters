@@ -211,6 +211,10 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // A DAO buy-back claim realises position yield accrued over many prior days, so on a claim day the
+  // reclassified amount can exceed that window's supplier interest and push SupplySideRevenue negative.
+  // This is expected lumpiness that nets out cumulatively — keep such days rather than throwing.
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
   adapter: {
