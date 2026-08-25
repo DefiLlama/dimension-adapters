@@ -9,14 +9,15 @@ import { PromisePool } from "@supercharge/promise-pool";
 const VARA_RPC = "https://rpc.vara.network";
 
 // StreamCore Sails program - on-chain streaming state machine (StreamService)
-// Source: GrowStreams_IDL_Files/stream-core.idl
+// IDL is displayed at "Metadata/Sails" tab of Explorer
 // Explorer: https://idea.gear-tech.io/programs/0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659?node=wss%3A%2F%2Frpc.vara.network
 // Verified via GetConfig fee_bps=250 at 2026-08-25
 const STREAM_CORE = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
 
 // wVARA VFT - underlying token for streams (token field in StreamCreated events)
+// IDL is displayed at "Metadata/Sails" tab of Explorer
+// Explorer: https://idea.gear-tech.io/programs/0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d?node=wss%3A%2F%2Frpc.vara.network
 // Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-rivrdex/index.js
-// Source: GrowStreams_IDL_Files/wvara.idl
 // Note: all 2,200 streams observed use this token (growstreams.xyz)
 const WVARA = "0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d";
 
