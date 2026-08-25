@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 
-export const SARCOPHAGUS_HOLDERS_REVENUE_LABEL = "Fees funded to Sarcophagus";
+export const SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL = "Sarcophagus fee reclassification";
 
 type SarcophagusPoolType = "CL" | "LEGACY" | "DLMM";
 
@@ -437,12 +437,12 @@ const fetch = async (options: FetchOptions) => {
 
   dailyRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, 'Swap Fees to holders');
   dailyRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
+  dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
   dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, 'Swap Fees to holders');
   dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
-  dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_HOLDERS_REVENUE_LABEL);
-
-  dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
   dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
+  dailyProtocolRevenue.addUSDValue(-sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
+  dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
 
   dailySupplySideRevenue.addUSDValue(stats.dlmmSupplySideRevenueUSD, 'Swap Fees to LPs');
 
@@ -481,6 +481,7 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Subtracts delayed Sarcophagus funding already accrued as protocol revenue.",
   },
   SupplySideRevenue: {
     ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
@@ -488,12 +489,14 @@ const breakdownMethodology = {
   HoldersRevenue: {
     ["Swap Fees to holders"]: "User fees are distributed among holders.",
     ["Bribes to holders"]: "Bribes paid by protocols to holders",
-    [SARCOPHAGUS_HOLDERS_REVENUE_LABEL]: "Event-time USD value of fees funded to Sarcophagus.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Reclassifies fees already accrued as protocol revenue into holder revenue when funded to Sarcophagus.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
+  allowNegativeValue: true,
   // DLMM voter vs treasury split for recent windows is derived from fee events;
   // daily protocol rollups remain the source for historical full-day queries.
   pullHourly: false,

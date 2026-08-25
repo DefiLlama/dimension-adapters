@@ -4,7 +4,7 @@ import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 import {
   fetchSarcophagusFundingUSD,
-  SARCOPHAGUS_HOLDERS_REVENUE_LABEL,
+  SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL,
 } from "./ramses-dlmm";
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
@@ -426,7 +426,8 @@ export function createFetchHandler(poolType: PoolType) {
 
     const dailyRevenue = dailyProtocolRevenue.clone();
     dailyRevenue.add(dailyHoldersRevenue);
-    dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_HOLDERS_REVENUE_LABEL);
+    dailyProtocolRevenue.addUSDValue(-sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
+    dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
 
     dailySupplySideRevenue.addUSDValue(
       poolStats.feesUSD - poolStats.userFeesRevenueUSD - poolStats.protocolRevenueUSD,
@@ -468,6 +469,7 @@ export const breakdownMethodology = {
   },
   ProtocolRevenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Subtracts delayed Sarcophagus funding already accrued as protocol revenue.",
   },
   SupplySideRevenue: {
     ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
@@ -475,12 +477,14 @@ export const breakdownMethodology = {
   HoldersRevenue: {
     ["Swap Fees to holders"]: "User fees are distributed among holders.",
     ["Bribes to holders"]: "Bribes paid by protocols to holders",
-    [SARCOPHAGUS_HOLDERS_REVENUE_LABEL]: "Event-time USD value of fees funded to Sarcophagus.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Reclassifies fees already accrued as protocol revenue into holder revenue when funded to Sarcophagus.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
+  allowNegativeValue: true,
   pullHourly: true,
   methodology,
   breakdownMethodology,
