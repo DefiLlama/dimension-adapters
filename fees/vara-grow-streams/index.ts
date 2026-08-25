@@ -3,17 +3,38 @@ import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 import { PromisePool } from "@supercharge/promise-pool";
 
-// Vara RPC — public Gear node, also used by DefiLlama TVL adapters (see projects/vara-ethereum-bridge/index.js:7, projects/vara-rivrdex/index.js:3)
+// Vara RPC - public Gear node for Sails queries via gear_calculateReplyForHandle
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-ethereum-bridge/index.js
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-rivrdex/index.js
 const VARA_RPC = "https://rpc.vara.network";
-// StreamCore Sails program — on-chain streaming state machine (StreamService). Source: GrowStreams_IDL_Files/stream-core.idl + explorer https://idea.gear-tech.io/programs/0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659?node=wss%3A%2F%2Frpc.vara.network ; verified via GetConfig fee_bps=250 at 2026-08-25
+
+// StreamCore Sails program - on-chain streaming state machine (StreamService)
+// Source: GrowStreams_IDL_Files/stream-core.idl
+// Explorer: https://idea.gear-tech.io/programs/0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659?node=wss%3A%2F%2Frpc.vara.network
+// Verified via GetConfig fee_bps=250 at 2026-08-25
 const STREAM_CORE = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
-// wVARA VFT — underlying token for streams (token field in StreamCreated events). Source: growstreams.xyz + vara-rivrdex TVL & GrowStreams_IDL_Files/wvara.idl ; all 2,200 streams observed use this token
+
+// wVARA VFT - underlying token for streams (token field in StreamCreated events)
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-rivrdex/index.js
+// Source: GrowStreams_IDL_Files/wvara.idl
+// Note: all 2,200 streams observed use this token (growstreams.xyz)
 const WVARA = "0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d";
+
+// Hex without 0x for SCALE actor_id comparison (as stored on-chain)
 const WVARA_HEX = WVARA.slice(2).toLowerCase();
+
+// Zero account for gear_calculateReplyForHandle read-only queries
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-ethereum-bridge/index.js
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-rivrdex/index.js
 const ZERO_ACCOUNT = "0x" + "0".repeat(64);
-// Gas limit for gear_calculateReplyForHandle — 750B covers Sails query decoding (see projects/vara-ethereum-bridge/index.js:10, projects/vara-rivrdex/index.js:5)
+
+// Gas limit for gear_calculateReplyForHandle - covers Sails query decoding
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-ethereum-bridge/index.js
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-rivrdex/index.js
 const GAS_LIMIT = 750000000000;
-// VARA has 12 decimals (1 VARA = 1e12 planck) — used for CG pricing. Source: Vara docs / projects/vara-grow-streams/index.js:7 (VARA_DECIMALS=1e12)
+
+// VARA decimals - 1 VARA = 1e12 planck, used for CG pricing and fee accounting
+// Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/vara-grow-streams/index.js
 const VARA_DECIMALS = 1e12;
 
 const STREAMING_FEES = "Streaming Fees";
@@ -174,9 +195,9 @@ function getSnapshot(): Promise<Snapshot> {
       const activeStreams = decodeActiveStreams(activeBuf);
       const config = decodeConfig(configBuf);
 
-      // fetch all streams — ids are dense 1..nextStreamId-1; TotalStreams may lag nextStreamId.
+      // fetch all streams - ids are dense 1..nextStreamId-1; TotalStreams may lag nextStreamId.
       // Historical note: GrowStreams never physically deletes a Stream; Stop/Pause only flips StreamStatus
-      // (Active 0 / Paused 1 / Stopped 2) — see stream-core.idl. So GetStream returning None (opt 0) means
+      // (Active 0 / Paused 1 / Stopped 2) - see stream-core.idl. So GetStream returning None (opt 0) means
       // never-created id, not a deleted historical stream. Reading current state + filtering by start_time
       // therefore preserves history without needing archival block queries or event replay. If deletion
       // were introduced, this must switch to events or historical `at` block queries (gear_calculateReplyForHandle supports `at`).
@@ -190,12 +211,12 @@ function getSnapshot(): Promise<Snapshot> {
         const idBuf = Buffer.alloc(8);
         idBuf.writeBigUInt64LE(BigInt(id), 0);
         const p = "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex");
-        const buf = await rpcCall(STREAM_CORE, p); // throws on failure — do not swallow, so cache invalidation triggers
+        const buf = await rpcCall(STREAM_CORE, p); // throws on failure - do not swallow, so cache invalidation triggers
         return decodeStream(buf); // null for never-created id, Stream for existing (including Stopped)
       });
 
       if (errors.length > 0) {
-        // System-level failure: do not cache partial data — propagate so outer catch invalidates cachedSnapshot
+        // System-level failure: do not cache partial data - propagate so outer catch invalidates cachedSnapshot
         // and caller receives no financial metrics rather than under-reported values.
         throw new Error(`vara-grow-streams: ${errors.length}/${ids.length} GetStream calls failed: ${String((errors[0] as any)?.message ?? errors[0])}`);
       }
@@ -275,7 +296,7 @@ const methodology = {
   Fees: "2.5% streaming fee (fee_bps from StreamService::GetConfig) applied to every new wVARA stream's initial_deposit (Stream.deposited where token == wVARA 0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d). Daily fees = sum(deposited in day) * fee_bps / 10_000. Historical total streamed = sum of all wVARA deposited across all streams (current TotalStreams).",
   Revenue: "All streaming fees are retained by the protocol treasury (no supply-side share). Daily revenue == daily fees.",
   ProtocolRevenue: "100% of streaming fees to treasury (config.treasury).",
-  Volume: "Total wVARA deposited into streams whose start_time falls in the day — approximates money routed through the streaming protocol that day. Cumulative sum equals historical money streamed.",
+  Volume: "Total wVARA deposited into streams whose start_time falls in the day - approximates money routed through the streaming protocol that day. Cumulative sum equals historical money streamed.",
 };
 
 const breakdownMethodology = {
