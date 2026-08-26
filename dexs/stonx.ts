@@ -15,7 +15,10 @@ const VE33 = "0xD18685A514E59b06d59824e16Db07e73345d9953";
 const PAGE_SIZE = 200;
 // Bound concurrent API requests while keeping the per-pool history fan-out fast.
 const API_CONCURRENCY = 8;
-const EVM_ADDRESS_HEX_LENGTH = 40;
+// EVM addresses are 20 bytes, or 40 hexadecimal characters.
+const EVM_ADDRESS_BYTES = 20;
+const EVM_ADDRESS_HEX_LENGTH = EVM_ADDRESS_BYTES * 2;
+const MAX_EVM_ADDRESS = (1n << BigInt(EVM_ADDRESS_BYTES * 8)) - 1n;
 const VOTER_FEES = "Swap Fees To veSTONX Voters";
 
 interface Ve33Pool {
@@ -52,8 +55,13 @@ const poolVolumeUrl = (pool: Ve33Pool) =>
 
 /** Convert the API's decimal token identifier into a 20-byte EVM address. */
 function tokenIdToAddress(tokenId: string): string {
-  const hex = BigInt(tokenId).toString(16);
-  if (hex === "0") return ADDRESSES.null;
+  const value = BigInt(tokenId);
+  if (value < 0n || value > MAX_EVM_ADDRESS) {
+    throw new Error(`Invalid EVM token identifier: ${tokenId}`);
+  }
+  if (value === 0n) return ADDRESSES.null;
+
+  const hex = value.toString(16);
   return `0x${hex.padStart(EVM_ADDRESS_HEX_LENGTH, "0")}`;
 }
 
@@ -119,7 +127,6 @@ const methodology = {
   Volume:
     "Input-token volume from swaps across every Ekubo Core pool configured with the deployed STONX Ve33 extension on Robinhood Chain. Only the input side of each swap is counted.",
   Fees: "Swap fees paid by traders across all STONX Ve33 pools.",
-  UserFees: "Swap fees paid by traders across all STONX Ve33 pools.",
   Revenue:
     "All STONX Ve33 swap fees are routed to veSTONX voters. The protocol treasury takes no share.",
   HoldersRevenue:
