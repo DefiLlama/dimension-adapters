@@ -71,6 +71,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-16",
@@ -83,6 +84,14 @@ const adapter: SimpleAdapter = {
     Fees: {
       [USDG_INFLOW]: "USDG transferred into the Treasury contract from any source other than the Morpho position.",
       [RWA_INFLOW]: "Tokenized equities (NVDA, SPCX, AAPL, MSFT, GOOGL, COIN) transferred into the NetNet RWA Sleeve.",
+    },
+    Revenue: {
+      [USDG_INFLOW]: "USDG inflow retained by the Treasury.",
+      [RWA_INFLOW]: "Tokenized equities retained in the NetNet RWA Sleeve.",
+    },
+    ProtocolRevenue: {
+      [USDG_INFLOW]: "USDG inflow retained by the Treasury.",
+      [RWA_INFLOW]: "Tokenized equities retained in the NetNet RWA Sleeve.",
     },
   },
 };
