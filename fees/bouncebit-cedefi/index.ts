@@ -2,7 +2,7 @@ import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const bbscanApiURL = "https://api-portal.bouncebit.io/api/fee/stats";
+const bbscanApiURL = "https://api.bouncebit.io/api/v4/dashboard/fee/stats";
 
 interface DailyStats {
   date: string;
@@ -13,8 +13,13 @@ interface DailyStats {
 const fetch = async (options: FetchOptions) => {
   const stats: DailyStats[] = (await fetchURL(bbscanApiURL)).result;
 
+  const lastStat = stats[stats.length - 1];
+  if (!lastStat || options.dateString > lastStat.date) {
+    throw new Error(`api has no fee stats for ${options.dateString} yet, last available day is ${lastStat?.date}`);
+  }
+
   const dailyFees = (() => {
-    const idx = stats.findIndex(stat => stat.timestamp === options.startOfDay);
+    const idx = stats.findIndex(stat => stat.date === options.dateString);
     if (idx === -1) return 0;
     if (idx === 0) return stats[0]?.fee || 0;
     return (stats[idx]?.fee || 0) - (stats[idx - 1]?.fee || 0)
