@@ -248,6 +248,7 @@ const adapter: SimpleAdapter = {
   start: "2026-07-13", // first Coinbarrel launcher deployed on Robinhood Chain (block 8955028)
   methodology,
   breakdownMethodology,
+  doublecounted: true, // uniswap v4
 };
 
 export default adapter;
