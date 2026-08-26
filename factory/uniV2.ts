@@ -22,6 +22,10 @@ const configs: Record<string, Record<string, any>> = {
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
   },
+  "helios-v2": {
+    // stock uniV2 fork with feeTo enabled at deploy => 1/6 of the 0.3% swap fee to protocol
+    [CHAIN.RISE]: { factory: '0xd479E71C45aEB1E846A7B549c346D62fE77B39bA', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
   "flowswap-v2": {
     [CHAIN.FLOW]: { factory: '0x681D1bFE03522e0727730Ba02a05CD3C0a08fa30' },
   },

@@ -14,6 +14,10 @@ const configs: Record<string, Record<string, any>> = {
   "warpx-v3": {
     [CHAIN.MEGAETH]: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
   },
+  "helios-v3": {
+    // stock uniV3 fork, every pool initialized with feeProtocol = 68 => 25% of swap fees to protocol
+    [CHAIN.RISE]: { factory: '0xbF30bD8567628Dc4E120b7536d051EaFaA3fD0fa', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
   "mintswap": {
     [CHAIN.MINT]: { factory: '0x1f88BB455E02646224A0a65f3eb4B2FCb4fb8e49' },
   },

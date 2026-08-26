@@ -27,6 +27,7 @@ const DEFAULTS: any = {
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   GATELAYER_RPC: 'https://www.gatescan.org/gatelayer/api/eth-rpc',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
+  RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   RONIN_RPC: 'https://ronin.gateway.tenderly.co,https://gateway.tenderly.co/public/ronin',
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
