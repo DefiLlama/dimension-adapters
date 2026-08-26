@@ -4,8 +4,26 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const PROGRAM_ID = "BDGRD2fcnDzz5ueWq39W7tSRDadFJonZUPG6CxQgJGHd";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-// Anchor discriminator for the zero-argument `reset` instruction.
+// Mainnet program ID and SOL mint: https://bidgrid.win/about
+// Anchor discriminator for the zero-argument `reset` instruction. Source:
+// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/lib.rs
 const RESET_DISCRIMINATOR = "0x1751fb548ab7f0d6";
+// Anchor event discriminator for ResetEvent. Source:
+// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/events.rs
+const RESET_EVENT_DISCRIMINATOR = "0x7c16d3bd8f2f9cde";
+
+// On-chain fee constants from constants.rs, in basis points of losing_deployed:
+// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/constants.rs
+// The protocol fee is the 1.5% protocol allocation from total_deployed. The
+// normal-mode ResetEvent.total_vaulted contains protocol fee + buyback + jackpot
+// + staking. Burn Pot is transferred separately, so its ratio below is relative
+// to the non-protocol treasury portion rather than to total_vaulted.
+const PROTOCOL_FEE_BPS = 150;
+const BUYBACK_BPS = 400;
+const JACKPOT_BPS = 400;
+const STAKING_BPS = 200;
+const BURN_POT_BPS = 50;
+const NON_PROTOCOL_TREASURY_BPS = BUYBACK_BPS + JACKPOT_BPS + STAKING_BPS;
 
 const LABELS = {
   MINING_FEES: "Mining Fees",
@@ -25,8 +43,7 @@ const fetch = async (options: FetchOptions) => {
         AND tx_success = true
         AND block_date BETWEEN date(from_unixtime(${options.fromTimestamp}))
           AND date(from_unixtime(${options.toTimestamp}))
-        AND block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
+        AND TIME_RANGE
         AND varbinary_starts_with(data, ${RESET_DISCRIMINATOR})
     ),
     reset_events AS (
@@ -40,11 +57,14 @@ const fetch = async (options: FetchOptions) => {
         AND ic.tx_success = true
         AND varbinary_starts_with(
           from_base64(substr(log_message, 15)),
-          0x7c16d3bd8f2f9cde
+          ${RESET_EVENT_DISCRIMINATOR}
         )
     ),
     reset_event_values AS (
       SELECT
+        -- Dune varbinary_substring uses 1-based offsets. ResetEvent fields
+        -- total_deployed and total_vaulted start at bytes 139 and 147 after
+        -- the 8-byte event discriminator. Source: events.rs linked above.
         CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(
           from_base64(substr(log_message, 15)), 139, 8
         ))) AS DOUBLE) AS total_deployed,
@@ -55,24 +75,29 @@ const fetch = async (options: FetchOptions) => {
     ),
     round_allocations AS (
       SELECT
-        COALESCE(SUM(CAST(FLOOR(total_deployed * 0.015) AS BIGINT)), 0)
-          AS admin_lamports,
+        COALESCE(SUM(CAST(FLOOR(total_deployed * ${PROTOCOL_FEE_BPS}.0 / 10000.0) AS BIGINT)), 0)
+          AS protocol_lamports,
         COALESCE(SUM(CAST(FLOOR(
-          GREATEST(total_vaulted - FLOOR(total_deployed * 0.015), 0.0) * 0.4
+          GREATEST(total_vaulted - FLOOR(total_deployed * ${PROTOCOL_FEE_BPS}.0 / 10000.0), 0.0)
+            * ${BUYBACK_BPS}.0 / ${NON_PROTOCOL_TREASURY_BPS}.0
         ) AS BIGINT)), 0) AS buyback_lamports,
         COALESCE(SUM(CAST(FLOOR(
-          GREATEST(total_vaulted - FLOOR(total_deployed * 0.015), 0.0) * 0.05
+          GREATEST(total_vaulted - FLOOR(total_deployed * ${PROTOCOL_FEE_BPS}.0 / 10000.0), 0.0)
+            * ${BURN_POT_BPS}.0 / ${NON_PROTOCOL_TREASURY_BPS}.0
         ) AS BIGINT)), 0) AS burn_pot_lamports,
         COALESCE(SUM(CAST(FLOOR(
-          GREATEST(total_vaulted - FLOOR(total_deployed * 0.015), 0.0) * 0.4
+          GREATEST(total_vaulted - FLOOR(total_deployed * ${PROTOCOL_FEE_BPS}.0 / 10000.0), 0.0)
+            * ${JACKPOT_BPS}.0 / ${NON_PROTOCOL_TREASURY_BPS}.0
         ) AS BIGINT)), 0) AS jackpot_lamports,
         COALESCE(SUM(CAST(FLOOR(
-          GREATEST(total_vaulted - FLOOR(total_deployed * 0.015), 0.0) * 0.2
+          GREATEST(total_vaulted - FLOOR(total_deployed * ${PROTOCOL_FEE_BPS}.0 / 10000.0), 0.0)
+            * ${STAKING_BPS}.0 / ${NON_PROTOCOL_TREASURY_BPS}.0
         ) AS BIGINT)), 0) AS staking_lamports
       FROM reset_event_values
     )
     SELECT
-      round_allocations.admin_lamports
+      round_allocations.protocol_lamports,
+      round_allocations.protocol_lamports
         + round_allocations.buyback_lamports
         + round_allocations.burn_pot_lamports
         + round_allocations.jackpot_lamports
@@ -87,10 +112,28 @@ const fetch = async (options: FetchOptions) => {
   const [row = {}] = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   dailyFees.add(SOL_MINT, row.round_fee_lamports ?? 0, LABELS.MINING_FEES);
-  dailyRevenue.add(SOL_MINT, row.round_fee_lamports ?? 0, LABELS.MINING_FEES);
+  // Jackpot SOL is paid back to winning miners and is therefore supply-side
+  // revenue, not gross profit. The protocol fee is protocol revenue.
+  dailySupplySideRevenue.add(
+    SOL_MINT,
+    row.jackpot_lamports ?? 0,
+    LABELS.MINING_FEES_TO_JACKPOT,
+  );
+  dailyProtocolRevenue.add(SOL_MINT, row.protocol_lamports ?? 0);
+
+  dailyRevenue.add(
+    SOL_MINT,
+    Math.max(
+      Number(row.round_fee_lamports ?? 0) - Number(row.jackpot_lamports ?? 0),
+      0,
+    ),
+    LABELS.MINING_FEES,
+  );
 
   dailyHoldersRevenue.add(
     SOL_MINT,
@@ -107,29 +150,27 @@ const fetch = async (options: FetchOptions) => {
     row.burn_pot_lamports ?? 0,
     LABELS.MINING_FEES_TO_BURN_POT,
   );
-  dailyHoldersRevenue.add(
-    SOL_MINT,
-    row.jackpot_lamports ?? 0,
-    LABELS.MINING_FEES_TO_JACKPOT,
-  );
-
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Fees:
     "Successful mainnet round-settlement fees calculated from the BidGrid ResetEvent allocation fields. User deposits, payouts and premine transfers are not counted as fees.",
-  UserFees:
-    "The same round-settlement fee flow, representing the protocol charge created by user activity.",
   Revenue:
-    "All measured BidGrid round-fee allocations, following the lightweight GODL-style presentation.",
+    "Gross profit from BidGrid round fees after excluding the jackpot amount paid back to winning miners.",
+  ProtocolRevenue:
+    "The 1.5% protocol fee from each round's total deployed SOL, retained as the protocol treasury allocation.",
   HoldersRevenue:
-    "Round-fee allocations assigned to the BDGR buyback, staking, jackpot and burn-pot pools.",
+    "Round-fee allocations assigned to BDGR buybacks, BDGR staking rewards and the Burn Pot.",
+  SupplySideRevenue:
+    "The jackpot allocation paid back to winning miners from the non-winning-tile fee.",
 };
 
 const breakdownMethodology = {
@@ -139,7 +180,11 @@ const breakdownMethodology = {
   },
   Revenue: {
     [LABELS.MINING_FEES]:
-      "All measured native-SOL round fees collected by BidGrid.",
+      "Native-SOL round fees retained as gross profit after the jackpot payout allocation.",
+  },
+  SupplySideRevenue: {
+    [LABELS.MINING_FEES_TO_JACKPOT]:
+      "4% of losing-tile deployment value allocated to the SOL jackpot paid to winning miners.",
   },
   HoldersRevenue: {
     [LABELS.MINING_FEES_TO_BUYBACK]:
@@ -148,17 +193,15 @@ const breakdownMethodology = {
       "2% of the non-winning-tile fee allocated to eligible BDGR stakers.",
     [LABELS.MINING_FEES_TO_BURN_POT]:
       "0.5% of the non-winning-tile fee assigned to the Burn Pot for instant refined BDGR burns for SOL.",
-    [LABELS.MINING_FEES_TO_JACKPOT]:
-      "4% of the non-winning-tile fee assigned to the accumulating SOL jackpot pool.",
   },
 };
 
 const adapter: SimpleAdapter = {
   // Dune-backed adapters run once per day in DefiLlama.
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: { fetch, start: "2026-08-16" },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-08-16",
   protocolType: ProtocolType.PROTOCOL,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
