@@ -85,7 +85,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "All protocol native revenue arriving at the chain's fee collector: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, the instant-launch fee, and the locker's fee-claim cut (FeesReceived logs). Satellite revenue bridged home is excluded on arrival — it is counted on the chain that earned it.",
+  Fees: "All protocol native revenue arriving at the chain's fee collector — the PlatformFeeCollector on Robinhood Chain, the BridgingFeeCollector on the HyperEVM satellite deployment: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, the instant-launch fee, and the locker's fee-claim cut (FeesReceived logs). HyperEVM revenue is collected in HYPE and later bridged home; it is counted on HyperEVM at collection and excluded from Robinhood on arrival.",
   Revenue: "All protocol native revenue arriving at the chain's fee collector (see Fees); the protocol retains everything, with the home-chain split between governance holders and the treasury reported under HoldersRevenue / ProtocolRevenue.",
   HoldersRevenue: "The share of every home-chain distribution delivered to GovernanceToken holders as native-ETH dividends (FeesDistributed logs; distributions happen only on Robinhood Chain).",
   ProtocolRevenue: "The share of every home-chain distribution delivered to the protocol owner (FeesDistributed logs; distributions happen only on Robinhood Chain).",
@@ -94,7 +94,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [PLATFORM_FEES]:
-      "Native revenue received by the chain's fee collector from every protocol stream: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, the instant-launch fee, and the locker's fee-claim cut (FeesReceived logs; bridge repatriations excluded).",
+      "Native revenue received by the chain's fee collector (PlatformFeeCollector on Robinhood Chain; BridgingFeeCollector on the HyperEVM satellite) from every protocol stream: the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, the instant-launch fee, and the locker's fee-claim cut (FeesReceived logs; bridge repatriations excluded on Robinhood so satellite revenue counts once, at origin).",
   },
   Revenue: {
     [PLATFORM_REVENUE]:
