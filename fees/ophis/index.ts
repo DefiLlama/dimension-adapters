@@ -51,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Ophis fees assessed on successfully settled Ophis-attributed fills, including the 1 bp base fee and capped price-improvement capture. Values come from Ophis' settlement-fill ledger and are priced in USD at settlement.",
+    Fees: "Ophis fees assessed on successfully settled Ophis-attributed fills, including the 1 bp base fee and capped price-improvement capture. Values come from Ophis' settlement-fill ledger, are bucketed by settlement date, and are valued in USD by the reporting indexer.",
   UserFees: "Total Ophis fees assessed on successfully settled fills.",
   Revenue: "Fees retained by Ophis. Ophis-operated chains retain the full fee; on CoW-hosted chains this is net of CoW Protocol's 25% partner-fee share.",
   ProtocolRevenue: "Revenue retained by Ophis after CoW Protocol's hosted-chain share.",
