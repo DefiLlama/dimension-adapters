@@ -57,59 +57,62 @@ const fetch = async (options: FetchOptions) => {
   const timeRange = `block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
-  // Settlement payouts, per settlement. `outer_program_id` keeps this to transfers the Trade
-  // Executor program itself made, and the vault keys each settlement so a transaction carrying two
-  // of them stays split.
-  const settlementQuery = `
-    WITH fee_legs AS (
-      SELECT txn_id, from_address AS vault, SUM(raw_amount) AS fee_total
+  // One Allium job: settlement legs (program USDC transfers, vault-keyed so two
+  // settlements in the same tx stay split) plus fee-wallet inflows on txs that
+  // invoke Trade Executor. `create_intent` is a CPI, so match `program_id` on
+  // `solana.raw.instructions` rather than scanning `solana.raw.transactions`.
+  const query = `
+    WITH ride_txs AS (
+      SELECT DISTINCT txn_id
+      FROM solana.raw.instructions
+      WHERE program_id = '${TRADE_EXECUTOR}'
+        AND ${timeRange}
+    ),
+    program_transfers AS (
+      SELECT txn_id, from_address, to_address, raw_amount
       FROM solana.assets.transfers
       WHERE outer_program_id = '${TRADE_EXECUTOR}'
-        AND to_address = '${FEE_WALLET}'
         AND mint = '${ADDRESSES.solana.USDC}'
         AND ${timeRange}
+    ),
+    fee_legs AS (
+      SELECT txn_id, from_address AS vault, SUM(raw_amount) AS fee_total
+      FROM program_transfers
+      WHERE to_address = '${FEE_WALLET}'
       GROUP BY txn_id, from_address
     ),
     payouts AS (
       SELECT txn_id, from_address AS vault, to_address AS recipient, SUM(raw_amount) AS amount
+      FROM program_transfers
+      WHERE to_address != '${FEE_WALLET}'
+      GROUP BY txn_id, from_address, to_address
+    ),
+    fee_inflows AS (
+      SELECT txn_id, raw_amount
       FROM solana.assets.transfers
-      WHERE outer_program_id = '${TRADE_EXECUTOR}'
-        AND to_address != '${FEE_WALLET}'
+      WHERE to_address = '${FEE_WALLET}'
+        AND from_address != '${FEE_WALLET}'
         AND mint = '${ADDRESSES.solana.USDC}'
         AND ${timeRange}
-      GROUP BY txn_id, from_address, to_address
     )
-    SELECT f.txn_id AS txn_id, f.vault AS vault, f.fee_total AS fee_total, p.amount AS amount
+    SELECT 'settlement' AS kind, f.txn_id AS txn_id, f.vault AS vault, f.fee_total AS fee_total, p.amount AS amount
     FROM fee_legs f
     LEFT JOIN payouts p ON p.txn_id = f.txn_id AND p.vault = f.vault
+    UNION ALL
+    SELECT 'inflow' AS kind, NULL AS txn_id, NULL AS vault, NULL AS fee_total, COALESCE(SUM(i.raw_amount), 0) AS amount
+    FROM fee_inflows i
+    INNER JOIN ride_txs r ON r.txn_id = i.txn_id
   `;
 
-  // What the fee wallet receives in transactions that use the Trade Executor program. Whatever the
-  // settlements above do not account for is the trade opening fee, which the frontend sends as a
-  // plain SPL transfer outside the program. `create_intent` runs as a CPI so it has no outer
-  // instruction to match on, but the program is still in the transaction's account keys.
-  const inflowQuery = `
-    WITH ride_txs AS (
-      SELECT txn_id
-      FROM solana.raw.transactions
-      WHERE success = true
-        AND ARRAY_CONTAINS('${TRADE_EXECUTOR}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
-        AND ${timeRange}
-    )
-    SELECT COALESCE(SUM(t.raw_amount), 0) AS amount
-    FROM solana.assets.transfers t
-    JOIN ride_txs r ON r.txn_id = t.txn_id
-    WHERE t.to_address = '${FEE_WALLET}'
-      AND t.from_address != '${FEE_WALLET}'
-      AND t.mint = '${ADDRESSES.solana.USDC}'
-      AND ${timeRange}
-  `;
-
-  const rows = await queryAllium(settlementQuery);
-  const inflow = await queryAllium(inflowQuery);
+  const rows = await queryAllium(query);
 
   const settlements = new Map<string, { feeTotal: number; payouts: number[] }>();
+  let inflowAmount = 0;
   rows.forEach((row: any) => {
+    if (String(row.kind).toLowerCase() === "inflow") {
+      inflowAmount = Number(row.amount ?? 0);
+      return;
+    }
     const key = `${row.txn_id}:${row.vault}`;
     if (!settlements.has(key)) settlements.set(key, { feeTotal: Number(row.fee_total), payouts: [] });
     if (row.amount) settlements.get(key)!.payouts.push(Number(row.amount));
@@ -121,7 +124,7 @@ const fetch = async (options: FetchOptions) => {
     settlementFees += feeTotal;
     callerFees += callerShare(feeTotal, payouts);
   });
-  const openingFees = Number(inflow[0]?.amount ?? 0) - settlementFees;
+  const openingFees = inflowAmount - settlementFees;
 
   const usdc = ADDRESSES.solana.USDC;
   dailyFees.add(usdc, openingFees, "Trade Opening Fees");
@@ -142,13 +145,13 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything paid to trade on Ride Markets, in USDC: a fee when a trade is opened, a fee when it settles, and the share of the profit paid to the caller who deployed the trade.",
   Revenue: "The opening and settlement fees, which the protocol keeps.",
-  ProtocolRevenue: "Same as revenue, collected in the Ride Markets fee wallet.",
+  ProtocolRevenue: "The opening and settlement fees, which the protocol keeps.",
   SupplySideRevenue: "The profit share paid to callers, which never reaches the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Trade Opening Fees": "Charged when a trade is opened, based on its volume. Taken by the frontend as a direct USDC transfer to the fee wallet, outside the Trade Executor program, so it is counted only in transactions that use that program and only for what the settlement fees do not already account for.",
+    "Trade Opening Fees": "Charged when a trade is opened, based on its volume. Taken by the frontend as a direct USDC transfer to the fee wallet, outside the Trade Executor program, so it is counted only in transactions that invoke that program (including CPI `create_intent`) and only for what the settlement fees do not already account for.",
     "Settlement Fees": "Charged by the Trade Executor program when a trade settles: 0.7% of the USDC returned to the treasury, plus a cut of the caller's profit share.",
     "Caller Profit Share": "Paid out of the treasury's realised profit to the caller who deployed the trade, at a rate the DAO sets. The protocol sets and enforces this rate but does not receive it.",
   },
@@ -157,8 +160,8 @@ const breakdownMethodology = {
     "Settlement Fees To Protocol": "All settlement fees are paid to the Ride Markets fee wallet.",
   },
   ProtocolRevenue: {
-    "Trade Opening Fees To Protocol": "Same as revenue.",
-    "Settlement Fees To Protocol": "Same as revenue.",
+    "Trade Opening Fees To Protocol": "All trade opening fees are paid to the Ride Markets fee wallet.",
+    "Settlement Fees To Protocol": "All settlement fees are paid to the Ride Markets fee wallet.",
   },
   SupplySideRevenue: {
     "Caller Profit Share To Callers": "Paid straight from the trade's proceeds to the caller, as the cost of sourcing the trade.",
