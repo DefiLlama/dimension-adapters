@@ -17,9 +17,7 @@ const fetch = async (options: FetchOptions) => {
       SELECT log_message
       FROM solana.instruction_calls
       CROSS JOIN UNNEST(log_messages) AS u(log_message)
-      WHERE block_date BETWEEN date(from_unixtime(${options.fromTimestamp}))
-        AND date(from_unixtime(${options.toTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND executing_account = '${PROGRAM_ID}'
         AND is_inner = false
         AND tx_success = true
