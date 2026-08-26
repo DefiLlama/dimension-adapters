@@ -1,4 +1,5 @@
 import * as sdk from "@defillama/sdk";
+import PromisePool from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -207,14 +208,14 @@ const fetch = async (options: FetchOptions) => {
   if (collateralKeys.length > 0) {
     const uniqueTs = [...new Set(periodBuys.map((b) => b.ts))];
     const pricesByTs: Record<number, any> = {};
-    await Promise.all(
-      uniqueTs.map(async (ts) => {
+    await PromisePool.withConcurrency(5)
+      .for(uniqueTs)
+      .process(async (ts) => {
         pricesByTs[ts] = await sdk.coins.getPrices(
           [key(HAI), ...collateralKeys],
           ts
         );
-      })
-    );
+      });
 
     for (const b of periodBuys) {
       if (!b.token) continue;
