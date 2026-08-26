@@ -106,6 +106,15 @@ const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
   return pending;
 };
 
+/**
+ * Fetches and validates Ophis reporting data for one day and chain.
+ * `options.chain` must be one of the keys in {@link ophisChainConfig}.
+ *
+ * @returns The validated chain row, or `undefined` when a valid response has no
+ * activity row for the requested chain.
+ * @throws If the chain is unsupported or the API response is stale, malformed,
+ * duplicated, incomplete, or internally inconsistent.
+ */
 export const fetchOphisChainDay = async (options: FetchOptions): Promise<OphisChainDay | undefined> => {
   const config = ophisChainConfig[options.chain];
   if (!config) throw new Error(`ophis: unsupported DefiLlama chain ${options.chain}`);
