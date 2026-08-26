@@ -27,6 +27,8 @@ const NON_PROTOCOL_TREASURY_BPS = BUYBACK_BPS + JACKPOT_BPS + STAKING_BPS;
 
 const LABELS = {
   MINING_FEES: "Mining Fees",
+  MINING_FEES_REVENUE: "Mining Fees Revenue",
+  PROTOCOL_REVENUE: "Protocol Revenue",
   MINING_FEES_TO_BUYBACK: "Mining Fees to $BDGR Buyback",
   MINING_FEES_TO_BURN_POT: "Mining Fees to Burn Pot",
   MINING_FEES_TO_JACKPOT: "Mining Fees to Jackpot",
@@ -124,7 +126,11 @@ const fetch = async (options: FetchOptions) => {
     row.jackpot_lamports ?? 0,
     LABELS.MINING_FEES_TO_JACKPOT,
   );
-  dailyProtocolRevenue.add(SOL_MINT, row.protocol_lamports ?? 0);
+  dailyProtocolRevenue.add(
+    SOL_MINT,
+    row.protocol_lamports ?? 0,
+    LABELS.PROTOCOL_REVENUE,
+  );
 
   dailyRevenue.add(
     SOL_MINT,
@@ -132,7 +138,7 @@ const fetch = async (options: FetchOptions) => {
       Number(row.round_fee_lamports ?? 0) - Number(row.jackpot_lamports ?? 0),
       0,
     ),
-    LABELS.MINING_FEES,
+    LABELS.MINING_FEES_REVENUE,
   );
 
   dailyHoldersRevenue.add(
@@ -179,8 +185,12 @@ const breakdownMethodology = {
       "Total native-SOL round fees calculated from successful BidGrid ResetEvent allocations.",
   },
   Revenue: {
-    [LABELS.MINING_FEES]:
+    [LABELS.MINING_FEES_REVENUE]:
       "Native-SOL round fees retained as gross profit after the jackpot payout allocation.",
+  },
+  ProtocolRevenue: {
+    [LABELS.PROTOCOL_REVENUE]:
+      "The 1.5% protocol fee from each round's total deployed SOL, retained as the protocol treasury allocation.",
   },
   SupplySideRevenue: {
     [LABELS.MINING_FEES_TO_JACKPOT]:
