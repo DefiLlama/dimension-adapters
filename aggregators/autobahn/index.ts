@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  start: "2026-07-09", // first observed trade in dex_solana.trades
+  start: "2026-01-15", // first trade in dex_solana.trades (Dune MIN(block_time))
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.DUNE],
   methodology: {
