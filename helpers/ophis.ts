@@ -3,24 +3,24 @@ import { CHAIN } from "./chains";
 import fetchURL from "../utils/fetchURL";
 
 const API = "https://rebates.ophis.fi/defillama";
-const START = "2026-05-14";
+export const OPHIS_START = "2026-05-14";
 
 // Canonical reporting-chain list and IDs:
 // https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/scan/chains.ts
 export const ophisChainConfig: Record<string, { id: number; start: string }> = {
-  [CHAIN.ETHEREUM]: { id: 1, start: START },
-  [CHAIN.OPTIMISM]: { id: 10, start: START },
-  [CHAIN.BSC]: { id: 56, start: START },
-  [CHAIN.XDAI]: { id: 100, start: START },
-  [CHAIN.UNICHAIN]: { id: 130, start: START },
-  [CHAIN.POLYGON]: { id: 137, start: START },
-  [CHAIN.ROBINHOOD]: { id: 4663, start: START },
-  [CHAIN.BASE]: { id: 8453, start: START },
-  [CHAIN.PLASMA]: { id: 9745, start: START },
-  [CHAIN.ARBITRUM]: { id: 42161, start: START },
-  [CHAIN.AVAX]: { id: 43114, start: START },
-  [CHAIN.INK]: { id: 57073, start: START },
-  [CHAIN.LINEA]: { id: 59144, start: START },
+  [CHAIN.ETHEREUM]: { id: 1, start: OPHIS_START },
+  [CHAIN.OPTIMISM]: { id: 10, start: OPHIS_START },
+  [CHAIN.BSC]: { id: 56, start: OPHIS_START },
+  [CHAIN.XDAI]: { id: 100, start: OPHIS_START },
+  [CHAIN.UNICHAIN]: { id: 130, start: OPHIS_START },
+  [CHAIN.POLYGON]: { id: 137, start: OPHIS_START },
+  [CHAIN.ROBINHOOD]: { id: 4663, start: OPHIS_START },
+  [CHAIN.BASE]: { id: 8453, start: OPHIS_START },
+  [CHAIN.PLASMA]: { id: 9745, start: OPHIS_START },
+  [CHAIN.ARBITRUM]: { id: 42161, start: OPHIS_START },
+  [CHAIN.AVAX]: { id: 43114, start: OPHIS_START },
+  [CHAIN.INK]: { id: 57073, start: OPHIS_START },
+  [CHAIN.LINEA]: { id: 59144, start: OPHIS_START },
 };
 
 export interface OphisChainDay {
@@ -34,9 +34,12 @@ export interface OphisChainDay {
   users: number;
 }
 
+export type OphisProtocolDay = Omit<OphisChainDay, "chainId">;
+
 interface OphisDayResponse {
   ok: true;
   date: string;
+  totals: OphisProtocolDay;
   chains: OphisChainDay[];
 }
 
@@ -77,6 +80,29 @@ const validateChainDay = (value: unknown, date: string): OphisChainDay => {
   return row;
 };
 
+const validateProtocolDay = (value: unknown, date: string): OphisProtocolDay => {
+  if (!isRecord(value)) throw new Error(`ophis: invalid protocol totals for ${date}`);
+
+  const usdFields = ["volumeUsd", "feesUsd", "revenueUsd", "supplySideRevenueUsd"] as const;
+  const countFields = ["trades", "transactions", "users"] as const;
+  for (const field of usdFields)
+    if (!isNonNegativeFinite(value[field]))
+      throw new Error(`ophis: invalid protocol ${field} for ${date}`);
+  for (const field of countFields)
+    if (!isNonNegativeInteger(value[field]))
+      throw new Error(`ophis: invalid protocol ${field} for ${date}`);
+
+  const totals = value as unknown as OphisProtocolDay;
+  if (totals.transactions > totals.trades || totals.users > totals.trades)
+    throw new Error(`ophis: inconsistent protocol activity counts for ${date}`);
+
+  const feeTolerance = Math.max(1e-9, totals.feesUsd * 1e-12);
+  if (Math.abs(totals.feesUsd - totals.revenueUsd - totals.supplySideRevenueUsd) > feeTolerance)
+    throw new Error(`ophis: unbalanced protocol fee split for ${date}`);
+
+  return totals;
+};
+
 const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
   const cached = responseCache.get(date);
   if (cached) return cached;
@@ -86,6 +112,7 @@ const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
     if (!isRecord(response) || response.ok !== true || response.date !== date || !Array.isArray(response.chains))
       throw new Error(`ophis: incomplete reporting response for ${date}`);
 
+    const totals = validateProtocolDay(response.totals, date);
     const chains = response.chains.map((row) => validateChainDay(row, date));
     const returnedChainIds = new Set<number>();
     for (const row of chains) {
@@ -96,7 +123,24 @@ const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
       returnedChainIds.add(row.chainId);
     }
 
-    return { ok: true as const, date, chains };
+    const additiveUsdFields = ["volumeUsd", "feesUsd", "revenueUsd", "supplySideRevenueUsd"] as const;
+    for (const field of additiveUsdFields) {
+      const chainSum = chains.reduce((sum, row) => sum + row[field], 0);
+      const tolerance = Math.max(1e-9, Math.abs(totals[field]) * 1e-12);
+      if (Math.abs(totals[field] - chainSum) > tolerance)
+        throw new Error(`ophis: protocol ${field} does not match chain sum for ${date}`);
+    }
+    for (const field of ["trades", "transactions"] as const) {
+      const chainSum = chains.reduce((sum, row) => sum + row[field], 0);
+      if (totals[field] !== chainSum)
+        throw new Error(`ophis: protocol ${field} does not match chain sum for ${date}`);
+    }
+    const maxChainUsers = chains.reduce((max, row) => Math.max(max, row.users), 0);
+    const summedChainUsers = chains.reduce((sum, row) => sum + row.users, 0);
+    if (totals.users < maxChainUsers || totals.users > summedChainUsers)
+      throw new Error(`ophis: invalid cross-chain user total for ${date}`);
+
+    return { ok: true as const, date, totals, chains };
   })();
 
   responseCache.set(date, pending);
@@ -121,3 +165,7 @@ export const fetchOphisChainDay = async (options: FetchOptions): Promise<OphisCh
   const response = await fetchOphisDay(options.dateString);
   return response.chains.find(({ chainId }) => chainId === config.id);
 };
+
+/** Fetches the validated protocol-wide totals, including cross-chain user deduplication. */
+export const fetchOphisProtocolDay = async (options: FetchOptions): Promise<OphisProtocolDay> =>
+  (await fetchOphisDay(options.dateString)).totals;
