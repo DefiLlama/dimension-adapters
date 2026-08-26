@@ -164,6 +164,16 @@ const feesConfigs: Record<string, Config> = {
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
+  },
+  "halfmoon": {
+    broker_id: "halfmoon",
+    start: "2026-05-28",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Halfmoon interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
   }
 }
 
