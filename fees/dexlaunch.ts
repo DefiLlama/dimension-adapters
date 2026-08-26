@@ -28,7 +28,9 @@ const FEES_DISTRIBUTED = "event FeesDistributed(uint256 holdersAmount, uint256 o
 
 // Per-chain fee sink, from the protocol's address registry (https://dexlaunch.fun/docs,
 // "Deployed contracts"). Both are UUPS proxies — stable addresses, only impls rotate.
-const config: Record<string, { collector: string; excludeFrom?: string; hasDistributions: boolean; start: string }> = {
+// One per-chain object, passed straight through as `adapter` (repo convention — the module
+// builder keeps only the whitelisted keys like `start`; fetch reads the rest at call time).
+const chainConfig: Record<string, { collector: string; excludeFrom?: string; hasDistributions: boolean; start: string }> = {
   [CHAIN.ROBINHOOD]: {
     // https://robinhoodchain.blockscout.com/address/0x949a6e0530119d7cDBE5e904e47056b39BE1f156
     collector: "0x949a6e0530119d7cDBE5e904e47056b39BE1f156",
@@ -54,7 +56,7 @@ const FEES_TO_HOLDERS = "Fees To Governance Holders";
 const FEES_TO_TREASURY = "Fees To Treasury";
 
 async function fetch(options: FetchOptions) {
-  const { collector, excludeFrom, hasDistributions } = config[options.chain];
+  const { collector, excludeFrom, hasDistributions } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -114,7 +116,7 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   fetch,
-  chains: Object.entries(config).map(([chain, { start }]) => [chain, { start }]),
+  adapter: chainConfig,
 };
 
 export default adapter;
