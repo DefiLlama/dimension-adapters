@@ -12,6 +12,27 @@ const BORROW_FEES = "Borrow Fees";
 // https://github.com/Abracadabra-money/abracadabra-money-contracts/blob/main/src/periphery/CauldronRegistry.sol
 const CAULDRON_REGISTRY = "0xefCDC6FB4973aC30325Fb2B39e1a2F384E254b7A";
 
+// Cauldrons wound down before the registry was deployed (2024) that were never
+// backfilled into it
+const EXTRA_CAULDRONS: Record<string, Array<string>> = {
+  [CHAIN.ETHEREUM]: [
+    "0x59e9082e068ddb27fc5ef1690f9a9f22b32e573f", // UST (Degenbox)
+    "0xbc36fde44a7fd8f545d459452ef9539d7a14dd63", // UST
+    "0x46f54d434063e5f1a2b2cc6d9aaa657b1b9ff82c", // stkcvxcrv3crypto
+    "0xce450a23378859fb5157f4c4cccaf48faa30865b", // yvCurve-IronBank
+    "0x40d95c4b34127cf43438a963e7c066156c5b87a3", // yvUSDT
+    "0x6bcd99d6009ac1666b58cb68fb4a50385945cda2", // yvUSDC
+    "0x289424add4a1a503870eb475fd8bf1d586b134ed", // stkcvx3Crv
+    "0xc6d3b82f9774db8f92095b5e4352a8bb8b0dc20d", // sSPELL
+    "0x1062eb452f8c7a94276437ec1f4aaca9b1495b72", // yvsteCRV
+  ],
+  [CHAIN.ARBITRUM]: [
+    "0x5698135ca439f21a57bddbe8b582c62f090406d5", // glvGMX
+    "0x49de724d7125641f56312ebbcbf48ef107c8fa57", // WBTC
+    "0x780db9770ddc236fd659a39430a8a7cc07d0c320", // WETH
+  ],
+};
+
 const ABI = {
   REGISTRY_LENGTH: "uint256:length",
   REGISTRY_CAULDRONS: "function cauldrons(uint256) view returns (address cauldron, uint8 version, bool deprecated)",
@@ -24,8 +45,10 @@ const EVENT = {
   LOG_ACCRUE: "event LogAccrue(uint128 accruedAmount)",
   // amount = principal + opening fee (see CauldronV2+._borrow)
   LOG_BORROW: "event LogBorrow(address indexed from, address indexed to, uint256 amount, uint256 part)",
-  // emitted by CauldronV3+ only, older CauldronV2 markets have no liquidation event
-  LOG_LIQUIDATION: "event LogLiquidation(address indexed from, address indexed user, address indexed to, uint256 collateralShare, uint256 borrowAmount, uint256 borrowPart)",
+  // liquidate() emits LogRemoveCollateral + LogRepay for every liquidated user
+  // on all cauldron versions (the LogLiquidation event only exists on V3+)
+  LOG_REPAY: "event LogRepay(address indexed from, address indexed to, uint256 amount, uint256 part)",
+  LOG_REMOVE_COLLATERAL: "event LogRemoveCollateral(address indexed from, address indexed to, uint256 share)",
 };
 
 // BORROW_OPENING_FEE_PRECISION / LIQUIDATION_MULTIPLIER_PRECISION in cauldron contracts
@@ -51,9 +74,11 @@ const getCauldrons = async (options: FetchOptions): Promise<Array<string>> => {
       });
       // v1 cauldrons (5 deprecated 2021 markets on Ethereum) use different
       // Kashi-style event signatures and are excluded
-      return cauldronInfos
+      const registryCauldrons = cauldronInfos
         .filter((info: any) => Number(info.version) >= 2)
-        .map((info: any) => info.cauldron);
+        .map((info: any) => info.cauldron.toLowerCase());
+      const extraCauldrons = EXTRA_CAULDRONS[options.chain] ?? [];
+      return [...new Set([...registryCauldrons, ...extraCauldrons])];
     },
   });
 };
@@ -73,10 +98,11 @@ const fetch = async (options: FetchOptions) => {
     liquidationMultiplierByCauldron[cauldron.toLowerCase()] = liquidationMultipliers[i] !== null ? Number(liquidationMultipliers[i]) : FEE_PRECISION;
   });
 
-  const [accrueLogs, borrowLogs, liquidationLogs] = await Promise.all([
+  const [accrueLogs, borrowLogs, repayLogs, removeCollateralLogs] = await Promise.all([
     options.getLogs({ targets: cauldrons, eventAbi: EVENT.LOG_ACCRUE }),
     options.getLogs({ targets: cauldrons, eventAbi: EVENT.LOG_BORROW, entireLog: true, parseLog: true }),
-    options.getLogs({ targets: cauldrons, eventAbi: EVENT.LOG_LIQUIDATION, entireLog: true, parseLog: true }),
+    options.getLogs({ targets: cauldrons, eventAbi: EVENT.LOG_REPAY, entireLog: true, parseLog: true }),
+    options.getLogs({ targets: cauldrons, eventAbi: EVENT.LOG_REMOVE_COLLATERAL, entireLog: true, parseLog: true }),
   ]);
 
   let interestFees = 0;
@@ -96,12 +122,23 @@ const fetch = async (options: FetchOptions) => {
     borrowFees += (Number(log.args.amount) / 1e18) * fee / (FEE_PRECISION + fee);
   });
 
-  liquidationLogs.forEach((log: any) => {
-    // liquidation penalty paid by the borrower = collateral seized minus debt:
-    //   borrowAmount * (multiplier - LIQUIDATION_MULTIPLIER_PRECISION) / LIQUIDATION_MULTIPLIER_PRECISION
+  // liquidate() emits LogRemoveCollateral directly followed by LogRepay for each
+  // liquidated user (all cauldron versions), while a regular remove-collateral +
+  // repay cook has a BentoBox LogTransfer between them, so a LogRepay immediately
+  // preceded by a LogRemoveCollateral from the same cauldron is a liquidation
+  const logIndexOf = (log: any): number => Number(log.logIndex ?? log.index);
+  const removeCollateralPositions = new Set(
+    removeCollateralLogs.map((log: any) => `${log.transactionHash}:${logIndexOf(log)}:${log.address.toLowerCase()}`)
+  );
+
+  repayLogs.forEach((log: any) => {
+    const cauldron = log.address.toLowerCase();
+    if (!removeCollateralPositions.has(`${log.transactionHash}:${logIndexOf(log) - 1}:${cauldron}`)) return;
+    // liquidation penalty paid by the borrower = collateral seized minus debt repaid:
+    //   amount * (multiplier - LIQUIDATION_MULTIPLIER_PRECISION) / LIQUIDATION_MULTIPLIER_PRECISION
     // where multiplier is the raw LIQUIDATION_MULTIPLIER (e.g. 105000 = 5% penalty).
-    const multiplier = liquidationMultiplierByCauldron[log.address.toLowerCase()];
-    liquidationFees += (Number(log.args.borrowAmount) / 1e18) * (multiplier - FEE_PRECISION) / FEE_PRECISION;
+    const multiplier = liquidationMultiplierByCauldron[cauldron];
+    liquidationFees += (Number(log.args.amount) / 1e18) * (multiplier - FEE_PRECISION) / FEE_PRECISION;
   });
 
   const dailyFees = options.createBalances();
@@ -138,7 +175,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees paid by MIM borrowers in Abracadabra Cauldrons: interest on outstanding debt, a one-time borrow/opening fee, and liquidation penalties. Tracked from on-chain cauldron events (LogAccrue, LogBorrow, LogLiquidation).",
+  Fees: "Fees paid by MIM borrowers in Abracadabra Cauldrons: interest on outstanding debt, a one-time borrow/opening fee, and liquidation penalties. Tracked from on-chain cauldron events (LogAccrue, LogBorrow, LogRemoveCollateral + LogRepay pairs for liquidations).",
   Revenue: "Protocol's share of Cauldron fees: all interest and borrow/opening fees (MIM is minted, there are no lenders) plus 10% of liquidation penalties.",
   ProtocolRevenue: "50% of protocol revenue directed to the treasury (AIP #10).",
   HoldersRevenue: "50% of protocol revenue used for SPELL buybacks and mSPELL staker rewards (AIP #10).",
@@ -149,7 +186,7 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: "Interest accrued on outstanding MIM debt in Cauldrons.",
     [BORROW_FEES]: "One-time borrow/opening fees charged when users borrow MIM from Cauldrons.",
-    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by borrowers on liquidated positions (CauldronV3+ markets).",
+    [METRIC.LIQUIDATION_FEES]: "Liquidation penalties paid by borrowers on liquidated positions.",
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: "Interest on MIM debt retained by the protocol.",
@@ -181,6 +218,7 @@ const adapter: Adapter = {
     [CHAIN.KAVA]: { start: "2023-05-01" },
     [CHAIN.ARBITRUM]: { start: "2021-09-01" },
     [CHAIN.AVAX]: { start: "2021-09-01" },
+    [CHAIN.BSC]: { start: "2021-11-01" },
   },
   fetch,
   methodology,
