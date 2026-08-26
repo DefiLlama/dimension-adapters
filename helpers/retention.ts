@@ -92,6 +92,10 @@ export interface RetentionManifest {
   sources: RetentionSource[];
 }
 
+/**
+ * Validates manifest dates, numeric bounds, and source IDs.
+ * @returns The validated manifest unchanged.
+ */
 export function defineRetentionManifest(
   manifest: RetentionManifest,
 ): RetentionManifest {
