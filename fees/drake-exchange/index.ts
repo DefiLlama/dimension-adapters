@@ -11,6 +11,15 @@ const PLATFORM_MANAGER = "0x7940575377C3c2ABdA23813c123b4C880E217d6d";
 const COMMISSION_FEE = 3;
 const MARGIN_CHANGE_FEE = 4;
 
+// Order sizes carry 4 decimals on-chain (TypeLibrary.BPS_SCALING_FACTOR = 1e4);
+// notional (AUSD base units) = size * executionPrice / SIZE_SCALE.
+const SIZE_SCALE = 10_000n;
+
+// dailyVolume breakdown labels: taker fills are matched against the orderbook, the
+// liquidity vault (AMM), or both in one fill.
+const ORDERBOOK_VOLUME = "Orderbook Volume";
+const AMM_VOLUME = "AMM Volume";
+
 type FeeSplit = { vault: number; treasury: number };
 type SplitSchedule = Array<{ fromBlock: number } & FeeSplit>;
 
@@ -48,10 +57,16 @@ const fetch = async (options: FetchOptions) => {
     trades.forEach((t: any) => {
         const ob = BigInt(t.args.orderbookVolume);
         const amm = BigInt(t.args.vaultVolume);
-        const total = ob + amm;
-        dailyVolume.add(AUSD, total);
-        if (total > 0n)
-            fillRatioByTx[t.transactionHash] = Number(ob) / Number(total);
+        const totalSize = ob + amm;
+        const price = BigInt(t.args.executionPrice);
+
+        if (ob > 0n)
+            dailyVolume.add(AUSD, (ob * price) / SIZE_SCALE, ORDERBOOK_VOLUME);
+        if (amm > 0n)
+            dailyVolume.add(AUSD, (amm * price) / SIZE_SCALE, AMM_VOLUME);
+        // Venue split is a size ratio (both legs share the same execution price).
+        if (totalSize > 0n)
+            fillRatioByTx[t.transactionHash] = Number(ob) / Number(totalSize);
     });
 
     const transfers = await options.getLogs({
@@ -106,28 +121,50 @@ const fetch = async (options: FetchOptions) => {
     fbFees.forEach((f: any) => {
         if (f.totalFBFee <= 0n) return;
         dailyFees.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
-        dailySupplySideRevenue.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue.add(
+            AUSD,
+            BigInt(f.totalFBFee),
+            METRIC.BORROW_INTEREST,
+        );
     });
 
-    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+    return {
+        dailyVolume,
+        dailyFees,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
+    };
 };
 
 const breakdownMethodology = {
+    Volume: {
+        [ORDERBOOK_VOLUME]:
+            "Notional (size x execution price, in AUSD) of taker fills matched against the orderbook.",
+        [AMM_VOLUME]:
+            "Notional (size x execution price, in AUSD) of taker fills matched against the liquidity vault (AMM).",
+    },
     Fees: {
         [METRIC.TRADING_FEES]: "Trading commission on orderbook and AMM fills.",
         [METRIC.MARGIN_FEES]: "Isolated margin add/reduce fees.",
-        [METRIC.BORROW_INTEREST]: "Net borrowing and imbalance funding fees charged to traders.",
+        [METRIC.BORROW_INTEREST]:
+            "Net borrowing and imbalance funding fees charged to traders.",
     },
     Revenue: {
-        [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.TRADING_FEES]:
+            "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
     },
     ProtocolRevenue: {
-        [METRIC.TRADING_FEES]: "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.TRADING_FEES]:
+            "Treasury share of trading commission per the orderbook and AMM splits in effect at that block.",
     },
     SupplySideRevenue: {
-        [METRIC.TRADING_FEES]: "Liquidity vault share of trading commission per the orderbook and AMM splits in effect at that block.",
-        [METRIC.MARGIN_FEES]: "100% of isolated margin add/reduce fees routed to the liquidity vault.",
-        [METRIC.BORROW_INTEREST]: "100% of borrowing and funding fees routed to the liquidity vault.",
+        [METRIC.TRADING_FEES]:
+            "Liquidity vault share of trading commission per the orderbook and AMM splits in effect at that block.",
+        [METRIC.MARGIN_FEES]:
+            "100% of isolated margin add/reduce fees routed to the liquidity vault.",
+        [METRIC.BORROW_INTEREST]:
+            "100% of borrowing and funding fees routed to the liquidity vault.",
     },
 };
 
@@ -135,13 +172,15 @@ export default {
     version: 2,
     pullHourly: true,
     chains: [CHAIN.MONAD],
-    start: '2026-07-07',
+    start: "2026-07-07",
     fetch,
     methodology: {
+        Volume: "Notional taker volume (size x execution price, in AUSD) across orderbook and AMM fills.",
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
         Revenue:
             "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
-        ProtocolRevenue: "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
+        ProtocolRevenue:
+            "Share of trade commission fees routed to the Operation Vault (treasury) per the orderbook and AMM splits in effect at that block.",
         SupplySideRevenue:
             "Share routed to the Liquidity Vault per the orderbook and AMM splits in effect at that block, plus 100% of margin-change and borrowing/funding fees.",
     },
