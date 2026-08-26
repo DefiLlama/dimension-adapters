@@ -7,7 +7,7 @@ const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 // On-chain crypto gacha sinks. All non-team USDC inflows are pack purchases, so there is no
 // price-tier filter: CC keeps launching new tiers (150/151/420/5000 in Jul-2026) and a hardcoded
 // tier list silently drops their revenue until someone notices. Same rule as the fiat rail below.
-export const GACHA_ONCHAIN_ADDRESSES = [
+const GACHA_ONCHAIN_ADDRESSES = [
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z', // decommissioned pre-Dec-2025, kept for history
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3', // primary on-chain sink
 ];
@@ -31,7 +31,7 @@ const BUYBACK_ADDRESSES: string[] = [
   // 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial buyback hub (seen since 2026-06-11)
 ];
 
-export const TEAM_ADDRESSES = [
+const TEAM_ADDRESSES = [
   'BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
   '21KhtC7y2JGYvwc8dcGqTdbrudbM8fgMPJsVwxRQqdY8',
   'DFEstpYN3fsz93AC9v2ujzPPngPgodqH2xxopuyfSsAE',
