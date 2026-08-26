@@ -6,12 +6,16 @@ import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
 
 const API = "https://prod-api.ekubo.org";
+// Robinhood Chain mainnet chain ID.
 const CHAIN_ID = "4663";
 // Deployed STONX Ve33 extension on Robinhood Chain.
 // https://docs.ekubo.org/products/ve33/
 const VE33 = "0xD18685A514E59b06d59824e16Db07e73345d9953";
+// Maximum page size accepted by the Ekubo Ve33 pools endpoint.
 const PAGE_SIZE = 200;
+// Bound concurrent API requests while keeping the per-pool history fan-out fast.
 const API_CONCURRENCY = 8;
+const EVM_ADDRESS_HEX_LENGTH = 40;
 const VOTER_FEES = "Swap Fees To veSTONX Voters";
 
 interface Ve33Pool {
@@ -46,12 +50,14 @@ const poolsUrl = (page: number) =>
 const poolVolumeUrl = (pool: Ve33Pool) =>
   `${API}/pair/${CHAIN_ID}/${pool.token0}/${pool.token1}/volume?coreAddress=${pool.core_address}&poolId=${pool.pool_id}`;
 
+/** Convert the API's decimal token identifier into a 20-byte EVM address. */
 function tokenIdToAddress(tokenId: string): string {
   const hex = BigInt(tokenId).toString(16);
   if (hex === "0") return ADDRESSES.null;
-  return `0x${hex.padStart(40, "0")}`;
+  return `0x${hex.padStart(EVM_ADDRESS_HEX_LENGTH, "0")}`;
 }
 
+/** Fetch every pool configured with the deployed STONX Ve33 extension. */
 async function getVe33Pools(): Promise<Ve33Pool[]> {
   const firstPage: Ve33PoolsResponse = await httpGet(poolsUrl(1));
   const pools = [...firstPage.data];
