@@ -5,23 +5,18 @@ import { queryClickhouse } from "../helpers/indexer";
 import { METRIC } from "../helpers/metrics";
 
 // Total gas fees preserve the existing gas_used * effective_gas_price calculation.
-// Base fees use each transaction's block base_fee_per_gas; priority fees are
+// Base fees use each transaction's block baseFeePerGas; priority fees are
 // derived as total fees minus base fees.
 const SQL_GAS_FEES = `
   SELECT
     CAST(sum(toDecimal256(t.gas_used, 0) * toDecimal256(t.effective_gas_price, 0)) AS String) AS total_fees_wei,
-    CAST(sum(toDecimal256(t.gas_used, 0) * toDecimal256(b.base_fee_per_gas, 0)) AS String) AS base_fees_wei,
+    CAST(sum(toDecimal256(t.gas_used, 0) * toDecimal256(b.baseFeePerGas, 0)) AS String) AS base_fees_wei,
     toString(count()) AS tx_count,
-    toString(countIf(b.height = t.block_number)) AS matched_transactions
+    toString(countIf(b.height = t.block_number AND b.baseFeePerGas IS NOT NULL)) AS matched_transactions
   FROM evm_indexer.transactions AS t
-  ANY LEFT JOIN (
-    SELECT height, base_fee_per_gas
-    FROM evm_indexer.blocks
-    WHERE chain = {chain:UInt64}
-      AND height >= {fromBlock:UInt32}
-      AND height < {toBlock:UInt32}
-      AND base_fee_per_gas IS NOT NULL
-  ) AS b ON b.height = t.block_number
+  ANY LEFT JOIN evm_indexer.blocks AS b
+    ON b.chain = t.chain
+    AND b.height = t.block_number
   WHERE t.chain = {chain:UInt64}
     AND t.block_number >= {fromBlock:UInt32}
     AND t.block_number < {toBlock:UInt32}
