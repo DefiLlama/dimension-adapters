@@ -83,7 +83,7 @@ const methodology = {
   Fees: "Name registration and renewal fees for .robin names (annual rentals, plus temporary Dutch-auction premiums on recently expired names), paid in ETH or USDG.",
   Revenue:
     "Same as fees: 100% of registration and renewal costs accrue to the protocol treasury (a 2-of-3 Safe). There are no third-party fee splits.",
-  ProtocolRevenue: "Same as revenue — all fees accrue to the protocol treasury.",
+  ProtocolRevenue: "Same as revenue (100% of registration and renewal costs) — all fees accrue to the protocol treasury.",
 };
 
 const adapter: Adapter = {
@@ -95,6 +95,16 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
+      [REGISTRATION]:
+        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
+      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
+    },
+    ProtocolRevenue: {
+      [REGISTRATION]:
+        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
+      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
+    },
+    Revenue: {
       [REGISTRATION]:
         "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
       [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
