@@ -35,10 +35,10 @@ const fetch = async (options: FetchOptions) => {
   `;
 
   const [row = {}] = await queryDuneSql(options, query);
-  const tokenIncentives = options.createBalances();
-  tokenIncentives.add(BDGR_MINT, row.raw_amount ?? 0, LABEL);
+  const dailyTokenIncentives = options.createBalances();
+  dailyTokenIncentives.add(BDGR_MINT, row.raw_amount ?? 0, LABEL);
 
-  return { tokenIncentives };
+  return { dailyTokenIncentives };
 };
 
 const methodology = {
