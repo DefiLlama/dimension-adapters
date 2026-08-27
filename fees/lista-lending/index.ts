@@ -39,19 +39,20 @@ const API_CHAIN: Record<string, string> = {
 };
 
 // DAO lending-position yield reclassification (BSC only, live 2026-08-24, moolah#229).
-// The DAO supplies ~99.9995% of the lisUSD MoolahVault, so its share of supplier interest is already
-// counted in SupplySideRevenue above. When that yield is claimed via MoolahVaultAccount.claimYield and
-// routed to Buyback (for LISTA buy-back), we move it from SupplySideRevenue to HoldersRevenue — Fees
-// are unchanged (it is a re-classification, not new income). MoolahVaultAccount only moves lisUSD to
-// its whitelisted recipients through claimYield, so a lisUSD Transfer out of it equals the YieldPaid
-// amount. The other whitelisted leg (LisUSDPoolSet / sLisUSD savers) stays supply-side, so it needs
-// no change here. Lumpy per day (a claim realises yield accrued over many prior days) but conserved
-// cumulatively.
+// The DAO supplies ~99.9995% of the lisUSD MoolahVault, so its share of supplier interest is booked in
+// SupplySideRevenue above. When that yield is claimed via MoolahVaultAccount.claimYield and routed to
+// the DAO's revenue recipient, the protocol keeps it as platform revenue (the recipient swaps it to
+// USDT and forwards to the treasury multisig — it is NOT used to buy back LISTA, confirmed with the
+// Lista contract team), so we move it from SupplySideRevenue to ProtocolRevenue. Fees are unchanged
+// (a re-classification, not new income). MoolahVaultAccount only moves lisUSD to its whitelisted
+// recipients through claimYield, so a lisUSD Transfer out of it equals the YieldPaid amount. The other
+// whitelisted leg (LisUSDPoolSet / sLisUSD savers) is third-party supply and stays supply-side. Lumpy
+// per day (a claim realises yield accrued over many prior days) but conserved cumulatively.
 const MOOLAH_VAULT_ACCOUNT: Record<string, string> = {
   [CHAIN.BSC]: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652",
 };
 const LISUSD_BSC = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
-const YIELD_BUYBACK_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // Buyback -> HoldersRevenue
+const DAO_YIELD_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // DAO position-yield recipient -> swapped to USDT, forwarded to treasury (NOT a LISTA buy-back)
 const PAGE_SIZE = 100;
 const vaultListUrl = (chain: string, page: number) =>
   `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${API_CHAIN[chain]}`;
@@ -153,65 +154,58 @@ const fetch = async (options: FetchOptions) => {
   // At this point dailyRevenue is Lista's protocol cut only -> ProtocolRevenue.
   const dailyProtocolRevenue = dailyRevenue.clone();
 
-  // ---- DAO lending-position yield: reclassify the Buyback leg from supply-side to holders ----
-  const dailyHoldersRevenue = options.createBalances();
+  // ---- DAO lending-position yield: reclassify from supply-side to protocol revenue ----
   const moolahVaultAccount = MOOLAH_VAULT_ACCOUNT[chain];
   if (moolahVaultAccount) {
-    const daoYieldToBuyback = options.createBalances();
+    const daoYieldToTreasury = options.createBalances();
     await addTokensReceived({
       options,
-      target: YIELD_BUYBACK_RECIPIENT_BSC,
+      target: DAO_YIELD_RECIPIENT_BSC,
       fromAddressFilter: moolahVaultAccount,
       tokens: [LISUSD_BSC],
-      balances: daoYieldToBuyback,
+      balances: daoYieldToTreasury,
     });
-    // Move it out of supply-side and into holders/revenue; Fees stay the same.
-    dailyHoldersRevenue.addBalances(daoYieldToBuyback, METRIC.TOKEN_BUY_BACK);
-    dailyRevenue.addBalances(daoYieldToBuyback, METRIC.TOKEN_BUY_BACK);
-    dailySupplySideRevenue.addBalances(daoYieldToBuyback.clone(-1), METRIC.BORROW_INTEREST);
+    // The DAO's own position yield kept by the protocol -> ProtocolRevenue; remove it from the
+    // supply side. It is not a LISTA buy-back, so it is NOT holders revenue. Fees stay the same.
+    dailyRevenue.addBalances(daoYieldToTreasury, METRIC.BORROW_INTEREST);
+    dailyProtocolRevenue.addBalances(daoYieldToTreasury, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addBalances(daoYieldToTreasury.clone(-1), METRIC.BORROW_INTEREST);
   }
 
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Fees: "Total borrow interest paid by borrowers across all Moolah markets.",
-  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee) plus the DAO's own MoolahVault position yield that it directs to LISTA buy-back.",
-  ProtocolRevenue: "Market protocol fee (interest × market fee) plus the management fee on self-operated MoolahVaults.",
-  HoldersRevenue: "The DAO's own MoolahVault position yield claimed via MoolahVaultAccount and routed to Buyback for LISTA buy-back — reclassified out of supply-side, so Fees are unchanged.",
-  SupplySideRevenue: "Borrow interest distributed to suppliers/lenders, net of Lista's protocol cut and net of the DAO position yield redirected to buy-back.",
+  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee) plus the DAO's own MoolahVault position yield that the protocol keeps as revenue.",
+  ProtocolRevenue: "Market protocol fee (interest × market fee), the management fee on self-operated MoolahVaults, and the DAO's own MoolahVault position yield kept by the protocol (routed to the treasury as USDT, not a LISTA buy-back).",
+  SupplySideRevenue: "Borrow interest distributed to third-party suppliers/lenders, net of Lista's protocol cut and net of the DAO's own position yield reclassified to protocol revenue.",
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.BORROW_INTEREST]: "Total interest paid by borrowers across all Moolah markets." },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: "Market protocol fee = interest × market fee.",
+    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee) plus the DAO's own MoolahVault position yield kept by the protocol.",
     [METRIC.MANAGEMENT_FEES]: "Management fee on self-operated MoolahVaults (feeRecipient = Lista's LendingFeeRecipient).",
-    [METRIC.TOKEN_BUY_BACK]: "DAO MoolahVault position yield claimed to Buyback for LISTA buy-back.",
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "Market protocol fee = interest × market fee.",
+    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee) plus the DAO's own MoolahVault position yield kept by the protocol.",
     [METRIC.MANAGEMENT_FEES]: "Management fee on self-operated MoolahVaults.",
   },
-  HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "DAO MoolahVault position yield claimed to Buyback for LISTA buy-back.",
-  },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Interest to suppliers/lenders, net of the market fee and vault management fee.",
-    [METRIC.TOKEN_BUY_BACK]: "Less the DAO position yield redirected from supply-side to LISTA buy-back.",
+    [METRIC.BORROW_INTEREST]: "Interest to third-party suppliers/lenders, net of the market fee, vault management fee, and the DAO's own position yield reclassified to protocol revenue.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  // A DAO buy-back claim realises position yield accrued over many prior days, so on a claim day the
+  // A DAO yield claim realises position yield accrued over many prior days, so on a claim day the
   // reclassified amount can exceed that window's supplier interest and push SupplySideRevenue negative.
   // This is expected lumpiness that nets out cumulatively — keep such days rather than throwing.
   allowNegativeValue: true,
