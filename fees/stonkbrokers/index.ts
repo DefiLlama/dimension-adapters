@@ -138,6 +138,7 @@ const SAFE_LAUNCH_PADS: SafePad[] = [
   { addr: "0xd82da1D8ef59959b170b59147283Ab1F2F1Ca86A", quote: QUOTE.SPCX, gen: "r2" },
   { addr: "0x644b19512052A1b6d38d7B16C6c3Fb1d3F7270D2", quote: QUOTE.USO, gen: "r2" },
 ];
+const SAFE_PAD_TARGETS = SAFE_LAUNCH_PADS.map((p) => p.addr);
 // Production tax split, applied by the go-live `setFeeSplit(1650, 1650, 5000)`
 // and snapshotted into every launch: creator / protocol / locked-LP reserve,
 // remainder (1700) punches through the Clock In Card → ~0.5% of tax to the
@@ -354,29 +355,18 @@ const fetchRobinhood = async (options: FetchOptions) => {
     eventAbi: WALL_BOUGHT,
   });
 
-  // Group Safe Launch pads by quote so multi-target getLogs stays same-denomination.
-  // (onlyArgs strips log.address, so mixed-quote targets would mis-attribute.)
-  const padsByQuote = new Map<string, string[]>();
-  for (const p of SAFE_LAUNCH_PADS) {
-    const key = p.quote === null ? "native" : p.quote.toLowerCase();
-    let bucket = padsByQuote.get(key);
-    if (!bucket) {
-      bucket = [];
-      padsByQuote.set(key, bucket);
-    }
-    bucket.push(p.addr);
-  }
-  const quoteKeyOf = (key: string): string | null => (key === "native" ? null : key);
-
-  const safeLogBatches = await Promise.all(
-    [...padsByQuote.entries()].map(async ([key, targets]) => {
-      const [buys, sells] = await Promise.all([
-        options.getLogs({ targets, eventAbi: SAFE_BUY }),
-        options.getLogs({ targets, eventAbi: SAFE_SELL }),
-      ]);
-      return { quote: quoteKeyOf(key), buys, sells };
+  const [safeBuyLogsByPad, safeSellLogsByPad] = await Promise.all([
+    options.getLogs({
+      targets: SAFE_PAD_TARGETS,
+      eventAbi: SAFE_BUY,
+      flatten: false,
     }),
-  );
+    options.getLogs({
+      targets: SAFE_PAD_TARGETS,
+      eventAbi: SAFE_SELL,
+      flatten: false,
+    }),
+  ]);
 
   // Bonding-curve launcher pools (closed factory — residual trading).
   const launched = await options.getLogs({
@@ -574,39 +564,40 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // Fee split per launch snapshot: 16.5% creator / 16.5% protocol / 50%
   // locked-LP (or ICO Bonus on degen) / 17% Clock In Card. Protocol leg =
   // revenue; LP/ICO = supply-side. LpFeeBonded re-settles already-counted tax.
-  for (const batch of safeLogBatches) {
-    for (const log of batch.buys) {
+  for (let i = 0; i < SAFE_LAUNCH_PADS.length; i++) {
+    const quote = SAFE_LAUNCH_PADS[i].quote;
+    for (const log of safeBuyLogsByPad[i] ?? []) {
       const tax = BigInt(log.taxPaid ?? 0);
       const gross = BigInt(log.ethIn ?? log.quoteIn ?? 0);
-      if (gross > 0n) addSafeQuote(dailyVolume, batch.quote, gross);
+      if (gross > 0n) addSafeQuote(dailyVolume, quote, gross);
       if (tax <= 0n) continue;
       const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
       const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
       const toLp = (tax * SAFE_LP_BPS) / 10_000n;
       const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
-      addSafeQuote(dailyFees, batch.quote, tax, LABELS.SAFE_TAX);
-      addSafeQuote(dailyRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailyProtocolRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toCreator, LABELS.SAFE_TAX_CREATOR);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toLp, LABELS.SAFE_TAX_LP);
+      addSafeQuote(dailyFees, quote, tax, LABELS.SAFE_TAX);
+      addSafeQuote(dailyRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailyProtocolRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailySupplySideRevenue, quote, toCreator, LABELS.SAFE_TAX_CREATOR);
+      addSafeQuote(dailySupplySideRevenue, quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
+      addSafeQuote(dailySupplySideRevenue, quote, toLp, LABELS.SAFE_TAX_LP);
     }
-    for (const log of batch.sells) {
+    for (const log of safeSellLogsByPad[i] ?? []) {
       const tax = BigInt(log.taxPaid ?? 0);
       const netOut = BigInt(log.ethOut ?? log.quoteOut ?? 0);
       const gross = netOut + tax;
-      if (gross > 0n) addSafeQuote(dailyVolume, batch.quote, gross);
+      if (gross > 0n) addSafeQuote(dailyVolume, quote, gross);
       if (tax <= 0n) continue;
       const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
       const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
       const toLp = (tax * SAFE_LP_BPS) / 10_000n;
       const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
-      addSafeQuote(dailyFees, batch.quote, tax, LABELS.SAFE_TAX);
-      addSafeQuote(dailyRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailyProtocolRevenue, batch.quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toCreator, LABELS.SAFE_TAX_CREATOR);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
-      addSafeQuote(dailySupplySideRevenue, batch.quote, toLp, LABELS.SAFE_TAX_LP);
+      addSafeQuote(dailyFees, quote, tax, LABELS.SAFE_TAX);
+      addSafeQuote(dailyRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailyProtocolRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
+      addSafeQuote(dailySupplySideRevenue, quote, toCreator, LABELS.SAFE_TAX_CREATOR);
+      addSafeQuote(dailySupplySideRevenue, quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
+      addSafeQuote(dailySupplySideRevenue, quote, toLp, LABELS.SAFE_TAX_LP);
     }
   }
 
