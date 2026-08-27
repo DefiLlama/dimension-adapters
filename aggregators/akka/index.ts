@@ -34,7 +34,7 @@ const fetch = async (options: FetchOptions) => {
 
 const chainConfig: Record<string, ChainConfig> = {
   // AKKA Router on HyperEVM; source: https://docs.akka.finance/smart-contracts
-  hyperliquid: {
+  [CHAIN.HYPERLIQUID]: {
     routers: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
     start: "2026-01-20",
     fetch,
