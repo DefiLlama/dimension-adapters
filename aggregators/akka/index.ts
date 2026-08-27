@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const swapEvent =
@@ -74,14 +74,14 @@ const chainConfig: Record<string, ChainConfig> = {
   },
 };
 
-export const methodology = {
+const methodology = {
   Volume: "Volume is calculated from Swap events emitted by the AkkaRouter contracts.",
   Fees: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
   Revenue: "All the fees from swap events go to the protocol.",
   ProtocolRevenue: "All the fees from swap events go to the protocol.",
 };
 
-export const breakdownMethodology = {
+const breakdownMethodology = {
   Fees: {
     "Swap Fees": "Fees are tracked from the fee field in Swap events, denominated in the output token.",
   },
