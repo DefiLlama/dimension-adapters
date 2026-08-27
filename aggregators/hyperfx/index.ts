@@ -23,9 +23,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
 
-  const placed = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED, entireLog: true });
-  const legacy = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED_LEGACY, entireLog: true });
-  const dust = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: DUST_COLLECTED, entireLog: true });
+  const placed = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED, entireLog: true, parseLog: true });
+  const legacy = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED_LEGACY, entireLog: true, parseLog: true });
+  const dust = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: DUST_COLLECTED, entireLog: true, parseLog: true });
 
   const orders = [...placed, ...legacy];
   for (const log of orders) {
