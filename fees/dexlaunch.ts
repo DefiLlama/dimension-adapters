@@ -6,6 +6,7 @@
 // its logs:
 //   dailyFees            = Σ FeesReceived.amount + Σ ReferralPaid.cut  (gross, what users paid)
 //   dailyRevenue         = Σ FeesReceived.amount                       (net of the referrer share)
+//   dailySupplySideRevenue = Σ ReferralPaid.cut   (the cost of funds against those fees)
 //   dailyHoldersRevenue  = Σ FeesDistributed.holdersAmount (governance-holder share of the splits)
 //   dailyProtocolRevenue = Σ FeesDistributed.ownerAmount    (owner/treasury share)
 // Logs, not lifetime-counter deltas, because Robinhood Chain's public RPC serves no archive
@@ -14,7 +15,8 @@
 // REFERRALS. The user-attributed streams (pad trade skim, presale service fee, instant-launch
 // fee) take one hop through a ReferralRegistry, which pays the trader's referrer a 10% cut and
 // forwards the remainder to the collector. That cut is a fee the user paid but NOT revenue the
-// protocol kept, so it is added to Fees only — Revenue stays the collector's receipts.
+// protocol kept, so it is the supply side: Fees and SupplySideRevenue, never Revenue, which
+// keeps dailyFees = dailyRevenue + dailySupplySideRevenue.
 //
 // CHAINS. Robinhood Chain is the home chain (PlatformFeeCollector, which also splits to
 // governance holders / treasury). Satellite chains keep a bridging collector that earns fees
@@ -85,11 +87,12 @@ const PLATFORM_REVENUE = "Platform Fees Retained By The Protocol";
 const FEES_TO_HOLDERS = "Fees To Governance Holders";
 const FEES_TO_TREASURY = "Fees To Treasury";
 
-async function fetch(options: FetchOptions) {
+const fetch = async (options: FetchOptions) => {
   const { collector, registry, excludeFrom, hasDistributions } = chainConfig[options.chain];
   const native = chainConfig[options.chain].nativeAsset ?? ADDRESSES.null;
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
@@ -110,12 +113,15 @@ async function fetch(options: FetchOptions) {
     dailyRevenue.add(native, log.amount, PLATFORM_REVENUE);
   }
 
-  // The referrer's cut never reaches the collector, so it is missing from `received`. Users still
-  // paid it: Fees only, never Revenue. `asset` is the zero address for native fees and otherwise
-  // the ERC20 the fee arrived in.
+  // The referrer's cut never reaches the collector, so it is missing from `received`. The user
+  // paid it and the referrer keeps it: it is a fee, and the cost of funds against it, so it
+  // lands in Fees and SupplySideRevenue and never in Revenue. `asset` is the zero address for
+  // native fees and otherwise the ERC20 the fee arrived in.
   for (const log of referred) {
-    const asset = String(log.asset).toLowerCase();
-    dailyFees.add(asset === ADDRESSES.null ? native : asset, log.cut, REFERRAL_FEES);
+    const raw = String(log.asset).toLowerCase();
+    const asset = raw === ADDRESSES.null ? native : raw;
+    dailyFees.add(asset, log.cut, REFERRAL_FEES);
+    dailySupplySideRevenue.add(asset, log.cut, REFERRAL_FEES);
   }
 
   for (const log of distributed) {
@@ -123,12 +129,19 @@ async function fetch(options: FetchOptions) {
     dailyProtocolRevenue.add(native, log.ownerAmount, FEES_TO_TREASURY);
   }
 
-  return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue };
-}
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue,
+  };
+};
 
 const methodology = {
   Fees: "Everything users paid the protocol: all native revenue arriving at the chain's fee collector — the PlatformFeeCollector on Robinhood Chain, a bridging collector on each satellite — from the 2% presale service fee, launch tokens' master fee, the bonding pad's 0.5% per-trade skim, the instant-launch fee and the locker's fee-claim cut (FeesReceived logs), PLUS the 10% referrer share carved off the user-attributed streams before they reach the collector (ReferralPaid logs). Satellite revenue is counted on the chain that earned it and excluded from Robinhood when it arrives bridged, so it counts once.",
   Revenue: "The share of fees the protocol keeps: collector receipts only, so the referrer share is excluded. The protocol retains all of it, with the home-chain split between governance holders and the treasury reported under HoldersRevenue / ProtocolRevenue.",
+  SupplySideRevenue: "The 10% referrer share, the one part of a fee the protocol does not keep — paid out by the ReferralRegistry to the trader's referrer before the remainder reaches the collector (ReferralPaid logs).",
   HoldersRevenue: "The share of every home-chain distribution delivered to GovernanceToken holders as native-ETH dividends (FeesDistributed logs; distributions happen only on Robinhood Chain).",
   ProtocolRevenue: "The share of every home-chain distribution delivered to the protocol owner (FeesDistributed logs; distributions happen only on Robinhood Chain).",
 };
@@ -142,7 +155,11 @@ const breakdownMethodology = {
   },
   Revenue: {
     [PLATFORM_REVENUE]:
-      "Every fee that reaches the collector is retained by the protocol (no supply-side cut) and later split between governance holders and the treasury on the home chain — see HoldersRevenue / ProtocolRevenue for the split.",
+      "Every fee that reaches the collector is retained by the protocol and later split between governance holders and the treasury on the home chain — see HoldersRevenue / ProtocolRevenue for the split.",
+  },
+  SupplySideRevenue: {
+    [REFERRAL_FEES]:
+      "The referrer's 10% cut, paid out before the remainder reaches the collector (ReferralPaid logs).",
   },
   HoldersRevenue: {
     [FEES_TO_HOLDERS]:
