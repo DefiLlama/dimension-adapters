@@ -73,7 +73,7 @@ function sumOpenInterest(csv: string): number {
   return oi;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // The venue's business date runs 17:00 ET to 17:00 ET, so it never aligns to a UTC day; business
   // date D covers 21 of the 24 hours of UTC day D (22:00Z-22:00Z under EST). Reporting on the
   // venue's own business date is both the closest single match and what the exchange itself
