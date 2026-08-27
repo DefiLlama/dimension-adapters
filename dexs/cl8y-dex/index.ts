@@ -25,7 +25,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.TERRA],
-  start: "2026-05-01",
+  // First UTC day GET /api/v1/defillama/daily returns 200. Earlier days 404.
+  start: "2026-08-17",
   methodology: {
     Volume:
       "UTC calendar-day SUM(swap_events.volume_usd) once per taker swap. Excludes columbus-5 gem pairs, wrap/unwrap, UST1 window, and limit_order_fills.",

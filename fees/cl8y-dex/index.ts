@@ -69,7 +69,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.TERRA],
-  start: "2026-05-01",
+  // First UTC day GET /api/v1/defillama/daily returns 200. Earlier days 404.
+  start: "2026-08-17",
   methodology,
   breakdownMethodology,
 };
