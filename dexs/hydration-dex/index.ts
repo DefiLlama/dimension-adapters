@@ -2,6 +2,8 @@ import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request } from "graphql-request";
 
+const INDEXER_URL = "https://orca-main-aggr-indx.indexer.hydration.cloud/graphql";
+
 
 const fetch = async (options: FetchOptions) => {
 
@@ -23,7 +25,12 @@ const fetch = async (options: FetchOptions) => {
     }
   `;
 
-  const queryResult = await request("https://orca-prod-pool-02.catfish.hydration.cloud/graphql", query);
+  const queryResult = await request(INDEXER_URL, query);
+
+  const nodes = queryResult.platformTotalVolumesByPeriod.nodes;
+  if (!nodes.length) {
+    throw new Error(`Hydration indexer has no volume data for ${toDateQuery(options.fromTimestamp)}`);
+  }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -32,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  for (const node of queryResult.platformTotalVolumesByPeriod.nodes) {
+  for (const node of nodes) {
     dailyVolume.addUSDValue(Number(node.totalVolNorm));
     dailyFees.addUSDValue(Number(node.xykpoolFeeVolNorm), 'XYK Pools Fees');
     dailyFees.addUSDValue(Number(node.stableswapFeeVolNorm), 'StableSwap Fees');
