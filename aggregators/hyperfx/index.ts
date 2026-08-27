@@ -23,9 +23,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
 
-  const placed = await getLogs({ target: INTENT_GATEWAY, eventAbi: ORDER_PLACED, entireLog: true });
-  const legacy = await getLogs({ target: INTENT_GATEWAY, eventAbi: ORDER_PLACED_LEGACY, entireLog: true });
-  const dust = await getLogs({ target: INTENT_GATEWAY, eventAbi: DUST_COLLECTED, entireLog: true });
+  const placed = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED, entireLog: true });
+  const legacy = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: ORDER_PLACED_LEGACY, entireLog: true });
+  const dust = await getLogs({ targets: [INTENT_GATEWAY], eventAbi: DUST_COLLECTED, entireLog: true });
 
   const orders = [...placed, ...legacy];
   for (const log of orders) {
@@ -54,7 +54,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Input value of every order placed on the Hyperbridge IntentGateway (same-chain and cross-chain), counted on the source chain.",
   Fees: "0.05% protocol fee deducted from order inputs at placement.",
-  UserFees: "The protocol fee is paid by the user placing the order.",
   Revenue: "The 0.05% protocol fee, retained by the gateway.",
   ProtocolRevenue: "The 0.05% protocol fee, retained by the gateway.",
 };
@@ -62,9 +61,6 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.PROTOCOL_FEES]: "0.05% of each order input, deducted at placement (DustCollected events in placement txs).",
-  },
-  UserFees: {
-    [METRIC.PROTOCOL_FEES]: "0.05% of each order input, deducted at placement.",
   },
   Revenue: {
     [PROTOCOL_FEES_TO_TREASURY]: "Protocol fee retained by the gateway, swept by governance.",
