@@ -389,10 +389,11 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
     }
 
     const perfFee = grossInterest * perfFeeRate
-    // History `tvl` and `interest` are human-denominated; scale both to raw units.
-    // Use the first in-window snapshot so mgmt fee tracks that day's AUM, not live prevAum.
-    const tvl = Number(points[0]?.tvl ?? 0)
-    const mgmtFee = tvl * 10 ** decimals * mgmtFeeRate * elapsed / YEAR_SECS
+    // `prevAum` is the vault's AUM in raw token units, which is what the balance
+    // entry below is denominated in. The history snapshots carry `tvl` in USD, not
+    // in token units, so they cannot be used here without a price. Same field and
+    // same accrual as fees/sentora.ts.
+    const mgmtFee = Number(state.prevAum ?? 0) * mgmtFeeRate * elapsed / YEAR_SECS
 
     if (grossInterest > 0) {
       if (breakdownFees) {
