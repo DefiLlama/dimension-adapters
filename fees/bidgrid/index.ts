@@ -5,15 +5,13 @@ import { queryDuneSql } from "../../helpers/dune";
 const PROGRAM_ID = "BDGRD2fcnDzz5ueWq39W7tSRDadFJonZUPG6CxQgJGHd";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 // Mainnet program ID and SOL mint: https://bidgrid.win/about
-// Anchor discriminator for the zero-argument `reset` instruction. Source:
-// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/lib.rs
 const RESET_DISCRIMINATOR = "0x1751fb548ab7f0d6";
-// Anchor event discriminator for ResetEvent. Source:
-// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/events.rs
 const RESET_EVENT_DISCRIMINATOR = "0x7c16d3bd8f2f9cde";
 
-// On-chain fee constants from constants.rs, in basis points of losing_deployed:
-// https://github.com/BGJ666/bidgrid_ui_2/blob/main/program/programs/program/src/constants.rs
+// Fee constants in basis points, verified against mainnet reset txs (the
+// allocations below reconcile exactly with per-round balance changes, e.g. tx
+// 5FtXMYuqdcESytABejiKfffg9czYGXGxZw2RrEKvppQJoScKdycjPGx4X6K8X3sxKCVbJb5G7UMovEc6zn7Bn4wy).
+// Winning tiles pay 1.5% of deployed, losing tiles 12% (1.5% + 10.5%).
 // The protocol fee is the 1.5% protocol allocation from total_deployed. The
 // normal-mode ResetEvent.total_vaulted contains protocol fee + buyback + jackpot
 // + staking. Burn Pot is transferred separately, so its ratio below is relative
@@ -53,6 +51,7 @@ const fetch = async (options: FetchOptions) => {
       FROM solana.instruction_calls ic
       CROSS JOIN UNNEST(log_messages) AS u(log_message)
       JOIN reset_txs r ON r.tx_id = ic.tx_id
+      AND TIME_RANGE
       WHERE starts_with(log_message, 'Program data: ')
         AND ic.executing_account = '${PROGRAM_ID}'
         AND ic.is_inner = false
@@ -61,12 +60,14 @@ const fetch = async (options: FetchOptions) => {
           from_base64(substr(log_message, 15)),
           ${RESET_EVENT_DISCRIMINATOR}
         )
+        AND TIME_RANGE
     ),
     reset_event_values AS (
       SELECT
-        -- Dune varbinary_substring uses 1-based offsets. ResetEvent fields
-        -- total_deployed and total_vaulted start at bytes 139 and 147 after
-        -- the 8-byte event discriminator. Source: events.rs linked above.
+        -- Dune varbinary_substring uses 1-based offsets into the full payload
+        -- (8-byte event discriminator included): total_deployed at byte 139,
+        -- total_vaulted at byte 147. Verified against mainnet reset txs:
+        -- total_vaulted matches the vault PDA (9ACAiN...) inflow exactly.
         CAST(varbinary_to_bigint(varbinary_reverse(varbinary_substring(
           from_base64(substr(log_message, 15)), 139, 8
         ))) AS DOUBLE) AS total_deployed,
@@ -207,7 +208,6 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  // Dune-backed adapters run once per day in DefiLlama.
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
