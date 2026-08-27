@@ -24,7 +24,10 @@ const correctedTotalRevenues: Record<string, number> = {
 const fetchCumulativeData = async (dateStr: string) => {
   const url = `${ENDPOINT_BASE}?limit=1&page=0&timestamp=${encodeURIComponent(dateStr)}`;
   const data = await httpGet(url);
-  return { totalFees: Number(data.total_fees_eth_denominated ?? 0), totalRevenue: correctedTotalRevenues[dateStr] ?? Number(data.total_revenue ?? 0) };
+  if (data?.total_fees_eth_denominated == null) {
+    throw new Error(`Obol API returned no fee data for ${dateStr}`);
+  }
+  return { totalFees: Number(data.total_fees_eth_denominated), totalRevenue: correctedTotalRevenues[dateStr] ?? Number(data.total_revenue ?? 0) };
 };
 
 const getPreviousDay = (dateStr: string) => {
