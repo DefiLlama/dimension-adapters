@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import {METRIC} from "../../helpers/metrics";
 
 const swapEvent =
   "event Swap(address indexed _from, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
@@ -24,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.add(log.tokenIn, log.amountIn);
-    dailyFees.add(log.tokenOut, log.fee, "Swap Fees");
+    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES);
     dailyRevenue.add(log.tokenOut, log.fee, "Swap fees to protocol");
   }
 
@@ -83,7 +84,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Fees are tracked from the fee field in Swap events, denominated in the output token.",
+    [METRIC.SWAP_FEES]: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
   },
   Revenue: {
     "Swap fees to protocol": "All the fees from swap events go to the protocol.",
