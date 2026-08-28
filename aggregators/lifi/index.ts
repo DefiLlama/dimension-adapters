@@ -2,11 +2,13 @@ import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/t
 import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
+const NATIVE = nullAddress
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (LIFI_API_CHAINS.includes(options.chain as CHAIN)) {
@@ -37,7 +39,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
   logs.forEach((log: any) => {
     if (!integrators.includes(log.integrator)) {
-      dailyVolume.add(log.fromAssetId, log.fromAmount);
+      // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
+      // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
+      // ERC20 out instead — that amount is measured from the diamond's balance.
+      if (formatAddress(log.fromAssetId) === NATIVE) {
+        dailyVolume.add(log.toAssetId, log.toAmount);
+      } else {
+        dailyVolume.add(log.fromAssetId, log.fromAmount);
+      }
     }
   });
 
