@@ -91,8 +91,8 @@ async function makeFetchFees(options: FetchOptions) {
 
 const methodology = {
   Fees: "Borrower interest and lending fees collected by the protocol.",
-  Revenue: "All collected fees. The protocol keeps the full amount.",
-  ProtocolRevenue: "All collected fees. The protocol keeps the full amount.",
+  Revenue: "Borrower interest and lending fees collected by the protocol.",
+  ProtocolRevenue: "Borrower interest and lending fees collected by the protocol.",
   SupplySideRevenue: "Supplier interest is not included in the reported fees.",
 };
 
