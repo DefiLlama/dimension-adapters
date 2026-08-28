@@ -2,23 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactions, getTxReceipts } from "../../helpers/getTxReceipts";
 
-// Epsilon (epsilon.exchange) on Robinhood Chain. Two router eras:
-//  - v7   (2026-07-14 → 2026-08-06): 5-field Swapped, no aggregation collector.
-//  - v7.1 (2026-08-19 → now):        Swapped grew fee-split fields (referrer,
-//    referralFee, aggregationFee, feeToken), which changes the event selector.
-// OrderFilled kept the same signature across both.
-const V7_ROUTER = "0x367832cf3787b69fefa1a0fdf3fcee9dbc7631c1";
-const V71_ROUTER = "0xdb41fa80016dc946ceb7b8512c3423463d3f260f";
+// Epsilon (epsilon.exchange) on Robinhood Chain — v7.1 router.
+const ROUTER = "0xdb41fa80016dc946ceb7b8512c3423463d3f260f";
 
 // FeeVault — protocol commission (VAT on the keeper+referral legs) and captured
-// surplus land here on both router versions (router.feeCollector()).
+// surplus land here (router.feeCollector()).
 const FEE_COLLECTOR = "0x8bdd3f2476501d2b1550792e7df8aa72f4adc70e";
-// Aggregation-fee collector (v7.1 only, router.aggregationFeeCollector()).
+// Aggregation-fee collector (router.aggregationFeeCollector()).
 const AGGREGATION_FEE_COLLECTOR = "0xac834ee1a23458d84035724327c66236771fb96d";
 
-const SWAPPED_V7 =
-  "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)";
-const SWAPPED_V71 =
+const SWAPPED =
   "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, address referrer, uint256 referralFee, uint256 aggregationFee, address feeToken)";
 
 // Order fills (limit / DCA / trailing-stop executions) carry only hash +
@@ -54,7 +47,6 @@ const METRIC = {
 };
 
 type TxMeta = {
-  router: string;
   // Addresses whose incoming router transfers are fee legs.
   keepers: Set<string>;
   referrers: Set<string>;
@@ -70,59 +62,53 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   const txMeta = new Map<string, TxMeta>();
-  const meta = (txHash: string, router: string): TxMeta => {
+  const meta = (txHash: string): TxMeta => {
     const key = txHash.toLowerCase();
     let m = txMeta.get(key);
     if (!m) {
-      m = { router, keepers: new Set(), referrers: new Set(), payouts: new Set() };
+      m = { keepers: new Set(), referrers: new Set(), payouts: new Set() };
       txMeta.set(key, m);
     }
     return m;
   };
 
-  for (const { router, swappedAbi } of [
-    { router: V7_ROUTER, swappedAbi: SWAPPED_V7 },
-    { router: V71_ROUTER, swappedAbi: SWAPPED_V71 },
-  ]) {
-    // 1) Direct swaps — value the input leg straight from the event.
-    const swaps: any[] = await options.getLogs({ target: router, eventAbi: swappedAbi, entireLog: true, parseLog: true });
-    for (const s of swaps) {
-      dailyVolume.add(s.args.tokenIn, s.args.amountIn, METRIC.DIRECT_SWAPS);
-      const m = meta(s.transactionHash, router);
-      m.payouts.add(String(s.args.user).toLowerCase());
-      if (s.args.referrer !== undefined) m.referrers.add(String(s.args.referrer).toLowerCase());
+  // 1) Direct swaps — value the input leg straight from the event.
+  const swaps: any[] = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED, entireLog: true, parseLog: true });
+  for (const s of swaps) {
+    dailyVolume.add(s.args.tokenIn, s.args.amountIn, METRIC.DIRECT_SWAPS);
+    const m = meta(s.transactionHash);
+    m.payouts.add(String(s.args.user).toLowerCase());
+    m.referrers.add(String(s.args.referrer).toLowerCase());
+  }
+
+  // 2) Order fills — amountIn is the filled slice (from the event); tokenIn,
+  //    receiver and referrer are recovered from the fill-tx calldata (the
+  //    Order struct). Fetch each unique fill-tx once.
+  const fills: any[] = await options.getLogs({ target: ROUTER, eventAbi: ORDER_FILLED, entireLog: true, parseLog: true });
+  if (fills.length) {
+    const txHashes = [...new Set(fills.map((l) => l.transactionHash.toLowerCase()))];
+    const txs = await getTransactions(options.chain, txHashes);
+    const inputByTx: Record<string, string> = {};
+    for (let i = 0; i < txHashes.length; i++) {
+      const hash = txHashes[i];
+      const tx = txs[i];
+      if (!tx?.hash) throw new Error(`Missing transaction for OrderFilled tx ${hash}`);
+      const input = tx.data ?? "0x";
+      if (input.length < MIN_INPUT_LEN) throw new Error(`Unexpected calldata for OrderFilled tx ${hash}`);
+      inputByTx[hash] = input;
     }
 
-    // 2) Order fills — amountIn is the filled slice (from the event); tokenIn,
-    //    receiver and referrer are recovered from the fill-tx calldata (the
-    //    Order struct). Fetch each unique fill-tx once.
-    const fills: any[] = await options.getLogs({ target: router, eventAbi: ORDER_FILLED, entireLog: true, parseLog: true });
-    if (fills.length) {
-      const txHashes = [...new Set(fills.map((l) => l.transactionHash.toLowerCase()))];
-      const txs = await getTransactions(options.chain, txHashes);
-      const inputByTx: Record<string, string> = {};
-      for (let i = 0; i < txHashes.length; i++) {
-        const hash = txHashes[i];
-        const tx = txs[i];
-        if (!tx?.hash) throw new Error(`Missing transaction for OrderFilled tx ${hash}`);
-        const input = tx.data ?? "0x";
-        if (input.length < MIN_INPUT_LEN) throw new Error(`Unexpected calldata for OrderFilled tx ${hash}`);
-        inputByTx[hash] = input;
-      }
+    for (const log of fills) {
+      const txHash = log.transactionHash.toLowerCase();
+      const input = inputByTx[txHash];
+      if (!input) throw new Error(`Missing calldata for OrderFilled log in tx ${txHash}`);
+      dailyVolume.add(structAddr(input, TOKEN_IN_WORD), log.args.amountIn, METRIC.ORDER_FILLS);
 
-      for (const log of fills) {
-        const txHash = log.transactionHash.toLowerCase();
-        const input = inputByTx[txHash];
-        if (!input) throw new Error(`Missing calldata for OrderFilled log in tx ${txHash}`);
-        dailyVolume.add(structAddr(input, TOKEN_IN_WORD), log.args.amountIn, METRIC.ORDER_FILLS);
-
-        const m = meta(txHash, router);
-        m.keepers.add(String(log.args.keeper).toLowerCase());
-        m.payouts.add(String(log.args.maker).toLowerCase());
-        m.payouts.add(structAddr(input, RECEIVER_WORD));
-        // Referrer sits in the Order struct only on the v7.1 router.
-        if (router === V71_ROUTER) m.referrers.add(structAddr(input, REFERRER_WORD));
-      }
+      const m = meta(txHash);
+      m.keepers.add(String(log.args.keeper).toLowerCase());
+      m.payouts.add(String(log.args.maker).toLowerCase());
+      m.payouts.add(structAddr(input, RECEIVER_WORD));
+      m.referrers.add(structAddr(input, REFERRER_WORD));
     }
   }
 
@@ -141,7 +127,7 @@ const fetch = async (options: FetchOptions) => {
       for (const log of receipt.logs ?? []) {
         if (log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
         const from = "0x" + log.topics[1].slice(26).toLowerCase();
-        if (from !== m.router) continue;
+        if (from !== ROUTER) continue;
         const to = "0x" + log.topics[2].slice(26).toLowerCase();
         const token = log.address;
         const amount = log.data;
@@ -219,7 +205,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
   fetch,
-  start: "2026-07-14",
+  start: "2026-08-19",
   methodology,
   breakdownMethodology,
 };
