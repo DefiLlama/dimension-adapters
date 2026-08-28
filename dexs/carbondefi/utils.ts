@@ -2,24 +2,6 @@ import { CarbonAnalyticsResponse } from "./types";
 import { FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const fetchWithPagination = async (endpoint: string, limit: number = 10000) => {
-  let offset = 0;
-  let data = [];
-  let unfinished = true;
-  while (unfinished) {
-    const url = new URL(endpoint);
-    url.searchParams.append("limit", limit.toString());
-    url.searchParams.append("offset", offset.toString());
-
-    const newData = await fetchURL(url.href);
-    data = data.concat(newData);
-
-    unfinished = newData?.length === limit;
-    offset += limit;
-  }
-  return data;
-};
-
 export const fetchDataFromApi = async (
   endpoint: string,
   startTimestampS?: number,
@@ -53,30 +35,19 @@ export const getDimensionsSum = async (
  
   let dailyVolume = 0;
   let dailyFees = 0;
-  let totalVolume = 0;
-  let totalFees = 0;
   
   allData.forEach(item => {
     const timestamp = Number(item.timestamp);
-    
-    if (timestamp <= endTimestamp) {
-      totalVolume += item.volumeUsd;
-      totalFees += item.feesUsd;
-      
-      if (timestamp >= startTimestamp && timestamp < endTimestamp) {
-        dailyVolume += item.volumeUsd;
-        dailyFees += item.feesUsd;
-      }
+    if (timestamp >= startTimestamp && timestamp < endTimestamp) {
+      dailyVolume += item.volumeUsd;
+      dailyFees += item.feesUsd;
     }
   });
   
   return {
     dailyVolume,
-    totalVolume,
     dailyFees,
-    totalFees,
     dailyRevenue: dailyFees,
-    totalRevenue: totalFees,
   };
 };
 
@@ -85,8 +56,5 @@ export const getEmptyData = (options: FetchOptions) => {
     dailyVolume: 0,
     dailyFees: 0,
     dailyRevenue: 0,
-    totalVolume: 0,
-    totalFees: 0,
-    totalRevenue: 0,
   };
 };

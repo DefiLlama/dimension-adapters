@@ -1,7 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphFees";
 
 const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
@@ -40,58 +39,47 @@ const chains: Record<string, string> = {
     [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetchVolume = async (_t: any, _b: any, options: FetchOptions) => {
-    const unixTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(options.startOfDay * 1000)
-    );
-
-    // get the end of the day timestamp 
-    const unixEndDayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
-    );
+const fetch = async (options: FetchOptions) => {
+    const startOfDay = options.startOfDay;
+    const endOfDay = startOfDay + 24 * 60 * 60;
 
     const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
         headers: {
             'Content-Type': 'application/json',
         },
-        params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
+        params: { startDate: startOfDay, endDate: endOfDay },
     });
 
     const chainVolumes = dailyRes?.historicalVolumeCrossChainChain?.map((history: any) => {
         const chainVol = history?.volume?.find((vol: any) => {
             return vol?.chainSlug?.toLowerCase() === chains[options.chain].toLowerCase();
         })
-
         return chainVol;
     });
 
-    // calculate the total volume
     const chainVolume = chainVolumes?.reduce((acc: number, curr: any) => {
         return acc + Number(curr?.value || 0);
     }, 0);
 
     return {
         dailyBridgeVolume: chainVolume || 0,
-        timestamp: unixTimestamp,
     };
 };
 
 const adapter: SimpleAdapter = {
     adapter: {
-        ...Object.entries(chains).reduce((acc, chain) => {
-            const [key, value] = chain;
-
+        ...Object.entries(chains).reduce((acc, [key, _]) => {
             return {
                 ...acc,
                 [key]: {
-                    fetch: fetchVolume,
+                    fetch,
                     start: '2022-11-01', // 2022-11-01
                 },
             };
         }, {}),
     },
-    version: 1
+    version: 1,
+    deadFrom: "2026-02-05",
 };
 
 export default adapter;
-

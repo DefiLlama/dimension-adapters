@@ -1,0 +1,194 @@
+import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
+import { CuratorConfig, getCuratorExport } from "../helpers/curators";
+import { CHAIN } from "../helpers/chains";
+import { queryDuneSql } from "../helpers/dune";
+
+// Curator config for EVM chains
+const curatorConfig: CuratorConfig = {
+  breakdownFees: true,
+  vaults: {
+    [CHAIN.ETHEREUM]: {
+      morphoVaultOwners: [
+        '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
+      ],
+      morphoVaultV2Owners: [
+        '0xd79766D2FeC43886e995EA415a2Bf406280B2e2C',
+      ],
+      start: '2024-03-14',
+    },
+    [CHAIN.BASE]: {
+      morphoVaultOwners: [
+        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+        '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
+      ],
+      morphoVaultV2Owners: [
+        '0xFd144f7A189DBf3c8009F18821028D1CF3EF2428',
+      ],
+      start: '2024-06-18',
+    },
+    [CHAIN.POLYGON]: {
+      morphoVaultOwners: [
+        '0xC684c6587712e5E7BDf9fD64415F23Bd2b05fAec',
+      ],
+      start: '2025-03-13',
+    },
+    [CHAIN.HYPERLIQUID]: {
+      morphoVaultOwners: [
+        '0x09346F40e324458A8E211C5317981C78FAcDEc57',
+      ],
+      start: '2025-09-25',
+    },
+    [CHAIN.OPTIMISM]: {
+      morphoVaultOwners: [
+        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+      ],
+      start: '2025-10-09',
+    },
+    [CHAIN.UNICHAIN]: {
+      morphoVaultOwners: [
+        '0x9E33faAE38ff641094fa68c65c2cE600b3410585',
+      ],
+      start: '2025-05-20',
+    },
+    [CHAIN.KATANA]: {
+      morphoVaultOwners: [
+        '0x5D8C96b76A342c640d9605187daB780f8365F69f',
+      ],
+      start: '2025-06-24'
+    },
+    [CHAIN.ARBITRUM]: {
+      morphoVaultOwners: [
+        '0x5a4E19842e09000a582c20A4f524C26Fb48Dd4D0',
+      ],
+      morphoVaultV2Owners: [
+        '0xF9D8B7e7981986746c4DE236CC72F1a26AFb5851',
+      ],
+      start: '2025-07-14',
+    },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.STABLE]: {
+      morphoV2: [
+        '0xb7Df8db22A5DBBFA9ebeb94b3910aec6a4f05c08', // gtusdtb
+      ],
+      start: '2026-06-16',
+    },
+    // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
+    [CHAIN.TEMPO]: {
+      morphoV2: [
+        '0xC609656Ed9ef219c98C8e549bF729144F211f06E', // gtpathusdp
+        '0xe5235da8Ad839dd2A9De1f1069c89cA3575b5208', // gtpathusdf
+      ],
+      start: '2026-04-16',
+    },
+    // Moolah (Morpho V1 fork), 10% performance fee
+    [CHAIN.BSC]: {
+      morpho: [
+        '0xfa27f172e0b6ebcef9c51abf817e2cb142fbe627', // vGauntletUSD1
+        '0x57134a64b7cd9f9eb72f8255a671f5bf2fe3e2d0', // vGauntletBNB
+        '0x9a17fd5cb8efc25d11567e713ae795a89775a759', // vGauntletU
+        '0x6d6783c146f2b0b2774c1725297f1845dc502525', // vGauntletUSDT
+      ],
+      start: '2026-04-27',
+    },
+  }
+};
+
+// Solana constants
+const MANAGER_ADDRESS = 'G6L1NE8tLYYzvMHYHbkHZqPFvfEsiRAsHSvyNQ2hut3o';
+
+// Correct vault addresses from the Python code (not PDAs)
+const VAULT_ADDRESSES = [
+  "CoHd9JpwfcA76XQGA4AYfnjvAtWKoBQ6eWBkFzR1A2ui", // hJLP 1x (USDC)
+  "JCigGWJJRCPas7B9eUe2JgkyqQjGxMKkvZcJ7VQaNBqx", // hJLP 2x (USDC)
+  "J6hcyp5rAsb1h7Qwgk763X6e2WnHgZa489VCE5VXgHLT", // Gauntlet Basis Alpha (USDC)
+  "AocrjhFd2oxyVccz1vdnZc9Hd9bnW9ejuWWH73PedykU", // hJLP 1x (JLP)
+  "4r3HvmEMqWFc5jgwfNQvzDnk7xb8JdhQ6AtcqQVLNXgP", // SOL Plus
+  "5LVLbAddNbAiKscWqYV8GHwv6STb3xmqhhc6W5HoHVVg", // cbBTC Plus
+  "6aowo7AoE6rw8CS6knd746XiRysuiEjs9YpZyHRAMnor", // dSOL Plus
+  "4F7c7v9cZHatcZLy9TZFv1jrRrReACLBxciMkbDqVkfQ", // jitoSOL Plus
+  "8ziYC1onrdfq2KhRQamz392Ykx8So48uWzd3f8tXJpVz", // DRIFT Plus
+  "5M13RDhVWSGiuUPU3ewnxLWdMjcYx5zCzBLgvMjVuZ2K", // JTO Plus
+  "425JLbAYgkQiRfyZLB3jDdibzCFT4SJFfyHHemZMpHpJ", // Carrot hJLP
+  "An26iG1Cx5W8tsxa8cHg8zjt7G15rBBj6swextzwMGCG", // wETH Plus
+  "12HURxP9axx1FRKKHEWMiPcS6ixuekZ6pzfTbp3YQ1EH"  // dfdvSOL Plus
+];
+
+// Solana fetch function
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyRevenue = options.createBalances();
+
+  // Get manager fees from Dune SQL
+  const vaultAddressesList = VAULT_ADDRESSES.map(addr => `'${addr}'`).join(', ');
+  const managerFeesQuery = `
+    SELECT 
+      SUM(amount_display) as total_amount,
+      token_mint_address,
+      symbol
+    FROM tokens_solana.transfers 
+    WHERE from_owner IN (${vaultAddressesList})
+      AND to_owner = '${MANAGER_ADDRESS}'
+      AND block_time >= from_unixtime(${options.startTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
+      AND amount_display IS NOT NULL
+      AND amount_display != 0
+    GROUP BY token_mint_address, symbol
+    HAVING SUM(amount_display) != 0
+    ORDER BY total_amount DESC
+  `;
+  const managerFeesData = await queryDuneSql(options, managerFeesQuery);
+
+  if (managerFeesData && managerFeesData.length > 0) {
+    managerFeesData.forEach((fee: any) => {
+      if (fee.total_amount && fee.token_mint_address && fee.total_amount !== 0) {
+        dailyRevenue.add(fee.token_mint_address, fee.total_amount, 'Solana Vaults Management Fees');
+      }
+    });
+  }
+
+  // For Drift vaults, fees should equal revenue (only manager fees)
+  // Remove gross returns calculation as it was causing double-counting
+  const dailyFees = dailyRevenue.clone(1, 'Solana Vaults Management Fees');
+
+  // TODO: track yields to suppliers
+  const dailySupplySideRevenue = options.createBalances();
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+  };
+};
+
+// Get curator export for EVM chains and combine with Solana
+const curatorExport = getCuratorExport(curatorConfig);
+
+// need to convert adapter v2 to adapter v1
+for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
+  (curatorExport.adapter as any)[chain] = {
+    fetch: async (options: FetchOptions) => {
+      return await (adapter as any).fetch(options);
+    }
+  }
+}
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  breakdownMethodology: curatorExport.breakdownMethodology,
+  methodology: curatorExport.methodology,
+  adapter: {
+    ...curatorExport.adapter,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: '2025-01-01'
+    },
+  },
+  allowNegativeValue: true, // vaults can be negative yields
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true
+};
+
+(adapter.breakdownMethodology as any)['Fees']['Solana Vaults Management Fees'] = 'Management fees charged from all vaults on Solana';
+(adapter.breakdownMethodology as any)['Revenue']['Solana Vaults Management Fees'] = 'Management fees charged from all vaults on Solana';
+
+export default adapter;

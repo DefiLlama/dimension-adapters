@@ -1,9 +1,8 @@
-import { ChainBlocks } from "../adapters/types";
-import { providers } from "@defillama/sdk/build/general"
-import type { Chain } from "@defillama/sdk/build/general"
+import { Chain, ChainBlocks } from "../adapters/types";
 import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
-import { httpGet } from "../utils/fetchURL";
+import { httpGet, httpPost } from "../utils/fetchURL";
+import { getEnv } from "./env";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
@@ -29,10 +28,8 @@ const blacklistedChains: string[] = [
   "phantasma",
   "starknet",
   "carbon",
-  "vechain",
   "wax",
   "injective",
-  "ton",
   "obyte",
   "sora",
   "cosmos",
@@ -51,7 +48,7 @@ const blacklistedChains: string[] = [
   "heco",
   "dymension",
   CHAIN.DOGECHAIN,
-  CHAIN.SEI,
+  // CHAIN.SEI,
   CHAIN.ICP,
 ];
 
@@ -67,7 +64,7 @@ async function getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Cha
     if (block) chainBlocks[chain] = block
     return block
   } catch (e) {
-    console.error('error fetching block' + chain + ' ' + (e as any)?.message)
+    console.log('error fetching block' + chain + ' ' + (e as any)?.message)
     return null
   }
 }
@@ -83,7 +80,15 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
   try {
     if (chain === CHAIN.WAVES)
       timestamp = Math.floor(timestamp * 1000)
-    block = await sdk.blocks.getBlockNumber(chain, timestamp)
+
+    if (chain === CHAIN.TON)
+      block = await getTonBlock(timestamp)
+    else if (chain === CHAIN.CHIA)
+      block = await getChiaBlock(timestamp)
+    else if (chain === CHAIN.ASTER)
+      block = await getAsterBlock(timestamp)
+    else
+      block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
     console.log('error fetching block', e)
   }
@@ -105,14 +110,63 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 
 }
 
+async function getTonBlock(unixTS: number) {
+  const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
+  return data.result.seqno
+}
+
+async function getAsterBlock(unixTS: number) {
+  const res = await httpGet("https://aster-scan.com/api/public/v1/blocks")
+  const blocks: { height: number; timestamp: number }[] = res?.data?.blocks ?? []
+  if (blocks.length < 2) throw new Error("AsterScan: no blocks returned")
+
+  const newest = blocks[0]
+  const oldest = blocks[blocks.length - 1]
+  const heightDelta = newest.height - oldest.height
+  const timeDelta = newest.timestamp - oldest.timestamp
+  const blockMs = heightDelta > 0 && timeDelta > 0 ? timeDelta / heightDelta : 50
+
+  const targetMs = unixTS * 1000
+  const height = Math.round(newest.height - (newest.timestamp - targetMs) / blockMs)
+  if (!Number.isFinite(height) || height < 0) throw new Error(`Aster: invalid block for timestamp ${unixTS}`)
+  return height
+}
+
+/**
+ * Resolves a unix timestamp to the nearest Chia block height via the spacescan API.
+ * Retries with backoff to ride out the free-tier rate limit (5 req/min).
+ */
+async function getChiaBlock(unixTS: number) {
+  // spacescan returns the nearest block to the timestamp (number is a string).
+  // Retry with backoff as insurance against rate-limit bursts during backfill.
+  const res = await retry(
+    () => httpGet(`https://api.spacescan.io/block/timestamp/${unixTS}`, {
+      headers: { "x-api-key": getEnv("SPACESCAN_API_KEY") },
+    }),
+    { retries: 3, minTimeout: 6000 }
+  )
+  const block = Number(res.data.number)
+  if (!Number.isFinite(block)) throw new Error(`Chia: invalid block for timestamp ${unixTS}`)
+  return block
+}
+
 async function getBlocks(chain: Chain, timestamps: number[]) {
   return Promise.all(timestamps.map(t => getBlock(t, chain, {})))
 }
 
-const canGetBlock = (chain: string) => Object.keys(providers).includes(chain)
+const canGetBlock = (chain: string) => Object.keys(sdk.api2.config.providers).includes(chain)
+
+async function getHydrationBlock(unixTs: number) {
+  const data = await httpPost('https://hydration.api.subscan.io/api/scan/block', {
+    "block_timestamp": unixTs,
+    "only_head": true
+  })
+  return data.data.block_num
+}
 
 export {
   getBlock,
   canGetBlock,
-  getBlocks
+  getBlocks,
+  getHydrationBlock,
 }

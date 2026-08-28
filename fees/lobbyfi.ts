@@ -4,6 +4,7 @@ import { CHAIN } from "../helpers/chains";
 const methodology = {
   Fees: 'Total fees paid by delegations buyers.',
   SupplySideRevenue: 'Total fees are distributed to token delegators.',
+  Revenue: 'Commission fees earned by Loobyfi.',
   ProtocolRevenue: 'Commission fees earned by Loobyfi.',
 }
 
@@ -45,61 +46,29 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     dailySupplySideRevenue.addGasToken(Number(event.netRevenue))
   }
 
-  const dailyProtocolRevenue = dailyFees.clone()
-  dailyProtocolRevenue.subtract(dailySupplySideRevenue)
+  const dailyRevenue = dailyFees.clone()
+  dailyRevenue.subtract(dailySupplySideRevenue)
 
   return {
     dailyFees,
-    dailyProtocolRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
 
 const adapter: Adapter = {
+  methodology,
+  fetch,
   version: 2,
+  pullHourly: true,
   adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-01-26',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2024-06-27',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.MANTA]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.BLAST]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2024-07-01',
-      meta: {
-        methodology,
-      },
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: '2024-10-20',
-      meta: {
-        methodology,
-      },
-    },
+    [CHAIN.ARBITRUM]: { start: '2024-01-26', },
+    [CHAIN.ERA]: { start: '2024-06-27', },
+    [CHAIN.MANTA]: { start: '2024-07-01', },
+    [CHAIN.BLAST]: { start: '2024-07-01', },
+    [CHAIN.OPTIMISM]: { start: '2024-07-01', },
+    [CHAIN.SCROLL]: { start: '2024-10-20', },
   }
 }
 

@@ -5,7 +5,7 @@ import { CHAIN } from "../helpers/chains";
 
 
 const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const { api} = options
+    const { api } = options
     const { markets, tokens } = await getMarkets(api)
     const apy = await getApy(options, markets, tokens)
     const totalBorrow = await getTotalBorrow(options, markets, tokens)
@@ -17,16 +17,19 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
         const fees = Number(borrow.totalBorrow) * dailyApy
         dailyFees.add(borrow.token, fees)
     })
-    const dailyRevenue = dailyFees.clone(0.05) 
+    const dailyRevenue = dailyFees.clone(0.05)
+    const dailySupplySideRevenue = dailyFees.clone(0.95)
     return {
         dailyFees,
-        dailyRevenue
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue
     }
 }
 
 
 const getApy = async (options: FetchOptions, markets: string[], tokens: string[]): Promise<any> => {
-    const { api} = options
+    const { api } = options
     const apy = await Promise.all(markets.map(async (market) => {
         const annualInterestBips = await api.call({ abi: 'uint256:annualInterestBips', target: market })
         const annualRate = Number(annualInterestBips) / 10000;
@@ -43,7 +46,7 @@ const getApy = async (options: FetchOptions, markets: string[], tokens: string[]
 }
 
 const getTotalBorrow = async (options: FetchOptions, markets: string[], tokens: string[]): Promise<any> => {
-    const { api} = options
+    const { api } = options
     const totalBorrow = await Promise.all(markets.map(async (market) => {
         const totalBorrow = await api.call({ abi: 'uint256:totalDebts', target: market })
         return {
@@ -68,6 +71,12 @@ const adapter: SimpleAdapter = {
             fetch: fetchFees,
             start: '2023-06-22',
         }
+    },
+    methodology: {
+        Fees: 'All interests paid by borrowers.',
+        Revenue: '5% fees are collected by Wildcat Protocol.',
+        ProtocolRevenue: '5% fees are collected by Wildcat Protocol.',
+        SupplySideRevenue: '95% of the fees go to lenders'
     }
 }
 

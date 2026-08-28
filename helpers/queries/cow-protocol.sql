@@ -1,81 +1,91 @@
--- kept other two queries dynamic as they update it as new data is added, for example for orders they add it monthly, and they could add excluded orders as well
-with
-    protocol_fees_per_chain as (
-        select
-            t.block_time,
-            protocol_fee/pow(10, 18)*cast(protocol_fee_native_price as double) as "Total (including ext. Partner Fee)",
-            if(
-                t.block_number<19564399
-                or protocol_fee_kind='surplus',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Limit",
-            if(
-                protocol_fee_kind='priceimprovement',
-                protocol_fee-coalesce(partner_fee, 0)
-            )/pow(10, 18)*cast(protocol_fee_native_price as double) as "Market",
-            if(
-                partner_fee_recipient in (0x0000000000000000000000000000000000000000),
-                partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "UI Fee",
-            if(
-                partner_fee_recipient not in (0x0000000000000000000000000000000000000000),
-                -- some partners have custom fee shares
-                case partner_fee_recipient
-                    when 0x63695eee2c3141bde314c5a6f89b98e62808d716 then 0.1
-                    else 0.15
-                end*partner_fee/pow(10, 18)*cast(protocol_fee_native_price as double)
-            ) as "Partner Fee Share",
-            d.app_code,
-            t.usd_value,
-            t.order_uid,
-            t.tx_hash,
-            r.solver
-        from
-            "query_4364122(blockchain='ethereum')" as r
-            inner join cow_protocol_ethereum.trades as t on r.order_uid=t.order_uid
-            and r.tx_hash=t.tx_hash
-            left join dune.cowprotocol.result_cow_protocol_ethereum_app_data as d on t.app_data=d.app_hash
-        where
-            t.order_uid not in (
-                select
-                    order_uid
-                from
-                    query_3639473
-            )
-        order by
-            block_time desc
-    ),
-    fees_per_chain as (
-        select
-            date(block_time) as "day",
-            sum("Limit") as "Limit",
-            sum("Market") as "Market",
-            sum("UI Fee") as "UI Fee",
-            sum("Partner Fee Share") as "Partner Fee Share"
-        from
-            protocol_fees_per_chain
-        group by
-            1
-    ),
-    daily_revenue_per_chain as (
-        select
-            day,
-            type,
-            value
-        from
-            fees_per_chain
-            cross join unnest (
-                array['Limit', 'Market', 'UI Fee', 'Partner Fee Share'],
-                array["Limit", "Market", "UI Fee", "Partner Fee Share"]
-            ) as t (type, value) -- noqa: AL05
-        order by
-            1 desc
-    )
+with 
+day_selector as (
+    select from_unixtime({{start}}) as start_date
+)
+, mevblocker_eth as (
+    select
+         date(call_block_time) as date
+        , sum(t.due / 1e18 / 2) as mev_blocker_fee
+    from mev_blocker_ethereum.MevBlockerFeeTill_call_bill
+    cross join unnest(due) as t (due)
+    where call_success = true
+        and call_block_time >= (select start_date from day_selector)
+        and call_block_time < date_add('day', 1, (select start_date from day_selector))
+        and call_block_time < date('2025-11-01')
+    group by 1
+)
+, mevblocker_sale as (
+    -- CoW/Beaver MEV Blocker stake sale (CIP-73): quarterly installments through Oct 2028, paid from
+    -- 3 payer wallets into the CoW DAO recipient. On-chain total = full sale; adapter splits 50/50 CoW/Beaver.
+    select
+        date(block_time) as date
+        , sum(amount_usd) as mev_blocker_sale_usd
+    from tokens_ethereum.transfers
+    where to = 0x616dE58c011F8736fa20c7Ae5352F7f6FB9F0669
+        and "from" in (
+            0xb57f9836bb1d5754c7a1a0c8b05832462ef10761
+            , 0xcd531ae9efcce479654c4926dec5f6209531ca7b
+            , 0xda12b368a93007ef2446717765917933cebc6080
+        )
+        and amount_usd > 1000 -- skip ~0.1 ETH test transfers; real installments are $44k+
+        and block_time >= (select start_date from day_selector)
+        and block_time < date_add('day', 1, (select start_date from day_selector))
+    group by 1
+)
+, mevblocker as (
+    select
+        coalesce(a.date, b.date) as date
+        , a.mev_blocker_fee
+        , b.mev_blocker_sale_usd as mev_blocker_sale_usd
+    from mevblocker_eth as a
+    full outer join mevblocker_sale as b
+        on a.date = b.date
+    where coalesce(a.date, b.date) = (select start_date from day_selector)
+)
+, fees_per_chain as (
+    select
+        date_trunc('day', t.block_time) as date
+        , t.blockchain as chain
+        , sum(f.protocol_fee_eth) as protocol_fee_revenue
+        , sum(f.partner_fee_partner_cut_eth) as partner_fee_partner_revenue
+        , sum(f.partner_fee_cow_cut_eth) as partner_fee_cow_revenue
+    from dune.cowprotocol.fct_trades as t
+    left join dune.cowprotocol.fct_fees as f
+        on t.tx_hash = f.tx_hash
+        and t.order_uid = f.order_uid
+    where
+        date_trunc('day', t.block_time) = from_unixtime({{start}})
+        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'bnb', 'lens')
+    group by 1, 2
+)
+, fees_all_chains as (
+    select * from fees_per_chain
+    union all
+    select
+        (select start_date from day_selector) as date
+        , 'ethereum' as chain
+        , 0 as protocol_fee_revenue
+        , 0 as partner_fee_partner_revenue
+        , 0 as partner_fee_cow_revenue
+    from mevblocker m
+    where not exists (select 1 from fees_per_chain f where f.chain = 'ethereum')
+)
 select
-    sum(value) as eth_value
+    f.date,
+    f.chain,
+    f.protocol_fee_revenue,
+    f.partner_fee_partner_revenue,
+    f.partner_fee_cow_revenue,
+    case
+        when f.chain = 'ethereum' then coalesce(m.mev_blocker_fee, 0)
+        else 0
+    end as mev_blocker_fee,
+    case
+        when f.chain = 'ethereum' then coalesce(m.mev_blocker_sale_usd, 0)
+        else 0
+    end as mev_blocker_sale_usd
 from
-    daily_revenue_per_chain
-where
-    day=from_unixtime({{start}})
-group by
-    day
+    fees_all_chains f
+    left join mevblocker m on f.date = m.date and f.chain = 'ethereum'
+order by
+    f.chain

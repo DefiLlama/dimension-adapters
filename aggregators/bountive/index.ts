@@ -1,25 +1,20 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const URL = 'https://api.bountive.fi';
-const endpoint = '/metrics/volume/';
-const startTimestamp = 1732077594;// 20.11.2024
+const URL = 'https://api.bountive.fi/metrics/volume/';
 
 interface IAPIResponse {
     date: number;
     dailyVolume: string;
-    totalVolume: string;
 }
 
-const fetch = async ({ endTimestamp, startTimestamp }): Promise<FetchResultV2> => {
-    const { dailyVolume, totalVolume }: IAPIResponse = await fetchURL(
-      `${URL}${endpoint}${startTimestamp * 1000}/${endTimestamp * 1000}`,
+const fetch = async ({ endTimestamp, startTimestamp }: FetchOptions) => {
+    const { dailyVolume }: IAPIResponse = await fetchURL(
+      `${URL}${startTimestamp * 1000}/${endTimestamp * 1000}`,
     );
-
     return {
       dailyVolume,
-      totalVolume,
     };
 };
   
@@ -28,9 +23,10 @@ const adapter: SimpleAdapter = {
     adapter: {
         [CHAIN.STARKNET]: {
             fetch: fetch,
-            start: startTimestamp,
+            start: '2024-11-20',
         },
     },
+    deadFrom: "2025-05-01",
 };
 
 export default adapter;

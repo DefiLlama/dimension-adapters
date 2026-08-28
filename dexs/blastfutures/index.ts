@@ -1,6 +1,6 @@
 import fetchURL from "../../utils/fetchURL"
-import {FetchResultVolume, SimpleAdapter} from "../../adapters/types";
-import {getUniqStartOfTodayTimestamp} from "../../helpers/getUniSubgraphVolume";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 const historicalVolumeEndpoint = "https://api.prod.rabbitx.io/bfx/volume"
 const volumeByTime = (timestampFrom: number, timestampTo: number) => {
@@ -12,28 +12,21 @@ interface IVolumeall {
     volume: string;
 }
 
-const fetchVolume = async (timestamp: number): Promise<FetchResultVolume> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-    const fromMS = dayTimestamp * 1000 * 1000;
-    const toMS = (dayTimestamp + 60 * 60 * 24) * 1000 * 1000;
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+    const fromMS = options.startOfDay * 1000 * 1000;
+    const toMS = (options.startOfDay + 60 * 60 * 24) * 1000 * 1000;
 
     const response = await fetchURL(volumeByTime(fromMS, toMS));
     const marketsData: IVolumeall[] = response.result;
-    const dailyVolume = marketsData.reduce((acc, {volume}) => acc + Number(volume), 0);
+    const dailyVolume = marketsData.reduce((acc, { volume }) => acc + Number(volume), 0);
 
-    return {
-        dailyVolume: dailyVolume,
-        timestamp: timestamp,
-    };
+    return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        "blast": {
-            fetch: fetchVolume,
-            start: '2023-11-17', // Replace with actual start timestamp
-        },
-    },
+    fetch,
+    chains: [CHAIN.BLAST],
+    start: '2023-11-17',
 };
 
 export default adapter;

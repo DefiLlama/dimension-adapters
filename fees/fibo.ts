@@ -1,0 +1,72 @@
+import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import fetchURL from "../utils/fetchURL";
+import coreAssets from "../helpers/coreAssets.json"
+
+const FIBO_API_URL = "https://api.fibo.fun/api/pulse";
+type FiboDailyMetrics = {
+  start: number;
+  end: number;
+  dailyFeesUsdc: string;
+  dailyRevenueUsdc: string;
+  dailyProtocolRevenueUsdc: string;
+  dailySupplySideRevenueUsdc: string;
+};
+const baseUsdc = coreAssets.base.USDC
+
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const url = `${FIBO_API_URL}/defillama/daily?start=${options.startTimestamp}&end=${options.endTimestamp}`;
+  const data: FiboDailyMetrics = await fetchURL(url);
+
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
+  dailyFees.add(baseUsdc, data.dailyFeesUsdc, "Round settlement fee accruals");
+  dailyRevenue.add(
+    baseUsdc,
+    data.dailyRevenueUsdc,
+    "Treasury fee revenue (round settlements)",
+  );
+  dailyProtocolRevenue.add(
+    baseUsdc,
+    data.dailyProtocolRevenueUsdc,
+    "Treasury revenue",
+  );
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+  };
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  methodology: {
+    Fees: "Protocol fee accruals on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun).",
+    Revenue: "Fees retained by protocol treasury (100% of fees).",
+    ProtocolRevenue: "All fee revenue to treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Round settlement fee accruals":
+        "USDC protocol fees accrued on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun)",
+    },
+    Revenue: {
+      "Treasury fee revenue (round settlements)":
+        "Fees retained by FIBO protocol treasury (100% of round settlement fees)",
+    },
+    ProtocolRevenue: {
+      "Treasury revenue": "100% of protocol fees",
+    },
+  },
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch,
+      start: "2026-06-16",
+    },
+  },
+};
+
+export default adapter;

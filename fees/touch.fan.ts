@@ -26,6 +26,10 @@ const adapter: Adapter = {
         },
     },
     version: 2,
+    methodology: {
+        Fees: "Fees paid by users while trading on social network.",
+        Revenue: "All fees are revenue.",
+    }
 }
 
 export default adapter; 

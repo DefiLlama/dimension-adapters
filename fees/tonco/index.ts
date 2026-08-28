@@ -4,9 +4,12 @@ import { postURL } from "../../utils/fetchURL";
 
 const GRAPHQL_ENDPOINT = 'https://indexer.tonco.io';
 
+// Numeraires with a reliable indexer USD price; a swap is counted (in either
+// direction) when one side of its pool is one of these.
 const WHITELIST_JETTONS = [
     '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe', // USDT
     '0:949c4c66760c002800e2fa3d8a3ca4e1c90a9373b53ae7472033483bf14cd95e', // WTTON
+    '0:0000000000000000000000000000000000000000000000000000000000000000', // TON
 ]
 
 const SWAPS_QUERY = (from: number, to: number) => `
@@ -17,6 +20,7 @@ const SWAPS_QUERY = (from: number, to: number) => `
             amount
             isZeroToOne
             pool {
+                version
                 fee
                 jetton0 {
                     address
@@ -36,19 +40,28 @@ const SWAPS_QUERY = (from: number, to: number) => `
 `
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-
+    let protocolFeePerc = 0.1;
+    let supplySideRevenuePerc = 0.9;
+    if (options.startTimestamp > 1752105600) { // Protocol Fee changed on 2025-07-10 from 10% of lp fees to 20% of lp fees
+        protocolFeePerc = 0.2;
+        supplySideRevenuePerc = 0.8;
+    }
     const swaps = await postURL(GRAPHQL_ENDPOINT, {
         query: SWAPS_QUERY(options.fromTimestamp * 1000, options.toTimestamp * 1000)
     })
 
-    let totalLpFees = 0;
+    let totalFees = 0;
     let totalProtocolFees = 0;
 
     for (const swap of swaps.data.swaps) {
 
         const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
-        
-        if (!WHITELIST_JETTONS.includes(fromJetton.address)) {
+
+        if (swap.pool.version === 'v1.5') {
+            continue;
+        }
+
+        if (!WHITELIST_JETTONS.includes(swap.pool.jetton0.address) && !WHITELIST_JETTONS.includes(swap.pool.jetton1.address)) {
             continue;
         }
 
@@ -56,42 +69,43 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
             continue;
         }
 
-        const amount = Number(swap.amount) / ( 10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals) );
+        const amount = Number(swap.amount) / (10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals));
         const amountUsd = amount * fromJetton.derivedUsd;
 
         const fee = swap.pool.fee / 10_000;
         const lpFee = amountUsd * fee;
-        const protocolFee = lpFee * 0.1;
+        const protocolFee = lpFee * protocolFeePerc;
 
-        totalLpFees += lpFee
+        totalFees += lpFee
         totalProtocolFees += protocolFee
 
     }
-    
-    return {
-        dailyUserFees: totalLpFees + totalProtocolFees,
-        dailyFees: totalLpFees + totalProtocolFees,
-        dailySupplySideRevenue: totalLpFees,
-        dailyRevenue: totalProtocolFees
-    }
 
+    return {
+        dailyUserFees: totalFees,
+        dailyFees: totalFees,
+        dailySupplySideRevenue: totalFees * supplySideRevenuePerc,
+        dailyRevenue: totalProtocolFees,
+        dailyProtocolRevenue: totalProtocolFees
+    }
 };
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: 'Users pay fees on each swap.',
+        UserFees: 'Users pay fees on each swap.',
+        Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
+    },
     version: 2,
     adapter: {
         [CHAIN.TON]: {
+            fetch,
             start: '2024-11-25',
-            meta: {
-                methodology: {
-                    UserFees: 'Users pay fees on each swap. Trading fees are collected in jettons. Fees are split between LPs and the protocol builder (and referrals).',
-                    Revenue: 'The protocol generally receives 10% of the fees paid by users.',
-                    SupplySideRevenue: '90% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
-                }
-            },
-            fetch
         },
-    }
+    },
+    pullHourly: true,
 };
 
 export default adapter;

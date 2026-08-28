@@ -1,16 +1,16 @@
 import { httpPost } from "../../utils/fetchURL"
 import { FetchOptions, FetchResultV2, Adapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 
 interface VolumeInfo {
 	dailyVolume: string;
-	totalVolume: string;
 	timeStamp: number;
 }
 
 const adapter: Adapter = {
 	version: 2,
 	adapter: {
-		base: {
+		[CHAIN.BASE]: {
 			fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
 				const volumeData: VolumeInfo = await httpPost('https://api.ape.store/base/volume', { date: options.startOfDay }, {
 					headers: {
@@ -19,14 +19,12 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
 					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
 				};
 			},
 			start: '2024-04-04',
 		},
-		ethereum: {
+		[CHAIN.ETHEREUM]: {
 			fetch: async (options: FetchOptions): Promise<FetchResultV2> => {
 				const volumeData: VolumeInfo = await httpPost('https://api.ape.store/eth/volume', { date: options.startOfDay }, {
 					headers: {
@@ -35,9 +33,7 @@ const adapter: Adapter = {
 				});
 
 				return {
-					totalVolume: volumeData.totalVolume,
 					dailyVolume: volumeData.dailyVolume,
-					timestamp: volumeData.timeStamp,
 				};
 			},
 			start: '2024-04-04',

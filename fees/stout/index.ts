@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // protocol accepts collateral in either usdc or tether
 const tokens = {
-  usdc: "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
-  usdt: "0x6047828dc181963ba44974801ff68e538da5eaf9",
+  usdc: ADDRESSES.sonic.USDC_e,
+  usdt: ADDRESSES.sonic.USDT,
 };
 
 // each relevant peg stability module for the tokens above
@@ -14,13 +15,14 @@ const psm = {
 };
 
 const methodology = {
-  Revenue: "10% of tokens used to mint STTX gets sent to the treasury",
+  Fees: "10% fee on tokens used to mint STTX.",
+  Revenue: "10% of tokens used to mint STTX gets sent to the treasury.",
 };
 
 async function fetch({ createBalances, getLogs }: FetchOptions) {
   const fees = createBalances();
 
-  const logFees = (tokenAddress, logs) => {
+  const logFees = (tokenAddress: string, logs: Array<any>) => {
     logs.forEach((log: any) => {
       // logs only show 90% which goes to the contract
       const emittedAmount = Number(log.stableIn);
@@ -56,16 +58,15 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SONIC]: {
       fetch,
       // Saturday, 1 March 2025 00:00:00
-      start: 1740787200,
-      meta: {
-        methodology,
-      },
+      start: '2025-03-01',
     },
   },
+  methodology,
 };
 
 export default adapter;

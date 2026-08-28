@@ -1,51 +1,66 @@
-import { Adapter, FetchResultV2, FetchV2 } from "../adapters/types";
+import { Adapter, FetchOptions } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 interface IChartItem {
-  labels: string;
-  protorev: number;
-  swap_fees: number;
-  taker_fees: number;
+  timestamp: string;
+  dailyFees: number;
+  dailyRevenue: number;
 }
 
-const fetch: FetchV2 = async ({
-  startTimestamp,
-  endTimestamp,
-}): Promise<FetchResultV2> => {
-  const startDate = new Date(startTimestamp * 1000).toISOString().slice(0, 10);
-  const endDate = new Date(endTimestamp * 1000).toISOString().slice(0, 10);
-  const feeEndpoint = `https://www.datalenses.zone/numia/osmosis/lenses/hourly_revenue?start_date=${startDate}&end_date=${endDate}`;
+const fetch = async ({ dateString, createBalances }: FetchOptions) => {
+  const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
 
-  let dailyFees: number = 0;
-  let dailyRevenue: number = 0;
+  const dayData = historicalFees.find(feeItem => 
+    feeItem.timestamp.split(' ')[0] === dateString
+  );
+  if (!dayData) {
+    throw new Error(`No data found for ${dateString}`);
+  }
 
-  historicalFees
-    .filter((feeItem) => {
-      const date = new Date(feeItem.labels).getTime() / 1000;
-      return date >= startTimestamp && date <= endTimestamp;
-    })
-    .map(({ protorev, swap_fees, taker_fees }) => {
-      dailyRevenue += protorev;
-      dailyFees += swap_fees;
-      dailyFees += taker_fees;
-    });
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
+
+  dailyFees.addUSDValue(dayData.dailyFees, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(dayData.dailyRevenue, "Token Swap Fees to Protocol");
+  dailySupplySideRevenue.addUSDValue(dayData.dailyFees - dayData.dailyRevenue, "Token Swap Fees to LPs");
+
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
-const adapter: Adapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.COSMOS]: {
-      fetch,
-      start: '2022-10-17',
-    },
+const methodology = {
+  Fees: "Swap fees paid by traders to liquidity pools",
+  Revenue: "Taker fees collected by the protocol",
+  SupplySideRevenue: "Swap fees distributed to liquidity providers",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by traders to liquidity pools",
   },
+  Revenue: {
+    "Token Swap Fees to Protocol": "Taker fees collected by the protocol",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees to LPs": "Swap fees distributed to liquidity providers",
+  },
+}
+
+const adapter: Adapter = {
+  version: 1,
+  chains: [CHAIN.OSMOSIS],
+  fetch,
+  start: '2022-04-15',
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

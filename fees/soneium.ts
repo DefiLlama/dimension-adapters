@@ -12,7 +12,11 @@ const adapter: Adapter = {
       start: '2024-12-29',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+        methodology: {
+          Fees: 'Transaction fees paid by users',
+          Revenue: 'Total revenue on Soneium, calculated by subtracting the L1 Batch Costs from the total gas fees',
+        }
 }
 
 export default adapter;

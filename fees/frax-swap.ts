@@ -1,26 +1,23 @@
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { FetchOptions, Adapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
-import { Adapter } from "../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphFees";
 
 const poolsDataEndpoint = "https://api.frax.finance/v2/fraxswap/history?range=all"
 
-type TChains = {
-  [chain: string | Chain]: string;
-}
-const chains: TChains = {
-  [CHAIN.ARBITRUM]: 'Arbitrum',
-  [CHAIN.AURORA]: 'Aurora',
-  [CHAIN.AVAX]: 'Avalanche',
-  [CHAIN.BOBA]: 'Boba',
-  [CHAIN.BSC]: 'BSC',
-  [CHAIN.ETHEREUM]: 'Ethereum',
-  [CHAIN.FANTOM]: 'Fantom',
-  [CHAIN.HARMONY]: 'Harmony',
-  [CHAIN.MOONBEAM]: 'Moonbeam',
-  [CHAIN.MOONRIVER]: 'Moonriver',
-  [CHAIN.POLYGON]: 'Polygon',
+const chains: Record<string, { name: string, start: string }> = {
+  [CHAIN.ARBITRUM]: { name: 'Arbitrum', start: '2022-05-23' },
+  [CHAIN.AURORA]: { name: 'Aurora', start: '2022-01-18' },
+  [CHAIN.AVAX]: { name: 'Avalanche', start: '2022-05-23' },
+  [CHAIN.BOBA]: { name: 'Boba', start: '2021-12-27' },
+  [CHAIN.BSC]: { name: 'BSC', start: '2021-12-19' },
+  [CHAIN.ETHEREUM]: { name: 'Ethereum', start: '2022-05-14' },
+  [CHAIN.FANTOM]: { name: 'Fantom', start: '2022-05-22' },
+  [CHAIN.FRAXTAL]: { name: 'Fraxtal', start: '2024-02-22' },
+  [CHAIN.HARMONY]: { name: 'Harmony', start: '2022-01-12' },
+  [CHAIN.MOONBEAM]: { name: 'Moonbeam', start: '2022-01-14' },
+  [CHAIN.MOONRIVER]: { name: 'Moonriver', start: '2021-12-30' },
+  [CHAIN.OPTIMISM]: { name: 'Optimism', start: '2022-10-28' },
+  [CHAIN.POLYGON]: { name: 'Polygon', start: '2022-05-22' },
 };
 
 interface IHistory {
@@ -29,107 +26,56 @@ interface IHistory {
   intervalTimestamp: number;
 }
 
-const graphs = () => {
-  return (chain: Chain) => {
-    return async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-      const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
-      const historicalVolume = historical
-        .filter(e => e.chain.toLowerCase() === chains[chain].toLowerCase());
+const fetch = async (options: FetchOptions) => {
+  const chain = chains[options.chain].name;
+  const dayTimestamp = options.startOfDay
+  const historical: IHistory[] = (await fetchURL(poolsDataEndpoint)).items;
+  const historicalVolume = historical
+    .filter(e => e.chain.toLowerCase() === chain.toLowerCase());
+  const feeUsdAmount = historicalVolume
+    .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount ?? 0
 
-      const totalFees = historicalVolume
-        .filter(volItem => (new Date(volItem.intervalTimestamp).getTime() / 1000) <= dayTimestamp)
-        .reduce((acc, { feeUsdAmount }) => acc + Number(feeUsdAmount), 0)
-      const dailyFees = historicalVolume
-        .find(dayItem => (new Date(dayItem.intervalTimestamp).getTime() / 1000) === dayTimestamp)?.feeUsdAmount
-      return {
-        timestamp,
-        dailyUserFees: dailyFees,
-        totalFees,
-        totalUserFees: totalFees,
-        dailyFees,
-        totalRevenue: "0",
-        dailyRevenue: "0",
-      };
-    };
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(feeUsdAmount, 'Fraxswap Fees');
+  dailySupplySideRevenue.addUSDValue(feeUsdAmount, 'Fraxswap Fees To LPs');
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue: 0,
   };
 };
 
 const methodology = {
   UserFees: "Users pay 0.3% swap fees",
-  Fees: "A 0.3% fee is collected from each swap"
+  Fees: "A 0.3% fee is collected from each swap",
+  SupplySideRevenue: "All fees go to LPs",
+  Revenue: "No revenue"
+}
+
+const breakdownMethodology = {
+  UserFees: {
+    'Fraxswap Fees': "0.3% fee paid by users on each token swap"
+  },
+  Fees: {
+    'Fraxswap Fees': "0.3% fee collected from each token swap"
+  },
+  SupplySideRevenue: {
+    'Fraxswap Fees To LPs': "100% of swap fees distributed to liquidity providers"
+  }
 }
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: graphs()(CHAIN.ARBITRUM),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AURORA]: {
-      fetch: graphs()(CHAIN.AURORA),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.AVAX]: {
-      fetch: graphs()(CHAIN.AVAX),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BOBA]: {
-      fetch: graphs()(CHAIN.BOBA),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.BSC]: {
-      fetch: graphs()(CHAIN.BSC),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch: graphs()(CHAIN.ETHEREUM),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.FANTOM]: {
-      fetch: graphs()(CHAIN.FANTOM),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.HARMONY]: {
-      fetch: graphs()(CHAIN.HARMONY),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.MOONBEAM]: {
-      fetch: graphs()(CHAIN.MOONBEAM),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.MOONRIVER]: {
-      fetch: graphs()(CHAIN.MOONRIVER),
-      meta: {
-        methodology
-      }
-    },
-    [CHAIN.POLYGON]: {
-      fetch: graphs()(CHAIN.POLYGON),
-      meta: {
-        methodology
-      }
-    },
-  }
+  methodology,
+  breakdownMethodology,
+  adapter: Object.keys(chains).reduce((all, chain) => {
+    all[chain] = { fetch, start: chains[chain].start }
+    return all
+  }, {} as any),
 }
 
 export default adapter;

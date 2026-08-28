@@ -1,19 +1,20 @@
 import { CHAIN } from "../helpers/chains";
 import { BaseAdapter, Adapter, FetchOptions, } from "../adapters/types";
-import volumeAdapter from "../dexs/verse";
+import { getAdapterFromHelpers} from "../factory/registry";
 
+const volumeAdapter = getAdapterFromHelpers('dexs', 'verse')?.adapter as any;
 
-const adapterObj = volumeAdapter.adapter;
+const adapterObj = volumeAdapter.adapter as BaseAdapter;
 
-const fetch = (chain: string, totalFees: number, revenueFee: number, ssrFee: number) => {
+const fetch = (chain: string, tf: number, rf: number, ssr: number) => {
   return async (options: FetchOptions) => {
     const { dailyVolume } = await (adapterObj[chain].fetch as any)(options);
 
     return {
-      dailyUserFees: dailyVolume.clone(totalFees),
-      dailyFees: dailyVolume.clone(totalFees),
-      dailyRevenue: dailyVolume.clone(revenueFee),
-      dailySupplySideRevenue: dailyVolume.clone(ssrFee),
+      dailyUserFees: dailyVolume.clone(tf),
+      dailyFees: dailyVolume.clone(tf),
+      dailyRevenue: dailyVolume.clone(rf),
+      dailySupplySideRevenue: dailyVolume.clone(ssr),
     };
   }
 }
@@ -28,21 +29,17 @@ const methodology = {
 const baseAdapter: BaseAdapter = {
   [CHAIN.ETHEREUM]: {
     fetch: fetch(CHAIN.ETHEREUM, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
   [CHAIN.SMARTBCH]: {
     fetch: fetch(CHAIN.SMARTBCH, 0.003, 0.0005, 0.0025),
-    meta: {
-      methodology
-    }
   },
 }
 
 const adapter: Adapter = {
+  methodology,
   adapter: baseAdapter,
-  version: 2
+  version: 2,
+  pullHourly: true,
 };
 
 export default adapter;

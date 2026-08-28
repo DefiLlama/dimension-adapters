@@ -32,40 +32,42 @@ async function getVaultState(api: ChainApi): Promise<{ sharePrice: string, total
 }
 
 const fetch = async (options: FetchOptions) => {
-    const { createBalances, api, fromApi } = options;
-  
-    const startState = await getVaultState(fromApi);
-    const endState = await getVaultState(api);
+  const { createBalances, api, fromApi } = options;
 
-    const sharePriceStart = BigInt(startState.sharePrice);
-    const sharePriceEnd = BigInt(endState.sharePrice);
-  
-    const totalSupplyStart = BigInt(startState.totalSupply);
-    const withdrawingSharesStart = BigInt(startState.withdrawingShares);
-    const activeSharesStart = totalSupplyStart - withdrawingSharesStart;
-  
-    const priceIncrease = sharePriceEnd - sharePriceStart;
-  
-    const dailyEthRewards = (priceIncrease * activeSharesStart) / DECIMALS;
-  
-    const dailyFees = createBalances()
-    dailyFees.addGasToken(dailyEthRewards);
-  
-    return {
-      dailyFees
-    }
+  const startState = await getVaultState(fromApi);
+  const endState = await getVaultState(api);
+
+  const sharePriceStart = BigInt(startState.sharePrice);
+  const sharePriceEnd = BigInt(endState.sharePrice);
+
+  const totalSupplyStart = BigInt(startState.totalSupply);
+  const withdrawingSharesStart = BigInt(startState.withdrawingShares);
+  const activeSharesStart = totalSupplyStart - withdrawingSharesStart;
+
+  const priceIncrease = sharePriceEnd - sharePriceStart;
+
+  const dailyEthRewards = (priceIncrease * activeSharesStart) / DECIMALS;
+
+  const dailyFees = createBalances()
+  dailyFees.addGasToken(dailyEthRewards);
+
+  return {
+    dailyFees,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0
   }
+}
 
 const adapter: SimpleAdapter = {
+  methodology: {
+    Fees: "Staking rewards earned by all staked ETH",
+    SupplySideRevenue: "All the staking rewards go to stakers",
+    Revenue: "The protocol doesn't keep any fees"
+  },
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      meta: {
-        methodology: {
-          dailyFees: "Staking rewards earned by all staked ETH",
-        }
-      }
     }
   }
 };

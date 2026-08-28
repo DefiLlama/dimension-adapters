@@ -1,106 +1,122 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { gql, GraphQLClient } from "graphql-request";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const query = (amo: string, timestamp: number) => gql`
+const query = (amo: string) => gql`
 {
-    amos(
-        where: {
-            id: "${amo.toLowerCase()}"
-        }) {
-        id
-        name
-        positions {
-            depositAddress
-            name
-            fraxAccountingPerDay(
-                first: 3,
-                orderBy: timestamp,
-                orderDirection: desc
-                where: {
-                    timestamp_lt: ${timestamp}
-                }) {
-                balance
-                depositedAmount
-                profitTaken
-                timestamp
-                }
-            }
-        }
+  amos(
+    where: {
+        id: "${amo.toLowerCase()}"
+    }) {
+    id
+    name
+    positions {
+        depositAddress
+        
+      }
     }
+  }
 `;
 
+const LABELS = {
+  BorrowInterest: 'FRAX AMO Borrow Interest',
+  ProtocolFee: 'FRAX AMO Protocol Fee',
+  LenderInterest: 'FRAX AMO Lender Interest',
+}
+
 const getGQLClient = (endpoint: string) => new GraphQLClient(endpoint);
-
-const findRevenue = (timedData: any) =>
-  Number(timedData.balance) -
-  Number(timedData.depositedAmount) +
-  Number(timedData.profitTaken);
-
-const fetch = async (timestamp: number, _: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { amos, graph, FRAX } = config[options.chain];
   const client = getGQLClient(graph);
-  const dailyRevenue = options.createBalances();
-  const totalRevenue = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  await Promise.all(
-    amos.map(async (amo: string) => {
-      const data = (await client.request(query(amo, timestamp))).amos[0];
-      data.positions.map(({ fraxAccountingPerDay: days }: any) => {
-        if (days.length < 2) return 
-        const latest = findRevenue(days[0]);
-        const previous = findRevenue(days[1]);
-        dailyRevenue.add(FRAX, latest - previous);
-        totalRevenue.add(FRAX, latest);
-      });
-    }),
-  );
+  for (const amo of amos) {
+    const data = (await client.request(query(amo))).amos[0];
+    const positions = data ? data.positions : [];
+    const pairs = positions.map((item: any) => item.depositAddress);
+    if (pairs.length > 0) {
+      const events = await options.getLogs({
+        targets: pairs,
+        eventAbi: 'event AddInterest(uint256 interestEarned, uint256 rate, uint256 feesAmount, uint256 feesShare)',
+        flatten: true,
+      })
+      for (const event of events) {
+        dailyFees.add(FRAX, event.interestEarned, LABELS.BorrowInterest)
+        dailyProtocolRevenue.add(FRAX, event.feesAmount, LABELS.ProtocolFee)
+      }
+    }
+  }
+
+  // Interest paid to lenders = total borrow interest minus the protocol's fee cut.
+  const supplySideRevenue = dailyFees.clone(1)
+  supplySideRevenue.subtract(dailyProtocolRevenue)
+
+  dailySupplySideRevenue.add(supplySideRevenue, LABELS.LenderInterest)
 
   return {
-    timestamp,
-    dailyRevenue,
-    totalRevenue,
-    dailyFees: dailyRevenue,
-    totalFees: totalRevenue,
+    dailyFees,
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const config: {
-  [chain: string]: { FRAX: string; amos: string[]; graph: string };
+  [chain: string]: { FRAX: string; amos: string[]; graph: string, start: string };
 } = {
   [CHAIN.ETHEREUM]: {
-    FRAX: "0x853d955aCEf822Db058eb8505911ED77F175b99e",
+    FRAX: ADDRESSES.ethereum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('5pkNZTvdKuik24p8xtHctfaHcmNghNqb4ANo2BfQVefZ'),
     amos: [
-      // '0x49ee75278820f409ecd67063D8D717B38d66bd71', // curve
-      // '0x629C473e0E698FD101496E5fbDA4bcB58DA78dC4', // twaamm
-      // '0x452420df4AC1e3db5429b5FD629f3047482C543C', // fxb
+      '0x49ee75278820f409ecd67063D8D717B38d66bd71', // curve
+      '0x629C473e0E698FD101496E5fbDA4bcB58DA78dC4', // twaamm
+      '0x452420df4AC1e3db5429b5FD629f3047482C543C', // fxb
       "0x0Ed8fA7FC63A8eb5487E7F87CAF1aB3914eA4eCa", // v1
       "0xf6E697e95D4008f81044337A749ECF4d15C30Ea6", // v3
     ],
+    start: '2024-03-01',
   },
   [CHAIN.ARBITRUM]: {
-    FRAX: "0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F",
+    FRAX: ADDRESSES.arbitrum.FRAX,
     graph:
       sdk.graph.modifyEndpoint('4zJMfZFyGvqbKyyyeVs4qE15BaEuwr5DLLZiSLhJzBNs'),
     amos: [
       "0xCDeE1B853AD2E96921250775b7A60D6ff78fD8B4", // v3
     ],
+    start: '2024-03-01',
   },
 };
 
 const adapter: SimpleAdapter = {
-  adapter: Object.keys(config).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-              },
-    };
-  }, {}),
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  fetch,
+  adapter: config,
+  methodology: {
+    Fees: 'Total interest paid to users by borrowing FRAX.',
+    Revenue: 'Amount of interest collected by Frax Finance.',
+    ProtocolRevenue: 'Amount of interest collected by Frax Finance.',
+    SupplySideRevenue: 'Amount of interest paid to lenders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [LABELS.BorrowInterest]: 'Total interest paid to users by borrowing FRAX.',
+    },
+    Revenue: {
+      [LABELS.ProtocolFee]: 'Amount of interest collected by Frax Finance.',
+    },
+    ProtocolRevenue: {
+      [LABELS.ProtocolFee]: 'Amount of interest collected by Frax Finance.',
+    },
+    SupplySideRevenue: {
+      [LABELS.LenderInterest]: 'Amount of interest paid to lenders.',
+    },
+  }
 };
 
 export default adapter;

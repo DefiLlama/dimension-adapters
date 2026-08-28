@@ -17,6 +17,7 @@ export function generateCBCommerceExports(receivingAddress:string) {
         return {
             dailyFees,
             dailyRevenue: dailyFees,
+            dailyProtocolRevenue: dailyFees,
         }
     }
 

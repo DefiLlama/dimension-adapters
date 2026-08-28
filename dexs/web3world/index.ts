@@ -3,16 +3,6 @@ import { postURL } from "../../utils/fetchURL";
 
 interface IWeb3WorldPoolsStats {
   pools: Array<{
-    meta: {
-      currencies: string[];
-      currencyAddresses: string[];
-      poolAddress: string;
-      lpAddress: string;
-      pairType: string;
-      fee: string;
-      feeBeneficiary: string | null;
-      beneficiaryAddress: string | null;
-    };
     tvl: string;
     tvlChange: string;
     volumesLocked: string[];
@@ -41,14 +31,12 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   );
   let dailyVolume = 0
   let dailyFees = 0
-  let totalFees = 0
   response.pools.forEach((pool) => {
     dailyVolume += +pool.volume24h;
     dailyFees = +pool.fee24h;
-    totalFees = +pool.feeAllTime;
   });
   return {
-    dailyVolume, dailyFees, totalFees, dailyUserFees: dailyFees,
+    dailyVolume, dailyFees, dailyUserFees: dailyFees,
   };
 };
 const adapter: SimpleAdapter = {

@@ -1,5 +1,9 @@
+import * as sdk from "@defillama/sdk";
+import { ethers } from "ethers";
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from '../helpers/metrics';
 
 /**
  * 
@@ -24,12 +28,7 @@ import { CHAIN } from "../helpers/chains";
  * The Rocket Pool protocol matches liquid stakers with node operators. It does not take a fee for providing this service.
  */
 
-const methodology = {
-  Fees: 'Total ETH staking rewards from Rocketpool active validators',
-  SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
-}
-
-const rETH = '0xae78736cd615f374d3085123a210448e74fc6393';
+const rETH = ADDRESSES.ethereum.RETH;
 
 // MEV and priority fees send to smoothing pool by block builders
 const smoothingPool = '0xd4E96eF8eee8678dBFf4d535E033Ed1a4F7605b7';
@@ -126,37 +125,94 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     // calculate total rewards were collected by minipool (including minipool commission)
     const rewardFromBeacon = rewardToStakersAndOperators / (1 - nodeFeeRate)
 
-
-    dailyFees.addGasToken(rewardFromBeacon)
+    dailyFees.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
   }
 
-  const etherWithdrawnEvents: Array<any> = (await options.getLogs({
-    target: smoothingPool,
-    eventAbi: RocketPoolContractAbis.smoothingPoolEtherWithdrawn,
-  }))
-  etherWithdrawnEvents.forEach((log: any) => {
-    if (log.to.toLowerCase() === rETH.toLowerCase()) {
-      dailyFees.addGasToken(log.amount)
-    }
+  // Since Saturn 1, node operators can run megapools instead of minipools.
+  // Megapools deposit their rETH reward share through the same EtherDeposited
+  // event, but do not implement getNodeDepositBalance/getNodeFee, so they
+  // revert above and are skipped by the minipool loop. Pick them up from their
+  // own RewardsDistributed event. The node leg is defined on-chain as the
+  // residual (nodeAmount = reward - the other three legs), so the four legs sum
+  // exactly to the full pre-split beacon reward - the megapool analogue of the
+  // minipool rewardFromBeacon above, with no bond/commission gross-up needed.
+  const rocketStorage = '0x1d8f8f00cfa6758d7bE78336684788Fb0ee0Fa46';
+  const megapoolExistsKeys = minipoolAddresses.map((address) =>
+    ethers.solidityPackedKeccak256(['string', 'address'], ['megapool.exists', address])
+  );
+  // getBool returns false for an unset key and never reverts, so unlike the
+  // minipool getters above it needs no permitFailure - letting a genuine RPC
+  // failure throw is preferable to silently dropping a megapool's rewards.
+  const isMegapool = await options.api.multiCall({
+    abi: 'function getBool(bytes32) view returns (bool)',
+    calls: megapoolExistsKeys.map((key) => ({ target: rocketStorage, params: [key] })),
   })
+  // Scope RewardsDistributed to confirmed megapool emitters. Its topic0 is a
+  // plain five-uint256 signature that unrelated contracts also emit, so an
+  // unscoped scan would overcount; the EtherDeposited senders are the natural,
+  // already-collected candidate set.
+  const megapoolAddresses = minipoolAddresses.filter((_, i) => isMegapool[i] === true)
+  if (megapoolAddresses.length > 0) {
+    const rewardsDistributedLogs = await options.getLogs({
+      targets: megapoolAddresses,
+      eventAbi: 'event RewardsDistributed(uint256 nodeAmount, uint256 voterAmount, uint256 rethAmount, uint256 protocolDaoAmount, uint256 time)',
+    })
+    for (const log of rewardsDistributedLogs) {
+      // The full beacon reward is counted as fees and flows to supply side, the
+      // same as the minipool path above. Saturn 1 added a voter share (~9%) and
+      // a protocol-DAO share (currently 0%) that are arguably protocol revenue
+      // rather than supply-side; reclassifying them is left to a follow-up so
+      // this change stays scoped to the dropped-fees fix (see #8812).
+      const beaconReward = Number(log.nodeAmount) + Number(log.voterAmount) + Number(log.rethAmount) + Number(log.protocolDaoAmount)
+      dailyFees.addGasToken(beaconReward, METRIC.STAKING_REWARDS)
+    }
+  }
+
+  // MEV and execution rewards
+  const transactions = await sdk.indexer.getTransactions({
+    chain: options.chain,
+    transactionType: 'to',
+    addresses: [smoothingPool],
+    from_block: Number(options.fromApi.block),
+    to_block: Number(options.toApi.block),
+  })
+  if (transactions) {
+    for (const tx of transactions) {
+      dailyFees.addGasToken(tx.value, METRIC.MEV_REWARDS)
+    }
+  }
 
   return {
     dailyFees,
+    dailyRevenue: 0,
     dailySupplySideRevenue: dailyFees,
   }
 }
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,
-      start: '2021-09-31',
-      meta: {
-        methodology,
-      }
+      start: '2021-09-30',
     },
   },
+  methodology: {
+    Fees: 'Total ETH staking rewards from Rocketpool active validators',
+    Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
+    SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators.',
+      [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
+    },
+    SupplySideRevenue: {
+      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to rETH stakers and minipool depositors.',
+      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to rETH stakers and minipool depositors.',
+    },
+  }
 };
 
 export default adapter;

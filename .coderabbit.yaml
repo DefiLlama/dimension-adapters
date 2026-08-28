@@ -1,0 +1,204 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: true
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: true
+  suggested_reviewers: true
+  
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - master
+
+  # Pre-merge checks (Pro feature)
+  pre_merge_checks:
+    docstrings:
+      mode: "warning"
+      threshold: 50
+    title:
+      mode: "warning"
+      requirements: "Title should be descriptive and follow format: [type] protocol-name - description"
+    description:
+      mode: "warning"
+    custom_checks:
+      - name: "Breakdown Methodology Check"
+        mode: "warning"
+        instructions: "For fees adapters: verify that all breakdown labels used in .add() calls have corresponding entries in breakdownMethodology object. Check that breakdownMethodology is exported in the adapter."
+      - name: "Income Statement Compliance"
+        mode: "warning"
+        instructions: "For fees adapters: verify dailyFees represents Gross Protocol Revenue (all potential fees), dailyRevenue represents Gross Profit (protocol's portion), and dailySupplySideRevenue represents Cost of Funds (supplier payments). Ensure dailyRevenue = dailyFees - dailySupplySideRevenue conceptually."
+      - name: "Version 2 Required"
+        mode: "warning"
+        instructions: "New adapters must use version: 2 format. Check that the adapter exports version: 2 unless it's updating an existing v1 adapter, or it relies on Dune / an external API that only returns daily aggregates."
+      - name: "pullHourly Required For Version 2"
+        mode: "warning"
+        instructions: "Every version: 2 adapter must explicitly set the pullHourly key. Flag v2 adapters that omit it. Default should be pullHourly: true; pullHourly: false is only acceptable when the data cannot be pulled hourly, and must be accompanied by a comment explaining why."
+      - name: "Dune Adapters Are Version 1"
+        mode: "warning"
+        instructions: "Any adapter that queries Dune (queryDuneSql, queryDune, dune helpers) MUST export version: 1. Dune runs once per day; a v2 adapter runs hourly and would re-run the same expensive query. Also flag duplicate date filters: the TIME_RANGE macro already injects a date filter, so additional WHERE date filters are redundant. Prefer a single prefetch query covering all chains over one query per chain."
+      - name: "Income Statement Balance"
+        mode: "warning"
+        instructions: "For fees adapters: dailyFees = dailyRevenue + dailySupplySideRevenue should hold within a period. dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue is an attribution rule, NOT a per-day equality - holders revenue (e.g. periodic buybacks like AAVE buy back) can be realized on a different day, so do not flag day-level mismatches there. Flag: dumping all fees into dailyRevenue (ignoring the supply-side cut); missing dailyProtocolRevenue/dailyHoldersRevenue split when revenue goes to both treasury and token holders; classifying non-governance stakers (stablecoin/LST stakers) as dailyHoldersRevenue instead of dailySupplySideRevenue. Negative dailySupplySideRevenue is worth a look but can be legitimate when a vault/protocol realizes a loss (both dailyFees and dailySupplySideRevenue may be negative) - ask to verify rather than asserting it is a bug."
+      - name: "FetchOptions Usage"
+        mode: "warning"
+        instructions: "The fetch function must take a single FetchOptions argument for both v1 and v2: (options: FetchOptions). Flag the old 3-argument v1 signature (timestamp, chainBlocks, options) - it no longer exists and will fail. Flag adapters that recompute time/block values from a raw timestamp instead of using options.startOfDay, options.dateString, options.startTimestamp, options.fromTimestamp, options.getFromBlock(). Flag unused fetch arguments. Flag fetch functions (v1 OR v2) that return a timestamp field in their result. Flag v2 adapters that key time windows off startOfDay instead of startTimestamp (v2 runs hourly)."
+      - name: "Adapter Shape"
+        mode: "warning"
+        instructions: "Prefer the simplest adapter shape: if start is the same for all chains, use the chains array with a single start, not a per-chain adapter object. Use the adapter object (keyed by chain with per-chain start) only when start differs per chain. When there is per-chain config (different contract/id per chain), keep it in a single chainConfig object (each entry has a start key) and pass it as adapter: chainConfig, with fetch reading chainConfig[options.chain] - rather than maintaining separate chains list, start map and config map."
+      - name: "Efficiency And Error Handling"
+        mode: "warning"
+        instructions: "Flag: getLogs using noTarget + post-filtering instead of getLogs({ targets: [...] }); raw topics instead of a readable eventAbi; loops of single api.call instead of api.multiCall (PromisePool for non-EVM); try/catch blocks that swallow errors without rethrowing; hardcoded rates/addresses/magic numbers lacking a source comment; allowNegativeValue without a justifying comment."
+      - name: "Methodology Keys"
+        mode: "warning"
+        instructions: "Keys in the methodology object must be dimension display names (Fees, Revenue, SupplySideRevenue, ProtocolRevenue, HoldersRevenue, Volume, NotionalVolume, PremiumVolume, OpenInterest), not code field names like dailyFees or dailyVolume."
+
+  # Finishing touches (Pro feature)
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: false
+    simplify:
+      enabled: true
+
+  # Path-specific review instructions
+  path_instructions:
+    - path: "fees/**"
+      instructions: |
+        Review fees adapters for:
+        - Correct income statement mapping (dailyFees = Gross Protocol Revenue, dailyRevenue = Gross Profit, dailySupplySideRevenue = Cost of Funds)
+        - dailyFees = dailyRevenue + dailySupplySideRevenue should hold within a period; dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue is an attribution rule, not a per-day equality (holders revenue like buybacks can land on a different day)
+        - Do NOT dump all fees into dailyRevenue; add dailyProtocolRevenue when the protocol keeps a cut, and split into dailyProtocolRevenue/dailyHoldersRevenue when revenue goes to both treasury and governance holders
+        - Non-governance stakers (stablecoin/LST stakers) are supply-side, not holders revenue
+        - Negative dailySupplySideRevenue is worth verifying but can be legitimate on realized vault losses - ask, don't assume a bug
+        - All breakdown labels must have corresponding breakdownMethodology entries
+        - Labels should be descriptive (not vague like "Protocol Fees" or "Other")
+        - dailySupplySideRevenue required when protocol pays suppliers (LPs, lenders, stakers, integrators, referrers)
+        - Block rewards are incentives NOT fees
+        - Buybacks: subtract from fees (TCG/collector-crypt pattern), and don't double-count buybacks already tracked in a parent listing
+        - Need 24h data, not cumulative; on contract redeploys use date-based contract switching, don't change start/contract address
+        - Dune adapters must be version 1; v2 adapters must use startTimestamp not startOfDay
+        - Use web search to verify protocol's fee structure if unclear
+    
+    - path: "dexs/**"
+      instructions: |
+        Review DEX adapters for:
+        - Volume calculation accuracy
+        - For perpetuals: ONLY track taker volume (do NOT double-count maker+taker)
+        - For trading bots/routers: don't add both buy and sell legs (double-counts); trades and fee transfers may be in different transactions
+        - Wash trading concerns on low-fee chains
+        - Prefer on-chain logs over backend APIs for EVM chains; use readable eventAbi instead of raw topics
+        - If fees are tracked, verify income statement compliance (see fees/ guidelines)
+        - Use helper functions when available (uniV2Exports, uniV3Exports)
+    
+    - path: "aggregators/**"
+      instructions: |
+        Review aggregator adapters for:
+        - Volume should be routed volume, NOT double-counted with underlying DEX volume
+        - Check for integration/partner fees as supply-side costs
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-derivatives/**"
+      instructions: |
+        Review derivatives aggregator adapters for:
+        - ONLY track taker volume (no maker+taker double-counting)
+        - Check open interest tracking if applicable
+        - If fees tracked, verify income statement compliance
+    
+    - path: "aggregator-options/**"
+      instructions: |
+        Review options aggregator adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Ensure routed options volume is not double-counted with underlying protocols
+        - If fees tracked, verify income statement compliance
+    
+    - path: "bridge-aggregators/**"
+      instructions: |
+        Review bridge aggregator adapters for:
+        - Track routed bridge volume only (dailyBridgeVolume)
+        - Avoid double-counting with underlying bridge protocols
+        - Verify multi-chain transfer accounting consistency
+        - If fees tracked, verify income statement compliance
+    
+    - path: "options/**"
+      instructions: |
+        Review options adapters for:
+        - Both dailyNotionalVolume and dailyPremiumVolume required
+        - Don't confuse notional vs premium volume
+        - If fees tracked, verify income statement compliance
+    
+    - path: "incentives/**"
+      instructions: |
+        Review incentives adapters for:
+        - Block rewards and emissions classified as incentives, not fees
+        - dailyTokenIncentives required; dailyIncentives when applicable
+        - No double-counting with fees adapters
+    
+    - path: "helpers/**"
+      instructions: |
+        Review helper code for:
+        - Reusability across multiple adapters
+        - Proper TypeScript types
+        - No npm dependencies allowed
+        - Use api.multiCall for batching, not Promise.all
+
+  # Labeling suggestions
+  labeling_instructions:
+    - label: "fees"
+      instructions: "Apply when PR changes files in fees/ directory"
+    - label: "dexs"
+      instructions: "Apply when PR changes files in dexs/ directory"
+    - label: "aggregators"
+      instructions: "Apply when PR changes files in aggregators/ directory"
+    - label: "new-adapter"
+      instructions: "Apply when PR adds a new adapter file that didn't exist before"
+    - label: "methodology"
+      instructions: "Apply when PR changes fee/revenue calculation methodology or breakdownMethodology"
+    - label: "helper"
+      instructions: "Apply when PR changes files in helpers/ directory"
+    - label: "bug-fix"
+      instructions: "Apply when PR fixes a bug in existing adapter"
+
+  # Tools for linting
+  tools:
+    biome:
+      enabled: true
+    eslint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 300000
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  web_search:
+    enabled: true
+  opt_out: false
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/GUIDELINES.md"
+  learnings:
+    scope: global
+  issues:
+    scope: global
+  pull_requests:
+    scope: global

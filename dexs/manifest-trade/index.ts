@@ -1,23 +1,21 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains';
 import { httpGet } from '../../utils/fetchURL';
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const volumeEndpoint = "https://mfx-stats-mainnet.fly.dev/volume";
 
-async function fetch(timestamp: number) {
+async function fetch(_options: FetchOptions) {
   const response = await httpGet(volumeEndpoint);
 
   return {
-    totalVolume: response.totalVolume['solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'],
-    dailyVolume: response.dailyVolume['solana:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'],
-    timestamp: timestamp
-  }
+    dailyVolume: response.dailyVolume['solana:' + ADDRESSES.solana.USDC],}
 }
 
-export default {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      runAtCurrTime: true,
-      fetch: fetch,
-    }
-  }
+const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.SOLANA],
+  runAtCurrTime: true,
 }
+
+export default adapter;

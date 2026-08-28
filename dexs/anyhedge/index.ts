@@ -1,12 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
 
 const methodology = {
   Volume: "Scan the blockchain for AnyHedge input pattern, add up all such inputs BCH value. The daily volume is the volume of all settled contracts for the day. Indexer: https://gitlab.com/0353F40E/anyhedge-stats",
-  Fees: "N/A",
-  Revenue: "N/A",
 }
 
 interface IAnyhedgeVolumeResponse {
@@ -21,19 +18,15 @@ export const anyhedgeVolumeEndpoint = (day: string) => {
   return "https://gitlab.com/0353F40E/anyhedge-stats/-/raw/master/stats_daily/" + day + ".csv";
 }
 
-const fetchAnyhedgeVolumeData: Fetch = async (timestamp: number, _: ChainBlocks, options: FetchOptions) => {
-  const dayString = new Date(timestamp * 1000).toISOString().slice(0,10);
+const fetch: any = async (options: FetchOptions) => {
+  const dayString = new Date(options.toTimestamp * 1000).toISOString().slice(0, 10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
-  
+
   const dailyVolume = options.createBalances();
-  const totalVolume = options.createBalances();
   dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.daily_volume));
-  totalVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.total_volume));
 
   return {
-    timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 
@@ -46,7 +39,7 @@ async function getAnyhedgeVolumeData(endpoint: string): Promise<IAnyhedgeVolumeR
     retval.total_volume = data[0].volume_closed_cumulative;
     return retval;
   } catch {
-      return null;
+    return null;
   }
 }
 
@@ -66,14 +59,10 @@ function toObject(keys, values) {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BITCOIN_CASH]: {
-      fetch: fetchAnyhedgeVolumeData,
-      start: '2022-06-09',
-      meta: {
-          methodology
-      }
-    },
-  },
+  fetch,
+  chains: [CHAIN.BITCOIN_CASH],
+  start: '2022-06-09',
+  methodology,
 };
+
 export default adapter;

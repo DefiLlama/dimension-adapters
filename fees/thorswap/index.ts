@@ -1,136 +1,36 @@
-import BigNumber from "bignumber.js";
-import { SimpleAdapter } from "../../adapters/types"
-import { CHAIN } from "../../helpers/chains"
-import { httpGet } from "../../utils/fetchURL";
+import { CHAIN } from "../../helpers/chains";
+import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
+import { addTokensReceived } from "../../helpers/token";
 
-const chainMapping = {
-  ETH: CHAIN.ETHEREUM,
-  BTC: CHAIN.BITCOIN,
-  AVAX: CHAIN.AVAX,
-  BSC: CHAIN.BSC,
-  LTC: CHAIN.LITECOIN,
-  BCH: CHAIN.BITCOIN_CASH,
-  DOGE: CHAIN.DOGECHAIN,
-  GAIA: CHAIN.COSMOS,
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const dailyFees = await addTokensReceived({
+    targets: [
+      '0x546e7b1f4b4Df6CDb19fbDdFF325133EBFE04BA7',
+      '0x6Ee1f539DDf1515eE49B58A5E9ae84C2E7643490',
+      '0x6d1eff1aFF1dc9978d851D09d9d15f2938Da7BD7',
+      '0x335Fd459eADf098f8B2f26692936Ee3D5Bb425A2',
+    ], // v3, v4, v5 and v5.1 fee collectors
+    tokens: ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
+    options
+  })
+  const dailyRevenue = dailyFees.clone();
+  const dailyProtocolRevenue = dailyRevenue.clone(0.25); // 25% of revenue goes to protocol
+  const dailyHoldersRevenue = dailyRevenue.clone(0.75); // 75% of revenue goes to holders
+  return { dailyFees, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyProtocolRevenue, dailyHoldersRevenue: dailyHoldersRevenue, }
 }
 
-interface Pool {
-  assetLiquidityFees: string
-  earnings: string
-  pool: string
-  rewards: string
-  runeLiquidityFees: string
-  saverEarning: string
-  totalLiquidityFeesRune: string
-}
 
-const assetFromString = (s: string) => {
-
-  const NATIVE_ASSET_DELIMITER = '.'
-  const SYNTH_ASSET_DELIMITER = '/'
-  const TRADE_ASSET_DELIMITER = '~'
-
-  const isSynth = s.includes(SYNTH_ASSET_DELIMITER)
-  const isTrade = s.includes(TRADE_ASSET_DELIMITER)
-  const delimiter = isSynth ? SYNTH_ASSET_DELIMITER : isTrade ? TRADE_ASSET_DELIMITER : NATIVE_ASSET_DELIMITER
-
-  const data = s.split(delimiter)
-  if (data.length <= 1 || !data[1]) return null
-
-  const chain = data[0].trim()
-  const symbol = data[1].trim()
-  const ticker = symbol.split('-')[0]
-
-  if (!symbol || !chain) return null
-
-  return { chain, symbol, ticker }
-}
-
-const findInterval = (timestamp: number, intervals) => {
-  for (const interval of intervals) {
-    if (interval.startTime <= timestamp && timestamp < interval.endTime) {
-      return interval;
-    }
+const adapter: Adapter = {
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2025-02-19',
+  methodology: {
+    Fees: 'Swap fees paid by users.',
+    Revenue: 'Swap fees paid by users.',
+    ProtocolRevenue: '25% of revenue goes to protocol treasury.',
+    HoldersRevenue: '75% of revenue goes to THOR holders. 20% goes to buy THOR from market and burn. Rest is going to stakers. Stakers can choose in which token they want to receive their rewards either THOR or USDC.',
   }
-  return null;
-};
-
-type IRequest = {
-  [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
-
-export async function fetchCacheURL(url: string) {
-  const key = url;
-  if (!requests[key])
-    requests[key] = httpGet(url, { headers: {"x-client-id": "defillama"}});
-  return requests[key]
 }
 
-const fetchFeesByChain = () => {
-  const adapter = {}
-  const chains = ['BTC', 'ETH', 'LTC', 'DOGE', 'GAIA', 'AVAX', 'BSC', 'BCH']
-  chains.forEach((chain: string) => {
-    adapter[chainMapping[chain]] = {
-      runAtCurrTime: true,
-      fetch:  async (timestamp: number) => {
-
-        const earningsUrl = `https://midgard.ninerealms.com/v2/history/earnings?interval=day&count=2`
-        const reserveUrl = `https://midgard.ninerealms.com/v2/history/reserve?interval=day&count=2`
-        const poolsUrl = `https://midgard.ninerealms.com/v2/pools?period=24h`
-        const earnings = await fetchCacheURL(earningsUrl);
-        const revenue = await fetchCacheURL(reserveUrl);
-        const pools = await fetchCacheURL(poolsUrl);
-        const selectedEarningInterval = findInterval(timestamp, earnings.intervals);
-        const selectedRevenueInterval = findInterval(timestamp, revenue.intervals);
-
-        const poolsByChainEarnings: Pool[] = selectedEarningInterval?.pools?.filter(pool => assetFromString(pool.pool)?.chain === chain)
-
-        const totalRuneDepth = pools.reduce((acum, pool) => acum.plus(pool.runeDepth), BigNumber(0))
-        const poolsByChainData = pools?.filter(pool => assetFromString(pool.asset)?.chain === chain)
-        const runeDepthPerChain = poolsByChainData.reduce((acum, pool) => acum.plus(pool.runeDepth), BigNumber(0))
-
-        const protocolRevenue = BigNumber(selectedRevenueInterval.gasFeeOutbound).minus(selectedRevenueInterval.gasReimbursement)
-
-        const runePercentagePerChain = runeDepthPerChain.div(totalRuneDepth)
-        const bondingRewardPerChainBasedOnRuneDepth = BigNumber(selectedEarningInterval.bondingEarnings).times(runePercentagePerChain) // TODO: Artificial distribution according to the liquidity of the pools. But it is a protocol level data
-        const protocolRevenuePerChainBasedOnRuneDepth = protocolRevenue.times(runePercentagePerChain)
-
-        const dailyFees = poolsByChainEarnings.reduce((acum, pool) => {
-          const liquidityFeesPerPoolInDollars = BigNumber(pool.totalLiquidityFeesRune).div(1e8).times(selectedEarningInterval.runePriceUSD)
-          const saverLiquidityFeesPerPoolInDollars = BigNumber(pool.saverEarning).div(1e8).times(selectedEarningInterval.runePriceUSD)
-          const totalLiquidityFees = liquidityFeesPerPoolInDollars.plus(saverLiquidityFeesPerPoolInDollars)
-          return acum.plus(totalLiquidityFees)
-        }, BigNumber(0))
-
-        const dailySupplysideRevenue = poolsByChainEarnings.reduce((acum, pool) => {
-          const liquidityFeesPerPoolInDollars = BigNumber(pool.totalLiquidityFeesRune).div(1e8).times(selectedEarningInterval.runePriceUSD)
-          const saverLiquidityFeesPerPoolInDollars = BigNumber(pool.saverEarning).div(1e8).times(selectedEarningInterval.runePriceUSD)
-          const rewardsInDollars = BigNumber(pool.rewards).div(1e8).times(selectedEarningInterval.runePriceUSD)
-          const totalLiquidityFees = liquidityFeesPerPoolInDollars.plus(saverLiquidityFeesPerPoolInDollars).plus(rewardsInDollars)
-          return acum.plus(totalLiquidityFees)
-        }, BigNumber(0))
-
-        const protocolRevenueByChainInDollars = protocolRevenuePerChainBasedOnRuneDepth.div(1e8).times(Number(selectedEarningInterval.runePriceUSD));
-        const dailyHoldersRevenue = BigNumber(bondingRewardPerChainBasedOnRuneDepth).div(1e8).times(selectedEarningInterval.runePriceUSD);
-        return {
-          dailyFees, // Liquidity fees not include chain fees
-          dailyUserFees: dailyFees, // Liquidity fees not include chain fees
-          dailyRevenue: `${dailyHoldersRevenue.plus(protocolRevenueByChainInDollars)}`, // dailyProtocolRevenue + dailyHoldersRevenue
-          dailyProtocolRevenue:  protocolRevenueByChainInDollars, // Output fees - reimbursments
-          dailyHoldersRevenue: dailyHoldersRevenue, // Rewards for nodes pondered by chain liquidity
-          dailySupplySideRevenue: dailySupplysideRevenue, // Earnings: rewards + liquidity fees per pool
-          timestamp
-        }
-      }
-    }
-  });
-
-  return adapter
-}
-const adapters: SimpleAdapter = {
-  version: 1,
-  adapter: fetchFeesByChain(),
-}
-
-export default adapters
+export default adapter;

@@ -1,15 +1,14 @@
 import fetchURL from "../../utils/fetchURL"
-import { Chain } from "@defillama/sdk/build/general";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import customBackfill from "../../helpers/customBackfill";
+import { Chain } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 
 const historicalVolumeEndpoint = (chain_id: number, page: number) => `https://api-dass.izumi.finance/api/v1/izi_swap/summary_record/?chain_id=${chain_id}&type=4&page_size=100000&page=${page}`
 
 interface IVolumeall {
   volDay: number;
+  feesDay: number;
   chainId: number;
   timestamp: number;
 }
@@ -24,8 +23,9 @@ const chains: TChains =  {
   [CHAIN.MERLIN]: 4200,
 };
 
-const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(options.endTimestamp * 1000))
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const startTimestamp = options.startOfDay - 86400;
+  const endTimestamp = options.startOfDay;
   let isSuccess = true;
     let page = 1;
     const historical: IVolumeall[] = [];
@@ -38,36 +38,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
         isSuccess = false;
       };
     };
-    const historicalVolume = historical.filter(e => e.chainId === chains[options.chain]);
-    const totalVolume = historicalVolume
-      .filter(volItem => (new Date(volItem.timestamp).getTime()) <= dayTimestamp)
-      .reduce((acc, { volDay }) => acc + Number(volDay), 0)
-
+    const historicalVolume = historical.filter(e =>
+      e.chainId === chains[options.chain] && e.timestamp > startTimestamp && e.timestamp < endTimestamp
+    );
     const dailyVolume = historicalVolume
-      .find(dayItem => (new Date(dayItem.timestamp).getTime()) === dayTimestamp)?.volDay
-    
+      .reduce((sum, { volDay }) => sum + Number(volDay), 0);
+    const dailyFees = historicalVolume
+      .reduce((sum, { feesDay }) => sum + Number(feesDay), 0);
+
     return {
-      totalVolume: totalVolume,
       dailyVolume: dailyVolume,
-      timestamp: dayTimestamp,
+      dailyFees: dailyFees,
     };
 }
 
 const adapters: TAdapter = {};
 for (const chain in chains) {
-  let startTime = 1706946000;
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch,
-      start: startTime,
-      customBackfill: customBackfill(chain, () => fetch)
+      start: 1706946000,
     };
   };
 };
 
 const adapter: SimpleAdapter = {
   adapter: adapters,
-  version: 2,
+  version: 1,
 };
 
 export default adapter;

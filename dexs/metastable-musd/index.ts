@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const M_USD_VAULT_ID =
@@ -11,7 +11,7 @@ const SUPER_SUI_VAULT_ID =
 const M_BTC_VAULT_ID =
 	"0x0ff688058077c00a6b6df737e605dbb1fccfb5760246c5d3aaaacc750cb42384";
 
-const fetch = async (timestamp: number): Promise<FetchResult> => {
+const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
 	let dailyVolume = 0;
 	const vaults = [
 		M_USD_VAULT_ID,
@@ -28,19 +28,15 @@ const fetch = async (timestamp: number): Promise<FetchResult> => {
 
 	return {
 		dailyVolume,
-		timestamp,
 	};
 };
 
 const adapter: SimpleAdapter = {
 	version: 1,
-	adapter: {
-		[CHAIN.SUI]: {
-			runAtCurrTime: true,
-			fetch,
-			start: "2024-01-14",
-		},
-	},
+	fetch,
+	chains: [CHAIN.SUI],
+	runAtCurrTime: true,
+	start: "2024-01-14",
 };
 
 export default adapter;

@@ -74,27 +74,20 @@ const methodology = "Swap fees are applied on every cash-for-credit trade, and f
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch: (options: any) => fetch(options, CHAIN.BASE),
       start: '2024-07-16',
-      meta: {
-        methodology: {
-          Fees: methodology,
-          ProtocolRevenue: methodology
-        }
-      }
     },
     [CHAIN.ETHEREUM]: {
       fetch: (options: any) => fetch(options, CHAIN.ETHEREUM),
       start: '2025-01-08',
-      meta: {
-        methodology: {
-          Fees: methodology,
-          ProtocolRevenue: methodology
-        }
-      }
     }
+  },
+  methodology: {
+    Fees: methodology,
+    ProtocolRevenue: methodology
   }
 }
 export default adapter;

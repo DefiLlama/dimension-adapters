@@ -1,7 +1,6 @@
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { getPrices } from "../../utils/prices";
 
 interface IResponse {
   volume: number;
@@ -13,27 +12,19 @@ interface IResponseERGO {
   }
 }
 
-const fetchVolumeADA = async (timestamp: number): Promise<FetchResultVolume> => {
+const fetchVolumeADA = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const response: IResponse = (await fetchURL(`https://analytics-balanced.spectrum.fi/cardano/platform/stats`));
-  const coinId = "coingecko:cardano";
-  const prices = await getPrices([coinId], timestamp)
-  const adaPrice = prices[coinId].price;
-  const dailyVolume = Number(response.volume) * adaPrice;
+  const dailyVolume = options.createBalances();
+  dailyVolume.addCGToken("cardano", Number(response.volume));
 
-  return {
-    dailyVolume: dailyVolume,
-    timestamp
-  };
+  return { dailyVolume };
 }
 
-const fetchVolumeERGO = async (timestamp: number): Promise<FetchResultVolume> => {
-  const from = timestamp - 24 * 60 * 60 * 1000;
+const fetchVolumeERGO = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const from = options.toTimestamp - 24 * 60 * 60 * 1000;
   const response: IResponseERGO = (await fetchURL(`https://api.spectrum.fi/v1/amm/platform/stats?from=${from}`));
   const dailyVolume = Number(response.volume.value);
-  return {
-    dailyVolume: dailyVolume,
-    timestamp
-  };
+  return { dailyVolume };
 }
 
 const adapters: SimpleAdapter = {

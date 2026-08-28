@@ -1,64 +1,74 @@
-import * as sdk from '@defillama/sdk';
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryDuneSql } from '../../helpers/dune';
 
-const address = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
-const topics0_buy = '0x7db52723a3b2cdd6164364b3b766e65e540d7be48ffa89582956d8eaebe62942';
-const topics0_sell_1 = '0x0a5575b3648bae2210cee56bf33254cc1ddfbc7bf637c0af2ac18b14fb1bae19';
+// Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
+const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
 
-async function fetchVolumeFromIndexers(params: { target: string; options: FetchOptions, topics: string[] }) {
-  let { target, options, topics } = params;
+// Quote token: ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if any supported stable moves in the same tx (router/PCS paths never touch TokenManager2 directly); else BNB.
+const fetch = async (options: FetchOptions) => {
+  const query = `
+    WITH v2_trades AS (
+      SELECT evt_tx_hash, token, cost FROM four_meme_bnb.tokenmanager2_evt_tokenpurchase
+      WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+      UNION ALL
+      SELECT evt_tx_hash, token, cost FROM four_meme_bnb.tokenmanager2_evt_tokensale
+      WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+    ),
+    tx_any_stable AS (
+      SELECT DISTINCT t.evt_tx_hash, tr.contract_address AS base
+      FROM v2_trades t
+      JOIN erc20_bnb.evt_transfer tr ON tr.evt_tx_hash = t.evt_tx_hash
+      WHERE tr.evt_block_time >= from_unixtime(${options.startTimestamp}) AND tr.evt_block_time < from_unixtime(${options.endTimestamp})
+        AND tr.contract_address IN (
+          0x55d398326f99059ff775485246999027b3197955, -- USDT
+          0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d, -- USD1
+          0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d, -- USDC
+          0xe9e7cea3dedca5984780bafc599bd69add087d56, -- BUSD
+          0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82  -- CAKE
+        )
+    ),
+    tx_base AS (
+      SELECT evt_tx_hash, base FROM (
+        SELECT evt_tx_hash, base, ROW_NUMBER() OVER (PARTITION BY evt_tx_hash ORDER BY base) AS rn
+        FROM tx_any_stable
+      ) x WHERE rn = 1
+    ),
+    per_base AS (
+      SELECT COALESCE(tb.base, ${WBNB}) AS base_token, SUM(t.cost) AS amount
+      FROM v2_trades t LEFT JOIN tx_base tb ON tb.evt_tx_hash = t.evt_tx_hash
+      GROUP BY 1
+      UNION ALL
+      SELECT ${WBNB} AS base_token, SUM(amount) AS amount FROM (
+        SELECT etheramount AS amount FROM four_meme_bnb.tokenmanager_evt_tokenpurchase
+        WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+        UNION ALL
+        SELECT etheramount AS amount FROM four_meme_bnb.tokenmanager_evt_tokensale
+        WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
+      ) v1
+    )
+    SELECT lower('0x' || to_hex(base_token)) AS base_token, CAST(SUM(amount) AS varchar) AS amount
+    FROM per_base GROUP BY 1
+  `
 
-  const batchSize = 5000;
-  const allLogs: any[] = [];
-  let batchLogs: any[];
-  let offset = 0;
-  const fromBlock = (await options.getFromBlock()) - 200
-  const toBlock = (await options.getToBlock()) - 200
-
-  for (;;) {
-    batchLogs = await sdk.indexer.getLogs({
-      chain: options.chain,
-      target,
-      topics,
-      onlyArgs: true,
-      // ~~ Around 150 confirmation blocks for L1s, less than 10 for L2s
-      fromBlock,
-      toBlock,
-      limit: batchSize,
-      offset,
-      all: false
-    });
-    allLogs.push(...batchLogs);
-    if (batchLogs.length < batchSize) break;
-    offset += batchSize;
-  }
-
-  return allLogs
-}
-
-const fetchVolume = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances()
-  const buy_logs: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_buy], options })
-  const sell_logs_1: any[] = await fetchVolumeFromIndexers({ target: address, topics: [topics0_sell_1], options })
-
-  buy_logs.concat(sell_logs_1).forEach((log) => {
-    const data = log.data.replace('0x', '');
-    const amount = Number('0x' + data.slice(4 * 64, 5 * 64))
-    if (amount/1e18 < 100) dailyVolume.addGasToken(amount)
-  });
-  return {
-    dailyVolume: dailyVolume
+  const rows = await queryDuneSql(options, query)
+  for (const row of rows) {
+    if (row.amount) dailyVolume.add(row.base_token, row.amount)
   }
+
+  return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.BSC]: {
-      fetch: fetchVolume,
-      start: 1735129946,
-    },
+  version: 1,
+  fetch,
+  chains: [CHAIN.BSC],
+  start: '2024-12-25',
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+  methodology: {
+    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the curve's quote token: BNB by default, or the ERC-20 quote token (USDT, USD1, USDC, BUSD, CAKE) the curve is priced in.",
   },
 }
 

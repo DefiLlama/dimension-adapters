@@ -23,15 +23,20 @@ const fetch: any = async (options: FetchOptions) => {
     await addReceivedUSDC(options, dailyRevenue, "0x501a76325a353a4249740ada1d4bce46dbdd67d6")
     await addReceivedUSDC(options, dailyFees, "0xaB4AdA40112e0051a5add07f2304D749Bb8944fA")
     dailyFees.addBalances(dailyRevenue);
-    return { dailyFees, dailyRevenue }
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {
     version: 2,
     adapter: {
         [CHAIN.HYPERLIQUID]: {
-            fetch
+            fetch,
         },
+    },
+    methodology: {
+        Fees: 'All trading fees paid by users.',
+        Revenue: 'All trading fees paid by users.',
+        ProtocolRevenue: 'All trading fees paid by users.',
     }
 };
 

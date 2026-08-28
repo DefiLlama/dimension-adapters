@@ -1,4 +1,4 @@
-import { request, gql } from "graphql-request";
+import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -6,10 +6,9 @@ const GRAPHQL_URL = "https://api-mainnet.kanalabs.io/graphql";
 
 export enum KanaChainID {
   "aptos" = 2
- 
 }
 
-const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = options.startOfDay + 86400;
   const query = gql`
     query getDefillamaVolumeForPerps($timestamp: Float!, $chainId: Float!) {
@@ -24,28 +23,18 @@ const fetchAptos = async (timestamp: number, t: any, options: FetchOptions) => {
   const result = data.getDefillamaVolumeForPerps;
 
   return {
-    timestamp: timestamp,
     dailyVolume: result.today.volume,
-    totalVolume: result.totalVolume.volume,
   };
 };
 
 const startTimeBlock = 1695897800;
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: async (timestamp: number, t: any, options: FetchOptions) => {
-        const perps = await fetchAptos(timestamp, t, options);
-        return {
-          dailyVolume: perps.dailyVolume.toString(),
-          totalVolume: perps.totalVolume.toString(),
-          timestamp,
-        };
-      },
-      start: startTimeBlock,
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: '2024-09-12',
+  deadFrom: "2026-04-10",
 };
 
 export default adapter;

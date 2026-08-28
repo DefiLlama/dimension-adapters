@@ -4,9 +4,12 @@ import { postURL } from "../../utils/fetchURL";
 
 const GRAPHQL_ENDPOINT = 'https://indexer.tonco.io';
 
+// Numeraires with a reliable indexer USD price; a swap is counted (in either
+// direction) when one side of its pool is one of these.
 const WHITELIST_JETTONS = [
     '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe', // USDT
     '0:949c4c66760c002800e2fa3d8a3ca4e1c90a9373b53ae7472033483bf14cd95e', // WTTON
+    '0:0000000000000000000000000000000000000000000000000000000000000000', // TON
 ]
 
 const SWAPS_QUERY = (from: number, to: number) => `
@@ -46,8 +49,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const swap of swaps.data.swaps) {
 
         const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
-        
-        if (!WHITELIST_JETTONS.includes(fromJetton.address)) {
+
+        if (!WHITELIST_JETTONS.includes(swap.pool.jetton0.address) && !WHITELIST_JETTONS.includes(swap.pool.jetton1.address)) {
             continue;
         }
 
@@ -71,6 +74,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.TON]: {
             start: '2024-11-25',

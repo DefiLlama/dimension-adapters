@@ -1,8 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
+import { FetchResultGeneric, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getChainVolume } from "../../helpers/getUniSubgraphVolume";
 import fetchURL from "../../utils/fetchURL";
 
 type RadixPlazaResponse = {
@@ -19,9 +18,15 @@ const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKY
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
+
+  methodology: {
+    Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
+    Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
+    SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
+  },
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
+      fetch: async (options: FetchOptions): Promise<FetchResultGeneric> => {
         const graphData = (await request(thegraph_endpoints, gql`
 {
   factories(first: 1) {
@@ -29,7 +34,7 @@ const adapter: SimpleAdapter = {
     totalTradeVolumeUSD
     totalFeesEarnedUSD
   }
-  dailies(first: 1, where:{date_lte: ${timestamp}}, orderBy: date, orderDirection:desc) {
+  dailies(first: 1, where:{date_lte: ${options.toTimestamp}}, orderBy: date, orderDirection:desc) {
     date
     tradeVolumeUSD
     swapUSD
@@ -41,27 +46,18 @@ const adapter: SimpleAdapter = {
         const dailyUserFees = dailyFees;
 
         return {
-          totalVolume: graphData.factories[0].totalTradeVolumeUSD,
           dailyVolume: graphData.dailies[0].tradeVolumeUSD,
 
-          totalFees: graphData.factories[0].totalFeesEarnedUSD,
-          dailyUserFees,
           dailyFees,
-          dailySupplySideRevenue,
-          timestamp
-        }
-      },
-      meta: {
-        methodology: {
-          Fees: "User pays a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
-          SupplySideRevenue: "LPs revenue is a small percentage of each swap, which is updated manually on an irregular basis to optimize aggregator volume.",
+          dailyUserFees,
+          dailySupplySideRevenue
         }
       },
       start: '2021-10-03'
     },
     [CHAIN.RADIXDLT]: {
-      fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
+      fetch: async (options: FetchOptions): Promise<FetchResultGeneric> => {
+        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${options.toTimestamp}`));
 
         const dailySupplySideRevenue = daily.feesUSD;
         const dailyProtocolRevenue = daily.royaltiesUSD;
@@ -76,14 +72,6 @@ const adapter: SimpleAdapter = {
           dailyRevenue,
           dailyProtocolRevenue,
           dailySupplySideRevenue,
-          timestamp
-        }
-      },
-      meta: {
-        methodology: {
-          Fees: "User pays 0.5% of each swap, double if hopping between pairs is needed.",
-          Revenue: "Protocol takes 5ct USD per swap, double if hopping between pairs is needed.",
-          SupplySideRevenue: "LPs revenue is 0.5% of each swap, double if hopping between pairs is needed.",
         }
       },
       start: '2023-11-24'

@@ -1,5 +1,6 @@
 import { cache } from "@defillama/sdk";
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { filterPools, } from "../../helpers/uniswap";
 
@@ -30,8 +31,9 @@ const fetch: FetchV2 = async (fetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
-    polygon: {
+    [CHAIN.POLYGON]: {
       fetch,
     },
   },

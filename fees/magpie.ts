@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../adapters/types";
 
 const event_paid_stream = 'event RewardPaid (address indexed _user,address indexed _receiver,uint256 _reward,address indexed _rewardToken)';
 const event_paid_base = 'event RewardPaid (address indexed _user,address indexed _receiver,uint256 _reward,address indexed _token)';
@@ -20,37 +20,34 @@ const address_base: TAddress = {
 }
 //all revenue is from bribes and is given to governance token holders 100%
 
-const graph = (chain: Chain) => {
-  return async ({ createBalances, getLogs, }: FetchOptions) => {
-    const dailyFees = createBalances();
-    (await getLogs({
-      target: address_stream[chain],
-      eventAbi: event_paid_stream,
-    })).map((e: any) => {
-      dailyFees.add(e._rewardToken, e._reward)     
-    }),
+const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+  const dailyFees = createBalances();
+  (await getLogs({
+    target: address_stream[chain],
+    eventAbi: event_paid_stream,
+  })).map((e: any) => {
+    dailyFees.add(e._rewardToken, e._reward)
+  }),
     (await getLogs({
       target: address_base[chain],
       eventAbi: event_paid_base,
     })).map((e: any) => {
-      dailyFees.add(e._token, e._reward)     
+      dailyFees.add(e._token, e._reward)
     })
-    return { dailyFees, dailyRevenue: dailyFees,dailyUserFees:dailyFees  };
-  }
+  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees };
 }
 
+const methodology = {
+  Fees: 'Staking rewards collected from assets staked on Wombat Exchange',
+  Revenue: 'Staking rewards collected from assets staked on Wombat Exchange',
+}
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-
-    [CHAIN.BSC]: {
-      fetch: graph(CHAIN.BSC),
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: graph(CHAIN.ARBITRUM),
-    },
-  }
+  fetch,
+  chains: [CHAIN.BSC, CHAIN.ARBITRUM],
+  pullHourly: true,
+  methodology,
 };
 
 export default adapter;

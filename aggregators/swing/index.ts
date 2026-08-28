@@ -1,7 +1,6 @@
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { FetchOptions } from "../../adapters/types";
 
 const baseURL = 'https://swap.prod.swing.xyz'
 const chains: Record<string, string> = {
@@ -40,21 +39,15 @@ const chains: Record<string, string> = {
   [CHAIN.ZKSYNC]: 'zksync-era',
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
-  const unixTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.startOfDay * 1000)
-  );
-
-  // get the end of the day timestamp 
-  const unixEndDayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(options.startOfDay * 1000 + 24 * 60 * 60 * 1000)
-  );
+const fetch = async (options: FetchOptions) => {
+  const startOfDay = options.startOfDay;
+  const endOfDay = startOfDay + 24 * 60 * 60;
 
   const dailyRes = await httpGet(`${baseURL}/v0/metrics/stats`, {
     headers: {
       'Content-Type': 'application/json',
     },
-    params: { startDate: unixTimestamp, endDate: unixEndDayTimestamp },
+    params: { startDate: startOfDay, endDate: endOfDay },
   });
 
   const sameChainVolumes = dailyRes?.historicalVolumeSamechain?.map((history: any) => {
@@ -93,7 +86,8 @@ const chainAdapters = {
 
 const adapter = {
   version: 1,
-  adapter: chainAdapters
+  adapter: chainAdapters,
+  deadFrom: "2026-02-05",
 };
 
 export default adapter;

@@ -1,56 +1,39 @@
 import { SimpleAdapter } from "../../adapters/types";
-import fetchURL, { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
-import { Balances } from "@defillama/sdk";
-import { parseUnits } from "ethers";
+import { FetchOptions } from "../../adapters/types";
 
-const WETH_CONTRACT = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1';
-const USDC_CONTRACT = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+async function fetch(options: FetchOptions) {
+  const dailyPremiumVolume = options.createBalances();
 
-interface IIthacaStatsResponse {
-  "response": {
-    "daily_fees": number,
-    "total_fees": number,
-    "daily_premium": number,
-    "total_premium": number,
-    "daily_volume_numeraire": number,
-    "daily_volume_underlier": number,
-    "total_volume_numeraire": number,
-    "total_volume_underlier": number
-  }
+  const balancesUpdatedLogs = await options.getLogs({
+    target: '0x4a20d341315b8eaD4E5eBEcC65D95080A47A7316',
+    topic: '0x82ff707295ce8094ca457ec9a2833fa83035efca377c5652ea7ab3aea45a7a52',
+    eventAbi: 'event BalancesUpdated(address[] clients, address[] tokens, int256[] amounts, uint64 indexed backendId)',
+    entireLog: true,
+    parseLog: true,
+  });
+
+  balancesUpdatedLogs.forEach(log => {
+    const tokens = log.args.tokens as string[];
+    const amounts = log.args.amounts as bigint[];
+
+    for (let i = 0; i < tokens.length; i++) {
+      const amount = amounts[i];
+      const absAmount = amount < 0n ? -amount : amount;
+
+      dailyPremiumVolume.add(tokens[i], absAmount);
+    }
+  });
+
+  return { dailyPremiumVolume };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch: fetchIthacaVolumeData,
-      start: '2024-04-15',
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2024-04-15',
 };
-
-export async function fetchIthacaVolumeData(
-  timestamp: number
-) {
-  const { response: ithacaStats } = await httpGet(`https://app.ithacaprotocol.io/api/v1/analytics/WETH/USDC/stats`) as IIthacaStatsResponse;
-
-  const dailyNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
-  dailyNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.daily_volume_numeraire.toFixed(6), 6))
-  dailyNotionalVolume.addToken(WETH_CONTRACT, parseUnits(`${ithacaStats.daily_volume_underlier}`, 18))
-
-  const totalNotionalVolume = new Balances({ chain: CHAIN.ARBITRUM })
-  totalNotionalVolume.addToken(USDC_CONTRACT, parseUnits(ithacaStats.total_volume_numeraire.toFixed(6), 6))
-  totalNotionalVolume.addToken(WETH_CONTRACT, parseUnits(`${ithacaStats.total_volume_underlier}`, 18))
-
-  return {
-    timestamp,
-    dailyFees: ithacaStats.daily_fees,
-    totalFees: ithacaStats.total_fees,
-    dailyPremiumVolume: ithacaStats.daily_premium,
-    totalPremiumVolume: ithacaStats.total_premium,
-    dailyNotionalVolume,
-    totalNotionalVolume,
-  };
-}
 
 export default adapter;

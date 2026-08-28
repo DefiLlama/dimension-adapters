@@ -17,27 +17,19 @@ export const lyraVolumeEndpoint = (endTime: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.LYRA]: {
-      fetch: fetchLyraVolumeData,
-      start: '2023-12-15',
-    },
-  },
+  fetch: fetchLyraVolumeData,
+  chains: [CHAIN.LYRA],
+  start: '2023-12-15',
 };
 
-export async function fetchLyraVolumeData(
-  timestamp: number
-) {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+export async function fetchLyraVolumeData(options: FetchOptions) {
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp);
   const timestamp_in_ms = dayTimestamp * 1000
   const lyraVolumeData = await getLyraVolumeData(lyraVolumeEndpoint(timestamp_in_ms));
   const dailyVolume = Number(lyraVolumeData.daily_premium_volume).toFixed(2);
-  const totalVolume = Number(lyraVolumeData.total_premium_volume).toFixed(2);
 
   return {
-    timestamp,
     dailyVolume,
-    totalVolume,
   };
 }
 

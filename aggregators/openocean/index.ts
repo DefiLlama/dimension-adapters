@@ -1,60 +1,73 @@
+import { CHAIN } from "../../helpers/chains";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
-import { FetchResult, SimpleAdapter } from "../../adapters/types";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
-const chainsMap: Record<string, string> = { ethereum: "eth" };
-const chains = [
-  "ethereum",
-  "bsc",
-  "polygon",
-  "xdai",
-  "fantom",
-  "heco",
-  "arbitrum",
-  "optimism",
-  "moonriver",
-  "aurora",
-  "metis",
-  "kava",
-  "celo",
-  "zksync",
-  "polygon_zkevm",
-  "linea",
-  "base",
-];
+const URL = "https://open-api.openocean.finance/v3";
+const CHAINS: Record<string, string> = {
+  [CHAIN.ETHEREUM]: "2022-01-01",
+  [CHAIN.BSC]: "2022-01-01",
+  [CHAIN.POLYGON]: "2022-01-01",
+  [CHAIN.AVAX]: "2022-01-01",
+  [CHAIN.FANTOM]: "2022-01-01",
+  [CHAIN.ARBITRUM]: "2022-01-01",
+  [CHAIN.OPTIMISM]: "2022-01-01",
+  [CHAIN.ERA]: "2022-01-01",
+  [CHAIN.BASE]: "2022-01-01",
+  [CHAIN.OP_BNB]: "2022-01-01",
+  [CHAIN.LINEA]: "2022-01-01",
+  [CHAIN.MANTLE]: "2022-01-01",
+  [CHAIN.MANTA]: "2022-01-01",
+  [CHAIN.TELOS]: "2022-01-01",
+  [CHAIN.SCROLL]: "2022-01-01",
+  [CHAIN.XDAI]: "2022-01-01",
+  [CHAIN.CRONOS]: "2022-01-01",
+  [CHAIN.HARMONY]: "2022-01-01",
+  [CHAIN.BLAST]: "2022-01-01",
+  [CHAIN.MODE]: "2022-01-01",
+  // [CHAIN.ROOTSTOCK]: "2022-01-01",
+  // [CHAIN.SEI]: "2022-01-01",
+  [CHAIN.GRAVITY]: "2022-01-01",
+  [CHAIN.KAVA]: "2022-01-01",
+  [CHAIN.METIS]: "2022-01-01",
+  [CHAIN.CELO]: "2022-01-01",
+  [CHAIN.POLYGON_ZKEVM]: "2022-01-01",
+  [CHAIN.MOONRIVER]: "2022-01-01",
+  [CHAIN.AURORA]: "2022-01-01",
+  [CHAIN.APECHAIN]: "2022-01-01",
+  [CHAIN.SONIC]: "2022-01-01",
+  [CHAIN.BERACHAIN]: "2022-01-01",
+  [CHAIN.UNICHAIN]: "2022-01-01",
+  [CHAIN.FLARE]: "2022-01-01",
+  [CHAIN.SWELLCHAIN]: "2022-01-01",
+  [CHAIN.HYPERLIQUID]: "2022-01-01",
+  [CHAIN.MONAD]: "2025-05-17",
+  [CHAIN.SOLANA]: "2025-05-17",
+  [CHAIN.APTOS]: "2025-05-17",
+  [CHAIN.SUI]: "2025-05-17",
+  [CHAIN.NEAR]: "2025-05-17",
+  [CHAIN.STARKNET]: "2025-05-17",
+  [CHAIN.ROBINHOOD]: "2026-05-17",
+};
 
-const fetch =
-  (chain: string) =>
-    async (timestamp: number): Promise<FetchResult> => {
-      if (chain === 'heco') { return {} } // skip HECO for now
-      const today = new Date();
-      const timestampDate = new Date(timestamp * 1000);
-      const unixTimestamp = getUniqStartOfTodayTimestamp(timestampDate);
-      const dayDiff = today.getTime() - timestampDate.getTime();
-      const daysPassed = (dayDiff / (1000 * 3600 * 24)).toFixed(0);
-      const data = await fetchURL(
-        `https://open-api.openocean.finance/v3/DefiLlama/volume?limit=${daysPassed || 1
-        }&total=true`
-      );
+const fetch = async (options: FetchOptions) => {
+  const { data } = await fetchURL(`${URL}/${options.chain}/getDailyVolume?timestamp=${options.startOfDay}`);
+  const { dailyVolume } = data || { dailyVolume: 0 };
+  return { dailyVolume };
+};
 
-      return {
-        dailyVolume: data.data[chainsMap[chain] || chain]?.volume,
-        timestamp: unixTimestamp,
-      };
-    };
-
-const adapter: any = {
+const adapter: SimpleAdapter = {
+  version: 1,
   adapter: {
-    ...chains.reduce((acc, chain) => {
+    ...Object.entries(CHAINS).reduce((acc, [chain, _]) => {
       return {
         ...acc,
         [chain]: {
-          fetch: fetch(chain),
-          start: new Date(2023, 6, 1).getTime() / 1000,
+          fetch,
+          start: CHAINS[chain],
         },
       };
-    }, {}),
-  },
+    }, {})
+  }
 };
 
 export default adapter;

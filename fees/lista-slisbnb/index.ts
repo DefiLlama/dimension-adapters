@@ -1,8 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const treasury = "0x8d388136d578dCD791D081c6042284CED6d9B0c6";
-
 /**
  * Fetches data from Lista DAO
  * @doc https://listaorg.notion.site/Profit-cfd754931df449eaa9a207e38d3e0a54
@@ -19,24 +17,64 @@ const ListaStakeManagerAddress = "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6";
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
+  const slilsBnbSupplyBefore = await options.fromApi.call({
+    target: slisBNB,
+    abi: 'uint256:totalSupply',
+  });
 
-  const logs_reward = await options.getLogs({
+  const slisBnbSupplyAfter = await options.toApi.call({
+    target: slisBNB,
+    abi: 'uint256:totalSupply',
+  });
+
+  const pooledBnbBefore = await options.fromApi.call({
     target: ListaStakeManagerAddress,
-    eventAbi: "event RewardsCompounded(uint256 _amount)",
+    abi: 'uint256:getTotalPooledBnb',
   });
 
-  logs_reward.forEach((log) => {
-    const amount = log._amount;
-    dailyFees.add(slisBNB, amount);
+  const pooledBnbAfter = await options.toApi.call({
+    target: ListaStakeManagerAddress,
+    abi: 'uint256:getTotalPooledBnb',
   });
+
+  // staking rewards distributed post revenue cut
+  const supplySideRewards = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
+
+  // Commission rate is configurable on-chain (ListaStakeManager.synFee, 1e10 precision).
+  // Read it live instead of hardcoding, so Fees/Revenue always track the current rate.
+  const synFee = await options.toApi.call({
+    target: ListaStakeManagerAddress,
+    abi: 'uint256:synFee',
+  });
+  const commissionRate = Number(synFee) / 1e10;
+  const supplyRate = 1 - commissionRate;
+  if (supplyRate <= 0) throw new Error(`Invalid synFee (commission >= 100%): ${synFee}`);
+
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addCGToken("binancecoin", supplySideRewards / supplyRate, 'BNB Staking Rewards');
+  dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards, 'BNB Staking Rewards To Stakers');
+
+  const dailyRevenue = dailyFees.clone(commissionRate, 'BNB Staking Rewards Commission');
+  const dailyHoldersRevenue = dailyRevenue.clone(0.3, 'Token Buy Back'); // 30% of commission buys back LISTA
+  const dailyProtocolRevenue = dailyRevenue.clone(0.7, 'BNB Staking Rewards Commission'); // 70% to treasury
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   };
 };
-
+const methodology = {
+  Fees: 'Total yields from staked BNB.',
+  Revenue: 'Lista DAO charges a commission on the staking yields (rate read on-chain from ListaStakeManager.synFee, 1e10 precision).',
+  ProtocolRevenue: '70% of the commission is retained by the treasury.',
+  HoldersRevenue: '30% of the commission is used to buy back LISTA.',
+  SupplySideRevenue: 'Stakers earn the staking rewards net of the commission.',
+}
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
@@ -45,6 +83,24 @@ const adapter: SimpleAdapter = {
       start: '2023-08-30',
     },
   },
+  methodology,
+  breakdownMethodology: {
+    Fees: {
+      'BNB Staking Rewards': 'Total BNB staking rewards collected by running BSC validators.',
+    },
+    Revenue: {
+      'BNB Staking Rewards Commission': 'Commission charged on staking rewards (synFee, read on-chain).',
+    },
+    ProtocolRevenue: {
+      'BNB Staking Rewards Commission': '70% of the commission is retained by the treasury.',
+    },
+    SupplySideRevenue: {
+      'BNB Staking Rewards To Stakers': 'Stakers earn the staking rewards net of the commission.',
+    },
+    HoldersRevenue: {
+      'Token Buy Back': '30% of the commission is used to buy back LISTA.',
+    },
+  }
 };
 
 export default adapter;

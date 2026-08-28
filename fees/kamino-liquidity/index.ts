@@ -1,55 +1,70 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // Define the URL of the endpoint
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
 
 // Function to make the GET request
-const fetch = async (_: any, _tt: any, options: FetchOptions) =>  {
+const fetch = async (options: FetchOptions) => {
     const dayTimestamp = options.startOfDay
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
     const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
 
+    const record = historicalFeesRes['data'].find((row: any) => row.day === options.dateString)
+
+    if (!record)
+        throw new Error(`No record found for date: ${dateStr}`);
+
     // Calculate total and daily revenue
-    const totalRevenue = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KaminoLiquidityRevenueUsd}) => acc + KaminoLiquidityRevenueUsd, 0);
+    const { KaminoLiquidityRevenueUsd, KaminoLiquidityFeesUsd } = record;
 
-    const dailyRevenue = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityRevenueUsd;
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
-    // Calculate total and daily fees
-    const totalFees = historicalFeesRes['data']
-    .filter(row => row.timestamp <= dayTimestamp)
-    .reduce((acc, {KaminoLiquidityFeesUsd}) => acc + KaminoLiquidityFeesUsd, 0);
-
-    const dailyFees = historicalFeesRes['data']
-        .find(row => row.day.split('T')[0] === dateStr)?.KaminoLiquidityFeesUsd;
+    dailyFees.addUSDValue(KaminoLiquidityFeesUsd, "Liquidity vault fees");
+    dailyRevenue.addUSDValue(KaminoLiquidityRevenueUsd, "Liquidit vault fees to protocol");
+    dailySupplySideRevenue.addUSDValue(KaminoLiquidityFeesUsd - KaminoLiquidityRevenueUsd, "Liquidity vault fees to liquidity providers");
 
     return {
-        timestamp: dayTimestamp,
-        totalRevenue: totalRevenue,
+        dailyFees,
         dailyRevenue,
-        totalFees,
-        dailyFees
+        dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
     };
 };
+
 const methodology = {
-    Revenue: "Revenues are aggregated by Allez Labs using Flipside Crypto data.",
-    Fees: "Fees are aggregated by Allez Labs using the Kamino API."
+    Fees: "Swap fees earned by providing liquidity to pools.Fees data is aggregated by Allez Labs using the Kamino API.",
+    Revenue: "Part of fees earned by providing liquidity to pools going to the protocol",
+    ProtocolRevenue: "Part of fees earned by providing liquidity to pools going to the protocol",
+    SupplySideRevenue: "Part of fees earned by providing liquidity to pools going to the liquidity providers",
+}
+
+const breakdownMethodology = {
+    Fees: {
+        "Liquidity vault fees": "Fees earned by providing liquidity to pools",
+    },
+    Revenue: {
+        "Liquidity vault fees to protocol": "Part of fees earned by providing liquidity to pools going to the protocol",
+    },
+    ProtocolRevenue: {
+        "Liquidity vault fees to protocol": "Part of fees earned by providing liquidity to pools going to the protocol",
+    },
+    SupplySideRevenue: {
+        "Liquidity vault fees to liquidity providers": "Part of fees earned by providing liquidity to pools going to the liquidity providers",
+    },
 }
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-10-12',
-            meta: {
-                methodology
-            }
-        }
-    }
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2023-10-12',
+    methodology,
+    breakdownMethodology,
+    allowNegativeValue: true,
 }
 export default adapter;

@@ -1,9 +1,8 @@
 import axios from "axios";
-
-export const endpoint = process.env.SOLANA_RPC ?? "https://api.mainnet-beta.solana.com";
+import { getEnv } from "./env";
 
 export async function getTokenSupply(token: string) {
-  const tokenSupply = await axios.post(endpoint, {
+  const tokenSupply = await axios.post(getEnv('SOLANA_RPC'), {
     jsonrpc: "2.0",
     id: 1,
     method: "getTokenSupply",
@@ -13,7 +12,7 @@ export async function getTokenSupply(token: string) {
 }
 
 export async function getTokenBalance(token: string, account: string) {
-  const tokenBalance = await axios.post(endpoint, {
+  const tokenBalance = await axios.post(getEnv('SOLANA_RPC'), {
     jsonrpc: "2.0",
     id: 1,
     method: "getTokenAccountsByOwner",

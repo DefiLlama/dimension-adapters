@@ -42,10 +42,11 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
-      start: 1711309424, // Mar-24-2025 07:43:44 PM UTC
+      start: '2024-03-24', // Mar-24-2025 07:43:44 PM UTC
     },
   },
 };

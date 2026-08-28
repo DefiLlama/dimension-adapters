@@ -1,4 +1,4 @@
-import { ChainBlocks, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { ChainBlocks, Dependencies, FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
@@ -21,14 +21,14 @@ const prefetch = async (options: FetchOptions) => {
   );
 };
 
-const fetch: any = async (timestamp: number, _: ChainBlocks, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const stats: IStats[] = options.preFetchedResults || [];
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
 
-  return { timestamp, dailyVolume: chainStat?.daily_volume || 0 };
+  return { dailyVolume: chainStat?.daily_volume || 0 };
 };
 
-const fetchApechain: any = async (timestamp: number, _: ChainBlocks, { getLogs }: FetchOptions): Promise<FetchResultVolume> => {
+const fetchApechain: any = async ({ getLogs }: FetchOptions): Promise<FetchResultVolume> => {
   // Apechain currently not supported on Dune, must fetch from Events
   const DIAMOND = "0x2BE5D7058AdBa14Bc38E4A83E94A81f7491b0163";
   const [limitLogs, marketLogs, partialIncreaseLogs, partialDecreaseLogs] = await Promise.all(
@@ -44,18 +44,19 @@ const fetchApechain: any = async (timestamp: number, _: ChainBlocks, { getLogs }
 
   const volumeLimitsAndMarkets = limitLogs
     .concat(marketLogs)
-    .map((e: any) => Number((e.t.collateralAmount * e.t.leverage * e.collateralPriceUsd) / BI_1e18 / BI_1e3 / BI_1e8))
+    .map((e: any) => Number((e.t.collateralAmount * e.t.leverage * e.collateralPriceUsd) / Number(BI_1e18) / Number(BI_1e3) / Number(BI_1e8)))
     .reduce((a: number, b: number) => a + b, 0);
 
   const volumePartials = partialIncreaseLogs
     .concat(partialDecreaseLogs)
-    .map((e: any) => Number((e.vals.positionSizeCollateralDelta * e.collateralPriceUsd) / BI_1e18 / BI_1e8))
+    .map((e: any) => Number((e.vals.positionSizeCollateralDelta * e.collateralPriceUsd) / Number(BI_1e18) / Number(BI_1e8)))
     .reduce((a: number, b: number) => a + b, 0);
 
-  return { dailyVolume: volumeLimitsAndMarkets + volumePartials, timestamp };
+  return { dailyVolume: volumeLimitsAndMarkets + volumePartials,};
 };
 
 const adapter: SimpleAdapter = {
+  dependencies: [Dependencies.DUNE],
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: "2023-05-25" },
     [CHAIN.POLYGON]: { fetch, start: "2023-05-25" },
@@ -64,8 +65,9 @@ const adapter: SimpleAdapter = {
       fetch: fetchApechain,
       start: "2024-11-19",
     },
+    [CHAIN.MEGAETH]: { fetch, start: "2026-02-09" },
   },
-  prefetch: prefetch,
+  prefetch,
   isExpensiveAdapter: true,
 };
 

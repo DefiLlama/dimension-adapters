@@ -2,8 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { ChainEndpoints, SimpleAdapter } from "../../adapters/types";
 import { getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
-import { Chain } from "@defillama/sdk/build/general";
-import customBackfill from "../../helpers/customBackfill";
+import { Chain } from "../../adapters/types";
 
 const endpoints: ChainEndpoints = {
   [CHAIN.AURORA]: sdk.graph.modifyEndpoint(
@@ -29,7 +28,6 @@ const adapter: SimpleAdapter = {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),
       start: '2023-01-01',
-      customBackfill: customBackfill(CHAIN.AURORA as Chain, v1graphs),
     },
   },
 };

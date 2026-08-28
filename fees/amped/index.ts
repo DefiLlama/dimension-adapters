@@ -1,16 +1,45 @@
-import request, { gql } from "graphql-request";
-import { Adapter } from "../../adapters/types";
+import request, { gql, GraphQLClient } from "graphql-request";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
+import { METRIC } from "../../helpers/metrics";
 
-const endpoints: { [key: string]: string } = {
-  [CHAIN.LIGHTLINK_PHOENIX]:
-    "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
-  [CHAIN.SONIC]:
-    "https://api.studio.thegraph.com/query/91379/trades-sonic/version/latest",
-  // [CHAIN.BSC]: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest"
-  [CHAIN.BERACHAIN]: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
-  [CHAIN.BASE]: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest"
+// Hardcoded bearer token for The Graph decentralized network
+const GRAPH_BEARER_TOKEN = "e8cbd58884ab58d21be68ac2c1e15a24";
+
+// Create GraphQL client with bearer token authentication
+const createGraphQLClient = (endpoint: string) => {
+  return new GraphQLClient(endpoint, {
+    headers: {
+      Authorization: `Bearer ${GRAPH_BEARER_TOKEN}`,
+    },
+  });
+};
+
+const chainConfig: Record<string, { url: string, start: string }> = {
+  [CHAIN.LIGHTLINK_PHOENIX]: {
+    url: "https://graph.phoenix.lightlink.io/query/subgraphs/name/amped-finance/trades",
+    start: "2024-06-01",
+  },
+  [CHAIN.SONIC]: {
+    url: "https://gateway.thegraph.com/api/subgraphs/id/6hzdSJf3xaPxsRHCEqCfe9evk3xmmwB291ZJ9RoqgHfH",
+    start: "2024-12-31",
+  },
+  // [CHAIN.BSC]: {
+  //   url: "https://api.studio.thegraph.com/query/91379/amped-trades-bsc/version/latest",
+  //   start: "2024-10-01",
+  // },
+  [CHAIN.BERACHAIN]: {
+    url: "https://api.studio.thegraph.com/query/91379/amped-trades-bera/version/latest",
+    start: "2025-02-06",
+  },
+  [CHAIN.BASE]: {
+    url: "https://api.studio.thegraph.com/query/91379/trades-base/version/latest",
+    start: "2025-02-20",
+  },
+  // [CHAIN.SSEED]: {
+  //   url: "https://api.goldsky.com/api/public/project_cm9j641qy0e0w01tzh6s6c8ek/subgraphs/superseed-trades/1.0.1/gn",
+  //   start: "2025-04-22",
+  // },
 };
 
 const historicalDataQuery = gql`
@@ -31,82 +60,92 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch = (endpoint: string) => async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
+const HoldersStartDate = 1753401600 // After TGE "2025-07-25" stakers are receiving revenue
 
-  const dailyData: IGraphResponse = await request(endpoint, historicalDataQuery, {
-    id: String(dayTimestamp) + ":daily" ,
-    period: "daily",
-  });
-  const totalData: IGraphResponse = await request(endpoint, historicalDataQuery, {
-    id: "total",
-    period: "total",
-  });
+const fetch = async (options: FetchOptions) => {
+  const { startOfDay, chain, createBalances } = options;
+  const dayTimestamp = startOfDay;
+  const chainInfo = chainConfig[chain];
 
-  const dailyFees = dailyData.feeStats?.length == 1
-    ? Number(
-      Object.values(dailyData.feeStats[0]).reduce((sum, element) =>
-        String(Number(sum) + Number(element))
-      )
-    ) * 10 ** -30
-    : undefined;
+  let dailyData: IGraphResponse;
 
-  const totalFees = totalData.feeStats?.length == 1
-    ? Number(
-      Object.values(totalData.feeStats[0]).reduce((sum, element) =>
-        String(Number(sum) + Number(element))
-      )
-    ) * 10 ** -30
-    : undefined;
+  // Use bearer token authentication only for Sonic network
+  if (chain === CHAIN.SONIC) {
+    const client = createGraphQLClient(chainInfo.url);
+    dailyData = await client.request(historicalDataQuery, {
+      id: String(dayTimestamp) + ":daily" ,
+      period: "daily",
+    });
+  } else {
+    // Use regular request for other networks
+    dailyData = await request(chainInfo.url, historicalDataQuery, {
+      id: String(dayTimestamp) + ":daily" ,
+      period: "daily",
+    });
+  }
+
+  const dailyFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
+
+  if (dailyData.feeStats?.length == 1) {
+    const stats = dailyData.feeStats[0];
+    const swapFeesUSD = Number(stats.swap) * 10 ** -30;
+    const marginFeesUSD = Number(stats.margin) * 10 ** -30;
+    const liquidationFeesUSD = Number(stats.liquidation) * 10 ** -30;
+
+    dailyFees.addUSDValue(swapFeesUSD, METRIC.SWAP_FEES);
+    dailyFees.addUSDValue(marginFeesUSD, METRIC.MARGIN_FEES);
+    dailyFees.addUSDValue(liquidationFeesUSD, METRIC.LIQUIDATION_FEES);
+
+    if(dayTimestamp >= HoldersStartDate){
+      // After TGE: 70% to LPs, 30% to AMPED stakers
+      dailySupplySideRevenue.addBalances(dailyFees.clone(0.7), METRIC.LP_FEES);
+      dailyHoldersRevenue.addBalances(dailyFees.clone(0.3), METRIC.STAKING_REWARDS);
+    } else {
+      // Before TGE: 100% to LPs
+      dailySupplySideRevenue.addBalances(dailyFees, METRIC.LP_FEES);
+    }
+  }
 
   return {
-    timestamp: dayTimestamp,
     dailyFees,
-    totalFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyHoldersRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue,
+    dailyProtocolRevenue: 0,
   };
+};
+
+const methodology = {
+  Fees: "Fees collected from trading, liquidation, and margin activities.",
+  Revenue: "30% of the fees goes to AMPED stakers.",
+  SupplySideRevenue: "70% of revenue is distributed to liquidity providers.",
+  HoldersRevenue: "30% of revenue is distributed to AMPED stakers After TGE(25th July 2025).",
+  ProtocolRevenue: "Protocol doesn't earn anything.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees charged on token swaps on the Amped platform",
+    [METRIC.MARGIN_FEES]: "Fees paid by traders for opening and maintaining margin positions",
+    [METRIC.LIQUIDATION_FEES]: "Fees collected when undercollateralized positions are liquidated",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "Portion of fees distributed to liquidity providers (100% before TGE on July 25, 2025; 70% after TGE)",
+  },
+  HoldersRevenue: {
+    [METRIC.STAKING_REWARDS]: "Portion of fees distributed to AMPED token stakers (0% before TGE on July 25, 2025; 30% after TGE)",
+  },
 };
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.LIGHTLINK_PHOENIX]: {
-      fetch: getFetch(endpoints[CHAIN.LIGHTLINK_PHOENIX]),
-      start: 1717199544,
-      meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-      },
-    },
-    [CHAIN.SONIC]: {
-      fetch: getFetch(endpoints[CHAIN.SONIC]),
-      start: 1735685544,
-      meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-      },
-    },
-    // [CHAIN.BSC]: {
-    //   fetch: getFetch(endpoints[CHAIN.BSC]),
-    //   start: 1727740344,
-    //   meta: {
-    //     methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-    //   },
-    // },
-    [CHAIN.BERACHAIN]: {
-      fetch: getFetch(endpoints[CHAIN.BERACHAIN]),
-      start: 1738882079,
-      meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-      },
-    },
-    [CHAIN.BASE]: {
-      fetch: getFetch(endpoints[CHAIN.BASE]),
-      start: 1740056400,
-      meta: {
-        methodology: "Fees collected from trading, liquidation, and margin activities. All fees go to liquidity providers.",
-      },
-    },
-  }
+  fetch,
+  adapter: chainConfig,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

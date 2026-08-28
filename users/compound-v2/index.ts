@@ -1,4 +1,4 @@
-import { countUsers, isAddressesUsable } from "../utils/countUsers";
+import { countNewUsers, countUsers, } from "../utils/countUsers";
 import * as sdk from "@defillama/sdk";
 import { ChainAddresses } from "../utils/types";
 import { isAcceptedChain } from "../utils/convertChain";
@@ -128,15 +128,15 @@ const comptrollers = [
             ]
         }
     },
-    {
-        id: "450",
-        name: "Scream",
-        comptrollers:{
-            "fantom":[
-                "0x260e596dabe3afc463e75b6cc05d8c46acacfb09",
-            ]
-        }
-    },
+    // {  // unsupported chain
+    //     id: "450",
+    //     name: "Scream",
+    //     comptrollers:{
+    //         "fantom":[
+    //             "0x260e596dabe3afc463e75b6cc05d8c46acacfb09",
+    //         ]
+    //     }
+    // },
     {
         id: "1631",
         name: "Onyx Protocol",
@@ -522,15 +522,15 @@ const comptrollers = [
             ]
         }
     },
-    {
-        id:"1234",
-        name:"Agile Finance",
-        comptrollers:{
-            "cronos":[
-                "0x643dc7C5105d1a3147Bd9524DFC3c5831a373F1e",
-            ]
-        }
-    },
+    // {  // unsupported chain
+    //     id:"1234",
+    //     name:"Agile Finance",
+    //     comptrollers:{
+    //         "cronos":[
+    //             "0x643dc7C5105d1a3147Bd9524DFC3c5831a373F1e",
+    //         ]
+    //     }
+    // },
     {
         id:"2177",
         name:"Fortress Loans",
@@ -622,12 +622,16 @@ function findAllAddresses(comptrollers:any, extraAddresses:any): ()=>Promise<Cha
 export const addresses = comptrollers.map(addresses=>({
     name: addresses.name,
     id: addresses.id,
-    getAddresses: findAllAddresses(addresses.comptrollers, addresses.extraAddresses)
+    getAddresses: findAllAddresses(addresses.comptrollers, addresses.extraAddresses),
+    chains: new Set([...Object.keys(addresses.comptrollers), ...Object.keys(addresses.extraAddresses ?? {})]),
 }))
 
 export default addresses.map(addresses=>({
+    type: "protocol",
     name: addresses.name,
     id: addresses.id,
     getAddresses: addresses.getAddresses,
-    getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end)
+    chains: [...addresses.chains],
+    getUsers: async (start:number, end:number) => countUsers(await addresses.getAddresses())(start, end),
+    getNewUsers: async (start:number, end:number) => countNewUsers(await addresses.getAddresses(), start, end)
 }))

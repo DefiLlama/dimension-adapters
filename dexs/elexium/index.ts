@@ -2,10 +2,12 @@ import { SimpleAdapter } from "../../adapters/types"
 import { httpGet } from "../../utils/fetchURL"
 
 const url = 'https://api.elexium.finance/pools'
+const inflatedTvl = 1_000_000 // they have very smol tvl , but got inflated due to their internal pricing bug
 
 const fetchVolume = async () => {
   const res = await httpGet(url)
-  const dailyVolume = res.reduce((acc: number, pool: any) => {
+  const filteredPools = res.filter((pool: any) => pool.tvl >= 10_000 && pool.tvl <= inflatedTvl)
+  const dailyVolume = filteredPools.reduce((acc: number, pool: any) => {
     return acc + pool.volume
   }, 0)
   return {

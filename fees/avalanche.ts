@@ -7,7 +7,7 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.AVAX]: {
       fetch: async (options: FetchOptions) => {
-        const dailyFees = await getTokenDiff({ target: '0x0100000000000000000000000000000000000000', includeGasToken: true, options})
+        const dailyFees = await getTokenDiff({ target: '0x0100000000000000000000000000000000000000', includeGasToken: true, options })
 
         return {
           dailyFees,
@@ -15,10 +15,15 @@ const adapter: Adapter = {
           dailyHoldersRevenue: dailyFees,
         };
       },
-      start: '2021-01-01'
+      start: '2021-01-01',
     },
   },
-  protocolType: ProtocolType.CHAIN
+  protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Transaction fees paid by users',
+    Revenue: 'Amount of AVAX transaction fees that were burned',
+    HoldersRevenue: 'Amount of AVAX transaction fees that were burned',
+  }
 }
 
 export default adapter;

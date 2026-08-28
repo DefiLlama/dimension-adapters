@@ -2,7 +2,7 @@
 // https://docs.factor.fi/factor-sdk/rest-apis/utility-apis/stats
 
 import axios from "axios";
-import { Adapter, FetchResultFees } from "../../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const url = "https://factor-stats-api.fly.dev/stats/dao-revenues/";
@@ -21,25 +21,21 @@ const getFormattedDate = (timestamp: number): Date => {
   return { year, month, day };
 };
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const { year, month, day } = getFormattedDate(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const { year, month, day } = getFormattedDate(options.toTimestamp);
   const { data } = await axios.get(`${url}${year}/${month}`);
   const dateKey = `${year}-${month}-${day}`;
   const relevantData = data[dateKey];
 
   return {
-    timestamp,
     dailyFees: relevantData.todayIncome,
     dailyRevenue: relevantData.todayIncome / 2,
   };
 };
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2024-05-03',
-    },
-  },
+  fetch,
+  chains: [CHAIN.ARBITRUM],
+  start: '2024-05-03',
 };
 
 export default adapter;

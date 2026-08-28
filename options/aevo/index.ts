@@ -1,4 +1,4 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { getTimestampAtStartOfNextDayUTC } from "../../utils/date";
@@ -26,23 +26,18 @@ const adapter: SimpleAdapter = {
 
 export async function fetchAevoVolumeData(
   /** Timestamp representing the end of the 24 hour period */
-  timestamp: number
+  options: FetchOptions
 ) {
-  const dayTimestamp = getTimestampAtStartOfNextDayUTC(timestamp);
+  const dayTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp);
   const timestampInNanoSeconds = dayTimestamp * 1e9
   const aevoVolumeData = await getAevoVolumeData(aevoVolumeEndpoint(timestampInNanoSeconds));
 
   const dailyNotionalVolume = Number(aevoVolumeData.daily_volume).toFixed(2);
   const dailyPremiumVolume =  Number(aevoVolumeData.daily_volume_premium).toFixed(2);
-  const totalNotionalVolume = Number(aevoVolumeData.total_volume).toFixed(2);
-  const totalPremiumVolume = Number(aevoVolumeData.total_volume_premium).toFixed(2);
 
   return {
-    timestamp,
     dailyNotionalVolume,
     dailyPremiumVolume,
-    totalNotionalVolume,
-    totalPremiumVolume,
   };
 }
 

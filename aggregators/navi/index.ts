@@ -1,30 +1,31 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
-import axios from "axios";
+import { httpPost } from "../../utils/fetchURL";
 
-const sentioApiKey = "s0T3OflD18sDuN6DeSy7XyVsPqHQTbD4z"; //Read Only
+const sentioApiKey = "l3ruhon4MonUTvfCHMYVGsK6Axp0KyjMM"; //Read Only
+const API_URL =
+  "https://app.sentio.xyz/api/v1/analytics/navi/astros/sql/execute";
 
-const fetchDailyVolume = async ({
-  fromTimestamp,
-  toTimestamp,
-  startOfDay,
-}: FetchOptions) => {
-  const url =
-    "https://app.sentio.xyz/api/v1/analytics/navi/dex-aggregator/sql/execute";
-  const res = await axios(url, {
-    method: "POST",
-    headers: {
-      "api-key": sentioApiKey,
-      "Content-Type": "application/json",
-    },
-    data: JSON.stringify({
+const HEADERS = {
+  "api-key": sentioApiKey,
+  "Content-Type": "application/json",
+};
+
+// we need to resync the history data of this aggregator
+const fetchDailyVolume = async (options: FetchOptions) => {
+  const res = await httpPost(
+    API_URL,
+    JSON.stringify({
       sqlQuery: {
         sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
-              FROM 'swapEvent'
-              WHERE timestamp >= ${fromTimestamp} AND timestamp <= ${toTimestamp};`,
-      }
+            FROM 'swapEvent'
+            WHERE timestamp >= ${options.fromTimestamp} AND timestamp <= ${options.toTimestamp};`,
+      },
     }),
-  }).then((response) => response.data);
+    {
+      headers: HEADERS,
+    }
+  );
 
   return {
     dailyVolume: res.result.rows[0].usdValue,

@@ -1,4 +1,4 @@
-import { Chain } from "@defillama/sdk/build/general";
+import { Chain } from "../../adapters/types";
 import { FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -32,6 +32,7 @@ const adapter: SimpleAdapter = {
         }
     }, {}),
     version: 2,
+    pullHourly: true,
 };
 
 export default adapter;

@@ -19,11 +19,17 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.POLYGON]: {
       fetch: fetchFees,
       start: '2023-05-01',
     }
-  }
+  },
+  methodology: {
+    Fees: "Total yields from RWA backing assets.",
+    Revenue: "Total yields from RWA backing assets.",
+    HoldersRevenue: "No holders revenue",
+  },
 }
 export default adapter;

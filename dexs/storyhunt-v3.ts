@@ -6,23 +6,12 @@ const v3Endpoint = {
   [CHAIN.STORY]: "https://app.storyhunt.xyz/api/graph",
 }
 
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STORY]: {
-      fetch,
-    },
-  },
-  version: 2
-};
-
-export default adapter;
-
 async function fetch({ chain, getStartBlock, getEndBlock }: FetchOptions) {
   const { factories: [{totalVolumeUSD}]} = await getData(await getEndBlock());
   const { factories: [{totalVolumeUSD: totalVolumeUSDYesterday}]} = await getData(await getStartBlock());
+
   return {
-    dailyVolume: totalVolumeUSD - totalVolumeUSDYesterday, totalVolume: totalVolumeUSD,
+    dailyVolume: totalVolumeUSD - totalVolumeUSDYesterday,
   }
 
   async function getData(block: any) {
@@ -36,3 +25,14 @@ async function fetch({ chain, getStartBlock, getEndBlock }: FetchOptions) {
     }
   }
 }
+
+const adapter: SimpleAdapter = {
+  adapter: {
+    [CHAIN.STORY]: {
+      fetch,
+    },
+  },
+  version: 2
+};
+
+export default adapter;

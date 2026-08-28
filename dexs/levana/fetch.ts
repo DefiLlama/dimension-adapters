@@ -1,3 +1,4 @@
+import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -7,17 +8,17 @@ const QUERIER_URL = "https://querier-mainnet.levana.finance";
 type Chain = "osmosis" | "injective" | "sei" | "neutron"
 
 const factoryAddr:Record<Chain, string> = {
-    osmosis: "osmo1ssw6x553kzqher0earlkwlxasfm2stnl3ms3ma2zz4tnajxyyaaqlucd45",
-    sei: "sei18rdj3asllguwr6lnyu2sw8p8nut0shuj3sme27ndvvw4gakjnjqqper95h",
-    injective: "inj1vdu3s39dl8t5l88tyqwuhzklsx9587adv8cnn9",
-    neutron: "neutron1an8ls6d57c4qcvjq0jmm27jtrpk65twewfjqzdn7annefv7gadqsjs7uc3",
+    [CHAIN.OSMOSIS]: "osmo1ssw6x553kzqher0earlkwlxasfm2stnl3ms3ma2zz4tnajxyyaaqlucd45",
+    [CHAIN.SEI]: "sei18rdj3asllguwr6lnyu2sw8p8nut0shuj3sme27ndvvw4gakjnjqqper95h",
+    [CHAIN.INJECTIVE]: "inj1vdu3s39dl8t5l88tyqwuhzklsx9587adv8cnn9",
+    [CHAIN.NEUTRON]: "neutron1an8ls6d57c4qcvjq0jmm27jtrpk65twewfjqzdn7annefv7gadqsjs7uc3",
 }
 
 const networkName:Record<Chain, string> = {
-    osmosis: "osmosis-mainnet",
-    sei: "sei-mainnet",
-    injective: "injective-mainnet",
-    neutron: "neutron-mainnet"
+    [CHAIN.OSMOSIS]: "osmosis-mainnet",
+    [CHAIN.SEI]: "sei-mainnet",
+    [CHAIN.INJECTIVE]: "injective-mainnet",
+    [CHAIN.NEUTRON]: "neutron-mainnet"
 }
 
 export interface MarketInfo {
