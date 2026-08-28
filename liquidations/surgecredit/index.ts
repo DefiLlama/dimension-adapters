@@ -23,11 +23,9 @@ const fetch = async (options: FetchOptions) => {
   const live = await options.api.call({ target: VAULT_MANAGER, abi: 'address:auctionHouse' })
   const targets = Array.from(new Set([...AUCTION_HOUSES, live].map((address: string) => address.toLowerCase())))
 
-  const logsPerHouse = await Promise.all(
-    targets.map(target => options.getLogs({ target, eventAbi: AuctionBought }))
-  )
+  const logs = await options.getLogs({ targets, eventAbi: AuctionBought })
 
-  for (const log of logsPerHouse.flat()) {
+  for (const log of logs) {
     // Collateral is native BTC held in the borrower's Taproot vault; on Base it
     // exists only as a satoshi amount, so there is no ERC20 to price against.
     dailyCollateralLiquidated.addCGToken('bitcoin', Number(log.collateralSats) / 1e8)
@@ -38,6 +36,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: {
       fetch,
