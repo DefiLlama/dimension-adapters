@@ -47,6 +47,12 @@ const adapter: SimpleAdapter = {
     CollateralLiquidated:
       "Total USD value of native BTC collateral seized from borrowers when a Surge liquidation auction is bought, read from the `collateralSats` field of AuctionHouse `LogAuctionBought` events on Base and priced as bitcoin.",
   },
+  breakdownMethodology: {
+    CollateralLiquidated: {
+      'BTC Collateral':
+        'Native BTC seized from a borrower when a liquidation auction is bought, summed from the `collateralSats` field of AuctionHouse `LogAuctionBought` events and priced as bitcoin. Collateral sits in a per-loan non-custodial Taproot vault, so it has no ERC20 representation on Base.',
+    },
+  },
 }
 
 export default adapter
