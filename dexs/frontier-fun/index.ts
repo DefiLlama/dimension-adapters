@@ -3,6 +3,17 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { queryDune } from "../../helpers/dune";
+import {
+  getEstablishedTokens,
+  washDayStart,
+  WASH_DUST_USD,
+  WASH_MIN_TRADES,
+  WASH_MIN_USD,
+  WASH_TRADES_PER_EOA,
+  WASH_USD_MIN_TRADES_PER_EOA,
+  WASH_USD_PER_EOA,
+} from "../../helpers/uniswap";
 
 // Frontier (frontier.fun) is a bonding-curve token launchpad on Robinhood Chain (4663).
 //
@@ -53,15 +64,23 @@ const CURVE_FEE_DISTRIBUTED_EVENT =
 const GRADUATION_FEES_PAID_EVENT =
   "event GraduationFeesPaid(address indexed feeRecipient, address indexed caller, uint256 creatorAmount, uint256 protocolAmount, uint256 refundAmount)";
 
-// v1.2 Uniswap V4 side. The hook is a singleton attached to every Frontier pool;
-// the PolDistributor receives the LP fees of the permanently locked seed
-// positions when someone calls Harvester.collect (permissionless).
+// v1.2 Uniswap V4 side, all live since 2026-08-15 with the v1.2 factory.
+// Singleton hook attached to every Frontier pool (PoolRegistered, SwapFeeDistributed).
+// https://robinhoodchain.blockscout.com/address/0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc
 const FACTORY_HOOK = "0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc";
+// Receives the LP fees of the permanently locked seed positions when someone
+// calls Harvester.collect (permissionless) and splits them (FeesDistributed).
+// Source: Harvester.distributor() on 0x2F33cb57fAa8bF1EB52ea18D90B0dc2f8cc2Db1f.
+// https://robinhoodchain.blockscout.com/address/0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc
 const POL_DISTRIBUTOR = "0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc";
-// Canonical Uniswap V4 PoolManager on Robinhood Chain, same as dexs/uniswap-v4.
+// Canonical Uniswap V4 PoolManager on Robinhood Chain, the same address
+// dexs/uniswap-v4 scans for this chain.
+// https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
-// Block the v1.2 V4 contracts are indexed from; the hook's first PoolRegistered
-// came after it, so a cumulative scan from here sees every Frontier pool.
+// Block the v1.2 V4 contracts are indexed from (the factory and curve were
+// deployed in 36671438, the hook alongside them). Its first PoolRegistered came
+// later, so a cumulative scan from here sees every Frontier pool.
+// https://robinhoodchain.blockscout.com/block/36671400
 const V12_V4_START_BLOCK = 36671400;
 const POOL_REGISTERED_EVENT =
   "event PoolRegistered(bytes32 indexed poolId, address indexed coin, uint8 communityFeeRatio, address stakingVault)";
@@ -337,7 +356,22 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
   });
 
   if (!pools.length) return;
-  const frontierPools = new Set(pools.map((log: any) => String(log.poolId).toLowerCase()));
+  const coinOf = new Map<string, string>(
+    pools.map((log: any) => [String(log.poolId).toLowerCase(), String(log.coin).toLowerCase()])
+  );
+
+  // Same wash-trading rule as dexs/uniswap-v4 on this chain: a pool flagged by
+  // the day's Dune scan (prefetch) is dropped unless every side is established.
+  // The ETH side always is, so only the coin decides.
+  const washPools: Set<string> = options.preFetchedResults?.washPools ?? new Set();
+  const flaggedCoins = [...coinOf].filter(([poolId]) => washPools.has(poolId)).map(([, coin]) => coin);
+  const established = flaggedCoins.length
+    ? await getEstablishedTokens(options.chain, flaggedCoins)
+    : new Set<string>();
+  const frontierPools = new Set(
+    [...coinOf].filter(([poolId, coin]) => !washPools.has(poolId) || established.has(coin)).map(([poolId]) => poolId)
+  );
+  if (!frontierPools.size) return;
 
   // Every swap on the PoolManager for the day, filtered to Frontier's pools. This
   // is the same scan dexs/uniswap-v4 runs on this chain, chunked the same way.
@@ -357,6 +391,46 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
     const amount0 = BigInt(log.amount0);
     dailyVolume.addGasToken(amount0 < 0n ? -amount0 : amount0);
   });
+};
+
+// The day's wash-flagged V4 pools on Robinhood Chain: dexs/uniswap-v4's query,
+// scoped to this chain. Uniswap V4 pools are ids inside the PoolManager rather
+// than contracts, which is why the generic getWashPools helper does not apply.
+const prefetch = async (options: FetchOptions) => {
+  const dayStart = washDayStart(options);
+  const fullQuery = `
+    WITH ev AS (
+      SELECT id, COUNT(*) AS trades, COUNT(DISTINCT evt_tx_from) AS eoas
+      FROM uniswap_v4_multichain.poolmanager_evt_swap
+      WHERE chain = 'robinhood'
+        AND evt_block_time >= from_unixtime(${dayStart})
+        AND evt_block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY id
+    ),
+    usd AS (
+      SELECT maker, SUM(amount_usd) AS usd
+      FROM dex.trades
+      WHERE blockchain = 'robinhood'
+        AND project = 'uniswap'
+        AND version = '4'
+        AND block_time >= from_unixtime(${dayStart})
+        AND block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY maker
+    )
+    SELECT CAST(ev.id AS VARCHAR) AS id
+    FROM ev
+    LEFT JOIN usd u ON u.maker = ev.id
+    WHERE ((
+      ev.trades >= ${WASH_MIN_TRADES}
+      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+    ) OR (
+      COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
+      AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
+      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+    ))
+    AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
+  const rows: any[] = await queryDune("3996608", { fullQuery }, options, { extraUIDKey: "wash" });
+  return { washPools: new Set(rows.map((row) => String(row.id ?? "").toLowerCase()).filter(Boolean)) };
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -385,7 +459,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Volume:
-    "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves (v1 and v1.2), taken directly from each shared BondingCurve contract's Buy/Sell events, plus the ETH leg of every swap on a Frontier Uniswap V4 pool (graduated curves and v1.2 direct-seed launches alike), read from the canonical PoolManager's Swap events and filtered to the pools registered on Frontier's FactoryHook. Those V4 swaps are also counted by the uniswap-v4 adapter on Robinhood Chain, which is why this adapter is flagged doublecounted.",
+    "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves (v1 and v1.2), taken directly from each shared BondingCurve contract's Buy/Sell events, plus the ETH leg of every swap on a Frontier Uniswap V4 pool (graduated curves and v1.2 direct-seed launches alike), read from the canonical PoolManager's Swap events and filtered to the pools registered on Frontier's FactoryHook, excluding wash trading by the same rule as the uniswap-v4 adapter (pools whose daily trades come from too few distinct addresses to be organic, unless the coin is a core asset or CoinGecko-listed). Those V4 swaps are also counted by the uniswap-v4 adapter on Robinhood Chain, which is why this adapter is flagged doublecounted.",
   Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing), the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool, the FactoryHook fee taken on every swap of a Frontier V4 pool (a hook delta on top of the pool's LP fee, so not part of uniswap-v4's fees), and the LP fees of the protocol's permanently locked seed positions, counted on a realized basis when they are collected (Harvester.collect is permissionless, so a collection carries the fees accrued since the previous one and lands on the collection day, not the days they were earned). v1 reconstructs the trade fee from the on-chain txFee timeline and graduation payouts from WETH transfers; v1.2 reads everything exactly from CurveFeeDistributed, GraduationFeesPaid, SwapFeeDistributed and the PolDistributor's FeesDistributed.",
   UserFees: "Same as Fees: every fee is paid by traders out of their trade or out of the ETH they raised.",
   Revenue:
@@ -443,6 +517,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
+  prefetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30", // first CoinDeployed event (v1), block 23650298
   // Swaps on Frontier's V4 pools are also in dexs/uniswap-v4 on this chain, and
