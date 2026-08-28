@@ -4,40 +4,57 @@ import { METRIC } from "../../helpers/metrics";
 
 // Hookers is a Uniswap v4 token launchpad on Robinhood Chain. Every launch is
 // quoted in native ETH, so every fee below is denominated in the gas token.
+// Every contract below is source-verified; explorer links are given so each
+// address can be checked against the code that emits the events read here.
 //
 // A launch style is a row in this registry rather than a code release, and the
 // list is append-only, so the hooks and custody contracts to read are looked up
 // here instead of being hardcoded. A style added later is picked up with no
 // change to this adapter.
+// https://robinhoodchain.blockscout.com/address/0x71c12b5bf7f6b056176c3d028d708f3397fc3ea2?tab=contract
 const MECHANISM_REGISTRY = "0x71c12b5bf7f6b056176c3d028d708f3397fc3ea2";
-// The registry's first MechanismAdded; nothing to scan before it.
+// Block of the registry's first MechanismAdded (2026-08-13), so the lookup
+// never scans earlier than the registry has existed.
 const MECHANISM_REGISTRY_START_BLOCK = 35375261;
 
-// Holds every launch's liquidity and stamps the pool price into each swap.
+// Uniswap v4 PoolManager on Robinhood Chain. Holds every launch's liquidity and
+// stamps the pool price into each Swap log.
+// https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951?tab=contract
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 
 // Styles whose creator slice is spent buying the launched token back and
 // burning it, rather than paid out to the creator. Anything not listed here is
 // treated as paid to the creator, which is the conservative reading for a style
 // this adapter has not seen: it never overstates revenue.
+// BuybackBurnHookV1, mechanism id 3:
+// https://robinhoodchain.blockscout.com/address/0x7Aa716e1a2DaD5309AbECA3e8C75AbFED287A0cC?tab=contract
 const BUYBACK_HOOKS = new Set(["0x7aa716e1a2dad5309abeca3e8c75abfed287a0cc"]);
 
 // HKRS is the protocol's own token. Buying it back and burning it accrues to
 // HKRS holders; doing the same on any other launch accrues to that token's
 // holders, which is supply side rather than holders revenue.
+// https://robinhoodchain.blockscout.com/token/0x833153ecb2c183702907e1142317a707137af954
 const HKRS = "0x833153ecb2c183702907e1142317a707137af954";
+// PoolId of the ETH/HKRS pool, from the poolId field of the HookersFactory
+// TokenLaunched log that created it (block 36202469).
 const HKRS_POOL_ID = "0x0aa468dc81511bf0bc98390c0d38a59f65a3474fe492da4380f739f5cced47b5";
 
 // Spends part of the protocol's fee share on HKRS buyback and burn, run by the
 // team rather than by a contract. The buy and the burn are separate
 // transactions and the ETH can sit in the wallet in between, so the burn is
 // what gets counted.
+// https://robinhoodchain.blockscout.com/address/0xAcCFdaD319A83dC52Bb42f22353Dd28494Ad0b6E
 const BUYBACK_WALLET = "0xaccfdad319a83dc52bb42f22353dd28494ad0b6e";
+// Conventional burn address; tokens sent here are unrecoverable.
 const DEAD = "0x000000000000000000000000000000000000dead";
 
-// Uniswap v4 state reader, used to value a burn in ETH from the HKRS pool.
+// Uniswap v4 StateView on Robinhood Chain, the same deployment this repo already
+// uses for v4 on this chain. Only reached when a day holds a burn but no swap to
+// price it from.
+// https://robinhoodchain.blockscout.com/address/0xf3334192d15450cdd385c8b70e03f9a6bd9e673b?tab=contract
 const STATE_VIEW = "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b";
 
+// Uniswap v4 represents native ETH as the zero address.
 const NATIVE = "0x0000000000000000000000000000000000000000";
 
 // Every hook declares this event with the same types. The sixth field is the
@@ -50,9 +67,6 @@ const FEES_COLLECTED =
 const PROTOCOL_FEE_PAID =
   "event ProtocolFeePaid(bytes32 indexed poolId, address indexed currency, uint256 amount)";
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-
 const MECHANISM_ADDED =
   "event MechanismAdded(uint32 indexed id, address indexed hook, address indexed custody, address quoteRegistry)";
 const POOL_SWAP =
@@ -60,11 +74,20 @@ const POOL_SWAP =
 const GET_SLOT0 =
   "function getSlot0(bytes32 poolId) view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee)";
 
+// keccak256("Transfer(address,address,uint256)") — set explicitly so the burn
+// query can filter on sender and recipient at the node.
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+// keccak256("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)")
+// — set explicitly so the price lookup can filter to the HKRS pool at the node.
+const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+
 // Labels used for the breakdowns; every one has a breakdownMethodology entry.
 const PROTOCOL_SHARE = "Swap Fees To Protocol";
 const THIRD_PARTY_BUY_BACK = "Buy Back On Third-Party Launches";
 
 const ZERO = BigInt(0);
+// 2**192 scales the squared X96 price back to a plain ratio: an amount of HKRS
+// times 2**192 divided by sqrtPriceX96 squared gives the equivalent in ETH.
 const Q192 = BigInt(2) ** BigInt(192);
 
 const lower = (value: any) => String(value).toLowerCase();
