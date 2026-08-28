@@ -141,6 +141,8 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
+  // Protocol TVL is $121 across all chains, last recorded fees 2026-05-25, and the team deleted their Graph Studio deployments (berachain/base).
+  deadFrom: '2026-05-26',
   version: 1,
   fetch,
   adapter: chainConfig,

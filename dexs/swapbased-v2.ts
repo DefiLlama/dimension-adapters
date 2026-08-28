@@ -9,6 +9,9 @@ const adapter: SimpleAdapter = {
       fetch: async (options: FetchOptions) =>
         getUniV2LogAdapter({
           factory: "0x04C9f118d21e8B767D2e50C946f0cC9F6C367300",
+          userFeesRatio: 1,
+          revenueRatio: 1 / 6, // 0.30% swap fee: 0.25% to LPs, 0.05% to treasury
+          protocolRevenueRatio: 1 / 6,
         })(options),
       start: "2023-07-28",
     },

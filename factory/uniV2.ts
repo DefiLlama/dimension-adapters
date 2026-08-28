@@ -773,6 +773,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.AVAX]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
     [CHAIN.OPTIMISM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
   },
+  // migrated off deleted subgraph to on-chain logs; 0.25% swap fee, 0.1% of volume (40% of fees) to protocol
+  "zyberswap-v2": {
+    [CHAIN.ARBITRUM]: { factory: '0xaC2ee06A14c52570Ef3B9812Ed240BCe359772e7', start: '2023-01-23', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4, holdersRevenueRatio: 0, },
+  },
   "wswap": {
     [CHAIN.WCHAIN]: { factory: "0x2A44f013aD7D6a1083d8F499605Cf1148fbaCE31", start: '2025-06-19', fees: 0.003, revenueRatio: 0, },
     [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },
@@ -821,6 +825,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "zyberswap-v2": {
+    UserFees: "User pays 0.25% fees on each swap.",
+    Fees: "A 0.25% of each swap is collected as trading fees",
+    Revenue: "Protocol receives 0.1% on each swap.",
+    ProtocolRevenue: "Protocol receives 0.1% on each swap.",
+    SupplySideRevenue: "0.15% of each swap is distributed among LPs.",
+    HoldersRevenue: "No revenue for holders.",
+  },
   "icecreamswap": {
     UserFees: "Users pays 0.3% of each swap",
     Fees: "A 0.3% trading fee is collected",
@@ -1188,6 +1200,9 @@ const methodologyMap: Record<string, any> = {
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
   "capx": '2026-07-31',
+  // DFX V2 is retired (DefiLlama lists it with a dead URL; DFX V3 is the live product).
+  // Last recorded V2 volume 2025-11-15, and the goldsky dfx-v2 subgraphs were deleted (404).
+  "dfx-finance": '2025-11-16',
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",

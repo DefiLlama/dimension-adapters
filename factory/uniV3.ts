@@ -42,6 +42,11 @@ const configs: Record<string, Record<string, any>> = {
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
   },
+  // migrated off deleted subgraph to on-chain logs; factory from DefiLlama-Adapters registries/uniswapV3.js
+  // pancake-v3 style fork: pools emit Swap with protocolFeesToken0/1
+  "rabbitswap-v3": {
+    [CHAIN.TOMOCHAIN]: { factory: '0x1F09b50e8cbAed8A157fEe28716d13AfE36A77E7', start: '2024-11-12', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "ginsengswap": {
     [CHAIN.CONFLUX]: { factory: '0x62aa0294cb42aae39b7772313eadfa5d489146ec' },
   },
