@@ -1,3 +1,4 @@
+import { Interface, ZeroAddress } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactions, getTxReceipts } from "../../helpers/getTxReceipts";
@@ -19,7 +20,9 @@ const SWAPPED =
 const ORDER_FILLED =
   "event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed keeper, uint256 amountIn, uint256 amountOut, uint256 remaining)";
 
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const erc20Interface = new Interface([
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+]);
 
 // The `Order` struct is the first, fully-static arg of the keeper's execute*
 // call: struct Order { uint256 salt; address maker; address receiver; address
@@ -34,8 +37,6 @@ const TOKEN_IN_WORD = 3;
 const REFERRER_WORD = 9;
 // Minimum calldata length to safely read the referrer word.
 const MIN_INPUT_LEN = 2 + (4 + (REFERRER_WORD + 1) * 32) * 2;
-
-const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
 
 const METRIC = {
   DIRECT_SWAPS: "Direct Swaps",
@@ -125,12 +126,15 @@ const fetch = async (options: FetchOptions) => {
       if (!receipt) throw new Error(`Missing receipt for Epsilon tx ${feeTxHashes[i]}`);
       const m = txMeta.get(feeTxHashes[i])!;
       for (const log of receipt.logs ?? []) {
-        if (log.topics?.[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
-        const from = "0x" + log.topics[1].slice(26).toLowerCase();
+        // ERC721 Transfer shares the same topic hash but has 4 topics — skip.
+        if (!log.topics || log.topics.length !== 3) continue;
+        const parsed = erc20Interface.parseLog(log as any);
+        if (!parsed || parsed.name !== "Transfer") continue;
+        const from = String(parsed.args.from).toLowerCase();
         if (from !== ROUTER) continue;
-        const to = "0x" + log.topics[2].slice(26).toLowerCase();
+        const to = String(parsed.args.to).toLowerCase();
         const token = log.address;
-        const amount = log.data;
+        const amount = parsed.args.value;
 
         if (to === FEE_COLLECTOR) {
           dailyFees.add(token, amount, METRIC.PROTOCOL_COMMISSION);
@@ -141,7 +145,7 @@ const fetch = async (options: FetchOptions) => {
         } else if (m.keepers.has(to)) {
           dailyFees.add(token, amount, METRIC.KEEPER_FEES);
           dailySupplySideRevenue.add(token, amount, METRIC.KEEPER_FEES);
-        } else if (m.referrers.has(to) && to !== ZERO_ADDR && !m.payouts.has(to)) {
+        } else if (m.referrers.has(to) && to !== ZeroAddress && !m.payouts.has(to)) {
           dailyFees.add(token, amount, METRIC.REFERRAL_FEES);
           dailySupplySideRevenue.add(token, amount, METRIC.REFERRAL_FEES);
         }
@@ -162,8 +166,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume:
     "Sum of direct aggregated-swap volumes and order fill volumes (limit, DCA and trailing-stop executions) routed through the Epsilon router on Robinhood Chain, valued on the input token leg.",
-  Fees: "All fee legs charged on trades, measured from on-chain token transfers out of the router: protocol commission (including captured surplus), aggregation fees, keeper execution fees and referral fees.",
-  UserFees: "All fees are paid by traders out of trade proceeds.",
+  Fees: "All fee legs charged on trades, measured from on-chain token transfers out of the router: protocol commission (including captured surplus), aggregation fees, keeper execution fees and referral fees. All fees are paid by traders out of trade proceeds.",
   Revenue: "Protocol commission and aggregation fees, both collected by protocol-owned collectors.",
   ProtocolRevenue: "All revenue accrues to the protocol treasury (FeeVault and aggregation collector); there is no token.",
   SupplySideRevenue: "Keeper execution fees paid to order executors and referral fees paid to third-party referrers/integrators (permissionless rev-share).",
@@ -179,12 +182,6 @@ const breakdownMethodology = {
     [METRIC.AGGREGATION_FEES]: "Fee on aggregated swap routes, transferred to the aggregation-fee collector.",
     [METRIC.KEEPER_FEES]: "Execution fee paid to the keeper that fills a resting order.",
     [METRIC.REFERRAL_FEES]: "Referral leg paid to the referrer address named on the order or swap (permissionless rev-share).",
-  },
-  UserFees: {
-    [METRIC.PROTOCOL_COMMISSION]: "Paid by traders as part of each trade's fee legs.",
-    [METRIC.AGGREGATION_FEES]: "Paid by traders on aggregated swap routes.",
-    [METRIC.KEEPER_FEES]: "Paid by makers on order fills.",
-    [METRIC.REFERRAL_FEES]: "Paid by traders on referred flow.",
   },
   Revenue: {
     [METRIC.PROTOCOL_COMMISSION]: "Protocol commission and captured surplus kept in the FeeVault.",
