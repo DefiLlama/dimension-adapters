@@ -333,8 +333,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.223':
-    resolution: {integrity: sha512-g+bQXMz7HInH+Mpy3iduPsJavS1kbdMI6pNb2oxfRWbmzTmMjENz7BteBntxAdmd+ElRLnrwUeLZbREpNLHClQ==}
+  '@defillama/sdk@5.0.224':
+    resolution: {integrity: sha512-SJ6d0kVCTDbjjAcJwbusrn4gGV6OPixn8gJrGh7dWw7Emb6dkIu9UJTzjbQoYXQPUJkEQ9FtRR+gIxwGTv04GA==}
 
   '@elastic/elasticsearch@8.19.1':
     resolution: {integrity: sha512-+1j9NnQVOX+lbWB8LhCM7IkUmjU05Y4+BmSLfusq0msCsQb1Va+OUKFCoOXjCJqQrcgdRdQCjYYyolQ/npQALQ==}
@@ -2132,7 +2132,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.223(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)':
+  '@defillama/sdk@5.0.224(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
       '@elastic/elasticsearch': 8.19.1(supports-color@7.2.0)

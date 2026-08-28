@@ -1,14 +1,16 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const STATS_URL = "https://eosauthority.com/api/spa/rex/communityfunds?network=eos";
+// eosauthority WAF blocks the default axios user-agent; a browser UA passes
+const HEADERS = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" };
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const unixTodayInMs = options.startOfDay * 1000;
 
-    const { chartSeries } = await fetchURL(STATS_URL);
+    const { chartSeries } = await httpGet(STATS_URL, { headers: HEADERS });
     chartSeries.forEach((chart: any) => {
         const feeType = chart.name;
         const feeToday = chart.data.find((entry: any) => entry[0] === unixTodayInMs);
