@@ -314,6 +314,12 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
   });
 
   // LP fees of the locked seed positions, forwarded as WETH + coin on collection.
+  // Counted on a realized basis: Harvester.collect is permissionless and runs
+  // whenever someone calls it, so a collection lands the fees accrued since the
+  // previous one on that day rather than on the days they were earned. Accrual
+  // is not observable from logs (it would need each position's share of the
+  // pool's liquidity per swap); ponsdotfamily-v2's PoolFeesSwept is the same
+  // trade-off. The hook fee above is per swap and has no such lag.
   polFees.forEach((log: any) => {
     const coin = String(log.coin);
     const legs: [string, bigint, bigint, bigint][] = [
@@ -380,7 +386,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Volume:
     "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves (v1 and v1.2), taken directly from each shared BondingCurve contract's Buy/Sell events, plus the ETH leg of every swap on a Frontier Uniswap V4 pool (graduated curves and v1.2 direct-seed launches alike), read from the canonical PoolManager's Swap events and filtered to the pools registered on Frontier's FactoryHook. Those V4 swaps are also counted by the uniswap-v4 adapter on Robinhood Chain, which is why this adapter is flagged doublecounted.",
-  Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing), the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool, the FactoryHook fee taken on every swap of a Frontier V4 pool (a hook delta on top of the pool's LP fee, so not part of uniswap-v4's fees), and the LP fees of the protocol's permanently locked seed positions when they are collected. v1 reconstructs the trade fee from the on-chain txFee timeline and graduation payouts from WETH transfers; v1.2 reads everything exactly from CurveFeeDistributed, GraduationFeesPaid, SwapFeeDistributed and the PolDistributor's FeesDistributed.",
+  Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing), the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool, the FactoryHook fee taken on every swap of a Frontier V4 pool (a hook delta on top of the pool's LP fee, so not part of uniswap-v4's fees), and the LP fees of the protocol's permanently locked seed positions, counted on a realized basis when they are collected (Harvester.collect is permissionless, so a collection carries the fees accrued since the previous one and lands on the collection day, not the days they were earned). v1 reconstructs the trade fee from the on-chain txFee timeline and graduation payouts from WETH transfers; v1.2 reads everything exactly from CurveFeeDistributed, GraduationFeesPaid, SwapFeeDistributed and the PolDistributor's FeesDistributed.",
   UserFees: "Same as Fees: every fee is paid by traders out of their trade or out of the ETH they raised.",
   Revenue:
     "Protocol revenue across both deployments: on v1, the protocol's 25% of the bonding-curve trade fee net of referrer rewards plus the factory owner's graduation share; on v1.2, the residual share of the trade fee after referrer and creator cuts (creator share owner-tunable via creatorShareBps), the protocol's graduation share, the protocol owner's share of the hook fee on every V4 swap, and the protocol's share of collected seed-position LP fees. Frontier has no protocol token, so there is no holders revenue and Revenue equals ProtocolRevenue.",
@@ -398,7 +404,7 @@ const feesBreakdown = {
   [LABEL.PoolSwapFees]:
     "The FactoryHook's fee on every swap of a Frontier Uniswap V4 pool, from SwapFeeDistributed: a volatility-scaled hook delta charged on top of the pool's LP fee, in the swap's input currency (native ETH or the coin). The LP fee itself belongs to uniswap-v4 and is not counted here.",
   [LABEL.PolFees]:
-    "Uniswap V4 LP fees of the protocol's permanently locked seed positions, counted when Harvester.collect forwards them to the PolDistributor (FeesDistributed), in WETH and the coin. These are also LP fees in uniswap-v4's figures.",
+    "Uniswap V4 LP fees of the protocol's permanently locked seed positions, counted on a realized basis when Harvester.collect forwards them to the PolDistributor (FeesDistributed), in WETH and the coin. A collection carries everything accrued since the previous one, so these land on the collection day rather than the days they were earned. These are also LP fees in uniswap-v4's figures.",
 };
 
 const protocolRevenueBreakdown = {
