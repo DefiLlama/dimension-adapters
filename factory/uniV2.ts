@@ -412,9 +412,10 @@ const configs: Record<string, Record<string, any>> = {
   "fanx-protocol": {
     [CHAIN.CHILIZ]: { factory: '0xE2918AA38088878546c1A18F2F9b1BC83297fdD3', start: '2024-04-01', revenueRatio: 0.5, protocolRevenueRatio: 0.5, holdersRevenueRatio: 0 },
   },
-  "kodiak-v2": {
-    [CHAIN.BERACHAIN]: { factory: '0x5e705e184d233ff2a7cb1553793464a9d0c3028f', revenueRatio: 0.1667, protocolRevenueRatio: 0.1667, holdersRevenueRatio: 0, userFeesRatio: 1 },
-  },
+  // moved to a standalone adapter at fees/kodiak-v2.ts
+  // "kodiak-v2": {
+  //   [CHAIN.BERACHAIN]: { factory: '0x5e705e184d233ff2a7cb1553793464a9d0c3028f', revenueRatio: 0.1667, protocolRevenueRatio: 0.1667, holdersRevenueRatio: 0, userFeesRatio: 1 },
+  // },
   "moai-v2": {
     [CHAIN.XRPL_EVM]: { factory: '0x645541A2e2fb655fd7765898DFfbc7dd051E5B67', revenueRatio: 0 },
   },
