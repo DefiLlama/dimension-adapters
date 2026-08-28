@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 // Hookers is a Uniswap v4 token launchpad on Robinhood Chain. Every launch is
 // quoted in native ETH, so every fee below is denominated in the gas token.
@@ -9,6 +10,11 @@ import { CHAIN } from "../../helpers/chains";
 // here instead of being hardcoded. A style added later is picked up with no
 // change to this adapter.
 const MECHANISM_REGISTRY = "0x71c12b5bf7f6b056176c3d028d708f3397fc3ea2";
+// The registry's first MechanismAdded; nothing to scan before it.
+const MECHANISM_REGISTRY_START_BLOCK = 35375261;
+
+// Holds every launch's liquidity and stamps the pool price into each swap.
+const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 
 // Styles whose creator slice is spent buying the launched token back and
 // burning it, rather than paid out to the creator. Anything not listed here is
@@ -45,12 +51,21 @@ const PROTOCOL_FEE_PAID =
   "event ProtocolFeePaid(bytes32 indexed poolId, address indexed currency, uint256 amount)";
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 
-const MECHANISM_COUNT = "function mechanismCount() view returns (uint32)";
-const GET_MECHANISM =
-  "function getMechanism(uint32 id) view returns ((address hook, address custody, address quoteRegistry, bool enabled, uint64 addedAt))";
+const MECHANISM_ADDED =
+  "event MechanismAdded(uint32 indexed id, address indexed hook, address indexed custody, address quoteRegistry)";
+const POOL_SWAP =
+  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
 const GET_SLOT0 =
   "function getSlot0(bytes32 poolId) view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee)";
+
+// Labels used for the breakdowns; every one has a breakdownMethodology entry.
+const PROTOCOL_SHARE = "Swap Fees To Protocol";
+const THIRD_PARTY_BUY_BACK = "Buy Back On Third-Party Launches";
+
+const ZERO = BigInt(0);
+const Q192 = BigInt(2) ** BigInt(192);
 
 const lower = (value: any) => String(value).toLowerCase();
 const asTopic = (address: string) => "0x000000000000000000000000" + address.slice(2).toLowerCase();
@@ -62,12 +77,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Mechanism ids run from 1 to mechanismCount.
-  const count = Number(await options.api.call({ target: MECHANISM_REGISTRY, abi: MECHANISM_COUNT }));
-  const mechanisms = await options.api.multiCall({
+  // Read the launch styles from the registry's own events rather than its
+  // current storage: logs are never pruned, so this still resolves on a
+  // historical backfill where an archive node may not be available.
+  const mechanisms = await options.getLogs({
     target: MECHANISM_REGISTRY,
-    abi: GET_MECHANISM,
-    calls: Array.from({ length: count }, (_, i) => i + 1),
+    eventAbi: MECHANISM_ADDED,
+    fromBlock: MECHANISM_REGISTRY_START_BLOCK,
+    toBlock: await options.getToBlock(),
+    cacheInCloud: true,
   });
 
   // A hookless style carries the zero address; its fee is the pool's own LP fee
@@ -76,12 +94,9 @@ const fetch = async (options: FetchOptions) => {
   const custodies = [...new Set(mechanisms.map((m: any) => lower(m.custody)))];
 
   const [hookLogs, burns, collected, protocolPaid] = await Promise.all([
-    Promise.all(
-      hooks.map(async (hook) => ({
-        hook,
-        logs: await options.getLogs({ target: hook, eventAbi: SWAP_FEES_ACCRUED }),
-      }))
-    ),
+    // One query across every hook; `onlyArgs: false` keeps the emitting
+    // address so each log can be traced back to its launch style.
+    options.getLogs({ targets: hooks, eventAbi: SWAP_FEES_ACCRUED, onlyArgs: false }),
     // Filtered at the node: only HKRS leaving the buyback wallet for the burn
     // address, rather than every HKRS transfer of the day.
     options.getLogs({
@@ -95,20 +110,23 @@ const fetch = async (options: FetchOptions) => {
 
   // Hooked styles skim a directional fee and split it. The protocol's 30 bps is
   // the same for every style; where the creator's slice goes is what differs.
-  hookLogs.forEach(({ hook, logs }) => {
-    const isBuyback = BUYBACK_HOOKS.has(hook);
-    logs.forEach((log: any) => {
-      dailyFees.addGasToken(log.creatorFee + log.protocolFee);
-      dailyProtocolRevenue.addGasToken(log.protocolFee);
-      dailyRevenue.addGasToken(log.protocolFee);
+  hookLogs.forEach((log: any) => {
+    const { creatorFee, protocolFee, poolId } = log.args;
 
-      if (isBuyback && lower(log.poolId) === HKRS_POOL_ID) {
-        dailyHoldersRevenue.addGasToken(log.creatorFee);
-        dailyRevenue.addGasToken(log.creatorFee);
+    dailyFees.addGasToken(BigInt(creatorFee) + BigInt(protocolFee), METRIC.SWAP_FEES);
+    dailyProtocolRevenue.addGasToken(protocolFee, PROTOCOL_SHARE);
+    dailyRevenue.addGasToken(protocolFee, PROTOCOL_SHARE);
+
+    if (BUYBACK_HOOKS.has(lower(log.address))) {
+      if (lower(poolId) === HKRS_POOL_ID) {
+        dailyHoldersRevenue.addGasToken(creatorFee, METRIC.TOKEN_BUY_BACK);
+        dailyRevenue.addGasToken(creatorFee, METRIC.TOKEN_BUY_BACK);
       } else {
-        dailySupplySideRevenue.addGasToken(log.creatorFee);
+        dailySupplySideRevenue.addGasToken(creatorFee, THIRD_PARTY_BUY_BACK);
       }
-    });
+    } else {
+      dailySupplySideRevenue.addGasToken(creatorFee, METRIC.CREATOR_FEES);
+    }
   });
 
   // Discretionary HKRS buyback and burn. The team withdraws the protocol's fee
@@ -118,18 +136,29 @@ const fetch = async (options: FetchOptions) => {
   // token rather than depending on a market price for HKRS. The automatic hook
   // burns straight out of the PoolManager, so filtering on the buyback wallet
   // as sender keeps the two from being counted twice.
-  const burned = burns.reduce((sum: number, log: any) => sum + Number(log.value), 0);
+  const burned = burns.reduce((sum: bigint, log: any) => sum + BigInt(log.value), ZERO);
 
-  if (burned > 0) {
-    const [sqrtPriceX96] = await options.toApi.call({
-      target: STATE_VIEW,
-      abi: GET_SLOT0,
-      params: [HKRS_POOL_ID],
+  if (burned > ZERO) {
+    // Price the burn from the last swap of the window, which carries the pool
+    // price in the log itself. Only if the window holds no swap at all does this
+    // fall back to reading contract state, which a pruned node may refuse.
+    const swaps = await options.getLogs({
+      target: POOL_MANAGER,
+      eventAbi: POOL_SWAP,
+      topics: [SWAP_TOPIC, HKRS_POOL_ID],
     });
-    // ETH is currency0 and HKRS is currency1, so the pool price is HKRS per ETH.
-    // Both sides are 18 decimals, so no scaling is needed.
-    const sqrtPrice = Number(sqrtPriceX96) / 2 ** 96;
-    if (sqrtPrice > 0) dailyHoldersRevenue.addGasToken(burned / (sqrtPrice * sqrtPrice));
+    const sqrtPriceX96 = swaps.length
+      ? swaps[swaps.length - 1].sqrtPriceX96
+      : (await options.toApi.call({ target: STATE_VIEW, abi: GET_SLOT0, params: [HKRS_POOL_ID] }))[0];
+    // ETH is currency0 and HKRS is currency1, so the pool price is HKRS per ETH:
+    // price = (sqrtPriceX96 / 2**96) ** 2. Inverting that to value the burn in
+    // ETH gives burned * 2**192 / sqrtPriceX96**2, kept in integer arithmetic so
+    // neither the token amount nor the 160-bit price loses precision. Both sides
+    // are 18 decimals, so no scaling is needed.
+    const sqrtPrice = BigInt(sqrtPriceX96);
+    if (sqrtPrice > ZERO) {
+      dailyHoldersRevenue.addGasToken((burned * Q192) / (sqrtPrice * sqrtPrice), METRIC.TOKEN_BUY_BACK);
+    }
   }
 
   // Hookless styles: the fee is the pool's own Uniswap v4 LP fee, collected on
@@ -137,16 +166,16 @@ const fetch = async (options: FetchOptions) => {
   // protocol's cut, so gross is that plus the matching `ProtocolFeePaid`.
   // amount1 is the launched token, which has no price, so only the ETH leg counts.
   collected.forEach((log: any) => {
-    dailyFees.addGasToken(log.amount0);
-    dailySupplySideRevenue.addGasToken(log.amount0);
+    dailyFees.addGasToken(log.amount0, METRIC.LP_FEES);
+    dailySupplySideRevenue.addGasToken(log.amount0, METRIC.LP_FEES);
   });
 
   protocolPaid
     .filter((log: any) => lower(log.currency) === NATIVE)
     .forEach((log: any) => {
-      dailyFees.addGasToken(log.amount);
-      dailyProtocolRevenue.addGasToken(log.amount);
-      dailyRevenue.addGasToken(log.amount);
+      dailyFees.addGasToken(log.amount, METRIC.LP_FEES);
+      dailyProtocolRevenue.addGasToken(log.amount, PROTOCOL_SHARE);
+      dailyRevenue.addGasToken(log.amount, PROTOCOL_SHARE);
     });
 
   return {
@@ -167,15 +196,36 @@ const methodology = {
   SupplySideRevenue: "Fees paid out to launch creators: the creator-nominated fee slots on creator-fee styles, LP fees on hookless styles, and buyback and burn on third-party launches.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Directional buy/sell fee skimmed inside the hook on hooked launch styles, set by the creator between 100 and 1000 bps (creatorFee + protocolFee from SwapFeesAccrued).",
+    [METRIC.LP_FEES]: "The pool's own Uniswap v4 LP fee on hookless launch styles, collected through LiquidityCustody (FeesCollected plus the matching ProtocolFeePaid).",
+  },
+  Revenue: {
+    [PROTOCOL_SHARE]: "The 30 bps protocol share of trade volume, routed to FeeRouter.",
+    [METRIC.TOKEN_BUY_BACK]: "ETH spent buying back HKRS, the protocol's own token, and burning it.",
+  },
+  ProtocolRevenue: {
+    [PROTOCOL_SHARE]: "The 30 bps protocol share of trade volume, routed to FeeRouter.",
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "HKRS bought back and burned, valued in ETH: the automatic buyback hook on the HKRS pool, plus the discretionary buybacks the team runs out of the protocol's fee share.",
+  },
+  SupplySideRevenue: {
+    [METRIC.CREATOR_FEES]: "Hook fees paid to the creator-nominated fee slots on creator-fee launch styles.",
+    [METRIC.LP_FEES]: "Uniswap v4 LP fees paid to the creator on hookless launch styles.",
+    [THIRD_PARTY_BUY_BACK]: "Fees spent buying back and burning a third-party launch's own token, which accrues to that token's holders rather than to the protocol's.",
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: "2026-08-14",
-    },
-  },
+  pullHourly: true,
   methodology,
+  breakdownMethodology,
+  chains: [CHAIN.ROBINHOOD],
+  fetch,
+  start: "2026-08-14", // first launch, block 36138302
   // Every launch is a Uniswap v4 pool, so these swap fees also appear in the
   // Uniswap v4 numbers for this chain.
   doublecounted: true,
