@@ -1,9 +1,8 @@
-import * as sdk from "@defillama/sdk";
 import { PromisePool } from "@supercharge/promise-pool";
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { queryDune } from "../../helpers/dune";
+import { queryDuneSql } from "../../helpers/dune";
 import {
   getEstablishedTokens,
   washDayStart,
@@ -77,20 +76,8 @@ const POL_DISTRIBUTOR = "0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc";
 // dexs/uniswap-v4 scans for this chain.
 // https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951
 const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
-// Block the v1.2 V4 contracts are indexed from (the factory and curve were
-// deployed in 36671438, the hook alongside them). Its first PoolRegistered came
-// later, so a cumulative scan from here sees every Frontier pool.
-// https://robinhoodchain.blockscout.com/block/36671400
-const V12_V4_START_BLOCK = 36671400;
-const POOL_REGISTERED_EVENT =
-  "event PoolRegistered(bytes32 indexed poolId, address indexed coin, uint8 communityFeeRatio, address stakingVault)";
-// currency is address(0) for the native ETH leg, otherwise the coin.
-const SWAP_FEE_DISTRIBUTED_EVENT =
-  "event SwapFeeDistributed(bytes32 indexed poolId, address currency, uint256 protocolAmount, uint256 vaultAmount, uint256 recipientAmount, address protocolRecipient, address vault, address feeRecipient)";
-const POL_FEES_DISTRIBUTED_EVENT =
-  "event FeesDistributed(uint256 indexed tokenId, address indexed coin, address indexed creator, address vault, uint256 creatorWeth, uint256 creatorCoin, uint256 vaultWeth, uint256 vaultCoin, uint256 protocolWeth, uint256 protocolCoin)";
-const V4_SWAP_EVENT =
-  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
+const V4_SWAP_FEE_TOPIC = "0xf1a3d823f78e33cdd2d6f81c311b178dc348a2bab03c7afacea8326a1d98d41f";
+const V4_POL_FEE_TOPIC = "0x7b629ab4257c85bfc2373ab7f36e5f6cf7b8bf085b192d2938cebb7a3726eb87";
 
 const LABEL = {
   CurveTradeFees: "Curve Trade Fees",
@@ -305,101 +292,21 @@ const addV12 = async (options: FetchOptions, day: DayBalances) => {
 
 const addV4 = async (options: FetchOptions, day: DayBalances) => {
   const { dailyVolume, dailyFees, dailyProtocolRevenue, dailySupplySideRevenue } = day;
-
-  const [pools, hookFees, polFees] = await Promise.all([
-    options.getLogs({
-      target: FACTORY_HOOK,
-      eventAbi: POOL_REGISTERED_EVENT,
-      fromBlock: V12_V4_START_BLOCK,
-      cacheInCloud: true,
-    }),
-    options.getLogs({ target: FACTORY_HOOK, eventAbi: SWAP_FEE_DISTRIBUTED_EVENT }),
-    options.getLogs({ target: POL_DISTRIBUTOR, eventAbi: POL_FEES_DISTRIBUTED_EVENT }),
-  ]);
-
-  // The hook's cut of every swap, split in the swap's own transaction: protocol
-  // owner first, then the remainder between the coin's staking vault and its fee
-  // recipient (the creator). address(0) is the native ETH leg and is also the
-  // Balances key for the gas token, so the currency can be used as-is.
-  hookFees.forEach((log: any) => {
-    const currency = String(log.currency);
-    const protocol = BigInt(log.protocolAmount);
-    const vault = BigInt(log.vaultAmount);
-    const recipient = BigInt(log.recipientAmount);
-    dailyFees.add(currency, protocol + vault + recipient, LABEL.PoolSwapFees);
-    if (protocol !== 0n) dailyProtocolRevenue.add(currency, protocol, LABEL.PoolSwapFeesToProtocol);
-    if (vault !== 0n) dailySupplySideRevenue.add(currency, vault, LABEL.PoolSwapFeesToStakers);
-    if (recipient !== 0n) dailySupplySideRevenue.add(currency, recipient, LABEL.PoolSwapFeesToCreators);
-  });
-
-  // LP fees of the locked seed positions, forwarded as WETH + coin on collection.
-  // Counted on a realized basis: Harvester.collect is permissionless and runs
-  // whenever someone calls it, so a collection lands the fees accrued since the
-  // previous one on that day rather than on the days they were earned. Accrual
-  // is not observable from logs (it would need each position's share of the
-  // pool's liquidity per swap); ponsdotfamily-v2's PoolFeesSwept is the same
-  // trade-off. The hook fee above is per swap and has no such lag.
-  polFees.forEach((log: any) => {
-    const coin = String(log.coin);
-    const legs: [string, bigint, bigint, bigint][] = [
-      [WETH, BigInt(log.creatorWeth), BigInt(log.vaultWeth), BigInt(log.protocolWeth)],
-      [coin, BigInt(log.creatorCoin), BigInt(log.vaultCoin), BigInt(log.protocolCoin)],
-    ];
-    legs.forEach(([token, creator, vault, protocol]) => {
-      const total = creator + vault + protocol;
-      if (total === 0n) return;
-      dailyFees.add(token, total, LABEL.PolFees);
-      if (protocol !== 0n) dailyProtocolRevenue.add(token, protocol, LABEL.PolFeesToProtocol);
-      if (vault !== 0n) dailySupplySideRevenue.add(token, vault, LABEL.PolFeesToStakers);
-      if (creator !== 0n) dailySupplySideRevenue.add(token, creator, LABEL.PolFeesToCreators);
-    });
-  });
-
-  if (!pools.length) return;
-  const coinOf = new Map<string, string>(
-    pools.map((log: any) => [String(log.poolId).toLowerCase(), String(log.coin).toLowerCase()])
-  );
-
-  // Same wash-trading rule as dexs/uniswap-v4 on this chain: a pool flagged by
-  // the day's Dune scan (prefetch) is dropped unless every side is established.
-  // The ETH side always is, so only the coin decides.
-  const washPools: Set<string> = options.preFetchedResults?.washPools ?? new Set();
-  const flaggedCoins = [...coinOf].filter(([poolId]) => washPools.has(poolId)).map(([, coin]) => coin);
-  const established = flaggedCoins.length
-    ? await getEstablishedTokens(options.chain, flaggedCoins)
-    : new Set<string>();
-  const frontierPools = new Set(
-    [...coinOf].filter(([poolId, coin]) => !washPools.has(poolId) || established.has(coin)).map(([poolId]) => poolId)
-  );
-  if (!frontierPools.size) return;
-
-  // Every swap on the PoolManager for the day, filtered to Frontier's pools. This
-  // is the same scan dexs/uniswap-v4 runs on this chain, chunked the same way.
-  const swaps = await sdk.getEventLogs({
-    chain: options.chain,
-    target: POOL_MANAGER,
-    eventAbi: V4_SWAP_EVENT,
-    fromBlock: await options.getFromBlock(),
-    toBlock: await options.getToBlock(),
-    maxBlockRange: 10000,
-    onlyArgs: true,
-  });
-  swaps.forEach((log: any) => {
-    if (!frontierPools.has(String(log.id).toLowerCase())) return;
-    // Every Frontier pool pairs native ETH with the coin, and address(0) sorts
-    // below any token address, so currency0 is always the ETH leg.
-    const amount0 = BigInt(log.amount0);
-    dailyVolume.addGasToken(amount0 < 0n ? -amount0 : amount0);
-  });
-};
-
-// The day's wash-flagged V4 pools on Robinhood Chain: dexs/uniswap-v4's query,
-// scoped to this chain. Uniswap V4 pools are ids inside the PoolManager rather
-// than contracts, which is why the generic getWashPools helper does not apply.
-const prefetch = async (options: FetchOptions) => {
   const dayStart = washDayStart(options);
-  const fullQuery = `
-    WITH ev AS (
+
+  const rows: any[] = await queryDuneSql(
+    options,
+    `
+    WITH frontier_pools AS (
+      SELECT
+        CAST(id AS VARCHAR) AS pool_id,
+        LOWER(CAST(currency1 AS VARCHAR)) AS coin
+      FROM uniswap_v4_multichain.poolmanager_evt_initialize
+      WHERE chain = 'robinhood'
+        AND contract_address = ${POOL_MANAGER}
+        AND LOWER(CAST(hooks AS VARCHAR)) = '${FACTORY_HOOK.toLowerCase()}'
+    ),
+    wash_ev AS (
       SELECT id, COUNT(*) AS trades, COUNT(DISTINCT evt_tx_from) AS eoas
       FROM uniswap_v4_multichain.poolmanager_evt_swap
       WHERE chain = 'robinhood'
@@ -407,7 +314,7 @@ const prefetch = async (options: FetchOptions) => {
         AND evt_block_time < from_unixtime(${dayStart + 86400})
       GROUP BY id
     ),
-    usd AS (
+    wash_usd AS (
       SELECT maker, SUM(amount_usd) AS usd
       FROM dex.trades
       WHERE blockchain = 'robinhood'
@@ -416,21 +323,162 @@ const prefetch = async (options: FetchOptions) => {
         AND block_time >= from_unixtime(${dayStart})
         AND block_time < from_unixtime(${dayStart + 86400})
       GROUP BY maker
+    ),
+    wash_pools AS (
+      SELECT CAST(ev.id AS VARCHAR) AS pool_id
+      FROM wash_ev ev
+      LEFT JOIN wash_usd u ON u.maker = ev.id
+      WHERE ((
+        ev.trades >= ${WASH_MIN_TRADES}
+        AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+      ) OR (
+        COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
+        AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
+        AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+      ))
+      AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})
+    ),
+    swap_volume AS (
+      SELECT
+        CAST(s.id AS VARCHAR) AS pool_id,
+        fp.coin,
+        SUM(ABS(s.amount0)) AS eth_vol
+      FROM uniswap_v4_multichain.poolmanager_evt_swap s
+      INNER JOIN frontier_pools fp ON fp.pool_id = CAST(s.id AS VARCHAR)
+      WHERE s.chain = 'robinhood'
+        AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
+        AND s.evt_block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1, 2
+    ),
+    hook_fees AS (
+      SELECT
+        LOWER(CONCAT('0x', SUBSTR(TO_HEX(bytearray_substring(data, 1, 32)), 25))) AS currency,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 33, 32))) AS protocol_amount,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 65, 32))) AS vault_amount,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 97, 32))) AS recipient_amount
+      FROM robinhood.logs
+      WHERE contract_address = ${FACTORY_HOOK}
+        AND topic0 = ${V4_SWAP_FEE_TOPIC}
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
+    ),
+    pol_fees AS (
+      SELECT
+        LOWER(CONCAT('0x', SUBSTR(TO_HEX(topic2), 25))) AS coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 33, 32))) AS creator_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 65, 32))) AS creator_coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 97, 32))) AS vault_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 129, 32))) AS vault_coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 161, 32))) AS protocol_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 193, 32))) AS protocol_coin
+      FROM robinhood.logs
+      WHERE contract_address = ${POL_DISTRIBUTOR}
+        AND topic0 = ${V4_POL_FEE_TOPIC}
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
     )
-    SELECT CAST(ev.id AS VARCHAR) AS id
-    FROM ev
-    LEFT JOIN usd u ON u.maker = ev.id
-    WHERE ((
-      ev.trades >= ${WASH_MIN_TRADES}
-      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
-    ) OR (
-      COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
-      AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
-      AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
-    ))
-    AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
-  const rows: any[] = await queryDune("3996608", { fullQuery }, options, { extraUIDKey: "wash" });
-  return { washPools: new Set(rows.map((row) => String(row.id ?? "").toLowerCase()).filter(Boolean)) };
+    SELECT
+      'volume' AS row_type,
+      v.pool_id,
+      v.coin,
+      CAST(v.eth_vol AS VARCHAR) AS amount,
+      CASE WHEN w.pool_id IS NOT NULL THEN 1 ELSE 0 END AS is_wash,
+      NULL AS val1,
+      NULL AS val2,
+      NULL AS val3,
+      NULL AS val4,
+      NULL AS val5,
+      NULL AS val6
+    FROM swap_volume v
+    LEFT JOIN wash_pools w ON w.pool_id = v.pool_id
+    UNION ALL
+    SELECT
+      'hook' AS row_type,
+      NULL AS pool_id,
+      NULL AS coin,
+      currency AS amount,
+      0 AS is_wash,
+      CAST(protocol_amount AS VARCHAR) AS val1,
+      CAST(vault_amount AS VARCHAR) AS val2,
+      CAST(recipient_amount AS VARCHAR) AS val3,
+      NULL AS val4,
+      NULL AS val5,
+      NULL AS val6
+    FROM hook_fees
+    UNION ALL
+    SELECT
+      'pol' AS row_type,
+      NULL AS pool_id,
+      coin,
+      NULL AS amount,
+      0 AS is_wash,
+      CAST(creator_weth AS VARCHAR) AS val1,
+      CAST(creator_coin AS VARCHAR) AS val2,
+      CAST(vault_weth AS VARCHAR) AS val3,
+      CAST(vault_coin AS VARCHAR) AS val4,
+      CAST(protocol_weth AS VARCHAR) AS val5,
+      CAST(protocol_coin AS VARCHAR) AS val6
+    FROM pol_fees`,
+    { extraUIDKey: "v4" }
+  );
+
+  const volumeRows: { pool_id: string; coin: string; amount: string; is_wash: number }[] = [];
+
+  for (const row of rows) {
+    if (row.row_type === "hook") {
+      const currency = String(row.amount);
+      const protocol = BigInt(row.val1);
+      const vault = BigInt(row.val2);
+      const recipient = BigInt(row.val3);
+      dailyFees.add(currency, protocol + vault + recipient, LABEL.PoolSwapFees);
+      if (protocol !== 0n) dailyProtocolRevenue.add(currency, protocol, LABEL.PoolSwapFeesToProtocol);
+      if (vault !== 0n) dailySupplySideRevenue.add(currency, vault, LABEL.PoolSwapFeesToStakers);
+      if (recipient !== 0n) dailySupplySideRevenue.add(currency, recipient, LABEL.PoolSwapFeesToCreators);
+      continue;
+    }
+
+    if (row.row_type === "pol") {
+      const coin = String(row.coin);
+      const legs: [string, bigint, bigint, bigint][] = [
+        [WETH, BigInt(row.val1), BigInt(row.val3), BigInt(row.val5)],
+        [coin, BigInt(row.val2), BigInt(row.val4), BigInt(row.val6)],
+      ];
+      legs.forEach(([token, creator, vault, protocol]) => {
+        const total = creator + vault + protocol;
+        if (total === 0n) return;
+        dailyFees.add(token, total, LABEL.PolFees);
+        if (protocol !== 0n) dailyProtocolRevenue.add(token, protocol, LABEL.PolFeesToProtocol);
+        if (vault !== 0n) dailySupplySideRevenue.add(token, vault, LABEL.PolFeesToStakers);
+        if (creator !== 0n) dailySupplySideRevenue.add(token, creator, LABEL.PolFeesToCreators);
+      });
+      continue;
+    }
+
+    if (row.row_type === "volume") {
+      volumeRows.push({
+        pool_id: String(row.pool_id).toLowerCase(),
+        coin: String(row.coin).toLowerCase(),
+        amount: String(row.amount),
+        is_wash: Number(row.is_wash),
+      });
+    }
+  }
+
+  if (!volumeRows.length) return;
+
+  const flaggedCoins = [
+    ...new Set(volumeRows.filter((row) => row.is_wash).map((row) => row.coin)),
+  ];
+  const established = flaggedCoins.length
+    ? await getEstablishedTokens(options.chain, flaggedCoins)
+    : new Set<string>();
+
+  volumeRows.forEach((row) => {
+    if (row.is_wash && !established.has(row.coin)) return;
+    dailyVolume.addGasToken(BigInt(row.amount));
+  });
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -514,10 +562,10 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
-  prefetch,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30", // first CoinDeployed event (v1), block 23650298
   // Swaps on Frontier's V4 pools are also in dexs/uniswap-v4 on this chain, and
