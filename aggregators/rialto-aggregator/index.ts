@@ -6,6 +6,9 @@ const RIALTO_ROUTER = '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD';
 const swapExecutedEvent = 'event SwapExecuted(address indexed sender, address indexed recipient, address indexed sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, bytes32 quoteId, bytes32 referralCode)';
 const feeChargedEvent = 'event FeeCharged(address indexed token, address indexed recipient, uint256 amount, uint16 bps, bytes32 integratorId)';
 
+/**
+ * Returns volume and fees emitted by completed Rialto swaps for the requested period.
+ */
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
