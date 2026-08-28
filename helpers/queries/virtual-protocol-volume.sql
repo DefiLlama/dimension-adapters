@@ -19,9 +19,7 @@
 -- Solana's venue is Virtual Protocol's Meteora Dynamic Bonding Curve. A fresh DBC config is
 -- created per agent launch, each quoted in VIRTUAL, so the config is the Solana equivalent of a
 -- factory: evtCreateConfig/V2 where quote_mint = VIRTUAL -> evtSwap on those configs. Volume is
--- the VIRTUAL leg, 9 decimals, taken gross to match what dex_solana.trades reports. Scoping on
--- quote_mint rather than fee_claimer survives an operator key rotation; if a third party ever
--- launches a VIRTUAL-quoted DBC pool, add fee_claimer = 'AamUJY5hvSPCcpw2e6mzCuMsxrdQKVnN8iFeYKSZNFcf'.
+-- the VIRTUAL leg, 9 decimals, taken gross to match what dex_solana.trades reports.
 -- Post-graduation trading (Meteora DAMM v2) is excluded as on EVM, as is pre-DBC activity.
 WITH
     base_pairs AS (
@@ -86,16 +84,24 @@ WITH
     ),
 
     sol_configs AS (
+        -- DBC is permissionless, so quote_mint alone is not an ownership boundary: a second
+        -- party has already created VIRTUAL-quoted configs (GrnTP8qz…, 4 configs on 2026-08-18,
+        -- no shared signer, no pools launched). fee_claimer is the partner authority fixed at
+        -- config creation; Virtual Protocol has used one throughout (111 configs, 2026-08-21
+        -- onward). If it is ever rotated this undercounts loudly rather than overcounting
+        -- silently, which is the safer way round.
         SELECT config
         FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfig
-        WHERE quote_mint = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        WHERE quote_mint  = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        AND   fee_claimer = 'AamUJY5hvSPCcpw2e6mzCuMsxrdQKVnN8iFeYKSZNFcf'
 
         -- UNION, not UNION ALL: every config is emitted into both tables, so ALL doubles it
         UNION
 
         SELECT config
         FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
-        WHERE quote_mint = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        WHERE quote_mint  = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        AND   fee_claimer = 'AamUJY5hvSPCcpw2e6mzCuMsxrdQKVnN8iFeYKSZNFcf'
     ),
     sol_bonding AS (
         SELECT COALESCE(SUM(
