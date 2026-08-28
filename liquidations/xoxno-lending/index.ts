@@ -24,7 +24,9 @@ const CHAIN_CONFIGS: Record<string, ChainConfig> = {
   [CHAIN.STELLAR]: {
     chainName: "Stellar",
     liquidationsExportPath: "/integrations/lending/stellar/liquidations",
-    start: "2026-06-21",
+    // Mainnet contracts were deployed at ledger 64140891,
+    // 2026-08-27T00:55Z. An earlier start only backfills zeros.
+    start: "2026-08-27",
   },
 
   // Add MultiversX later with the same API response shape:
