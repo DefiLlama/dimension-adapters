@@ -93,13 +93,19 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Platform's 32% launch-fee share (WETH leg), released by the Doppler initializers.
-  // CONSERVATIVE: the launched-token leg of the fee is excluded (unpriced/illiquid) —
-  // figures are a WETH-side lower bound.
+  // Platform's 32% launch-fee share, released by the Doppler initializers.
+  // On Robinhood a launch can pair against an RWA numeraire (a tokenized stock like
+  // AAPL — e.g. $BEER) INSTEAD of WETH, so the platform share arrives in whichever
+  // asset the pool used. Counting WETH only missed every RWA-paired launch, so on RH
+  // we count ALL assets released by the initializers: DefiLlama prices the numeraires
+  // (AAPL etc.), and the launched-token leg stays a no-op because it is unpriced —
+  // preserving the same priced-lower-bound convention. Base pools are all WETH-paired,
+  // so it stays WETH-only there. (fromAdddesses = fee releases only, so nothing else counts.)
+  const launchFeeTokens = options.chain === CHAIN.ROBINHOOD ? undefined : [cfg.weth];
   const revenue = await addTokensReceived({
     options,
     targets: [PLATFORM_FEE_WALLET],
-    tokens: [cfg.weth],
+    tokens: launchFeeTokens,
     fromAdddesses: cfg.initializers, // count only fee releases (helper param spelled fromAdddesses)
   });
 
@@ -163,7 +169,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
   start: "2026-07-15",
   methodology: {
-    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH leg only — conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet; plus (3) fees from PonsV2 launches on Robinhood Chain, read from each token's AgntFeeWedge Split events (native-ETH leg = total user-paid fee).",
+    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH on Base; WETH plus RWA numeraires — tokenized stocks like AAPL that a Robinhood launch pairs against, e.g. $BEER — on Robinhood, priced by DefiLlama; the unpriced launched-token leg is excluded, a conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet; plus (3) fees from PonsV2 launches on Robinhood Chain, read from each token's AgntFeeWedge Split events (native-ETH leg = total user-paid fee).",
     Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint) plus AGNT's ~2/7 (28.57%) protocol cut of PonsV2 launch fees on Robinhood (the `toAgnt` leg of each AgntFeeWedge Split; the remaining 5/7 is forwarded to each token's own engine).",
     ProtocolRevenue: "Same as Revenue — all AGNT launchpad fees accrue to the platform treasury.",
     SupplySideRevenue: "The 68% of launchpad pool fees paid to third-party token creators (63%) and the Doppler protocol (~5%), estimated from the observed platform WETH share.",
