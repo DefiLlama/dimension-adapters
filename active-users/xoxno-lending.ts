@@ -79,9 +79,8 @@ async function fetchActiveUsers(options: FetchOptions) {
 
 const methodology = {
   ActiveUsers:
-    "Distinct owner wallet addresses that performed a lending action (supply, borrow, repay, withdraw, liquidation) in the day, from the on-chain position activity feed. Sub-accounts of the same wallet are collapsed to one user.",
-  TransactionsCount:
-    "Count of lending position actions in the day across all markets.",
+    "Wallets that supplied, borrowed, repaid or withdrew during the day.",
+  TransactionsCount: "Number of lending actions during the day.",
 };
 
 const adapter: SimpleAdapter = {

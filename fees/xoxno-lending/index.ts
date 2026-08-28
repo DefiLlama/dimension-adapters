@@ -90,14 +90,10 @@ async function makeFetchFees(options: FetchOptions) {
   }
 
 const methodology = {
-  Fees:
-    "Borrower-paid interest and explicit lending fees derived from daily protocol revenue deltas.",
-  Revenue:
-    "Protocol revenue is the positive daily delta of cumulative on-chain pool protocol_revenue(asset), summed across markets.",
-  ProtocolRevenue:
-    "Same as revenue for the current XOXNO lending export.",
-  SupplySideRevenue:
-    "Reported as 0 until supplier-side interest revenue is exported separately.",
+  Fees: "Borrower interest and lending fees collected by the protocol.",
+  Revenue: "All collected fees. The protocol keeps the full amount.",
+  ProtocolRevenue: "All collected fees. The protocol keeps the full amount.",
+  SupplySideRevenue: "Supplier interest is not included in the reported fees.",
 };
 
 const adapter: SimpleAdapter = {

@@ -77,8 +77,7 @@ async function fetchNewUsers(options: FetchOptions) {
 }
 
 const methodology = {
-  NewUsers:
-    "Distinct owner wallet addresses whose first-ever XOXNO lending action falls in the day, from the on-chain position activity feed. Sub-accounts of the same wallet are collapsed to one user.",
+  NewUsers: "Wallets using XOXNO lending for the first time.",
 };
 
 const adapter: SimpleAdapter = {

@@ -80,7 +80,7 @@ async function fetchLiquidations(options: FetchOptions) {
 
 const methodology = {
   CollateralLiquidated:
-    "USD value of collateral seized from liquidated XOXNO lending borrowers, from the on-chain liquidation event feed (position:liquidation), summed per day across markets.",
+    "Value of collateral seized from borrowers in liquidations.",
 };
 
 const adapter: SimpleAdapter = {
