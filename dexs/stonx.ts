@@ -133,7 +133,7 @@ const methodology = {
     "All swap fees are allocated to veSTONX voters in proportion to the voting power assigned to each pool.",
   ProtocolRevenue: "Zero. The protocol treasury takes no share of STONX Ve33 swap fees.",
   SupplySideRevenue:
-    "Zero. Liquidity providers receive STONX emissions rather than a share of swap fees.",
+    "Zero from swap fees. Liquidity-provider compensation is paid through STONX emissions and reported separately as token incentives.",
 };
 
 const breakdownMethodology = {
