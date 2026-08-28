@@ -37,29 +37,32 @@ function tradeVolume(amount: number, newPosition: number, price: number): number
 
 const toUSDC = (value: number): number => Math.round(value * 10 ** USDC_DECIMALS);
 
+const LABEL_TRADES = "Trades";
+const LABEL_LIQUIDATIONS = "Liquidations";
+
 const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   const dailyVolume = createBalances();
   const dailyNotionalVolume = createBalances();
 
   const [trades, liquidations] = await Promise.all([
-    getLogs({ target: PERPETUAL_MANAGER, eventAbi: TRADE_EVENT }),
-    getLogs({ target: PERPETUAL_MANAGER, eventAbi: LIQUIDATE_EVENT }),
+    getLogs({ targets: [PERPETUAL_MANAGER], eventAbi: TRADE_EVENT }),
+    getLogs({ targets: [PERPETUAL_MANAGER], eventAbi: LIQUIDATE_EVENT }),
   ]);
 
   for (const trade of trades) {
     const amount = ABDKToFloat(trade.order.fAmount);
     const newPosition = ABDKToFloat(trade.newPositionSizeBC);
     const price = ABDKToFloat(trade.price);
-    dailyVolume.add(USDC, toUSDC(tradeVolume(amount, newPosition, price)));
-    dailyNotionalVolume.add(USDC, toUSDC(Math.abs(amount)));
+    dailyVolume.add(USDC, toUSDC(tradeVolume(amount, newPosition, price)), LABEL_TRADES);
+    dailyNotionalVolume.add(USDC, toUSDC(Math.abs(amount)), LABEL_TRADES);
   }
 
   for (const liquidation of liquidations) {
     const amount = ABDKToFloat(liquidation.amountLiquidatedBC);
     const newPosition = ABDKToFloat(liquidation.newPositionSizeBC);
     const price = ABDKToFloat(liquidation.liquidationPrice);
-    dailyVolume.add(USDC, toUSDC(tradeVolume(amount, newPosition, price)));
-    dailyNotionalVolume.add(USDC, toUSDC(Math.abs(amount)));
+    dailyVolume.add(USDC, toUSDC(tradeVolume(amount, newPosition, price)), LABEL_LIQUIDATIONS);
+    dailyNotionalVolume.add(USDC, toUSDC(Math.abs(amount)), LABEL_LIQUIDATIONS);
   }
 
   return { dailyVolume, dailyNotionalVolume };
@@ -76,6 +79,16 @@ const adapter: SimpleAdapter = {
       "USDC committed in trades and liquidations on PredictEX prediction markets. Market prices are quoted as 1 + P(home), so each contract is valued at (price - 1) on the home/long side and (2 - price) on the away/short side, using the side of the position being opened, extended or closed.",
     NotionalVolume:
       "Number of contracts traded (each contract pays out at most 1 USDC), i.e. the maximum payout traded.",
+  },
+  breakdownMethodology: {
+    Volume: {
+      [LABEL_TRADES]: "USDC committed by trades that open, extend or close positions (Trade events), valued at the side of the position being acted on.",
+      [LABEL_LIQUIDATIONS]: "USDC committed by positions closed through liquidation (Liquidate events), valued at the liquidation price on the side of the liquidated position.",
+    },
+    NotionalVolume: {
+      [LABEL_TRADES]: "Contracts traded through Trade events (max payout 1 USDC each).",
+      [LABEL_LIQUIDATIONS]: "Contracts closed through Liquidate events (max payout 1 USDC each).",
+    },
   },
 };
 
