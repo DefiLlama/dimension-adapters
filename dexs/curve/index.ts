@@ -327,7 +327,11 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
           '0x60D55F02A771d515e077c9C2403a1ef324885CeC',
         ]
       },
-    }
+    },
+    blacklistedTokens: [
+      // Curve.fi amDAI/amUSDC/amUSDT LP; coins DB mislabels/prices it as am3CRV (~$20k)
+      '0xE7a24EF0C5e95Ffb0f6684b813A78F2a3AD7D171',
+    ],
   },
   [CHAIN.BASE]: {
     start: '2023-08-30',
