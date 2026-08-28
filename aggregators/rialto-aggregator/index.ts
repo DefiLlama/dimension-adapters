@@ -3,16 +3,16 @@ import { CHAIN } from "../../helpers/chains";
 
 const RIALTO_ROUTER = '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD';
 
-const routeActionEvent = 'event RouteActionExecuted(uint256 indexed hopIndex, uint8 kind, address indexed pool, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)';
+const swapExecutedEvent = 'event SwapExecuted(address indexed sender, address indexed recipient, address indexed sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, bytes32 quoteId, bytes32 referralCode)';
 const feeChargedEvent = 'event FeeCharged(address indexed token, address indexed recipient, uint256 amount, uint16 bps, bytes32 integratorId)';
 
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const routeActionLogs = await options.getLogs({
+  const swapExecutedLogs = await options.getLogs({
     target: RIALTO_ROUTER,
-    eventAbi: routeActionEvent,
+    eventAbi: swapExecutedEvent,
   });
 
   const feeChargedLogs = await options.getLogs({
@@ -20,8 +20,8 @@ async function fetch(options: FetchOptions) {
     eventAbi: feeChargedEvent,
   });
 
-  for (const log of routeActionLogs) {
-    dailyVolume.add(log.tokenIn, log.amountIn);
+  for (const log of swapExecutedLogs) {
+    dailyVolume.add(log.sellToken, log.sellAmount);
   }
 
   for (const log of feeChargedLogs) {
@@ -37,7 +37,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Volume of all swaps routed through Rialto router.",
+  Volume: "Input volume emitted once for each completed swap routed through Rialto.",
   Fees: "5-10 BPs of platform fees charged on all swaps.",
   Revenue: "5-10 BPs of platform fees charged on all swaps.",
   ProtocolRevenue: "5-10 BPs of platform fees charged on all swaps.",
