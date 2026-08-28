@@ -5,7 +5,7 @@ import { httpGet } from '../utils/fetchURL'
 
 // Folks Finance (Algorand) money market fees.
 // Reads global state from each v2 pool app (keys `i`/`v`/`s`, packed uint64 arrays, 16 d.p. rates).
-// grossInterest = (varDebt*varRate + stableDebt*stableRate) / year
+// grossInterest = (varDebt*varRate + overallStableInterestAmount) / year
 // protocolRevenue = grossInterest * retentionRate  (per-pool, 10–30%)
 // supplySideRevenue = grossInterest - protocolRevenue
 
@@ -82,7 +82,7 @@ const fetch = async (options: FetchOptions) => {
     const i = get('i')
     const v = get('v')
     const s = get('s')
-    if (!i || i.length < 1 || !v || v.length < 5 || !s || s.length < 10) {
+    if (!i || i.length < 1 || !v || v.length < 5 || !s || s.length < 12) {
       console.error(`folks-finance: malformed state for app ${appId}`)
       return
     }
@@ -90,11 +90,12 @@ const fetch = async (options: FetchOptions) => {
     const retentionRate = i[0]
     const variableDebt = v[3]
     const variableRate = v[4]
-    const stableDebt = s[8]
-    const stableRate = s[9]
+    // uint128 sum of debt*rate over open stable positions — the average rate actually
+    // paid
+    const overallStableInterest = (s[10] << 64n) | s[11]
 
     const dailyInterest =
-      (variableDebt * variableRate + stableDebt * stableRate) / (ONE_16_DP * DAYS_PER_YEAR)
+      (variableDebt * variableRate + overallStableInterest) / (ONE_16_DP * DAYS_PER_YEAR)
     if (dailyInterest === 0n) return
 
     const protocolRevenue = (dailyInterest * retentionRate) / ONE_16_DP
