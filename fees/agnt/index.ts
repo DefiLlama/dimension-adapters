@@ -71,6 +71,22 @@ const CHAIN_CONFIG: Record<string, { weth: string; initializers: string[] }> = {
   },
 };
 
+// ── Pons launches (Robinhood) ───────────────────────────────────────────────
+// AGNT's newer Robinhood launches use PonsV2, not Doppler. Their fees do NOT
+// arrive as WETH from a Doppler initializer — they accrue on the pons curve/escrow
+// and are released by a per-token AgntFeeWedge, which splits each fee as NATIVE ETH:
+// `toAgnt` (AGNT's 2/7 protocol cut) + `forwarded` (5/7 to the token's own engine),
+// with `total` the gross fee. The WETH-from-initializer path above is blind to
+// these, so Robinhood read ~$0 despite live pons volume. We read the wedges' Split
+// events directly: enumerate every wedge from the factory, then sum this day's
+// native legs. Only the native (ETH) leg is counted — the launched-token fee leg is
+// illiquid/unpriced, matching the WETH-side lower-bound convention of the Doppler leg.
+const WEDGE_FACTORY = "0xE3b4d1c71283012D7392d358dA2feEE2a6D22d3d"; // AgntFeeWedgeFactory (4663)
+const WEDGE_FACTORY_START_BLOCK = 47600000; // just below the first wedge deploy (2026-08-27)
+const WEDGE_DEPLOYED_ABI = "event WedgeDeployed(bytes32 indexed launchId, address indexed wedge, address forwardTarget)";
+const WEDGE_SPLIT_ABI = "event Split(address indexed currency, uint256 total, uint256 toAgnt, uint256 forwarded)";
+const NATIVE = "0x0000000000000000000000000000000000000000";
+
 const fetch = async (options: FetchOptions) => {
   const cfg = CHAIN_CONFIG[options.chain];
   const dailyFees = options.createBalances();
@@ -108,6 +124,30 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.addBalances(tradingFees, "Trading Fees to Protocol");
   }
 
+  // Pons launch fees — Robinhood only. Fees flow through per-token AgntFeeWedge
+  // contracts (curve → escrow → wedge → Split), not a Doppler pool, so the WETH
+  // leg above misses them. Enumerate every wedge from the factory (all-time up to
+  // the day's end), then sum this day's NATIVE (ETH) Split legs: `total` = gross
+  // fee, `toAgnt` = AGNT's protocol cut, `forwarded` = the token's own engine.
+  if (options.chain === CHAIN.ROBINHOOD) {
+    const deployed = await options.getLogs({
+      target: WEDGE_FACTORY,
+      eventAbi: WEDGE_DEPLOYED_ABI,
+      fromBlock: WEDGE_FACTORY_START_BLOCK,
+      toBlock: await options.getToBlock(),
+    });
+    const wedges = [...new Set(deployed.map((l: any) => String(l.wedge)))];
+    if (wedges.length) {
+      const splits = await options.getLogs({ targets: wedges, eventAbi: WEDGE_SPLIT_ABI });
+      for (const s of splits) {
+        if (String(s.currency).toLowerCase() !== NATIVE) continue; // native leg only (WETH-side lower bound)
+        dailyFees.add(cfg.weth, s.total, "Pons Launchpad Fees");
+        dailyRevenue.add(cfg.weth, s.toAgnt, "Pons Fees to Protocol");
+        dailySupplySideRevenue.add(cfg.weth, s.forwarded, "Pons Fees to Engine");
+      }
+    }
+  }
+
   return {
     dailyFees,
     dailyRevenue,
@@ -123,8 +163,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
   start: "2026-07-15",
   methodology: {
-    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH leg only — conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet.",
-    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint).",
+    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH leg only — conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet; plus (3) fees from PonsV2 launches on Robinhood Chain, read from each token's AgntFeeWedge Split events (native-ETH leg = total user-paid fee).",
+    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint) plus AGNT's ~2/7 (28.57%) protocol cut of PonsV2 launch fees on Robinhood (the `toAgnt` leg of each AgntFeeWedge Split; the remaining 5/7 is forwarded to each token's own engine).",
     ProtocolRevenue: "Same as Revenue — all AGNT launchpad fees accrue to the platform treasury.",
     SupplySideRevenue: "The 68% of launchpad pool fees paid to third-party token creators (63%) and the Doppler protocol (~5%), estimated from the observed platform WETH share.",
   },
@@ -132,18 +172,22 @@ const adapter: SimpleAdapter = {
     Fees: {
       "Launchpad Fees": "1.095% Doppler terminal fee (WETH leg), estimated as platform WETH share / 0.32, on Base + Robinhood Chain.",
       "Trading Fees": "0.40% swap fee (Base), WETH + USDC paid by Relay to the app-fee recipient wallet.",
+      "Pons Launchpad Fees": "PonsV2 launch fees on Robinhood Chain (native-ETH leg), the `total` of each token's AgntFeeWedge Split event.",
     },
     Revenue: {
       "Launchpad Fees to Protocol": "32% platform share, WETH released to the fee wallet on Base + Robinhood",
       "Trading Fees to Protocol": "100% of the 0.40% swap fee, WETH + USDC paid by Relay to the app-fee recipient (Base)",
+      "Pons Fees to Protocol": "AGNT's ~2/7 (28.57%) cut of PonsV2 launch fees, the `toAgnt` leg of each AgntFeeWedge Split (Robinhood).",
     },
     ProtocolRevenue: {
       "Launchpad Fees to Protocol": "32% platform share, WETH released to the fee wallet on Base + Robinhood",
       "Trading Fees to Protocol": "100% of the 0.40% swap fee, WETH + USDC paid by Relay to the app-fee recipient (Base)",
+      "Pons Fees to Protocol": "AGNT's ~2/7 (28.57%) cut of PonsV2 launch fees, the `toAgnt` leg of each AgntFeeWedge Split (Robinhood).",
     },
     SupplySideRevenue: {
       "Launchpad Fees to Creators": "63% of launchpad pool fees paid to third-party token creators",
       "Launchpad Fees to Doppler": "5% of launchpad pool fees paid to the Doppler protocol",
+      "Pons Fees to Engine": "The ~5/7 (71.43%) of each PonsV2 launch fee forwarded from the AgntFeeWedge to the token's own engine (Robinhood).",
     },
   },
   // Launchpad fees are Uniswap V4 pool fees (double-counted under Uniswap). The trading
