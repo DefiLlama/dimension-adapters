@@ -26,7 +26,9 @@ const CHAIN_CONFIGS: Record<string, ChainConfig> = {
   [CHAIN.STELLAR]: {
     chainName: "Stellar",
     revenueExportPath: "/integrations/lending/stellar/revenue",
-    start: "2026-06-21",
+    // Mainnet contracts were deployed at ledger 64140891,
+    // 2026-08-27T00:55Z. An earlier start only backfills zeros.
+    start: "2026-08-27",
   },
 
   // Add MultiversX later with the same API response shape:
@@ -88,14 +90,10 @@ async function makeFetchFees(options: FetchOptions) {
   }
 
 const methodology = {
-  Fees:
-    "Borrower-paid interest and explicit lending fees derived from daily protocol revenue deltas.",
-  Revenue:
-    "Protocol revenue is the positive daily delta of cumulative on-chain pool protocol_revenue(asset), summed across markets.",
-  ProtocolRevenue:
-    "Same as revenue for the current XOXNO lending export.",
-  SupplySideRevenue:
-    "Reported as 0 until supplier-side interest revenue is exported separately.",
+  Fees: "Borrower interest and lending fees collected by the protocol.",
+  Revenue: "Borrower interest and lending fees collected by the protocol.",
+  ProtocolRevenue: "Borrower interest and lending fees collected by the protocol.",
+  SupplySideRevenue: "Supplier interest is not included in the reported fees.",
 };
 
 const adapter: SimpleAdapter = {
