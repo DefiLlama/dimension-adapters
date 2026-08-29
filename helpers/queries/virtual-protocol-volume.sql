@@ -105,10 +105,11 @@ WITH
     ),
     sol_bonding AS (
         SELECT COALESCE(SUM(
-            -- buy = VIRTUAL in, sell = VIRTUAL out. amount_in, NOT actual_input_amount:
-            -- the latter is net of the fee taken off the quote side before the curve.
+            -- Both legs net of the quote-side fee, so they mean the same thing and match the EVM
+            -- arms (which read what reached the pool after the tax). actual_input_amount, NOT
+            -- amount_in: at the 99% launch cliff amount_in is mostly fee (13.8% of 2026-08-24).
             CASE WHEN s.trade_direction = 1
-                 THEN cast(s.amount_in as double)
+                 THEN cast(json_extract_scalar(s.swap_result, '$.SwapResult.actual_input_amount') as double)
                  ELSE cast(json_extract_scalar(s.swap_result, '$.SwapResult.output_amount') as double)
             END
         ) / 1e9, 0) as virtual_volume
@@ -120,9 +121,55 @@ WITH
         AND cast(s.evt_block_time as timestamp) >= from_unixtime({{startTimestamp}})
         AND cast(s.evt_block_time as timestamp) < from_unixtime({{endTimestamp}})
     )
+    ,
+    -- Solana's first bonding venue, before DBC: Virtual Protocol's own program, live 2025-02 to
+    -- 2026-08-21. Dune does not decode it, so there are no swap events to read -- as with
+    -- Robinhood's FPair bonding, which is why that arm reads raw logs. Pools are instead found
+    -- from the tax: every swap paid ~1% to the collector in the same tx and the payer is always
+    -- the user, never the pool (27,618/27,618 in 2025-02), so the pool is the side of the
+    -- VIRTUAL leg that is not the taxer, and anything that ever pays tax is a router or user.
+    sol_prebond_tax AS (
+        SELECT tx_id, max(from_owner) as taxer
+        FROM tokens_solana.transfers
+        WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+        -- block_date is the partition column; bound it as well as the timestamp
+        AND block_date >= cast(from_unixtime({{startTimestamp}}) as date)
+        AND block_date <= cast(from_unixtime({{endTimestamp}}) as date)
+        AND block_time >= from_unixtime({{startTimestamp}})
+        AND block_time <  from_unixtime({{endTimestamp}})
+        GROUP BY 1
+    ),
+    sol_prebond_swaps AS (
+        SELECT t.tx_id, t.amount_display as amt,
+            CASE WHEN t.from_owner = x.taxer THEN t.to_owner ELSE t.from_owner END as pool
+        FROM tokens_solana.transfers t
+        JOIN sol_prebond_tax x ON x.tx_id = t.tx_id
+        WHERE t.token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        -- block_date only (partition pruning); the tx set is already time-bounded
+        AND t.block_date >= cast(from_unixtime({{startTimestamp}}) as date)
+        AND t.block_date <= cast(from_unixtime({{endTimestamp}}) as date)
+        AND t.to_owner   <> '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+        AND t.from_owner <> '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+        AND (t.from_owner = x.taxer OR t.to_owner = x.taxer)
+    ),
+    sol_prebond AS (
+        SELECT COALESCE(SUM(amt), 0) as virtual_volume
+        FROM (
+            SELECT s.amt, row_number() over (partition by s.tx_id order by s.amt desc) as rn
+            FROM sol_prebond_swaps s
+            LEFT JOIN (SELECT DISTINCT taxer FROM sol_prebond_tax) tx ON tx.taxer = s.pool
+            WHERE tx.taxer IS NULL
+            -- graduation moves a pool's whole balance out in one transfer; not a sell
+            AND s.pool <> '67zLsVD39roVXCtoqs9W1Fzh9Bnz6iCwmF7sY1GEvic6'
+            AND s.amt > 0
+        ) d
+        WHERE rn = 1
+    )
 
 SELECT 'base' as chain, (SELECT virtual_volume FROM base_bonding) as virtual_volume
 UNION ALL
 SELECT 'robinhood' as chain, (SELECT virtual_volume FROM rh_bonding) as virtual_volume
 UNION ALL
-SELECT 'solana' as chain, (SELECT virtual_volume FROM sol_bonding) as virtual_volume
+SELECT 'solana' as chain,
+       (SELECT virtual_volume FROM sol_prebond) + (SELECT virtual_volume FROM sol_bonding) as virtual_volume
