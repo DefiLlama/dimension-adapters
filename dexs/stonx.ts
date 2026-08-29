@@ -3,6 +3,7 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import { getStonxEmissions, STONX, STONX_LP_INCENTIVES } from "../helpers/stonxEmissions";
 import { httpGet } from "../utils/fetchURL";
 
 const API = "https://prod-api.ekubo.org";
@@ -88,7 +89,9 @@ async function getVe33Pools(): Promise<Ve33Pool[]> {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const pools = await getVe33Pools();
 
   const { results, errors } = await PromisePool.withConcurrency(API_CONCURRENCY)
@@ -108,18 +111,23 @@ const fetch = async (options: FetchOptions) => {
         const address = tokenIdToAddress(token);
         dailyVolume.add(address, volume);
         dailyFees.add(address, fees, METRIC.SWAP_FEES);
+        dailyRevenue.add(address, ve33_fees, VOTER_FEES);
         dailyHoldersRevenue.add(address, ve33_fees, VOTER_FEES);
       });
   });
+
+  const emitted = await getStonxEmissions(options);
+  dailySupplySideRevenue.add(STONX, emitted, STONX_LP_INCENTIVES);
+  dailyRevenue.add(STONX, -emitted, STONX_LP_INCENTIVES);
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
-    dailySupplySideRevenue: 0,
+    dailySupplySideRevenue,
   };
 };
 
@@ -128,12 +136,12 @@ const methodology = {
     "Input-token volume from swaps across every Ekubo Core pool configured with the deployed STONX Ve33 extension on Robinhood Chain. Only the input side of each swap is counted.",
   Fees: "Swap fees paid by traders across all STONX Ve33 pools.",
   Revenue:
-    "All STONX Ve33 swap fees are routed to veSTONX voters. The protocol treasury takes no share.",
+    "Gross profit is swap fees routed to veSTONX voters minus STONX emissions paid to liquidity providers. It can be negative when emissions exceed fees.",
   HoldersRevenue:
     "All swap fees are allocated to veSTONX voters in proportion to the voting power assigned to each pool.",
   ProtocolRevenue: "Zero. The protocol treasury takes no share of STONX Ve33 swap fees.",
   SupplySideRevenue:
-    "Zero from swap fees. Liquidity-provider compensation is paid through STONX emissions and reported separately as token incentives.",
+    "STONX emissions paid to Ve33 liquidity providers are treated as Cost of Revenue and reported separately as token incentives.",
 };
 
 const breakdownMethodology = {
@@ -145,6 +153,10 @@ const breakdownMethodology = {
   },
   Revenue: {
     [VOTER_FEES]: "All swap fees routed to veSTONX voters.",
+    [STONX_LP_INCENTIVES]: "STONX liquidity-provider emissions deducted from gross profit.",
+  },
+  SupplySideRevenue: {
+    [STONX_LP_INCENTIVES]: "STONX emissions paid to Ve33 liquidity providers.",
   },
   HoldersRevenue: {
     [VOTER_FEES]: "All swap fees routed to veSTONX voters.",
@@ -157,6 +169,7 @@ const adapter: Adapter = {
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30",
   doublecounted: true, // These swaps are already included in the broader Ekubo adapter.
+  allowNegativeValue: true, // LP emissions can exceed swap fees, making gross profit negative.
   methodology,
   breakdownMethodology,
 };
