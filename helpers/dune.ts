@@ -28,6 +28,26 @@ function getAxiosDune() {
   return _axiosDune;
 }
 
+type DuneRow = Record<string, unknown>
+
+type DuneResultsPage = {
+  next_uri?: string | null
+  result: { rows: DuneRow[] }
+}
+
+async function getPaginatedRows(firstPage: DuneResultsPage) {
+  const rows = [...firstPage.result.rows]
+  let nextUri = firstPage.next_uri
+
+  while (nextUri) {
+    const { data: page } = await getAxiosDune().get(nextUri)
+    rows.push(...page.result.rows)
+    nextUri = page.next_uri
+  }
+
+  return rows
+}
+
 const NOW_TIMESTAMP = Math.trunc((Date.now()) / 1000)
 
 const getLatestData = async (queryId: string) => {
@@ -38,7 +58,7 @@ const getLatestData = async (queryId: string) => {
     const submitted_at_timestamp = Math.trunc(new Date(submitted_at).getTime() / 1000)
     const diff = NOW_TIMESTAMP - submitted_at_timestamp
     if (diff < 60 * 60 * 3) {
-      return latest_result.result.rows
+      return getPaginatedRows(latest_result)
     }
     return undefined
   } catch (e: any) {
@@ -98,7 +118,7 @@ const batchedQueries = new Map<string, {
 }>();
 
 
-export function queryDune(queryId: string, query_parameters: any, options: FetchOptions, { extraUIDKey = '' }: { extraUIDKey?: string } = {}) {
+export function queryDune(queryId: string, query_parameters: any, options: FetchOptions, { extraUIDKey = '' }: { extraUIDKey?: string } = {}): Promise<any> {
   const isBulkMode = getEnv('DUNE_BULK_MODE') === 'true'
   const batchTime = Number(getEnv('DUNE_BULK_MODE_BATCH_TIME') ?? 3_000)
 
@@ -202,7 +222,9 @@ const _queryDune = async (queryId: string, query_parameters: any = {}, options?:
     const execution_id = await submitQuery(queryId, query_parameters)
     const _status = await inquiryStatus(execution_id, queryId)
     if (_status === 'QUERY_STATE_COMPLETED') {
-      const { data: { result: { rows, metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } } = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
+      const { data: firstPage } = await getAxiosDune().get(`/execution/${execution_id}/results?limit=100000`)
+      const rows = await getPaginatedRows(firstPage)
+      const { result: { metadata: { column_names, column_types, ...duneMetadata } }, ...restMetadata } = firstPage
       success = true
       let endTime = +Date.now() / 1e3
 
@@ -268,8 +290,8 @@ export const queryDuneResult = async (_: any, queryId: string, filters?: string)
   const params: Record<string, string> = { limit: '100000' }
   if (filters) params.filters = filters
   const urlParams = new URLSearchParams(params).toString()
-  const { data: latest_result } = await getAxiosDune().get(`/query/${queryId}/results?${urlParams}`)
-  return latest_result.result.rows
+  const { data: firstPage } = await getAxiosDune().get(`/query/${queryId}/results?${urlParams}`)
+  return getPaginatedRows(firstPage)
 }
 
 export const getSqlFromFile = (sqlFilePath: string, variables: Record<string, any> = {}): string => {
