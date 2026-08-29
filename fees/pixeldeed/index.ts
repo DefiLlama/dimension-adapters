@@ -14,13 +14,16 @@ import { CHAIN } from "../../helpers/chains";
     - MergeController never moves ETH (burn+mint only) — no revenue, so it's
       excluded from this adapter.
 
-  ⚠️ Fix applied after CI error:
-    "dailyResaleFees" is not a supported top-level metric (only dailyFees,
-    dailyRevenue, dailyVolume, dailyUserFees, dailyHoldersRevenue,
-    dailySupplySideRevenue, dailyProtocolRevenue, etc. are). The resale/rental
-    breakdown is now done via labeled entries inside the single `dailyFees`
-    balance object (options.createBalances().addGasToken(amount, label)),
-    the same pattern fees/gmx.ts and fees/alchemix.ts use with METRIC labels.
+  ⚠️ CodeRabbit review fixes (2026-08-29):
+    1. Removed the fixed `fromBlock: START_BLOCK` from both getLogs() calls —
+       for version-2 adapters, FetchOptions already scopes each call to the
+       current day/hour window. A fixed fromBlock re-fetched everything since
+       deployment on every run, turning "daily" values into cumulative totals.
+    2. Added `dailyProtocolRevenue` — both fee sources are sent straight to the
+       treasury, so this should be reported explicitly, not just folded into
+       dailyRevenue.
+    3. Added `pullHourly: true` — version-2 adapters that read granular EVM
+       logs must opt into hourly retrieval explicitly.
 */
 
 const PIXELDEED_NFT_ADDRESS = "0x36211456E0bAbB51D4Fb5359d0ad71fC79F9C810";
@@ -51,7 +54,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const sales = await options.getLogs({
     target: MARKETPLACE_ADDRESS,
     eventAbi: SOLD_EVENT,
-    fromBlock: START_BLOCK,
   });
   sales.forEach((log: any) => {
     dailyVolume.addGasToken(log.priceWei);
@@ -63,7 +65,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const rentals = await options.getLogs({
     target: RENTAL_MANAGER_ADDRESS,
     eventAbi: RENTED_EVENT,
-    fromBlock: START_BLOCK,
   });
   rentals.forEach((log: any) => {
     dailyVolume.addGasToken(log.paidWei);
@@ -71,9 +72,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   });
 
   return {
-    dailyVolume,             // shown on the Volume dashboard (gross marketplace trade value)
-    dailyFees,               // total fees, broken down internally by Resale Fees / Rental Fees
-    dailyRevenue: dailyFees, // 100% of the platform fee goes to the protocol treasury
+    dailyVolume,                    // shown on the Volume dashboard (gross marketplace trade value)
+    dailyFees,                      // total fees, broken down internally by Resale Fees / Rental Fees
+    dailyRevenue: dailyFees,        // 100% of the platform fee goes to the protocol treasury
+    dailyProtocolRevenue: dailyFees, // both fee sources are sent directly to the treasury
   };
 };
 
@@ -83,6 +85,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROBINHOOD]: {
       fetch,
       start: START_BLOCK,
+      pullHourly: true,
       meta: {
         methodology: {
           Fees: "5.5% platform fee on marketplace resales (Sold event) + 2.5% platform fee on rental payments (Rented event), both sent to the treasury. Excludes the 2.5% creator royalty.",
@@ -100,3 +103,5 @@ const adapter: SimpleAdapter = {
 };
 
 export default adapter;
+
+
