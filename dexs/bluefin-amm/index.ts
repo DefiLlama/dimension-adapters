@@ -2,6 +2,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
+const blacklistTokens = [
+    "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC", // wBTC -> wrong pricing from bluefin
+];
 
 const fetch = async (_options: FetchOptions) => {
     const allPools: any[] = [];
@@ -25,6 +28,10 @@ const fetch = async (_options: FetchOptions) => {
 
     let dailyVolume = 0;
     for (const pool of allPools) {
+        const tokenA = pool.tokenA?.info?.address;
+        const tokenB = pool.tokenB?.info?.address;
+        if (blacklistTokens.includes(tokenA) || blacklistTokens.includes(tokenB)) continue;
+
         dailyVolume += Number(pool.day.volume);
     }
 
