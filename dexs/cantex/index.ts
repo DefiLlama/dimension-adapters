@@ -1,9 +1,6 @@
-// DefiLlama dimension adapter for Cantex (volume + fees).
-// Submit as dexs/cantex/index.ts in https://github.com/DefiLlama/dimension-adapters
-// (see README.md in this directory).
-
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
 const VOLUME_URL = "https://api.cantex.io/v1/public/volume";
@@ -22,8 +19,6 @@ type VolumeResponse = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  // DefiLlama v2 supplies an inclusive window; the Cantex endpoint takes a
-  // half-open [start, end), so normalize the lower bound (same as Temple).
   const startTime = new Date((options.startTimestamp + 1) * 1000).toISOString();
   const endTime = new Date(options.endTimestamp * 1000).toISOString();
   const params = new URLSearchParams({ start_time: startTime, end_time: endTime });
@@ -43,13 +38,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyVolume.addCGToken(CANTON_COIN_CG_ID, volumeCC);
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken(CANTON_COIN_CG_ID, feesCC);
+  dailyFees.addCGToken(CANTON_COIN_CG_ID, feesCC, METRIC.SWAP_FEES);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addCGToken(CANTON_COIN_CG_ID, protocolFeesCC);
+  dailyProtocolRevenue.addCGToken(CANTON_COIN_CG_ID, protocolFeesCC, METRIC.PROTOCOL_FEES);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addCGToken(CANTON_COIN_CG_ID, lpFeesCC);
+  dailySupplySideRevenue.addCGToken(CANTON_COIN_CG_ID, lpFeesCC, METRIC.LP_FEES);
 
   return {
     dailyVolume,
@@ -71,12 +66,32 @@ const methodology = {
   SupplySideRevenue: "The liquidity providers' share of swap fees.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees charged by Cantex pools (pool fee rate applied to each swap), denominated in CC.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by traders on each Cantex swap.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "The protocol's share of swap fees (per-pool admin fee share).",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "The protocol's share of swap fees (per-pool admin fee share).",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "The liquidity providers' share of swap fees.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.CANTON],
-  start: "2026-06-01", // FIXME: set to the first Cantex mainnet swap date before submitting
+  start: "2026-01-14",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
