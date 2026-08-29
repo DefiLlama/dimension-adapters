@@ -16,11 +16,14 @@
 -- VIRTUAL leg is data words 3 + 4 (amount1In + amount1Out; verified against on-chain VIRTUAL
 -- transfers). VIRTUAL amounts are returned in token units and priced to USD by the adapter.
 --
--- Solana's venue is Virtual Protocol's Meteora Dynamic Bonding Curve. A fresh DBC config is
--- created per agent launch, each quoted in VIRTUAL, so the config is the Solana equivalent of a
--- factory: evtCreateConfig/V2 where quote_mint = VIRTUAL -> evtSwap on those configs. Volume is
--- the VIRTUAL leg, 9 decimals, taken gross to match what dex_solana.trades reports.
--- Post-graduation trading (Meteora DAMM v2) is excluded as on EVM, as is pre-DBC activity.
+-- Solana has had two Virtual Protocol venues and both are counted. From 2026-08-21 it is their
+-- Meteora Dynamic Bonding Curve: a fresh config per agent launch, each quoted in VIRTUAL, so the
+-- config is the Solana equivalent of a factory -- evtCreateConfig/V2 scoped by quote_mint AND
+-- fee_claimer -> evtSwap on those configs. Before that, from 2025-02, it was Virtual Protocol's
+-- own bonding program, which Dune does not decode; its pools are recovered from the tax paid in
+-- each swap (see sol_prebond). Volume is the VIRTUAL leg, 9 decimals, net of the quote-side fee
+-- on both legs to match the EVM arms.
+-- Post-graduation trading (Meteora DAMM v2) is excluded as on EVM.
 WITH
     base_pairs AS (
         -- Current factory (0x1A5400...): PreLaunched/Launched, pair = topic2
