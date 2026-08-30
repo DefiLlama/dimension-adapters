@@ -120,64 +120,43 @@ WITH
         WHERE "to" = 0x6d80b81d9fc56a7a839b1af9006eb49151961ce7
         AND contract_address = 0x5fc5360d0400a0fd4f2af552add042d716f1d168
         AND evt_block_time >= from_unixtime({{startTimestamp}})
-        AND evt_block_time < from_unixtime({{endTimestamp}})
+        AND evt_block_time <= from_unixtime({{endTimestamp}})
+    ),
+
+    -- Solana pre-DBC era: Virtual Protocol ran its own bonding program until 2026-08-21 and
+    -- collected the tax as VIRTUAL into one wallet. Same shape as the tax-manager arms above.
+    sol_prototype_fees AS (
+        SELECT COALESCE(SUM(amount_display), 0) as amt
+        FROM tokens_solana.transfers
+        WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
+        AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
+        -- block_date is the partition column; bound it as well as the timestamp
+        AND block_date >= cast(from_unixtime({{startTimestamp}}) as date)
+        AND block_date <= cast(from_unixtime({{endTimestamp}}) as date)
+        AND block_time >= from_unixtime({{startTimestamp}})
+        AND block_time <  from_unixtime({{endTimestamp}})
+    ),
+
+    -- Solana from 2026-08-21: the tax is distributed by an operator wallet and settles in
+    -- JupUSD -- the Solana analogue of USDC on Base and USDG on Robinhood, so this is measured
+    -- the same realized, wallet-scoped way and likewise spans bonding AND post-graduation trading.
+    -- Only the JupUSD leg is revenue; the wallet's VIRTUAL/USDC/USDT/wSOL flows are the swap and
+    -- conversion plumbing it uses to settle, and would double count.
+    -- Note this is why the DBC per-swap fee is NOT also counted: the bonding fee is claimed, sold
+    -- and paid out through this same wallet, so accruing it at the swap would count it twice. The
+    -- launch anti-sniper surcharge never reaches here -- it is swept to a custody wallet and spent
+    -- buying the agent token for its creator -- so this leg is already net of it.
+    sol_graduated_fees AS (
+        SELECT COALESCE(SUM(amount_display), 0) as amt
+        FROM tokens_solana.transfers
+        WHERE token_mint_address = 'JuprjznTrTSp2UFa3ZBUFgwdAmtZCq4MQCwysN55USD'
+        AND from_owner = 'Bo2jk8vNANP3cEgsEWCszvzy9mPR8CPqQKenUkNbyBHm'
+        -- block_date is the partition column; bound it as well as the timestamp
+        AND block_date >= cast(from_unixtime({{startTimestamp}}) as date)
+        AND block_date <= cast(from_unixtime({{endTimestamp}}) as date)
+        AND block_time >= from_unixtime({{startTimestamp}})
+        AND block_time <  from_unixtime({{endTimestamp}})
     )
-
-    -- -- Solana contracts for agent tokens
-    -- sol_contracts AS (
-    --     SELECT DISTINCT token_mint_address
-    --     FROM (
-    --         SELECT token_mint_address
-    --         FROM tokens_solana.transfers
-    --         WHERE tx_id IN (
-    --             SELECT tx_id
-    --             FROM tokens_solana.transfers
-    --             WHERE to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
-    --             AND token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --             AND block_time >= timestamp '2024-08-30'
-    --             AND block_time < from_unixtime({{endTimestamp}})
-    --         )
-    --         AND block_time >= timestamp '2024-08-30'
-    --         AND block_time < from_unixtime({{endTimestamp}})
-    --         AND token_mint_address NOT IN ('3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y', 'So11111111111111111111111111111111111111112')
-    --         AND token_mint_address LIKE '%virt%'
-    --     ) agent_tokens
-    -- ),
-
-    -- -- Solana trading volume for sentient revenue
-    -- sol_volume AS (
-    --     SELECT
-    --         COALESCE(SUM(
-    --             CASE
-    --                 WHEN token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y' THEN token_bought_amount
-    --                 ELSE token_sold_amount
-    --             END
-    --         ), 0) as base_token_amount
-    --     FROM dex_solana.trades
-    --     WHERE (
-    --         (
-    --             token_bought_mint_address IN (SELECT token_mint_address FROM sol_contracts)
-    --             AND token_sold_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --         )
-    --         OR (
-    --             token_sold_mint_address IN (SELECT token_mint_address FROM sol_contracts)
-    --             AND token_bought_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --         )
-    --     )
-    --     AND block_time >= from_unixtime({{startTimestamp}})
-    --     AND block_time < from_unixtime({{endTimestamp}})
-    -- ),
-
-    -- -- Solana prototype fees (starts from 2024-08-30)
-    -- sol_prototype_fees AS (
-    --     SELECT
-    --         COALESCE(SUM(amount) / power(10, 9), 0) as amt
-    --     FROM tokens_solana.transfers
-    --     WHERE token_mint_address = '3iQL8BFS2vE7mww4ehAqQHAsbmRNCrPxizWAT2Zfyr9y'
-    --     AND block_time >= GREATEST(from_unixtime({{startTimestamp}}), TIMESTAMP '2024-08-30')
-    --     AND block_time < from_unixtime({{endTimestamp}})
-    --     AND to_owner = '933jV351WDG23QTcHPqLFJxyYRrEPWRTR3qoPWi3jwEL'
-    -- )
 
 -- Final output following original query structure exactly
 SELECT
@@ -224,15 +203,14 @@ FROM (
         COALESCE(rru.amt, 0) as usd_fees
     FROM robinhood_rev_usdg rru
 
-    -- UNION ALL
+    UNION ALL
 
-    -- -- Solana revenues (from sol_trading_rev)
-    -- -- Sol prototype fees
-    -- -- Sol sentient (1% of trading volume)
-    -- SELECT
-    --     'solana' as chain,
-    --     ( COALESCE(spf.amt, 0) + COALESCE(sv.base_token_amount * 0.01, 0) ) as virtual_fees,
-    --     0 as cbbtc_fees
-    -- FROM sol_prototype_fees spf
-    -- CROSS JOIN sol_volume sv
+    -- Solana revenues: bonding-curve trading fee accrued to Virtual Protocol, in VIRTUAL
+    SELECT
+        'solana' as chain,
+        COALESCE(spf.amt, 0) as virtual_fees,   -- pre-DBC bonding tax, in VIRTUAL, from 2025-02
+        0 as cbbtc_fees,
+        COALESCE(sgf.amt, 0) as usd_fees        -- JupUSD distribution, from 2026-08-21
+    FROM sol_prototype_fees spf
+    CROSS JOIN sol_graduated_fees sgf
 ) AS combined_revenues

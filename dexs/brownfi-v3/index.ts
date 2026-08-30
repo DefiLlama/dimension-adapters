@@ -5,7 +5,9 @@ import { addOneToken } from "../../helpers/prices";
 import { cache } from "@defillama/sdk";
 import { METRIC } from "../../helpers/metrics";
 
-const chainConfig: Record<string, { factory: string, pairConfig: string, start: string }> = {
+export type BrownFiV3ChainConfig = Record<string, { factory: string, pairConfig: string, start: string }>
+
+const chainConfig: BrownFiV3ChainConfig = {
   [CHAIN.BERACHAIN]: {
     factory: "0x6Ccf36d3EaE84b2eB608704070B90f4419BBcD28",
     pairConfig: "0x4955e0d8A7f25Ba83216946C17fe791D8C49c43a",
@@ -26,6 +28,8 @@ const chainConfig: Record<string, { factory: string, pairConfig: string, start: 
     pairConfig: "0xEf83E21b3C45e75cC29ae6aC493dB3821eD87B83",
     start: '2026-06-22',
   },
+  // the Robinhood Chain deployment is a GIGA DEX white-label,
+  // tracked under the giga-dex adapter instead
 };
 
 const brownfiV3SwapEvent = "event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,uint amount0OutRequested,uint amount1OutRequested,uint pythPrice0,uint pythPrice1,uint ammPrice,uint adjPrice,uint sPrice0,uint sPrice1,address indexed to)"
@@ -34,7 +38,7 @@ const abis = {
   getConfig: "function getConfig(address pair) external view returns (tuple(uint256 kB, uint256 kQ, uint64 lambda, uint32 fee, uint32 feeSplit, uint32 compress, uint32 sSell, uint32 sBuy, uint32 fixS, uint32 disThreshold, uint32 sBound, uint32 pythWeight, uint32 gamma))"
 };
 
-const fetch = async (options: FetchOptions) => {
+export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (options: FetchOptions) => {
   const { factory, pairConfig } = chainConfig[options.chain];
   const { createBalances, getLogs, chain, api } = options
   const cacheKey = `tvl-adapter-cache/cache/uniswap-forks/${factory.toLowerCase()}-${chain}.json`
@@ -103,7 +107,7 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-const methodology = {
+export const methodology = {
   Fees: "Fees from swap transactions.",
   UserFees: "Fees from swap transactions.",
   Revenue: "Protocol share from swap fees.",
@@ -112,7 +116,7 @@ const methodology = {
   HoldersRevenue: "Holders do not earn any revenue.",
 }
 
-const breakdownMethodology = {
+export const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Fees from swap transactions.",
   },
@@ -130,7 +134,7 @@ const breakdownMethodology = {
 const adapters: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
+  fetch: getBrownFiV3Fetch(chainConfig),
   adapter: chainConfig,
   methodology,
   breakdownMethodology,

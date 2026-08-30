@@ -7,12 +7,14 @@ const FeeCollectedEvent = "event FeesCollected(address indexed _token, address i
 const FeesForwardedEvent = "event FeesForwarded(address indexed token, (address recipient, uint256 amount)[] fees)"
 
 // Around 2026-04-10 LI.FI retired the per-chain FeeCollector contracts (FeesCollected) in favour of
-// a fee router that emits FeesForwarded with the full recipient split. Both are read so refills stay
-// correct across the migration: the old event stops emitting after it, the new one before it.
+// a fee router that emits FeesForwarded with the full recipient split, and on 2026-08-20 the router
+// moved again, deployed at the same address on every chain. All are read so refills stay correct
+// across the migrations: each event source stops emitting after its successor starts.
 const FeeRouters: Record<string, string> = {
 	[CHAIN.ETHEREUM]: '0x685527c551cc40ce1f1c9818cd8683307076e4ed',
 }
 const DefaultFeeRouter = '0xc18d9e84b8687a2645447a61e52c455dac1675e1'
+const FeeRouter2608 = '0xce40449b773a3e6e5e769adb4e567179d4828cbd'
 
 // LI.FI's own share of a FeesForwarded payout; every other recipient is an integrator. Verified as
 // the one recipient present on all 21 chains that had payouts on 2026-07-23.
@@ -46,7 +48,7 @@ const fetch = async (options: FetchOptions) => {
 	});
 
 	const forwarded: any[] = await options.getLogs({
-		target: FeeRouters[options.chain] ?? DefaultFeeRouter,
+		targets: [FeeRouters[options.chain] ?? DefaultFeeRouter, FeeRouter2608],
 		eventAbi: FeesForwardedEvent,
 	});
 	forwarded.forEach((log: any) => {

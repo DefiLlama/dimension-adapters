@@ -6,6 +6,8 @@ const fetch = createFetchHandler('legacy');
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
+  allowNegativeValue: true,
   pullHourly: true,
   methodology,
   breakdownMethodology,

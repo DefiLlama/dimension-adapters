@@ -1,4 +1,4 @@
-import sdk from "@defillama/sdk";
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -85,18 +85,18 @@ const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain] as any;
 
   const [folds, sells, buys, barks] = await Promise.all([
-    options.getLogs({ target: config.vat, eventAbi: ABI.fold }),
+    options.getLogs({ target: config.vat, eventAbi: ABI.fold, onlyArgs: false }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.sellGem, flatten: true }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.buyGem, flatten: true }),
-    options.getLogs({ target: config.dog, eventAbi: ABI.bark }),
+    options.getLogs({ target: config.dog, eventAbi: ABI.bark, onlyArgs: false }),
   ]);
 
   for (const log of folds) {
-    const rateDelta = BigInt(log.rate ?? 0);
+    const rateDelta = BigInt(log.args.rate ?? 0);
     if (rateDelta <= 0n) continue;
 
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.i] });
+    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.args.i] });
     const fee = toWad(BigInt(art) * rateDelta);
 
     dailyFees.add(config.usdd, fee, METRIC.BORROW_INTEREST);
@@ -111,8 +111,8 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of barks) {
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.ilk] });
-    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
+    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.args.ilk] });
+    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.args.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
     if (!penalty) continue;
 
     dailyFees.add(config.usdd, penalty, METRIC.LIQUIDATION_FEES);

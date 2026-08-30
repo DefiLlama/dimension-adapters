@@ -37,6 +37,9 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ROBINHOOD]: {
     start: '2026-07-03'
   },
+  [CHAIN.ARBITRUM]: {
+    start: '2026-08-19'
+  },
 }
 
 // GMGN's nine Solana fee-collection wallets. Verified on-chain (2026-06) to be

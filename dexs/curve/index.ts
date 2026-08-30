@@ -265,25 +265,25 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     ],
     customPools: {},
   },
-  [CHAIN.FANTOM]: {
-    start: '2021-09-16',
-    stable_factory: [
-      '0x686d67265703d1f124c45e33d47d794c566889ba',
-    ],
-    factory_crypto: [
-      '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
-    ],
-    factory_twocrypto: [
-      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
-    ],
-    factory_tricrypto: [
-      '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
-    ],
-    factory_stable_ng: [
-      '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
-    ],
-    customPools: {},
-  },
+  // [CHAIN.FANTOM]: {
+  //   start: '2021-09-16',
+  //   stable_factory: [
+  //     '0x686d67265703d1f124c45e33d47d794c566889ba',
+  //   ],
+  //   factory_crypto: [
+  //     '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
+  //   ],
+  //   factory_stable_ng: [
+  //     '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
+  //   ],
+  //   customPools: {},
+  // },
   [CHAIN.POLYGON]: {
     start: '2021-10-05',
     stable_factory: [
@@ -327,7 +327,11 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
           '0x60D55F02A771d515e077c9C2403a1ef324885CeC',
         ]
       },
-    }
+    },
+    blacklistedTokens: [
+      // Curve.fi amDAI/amUSDC/amUSDT LP; coins DB mislabels/prices it as am3CRV (~$20k)
+      '0xE7a24EF0C5e95Ffb0f6684b813A78F2a3AD7D171',
+    ],
   },
   [CHAIN.BASE]: {
     start: '2023-08-30',

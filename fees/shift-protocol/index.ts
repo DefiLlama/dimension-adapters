@@ -38,6 +38,7 @@ const vaultConfigs: Record<string, VaultConfig[]> = {
   ],
   [CHAIN.ETHEREUM]: [
     { address: "0xF4761cC51DC4532b064b7E0Bf0883bcA3F84375e", managementFee: 0, performanceFee: 15 },   // shiftEUR (v2 vault)
+    { address: "0x5F70E536190C15E5959DbFeF2F2632E540da74CD", managementFee: 0, performanceFee: 10 },   // risexUSDC (v2 vault)
   ],
 };
 

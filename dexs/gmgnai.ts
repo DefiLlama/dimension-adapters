@@ -38,6 +38,10 @@ const chainConfig: Record<string, { duneName: string, start: string }> = {
   [CHAIN.ROBINHOOD]: {
     duneName: 'robinhood',
     start: '2026-07-03'
+  },
+  [CHAIN.ARBITRUM]: {
+    duneName: 'arbitrum',
+    start: '2026-08-19'
   }
 }
 

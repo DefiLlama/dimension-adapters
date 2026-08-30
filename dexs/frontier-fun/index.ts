@@ -1,17 +1,33 @@
 import { PromisePool } from "@supercharge/promise-pool";
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { queryDuneSql } from "../../helpers/dune";
+import {
+  getEstablishedTokens,
+  washDayStart,
+  WASH_DUST_USD,
+  WASH_MIN_TRADES,
+  WASH_MIN_USD,
+  WASH_TRADES_PER_EOA,
+  WASH_USD_MIN_TRADES_PER_EOA,
+  WASH_USD_PER_EOA,
+} from "../../helpers/uniswap";
 
 // Frontier (frontier.fun) is a bonding-curve token launchpad on Robinhood Chain (4663).
 //
 // v1 (live 2026-07-30) and v1.2 (live 2026-08-15) are both counted. Every launched
 // token trades against one shared BondingCurve that emits Buy/Sell for all markets.
 // When a curve fills, the token pays out graduation fees and seeds a Uniswap V4
-// pool (LPSeeded); post-graduation swaps are already counted by the uniswap-v4
-// adapter on this chain and are not double counted here. Direct-seed launches
-// (v1.2) skip the curve and are born on their V4 pool: they emit no curve events
-// and their swaps are likewise the uniswap-v4 adapter's.
+// pool (LPSeeded). Direct-seed launches (v1.2) skip the curve and are born on
+// their V4 pool. Every Frontier pool is attached to the protocol's FactoryHook,
+// which registers it (PoolRegistered) and takes a fee on each swap.
+//
+// Since v1.2 most activity happens on those V4 pools, so their swaps are counted
+// as Frontier volume and the hook's fee as Frontier fees. The swaps are also in
+// the uniswap-v4 adapter's Robinhood Chain figures, hence `doublecounted`. The
+// hook fee is NOT in uniswap-v4's fees: it is a hook delta on top of the pool's
+// LP fee, and only the LP fee is what uniswap-v4 reports.
 const WETH = ADDRESSES.robinhood.WETH;
 
 const BUY_EVENT =
@@ -47,6 +63,22 @@ const CURVE_FEE_DISTRIBUTED_EVENT =
 const GRADUATION_FEES_PAID_EVENT =
   "event GraduationFeesPaid(address indexed feeRecipient, address indexed caller, uint256 creatorAmount, uint256 protocolAmount, uint256 refundAmount)";
 
+// v1.2 Uniswap V4 side, all live since 2026-08-15 with the v1.2 factory.
+// Singleton hook attached to every Frontier pool (PoolRegistered, SwapFeeDistributed).
+// https://robinhoodchain.blockscout.com/address/0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc
+const FACTORY_HOOK = "0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc";
+// Receives the LP fees of the permanently locked seed positions when someone
+// calls Harvester.collect (permissionless) and splits them (FeesDistributed).
+// Source: Harvester.distributor() on 0x2F33cb57fAa8bF1EB52ea18D90B0dc2f8cc2Db1f.
+// https://robinhoodchain.blockscout.com/address/0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc
+const POL_DISTRIBUTOR = "0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc";
+// Canonical Uniswap V4 PoolManager on Robinhood Chain, the same address
+// dexs/uniswap-v4 scans for this chain.
+// https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951
+const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
+const V4_SWAP_FEE_TOPIC = "0xf1a3d823f78e33cdd2d6f81c311b178dc348a2bab03c7afacea8326a1d98d41f";
+const V4_POL_FEE_TOPIC = "0x7b629ab4257c85bfc2373ab7f36e5f6cf7b8bf085b192d2938cebb7a3726eb87";
+
 const LABEL = {
   CurveTradeFees: "Curve Trade Fees",
   GraduationFees: "Graduation Fees",
@@ -56,6 +88,14 @@ const LABEL = {
   GraduationToProtocol: "Graduation Fees to Protocol",
   GraduationToSupplySide: "Graduation Fees to Creators",
   GraduationToCaller: "Graduation Refund to Caller",
+  PoolSwapFees: "Pool Swap Fees",
+  PolFees: "Protocol-Owned Liquidity Fees",
+  PoolSwapFeesToProtocol: "Pool Swap Fees to Protocol",
+  PoolSwapFeesToStakers: "Pool Swap Fees to Stakers",
+  PoolSwapFeesToCreators: "Pool Swap Fees to Creators",
+  PolFeesToProtocol: "POL Fees to Protocol",
+  PolFeesToStakers: "POL Fees to Stakers",
+  PolFeesToCreators: "POL Fees to Creators",
 };
 
 const logIndexOf = (log: any) => Number(log.logIndex ?? log.index ?? 0);
@@ -250,6 +290,197 @@ const addV12 = async (options: FetchOptions, day: DayBalances) => {
   });
 };
 
+const addV4 = async (options: FetchOptions, day: DayBalances) => {
+  const { dailyVolume, dailyFees, dailyProtocolRevenue, dailySupplySideRevenue } = day;
+  const dayStart = washDayStart(options);
+
+  const rows: any[] = await queryDuneSql(
+    options,
+    `
+    WITH frontier_pools AS (
+      SELECT
+        CAST(id AS VARCHAR) AS pool_id,
+        LOWER(CAST(currency1 AS VARCHAR)) AS coin
+      FROM uniswap_v4_multichain.poolmanager_evt_initialize
+      WHERE chain = 'robinhood'
+        AND contract_address = ${POOL_MANAGER}
+        AND LOWER(CAST(hooks AS VARCHAR)) = '${FACTORY_HOOK.toLowerCase()}'
+    ),
+    wash_ev AS (
+      SELECT id, COUNT(*) AS trades, COUNT(DISTINCT evt_tx_from) AS eoas
+      FROM uniswap_v4_multichain.poolmanager_evt_swap
+      WHERE chain = 'robinhood'
+        AND evt_block_time >= from_unixtime(${dayStart})
+        AND evt_block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY id
+    ),
+    wash_usd AS (
+      SELECT maker, SUM(amount_usd) AS usd
+      FROM dex.trades
+      WHERE blockchain = 'robinhood'
+        AND project = 'uniswap'
+        AND version = '4'
+        AND block_time >= from_unixtime(${dayStart})
+        AND block_time < from_unixtime(${dayStart + 86400})
+      GROUP BY maker
+    ),
+    wash_pools AS (
+      SELECT CAST(ev.id AS VARCHAR) AS pool_id
+      FROM wash_ev ev
+      LEFT JOIN wash_usd u ON u.maker = ev.id
+      WHERE ((
+        ev.trades >= ${WASH_MIN_TRADES}
+        AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_TRADES_PER_EOA}
+      ) OR (
+        COALESCE(u.usd, 0) >= ${WASH_MIN_USD}
+        AND COALESCE(u.usd, 0) / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_PER_EOA}
+        AND ev.trades / CAST(ev.eoas AS DOUBLE) >= ${WASH_USD_MIN_TRADES_PER_EOA}
+      ))
+      AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})
+    ),
+    swap_volume AS (
+      SELECT
+        CAST(s.id AS VARCHAR) AS pool_id,
+        fp.coin,
+        SUM(ABS(s.amount0)) AS eth_vol
+      FROM uniswap_v4_multichain.poolmanager_evt_swap s
+      INNER JOIN frontier_pools fp ON fp.pool_id = CAST(s.id AS VARCHAR)
+      WHERE s.chain = 'robinhood'
+        AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
+        AND s.evt_block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1, 2
+    ),
+    hook_fees AS (
+      SELECT
+        LOWER(CONCAT('0x', SUBSTR(TO_HEX(bytearray_substring(data, 1, 32)), 25))) AS currency,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 33, 32))) AS protocol_amount,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 65, 32))) AS vault_amount,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 97, 32))) AS recipient_amount
+      FROM robinhood.logs
+      WHERE contract_address = ${FACTORY_HOOK}
+        AND topic0 = ${V4_SWAP_FEE_TOPIC}
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
+    ),
+    pol_fees AS (
+      SELECT
+        LOWER(CONCAT('0x', SUBSTR(TO_HEX(topic2), 25))) AS coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 33, 32))) AS creator_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 65, 32))) AS creator_coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 97, 32))) AS vault_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 129, 32))) AS vault_coin,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 161, 32))) AS protocol_weth,
+        SUM(bytearray_to_uint256(bytearray_substring(data, 193, 32))) AS protocol_coin
+      FROM robinhood.logs
+      WHERE contract_address = ${POL_DISTRIBUTOR}
+        AND topic0 = ${V4_POL_FEE_TOPIC}
+        AND block_time >= from_unixtime(${options.startTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
+    )
+    SELECT
+      'volume' AS row_type,
+      v.pool_id,
+      v.coin,
+      CAST(v.eth_vol AS VARCHAR) AS amount,
+      CASE WHEN w.pool_id IS NOT NULL THEN 1 ELSE 0 END AS is_wash,
+      NULL AS val1,
+      NULL AS val2,
+      NULL AS val3,
+      NULL AS val4,
+      NULL AS val5,
+      NULL AS val6
+    FROM swap_volume v
+    LEFT JOIN wash_pools w ON w.pool_id = v.pool_id
+    UNION ALL
+    SELECT
+      'hook' AS row_type,
+      NULL AS pool_id,
+      NULL AS coin,
+      currency AS amount,
+      0 AS is_wash,
+      CAST(protocol_amount AS VARCHAR) AS val1,
+      CAST(vault_amount AS VARCHAR) AS val2,
+      CAST(recipient_amount AS VARCHAR) AS val3,
+      NULL AS val4,
+      NULL AS val5,
+      NULL AS val6
+    FROM hook_fees
+    UNION ALL
+    SELECT
+      'pol' AS row_type,
+      NULL AS pool_id,
+      coin,
+      NULL AS amount,
+      0 AS is_wash,
+      CAST(creator_weth AS VARCHAR) AS val1,
+      CAST(creator_coin AS VARCHAR) AS val2,
+      CAST(vault_weth AS VARCHAR) AS val3,
+      CAST(vault_coin AS VARCHAR) AS val4,
+      CAST(protocol_weth AS VARCHAR) AS val5,
+      CAST(protocol_coin AS VARCHAR) AS val6
+    FROM pol_fees`,
+    { extraUIDKey: "v4" }
+  );
+
+  const volumeRows: { pool_id: string; coin: string; amount: string; is_wash: number }[] = [];
+
+  for (const row of rows) {
+    if (row.row_type === "hook") {
+      const currency = String(row.amount);
+      const protocol = BigInt(row.val1);
+      const vault = BigInt(row.val2);
+      const recipient = BigInt(row.val3);
+      dailyFees.add(currency, protocol + vault + recipient, LABEL.PoolSwapFees);
+      if (protocol !== 0n) dailyProtocolRevenue.add(currency, protocol, LABEL.PoolSwapFeesToProtocol);
+      if (vault !== 0n) dailySupplySideRevenue.add(currency, vault, LABEL.PoolSwapFeesToStakers);
+      if (recipient !== 0n) dailySupplySideRevenue.add(currency, recipient, LABEL.PoolSwapFeesToCreators);
+      continue;
+    }
+
+    if (row.row_type === "pol") {
+      const coin = String(row.coin);
+      const legs: [string, bigint, bigint, bigint][] = [
+        [WETH, BigInt(row.val1), BigInt(row.val3), BigInt(row.val5)],
+        [coin, BigInt(row.val2), BigInt(row.val4), BigInt(row.val6)],
+      ];
+      legs.forEach(([token, creator, vault, protocol]) => {
+        const total = creator + vault + protocol;
+        if (total === 0n) return;
+        dailyFees.add(token, total, LABEL.PolFees);
+        if (protocol !== 0n) dailyProtocolRevenue.add(token, protocol, LABEL.PolFeesToProtocol);
+        if (vault !== 0n) dailySupplySideRevenue.add(token, vault, LABEL.PolFeesToStakers);
+        if (creator !== 0n) dailySupplySideRevenue.add(token, creator, LABEL.PolFeesToCreators);
+      });
+      continue;
+    }
+
+    if (row.row_type === "volume") {
+      volumeRows.push({
+        pool_id: String(row.pool_id).toLowerCase(),
+        coin: String(row.coin).toLowerCase(),
+        amount: String(row.amount),
+        is_wash: Number(row.is_wash),
+      });
+    }
+  }
+
+  if (!volumeRows.length) return;
+
+  const flaggedCoins = [
+    ...new Set(volumeRows.filter((row) => row.is_wash).map((row) => row.coin)),
+  ];
+  const established = flaggedCoins.length
+    ? await getEstablishedTokens(options.chain, flaggedCoins)
+    : new Set<string>();
+
+  volumeRows.forEach((row) => {
+    if (row.is_wash && !established.has(row.coin)) return;
+    dailyVolume.addGasToken(BigInt(row.amount));
+  });
+};
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const day: DayBalances = {
     dailyVolume: options.createBalances(),
@@ -260,6 +491,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   await addV1(options, day);
   await addV12(options, day);
+  await addV4(options, day);
 
   const dailyRevenue = day.dailyProtocolRevenue.clone();
 
@@ -275,15 +507,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Volume:
-    "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves (v1 and v1.2), taken directly from each shared BondingCurve contract's Buy/Sell events, both of which emit the gross figure. Once a curve fills it graduates to a Uniswap V4 pool on the canonical PoolManager; those swaps, and the swaps of v1.2 direct-seed launches that skip the curve entirely, are counted by the uniswap-v4 adapter on Robinhood Chain and are not double counted here.",
-  Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing), plus the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool. v1 reconstructs the trade fee from the on-chain txFee timeline and graduation payouts from WETH transfers; v1.2 reads both exactly from CurveFeeDistributed and GraduationFeesPaid.",
+    "Gross ETH notional (fees included) of buys and sells executed on Frontier bonding curves (v1 and v1.2), taken directly from each shared BondingCurve contract's Buy/Sell events, plus the ETH leg of every swap on a Frontier Uniswap V4 pool (graduated curves and v1.2 direct-seed launches alike), read from the canonical PoolManager's Swap events and filtered to the pools registered on Frontier's FactoryHook, excluding wash trading by the same rule as the uniswap-v4 adapter (pools whose daily trades come from too few distinct addresses to be organic, unless the coin is a core asset or CoinGecko-listed). Those V4 swaps are also counted by the uniswap-v4 adapter on Robinhood Chain, which is why this adapter is flagged doublecounted.",
+  Fees: "The bonding-curve trade fee charged on every buy and sell (1.5% of the trade's cost at the time of writing), the fees a token pays out of the ETH it raised when its curve fills and seeds its Uniswap V4 pool, the FactoryHook fee taken on every swap of a Frontier V4 pool (a hook delta on top of the pool's LP fee, so not part of uniswap-v4's fees), and the LP fees of the protocol's permanently locked seed positions, counted on a realized basis when they are collected (Harvester.collect is permissionless, so a collection carries the fees accrued since the previous one and lands on the collection day, not the days they were earned). v1 reconstructs the trade fee from the on-chain txFee timeline and graduation payouts from WETH transfers; v1.2 reads everything exactly from CurveFeeDistributed, GraduationFeesPaid, SwapFeeDistributed and the PolDistributor's FeesDistributed.",
   UserFees: "Same as Fees: every fee is paid by traders out of their trade or out of the ETH they raised.",
   Revenue:
-    "Protocol revenue across both deployments: on v1, the protocol's 25% of the bonding-curve trade fee net of referrer rewards plus the factory owner's graduation share; on v1.2, the residual share of the trade fee after referrer and creator cuts (creator share owner-tunable via creatorShareBps) plus the protocol's graduation share, pushed to a dedicated treasury as WETH. Frontier has no protocol token, so there is no holders revenue and Revenue equals ProtocolRevenue.",
+    "Protocol revenue across both deployments: on v1, the protocol's 25% of the bonding-curve trade fee net of referrer rewards plus the factory owner's graduation share; on v1.2, the residual share of the trade fee after referrer and creator cuts (creator share owner-tunable via creatorShareBps), the protocol's graduation share, the protocol owner's share of the hook fee on every V4 swap, and the protocol's share of collected seed-position LP fees. Frontier has no protocol token, so there is no holders revenue and Revenue equals ProtocolRevenue.",
   ProtocolRevenue:
-    "v1: 25% of the curve trade fee net of referrer rewards, plus WETH sent to the factory owner at graduation. v1.2: residual share of the curve trade fee (50% at the time of writing, net of referrer rewards) plus its share of graduation payouts (0% at the time of writing).",
+    "v1: 25% of the curve trade fee net of referrer rewards, plus WETH sent to the factory owner at graduation. v1.2: residual share of the curve trade fee (50% at the time of writing, net of referrer rewards), its share of graduation payouts (0% at the time of writing), the protocol owner's share of the V4 hook fee (protocolFeeRatio, owner-tunable) and the protocol's share of collected seed-position LP fees.",
   SupplySideRevenue:
-    "v1: the creator's 75% of every curve trade fee, referrer rewards, and the 5% graduation fee to the token creator. v1.2: the creator's share of every curve trade fee (50% at the time of writing), referrer rewards, the 5% graduation fee to the creator, and the graduation refund to the caller (0% at the time of writing).",
+    "v1: the creator's 75% of every curve trade fee, referrer rewards, and the 5% graduation fee to the token creator. v1.2: the creator's share of every curve trade fee (50% at the time of writing), referrer rewards, the 5% graduation fee to the creator, the graduation refund to the caller (0% at the time of writing), and the after-protocol remainder of the V4 hook fee and of collected seed-position LP fees, split between the coin's staking vault and its fee recipient (the creator).",
 };
 
 const feesBreakdown = {
@@ -291,12 +523,19 @@ const feesBreakdown = {
     "Trade fee withheld by the bonding curve on every buy and sell, at the on-chain txFee rate (150 bps at the time of writing). v1 reconstructs it from Buy/Sell and TxFeeUpdated; v1.2 emits it per trade as CurveFeeDistributed.",
   [LABEL.GraduationFees]:
     "Fees paid in WETH out of the ETH a token raised when its curve fills. v1 classifies WETH transfers to the creator (5%) and factory owner (0% at the time of writing); v1.2 uses GraduationFeesPaid (creator 5%, protocol 0%, caller refund 0% at the time of writing). The ETH that seeds the Uniswap V4 pool is liquidity, not a fee, and is excluded.",
+  [LABEL.PoolSwapFees]:
+    "The FactoryHook's fee on every swap of a Frontier Uniswap V4 pool, from SwapFeeDistributed: a volatility-scaled hook delta charged on top of the pool's LP fee, in the swap's input currency (native ETH or the coin). The LP fee itself belongs to uniswap-v4 and is not counted here.",
+  [LABEL.PolFees]:
+    "Uniswap V4 LP fees of the protocol's permanently locked seed positions, counted on a realized basis when Harvester.collect forwards them to the PolDistributor (FeesDistributed), in WETH and the coin. A collection carries everything accrued since the previous one, so these land on the collection day rather than the days they were earned. These are also LP fees in uniswap-v4's figures.",
 };
 
 const protocolRevenueBreakdown = {
   [LABEL.TradeFeesToProtocol]:
     "The protocol's share of the bonding-curve trade fee, net of the referrer's share on referred trades (25% on v1; residual after creator/referrer on v1.2, 50% at the time of writing).",
   [LABEL.GraduationToProtocol]: "The protocol's share of the graduation payout.",
+  [LABEL.PoolSwapFeesToProtocol]:
+    "The protocol owner's share of the V4 hook fee (protocolFeeRatio, owner-tunable), taken off the top on every swap.",
+  [LABEL.PolFeesToProtocol]: "The protocol's share of collected seed-position LP fees.",
 };
 
 const breakdownMethodology = {
@@ -313,15 +552,25 @@ const breakdownMethodology = {
       "The graduation fee paid to the token creator, 5% of the ETH its curve raised.",
     [LABEL.GraduationToCaller]:
       "The v1.2 graduation refund paid to the caller who triggered graduation (0% at the time of writing).",
+    [LABEL.PoolSwapFeesToStakers]:
+      "The coin's staking vault's share of the V4 hook fee, after the protocol's cut (communityFeeRatio, fixed per pool at launch).",
+    [LABEL.PoolSwapFeesToCreators]:
+      "The coin's fee recipient's (creator's) share of the V4 hook fee, after the protocol's cut.",
+    [LABEL.PolFeesToStakers]: "The coin's staking vault's share of collected seed-position LP fees.",
+    [LABEL.PolFeesToCreators]: "The coin creator's share of collected seed-position LP fees.",
   },
 };
 
 const adapter: Adapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-30", // first CoinDeployed event (v1), block 23650298
+  // Swaps on Frontier's V4 pools are also in dexs/uniswap-v4 on this chain, and
+  // the seed positions' LP fees are part of its fees.
+  doublecounted: true,
   methodology,
   breakdownMethodology,
 };

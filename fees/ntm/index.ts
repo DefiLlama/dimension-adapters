@@ -1,7 +1,12 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
-import { httpGet } from "../../utils/fetchURL";
+import { proxiedFetch } from "../../utils/fetchURL";
 
+// api.ntm.ai answers normally from a residential IP and returns 403 to a
+// datacenter IP, which is why nothing has been published since 2026-07-29.
+// Routed through the shared proxy, the same treatment aggregators/houdiniswap
+// and fees/space-and-time already use. proxiedFetch falls back to a direct
+// request when PROXY_AUTH is unset, so local runs and CI are unchanged.
 const endpoint = "https://api.ntm.ai/feesAndRevenues.php?";
 const chainToken: Record<string, string> = {
   [CHAIN.TON]: "the-open-network",
@@ -20,7 +25,7 @@ const fetchFeesAndRevenues = async (options: FetchOptions) => {
     .toISOString()
     .split(".")[0];
   const url = `${endpoint}start_date=${startTime}&end_date=${endTime}&chain=${options.chain}`;
-  const res = await httpGet(url);
+  const res = await proxiedFetch(url);
 
   // Reject anything that is not a real number before it reaches addCGToken.
   // Number(undefined) is NaN and Number(null)/Number("")/Number(" ")/Number([])

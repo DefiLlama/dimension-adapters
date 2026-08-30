@@ -92,10 +92,10 @@ const builderConfigs: Record<string, BuilderConfig> = {
     addresses: ["0xc9200c6d0e876d5f63c76618f2c57e5d6a080927"],
     start: "2026-07-01",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Hypersight.",
-      Fees: "Builder code fees paid by users on trades executed through Hypersight (0.05% on perps, 0.025% on HIP-4 prediction-market closes).",
-      Revenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
-      ProtocolRevenue: "Builder code fees collected by Hypersight from Hyperliquid trades.",
+      Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Liquary (formerly Hypersight).",
+      Fees: "Builder code fees paid by users on trades executed through Liquary (0.05% on perps and on HIP-4 prediction-market closes).",
+      Revenue: "Builder code fees collected by Liquary from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Liquary from Hyperliquid trades.",
     },
     breakdownFees: true,
   },
@@ -863,6 +863,17 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
     },
     breakdownFees: true,
+  },
+  "quote": {
+    addresses: ["0x459b632f49023881cd45d8f0003297ebe16a13d6"],
+    start: "2026-07-30",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 markets) executed through Quote.",
+      Fees: "Builder code fees paid by users on Hyperliquid trades executed through Quote.",
+      Revenue: "Builder code fees collected by Quote from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by Quote from Hyperliquid trades.",
+    },
+    breakdownFees: true,
   }
 };
 
@@ -969,6 +980,7 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
 const hip3DexConfigs: Record<string, { dexId: string; start: string; methodologyName: string }> = {
   "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
+  "entropy": { dexId: "io", start: "2026-08-19", methodologyName: "Entropy" },
   "felix-perp": { dexId: "flx", start: "2025-11-13", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
@@ -980,6 +992,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; methodology
 // HIP3 deployer OI configs: protocol name -> dexId
 const hip3OiConfigs: Record<string, string> = {
   "dreamcash-markets-oi": "cash",
+  "entropy-oi": "io",
   "felix-perp-oi": "flx",
   "hyena-oi": "hyna",
   "kinetiq-markets-oi": "mkts",

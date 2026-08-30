@@ -213,6 +213,22 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 0,
     },
   },
+  "morpheus": {
+    graphUrls: {
+      [CHAIN.ROBINHOOD]: "https://api.goldsky.com/api/public/project_cm8pwdzcow9bu01xm6gdhatu4/subgraphs/analytics/v1.0.0/gn",
+    },
+    start: "2026-08-13",
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    totalFees: { factory: "factories", field: "totalFeesUSD" },
+    feesPercent: {
+      type: "fees",
+      Fees: 100,
+      UserFees: 100,
+      Revenue: 10,
+      ProtocolRevenue: 10,
+      SupplySideRevenue: 90,
+    },
+  },
   "sparkdex-v4": {
     graphUrls: {
       [CHAIN.FLARE]: "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-v4/latest/gn",
@@ -383,6 +399,9 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: 0,
     },
     start: '2026-03-14',
+    // Tsunami V3 on Ink is dead: TVL collapsed from a $46k peak (2026-05-07) to $51,
+    // volume was ~$0 by early August and the goldsky subgraph project was deleted (404).
+    deadFrom: '2026-08-04',
   }
 };
 

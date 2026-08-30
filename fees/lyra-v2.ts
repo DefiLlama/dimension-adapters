@@ -41,11 +41,11 @@ const fetch = (instrument: string) => async (options: FetchOptions) => {
   if (!rows || rows.length === 0)
     throw new Error(`No data returned from Derive fees endpoint for url: ${url}`);
 
-
   let grossFeesUsd = 0;
   let grossRevenueUsd = 0;
 
   for (const r of rows) {
+    if (r.day !== options.dateString) continue;
     grossFeesUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0);
     grossRevenueUsd += (Number(r.makerFees) || 0) + (Number(r.takerFees) || 0) - (Number(r.makerRebates) || 0) - (Number(r.takerRebates) || 0);
   }

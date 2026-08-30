@@ -74,6 +74,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'dexs': [
     'injectiveBigQuery',
     'helpers/crypto-card',
+    'helpers/rainCard',
     'helpers/balancer',
     'uniV2',
     'uniV3',

@@ -46,6 +46,8 @@ const startTimestamps: { [chain: string]: number } = {
 }
 
 const adapter: SimpleAdapter = {
+  // Mummy is dead: rebranded to Navigator Exchange, last fees 2025-07-08, TVL $55k vs $19M peak, subgraph has no allocations, and Fantom Opera shut down 2026-07-01.
+  deadFrom: '2025-07-08',
   fetch,
   adapter: {
     [CHAIN.FANTOM]: {

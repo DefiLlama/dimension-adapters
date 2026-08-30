@@ -19,7 +19,8 @@ usdc_by_chain AS (
       ('avalanche_c', 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E),
       ('optimism',    0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85), 
       ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d),
-      ('bnb',         0x55d398326f99059fF775485246999027B3197955)
+      ('bnb',         0x55d398326f99059fF775485246999027B3197955),
+      ('robinhood',   0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168) -- USDG
   ) AS t(blockchain, contract_address)
 ),
 
@@ -37,7 +38,7 @@ filtered_transfers AS (
   CROSS JOIN params p
   WHERE t.block_time >= p.t0
     AND t.block_time < p.t1
-    AND t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb')
+    AND t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb','robinhood')
     AND t."to" = p.collector
     AND t."tx_to" <> p.collector
     AND t."tx_from" <> p.zero_address    -- Early address filtering
@@ -58,7 +59,7 @@ xfers AS (
     ON t.blockchain = u.blockchain
    AND t.contract_address = u.contract_address
   CROSS JOIN params p
-  WHERE t.amount_usd <= 3000             -- USDC-specific USD amount filter
+  WHERE t.amount_usd <= 3000             -- Stablecoin-specific USD amount filter
 )
 
 SELECT

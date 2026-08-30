@@ -12,6 +12,12 @@ const chainConfig: Record<string, { start: number }> = {
 
 const RFQ_TRADE_EVENT = 'event RFQTrade(address recipient, address sellerToken, address buyerToken, uint256 sellerTokenAmount, uint256 buyerTokenAmount, bytes16 quoteId, address signer)';
 
+// Unofficial adapter contracts that sat as RFQ recipient for the Jul-Aug 2026 BSC volume spike. Not Binance or Native. Same deployer rotated 0x309fcd -> 0x23e2b374.
+const SKIP_RECIPIENTS = new Set([
+  '0x309fcdd159c15e6305f1b02489a14e870e4df052',
+  '0x23e2b37415ee3b9cfe1ae522e42e2b66fd2d9494',
+]);
+
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
   const dailyVolume = createBalances();
@@ -23,6 +29,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   });
 
   logs.forEach((log: any) => {
+    if (SKIP_RECIPIENTS.has(String(log.recipient).toLowerCase())) return;
     dailyVolume.add(log.buyerToken, log.buyerTokenAmount);
   });
 
@@ -40,7 +47,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology,
-  adapter: chainConfig,
+  adapter: chainConfig as any,
 };
 
 export default adapter;

@@ -1,11 +1,13 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// CRSH's parimutuel market contracts on Monad. The second address is the
-// legacy deployment; keeping it here preserves historical coverage.
-// Current: https://monadscan.com/address/0x968279784d780c02a79b1c58ad69aaa832f09342
+// CRSH's parimutuel market contracts on Monad. Older addresses are kept for
+// historical coverage.
+// Current: https://monadscan.com/address/0x8964d7c989bf4b9bbd179ecd205544d3bb5b10f8
+// Legacy: https://monadscan.com/address/0x968279784d780c02a79b1c58ad69aaa832f09342
 // Legacy: https://monadscan.com/address/0x7b9256fd345b6dfa78017094cae64b153de21fb2
 const MARKET_CONTRACTS = [
+  "0x8964d7C989bF4B9bbd179ecd205544d3bb5B10F8",
   "0x968279784d780c02a79b1c58ad69aaa832f09342",
   "0x7b9256fd345b6dFa78017094caE64B153dE21fb2",
 ];

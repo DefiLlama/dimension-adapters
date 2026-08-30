@@ -11,7 +11,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //https://dune.com/queries/5351226
   const query = `
     SELECT
-      COALESCE(SUM(CAST(value AS DOUBLE)) / 1e9, 0) AS fee_ton
+      COALESCE(SUM(CAST(value AS DOUBLE)) / 1e9, 0) AS fee_ton,
+      (SELECT CAST(to_unixtime(MAX(block_time)) AS BIGINT) FROM ton.messages WHERE block_time >= from_unixtime(${options.startTimestamp})) AS ingested_to
     FROM ton.messages
     WHERE block_time >= from_unixtime(${options.startTimestamp})
       AND block_time < from_unixtime(${options.endTimestamp})
@@ -21,8 +22,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       AND LOWER(comment) LIKE '%dtrade%'
   `;
 
-  const queryResult = await queryDuneSql(options, query);
-  const feeTon = queryResult[0].fee_ton;
+  const [queryResult] = await queryDuneSql(options, query);
+  const ingestedTo = Number(queryResult?.ingested_to);
+  const dustSeconds = 10;
+  if (!Number.isFinite(ingestedTo) || ingestedTo < options.endTimestamp - dustSeconds) {
+    throw new Error(`DTrade: ton.messages has not indexed through ${new Date(options.endTimestamp * 1000).toISOString()}`);
+  }
+
+  const feeTon = queryResult.fee_ton;
   // Mirrors the xRocket TON Trading Bots dashboard's DTrade methodology:
   // inferred volume = collected fees / 1% effective fee rate.
   const inferredVolumeTon = feeTon / DTRADE_EFFECTIVE_FEE_RATE;

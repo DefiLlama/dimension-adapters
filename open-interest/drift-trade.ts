@@ -1,8 +1,8 @@
 import { CHAIN } from "../helpers/chains";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import fetchURL from "../utils/fetchURL";
 
-async function fetch(_t: any, _tt: any, options: FetchOptions) {
+async function fetch() {
   const contractsResponse = await fetchURL('https://data.api.drift.trade/stats/markets');
   const longOpenInterestAtEnd = contractsResponse.markets
     .filter((contract: any) => contract.marketType === 'perp' && contract.status == 'active')
