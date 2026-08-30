@@ -18,33 +18,19 @@ import {
 // fetchers just read config.blockchain. Buyback/holders-revenue is shared with
 // the on-chain adapter.
 
-const FEE_SWITCH_DATE: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "2025-12-29",
-  [CHAIN.OPTIMISM]: "2026-03-08",
-  [CHAIN.ARBITRUM]: "2026-03-08",
-  [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-06-02",
-  [CHAIN.WC]: "2026-03-08",
-  [CHAIN.ZORA]: "2026-03-08",
-  [CHAIN.XLAYER]: "2026-03-08",
-  [CHAIN.BSC]: "2026-06-02",
-  [CHAIN.POLYGON]: "2026-06-02",
-  [CHAIN.ROBINHOOD]: "2026-07-27",
-}
-
-const FIREPIT : Record<string, string> = {
-  [CHAIN.ETHEREUM]: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721',
-  [CHAIN.UNICHAIN]: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB',
-  [CHAIN.WC]: '0x455e844D286631566cF98D6cb2996149734618C6',
-  [CHAIN.CELO]: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25',
-  [CHAIN.ZORA]: '0x2f98eD4D04e633169FbC941BFCc54E785853b143',
-  [CHAIN.XLAYER]: '0xe122E231cb52aea99690963Fd73E91e33E97468f',
-  [CHAIN.ARBITRUM]: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427',
-  [CHAIN.OPTIMISM]: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD',
-  [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
-  [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
-  [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
-  [CHAIN.ROBINHOOD]: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B',
+const HOLDERS_REVENUE_CONFIG: Record<string, { feeSwitchDate: string | null; firepit: string | null }> = {
+  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721' },
+  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD' },
+  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427' },
+  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a' },
+  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25' },
+  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6' },
+  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143' },
+  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f' },
+  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
+  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
+  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B' },
+  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB' },
 }
 
 const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
@@ -52,8 +38,8 @@ const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address index
 
 async function fetchHoldersRevenue(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances()
-  const firepit = FIREPIT[options.chain]
-  if (!firepit || !FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) {
+  const { feeSwitchDate, firepit } = HOLDERS_REVENUE_CONFIG[options.chain] ?? {}
+  if (!firepit || !feeSwitchDate || options.dateString < feeSwitchDate) {
     return dailyHoldersRevenue
   }
 
