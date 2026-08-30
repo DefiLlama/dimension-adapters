@@ -133,7 +133,7 @@ async function getBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,
@@ -231,7 +231,7 @@ async function fetchPoolHourStats(
     treasuryFeesUSD?: string;
   }>(
     (first, skip) => request<any>(rawSubgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,

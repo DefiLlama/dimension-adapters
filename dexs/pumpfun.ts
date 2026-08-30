@@ -20,7 +20,7 @@ const fetch: any = async (options: FetchOptions) => {
     FROM dex_solana.trades
     WHERE project = 'pumpdotfun'
       AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
   `);
 
   const dailyVolume = options.createBalances()

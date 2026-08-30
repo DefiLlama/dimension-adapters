@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
                 raydium_solana.raydium_launchpad_evt_tradeevent
             WHERE
                 evt_block_time >= from_unixtime(${options.startTimestamp})
-                AND evt_block_time <= from_unixtime(${options.endTimestamp})
+                AND evt_block_time < from_unixtime(${options.endTimestamp})
         )
         SELECT
             SUM(protocol_fee) AS protocol_fees

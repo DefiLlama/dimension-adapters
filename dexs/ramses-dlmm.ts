@@ -167,7 +167,7 @@ async function getDlmmBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,
@@ -297,7 +297,7 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
   `;
 
   const variables = {
-    from: String(options.startTimestamp + 1),
+    from: String(options.startTimestamp),
     to: String(options.endTimestamp),
   };
   const [swaps, feeEvents] = await Promise.all([

@@ -282,7 +282,7 @@ export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { ext
 
   return queryDune("3996608", {
     fullQuery: query.replace("CHAIN", tableName[options.chain] ?? options.chain).split("TIME_RANGE").join(`block_time >= from_unixtime(${options.startTimestamp})
-  AND block_time <= from_unixtime(${options.endTimestamp})`)
+  AND block_time < from_unixtime(${options.endTimestamp})`)
   }, options, { extraUIDKey })
 }
 
