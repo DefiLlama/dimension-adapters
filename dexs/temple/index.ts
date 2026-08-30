@@ -15,7 +15,7 @@ type SettledVolumeResponse = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const requestStartTimestamp = options.startTimestamp;
+  const requestStartTimestamp = options.startTimestamp + 1;
   const startTime = new Date(requestStartTimestamp * 1000).toISOString();
   const endTime = new Date(options.endTimestamp * 1000).toISOString();
   const params = new URLSearchParams({

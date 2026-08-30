@@ -6,7 +6,6 @@ import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume
 import { getDateString } from '../../helpers/utils';
 import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 import { CHAIN } from '../../helpers/chains';
-import { getAdapterTimeWindow, getLogStartBlock } from './timeWindow';
 
 // to trigger inclusion of the env.ts file
 const _include_env = _env.getEnv('BITLAYER_RPC')
@@ -355,18 +354,9 @@ async function _runAdapter({
       }
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
-    const {
-      startTimestamp,
-      endTimestamp,
-      fromTimestamp,
-      toTimestamp,
-    } = getAdapterTimeWindow(timestamp, windowSize)
-    // Cumulative snapshots use the pre-window block; log ranges start after it when available.
+    const toTimestamp = timestamp - 1
+    const fromTimestamp = toTimestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
-    const getQueryStartBlock = async () => {
-      const snapshotBlock = await getFromBlock()
-      return getLogStartBlock(snapshotBlock)
-    }
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei',])
 
@@ -375,7 +365,7 @@ async function _runAdapter({
 
       if (problematicChains.has(chain)) throw new Error(`getLogs is disabled for ${chain} chain due to frequent timeouts`)
 
-      fromBlock = fromBlock ?? await getQueryStartBlock()
+      fromBlock = fromBlock ?? await getFromBlock()
       toBlock = toBlock ?? await getToBlock()
       const requestCount = targets ? targets.length : 1
       if (api) api.addStat('logsRequests', requestCount)
@@ -399,7 +389,7 @@ async function _runAdapter({
       if (Array.isArray(targetsFilter))
         targetsFilter = new Set(targetsFilter.map((t) => t.toLowerCase()))
 
-      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getQueryStartBlock()
+      if (!params.hasOwnProperty('fromBlock')) params.fromBlock = await getFromBlock()
       if (!params.hasOwnProperty('toBlock')) params.toBlock = await getToBlock()
       if (!params.hasOwnProperty('all')) params.all = true
       if (!params.hasOwnProperty('clientStreaming')) params.clientStreaming = true
@@ -434,6 +424,8 @@ async function _runAdapter({
     const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
     const api = new ChainApi({ chain, timestamp: withinTwoHours ? undefined : timestamp, block: toBlock })
     const startOfDay = getUniqStartOfTodayTimestamp(new Date(toTimestamp * 1000))
+    const startTimestamp = fromTimestamp
+    const endTimestamp = toTimestamp + 1
     const getStartBlock = getFromBlock
     const getEndBlock = getToBlock
     const toApi = api

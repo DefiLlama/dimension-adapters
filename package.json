@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "test": "ts-node --transpile-only cli/testAdapter.ts",
-    "test:time-window": "node --test --require ts-node/register tests/timeWindow.test.cjs",
     "build": "ts-node --transpile-only cli/buildModules.ts",
     "migrate-dead": "ts-node --transpile-only cli/migrateDeadProjects.ts",
     "ts-check": "tsc --project tsconfig.json",
