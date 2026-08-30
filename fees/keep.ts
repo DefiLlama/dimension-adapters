@@ -36,6 +36,8 @@ const FINALIZED_D30_PREFIX = "2Vt0QavIXBI";
 const SUCCESS_EXECUTED_PREFIX = "Trx57IcWNIY";
 const IDEA_FUNDING_RELEASED_PREFIX = "PKK4EmjFDVo";
 
+const PROGRAM_DEPLOYMENT = "2026-06-14";
+
 /**
  * One Dune call: USDC inflows to the platform ATA (protocol revenue) plus
  * project-owner staged raise fees and the share decoded from FeesHarvested
@@ -49,34 +51,38 @@ const IDEA_FUNDING_RELEASED_PREFIX = "PKK4EmjFDVo";
  *
  * Filter the ATA with to_token_account, not to_owner — to_owner is the
  * platform fee-receiver wallet, not this token account.
+ *
+ * ProjectCreated has to be read from before the current day, so it is bounded
+ * by the program deployment date to keep it from scanning Solana history.
  */
 const getKeepFees = async (options: FetchOptions) => {
   const programs = KEEP_PROGRAMS.map((program) => `'${program}'`).join(", ");
   const rows = await queryDuneSql(options, `
-    WITH fee_txs AS (
-      SELECT DISTINCT i.tx_id
+    WITH events AS (
+      SELECT DISTINCT i.tx_id, substr(log_message, 15) AS payload
       FROM solana.instruction_calls i
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success = TRUE
         AND i.outer_executing_account IN (${programs})
         AND TIME_RANGE
-        AND (
-          starts_with(log_message, 'Program data: ${BOOTSTRAPPED_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${FINALIZED_D7_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${FINALIZED_D30_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${SUCCESS_EXECUTED_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${FEES_HARVESTED_PREFIX}')
-        )
+        AND starts_with(log_message, 'Program data: ')
     ),
-    platform AS (
-      SELECT COALESCE(SUM(amount), 0) AS amount
-      FROM tokens_solana.transfers t
-      JOIN fee_txs f ON f.tx_id = t.tx_id
-      WHERE t.to_token_account = '${PLATFORM_FEE_USDC_ATA}'
-        AND t.token_mint_address = '${USDC}'
-        AND t.outer_executing_account IN (${programs})
-        AND t.block_time >= from_unixtime(${options.startTimestamp})
-        AND t.block_time <= from_unixtime(${options.endTimestamp})
+    usdc_transfers AS (
+      SELECT tx_id, amount, to_token_account, to_owner
+      FROM tokens_solana.transfers
+      WHERE token_mint_address = '${USDC}'
+        AND outer_executing_account IN (${programs})
+        AND TIME_RANGE
+    ),
+    staged_fee_txs AS (
+      SELECT DISTINCT
+        tx_id,
+        to_base58(varbinary_substring(from_base64(payload), 9, 32)) AS launchpad
+      FROM events
+      WHERE starts_with(payload, '${BOOTSTRAPPED_PREFIX}')
+        OR starts_with(payload, '${FINALIZED_D7_PREFIX}')
+        OR starts_with(payload, '${FINALIZED_D30_PREFIX}')
+        OR starts_with(payload, '${SUCCESS_EXECUTED_PREFIX}')
     ),
     project_owners AS (
       SELECT DISTINCT
@@ -86,80 +92,37 @@ const getKeepFees = async (options: FetchOptions) => {
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success = TRUE
         AND i.outer_executing_account IN (${programs})
+        AND i.block_time >= TIMESTAMP '${PROGRAM_DEPLOYMENT}'
         AND starts_with(log_message, 'Program data: ${PROJECT_CREATED_PREFIX}')
-    ),
-    staged_fee_txs AS (
-      SELECT DISTINCT
-        i.tx_id,
-        CASE
-          WHEN starts_with(log_message, 'Program data: ${BOOTSTRAPPED_PREFIX}')
-            THEN to_base58(varbinary_substring(from_base64(substr(log_message, 15)), 9, 32))
-          WHEN starts_with(log_message, 'Program data: ${FINALIZED_D7_PREFIX}')
-            THEN to_base58(varbinary_substring(from_base64(substr(log_message, 15)), 9, 32))
-          WHEN starts_with(log_message, 'Program data: ${FINALIZED_D30_PREFIX}')
-            THEN to_base58(varbinary_substring(from_base64(substr(log_message, 15)), 9, 32))
-          WHEN starts_with(log_message, 'Program data: ${SUCCESS_EXECUTED_PREFIX}')
-            THEN to_base58(varbinary_substring(from_base64(substr(log_message, 15)), 9, 32))
-        END AS launchpad
-      FROM solana.instruction_calls i
-      CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
-      WHERE i.tx_success = TRUE
-        AND i.outer_executing_account IN (${programs})
-        AND TIME_RANGE
-        AND (
-          starts_with(log_message, 'Program data: ${BOOTSTRAPPED_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${FINALIZED_D7_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${FINALIZED_D30_PREFIX}')
-          OR starts_with(log_message, 'Program data: ${SUCCESS_EXECUTED_PREFIX}')
-        )
-    ),
-    staged_project AS (
-      SELECT COALESCE(SUM(t.amount), 0) AS amount
-      FROM tokens_solana.transfers t
-      JOIN staged_fee_txs s ON s.tx_id = t.tx_id
-      JOIN project_owners p
-        ON p.launchpad = s.launchpad
-       AND p.project_owner = t.to_owner
-      WHERE t.token_mint_address = '${USDC}'
-        AND t.outer_executing_account IN (${programs})
-        AND t.block_time >= from_unixtime(${options.startTimestamp})
-        AND t.block_time <= from_unixtime(${options.endTimestamp})
-    ),
-    funding_release_events AS (
-      SELECT DISTINCT
-        i.tx_id,
-        substr(log_message, 15) AS payload
-      FROM solana.instruction_calls i
-      CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
-      WHERE i.tx_success = TRUE
-        AND i.outer_executing_account IN (${programs})
-        AND TIME_RANGE
-        AND starts_with(log_message, 'Program data: ${IDEA_FUNDING_RELEASED_PREFIX}')
-    ),
-    harvested_project_events AS (
-      SELECT DISTINCT
-        i.tx_id,
-        substr(log_message, 15) AS payload
-      FROM solana.instruction_calls i
-      CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
-      WHERE i.tx_success = TRUE
-        AND i.outer_executing_account IN (${programs})
-        AND TIME_RANGE
-        AND starts_with(log_message, 'Program data: ${FEES_HARVESTED_PREFIX}')
-    ),
-    harvested_project AS (
-      SELECT COALESCE(SUM(
-        varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 81, 8)))
-      ), 0) AS amount
-      FROM harvested_project_events
     )
     SELECT
-      (SELECT amount FROM platform) AS platform_amount,
-      (SELECT amount FROM staged_project)
-        + COALESCE((SELECT SUM(
-            varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 73, 8)))
-          ) FROM funding_release_events), 0)
-        + (SELECT amount FROM harvested_project) AS project_amount
+      (
+        SELECT COALESCE(SUM(amount), 0)
+        FROM usdc_transfers
+        WHERE to_token_account = '${PLATFORM_FEE_USDC_ATA}'
+      ) AS platform_amount,
+      (
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM usdc_transfers t
+        JOIN staged_fee_txs s ON s.tx_id = t.tx_id
+        JOIN project_owners p
+          ON p.launchpad = s.launchpad
+         AND p.project_owner = t.to_owner
+      )
+      + (
+        SELECT COALESCE(SUM(
+          varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 73, 8)))
+        ), 0)
+        FROM events
+        WHERE starts_with(payload, '${IDEA_FUNDING_RELEASED_PREFIX}')
+      )
+      + (
+        SELECT COALESCE(SUM(
+          varbinary_to_uint256(reverse(varbinary_substring(from_base64(payload), 81, 8)))
+        ), 0)
+        FROM events
+        WHERE starts_with(payload, '${FEES_HARVESTED_PREFIX}')
+      ) AS project_amount
   `);
 
   const dailyRevenue = options.createBalances();
