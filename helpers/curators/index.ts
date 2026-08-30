@@ -68,6 +68,8 @@ interface VaultERC4626Info {
   rateAfter: bigint;
 }
 
+const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
+
 const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> = {
   [CHAIN.ETHEREUM]: [{
     token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
@@ -118,6 +120,35 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     vault: '0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3',
     from: '2026-03-22',
   }],
+}
+
+async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
+  const blacklistedVaultsForChain = new Set(
+    blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
+  );
+  const hardcodedVaultsWithFrom = new Set(
+    (blacklistedVaults[chain] ?? []).map(item => item.vault.toLowerCase())
+  );
+
+  const insolventMarketsDetails = await sdk.cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
+  const cacheVaults = insolventMarketsDetails.vaults?.[chain] ?? {};
+  const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
+
+  for (const vault of Object.keys(cacheVaults)) {
+    const vaultLower = vault.toLowerCase();
+    if (hardcodedVaultsWithFrom.has(vaultLower)) continue;
+
+    const firstSeenTs = firstSeenForChain[vaultLower];
+    if (firstSeenTs) {
+      const from = new Date(firstSeenTs * 1000).toISOString().split('T')[0];
+      if (dateString >= from) blacklistedVaultsForChain.add(vaultLower);
+    } else {
+      // no start date in cache — exclude on every run
+      blacklistedVaultsForChain.add(vaultLower);
+    }
+  }
+
+  return blacklistedVaultsForChain;
 }
 
 function isOwner(owner: string, owners: Array<string>) {
@@ -503,9 +534,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailySupplySideRevenue = options.createBalances()
 
         // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
-        const blacklistedVaultsForChain = new Set(
-          blacklistedVaults[options.chain]?.filter(item => options.dateString >= item.from).map(item => item.vault.toLowerCase())
-        )
+        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options.chain, options.dateString)
         const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults
