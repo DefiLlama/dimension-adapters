@@ -106,7 +106,8 @@ const BadDataDays: Partial<Record<string, number[]>> = {
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   const response: ApiResponse = (
-    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startTimestamp}&network=${chains[options.chain]}`, 3)
+    // Rubic expects the UTC calendar-day timestamp; startTimestamp is one second before the day.
+    await fetchURL(`https://api.rubic.exchange/api/stats/defilama_crosschain?date=${options.startOfDay}&network=${chains[options.chain]}`, 3)
   );
 
   let dailyBridgeVolume = response?.daily_volume_in_usd || '0'
