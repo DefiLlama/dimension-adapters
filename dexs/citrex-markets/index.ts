@@ -27,17 +27,17 @@ const fetch = async (options: FetchOptions) => {
   // Divide by 10^18 to convert from min units to USDC human-readable as per the contract
   const baseUnit = new BigNumber(10).pow(18);
 
-  const dailyVolume = response.reduce((acc, item) => {
-    return acc.plus(item.volume);
-  }, new BigNumber(0));
-
-  const openInterestAtEnd = response.reduce((acc, item) => {
-    return acc.plus(item.openInterest);
-  }, new BigNumber(0));
+  const dailyVolume = options.createBalances();
+  let openInterest = new BigNumber(0);
+  for (const item of response) {
+    const baseAsset = item.productSymbol.replace(/perp$/i, "").toUpperCase(); // "btcperp" -> "BTC"
+    dailyVolume.addUSDValue(new BigNumber(item.volume).div(baseUnit).toNumber(), { id: baseAsset, isUSDValue: true });
+    openInterest = openInterest.plus(item.openInterest);
+  }
 
   return {
-    dailyVolume: dailyVolume.div(baseUnit),
-    openInterestAtEnd: openInterestAtEnd.div(baseUnit),
+    dailyVolume,
+    openInterestAtEnd: openInterest.div(baseUnit),
   };
 };
 
