@@ -99,7 +99,10 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
-const BadDataDays = [1758931200, 1759190400]
+const BadDataDays: Partial<Record<string, number[]>> = {
+    [CHAIN.ARBITRUM]: [1758931200, 1759190400],
+    [CHAIN.POLYGON]: [1787961600],
+}
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   const response: ApiResponse = (
@@ -107,7 +110,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
   );
 
   let dailyBridgeVolume = response?.daily_volume_in_usd || '0'
-  if (BadDataDays.includes(options.startOfDay) && options.chain === CHAIN.ARBITRUM) {
+  if (BadDataDays[options.chain]?.includes(options.startOfDay)) {
     // bad data
     dailyBridgeVolume = '0';
   }
