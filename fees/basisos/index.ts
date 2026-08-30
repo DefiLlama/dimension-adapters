@@ -1,5 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getPositionedLogArgs } from "../../helpers/logs";
 import { METRIC } from "../../helpers/metrics";
 
 /**
@@ -39,7 +40,7 @@ const fetch = async (options: FetchOptions) => {
     const toBlock = await options.getToBlock();
 
     // Fetch all relevant events for the day
-    const vaultStates = await options.getLogs({
+    const vaultStates = await getPositionedLogArgs(options, {
       target: vault,
       eventAbi: "event VaultState(uint256 indexed totalAssets, uint256 indexed totalSupply)",
       fromBlock,
@@ -91,7 +92,7 @@ const fetch = async (options: FetchOptions) => {
       let latestState = null;
 
       while (!latestState && currentBlock > VAULT_STATE_BLOCK_LIMIT) {
-        const previousStates = await options.getLogs({
+        const previousStates = await getPositionedLogArgs(options, {
           target: vault,
           eventAbi: "event VaultState(uint256 indexed totalAssets, uint256 indexed totalSupply)",
           fromBlock: Math.max(VAULT_STATE_BLOCK_LIMIT, currentBlock - 50000),
