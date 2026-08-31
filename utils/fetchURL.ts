@@ -77,7 +77,7 @@ export async function proxiedFetch(url: string) {
   const authInfo = getEnv('PROXY_AUTH')
   if (!authInfo) return httpGet(url)
 
-  const [host, username, password] = authInfo.split(':')
+  const [host, username, password, port] = authInfo.split(':')
 
   try {
 
@@ -91,7 +91,7 @@ export async function proxiedFetch(url: string) {
         proxy: {
           protocol: "https",
           host,
-          port: 8000,
+          port: parseInt(port ?? 8003),
           auth: { username, password },
         },
       })

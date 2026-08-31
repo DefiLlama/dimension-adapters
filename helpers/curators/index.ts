@@ -2,6 +2,10 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
+import fetchURL from "../../utils/fetchURL";
+
+const KAMINO_API = 'https://api.kamino.finance';
+const YEAR_SECS = 365 * 24 * 60 * 60;
 
 const METRICS = {
   // use this label for all yield sources if breakdownFees was not set
@@ -18,6 +22,10 @@ const METRICS = {
   EulerYields: 'Euler Yields',
   EulerYieldsToSuppliers: 'Euler Yields Distributed To Supliers',
   EulerPerformanceFee: 'Euler Performance Fees',
+  KaminoYields: 'Kamino Yields',
+  KaminoYieldsToSuppliers: 'Kamino Yields Distributed To Supliers',
+  KaminoPerformanceFee: 'Kamino Performance Fees',
+  KaminoManagementFee: 'Kamino Management Fees',
 }
 
 export interface CuratorConfig {
@@ -37,6 +45,10 @@ export interface CuratorConfig {
 
       // creators of euler vaults
       eulerVaultOwners?: Array<string>;
+
+      // Kamino kvault addresses (Solana). Curated vaults are attributed by
+      // vaultAdminAuthority off-chain; only the confirmed addresses are listed.
+      kaminoVaults?: Array<string>;
     }
   }
 }
@@ -319,6 +331,70 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   }
 }
 
+// Kamino kvaults (Solana). Mirrors the accounting in fees/sentora.ts: the vault's
+// cumulative `interest` metric is read at the window bounds and the delta is the
+// gross yield; the performance fee (performanceFeeBps) is curator revenue, the
+// rest is supply side. Management fee (managementFeeBps) accrues per-second on AUM.
+export async function getKaminoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
+  if (!vaults.length) return
+
+  const startDate = new Date((options.fromTimestamp - 86400) * 1000).toISOString().split('T')[0]
+  const endDate = new Date((options.toTimestamp + 86400) * 1000).toISOString().split('T')[0]
+  const elapsed = options.toTimestamp - options.fromTimestamp
+
+  for (const vault of vaults) {
+    const [config, history] = await Promise.all([
+      fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}`),
+      fetchURL(`${KAMINO_API}/kvaults/vaults/${vault}/metrics/history?start=${startDate}&end=${endDate}`),
+    ])
+
+    const state = config?.state
+    if (!state?.tokenMint) continue
+
+    const tokenMint = state.tokenMint as string
+    const decimals = Number(state.tokenMintDecimals ?? 0) || 6
+    const perfFeeRate = Number(state.performanceFeeBps ?? 0) / 1e4
+    const mgmtFeeRate = Number(state.managementFeeBps ?? 0) / 1e4
+
+    // History is requested with a ±1 day pad (API is date-grained); keep only
+    // snapshots that fall inside this fetch window.
+    const points: any[] = (Array.isArray(history) ? history : history?.history ?? [])
+      .map((p: any) => ({ ...p, _ts: Date.parse(p.timestamp ?? p.date ?? '') / 1000 }))
+      .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.toTimestamp)
+      .sort((a: any, b: any) => a._ts - b._ts)
+
+    let grossInterest = 0
+    if (points.length >= 2) {
+      // `interest` is cumulative since inception, so the window yield is last - first.
+      const delta = Number(points[points.length - 1].interest ?? 0) - Number(points[0].interest ?? 0)
+      if (delta > 0) grossInterest = delta * 10 ** decimals
+    }
+
+    const perfFee = grossInterest * perfFeeRate
+    // History `tvl` and `interest` are human-denominated; scale both to raw units.
+    // Use the first in-window snapshot so mgmt fee tracks that day's AUM, not live prevAum.
+    const tvl = Number(points[0]?.tvl ?? 0)
+    const mgmtFee = tvl * 10 ** decimals * mgmtFeeRate * elapsed / YEAR_SECS
+
+    if (grossInterest > 0) {
+      if (breakdownFees) {
+        balances.dailyFees.add(tokenMint, grossInterest, METRICS.KaminoYields)
+        balances.dailyRevenue.add(tokenMint, perfFee, METRICS.KaminoPerformanceFee)
+        balances.dailySupplySideRevenue.add(tokenMint, grossInterest - perfFee, METRICS.KaminoYieldsToSuppliers)
+      } else {
+        balances.dailyFees.add(tokenMint, grossInterest, METRICS.AssetYields)
+        balances.dailyRevenue.add(tokenMint, perfFee, METRICS.AssetYields)
+        balances.dailySupplySideRevenue.add(tokenMint, grossInterest - perfFee, METRICS.AssetYields)
+      }
+    }
+    if (mgmtFee > 0) {
+      const label = breakdownFees ? METRICS.KaminoManagementFee : METRICS.AssetYields
+      balances.dailyFees.add(tokenMint, mgmtFee, label)
+      balances.dailyRevenue.add(tokenMint, mgmtFee, label)
+    }
+  }
+}
+
 async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
   const vaultInfo = await getVaultERC4626Info(options, vaults, true)
   const vaultPerformanceFeeRates = await options.api.multiCall({
@@ -380,17 +456,22 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.MorphoYields]: 'Interest yields generated from deposited assets in Morpho',
       [METRICS.MorphoManagementFee]: 'Management fees charged on assets deposited in Morpho vaults',
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
+      [METRICS.KaminoYields]: 'Interest yields generated from deposited assets in Kamino kvaults',
+      [METRICS.KaminoManagementFee]: 'Management fees charged on assets deposited in Kamino kvaults',
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
       [METRICS.MorphoPerformanceFee]: 'Performance fees charged from vaults in Morpho',
       [METRICS.MorphoManagementFee]: 'Management fees charged from vaults in Morpho',
       [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
+      [METRICS.KaminoPerformanceFee]: 'Performance fees charged from Kamino kvaults',
+      [METRICS.KaminoManagementFee]: 'Management fees charged from Kamino kvaults',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
       [METRICS.MorphoYieldsToSuppliers]: 'Interest yields generated from deposited assets in Morpho distributed to suppliers',
       [METRICS.EulerYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
+      [METRICS.KaminoYieldsToSuppliers]: 'Interest yields from Kamino kvaults distributed to suppliers',
     },
   }
   const exportObject: BaseAdapter = {}
@@ -424,6 +505,9 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         }
         if (eulerVaults.length > 0) {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, eulerVaults, curatorConfig.breakdownFees)
+        }
+        if (vaults.kaminoVaults && vaults.kaminoVaults.length > 0) {
+          await getKaminoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.kaminoVaults, curatorConfig.breakdownFees)
         }
 
         const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token)

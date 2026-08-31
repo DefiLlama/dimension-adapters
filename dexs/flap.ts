@@ -1,11 +1,10 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
+import { queryClickhouse } from "../helpers/indexer";
+import { addTokensReceived } from "../helpers/token";
 
 const NATIVE_TOKEN = ADDRESSES.null;
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const QUOTE_CONFIG_TOPIC = "0x9a1f38e55c729ebf0c45d240a00b09f0a79a715df7cfd6e8942bd3f8da839199";
-// Flap-specific tax event topic0s (r5.sql)
 const TAX_SENT_TO_BENEFICIARY_TOPIC = "0x94d400e2b2f0030dfd4795c238b520a1a9e2b6f32579af88b97b84e8ebf83ff5";
 const DISPATCH_EXECUTED_TOPIC = "0x172485312163eefa9f05b438339dc7c596fbb24af0cb3e35b9130c68453a0d88";
 
@@ -19,6 +18,7 @@ const chainConfig: Record<string, {
   start: string;
   portal: string;
   fromBlock: number;
+  useIndexer?: boolean;
   safe: string;
   wrappedNative: string;
 }> = {
@@ -26,6 +26,7 @@ const chainConfig: Record<string, {
     start: "2024-06-27",
     portal: "0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0",
     fromBlock: 39980228,
+    useIndexer: true,
     safe: "0x8a08D98CBB218fceB318Ecf3aBc1BA43D8A7aB0E",
     wrappedNative: ADDRESSES.bsc.WBNB,
   },
@@ -40,6 +41,7 @@ const chainConfig: Record<string, {
     start: "2025-08-18",
     portal: "0xb30D8c4216E1f21F27444D2FfAee3ad577808678",
     fromBlock: 31165559,
+    useIndexer: true,
     safe: "0xAC4f9Ba4E48cAafBa17164FBCb078091651Ae361",
     wrappedNative: ADDRESSES.xlayer.WOKB,
   },
@@ -47,6 +49,7 @@ const chainConfig: Record<string, {
     start: "2025-10-30",
     portal: "0x30e8ee7b5881bf2E158A0514f2150aabe2c68b23",
     fromBlock: 32284042,
+    useIndexer: true,
     safe: "0xA77dc19CF7CB7ab50b661Ce5AB6D37954F8022f4",
     wrappedNative: ADDRESSES.monad.WMON,
   },
@@ -56,32 +59,37 @@ const eventAbis = {
   tokenBought: "event TokenBought(uint256 ts, address token, address buyer, uint256 amount, uint256 eth, uint256 fee, uint256 postPrice)",
   tokenSold: "event TokenSold(uint256 ts, address token, address seller, uint256 amount, uint256 eth, uint256 fee, uint256 postPrice)",
   tokenQuoteSet: "event TokenQuoteSet(address token, address quoteToken)",
-  quoteTokenConfigurationSet: "event QuoteTokenConfigurationSet(address quoteToken, tuple(uint8 enabled, uint8 defaultCurve, uint8 alternativeCurve, uint8 nativeToQuoteSwapType, uint8 dexId) config)",
   transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
   safeReceived: "event SafeReceived(address indexed sender, uint256 value)",
   taxSentToBeneficiary: "event TaxSentToBeneficiary(address beneficiary, uint256 amount)",
   dispatchExecuted: "event FlapTaxProcessorDispatchExecuted(address indexed taxToken, uint256 feeAmount, uint256 marketAmount, uint256 dividendAmount)",
 };
 
-const BLOCKS_PER_BATCH = 10000;
+const TOKEN_BOUGHT_TOPIC0 = "0xa800a2038683844fac66747f771bfdfae862eb28b16bcfa387afa9fbacce8ff7";
+const TOKEN_SOLD_TOPIC0 = "0x03a4693e592f5e75dc7c136acb39b146d2b4966c0e509c34f362dee02b3b861a";
+const TOKEN_QUOTE_SET_TOPIC0 = "0x3ceb902d3c555c21c3415b6aa839104b18e4825b2f8324011ff979089a507a8c";
+const TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const SAFE_RECEIVED_TOPIC0 = "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d";
 
-const addressFromDataWord = (data: string, wordIndex = 0) => {
-  const hex = data.startsWith("0x") ? data.slice(2) : data;
-  const start = wordIndex * 64 + 24;
-  return ("0x" + hex.slice(start, start + 40)).toLowerCase();
-};
-
+const shortAddrOf = (addr: string) => addr.substring(0, 10).toLowerCase();
+const padAddress = (addr: string) => "0x" + "0".repeat(24) + addr.slice(2).toLowerCase();
 const uniqueLower = (addresses: string[]) =>
   [...new Set(addresses.map((a) => a.toLowerCase()).filter((a) => a && a !== NATIVE_TOKEN))];
-
-const padAddress = (address: string) =>
-  "0x" + address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
 
 const logAddress = (log: any) =>
   String(log.address ?? log.source ?? log.contractAddress ?? "").toLowerCase();
 
 const logTxHash = (log: any) =>
   String(log.transactionHash ?? log.transaction_hash ?? "").toLowerCase();
+
+const BLOCKS_PER_BATCH = 10000;
+
+type TradeTotals = {
+  volumeByToken: Record<string, string | bigint>;
+  quoteByToken: Record<string, string>;
+  // every quote token ever configured, for tracking fee-safe inflows
+  quoteTokens: string[];
+};
 
 const resolveQuoteToken = (
   taxToken: string,
@@ -92,6 +100,179 @@ const resolveQuoteToken = (
   if (quote === undefined) return null;
   if (!quote || quote === NATIVE_TOKEN) return wrappedNative.toLowerCase();
   return quote.toLowerCase();
+};
+
+// ClickHouse path: aggregate the day's trades per token server-side, then map
+// each traded token to its quote via the full-history TokenQuoteSet logs
+// TokenBought and TokenSold share the same data layout:
+// ts | token | actor | amount | eth | fee | postPrice
+const getTradesFromIndexer = async (options: FetchOptions, portal: string): Promise<TradeTotals> => {
+  const chainId = Number(options.api.chainId);
+  const target = portal.toLowerCase();
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  const trades = await queryClickhouse<any>(`
+    SELECT
+      concat('0x', substring(data, 91, 40)) AS token,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 259, 64)))))) AS volume
+    FROM evm_indexer.logs
+    PREWHERE chain = ${chainId}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 IN ('${TOKEN_BOUGHT_TOPIC0.substring(0, 10)}', '${TOKEN_SOLD_TOPIC0.substring(0, 10)}')
+      AND address = '${target}'
+      AND topic0 IN ('${TOKEN_BOUGHT_TOPIC0}', '${TOKEN_SOLD_TOPIC0}')
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+    GROUP BY token
+  `);
+
+  const volumeByToken: Record<string, string> = {};
+  trades.forEach((row: any) => { volumeByToken[row.token] = row.volume; });
+
+  // No time filter on either quote query: quotes are set once at creation and never change.
+  const distinctQuotes = await queryClickhouse<any>(`
+    SELECT DISTINCT concat('0x', substring(data, 91, 40)) AS quote
+    FROM evm_indexer.logs
+    PREWHERE chain = ${chainId}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+      AND address = '${target}'
+      AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+  `);
+  const quoteTokens = distinctQuotes.map((row: any) => row.quote);
+
+  const quoteByToken: Record<string, string> = {};
+  if (trades.length) {
+    const tokenList = trades.map((row: any) => `'${row.token.slice(2)}'`).join(",");
+    const quotes = await queryClickhouse<any>(`
+      SELECT
+        concat('0x', substring(data, 27, 40)) AS token,
+        concat('0x', substring(data, 91, 40)) AS quote
+      FROM evm_indexer.logs
+      PREWHERE chain = ${chainId}
+        AND short_address = '${shortAddrOf(target)}'
+        AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+        AND address = '${target}'
+        AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+        AND substring(data, 27, 40) IN (${tokenList})
+    `, undefined, { max_query_size: 4194304 });
+    quotes.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  }
+
+  return { volumeByToken, quoteByToken, quoteTokens };
+};
+
+// Full taxToken → quoteToken map for SupplySide (all TokenQuoteSet, not only traded).
+const getQuoteMapFromIndexer = async (options: FetchOptions, portal: string): Promise<Record<string, string>> => {
+  const chainId = Number(options.api.chainId);
+  const target = portal.toLowerCase();
+  const rows = await queryClickhouse<any>(`
+    SELECT
+      concat('0x', substring(data, 27, 40)) AS token,
+      concat('0x', substring(data, 91, 40)) AS quote
+    FROM evm_indexer.logs
+    PREWHERE chain = ${chainId}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+      AND address = '${target}'
+      AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+  `, undefined, { max_query_size: 4194304 });
+  const quoteByToken: Record<string, string> = {};
+  rows.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  return quoteByToken;
+};
+
+const getTradesFromLogs = async (options: FetchOptions, portal: string, fromBlock: number): Promise<TradeTotals> => {
+  const [dayFromBlock, dayToBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  // Map every token to its quote token once. TokenQuoteSet fires once per token
+  // at creation, so this is fetched over the full history and cached in cloud.
+  const quoteLogs = await options.getLogs({
+    target: portal,
+    eventAbi: eventAbis.tokenQuoteSet,
+    fromBlock,
+    toBlock: dayToBlock,
+    cacheInCloud: true,
+  });
+  const quoteByToken: Record<string, string> = {};
+  quoteLogs.forEach((log: any) => { quoteByToken[log.token.toLowerCase()] = log.quoteToken.toLowerCase(); });
+  const quoteTokens = [...new Set(Object.values(quoteByToken))];
+
+  const volumeByToken: Record<string, bigint> = {};
+  const processTradeLogs = (logs: any[]) => {
+    logs.forEach((log) => {
+      const token = log.token.toLowerCase();
+      volumeByToken[token] = (volumeByToken[token] ?? 0n) + BigInt(log.eth);
+    });
+  };
+
+  // Fetch buy/sell logs in block-range batches and aggregate incrementally
+  // instead of loading the whole day's logs into memory at once. A single
+  // getLogs for the full window OOMs on busy days; batching bounds peak memory
+  // to one batch since each decoded array is released before the next fetch.
+  for (let start = dayFromBlock; start <= dayToBlock; start += BLOCKS_PER_BATCH) {
+    const end = Math.min(start + BLOCKS_PER_BATCH - 1, dayToBlock);
+    const [buyLogs, sellLogs] = await Promise.all([
+      options.getLogs({ target: portal, eventAbi: eventAbis.tokenBought, fromBlock: start, toBlock: end, skipCacheRead: true }),
+      options.getLogs({ target: portal, eventAbi: eventAbis.tokenSold, fromBlock: start, toBlock: end, skipCacheRead: true }),
+    ]);
+    processTradeLogs(buyLogs);
+    processTradeLogs(sellLogs);
+  }
+
+  return { volumeByToken, quoteByToken, quoteTokens };
+};
+
+// Safe inflows via ClickHouse: ERC20 Transfer events on the quote tokens with
+// the Safe as recipient (topic2), plus native via SafeReceived on the Safe.
+// Sums are computed server-side, one row per quote token comes back.
+const addSafeInflowsFromIndexer = async (options: FetchOptions, safe: string, erc20Quotes: string[], balances: any) => {
+  const chainId = Number(options.api.chainId);
+  const target = safe.toLowerCase();
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+
+  if (erc20Quotes.length) {
+    const shortList = [...new Set(erc20Quotes.map(shortAddrOf))].map((a) => `'${a}'`).join(",");
+    const addressList = erc20Quotes.map((a) => `'${a.toLowerCase()}'`).join(",");
+    const transfers = await queryClickhouse<any>(`
+      SELECT
+        address AS token,
+        toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 3, 64)))))) AS amount
+      FROM evm_indexer.logs
+      PREWHERE chain = ${chainId}
+        AND short_address IN (${shortList})
+        AND short_topic0 = '${TRANSFER_TOPIC0.substring(0, 10)}'
+        AND address IN (${addressList})
+        AND topic0 = '${TRANSFER_TOPIC0}'
+        AND topic2 = '${padAddress(target)}'
+        AND block_number >= ${fromBlock}
+        AND block_number <= ${toBlock}
+      GROUP BY address
+    `);
+    transfers.forEach((row: any) => balances.add(row.token, row.amount, TREASURY_RECEIVED));
+  }
+
+  const native = await queryClickhouse<any>(`
+    SELECT toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 3, 64)))))) AS amount
+    FROM evm_indexer.logs
+    PREWHERE chain = ${chainId}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 = '${SAFE_RECEIVED_TOPIC0.substring(0, 10)}'
+      AND address = '${target}'
+      AND topic0 = '${SAFE_RECEIVED_TOPIC0}'
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+  `);
+  if (native.length && native[0].amount !== "0") balances.addGasToken(native[0].amount, TREASURY_RECEIVED);
 };
 
 const fetchSupplySide = async (
@@ -117,8 +298,7 @@ const fetchSupplySide = async (
     }
   };
 
-  // Day-window topic scans only (same window as r5 data_start). Flap event
-  // signatures are unique enough that we do not need a separate contract-discovery pass.
+  // Day-window topic scans only (same window as r5 data_start).
   const [beneficiaryLogs, dispatchLogs] = await Promise.all([
     options.getLogs({
       noTarget: true,
@@ -145,7 +325,7 @@ const fetchSupplySide = async (
       const transferLogs = await options.getLogs({
         targets: erc20Quotes,
         eventAbi: eventAbis.transfer,
-        topics: [TRANSFER_TOPIC, fromTopic as any, null as any],
+        topics: [TRANSFER_TOPIC0, fromTopic as any, null as any],
         flatten: false,
       });
 
@@ -171,7 +351,7 @@ const fetchSupplySide = async (
       if (!tx || !splitter || !beneficiary || amount === undefined) return;
 
       const token = transferByKey.get(`${tx}:${splitter}:${beneficiary}:${BigInt(amount).toString()}`);
-      // No same-tx ERC20 Transfer → native BNB payout (r5 ELSE → WBNB price).
+      // No same-tx ERC20 Transfer → native payout (r5 ELSE → WBNB price).
       if (token) addSupplySide(token, amount, TAX_TO_BENEFICIARY);
       else addSupplySide(NATIVE_TOKEN, amount, TAX_TO_BENEFICIARY);
     });
@@ -196,115 +376,53 @@ const fetchSupplySide = async (
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
-  const { portal, fromBlock, wrappedNative } = config;
+  const { portal, fromBlock, useIndexer, safe, wrappedNative } = config;
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [dayFromBlock, dayToBlock] = await Promise.all([
-    options.getFromBlock(),
-    options.getToBlock(),
-  ]);
+  const { volumeByToken, quoteByToken, quoteTokens } = useIndexer
+    ? await getTradesFromIndexer(options, portal)
+    : await getTradesFromLogs(options, portal, fromBlock);
 
-  const addFee = (token: string, amount: any) => {
-    if (token === NATIVE_TOKEN) {
-      dailyFees.addGasToken(amount, TREASURY_RECEIVED);
-      dailyRevenue.addGasToken(amount, TREASURY_RECEIVED);
-      dailyProtocolRevenue.addGasToken(amount, TREASURY_RECEIVED);
-    } else {
-      dailyFees.add(token, amount, TREASURY_RECEIVED);
-      dailyRevenue.add(token, amount, TREASURY_RECEIVED);
-      dailyProtocolRevenue.add(token, amount, TREASURY_RECEIVED);
-    }
-  };
-
-  const quoteLogs = await options.getLogs({
-    target: portal,
-    eventAbi: eventAbis.tokenQuoteSet,
-    fromBlock,
-    toBlock: dayToBlock,
-    cacheInCloud: true,
+  Object.keys(volumeByToken).forEach((token) => {
+    const quoteToken = quoteByToken[token];
+    if (!quoteToken) return;
+    if (quoteToken === NATIVE_TOKEN) dailyVolume.addGasToken(volumeByToken[token]);
+    else dailyVolume.add(quoteToken, volumeByToken[token]);
   });
-  const quoteTokens = quoteLogs.reduce((acc, log) => {
-    acc[log.token.toLowerCase()] = log.quoteToken.toLowerCase();
-    return acc;
-  }, {} as Record<string, string>);
 
-  const configLogs = await options.getLogs({
-    target: portal,
-    eventAbi: eventAbis.quoteTokenConfigurationSet,
-    topics: [QUOTE_CONFIG_TOPIC],
-    fromBlock,
-    toBlock: dayToBlock,
-    cacheInCloud: true,
-    entireLog: true,
-  });
+  // Fees/Revenue: every quote-token inflow to the Flap fee Safe, from any sender.
+  // Union wrappedNative so TaxProcessor WBNB→Safe settles are included.
   const erc20Quotes = uniqueLower([
-    ...configLogs.map((log: any) => {
-      const decoded = log.quoteToken || log.args?.quoteToken;
-      if (decoded) return String(decoded);
-      return log.data ? addressFromDataWord(log.data, 0) : "";
-    }),
+    ...quoteTokens.filter((token) => token !== NATIVE_TOKEN),
     wrappedNative,
   ]);
+  if (useIndexer) {
+    await addSafeInflowsFromIndexer(options, safe, erc20Quotes, dailyFees);
+  } else {
+    const erc20Transfers = await addTokensReceived({ options, target: safe, tokens: erc20Quotes });
+    dailyFees.addBalances(erc20Transfers, TREASURY_RECEIVED);
+    const nativeLogs = await options.getLogs({ target: safe, eventAbi: eventAbis.safeReceived });
+    nativeLogs.forEach((log: any) => dailyFees.addGasToken(log.value, TREASURY_RECEIVED));
+  }
 
-  const processTradeLogs = (logs: any[]) => {
-    logs.forEach((log) => {
-      const quoteToken = quoteTokens[log.token.toLowerCase()];
-      if (!quoteToken) return;
-      if (quoteToken === NATIVE_TOKEN) {
-        dailyVolume.addGasToken(log.eth);
-      } else {
-        dailyVolume.add(quoteToken, log.eth);
-      }
-    });
-  };
+  // Revenue = Safe inflows only (before SupplySide is added to dailyFees).
+  dailyRevenue.addBalances(dailyFees);
+  dailyProtocolRevenue.addBalances(dailyFees);
 
-  const volumeLoop = (async () => {
-    for (let start = dayFromBlock; start <= dayToBlock; start += BLOCKS_PER_BATCH) {
-      const end = Math.min(start + BLOCKS_PER_BATCH - 1, dayToBlock);
-      const [buyLogs, sellLogs] = await Promise.all([
-        options.getLogs({ target: portal, eventAbi: eventAbis.tokenBought, fromBlock: start, toBlock: end, skipCacheRead: true }),
-        options.getLogs({ target: portal, eventAbi: eventAbis.tokenSold, fromBlock: start, toBlock: end, skipCacheRead: true }),
-      ]);
-      processTradeLogs(buyLogs);
-      processTradeLogs(sellLogs);
-    }
-  })();
+  const supplyQuoteMap = useIndexer
+    ? await getQuoteMapFromIndexer(options, portal)
+    : quoteByToken;
 
-  const feePrep = (async () => {
-    const safe = config.safe.toLowerCase();
-
-    const nativeLogs = await options.getLogs({
-      target: safe,
-      eventAbi: eventAbis.safeReceived,
-    });
-    nativeLogs.forEach((log: any) => addFee(NATIVE_TOKEN, log.value));
-
-    if (erc20Quotes.length) {
-      const transferLogs = await options.getLogs({
-        targets: erc20Quotes,
-        eventAbi: eventAbis.transfer,
-        topics: [TRANSFER_TOPIC, null as any, padAddress(safe)],
-        flatten: false,
-      });
-      transferLogs.forEach((tokenLogs: any[], i: number) => {
-        const token = erc20Quotes[i];
-        (tokenLogs || []).forEach((log: any) => addFee(token, log.value));
-      });
-    }
-  })();
-
-  const supplySidePrep = fetchSupplySide(options, config, {
+  await fetchSupplySide(options, config, {
     erc20Quotes,
-    quoteTokens,
+    quoteTokens: supplyQuoteMap,
     dailyFees,
     dailySupplySideRevenue,
   });
-
-  await Promise.all([volumeLoop, feePrep, supplySidePrep]);
 
   return {
     dailyVolume,

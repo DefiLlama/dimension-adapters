@@ -1,18 +1,28 @@
-import { SimpleAdapter } from '../../adapters/types';
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { METRIC } from '../../helpers/metrics';
 import fetchURL from '../../utils/fetchURL';
 
 const cetusApiURL = 'https://api-sui.cetus.zone/v3/sui/dlmm/histogram?dateType=hour';
 
-const fetch = async ({ startTimestamp, endTimestamp }) => {
+const fetch = async (options: FetchOptions) => {
+  const { startTimestamp, endTimestamp } = options;
   const feeUrl = `${cetusApiURL}&dataType=fee&beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
   const protocolFeeUrl = `${cetusApiURL}&dataType=protocolFee&beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
   const feeList = (await fetchURL(feeUrl)).data.list;
   const protocolFeeList = (await fetchURL(protocolFeeUrl)).data.list;
 
-  let dailyFees = feeList.reduce((p, c) => p + Number(c.value), 0);
-  let dailyRevenue = protocolFeeList.reduce((p, c) => p + Number(c.value), 0);
-  let dailySupplySideRevenue = dailyFees - dailyRevenue;
+  const swapFees = feeList.reduce((p, c) => p + Number(c.value), 0);
+  const protocolFees = protocolFeeList.reduce((p, c) => p + Number(c.value), 0);
+  const supplySideFees = swapFees - protocolFees;
+
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(swapFees, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(protocolFees, METRIC.PROTOCOL_FEES);
+  dailySupplySideRevenue.addUSDValue(supplySideFees, METRIC.LP_FEES);
 
   return {
     dailyFees,
@@ -30,12 +40,25 @@ const methodology = {
   SupplySideRevenue: '80% of the swap fees are distributed to the supply side.',
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'All swap fees paid by users when trading on Cetus DEX',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'Portion of swap fees retained by the Cetus protocol treasury',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'Portion of swap fees distributed to liquidity providers',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.SUI],
   start: '2025-09-30',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

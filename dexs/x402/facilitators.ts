@@ -125,6 +125,8 @@ export const facilitators: Record<string, string[]> = {
         "0x103040545ac5031a11e8c03dd11324c7333a13c7",
         // virtuals
         "0x80735b3f7808e2e229ace880dbe85e80115631ca",
+        // x402.celo.org (Celo facilitator)
+        "0x0d74d5cefd2e7f24e623330ebe3d8d4cb45ffb48",
         // x402jobs
         "0x51fec16843e49b99aaf9814e525aee1756e66a62",
         // x402rs

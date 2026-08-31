@@ -413,7 +413,9 @@ const configs: Record<string, Record<string, any>> = {
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
-
+  "brownfi-clamm": {
+    [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
+  },
 }
 
 const optionsMap: Record<string, any> = {}

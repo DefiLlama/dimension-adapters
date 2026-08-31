@@ -89,6 +89,7 @@ const LAUNCH_BOOSTER_BPS = 9000n;
 // receives its slice THROUGH the pad's tax split, so only pad events are read
 // (reading card events too would double count).
 const SAFE_LAUNCH_PADS: string[] = [
+  "0xEcA5726dae1e53365c37fFc02369d947A91d71f9", // StonkSafeLaunchpad, public open 2026-08-17 22:06 UTC
 ];
 // Production tax split, applied by the go-live `setFeeSplit(1650, 1650, 5000)`
 // and snapshotted into every launch: creator / protocol / locked-LP reserve,
