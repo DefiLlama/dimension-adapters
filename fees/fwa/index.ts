@@ -141,7 +141,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyProtocolRevenue.addGasToken(proRata(amount, teamShare), label);
     dailySupplySideRevenue.addGasToken(proRata(amount, nftHoldersShare), nftLabel);
   });
-  dailyRevenue.addGasToken(toTokenBuyback, METRICS.TokenBuyBack);
+  // ProtocolFeesToToken fires when the slice is paid out, which can be a later window than the
+  // one that accrued it, so it can exceed this window's protocolTake - that is why splitterShare
+  // clamps above. Book only the part this window actually earned as revenue, or revenue plus
+  // supply side would exceed the fees the window recorded. Holders revenue keeps the full amount:
+  // it is an attribution of the buyback and is allowed to land in a different window.
+  const buybackFromWindowFees = toTokenBuyback > protocolTake ? protocolTake : toTokenBuyback;
+  dailyRevenue.addGasToken(buybackFromWindowFees, METRICS.TokenBuyBack);
   dailyHoldersRevenue.addGasToken(toTokenBuyback, METRICS.TokenBuyBack);
 
   // Retroactive buybacks: 327 ETH of already-earned team fees swapped for FWA on a fixed
