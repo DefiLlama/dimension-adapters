@@ -39,16 +39,14 @@ const wbeth = ADDRESSES.bsc.wBETH;
 const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
-// sLisUSD savings pool (LisUSDPoolSet). Protocol reserve yield is funneled here and paid out to
-// third-party sLisUSD depositors. Two contracts fund it: ListaRevenueDistributor (new treasury),
-// funded by lisUSD revenue already counted in Fees, and EarnPool, which forwards PSM reserve yield
-// (USDT deposited into Venus) that the Fees lines below do NOT otherwise capture.
-const LisUSDPoolSet =
-  "0x00000000000000000000000037db1ae9b24055d1f9fe973aea40b7eb2995d0bf";
-// EarnPool: forwards PSM (USDT reserves -> Venus) yield into the sLisUSD savings pool. In practice
-// this is ~94% of the pool's funding; the venusAdaptor -> treasury path is ~0 now.
-const EarnPool =
-  "0x00000000000000000000000066de07893db7492b56ba88503b4cc99bab1796f3";
+// sLisUSD savings pool (LisUSDPoolSet) — a MakerDAO-DSR-style pool. Depositor value accrues
+// synthetically at the `duty` per-second rate via the getRate() index (getRate = rpow(duty, dt) *
+// rate); the treasury tops the pool up in lisUSD to keep it solvent. The interest earned by
+// third-party sLisUSD depositors is SupplySideRevenue, measured as the exact rate accrual over the
+// period (totalSupply * ΔgetRate / RATE_SCALE) — NOT the lumpy top-up transfers and NOT the
+// EarnPool deposits (which are user principal: USDT sold via PSM into lisUSD via depositFor).
+const LISUSD_POOL_SET = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf";
+const RATE_SCALE = 10n ** 27n;
 
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
 const liquidatorProfitReceiver =
@@ -72,7 +70,6 @@ const VALIDATOR_REWARDS = "Validator Rewards";
 const LP_STAKING_REWARDS = "LP Staking Rewards";
 const FREEZE_LISTA = "Freeze LISTA";
 const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
-const SAVINGS_YIELD = "sLisUSD Savings Yield";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -262,45 +259,29 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, Number(log.data), LIQUIDATION_PROFIT);
   });
 
-  // sLisUSD savings cost (LSR): the protocol funds the sLisUSD savings pool (LisUSDPoolSet), whose
-  // yield is paid to third-party sLisUSD depositors -> SupplySideRevenue. Two contracts fund it:
-  //   1. ListaRevenueDistributor (newTreasury) — funded by lisUSD revenue already counted in the
-  //      Fees lines above (borrow interest, etc.), so this leg only reduces Revenue (net-out).
-  //   2. EarnPool — forwards PSM reserve yield (USDT deposited into Venus) into the pool. This
-  //      yield does NOT reach the Fees lines above (the venusAdaptor -> treasury path is ~0 now;
-  //      the yield is routed straight to savers), so it is grossed up into Fees and then paid out
-  //      as SupplySideRevenue, leaving Revenue unchanged for this leg.
-  const lsrCostFromTreasury = await options.getLogs({
-    target: lisUSD,
-    topics: [transferHash, newTreasury, LisUSDPoolSet],
-  });
-  const lsrCostFromEarnPool = await options.getLogs({
-    target: lisUSD,
-    topics: [transferHash, EarnPool, LisUSDPoolSet],
-  });
+  // sLisUSD savings cost (LSR): the sLisUSD savings pool (LisUSDPoolSet) pays third-party
+  // depositors the `duty` per-second rate, accrued synthetically through the getRate() index. That
+  // interest is SupplySideRevenue and the protocol's Revenue is net of it (the treasury funds it
+  // out of the lisUSD revenue already counted in Fees above). Measure the exact accrual over the
+  // period — the interest the pool actually pays — rather than the treasury's lumpy top-up
+  // transfers. NOTE: the EarnPool -> pool transfers are user deposits (USDT sold via PSM into
+  // lisUSD, credited to the depositor via depositFor), i.e. principal, NOT cost — excluded.
+  const [rateFrom, rateTo, poolSupply] = await Promise.all([
+    options.fromApi.call({ target: LISUSD_POOL_SET, abi: "uint256:getRate" }),
+    options.toApi.call({ target: LISUSD_POOL_SET, abi: "uint256:getRate" }),
+    options.fromApi.call({ target: LISUSD_POOL_SET, abi: "uint256:totalSupply" }),
+  ]);
+  const savingsInterest =
+    (BigInt(poolSupply) * (BigInt(rateTo) - BigInt(rateFrom))) / RATE_SCALE;
 
-  const treasuryLeg = options.createBalances();
-  [...lsrCostFromTreasury].forEach((log) => {
-    treasuryLeg.add(lisUSD, Number(log.data), LSR_SAVINGS_COST);
-  });
-  const earnPoolLeg = options.createBalances();
-  [...lsrCostFromEarnPool].forEach((log) => {
-    earnPoolLeg.add(lisUSD, Number(log.data), SAVINGS_YIELD);
-  });
-
-  // Revenue = collected income kept by the protocol, net of the treasury-funded savings payout.
-  // Clone BEFORE grossing up the EarnPool yield so that yield does not inflate Revenue.
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtract(treasuryLeg, LSR_SAVINGS_COST);
-
-  // Gross up the PSM/Venus yield behind the EarnPool leg into Fees (it is missing from the lines
-  // above); it is fully paid out to depositors, so Revenue is unaffected (add to Fees only).
-  dailyFees.addBalances(earnPoolLeg, SAVINGS_YIELD);
-
-  // SupplySideRevenue = everything paid to sLisUSD depositors (both funders).
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addBalances(treasuryLeg, LSR_SAVINGS_COST);
-  dailySupplySideRevenue.addBalances(earnPoolLeg, LSR_SAVINGS_COST);
+  if (savingsInterest > 0n) {
+    dailySupplySideRevenue.add(lisUSD, savingsInterest, LSR_SAVINGS_COST);
+  }
+
+  // Revenue = collected income kept by the protocol, net of the savings interest paid to depositors.
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailySupplySideRevenue, LSR_SAVINGS_COST);
 
   return {
     dailyFees,
@@ -324,15 +305,10 @@ const LISUSD_BREAKDOWN = {
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
 
-const FEES_BREAKDOWN = {
-  ...LISUSD_BREAKDOWN,
-  [SAVINGS_YIELD]:
-    'PSM reserve yield (USDT staked in Venus) routed via EarnPool to fund the sLisUSD savings rate — grossed up into Fees and paid out as the savings cost.',
-};
 const REVENUE_BREAKDOWN = {
   ...LISUSD_BREAKDOWN,
   [LSR_SAVINGS_COST]:
-    'Treasury-funded (ListaRevenueDistributor) sLisUSD savings payout, deducted from revenue.',
+    'sLisUSD savings interest (duty rate accrual) paid to depositors, deducted from revenue.',
 };
 
 const adapter: SimpleAdapter = {
@@ -350,16 +326,16 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, PSM/veLista/LP/validator fees, and the PSM/Venus reserve yield that funds the sLisUSD savings rate), net of frozen LISTA.',
-    Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings cost paid out to sLisUSD depositors.',
-    ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings cost.',
-    SupplySideRevenue: 'lisUSD paid into the sLisUSD savings pool (LisUSDPoolSet) and distributed to third-party sLisUSD depositors — funded by ListaRevenueDistributor and by EarnPool (PSM/Venus reserve yield).',
+    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
+    Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings interest paid out to sLisUSD depositors.',
+    ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings interest.',
+    SupplySideRevenue: 'Interest earned by third-party sLisUSD depositors in the savings pool (LisUSDPoolSet), measured as the duty-rate accrual over the period (totalSupply * change in getRate index).',
   },
   breakdownMethodology: {
-    Fees: FEES_BREAKDOWN,
+    Fees: LISUSD_BREAKDOWN,
     Revenue: REVENUE_BREAKDOWN,
     ProtocolRevenue: REVENUE_BREAKDOWN,
-    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'lisUSD paid into the sLisUSD savings pool (from ListaRevenueDistributor and EarnPool) and distributed to sLisUSD depositors.' },
+    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'Duty-rate interest accrued to sLisUSD depositors in LisUSDPoolSet over the period.' },
   }
 };
 
