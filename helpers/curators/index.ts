@@ -131,7 +131,10 @@ async function getBlacklistedVaultsForChain(chain: string, dateString: string): 
   );
 
   const insolventMarketsDetails = await sdk.cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
-  const cacheVaults = insolventMarketsDetails.vaults?.[chain] ?? {};
+  const cacheVaults = {
+    ...(insolventMarketsDetails.vaults?.[chain] ?? {}),
+    ...(insolventMarketsDetails.apiFlagged?.vaults?.[chain] ?? {}),
+  };
   const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
 
   for (const vault of Object.keys(cacheVaults)) {
