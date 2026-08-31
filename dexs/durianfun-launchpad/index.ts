@@ -105,7 +105,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics"
-import { ethers } from "ethers";
 
 const FACTORY_V45  = "0xdf4f3dB298A9aDe853191F58b4b2a322D47EC005";
 const FACTORY_V466 = "0x89b6b73BD18dbEA0e2218c25c1963fd5FBaB3c87";
@@ -184,38 +183,31 @@ const fetch = async (options: FetchOptions) => {
   const marketV5Set = new Set(marketsV5.map((a) => a.toLowerCase()));
 
   const [boughtRaw, soldRaw, referralRaw] = await Promise.all([
-    getLogs({ noTarget: true, eventAbi: TOKENS_BOUGHT_ABI, entireLog: true }),
-    getLogs({ noTarget: true, eventAbi: TOKENS_SOLD_ABI,   entireLog: true }),
-    marketV5Set.size ? getLogs({ noTarget: true, eventAbi: REFERRAL_PAID_ABI, entireLog: true }) : [],
+    getLogs({ noTarget: true, eventAbi: TOKENS_BOUGHT_ABI, entireLog: true, parseLog: true }),
+    getLogs({ noTarget: true, eventAbi: TOKENS_SOLD_ABI,   entireLog: true, parseLog: true }),
+    marketV5Set.size ? getLogs({ noTarget: true, eventAbi: REFERRAL_PAID_ABI, entireLog: true, parseLog: true }) : [],
   ]);
 
   // A chain-wide scan sees every contract that happens to emit the same
   // signature, so the address filter is what makes these OUR trades — it is
   // load-bearing, not a tidy-up. `ReferralPaid(address,address,uint256)` in
   // particular is a name any protocol might use.
-  const ifaceBought   = new ethers.Interface([TOKENS_BOUGHT_ABI]);
-  const ifaceSold     = new ethers.Interface([TOKENS_SOLD_ABI]);
-  const ifaceReferral = new ethers.Interface([REFERRAL_PAID_ABI]);
-
-  const split = (logs: any[], set: Set<string>, other: Set<string>, iface: ethers.Interface) => {
+  const split = (logs: any[], set: Set<string>, other: Set<string>) => {
     const mine: any[] = [], theirs: any[] = [];
     for (const log of logs) {
-      const addr = String(log.address ?? log.source ?? '').toLowerCase();
+      const addr = String(log.address ?? '').toLowerCase();
       const bucket = set.has(addr) ? mine : other.has(addr) ? theirs : null;
-      if (!bucket) continue;
-      let parsed: any;
-      try { parsed = iface.parseLog(log); } catch { continue; }
-      if (!parsed) continue;
-      bucket.push(parsed.args);
+      if (!bucket || !log.args) continue;
+      bucket.push(log.args);
     }
     return [mine, theirs] as const;
   };
 
   // `markets` (pre-V5 fee split) and `marketsV5` are disjoint, so one pass
   // over each log set fills both buckets.
-  const [buys,  buysV5]  = split(boughtRaw, marketSet, marketV5Set, ifaceBought);
-  const [sells, sellsV5] = split(soldRaw,   marketSet, marketV5Set, ifaceSold);
-  const [, referralsV5]  = split(referralRaw, new Set<string>(), marketV5Set, ifaceReferral);
+  const [buys,  buysV5]  = split(boughtRaw, marketSet, marketV5Set);
+  const [sells, sellsV5] = split(soldRaw,   marketSet, marketV5Set);
+  const [, referralsV5]  = split(referralRaw, new Set<string>(), marketV5Set);
 
   for (const log of buys) {
     // Gross KUB volume — `kubIn` already includes the fee.
