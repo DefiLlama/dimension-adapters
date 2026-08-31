@@ -10,6 +10,9 @@ const TAX_SENT_TO_BENEFICIARY_TOPIC = "0x94d400e2b2f0030dfd4795c238b520a1a9e2b6f
 const DISPATCH_EXECUTED_TOPIC = "0x172485312163eefa9f05b438339dc7c596fbb24af0cb3e35b9130c68453a0d88";
 
 const TREASURY_RECEIVED = "Treasury Received";
+// ClickHouse is only configured on production runners; CI/local tests use RPC.
+const shouldUseIndexer = (useIndexer?: boolean) =>
+  Boolean(useIndexer && process.env.CLICKHOUSE_CONFIG);
 const TAX_TO_BENEFICIARY = "Token Tax to Beneficiary";
 const TAX_TO_MARKET = "Token Tax to Market";
 const TAX_TO_DIVIDENDS = "Token Tax to Dividends";
@@ -391,13 +394,14 @@ const fetchSupplySide = async (
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
   const { portal, useIndexer, safe, wrappedNative } = config;
+  const useClickhouse = shouldUseIndexer(useIndexer);
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const { volumeByToken, quoteByToken, quoteTokens } = useIndexer
+  const { volumeByToken, quoteByToken, quoteTokens } = useClickhouse
     ? await getTradesFromIndexer(options, portal)
     : await getTradesFromLogs(options, portal);
 
@@ -414,7 +418,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     ...quoteTokens.filter((token) => token !== NATIVE_TOKEN),
     wrappedNative,
   ]);
-  if (useIndexer) {
+  if (useClickhouse) {
     await addSafeInflowsFromIndexer(options, safe, erc20Quotes, dailyFees);
   } else {
     const erc20Transfers = await addTokensReceived({ options, target: safe, tokens: erc20Quotes });
@@ -427,7 +431,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyRevenue.addBalances(dailyFees);
   dailyProtocolRevenue.addBalances(dailyFees);
 
-  const supplyQuoteMap = useIndexer
+  const supplyQuoteMap = useClickhouse
     ? await getQuoteMapFromIndexer(options, portal)
     : quoteByToken;
 
