@@ -1,4 +1,3 @@
-import { ChainApi } from '@defillama/sdk'
 import { AbiCoder, keccak256 } from 'ethers'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
@@ -34,10 +33,7 @@ function usd30(amount: bigint): string {
 }
 
 const fetch = async (options: FetchOptions) => {
-  // runAtCurrTime makes this a latest-state snapshot, so avoid pinning calls to
-  // a recent BSC block whose state may already be pruned by public RPCs.
-  const api = new ChainApi({ chain: options.chain })
-  const markets: any[] = await api.call({
+  const markets: any[] = await options.api.call({
     target: READER,
     abi: GET_MARKETS_ABI,
     params: [DATA_STORE, 0, MAX_MARKETS],
@@ -55,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  const values = await api.multiCall({
+  const values = await options.api.multiCall({
     target: DATA_STORE,
     abi: GET_UINT_ABI,
     calls,
@@ -79,7 +75,6 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: false, // OI is a snapshot; hourly records would be summed into the daily value
-  runAtCurrTime: true, // BSC public RPCs prune historical state quickly; OI is a current snapshot
   chains: [CHAIN.BSC],
   start: '2026-08-14',
   fetch,
