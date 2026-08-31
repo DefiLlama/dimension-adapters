@@ -6,7 +6,6 @@ const HEADERS = { "User-Agent": "dune-analytics" };
 const REQUEST_TIMEOUT_MS = 5_000;
 
 type ChainConfig = {
-  chainName: string;
   liquidationsExportPath: string;
   start: string;
 };
@@ -20,21 +19,20 @@ type LiquidationsExport = {
   points?: LiquidationPoint[];
 };
 
+// Both chains publish the same export contract, so the only per-chain
+// difference is the path and the first-indexed-event date. DefiLlama
+// lists MultiversX under its legacy key, CHAIN.ELROND.
+// `start` is each chain's first day with data; an earlier date only
+// backfills zeros.
 const CHAIN_CONFIGS: Record<string, ChainConfig> = {
   [CHAIN.STELLAR]: {
-    chainName: "Stellar",
     liquidationsExportPath: "/integrations/lending/stellar/liquidations",
-    // Mainnet contracts were deployed at ledger 64140891,
-    // 2026-08-27T00:55Z. An earlier start only backfills zeros.
     start: "2026-08-27",
   },
-
-  // Add MultiversX later with the same API response shape:
-  // [CHAIN.MULTIVERSX]: {
-  //   chainName: "MultiversX",
-  //   liquidationsExportPath: "/integrations/lending/multiversx/liquidations",
-  //   start: "YYYY-MM-DD",
-  // },
+  [CHAIN.ELROND]: {
+    liquidationsExportPath: "/integrations/lending/multiversx/liquidations",
+    start: "2025-08-14",
+  },
 };
 
 function dayRange(timestamp: number) {
@@ -72,7 +70,6 @@ async function fetchLiquidations(options: FetchOptions) {
   const data = (await response.json()) as LiquidationsExport;
   const points = Array.isArray(data.points) ? data.points : [];
 
-  // Collateral seized from liquidated borrowers (USD), summed over the day.
   const dailyCollateralLiquidated = sumField(points, "seizedUsd");
 
   return { dailyCollateralLiquidated };

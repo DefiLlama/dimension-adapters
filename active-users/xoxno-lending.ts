@@ -6,7 +6,6 @@ const HEADERS = { "User-Agent": "dune-analytics" };
 const REQUEST_TIMEOUT_MS = 5_000;
 
 type ChainConfig = {
-  chainName: string;
   userStatsExportPath: string;
   start: string;
 };
@@ -18,21 +17,20 @@ type UserStatsExport = {
   transactions?: number;
 };
 
+// Both chains publish the same export contract, so the only per-chain
+// difference is the path and the first-indexed-event date. DefiLlama
+// lists MultiversX under its legacy key, CHAIN.ELROND.
+// `start` is each chain's first day with data; an earlier date only
+// backfills zeros.
 const CHAIN_CONFIGS: Record<string, ChainConfig> = {
   [CHAIN.STELLAR]: {
-    chainName: "Stellar",
     userStatsExportPath: "/integrations/lending/stellar/active-users",
-    // Mainnet contracts were deployed at ledger 64140891,
-    // 2026-08-27T00:55Z. An earlier start only backfills zeros.
     start: "2026-08-27",
   },
-
-  // Add MultiversX later with the same API response shape:
-  // [CHAIN.MULTIVERSX]: {
-  //   chainName: "MultiversX",
-  //   userStatsExportPath: "/integrations/lending/multiversx/active-users",
-  //   start: "YYYY-MM-DD",
-  // },
+  [CHAIN.ELROND]: {
+    userStatsExportPath: "/integrations/lending/multiversx/active-users",
+    start: "2025-08-07",
+  },
 };
 
 function dayRange(timestamp: number) {
@@ -69,8 +67,6 @@ async function fetchUserStats(options: FetchOptions): Promise<UserStatsExport> {
 async function fetchActiveUsers(options: FetchOptions) {
   const stats = await fetchUserStats(options);
 
-  // Users are counted by OWNER (wallet address), not sub-account: one owner
-  // holds many lending sub-accounts, so the wallet is the real user count.
   return {
     dailyActiveUsers: Number(stats.activeUsers ?? 0),
     dailyTransactionsCount: Number(stats.transactions ?? 0),
