@@ -10,9 +10,6 @@ const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
 const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
-// Fee rate for TreadTools venues (2 bps)
-const TREADTOOLS_FEE_RATE = 0.0002;
-
 interface TreadToolsApiResponse {
   status: string;
   data: {
@@ -55,8 +52,34 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   }
 };
 
+// Volume from the TreadTools API (Tread.fi OMS fills), no builder fees on these venues.
+// Accepts multiple keys for chains that aggregate several venues.
+const volumeOnly = (...keys: string[]) => async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const data = options.preFetchedResults?.data;
+
+  let totalVolume = 0;
+  for (const key of keys) {
+    const volume = data?.[key]?.dailyVolume;
+    if (typeof volume === "number" && volume > 0) {
+      totalVolume += volume;
+    }
+  }
+
+  if (totalVolume > 0) {
+    dailyVolume.addCGToken("usd-coin", totalVolume);
+  }
+
+  return {
+    dailyVolume,
+    dailyFees: 0,
+    dailyRevenue: 0,
+    dailyProtocolRevenue: 0,
+  };
+};
+
 const fetchHyperliquid = async (options: FetchOptions) => {
-  // Volume from TreadTools (MMBot orders only)
+  // Volume from TreadTools (Tread.fi OMS fills)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
   const hlData = treadToolsData?.data?.hyperliquid;
@@ -75,7 +98,7 @@ const fetchHyperliquid = async (options: FetchOptions) => {
 };
 
 const fetchExtended = async (options: FetchOptions) => {
-  // Volume from TreadTools (MMBot orders only)
+  // Volume from TreadTools (Tread.fi OMS fills)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
   const extendedData = treadToolsData?.data?.extended;
@@ -83,121 +106,21 @@ const fetchExtended = async (options: FetchOptions) => {
     dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume);
   }
 
-  // Fees from builder API (actual builder fee revenue)
-  const { dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: TREADTOOLS_FEE_RATE });
+  // Fees from builder API (observed builder fee revenue)
+  const { dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES });
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
-  };
-};
-
-const fetchParadex = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-
-  const treadToolsData = options.preFetchedResults;
-  const paradexData = treadToolsData.data?.paradex;
-
-  if (paradexData && typeof paradexData.dailyVolume === "number" && paradexData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", paradexData.dailyVolume);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees: 0,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
-  };
-};
-
-// Nado is a perps exchange on the Ink chain
-const fetchInk = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
-  const treadToolsData = options.preFetchedResults;
-  const nadoData = treadToolsData.data?.nado;
-
-  if (nadoData && typeof nadoData.dailyVolume === "number" && nadoData.dailyVolume > 0) {
-    const volume = nadoData.dailyVolume;
-    const fees = volume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", volume);
-    dailyFees.addCGToken("usd-coin", fees);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
-};
-
-// Aggregates Pacifica + Bybit (both CEX copy-trading on Solana)
-const fetchSolana = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-
-  const treadToolsData = options.preFetchedResults;
-  const pacificaData = treadToolsData.data?.pacifica;
-  const bybitData = treadToolsData.data?.bybit;
-
-  let totalVolume = 0;
-  if (pacificaData && typeof pacificaData.dailyVolume === "number") {
-    totalVolume += pacificaData.dailyVolume;
-  }
-  if (bybitData && typeof bybitData.dailyVolume === "number") {
-    totalVolume += bybitData.dailyVolume;
-  }
-
-  if (totalVolume > 0) {
-    const fees = totalVolume * TREADTOOLS_FEE_RATE;
-    dailyVolume.addCGToken("usd-coin", totalVolume);
-    dailyFees.addCGToken("usd-coin", fees);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-  };
-};
-
-// Aggregates Aster + Binance (both CEX copy-trading on BSC)
-const fetchBsc = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-
-  const treadToolsData = options.preFetchedResults;
-  const asterData = treadToolsData.data?.aster;
-  const binanceData = treadToolsData.data?.binance;
-
-  let totalVolume = 0;
-  if (asterData && typeof asterData.dailyVolume === "number") {
-    totalVolume += asterData.dailyVolume;
-  }
-  if (binanceData && typeof binanceData.dailyVolume === "number") {
-    totalVolume += binanceData.dailyVolume;
-  }
-
-  if (totalVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", totalVolume);
-  }
-
-  return {
-    dailyVolume,
-    dailyFees: 0, // no fees
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
   };
 };
 
 const methodology = {
-  Fees: "Trading fees paid by users for perps in Tread.fi perps trading terminal.",
-  Revenue: "Fees collected by Tread.fi as Builder Revenue from Hyperliquid and Extended Exchange.",
-  ProtocolRevenue: "Fees collected by Tread.fi as Builder Revenue from Hyperliquid and Extended Exchange.",
+  Fees: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid, Extended).",
+  Revenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
+  ProtocolRevenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
 };
 
 const adapter: SimpleAdapter = {
@@ -213,20 +136,47 @@ const adapter: SimpleAdapter = {
       start: "2025-12-28",
     },
     [CHAIN.PARADEX]: {
-      fetch: fetchParadex,
+      fetch: volumeOnly("paradex"),
       start: "2025-11-11",
     },
+    // Nado is a perps exchange on the Ink chain
     [CHAIN.INK]: {
-      fetch: fetchInk,
+      fetch: volumeOnly("nado"),
       start: "2026-01-07",
     },
+    // Aggregates Pacifica + Bybit (both CEX copy-trading on Solana)
     [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: "2025-10-13",
+      fetch: volumeOnly("pacifica", "bybit"),
+      start: "2024-08-09",
     },
+    // Aggregates Aster + Binance (both CEX copy-trading on BSC)
     [CHAIN.BSC]: {
-      fetch: fetchBsc,
-      start: "2025-10-08",
+      fetch: volumeOnly("aster", "binance"),
+      start: "2024-08-09",
+    },
+    // All Orderly-broker venues (merged server-side into one bucket)
+    [CHAIN.ORDERLY]: {
+      fetch: volumeOnly("orderly"),
+      start: "2025-10-01",
+    },
+    [CHAIN.RISE]: {
+      fetch: volumeOnly("risex"),
+      start: "2026-04-01",
+    },
+    // Perpl is a perps exchange on Monad
+    [CHAIN.MONAD]: {
+      fetch: volumeOnly("perpl"),
+      start: "2026-02-12",
+    },
+    // Ondo Global Markets (stock perps), reported off-chain like the native ondo-perps adapter
+    [CHAIN.OFF_CHAIN]: {
+      fetch: volumeOnly("ondo"),
+      start: "2026-03-17",
+    },
+    // Arcus is a perps exchange on Robinhood Chain (matches the native arcus-perps adapter)
+    [CHAIN.ROBINHOOD]: {
+      fetch: volumeOnly("arcus"),
+      start: "2026-07-01",
     },
   },
   methodology,
