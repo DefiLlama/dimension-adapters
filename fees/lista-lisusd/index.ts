@@ -39,6 +39,10 @@ const wbeth = ADDRESSES.bsc.wBETH;
 const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
+// sLisUSD savings pool (LisUSDPoolSet). The treasury (ListaRevenueDistributor / new treasury)
+// funds this pool's savings yield, which is paid out to third-party sLisUSD depositors.
+const LisUSDPoolSet =
+  "0x00000000000000000000000037db1ae9b24055d1f9fe973aea40b7eb2995d0bf";
 
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
 const liquidatorProfitReceiver =
@@ -61,6 +65,7 @@ const USDT_STAKING_PROFIT = "USDT Staking Profit";
 const VALIDATOR_REWARDS = "Validator Rewards";
 const LP_STAKING_REWARDS = "LP Staking Rewards";
 const FREEZE_LISTA = "Freeze LISTA";
+const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -250,10 +255,27 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, Number(log.data), LIQUIDATION_PROFIT);
   });
 
+  // sLisUSD savings cost: the treasury (ListaRevenueDistributor) funds the sLisUSD savings pool
+  // (LisUSDPoolSet). This lisUSD is paid to third-party sLisUSD depositors, so it is
+  // SupplySideRevenue and the protocol's Revenue is net of it. It is NOT subtracted from Fees —
+  // borrower interest and the other items above are real user-paid fees.
+  const lsrSavingsCost = await options.getLogs({
+    target: lisUSD,
+    topics: [transferHash, newTreasury, LisUSDPoolSet],
+  });
+  const dailySupplySideRevenue = options.createBalances();
+  [...lsrSavingsCost].forEach((log) => {
+    dailySupplySideRevenue.add(lisUSD, Number(log.data), LSR_SAVINGS_COST);
+  });
+
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailySupplySideRevenue, LSR_SAVINGS_COST);
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -282,13 +304,15 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
-    Revenue: 'All collected income goes to the protocol treasury.',
-    ProtocolRevenue: 'All collected income goes to the protocol treasury.',
+    Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings cost paid out to sLisUSD depositors.',
+    ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings cost.',
+    SupplySideRevenue: 'lisUSD paid from the treasury (ListaRevenueDistributor) into the sLisUSD savings pool (LisUSDPoolSet) — savings yield distributed to third-party sLisUSD depositors.',
   },
   breakdownMethodology: {
     Fees: LISUSD_BREAKDOWN,
     Revenue: LISUSD_BREAKDOWN,
     ProtocolRevenue: LISUSD_BREAKDOWN,
+    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'lisUSD from the treasury to the sLisUSD savings pool, distributed to sLisUSD depositors.' },
   }
 };
 
