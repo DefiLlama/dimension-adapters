@@ -79,10 +79,14 @@ const fetch = async (options: FetchOptions) => {
 
     const exposureAmount = trade.exposureAmount * tradeCount;
     if (BigInt(market.marketType) === ERC20_X_ERC6909_MARKET_TYPE) {
+      // Collateral-scaled markets need the position's tick, which is not
+      // recoverable on-chain; no ERC6909 market has the flag set so far, so
+      // skip their notional rather than book an unscaled number.
+      if (BigInt(market.isCollateralScaled) === 1n) continue;
       const tickSize = BigInt(market.tickSize);
       const tickSpacing = BigInt(market.tickSpacing);
       const tickCount =
-        BigInt(market.isSpread) === 1n && tickSpacing > tickSize
+        BigInt(market.isSpread) === 1n && tickSize > 0n && tickSpacing > tickSize
           ? tickSpacing / tickSize
           : 1n;
       const notional =
@@ -117,7 +121,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.MEGAETH],
   start: "2026-04-15",
   methodology,
-  pullHourly: true,
+  // No pullHourly: each hourly slot resolves its timestamps to blocks
+  // independently, and on MegaETH (~100k blocks/day) the boundary blocks
+  // overlap between slots, double-counting trades.
 };
 
 export default adapter;
