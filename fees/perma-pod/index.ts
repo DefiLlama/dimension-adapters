@@ -220,17 +220,17 @@ function addLiquidationEvent(
 
   const collateral = isRedBankLiquidation
     ? {
-        amount: new BigNumber(getAttribute(attributes, "collateral_amount") ?? "0"),
-        denom: getAttribute(attributes, "collateral_denom") ?? "",
-      }
+      amount: new BigNumber(getAttribute(attributes, "collateral_amount") ?? "0"),
+      denom: getAttribute(attributes, "collateral_denom") ?? "",
+    }
     : parseCoin(getAttribute(attributes, "coin_liquidated") ?? "0");
   if (!collateral.denom || !collateral.amount.gt(0)) return;
 
   const debt = isRedBankLiquidation
     ? {
-        amount: new BigNumber(getAttribute(attributes, "debt_amount") ?? "0"),
-        denom: getAttribute(attributes, "debt_denom") ?? "",
-      }
+      amount: new BigNumber(getAttribute(attributes, "debt_amount") ?? "0"),
+      denom: getAttribute(attributes, "debt_denom") ?? "",
+    }
     : parseCoin(getAttribute(attributes, "coin_debt_repaid") ?? "0");
 
   const protocolFee = isRedBankLiquidation
@@ -372,6 +372,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  deadFrom: "2026-08-29",
   adapter: {
     [ZIGCHAIN]: {
       fetch,
