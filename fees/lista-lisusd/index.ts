@@ -275,9 +275,9 @@ const fetch = async (options: FetchOptions) => {
     (BigInt(poolSupply) * (BigInt(rateTo) - BigInt(rateFrom))) / RATE_SCALE;
 
   const dailySupplySideRevenue = options.createBalances();
-  if (savingsInterest > 0n) {
-    dailySupplySideRevenue.add(lisUSD, savingsInterest, LSR_SAVINGS_COST);
-  }
+
+  dailySupplySideRevenue.add(lisUSD, savingsInterest, LSR_SAVINGS_COST);
+
 
   // Revenue = collected income kept by the protocol, net of the savings interest paid to depositors.
   const dailyRevenue = dailyFees.clone();
