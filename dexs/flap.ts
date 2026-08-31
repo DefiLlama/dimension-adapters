@@ -87,8 +87,9 @@ const resolveQuoteToken = (
   taxToken: string,
   quoteTokens: Record<string, string>,
   wrappedNative: string,
-) => {
+): string | null => {
   const quote = quoteTokens[taxToken.toLowerCase()];
+  if (quote === undefined) return null;
   if (!quote || quote === NATIVE_TOKEN) return wrappedNative.toLowerCase();
   return quote.toLowerCase();
 };
@@ -170,6 +171,7 @@ const fetchSupplySide = async (
       if (!tx || !splitter || !beneficiary || amount === undefined) return;
 
       const token = transferByKey.get(`${tx}:${splitter}:${beneficiary}:${BigInt(amount).toString()}`);
+      // No same-tx ERC20 Transfer → native BNB payout (r5 ELSE → WBNB price).
       if (token) addSupplySide(token, amount, TAX_TO_BENEFICIARY);
       else addSupplySide(NATIVE_TOKEN, amount, TAX_TO_BENEFICIARY);
     });
@@ -180,6 +182,7 @@ const fetchSupplySide = async (
     const taxToken = String(args.taxToken ?? "").toLowerCase();
     if (!taxToken) return;
     const quote = resolveQuoteToken(taxToken, quoteTokens, wrappedNative);
+    if (!quote) return;
     const marketAmount = args.marketAmount;
     const dividendAmount = args.dividendAmount;
     if (marketAmount !== undefined && BigInt(marketAmount) > 0n) {
