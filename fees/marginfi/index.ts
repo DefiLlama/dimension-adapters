@@ -122,10 +122,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   // Rates are read live from each bank, so the window can be any length.
-  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: '2026-08-20',
+  runAtCurrTime: true,
   methodology: {
     Fees: "Interest paid by borrowers across every bank in the marginfi main lending group.",
     Revenue: "The spread marginfi keeps, the interest borrowers pay less the interest credited to depositors.",
