@@ -165,17 +165,49 @@ const fetch = async (options: FetchOptions) => {
   const markets   = toMarkets([...logsV45, ...logsV466, ...logsV467]);
   const marketsV5 = toMarkets(logsV5);
 
-  // 2) Pull TokensBought + TokensSold from every market in the daily window.
-  //    V5 additionally needs ReferralPaid to know how much of the fee left the
-  //    treasury. The V5 lists are empty for days before its deploy block.
-  const none: any[] = [];
-  const [buys, sells, buysV5, sellsV5, referralsV5] = await Promise.all([
-    markets.length   ? getLogs({ targets: markets,   eventAbi: TOKENS_BOUGHT_ABI }) : none,
-    markets.length   ? getLogs({ targets: markets,   eventAbi: TOKENS_SOLD_ABI })   : none,
-    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: TOKENS_BOUGHT_ABI }) : none,
-    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: TOKENS_SOLD_ABI })   : none,
-    marketsV5.length ? getLogs({ targets: marketsV5, eventAbi: REFERRAL_PAID_ABI }) : none,
+  // 2) Pull TokensBought + TokensSold for the window, then split them by
+  //    market. V5 additionally needs ReferralPaid to know how much of the fee
+  //    actually left the treasury.
+  //
+  //    ONE CHAIN-WIDE SCAN PER EVENT, NOT ONE PER MARKET. `targets` issues a
+  //    separate query per address: 96 markets x 2 events + 11 V5 markets x 3
+  //    = 225 queries per run, and this adapter is `pullHourly`, so ~5.4k a day.
+  //    Bitkub's public RPCs will not carry that — measured 2026-08-31, every
+  //    one of DefiLlama's three KUB hosts answered 429 and the run died with
+  //    'Aborting, previous errors in promise pool'. This adapter has reported
+  //    nothing since 2026-08-23 for that reason, while real trades continued
+  //    daily. Three scans cost the same whether there are 96 markets or 960,
+  //    so it also stops the problem coming back as the launchpad grows.
+  //    Same approach as dexs/aborean-cl and dexs/aerodrome-slipstream.
+  const marketSet   = new Set(markets.map((a) => a.toLowerCase()));
+  const marketV5Set = new Set(marketsV5.map((a) => a.toLowerCase()));
+
+  const [boughtRaw, soldRaw, referralRaw] = await Promise.all([
+    getLogs({ noTarget: true, eventAbi: TOKENS_BOUGHT_ABI, entireLog: true, parseLog: true }),
+    getLogs({ noTarget: true, eventAbi: TOKENS_SOLD_ABI,   entireLog: true, parseLog: true }),
+    marketV5Set.size ? getLogs({ noTarget: true, eventAbi: REFERRAL_PAID_ABI, entireLog: true, parseLog: true }) : [],
   ]);
+
+  // A chain-wide scan sees every contract that happens to emit the same
+  // signature, so the address filter is what makes these OUR trades — it is
+  // load-bearing, not a tidy-up. `ReferralPaid(address,address,uint256)` in
+  // particular is a name any protocol might use.
+  const split = (logs: any[], set: Set<string>, other: Set<string>) => {
+    const mine: any[] = [], theirs: any[] = [];
+    for (const log of logs) {
+      const addr = String(log.address ?? '').toLowerCase();
+      const bucket = set.has(addr) ? mine : other.has(addr) ? theirs : null;
+      if (!bucket || !log.args) continue;
+      bucket.push(log.args);
+    }
+    return [mine, theirs] as const;
+  };
+
+  // `markets` (pre-V5 fee split) and `marketsV5` are disjoint, so one pass
+  // over each log set fills both buckets.
+  const [buys,  buysV5]  = split(boughtRaw, marketSet, marketV5Set);
+  const [sells, sellsV5] = split(soldRaw,   marketSet, marketV5Set);
+  const [, referralsV5]  = split(referralRaw, new Set<string>(), marketV5Set);
 
   for (const log of buys) {
     // Gross KUB volume — `kubIn` already includes the fee.
