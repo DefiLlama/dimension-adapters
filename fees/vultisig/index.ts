@@ -40,10 +40,11 @@ const fetch = async (options: FetchOptions) => {
   const { source, feeLabel, revenueLabel } = chainConfig[options.chain];
   const rows = await getRevenueRows();
 
-  const todaysRows = rows.filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString);
-  if(!todaysRows.length) {
-    throw new Error(`No rows found for ${source} on ${options.dateString}`);
+  const sourceRows = rows.filter((row) => row.source === source);
+  if (!sourceRows.length) {
+    throw new Error(`No rows found for ${source}`);
   }
+  const todaysRows = sourceRows.filter((row) => row.date.slice(0, 10) === options.dateString);
 
   const total = todaysRows.reduce((sum, row) => sum + row.revenue, 0);
 

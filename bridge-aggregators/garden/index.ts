@@ -200,10 +200,10 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         }
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-            if (!insideDateRange && txTimestamp > endTimestamp) {
+            if (!insideDateRange && txTimestamp >= endTimestamp) {
                 continue;
             }
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
+            if (txTimestamp < endTimestamp && txTimestamp >= startTimestamp) {
                 if (!insideDateRange) {
                     insideDateRange = true;
                 }

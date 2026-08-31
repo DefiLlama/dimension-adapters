@@ -13,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
             FROM gas.fees
             WHERE blockchain = 'polygon'
                 AND block_time >= from_unixtime(${options.startTimestamp})
-                AND block_time <= from_unixtime(${options.endTimestamp})
+                AND block_time < from_unixtime(${options.endTimestamp})
         ),
         l1_batch_costs_cte AS (
             SELECT 
@@ -22,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
             WHERE t.to = 0x86e4dc95c7fbdbf52e33d563bbdb00823894c287
                 AND cast(t.data as varchar) LIKE '0x4e43e495%'
                 AND block_time >= from_unixtime(${options.startTimestamp})
-                AND block_time <= from_unixtime(${options.endTimestamp})
+                AND block_time < from_unixtime(${options.endTimestamp})
         )
         SELECT 
             l2.daily_fees,

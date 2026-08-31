@@ -1,12 +1,14 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { TRISTERO_DEX_CHAINS, fetchDailyVolume } from "../../helpers/tristero";
+import { TRISTERO_CHAINS, TRISTERO_START, fetchTristeroVolumeBuckets } from "../../helpers/tristero";
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch: async (options) => ({ dailyVolume: await fetchDailyVolume(options) }),
-  adapter: TRISTERO_DEX_CHAINS,
+  pullHourly: true,
+  fetch: async (options) => ({ dailyVolume: (await fetchTristeroVolumeBuckets(options)).darkpool }),
+  chains: TRISTERO_CHAINS,
+  start: TRISTERO_START,
   methodology: {
-    Volume: "Source-side token amounts from legacy OrderFilled events and v3 router.send orders, including delegated execute() batches containing router.send calls. Margin opens include collateral and loan; margin closes include loan settlement transfers.",
+    Volume: "Darkpool volume: source-side token amounts of TAKER orders matched inside Tristero against a filler with no external venue calls, plus MARGIN opens and the loan settlement leg of margin closes. Counted once, on the source leg the taker sells - the filler's side of the fill is the same trade settling, not a second trade. Orders where the taker is also the filler are excluded, being circular rather than traded with a third party. Orders routed through external venues are aggregation flow and are reported on the Tristero Aggregator adapter instead.",
   },
 };
 

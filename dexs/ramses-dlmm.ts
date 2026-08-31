@@ -3,6 +3,74 @@ import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
 
+export const SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL = "Sarcophagus fee reclassification";
+
+type SarcophagusPoolType = "CL" | "LEGACY" | "DLMM";
+
+const query = gql`
+  query sarcophagusFunding(
+    $chainId: Int!
+    $poolType: String!
+    $from: String!
+    $to: String!
+    $limit: Int!
+    $offset: Int!
+  ) {
+    SarcophagusFunding(
+      limit: $limit
+      offset: $offset
+      where: {
+        chainId: { _eq: $chainId }
+        poolType: { _eq: $poolType }
+        timestamp: { _gte: $from, _lt: $to }
+      }
+      order_by: { id: asc }
+    ) {
+      amountUSD
+    }
+  }
+`;
+
+export async function fetchSarcophagusFundingUSD({
+  endpoint,
+  chainId,
+  poolType,
+  startTimestamp,
+  endTimestamp,
+}: {
+  endpoint: string;
+  chainId: number;
+  poolType: SarcophagusPoolType;
+  startTimestamp: number;
+  endTimestamp: number;
+}) {
+  const rows = await paginate(async (limit, offset) => {
+    const data = await request<{ SarcophagusFunding: { amountUSD: string }[] }>(endpoint, query, {
+      chainId,
+      poolType,
+      // FetchOptions starts one second before the requested window.
+      from: String(startTimestamp + 1),
+      to: String(endTimestamp),
+      limit,
+      offset,
+    });
+    return data.SarcophagusFunding;
+  }, subgraphQueryLimit);
+
+  let total = 0;
+  for (const row of rows) {
+    if (!row.amountUSD.trim()) {
+      throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
+    }
+    const amountUSD = Number(row.amountUSD);
+    if (!Number.isFinite(amountUSD)) {
+      throw new Error(`Invalid SarcophagusFunding amountUSD: ${row.amountUSD}`);
+    }
+    total += amountUSD;
+  }
+  return total;
+}
+
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
 
@@ -99,7 +167,7 @@ async function getDlmmBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,
@@ -229,7 +297,7 @@ async function fetchDlmmWindowStats(options: FetchOptions) {
   `;
 
   const variables = {
-    from: String(options.startTimestamp + 1),
+    from: String(options.startTimestamp),
     to: String(options.endTimestamp),
   };
   const [swaps, feeEvents] = await Promise.all([
@@ -343,7 +411,16 @@ async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const stats = await fetchDlmmStats(options);
+  const [stats, sarcophagusFundingUSD] = await Promise.all([
+    fetchDlmmStats(options),
+    fetchSarcophagusFundingUSD({
+      endpoint: dlmmSubgraphEndpoints[options.chain],
+      chainId: chainIds[options.chain],
+      poolType: "DLMM",
+      startTimestamp: options.startTimestamp,
+      endTimestamp: options.endTimestamp,
+    }),
+  ]);
   const dailyVolume = stats.dlmmVolumeUSD;
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -359,11 +436,12 @@ const fetch = async (options: FetchOptions) => {
 
   dailyRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, 'Swap Fees to holders');
   dailyRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
+  dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
   dailyHoldersRevenue.addUSDValue(stats.dlmmHoldersRevenueUSD, 'Swap Fees to holders');
   dailyHoldersRevenue.addUSDValue(stats.dlmmBribeRevenueUSD, 'Bribes to holders');
-
-  dailyRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
   dailyProtocolRevenue.addUSDValue(stats.dlmmProtocolRevenueUSD, 'Swap Fees to protocol');
+  dailyProtocolRevenue.addUSDValue(-sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
+  dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
 
   dailySupplySideRevenue.addUSDValue(stats.dlmmSupplySideRevenueUSD, 'Swap Fees to LPs');
 
@@ -402,6 +480,7 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Subtracts delayed Sarcophagus funding already accrued as protocol revenue.",
   },
   SupplySideRevenue: {
     ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
@@ -409,11 +488,14 @@ const breakdownMethodology = {
   HoldersRevenue: {
     ["Swap Fees to holders"]: "User fees are distributed among holders.",
     ["Bribes to holders"]: "Bribes paid by protocols to holders",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Reclassifies fees already accrued as protocol revenue into holder revenue when funded to Sarcophagus.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
+  allowNegativeValue: true,
   // DLMM voter vs treasury split for recent windows is derived from fee events;
   // daily protocol rollups remain the source for historical full-day queries.
   pullHourly: false,

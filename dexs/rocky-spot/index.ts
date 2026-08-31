@@ -12,8 +12,9 @@ import fetchURL from "../../utils/fetchURL";
  *
  * Returns a rolling 24-hour aggregation across every spot symbol.
  * `quoteVolume` on each row is USD-denominated for USD-quoted markets
- * (Rocky's spot markets quote in USD-pegged CUSD/USDCx), so summing
- * USD-quoted rows directly yields USD notional.
+ * (Rocky's spot markets quote in USD-pegged assets — currently USDCB/USX,
+ * previously CUSD/USDCx), so summing USD-quoted rows directly yields USD
+ * notional.
  *
  * runAtCurrTime + pullHourly:false — Rocky's Binance-compat ticker exposes a
  * live rolling 24h window only; there is no historical time-travel or
@@ -26,7 +27,7 @@ const SPOT_TICKER_URL = "https://api.rocky.exchange/api/v3/ticker/24hr";
 // denominated in the quote asset, so summing across markets only produces a
 // USD figure for USD-quoted pairs. Non-USD-quoted pairs (e.g. CETH-CBTC where
 // the quote is CBTC) are excluded — they would need a price feed to convert.
-const USD_QUOTE_ASSETS = new Set(["CUSD", "USDCX", "USDC", "USDT"]);
+const USD_QUOTE_ASSETS = new Set(["CUSD", "USDCX", "USDC", "USDT", "USDCB", "USX"]);
 
 const quoteAsset = (symbol: string): string => {
   // Spot markets use `BASE-QUOTE` (e.g. CBTC-CUSD).
@@ -83,7 +84,7 @@ const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
 
 const methodology = {
   Volume:
-    "Sum of `quoteVolume` for every USD-quoted spot symbol returned by Rocky's Binance-compatible 24h ticker endpoint at /api/v3/ticker/24hr. USD-quoted means the quote asset is CUSD, USDCx, USDC, or USDT — all USD-pegged on Rocky, so `quoteVolume` is directly USD notional and the sum requires no external price conversion. Non-USD-quoted spot markets (e.g. CETH-CBTC) are excluded because their volume would need a live price feed to convert; today they are <0.01% of total spot volume.",
+    "Sum of `quoteVolume` for every USD-quoted spot symbol returned by Rocky's Binance-compatible 24h ticker endpoint at /api/v3/ticker/24hr. USD-quoted means the quote asset is USDCB, USX, CUSD, USDCx, USDC, or USDT — all USD-pegged on Rocky, so `quoteVolume` is directly USD notional and the sum requires no external price conversion. Non-USD-quoted spot markets (e.g. CETH-CBTC) are excluded because their volume would need a live price feed to convert; today they are <0.01% of total spot volume.",
 };
 
 const adapter: SimpleAdapter = {

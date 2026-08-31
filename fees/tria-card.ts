@@ -2,6 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
+const LABEL = 'Card Service Fees';
+
 const FEE_RECIPIENT = '0xea8cd5684f2a44a593975cf42f5a88f27f21c513';
 const SOURCE_ADDRESSES = [
   '0xa66b23D9a8a46C284fa5b3f2E2b59Eb5cc3817F4', //crossmint treasury
@@ -13,12 +15,13 @@ const SOURCE_ADDRESSES = [
 const USDC = '0x0b2c639c533813f4aa9d7837caf62653d097ff85';
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await addTokensReceived({
+  const received = await addTokensReceived({
     options,
     fromAdddesses: SOURCE_ADDRESSES,
     target: FEE_RECIPIENT,
     token: USDC,
   })
+  const dailyFees = received.clone(1, LABEL)
 
   return {
     dailyFees,
@@ -34,9 +37,14 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OPTIMISM],
   start: '2025-06-05',
   methodology: {
-    Fees: "Total fees from membership bookings and card purchases Virtual, Signature, Premium",
-    Revenue: "Total fees from membership bookings and card purchases Virtual, Signature, Premium",
-    ProtocolRevenue: "Total fees from membership bookings and card purchases Virtual, Signature, Premium",
+    Fees: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium',
+    Revenue: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium',
+    ProtocolRevenue: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium',
+  },
+  breakdownMethodology: {
+    Fees: { [LABEL]: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium' },
+    Revenue: { [LABEL]: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium' },
+    ProtocolRevenue: { [LABEL]: 'Total fees from membership bookings and card purchases Virtual, Signature, Premium' },
   },
 };
 

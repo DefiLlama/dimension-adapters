@@ -63,7 +63,7 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       'Swap Fees To Protocol': 'Full 35% of swap fees kept by the protocol (before 2026-01-01).',
-      'Swap Fees To Protocol-Owned Liquidity': 'From 2026-01-01, 30% of the 35% protocol revenue deployed as Kodiak-owned liquidity.',
+      'Swap Fees To Protocol-Owned Liquidity': 'From 2026-01-01, 30% of the 35% protocol revenue is used to build Kodiak Protocol-Owned Liquidity (POL): the protocol deploys these fees as liquidity positions it owns and controls, deepening pool liquidity rather than paying the revenue out.',
       'Swap Fees To Treasury': 'From 2026-01-01, 10% of the 35% protocol revenue kept by the treasury.',
     },
     HoldersRevenue: {

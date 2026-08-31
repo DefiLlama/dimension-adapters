@@ -37,6 +37,7 @@
 
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getPositionedLogArgs } from "../../helpers/logs";
 
 const ORCHARD = "0xEbB8b167c0992cFdc497A995a8Cf7167acAA0A1A";
 const AAPL = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9";
@@ -93,7 +94,7 @@ const fetch = async (options: FetchOptions) => {
     await options.fromApi.call({ abi: "uint16:adminFeeBps", target: ORCHARD })
   );
 
-  const feeChanges = (await options.getLogs({ target: ORCHARD, eventAbi: ADMIN_FEE_BPS_SET }))
+  const feeChanges = (await getPositionedLogArgs(options, { target: ORCHARD, eventAbi: ADMIN_FEE_BPS_SET }))
     .map((log: any) => ({
       blockNumber: Number(log.blockNumber),
       logIndex: Number(log.logIndex),
@@ -115,8 +116,8 @@ const fetch = async (options: FetchOptions) => {
     return bps;
   };
 
-  const planted = await options.getLogs({ target: ORCHARD, eventAbi: PLANTED });
-  const plantedMany = await options.getLogs({ target: ORCHARD, eventAbi: PLANTED_MANY });
+  const planted = await getPositionedLogArgs(options, { target: ORCHARD, eventAbi: PLANTED });
+  const plantedMany = await getPositionedLogArgs(options, { target: ORCHARD, eventAbi: PLANTED_MANY });
 
   const addPlant = (log: any, stake: bigint) => {
     dailyVolume.addGasToken(log.ethIn);

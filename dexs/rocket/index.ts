@@ -6,7 +6,7 @@
  *
  * Data sources:
  *   GET /instruments     - list all trading pairs
- *   GET /candles         - OHLCV data with volume per instrument
+ *   GET /indexer/candles         - OHLCV data with volume per instrument
  *
  * Fee structure: 0.01% maker / 0.01% taker (from Rocket UI)
  * Website: https://rocketfi.io
@@ -40,7 +40,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         .for(instruments)
         .process(async (instrumentId) => {
             const candleData = await fetchURLAutoHandleRateLimit(
-                `${ROCKET_API}/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=1d&startTime=${startTime}&endTime=${startTime + 86399999}`
+                `${ROCKET_API}/indexer/candles?instrumentId=${encodeURIComponent(instrumentId)}&interval=1d&startTime=${startTime}&endTime=${startTime + 86399999}`
             );
             const candles: any[] = candleData.candles || [];
             if (candles[0]?.quoteVolume) {

@@ -25,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
                ROW_NUMBER() OVER (PARTITION BY json_extract_scalar(data, '$.pool_addr') ORDER BY block_time DESC) rn
         FROM aptos.events
         WHERE event_type IN ('${CLMM}::clmm::PoolCreated', '${STABLE}::stable::PoolCreated', '${AMM}::amm::PoolCreated')
-          AND block_time <= from_unixtime(${options.endTimestamp})
+          AND block_time < from_unixtime(${options.endTimestamp})
       ) WHERE rn = 1
     ),
     swaps AS (
@@ -115,6 +115,7 @@ const adapter: SimpleAdapter = {
   start: "2025-06-12",
   methodology,
   breakdownMethodology,
+  deadFrom: "2026-05-31",
 };
 
 export default adapter;

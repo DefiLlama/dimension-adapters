@@ -1,6 +1,9 @@
 import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
+
+const STAKING_REWARDS_TO_STAKERS = 'Staking Rewards To Stakers';
 
 const fetch = async (options: FetchOptions) => {
   const STAKE_POOL_RESERVE_ACCOUNT = "rz5G8P4tMbUS9NjwJbbbWMZqrCWEZGV3VmkNdNSn7s9";
@@ -22,14 +25,17 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   results.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      // Staking rewards accrue to the LST stakers (the supply side).
+      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, STAKING_REWARDS_TO_STAKERS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0, METRIC.MANAGEMENT_FEES);
     } else if (row.metric_type === 'dailyUserFees') {
-      dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0);
+      dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
     }
   });
 
@@ -52,25 +58,44 @@ const fetch = async (options: FetchOptions) => {
 
   results_plus.forEach((row: any) => {
     if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, STAKING_REWARDS_TO_STAKERS);
     } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
+      dailyRevenue.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0, METRIC.MANAGEMENT_FEES);
     } else if (row.metric_type === 'dailyUserFees') {
-      dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
+      dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0, METRIC.DEPOSIT_WITHDRAW_FEES);
     }
   });
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Hylo and Hylo+ staked solana',
+  Fees: 'Staking rewards from staked SOL on Hylo and Hylo+ staked solana, plus deposit/withdrawal fees paid by users',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
+  SupplySideRevenue: 'Staking rewards distributed to LST stakers',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards earned on SOL staked through hyloSOL and hyloSOL+',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Deposit/withdrawal fees paid by users on their principal',
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Withdrawal and management fees collected by the Hylo fee collector',
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Withdrawal and management fees going to the treasury/team',
+  },
+  SupplySideRevenue: {
+    [STAKING_REWARDS_TO_STAKERS]: 'Staking rewards accruing to the LST stakers',
+  },
 }
 
 export default {
@@ -81,4 +106,5 @@ export default {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
+  breakdownMethodology,
 };

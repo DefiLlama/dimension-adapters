@@ -492,12 +492,12 @@ const fetch = async (options: FetchOptions) => {
 	if (allVaults.length > 0) {
 		const logOpts = { targets: allVaults, flatten: true };
 		const [redeemLogs, redeemCustomLogs, depositLogs, depositCustomLogs, redeemRequestLogs, redeemRequestCustomLogs, depositRequestLogs, depositRequestCustomLogs] = await Promise.all([
-			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant }),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant, onlyArgs: false }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom, onlyArgs: false }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositInstant}),
 			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom}),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest }),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest, onlyArgs: false }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom, onlyArgs: false }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositRequest }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositRequestCustom }),
 		]);
@@ -531,7 +531,7 @@ const fetch = async (options: FetchOptions) => {
 
 		// Process redeem fees (feeAmount) — instant + request-based
 		for (const log of [...redeemLogs, ...redeemCustomLogs, ...redeemRequestLogs, ...redeemRequestCustomLogs]) {
-			const feeAmount = Number(log.feeAmount);
+			const feeAmount = Number(log.args.feeAmount);
 			if (feeAmount <= 0) continue;
 			const info = vaultToToken[log.address?.toLowerCase()];
 			if (!info) continue;

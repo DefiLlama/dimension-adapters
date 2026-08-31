@@ -12,6 +12,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  // Retail trading was switched off on 2026-08-06 while TanX moves to an
+  // institution-only platform, and the volume endpoint has answered a literal
+  // "0" with status "success" every day since. See DefiLlama/dimension-adapters#8689.
+  deadFrom: '2026-08-06',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

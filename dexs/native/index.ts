@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology,
-  adapter: chainConfig,
+  adapter: chainConfig as any,
 };
 
 export default adapter;

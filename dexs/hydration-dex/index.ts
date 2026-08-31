@@ -1,29 +1,18 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { request } from "graphql-request";
+import fetchURL from "../../utils/fetchURL";
 
+// Hydration's own API (backed by the firesquid archive), returning per-day
+// volume and per-pool fees. Replaces the retired aggregation-indexer GraphQL.
+const API = "https://api.hydradx.io/defillama/v1/backfill";
 
 const fetch = async (options: FetchOptions) => {
-
-  function toDateQuery(timestmap: number): string {
-    return new Date(timestmap * 1000).toISOString();
+  const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
+  const rows = await fetchURL(`${API}?startDate=${day}&endDate=${day}`);
+  const row = rows?.[0];
+  if (!row) {
+    throw new Error(`Hydration API has no volume data for ${day}`);
   }
-  
-  // Fetch fees data from GraphQL endpoint
-  const query = `
-    query MyQuery {
-      platformTotalVolumesByPeriod(filter: {startIsoString: "${toDateQuery(options.fromTimestamp)}", endIsoString: "${toDateQuery(options.toTimestamp)}"}) {
-        nodes {
-          totalVolNorm
-          xykpoolFeeVolNorm
-          stableswapFeeVolNorm
-          omnipoolFeeVolNorm
-        }
-      }
-    }
-  `;
-
-  const queryResult = await request("https://orca-prod-pool-02.catfish.hydration.cloud/graphql", query);
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -32,34 +21,35 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  for (const node of queryResult.platformTotalVolumesByPeriod.nodes) {
-    dailyVolume.addUSDValue(Number(node.totalVolNorm));
-    dailyFees.addUSDValue(Number(node.xykpoolFeeVolNorm), 'XYK Pools Fees');
-    dailyFees.addUSDValue(Number(node.stableswapFeeVolNorm), 'StableSwap Fees');
-    dailyFees.addUSDValue(Number(node.omnipoolFeeVolNorm), 'Omnipool Fees');
+  const xykFee = Number(row.fees.xyk);
+  const stableswapFee = Number(row.fees.stableswap);
+  const omnipoolFee = Number(row.fees.omnipool);
 
-    // XYK and Stableswap fees go 100% to LPs
-    dailySupplySideRevenue.addUSDValue(Number(node.xykpoolFeeVolNorm), 'XYK Pools Fees To LPs');
-    dailySupplySideRevenue.addUSDValue(Number(node.stableswapFeeVolNorm), 'StableSwap Fees To LPs');
+  dailyVolume.addUSDValue(Number(row.volume_usd));
+  dailyFees.addUSDValue(xykFee, 'XYK Pools Fees');
+  dailyFees.addUSDValue(stableswapFee, 'StableSwap Fees');
+  dailyFees.addUSDValue(omnipoolFee, 'Omnipool Fees');
 
-    // Omnipool has two independent fee types combined in omnipoolFeeVolNorm:
-    //   Asset fee  (≈80% of total): 50% stays in pool → LPs, 50% → Referral pallet (stakers/referrers/traders)
-    //   Protocol fee (≈20% of total): 100% → Treasury (BurnProtocolFee = 0% in runtime)
-    // Ratio approximated from fee ranges: asset 0.15-5%, protocol 0.05-0.25%
-    const omnipoolFee = Number(node.omnipoolFeeVolNorm);
-    const assetFee    = omnipoolFee * 0.8;
-    const protocolFee = omnipoolFee * 0.2;
+  // XYK and Stableswap fees go 100% to LPs
+  dailySupplySideRevenue.addUSDValue(xykFee, 'XYK Pools Fees To LPs');
+  dailySupplySideRevenue.addUSDValue(stableswapFee, 'StableSwap Fees To LPs');
 
-    dailySupplySideRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To LPs');
-    dailyHoldersRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
+  // Omnipool has two independent fee types combined in the omnipool figure:
+  //   Asset fee  (≈80% of total): 50% stays in pool → LPs, 50% → Referral pallet (stakers/referrers/traders)
+  //   Protocol fee (≈20% of total): 100% → Treasury (BurnProtocolFee = 0% in runtime)
+  // Ratio approximated from fee ranges: asset 0.15-5%, protocol 0.05-0.25%
+  const assetFee = omnipoolFee * 0.8;
+  const protocolFee = omnipoolFee * 0.2;
 
-    // BurnProtocolFee = 0% in runtime (hydration-node/runtime/hydradx/src/assets.rs)
-    // 100% of protocol fee goes to Treasury; nothing is burned currently
-    dailyProtocolRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
+  dailySupplySideRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To LPs');
+  dailyHoldersRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
 
-    dailyRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
-    dailyRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
-  }
+  // BurnProtocolFee = 0% in runtime (hydration-node/runtime/hydradx/src/assets.rs)
+  // 100% of protocol fee goes to Treasury; nothing is burned currently
+  dailyProtocolRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
+
+  dailyRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
+  dailyRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
 
   return {
     dailyVolume,
@@ -80,7 +70,7 @@ const adapter: SimpleAdapter = {
       start: '2024-04-28',
     },
   },
-  
+
   // https://docs.hydration.net/products/trading/fees#protocol-fee
   methodology: {
     Fees: 'All fees paid by users for swaps on Hydration (asset fees + protocol fees across all pool types).',

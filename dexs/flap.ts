@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
@@ -70,6 +71,10 @@ const TOKEN_SOLD_TOPIC0 = "0x03a4693e592f5e75dc7c136acb39b146d2b4966c0e509c34f36
 const TOKEN_QUOTE_SET_TOPIC0 = "0x3ceb902d3c555c21c3415b6aa839104b18e4825b2f8324011ff979089a507a8c";
 const TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const SAFE_RECEIVED_TOPIC0 = "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d";
+
+// The portal is an upgradeable proxy; getTokenV8Safe is the version-safe lens
+// over token state (enums returned as uint8, works for tokens of every version).
+const getTokenV8SafeAbi = "function getTokenV8Safe(address) view returns ((uint8 status, uint256 reserve, uint256 circulatingSupply, uint256 price, uint8 tokenVersion, uint256 r, uint256 h, uint256 k, uint256 dexSupplyThresh, address quoteTokenAddress, bool nativeToQuoteSwapEnabled, bytes32 extensionID, uint256 buyTaxRate, uint256 sellTaxRate, address pool, uint256 progress, uint8 lpFeeProfile, uint8 dexId))";
 
 const shortAddrOf = (addr: string) => addr.substring(0, 10).toLowerCase();
 const padAddress = (addr: string) => "0x" + "0".repeat(24) + addr.slice(2).toLowerCase();
@@ -185,24 +190,11 @@ const getQuoteMapFromIndexer = async (options: FetchOptions, portal: string): Pr
   return quoteByToken;
 };
 
-const getTradesFromLogs = async (options: FetchOptions, portal: string, fromBlock: number): Promise<TradeTotals> => {
+const getTradesFromLogs = async (options: FetchOptions, portal: string): Promise<TradeTotals> => {
   const [dayFromBlock, dayToBlock] = await Promise.all([
     options.getFromBlock(),
     options.getToBlock(),
   ]);
-
-  // Map every token to its quote token once. TokenQuoteSet fires once per token
-  // at creation, so this is fetched over the full history and cached in cloud.
-  const quoteLogs = await options.getLogs({
-    target: portal,
-    eventAbi: eventAbis.tokenQuoteSet,
-    fromBlock,
-    toBlock: dayToBlock,
-    cacheInCloud: true,
-  });
-  const quoteByToken: Record<string, string> = {};
-  quoteLogs.forEach((log: any) => { quoteByToken[log.token.toLowerCase()] = log.quoteToken.toLowerCase(); });
-  const quoteTokens = [...new Set(Object.values(quoteByToken))];
 
   const volumeByToken: Record<string, bigint> = {};
   const processTradeLogs = (logs: any[]) => {
@@ -225,6 +217,28 @@ const getTradesFromLogs = async (options: FetchOptions, portal: string, fromBloc
     processTradeLogs(buyLogs);
     processTradeLogs(sellLogs);
   }
+
+  // Resolve quotes from portal state at the latest block. Batches run
+  // sequentially with a pause to avoid RPC rate limits
+  const tokens = Object.keys(volumeByToken);
+  const quoteByToken: Record<string, string> = {};
+  const latestApi = new ChainApi({ chain: options.chain });
+  const MULTICALL_BATCH = 500;
+  for (let i = 0; i < tokens.length; i += MULTICALL_BATCH) {
+    const batch = tokens.slice(i, i + MULTICALL_BATCH);
+    const tokenStates = await latestApi.multiCall({
+      target: portal,
+      abi: getTokenV8SafeAbi,
+      calls: batch,
+      chunkSize: MULTICALL_BATCH,
+    } as any);
+    batch.forEach((token, j) => {
+      const quote = tokenStates[j]?.quoteTokenAddress?.toLowerCase();
+      if (quote) quoteByToken[token] = quote;
+    });
+    if (i + MULTICALL_BATCH < tokens.length) await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  const quoteTokens = [...new Set(Object.values(quoteByToken))];
 
   return { volumeByToken, quoteByToken, quoteTokens };
 };
@@ -376,7 +390,7 @@ const fetchSupplySide = async (
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
-  const { portal, fromBlock, useIndexer, safe, wrappedNative } = config;
+  const { portal, useIndexer, safe, wrappedNative } = config;
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -385,7 +399,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const { volumeByToken, quoteByToken, quoteTokens } = useIndexer
     ? await getTradesFromIndexer(options, portal)
-    : await getTradesFromLogs(options, portal, fromBlock);
+    : await getTradesFromLogs(options, portal);
 
   Object.keys(volumeByToken).forEach((token) => {
     const quoteToken = quoteByToken[token];

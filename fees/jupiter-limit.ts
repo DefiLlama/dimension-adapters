@@ -13,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE t.from_address != 'H3vkQqNVWySTD4c1Y91wtoT5iwxKSVtVLfC2rD8SgwTN'
       AND t.to_address = 'H3vkQqNVWySTD4c1Y91wtoT5iwxKSVtVLfC2rD8SgwTN'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
 
     UNION ALL
 
@@ -25,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE t.from_address = '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
       AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
 
   const dailyFees = options.createBalances();

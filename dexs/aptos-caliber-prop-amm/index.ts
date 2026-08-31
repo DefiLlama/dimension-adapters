@@ -17,31 +17,74 @@ const EVM_SWAP_EVENT =
 const EVM_START = "2026-07-14";
 const EARLY_EVM_START = "2026-07-07";
 const XLAYER_USDT0 = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
+const COMMON_USDG = "0xe343167631d89B6Ffc58B88d6b7fB0228795491D";
+const ARBITRUM_USDG = "0x004B506865409877C9fA29bfb1ebA929984B9bbC";
+const XLAYER_USDG = "0x4ae46a509F6b1D9056937BA4500cb143933D2dc8";
 
-const evmConfig: Record<string, { contract: string; quoteToken: string }> = {
-  [CHAIN.OPTIMISM]: {
-    contract: "0x60a8fA0eB9eDBF97a7487f7163C793768385Adc4",
-    quoteToken: ADDRESSES.optimism.USDC_CIRCLE,
+const evmConfig: Record<string, { contracts: string[]; quoteTokens: string[] }> = {
+  [CHAIN.ARBITRUM]: {
+    contracts: [
+      "0x154586B2479b9a11e3d4db90024Dc0e26F097312",
+      "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
+    ],
+    quoteTokens: [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.arbitrum.USDT, ARBITRUM_USDG],
   },
-  [CHAIN.INK]: {
-    contract: "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
-    quoteToken: ADDRESSES.ink.USDC,
+  [CHAIN.AVAX]: {
+    contracts: [
+      "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
+      "0x60a8fA0eB9eDBF97a7487f7163C793768385Adc4",
+    ],
+    quoteTokens: [ADDRESSES.avax.USDC, ADDRESSES.avax.USDt],
   },
   [CHAIN.BASE]: {
-    contract: "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
-    quoteToken: ADDRESSES.base.USDC,
+    contracts: [
+      "0x5eBcee186821704aEAC480D51B539bA4eDE1fDF9",
+      "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
+    ],
+    quoteTokens: [ADDRESSES.base.USDC, ADDRESSES.base.USDT],
   },
-  [CHAIN.LINEA]: {
-    contract: "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
-    quoteToken: ADDRESSES.linea.USDC,
+  [CHAIN.BSC]: {
+    contracts: [
+      "0x97df7683443d215fe000e22258381d35ac2c55d1",
+      "0x74dec7df10f026884c757445671b9e5137ce36e5",
+    ],
+    quoteTokens: [ADDRESSES.bsc.USDC, ADDRESSES.bsc.USDT],
   },
   [CHAIN.ETHEREUM]: {
-    contract: "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
-    quoteToken: ADDRESSES.ethereum.USDC,
+    contracts: [
+      "0x15b033daf461ad3e138601775e1d5cdad0e8c653",
+      "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
+    ],
+    quoteTokens: [ADDRESSES.ethereum.USDC, ADDRESSES.ethereum.USDT, COMMON_USDG],
+  },
+  [CHAIN.INK]: {
+    contracts: ["0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63"],
+    quoteTokens: [ADDRESSES.ink.USDC, ADDRESSES.ink.USDT0, COMMON_USDG],
+  },
+  [CHAIN.LINEA]: {
+    contracts: ["0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63"],
+    quoteTokens: [ADDRESSES.linea.USDC, ADDRESSES.linea.USDT],
+  },
+  [CHAIN.OPTIMISM]: {
+    contracts: [
+      "0x6431e61d4E745B031CF87b2C1DeCeb4A87557F20",
+      "0x60a8fA0eB9eDBF97a7487f7163C793768385Adc4",
+    ],
+    quoteTokens: [ADDRESSES.optimism.USDC_CIRCLE, ADDRESSES.optimism.USDT],
+  },
+  [CHAIN.ROBINHOOD]: {
+    contracts: [
+      "0x49ccB1b4DCDE25Ff127d53C615168E4Ff471aFbe",
+      "0xf639CF213b63F7E77D699FF686d591C0Ba55Fc63",
+    ],
+    quoteTokens: [ADDRESSES.robinhood.USDG],
   },
   [CHAIN.XLAYER]: {
-    contract: "0x154586B2479b9a11e3d4db90024Dc0e26F097312",
-    quoteToken: XLAYER_USDT0,
+    contracts: [
+      "0x3Cd6F2F61E8B03a8bCBfcf0D69b23CBA37183259",
+      "0x154586b2479b9a11e3d4db90024dc0e26f097312",
+    ],
+    quoteTokens: [ADDRESSES.xlayer.USDC, ADDRESSES.xlayer.USDT, XLAYER_USDT0, XLAYER_USDG],
   },
 };
 
@@ -89,19 +132,19 @@ const fetchAptos = async (options: FetchOptions) => {
 const fetchEvm = async (options: FetchOptions) => {
   const config = evmConfig[options.chain];
   const dailyVolume = options.createBalances();
-  const quoteToken = config.quoteToken.toLowerCase();
+  const quoteTokenLookup = new Map(config.quoteTokens.map(token => [token.toLowerCase(), token]));
 
   const logs = await options.getLogs({
-    target: config.contract,
+    targets: config.contracts,
     eventAbi: EVM_SWAP_EVENT,
   });
 
   logs.forEach((log: any) => {
-    if (log.tokenIn.toLowerCase() === quoteToken) {
-      dailyVolume.add(config.quoteToken, log.amountIn);
-    } else if (log.tokenOut.toLowerCase() === quoteToken) {
-      dailyVolume.add(config.quoteToken, log.amountOut);
-    }
+    const tokenIn = quoteTokenLookup.get(log.tokenIn?.toLowerCase());
+    if (tokenIn) return dailyVolume.add(tokenIn, log.amountIn);
+
+    const tokenOut = quoteTokenLookup.get(log.tokenOut?.toLowerCase());
+    if (tokenOut) dailyVolume.add(tokenOut, log.amountOut);
   });
 
   return { dailyVolume };
@@ -109,7 +152,7 @@ const fetchEvm = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Daily volume is calculated from Kaliber Prop AMM swaps. EVM chains use the configured quote-token side of Swap events; Aptos uses Dune to aggregate USDC amounts from Kaliber swap events.",
+    "Daily volume is calculated from Kaliber Prop AMM swaps. EVM chains read Swap events from configured contracts and count the configured quote-token side (USDC, USDT/USDT0, USDG when available); Aptos uses Dune to aggregate USDC amounts from Kaliber swap events.",
 };
 
 const adapter: SimpleAdapter = {
@@ -123,6 +166,18 @@ const adapter: SimpleAdapter = {
       start: "2026-03-02",
     },
     [CHAIN.OPTIMISM]: {
+      fetch: fetchEvm,
+      start: EVM_START,
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetchEvm,
+      start: EVM_START,
+    },
+    [CHAIN.AVAX]: {
+      fetch: fetchEvm,
+      start: EVM_START,
+    },
+    [CHAIN.BSC]: {
       fetch: fetchEvm,
       start: EVM_START,
     },
@@ -145,6 +200,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.XLAYER]: {
       fetch: fetchEvm,
       start: EARLY_EVM_START,
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch: fetchEvm,
+      start: EVM_START,
     },
   },
 }

@@ -4,11 +4,24 @@ import { METRIC } from "../../helpers/metrics";
 import { filterPools } from "../../helpers/uniswap";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const GOON = "0x80ea4cd0e33f8323cd3d33d7006f247733177a9e";
-const USDG = ADDRESSES.robinhood.USDG;
-const FROM_BLOCK = 15102260; // Goon deploy block
 const MIN_TVL = 100; // Minimum TVL for a pool to be considered, in USD. Pools with less than this are considered dust and ignored.
 const MAX_POOLS = 10_000; // Maximum number of pools to consider. Launchpads can have thousands of pools, but we only want to consider the largest ones.
+
+const chainConfig: Record<string, { goon: string; usdToken: string; fromBlock: number; start: string; deadFrom?: string; }> = {
+  [CHAIN.ROBINHOOD]: {
+    goon: "0x80ea4cd0e33f8323cd3d33d7006f247733177a9e",
+    usdToken: ADDRESSES.robinhood.USDG,
+    fromBlock: 15102260, // Goon deploy block
+    start: "2026-07-20",
+    deadFrom: "2026-08-17", // migrated to Base
+  },
+  [CHAIN.BASE]: {
+    goon: "0x60e6f91783546C78265CdCB5B69aD1ad41BB9537",
+    usdToken: ADDRESSES.base.USDC,
+    fromBlock: 50060858, // Goon deploy block
+    start: "2026-08-17",
+  },
+};
 
 const LAUNCHED =
   "event Launched(address token, uint256 supply, string name, string symbol, string image, address creator, address pool, address lock)";
@@ -24,21 +37,22 @@ const SWAP_FEES_TO_CREATOR = "Token Swap Fees to Creators";
 const SWAP_FEES_TO_UNISWAP = "Token Swap Fees to Uniswap";
 
 const fetch = async (options: FetchOptions) => {
+  const { goon, usdToken, fromBlock } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   // Full history of launches, needed to know every pool that could still be trading.
   const allLaunches = await options.getLogs({
-    target: GOON,
+    target: goon,
     eventAbi: LAUNCHED,
-    fromBlock: FROM_BLOCK,
+    fromBlock,
     cacheInCloud: true,
   });
 
   const pairObject: IJSON<string[]> = {};
   for (const launch of allLaunches) {
-    pairObject[launch.pool.toLowerCase()] = [USDG.toLowerCase(), launch.token.toLowerCase()];
+    pairObject[launch.pool.toLowerCase()] = [usdToken.toLowerCase(), launch.token.toLowerCase()];
   }
 
   const filteredPools = await filterPools({
@@ -77,27 +91,27 @@ const fetch = async (options: FetchOptions) => {
       const tokenRatioToUniswap = (feeProtocol >> 4) & 0x0f ? 1 / ((feeProtocol >> 4) & 0x0f) : 0;
 
       for (const log of logs) {
-        const usdgRaw = Number(log.amount0);
-        const usdgIn = usdgRaw > 0; // launcher enforces usd to always be token0
-        const usdgLeg = Math.abs(usdgRaw);
+        const usdRaw = Number(log.amount0);
+        const usdIn = usdRaw > 0; // launcher enforces usd to always be token0
+        const usdLeg = Math.abs(usdRaw);
 
-        if (usdgIn) {
+        if (usdIn) {
           // USD was the input - fee is charged directly in USD, split between Uniswap and protocol.
-          const totalFee = usdgLeg * feeTier;
+          const totalFee = usdLeg * feeTier;
           const uniswapCut = totalFee * usdRatioToUniswap;
-          dailyFees.add(USDG, totalFee, METRIC.SWAP_FEES);
-          dailyRevenue.add(USDG, totalFee - uniswapCut, SWAP_FEES_TO_PROTOCOL);
-          if (uniswapCut) dailySupplySideRevenue.add(USDG, uniswapCut, SWAP_FEES_TO_UNISWAP);
+          dailyFees.add(usdToken, totalFee, METRIC.SWAP_FEES);
+          dailyRevenue.add(usdToken, totalFee - uniswapCut, SWAP_FEES_TO_PROTOCOL);
+          if (uniswapCut) dailySupplySideRevenue.add(usdToken, uniswapCut, SWAP_FEES_TO_UNISWAP);
         } else {
           // The launch token was the input, fee is charged in that token and split between
           // Uniswap and the creator. We can't reliably price the arbitrary launch token itself,
           // but we can value the fee in USD-equivalent terms using this same swap's implied
           // exchange rate (grossing up the USD output by the fee rate).
-          const totalFee = (usdgLeg * feeTier) / (1 - feeTier);
+          const totalFee = (usdLeg * feeTier) / (1 - feeTier);
           const uniswapCut = totalFee * tokenRatioToUniswap;
-          dailyFees.add(USDG, totalFee, METRIC.SWAP_FEES);
-          dailySupplySideRevenue.add(USDG, totalFee - uniswapCut, SWAP_FEES_TO_CREATOR);
-          if (uniswapCut) dailySupplySideRevenue.add(USDG, uniswapCut, SWAP_FEES_TO_UNISWAP);
+          dailyFees.add(usdToken, totalFee, METRIC.SWAP_FEES);
+          dailySupplySideRevenue.add(usdToken, totalFee - uniswapCut, SWAP_FEES_TO_CREATOR);
+          if (uniswapCut) dailySupplySideRevenue.add(usdToken, uniswapCut, SWAP_FEES_TO_UNISWAP);
         }
       }
     });
@@ -134,16 +148,14 @@ const breakdownMethodology = {
   },
 };
 
-
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-07-20",
   pullHourly: true,
   methodology,
   breakdownMethodology,
   doublecounted: true, // Goon pools are Uniswap V3 pools
+  adapter: chainConfig,
 };
 
 export default adapter;

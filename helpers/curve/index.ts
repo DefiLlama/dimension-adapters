@@ -6,10 +6,17 @@ import { CurveContractAbis, getAllPools, ICurveDexConfig, getPoolTokens, ITokenE
 // export types and helpers
 export * from "./helpers";
 
+function isBlacklistedToken(token: string | undefined, blacklistedTokens: Set<string>) {
+  return token ? blacklistedTokens.has(formatAddress(token)) : false
+}
+
 export async function getCurveDexData(options: FetchOptions, config: ICurveDexConfig) {
   const dailyVolume = options.createBalances()
   const swapFees = options.createBalances()
   const adminFees = options.createBalances()
+  const blacklistedTokens = new Set(
+    (config.blacklistedTokens ?? []).map((token) => formatAddress(token))
+  )
 
   const tokenExchangeEvents: Array<ITokenExchangeEvent> = []
   const tokenExchangeUnderlyingEvents: Array<ITokenExchangeEvent> = []
@@ -73,6 +80,7 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     const amount1 = Number(event.tokens_bought)
 
     if (!token0 || !token1) continue
+    if (isBlacklistedToken(token0, blacklistedTokens) || isBlacklistedToken(token1, blacklistedTokens)) continue
 
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 })
 
@@ -104,18 +112,24 @@ export async function getCurveDexData(options: FetchOptions, config: ICurveDexCo
     //  when users swap USDC for FEI, contracts takes USDC and add liquidity to DAI/USDC/USDT and get an amount of LP token
     //  contracts put this LP amount into TokenExchangeUnderlying event, so we can not get correct trae amount from USDC amount, we only can get trade amount from FEI amount
     if (event.sold_id === 0) {
-      if (token0) {
+      if (token0 && !isBlacklistedToken(token0, blacklistedTokens)) {
         dailyVolume.add(token0, amount0);
         swapFees.add(token0, amount0 * feeRate);
         adminFees.add(token0, amount0 * feeRate * adminFeeRate);
       }
     } else if (event.bought_id === 0) {
-      if (token1) {
+      if (token1 && !isBlacklistedToken(token1, blacklistedTokens)) {
         dailyVolume.add(token1, amount1);
         swapFees.add(token1, amount1 * feeRate);
         adminFees.add(token1, amount1 * feeRate * adminFeeRate);
       }
     }
+  }
+
+  for (const token of blacklistedTokens) {
+    dailyVolume.removeTokenBalance(token)
+    swapFees.removeTokenBalance(token)
+    adminFees.removeTokenBalance(token)
   }
 
   return { dailyVolume, swapFees, adminFees }

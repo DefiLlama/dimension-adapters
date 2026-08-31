@@ -68,6 +68,8 @@ interface VaultERC4626Info {
   rateAfter: bigint;
 }
 
+const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
+
 const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> = {
   [CHAIN.ETHEREUM]: [{
     token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
@@ -104,7 +106,49 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // reporting ~$20k fees/day. Same vault-level share-price corruption.
     vault: '0x749794E985Af5a9A384B9cEe6D88DaB4CE1576A1',
     from: '2026-04-01',
+  }, {
+    // Apostro Resolv USDC (aprUSDC) - allocated to Resolv USR/RLP markets that froze at 100%
+    // utilization after the 2026-03-22 Resolv incident. Share price is ~15.74 USDC/share
+    // (started at 1.0) and Morpho still reports ~298,000% APY, so the vault-level share-price
+    // read treats a ~2% real day as a ~34% fee print (~$108k/day on ~$341k TVL).
+    vault: '0x214B47C50057eFaa7adc1B1C2608C3751Cd77D78',
+    from: '2026-03-22',
   }],
+  [CHAIN.BASE]: [{
+    // Apostro Resolv USDC (aprUSDC) - same Resolv freeze as the ethereum twin. Share price
+    // ~12.26 USDC/share, Morpho APY ~298,000%, reporting ~$46k/day on ~$185k TVL.
+    vault: '0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3',
+    from: '2026-03-22',
+  }],
+}
+
+async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
+  const blacklistedVaultsForChain = new Set(
+    blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
+  );
+  const hardcodedVaultsWithFrom = new Set(
+    (blacklistedVaults[chain] ?? []).map(item => item.vault.toLowerCase())
+  );
+
+  const insolventMarketsDetails = await sdk.cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
+  const cacheVaults = insolventMarketsDetails.vaults?.[chain] ?? {};
+  const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
+
+  for (const vault of Object.keys(cacheVaults)) {
+    const vaultLower = vault.toLowerCase();
+    if (hardcodedVaultsWithFrom.has(vaultLower)) continue;
+
+    const firstSeenTs = firstSeenForChain[vaultLower];
+    if (firstSeenTs) {
+      const from = new Date(firstSeenTs * 1000).toISOString().split('T')[0];
+      if (dateString >= from) blacklistedVaultsForChain.add(vaultLower);
+    } else {
+      // no start date in cache — exclude on every run
+      blacklistedVaultsForChain.add(vaultLower);
+    }
+  }
+
+  return blacklistedVaultsForChain;
 }
 
 function isOwner(owner: string, owners: Array<string>) {
@@ -356,11 +400,16 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
     const perfFeeRate = Number(state.performanceFeeBps ?? 0) / 1e4
     const mgmtFeeRate = Number(state.managementFeeBps ?? 0) / 1e4
 
-    // History is requested with a ±1 day pad (API is date-grained); keep only
-    // snapshots that fall inside this fetch window.
+    // History is requested with a ±1 day pad; keep only snapshots inside this
+    // fetch window. Snapshots are hourly and land on the hour, so the upper
+    // bound has to be endTimestamp (the window's closing midnight) and not
+    // toTimestamp (23:59:59). Bounding at toTimestamp drops the closing
+    // snapshot, leaving a 00:00 -> 23:00 delta that misses the window's last
+    // hour, and since the next window starts at its own 00:00 that hour is
+    // never counted by any window.
     const points: any[] = (Array.isArray(history) ? history : history?.history ?? [])
       .map((p: any) => ({ ...p, _ts: Date.parse(p.timestamp ?? p.date ?? '') / 1000 }))
-      .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.toTimestamp)
+      .filter((p: any) => isFinite(p._ts) && p._ts >= options.fromTimestamp && p._ts <= options.endTimestamp)
       .sort((a: any, b: any) => a._ts - b._ts)
 
     let grossInterest = 0
@@ -371,10 +420,11 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
     }
 
     const perfFee = grossInterest * perfFeeRate
-    // History `tvl` and `interest` are human-denominated; scale both to raw units.
-    // Use the first in-window snapshot so mgmt fee tracks that day's AUM, not live prevAum.
-    const tvl = Number(points[0]?.tvl ?? 0)
-    const mgmtFee = tvl * 10 ** decimals * mgmtFeeRate * elapsed / YEAR_SECS
+    // `prevAum` is the vault's AUM in raw token units, which is what the balance
+    // entry below is denominated in. The history snapshots carry `tvl` in USD, not
+    // in token units, so they cannot be used here without a price. Same field and
+    // same accrual as fees/sentora.ts.
+    const mgmtFee = Number(state.prevAum ?? 0) * mgmtFeeRate * elapsed / YEAR_SECS
 
     if (grossInterest > 0) {
       if (breakdownFees) {
@@ -484,9 +534,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailySupplySideRevenue = options.createBalances()
 
         // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
-        const blacklistedVaultsForChain = new Set(
-          blacklistedVaults[options.chain]?.filter(item => options.dateString >= item.from).map(item => item.vault.toLowerCase())
-        )
+        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options.chain, options.dateString)
         const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults
