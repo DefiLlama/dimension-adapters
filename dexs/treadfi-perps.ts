@@ -8,6 +8,9 @@ import { getEnv } from "../helpers/env";
 // https://www.tread.fi/
 const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
 const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
+// 2bps builder fee on Tread-routed Extended volume
+// https://docs.tread.fi/account-creation-and-api-key-connection/connecting-to-exchanges/extended
+const EXTENDED_BUILDER_FEE_RATE = 0.0002;
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
 interface TreadToolsApiResponse {
@@ -18,6 +21,10 @@ interface TreadToolsApiResponse {
       totalVolume: number;
     };
   };
+  excludedVolume?: {
+    dailyVolume: number;
+    totalVolume: number;
+  };
   timestamp: string;
   queriedDate: string | null;
   dateRange: {
@@ -25,6 +32,10 @@ interface TreadToolsApiResponse {
     end: string;
   };
 }
+
+const VOLUME_LABEL = "Tread.fi OMS Fills";
+const FEES_LABEL = "Builder Code Fees";
+const REVENUE_LABEL = "Builder Code Fees To Tread.fi";
 
 const getHeaders = () => {
   const apiKey = getEnv("TREADTOOLS_API_KEY");
@@ -37,19 +48,28 @@ const getHeaders = () => {
 };
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
-  try {
-    const url = `${TREADTOOLS_API_URL}?timestamp=${options.startOfDay}`;
-    const response: TreadToolsApiResponse = await httpGet(url, {
-      headers: getHeaders(),
-    });
+  const url = `${TREADTOOLS_API_URL}?timestamp=${options.startOfDay}`;
+  const response: TreadToolsApiResponse = await httpGet(url, {
+    headers: getHeaders(),
+    timeout: 30_000,
+  });
 
-    if (response.status !== "ok") {
-      throw new Error(`API returned status: ${response.status}`);
-    }
-    return response;
-  } catch (error: any) {
-    throw new Error(`Failed to fetch TreadTools data: ${error.message}`);
+  if (response.status !== "ok") {
+    throw new Error(`TreadTools API returned status: ${response.status}`);
   }
+  // The server clamps incomplete/future days to the last complete day; reject a
+  // substituted date instead of recording it under the requested day.
+  if (response.queriedDate !== options.dateString) {
+    throw new Error(`TreadTools returned data for ${response.queriedDate}, expected ${options.dateString}`);
+  }
+  // Fills from venues missing in the server's bucket map are dropped from `data`;
+  // fail loudly when the leak is material instead of silently underreporting.
+  const excluded = Number(response.excludedVolume?.dailyVolume) || 0;
+  const reported = Object.values(response.data).reduce((sum, d) => sum + (Number(d.dailyVolume) || 0), 0);
+  if (excluded > 0.05 * (reported + excluded)) {
+    throw new Error(`TreadTools excluded volume ${excluded} exceeds 5% of total ${reported + excluded}`);
+  }
+  return response;
 };
 
 // Volume from the TreadTools API (Tread.fi OMS fills), no builder fees on these venues.
@@ -67,7 +87,7 @@ const volumeOnly = (...keys: string[]) => async (options: FetchOptions) => {
   }
 
   if (totalVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", totalVolume);
+    dailyVolume.addCGToken("usd-coin", totalVolume, VOLUME_LABEL);
   }
 
   return {
@@ -84,15 +104,20 @@ const fetchHyperliquid = async (options: FetchOptions) => {
   const treadToolsData = options.preFetchedResults;
   const hlData = treadToolsData?.data?.hyperliquid;
   if (hlData && typeof hlData.dailyVolume === "number" && hlData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", hlData.dailyVolume);
+    dailyVolume.addCGToken("usd-coin", hlData.dailyVolume, VOLUME_LABEL);
   }
 
-  // Fees from builder API (actual builder fee revenue)
-  const { dailyFees, dailyRevenue, dailyProtocolRevenue } =
-    await fetchBuilderCodeRevenue({
-      options,
-      builder_address: HL_BUILDER_ADDRESS,
-    });
+  // Fees from builder API (actual builder fee revenue), rewrapped to carry breakdown labels
+  const builder = await fetchBuilderCodeRevenue({
+    options,
+    builder_address: HL_BUILDER_ADDRESS,
+  });
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  dailyFees.addBalances(builder.dailyFees, FEES_LABEL);
+  dailyRevenue.addBalances(builder.dailyRevenue, REVENUE_LABEL);
+  dailyProtocolRevenue.addBalances(builder.dailyProtocolRevenue, REVENUE_LABEL);
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
@@ -103,24 +128,50 @@ const fetchExtended = async (options: FetchOptions) => {
   const treadToolsData = options.preFetchedResults;
   const extendedData = treadToolsData?.data?.extended;
   if (extendedData && typeof extendedData.dailyVolume === "number" && extendedData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume);
+    dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume, VOLUME_LABEL);
   }
 
-  // Fees from builder API (observed builder fee revenue)
-  const { dailyFees } = await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES });
+  // Builder fees: 2bps of Tread-routed volume from the Extended builder dashboard
+  const { dailyFees: builderFees } = await fetchBuilderData({
+    options,
+    builderNames: EXTENDED_BUILDER_NAMES,
+    builderFeeRate: EXTENDED_BUILDER_FEE_RATE,
+  });
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  dailyFees.addBalances(builderFees, FEES_LABEL);
+  dailyRevenue.addBalances(builderFees, REVENUE_LABEL);
+  dailyProtocolRevenue.addBalances(builderFees, REVENUE_LABEL);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid, Extended).",
+  Volume: "Notional volume of all orders executed through Tread.fi's OMS across connected venues, self-reported from Tread.fi's own fill records; includes both maker and taker executions. Flow routed to centralized exchanges (Bybit, Binance) is reported off-chain.",
+  Fees: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid builder rewards, Extended at 2bps of routed volume).",
   Revenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
   ProtocolRevenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    [VOLUME_LABEL]: "Notional volume of all orders executed through Tread.fi's OMS across connected venues, self-reported from Tread.fi's own fill records; includes both maker and taker executions.",
+  },
+  Fees: {
+    [FEES_LABEL]: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid, Extended).",
+  },
+  Revenue: {
+    [REVENUE_LABEL]: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
+  },
+  ProtocolRevenue: {
+    [REVENUE_LABEL]: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -144,15 +195,15 @@ const adapter: SimpleAdapter = {
       fetch: volumeOnly("nado"),
       start: "2026-01-07",
     },
-    // Aggregates Pacifica + Bybit (both CEX copy-trading on Solana)
+    // Pacifica is a perps exchange on Solana
     [CHAIN.SOLANA]: {
-      fetch: volumeOnly("pacifica", "bybit"),
-      start: "2024-08-09",
+      fetch: volumeOnly("pacifica"),
+      start: "2025-10-30",
     },
-    // Aggregates Aster + Binance (both CEX copy-trading on BSC)
+    // Aster is a perps exchange on BSC
     [CHAIN.BSC]: {
-      fetch: volumeOnly("aster", "binance"),
-      start: "2024-08-09",
+      fetch: volumeOnly("aster"),
+      start: "2025-10-25",
     },
     // All Orderly-broker venues (merged server-side into one bucket)
     [CHAIN.ORDERLY]: {
@@ -168,10 +219,12 @@ const adapter: SimpleAdapter = {
       fetch: volumeOnly("perpl"),
       start: "2026-02-12",
     },
-    // Ondo Global Markets (stock perps), reported off-chain like the native ondo-perps adapter
+    // Ondo Global Markets (stock perps, like the native ondo-perps adapter) plus
+    // CEX flow routed by Tread (Bybit, Binance) - executed on centralized books,
+    // so booked off-chain rather than under an L1
     [CHAIN.OFF_CHAIN]: {
-      fetch: volumeOnly("ondo"),
-      start: "2026-03-17",
+      fetch: volumeOnly("ondo", "bybit", "binance"),
+      start: "2024-08-09",
     },
     // Arcus is a perps exchange on Robinhood Chain (matches the native arcus-perps adapter)
     [CHAIN.ROBINHOOD]: {
@@ -180,6 +233,9 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology,
+  breakdownMethodology,
+  // Same fills are counted by the native venue adapters (hyperliquid, extended,
+  // paradex, nado, pacifica, perpl, risex-perps, ondo-perps, arcus-perps, orderly)
   doublecounted: true,
 };
 
