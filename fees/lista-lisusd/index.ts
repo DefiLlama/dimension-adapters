@@ -39,10 +39,16 @@ const wbeth = ADDRESSES.bsc.wBETH;
 const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
-// sLisUSD savings pool (LisUSDPoolSet). The treasury (ListaRevenueDistributor / new treasury)
-// funds this pool's savings yield, which is paid out to third-party sLisUSD depositors.
+// sLisUSD savings pool (LisUSDPoolSet). Protocol reserve yield is funneled here and paid out to
+// third-party sLisUSD depositors. Two contracts fund it: ListaRevenueDistributor (new treasury),
+// funded by lisUSD revenue already counted in Fees, and EarnPool, which forwards PSM reserve yield
+// (USDT deposited into Venus) that the Fees lines below do NOT otherwise capture.
 const LisUSDPoolSet =
   "0x00000000000000000000000037db1ae9b24055d1f9fe973aea40b7eb2995d0bf";
+// EarnPool: forwards PSM (USDT reserves -> Venus) yield into the sLisUSD savings pool. In practice
+// this is ~94% of the pool's funding; the venusAdaptor -> treasury path is ~0 now.
+const EarnPool =
+  "0x00000000000000000000000066de07893db7492b56ba88503b4cc99bab1796f3";
 
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
 const liquidatorProfitReceiver =
@@ -66,6 +72,7 @@ const VALIDATOR_REWARDS = "Validator Rewards";
 const LP_STAKING_REWARDS = "LP Staking Rewards";
 const FREEZE_LISTA = "Freeze LISTA";
 const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
+const SAVINGS_YIELD = "sLisUSD Savings Yield";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -255,21 +262,45 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, Number(log.data), LIQUIDATION_PROFIT);
   });
 
-  // sLisUSD savings cost: the treasury (ListaRevenueDistributor) funds the sLisUSD savings pool
-  // (LisUSDPoolSet). This lisUSD is paid to third-party sLisUSD depositors, so it is
-  // SupplySideRevenue and the protocol's Revenue is net of it. It is NOT subtracted from Fees —
-  // borrower interest and the other items above are real user-paid fees.
-  const lsrSavingsCost = await options.getLogs({
+  // sLisUSD savings cost (LSR): the protocol funds the sLisUSD savings pool (LisUSDPoolSet), whose
+  // yield is paid to third-party sLisUSD depositors -> SupplySideRevenue. Two contracts fund it:
+  //   1. ListaRevenueDistributor (newTreasury) — funded by lisUSD revenue already counted in the
+  //      Fees lines above (borrow interest, etc.), so this leg only reduces Revenue (net-out).
+  //   2. EarnPool — forwards PSM reserve yield (USDT deposited into Venus) into the pool. This
+  //      yield does NOT reach the Fees lines above (the venusAdaptor -> treasury path is ~0 now;
+  //      the yield is routed straight to savers), so it is grossed up into Fees and then paid out
+  //      as SupplySideRevenue, leaving Revenue unchanged for this leg.
+  const lsrCostFromTreasury = await options.getLogs({
     target: lisUSD,
     topics: [transferHash, newTreasury, LisUSDPoolSet],
   });
-  const dailySupplySideRevenue = options.createBalances();
-  [...lsrSavingsCost].forEach((log) => {
-    dailySupplySideRevenue.add(lisUSD, Number(log.data), LSR_SAVINGS_COST);
+  const lsrCostFromEarnPool = await options.getLogs({
+    target: lisUSD,
+    topics: [transferHash, EarnPool, LisUSDPoolSet],
   });
 
+  const treasuryLeg = options.createBalances();
+  [...lsrCostFromTreasury].forEach((log) => {
+    treasuryLeg.add(lisUSD, Number(log.data), LSR_SAVINGS_COST);
+  });
+  const earnPoolLeg = options.createBalances();
+  [...lsrCostFromEarnPool].forEach((log) => {
+    earnPoolLeg.add(lisUSD, Number(log.data), SAVINGS_YIELD);
+  });
+
+  // Revenue = collected income kept by the protocol, net of the treasury-funded savings payout.
+  // Clone BEFORE grossing up the EarnPool yield so that yield does not inflate Revenue.
   const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtract(dailySupplySideRevenue, LSR_SAVINGS_COST);
+  dailyRevenue.subtract(treasuryLeg, LSR_SAVINGS_COST);
+
+  // Gross up the PSM/Venus yield behind the EarnPool leg into Fees (it is missing from the lines
+  // above); it is fully paid out to depositors, so Revenue is unaffected (add to Fees only).
+  dailyFees.addBalances(earnPoolLeg, SAVINGS_YIELD);
+
+  // SupplySideRevenue = everything paid to sLisUSD depositors (both funders).
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(treasuryLeg, LSR_SAVINGS_COST);
+  dailySupplySideRevenue.addBalances(earnPoolLeg, LSR_SAVINGS_COST);
 
   return {
     dailyFees,
@@ -293,9 +324,25 @@ const LISUSD_BREAKDOWN = {
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
 
+const FEES_BREAKDOWN = {
+  ...LISUSD_BREAKDOWN,
+  [SAVINGS_YIELD]:
+    'PSM reserve yield (USDT staked in Venus) routed via EarnPool to fund the sLisUSD savings rate — grossed up into Fees and paid out as the savings cost.',
+};
+const REVENUE_BREAKDOWN = {
+  ...LISUSD_BREAKDOWN,
+  [LSR_SAVINGS_COST]:
+    'Treasury-funded (ListaRevenueDistributor) sLisUSD savings payout, deducted from revenue.',
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // ListaRevenueDistributor funds the sLisUSD savings pool in lumps, so on a distribution hour the
+  // treasury-leg savings payout can exceed that hour's collected income and push Revenue negative.
+  // This is expected lumpiness that nets out cumulatively (the borrow interest behind it was booked
+  // in earlier hours) — keep such hours rather than throwing.
+  allowNegativeValue: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
@@ -303,16 +350,16 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
+    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, PSM/veLista/LP/validator fees, and the PSM/Venus reserve yield that funds the sLisUSD savings rate), net of frozen LISTA.',
     Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings cost paid out to sLisUSD depositors.',
     ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings cost.',
-    SupplySideRevenue: 'lisUSD paid from the treasury (ListaRevenueDistributor) into the sLisUSD savings pool (LisUSDPoolSet) — savings yield distributed to third-party sLisUSD depositors.',
+    SupplySideRevenue: 'lisUSD paid into the sLisUSD savings pool (LisUSDPoolSet) and distributed to third-party sLisUSD depositors — funded by ListaRevenueDistributor and by EarnPool (PSM/Venus reserve yield).',
   },
   breakdownMethodology: {
-    Fees: LISUSD_BREAKDOWN,
-    Revenue: LISUSD_BREAKDOWN,
-    ProtocolRevenue: LISUSD_BREAKDOWN,
-    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'lisUSD from the treasury to the sLisUSD savings pool, distributed to sLisUSD depositors.' },
+    Fees: FEES_BREAKDOWN,
+    Revenue: REVENUE_BREAKDOWN,
+    ProtocolRevenue: REVENUE_BREAKDOWN,
+    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'lisUSD paid into the sLisUSD savings pool (from ListaRevenueDistributor and EarnPool) and distributed to sLisUSD depositors.' },
   }
 };
 
