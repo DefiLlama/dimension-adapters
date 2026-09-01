@@ -41,8 +41,12 @@ const assertOutsideMaterializedViewRefreshWindow = () => {
   }
 };
 
+const isFinalUtcHour = (options: FetchOptions) =>
+  options.endTimestamp % UTC_DAY_SECONDS === 0;
+
 const prefetch = async (options: FetchOptions) => {
   assertOutsideMaterializedViewRefreshWindow();
+  if (!isFinalUtcHour(options)) return [];
 
   return queryDuneSql(options, `
     SELECT date, chain, market, fee_usd, revenue_usd
@@ -81,7 +85,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // The Dune source contains completed-day totals. Hourly adapter results are
   // summed by DefiLlama, so record each daily total only in its final UTC hour.
-  if (options.endTimestamp % UTC_DAY_SECONDS !== 0) return result;
+  if (!isFinalUtcHour(options)) return result;
 
   const duneChainName = duneChainNames[options.chain];
   if (!duneChainName) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
