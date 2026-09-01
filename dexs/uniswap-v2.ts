@@ -88,10 +88,9 @@ const chainConfig: Record<string, {
     feeSwitchDate: "2026-03-08",
   },
   [CHAIN.INK]: {
-    // Uniswap V2 factory from the official Ink deployment record:
-    // https://github.com/Uniswap/UniswapX/blob/main/playbook/chains/ink.md
-    factory: '0xfe57a6ba1951f69ae2ed4abe23e0f095df500c04',
-    source: 'CLICKHOUSE',
+    // Ink isn't in evm_indexer, so fall back to the RPC-backed LOGS path.
+    factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
+    source: 'LOGS',
     start: '2024-12-20',
   },
   [CHAIN.ROBINHOOD]: {
