@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json';
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -63,8 +64,26 @@ const SOLANA_FEE_WALLETS = [
   '6TxjC5wJzuuZgTtnTMipwwULEbMPx5JPW3QwWkdTGnrn',
 ];
 
+// GMGN takes its fee in the native gas token and in the chain's main stablecoin - the same assets
+// fees/gmgnai.ts books as fees. Matching the fee asset by contract address means a token someone
+// sends to the collector cannot mark an unrelated swap as GMGN's. A chain with no entry here still
+// counts its native-token fees.
+const NATIVE = '0x0000000000000000000000000000000000000000';
+const FEE_STABLE_BY_CHAIN: Record<string, string> = {
+  ethereum: ADDRESSES.ethereum.USDC,
+  bnb: ADDRESSES.bsc.USDC,
+  base: ADDRESSES.base.USDC,
+  monad: (ADDRESSES as any).monad?.USDC,
+  hyperevm: (ADDRESSES as any).hyperliquid?.USDC,
+  robinhood: ADDRESSES.robinhood.USDG, // usdg is the main stablecoin on robinhood
+  arbitrum: (ADDRESSES as any).arbitrum?.USDC_CIRCLE, // arbitrum.USDC is bridged USDC.e
+};
+
 const sqlList = (xs: string[]) => xs.map((x) => `'${x}'`).join(', ');
 const EVM_DUNE_CHAINS = Object.values(chainConfig).map((c) => c.duneName).filter((c) => c !== 'solana');
+const evmFeeFilter = EVM_DUNE_CHAINS
+  .map((chain) => `(blockchain = '${chain}' AND contract_address IN (${[NATIVE, FEE_STABLE_BY_CHAIN[chain]].filter(Boolean).join(', ')}))`)
+  .join(' OR ');
 
 // Dune lags ~10h; skip days whose end is too recent to avoid undercounting.
 const assertIndexed = (options: FetchOptions) => {
@@ -82,7 +101,7 @@ async function prefetch(options: FetchOptions) {
     WITH evm_fee_txs AS (
       SELECT DISTINCT blockchain, block_date, tx_hash
       FROM tokens.transfers
-      WHERE TIME_RANGE AND "to" = ${EVM_FEE_COLLECTOR} AND blockchain IN (${evmChains})
+      WHERE TIME_RANGE AND "to" = ${EVM_FEE_COLLECTOR} AND (${evmFeeFilter})
     ),
     sol_fee_txs AS (
       SELECT DISTINCT tx_id
