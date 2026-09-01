@@ -10,7 +10,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const tickers = data.data
-    .filter((tradeSummary: any) => tradeSummary.instrument_type === 'spot')
+    .filter((tradeSummary: any) => tradeSummary.instrument_type === 'spot'
+      && (!tradeSummary.created_at || tradeSummary.created_at < options.endTimestamp * 1000))
     .map((tradeSummary: any) => tradeSummary.symbol)
   let dailyVolume = 0;
 
