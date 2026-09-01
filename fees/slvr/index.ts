@@ -6,8 +6,11 @@ import { METRIC } from "../../helpers/metrics";
 // SLVR — 1-minute on-chain grid lottery on Robinhood Chain (Arbitrum Orbit L2, chainId 4663).
 // Native wager token is ETH. Each resolved round takes a flat 10% rake on wagers: 8% is distributed
 // to veNFT stakers (SlvrVoteEscrowStaking) and 2% goes to the jackpot (paid back out to players).
-// Winners keep the other 90%. The SLVR token additionally taxes DEX trades (2% buy / 2% sell at
-// launch, decrease-only); collected tax is swapped to ETH and deposited into the jackpot.
+// Winners keep the other 90% (88% on current-generation games — see the buyback leg below). The
+// SLVR token additionally taxes DEX trades (2% buy / 2% sell at launch, decrease-only:
+// `buyTaxBps`/`sellTaxBps` on the token,
+// https://robinhoodchain.blockscout.com/address/0x791229E3EbD6CFdC3D8157f48722684173C29aD9);
+// collected tax is swapped to ETH and deposited into the jackpot.
 //
 // Game contracts hot-swap (the grid lottery has been redeployed several times), so wager events
 // are read from every game in the on-chain SlvrGameRegistry rather than a hardcoded address.
@@ -23,8 +26,15 @@ const BET_PLACED = "event BetPlaced(uint256 indexed roundId, address indexed ben
 const REWARD_DISTRIBUTED = "event RewardDistributed(uint256 amount)";
 // Current-generation games take a 12% rake: 8% stakers + 2% jackpot + 2% buyback-and-burn
 // (the buyback ETH buys SLVR that is sent to a graveyard address, out of circulation for good).
-// BuybackFunded fires when accrued buyback ETH is actually flushed to the sink, carrying over on
-// failed sends, so summing event amounts is exact. Older games (10% rake) never emit it.
+// Source: the active SlvrGridLottery, `protocolFeeBps = 1200` / `jackpotFeeBps = 200` /
+// `buybackFeeBps = 200` (all owner-tunable, buyback capped at 400 bps):
+// https://robinhoodchain.blockscout.com/address/0xa1e5213505772B195FD7AE3b4a6b27B58Cf72A3D
+// BuybackFunded fires when accrued buyback ETH is actually flushed to the sink (every ~10 rounds,
+// carrying over on failed sends), so summing event amounts tracks the real cash flow and stays
+// correct across rate changes — the same flush-timed convention as the RewardDistributed-based
+// staker figure, with at most a few minutes of skew at period boundaries. Deriving 2% of wagers
+// instead would misprice periods after a rate change and count games without a buyback leg
+// (older 10%-rake games never emit this event).
 const BUYBACK_FUNDED = "event BuybackFunded(uint256 indexed roundId, uint256 amount)";
 const ETH_DEPOSITED_TO_JACKPOT = "event EthDepositedToJackpot(uint256 amount)";
 const HARVESTED = "event Harvested(uint256 grossEth, uint256 growthEth, uint256 incomeEth, uint256 protocolFee, uint256 keeperReward)";
