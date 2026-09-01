@@ -1,30 +1,15 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { DEFAULT_TOTAL_VOLUME_FIELD, getChainVolume2 } from "../../helpers/getUniSubgraphVolume";
 import { CHAIN } from "../../helpers/chains";
+import { getUniV3LogAdapter } from "../../helpers/uniswap";
 
-const endpoints = {
-  [CHAIN.ROLLUX]: "https://rollux.graph.pegasys.fi/subgraphs/name/pollum-io/pegasys-v3",
-};
-
-const graphs = getChainVolume2({
-  graphUrls: endpoints,
-  totalVolume: {
-    factory: "factories",
-    field: DEFAULT_TOTAL_VOLUME_FIELD,
-  },
-});
-// rollux
 const adapter: SimpleAdapter = {
   version: 2,
+  skipBreakdownValidation: true,
+  pullHourly: true,
   adapter: {
     [CHAIN.ROLLUX]: {
-      // The old function is retained so that historical data from before 05-03 remains intact
-      fetch: graphs(CHAIN.ROLLUX),
+      fetch: getUniV3LogAdapter({ factory: '0xeAa20BEA58979386A7d37BAeb4C1522892c74640' }),
       start: '2023-06-30',
-      deadFrom: '2026-05-03', // subgraph dark since this date (see #8921); only activity
-      // after this is a single-wallet arb burst 06-03 -> 06-10-2026,
-      // on-chain scan proves 0 organic trading activity since
-      // not organic volume — see PR description for full analysis
     },
   },
 };
