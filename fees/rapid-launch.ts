@@ -1,7 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { METRIC } from "../helpers/metrics";
 import { getSolanaReceived } from "../helpers/token";
 
 // The legacy collector was swept into the current collector on 2025-07-05:
@@ -13,6 +12,8 @@ const CURRENT_FEE_COLLECTOR = "rapidXMVLw5uBieKHDGvF9k4xSSDXyD2FC5wLTAajaJ";
 // Legacy dedicated fee collector: https://orbmarkets.io/address/feesEi65EDHZ7jVMPUicJtnCyTnsoqnQB93GHqLZ6BC/history
 const LEGACY_FEE_COLLECTOR = "feesEi65EDHZ7jVMPUicJtnCyTnsoqnQB93GHqLZ6BC";
 const FEE_COLLECTORS = [CURRENT_FEE_COLLECTOR, LEGACY_FEE_COLLECTOR];
+const COLLECTOR_FEES = "Rapid Launch Collector Fees";
+const COLLECTOR_FEES_TO_TREASURY = "Rapid Launch Collector Fees To Treasury";
 
 /** Fetches external SOL receipts sent to Rapid Launch's dedicated fee collectors. */
 const fetch = async (options: FetchOptions) => {
@@ -29,13 +30,15 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(received, METRIC.PROTOCOL_FEES);
+  dailyFees.addBalances(received, COLLECTOR_FEES);
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(received, COLLECTOR_FEES_TO_TREASURY);
 
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -55,8 +58,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.PROTOCOL_FEES]:
+      [COLLECTOR_FEES]:
         "SOL received by the current and legacy Rapid Launch fee collectors from external addresses.",
+    },
+    Revenue: {
+      [COLLECTOR_FEES_TO_TREASURY]:
+        "SOL receipts retained by Rapid Launch after excluding collector-to-collector transfers.",
+    },
+    ProtocolRevenue: {
+      [COLLECTOR_FEES_TO_TREASURY]:
+        "SOL receipts retained by Rapid Launch as protocol revenue.",
     },
   },
 };
