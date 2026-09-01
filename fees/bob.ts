@@ -1,36 +1,41 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import ADDRESSES from "../helpers/coreAssets.json";
+
+// BOB is an OP-stack chain with a modified fee split: most of what users pay lands in the
+// OperatorFeeVault rather than the BaseFeeVault, so all four vaults are summed. Over the last
+// seven days the three standard vaults hold only about a seventh of the total.
+const SEQUENCER_FEE_VAULT = '0x4200000000000000000000000000000000000011';
+const L1_FEE_VAULT = '0x420000000000000000000000000000000000001a';
+const BASE_FEE_VAULT = '0x4200000000000000000000000000000000000019';
+const OPERATOR_FEE_VAULT = '0x420000000000000000000000000000000000001b';
+const FEE_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT, OPERATOR_FEE_VAULT];
+
+// A withdrawal moves value out of a vault, so it is added back to the day's balance change.
+// The OperatorFeeVault is the exception: all five withdrawals it has made paid into the
+// BaseFeeVault, so the value never left the four-vault total and adding it back would count
+// it twice.
+const WITHDRAWING_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT];
+
+const LABEL = 'sequencer fees';
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
 
-  const sql_query = getSqlFromFile('helpers/queries/bob-blockchain.sql', {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  })
-  const results = await queryDuneSql(options, sql_query);
+  await options.api.sumTokens({ owners: FEE_VAULTS, tokens: [ADDRESSES.null] });
+  await options.fromApi.sumTokens({ owners: FEE_VAULTS, tokens: [ADDRESSES.null] });
 
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-  if (results && results.length > 0) {
-    const dayData = results.find((row: any) => row.day && row.day.startsWith(dateString));
+  const logs = await options.getLogs({
+    targets: WITHDRAWING_VAULTS,
+    eventAbi: 'event Withdrawal(uint256 value, address to, address from)',
+    flatten: true,
+  });
+  logs.forEach((log: any) => dailyFees.addGasToken(log.value, LABEL));
 
-    if (dayData) {
-      // Use revenue_value (in wei) instead of revenue_eth
-      const revenueWei = dayData.revenue_value || (dayData.revenue_eth * 1e18).toString();
-      if (revenueWei && revenueWei !== "0") {
-        dailyFees.add(ADDRESSES.null, revenueWei, 'sequencer fees');
-        dailyRevenue.add(ADDRESSES.null, revenueWei, 'sequencer fees');
-      }
-    }
-  }
+  dailyFees.addBalances(options.api.getBalancesV2(), LABEL);
+  dailyFees.subtract(options.fromApi.getBalancesV2(), LABEL);
 
-  return {
-    dailyFees,
-    dailyRevenue,
-  };
+  return { dailyFees, dailyRevenue: dailyFees.clone() };
 };
 
 const methodology = {
@@ -54,8 +59,6 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   chains: [CHAIN.BOB],
   start: "2024-04-12",
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
 };
 
 export default adapter;
