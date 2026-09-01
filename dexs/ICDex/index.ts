@@ -72,6 +72,9 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  // stats() only reports a trailing-24h figure for the moment it is called; there is no hourly
+  // series to pull, which is why the chain also runs at current time.
+  pullHourly: false,
   adapter: {
     [CHAIN.ICP]: {
       fetch: fetch,
