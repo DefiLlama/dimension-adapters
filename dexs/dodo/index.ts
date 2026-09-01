@@ -84,10 +84,29 @@ interface IDailyResponse {
 const fetch = async (options: FetchOptions) => {
   const chain = chainConversion(options.chain)
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
+  const list = dailyResponse.data.dashboard_chain_day_data.list
+  const day = list.find((item: any) => item.timestamp === options.startOfDay)
 
-  return {
-    dailyVolume: dailyResponse.data.dashboard_chain_day_data.list.find((item: any) => item.timestamp === options.startOfDay)?.volume[chain],
+  if (!day)
+    throw new Error(`dodo: dashboard_chain_day_data has no ${chain} row for ${options.dateString}`)
+
+  const dailyVolume = Number(day.volume[chain])
+
+  if (!Number.isFinite(dailyVolume))
+    throw new Error(`dodo: ${chain} is missing from the volume object for ${options.dateString}`)
+
+  if (dailyVolume === 0) {
+    const trailing = list
+      .filter((item: any) => item.timestamp < options.startOfDay && item.timestamp >= options.startOfDay - 7 * 24 * 60 * 60)
+      .map((item: any) => Number(item.volume[chain]))
+      .filter((value: number) => Number.isFinite(value))
+      .sort((a: number, b: number) => a - b)
+    const median = trailing.length ? trailing[Math.floor(trailing.length / 2)] : 0
+    if (median > 10000)
+      throw new Error(`dodo: ${chain} reports 0 volume for ${options.dateString} against a 7 day median of ${Math.round(median)}, refusing to publish a day the dashboard has not finished aggregating`)
   }
+
+  return { dailyVolume }
 }
 
 const chainConversion = (chain: string): string => {
