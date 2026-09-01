@@ -84,8 +84,11 @@ interface Data {
 }
 
 const getVolume = async (options: FetchOptions) => {
-  const starttimestamp = options.startOfDay;
-  const endtimestamp = starttimestamp + 86400;
+  // A swaapSnapshot accumulates through the day its id names, so a day's volume is its own
+  // snapshot minus the previous day's. Reading the next day's snapshot shifted the series one
+  // day forward and, in production, read that snapshot while it was still filling up.
+  const endtimestamp = options.startOfDay;
+  const starttimestamp = endtimestamp - 86400;
   const startId = config[options.chain].id + '-' + starttimestamp;
   const endId = config[options.chain].id + '-' + endtimestamp;
 
