@@ -41,7 +41,9 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: PAIR_POOL_CREATED_ABI,
   });
 
-  const totalLaunchFee = LAUNCH_FEE_WEI * BigInt(launchLogs.length);
+  // Deduplicate by projectToken so the flat fee is counted once per deployment.
+  const uniqueLaunches = new Set(launchLogs.map((log: any) => String(log.projectToken)));
+  const totalLaunchFee = LAUNCH_FEE_WEI * BigInt(uniqueLaunches.size);
   dailyFees.addGasToken(totalLaunchFee, "Token Launch Fees");
   dailyRevenue.addGasToken(totalLaunchFee, "Token Launch Fees");
 
