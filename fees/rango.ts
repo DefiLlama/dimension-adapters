@@ -1,5 +1,6 @@
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getSolanaReceived } from "../helpers/token";
 
 const FeeEvent = "event FeeInfo(address token, address indexed affiliatorAddress, uint256 platformFee, uint256 destinationExecutorFee, uint256 affiliateFee, uint16 indexed dAppTag)";
 const FeeEventV2 = "event FeeInfo(address token, address indexed affiliatorAddress, uint256 affiliateFee, uint8 indexed feeType, uint16 indexed dAppTag)";
@@ -59,7 +60,22 @@ const fetch = async (options: FetchOptions) => {
 // overrides below: https://docs.rango.exchange/smart-contracts/deployment-addresses
 const RANGO_DIAMOND = '0x69460570c93f9DE5E2edbC3052bf10125f0Ca22d';
 
-const chainConfig: Record<string, { start: string, contractAddress?: string }> = {
+// Solana has no Rango diamond and no FeeInfo log, so the fee is read from the collector it is
+// paid into. Rango's Solana program RangohQxaWip6i1twAAnRVLmob9j88fid7sq2DMAATW sends 0.7% of the
+// swap input to this account in the same transaction - a plain system account (owner
+// 11111111111111111111111111111111, space 0), receiving since 2026-04-01. It takes the fee both in
+// SOL and in the traded SPL token, and getSolanaReceived covers both.
+const SOLANA_FEE_COLLECTOR = 'Gzm9sVa1bKeLfa3Qz8E1GXS8TeakPRT37nL8w9pSqQvd';
+
+// Fees only: the EVM legs split platform / affiliate / executor from the FeeInfo log, but on Solana
+// the whole 0.7% lands in one account and the collector does pay some of it back out, so the split
+// is not separable on chain here. Reporting the split would mean guessing it.
+const fetchSolana = async (options: FetchOptions) => {
+    const dailyFees = await getSolanaReceived({ options, target: SOLANA_FEE_COLLECTOR });
+    return { dailyFees };
+};
+
+const chainConfig: Record<string, { start: string, contractAddress?: string, fetch?: any }> = {
     [CHAIN.POLYGON]: { start: '2023-06-11' },
     [CHAIN.ARBITRUM]: { start: '2023-06-11' },
     [CHAIN.AVAX]: { start: '2023-06-11' },
@@ -86,6 +102,7 @@ const chainConfig: Record<string, { start: string, contractAddress?: string }> =
     [CHAIN.MODE]: { start: '2024-07-07' },
     [CHAIN.TAIKO]: { start: '2024-11-18' },
     [CHAIN.XLAYER]: { start: '2023-06-11' },
+    [CHAIN.SOLANA]: { start: '2026-04-01', fetch: fetchSolana },
 }
 
 const adapter: Adapter = {
@@ -93,8 +110,9 @@ const adapter: Adapter = {
     pullHourly: true,
     fetch,
     adapter: chainConfig,
+    dependencies: [Dependencies.ALLIUM],
     methodology: {
-        Fees: 'Platform fees, affiliate fees and destination executor fees charged by Rango on swaps and cross-chain transfers.',
+        Fees: 'Platform fees, affiliate fees and destination executor fees charged by Rango on swaps and cross-chain transfers. On Solana, where there is no fee event to split, this is the 0.7% Rango takes into its fee collector.',
         Revenue: 'Platform fees collected by Rango.',
         ProtocolRevenue: 'Platform fees collected by Rango.',
         SupplySideRevenue: 'Affiliate fees paid to integrators that route transactions, and destination executor fees paid to executors that complete transfers on the destination chain.',
