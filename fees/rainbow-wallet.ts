@@ -39,6 +39,9 @@ const chainConfig: ChainConfig = {
   [CHAIN.RONIN]: { router: rainbowRouter, duneChain: 'ronin', start: '2025-10-14' },
   [CHAIN.MEGAETH]: { router: rainbowRouter, duneChain: 'megaeth', start: '2025-12-02' },
   [CHAIN.ROBINHOOD]: { router: rainbowRouter, duneChain: 'robinhood', start: '2026-07-10' },
+  [CHAIN.XDAI]: { router: rainbowRouter, duneChain: 'gnosis', start: '2026-03-01' },
+  [CHAIN.ABSTRACT]: { router: rainbowRouter, duneChain: 'abstract', start: '2026-03-01' },
+  [CHAIN.ERA]: { router: rainbowRouter, duneChain: 'zksync', start: '2026-07-17' },
 }
 
 const getRouterValues = (config: ChainConfig) => Object.entries(config)
