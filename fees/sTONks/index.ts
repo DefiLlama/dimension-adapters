@@ -256,7 +256,7 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  pullHourly: false, // TON adapter uses tonapi.io which rate-limits under hourly pulls
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
