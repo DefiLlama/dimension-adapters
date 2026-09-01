@@ -87,6 +87,13 @@ const chainConfig: Record<string, {
     start: '2026-01-05',
     feeSwitchDate: "2026-03-08",
   },
+  [CHAIN.INK]: {
+    // Uniswap V2 factory from the official Ink deployment record:
+    // https://github.com/Uniswap/UniswapX/blob/main/playbook/chains/ink.md
+    factory: '0xfe57a6ba1951f69ae2ed4abe23e0f095df500c04',
+    source: 'CLICKHOUSE',
+    start: '2024-12-20',
+  },
   [CHAIN.ROBINHOOD]: {
     factory: '0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f',
     source: 'LOGS',
