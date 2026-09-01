@@ -6,7 +6,7 @@
  *
  * Data sources:
  *   GET /instruments     - list all trading pairs
- *   GET /indexer/candles         - OHLCV data with volume per instrument
+ *   GET /indexer/candles - OHLCV data with volume per instrument
  *
  * Fee structure: 0.01% maker / 0.01% taker (from Rocket UI)
  * Website: https://rocketfi.io
@@ -28,7 +28,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     let instruments: string[] = [];
     try {
         const instrumentsData = await getConfig('rocket/instruments', `${ROCKET_API}/instruments`);
-        instruments = Object.keys(instrumentsData.instruments);
+        // Only linear derivatives (perps & dated futures) count towards perp volume;
+        // options are tracked separately in options/rocket
+        instruments = Object.entries(instrumentsData.instruments)
+            .filter(([_, i]: [string, any]) => i.instrumentType === 'PERP' || i.instrumentType === 'FUTURE')
+            .map(([id]) => id);
     } catch (e) {
         throw new Error(`Rocket adapter: failed to fetch instruments: ${String(e)}`);
     }
