@@ -216,14 +216,26 @@ function decodeSleb128(bytes: Uint8Array, state: CursorState): bigint {
 
 // --- Candid decoder ---
 
-// Candid identifies record fields by a hash of their name, so callers pass a
-// { hash: name } map built with this to get readable keys back.
+/**
+ * Candid identifies a record field by a hash of its name rather than the name itself, so a decoded
+ * record comes back keyed by number. Build a `{ [hash]: name }` map with this to get readable keys.
+ * @param label the field name as written in the canister's Candid interface, e.g. `vol24h`
+ * @returns the 32-bit Candid field hash
+ */
 export function hashCandidLabel(label: string): number {
   let out = 0
   for (const codePoint of Buffer.from(label, 'utf8')) out = (out * 223 + codePoint) >>> 0
   return out
 }
 
+/**
+ * Decode a Candid-encoded reply. Candid is self-describing, so the concrete shape is only known at
+ * runtime and values are returned as `any`; narrow them at the adapter boundary. `nat`/`nat64`
+ * decode to `bigint`, `float64` to `number`, `opt` to a 0- or 1-element array.
+ * @param bytes the raw `DIDL...` payload returned by {@link queryCanister}
+ * @param labelHashMap `{ [hash]: name }` from {@link hashCandidLabel}; unmapped fields keep their hash
+ * @returns one entry per value in the reply tuple
+ */
 export function decodeCandid(bytes: Uint8Array, labelHashMap: Record<number, string> = {}): any[] {
   const state: CursorState = { i: 0 }
   if (Buffer.from(bytes.slice(0, 4)).toString('ascii') !== 'DIDL') throw new Error('Invalid Candid payload')
@@ -388,6 +400,12 @@ function principalTextToBytes(principalText: string): Buffer {
 
 // --- Query call ---
 
+/**
+ * Call a zero-argument query method on an Internet Computer canister and return the raw Candid reply.
+ * Throws on a replica reject, with `errorCode`/`rejectCode` attached so callers can distinguish a
+ * permanently dead canister (`IC0537`, no Wasm module installed) from a transient failure.
+ * @returns the raw `DIDL...` bytes, to be passed to {@link decodeCandid}
+ */
 export async function queryCanister({
   canisterId,
   methodName,
@@ -435,7 +453,11 @@ export async function queryCanister({
   }
 }
 
-// Convenience: query a zero-arg method and decode the reply in one step.
+/**
+ * Query a zero-argument method and decode its reply in one step.
+ * @param labels field names to resolve in the decoded records, e.g. `['vol24h', 'value1']`
+ * @returns the first value of the reply tuple, `any` for the reason given on {@link decodeCandid}
+ */
 export async function queryCanisterDecoded(
   canisterId: string,
   methodName: string,

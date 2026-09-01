@@ -50,6 +50,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
         // IC0537 means the pair canister has no Wasm module installed, so it cannot trade and
         // its volume is genuinely zero. Every other failure has to surface.
         if (e?.errorCode !== 'IC0537') throw e;
+        console.info(`ICDex: pair canister ${ticker.pool_id} has no Wasm module installed (${e?.errorCode}), counting it as zero volume`);
         return { ticker, quoteVolume: 0n };
       }
     });
@@ -70,6 +71,7 @@ const methodology = {
 };
 
 const adapter: Adapter = {
+  version: 2,
   adapter: {
     [CHAIN.ICP]: {
       fetch: fetch,
