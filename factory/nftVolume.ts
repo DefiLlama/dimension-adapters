@@ -1,22 +1,9 @@
 import { SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 import { queryAllium } from "../helpers/allium";
+import { queryDune } from "../helpers/dune";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { FetchOptions } from "../adapters/types";
-
-// --- v2 adapters: support time-range queries via FetchOptions ---
-
-async function optimism({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
-
-async function avalanche({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
-
-async function flow({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
 
 function getAlliumVolume(chain: string) {
   return async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
@@ -25,6 +12,54 @@ function getAlliumVolume(chain: string) {
     dailyVolume.addCGToken("tether", Number(query[0].usd_volume));
     return { dailyVolume };
   }
+}
+
+async function flow(options: FetchOptions) {
+  const { startTimestamp, endTimestamp, createBalances } = options;
+  const data = await queryDune("3996608", { fullQuery: `
+    WITH decoded_events AS (
+      SELECT COALESCE(
+        TRY(json_parse(data)),
+        TRY(json_parse(from_utf8(from_base64(data))))
+      ) AS event
+      FROM flow.cadence_events
+      WHERE block_date BETWEEN DATE(from_unixtime(${startTimestamp})) AND DATE(from_unixtime(${endTimestamp}))
+        AND timestamp >= from_unixtime(${startTimestamp})
+        AND timestamp < from_unixtime(${endTimestamp})
+    ), sales AS (
+      SELECT
+        json_extract_scalar(event, '$.value.id') AS event_type,
+        TRY_CAST(json_extract_scalar(event, '$.value.fields[2].value.value') AS BOOLEAN) AS purchased,
+        regexp_replace(
+          json_extract_scalar(event, '$.value.fields[6].value.value.staticType.typeID'),
+          '\\.Vault$',
+          ''
+        ) AS currency,
+        TRY_CAST(json_extract_scalar(event, '$.value.fields[7].value.value') AS DOUBLE) AS amount
+      FROM decoded_events
+      WHERE event IS NOT NULL
+    )
+    SELECT currency, SUM(amount) AS amount
+    FROM sales
+    WHERE event_type = 'A.4eb8a10cb9f87357.NFTStorefrontV2.ListingCompleted'
+      AND purchased
+    GROUP BY 1
+  ` }, options)
+
+  const tokenMap: Record<string, string> = {
+    "A.ead892083b3e2c6c.DapperUtilityCoin": "usd-coin",
+    "A.3c5959b568896393.FUSD": "usd-coin",
+    "A.1654653399040a61.FlowToken": "flow",
+    "A.ead892083b3e2c6c.FlowUtilityToken": "flow",
+    "A.d01e482eb680ec9f.REVV": "revv",
+    "A.b19436aae4d94622.FiatToken": "usd-coin",
+  };
+  const dailyVolume = createBalances();
+  data.forEach(({ currency, amount }: { currency: string, amount: number }) => {
+    const cgId = tokenMap[currency];
+    if (cgId) dailyVolume.addCGToken(cgId, Number(amount));
+  });
+  return { dailyVolume };
 }
 
 // --- v1 adapters: only support pulling daily/current data ---
@@ -96,9 +131,9 @@ missing:
 
 const chains = [
   // v2: time-range aware
-  { chain: "optimism", fetch: optimism, },
+  { chain: "optimism", fetch: getAlliumVolume("optimism"), },
   { chain: "flow", fetch: flow, },
-  { chain: "avalanche", fetch: avalanche, },
+  { chain: "avalanche", fetch: getAlliumVolume("avalanche"), },
   { chain: "polygon", fetch: getAlliumVolume("polygon"), },
   { chain: "solana", fetch: getAlliumVolume("solana"), },
   //{ chain: "bitcoin",  fetch: getAlliumVolume("bitcoin"),    },
