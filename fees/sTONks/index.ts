@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addGasTokensReceived, getSolanaReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
@@ -16,24 +16,6 @@ import { sleep } from "../../utils/utils";
  *
  * Website:  https://stonks.dog/
  * App:      https://stonkslabs.com/
- *
- * ─── TON fee wallets ────────────────────────────────────────────────────────
- * Main fee wallet (raw):         0:ef7ba08b55b69a5d04dde78808f972bc891eb74ac69281ca1167d6f2b9215d6a
- * Secondary fee wallet (raw):    0:ec8f3e700f215dca0bf7ee7ae651191f0fa7818f863e78d66fa29acc9b1f486e
- * Launchpad contract A (raw):    0:783e31dc981459aa84762984a03e8d75c320435c00ac5b66b3db64b3bb371c71
- * Launchpad contract B (raw):    0:450b2f5ceb85d13f7032eff5882e20533789faec667112ddcb1c8ec1e2446624
- * Launchpad fee router (raw):    0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815
- * Referral payout wallet (raw):  0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148
- * Cashback payout wallet (raw):  0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a
- *
- * ─── EVM fee wallets (same on ETH + BSC) ────────────────────────────────────
- * Bot + Terminal fee:            0xeed3b4867b27a876c5bd8ce22aff210486b7b433
- * Secondary fee:                 0x2f521187c6cc1d9db701d784de5b2f5046f32a1d
- * Launchpad fee:                 0xd3561fa0fa1a4f3e2a008134ea01cc805d323304
- * Referral payout:               0x552a41f0d9e74897f8d087d4c6e729abfc6c9bf1
- *
- * ─── Solana fee wallet ──────────────────────────────────────────────────────
- * Bot + Terminal fee:            jf18AWK78fEEhk7N3aMr1A9JtesgraGxuJzjUrNJfee
  */
 
 // ─── TON addresses (raw format) ─────────────────────────────────────────────
@@ -118,7 +100,6 @@ const scanTonWallet = async (
       if (value === 0n) continue;
 
       const sender: string | undefined = inMsg.source?.address;
-
       if (isLaunchpad(sender)) {
         launchpadFees += value;
       } else {
@@ -133,7 +114,6 @@ const scanTonWallet = async (
 
     before_lt = String(lastTx.lt);
     before_hash = String(lastTx.hash);
-
     await sleep(120);
   }
 
@@ -190,7 +170,6 @@ const scanTonPayouts = async (
 
     before_lt = String(lastTx.lt);
     before_hash = String(lastTx.hash);
-
     await sleep(120);
   }
 
@@ -247,13 +226,11 @@ const fetchTON = async (options: FetchOptions) => {
 
 // ─── EVM fetch (ETH / BSC) ───────────────────────────────────────────────────
 const fetchEVM = async (options: FetchOptions) => {
-  // Track native token inflows to all fee wallets
   const dailyFees = await addGasTokensReceived({
     options,
     multisigs: EVM_FEE_WALLETS,
   });
 
-  // Track referral payouts (outflows from referral wallet = supply side)
   const dailySupplySideRevenue = await addGasTokensReceived({
     options,
     multisigs: [EVM_REFERRAL_WALLET],
@@ -270,14 +247,8 @@ const fetchEVM = async (options: FetchOptions) => {
 // ─── Solana fetch ────────────────────────────────────────────────────────────
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  await getSolanaReceived({ options, balances: dailyFees, target: SOL_FEE_WALLET });
 
-  await getSolanaReceived({
-    options,
-    balances: dailyFees,
-    target: SOL_FEE_WALLET,
-  });
-
-  // Volume: 1% fee → multiply by 100
   const dailyVolume = options.createBalances();
   dailyVolume.addBalances(dailyFees);
   dailyVolume.resizeBy(100);
@@ -293,53 +264,44 @@ const fetchSolana = async (options: FetchOptions) => {
 // ─── Methodology ─────────────────────────────────────────────────────────────
 const methodology = {
   Volume:
-    "Trading volume reverse-calculated from the 1% fee collected from @stonks_sniper_bot (Telegram trading bot) " +
-    "and the sTONks Terminal (stonkslabs.com) across TON, Ethereum, BSC and Solana. " +
-    "sTONks.pump Launchpad volume is excluded due to variable fee rates.",
+    "Trading volume reverse-calculated from the 1% fee on @stonks_sniper_bot and sTONks Terminal across TON, Ethereum, BSC, Solana. " +
+    "sTONks.pump Launchpad volume excluded (variable fee).",
   Fees:
-    "All inflows to fee wallets across TON, Ethereum, BSC and Solana: " +
-    "1% from Trading Bot and Terminal, plus variable fees from sTONks.pump Launchpad.",
-  Revenue:
-    "Total fee inflows minus referral and cashback payouts.",
-  SupplySideRevenue:
-    "Referral rewards and cashback payouts to users on TON and EVM chains.",
-  ProtocolRevenue:
-    "Total fees collected minus referral and cashback payouts to users.",
+    "All inflows to fee wallets: 1% from Bot + Terminal, variable from sTONks.pump Launchpad.",
+  Revenue: "Total fees minus referral and cashback payouts.",
+  SupplySideRevenue: "Referral rewards and cashback payouts to users.",
+  ProtocolRevenue: "Fees retained by the protocol after user payouts.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "Trading & Launchpad Fees":
-      "All native token inflows to sTONks fee wallets: 1% from Trading Bot and Terminal, " +
-      "plus variable fees from sTONks.pump Launchpad.",
+      "All native token inflows to sTONks fee wallets from Bot, Terminal, and Launchpad.",
   },
   SupplySideRevenue: {
     "Referral & Cashback Payouts":
-      "Native token outflows from dedicated referral and cashback wallets, " +
-      "representing value returned to users via the referral and cashback programs.",
+      "Native token outflows from referral and cashback wallets to users.",
   },
   Revenue: {
-    "Net Protocol Revenue":
-      "Total fees collected minus referral and cashback payouts.",
+    "Net Protocol Revenue": "Total fees minus referral and cashback payouts.",
   },
   ProtocolRevenue: {
-    "Net Protocol Revenue":
-      "Total fees collected minus referral and cashback payouts, retained by the protocol.",
+    "Net Protocol Revenue": "Total fees minus user payouts, retained by the protocol.",
   },
 };
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
-const adapter: SimpleAdapter = {
+const adapter: Adapter = {
   version: 2,
   pullHourly: true,
+  adapter: {
+    [CHAIN.TON]:      { fetch: fetchTON,    start: "2024-01-12" },
+    [CHAIN.ETHEREUM]: { fetch: fetchEVM,    start: "2024-01-12" },
+    [CHAIN.BSC]:      { fetch: fetchEVM,    start: "2024-01-12" },
+    [CHAIN.SOLANA]:   { fetch: fetchSolana, start: "2024-01-12" },
+  },
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.TON]: { fetch: fetchTON, start: "2024-01-12" },
-    [CHAIN.ETHEREUM]: { fetch: fetchEVM, start: "2024-01-12" },
-    [CHAIN.BSC]: { fetch: fetchEVM, start: "2024-01-12" },
-    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2024-01-12" },
-  },
 };
 
 export default adapter;
