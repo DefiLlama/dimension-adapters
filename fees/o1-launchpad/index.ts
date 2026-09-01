@@ -27,6 +27,7 @@ interface Suite {
   factory: string;
   hook: string;
   feeEscrow: string;
+  firstBlock: number;
   legacyFeeCurrency: boolean;
   launchFeeCurrency: "none" | "quote" | "native";
 }
@@ -98,6 +99,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0xe3ab924c72463c1ac8d1d8352ee640b89eb1ea64",
         hook: "0xa068cf4c52abdd3479145c4b3cbd8e3d71542a44",
         feeEscrow: "0xabe87e4af23dafad0a170aa900d574c03d904597",
+        // First suite block: https://basescan.org/block/48364845
+        firstBlock: 48_364_845,
         legacyFeeCurrency: true,
         launchFeeCurrency: "none",
       },
@@ -107,6 +110,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0xa52ad458ce0282a971ecc71c051a32f28946bb9f",
         hook: "0x985c14baa2a18316ffda0aefb3a632fadfca2acc",
         feeEscrow: "0xa2cbd9065cec93c443cafb0837a62800ee7c4a84",
+        // First suite block: https://basescan.org/block/48451098
+        firstBlock: 48_451_098,
         legacyFeeCurrency: false,
         launchFeeCurrency: "quote",
       },
@@ -116,6 +121,19 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0x1de58a6769526a03a504d9d59b8757cd8097dc57",
         hook: "0xbca7774615c74b7991a111f1c7b2d0efea61aacc",
         feeEscrow: "0xcf9ed8f4145eac9059bcd83227eeb8591fac0a9a",
+        // First suite block: https://basescan.org/block/49121014
+        firstBlock: 49_121_014,
+        legacyFeeCurrency: false,
+        launchFeeCurrency: "native",
+      },
+      // https://basescan.org/address/0xff70918ef17a2d74d683a8297813b177bafad1f4
+      {
+        id: "base-mainnet-rwa-timestamp-v4",
+        factory: "0xff70918ef17a2d74d683a8297813b177bafad1f4",
+        hook: "0x3b2b979df21036cee51b8debb13100e2cb8deacc",
+        feeEscrow: "0x1d8c991a9019df7d72adcd8dea6f12d600c9d02f",
+        // First suite block: https://basescan.org/block/50137081
+        firstBlock: 50_137_081,
         legacyFeeCurrency: false,
         launchFeeCurrency: "native",
       },
@@ -131,6 +149,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0x8b40fc20c405d47d725c9723d056a1c6f62bbccf",
         hook: "0xe960e6c80c74cfdf03c91e7af4e1f5f53f096a44",
         feeEscrow: "0xf5681c4c0dc0c2e32c9d127b3cc0fc992b584553",
+        // First suite block: https://robinhoodchain.blockscout.com/block/2131131
+        firstBlock: 2_131_131,
         legacyFeeCurrency: true,
         launchFeeCurrency: "none",
       },
@@ -140,6 +160,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0x76f0923ac4df0a079a10f628a7bce6426ccd344a",
         hook: "0xca4b035a5dbfa2a00fc5dcb08fd1c5a22d0eaa44",
         feeEscrow: "0x00d5701a92794c3744428b62646e7bc4e77a0a9a",
+        // First suite block: https://robinhoodchain.blockscout.com/block/4415287
+        firstBlock: 4_415_287,
         legacyFeeCurrency: true,
         launchFeeCurrency: "none",
       },
@@ -149,6 +171,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0x411f21283d3e492bc395027329e08f9f4f560ba5",
         hook: "0x441f773b3bb1ed4c6457d0528624112e43c02acc",
         feeEscrow: "0x32f7a9a05bd62487d085ad494e14ec42543e19d2",
+        // First suite block: https://robinhoodchain.blockscout.com/block/6131279
+        firstBlock: 6_131_279,
         legacyFeeCurrency: false,
         launchFeeCurrency: "quote",
       },
@@ -158,6 +182,8 @@ const chainConfig: Record<string, ChainConfig> = {
         factory: "0xe64ac4113848bbc1a6dde1a6d1da96720a36f297",
         hook: "0x778b0c4eea7d35d66513b587ba87fc9084b0eacc",
         feeEscrow: "0x4f2b1cda8748cd64c56039bf5e2e54bc13d4a3d7",
+        // First suite block: https://robinhoodchain.blockscout.com/block/18487505
+        firstBlock: 18_487_505,
         legacyFeeCurrency: false,
         launchFeeCurrency: "native",
       },
@@ -259,6 +285,7 @@ const reconcileSuite = (
 ) => {
   const eventsByTransaction = new Map<string, Array<TradeEvent | CreditEvent>>();
   const addEvent = (event: TradeEvent | CreditEvent) => {
+    if (event.blockNumber < suite.firstBlock) return;
     const key = transactionKey(suite, event.transactionHash);
     const events = eventsByTransaction.get(key);
     if (events) events.push(event);

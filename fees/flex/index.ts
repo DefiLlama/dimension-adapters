@@ -4,7 +4,10 @@ import { METRIC } from "../../helpers/metrics";
 
 const SECONDS_PER_YEAR = 31_536_000n;
 const MAX_FEE_BPS = 10000n;
-const FACTORY = '0xe2c4a5C2AB1ed5745D206B33cc0abf0A5D34753d'
+const FACTORIES = [
+  { address: '0xe2c4a5C2AB1ed5745D206B33cc0abf0A5D34753d', fromBlock: 25094842 },
+  { address: '0xffc787ad990Da8F73dDA2b971dcE31c0D9D2501f', fromBlock: 25690643 },
+]
 
 const METRICS = {
   BorrowOpeningFee: 'Borrow Opening Fee',
@@ -33,12 +36,12 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(token, amount - protocolShare, label);
   };
 
-  const deployLogs = await getLogs({
-    target: FACTORY,
+  const deployLogs = (await Promise.all(FACTORIES.map((factory) => getLogs({
+    target: factory.address,
     eventAbi: ABIS.DeployNewMarket,
-    fromBlock: 25094842,
+    fromBlock: factory.fromBlock,
     cacheInCloud: true,
-  });
+  })))).flat();
   const troveManagers = deployLogs.map((l: any) => l.trove_manager);
   const lenders = deployLogs.map((l: any) => l.lender);
 

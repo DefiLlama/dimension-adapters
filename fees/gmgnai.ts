@@ -72,6 +72,8 @@ const EVM_CHAINS: Record<string, { dune: string; usdc?: string }> = {
   // usdg is the main stablecoin on robinhood
   [CHAIN.ROBINHOOD]: { dune: 'robinhood', usdc: ADDRESSES.robinhood.USDG },
   [CHAIN.XLAYER]: { dune: 'xlayer' },
+  // arbitrum.USDC in coreAssets is bridged USDC.e; GMGN's collector is on native USDC
+  [CHAIN.ARBITRUM]: { dune: 'arbitrum', usdc: ADDRESSES.arbitrum.USDC_CIRCLE },
 };
 
 // Solana referral-distribution wallets: GMGN funds these (mainly from BCNsHAH28…)

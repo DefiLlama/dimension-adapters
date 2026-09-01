@@ -6,7 +6,7 @@ import * as sdk from "@defillama/sdk";
 const queryDeposits = `
       query deposits($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         deposits(
-          where: { manager: $manager, time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { manager: $manager, time_gte: $startTimestamp, time_lt: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { valueDeposited }
       }`
@@ -14,7 +14,7 @@ const queryDeposits = `
 const queryWithdrawals = `
       query withdrawals($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         withdrawals(
-          where: { managerName_in: ["Toros", "Torŏs"], time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { managerName_in: ["Toros", "Torŏs"], time_gte: $startTimestamp, time_lt: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { valueWithdrawn }
       }`

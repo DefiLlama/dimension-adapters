@@ -399,6 +399,9 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: 0,
     },
     start: '2026-03-14',
+    // Tsunami V3 on Ink is dead: TVL collapsed from a $46k peak (2026-05-07) to $51,
+    // volume was ~$0 by early August and the goldsky subgraph project was deleted (404).
+    deadFrom: '2026-08-04',
   }
 };
 

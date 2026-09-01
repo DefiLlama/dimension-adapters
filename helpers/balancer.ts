@@ -180,6 +180,12 @@ const balancerEntries: Record<string, any> = {
   tanukix: {
     [CHAIN.TAIKO]: { vault: '0x3251e99cEf4b9bA03a6434B767aa5Ad11ca6cc31' },
   },
+  // migrated off deleted/dying subgraphs to on-chain vault logs; vaults from DefiLlama-Adapters projects/symmetric
+  symmetric: {
+    [CHAIN.XDAI]: { vault: '0x901E0dC02f64C42F73F0Bdbf3ef21aFc96CF50be', start: '2022-06-15' },
+    [CHAIN.CELO]: { vault: '0xE9265892B5c56264d60e26451862B576814185C9', start: '2022-06-07' },
+    [CHAIN.TELOS]: { vault: '0xbccc4b4c6530F82FE309c5E845E50b5E9C89f2AD', start: '2023-11-14' },
+  },
   aequinox: {
     [CHAIN.BSC]: { vault: '0xee1c8dbfbf958484c6a4571f5fb7b99b74a54aa7' },
   },

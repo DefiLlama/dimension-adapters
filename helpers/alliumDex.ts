@@ -12,7 +12,7 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
       WHERE project = '${dex_id}'
         AND protocol = '${protocol}'
         AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-        AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
       `
     const data = await queryAllium(query)
     return {

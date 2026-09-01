@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
             and t.outer_instruction_index = s.outer_instruction_index
             and t.inner_instruction_index = s.inner_instruction_index + 1
         where t.block_time >= from_unixtime(${options.startTimestamp})
-        and t.block_time <= from_unixtime(${options.endTimestamp})
+        and t.block_time < from_unixtime(${options.endTimestamp})
     `
     const data = await queryDuneSql(options, query)
 

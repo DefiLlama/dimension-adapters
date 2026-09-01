@@ -1,16 +1,17 @@
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "./chains";
-import { httpPost } from '../utils/fetchURL';
+import { httpGet } from '../utils/fetchURL';
 
 
 export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: string) {
-    const dailyFees = await httpPost(url, {
-        responseType: 'blob', headers: {
+    const dailyFees = await httpGet(url, {
+        headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36",
-            "Content-Type": "text/csv; charset=utf-8",
             "Accept": "text/csv; charset=utf-8",
-            "origin": url,
-        }
+        },
+        responseType: 'text',
+        // axios parses text by default; keep raw CSV string
+        transformResponse: (data: any) => data,
     });
     const feesToday = dailyFees.split("\r\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
 

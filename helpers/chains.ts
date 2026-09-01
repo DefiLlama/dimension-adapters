@@ -399,5 +399,7 @@ export enum CHAIN {
   INTUITION= "intuition",
   SIS = "sis",
   ASTER = "aster",
-  XO = "xo"
+  XO = "xo",
+  BOT_CHAIN = "bot",
+  NATIVE_CORE = "native_core",
 }

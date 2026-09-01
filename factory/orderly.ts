@@ -18,7 +18,7 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
-  "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
+  // "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" }, // moved to a standalone adapter at fees/kodiak-perps.ts
   "veax-perp": {
     broker_id: "veaxdex",
     start: "2025-10-16",

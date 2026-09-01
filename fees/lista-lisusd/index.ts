@@ -39,6 +39,14 @@ const wbeth = ADDRESSES.bsc.wBETH;
 const bnb = ADDRESSES.bsc.WBNB;
 const lisUSD = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const usdt = ADDRESSES.bsc.USDT;
+// sLisUSD savings pool (LisUSDPoolSet) — a MakerDAO-DSR-style pool. Depositor value accrues
+// synthetically at the `duty` per-second rate via the getRate() index (getRate = rpow(duty, dt) *
+// rate); the treasury tops the pool up in lisUSD to keep it solvent. The interest earned by
+// third-party sLisUSD depositors is SupplySideRevenue, measured as the exact rate accrual over the
+// period (totalSupply * ΔgetRate / RATE_SCALE) — NOT the lumpy top-up transfers and NOT the
+// EarnPool deposits (which are user principal: USDT sold via PSM into lisUSD via depositFor).
+const LISUSD_POOL_SET = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf";
+const RATE_SCALE = 10n ** 27n;
 
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
 const liquidatorProfitReceiver =
@@ -61,6 +69,7 @@ const USDT_STAKING_PROFIT = "USDT Staking Profit";
 const VALIDATOR_REWARDS = "Validator Rewards";
 const LP_STAKING_REWARDS = "LP Staking Rewards";
 const FREEZE_LISTA = "Freeze LISTA";
+const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -250,10 +259,35 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, Number(log.data), LIQUIDATION_PROFIT);
   });
 
+  // sLisUSD savings cost (LSR): the sLisUSD savings pool (LisUSDPoolSet) pays third-party
+  // depositors the `duty` per-second rate, accrued synthetically through the getRate() index. That
+  // interest is SupplySideRevenue and the protocol's Revenue is net of it (the treasury funds it
+  // out of the lisUSD revenue already counted in Fees above). Measure the exact accrual over the
+  // period — the interest the pool actually pays — rather than the treasury's lumpy top-up
+  // transfers. NOTE: the EarnPool -> pool transfers are user deposits (USDT sold via PSM into
+  // lisUSD, credited to the depositor via depositFor), i.e. principal, NOT cost — excluded.
+  const [rateFrom, rateTo, poolSupply] = await Promise.all([
+    options.fromApi.call({ target: LISUSD_POOL_SET, abi: "uint256:getRate" }),
+    options.toApi.call({ target: LISUSD_POOL_SET, abi: "uint256:getRate" }),
+    options.fromApi.call({ target: LISUSD_POOL_SET, abi: "uint256:totalSupply" }),
+  ]);
+  const savingsInterest =
+    (BigInt(poolSupply) * (BigInt(rateTo) - BigInt(rateFrom))) / RATE_SCALE;
+
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailySupplySideRevenue.add(lisUSD, savingsInterest, LSR_SAVINGS_COST);
+
+
+  // Revenue = collected income kept by the protocol, net of the savings interest paid to depositors.
+  const dailyRevenue = dailyFees.clone();
+  dailyRevenue.subtract(dailySupplySideRevenue, LSR_SAVINGS_COST);
+
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -271,9 +305,20 @@ const LISUSD_BREAKDOWN = {
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
 
+const REVENUE_BREAKDOWN = {
+  ...LISUSD_BREAKDOWN,
+  [LSR_SAVINGS_COST]:
+    'sLisUSD savings interest (duty rate accrual) paid to depositors, deducted from revenue.',
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // ListaRevenueDistributor funds the sLisUSD savings pool in lumps, so on a distribution hour the
+  // treasury-leg savings payout can exceed that hour's collected income and push Revenue negative.
+  // This is expected lumpiness that nets out cumulatively (the borrow interest behind it was booked
+  // in earlier hours) — keep such hours rather than throwing.
+  allowNegativeValue: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
@@ -282,13 +327,15 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
-    Revenue: 'All collected income goes to the protocol treasury.',
-    ProtocolRevenue: 'All collected income goes to the protocol treasury.',
+    Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings interest paid out to sLisUSD depositors.',
+    ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings interest.',
+    SupplySideRevenue: 'Interest earned by third-party sLisUSD depositors in the savings pool (LisUSDPoolSet), measured as the duty-rate accrual over the period (totalSupply * change in getRate index).',
   },
   breakdownMethodology: {
     Fees: LISUSD_BREAKDOWN,
-    Revenue: LISUSD_BREAKDOWN,
-    ProtocolRevenue: LISUSD_BREAKDOWN,
+    Revenue: REVENUE_BREAKDOWN,
+    ProtocolRevenue: REVENUE_BREAKDOWN,
+    SupplySideRevenue: { [LSR_SAVINGS_COST]: 'Duty-rate interest accrued to sLisUSD depositors in LisUSDPoolSet over the period.' },
   }
 };
 

@@ -2,6 +2,10 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import request, { gql } from "graphql-request";
 import { METRIC } from "../helpers/metrics";
+import {
+  fetchSarcophagusFundingUSD,
+  SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL,
+} from "./ramses-dlmm";
 
 // RAM token on HyperEVM: https://hyperevmscan.io/address/0x555570a286f15ebdfe42b66ede2f724aa1ab5555
 const RAM_TOKEN_CONTRACT = "0x555570a286F15EbDFE42B66eDE2f724Aa1AB5555";
@@ -129,7 +133,7 @@ async function getBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,
@@ -227,7 +231,7 @@ async function fetchPoolHourStats(
     treasuryFeesUSD?: string;
   }>(
     (first, skip) => request<any>(rawSubgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp + 1,
+      from: options.startTimestamp,
       to: options.endTimestamp,
       first,
       skip,
@@ -394,7 +398,16 @@ function getPoolStats(stats: IGraphRes, poolType: PoolType): PoolStats {
 
 export function createFetchHandler(poolType: PoolType) {
   return async (options: FetchOptions) => {
-    const stats = await fetchStats(options);
+    const [stats, sarcophagusFundingUSD] = await Promise.all([
+      fetchStats(options),
+      fetchSarcophagusFundingUSD({
+        endpoint: rawSubgraphEndpoints[options.chain],
+        chainId: chainIds[options.chain],
+        poolType: poolType === 'cl' ? 'CL' : 'LEGACY',
+        startTimestamp: options.startTimestamp,
+        endTimestamp: options.endTimestamp,
+      }),
+    ]);
     const poolStats = getPoolStats(stats, poolType);
 
     const dailyVolume = poolStats.volumeUSD;
@@ -413,6 +426,8 @@ export function createFetchHandler(poolType: PoolType) {
 
     const dailyRevenue = dailyProtocolRevenue.clone();
     dailyRevenue.add(dailyHoldersRevenue);
+    dailyProtocolRevenue.addUSDValue(-sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
+    dailyHoldersRevenue.addUSDValue(sarcophagusFundingUSD, SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL);
 
     dailySupplySideRevenue.addUSDValue(
       poolStats.feesUSD - poolStats.userFeesRevenueUSD - poolStats.protocolRevenueUSD,
@@ -454,6 +469,7 @@ export const breakdownMethodology = {
   },
   ProtocolRevenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Subtracts delayed Sarcophagus funding already accrued as protocol revenue.",
   },
   SupplySideRevenue: {
     ["Swap Fees to LPs"]: "Fees distributed to LPs (from gauged pools).",
@@ -461,11 +477,14 @@ export const breakdownMethodology = {
   HoldersRevenue: {
     ["Swap Fees to holders"]: "User fees are distributed among holders.",
     ["Bribes to holders"]: "Bribes paid by protocols to holders",
+    [SARCOPHAGUS_FEE_RECLASSIFICATION_LABEL]: "Reclassifies fees already accrued as protocol revenue into holder revenue when funded to Sarcophagus.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
+  allowNegativeValue: true,
   pullHourly: true,
   methodology,
   breakdownMethodology,

@@ -2,7 +2,6 @@ import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { filterPools } from "../helpers/uniswap";
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
 
@@ -24,6 +23,10 @@ const v2 = {
   bondingCurve: "0x9f3832732923252A21044F21eE6bd87F09514ae4",
   protocolManager: "0x71F846A560a4d68F53e5bd34ED084E7992f171C7",
   feeCollector: "0xE1C8b73343f5A83EBe165BE90470d84B00e33022",
+  // ProtocolManager.initialize() sets the first fee receiver without emitting an
+  // event, so the starting value has to be carried here. Every later change does
+  // emit FeeReceiverUpdate and is picked up from logs.
+  initialFeeReceiver: "0x681C3F796Ae388026634c26025504D7C45248998",
   nadFunFactory: "0xA25b13127e63ddae6d0b35570FF3D39dBD621001",
   // WMON/LVMON are both treated as MON-denominated quote assets.
   monEquivalentQuoteTokens: [
@@ -60,14 +63,14 @@ const v2Abi = {
   Swap:
     "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)",
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
-  allPairsLength: "uint256:allPairsLength",
-  allPairs: "function allPairs(uint256) view returns (address)",
-  token0: "address:token0",
-  token1: "address:token1",
-  feeReceiver: "address:feeReceiver",
-  getQuoteToken: "function getQuoteToken(address token) view returns (address)",
-  getFeeConfig:
-    "function getFeeConfig(address pair) view returns (address baseToken, address quoteToken, uint16 creatorFeeRate, uint16 curveProtocolFeeRate, uint16 dexProtocolFeeRate)",
+  Graduate: "event Graduate(address indexed token, address indexed pair)",
+  Setup:
+    "event Setup(address indexed token, address indexed pair, uint16 creatorFeeRate, uint16 curveProtocolFeeRate, uint16 dexProtocolFeeRate)",
+  CurveProtocolFeeRateUpdate:
+    "event CurveProtocolFeeRateUpdate(address indexed pair, uint16 oldRate, uint16 newRate)",
+  DexProtocolFeeRateUpdate:
+    "event DexProtocolFeeRateUpdate(address indexed pair, uint16 oldRate, uint16 newRate)",
+  FeeReceiverUpdate: "event FeeReceiverUpdate(address indexed feeReceiver)",
 };
 
 interface FeeRates {
@@ -327,120 +330,135 @@ async function addV1Metrics(options: FetchOptions, balances: MetricsBalances) {
   });
 }
 
+// Everything V2 needs is read from event logs rather than an eth_call at the
+// period's block. Monad's public RPCs are pruned: a historical call succeeds while
+// the block is recent and starts failing once it ages out. The failure was being
+// swallowed, so a day recomputed later silently lost its entire V2 leg while still
+// looking like a plausible number. Logs do not get pruned, so a day recomputed
+// months later now returns what it returned the first time.
 async function getV2PairMetadata(options: FetchOptions) {
-  const pairCountResult = await options.api.call({
-    target: v2.nadFunFactory,
-    abi: v2Abi.allPairsLength,
-  });
-  const pairCount = Number(toBigInt(pairCountResult));
+  const toBlock = await options.getToBlock();
+  const allTime = {
+    fromBlock: v2.startBlock,
+    toBlock,
+    onlyArgs: false,
+    cacheInCloud: true,
+  };
 
-  if (pairCount === 0) return { pairs: [], pairMeta: {} };
+  const [pairLogs, setupLogs, curveRateLogs, dexRateLogs, graduateLogs] =
+    await Promise.all([
+      options.getLogs({ target: v2.nadFunFactory, eventAbi: v2Abi.PairCreated, ...allTime }),
+      options.getLogs({ target: v2.feeCollector, eventAbi: v2Abi.Setup, ...allTime }),
+      options.getLogs({ target: v2.feeCollector, eventAbi: v2Abi.CurveProtocolFeeRateUpdate, ...allTime }),
+      options.getLogs({ target: v2.feeCollector, eventAbi: v2Abi.DexProtocolFeeRateUpdate, ...allTime }),
+      options.getLogs({ target: v2.bondingCurve, eventAbi: v2Abi.Graduate, ...allTime }),
+    ]);
 
-  const pairCalls = Array.from({ length: pairCount }, (_, index) => ({
-    target: v2.nadFunFactory,
-    params: [index],
-  }));
-  const pairs = (
-    await options.api.multiCall({
-      abi: v2Abi.allPairs,
-      calls: pairCalls,
-    })
-  ).map((pair: string) => pair.toLowerCase());
+  // PairCreated already carries both sides of the pair, so token0/token1 never
+  // need to be read back off the pair contract.
   const pairMeta: Record<string, V2PairMeta> = {};
-
-  const [token0s, token1s, configs] = await Promise.all([
-    options.api.multiCall({
-      abi: v2Abi.token0,
-      calls: pairs,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: v2Abi.token1,
-      calls: pairs,
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      target: v2.feeCollector,
-      abi: v2Abi.getFeeConfig,
-      calls: pairs.map((pair: string) => ({ params: [pair] })),
-      permitFailure: true,
-    }),
-  ]);
-
-  const pairTokens: Record<string, string[]> = {};
-
-  pairs.forEach((pair: string, index: number) => {
-    const token0 = token0s[index] as string | undefined;
-    const token1 = token1s[index] as string | undefined;
-    if (!token0 || !token1) {
-      throw new Error(`Missing token metadata for NadFunPair ${pair}`);
-    }
-    const knownQuoteToken = [token0, token1].find((token) =>
+  pairLogs.forEach((rawLog: any) => {
+    const log = logArgs<{ token0: string; token1: string; pair: string }>(rawLog);
+    const quoteToken = [log.token0, log.token1].find((token) =>
       monEquivalentQuoteTokens.has(token.toLowerCase()),
     );
-    const config = configs[index];
-
-    pairTokens[pair] = [token0, token1];
-
-    pairMeta[pair] = {
-      token0,
-      token1,
-      quoteToken: config?.quoteToken ?? knownQuoteToken,
-      creatorFeeRate:
-        config?.creatorFeeRate === undefined
-          ? undefined
-          : Number(config.creatorFeeRate),
-      curveProtocolFeeRate:
-        config?.curveProtocolFeeRate === undefined
-          ? undefined
-          : Number(config.curveProtocolFeeRate),
-      dexProtocolFeeRate:
-        config?.dexProtocolFeeRate === undefined
-          ? undefined
-          : Number(config.dexProtocolFeeRate),
+    pairMeta[log.pair.toLowerCase()] = {
+      token0: log.token0,
+      token1: log.token1,
+      quoteToken,
     };
   });
 
-  // Drop dust pairs from the swap-log targets: keep only those whose pooled
-  // token value clears the default filterPools threshold ($200), matching the
-  // uniswap-fork helpers.
-  //
-  // The metadata map is deliberately NOT filtered. NadFunPair is deployed by
-  // BondingCurve._create at token creation and only seeded with liquidity at
-  // graduation, so every token still on the curve has a pair holding nothing.
-  // Those pairs still emit Collect, and the fee loop reads its rates out of
-  // this map: dropping them there leaves creatorFeeRate and the protocol rates
-  // at 0, which trips the `totalRate === 0` early return and discards the fees
-  // entirely while revenue, which does not come through here, still counts.
-  const filteredPairs = await filterPools({
-    api: options.api,
-    pairs: pairTokens,
-    createBalances: options.createBalances,
-  });
-  const keptPairs = pairs.filter((pair: string) => filteredPairs[pair] !== undefined);
-
-  return { pairs: keptPairs, pairMeta };
-}
-
-async function getV2TokenQuoteMap(options: FetchOptions, tokens: string[]) {
-  const uniqueTokens = unique(tokens);
+  // Setup carries the rates a pair is configured with; the two update events carry
+  // every change after that. Replaying them in block order leaves each pair holding
+  // the rates getFeeConfig() would have returned at toBlock.
+  const rateEvents: {
+    blockNumber: number;
+    logIndex: number;
+    pair: string;
+    patch: Partial<V2PairMeta>;
+  }[] = [];
   const tokenQuoteMap: Record<string, string> = {};
 
-  if (uniqueTokens.length === 0) return tokenQuoteMap;
-
-  const quoteTokens = await options.api.multiCall({
-    target: v2.bondingCurve,
-    abi: v2Abi.getQuoteToken,
-    calls: uniqueTokens.map((token: string) => ({ params: [token] })),
-    permitFailure: true,
+  setupLogs.forEach((rawLog: any) => {
+    const log = logArgs<{
+      token: string;
+      pair: string;
+      creatorFeeRate: string | number;
+      curveProtocolFeeRate: string | number;
+      dexProtocolFeeRate: string | number;
+    }>(rawLog);
+    const pair = log.pair.toLowerCase();
+    rateEvents.push({
+      blockNumber: Number(rawLog.blockNumber),
+      logIndex: Number(rawLog.logIndex ?? 0),
+      pair,
+      patch: {
+        creatorFeeRate: Number(log.creatorFeeRate),
+        curveProtocolFeeRate: Number(log.curveProtocolFeeRate),
+        dexProtocolFeeRate: Number(log.dexProtocolFeeRate),
+      },
+    });
+    // Setup is also the token -> pair link, which is what the curve trade volume
+    // needs to know which quote asset a token trades against.
+    const quoteToken = pairMeta[pair]?.quoteToken;
+    if (quoteToken) tokenQuoteMap[log.token.toLowerCase()] = quoteToken;
   });
 
-  quoteTokens.forEach((quoteToken: string | undefined, index: number) => {
-    if (!quoteToken) return;
-    tokenQuoteMap[uniqueTokens[index].toLowerCase()] = quoteToken;
+  const pushRateUpdate = (rawLog: any, key: keyof V2PairMeta) => {
+    const log = logArgs<{ pair: string; newRate: string | number }>(rawLog);
+    rateEvents.push({
+      blockNumber: Number(rawLog.blockNumber),
+      logIndex: Number(rawLog.logIndex ?? 0),
+      pair: log.pair.toLowerCase(),
+      patch: { [key]: Number(log.newRate) } as Partial<V2PairMeta>,
+    });
+  };
+  curveRateLogs.forEach((rawLog: any) => pushRateUpdate(rawLog, "curveProtocolFeeRate"));
+  dexRateLogs.forEach((rawLog: any) => pushRateUpdate(rawLog, "dexProtocolFeeRate"));
+
+  rateEvents
+    .sort((left, right) =>
+      left.blockNumber - right.blockNumber || left.logIndex - right.logIndex,
+    )
+    .forEach((event) => {
+      const meta = pairMeta[event.pair];
+      if (meta) Object.assign(meta, event.patch);
+    });
+
+  // Only a graduated pair holds liquidity, so it is the only kind that can emit a
+  // Swap. This is the swap-log target list, and it replaces the previous $200
+  // filterPools pass: that needed a balanceOf multiCall across every pair, which is
+  // the same pruned-state call this function exists to avoid, and it also dropped
+  // pools that are live but thin.
+  const pairs = unique(
+    graduateLogs
+      .map((rawLog: any) => logArgs<{ pair: string }>(rawLog).pair.toLowerCase())
+      .filter((pair: string) => Boolean(pairMeta[pair])),
+  );
+
+  return { pairs, pairMeta, tokenQuoteMap };
+}
+
+async function getV2FeeReceiver(options: FetchOptions) {
+  const logs = await options.getLogs({
+    target: v2.protocolManager,
+    eventAbi: v2Abi.FeeReceiverUpdate,
+    fromBlock: v2.startBlock,
+    toBlock: await options.getToBlock(),
+    onlyArgs: false,
+    cacheInCloud: true,
   });
 
-  return tokenQuoteMap;
+  if (!logs.length) return v2.initialFeeReceiver;
+
+  const latest = logs.reduce((acc: any, log: any) => {
+    const newer =
+      Number(log.blockNumber) - Number(acc.blockNumber) ||
+      Number(log.logIndex ?? 0) - Number(acc.logIndex ?? 0);
+    return newer > 0 ? log : acc;
+  });
+  return logArgs<{ feeReceiver: string }>(latest).feeReceiver;
 }
 
 async function addV2ProtocolTransfers(
@@ -493,25 +511,9 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
 
   if ((await options.getEndBlock()) < v2.startBlock) return;
 
-  let feeReceiver: string;
-  try {
-    feeReceiver = await options.api.call({
-      target: v2.protocolManager,
-      abi: v2Abi.feeReceiver,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Nad.fun V2 feeReceiver lookup failed", {
-      protocolManager: v2.protocolManager,
-      err,
-    });
-    if (/not deployed|contract not found|no contract|empty code/i.test(message)) {
-      return;
-    }
-    throw err;
-  }
+  const feeReceiver = await getV2FeeReceiver(options);
 
-  const [curveBuyLogs, curveSellLogs, collectLogs, { pairs, pairMeta }] =
+  const [curveBuyLogs, curveSellLogs, collectLogs, { pairs, pairMeta, tokenQuoteMap }] =
     await Promise.all([
       getLogsInBlockChunks(options, {
         target: v2.bondingCurve,
@@ -530,17 +532,6 @@ async function addV2Metrics(options: FetchOptions, balances: MetricsBalances) {
       }),
       getV2PairMetadata(options),
     ]);
-
-  const curveTokens = unique([
-    ...curveBuyLogs.map(
-      (rawLog: any) => logArgs<{ token: string }>(rawLog).token,
-    ),
-    ...curveSellLogs.map(
-      (rawLog: any) => logArgs<{ token: string }>(rawLog).token,
-    ),
-  ]);
-
-  const tokenQuoteMap = await getV2TokenQuoteMap(options, curveTokens);
 
   const quoteTokens = unique([
     ...v2.monEquivalentQuoteTokens,
