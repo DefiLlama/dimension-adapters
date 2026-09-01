@@ -22,6 +22,7 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
  *
  * @param options - FetchOptions containing startOfDay timestamp and other utilities
  * @param builder_address - The builder address to fetch data for
+ * @param hip3DeployerId - Optional HIP-3 namespace filter; includes only `${hip3DeployerId}:*` coins and requires `market: "hip3"`
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
