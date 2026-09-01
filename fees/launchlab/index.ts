@@ -4,30 +4,36 @@ import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
-    protocol_fees: number;
+    quote_mint: string;
+    protocol_fee: string;
 }
 
 const fetch = async (options: FetchOptions) => {
+    // fees are charged in the pool's quote token, which is no longer always SOL (USD1, USDC, BONK, xStocks...)
     const data: IData[] = await queryDuneSql(options, `
-        WITH launchlab_trades AS (
-            SELECT
-                evt_block_time,
-                protocol_fee,
-                platform_fee,
-                share_fee
-            FROM
-                raydium_solana.raydium_launchpad_evt_tradeevent
-            WHERE
-                evt_block_time >= from_unixtime(${options.startTimestamp})
-                AND evt_block_time < from_unixtime(${options.endTimestamp})
+        WITH pools AS (
+            SELECT account_pool_state AS pool_state, account_quote_mint AS quote_mint
+            FROM raydium_solana.raydium_launchpad_call_initialize
+            UNION ALL
+            SELECT account_pool_state, account_quote_mint
+            FROM raydium_solana.raydium_launchpad_call_initialize_v2
+            UNION ALL
+            SELECT account_pool_state, account_quote_mint
+            FROM raydium_solana.raydium_launchpad_call_initialize_with_token_2022
         )
         SELECT
-            SUM(protocol_fee) AS protocol_fees
+            p.quote_mint AS quote_mint,
+            CAST(SUM(t.protocol_fee) AS VARCHAR) AS protocol_fee
         FROM
-            launchlab_trades
+            raydium_solana.raydium_launchpad_evt_tradeevent t
+            JOIN pools p ON p.pool_state = t.pool_state
+        WHERE
+            t.evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND t.evt_block_time < from_unixtime(${options.endTimestamp})
+        GROUP BY 1
     `)
     const dailyFees = options.createBalances()
-    dailyFees.addCGToken('solana', Number(data[0].protocol_fees / 1e9))
+    data.forEach(({ quote_mint, protocol_fee }) => dailyFees.add(quote_mint, protocol_fee))
     const dailyHoldersRevenue = dailyFees.clone(0.25) // 25% of is burned
     const dailyProtocolRevenue = dailyFees.clone(0.75) // 75% of fees go to the protocol
 
@@ -47,7 +53,7 @@ const adapter: SimpleAdapter = {
     version: 1,
     isExpensiveAdapter: true,
     methodology: {
-        Fees: '1% platform fee on all transactions.',
+        Fees: 'Protocol fee taken on every trade, denominated in each pool\'s quote token.',
         Revenue: '0.25% burned + 0.75% to protocol of 1% platform fees',
         ProtocolRevenue: '0.75% of platform fees go to the protocol.',
         HoldersRevenue: '0.25% of platform fees are burned.',
