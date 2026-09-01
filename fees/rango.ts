@@ -67,12 +67,19 @@ const RANGO_DIAMOND = '0x69460570c93f9DE5E2edbC3052bf10125f0Ca22d';
 // SOL and in the traded SPL token, and getSolanaReceived covers both.
 const SOLANA_FEE_COLLECTOR = 'Gzm9sVa1bKeLfa3Qz8E1GXS8TeakPRT37nL8w9pSqQvd';
 
-// Fees only: the EVM legs split platform / affiliate / executor from the FeeInfo log, but on Solana
-// the whole 0.7% lands in one account and the collector does pay some of it back out, so the split
-// is not separable on chain here. Reporting the split would mean guessing it.
+// On Solana the 0.7% gross fee lands in one collector and some is paid back out to
+// affiliates/executors, so that split is not separable on chain. Net inflows are attributed
+// to Affiliate Fees to match the dominant fee share on EVM, and not counted as protocol revenue.
 const fetchSolana = async (options: FetchOptions) => {
-    const dailyFees = await getSolanaReceived({ options, target: SOLANA_FEE_COLLECTOR });
-    return { dailyFees };
+    const received = await getSolanaReceived({ options, target: SOLANA_FEE_COLLECTOR });
+    const dailyFees = received.clone(1, 'Affiliate Fees');
+    const dailySupplySideRevenue = received.clone(1, 'Affiliate Fees to Affiliates');
+    return {
+        dailyFees,
+        dailyRevenue: 0, // revenue is negligible wrt affiliate fees and not separable on chain
+        dailyProtocolRevenue: 0,
+        dailySupplySideRevenue,
+    };
 };
 
 const chainConfig: Record<string, { start: string, contractAddress?: string, fetch?: any }> = {
@@ -112,7 +119,7 @@ const adapter: Adapter = {
     adapter: chainConfig,
     dependencies: [Dependencies.ALLIUM],
     methodology: {
-        Fees: 'Platform fees, affiliate fees and destination executor fees charged by Rango on swaps and cross-chain transfers. On Solana, where there is no fee event to split, this is the 0.7% Rango takes into its fee collector.',
+        Fees: 'Platform fees, affiliate fees and destination executor fees charged by Rango on swaps and cross-chain transfers. On Solana, where there is no fee event to split, net inflows to the fee collector are attributed to affiliate fees to match the dominant fee share on EVM.',
         Revenue: 'Platform fees collected by Rango.',
         ProtocolRevenue: 'Platform fees collected by Rango.',
         SupplySideRevenue: 'Affiliate fees paid to integrators that route transactions, and destination executor fees paid to executors that complete transfers on the destination chain.',
