@@ -21,6 +21,11 @@ const LISLVR_VAULT = "0xb06a7A96d7fbfDCC64AeE0F0B185204b66E41b3B";
 const GAME_INFO_ABI = "function gameInfo(uint256) view returns ((address game, bytes32 gameType, uint8 status, uint8 tier, uint32 emissionWeight, uint16 maxWeightBps, bool exists))";
 const BET_PLACED = "event BetPlaced(uint256 indexed roundId, address indexed beneficiary, uint256 total, uint8[] squares)";
 const REWARD_DISTRIBUTED = "event RewardDistributed(uint256 amount)";
+// Current-generation games take a 12% rake: 8% stakers + 2% jackpot + 2% buyback-and-burn
+// (the buyback ETH buys SLVR that is sent to a graveyard address, out of circulation for good).
+// BuybackFunded fires when accrued buyback ETH is actually flushed to the sink, carrying over on
+// failed sends, so summing event amounts is exact. Older games (10% rake) never emit it.
+const BUYBACK_FUNDED = "event BuybackFunded(uint256 indexed roundId, uint256 amount)";
 const ETH_DEPOSITED_TO_JACKPOT = "event EthDepositedToJackpot(uint256 amount)";
 const HARVESTED = "event Harvested(uint256 grossEth, uint256 growthEth, uint256 incomeEth, uint256 protocolFee, uint256 keeperReward)";
 
@@ -37,11 +42,12 @@ const fetch = async (options: FetchOptions) => {
   for (let id = 1; id <= Number(gameCount); id++) gameCalls.push({ params: [id] });
   const games = (await registryApi.multiCall({ abi: GAME_INFO_ABI, target: GAME_REGISTRY, calls: gameCalls })).map((i: any) => i.game);
 
-  const [bets, rewards, taxDeposits, harvests] = await Promise.all([
+  const [bets, rewards, taxDeposits, harvests, roundBuybacks] = await Promise.all([
     options.getLogs({ targets: games, eventAbi: BET_PLACED }),
     options.getLogs({ target: VE_STAKING, eventAbi: REWARD_DISTRIBUTED }),
     options.getLogs({ target: SLVR_TOKEN, eventAbi: ETH_DEPOSITED_TO_JACKPOT }),
     options.getLogs({ target: LISLVR_VAULT, eventAbi: HARVESTED }),
+    options.getLogs({ targets: games, eventAbi: BUYBACK_FUNDED }),
   ]);
 
   // Volume = total ETH wagered across every registered game this period. Jackpot = 2% of each
@@ -71,17 +77,24 @@ const fetch = async (options: FetchOptions) => {
   harvests.forEach((log: any) => { buybackTotal += BigInt(log.growthEth); });
   if (buybackTotal > stakerRewardsTotal) buybackTotal = stakerRewardsTotal;
 
+  // The 2% buyback-and-burn leg of the rake: ETH flushed to the buyback sink, which buys SLVR and
+  // removes it from circulation. Additive protocol revenue accruing to holders via the burn.
+  let roundBuybackTotal = 0n;
+  roundBuybacks.forEach((log: any) => { roundBuybackTotal += BigInt(log.amount); });
+
   const dailyRevenue = options.createBalances();
   dailyRevenue.addGasToken(stakerRewardsTotal, METRIC.STAKING_REWARDS);
+  dailyRevenue.addGasToken(roundBuybackTotal, METRIC.TOKEN_BUY_BACK);
 
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.addGasToken(stakerRewardsTotal - buybackTotal, METRIC.STAKING_REWARDS);
-  dailyHoldersRevenue.addGasToken(buybackTotal, METRIC.TOKEN_BUY_BACK);
+  dailyHoldersRevenue.addGasToken(buybackTotal + roundBuybackTotal, METRIC.TOKEN_BUY_BACK);
 
-  // Fees = everything users paid the protocol: the full 10% rake (8% stakers + 2% jackpot) plus
-  // the DEX trade tax.
+  // Fees = everything users paid the protocol: the full rake (8% stakers + 2% jackpot + 2%
+  // buyback-and-burn on current games; older games had no buyback leg) plus the DEX trade tax.
   const dailyFees = options.createBalances();
   dailyFees.addGasToken(stakerRewardsTotal, METRIC.STAKING_REWARDS);
+  dailyFees.addGasToken(roundBuybackTotal, METRIC.TOKEN_BUY_BACK);
   dailyFees.addBalances(jackpot);
   dailyFees.addBalances(dexTax);
 
@@ -100,9 +113,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "Total ETH wagered across all lottery bets (BetPlaced events on every game in the SlvrGameRegistry).",
-  Fees: "The 10% rake taken from every round's wagers (8% distributed to veNFT stakers plus 2% routed to the jackpot) plus the SLVR DEX trade tax (2% buy/sell at launch, decrease-only), which is swapped to ETH and deposited into the jackpot.",
-  Revenue: "All staker rewards — the ETH distributed to veNFT stakers (RewardDistributed events on SlvrVoteEscrowStaking).",
-  HoldersRevenue: "All staker rewards — the ETH distributed to veNFT stakers. The share the liSLVR vault harvests for its growth allocation is broken out as token buybacks: that ETH buys SLVR which is permanently locked.",
+  Fees: "The rake taken from every round's wagers — 8% distributed to veNFT stakers, 2% routed to the jackpot, and on current games 2% to buyback-and-burn (BuybackFunded events; older games had a 10% rake with no buyback leg) — plus the SLVR DEX trade tax (2% buy/sell at launch, decrease-only), which is swapped to ETH and deposited into the jackpot.",
+  Revenue: "Staker rewards (the ETH distributed to veNFT stakers, RewardDistributed events on SlvrVoteEscrowStaking) plus the buyback-and-burn cut of the rake.",
+  HoldersRevenue: "Staker rewards plus token buybacks: the 2% round buyback-and-burn (SLVR bought and removed from circulation) and the share of staker rewards the liSLVR vault harvests for its growth allocation (ETH that buys SLVR which is permanently locked).",
   SupplySideRevenue: "The 2% of wagers routed to the jackpot pool plus the DEX trade tax deposited into the jackpot, both paid back out to winning players.",
 };
 
@@ -113,14 +126,16 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.STAKING_REWARDS]: "8% of wagers distributed to veNFT stakers (RewardDistributed events).",
     [JACKPOT]: "2% of wagers routed to the jackpot pool.",
+    [METRIC.TOKEN_BUY_BACK]: "2% of wagers routed to buyback-and-burn on current games (BuybackFunded events): ETH buys SLVR that is removed from circulation.",
     [DEX_TAX]: "SLVR buy/sell DEX tax, swapped to ETH and deposited into the jackpot (EthDepositedToJackpot events).",
   },
   Revenue: {
     [METRIC.STAKING_REWARDS]: "8% of wagers distributed to veNFT stakers.",
+    [METRIC.TOKEN_BUY_BACK]: "2% of wagers routed to buyback-and-burn.",
   },
   HoldersRevenue: {
     [METRIC.STAKING_REWARDS]: "Staker rewards distributed to veNFT stakers, excluding the slice the liSLVR vault redeploys into buybacks.",
-    [METRIC.TOKEN_BUY_BACK]: "The growth share of liSLVR vault harvests (Harvested events): ETH used to buy SLVR that is permanently locked.",
+    [METRIC.TOKEN_BUY_BACK]: "The 2% round buyback-and-burn (BuybackFunded events) plus the growth share of liSLVR vault harvests (Harvested events): ETH used to buy SLVR that is burned or permanently locked.",
   },
   SupplySideRevenue: {
     [JACKPOT]: "2% of wagers routed to the jackpot pool, paid back out to winning players.",
