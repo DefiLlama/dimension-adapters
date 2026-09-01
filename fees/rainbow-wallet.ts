@@ -139,8 +139,8 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
   relay_bridge AS (
       SELECT
           r.chain,
-          SUM(rb.usd_vol)          AS volume,
-          SUM(rb.usd_vol) * 0.0025 AS fees
+          SUM(rb.usd_vol)  AS volume,
+          SUM(rb.fee_usd)  AS fees
       FROM dune.rainbowdotme.result_rainbow_relay_tx rb
       INNER JOIN routers r
         ON rb.origin = r.blockchain
@@ -200,8 +200,8 @@ const POST_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =
   relay_bridge AS (
       SELECT
           r.chain,
-          SUM(rb.usd_vol)          AS volume,
-          SUM(rb.usd_vol) * 0.0025 AS fees
+          SUM(rb.usd_vol)  AS volume,
+          SUM(rb.fee_usd)  AS fees
       FROM dune.rainbowdotme.result_rainbow_relay_tx rb
       INNER JOIN routers r
         ON rb.origin = r.blockchain
@@ -257,23 +257,23 @@ const fetch: any = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "0.85% fees from trading volume and 0.25% fees from bridge relaying volume",
-  Revenue: "0.85% revenue from trading volume and 0.25% revenue from bridge relaying volume",
-  ProtocolRevenue: "0.85% protocol revenue from trading volume and 0.25% protocol revenue from bridge relaying volume",
+  Fees: "0.85% fees from trading volume, plus the bridge relaying fee charged on each bridge transfer",
+  Revenue: "0.85% revenue from trading volume, plus the bridge relaying fee charged on each bridge transfer",
+  ProtocolRevenue: "0.85% protocol revenue from trading volume, plus the bridge relaying fee charged on each bridge transfer",
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is fees",
-    'Bridge Fees': "0.25% of the volume is fees",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   },
   Revenue: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is revenue",
-    'Bridge Fees': "0.25% of the volume is revenue",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   },
   ProtocolRevenue: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is protocol revenue",
-    'Bridge Fees': "0.25% of the volume is protocol revenue",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   }
 }
 
