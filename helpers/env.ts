@@ -38,6 +38,7 @@ const DEFAULTS: any = {
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   RONIN_RPC: 'https://ronin.gateway.tenderly.co,https://gateway.tenderly.co/public/ronin',
+  RSK_RPC: 'https://rootstock.blockscout.com/api/eth-rpc', // the rsk hosts in providers.json have no eth_getLogs, this blockscout proxy does
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',

@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.0
         version: 1.15.0
       '@defillama/sdk':
-        specifier: 5.0.224
-        version: 5.0.224(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+        specifier: 5.0.227
+        version: 5.0.227(typescript@5.9.3)
       '@supercharge/promise-pool':
         specifier: ^3.1.0
         version: 3.2.0
@@ -25,7 +25,7 @@ importers:
         version: 1.3.3
       axios:
         specifier: ^1.18.0
-        version: 1.18.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+        version: 1.18.0
       bignumber.js:
         specifier: ^9.1.0
         version: 9.3.1
@@ -52,7 +52,7 @@ importers:
         version: 8.16.3
       sequelize:
         specifier: ^6.36.0
-        version: 6.37.7(pg@8.16.3)(supports-color@7.2.0)
+        version: 6.37.7(pg@8.16.3)
       tron-format-address:
         specifier: ^0.1.11
         version: 0.1.12
@@ -333,8 +333,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.224':
-    resolution: {integrity: sha512-SJ6d0kVCTDbjjAcJwbusrn4gGV6OPixn8gJrGh7dWw7Emb6dkIu9UJTzjbQoYXQPUJkEQ9FtRR+gIxwGTv04GA==}
+  '@defillama/sdk@5.0.227':
+    resolution: {integrity: sha512-hRI+0dJ+0TIifXOy9U+uQZm+f/k6ixJypbr7g2GYMd+bpOcz/4DoWYdbAO9LS+H+M96R/TBe//OtGrF3TCVxUg==}
 
   '@elastic/elasticsearch@8.19.1':
     resolution: {integrity: sha512-+1j9NnQVOX+lbWB8LhCM7IkUmjU05Y4+BmSLfusq0msCsQb1Va+OUKFCoOXjCJqQrcgdRdQCjYYyolQ/npQALQ==}
@@ -2132,12 +2132,12 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.224(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)':
+  '@defillama/sdk@5.0.227(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
-      '@elastic/elasticsearch': 8.19.1(supports-color@7.2.0)
+      '@elastic/elasticsearch': 8.19.1
       '@supercharge/promise-pool': 2.4.0
-      axios: 1.18.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+      axios: 1.18.0
       ethers: 6.15.0
       p-limit: 3.1.0
       stream-json: 1.9.1
@@ -2153,20 +2153,20 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@elastic/elasticsearch@8.19.1(supports-color@7.2.0)':
+  '@elastic/elasticsearch@8.19.1':
     dependencies:
-      '@elastic/transport': 8.10.0(supports-color@7.2.0)
+      '@elastic/transport': 8.10.0
       apache-arrow: 21.1.0
       tslib: 2.8.1
     transitivePeerDependencies:
       - '@75lb/nature'
       - supports-color
 
-  '@elastic/transport@8.10.0(supports-color@7.2.0)':
+  '@elastic/transport@8.10.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.1.0(@opentelemetry/api@1.9.0)
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       hpagent: 1.2.0
       ms: 2.1.3
       secure-json-parse: 3.0.2
@@ -2644,9 +2644,9 @@ snapshots:
 
   aes-js@4.0.0-beta.5: {}
 
-  agent-base@6.0.2(supports-color@7.2.0):
+  agent-base@6.0.2:
     dependencies:
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -2698,11 +2698,11 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios@1.18.0(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0):
+  axios@1.18.0:
     dependencies:
-      follow-redirects: 1.16.0(debug@4.4.3(supports-color@7.2.0))
+      follow-redirects: 1.16.0
       form-data: 4.0.6
-      https-proxy-agent: 5.0.1(supports-color@7.2.0)
+      https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
     transitivePeerDependencies:
       - debug
@@ -2815,11 +2815,9 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
-  debug@4.4.3(supports-color@7.2.0):
+  debug@4.4.3:
     dependencies:
       ms: 2.1.3
-    optionalDependencies:
-      supports-color: 7.2.0
 
   defaults@1.0.4:
     dependencies:
@@ -2901,9 +2899,7 @@ snapshots:
 
   flatbuffers@25.9.23: {}
 
-  follow-redirects@1.16.0(debug@4.4.3(supports-color@7.2.0)):
-    optionalDependencies:
-      debug: 4.4.3(supports-color@7.2.0)
+  follow-redirects@1.16.0: {}
 
   foreground-child@3.3.1:
     dependencies:
@@ -2991,10 +2987,10 @@ snapshots:
 
   hpagent@1.2.0: {}
 
-  https-proxy-agent@5.0.1(supports-color@7.2.0):
+  https-proxy-agent@5.0.1:
     dependencies:
-      agent-base: 6.0.2(supports-color@7.2.0)
-      debug: 4.4.3(supports-color@7.2.0)
+      agent-base: 6.0.2
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3289,11 +3285,11 @@ snapshots:
 
   sequelize-pool@7.1.0: {}
 
-  sequelize@6.37.7(pg@8.16.3)(supports-color@7.2.0):
+  sequelize@6.37.7(pg@8.16.3):
     dependencies:
       '@types/debug': 4.1.12
       '@types/validator': 13.15.3
-      debug: 4.4.3(supports-color@7.2.0)
+      debug: 4.4.3
       dottie: 2.0.6
       inflection: 1.13.4
       lodash: 4.17.21
