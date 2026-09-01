@@ -73,7 +73,10 @@ const configs: Record<string, CuratorConfig> = {
   "avantgarde": {
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0xb263237E30fe9be53d6F401FCC50dF125D60F01a'],
+        morphoVaultOwners: ['0xb263237E30fe9be53d6F401FCC50dF125D60F01a', '0xc714F33c2527BF61749C06eA0389EC957D8153D4']
+      },
+        [CHAIN.BASE]: {
+          morphoVaultOwners: ["0x80C6c6438a438Ad3B3736a02B47793D6f854f2bF"]
       },
     },
   },
