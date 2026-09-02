@@ -17,6 +17,7 @@ import { SimpleAdapter, FetchResult, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { getConfig } from "../../helpers/cache";
+import { fetchRocketInstruments, isRocketLinear } from "../../helpers/rocket";
 import PromisePool from "@supercharge/promise-pool";
 import { METRIC } from "../../helpers/metrics";
 
@@ -27,11 +28,12 @@ const TAKER_FEE = 0.0001; // 0.01%
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     let instruments: string[] = [];
     try {
-        const instrumentsData = await getConfig('rocket/instruments', `${ROCKET_API}/instruments`);
+        // /instruments is paginated (1000 per page) - fetch every page, then cache the merged result
+        const instrumentsData = await getConfig('rocket/instruments', undefined, { fetcher: fetchRocketInstruments });
         // Only linear derivatives (perps & dated futures) count towards perp volume;
         // options are tracked separately in options/rocket
         instruments = Object.entries(instrumentsData.instruments)
-            .filter(([_, i]: [string, any]) => i.instrumentType === 'PERP' || i.instrumentType === 'FUTURE')
+            .filter(([_, i]: [string, any]) => isRocketLinear(i.instrumentType))
             .map(([id]) => id);
     } catch (e) {
         throw new Error(`Rocket adapter: failed to fetch instruments: ${String(e)}`);
