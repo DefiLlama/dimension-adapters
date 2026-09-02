@@ -55,11 +55,21 @@ const fetch = async (options: FetchOptions) => {
       END AS OI
       FROM OI_DIRTY
     ), 
+    PRICE_AS_OF as (
+      -- RESULT_V2_DAILY_PRICES_USD is refreshed a day behind V2_TRANSACTIONS, so joining a price
+      -- on an exact date drops every asset on the day being requested and the sum below collapses
+      -- to zero. Carry the last price at or before that day instead; on any day the table already
+      -- covers this picks that same day's price, so it does not change historical values.
+      SELECT ASSET, PRICE FROM (
+        SELECT ASSET, PRICE, ROW_NUMBER() OVER (PARTITION BY ASSET ORDER BY TIMESTAMP DESC) AS RN
+        FROM DUNE.CONTANGO_XYZ.RESULT_V2_DAILY_PRICES_USD
+        WHERE TIMESTAMP <= DATE_TRUNC('day', from_unixtime(${toTimestamp}))
+      ) WHERE RN = 1
+    ),
     OI_USD as (
       SELECT OI.TIMESTAMP, OI.OI * PRICE.PRICE AS OI_USD
       FROM OI
-      INNER JOIN DUNE.CONTANGO_XYZ.RESULT_V2_DAILY_PRICES_USD AS PRICE 
-      ON (PRICE.ASSET = OI.ASSET AND PRICE.TIMESTAMP = OI.TIMESTAMP)
+      INNER JOIN PRICE_AS_OF AS PRICE ON PRICE.ASSET = OI.ASSET
     )
       SELECT '${mappedChain}' AS chain, TIMESERIES.TIMESTAMP AS TIMESTAMP, COALESCE(SUM(OI.OI_USD), 0) AS OI_USD
       FROM DUNE.CONTANGO_XYZ.RESULT_DAILY_TIMESTAMPS AS TIMESERIES
