@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { Row } from "@clickhouse/client";
 
 type Source = 'LOGS' | 'CLICKHOUSE';
@@ -266,7 +266,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (config.source === 'LOGS') {
-    const fetchFunction = getUniV2LogAdapter({ factory: config.factory, ...getLogAdapterConfig(options), allowReadPairs: options.chain === CHAIN.ZORA });
+    const fetchFunction = getUniV2LogAdapter({ factory: config.factory, ...getLogAdapterConfig(options), allowReadPairs: options.chain === CHAIN.ZORA, blacklistTokens: await getDexTokensBlacklisted(options) });
     return await fetchFunction(options);
   } else if (config.source === 'CLICKHOUSE') {
     return await fetchClickhouse(options, config);

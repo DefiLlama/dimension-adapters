@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../helpers/uniswap';
 import { queryClickhouse } from "../helpers/indexer";
@@ -263,10 +263,11 @@ const fetchBsc = async (options: FetchOptions) => {
   };
 };
 
-const buildEvmFetcher = (factory: string) => {
+const buildEvmFetcher = (factory: string) => async (options: FetchOptions) => {
   const evmAdapter = getUniV3LogAdapter({
     factory,
     swapEvent: poolSwapEvent,
+    blacklistTokens: await getDexTokensBlacklisted(options),
     userFeesRatio: 1,
     getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
       const _protocolRevenueRatio = getProtocolRevenueRatio(poolFeeTier);
@@ -278,7 +279,7 @@ const buildEvmFetcher = (factory: string) => {
       };
     },
   })
-  return async (options: FetchOptions) => evmAdapter(options)
+  return evmAdapter(options)
 }
 
 const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'
