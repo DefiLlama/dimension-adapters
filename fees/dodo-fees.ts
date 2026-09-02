@@ -95,7 +95,7 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [CHAIN.DFIO_META_MAIN]: { fetch: dfioFetch, deadFrom: '2026-08-29' },
+    //[CHAIN.DFIO_META_MAIN]: { fetch: dfioFetch },
     [CHAIN.ETHEREUM]: { fetch },
     [CHAIN.BSC]: { fetch },
     [CHAIN.POLYGON]: { fetch },
