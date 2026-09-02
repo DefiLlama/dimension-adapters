@@ -12,7 +12,7 @@ const CURRENT_FEE_COLLECTOR = "rapidXMVLw5uBieKHDGvF9k4xSSDXyD2FC5wLTAajaJ";
 // Legacy dedicated fee collector: https://orbmarkets.io/address/feesEi65EDHZ7jVMPUicJtnCyTnsoqnQB93GHqLZ6BC/history
 const LEGACY_FEE_COLLECTOR = "feesEi65EDHZ7jVMPUicJtnCyTnsoqnQB93GHqLZ6BC";
 const FEE_COLLECTORS = [CURRENT_FEE_COLLECTOR, LEGACY_FEE_COLLECTOR];
-// The current collector distributes 14% of each sweep to these referral wallets.
+// The current collector's observed split distributes 14% to these referral wallets.
 // Representative distribution: https://solscan.io/tx/4HkyycaGr5kh1LArpyisEHJFsHLr4sMDcBjgAd7rCBLsJgb7v9J3ThrZD4JYcorkWtEmEWaKJJy2NG6of2ECvV4H
 const REFERRAL_RECIPIENTS = [
   "3os7e5tBFKXFhKZ8igzpCpZr8cw5DvwHrc5bZwELjiLL", // 6.2%
@@ -89,11 +89,11 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [COLLECTOR_FEES_TO_TREASURY]:
-        "SOL receipts retained by Rapid Launch after excluding collector-to-collector transfers.",
+        "Gross collector fees minus SOL distributed to referral recipients.",
     },
     ProtocolRevenue: {
       [COLLECTOR_FEES_TO_TREASURY]:
-        "SOL receipts retained by Rapid Launch as protocol revenue.",
+        "Gross collector fees minus SOL distributed to referral recipients, retained as protocol revenue.",
     },
     SupplySideRevenue: {
       [REFERRAL_FEES_TO_REFERRERS]:
