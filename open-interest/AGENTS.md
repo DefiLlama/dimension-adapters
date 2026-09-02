@@ -51,8 +51,8 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 
 ## Units and sources
 
-- Export open interest in USD (contracts times price for the window), never raw contract units.
-- Cover both sides (longs + shorts) uniformly; OI should be roughly TVL-stable, a wild day-to-day swing usually means a unit or side bug.
+- Export open interest in USD, never raw contract units: contracts (times the contract size/multiplier where the venue has one) times the mark or index price AT THE WINDOW END, not a window average. Inverse and quanto contracts use the venue's own notional formula; state it in a comment.
+- Follow the venue's total-OI convention: if the venue's total already counts each contract once, do not add longs and shorts on top of it. Apply the same convention to every market of the adapter. A large day-to-day swing without a matching price or position change usually means a unit or side bug.
 - A source that only serves current OI uses `runAtCurrTime: true`; snapshot metrics never carry cumulative columns.
 - OI is a snapshot at the window end, never a sum over the window. Under `pullHourly` a summed OI comes out 24x too high.
-- Open interest is a perps metric; options protocols export notional and premium volume instead.
+- Open interest is a perps/futures metric. Options protocols export `dailyNotionalVolume` and `dailyPremiumVolume` and do not export open interest.

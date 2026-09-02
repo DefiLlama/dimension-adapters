@@ -115,7 +115,7 @@ METRIC.PROTOCOL_FEES         // 'Protocol Fees'
 |------|-----------|----------|
 | `curators/index.ts` | `getCuratorExport`, `CuratorConfig` | Vault curators (Morpho/Euler owners); configs live in `factory/curators.ts` |
 | `lists.ts` | `getDefaultDexTokensBlacklisted(chain)` | Central spam/fake token blacklist for uni-style DEX adapters |
-| `getChainFees.ts` | `fetchTransactionFees` | Chain gas fees from the indexer |
+| `getChainFees.ts` | `fetchTransactionFees` | Chain gas fees from the Allium query engine |
 | `routescanFees.ts` | Routescan chain fees | Paired with `factory/routescan.ts` |
 | `near.ts` | `nearView` | NEAR view calls |
 | `oklink.ts` | OKLink queries | Chains covered by OKLink |

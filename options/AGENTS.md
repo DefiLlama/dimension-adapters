@@ -21,13 +21,9 @@ These guidelines apply to all adapters in the `options/` directory.
 - This is real capital changing hands
 - More relevant for revenue calculations
 
-## Optional Dimensions
+## Open Interest
 
-| Dimension | Description |
-|-----------|-------------|
-| `openInterestAtEnd` | Total open interest at period end |
-| `longOpenInterestAtEnd` | Long positions (buyers) open interest |
-| `shortOpenInterestAtEnd` | Short positions (sellers) open interest |
+Options adapters do not export open interest (`openInterestAtEnd` and the long/short variants are perps-only dimensions). Notional and premium volume are the options metrics.
 
 ## Data Sources
 

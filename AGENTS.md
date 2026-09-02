@@ -145,7 +145,8 @@ const adapter: SimpleAdapter = {
 |-----------|----------|-------------|
 | `dailyNotionalVolume` | YES | Notional volume of options contracts |
 | `dailyPremiumVolume` | YES | Premium volume collected/paid |
-| `openInterestAtEnd` | Optional | Open interest at period end |
+
+Options adapters do not export open interest; it is a perps-only dimension.
 
 ### Fees (Income Statement Model)
 
@@ -245,7 +246,7 @@ npm run test <type> <slug> [YYYY-MM-DD] [chain1,chain2]
 
 - The bare slug resolves both file-based adapters (`<type>/<slug>.ts` or `<type>/<slug>/index.ts`) and factory-listed keys (e.g. a key in `factory/uniV3.ts`).
 - The date argument is the END of the window: to reproduce day D, pass D+1. The optional last argument limits the run to those chains.
-- For a fix to a live adapter also read the published series: `https://api.llama.fi/summary/<type>/<slug>?dataType=dailyVolume` (or `dailyFees`). A series ending in a null `total24h` means the adapter throws; a hard $0 after big days with no taper means source lag, not zero activity.
+- For a fix to a live adapter also read the published series: `https://api.llama.fi/summary/<type>/<slug>?dataType=<dimension>` with the category's required dimension (`dailyVolume`, `dailyFees`, `dailyBridgeVolume`, `dailyNotionalVolume`, `openInterestAtEnd`, ...). A series ending in a null `total24h` means the adapter throws; for flow metrics a hard $0 after big days with no taper means source lag, not zero activity (for snapshot metrics like open interest a drop to 0 is a bug either way).
 - `DEBUG_BREAKDOWN_FEES=true npm run test fees <slug> <date>` prints the per-label breakdown table.
 - `balances.debug()` inside a fetch prints the largest token values and addresses (useful for decimals/pricing problems).
 - Run several random past days, not just one. Zeros on random days with known activity, or values an order of magnitude off the protocol's own UI/explorer/Dune, block the listing until explained. CI proves little: forked PRs get no Dune keys and public RPCs may be non-archival, so a local run is the real check.
@@ -333,7 +334,7 @@ The wrong vehicle is a blocker, decide this first:
 ## Maintaining existing adapters
 
 - **Dead protocol**: `deadFrom: 'YYYY-MM-DD'` top-level (sibling of `version`/`fetch`/`chains`) with a `// reason` comment, on every adapter file of the protocol. Keep the fetch logic, `start` and chains so history stays refillable. Long-dead adapters are later swept into `factory/deadAdapters.json` (file deleted, slug recorded), so a "missing" adapter may live there.
-- `deadFrom` on the adapter is global. Per-chain config entries accept their own `deadFrom`; use it when a frozen or sunset RPC would otherwise throw and take every other chain down. Otherwise end a single chain by returning empty after a date guard (live) or by commenting it out plus refill (retroactive). Never store empty/zero rows.
+- `deadFrom` on the adapter is global. To end a single chain going forward, set `deadFrom` on that chain's config entry: the runner skips the chain before calling `fetch`, so nothing is stored (this is also the fix for a frozen or sunset RPC that would otherwise throw and take every other chain down). Do not return an empty result from `fetch` as a shutdown mechanism, it is still recorded as a row; if a date guard is needed inside `fetch`, throw past it. To end a chain retroactively, comment it out and refill. Never store empty or zero rows.
 - An optional enrichment call (an L1 cost lookup, a price read) in the same `Promise.all` as the required metric takes both down. Catch the optional call, publish the metric and OMIT the derived value rather than publishing it uncorrected.
 - When a source breaks but the protocol is alive, the fix is another source, never `deadFrom` and never a zero fallback. Fees dropping to 0 with healthy TVL usually means a changed fee address, not a dead protocol.
 - **Disable a chain**: comment the entry out in place with a reason everywhere it appears (config, chains array, per-chain map); never delete.

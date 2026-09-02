@@ -73,18 +73,18 @@ const fetch = async (options: FetchOptions) => {
 
 ## What counts as volume
 
-- Volume is gross of fees (a buy's volume is amount in plus the fee).
+- Volume is gross of fees: report what the trader put in before the fee was taken. Add the fee back only when the source amount is net of it (a buy recorded as `amountIn` with the fee already deducted), never when the amount already includes it, and value both in the same token/basis.
 - One side of the swap only. Swaps only: no LP add/remove, deposits/withdrawals, borrows, transfers, NFT trades or bet wagers (track their fees instead).
 - Volume is verifiable USER action. A protocol's OWN actions (mint/redeem, hedging, rebalances) are never volume. Liquidations are not perp volume (they have their own `liquidations/` adapter type). HLP / market-maker / vault PnL is never fees.
 - Beware per-side events: some order books emit a maker row AND a taker row for the same fill; summing both double counts.
 - Ticker APIs: never sum `base_volume + quote_volume`, they are the same trades in two units. To check that an API reports single-sided volume, compare a low-liquidity pair's minute candle against its trade history (trade history is always taker volume).
 - Prediction markets follow the Polymarket convention: volume = (maker + taker) / 2. State whether volume is cash (collateral paid) or notional; cash goes in `dailyVolume`, notional optionally in `dailyNotionalVolume`.
-- Dune `dex.trades` / `dex_solana.trades` rows are per pool HOP. Aggregators, bots and terminals count one row per swap per trader (partition by tx AND trader; a tx-only key drops batched users). Exclude self-trades (maker == taker). Darkpool fills count the source leg only, never taker + filler.
+- Dune `dex.trades` / `dex_solana.trades` rows are per pool HOP, so summing rows for an aggregator, bot or terminal counts a multi-hop swap several times. Collapse hops to one swap: prefer the router's own swap event or the user-facing leg (first hop's token in, or last hop's token out); when only `dex.trades` is available, partition by `(tx_hash, trader)` (Solana: `(tx_id, trader)`) and take that leg once. A tx-only key drops batched users; `(tx_hash, evt_index)` keeps every hop and re-introduces the double count. Accepted trade-off: two separate swaps by the same trader in one tx merge into one. Exclude self-trades (maker == taker). Darkpool fills count the source leg only, never taker + filler.
 - Trading bots, terminals and any venue whose swaps settle on a tracked DEX set `doublecounted: true`.
 - A scam quote token priced off the "core asset" side (fake WETH/USDC pairs) can inflate volume by billions; the fix is the token blacklist, not a cap.
 - Launchpads: count only pre-bonding volume on their own curve; post-migration volume belongs to the receiving DEX. Launchpads trading on another protocol's pools track fees only.
-- Perp DEXs reporting very large volume (tens of millions per day and up) need per-trade maker/taker data before the number is trusted. Maker+taker complaints are answered with the normalized-volume metric, not adapter changes.
-- Open interest is exported in USD (contracts times price for the window), never raw contract units. OI covers both sides (longs + shorts) uniformly and should be roughly TVL-stable; an OI source that only serves current data uses `runAtCurrTime`.
+- Perp DEXs reporting very large volume (tens of millions per day and up) need per-trade maker/taker data before the number is trusted. `dailyVolume` must be taker-only regardless; the normalized-volume metric (`factory/normalizedVolume.ts`) is a supplemental cross-venue comparison, not a substitute for removing maker-side rows.
+- Open interest is exported in USD (contracts times the mark/index price at the window end), never raw contract units, following the venue's total-OI convention (see `open-interest/AGENTS.md`); an OI source that only serves current data uses `runAtCurrTime`.
 - No volume breakdowns: breakdown labels are for fees only.
 - Set `doublecounted: true` when an underlying tracked protocol already counts the flow (e.g. Uniswap v4 hooks, builder codes).
 

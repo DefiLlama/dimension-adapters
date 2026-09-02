@@ -23,13 +23,9 @@ Options aggregators route options trades through multiple protocols/vaults to fi
 - The actual premium paid/received for options contracts
 - This is what users actually pay to enter positions
 
-## Optional Dimensions
+## Open Interest
 
-| Dimension | Description |
-|-----------|-------------|
-| `openInterestAtEnd` | Total open interest at period end |
-| `longOpenInterestAtEnd` | Long positions open interest |
-| `shortOpenInterestAtEnd` | Short positions open interest |
+Options aggregators do not export open interest (`openInterestAtEnd` and the long/short variants are perps-only dimensions).
 
 ## Data Sources
 
