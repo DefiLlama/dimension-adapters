@@ -2,6 +2,11 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
+// https://help.parcl.co/getting-started/nxKkvMYVGNLScHEvioJKJe/parcl-protocol-mechanics-/qCrhtrvt41v9fR9NExz9on
+// "LPs retain 80% of the trading fees" - the endpoint below is named cumulative-lp-fee and
+// is the fee LPs earn from trades, i.e. the supply-side cut, not protocol revenue.
+const LP_SHARE = 0.8;
+
 const fetch = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const dateStr = new Date(startOfDay * 1000).toISOString().split('T')[0];
@@ -13,18 +18,23 @@ const fetch = async (options: FetchOptions) => {
     }
   });
 
-  let dailyFees = 0;
-  const dayData = data.timeSeries.find((item: any) => item.date.startsWith(dateStr));
+  const dayData = data?.timeSeries?.find((item: any) => item.date.startsWith(dateStr));
   if (!dayData) {
-    console.log(`No data found for date ${dateStr}`);
-  }else {
-    dailyFees = dayData.value;
+    // The upstream API has previously gone dead for months at a time (window's timeSeries
+    // stops advancing) while still returning HTTP 200 with older data. Reporting $0 in that
+    // case is indistinguishable from a genuine no-activity day, so refuse instead.
+    throw new Error(`Parcl: no data found for ${dateStr} in parcl-api.com's cumulative-lp-fee series (upstream may be dead/stale)`);
   }
+
+  const dailyFees = dayData.value;
+  const dailySupplySideRevenue = dailyFees * LP_SHARE;
+  const dailyRevenue = dailyFees - dailySupplySideRevenue;
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -34,9 +44,10 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2024-06-01',
   methodology: {
-    Fees: "LP fees collected by Parcl protocol",
-    Revenue: "LP fees collected by the protocol",
-    ProtocolRevenue: "100% of collected fees go to the protocol",
+    Fees: "Trading fees paid by traders, split between LPs and the protocol",
+    SupplySideRevenue: "80% of trading fees, retained by LPs per Parcl's published fee split",
+    Revenue: "20% of trading fees, kept by the protocol",
+    ProtocolRevenue: "Protocol's 20% share of trading fees",
   },
 };
 
