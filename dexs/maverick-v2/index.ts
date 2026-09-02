@@ -134,10 +134,7 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp, chain }: Fetc
     };
   } catch (error) {
     console.error(`Error fetching data for ${chain}:`, error);
-    return {
-      dailyVolume: createBalances(),
-      dailyFees: createBalances(),
-    };
+    throw error;
   }
 };
 
