@@ -105,27 +105,31 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp, chain }: Fetc
       },
     );
 
-    if (graphRes && graphRes.poolDayStats) {
-      for (const stats of graphRes.poolDayStats) {
-        const { feeTokenUnits: feeA, volumeTokenUnits: volumeA } =
-          processAmount(
-            stats.pool.feeAIn,
-            stats.pool.tokenA.decimals,
-            stats.tokenAVolume,
-          );
+    if (!graphRes || !Array.isArray(graphRes.poolDayStats)) {
+      throw new Error(
+        `Malformed subgraph response for ${chain}: missing poolDayStats`,
+      );
+    }
 
-        const { feeTokenUnits: feeB, volumeTokenUnits: volumeB } =
-          processAmount(
-            stats.pool.feeBIn,
-            stats.pool.tokenB.decimals,
-            stats.tokenBVolume,
-          );
+    for (const stats of graphRes.poolDayStats) {
+      const { feeTokenUnits: feeA, volumeTokenUnits: volumeA } =
+        processAmount(
+          stats.pool.feeAIn,
+          stats.pool.tokenA.decimals,
+          stats.tokenAVolume,
+        );
 
-        dailyFees.add(stats.pool.tokenA.id, feeA);
-        dailyFees.add(stats.pool.tokenB.id, feeB);
-        dailyVolume.add(stats.pool.tokenA.id, volumeA);
-        dailyVolume.add(stats.pool.tokenB.id, volumeB);
-      }
+      const { feeTokenUnits: feeB, volumeTokenUnits: volumeB } =
+        processAmount(
+          stats.pool.feeBIn,
+          stats.pool.tokenB.decimals,
+          stats.tokenBVolume,
+        );
+
+      dailyFees.add(stats.pool.tokenA.id, feeA);
+      dailyFees.add(stats.pool.tokenB.id, feeB);
+      dailyVolume.add(stats.pool.tokenA.id, volumeA);
+      dailyVolume.add(stats.pool.tokenB.id, volumeB);
     }
 
     return {
