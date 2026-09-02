@@ -11,7 +11,11 @@ const feeWallet = '0x4200000000000000000000000000000000000011';
 const l1FeeVault = '0x420000000000000000000000000000000000001a';
 const baseFeeVault = '0x4200000000000000000000000000000000000019';
 
-async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaults: string[], gasToken?: string }) {
+// Sums an OP-stack chain's fee vaults over the day: the balance delta plus anything withdrawn out
+// of them during the window. `withdrawingVaults` narrows which vaults' Withdrawal events are added
+// back, for chains where one vault pays into another and the value never leaves the tracked set;
+// it defaults to every vault, which is the plain OP-stack case.
+export async function getFees(options: FetchOptions, { feeVaults, gasToken, withdrawingVaults, label }: { feeVaults: string[], gasToken?: string, withdrawingVaults?: string[], label?: string }) {
   const { api, fromApi, createBalances, getLogs } = options;
   const balances = createBalances();
   const eventAbi = 'event Withdrawal(uint256 value, address to, address from)'
@@ -19,17 +23,17 @@ async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaul
   await api.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
   await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
 
-  const logs = await getLogs({ targets: feeVaults, eventAbi, })
+  const logs = await getLogs({ targets: withdrawingVaults ?? feeVaults, eventAbi, })
 
   logs.map((log) => {
     if (gasToken)
-      balances.addTokenVannila(gasToken, log.value)
+      balances.addTokenVannila(gasToken, log.value, label)
     else
-      balances.addGasToken(log.value)
+      balances.addGasToken(log.value, label)
   })
 
-  balances.addBalances(api.getBalancesV2())
-  balances.subtract(fromApi.getBalancesV2())
+  balances.addBalances(api.getBalancesV2(), label)
+  balances.subtract(fromApi.getBalancesV2(), label)
   return balances
 }
 

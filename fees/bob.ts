@@ -1,39 +1,36 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import ADDRESSES from "../helpers/coreAssets.json";
+import { getFees } from "../helpers/ethereum-l2";
 
-// BOB is an OP-stack chain with a modified fee split: most of what users pay lands in the
-// OperatorFeeVault rather than the BaseFeeVault, so all four vaults are summed. Over the last
-// seven days the three standard vaults hold only about a seventh of the total.
+// OP-stack fee vault predeploys, per the Optimism specs:
+// https://specs.optimism.io/protocol/predeploys.html
 const SEQUENCER_FEE_VAULT = '0x4200000000000000000000000000000000000011';
 const L1_FEE_VAULT = '0x420000000000000000000000000000000000001a';
 const BASE_FEE_VAULT = '0x4200000000000000000000000000000000000019';
+// OperatorFeeVault, added by the Isthmus upgrade:
+// https://specs.optimism.io/protocol/isthmus/exec-engine.html#operator-fee
 const OPERATOR_FEE_VAULT = '0x420000000000000000000000000000000000001b';
+
+// BOB charges an operator fee, so most of what users pay accrues in the OperatorFeeVault rather
+// than the BaseFeeVault and all four vaults have to be summed.
 const FEE_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT, OPERATOR_FEE_VAULT];
 
-// A withdrawal moves value out of a vault, so it is added back to the day's balance change.
-// The OperatorFeeVault is the exception: all five withdrawals it has made paid into the
-// BaseFeeVault, so the value never left the four-vault total and adding it back would count
-// it twice.
+// Withdrawals are added back to the balance delta because they move value out of a vault. The
+// OperatorFeeVault is the exception: every withdrawal it has ever made paid into the BaseFeeVault
+// (5 of 5 — 13.251630, 10.000890, 9.308640, 0.500160 and 0.500625 ETH, all with
+// to = 0x4200000000000000000000000000000000000019), so that value stays inside the four-vault
+// total and adding it back would count it twice. The other three vaults withdraw to
+// 0xc91482a96e9c2a104d9298d1980eccf8c4dc764e, outside the set, so theirs are added back.
 const WITHDRAWING_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT];
 
 const LABEL = 'sequencer fees';
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-
-  await options.api.sumTokens({ owners: FEE_VAULTS, tokens: [ADDRESSES.null] });
-  await options.fromApi.sumTokens({ owners: FEE_VAULTS, tokens: [ADDRESSES.null] });
-
-  const logs = await options.getLogs({
-    targets: WITHDRAWING_VAULTS,
-    eventAbi: 'event Withdrawal(uint256 value, address to, address from)',
-    flatten: true,
+  const dailyFees = await getFees(options, {
+    feeVaults: FEE_VAULTS,
+    withdrawingVaults: WITHDRAWING_VAULTS,
+    label: LABEL,
   });
-  logs.forEach((log: any) => dailyFees.addGasToken(log.value, LABEL));
-
-  dailyFees.addBalances(options.api.getBalancesV2(), LABEL);
-  dailyFees.subtract(options.fromApi.getBalancesV2(), LABEL);
 
   return { dailyFees, dailyRevenue: dailyFees.clone() };
 };
