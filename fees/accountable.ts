@@ -63,10 +63,12 @@ const config: Record<string, { factories: string[], start: string }> = {
 
 // aHYPER Looping Vault (vault 0x23b148d8f389C5821739381f1FF87bB7e1162566) is
 // EOA-deployed rather than created by a registered factory, so enumeration
-// cannot reach it. The TVL adapter carries the same exception.
-const EXTRA_STRATEGIES: Record<string, { address: string, deployedOn: string }[]> = {
-  [CHAIN.MONAD]: [{ address: "0xE19b272b2fe4a54103A41F9B1c65dB3D2F6d886D", deployedOn: "2026-04-28" }],
-};
+// cannot reach it. Excluded from fee tracking: it's a hidden, still-in-testing
+// vault whose configured 10% performanceFee/50% managerSplit is not actually
+// being charged, so booking fees off its share-price growth would overstate
+// protocol revenue. Re-add once fee collection is live for it. The TVL
+// adapter carries the EOA-deployed exception separately and is unaffected.
+const EXTRA_STRATEGIES: Record<string, { address: string, deployedOn: string }[]> = {};
 
 const abis = {
   getStrategiesCount: "function getStrategiesCount() view returns (uint256)",
