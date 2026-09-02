@@ -48,3 +48,10 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 2. Not accounting for leverage in notional calculations
 3. Missing multi-market aggregation
 4. Not handling liquidated positions
+
+## Units and sources
+
+- Export open interest in USD (contracts times price for the window), never raw contract units.
+- Cover both sides (longs + shorts) uniformly; OI should be roughly TVL-stable, a wild day-to-day swing usually means a unit or side bug.
+- A source that only serves current OI uses `runAtCurrTime: true`; snapshot metrics never carry cumulative columns.
+- Open interest is a perps metric; options protocols export notional and premium volume instead.

@@ -70,3 +70,8 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 3. Missing exercise/settlement events
 4. Double-counting expired options
 5. Not separating call vs put metrics when useful
+
+## Scope
+
+- Export `dailyNotionalVolume` + `dailyPremiumVolume`, never plain `dailyVolume`.
+- Perpetual options (funding-based, no expiry) do not belong on the options dashboard.

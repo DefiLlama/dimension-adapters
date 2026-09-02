@@ -71,6 +71,46 @@ const fetch = async (options: FetchOptions) => {
 - Be extra vigilant on Solana due to lower transaction fees
 - Remove affected pairs during farming campaigns that incentivize wash trading
 
+## What counts as volume
+
+- One side of the swap only. Swaps only: no LP add/remove, deposits/withdrawals, borrows, transfers, NFT trades or bet wagers (track their fees instead).
+- Volume is verifiable USER action. A protocol's OWN actions (mint/redeem, hedging, rebalances) are never volume. Liquidations are not perp volume (they have their own `liquidations/` adapter type). HLP / market-maker / vault PnL is never fees.
+- Beware per-side events: some order books emit a maker row AND a taker row for the same fill; summing both double counts.
+- Ticker APIs: never sum `base_volume + quote_volume`, they are the same trades in two units. To check that an API reports single-sided volume, compare a low-liquidity pair's minute candle against its trade history (trade history is always taker volume).
+- Prediction markets: state whether volume is cash (collateral paid) or notional. Cash goes in `dailyVolume`; notional optionally in `dailyNotionalVolume`.
+- Launchpads: count only pre-bonding volume on their own curve; post-migration volume belongs to the receiving DEX. Launchpads trading on another protocol's pools track fees only.
+- Perp DEXs reporting very large volume (tens of millions per day and up) need per-trade maker/taker data before the number is trusted. Maker+taker complaints are answered with the normalized-volume metric, not adapter changes.
+- Open interest is exported in USD (contracts times price for the window), never raw contract units. OI covers both sides (longs + shorts) uniformly and should be roughly TVL-stable; an OI source that only serves current data uses `runAtCurrTime`.
+- No volume breakdowns: breakdown labels are for fees only.
+- Set `doublecounted: true` when an underlying tracked protocol already counts the flow (e.g. Uniswap v4 hooks, builder codes).
+
+## Fork listings go through the factories
+
+Uniswap v2/v3 forks, Algebra forks and standard-subgraph DEXs are NOT new files. Add one config entry:
+
+`factory/uniV2.ts` / `factory/uniV3.ts` (`configs` for volume, derives fees when ratios are present; `feesConfigs` for fees-only; uniV3 Algebra forks add `isAlgebraV3: true`):
+
+```ts
+'example-v2': {
+  [CHAIN.BASE]: { factory: '0x...', start: '2025-01-01', fees: 0.25/100, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4 },
+},
+```
+
+`factory/uniSubgraph.ts` (`graphUrls` are subgraph deployment IDs, not full URLs):
+
+```ts
+'example-spot': {
+  graphUrls: { [CHAIN.BASE]: "<deployment id>" },
+  totalVolume: { factory: "factories", field: 'totalVolumeUSD' },
+  feesPercent: { type: "fees", ProtocolRevenue: 0, UserFees: 100, SupplySideRevenue: 100, Revenue: 0 },
+  start: '2025-01-20',
+},
+```
+
+- If the slug is already listed, extend the existing entry (add the chain) instead of adding a second key.
+- Fee ratios only from the protocol's documented split; omit them rather than guess.
+- Spam/fake tokens that pollute uni-style volume go in the central blacklist (`helpers/lists.ts`, `getDefaultDexTokensBlacklisted`), not into individual adapters.
+
 ## Fees/Revenue Tracking
 
 If this adapter also tracks fees/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Include:

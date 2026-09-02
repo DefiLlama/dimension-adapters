@@ -109,6 +109,22 @@ METRIC.PROTOCOL_FEES         // 'Protocol Fees'
 | `lists.ts` | List management | Protocol/chain lists |
 | `erc4626.ts` | ERC4626 helpers | Vault standard |
 
+### More Helpers Worth Knowing
+
+| File | Functions | Use Case |
+|------|-----------|----------|
+| `curators/index.ts` | `getCuratorExport`, `CuratorConfig` | Vault curators (Morpho/Euler owners); configs live in `factory/curators.ts` |
+| `lists.ts` | `getDefaultDexTokensBlacklisted(chain)` | Central spam/fake token blacklist for uni-style DEX adapters |
+| `getChainFees.ts` | `fetchTransactionFees` | Chain gas fees from the indexer |
+| `routescanFees.ts` | Routescan chain fees | Paired with `factory/routescan.ts` |
+| `near.ts` | `nearView` | NEAR view calls |
+| `oklink.ts` | OKLink queries | Chains covered by OKLink |
+| `env.ts` | `DEFAULTS` | Default RPC URLs per chain, `DEBUG_BREAKDOWN_FEES` |
+| `cache.ts` | `getConfig` | Cached remote config that survives source outages |
+| `../users/utils/routescanStats.ts`, `subscanStats.ts` | Chain users | Active users for Routescan / Substrate chains; wiring in `users/chains.ts` |
+
+`token.ts` blacklist parameters: `getSolanaReceived({ blacklists, blacklist_signers, blacklist_mints })`, `addGasTokensReceived({ blacklist_fromAddresses })`. On mixed-use wallets, scope with `fromAddresses` and comment each address's role.
+
 ## Usage Examples
 
 ### Using Protocol Helpers
