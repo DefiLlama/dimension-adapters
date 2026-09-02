@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
@@ -51,22 +50,21 @@ const KEEPER = "Keeper rewards"; // gas compensation paid to liSLVR harvest call
 const PROTOCOL_FEE = "liSLVR protocol fee"; // vault harvest fee, 0 live (launched fee-off, max 10%)
 
 const fetch = async (options: FetchOptions) => {
-  // The registry is read at the latest block (it is append-only, and the RPC is not archival):
-  // a game registered after the period simply has no logs inside it.
-  const registryApi = new sdk.ChainApi({ chain: options.chain });
-  const gameCount = await registryApi.call({ abi: "uint256:gameCount", target: GAME_REGISTRY });
+  // Registry and per-game fee BPS are read at the period end block (options.toApi) so backfills
+  // only discover games that existed that day and use the rates in effect at period close.
+  const api = options.toApi;
+  const gameCount = await api.call({ abi: "uint256:gameCount", target: GAME_REGISTRY });
   const gameCalls = [] as any[];
   for (let id = 1; id <= Number(gameCount); id++) gameCalls.push({ params: [id] });
-  const games = (await registryApi.multiCall({ abi: GAME_INFO_ABI, target: GAME_REGISTRY, calls: gameCalls })).map((i: any) => i.game);
+  const games = (await api.multiCall({ abi: GAME_INFO_ABI, target: GAME_REGISTRY, calls: gameCalls })).map((i: any) => i.game);
   // Per-game jackpot cut. Every generation so far runs `jackpotFeeBps = 200` and it has never
   // changed (zero FeeDistributionUpdated events across all history); games without the getter
-  // default to 200. Read at latest like the registry — a mid-period rate change would emit
-  // FeeDistributionUpdated and only skew the slices around it.
+  // default to 200.
   const [jackpotRates, buybackRates] = await Promise.all([
-    registryApi.multiCall({ abi: "uint16:jackpotFeeBps", calls: games, permitFailure: true }),
+    api.multiCall({ abi: "uint16:jackpotFeeBps", calls: games, permitFailure: true }),
     // buybackFeeBps only exists on generations with the buyback-and-burn leg; older games can
     // never emit BuybackFunded, so they are excluded from that log query entirely.
-    registryApi.multiCall({ abi: "uint16:buybackFeeBps", calls: games, permitFailure: true }),
+    api.multiCall({ abi: "uint16:buybackFeeBps", calls: games, permitFailure: true }),
   ]);
   const buybackGames = games.filter((_: string, i: number) => buybackRates[i] != null);
 
