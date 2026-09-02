@@ -278,6 +278,9 @@ const tableName = {
   [CHAIN.AVAX]: "avalanche_c"
 } as any
 
+// DefiLlama chain key -> Dune `blockchain` slug
+export const duneBlockchain = (chain: string): string => tableName[chain] ?? chain
+
 export const queryDuneSql = (options: any, query: string, { extraUIDKey }: { extraUIDKey?: string } = {}) => {
 
   return queryDune("3996608", {

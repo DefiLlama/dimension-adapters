@@ -130,6 +130,18 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   return Object.fromEntries(sortedPairs)
 }
 
+// drop pairs where either side is a blacklisted token (see helpers/lists.ts)
+function filterBlacklistedTokens(pairObject: IJSON<string[]>, blacklistTokens?: string[]): IJSON<string[]> {
+  if (!blacklistTokens?.length) return pairObject
+  const blacklist = new Set(blacklistTokens.map(i => i.toLowerCase()))
+  const filtered: IJSON<string[]> = {}
+  for (const [pair, tokens] of Object.entries(pairObject)) {
+    if (tokens.some(token => blacklist.has(String(token).toLowerCase()))) continue
+    filtered[pair] = tokens
+  }
+  return filtered
+}
+
 function filterBlacklistedPools(pairObject: IJSON<string[]>, blacklistPools?: string[]): IJSON<string[]> {
   if (!blacklistPools?.length) return pairObject
 
@@ -145,7 +157,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, allowReadPairs } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -184,7 +196,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
+    const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
     const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
@@ -268,7 +280,7 @@ const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, ad
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
@@ -332,7 +344,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     }
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
+    const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
     const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
@@ -462,6 +474,7 @@ type UniV2Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   blacklistPools?: Array<string>,
+  blacklistTokens?: Array<string>, // pairs holding any of these tokens are skipped
   allowReadPairs?: boolean;
 }
 
@@ -488,6 +501,7 @@ type UniV3Config = {
   start?: string,
   deadFrom?: string,
   blacklistPools?: Array<string>,
+  blacklistTokens?: Array<string>, // pools holding any of these tokens are skipped
   pools?: string[], // alternative to providing factory
   dynamicProtocolFees?: boolean,
   // read each Algebra pool's community fee and pass it to getRevenueRatio
