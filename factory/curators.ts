@@ -75,8 +75,8 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0xb263237E30fe9be53d6F401FCC50dF125D60F01a', '0xc714F33c2527BF61749C06eA0389EC957D8153D4']
       },
-        [CHAIN.BASE]: {
-          morphoVaultOwners: ["0x80C6c6438a438Ad3B3736a02B47793D6f854f2bF"]
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ["0x80C6c6438a438Ad3B3736a02B47793D6f854f2bF"]
       },
     },
   },
@@ -238,6 +238,15 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x0FB44352bcfe4c5A53a64Dd0faD9a41184A1D609'],
+      },
+    },
+  },
+  "keyrock": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        morphoVaultOwners: [
+          '0xbA75546ACD56b3a9142f94F179b03970eE4283Fd', // initial owner — Keyrock V1/V2 vaults
+        ],
       },
     },
   },
