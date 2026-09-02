@@ -129,6 +129,10 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   adapter: {},
   start: '2025-03-14',
+  // Both routers stopped emitting Routed on 2026-03-17 (HyperEVM 08:36:42 UTC, which carried
+  // 99.9% of the final day's volume, and Base 00:05:09 UTC) and neither signature has fired from
+  // any address on any covered chain since. gluex.xyz is a parked for-sale domain.
+  deadFrom: '2026-03-18',
   fetch,
   chains: Object.keys({ ...ROUTERS_OLD, ...ROUTERS_NEW }),
   methodology,
