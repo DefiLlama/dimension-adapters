@@ -14,3 +14,6 @@ wash/
 .claude
 CLAUDE.md
 skills/dimension-failure-fixer/
+
+data-audit/
+cli/blacklistCandidates.js

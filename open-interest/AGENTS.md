@@ -54,4 +54,5 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 - Export open interest in USD (contracts times price for the window), never raw contract units.
 - Cover both sides (longs + shorts) uniformly; OI should be roughly TVL-stable, a wild day-to-day swing usually means a unit or side bug.
 - A source that only serves current OI uses `runAtCurrTime: true`; snapshot metrics never carry cumulative columns.
+- OI is a snapshot at the window end, never a sum over the window. Under `pullHourly` a summed OI comes out 24x too high.
 - Open interest is a perps metric; options protocols export notional and premium volume instead.
