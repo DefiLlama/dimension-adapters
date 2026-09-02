@@ -14,11 +14,14 @@ import { METRIC } from "../../helpers/metrics";
 //
 // Game contracts hot-swap (the grid lottery has been redeployed several times), so wager events
 // are read from every game in the on-chain SlvrGameRegistry rather than a hardcoded address.
+// https://robinhoodchain.blockscout.com/address/0x3942CdA122eF303f47d4509A6Be57736E323cEE4
 const GAME_REGISTRY = "0x3942CdA122eF303f47d4509A6Be57736E323cEE4";
 const VE_STAKING = "0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200"; // SlvrVoteEscrowStaking
+// https://robinhoodchain.blockscout.com/address/0x791229E3EbD6CFdC3D8157f48722684173C29aD9
 const SLVR_TOKEN = "0x791229E3EbD6CFdC3D8157f48722684173C29aD9";
 // liSLVR liquid-locker vault: its veNFT earns staker rewards, and the growth share of every
 // harvest is used to buy SLVR that is permanently locked (buyback-and-lock).
+// https://robinhoodchain.blockscout.com/address/0xb06a7A96d7fbfDCC64AeE0F0B185204b66E41b3B
 const LISLVR_VAULT = "0xb06a7A96d7fbfDCC64AeE0F0B185204b66E41b3B";
 
 const GAME_INFO_ABI = "function gameInfo(uint256) view returns ((address game, bytes32 gameType, uint8 status, uint8 tier, uint32 emissionWeight, uint16 maxWeightBps, bool exists))";
@@ -62,6 +65,9 @@ const fetch = async (options: FetchOptions) => {
 
   // Volume = total ETH wagered across every registered game this period. Jackpot = 2% of each
   // wager, routed to the jackpot pool and paid back out to winning players (supply-side).
+  // The 2% is `jackpotFeeBps = 200` on every game generation and has never changed (zero
+  // FeeDistributionUpdated events across all history); a rate change emits that event, which is
+  // the cue to revisit this calculation.
   const dailyVolume = options.createBalances();
   const jackpot = options.createBalances();
   bets.forEach((log: any) => {
@@ -83,6 +89,9 @@ const fetch = async (options: FetchOptions) => {
   // That ETH is part of the staker rewards already counted above (the vault's veNFT earned it),
   // so it is split out of the staking-rewards component rather than added on top. Harvests batch
   // accrued rewards, so the buyback slice is capped at the period's distributed rewards.
+  // Harvested also reports protocolFee (0 live — the vault launched fee-off) and keeperReward
+  // (gas compensation capped at 0.01 ETH per harvest); both are dust next to daily rewards and
+  // are deliberately left inside the staking-rewards figure.
   let buybackTotal = 0n;
   harvests.forEach((log: any) => { buybackTotal += BigInt(log.growthEth); });
   if (buybackTotal > stakerRewardsTotal) buybackTotal = stakerRewardsTotal;
