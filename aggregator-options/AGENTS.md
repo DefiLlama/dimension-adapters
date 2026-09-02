@@ -39,7 +39,7 @@ Options aggregators route options trades through multiple protocols/vaults to fi
 
 ## Fees/Revenue Tracking
 
-If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`.
+If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`.
 
 ## Common Mistakes to Avoid
 

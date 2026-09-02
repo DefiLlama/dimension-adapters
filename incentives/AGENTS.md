@@ -50,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
 ## Fees/Revenue Tracking
 
-If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`.
+If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`.
 
 ## Common Mistakes to Avoid
 

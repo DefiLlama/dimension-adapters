@@ -72,8 +72,8 @@ let usedHelper: string | null | undefined = null;
   const file = `${adapterType}/${moduleArg}`
   const passedFile = path.resolve(process.cwd(), `./${file}`);
 
-  // Skip documentation files (e.g., GUIDELINES.md, guidelines)
-  const docFiles = ['guidelines', 'readme', 'changelog'];
+  // Skip documentation files (e.g., AGENTS.md)
+  const docFiles = ['agents', 'guidelines', 'readme', 'changelog'];
   const baseName = path.basename(moduleArg).toLowerCase().replace('.md', '');
   if (moduleArg.endsWith('.md') || docFiles.includes(baseName)) {
     console.info(`Skipping documentation file: ${moduleArg}`);

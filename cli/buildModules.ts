@@ -15,7 +15,7 @@ async function run() {
 
 
 
-  const excludeKeys = new Set(["index", "README", '.gitkeep', 'GUIDELINES.md'])
+  const excludeKeys = new Set(["index", "README", '.gitkeep', 'AGENTS.md'])
   const baseFolderPath = __dirname + "/.." // path relative to current working directory -> `cd /defi`
   const dimensionsImports: any = {}
 
