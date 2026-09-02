@@ -65,7 +65,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-    Volume: "24h trading volume is calculated by summing OHLCV candle volume across all perpetual instruments on Rocket Chain.",
+    Volume: "24h trading volume is calculated by summing OHLCV candle volume across all perpetual and dated futures instruments on Rocket Chain (options are tracked separately under Rocket Options).",
     Fees: "0.01% maker and 0.01% taker fees charged on each trade",
     Revenue: "All the fees are revenue",
     ProtocolRevenue: "All the fees are protocol revenue",
