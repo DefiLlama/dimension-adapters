@@ -67,7 +67,12 @@ const fetch = async (options: FetchOptions) => {
             continue;
         }
         if (!isOption(inst.instrumentType)) continue;
-        dailyPremiumVolume.addUSDValue(Number(stats.quoteVolume24h ?? 0), "Options premiums");
+        const premium = Number(stats.quoteVolume24h ?? 0);
+        if (!Number.isFinite(premium)) {
+            console.log(`Rocket options: invalid quoteVolume24h for ${inst.ticker}: ${stats.quoteVolume24h}, skipping`);
+            continue;
+        }
+        dailyPremiumVolume.addUSDValue(premium, "Options premiums");
     }
 
     return { dailyNotionalVolume, dailyPremiumVolume };
@@ -88,10 +93,9 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    // version 1: both endpoints only return rolling 24-hour aggregates (no historical time ranges)
+    version: 1,
     runAtCurrTime: true,
-    // Rocket exposes rolling 24-hour totals only, so hourly slices cannot be summed.
-    pullHourly: false,
     fetch,
     chains: [CHAIN.OFF_CHAIN],
     start: '2026-08-31',
