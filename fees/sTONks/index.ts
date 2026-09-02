@@ -44,6 +44,9 @@ const TON_LAUNCHPAD_SENDERS = new Set([
 const TON_PAYOUT_WALLETS = [TON_REFERRAL_WALLET, TON_CASHBACK_WALLET];
 const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
 
+const TRADING_FEES = "Trading Fees";
+const LAUNCHPAD_FEES = "Launchpad Fees";
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const toBigInt = (v: any): bigint => {
   if (v === null || v === undefined) return 0n;
@@ -177,27 +180,25 @@ const scanTonPayouts = async (
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp: start, endTimestamp: end } = options;
 
-  const results = await Promise.all(
-    TON_FEE_WALLETS.map((w) =>
-      scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(s ?? ""))
-    )
-  );
-
   let tradingFees = 0n;
   let launchpadFees = 0n;
-  for (const r of results) {
+  for (const w of TON_FEE_WALLETS) {
+    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(s ?? ""));
     tradingFees += r.tradingFees;
     launchpadFees += r.launchpadFees;
+    await sleep(500);
   }
   const totalFees = tradingFees + launchpadFees;
 
-  const payouts = await Promise.all(
-    TON_PAYOUT_WALLETS.map((w) => scanTonPayouts(w, start, end))
-  );
-  const totalUserPayouts = payouts.reduce((a, b) => a + b, 0n);
+  let totalUserPayouts = 0n;
+  for (const w of TON_PAYOUT_WALLETS) {
+    totalUserPayouts += await scanTonPayouts(w, start, end);
+    await sleep(500);
+  }
 
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(totalFees.toString(), "Trading & Launchpad Fees");
+  dailyFees.addGasToken(tradingFees.toString(), TRADING_FEES);
+  dailyFees.addGasToken(launchpadFees.toString(), LAUNCHPAD_FEES);
 
   // Volume: only Bot + Terminal (1% fee); launchpad excluded (variable fee)
   const dailyVolume = options.createBalances();
@@ -238,8 +239,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Trading & Launchpad Fees":
-      "All native TON inflows to sTONks fee wallets from Bot, Terminal, and Launchpad.",
+    [TRADING_FEES]:
+      "1% native TON fees from @stonks_sniper_bot and sTONks Terminal inflows to fee wallets.",
+    [LAUNCHPAD_FEES]:
+      "Variable native TON fees from sTONks.pump Launchpad routed to fee wallets.",
   },
   SupplySideRevenue: {
     "Referral & Cashback Payouts":
@@ -256,7 +259,7 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false, // TON adapter uses tonapi.io which rate-limits under hourly pulls
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
