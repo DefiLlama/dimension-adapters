@@ -146,7 +146,7 @@ const adapter: SimpleAdapter = {
 | `dailyNotionalVolume` | YES | Notional volume of options contracts |
 | `dailyPremiumVolume` | YES | Premium volume collected/paid |
 
-Options adapters do not export open interest; it is a perps-only dimension.
+Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
 
 ### Fees (Income Statement Model)
 
@@ -246,7 +246,7 @@ npm run test <type> <slug> [YYYY-MM-DD] [chain1,chain2]
 
 - The bare slug resolves both file-based adapters (`<type>/<slug>.ts` or `<type>/<slug>/index.ts`) and factory-listed keys (e.g. a key in `factory/uniV3.ts`).
 - The date argument is the END of the window: to reproduce day D, pass D+1. The optional last argument limits the run to those chains.
-- For a fix to a live adapter also read the published series: `https://api.llama.fi/summary/<type>/<slug>?dataType=<dimension>` with the category's required dimension (`dailyVolume`, `dailyFees`, `dailyBridgeVolume`, `dailyNotionalVolume`, `openInterestAtEnd`, ...). A series ending in a null `total24h` means the adapter throws; for flow metrics a hard $0 after big days with no taper means source lag, not zero activity (for snapshot metrics like open interest a drop to 0 is a bug either way).
+- For a fix to a live adapter also read the published series: `https://api.llama.fi/summary/<type>/<slug>?dataType=<dimension>`, once per required dimension of the category (`dailyVolume`; `dailyFees` and `dailyRevenue`; `dailyBridgeVolume`; `dailyNotionalVolume` and `dailyPremiumVolume`; `openInterestAtEnd`). A series ending in a null `total24h` means the adapter throws. For flow metrics a hard $0 after big days with no taper means source lag, not zero activity. Snapshot metrics (open interest) are judged by the end-of-window value: 0 is valid only when no positions remain, a drop to 0 while the venue still has open positions is a bug.
 - `DEBUG_BREAKDOWN_FEES=true npm run test fees <slug> <date>` prints the per-label breakdown table.
 - `balances.debug()` inside a fetch prints the largest token values and addresses (useful for decimals/pricing problems).
 - Run several random past days, not just one. Zeros on random days with known activity, or values an order of magnitude off the protocol's own UI/explorer/Dune, block the listing until explained. CI proves little: forked PRs get no Dune keys and public RPCs may be non-archival, so a local run is the real check.

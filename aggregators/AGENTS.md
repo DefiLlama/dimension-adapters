@@ -59,4 +59,3 @@ If the aggregator charges fees and this adapter returns fee/revenue dimensions, 
 
 - Fees users pay to the UNDERLYING DEX or bridge are not the aggregator's fees; only the aggregator's own fee (positive slippage, integrator fee, protocol fee) belongs in `dailyFees`.
 - Cashbacks/rebates paid back to users go in `dailyFees` with a supply-side label; referral payouts are a cost, excluded from revenue when measurable.
-- Set `doublecounted: true` when the routed volume is already counted by a tracked underlying protocol.

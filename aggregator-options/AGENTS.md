@@ -25,7 +25,7 @@ Options aggregators route options trades through multiple protocols/vaults to fi
 
 ## Open Interest
 
-Options aggregators do not export open interest (`openInterestAtEnd` and the long/short variants are perps-only dimensions).
+Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
 
 ## Data Sources
 

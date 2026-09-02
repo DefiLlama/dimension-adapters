@@ -55,4 +55,4 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 - Follow the venue's total-OI convention: if the venue's total already counts each contract once, do not add longs and shorts on top of it. Apply the same convention to every market of the adapter. A large day-to-day swing without a matching price or position change usually means a unit or side bug.
 - A source that only serves current OI uses `runAtCurrTime: true`; snapshot metrics never carry cumulative columns.
 - OI is a snapshot at the window end, never a sum over the window. Under `pullHourly` a summed OI comes out 24x too high.
-- Open interest is a perps/futures metric. Options protocols export `dailyNotionalVolume` and `dailyPremiumVolume` and do not export open interest.
+- Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.

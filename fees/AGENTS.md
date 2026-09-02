@@ -327,11 +327,9 @@ If this adapter also tracks volume (dexs/ style metrics), see `dexs/AGENTS.md` f
 - On lending/curator adapters a multi-x fee jump from an unknown market is a fabricated market until proven; verify the market against the protocol's own registry before counting it.
 - Negative values are legitimate for realized losses and must be counted (with `allowNegativeValue: true` and an inline reason), but formula-derived fees (e.g. mint/redeem deltas) cap at zero.
 - Export explicit zeros (`dailyRevenue: 0`) for a component the protocol genuinely lacks, but 0 is not "unavailable": never default an UNKNOWN component to zero, omit it until the flow is known. When a revenue/supply split cannot be derived from the source, export gross `dailyFees` only with `skipBreakdownValidation: true` plus a comment; never publish gross inflows as `dailyProtocolRevenue`.
-- A protocol with no fees at all is not worth listing.
 
 ## Chain adapters
 
-- `protocolType: ProtocolType.CHAIN` is required; it distinguishes a chain from a protocol.
 - Fees = user-paid transaction fees only. Revenue = the burnt portion or DAO/treasury inflow only. Block rewards, validator/staker payouts and emissions are neither.
 - Rollup sequencer costs and blob fees paid to mainnet are `dailySupplySideRevenue`; chain revenue = fees minus those.
 - MEV and blockspace-auction income (Jito tips, Timeboost, Flashbots-style builders) is a SEPARATE listing, not part of the chain's fees.
