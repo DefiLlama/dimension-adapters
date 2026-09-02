@@ -7,7 +7,7 @@
  * Data sources:
  *   GET /indexer/options-volume-24h - rolling 24h notional options volume per underlying (BTC, ETH),
  *                                     Rocket's own aggregate (same figure shown in the Rocket UI)
- *   GET /instruments                - per-instrument rolling 24h stats; quoteVolume24h on option
+ *   GET /instruments (all pages)    - per-instrument rolling 24h stats; quoteVolume24h on option
  *                                     instruments is the USDC premium traded
  *
  * Website: https://rocketfi.io
@@ -17,34 +17,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-
-const ROCKET_API = "https://beta.rocket-cluster-1.com";
-
-type InstrumentType = "PERP" | "FUTURE" | "CALL_OPTION" | "PUT_OPTION";
+import { ROCKET_API, fetchRocketInstruments, isRocketOption } from "../../helpers/rocket";
 
 interface OptionsVolumeResponse {
     volumes: { underlyingAsset: string; notionalVolume24hr: string }[];
 }
-
-interface Instrument {
-    id: string;
-    ticker: string;
-    instrumentType: InstrumentType;
-    underlyingAsset: string;
-}
-
-interface InstrumentStats {
-    volume24h: string;
-    quoteVolume24h: string;
-    openInterest: number;
-}
-
-interface InstrumentsResponse {
-    instruments: Record<string, Instrument>;
-    instrumentStats: Record<string, InstrumentStats>;
-}
-
-const isOption = (t: InstrumentType) => t === "CALL_OPTION" || t === "PUT_OPTION";
 
 const fetch = async (options: FetchOptions) => {
     const dailyNotionalVolume = options.createBalances();
@@ -59,14 +36,14 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // Premium volume: USDC quote volume across option instruments (no dedicated endpoint yet)
-    const { instruments, instrumentStats }: InstrumentsResponse = await fetchURL(`${ROCKET_API}/instruments`);
+    const { instruments, instrumentStats } = await fetchRocketInstruments();
     for (const [id, stats] of Object.entries(instrumentStats)) {
         const inst = instruments[id];
         if (!inst) {
             console.log(`Rocket options: stats returned for unknown instrument ${id}, skipping`);
             continue;
         }
-        if (!isOption(inst.instrumentType)) continue;
+        if (!isRocketOption(inst.instrumentType)) continue;
         const premium = Number(stats.quoteVolume24h ?? 0);
         if (!Number.isFinite(premium)) {
             console.log(`Rocket options: invalid quoteVolume24h for ${inst.ticker}: ${stats.quoteVolume24h}, skipping`);
@@ -80,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
     NotionalVolume: "Rolling 24h notional volume of all listed BTC and ETH options (contracts traded x underlying value) as reported by Rocket's indexer (GET /indexer/options-volume-24h).",
-    PremiumVolume: "Rolling 24h USDC premium traded, summed over all listed option instruments (quoteVolume24h from GET /instruments).",
+    PremiumVolume: "Rolling 24h USDC premium traded, summed over all listed option instruments (quoteVolume24h from GET /instruments, all pages).",
 };
 
 const breakdownMethodology = {
