@@ -3,53 +3,75 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 /**
- * Archade — social trading app and Solana launchpad.
+ * Archade — social trading app and launchpad on Solana.
  *
  * Website: https://archade.io
  * Twitter: https://x.com/archade_io
  *
- * Listed as three products under one parent, the way Pump lists pump.fun, its
- * Terminal and its Mobile App: "Archade" is the web terminal, "Archade Mobile
- * App" is the iOS/Android client, both routing any Solana token to whichever
- * venue has the liquidity; "Archade Launchpad" is Archade's own bonding curves,
- * every swap on a coin launched through Archade from any interface. THIS FILE IS
- * THE WEB TERMINAL. A trade in an Archade coin made here also appears under the
- * launchpad, so this child is flagged doublecounted.
+ * One listing. Archade is a trading terminal, any Solana token routed to
+ * whichever venue has the liquidity with a flat 1% platform fee appended, and a
+ * launchpad, coins launched through it trade on bonding curves under a config
+ * Archade owns. Both are reported here, together.
  *
- * One endpoint serves both, over a half-open [start, end) window of unix
- * seconds, and publishes how far the on-chain indexer has read so a
- * half-indexed window is retried rather than recorded low.
+ * VOLUME is every swap Archade is part of, counted once: every swap on an
+ * Archade curve from any interface, plus swaps routed through the app to other
+ * venues. A swap made in the app on an Archade coin sits in both ledgers and is
+ * counted on the curve side only, by signature. Routed volume is also counted
+ * by the venue underneath, hence doublecounted.
+ *
+ * FEES is everything users pay: the app's platform fee (1% since June 2026,
+ * 0.5% before), the full 1.25% bonding curve fee on Archade coins, and the
+ * 0.02 SOL pool creation fee. REVENUE is what Archade keeps: the whole app fee,
+ * its 0.70% share of each curve trade, and 90% of each creation fee.
+ * SUPPLY-SIDE is the rest: the coin creator's 30% of the curve fee, the curve
+ * program's protocol share, the referral leg it hands to whichever interface
+ * hosted the swap, and its 10% of the creation fee. Launches by
+ * Archade-affiliated wallets are excluded upstream as internal transfers.
+ *
+ * Every curve figure is decoded from the curve program's own swap events and
+ * reconciled against each pool's lifetime counters before it is served; the
+ * app fee is the treasury's measured balance delta inside the swap transaction.
+ * Archade has no token, so there is no holders revenue.
+ *
+ * The endpoint serves a half-open [start, end) window of unix seconds and
+ * publishes how far the on-chain indexer has read, so a half-indexed window is
+ * retried rather than recorded low.
  */
 const API = "https://archade.io/api/defillama";
 
 interface FeeLeg { stream: string; token: string; amount: string }
-interface Product {
-  volume: number | { token: string; amount: string };
-  fees: FeeLeg[];
-  activeUsers: number;
-  txs: number;
-}
 interface ApiResponse {
-  chains: Record<string, { app: Product; mobile: Product; launchpad: Product }>;
+  chains: Record<string, {
+    volume: number;
+    curveVolume: { token: string; amount: string };
+    fees: FeeLeg[];
+    activeUsers: number;
+    txs: number;
+  }>;
   indexedThrough: number;
 }
 
-async function load(options: FetchOptions, product: "app" | "mobile" | "launchpad"): Promise<Product> {
+async function load(options: FetchOptions) {
   const url = `${API}?start=${options.startTimestamp}&end=${options.endTimestamp}`;
   const res: ApiResponse = await fetchURL(url);
-  const p = res?.chains?.solana?.[product];
-  if (!p) throw new Error(`No ${product} data for ${options.dateString}`);
-  // Curve data is indexed from chain by a job; a window that runs past what it
-  // has read is retried rather than recorded low.
+  const s = res?.chains?.solana;
+  if (!s) throw new Error(`No data for ${options.dateString}`);
   if (!(res.indexedThrough >= options.endTimestamp)) {
     throw new Error(`Archade has indexed through ${res.indexedThrough}, window ends ${options.endTimestamp}`);
   }
-  return p;
+  return s;
+}
+
+function volumeOf(options: FetchOptions, s: ApiResponse["chains"][string]) {
+  const v = options.createBalances();
+  v.addUSDValue(s.volume);
+  v.add(s.curveVolume.token, s.curveVolume.amount);
+  return v;
 }
 
 const fetch = async (options: FetchOptions) => {
-  const p = await load(options, "app");
-  return { dailyVolume: p.volume as number };
+  const s = await load(options);
+  return { dailyVolume: volumeOf(options, s) };
 };
 
 const adapter: SimpleAdapter = {
@@ -60,7 +82,7 @@ const adapter: SimpleAdapter = {
   start: "2026-02-10",
   doublecounted: true,
   methodology: {
-    Volume: "USD notional of swaps executed by users through the Archade web app, priced at the SOL price recorded on each trade. Routed to the venue with the liquidity, so it is also counted there.",
+    Volume: "Every swap Archade is part of, counted once: every swap on a bonding curve launched through Archade from any interface, plus swaps routed through the Archade app to other venues. Curve swaps are the quote-side notional (input on a buy, output on a sell); app swaps are priced at the SOL price recorded on the trade.",
   },
 };
 
