@@ -44,6 +44,44 @@ const ABIs = {
 
 const limit = pLimit(5);
 
+// Aera's API renamed `summary.apy` -> `summary.external_apy` at some point and,
+// as of 2026-09, that field is frozen at `{value: 0, timestamp: 2026-06-30T18:44:47Z}`
+// for every vault (a dead upstream pipeline, not a real zero yield). Exported and
+// pure so they can be unit-tested directly against synthetic snapshots without a
+// live API call - real-world data is currently 100% stale/missing, so several
+// branches below aren't otherwise observable.
+//
+// Coverage is TVL-weighted, not vault-count-weighted: a single high-TVL vault
+// with bad apy data can dwarf nine dust vaults with fresh data, so counting
+// vaults instead of dollars would let a whale's missing yield through silently.
+// A MISSING snapshot counts as a coverage problem exactly like STALE or INVALID -
+// if Aera drops the field/response entirely for every vault, that must refuse,
+// not silently fall back to management-fees-only with 0/0 "nothing to refuse".
+export const STALE_APY_THRESHOLD_SECONDS = 3 * 24 * 60 * 60;
+export const FUTURE_SKEW_TOLERANCE_SECONDS = 60 * 60;
+export const MAX_STALE_APY_TVL_RATIO = 0.1;
+
+export type ApySnapshotStatus = "fresh" | "stale" | "missing" | "invalid";
+
+export function classifyApySnapshot(
+    toTimestamp: number,
+    apySnapshot: { value: number; timestamp: string } | undefined | null,
+): ApySnapshotStatus {
+    if (!apySnapshot) return "missing";
+    const snapshotMs = new Date(apySnapshot.timestamp).getTime();
+    if (!Number.isFinite(snapshotMs) || !Number.isFinite(apySnapshot.value)) return "invalid";
+    const snapshotAgeSeconds = toTimestamp - snapshotMs / 1000;
+    if (snapshotAgeSeconds < -FUTURE_SKEW_TOLERANCE_SECONDS) return "invalid";
+    if (snapshotAgeSeconds > STALE_APY_THRESHOLD_SECONDS) return "stale";
+    return "fresh";
+}
+
+export function shouldRefuseStaleApyDataset(tvlWithUsableApy: number, tvlWithApyProblem: number): boolean {
+    const totalTvl = tvlWithUsableApy + tvlWithApyProblem;
+    if (totalTvl <= 0) return false;
+    return tvlWithApyProblem / totalTvl > MAX_STALE_APY_TVL_RATIO;
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const { chainId } = CHAIN_CONFIG[options.chain];
     const allVaultDetails = await configPost("aera-v2","https://app.aera.finance/api/metric/v1", {
@@ -91,19 +129,36 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         permitFailure: true
     });
 
+    let tvlWithUsableApy = 0;
+    let tvlWithApyProblem = 0;
+
     for (const [index, vaultDetail] of vaultDetails.entries()) {
-        const currentTvlInUsd = vaultValueMap.get(vaultDetail.vaultAddress) || 0;
-        const currentApy = vaultDetail.summary.apy.value;
+        const currentTvlInUsd = +(vaultValueMap.get(vaultDetail.vaultAddress) || 0);
 
         const totalFeesForPeriod = ((totalFeesAfter[index] - totalFeesBefore[index]) / 1e18) * (feeTokenPrice[index] / 1e18);
-        const totalYieldForPeriod = +currentTvlInUsd * currentApy * periodWrtYear;
-
         dailyFees.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
         dailyRevenue.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
 
+        const apySnapshot = vaultDetail.summary?.external_apy;
+        const status = classifyApySnapshot(options.toTimestamp, apySnapshot);
+
+        // A vault with no TVL contributes 0 yield regardless of its apy status,
+        // so it's excluded from the coverage ratio entirely - it can't dilute or
+        // inflate the refusal decision either way.
+        if (currentTvlInUsd > 0) {
+            if (status === "fresh") tvlWithUsableApy += currentTvlInUsd;
+            else tvlWithApyProblem += currentTvlInUsd;
+        }
+
+        if (status !== "fresh") continue;
+
+        const totalYieldForPeriod = currentTvlInUsd * apySnapshot!.value * periodWrtYear;
         dailyFees.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
     }
+
+    if (shouldRefuseStaleApyDataset(tvlWithUsableApy, tvlWithApyProblem))
+        throw new Error(`aera-v2: $${tvlWithApyProblem.toFixed(0)} of $${(tvlWithUsableApy + tvlWithApyProblem).toFixed(0)} tracked TVL has missing/stale/invalid external_apy data - Aera's asset-metrics pipeline appears to be down, refusing to report vault yields as zero`);
 
     return {
         dailyFees,
