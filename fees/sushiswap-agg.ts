@@ -24,6 +24,9 @@ const RP9_ADDRESS: any = {
   [CHAIN.POLYGON_ZKEVM]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
   [CHAIN.MANTLE]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
   [CHAIN.KATANA]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.BSC]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.XDAI]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
+  [CHAIN.HEMI]: '0x81602EF321C46d73f5Ba7f476947AE1a862957dc',
 }
 
 const RP9_1_ADDRESS: any = {
@@ -35,6 +38,9 @@ const RP9_1_ADDRESS: any = {
   [CHAIN.POLYGON_ZKEVM]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
   [CHAIN.MANTLE]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
   [CHAIN.KATANA]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.BSC]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.XDAI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
+  [CHAIN.HEMI]: '0x3b0aa7d38bf3c103bf02d1de2e37568cbed3d6e8',
 }
 
 const RP9_2_ADDRESS: any = {
@@ -46,6 +52,9 @@ const RP9_2_ADDRESS: any = {
   [CHAIN.POLYGON_ZKEVM]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.MANTLE]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
   [CHAIN.KATANA]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.BSC]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.XDAI]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
+  [CHAIN.HEMI]: '0xd2b37ade14708bf18904047b1e31f8166d39612b',
 }
 
 const RP10_ADDRESS: any = {
@@ -57,6 +66,9 @@ const RP10_ADDRESS: any = {
   [CHAIN.POLYGON_ZKEVM]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
   [CHAIN.MANTLE]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
   [CHAIN.KATANA]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.BSC]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.XDAI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
+  [CHAIN.HEMI]: '0xe89aab725a2b2c0656248dcccc894a04661be55a',
 }
 
 const RP11_ADDRESS: any = {
@@ -70,6 +82,9 @@ const RP11_ADDRESS: any = {
   [CHAIN.KATANA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
   [CHAIN.ERA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
   [CHAIN.LINEA]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.BSC]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.XDAI]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
+  [CHAIN.HEMI]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
 }
 
 const ROUTE_RP7_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 slippage, uint32 indexed referralCode)'
@@ -141,5 +156,8 @@ export default {
     [CHAIN.KATANA]: { start: '2025-07-04', },
     [CHAIN.ERA]: { start: '2026-02-08', },
     [CHAIN.LINEA]: { start: '2026-02-08', },
+    [CHAIN.BSC]: { start: '2025-08-23', },
+    [CHAIN.XDAI]: { start: '2025-08-23', },
+    [CHAIN.HEMI]: { start: '2025-08-23', },
   }
 }
