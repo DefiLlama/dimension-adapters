@@ -12,6 +12,8 @@ const TICKERS_URL = 'https://gwhbq-7aaaa-aaaar-qabya-cai.raw.icp0.io/v1/tickers'
 
 const STATS_LABELS = ['price', 'change24h', 'vol24h', 'totalVol', 'value0', 'value1'];
 
+const LABEL = 'Spot trades';
+
 // Quote tokens ICDex pairs settle in, mapped to the id used for pricing.
 const QUOTE_TOKEN_GECKO_IDS: Record<string, string> = {
   'ryjl3-tyaaa-aaaaa-aaaba-cai': 'internet-computer', // ICP
@@ -60,7 +62,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     if (quoteVolume === 0n) continue;
     const geckoId = QUOTE_TOKEN_GECKO_IDS[ticker.target_currency];
     if (!geckoId) throw new Error(`ICDex: no price source for quote token ${ticker.target_currency} (pair ${ticker.ticker_id})`);
-    dailyVolume.addCGToken(geckoId, Number(quoteVolume) / 10 ** await getDecimals(ticker.target_currency));
+    dailyVolume.addCGToken(geckoId, Number(quoteVolume) / 10 ** await getDecimals(ticker.target_currency), LABEL);
   }
 
   return { dailyVolume };
@@ -68,6 +70,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 const methodology = {
   Volume: "Trailing 24h traded amount reported by each ICDex pair canister's stats() call, valued on the quote-token side of every pair.",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    [LABEL]: "Trailing 24h traded amount on ICDex's order-book pairs, counted once per pair on its quote token (ICP, ckUSDC or ckBTC) so the two sides of a trade are not both counted.",
+  },
 };
 
 const adapter: Adapter = {
@@ -83,6 +91,7 @@ const adapter: Adapter = {
     },
   },
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
