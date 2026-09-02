@@ -90,7 +90,7 @@ const adapter: SimpleAdapter = {
   start: "2026-02-10",
   doublecounted: true,
   methodology: {
-    Volume: "Every swap Archade is part of, counted once: every swap on a bonding curve launched through Archade from any interface, plus swaps routed through the Archade app to other venues. Curve swaps are the quote-side notional (input on a buy, output on a sell); app swaps are priced at the SOL price recorded on the trade.",
+    Volume: "Swaps on bonding curves launched through Archade, plus swaps routed through the Archade app to other venues.",
   },
 };
 
