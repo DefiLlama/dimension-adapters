@@ -64,6 +64,7 @@ import {
   WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
+import { ethers } from "ethers";
 
 interface IUniswapConfig {
   poolManager: string;
@@ -254,6 +255,33 @@ function getPoolKey(poolId: string): string {
   return poolId.slice(0, 52);
 }
 
+// Protocol fee (UNIfication fee switch, live on v4 from 2026-07-27) is stored per
+// pool in PoolManager slot0 as a uint24: low 12 bits = zeroForOne fee, high 12
+// bits = oneForZero fee, both in pips (1e6 = 100%, max 1000 = 0.1%). It is taken
+// from the swap input before the LP fee, and the Swap event's `fee` already is
+// the combined rate (protocol + LP - protocol*LP). Read at the window end block
+// via extsload so refills reproduce the rate that applied on that day.
+// Layout: v4-core Slot0.sol (PROTOCOL_FEE_OFFSET = 184), StateLibrary.sol (POOLS_SLOT = 6).
+const EXTSLOAD_ABI = 'function extsload(bytes32 slot) view returns (bytes32)'
+const POOLS_SLOT = ethers.zeroPadValue('0x06', 32)
+function slot0Slot(poolId: string): string {
+  return ethers.keccak256(ethers.concat([poolId, POOLS_SLOT]))
+}
+async function getProtocolFees(options: FetchOptions, poolManager: string, poolIds: string[]): Promise<Record<string, { zeroForOne: number; oneForZero: number }>> {
+  const slots: any[] = await options.api.multiCall({
+    abi: EXTSLOAD_ABI,
+    calls: poolIds.map(poolId => ({ target: poolManager, params: [slot0Slot(poolId)] })),
+    permitFailure: true,
+  })
+  const fees: Record<string, { zeroForOne: number; oneForZero: number }> = {}
+  poolIds.forEach((poolId, i) => {
+    if (!slots[i]) return
+    const protocolFee = Number((BigInt(slots[i]) >> 184n) & 0xffffffn)
+    fees[poolId] = { zeroForOne: protocolFee & 0xfff, oneForZero: protocolFee >> 12 }
+  })
+  return fees
+}
+
 // Wash-trading filter. The scam here is a fake-ticker token (several unrelated
 // contracts all called "OpenAI"/"Claude") paired against real USDC, churned by a
 // handful of bots for a day or two, then rugged. The core-asset pricing from
@@ -343,6 +371,8 @@ const prefetch: any = async (options: FetchOptions) => {
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyVolume = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
 
   const config = Configs[options.chain];
   if (!config) {
@@ -403,6 +433,7 @@ async function fetch(options: FetchOptions) {
       }
 
       const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+      const protocolFees = await getProtocolFees(options, config.poolManager, Object.keys(pools).filter(id => pools[id]))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
       // flagged pools whose sides are all established (core or CG-listed) are
       // spared - one batched price lookup, see getEstablishedTokens
@@ -432,7 +463,17 @@ async function fetch(options: FetchOptions) {
           const useToken0 = currency0 === ADDRESSES.null || isCoreAsset(options.chain, currency0) || !isCoreAsset(options.chain, currency1)
           const token = useToken0 ? currency0 : currency1
           const amount = Math.abs(Number(useToken0 ? event.amount0 : event.amount1))
-          dailyFees.add(token, amount * (Number(event.fee) / 1e6))
+          // swap deltas are from the swapper's view: negative = paid in, so
+          // amount0 < 0 is a zeroForOne swap and picks that direction's protocol fee.
+          // Both rates are applied to the priced side (same approximation as the
+          // fee line above), protocol fee is a share of the same gross amount.
+          const zeroForOne = Number(event.amount0) < 0
+          const pf = protocolFees[poolId]
+          const protocolPips = pf ? (zeroForOne ? pf.zeroForOne : pf.oneForZero) : 0
+          const swapPips = Number(event.fee)
+          dailyFees.add(token, amount * (swapPips / 1e6))
+          dailyRevenue.add(token, amount * (protocolPips / 1e6))
+          dailySupplySideRevenue.add(token, amount * ((swapPips - protocolPips) / 1e6))
           dailyVolume.add(token, amount)
         }
       }
@@ -443,10 +484,10 @@ async function fetch(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0, // tracked in uniswap-v3 adapter
+    dailySupplySideRevenue,
+    dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
+    dailyHoldersRevenue: dailyRevenue, // all protocol fees fund the UNI buyback and burn (UNIfication)
   }
 }
 
@@ -457,12 +498,12 @@ const adapter: SimpleAdapter = {
   prefetch,
   methodology: {
     Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
-    Fees: 'Swap fees paid by users.',
-    UserFees: 'Swap fees paid by users.',
-    Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
-    ProtocolRevenue: 'Protocol makes no revenue.',
-    SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
-    HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+    Fees: 'Swap fees paid by traders: the pool LP fee plus, since the v4 fee switch (27 Jul 2026), the per-pool protocol fee taken from the swap input.',
+    UserFees: 'Swap fees paid by traders.',
+    Revenue: 'Per-pool protocol fee read from the PoolManager (0 before the 27 Jul 2026 fee switch), all of it used to buy back and burn UNI.',
+    ProtocolRevenue: 'Protocol treasury keeps nothing, protocol fees go to the UNI buyback and burn.',
+    SupplySideRevenue: 'LP fee share of swap fees (100% of fees before the 27 Jul 2026 fee switch).',
+    HoldersRevenue: 'Protocol fees used to buy back and burn UNI (since 27 Jul 2026).',
   },
   fetch,
 };

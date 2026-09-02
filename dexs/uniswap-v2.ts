@@ -103,20 +103,15 @@ const chainConfig: Record<string, {
 function getLogAdapterConfig(options: FetchOptions) {
   // UNIfication has officially been executed onchain
   // https://x.com/Uniswap/status/2005018127260942798
+  // after the switch the 0.30% swap fee splits 0.25% to LPs and 0.05% to the
+  // protocol (1/6 of fees), all of which buys back and burns UNI
+  const revenueRatio = isFeeSwitchOn(options) ? 1 / 6 : 0
+  return { userFeesRatio: 1, revenueRatio, protocolRevenueRatio: 0, holdersRevenueRatio: revenueRatio }
+}
+
+function isFeeSwitchOn(options: FetchOptions): boolean {
   const feeSwitchDate = chainConfig[options.chain]?.feeSwitchDate;
-  if (feeSwitchDate && options.dateString >= feeSwitchDate) {
-    return {
-      userFeesRatio: 1,
-      revenueRatio: 0, // Tracked combined in Uniswap V3 adapter
-      protocolRevenueRatio: 0,
-    }
-  } else {
-    return {
-      userFeesRatio: 1,
-      revenueRatio: 0,
-      protocolRevenueRatio: 0,
-    }
-  }
+  return !!feeSwitchDate && options.dateString >= feeSwitchDate;
 }
 
 // --- ClickHouse (evm_indexer) helpers ---
@@ -195,18 +190,25 @@ type SwapAggRow = Row & { pair: string; amount0_out: string; amount1_out: string
 
 async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig[string]): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances();
-  const feeRates = getLogAdapterConfig(options);
 
-  const emptyResult = (): FetchResultV2 => {
+  // 0.30% swap fee; after the fee switch 0.05% of volume goes to the protocol
+  // (UNI buyback and burn) and 0.25% stays with LPs
+  const protocolRate = isFeeSwitchOn(options) ? 0.0005 : 0;
+  const buildResult = (): FetchResultV2 => {
     const dailyFees = dailyVolume.clone(0.003);
+    const dailyRevenue = dailyVolume.clone(protocolRate);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
-      dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
+      dailySupplySideRevenue: dailyVolume.clone(0.003 - protocolRate),
+      dailyRevenue,
       dailyProtocolRevenue: 0,
+      dailyHoldersRevenue: dailyRevenue,
     };
+  };
+  const emptyResult = (): FetchResultV2 => {
+    return buildResult();
   };
 
   const whitelistedTokens = (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase());
@@ -248,15 +250,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
     dailyVolume.add(tokens.token1, row.amount1_out);
   }
 
-  const dailyFees = dailyVolume.clone(0.003);
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
-    dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
-    dailyProtocolRevenue: 0,
-  };
+  return buildResult();
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -276,12 +270,12 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "User pays 0.3% fees on each swap.",
-  UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI. (Tracked combined in Uniswap V3 adapter)',
-  ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: '83% (100% before fee switch) of fees are distributed to liquidity providers.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI (Tracked combined in Uniswap V3 adapter)',
+  Fees: "Traders pay a 0.30% fee on each swap.",
+  UserFees: "Traders pay a 0.30% fee on each swap.",
+  Revenue: '0.05% of swap volume (1/6 of fees) where the fee switch is on (Ethereum since 28 Dec 2025, Optimism, Arbitrum, Base, Zora, X Layer since 8 Mar 2026, Polygon and BSC since 2 Jun 2026), all of it used to buy back and burn UNI.',
+  ProtocolRevenue: 'Protocol treasury keeps nothing, protocol fees go to the UNI buyback and burn.',
+  SupplySideRevenue: '0.25% of swap volume to LPs after the fee switch (the full 0.30% before).',
+  HoldersRevenue: '0.05% of swap volume used to buy back and burn UNI where the fee switch is on.',
 }
 
 const adapter: Adapter = {

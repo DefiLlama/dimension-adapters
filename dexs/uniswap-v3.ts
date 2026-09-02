@@ -18,42 +18,12 @@ import {
 // fetchers just read config.blockchain. Buyback/holders-revenue is shared with
 // the on-chain adapter.
 
-const HOLDERS_REVENUE_CONFIG: Record<string, { feeSwitchDate: string | null; firepit: string | null }> = {
-  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721' },
-  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD' },
-  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427' },
-  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a' },
-  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25' },
-  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6' },
-  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143' },
-  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f' },
-  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
-  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
-  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B' },
-  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB' },
-}
-
-const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
-const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)'
-
-async function fetchHoldersRevenue(options: FetchOptions) {
-  const dailyHoldersRevenue = options.createBalances()
-  const { feeSwitchDate, firepit } = HOLDERS_REVENUE_CONFIG[options.chain] ?? {}
-  if (!firepit || !feeSwitchDate || options.dateString < feeSwitchDate) {
-    return dailyHoldersRevenue
-  }
-
-  const [releaseLogs, threshold] = await Promise.all([
-    options.getLogs({ target: firepit, eventAbi: RELEASED_EVENT_ABI }),
-    options.api.call({ target: firepit, abi: THRESHOLD_FUNCTION_ABI }),
-  ])
-
-  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
-
-  const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
-  dailyHoldersRevenue.addCGToken("uniswap", amount)
-  return dailyHoldersRevenue
-}
+// Protocol fee (UNIfication fee switch) is read per pool from slot0.feeProtocol:
+// low 4 bits = denominator for token0-input swaps, high 4 bits for token1-input
+// swaps (0 = off; 4 = 1/4 of the LP fee on 0.01%/0.05% tiers, 6 = 1/6 on
+// 0.30%/1% tiers). Read at the window end block so refills reproduce the day.
+const SLOT0_ABI = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)'
+const protocolShare = (denominator: number) => denominator ? 1 / denominator : 0
 
 // raw per-pool, per-token traded amount from dex.trades, for one or more Dune
 // blockchains. UNNEST explodes each swap's bought + sold legs into one row each,
@@ -184,6 +154,8 @@ async function fetchFromDune(options: FetchOptions) {
   // permitFailure doesn't cover a fully-dead-RPC chunk (sdk multiCall throws on it),
   // so guard: without fee tiers we keep volume and report 0 fees for this chain.
   let poolFees: any[] = await options.api.multiCall({ abi: 'uint256:fee', calls: pools, permitFailure: true });
+  const slot0s: any[] = await options.api.multiCall({ abi: SLOT0_ABI, calls: pools, permitFailure: true });
+  const dailyRevenue = options.createBalances();
 
   pools.forEach((pool, i) => {
     const { tokens, amounts } = byPool[pool];
@@ -194,12 +166,16 @@ async function fetchFromDune(options: FetchOptions) {
     // one priceable side = swap volume (mirrors the on-chain adapter)
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 });
     const fee = poolFees[i] ? Number(poolFees[i]) / 1e6 : 0;
-    if (fee) addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee });
+    if (!fee) return;
+    addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee });
+    // token0 amounts carry the token0-input protocol denominator and vice versa
+    const feeProtocol = Number(slot0s[i]?.feeProtocol ?? 0);
+    const share0 = protocolShare(feeProtocol & 0xf);
+    const share1 = protocolShare(feeProtocol >> 4);
+    if (share0 || share1) addOneToken({ chain: options.chain, balances: dailyRevenue, token0, token1, amount0: Number(amount0) * fee * share0, amount1: Number(amount1) * fee * share1 });
   });
 
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
-  const dailySupplySideRevenue = (await dailyFees.getUSDValue()) - dailyRevenue;
+  const dailySupplySideRevenue = (await dailyFees.getUSDValue()) - (await dailyRevenue.getUSDValue());
 
   return {
     dailyVolume,
@@ -207,7 +183,7 @@ async function fetchFromDune(options: FetchOptions) {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
+    dailyHoldersRevenue: dailyRevenue, // all protocol fees fund the UNI buyback and burn (UNIfication)
     dailySupplySideRevenue,
   }
 }
@@ -229,17 +205,16 @@ async function fetchFromOku(options: FetchOptions) {
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
   const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
 
+  // no fee switch on the Oku-served chains, all fees stay with LPs
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees - dailyRevenue,
-    dailyRevenue,
+    dailySupplySideRevenue: dailyFees,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
+    dailyHoldersRevenue: 0,
   }
 }
 
@@ -260,19 +235,15 @@ async function fetchFromLogs(options: FetchOptions) {
     protocolRevenueRatio: 0,
   })(options);
 
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(feesToLps, "LP fees");
-
+  // no fee switch on 0G, all fees stay with LPs
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees,
-    dailyRevenue: dailyHoldersRevenue,
+    dailyRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
+    dailySupplySideRevenue: dailyFees,
   };
 }
 
@@ -326,12 +297,12 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
 
 const methodology = {
   Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
-  Fees: "Swap fees from paid by users.",
-  UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
-  ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  Fees: "Swap fees paid by traders, per pool fee tier.",
+  UserFees: "Swap fees paid by traders.",
+  Revenue: 'Per-pool protocol share of swap fees read from the pool (1/4 of fees on 0.01% and 0.05% tiers, 1/6 on 0.30% and 1% tiers where the fee switch is on: Ethereum since 28 Dec 2025, Optimism, Arbitrum, Base, World Chain, Zora, X Layer since 8 Mar 2026, Polygon, BSC, Celo since 2 Jun 2026, Robinhood since 27 Jul 2026), all of it used to buy back and burn UNI.',
+  ProtocolRevenue: 'Protocol treasury keeps nothing, protocol fees go to the UNI buyback and burn.',
+  SupplySideRevenue: 'Swap fees left to LPs after the protocol share.',
+  HoldersRevenue: 'Protocol share of swap fees used to buy back and burn UNI.',
 }
 
 const adapter: SimpleAdapter = {
@@ -340,8 +311,6 @@ const adapter: SimpleAdapter = {
   methodology,
   adapter: chainConfig,
   prefetch,
-  // supply side can be negative on days revenue (v2+v3 buyback) exceeds v3 fees
-  allowNegativeValue: true,
 }
 
 export default adapter;
