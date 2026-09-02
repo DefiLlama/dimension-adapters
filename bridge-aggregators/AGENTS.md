@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
 
 ## Fees/Revenue Tracking
 
-If the bridge aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`. Include:
+If the bridge aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Include:
 - `dailyFees` - All fees collected (bridge fees, relayer fees)
 - `dailyRevenue` - Aggregator's portion
 - `dailySupplySideRevenue` - Relayer/partner fees

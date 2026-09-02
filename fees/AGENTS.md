@@ -297,4 +297,4 @@ const breakdownMethodology = {
 
 ## Volume Tracking
 
-If this adapter also tracks volume (dexs/ style metrics), see `dexs/GUIDELINES.md` for volume-specific rules. Both fees and volume can coexist in a fees adapter.
+If this adapter also tracks volume (dexs/ style metrics), see `dexs/AGENTS.md` for volume-specific rules. Both fees and volume can coexist in a fees adapter.
