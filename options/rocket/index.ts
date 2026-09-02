@@ -35,7 +35,6 @@ const fetch = async (_options: FetchOptions) => {
 
     let dailyNotionalVolume = 0;
     let dailyPremiumVolume = 0;
-    let openInterestAtEnd = 0;
 
     for (const [id, stats] of Object.entries(instrumentStats)) {
         const inst = instruments[id];
@@ -46,16 +45,14 @@ const fetch = async (_options: FetchOptions) => {
         dailyNotionalVolume += Number(stats.volume24h ?? 0) * price;
         // quoteVolume24h is the premium traded, already in USDC
         dailyPremiumVolume += Number(stats.quoteVolume24h ?? 0);
-        openInterestAtEnd += Number(stats.openInterest ?? 0) * price;
     }
 
-    return { dailyNotionalVolume, dailyPremiumVolume, openInterestAtEnd };
+    return { dailyNotionalVolume, dailyPremiumVolume };
 };
 
 const methodology = {
     NotionalVolume: "Sum of 24h traded option contracts multiplied by the underlying index price (from the corresponding Rocket perp market), across all listed BTC and ETH options.",
     PremiumVolume: "Sum of 24h traded option premium (USDC quote volume) across all listed options.",
-    OpenInterest: "Sum of outstanding option contracts multiplied by the underlying index price.",
 };
 
 const adapter: SimpleAdapter = {
