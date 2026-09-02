@@ -1,8 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { getUniV3LogAdapter } from '../helpers/uniswap';
+import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../helpers/uniswap';
 import { httpGet } from '../utils/fetchURL';
-import BigNumber from 'bignumber.js';
 
 const methodology = {
   Fees: "Total fees paid by users on every swap, determined by the pool's fee tier (e.g., 0.01%, 0.05%, 0.30%, 1.00%).",
@@ -12,9 +11,7 @@ const methodology = {
   SupplySideRevenue: "The portion of swap fees distributed to Liquidity Providers (LPs). This is (Total Fees - Protocol Revenue) for each pool.",
 };
 
-// Labels kept identical to the ones getUniV3LogAdapter emits, so the breakdown
-// is consistent whether the API path (recent) or the on-chain log path (older)
-// runs for a given day.
+// Labels kept identical to the ones getUniV3LogAdapter emits.
 const LABELS = {
   SwapFees: 'Token Swap Fees',
   TradingFees: 'Trading fees',
@@ -40,101 +37,57 @@ const breakdownMethodology = {
   },
 };
 
-// Uniswap V3 standard ABI for slot0. Selector: 0x3850c7bd
-const SLOT0_ABI = "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)";
-
 async function fetch(options: FetchOptions) {
-  // Initialize all accumulators as BigNumber objects
-  let dailyVolume = new BigNumber(0);
-  let dailyFees = new BigNumber(0);
-  let dailyRevenue = new BigNumber(0);
-
+  // PotatoSwap's own stats API is still used to discover the current set of
+  // v3 pool addresses (that part is fine), but its per-pool 24h volume/fee
+  // fields have been stuck at 0 since ~2026-05-07 while the pools themselves
+  // stay live - a silent-zero, not a dead endpoint. The on-chain log adapter
+  // below already handles every day correctly (it's what powered the correct
+  // historical backfill before this file's "recent day" fast path shipped) -
+  // use it unconditionally instead of trusting the API's own stats fields.
   const poolsResponse: any = await httpGet('https://v3.potatoswap.finance/api/pool/list-all');
-  
-  if (!poolsResponse.data || !poolsResponse.data.pools || poolsResponse.data.length === 0) {
+
+  if (!poolsResponse.data || !poolsResponse.data.pools || poolsResponse.data.pools.length === 0) {
     throw new Error("Failed to fetch pool data");
   }
 
   const pools = (poolsResponse.data.pools).filter((pool: any) => pool.protocol_version === 'v3');
-  const timeNow = Math.floor(Date.now() / 1000)
-  const isCloseToCurrentTime = Math.abs(timeNow - options.toTimestamp) < 3600 * 6 // 6 hour
+  if (!pools.length) throw new Error("No v3 pools returned by PotatoSwap's pool-list API");
 
-  if (isCloseToCurrentTime) {
-
-    const slot0Results = await options.api.multiCall({
-      abi: SLOT0_ABI,
-      calls: pools.map((p: any) => ({ target: p.address })),
-      chain: CHAIN.XLAYER,
-      permitFailure: true,
-    });
-
-    // 2. Iterate over pools and calculate revenue distribution
-    for (let i = 0; i < pools.length; i++) {
-      const pool = pools[i];
-
-      // Use BigNumber to wrap the high-precision string values
-      const poolFees24h = new BigNumber(pool.fee_24h_usd);
-      const poolVolume24h = new BigNumber(pool.volume_24h_usd);
-
-      // Use .plus() for accurate addition
-      dailyVolume = dailyVolume.plus(poolVolume24h);
-      dailyFees = dailyFees.plus(poolFees24h);
-
-      if (slot0Results[i]) {
-        // Extract feeProtocol0 (lower 4 bits) and feeProtocol1 (upper 4 bits)
-        const feeProtocolValue = Number(slot0Results[i].feeProtocol);
-        const feeProtocol0 = feeProtocolValue & 0x0F;
-        const feeProtocol1 = (feeProtocolValue >> 4) & 0x0F;
-
-        // For combined USD fees, we use the average of (1/feeProtocol0 + 1/feeProtocol1) / 2
-        let protocolRevenueRatio = new BigNumber(0);
-
-        if (feeProtocol0 > 0 && feeProtocol1 > 0) {
-          // Both tokens have protocol fee: average of (1/x1 + 1/x2) / 2
-          const ratio0 = new BigNumber(1).div(feeProtocol0);
-          const ratio1 = new BigNumber(1).div(feeProtocol1);
-          protocolRevenueRatio = ratio0.plus(ratio1).div(2);
-        } else if (feeProtocol0 > 0) {
-          // Only token0 has protocol fee
-          protocolRevenueRatio = new BigNumber(1).div(feeProtocol0);
-        } else if (feeProtocol1 > 0) {
-          // Only token1 has protocol fee
-          protocolRevenueRatio = new BigNumber(1).div(feeProtocol1);
-        }
-
-        if (protocolRevenueRatio.gt(0)) {
-          // Protocol revenue = Total Fees * protocolRevenueRatio
-          const poolProtocolRevenue = poolFees24h.times(protocolRevenueRatio);
-          dailyRevenue = dailyRevenue.plus(poolProtocolRevenue);
-        }
+  return getUniV3LogAdapter({
+    pools: pools.map((i: any) => i.address),
+    userFeesRatio: 1,
+    // Read each pool's live on-chain feeProtocol (slot0) instead of a fixed
+    // ratio, matching the methodology documented above - this is the exact
+    // computation the removed "recent day" branch used to do by hand via a
+    // manual slot0 multiCall.
+    dynamicProtocolFees: true,
+    getRevenueRatio: ({ protocolFeeRatioToken0 = 0, protocolFeeRatioToken1 = 0 }: UniGetRevenueRatioProps) => {
+      // feeProtocol0/feeProtocol1 = 0 means "no protocol fee on that token".
+      // Average the two sides only when BOTH are set; use the lone side
+      // as-is (not halved) when only one is - matches the ProtocolRevenue
+      // methodology text above exactly.
+      let _protocolRevenueRatio = 0;
+      if (protocolFeeRatioToken0 > 0 && protocolFeeRatioToken1 > 0) {
+        _protocolRevenueRatio = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2;
+      } else if (protocolFeeRatioToken0 > 0) {
+        _protocolRevenueRatio = protocolFeeRatioToken0;
+      } else if (protocolFeeRatioToken1 > 0) {
+        _protocolRevenueRatio = protocolFeeRatioToken1;
       }
-    }
-
-    const dailySupplySideRevenue = dailyFees.minus(dailyRevenue)
-
-    // Convert to labeled balances so the fees breakdown matches the log-path labels.
-    const dailyFeesBalances = options.createBalances();
-    const dailyRevenueBalances = options.createBalances();
-    const dailySupplySideRevenueBalances = options.createBalances();
-
-    dailyFeesBalances.addUSDValue(dailyFees.toNumber(), LABELS.SwapFees);
-    dailyRevenueBalances.addUSDValue(dailyRevenue.toNumber(), LABELS.ProtocolFees);
-    dailySupplySideRevenueBalances.addUSDValue(dailySupplySideRevenue.toNumber(), LABELS.LPFees);
-
-    return {
-      dailyVolume: dailyVolume.toString(),
-      dailyFees: dailyFeesBalances,
-      dailyUserFees: dailyFeesBalances.clone(1, LABELS.TradingFees),
-      dailyRevenue: dailyRevenueBalances,
-      dailyProtocolRevenue: dailyRevenueBalances,
-      dailySupplySideRevenue: dailySupplySideRevenueBalances,
-    }
-  }
-  return getUniV3LogAdapter({ pools: pools.map((i: any) => i.address), userFeesRatio: 1, revenueRatio: 1 / 5, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 5 })(options)
+      // "Revenue" and "ProtocolRevenue" are the same figure here (the
+      // protocol's whole cut) - no separate token-holder split, matching
+      // the original recent-day computation this replaces.
+      return { _revenueRatio: _protocolRevenueRatio, _protocolRevenueRatio };
+    },
+  })(options)
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  // v2: fees/volume are now exclusively on-chain event logs (the API is only
+  // used for pool-address discovery), matching this repo's version-2 criteria.
+  version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   fetch,
