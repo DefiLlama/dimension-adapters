@@ -156,50 +156,42 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Every swap Archade is part of, counted once: every swap on a bonding curve launched through Archade from any interface, plus swaps routed through the Archade app to other venues. Curve swaps are the quote-side notional (input on a buy, output on a sell); app swaps are priced at the SOL price recorded on the trade.",
-  Fees: "Everything users pay: the app's platform fee on each routed swap (1% since June 2026, 0.5% before), the full 1.25% bonding curve fee on coins launched through Archade, and the 0.02 SOL pool creation fee. Fees earned after a coin graduates from its bonding curve to a DEX pool are not yet included; no Archade coin has graduated.",
-  UserFees: "Same as Fees. Every leg is paid by a trader or a coin creator; launches by Archade-affiliated wallets are excluded as internal transfers.",
-  Revenue: "What Archade keeps: the whole app platform fee, its 0.70% share of each bonding curve trade net of any affiliate partner's slice, and 90% of each 0.02 SOL pool creation fee. Fees earned after a coin graduates from its bonding curve to a DEX pool are not yet included; no Archade coin has graduated.",
-  ProtocolRevenue: "Same as Revenue. All of it lands in the Archade treasury on Solana; there is no staking or holder leg.",
-  SupplySideRevenue: "What Archade does not keep: the coin creator's 30% of the curve trading fee, the curve program's protocol share, the referral leg it hands to whichever interface hosted the swap, the slice of Archade's own share that an affiliate partner earns on coins launched through their invite, and the program's 10% of the pool creation fee.",
+  Volume: "Swaps on bonding curves launched through Archade, plus swaps routed through the Archade app to other venues.",
+  Fees: "Trading fees paid by users on swaps routed through the Archade app, plus bonding curve trade fees and pool creation fees on coins launched through Archade. Fees after a coin graduates to a DEX pool are not included yet.",
+  UserFees: "Same as Fees. Every fee is paid by a trader or a coin creator.",
+  Revenue: "Archade's platform fee on app swaps, its share of bonding curve trade fees, and its share of pool creation fees.",
+  ProtocolRevenue: "Same as Revenue. All of it goes to the Archade treasury.",
+  SupplySideRevenue: "Fees paid to coin creators, affiliate partners and the bonding curve program.",
   HoldersRevenue: "None. Archade has no token.",
 };
 
+const feeLegs = {
+  [LABEL.APP]: "Archade's 1% platform fee on swaps routed through the app.",
+  [LABEL.CURVE]: "Archade's share of the bonding curve trade fee on coins launched through it.",
+  [LABEL.AFFILIATE]: "The affiliate partner's slice of Archade's bonding curve share.",
+  [LABEL.CREATOR]: "The coin creator's share of the bonding curve trade fee.",
+  [LABEL.VENUE]: "The bonding curve program's share of the trade fee.",
+  [LABEL.REFERRAL]: "The referral leg of the bonding curve program's share.",
+  [LABEL.LAUNCH]: "The 0.02 SOL pool creation fee paid by the coin creator.",
+};
+
+const keptLegs = {
+  [LABEL.APP_KEPT]: "App platform fees, kept by Archade.",
+  [LABEL.CURVE_KEPT]: "Archade's share of bonding curve trade fees, net of affiliate partner slices.",
+  [LABEL.LAUNCH_KEPT]: "Archade's 90% share of pool creation fees.",
+};
+
 const breakdownMethodology = {
-  Fees: {
-    [LABEL.APP]: "Archade's platform fee on every swap routed through the app: 1% since June 2026, 0.5% before that, taken in the quote asset inside the swap transaction.",
-    [LABEL.CURVE]: "Archade's 0.70% share of each bonding curve trade on a coin launched through it, net of any affiliate partner's slice.",
-    [LABEL.CREATOR]: "The coin creator's 0.30% share of the same curve trading fee.",
-    [LABEL.VENUE]: "The bonding curve program's 0.25% protocol share, taken off the top.",
-    [LABEL.REFERRAL]: "The part of the curve program's protocol share handed back to whichever interface hosted the swap. Archade passes no referral account, so none of it is Archade's.",
-    [LABEL.AFFILIATE]: "The slice of Archade's bonding curve share that an affiliate partner earns on coins launched through their invite.",
-    [LABEL.LAUNCH]: "The 0.02 SOL pool creation fee, paid by the coin creator when the pool is created.",
-  },
-  UserFees: {
-    [LABEL.APP]: "Traders pay the platform fee on each swap, on top of the underlying venue's own fees.",
-    [LABEL.CURVE]: "Traders pay the bonding curve fee; this is the part Archade keeps.",
-    [LABEL.CREATOR]: "Traders pay the bonding curve fee; this is the part the coin creator keeps.",
-    [LABEL.VENUE]: "Traders pay the curve program's protocol share on every bonding curve trade.",
-    [LABEL.REFERRAL]: "Traders pay the referral leg inside the curve program's protocol share.",
-    [LABEL.AFFILIATE]: "Traders pay the bonding curve fee; this is the part of Archade's share that goes to the affiliate partner whose invite launched the coin.",
-    [LABEL.LAUNCH]: "Coin creators pay 0.02 SOL to create a pool.",
-  },
-  Revenue: {
-    [LABEL.APP_KEPT]: "All app platform fees are retained by Archade in its treasury.",
-    [LABEL.CURVE_KEPT]: "Archade's 0.70% share of curve trades net of any affiliate partner's slice, claimable only by the config's fee claimer.",
-    [LABEL.LAUNCH_KEPT]: "Archade's 90% share of each 0.02 SOL pool creation fee.",
-  },
-  ProtocolRevenue: {
-    [LABEL.APP_KEPT]: "100% of app platform fees go to the Archade treasury on Solana.",
-    [LABEL.CURVE_KEPT]: "100% of Archade's share of curve fees goes to the Archade treasury.",
-    [LABEL.LAUNCH_KEPT]: "100% of Archade's share of pool creation fees goes to the Archade treasury.",
-  },
+  Fees: feeLegs,
+  UserFees: feeLegs,
+  Revenue: keptLegs,
+  ProtocolRevenue: keptLegs,
   SupplySideRevenue: {
-    [LABEL.CREATOR_PAID]: "The coin creator's 30% of the curve trading fee, floored per swap by the program and claimable by the creator directly.",
-    [LABEL.VENUE_PAID]: "The bonding curve program's protocol share of the curve fee.",
-    [LABEL.REFERRAL_PAID]: "The referral leg the curve program pays to whichever interface hosted the swap.",
-    [LABEL.AFFILIATE_PAID]: "The affiliate partner's slice of Archade's bonding curve share, accrued per swap and claimed by the partner directly.",
-    [LABEL.LAUNCH_PAID]: "The curve program's 10% of each pool creation fee.",
+    [LABEL.CREATOR_PAID]: "Bonding curve trade fees paid to coin creators.",
+    [LABEL.AFFILIATE_PAID]: "Archade's bonding curve share paid on to affiliate partners.",
+    [LABEL.VENUE_PAID]: "Bonding curve trade fees kept by the bonding curve program.",
+    [LABEL.REFERRAL_PAID]: "Referral fees the bonding curve program pays to the hosting interface.",
+    [LABEL.LAUNCH_PAID]: "The bonding curve program's 10% share of pool creation fees.",
   },
 };
 
