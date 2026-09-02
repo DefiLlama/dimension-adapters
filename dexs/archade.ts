@@ -49,19 +49,19 @@ async function load(options: FetchOptions, product: "app" | "mobile" | "launchpa
 
 const fetch = async (options: FetchOptions) => {
   const p = await load(options, "app");
-  return {
-    dailyActiveUsers: p.activeUsers,
-    dailyTransactionsCount: p.txs,
-  };
+  return { dailyVolume: p.volume as number };
 };
 
-// version 1: a daily-unique user count cannot be summed from hourly slices.
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-02-10",
-  methodology: "Unique wallets that executed a swap through the Archade web app, and the number of such swaps, in the window.",
+  doublecounted: true,
+  methodology: {
+    Volume: "USD notional of swaps executed by users through the Archade web app, priced at the SOL price recorded on each trade. Routed to the venue with the liquidity, so it is also counted there.",
+  },
 };
 
 export default adapter;

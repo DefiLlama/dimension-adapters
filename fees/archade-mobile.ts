@@ -14,8 +14,10 @@ import fetchURL from "../utils/fetchURL";
  * App" is the iOS/Android client, both routing any Solana token to whichever
  * venue has the liquidity; "Archade Launchpad" is Archade's own bonding curves,
  * every swap on a coin launched through Archade from any interface. THIS FILE IS
- * THE WEB TERMINAL. A trade in an Archade coin made here also appears under the
- * launchpad, so this child is flagged doublecounted.
+ * THE MOBILE APP. The mobile client names itself on every request and the trade
+ * record keeps it, so web and mobile are disjoint; a trade in an Archade coin
+ * made here also appears under the launchpad, so this child is flagged
+ * doublecounted.
  *
  * One endpoint serves both, over a half-open [start, end) window of unix
  * seconds, and publishes how far the on-chain indexer has read so a
@@ -62,7 +64,7 @@ async function load(options: FetchOptions, product: "app" | "mobile" | "launchpa
  * record call fails is not counted.
  */
 const fetch = async (options: FetchOptions) => {
-  const p = await load(options, "app");
+  const p = await load(options, "mobile");
   const dailyFees = options.createBalances();
   for (const leg of p.fees) {
     if (leg.stream !== "app_swap_fee") continue;
@@ -80,8 +82,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "USD notional of swaps executed by users through the Archade web app, priced at the SOL price recorded on each trade.",
-  Fees: "Archade's platform fee on every swap routed through the web app, taken in the quote asset inside the swap transaction itself. 1% since June 2026, 0.5% before that. Reported at the amount actually taken.",
+  Volume: "USD notional of swaps executed by users through the Archade mobile app (iOS and Android), priced at the SOL price recorded on each trade.",
+  Fees: "Archade's platform fee on every swap routed through the mobile app, taken in the quote asset inside the swap transaction itself. 1% since June 2026, 0.5% before that. Reported at the amount actually taken.",
   UserFees: "Users pay the platform fee on each swap, on top of the underlying venue's own fees.",
   Revenue: "All of it. Archade shares none of the swap fee with liquidity providers, routers or referrers.",
   ProtocolRevenue: "100% of the platform fee is sent to the Archade treasury on Solana.",
@@ -90,7 +92,7 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Fees: { [METRIC.TRADING_FEES]: "Archade's platform fee on every swap routed through the web app: 1% since June 2026, 0.5% before that." },
+  Fees: { [METRIC.TRADING_FEES]: "Archade's platform fee on every swap routed through the mobile app: 1% since June 2026, 0.5% before that." },
   UserFees: { [METRIC.TRADING_FEES]: "Users pay the platform fee on each swap, on top of the underlying venue's fees." },
   Revenue: { [METRIC.TRADING_FEES]: "All platform fees are retained by Archade in its treasury." },
   ProtocolRevenue: { [METRIC.TRADING_FEES]: "100% of platform fees are sent to the Archade treasury on Solana." },
@@ -101,7 +103,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2026-02-10",
+  start: "2026-08-10",
   doublecounted: true,
   methodology,
   breakdownMethodology,

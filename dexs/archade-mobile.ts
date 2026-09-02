@@ -13,8 +13,10 @@ import fetchURL from "../utils/fetchURL";
  * App" is the iOS/Android client, both routing any Solana token to whichever
  * venue has the liquidity; "Archade Launchpad" is Archade's own bonding curves,
  * every swap on a coin launched through Archade from any interface. THIS FILE IS
- * THE WEB TERMINAL. A trade in an Archade coin made here also appears under the
- * launchpad, so this child is flagged doublecounted.
+ * THE MOBILE APP. The mobile client names itself on every request and the trade
+ * record keeps it, so web and mobile are disjoint; a trade in an Archade coin
+ * made here also appears under the launchpad, so this child is flagged
+ * doublecounted.
  *
  * One endpoint serves both, over a half-open [start, end) window of unix
  * seconds, and publishes how far the on-chain indexer has read so a
@@ -48,20 +50,20 @@ async function load(options: FetchOptions, product: "app" | "mobile" | "launchpa
 }
 
 const fetch = async (options: FetchOptions) => {
-  const p = await load(options, "app");
-  return {
-    dailyActiveUsers: p.activeUsers,
-    dailyTransactionsCount: p.txs,
-  };
+  const p = await load(options, "mobile");
+  return { dailyVolume: p.volume as number };
 };
 
-// version 1: a daily-unique user count cannot be summed from hourly slices.
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2026-02-10",
-  methodology: "Unique wallets that executed a swap through the Archade web app, and the number of such swaps, in the window.",
+  start: "2026-08-10",
+  doublecounted: true,
+  methodology: {
+    Volume: "USD notional of swaps executed by users through the Archade mobile app (iOS and Android), priced at the SOL price recorded on each trade. Routed to the venue with the liquidity, so it is also counted there.",
+  },
 };
 
 export default adapter;
