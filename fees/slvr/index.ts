@@ -62,14 +62,20 @@ const fetch = async (options: FetchOptions) => {
   // changed (zero FeeDistributionUpdated events across all history); games without the getter
   // default to 200. Read at latest like the registry — a mid-period rate change would emit
   // FeeDistributionUpdated and only skew the slices around it.
-  const jackpotRates = await registryApi.multiCall({ abi: "uint16:jackpotFeeBps", calls: games, permitFailure: true });
+  const [jackpotRates, buybackRates] = await Promise.all([
+    registryApi.multiCall({ abi: "uint16:jackpotFeeBps", calls: games, permitFailure: true }),
+    // buybackFeeBps only exists on generations with the buyback-and-burn leg; older games can
+    // never emit BuybackFunded, so they are excluded from that log query entirely.
+    registryApi.multiCall({ abi: "uint16:buybackFeeBps", calls: games, permitFailure: true }),
+  ]);
+  const buybackGames = games.filter((_: string, i: number) => buybackRates[i] != null);
 
   const [betsPerGame, rewards, taxDeposits, harvests, roundBuybacks] = await Promise.all([
     options.getLogs({ targets: games, eventAbi: BET_PLACED, flatten: false }),
     options.getLogs({ target: VE_STAKING, eventAbi: REWARD_DISTRIBUTED }),
     options.getLogs({ target: SLVR_TOKEN, eventAbi: ETH_DEPOSITED_TO_JACKPOT }),
     options.getLogs({ target: LISLVR_VAULT, eventAbi: HARVESTED }),
-    options.getLogs({ targets: games, eventAbi: BUYBACK_FUNDED }),
+    buybackGames.length ? options.getLogs({ targets: buybackGames, eventAbi: BUYBACK_FUNDED }) : Promise.resolve([]),
   ]);
 
   // Volume = total ETH wagered across every registered game this period. Jackpot = each game's
