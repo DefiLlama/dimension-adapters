@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -30,21 +31,41 @@ const fetch = async (options: FetchOptions) => {
   // historically also collected fees in standalone System Program transfers.
   // The dedicated collector is therefore the stable attribution signal; filtering
   // by one launchpad program would omit both integrations and most legacy fees.
-  const [received, referralDistributions] = await Promise.all([
-    getSolanaReceived({
-      options,
-      targets: FEE_COLLECTORS,
-      mints: [ADDRESSES.solana.SOL],
-      blacklists: FEE_COLLECTORS,
-      blacklist_signers: FEE_COLLECTORS,
-    }),
-    getSolanaReceived({
-      options,
-      targets: REFERRAL_RECIPIENTS,
-      mints: [ADDRESSES.solana.SOL],
-      fromAddresses: FEE_COLLECTORS,
-    }),
-  ]);
+  const queries = [
+    {
+      key: "received",
+      run: () =>
+        getSolanaReceived({
+          options,
+          targets: FEE_COLLECTORS,
+          mints: [ADDRESSES.solana.SOL],
+          blacklists: FEE_COLLECTORS,
+          blacklist_signers: FEE_COLLECTORS,
+        }),
+    },
+    {
+      key: "referralDistributions",
+      run: () =>
+        getSolanaReceived({
+          options,
+          targets: REFERRAL_RECIPIENTS,
+          mints: [ADDRESSES.solana.SOL],
+          fromAddresses: FEE_COLLECTORS,
+        }),
+    },
+  ] as const;
+
+  const { results, errors } = await PromisePool.withConcurrency(2)
+    .for(queries)
+    .process(async ({ key, run }) => [key, await run()] as const);
+
+  if (errors.length) throw errors[0];
+
+  const queryResults = new Map(results);
+  const received = queryResults.get("received");
+  const referralDistributions = queryResults.get("referralDistributions");
+  if (!received || !referralDistributions)
+    throw new Error("Rapid Launch fee queries returned incomplete results");
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(received, COLLECTOR_FEES);
