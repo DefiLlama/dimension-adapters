@@ -13,9 +13,13 @@ async function fetch(_options: FetchOptions) {
     for (const instrument of Object.entries(instrumentStats)) {
         const [id, data] = instrument;
         const inst = instrumentsData.instruments[id];
-        // Options OI is tracked separately in options/rocket (notional terms);
-        // only perps & dated futures are counted here
-        if (!inst || inst.instrumentType === 'CALL_OPTION' || inst.instrumentType === 'PUT_OPTION') continue;
+        if (!inst) {
+            console.log(`Rocket OI: stats returned for unknown instrument ${id}, skipping`);
+            continue;
+        }
+        // Only linear derivatives (perps & dated futures) are counted; options are excluded
+        // (their lastMatchPrice is the premium, not a notional price)
+        if (inst.instrumentType !== 'PERP' && inst.instrumentType !== 'FUTURE') continue;
         openInterestAtEnd += data.openInterest * inst.lastMatchPrice;
     }
 
