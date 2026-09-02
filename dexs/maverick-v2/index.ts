@@ -1,168 +1,93 @@
-import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
-import { request, gql } from "graphql-request";
-import type {
-  Adapter,
-  FetchOptions,
-} from "../../adapters/types";
+import type { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 
-interface GqlPoolDayStats {
-  tokenBVolume: number;
-  tokenAVolume: number;
-  pool: GqlPool;
-  timestamp: number;
-}
-
-interface GqlPool {
-  id: string;
-  feeAIn: number;
-  feeBIn: number;
-  tokenA: GqlToken;
-  tokenB: GqlToken;
-}
-
-interface GqlToken {
-  id: string;
-  symbol: string;
-  decimals: number;
-}
-
-interface GqlQueryResponse {
-  poolDayStats: GqlPoolDayStats[];
-}
-
-const endpoints = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint(
-    "4rnXYgSTMmzV9F9r43jhhv6wijfp53xTUj3SvSBaqMTg",
-  ),
-  [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint(
-    "9oEipJ8CzpnQ4PnCDBQFa16AME8E9r3Kr4GurTtdUKRh",
-  ),
-  [CHAIN.ERA]: sdk.graph.modifyEndpoint(
-    "CNr8WTqBRNG5XbJQdSHX5jjfiQQyuFpkpBctTw1sDsDj",
-  ),
-  [CHAIN.BSC]: sdk.graph.modifyEndpoint(
-    "5RB6VU4vm5CrMAhvf9HFurkc8pZTF4WGBb1khZ4UhUng",
-  ),
-  [CHAIN.BASE]: sdk.graph.modifyEndpoint(
-    "E67Z1ykigDsybn4fnWuNHn4AcpuCxfjwzwPQxZs5r5c",
-  ),
-  [CHAIN.SCROLL]: sdk.graph.modifyEndpoint(
-    "Bi7b1vnoE5NT4XxrT4EwWuWuGYfic7pnB3Z5e7Mao9cj",
-  ),
+// MaverickV2Factory — same address everywhere except zkSync Era
+const DEFAULT_FACTORY = "0x0A7e848Aca42d879EF06507Fca0E7b33A0a63c1e";
+const FACTORY: Record<string, string> = {
+  [CHAIN.ETHEREUM]: DEFAULT_FACTORY,
+  [CHAIN.ARBITRUM]: DEFAULT_FACTORY,
+  [CHAIN.BSC]: DEFAULT_FACTORY,
+  [CHAIN.BASE]: DEFAULT_FACTORY,
+  [CHAIN.SCROLL]: DEFAULT_FACTORY,
+  [CHAIN.ERA]: "0x7A6902af768a06bdfAb4F076552036bf68D1dc56",
 };
 
-const processAmount = (
-  fee: number,
-  decimals: number,
-  volume: number,
-): { feeTokenUnits: bigint; volumeTokenUnits: bigint } => {
-  const volumeTokenUnits = BigInt(Math.round(volume * Math.pow(10, decimals)));
-  const feeTokenUnits = BigInt(
-    Math.round(fee * volume * Math.pow(10, decimals)),
-  );
-
-  return { feeTokenUnits, volumeTokenUnits };
+const FACTORY_ABI = {
+  poolCount: "function poolCount() view returns (uint256)",
+  lookup: "function lookup(uint256 startIndex, uint256 endIndex) view returns (address[] pools)",
 };
 
-const graphQuery = gql`
-query data($timestampFrom: Int!, $timestampTo: Int!) {
-  poolDayStats(
-    where: { timestamp_gt: $timestampFrom, timestamp_lte: $timestampTo }
-  ) {
-    tokenBVolume
-    tokenAVolume
-    pool {
-      id
-      feeAIn
-      feeBIn
-      tokenA {
-        id
-        symbol
-        decimals
-      }
-      tokenB {
-        id
-        symbol
-        decimals
-      }
-    }
-    timestamp
-  }
-}
-`;
-const fetch = async ({ createBalances, fromTimestamp, toTimestamp, chain }: FetchOptions) => {
+const POOL_ABI = {
+  tokenA: "function tokenA() view returns (address)",
+  tokenB: "function tokenB() view returns (address)",
+  fee: "function fee(bool tokenAIn) view returns (uint256)", // D18: 1e18 == 100%
+};
+
+// topic0: 0x103ed084e94a44c8f5f6ba8e3011507c41063177e29949083c439777d8d63f60
+const POOL_SWAP_EVENT =
+  "event PoolSwap(address sender, address recipient, (uint256 amount, bool tokenAIn, bool exactOutput, int32 tickLimit) params, uint256 amountIn, uint256 amountOut)";
+
+const D18 = 10n ** 18n;
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const { api, getLogs, createBalances, chain } = options;
   const dailyFees = createBalances();
   const dailyVolume = createBalances();
+  const factory = FACTORY[chain];
 
-  try {
-    const graphRes: GqlQueryResponse = await request(
-      endpoints[chain],
-      graphQuery,
-      {
-        timestampFrom: fromTimestamp,
-        timestampTo: toTimestamp,
-      },
-    );
+  const poolCount: string = await api.call({ target: factory, abi: FACTORY_ABI.poolCount });
+  if (Number(poolCount) === 0) return { dailyVolume, dailyFees };
 
-    if (!graphRes || !Array.isArray(graphRes.poolDayStats)) {
-      throw new Error(
-        `Malformed subgraph response for ${chain}: missing poolDayStats`,
-      );
+  const pools: string[] = await api.call({
+    target: factory,
+    abi: FACTORY_ABI.lookup,
+    params: [0, poolCount],
+  });
+
+  const [tokenAs, tokenBs, feeAIns, feeBIns]: [string[], string[], string[], string[]] =
+    await Promise.all([
+      api.multiCall({ calls: pools, abi: POOL_ABI.tokenA }),
+      api.multiCall({ calls: pools, abi: POOL_ABI.tokenB }),
+      api.multiCall({ calls: pools.map((p) => ({ target: p, params: [true] })), abi: POOL_ABI.fee }),
+      api.multiCall({ calls: pools.map((p) => ({ target: p, params: [false] })), abi: POOL_ABI.fee }),
+    ]);
+
+  // one array of logs per pool
+  const logsPerPool: any[][] = await getLogs({
+    targets: pools,
+    eventAbi: POOL_SWAP_EVENT,
+    flatten: false,
+  });
+
+  logsPerPool.forEach((logs, i) => {
+    const feeA = BigInt(feeAIns[i]);
+    const feeB = BigInt(feeBIns[i]);
+    for (const log of logs) {
+      const tokenAIn: boolean = log.params.tokenAIn;
+      const amountIn = BigInt(log.amountIn.toString());
+      const inToken = tokenAIn ? tokenAs[i] : tokenBs[i];
+      const feeRate = tokenAIn ? feeA : feeB;
+
+      // Maverick charges the swap fee on the input token
+      dailyVolume.add(inToken, amountIn);
+      dailyFees.add(inToken, (amountIn * feeRate) / D18);
     }
+  });
 
-    for (const stats of graphRes.poolDayStats) {
-      const { feeTokenUnits: feeA, volumeTokenUnits: volumeA } =
-        processAmount(
-          stats.pool.feeAIn,
-          stats.pool.tokenA.decimals,
-          stats.tokenAVolume,
-        );
-
-      const { feeTokenUnits: feeB, volumeTokenUnits: volumeB } =
-        processAmount(
-          stats.pool.feeBIn,
-          stats.pool.tokenB.decimals,
-          stats.tokenBVolume,
-        );
-
-      dailyFees.add(stats.pool.tokenA.id, feeA);
-      dailyFees.add(stats.pool.tokenB.id, feeB);
-      dailyVolume.add(stats.pool.tokenA.id, volumeA);
-      dailyVolume.add(stats.pool.tokenB.id, volumeB);
-    }
-
-    return {
-      dailyVolume: dailyVolume,
-      dailyFees: dailyFees,
-    };
-  } catch (error) {
-    console.error(`Error fetching data for ${chain}:`, error);
-    throw error;
-  }
+  return { dailyVolume, dailyFees };
 };
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: {
-      start: '2024-06-03',
-    },
-    [CHAIN.ARBITRUM]: {
-      start: '2024-06-03',
-    },
-    [CHAIN.ERA]: {
-      start: '2024-06-03',
-    },
-    [CHAIN.BSC]: {
-      start: '2024-06-03',
-    },
-    [CHAIN.BASE]: {
-      start: '2024-06-03',
-    },
-    [CHAIN.SCROLL]: {
-      start: '2024-07-10',
-    },
+    [CHAIN.ETHEREUM]: { start: "2024-06-03" },
+    [CHAIN.ARBITRUM]: { start: "2024-06-03" },
+    [CHAIN.ERA]: { start: "2024-06-03" },
+    [CHAIN.BSC]: { start: "2024-06-03" },
+    [CHAIN.BASE]: { start: "2024-06-03" },
+    [CHAIN.SCROLL]: { start: "2024-07-29" },
   },
 };
 
