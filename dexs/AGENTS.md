@@ -81,7 +81,7 @@ const fetch = async (options: FetchOptions) => {
 - Prediction markets follow the Polymarket convention: volume = (maker + taker) / 2. State whether volume is cash (collateral paid) or notional; cash goes in `dailyVolume`, notional optionally in `dailyNotionalVolume`.
 - Dune `dex.trades` / `dex_solana.trades` rows are per pool HOP, so summing rows for an aggregator, bot or terminal counts a multi-hop swap several times. Collapse hops to one swap: prefer the router's own swap event or the user-facing leg (first hop's token in, or last hop's token out); when only `dex.trades` is available, partition by `(tx_hash, trader)` (Solana: `(tx_id, trader)`) and take that leg once. A tx-only key drops batched users; `(tx_hash, evt_index)` keeps every hop and re-introduces the double count. Accepted trade-off: two separate swaps by the same trader in one tx merge into one. Exclude self-trades (maker == taker). Darkpool fills count the source leg only, never taker + filler.
 - Trading bots, terminals and any venue whose swaps settle on a tracked DEX set `doublecounted: true`.
-- A scam quote token priced off the "core asset" side (fake WETH/USDC pairs) can inflate volume by billions; the fix is the token blacklist, not a cap.
+- A scam quote token priced off the "core asset" side (fake WETH/USDC pairs) can inflate volume by billions; the fix is the token blacklist, not a cap. For Uniswap, Aerodrome, PancakeSwap and the other Dune-driven EVM DEX adapters the shared list is the Dune dataset `dune.zteam.dataset_dex_blacklist` (https://dune.com/data/dune.zteam.dataset_dex_blacklist): add the fake/scam token there so every adapter that joins on it drops it at once.
 - Launchpads: count only pre-bonding volume on their own curve; post-migration volume belongs to the receiving DEX. Launchpads trading on another protocol's pools track fees only.
 - Perp DEXs reporting very large volume (tens of millions per day and up) need per-trade maker/taker data before the number is trusted. `dailyVolume` must be taker-only regardless; the normalized-volume metric (`factory/normalizedVolume.ts`) is a supplemental cross-venue comparison, not a substitute for removing maker-side rows.
 - Open interest is exported in USD (contracts times the mark/index price at the window end), never raw contract units, following the venue's total-OI convention (see `open-interest/AGENTS.md`); an OI source that only serves current data uses `runAtCurrTime`.
@@ -113,7 +113,7 @@ Uniswap v2/v3 forks, Algebra forks and standard-subgraph DEXs are NOT new files.
 
 - If the slug is already listed, extend the existing entry (add the chain) instead of adding a second key.
 - Fee ratios only from the protocol's documented split; omit them rather than guess.
-- Spam/fake tokens that pollute uni-style volume go in the central blacklist (`helpers/lists.ts`, `getDefaultDexTokensBlacklisted`), not into individual adapters.
+- Spam/fake tokens that pollute uni-style volume go in a central blacklist, not into individual adapters: `helpers/lists.ts` (`getDefaultDexTokensBlacklisted`) for log/subgraph-based adapters, and the Dune dataset `dune.zteam.dataset_dex_blacklist` for the Dune-driven EVM DEX adapters.
 
 ## Fees/Revenue Tracking
 
