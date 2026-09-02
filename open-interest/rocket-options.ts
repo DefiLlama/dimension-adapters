@@ -4,49 +4,21 @@
  * as a separate open-interest adapter rather than inside the options adapter.
  *
  * Data source:
- *   GET /instruments - per-instrument stats; openInterest on option instruments is in contracts
- *                      (1 contract = 1 unit of underlying), valued at the underlying perp's
- *                      last match price.
+ *   GET /instruments (all pages) - per-instrument stats; openInterest on option instruments is in
+ *                                  contracts (1 contract = 1 unit of underlying), valued at the
+ *                                  underlying perp's last match price.
  *
  * Website: https://rocketfi.io
  * API Docs: https://api.docs.rocketfi.io/
  */
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import fetchURL from "../utils/fetchURL";
 import { CHAIN } from "../helpers/chains";
-
-const ROCKET_API_URL = 'https://beta.rocket-cluster-1.com';
-
-type InstrumentType = "PERP" | "FUTURE" | "CALL_OPTION" | "PUT_OPTION";
-
-interface Instrument {
-    id: string;
-    ticker: string;
-    instrumentType: InstrumentType;
-    underlyingAsset: string;
-    lastMatchPrice: string;
-}
-
-interface InstrumentStats {
-    openInterest: number;
-}
-
-interface InstrumentsResponse {
-    instruments: Record<string, Instrument>;
-    instrumentStats: Record<string, InstrumentStats>;
-}
-
-const isOption = (t: InstrumentType) => t === "CALL_OPTION" || t === "PUT_OPTION";
+import { fetchRocketInstruments, isRocketOption, rocketUnderlyingPrices } from "../helpers/rocket";
 
 async function fetch(options: FetchOptions) {
-    const { instruments, instrumentStats }: InstrumentsResponse = await fetchURL(`${ROCKET_API_URL}/instruments`);
-
-    // Underlying valued at the corresponding perp market's last match price
-    const underlyingPrice: Record<string, number> = {};
-    for (const inst of Object.values(instruments)) {
-        if (inst.instrumentType === "PERP") underlyingPrice[inst.underlyingAsset] = Number(inst.lastMatchPrice);
-    }
+    const { instruments, instrumentStats } = await fetchRocketInstruments();
+    const underlyingPrice = rocketUnderlyingPrices(instruments);
 
     const openInterestAtEnd = options.createBalances();
     for (const [id, stats] of Object.entries(instrumentStats)) {
@@ -55,20 +27,21 @@ async function fetch(options: FetchOptions) {
             console.log(`Rocket options OI: stats returned for unknown instrument ${id}, skipping`);
             continue;
         }
-        if (!isOption(inst.instrumentType)) continue;
+        if (!isRocketOption(inst.instrumentType)) continue;
+        const oi = Number(stats.openInterest ?? 0);
+        if (!Number.isFinite(oi)) throw new Error(`Rocket options OI: invalid openInterest for ${inst.ticker}: ${stats.openInterest}`);
+        if (oi === 0) continue;
         const price = underlyingPrice[inst.underlyingAsset];
-        if (!price) {
-            console.log(`Rocket options OI: no perp price for underlying ${inst.underlyingAsset} (${inst.ticker}), skipping`);
-            continue;
-        }
-        openInterestAtEnd.addUSDValue(Number(stats.openInterest ?? 0) * price, "Options open interest");
+        // Fail closed: a missing underlying price would silently under-count the snapshot
+        if (!price) throw new Error(`Rocket options OI: no perp price for underlying ${inst.underlyingAsset} (${inst.ticker})`);
+        openInterestAtEnd.addUSDValue(oi * price, "Options open interest");
     }
 
     return { openInterestAtEnd };
 }
 
 const methodology = {
-    OpenInterest: "Sum of outstanding option contracts across all listed BTC and ETH options, valued at the underlying's perpetual market last match price (one side, consistent with Rocket's perp OI adapter).",
+    OpenInterest: "Sum of outstanding option contracts across all listed BTC and ETH options (GET /instruments, all pages), valued at the underlying's perpetual market last match price (one side, consistent with Rocket's perp OI adapter).",
 };
 
 const breakdownMethodology = {
@@ -78,10 +51,9 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    // version 1: the API only exposes a live snapshot (no historical time ranges)
+    version: 1,
     runAtCurrTime: true,
-    // Rocket exposes a live snapshot only, so hourly slices cannot be reconstructed.
-    pullHourly: false,
     fetch,
     chains: [CHAIN.OFF_CHAIN],
     start: '2026-08-31',
