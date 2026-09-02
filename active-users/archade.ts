@@ -22,11 +22,15 @@ import fetchURL from "../utils/fetchURL";
  * FEES is everything users pay: the app's platform fee (1% since June 2026,
  * 0.5% before), the full 1.25% bonding curve fee on Archade coins, and the
  * 0.02 SOL pool creation fee. REVENUE is what Archade keeps: the whole app fee,
- * its 0.70% share of each curve trade, and 90% of each creation fee.
- * SUPPLY-SIDE is the rest: the coin creator's 30% of the curve fee, the curve
- * program's protocol share, the referral leg it hands to whichever interface
- * hosted the swap, and its 10% of the creation fee. Launches by
- * Archade-affiliated wallets are excluded upstream as internal transfers.
+ * its 0.70% share of each curve trade net of any affiliate partner's slice, and
+ * 90% of each creation fee. SUPPLY-SIDE is the rest: the coin creator's 30% of
+ * the curve fee, the curve program's protocol share, the referral leg it hands
+ * to whichever interface hosted the swap, the slice of Archade's share that an
+ * affiliate partner earns on coins launched through their invite, and the
+ * program's 10% of the creation fee. Launches by Archade-affiliated wallets are
+ * excluded upstream as internal transfers. Fees earned after a coin graduates
+ * from its bonding curve to a DEX pool are not included yet, and the
+ * methodology says so: no Archade coin has graduated.
  *
  * Every curve figure is decoded from the curve program's own swap events and
  * reconciled against each pool's lifetime counters before it is served; the
@@ -35,9 +39,13 @@ import fetchURL from "../utils/fetchURL";
  *
  * The endpoint serves a half-open [start, end) window of unix seconds and
  * publishes how far the on-chain indexer has read, so a half-indexed window is
- * retried rather than recorded low.
+ * retried rather than recorded low. It is called with v=2, which reports an
+ * affiliate partner's slice of Archade's curve share as its own stream,
+ * curve_affiliate. Without it the endpoint keeps that slice inside
+ * curve_partner, so an adapter that does not know the stream never sees it.
  */
 const API = "https://archade.io/api/defillama";
+const API_VERSION = 2;
 
 interface FeeLeg { stream: string; token: string; amount: string }
 interface ApiResponse {
@@ -52,7 +60,7 @@ interface ApiResponse {
 }
 
 async function load(options: FetchOptions) {
-  const url = `${API}?start=${options.startTimestamp}&end=${options.endTimestamp}`;
+  const url = `${API}?start=${options.startTimestamp}&end=${options.endTimestamp}&v=${API_VERSION}`;
   const res: ApiResponse = await fetchURL(url);
   const s = res?.chains?.solana;
   if (!s) throw new Error(`No data for ${options.dateString}`);
