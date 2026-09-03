@@ -70,13 +70,6 @@ async function load(options: FetchOptions) {
   return s;
 }
 
-function volumeOf(options: FetchOptions, s: ApiResponse["chains"][string]) {
-  const v = options.createBalances();
-  v.addUSDValue(s.volume);
-  v.add(s.curveVolume.token, s.curveVolume.amount);
-  return v;
-}
-
 const fetch = async (options: FetchOptions) => {
   const s = await load(options);
   return {
