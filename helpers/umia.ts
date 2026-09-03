@@ -16,18 +16,21 @@ const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 const FIRST_REAL_VENTURE_ID = 7;
 
 const BPS_DENOM = 10000;
+// Umia's first Base deployment; MarketCore has emitted every market since.
+// contracts.json -> mainnet.base.startBlock
+const MARKET_CORE_FROM_BLOCK = 50401538;
 // Uniswap v4 reports the LP fee in hundredths of a bip (1_000_000 = 100%)
 const PIPS_DENOM = 1e6;
 
 const VENTURE_BY_ID =
   "function ventureById(uint256) view returns (tuple(uint256 id, address venture, string name, uint256 createdAt))";
+const VENTURE_TOKEN_BY_ID = "function ventureTokenById(uint256) view returns (address)";
 const VENTURE_MONEY_TOKEN_BY_ID = "function ventureMoneyTokenById(uint256) view returns (address)";
 const VENTURE_VAULT = "function ventureLiquidityVault(address) view returns (address)";
 const POOL_KEY =
   "function getPoolKey() view returns ((address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks))";
 const CURRENT_LIQUIDITY = "function currentLiquidity() view returns (uint128)";
 const GET_LIQUIDITY = "function getLiquidity(bytes32 poolId) view returns (uint128 liquidity)";
-const ACTIVE_MARKET_BY_VENTURE = "function activeMarketByVenture(uint256) view returns (uint256)";
 const PROPOSAL_TO_MARKET = "function proposalToMarket(uint256) view returns (uint256)";
 const MARKET_PROPOSAL_IDS = "function marketProposalIds(uint256) view returns (uint256[])";
 const PROPOSAL_FEE_STATE =
@@ -38,6 +41,8 @@ const SPOT_SWAP_EVENT =
 const SPOT_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 const DM_SWAP_EVENT =
   "event Swap(uint256 indexed proposalId, address indexed trader, bool zeroForOne, uint256 amountIn, uint256 amountOut, uint256 priceBeforeX96, uint256 priceAfterX96, uint256 priceImpactBps, uint256 protocolFee)";
+const MARKET_CREATED_EVENT =
+  "event MarketCreated(uint256 indexed marketId, uint256 indexed ventureId, string title, uint256 createdAt, uint256 tradingStart, uint256 tradingEnd, uint256[] proposalIds)";
 const MARKET_SETTLED_EVENT =
   "event MarketSettled(uint256 indexed marketId, uint256 winningProposalId, uint256 winningPriceX112, uint256 noOpPriceX112, uint256 priceDeltaBps)";
 const PROTOCOL_FEES_COLLECTED_EVENT =
@@ -62,6 +67,7 @@ type SpotContext = {
 
 type VentureContext = {
   moneyToken: string;
+  ventureToken: string;
   // null until the venture's launch settles and its spot liquidity is migrated
   spot: SpotContext | null;
 };
@@ -86,15 +92,19 @@ async function getVentureContext(options: FetchOptions, ventureId: number): Prom
   // The venture does not exist yet at this block.
   if (!moneyToken || moneyToken === NULL_ADDRESS) return null;
 
-  const info = await api.call({ target: HUB, abi: VENTURE_BY_ID, params: [ventureId] });
+  const [ventureToken, info] = await Promise.all([
+    api.call({ target: HUB, abi: VENTURE_TOKEN_BY_ID, params: [ventureId] }),
+    api.call({ target: HUB, abi: VENTURE_BY_ID, params: [ventureId] }),
+  ]);
   const vault = await api.call({ target: HUB, abi: VENTURE_VAULT, params: [info.venture] });
   // Decision markets can trade before a spot vault is registered, so only the
   // spot half of the adapter waits for one.
-  if (!vault || vault === NULL_ADDRESS) return { moneyToken, spot: null };
+  if (!vault || vault === NULL_ADDRESS) return { moneyToken, ventureToken, spot: null };
 
   const poolKey = await api.call({ target: vault, abi: POOL_KEY });
   return {
     moneyToken,
+    ventureToken,
     spot: {
       vault,
       poolId: poolKeyToId(poolKey),
@@ -172,27 +182,28 @@ async function addSpotFees(
 }
 
 /**
- * Maps each venture's current market back to its venture id.
+ * Maps every market ever created back to its venture.
  *
- * `MarketCore` is a singleton and its market struct has no public getter, so this
- * is the view-only way to attribute a swap to a venture. A venture holds at most
- * one market at a time, so this covers every market that can be traded in the
- * window. A market that both settled and was replaced inside one window would be
- * missed; markets run 1h to 96h and windows are hourly, so that does not happen
- * in practice.
+ * `MarketCore` is a singleton whose market struct has no public getter, and
+ * `activeMarketByVenture` holds only a venture's newest market. Creating a market
+ * is gated on the previous one having settled, so a settle-then-create inside a
+ * single window would drop the settled market's last swaps and its whole
+ * settlement recognition. Creation events give the complete map instead, and the
+ * contract has emitted a handful of them, so the scan is cheap and cached.
  */
 async function getMarketOwners(options: FetchOptions): Promise<Map<string, number>> {
-  const { api } = options;
-  const ventureCount = Number(await api.call({ target: HUB, abi: "uint256:ventureCount" }));
-  const ids: number[] = [];
-  for (let id = FIRST_REAL_VENTURE_ID; id <= ventureCount; id++) ids.push(id);
-  const owners = new Map<string, number>();
-  if (!ids.length) return owners;
-
-  const markets = await api.multiCall({ target: MARKET_CORE, abi: ACTIVE_MARKET_BY_VENTURE, calls: ids });
-  markets.forEach((marketId: any, i: number) => {
-    if (marketId && String(marketId) !== "0") owners.set(String(marketId), ids[i]);
+  const logs = await options.getLogs({
+    target: MARKET_CORE,
+    eventAbi: MARKET_CREATED_EVENT,
+    fromBlock: MARKET_CORE_FROM_BLOCK,
+    toBlock: await options.getToBlock(),
+    cacheInCloud: true,
   });
+  const owners = new Map<string, number>();
+  for (const log of logs) {
+    const ventureId = Number(log.ventureId);
+    if (ventureId >= FIRST_REAL_VENTURE_ID) owners.set(String(log.marketId), ventureId);
+  }
   return owners;
 }
 
@@ -226,11 +237,12 @@ async function addDecisionMarketFees(
   const isOurs = (marketId: any) => owners.get(String(marketId)) === ventureId;
 
   if (swapLogs.length) {
-    const markets = await api.multiCall({
-      target: MARKET_CORE,
-      abi: PROPOSAL_TO_MARKET,
-      calls: swapLogs.map((log: any) => String(log.proposalId)),
-    });
+    // many swaps share a proposal, so resolve each proposal once
+    const proposals = [...new Set<string>(swapLogs.map((log: any) => String(log.proposalId)))];
+    const resolved = await api.multiCall({ target: MARKET_CORE, abi: PROPOSAL_TO_MARKET, calls: proposals });
+    const marketOf = new Map<string, string>();
+    proposals.forEach((proposalId, i) => marketOf.set(proposalId, String(resolved[i])));
+    const markets = swapLogs.map((log: any) => marketOf.get(String(log.proposalId)));
 
     // Virtual tokens redeem 1:1 with the real token, so a money-side amount is
     // already in money-token units.
@@ -270,8 +282,9 @@ async function addDecisionMarketFees(
     target: MARKET_CORE,
     eventAbi: PROTOCOL_FEES_COLLECTED_EVENT,
   });
-  const collectedByMarket = new Map<string, number>();
-  for (const log of collectedLogs) collectedByMarket.set(String(log.marketId), Number(log.feeMoney));
+  const collectedByMarket = new Map<string, { money: number; venture: number }>();
+  for (const log of collectedLogs)
+    collectedByMarket.set(String(log.marketId), { money: Number(log.feeMoney), venture: Number(log.feeVenture) });
 
   for (const log of settledLogs) {
     const { marketId, winningProposalId } = log.args ?? log;
@@ -287,15 +300,19 @@ async function addDecisionMarketFees(
 
     proposalIds.forEach((proposalId: any, i: number) => {
       const won = String(proposalId) === String(winningProposalId);
-      let moneyFee = Number(feeStates[i].moneyFee);
-      if (won && !moneyFee) moneyFee = collectedByMarket.get(String(marketId)) ?? 0;
-      if (!moneyFee) return;
       // The winner's accrued cut is the protocol's; every loser's returns to the vault.
-      balances[won ? "protocol" : "supplySide"].add(
-        ctx.moneyToken,
-        moneyFee,
-        won ? LABEL.DM_PROTOCOL : LABEL.DM_LP,
-      );
+      const bucket = won ? "protocol" : "supplySide";
+      const label = won ? LABEL.DM_PROTOCOL : LABEL.DM_LP;
+      let moneyFee = Number(feeStates[i].moneyFee);
+      let ventureFee = Number(feeStates[i].ventureFee);
+      if (won && !moneyFee && !ventureFee) {
+        const collected = collectedByMarket.get(String(marketId));
+        if (collected) ({ money: moneyFee, venture: ventureFee } = collected);
+      }
+      if (moneyFee) balances[bucket].add(ctx.moneyToken, moneyFee, label);
+      // The cut accrues in whichever token was swapped in, so a venture-token
+      // sell leaves real income on the venture side too.
+      if (ventureFee) balances[bucket].add(ctx.ventureToken, ventureFee, label);
     });
   }
 }
@@ -338,11 +355,14 @@ const FEES_METHODOLOGY = {
   HoldersRevenue: "None. No buyback, burn or staker distribution exists on-chain.",
 };
 
-const FEES_BREAKDOWN = {
-  Fees: {
+const FEE_LABELS = {
     [LABEL.SPOT_FEES]: "1% swap fee on the venture's Uniswap v4 spot pool, taken on the gross input of each swap and measured on the money-token leg.",
     [LABEL.DM_FEES]: "1% swap fee on conditional trades in the venture's decision markets, taken on the gross input of each swap.",
-  },
+};
+
+const FEES_BREAKDOWN = {
+  Fees: FEE_LABELS,
+  UserFees: FEE_LABELS,
   Revenue: {
     [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees, weighted by the venture vault's share of pool liquidity.",
     [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised on the day the market settles.",
