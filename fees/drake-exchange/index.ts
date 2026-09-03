@@ -106,15 +106,17 @@ const fetch = async (options: FetchOptions) => {
         const ammSplit = splitAt(AMM_SPLIT, block);
         const vaultPct =
             ratio * orderbookSplit.vault + (1 - ratio) * ammSplit.vault;
-        const treasuryPct = 1 - vaultPct;
+        // Assign the remainder to the treasury to preserve the fee-accounting invariant.
+        const vaultAmount =
+            (amt * BigInt(Math.round(vaultPct * 10000))) / 10000n;
         dailySupplySideRevenue.add(
             AUSD,
-            (amt * BigInt(Math.round(vaultPct * 10000))) / 10000n,
+            vaultAmount,
             METRIC.TRADING_FEES,
         );
         dailyRevenue.add(
             AUSD,
-            (amt * BigInt(Math.round(treasuryPct * 10000))) / 10000n,
+            amt - vaultAmount,
             METRIC.TRADING_FEES,
         );
     });
