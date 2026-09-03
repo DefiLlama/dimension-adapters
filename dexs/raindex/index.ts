@@ -200,7 +200,7 @@ async function fetchV3Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
       const clearLog = clearLogs[i].find(v => v.transactionHash === log.transactionHash)
       if (clearLog) {
         const {
-          clearStateChange: { aliceOutput, bobInput }
+          clearStateChange: { aliceOutput }
         } = abi_v3.decodeEventLog("AfterClear", log.data)
         const {
           alice: { validOutputs },
@@ -209,8 +209,9 @@ async function fetchV3Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
 
         const token1 = validOutputs[Number(aliceOutputIOIndex)]
 
+        // aliceOutput and bobInput are the two observations of the SAME transfer leg
+        // (what alice sends == what bob receives), not two separate legs - count once.
         dailyVolume.add(token1.token, aliceOutput.toString())
-        dailyVolume.add(token1.token, bobInput.toString())
       }
     })
   })
@@ -255,7 +256,7 @@ async function fetchV4Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
       const clearLog = clearLogs[i].find(v => v.transactionHash === log.transactionHash)
       if (clearLog) {
         const {
-          clearStateChange: { aliceOutput, bobInput }
+          clearStateChange: { aliceOutput }
         } = abi_v4.decodeEventLog("AfterClear", log.data)
         const {
           alice: { validOutputs },
@@ -264,8 +265,9 @@ async function fetchV4Vol({ api, getLogs }: FetchOptions, dailyVolume: Balances)
 
         const token1 = validOutputs[Number(aliceOutputIOIndex)]
 
+        // aliceOutput and bobInput are the two observations of the SAME transfer leg
+        // (what alice sends == what bob receives), not two separate legs - count once.
         dailyVolume.add(token1.token, aliceOutput.toString())
-        dailyVolume.add(token1.token, bobInput.toString())
       }
     })
   })
@@ -316,7 +318,7 @@ async function fetchV5_V6Vol({ api, getLogs }: FetchOptions, dailyVolume: Balanc
       const clearLog = clearLogs[i].find(v => v.transactionHash === log.transactionHash)
       if (clearLog) {
         const {
-          clearStateChange: { aliceOutput, bobInput }
+          clearStateChange: { aliceOutput }
         } = abi_v5_v6.decodeEventLog("AfterClearV2", log.data)
         const {
           alice: { validOutputs },
@@ -325,8 +327,9 @@ async function fetchV5_V6Vol({ api, getLogs }: FetchOptions, dailyVolume: Balanc
 
         const token = validOutputs[Number(aliceOutputIOIndex)].token.toLowerCase()
         tokenSet.add(token)
+        // aliceOutput and bobInput are the two observations of the SAME transfer leg
+        // (what alice sends == what bob receives), not two separate legs - count once.
         rawVols.push({ token, rawFloat: aliceOutput.toString() })
-        rawVols.push({ token, rawFloat: bobInput.toString() })
       }
     })
   })
@@ -352,25 +355,29 @@ async function fetchV5_V6Vol({ api, getLogs }: FetchOptions, dailyVolume: Balanc
     calls: tokenList.map((target) => ({ target })),
   });
 
+  // keep only rawVols whose token has a resolved decimals value, and keep the
+  // filtered array itself (not the original rawVols) so `vols[i]` always lines
+  // up with `validRawVols[i]` below - indexing back into the unfiltered rawVols
+  // after a filter silently mis-attributes every entry past the first drop.
+  const validRawVols = rawVols.filter((rawVol) => {
+    const index = tokenList.indexOf(rawVol.token);
+    return index > -1 && typeof decimals[index] !== 'undefined' && decimals[index] !== null
+  })
+
   // format the floats to actual token value
   const vols = await api.multiCall({
     permitFailure: true,
     target: floats[api.chain],
     abi: ABI_V5_V6.float.toFixedDecimalLossy,
-    calls: rawVols
-      .filter((rawVol) => {
-        const index = tokenList.indexOf(rawVol.token);
-        return index > -1 && typeof decimals[index] !== undefined && decimals[index] !== null
-      })
-      .map((rawVol) => ({
-        params: [rawVol.rawFloat, decimals[tokenList.indexOf(rawVol.token)]]
+    calls: validRawVols.map((rawVol) => ({
+      params: [rawVol.rawFloat, decimals[tokenList.indexOf(rawVol.token)]]
     })),
   });
 
   // add vols
   vols.forEach((vol, i) => {
     if (!vol) return // skip error results
-    dailyVolume.add(rawVols[i].token, vol[0].toString())
+    dailyVolume.add(validRawVols[i].token, vol[0].toString())
   })
 }
 

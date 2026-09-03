@@ -351,8 +351,11 @@ const fetchEvents = async (
   const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
 
   const insolventMarketsDetails = await cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
-  const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
-  const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+  const cacheBlacklistedMarkets = Object.keys({
+    ...((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}),
+    ...((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}),
+    ...((insolventMarketsDetails.apiFlagged?.markets ?? {})?.[options.chain] ?? {}),
+  }).map(item => item.toLowerCase());
 
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
@@ -361,7 +364,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if (blacklistedIds.includes(log.id.toLowerCase()) || stuckMarkets.includes(log.id.toLowerCase()) || insolventMarkets.includes(log.id.toLowerCase())) interest = 0;
+    if (blacklistedIds.includes(log.id.toLowerCase()) || cacheBlacklistedMarkets.includes(log.id.toLowerCase())) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),

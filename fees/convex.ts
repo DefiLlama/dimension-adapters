@@ -274,7 +274,7 @@ const fetch = async (options: FetchOptions) => {
 
   // LP supply-side CRV (extrapolated).
   //
-  // This also belongs in dailyFees. fees/GUIDELINES.md defines dailyFees as
+  // This also belongs in dailyFees. fees/AGENTS.md defines dailyFees as
   // "All fees from ALL sources - total value flow into protocol ecosystem" and
   // requires dailyFees = dailyRevenue + dailySupplySideRevenue to hold within
   // the same period. Leaving the LP leg out of fees broke that badly: the

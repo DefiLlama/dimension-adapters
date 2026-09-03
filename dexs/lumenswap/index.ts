@@ -25,6 +25,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.STELLAR],
   start: '2022-04-01',
+  deadFrom: '2026-05-30', // soft rug -> socials inactive, website down
 };
 
 export default adapter;

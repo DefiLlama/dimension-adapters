@@ -16,6 +16,10 @@ const configs: Record<string, Record<string, any>> = {
   'fusionx-v2': {
     [CHAIN.MANTLE]: { factory: '0xe5020961fa51ffd3662cdf307def18f9a87cce7c', fees: 0.25 / 100, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 6 },
   },
+  "zero-swap": {
+    // 0% swap fee uniV2 fork
+    [CHAIN.ROBINHOOD]: { factory: '0xc802A440559cEE8A66E2023403d34Be9084A720e', fees: 0, start: '2026-09-01' },
+  },
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
   },
@@ -412,9 +416,10 @@ const configs: Record<string, Record<string, any>> = {
   "fanx-protocol": {
     [CHAIN.CHILIZ]: { factory: '0xE2918AA38088878546c1A18F2F9b1BC83297fdD3', start: '2024-04-01', revenueRatio: 0.5, protocolRevenueRatio: 0.5, holdersRevenueRatio: 0 },
   },
-  "kodiak-v2": {
-    [CHAIN.BERACHAIN]: { factory: '0x5e705e184d233ff2a7cb1553793464a9d0c3028f', revenueRatio: 0.1667, protocolRevenueRatio: 0.1667, holdersRevenueRatio: 0, userFeesRatio: 1 },
-  },
+  // moved to a standalone adapter at fees/kodiak-v2.ts
+  // "kodiak-v2": {
+  //   [CHAIN.BERACHAIN]: { factory: '0x5e705e184d233ff2a7cb1553793464a9d0c3028f', revenueRatio: 0.1667, protocolRevenueRatio: 0.1667, holdersRevenueRatio: 0, userFeesRatio: 1 },
+  // },
   "moai-v2": {
     [CHAIN.XRPL_EVM]: { factory: '0x645541A2e2fb655fd7765898DFfbc7dd051E5B67', revenueRatio: 0 },
   },
@@ -734,7 +739,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "reservoir-tools-amm": {
     [CHAIN.ABSTRACT]: { factory: '0x566d7510dEE58360a64C9827257cF6D0Dc43985E', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
-    [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    // Ink is Uniswap's own v2 deployment (Uniswap/contracts deployments/json/57073.json,
+    // Uniswap/sdks V2_FACTORY_ADDRESSES[ChainId.INK]), tracked in dexs/uniswap-v2.ts
+    // [CHAIN.INK]: { factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     // [CHAIN.ZERO]: { factory: '0x1B4427e212475B12e62f0f142b8AfEf3BC18B559', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "shapeswap-v2": {
@@ -773,6 +780,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.AVAX]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
     [CHAIN.OPTIMISM]: { factory: "0x7d9D51267f7e9e6b46a48E0A75c0086F46777087", fees: 0.003, revenueRatio: 0, },
   },
+  // migrated off deleted subgraph to on-chain logs; 0.25% swap fee, 0.1% of volume (40% of fees) to protocol
+  "zyberswap-v2": {
+    [CHAIN.ARBITRUM]: { factory: '0xaC2ee06A14c52570Ef3B9812Ed240BCe359772e7', start: '2023-01-23', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4, holdersRevenueRatio: 0, },
+  },
   "wswap": {
     [CHAIN.WCHAIN]: { factory: "0x2A44f013aD7D6a1083d8F499605Cf1148fbaCE31", start: '2025-06-19', fees: 0.003, revenueRatio: 0, },
     [CHAIN.ETHEREUM]: { factory: "0x46B0B17Bb1f637CcfFA9fCc34bD591E3A0fF58F9", start: '2026-02-22', fees: 0.003, revenueRatio: 0, },
@@ -807,9 +818,6 @@ const configs: Record<string, Record<string, any>> = {
   "parityswap-v2": {
     [CHAIN.ROBINHOOD]: { factory: "0xaA5f8c18EF9be81ffED30c223F9CD0D012a2AdB9", fees: 0.003, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, start: "2026-07-20" }
   },
-  "giga-dex": {
-    [CHAIN.ROBINHOOD]: { factory: "0x6Fdf38f92eAd1adFc04B73aaa947ab254f6c0916", fees: 0.003, stableFees: 0.003, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2, start: "2026-07-15" }
-  },
   "bulbaswap-v2": {
     [CHAIN.MORPH]: { factory: "0x8D2A8b8F7d200d75Bf5F9E84e01F9272f90EFB8b", fees: 0.0035, userFeesRatio: 1, revenueRatio: 2 / 7, protocolRevenueRatio: 2 / 7, start: "2024-10-27" }
   }
@@ -821,6 +829,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "zyberswap-v2": {
+    UserFees: "User pays 0.25% fees on each swap.",
+    Fees: "A 0.25% of each swap is collected as trading fees",
+    Revenue: "Protocol receives 0.1% on each swap.",
+    ProtocolRevenue: "Protocol receives 0.1% on each swap.",
+    SupplySideRevenue: "0.15% of each swap is distributed among LPs.",
+    HoldersRevenue: "No revenue for holders.",
+  },
   "icecreamswap": {
     UserFees: "Users pays 0.3% of each swap",
     Fees: "A 0.3% trading fee is collected",
@@ -1188,6 +1204,9 @@ const methodologyMap: Record<string, any> = {
 const deadFromMap: Record<string, string> = {
   "auragi": '2025-06-01',
   "capx": '2026-07-31',
+  // DFX V2 is retired (DefiLlama lists it with a dead URL; DFX V3 is the live product).
+  // Last recorded V2 volume 2025-11-15, and the goldsky dfx-v2 subgraphs were deleted (404).
+  "dfx-finance": '2025-11-16',
   "fcon-dex": '2023-12-12',
   "metavault-amm-v2": '2025-06-04',
   "beamswap": "2025-08-12",

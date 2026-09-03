@@ -12,9 +12,11 @@ async function fetch(_options: FetchOptions) {
     const instrumentStats: Record<string, any> = instrumentsData.instrumentStats;
     for (const instrument of Object.entries(instrumentStats)) {
         const [id, data] = instrument;
-        const oi = data.openInterest;
-        const price = instrumentsData.instruments[id].lastMatchPrice;
-        openInterestAtEnd += oi * price;
+        const inst = instrumentsData.instruments[id];
+        // Options OI is tracked separately in options/rocket (notional terms);
+        // only perps & dated futures are counted here
+        if (!inst || inst.instrumentType === 'CALL_OPTION' || inst.instrumentType === 'PUT_OPTION') continue;
+        openInterestAtEnd += data.openInterest * inst.lastMatchPrice;
     }
 
     return {

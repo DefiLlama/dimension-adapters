@@ -63,6 +63,8 @@ const fetch = async (options: FetchOptions): Promise<any /* FetchResultOptions *
 };
 
 const adapter: Adapter = {
+  // Valorem is dead: fees series ended 2023-10-30, TVL $52, github inactive since 2024-01, subgraph has no allocations.
+  deadFrom: '2023-10-31',
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: chainConfig[CHAIN.ARBITRUM].start,

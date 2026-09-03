@@ -39,6 +39,7 @@ const adapter: SimpleAdapter = {
   prefetch,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  deadFrom: '2026-04-01',
 };
 
 export default adapter;

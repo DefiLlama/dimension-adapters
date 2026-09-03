@@ -68,7 +68,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     FROM sui.events
     WHERE event_type = '${SWAP_EVENT}'
       AND date >= from_unixtime(${options.startTimestamp})
-      AND date <= from_unixtime(${options.endTimestamp})
+      AND date <= from_unixtime(${options.toTimestamp})
       AND timestamp_ms >= ${options.startTimestamp * 1000}
       AND timestamp_ms < ${options.endTimestamp * 1000}
     GROUP BY 1

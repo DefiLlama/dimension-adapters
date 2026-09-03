@@ -66,6 +66,8 @@ export const methodology = {
 };
 
 const adapter: Adapter = {
+  // Valorem is dead: fees series ended 2023-10-30, TVL $52, github inactive since 2024-01, subgraph has no allocations.
+  deadFrom: '2023-10-31',
   version: 1,
   methodology,
   fetch,

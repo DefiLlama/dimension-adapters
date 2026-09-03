@@ -799,6 +799,43 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
+  "phase-delegation": {
+    stakePoolReserveAccount: "aeroivis36SwDvAJpzQCDX9Y7cCLXBdv9vTn1DtDnVC",
+    stakePoolWithdrawAuthority: "AKJt3m2xJ6ANda9adBGqb5BMrheKJSwxyCfYkLuZNmjn",
+    lstFeeTokenAccount: "55Kw1KRAVTjqzNf1ZXoYAJk3o7Q2NifpPh3VtGeiyMpo",
+    lstMint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF",
+    start: "2024-06-09",
+    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "add", mint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
+    methodology: {
+      Fees: "Staking rewards from staked SOL on phase delegation staked solana, plus withdrawal fees",
+      Revenue: "5% epoch fee on staking rewards plus 0.05% withdrawal fees collected by the fee collector",
+      ProtocolRevenue: "Revenue going to treasury/team",
+      SupplySideRevenue: "95% of the staking rewards go to stakers",
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Phase Delegation",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      Revenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to pdSOL",
+      },
+    },
+  },
+
   "pico-staked-sol": simpleConfig({
     stakePoolReserveAccount: "2ArodFTZhNqVWJT92qEGDxigAvouSo1kfgfEcC3KEWUK",
     stakePoolWithdrawAuthority: "4At8nQXanWgRvjbrVXmxMBBdfz39txWVm4SiXEoP1kGh",

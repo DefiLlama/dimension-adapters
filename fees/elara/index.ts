@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getPositionedLogArgs } from "../../helpers/logs";
 import { METRIC } from "../../helpers/metrics";
 
 const VAULT = "0x8B0665a66d4E046dd5E77a42856F8180F9bb19ef";
@@ -84,10 +85,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const redeemLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.redeemed });
-  const redemptionFeeUpdateLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.redemptionFeeUpdated });
-  const managementFeeUpdateLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeUpdated });
-  const managementFeeAccruedLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.managementFeeAccrued });
+  const redeemLogs = await getPositionedLogArgs(options, { target: VAULT, eventAbi: ABI.redeemed });
+  const redemptionFeeUpdateLogs = await getPositionedLogArgs(options, { target: VAULT, eventAbi: ABI.redemptionFeeUpdated });
+  const managementFeeUpdateLogs = await getPositionedLogArgs(options, { target: VAULT, eventAbi: ABI.managementFeeUpdated });
+  const managementFeeAccruedLogs = await getPositionedLogArgs(options, { target: VAULT, eventAbi: ABI.managementFeeAccrued });
   const feesCollectedLogs = await options.getLogs({ target: VAULT, eventAbi: ABI.feesCollected });
   const stakingYieldLogs = await options.getLogs({
     target: ELUSD,

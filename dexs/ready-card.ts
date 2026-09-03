@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
           from starknet.transactions t
           where t.transaction_hash = e.transaction_hash
             and t.block_date >= date(from_unixtime(${options.startTimestamp}))
-            and t.block_date <= date(from_unixtime(${options.endTimestamp}))
+            and t.block_date <= date(from_unixtime(${options.toTimestamp}))
             and contains(t.calldata, 0x0000000000000000000000000000000000000073657373696f6e2d746f6b656e) -- SESSION_MAGIC
         )
 
@@ -47,7 +47,7 @@ const fetch = async (options: FetchOptions) => {
           from starknet.transactions t
           where t.transaction_hash = e.transaction_hash
             and t.block_date >= date(from_unixtime(${options.startTimestamp}))
-            and t.block_date <= date(from_unixtime(${options.endTimestamp}))
+            and t.block_date <= date(from_unixtime(${options.toTimestamp}))
             and contains(t.calldata, 0x0000000000000000000000000000000000000073657373696f6e2d746f6b656e) -- SESSION_MAGIC
         )
     )

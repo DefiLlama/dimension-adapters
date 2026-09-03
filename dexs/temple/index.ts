@@ -15,9 +15,6 @@ type SettledVolumeResponse = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  // DefiLlama v2 supplies an inclusive `toTimestamp` and derives
-  // `startTimestamp` as end - 1 day - 1 second. The Temple endpoint accepts
-  // half-open windows capped at exactly 24 hours, so normalize the lower bound.
   const requestStartTimestamp = options.startTimestamp + 1;
   const startTime = new Date(requestStartTimestamp * 1000).toISOString();
   const endTime = new Date(options.endTimestamp * 1000).toISOString();
