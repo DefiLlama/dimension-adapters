@@ -19,6 +19,10 @@ export const v2_adapter: SimpleAdapter = {
       start: '2024-02-08'
     },
   },
+  // api-rfq-testnet.prd.arrowmarkets.info is NXDOMAIN and the arrowmarkets.info apex resolves
+  // with no A record. It was also a testnet host, which is why every recent day it did answer
+  // came back as 0. Last non-zero 2026-05-23 ($26), TVL 0.
+  deadFrom: '2026-08-07',
 };
 
 

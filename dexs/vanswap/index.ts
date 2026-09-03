@@ -23,6 +23,10 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.VISION],
   start: 1647302400,
+  // www.vanswap.org and the vanswap.org apex both SERVFAIL from Cloudflare and Google, i.e. the
+  // delegation itself is broken. Last published point 2024-12-09 ($7,798) and TVL fell from
+  // $3.16M to 0 on 2026-02-20.
+  deadFrom: '2024-12-10',
 };
 
 export default adapter;

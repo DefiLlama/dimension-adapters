@@ -23,6 +23,9 @@ const adapter = {
       start: '2024-10-24',
     },
   },
+  // tonfunstats-eqnd7.ondigitalocean.app is NXDOMAIN, so this adapter has no host to query.
+  // Last published point 2025-10-31 ($93) and TVL reads 0.
+  deadFrom: '2025-11-01',
 }
 
 export default adapter
