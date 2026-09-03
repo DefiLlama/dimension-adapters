@@ -1,4 +1,4 @@
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -14,18 +14,23 @@ const API_URL = "https://api.next.allbridge.io/stats/daily";
 
 export const ALLBRIDGE_NEXT_START = "2026-04-17"; // first Allbridge Next transfer
 
-// DefiLlama chain -> Allbridge Next chain symbol (source chain of the transfer)
-export const ALLBRIDGE_NEXT_CHAINS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "ETH",
-  [CHAIN.ARBITRUM]: "ARB",
-  [CHAIN.BSC]: "BSC",
-  [CHAIN.BASE]: "BAS",
-  [CHAIN.POLYGON]: "POL",
-  [CHAIN.TRON]: "TRX",
-  [CHAIN.SOLANA]: "SOL",
-  [CHAIN.STELLAR]: "SRB",
-  [CHAIN.TON]: "TON",
-  [CHAIN.XLAYER]: "OKX",
+export type AllbridgeNextChainConfig = {
+  chainId: string; // Allbridge Next chain symbol (source chain of the transfer)
+  start: string;
+};
+
+// DefiLlama chain -> Allbridge Next chain symbol
+export const allbridgeNextChainConfig: Record<string, AllbridgeNextChainConfig> = {
+  [CHAIN.ETHEREUM]: { chainId: "ETH", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.ARBITRUM]: { chainId: "ARB", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.BSC]: { chainId: "BSC", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.BASE]: { chainId: "BAS", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.POLYGON]: { chainId: "POL", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.TRON]: { chainId: "TRX", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.SOLANA]: { chainId: "SOL", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.STELLAR]: { chainId: "SRB", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.TON]: { chainId: "TON", start: ALLBRIDGE_NEXT_START },
+  [CHAIN.XLAYER]: { chainId: "OKX", start: ALLBRIDGE_NEXT_START },
 };
 
 export type AllbridgeNextDailyStat = {
@@ -37,15 +42,22 @@ export type AllbridgeNextDailyStat = {
 };
 
 // One request per day for all chains; fetch() then picks its own chain from the rows.
-export const prefetchAllbridgeNextDailyStats = async (options: FetchOptions) => {
+export const fetchAllbridgeNextDailyStats = async (options: FetchOptions): Promise<AllbridgeNextDailyStat[]> => {
   const res = await httpGet(`${API_URL}?from=${options.dateString}&to=${options.dateString}`);
-  return res.data as AllbridgeNextDailyStat[] as any;
+  return res.data as AllbridgeNextDailyStat[];
+};
+
+// The framework types prefetch results as a dimension record, while this API returns rows;
+// the rows are handed back to fetch() through options.preFetchedResults unchanged.
+export const prefetchAllbridgeNextDailyStats: FetchV2 = async (options: FetchOptions) => {
+  const rows = await fetchAllbridgeNextDailyStats(options);
+  return rows as unknown as FetchResultV2;
 };
 
 export const getAllbridgeNextDailyStats = (options: FetchOptions) => {
-  const stats: AllbridgeNextDailyStat[] = options.preFetchedResults ?? [];
-  const chain = ALLBRIDGE_NEXT_CHAINS[options.chain];
-  const rows = stats.filter((row) => row.sourceChain === chain && row.date === options.dateString);
+  const stats = (options.preFetchedResults ?? []) as AllbridgeNextDailyStat[];
+  const { chainId } = allbridgeNextChainConfig[options.chain];
+  const rows = stats.filter((row) => row.sourceChain === chainId && row.date === options.dateString);
   return {
     volumeUsd: rows.reduce((sum, row) => sum + Number(row.volumeUsd), 0),
     feesUsd: rows.reduce((sum, row) => sum + Number(row.feesUsd), 0),

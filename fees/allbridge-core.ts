@@ -81,12 +81,15 @@ const fetch = async (options: FetchOptions) => {
   const { cctpV1, cctpV2, oft, xReserve } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const addStablecoinBridgeFees = (token: string, log: any) => {
     dailyFees.add(token, log.adminFeeTokenAmount, BRIDGE_FEES);
     dailyRevenue.add(token, log.adminFeeTokenAmount, BRIDGE_FEES);
     dailyFees.add(token, log.receivedRelayerFeeTokenAmount, RELAYER_FEES);
     dailyFees.addGasToken(log.receivedRelayerFeeFromGas, RELAYER_FEES);
+    dailySupplySideRevenue.add(token, log.receivedRelayerFeeTokenAmount, RELAYER_FEES);
+    dailySupplySideRevenue.addGasToken(log.receivedRelayerFeeFromGas, RELAYER_FEES);
   };
 
   if (cctpV1) {
@@ -114,17 +117,17 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: "Bridge fees (a share of the transferred stablecoin) plus relayer fees (paid in native gas or deducted from the stablecoin) charged on the source chain of every Allbridge Core transfer.",
-  UserFees: "All fees are paid by the users sending transfers.",
-  Revenue: "Bridge fees kept by Allbridge. Relayer fees are spent on delivering the transfer on the destination chain and are not counted as revenue.",
+  Fees: "Bridge fees (a share of the transferred stablecoin) plus relayer fees (paid in native gas or deducted from the stablecoin) paid by users on the source chain of every Allbridge Core transfer.",
+  Revenue: "Bridge fees kept by Allbridge.",
   ProtocolRevenue: "All revenue goes to the protocol.",
+  SupplySideRevenue: "Relayer fees, which go to the relayers that deliver the transfer on the destination chain.",
 };
 
 const breakdownMethodology = {
@@ -134,6 +137,12 @@ const breakdownMethodology = {
   },
   Revenue: {
     [BRIDGE_FEES]: "Share of the transferred stablecoin kept by Allbridge.",
+  },
+  ProtocolRevenue: {
+    [BRIDGE_FEES]: "Share of the transferred stablecoin kept by Allbridge.",
+  },
+  SupplySideRevenue: {
+    [RELAYER_FEES]: "Relayer fee paid to the relayers that deliver the transfer on the destination chain.",
   },
 };
 
