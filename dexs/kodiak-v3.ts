@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BERACHAIN],
-  start: '2025-02-07',
+  start: '2025-02-05',
   fetch: async (options: FetchOptions) => {
     const graphFetch = getUniV3LogAdapter({
       factory: '0xD84CBf0B02636E7f53dB9E5e45A616E05d710990',
