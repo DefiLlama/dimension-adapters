@@ -34,25 +34,33 @@ export interface RocketInstrumentsResponse {
     instrumentStats: Record<string, RocketInstrumentStats>;
 }
 
+/** True for option instruments (instrumentType CALL_OPTION or PUT_OPTION). */
 export const isRocketOption = (t: string) => t === "CALL_OPTION" || t === "PUT_OPTION";
+
+/** True for linear derivatives (instrumentType PERP or FUTURE), i.e. everything that is not an option. */
 export const isRocketLinear = (t: string) => t === "PERP" || t === "FUTURE";
 
 const PAGE_SIZE = 1000; // server-side maximum
-const MAX_PAGES = 50;   // safety stop (~50k instruments)
+const MAX_PAGES = 50;   // safety stop (~50k instruments); one extra terminating page is allowed
 
-/** Fetch every page of GET /instruments and merge them. Throws if paging never terminates. */
+/**
+ * Fetch every page of GET /instruments and merge them.
+ * Fails closed: throws on a malformed page (missing `instruments` or `instrumentStats`) or if the
+ * endpoint keeps returning full pages beyond MAX_PAGES, so a partial snapshot is never returned.
+ */
 export async function fetchRocketInstruments(): Promise<RocketInstrumentsResponse> {
     const instruments: Record<string, RocketInstrument> = {};
     const instrumentStats: Record<string, RocketInstrumentStats> = {};
-    for (let page = 0; ; page++) {
-        if (page >= MAX_PAGES) throw new Error(`Rocket: /instruments did not terminate after ${MAX_PAGES} pages`);
+    for (let page = 0; page <= MAX_PAGES; page++) {
         const res: RocketInstrumentsResponse = await fetchURL(`${ROCKET_API}/instruments?pageNumber=${page}&pageSize=${PAGE_SIZE}`);
-        const pageInstruments = res?.instruments ?? {};
-        Object.assign(instruments, pageInstruments);
-        Object.assign(instrumentStats, res?.instrumentStats ?? {});
-        if (Object.keys(pageInstruments).length < PAGE_SIZE) break;
+        if (!res || typeof res.instruments !== "object" || typeof res.instrumentStats !== "object") {
+            throw new Error(`Rocket: malformed /instruments response on page ${page}`);
+        }
+        Object.assign(instruments, res.instruments);
+        Object.assign(instrumentStats, res.instrumentStats);
+        if (Object.keys(res.instruments).length < PAGE_SIZE) return { instruments, instrumentStats };
     }
-    return { instruments, instrumentStats };
+    throw new Error(`Rocket: /instruments did not terminate after ${MAX_PAGES} full pages`);
 }
 
 /** Underlying asset -> last match price of its perp market, used to value options in USD. */
@@ -62,4 +70,15 @@ export function rocketUnderlyingPrices(instruments: Record<string, RocketInstrum
         if (inst.instrumentType === "PERP") prices[inst.underlyingAsset] = Number(inst.lastMatchPrice);
     }
     return prices;
+}
+
+/**
+ * Parse a non-negative numeric field from the API. Throws (fail closed) when the value is
+ * missing, blank, non-numeric or negative, so bad upstream data never becomes a silent 0.
+ */
+export function rocketNonNegative(value: unknown, what: string): number {
+    if (value === undefined || value === null || String(value).trim() === "") throw new Error(`Rocket: missing ${what}`);
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) throw new Error(`Rocket: invalid ${what}: ${JSON.stringify(value)}`);
+    return n;
 }
