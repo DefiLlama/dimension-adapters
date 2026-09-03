@@ -21,6 +21,7 @@ const fetch = async (options: FetchOptions) => {
       const data = await fetchURLAutoHandleRateLimit(`https://api.pacifica.fi/api/v1/kline?symbol=${ticker}&interval=1d&start_time=${(options.startOfDay) * 1000}`)
       const todaysData = data.data.find((kline: any) => kline.t == options.startOfDay * 1000);
       if (todaysData) dailyVolume += (todaysData.v * +todaysData.c) / 2; // They include taker + maker in ohlcv candles
+      else throw new Error(`No data found for ${ticker} on ${options.startOfDay}`);
       await new Promise(r => setTimeout(r, 4000));
     })
 
