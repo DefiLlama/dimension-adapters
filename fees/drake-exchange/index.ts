@@ -10,6 +10,13 @@ const PLATFORM_MANAGER = "0x7940575377C3c2ABdA23813c123b4C880E217d6d";
 
 const COMMISSION_FEE = 3;
 const MARGIN_CHANGE_FEE = 4;
+const ASSET_TRANSFERRED_EVENT =
+    "event AssetTransferred(address indexed _portfolio, uint8 _actionType, int256 _amountIn)";
+// Drake emitted a single net funding/borrowing fee before the protocol upgrade.
+const LEGACY_PENDING_FB_FEE_EVENT =
+    "event PositionPendingFBFeeCharged(address indexed portfolio, int256 totalFBFee)";
+const PENDING_FB_FEE_EVENT =
+    "event PositionPendingFBFeeCharged(address indexed portfolio, int256 fundingFee, int256 borrowingFee)";
 
 // Order sizes carry 4 decimals on-chain (TypeLibrary.BPS_SCALING_FACTOR = 1e4);
 // notional (AUSD base units) = size * executionPrice / SIZE_SCALE.
@@ -72,22 +79,21 @@ const fetch = async (options: FetchOptions) => {
     const transfers = await options.getLogs({
         target: COMMON_HELPER,
         onlyArgs: false,
-        eventAbi:
-            "event AssetTransferred(address indexed _portfolio, uint8 _actionType, int256 _amountIn)",
+        eventAbi: ASSET_TRANSFERRED_EVENT,
     });
 
     transfers.forEach((tr: any) => {
+        // Decoders return uint8 values as either bigint (ethers) or string (indexer).
+        const actionType = BigInt(tr.args._actionType);
         if (
-            tr.args._actionType !== COMMISSION_FEE &&
-            tr.args._actionType !== MARGIN_CHANGE_FEE
+            actionType !== BigInt(COMMISSION_FEE) &&
+            actionType !== BigInt(MARGIN_CHANGE_FEE)
         )
             return;
-        const amt =
-            tr.args._amountIn < 0n
-                ? -BigInt(tr.args._amountIn)
-                : BigInt(tr.args._amountIn);
+        const amountIn = BigInt(tr.args._amountIn);
+        const amt = amountIn < 0n ? -amountIn : amountIn;
 
-        if (tr.args._actionType === MARGIN_CHANGE_FEE) {
+        if (actionType === BigInt(MARGIN_CHANGE_FEE)) {
             dailyFees.add(AUSD, amt, METRIC.MARGIN_FEES);
             dailySupplySideRevenue.add(AUSD, amt, METRIC.MARGIN_FEES);
             return;
@@ -100,31 +106,42 @@ const fetch = async (options: FetchOptions) => {
         const ammSplit = splitAt(AMM_SPLIT, block);
         const vaultPct =
             ratio * orderbookSplit.vault + (1 - ratio) * ammSplit.vault;
-        const treasuryPct = 1 - vaultPct;
+        // Assign the remainder to the treasury to preserve the fee-accounting invariant.
+        const vaultAmount =
+            (amt * BigInt(Math.round(vaultPct * 10000))) / 10000n;
         dailySupplySideRevenue.add(
             AUSD,
-            (amt * BigInt(Math.round(vaultPct * 10000))) / 10000n,
+            vaultAmount,
             METRIC.TRADING_FEES,
         );
         dailyRevenue.add(
             AUSD,
-            (amt * BigInt(Math.round(treasuryPct * 10000))) / 10000n,
+            amt - vaultAmount,
             METRIC.TRADING_FEES,
         );
     });
 
-    const fbFees = await options.getLogs({
-        target: PLATFORM_MANAGER,
-        eventAbi:
-            "event PositionPendingFBFeeCharged(address indexed portfolio, int256 totalFBFee)",
+    const [legacyFbFees, fbFees] = await Promise.all([
+        options.getLogs({
+            target: PLATFORM_MANAGER,
+            eventAbi: LEGACY_PENDING_FB_FEE_EVENT,
+        }),
+        options.getLogs({
+            target: PLATFORM_MANAGER,
+            eventAbi: PENDING_FB_FEE_EVENT,
+        }),
+    ]);
+    const addPositiveFundingOrBorrowingFee = (fee: bigint) => {
+        if (fee <= 0n) return;
+        dailyFees.add(AUSD, fee, METRIC.BORROW_INTEREST);
+        dailySupplySideRevenue.add(AUSD, fee, METRIC.BORROW_INTEREST);
+    };
+    legacyFbFees.forEach((f: any) => {
+        addPositiveFundingOrBorrowingFee(BigInt(f.totalFBFee));
     });
     fbFees.forEach((f: any) => {
-        if (f.totalFBFee <= 0n) return;
-        dailyFees.add(AUSD, BigInt(f.totalFBFee), METRIC.BORROW_INTEREST);
-        dailySupplySideRevenue.add(
-            AUSD,
-            BigInt(f.totalFBFee),
-            METRIC.BORROW_INTEREST,
+        addPositiveFundingOrBorrowingFee(
+            BigInt(f.fundingFee) + BigInt(f.borrowingFee),
         );
     });
 
