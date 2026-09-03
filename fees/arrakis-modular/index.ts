@@ -11,6 +11,10 @@ const PIPS = 1_000_000n;
 
 const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
+// Peoples Reserve (PRN), https://etherscan.io/token/0x0c5d9fae8670cfa0aA5f57b42CCd630c46BBe498
+const PRN = "0x0c5d9fae8670cfa0aa5f57b42ccd630c46bbe498";
+const PRN_LISTING_DATE = "2026-07-04"; // cg has bad data for days earlier
+
 const abis = {
   numOfPublicVaults: "uint256:numOfPublicVaults",
   numOfPrivateVaults: "uint256:numOfPrivateVaults",
@@ -114,6 +118,8 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const tokenOrderFixBlock = UNIV4_TOKEN_ORDER_FIX_BLOCK[options.chain];
+  const ignorePrn =
+    options.chain === CHAIN.ETHEREUM && options.dateString <= PRN_LISTING_DATE;
 
   const moduleInfo: Record<
     string,
@@ -189,6 +195,7 @@ const fetch = async (options: FetchOptions) => {
       amounts.forEach((managerFee, i) => {
         if (managerFee === 0n) return;
         const token = info.tokens[i];
+        if (ignorePrn && token.toLowerCase() === PRN) return;
 
         dailyRevenue.add(token, managerFee, METRIC.MANAGEMENT_FEES);
 
