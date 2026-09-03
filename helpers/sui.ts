@@ -151,7 +151,7 @@ export async function queryEvents<T = any>({ eventType, eventModule, options, tr
     const { data } = await graphqlCall(`query ($before: String) {
       events(last: 50, before: $before, ${filter}) {
         pageInfo { hasPreviousPage startCursor }
-        nodes { timestamp contents { json type { layout } } }
+        nodes { timestamp contents { json type { repr layout } } }
       }
     }`, { before })
 
@@ -161,8 +161,13 @@ export async function queryEvents<T = any>({ eventType, eventModule, options, tr
     for (const node of nodes) {
       const ts = Date.parse(node.timestamp) / 1e3
       // half-open window: startTimestamp inclusive, endTimestamp exclusive
-      if (options.startTimestamp <= ts && ts < options.endTimestamp) items.push(toParsedJson(node.contents.json, node.contents.type.layout))
+      if (options.startTimestamp <= ts && ts < options.endTimestamp) {
+        const parsedEvent = toParsedJson(node.contents.json, node.contents.type.layout)
+        parsedEvent.type = node.contents.type.repr
+        items.push(parsedEvent)
+      }
     }
+
     // stop once the oldest event on this page is already before the window start
     if (!nodes.length || Date.parse(nodes[0].timestamp) / 1e3 <= options.startTimestamp) before = null
   } while (before)
@@ -187,7 +192,12 @@ export async function queryEventsAllium(
   const byType: Record<string, any[]> = Object.fromEntries(eventTypes.map((t) => [t, []]))
   for (const row of rows) {
     const t = eventTypes.find((t) => row.type.startsWith(t))
-    if (t) byType[t].push(row.parsed_json)
+    if (t) {
+      byType[t].push({
+        ...row.parsed_json,
+        type: row.type
+    })
+  }
   }
   return byType
 }
