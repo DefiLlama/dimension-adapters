@@ -104,6 +104,9 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BASE],
   start: "2023-07-09",
+  // The subgraph host is healthy but answers `deployment u67101/s62270/latest does not exist`.
+  // Open interest only ever produced six points, the last on 2023-11-13 ($164).
+  deadFrom: '2023-11-14',
 };
 
 export default adapter;
