@@ -22,7 +22,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume,
       start: '2024-01-03'
     }
-  }
+  },
+  // integration-api.polkadex.trade and the polkadex.trade apex both SERVFAIL. Last published
+  // point 2025-01-14 ($1).
+  deadFrom: '2025-01-15',
 };
 
 export default adapter;
