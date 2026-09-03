@@ -47,6 +47,10 @@ If the bridge aggregator charges fees and this adapter returns fee/revenue dimen
 - `dailyRevenue` - Aggregator's portion
 - `dailySupplySideRevenue` - Relayer/partner fees
 
+## Scope
+
+Bridges themselves are tracked in the `DefiLlama/bridges` repo. A bridge gets no bridge-aggregator adapter here; only routers that aggregate several bridges belong in this folder.
+
 ## Common Mistakes to Avoid
 
 1. Double-counting with underlying bridge adapters

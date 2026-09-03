@@ -54,3 +54,8 @@ If the aggregator charges fees and this adapter returns fee/revenue dimensions, 
 2. Not tracking all chains the aggregator operates on
 3. Missing integration/partner fees as supply-side revenue
 4. Counting failed/reverted transactions
+
+## Aggregator fees are the aggregator's own fees
+
+- Fees users pay to the UNDERLYING DEX or bridge are not the aggregator's fees; only the aggregator's own fee (positive slippage, integrator fee, protocol fee) belongs in `dailyFees`.
+- Cashbacks/rebates paid back to users go in `dailyFees` with a supply-side label; referral payouts are a cost, excluded from revenue when measurable.

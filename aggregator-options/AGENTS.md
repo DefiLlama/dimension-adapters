@@ -23,13 +23,9 @@ Options aggregators route options trades through multiple protocols/vaults to fi
 - The actual premium paid/received for options contracts
 - This is what users actually pay to enter positions
 
-## Optional Dimensions
+## Open Interest
 
-| Dimension | Description |
-|-----------|-------------|
-| `openInterestAtEnd` | Total open interest at period end |
-| `longOpenInterestAtEnd` | Long positions open interest |
-| `shortOpenInterestAtEnd` | Short positions open interest |
+Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
 
 ## Data Sources
 

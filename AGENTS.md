@@ -5,6 +5,8 @@ These guidelines apply to ALL adapters in this repository.
 ## PR Description
 
 - Always provide Website and twitter links in the description
+- Pre-answer the questions every review asks: is a 0-volume/0-fee day correct for this protocol? Why do the numbers differ from the protocol's own dashboard? Did the fee rate or split ever change, and when? Is this related to an existing listing or an open PR? Does the fee-to-volume ratio make sense? If this changes an existing adapter, is a refill needed and from which date?
+- `skills/adapter-author/references/validation.md` and `patterns.md` hold the authoring checklist (metric keys, category routing). A PR that fails it fails review.
 
 ## Code Structure
 
@@ -143,7 +145,8 @@ const adapter: SimpleAdapter = {
 |-----------|----------|-------------|
 | `dailyNotionalVolume` | YES | Notional volume of options contracts |
 | `dailyPremiumVolume` | YES | Premium volume collected/paid |
-| `openInterestAtEnd` | Optional | Open interest at period end |
+
+Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
 
 ### Fees (Income Statement Model)
 
@@ -234,3 +237,123 @@ These are the issues that come up most often in review - check every PR for them
 - v2 adapters keying time windows off `startOfDay` instead of `startTimestamp`
 - `noTarget` getLogs, raw `topics`, missing `multiCall`, or `try/catch` that swallows errors
 - Cumulative data returned where 24h/daily data is expected
+
+## Testing an adapter locally
+
+```bash
+npm run test <type> <slug> [YYYY-MM-DD] [chain1,chain2]
+```
+
+- The bare slug resolves both file-based adapters (`<type>/<slug>.ts` or `<type>/<slug>/index.ts`) and factory-listed keys (e.g. a key in `factory/uniV3.ts`).
+- The date argument is the END of the window: to reproduce day D, pass D+1. The optional last argument limits the run to those chains.
+- For a fix to a live adapter also read the published series: `https://api.llama.fi/summary/<type>/<slug>?dataType=<dimension>`, once per required dimension of the category (`dailyVolume`; `dailyFees` and `dailyRevenue`; `dailyBridgeVolume`; `dailyNotionalVolume` and `dailyPremiumVolume`; `openInterestAtEnd`). A series ending in a null `total24h` means the adapter throws. For flow metrics a hard $0 after big days with no taper means source lag, not zero activity. Snapshot metrics (open interest) are judged by the end-of-window value: 0 is valid only when no positions remain, a drop to 0 while the venue still has open positions is a bug.
+- `DEBUG_BREAKDOWN_FEES=true npm run test fees <slug> <date>` prints the per-label breakdown table.
+- `balances.debug()` inside a fetch prints the largest token values and addresses (useful for decimals/pricing problems).
+- Run several random past days, not just one. Zeros on random days with known activity, or values an order of magnitude off the protocol's own UI/explorer/Dune, block the listing until explained. CI proves little: forked PRs get no Dune keys and public RPCs may be non-archival, so a local run is the real check.
+
+## Where a new adapter goes
+
+The wrong vehicle is a blocker, decide this first:
+
+| Protocol kind | Where |
+|---|---|
+| Uniswap v2/v3 fork, Algebra fork, standard subgraph DEX | ONE config entry in `factory/uniV2.ts` / `factory/uniV3.ts` / `factory/uniSubgraph.ts`, never a standalone file (see `dexs/AGENTS.md`) |
+| Compound v2 fork | `factory/compoundV2.ts` (fees and liquidations derive from the same entry) |
+| Aave fork liquidations | `factory/aaveLiquidations.ts` (derived from the fee config) |
+| Chain-level native fees | config entry first: `helpers/evmChainFees.ts` (plain EVM RPC), `factory/routescan.ts`, `factory/blockscout.ts`; a standalone `fees/<chain>.ts` with `protocolType: ProtocolType.CHAIN` only when no factory fits |
+| Vault curator (Morpho/Euler owners) | `factory/curators.ts` |
+| Hyperliquid builder code | one entry in `factory/hyperliquid.ts` (volume and fees are both derived from it) |
+| Normalized perp volume | one entry in `factory/normalizedVolume.ts` |
+| Active/new users, tx count | `active-users/<slug>.ts`, `new-users/<slug>.ts`; for chains check `users/chains.ts` config paths first |
+| Anything genuinely custom | `<type>/<slug>.ts` |
+
+- Grep the protocol name AND slug across all type folders, `factory/*.ts` and `factory/deadAdapters.json` before adding anything. An existing adapter for the same metric is a duplicate (closed, not fixed); if a factory entry already exists, extend it (add the chain) instead of adding a second key.
+- `factory/registry.ts` is not edited, factories auto-expose their configs.
+- Fee ratios in factory entries come from the protocol's documented split only; omit the ratio fields rather than guess (volume still works without them).
+- New chain: add a `CHAIN` enum member in `helpers/chains.ts` (string value = the DefiLlama chain slug, match neighbours' casing/order); a dedicated RPC goes in `DEFAULTS` in `helpers/env.ts`. Add chain support together with the protocol that needs it; config no live adapter consumes is rejected.
+- Fully off-chain venues get their own chain key (or `off_chain`), never the host EVM chain.
+- Pool/yield additions belong in `DefiLlama/yield-server`; token emission schedules belong in `DefiLlama/emissions-adapters`, not here.
+
+## Naming, identity and listings
+
+- The folder/file name IS the listing slug: kebab-case, lowercase (an uppercase folder once broke the pipeline). Versioned deployments get `-v2`/`-v3` suffixed keys. Separate listing per product or version (spot vs perp, v2 vs v3).
+- When `x.ts` and `x/index.ts` both exist the `.ts` wins, so never keep both.
+- One protocol maps to one fees file; versions stay separate listings, and counting legacy pools inside the current adapter double counts the legacy listing. When a chain gets a standalone fee adapter, drop its blockscout/routescan factory entry.
+- A single pool or hook is not a protocol. List only chains with real activity; hundreds of chains with zero cumulative volume is not a feature.
+- Hyperliquid builder codes: verify the address belongs to the claimed protocol before listing it.
+- Never rename adapter files/folders or chain keys, never delete adapters, chains or history: they are the link to the listing and its stored data.
+- Listing prerequisites: website, X/Twitter and docs in the PR body, and a priceable token/asset (on CoinGecko with real liquidity) where pricing is needed. Do not edit `coreAssets.json` (it is a whitelisted pricing-token list, not an address book).
+- The server-side wiring (`dimensions: { <type>: "<slug>" }` in defillama-server) is a separate follow-up: name it in the PR body so it can be done after merge.
+
+## Adapter mechanics
+
+- `start` and `deadFrom` are `'YYYY-MM-DD'` strings. `start` is the earliest date that ACTUALLY returns data. A failing old date is a bug to fix, not a reason to move `start` later. If the start cannot be determined, omit it rather than guess.
+- `runAtCurrTime: true` only when history is genuinely impossible (then no `start`); remove it as soon as the source supports history. Verify that a project API actually honours its from/to params. An API that ignores `end` and only serves today/yesterday buckets gets throw-on-null for other dates (the day is recorded as missing), NOT `runAtCurrTime`, which would store the partial running total. If the team's API back-fills during the day, say so in the PR: the adapter can be delayed server-side by a few hours.
+- Rate-based fees scale by `toTimestamp - fromTimestamp`, never an assumed 86400.
+- Missing data must THROW, never return 0/empty silently: the refill job caches whatever the adapter returns. Single-row daily Dune/Allium sources throw when the row is missing or the metric is null; `COALESCE(..., 0)` or `Number(row?.x) || 0` turns ingestion lag into a stored $0. Sources with a publication delay must throw inside the delay window; stale data is never presented as the current day.
+- `dependencies: [Dependencies.DUNE]` (or `ALLIUM`) when the adapter queries the warehouse.
+- One simple adapter per listing; avoid multi-adapter breakdown wrappers, they make refills nearly impossible.
+- `.clone()` a balances object when you need the same amounts in two exports; never add the same instance to two exports.
+- `doublecounted: true` when an underlying tracked protocol already counts the flow (Uniswap v4 hooks, builder codes).
+- `cacheInCloud: true` only for small, slowly-changing config scans (pool-created lists), never for per-window event data.
+- No adapter-level scheduling or refill configuration (reconcile windows, run delays): that lives server-side.
+- Never edit `package.json`, lockfiles, `.github/`, `adapters/types.ts`, `cli/buildModules.ts` or `factory/registry.ts` in an adapter PR.
+- Time filters are half-open: `>= options.startTimestamp AND < options.endTimestamp` on the block time. `<=` double counts the boundary second.
+- Stock metrics (open interest, TVL-like snapshots) are read once at the window end. Summing them across hourly pulls inflates them 24x.
+- `options.getLogs` returns decoded args only. When `blockNumber`, `logIndex`, `txHash` or the emitter matter, pass `onlyArgs: false` or use `getPositionedLogArgs` from `helpers/logs.ts`.
+- `permitFailure: true` on calls to pools known to exist hides RPC errors as zeros; do not use it as a convenience.
+- `Number(bigint) / 1e18` loses precision past 2^53. Keep amounts as strings/BigInt into the balances object.
+- Chain parity: every chain in the volume adapter has a fee leg and vice versa, or the gap is stated in the adapter.
+- When an API is the accepted source, keep the on-chain fee wallets, logger contracts or program ids as comments next to the code so the adapter can be rebuilt if the API disappears.
+
+## Data source rules
+
+- No number beats a wrong number: if a value cannot be verified (ideally on-chain), track only the verifiable slice. Reported-only APIs with no trade-level data are not listed.
+- Preference order: on-chain event logs > DefiLlama indexer > Dune/Allium > project API with history > 24h-only API with `runAtCurrTime` (last resort). Never a blackbox API that cannot refill an arbitrary past day. On chains with unreliable RPCs, ask for an aggregated daily endpoint rather than a `getLogs` adapter that cannot complete.
+- Verify that the event you pass to `getLogs` exists on the deployed contract's verified source. A `getLogs` on a non-existent event signature returns zero and passes CI.
+- Check the unit of every source column: a value already in USD goes through `addUSDValue`, never scaled by token decimals.
+- Use point-in-time lookups (as of the window end) for supplies and balances, never current-state reads, so refills reproduce history.
+- Prefer dynamic on-chain/API discovery of pools and markets over hardcoded static lists; a static list cites its maintained source inline.
+- No estimates: no fee-tier assumptions, no APY-derived fees, no fixed rate where tiers exist, never fees derived from a yield API. Read fee rates and treasury addresses from the contract where possible.
+- Pricing: prefer the source's own USD values summed in-query, or count the known/major token side of a trade, over pricing long-tail tokens; blacklist mispriced tokens. Never assume a token is USD-pegged: allowlist verified pegs explicitly and skip unknown pools.
+- Fee-wallet tracking: exclude transfers between the protocol's own wallets; on mixed-use wallets scope with `fromAddresses` (verified payer/router contracts) and comment each address's role with a sample tx. EOA-to-EOA transfers count only with verified provenance.
+- Solana: attribute transfers at the instruction level (emitting program), never by tx id alone; batched unrelated transfers over-count. Prefer Dune/Allium over raw RPC signature scanning.
+- Identify a protocol's pools/configs by its OWN authority (fee claimer, deployer, factory), never by quote token: third parties can create look-alike configs before the protocol launches. Router/pool discovery from the protocol's own events beats a stale hardcoded list once the emitter's provenance is proven.
+- Governance-set rates read at the window's opening block are acceptable when changes are rare; replaying in-window rate-change events ordered by (blockNumber, logIndex) is exact.
+- Cumulative-counter sources need the closing snapshot too: 25 hourly points bound 24 intervals, dropping the last one loses 4-5% a day.
+- Self-reported APIs from privacy ledgers are accepted for VOLUME only, with a sample settlement id; fees are dropped rather than estimated.
+- Never source metrics from a competitor's website, only the protocol's own endpoints or on-chain data. Credit external dashboards/query authors as the source in the adapter.
+- Never shift a query window into the future to match an external reporting cycle: the runner queries today and future windows find nothing.
+- Dune: raw SQL inline (no `DUNE_QUERY_ID`), never a committed API key, return only the requested day's aggregate (billing is per row, never full history), keep nested subqueries within ~3 levels, and build in a delay for Solana indexing lag. A query that hits Dune's 30 minute timeout is rejected.
+
+## getLogs performance
+
+- Hundreds of targets is the sanctioned exception to `targets`: fetching all logs by `topic0` and filtering client-side is more efficient there (the indexer caps no-target queries at 10k-block ranges).
+- The number of `getLogs` calls per run is a budget: one call with `targets` beats one call per pool. Avoid `streamLogs`; avoid per-event RPC calls and full-block scans; do not raise public-RPC pressure (slow but un-rate-limited wins). An adapter that 429s in CI is blocked: remove request concurrency first, then ask the team for better endpoints.
+
+## Maintaining existing adapters
+
+- **Dead protocol**: `deadFrom: 'YYYY-MM-DD'` top-level (sibling of `version`/`fetch`/`chains`) with a `// reason` comment, on every adapter file of the protocol. Keep the fetch logic, `start` and chains so history stays refillable. Long-dead adapters are later swept into `factory/deadAdapters.json` (file deleted, slug recorded), so a "missing" adapter may live there.
+- `deadFrom` on the adapter is global. To end a single chain going forward, set `deadFrom` on that chain's config entry: the runner skips the chain before calling `fetch`, so nothing is stored (this is also the fix for a frozen or sunset RPC that would otherwise throw and take every other chain down). Do not return an empty result from `fetch` as a shutdown mechanism, it is still recorded as a row; if a date guard is needed inside `fetch`, throw past it. To end a chain retroactively, comment it out and refill. Never store empty or zero rows.
+- An optional enrichment call (an L1 cost lookup, a price read) in the same `Promise.all` as the required metric takes both down. Catch the optional call, publish the metric and OMIT the derived value rather than publishing it uncorrected.
+- When a source breaks but the protocol is alive, the fix is another source, never `deadFrom` and never a zero fallback. Fees dropping to 0 with healthy TVL usually means a changed fee address, not a dead protocol.
+- **Disable a chain**: comment the entry out in place with a reason everywhere it appears (config, chains array, per-chain map); never delete.
+- **Retiring an old endpoint must not shrink history**: run an old date on both versions; new code returning 0 where the old had values blocks until the new source is backfilled.
+- **Migrations and behaviour changes**: any change without a time guard silently overwrites correct history on the next refill. Contract/API migrations use date-based switching with `start` unchanged; a fee-rate change needs its date and a timestamp condition.
+- **Labels**: changing an existing breakdown label string forces a full history refill, keep them. Whoever changes values or labels refills history; never refill to a team's retroactively sanitised numbers.
+- Every mitigation/toggle carries a short factual reason comment. Minimal diff, match the file's formatting.
+
+## Writing `methodology` and `breakdownMethodology` text
+
+- `methodology`: one plain-English sentence per metric key, written for an end user with zero context. Name where the money comes from, not the mechanism. State known exclusions explicitly ("excludes the HLP vault and HyperEVM fees"). Human-readable names, not `CONSTANT_CASE`.
+- Name fee types precisely: a percentage taken on yield earned is a performance fee, not a management fee.
+- State split changes with their date in one sentence ("15% to treasury since September 2025, 0% before"). Numbers and percentages come from the code or the protocol's docs, never from memory.
+- The label check is bidirectional: every `.add()`/`.addUSDValue()` label appears in `breakdownMethodology` under each metric it flows into (same spelling), and every entry there has code emitting it.
+
+## Wash and fake volume
+
+- Wash volume comes OUT of volume; fees genuinely paid to a real party may stay in fees. Incentive-farming volume is excluded even when the trades are real.
+- Surgical removal only (specific pairs/pools/senders/txs, then structural filters, then temporarily hiding one chain with a reason); never drop a whole protocol when part of the volume is real. A hard cap is a last resort and its rationale must be a code comment.
+- Keep detection heuristics out of PR text and public docs (filters get circumvented). If you cannot tell organic from fake with the information at hand, say what evidence is needed; a wrong filter is worse than none.
+- Self-trading = participants taking no real profit or loss. Arb and strategy bots paying real fees are legitimate. An implausible volume-to-OI or volume-to-TVL ratio is the strongest single wash signal.
+- Genuine spikes (airdrop, launch, depeg, market event, first buyback day, migration) are whitelisted server-side, not smoothed in the adapter. Exploit-day fees/volume are excluded, not whitelisted.

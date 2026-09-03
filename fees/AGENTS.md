@@ -298,3 +298,39 @@ const breakdownMethodology = {
 ## Volume Tracking
 
 If this adapter also tracks volume (dexs/ style metrics), see `dexs/AGENTS.md` for volume-specific rules. Both fees and volume can coexist in a fees adapter.
+
+## Accrual basis
+
+- Count fees and revenue when they ACCRUE if possible, not when they are paid or claimed, and use one consistent basis. A one-year borrow repaid today is not today's revenue; a quarterly fee claim is not one day's fees. If the source does not provide an accrual basis, use the payment/claim date instead.
+- Yield, LST and vault protocols: `dailyFees` = the TOTAL yield generated (the depositor share is supply side), computed from exchange-rate growth on a supply snapshot, not from TVL deltas and not from sporadic claim/harvest events. If the source reports yield after the protocol cut, gross it back up.
+- Never cap or smooth legitimate lumpy yield (batched distributions, stale-oracle catch-ups): every cap trigger permanently discards real yield.
+- The single most common blocking question: `fees == revenue` on an LP, lending or yield protocol. Ask what the supply side gets before merging.
+- Share-price vaults: scale the per-share rate delta by SHARE SUPPLY, never by `totalAssets`; gross up when the rate is already net of the fee. Basis points divide by 10000.
+- Management fees are charged on assets, not carved out of interest: fees = interest + management fee, revenue = performance fee + management fee, supply side = interest minus performance fee.
+- Yesterday's fees may be today's revenue when the protocol books on receipt, as long as cumulative fees >= cumulative revenue. Never "floor" fees at the sum of the components to force a per-day identity.
+- Holders revenue funded from the protocol's side is a reclassification from `dailyProtocolRevenue` to `dailyHoldersRevenue`; check `Revenue = ProtocolRevenue + HoldersRevenue` per CHAIN and expect negative protocol revenue on funding days.
+
+## Classification rules
+
+- `dailyHoldersRevenue` is only value flowing to the protocol's OWN token holders. No token = no holders revenue. If all revenue goes to buybacks, set `dailyProtocolRevenue: 0`.
+- Burns count as holders revenue only when funded by real receipts (fee burns, market buybacks). Treasury-funded own token burns and mint-and-burn accounting burns are never holders revenue. Measure buybacks at the fee source, not at distribution.
+- Never fees or revenue: governance-token emissions, token taxes, referral/referrer shares (supply side at most). LP, liquidator, insurance-fund and node-operator shares are `dailySupplySideRevenue`.
+- Fees to vault managers/curators are `dailySupplySideRevenue`. An underlying platform's cut of a product's fees (e.g. the launchpad's share of a trading bot's fees) is supply side too.
+- NFT-marketplace creator royalties are `dailySupplySideRevenue` only; inside `dailyRevenue` they double count.
+- GMV is not fees: keep fees net and track gross flow as its own metric. Buyback-exceeds-sales days on collectibles models legitimately go negative.
+- No revenue-share split without public confirmation. Absent published evidence, attribute nothing to the alleged partner and export the flow you can see.
+- A self-declared margin percentage from the team is not accepted as a fee rate; derive it from on-chain flows.
+- A flat or base-tier fee rate times notional is not a fee metric, not even as an "upper bound": ship volume-only until real per-fill fees exist. A trade feed with signed per-fill fees is the fix (positive = taker fees, negative = maker rebates as supply side).
+- Buybacks of NON-governance assets (cards, boxes, launched tokens) are never holders revenue: collectibles buybacks subtract from fees; launched-token dividends, buyback-burns and locked liquidity are supply side. Dividends to brokers/affiliates who paid for the role are not holders revenue. Spread that lands in hedging/settler contracts and never reaches the treasury is market-maker income, supply side.
+- Buybacks executed off-chain via a CEX need transparency (published wallet, tx list) before they count as holders revenue.
+- Adapters built on Uniswap pools account for Uniswap's own protocol fee where the fee switch is on.
+- On lending/curator adapters a multi-x fee jump from an unknown market is a fabricated market until proven; verify the market against the protocol's own registry before counting it.
+- Negative values are legitimate for realized losses and must be counted (with `allowNegativeValue: true` and an inline reason), but formula-derived fees (e.g. mint/redeem deltas) cap at zero.
+- Export explicit zeros (`dailyRevenue: 0`) for a component the protocol genuinely lacks, but 0 is not "unavailable": never default an UNKNOWN component to zero, omit it until the flow is known. When a revenue/supply split cannot be derived from the source, export gross `dailyFees` only with `skipBreakdownValidation: true` plus a comment; never publish gross inflows as `dailyProtocolRevenue`.
+
+## Chain adapters
+
+- Fees = user-paid transaction fees only. Revenue = the burnt portion or DAO/treasury inflow only. Block rewards, validator/staker payouts and emissions are neither.
+- Rollup sequencer costs and blob fees paid to mainnet are `dailySupplySideRevenue`; chain revenue = fees minus those.
+- MEV and blockspace-auction income (Jito tips, Timeboost, Flashbots-style builders) is a SEPARATE listing, not part of the chain's fees.
+- Cover ALL execution environments of the chain (e.g. EVM plus native VM), and document source quirks (zero-fee system txs, cumulative vs daily) as code comments.
