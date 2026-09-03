@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
@@ -39,6 +40,8 @@ const DM_SWAP_EVENT =
   "event Swap(uint256 indexed proposalId, address indexed trader, bool zeroForOne, uint256 amountIn, uint256 amountOut, uint256 priceBeforeX96, uint256 priceAfterX96, uint256 priceImpactBps, uint256 protocolFee)";
 const MARKET_SETTLED_EVENT =
   "event MarketSettled(uint256 indexed marketId, uint256 winningProposalId, uint256 winningPriceX112, uint256 noOpPriceX112, uint256 priceDeltaBps)";
+const PROTOCOL_FEES_COLLECTED_EVENT =
+  "event ProtocolFeesCollected(uint256 indexed marketId, address indexed feeRecipient, uint256 feeVenture, uint256 feeMoney)";
 
 const LABEL = {
   SPOT_FEES: METRIC.SWAP_FEES,
@@ -47,6 +50,8 @@ const LABEL = {
   DM_FEES: "Decision market swap fees",
   DM_PROTOCOL: "Decision market protocol fee",
   DM_LP: "Decision market LP fees (venture vault)",
+  SPOT_VOLUME: "Spot swap volume",
+  DM_VOLUME: "Decision market swap volume",
 };
 
 type SpotContext = {
@@ -128,6 +133,7 @@ async function addSpotFees(
   ctx: VentureContext,
   spot: SpotContext,
   balances: { fees: any; protocol: any; supplySide: any; volume: any },
+  volumeOnly: boolean,
 ) {
   const logs = await options.getLogs({
     target: POOL_MANAGER,
@@ -137,11 +143,22 @@ async function addSpotFees(
   });
   if (!logs.length) return;
 
+  if (volumeOnly) {
+    for (const log of logs) {
+      const moneyDelta = Number(spot.moneyIsCurrency0 ? log.amount0 : log.amount1);
+      balances.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_VOLUME);
+    }
+    return;
+  }
+
   const protocolCutBps = Number(await options.api.call({ target: HUB, abi: "function spotProtocolFeeCutBps() view returns (uint16)" }));
   const vaultShare = await getVaultShare(options, spot);
 
   for (const log of logs) {
     const moneyDelta = Number(spot.moneyIsCurrency0 ? log.amount0 : log.amount1);
+    // volume is recorded first: a pool configured with a zero fee still trades
+    balances.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_VOLUME);
+
     const rate = Number(log.fee) / PIPS_DENOM;
     if (!rate || rate >= 1) continue;
 
@@ -151,7 +168,6 @@ async function addSpotFees(
     balances.fees.add(ctx.moneyToken, fee, LABEL.SPOT_FEES);
     balances.protocol.add(ctx.moneyToken, protocolFee, LABEL.SPOT_PROTOCOL);
     balances.supplySide.add(ctx.moneyToken, fee - protocolFee, LABEL.SPOT_LP);
-    balances.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_FEES);
   }
 }
 
@@ -197,11 +213,12 @@ async function addDecisionMarketFees(
   ctx: VentureContext,
   ventureId: number,
   balances: { fees: any; protocol: any; supplySide: any; volume: any },
+  volumeOnly: boolean,
 ) {
-  const [swapLogs, settledLogs] = [
-    await options.getLogs({ target: MARKET_CORE, eventAbi: DM_SWAP_EVENT }),
-    await options.getLogs({ target: MARKET_CORE, eventAbi: MARKET_SETTLED_EVENT }),
-  ];
+  const swapLogs = await options.getLogs({ target: MARKET_CORE, eventAbi: DM_SWAP_EVENT });
+  const settledLogs = volumeOnly
+    ? []
+    : await options.getLogs({ target: MARKET_CORE, eventAbi: MARKET_SETTLED_EVENT, entireLog: true });
   if (!swapLogs.length && !settledLogs.length) return;
 
   const { api } = options;
@@ -209,44 +226,70 @@ async function addDecisionMarketFees(
   const isOurs = (marketId: any) => owners.get(String(marketId)) === ventureId;
 
   if (swapLogs.length) {
-    const swapFeeBps = Number(await api.call({ target: HUB, abi: "function decisionSwapFeeBps() view returns (uint16)" }));
-    const protocolCutBps = Number(await api.call({ target: HUB, abi: "function decisionProtocolFeeCutBps() view returns (uint16)" }));
-    const rate = swapFeeBps / BPS_DENOM;
-
     const markets = await api.multiCall({
       target: MARKET_CORE,
       abi: PROPOSAL_TO_MARKET,
       calls: swapLogs.map((log: any) => String(log.proposalId)),
     });
 
-    swapLogs.forEach((log: any, i: number) => {
-      if (!isOurs(markets[i])) return;
-      const amountIn = Number(log.amountIn);
-      const amountOut = Number(log.amountOut);
-      // Virtual tokens redeem 1:1 with the real token, so a money-side amount is
-      // already in money-token units.
-      const fee = log.zeroForOne ? (amountOut * rate) / (1 - rate) : amountIn * rate;
-      const notional = log.zeroForOne ? amountOut : amountIn;
+    // Virtual tokens redeem 1:1 with the real token, so a money-side amount is
+    // already in money-token units.
+    const notionalOf = (log: any) => Number(log.zeroForOne ? log.amountOut : log.amountIn);
 
-      balances.fees.add(ctx.moneyToken, fee, LABEL.DM_FEES);
-      // Only the LP half is recognised while trading; the protocol half waits for settlement.
-      balances.supplySide.add(ctx.moneyToken, (fee * (BPS_DENOM - protocolCutBps)) / BPS_DENOM, LABEL.DM_LP);
-      balances.volume.add(ctx.moneyToken, notional, LABEL.DM_FEES);
-    });
+    if (volumeOnly) {
+      swapLogs.forEach((log: any, i: number) => {
+        if (isOurs(markets[i])) balances.volume.add(ctx.moneyToken, notionalOf(log), LABEL.DM_VOLUME);
+      });
+    } else {
+      const swapFeeBps = Number(await api.call({ target: HUB, abi: "function decisionSwapFeeBps() view returns (uint16)" }));
+      const protocolCutBps = Number(await api.call({ target: HUB, abi: "function decisionProtocolFeeCutBps() view returns (uint16)" }));
+      const rate = swapFeeBps / BPS_DENOM;
+
+      swapLogs.forEach((log: any, i: number) => {
+        if (!isOurs(markets[i])) return;
+        const notional = notionalOf(log);
+        balances.volume.add(ctx.moneyToken, notional, LABEL.DM_VOLUME);
+        if (!rate || rate >= 1) return;
+
+        const fee = log.zeroForOne ? (notional * rate) / (1 - rate) : notional * rate;
+        balances.fees.add(ctx.moneyToken, fee, LABEL.DM_FEES);
+        // Only the LP half is recognised while trading; the protocol half waits for settlement.
+        balances.supplySide.add(ctx.moneyToken, (fee * (BPS_DENOM - protocolCutBps)) / BPS_DENOM, LABEL.DM_LP);
+      });
+    }
   }
 
+  if (!settledLogs.length) return;
+
+  // `collectProtocolFees` is permissionless and zeroes the winning proposal's
+  // accrued fee, so reading at the window's end block returns 0 whenever a
+  // keeper collects in the same hour it settled, losing the whole protocol cut
+  // for that market. Read each market's fee state at its own settlement block,
+  // and fall back to the collection event for a settle-and-collect in one block.
+  const collectedLogs = await options.getLogs({
+    target: MARKET_CORE,
+    eventAbi: PROTOCOL_FEES_COLLECTED_EVENT,
+  });
+  const collectedByMarket = new Map<string, number>();
+  for (const log of collectedLogs) collectedByMarket.set(String(log.marketId), Number(log.feeMoney));
+
   for (const log of settledLogs) {
-    if (!isOurs(log.marketId)) continue;
-    const proposalIds: any[] = await api.call({ target: MARKET_CORE, abi: MARKET_PROPOSAL_IDS, params: [log.marketId] });
-    const feeStates = await api.multiCall({
+    const { marketId, winningProposalId } = log.args ?? log;
+    if (!isOurs(marketId)) continue;
+
+    const atSettlement = new sdk.ChainApi({ chain: options.chain, block: Number(log.blockNumber) });
+    const proposalIds: any[] = await atSettlement.call({ target: MARKET_CORE, abi: MARKET_PROPOSAL_IDS, params: [marketId] });
+    const feeStates = await atSettlement.multiCall({
       target: MARKET_CORE,
       abi: PROPOSAL_FEE_STATE,
       calls: proposalIds.map((proposalId: any) => String(proposalId)),
     });
 
     proposalIds.forEach((proposalId: any, i: number) => {
-      const moneyFee = Number(feeStates[i].moneyFee);
-      const won = String(proposalId) === String(log.winningProposalId);
+      const won = String(proposalId) === String(winningProposalId);
+      let moneyFee = Number(feeStates[i].moneyFee);
+      if (won && !moneyFee) moneyFee = collectedByMarket.get(String(marketId)) ?? 0;
+      if (!moneyFee) return;
       // The winner's accrued cut is the protocol's; every loser's returns to the vault.
       balances[won ? "protocol" : "supplySide"].add(
         ctx.moneyToken,
@@ -268,8 +311,9 @@ function ventureFetch(ventureId: number, mode: "fees" | "volume") {
 
     const ctx = await getVentureContext(options, ventureId);
     if (ctx) {
-      if (ctx.spot) await addSpotFees(options, ctx, ctx.spot, balances);
-      await addDecisionMarketFees(options, ctx, ventureId, balances);
+      const volumeOnly = mode === "volume";
+      if (ctx.spot) await addSpotFees(options, ctx, ctx.spot, balances, volumeOnly);
+      await addDecisionMarketFees(options, ctx, ventureId, balances, volumeOnly);
     }
 
     if (mode === "volume") return { dailyVolume: balances.volume };
@@ -317,6 +361,13 @@ const VOLUME_METHODOLOGY = {
   Volume: "Money-token notional of every swap on the venture's Uniswap v4 spot pool, plus the notional of conditional trades in its decision markets. Spot pool ids come from the venture vault's own pool key, so only pools operated by Umia count.",
 };
 
+const VOLUME_BREAKDOWN = {
+  Volume: {
+    [LABEL.SPOT_VOLUME]: "Money-token leg of every swap on the venture's Uniswap v4 spot pool.",
+    [LABEL.DM_VOLUME]: "Money-token notional of conditional trades in the venture's decision markets.",
+  },
+};
+
 export function ventureFees(ventureId: number, start: string): SimpleAdapter {
   return {
     version: 2,
@@ -339,6 +390,7 @@ export function ventureVolume(ventureId: number, start: string): SimpleAdapter {
     chains: [CHAIN.BASE],
     start,
     methodology: VOLUME_METHODOLOGY,
+    breakdownMethodology: VOLUME_BREAKDOWN,
     // spot leg trades on a Uniswap v4 pool, so that volume also counts under Uniswap
     doublecounted: true,
   };
