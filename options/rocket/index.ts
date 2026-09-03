@@ -44,9 +44,10 @@ const fetch = async (options: FetchOptions) => {
             continue;
         }
         if (!isRocketOption(inst.instrumentType)) continue;
-        const premium = Number(stats.quoteVolume24h ?? 0);
+        const raw = stats.quoteVolume24h;
+        const premium = raw === undefined || raw === null || String(raw).trim() === "" ? NaN : Number(raw);
         if (!Number.isFinite(premium)) {
-            console.log(`Rocket options: invalid quoteVolume24h for ${inst.ticker}: ${stats.quoteVolume24h}, skipping`);
+            console.log(`Rocket options: missing/invalid quoteVolume24h for ${inst.ticker}: ${JSON.stringify(raw)}, skipping`);
             continue;
         }
         dailyPremiumVolume.addUSDValue(premium, "Options premiums");
