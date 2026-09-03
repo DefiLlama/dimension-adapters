@@ -14,34 +14,34 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchRocketInstruments, isRocketOption, rocketUnderlyingPrices } from "../helpers/rocket";
+import { fetchRocketInstruments, isRocketOption, rocketNonNegative, rocketUnderlyingPrices } from "../helpers/rocket";
 
-async function fetch(options: FetchOptions) {
+const fetch = async (options: FetchOptions) => {
     const { instruments, instrumentStats } = await fetchRocketInstruments();
     const underlyingPrice = rocketUnderlyingPrices(instruments);
 
+    // Fail closed on inconsistent upstream data rather than publishing a partial snapshot
+    for (const id of Object.keys(instrumentStats)) {
+        if (!instruments[id]) throw new Error(`Rocket options OI: stats returned for unknown instrument ${id}`);
+    }
+
     const openInterestAtEnd = options.createBalances();
-    for (const [id, stats] of Object.entries(instrumentStats)) {
-        const inst = instruments[id];
-        if (!inst) {
-            console.log(`Rocket options OI: stats returned for unknown instrument ${id}, skipping`);
-            continue;
-        }
+    for (const [id, inst] of Object.entries(instruments)) {
         if (!isRocketOption(inst.instrumentType)) continue;
-        const oi = Number(stats.openInterest ?? 0);
-        if (!Number.isFinite(oi)) throw new Error(`Rocket options OI: invalid openInterest for ${inst.ticker}: ${stats.openInterest}`);
+        const stats = instrumentStats[id];
+        if (!stats) throw new Error(`Rocket options OI: no stats for option ${inst.ticker}`);
+        const oi = rocketNonNegative(stats.openInterest, `openInterest for ${inst.ticker}`);
         if (oi === 0) continue;
         const price = underlyingPrice[inst.underlyingAsset];
-        // Fail closed: a missing underlying price would silently under-count the snapshot
         if (!price) throw new Error(`Rocket options OI: no perp price for underlying ${inst.underlyingAsset} (${inst.ticker})`);
         openInterestAtEnd.addUSDValue(oi * price, "Options open interest");
     }
 
     return { openInterestAtEnd };
-}
+};
 
 const methodology = {
-    OpenInterest: "Sum of outstanding option contracts across all listed BTC and ETH options (GET /instruments, all pages), valued at the underlying's perpetual market last match price (one side, consistent with Rocket's perp OI adapter).",
+    OpenInterest: "Sum of outstanding option contracts across all listed option underlyings on Rocket (currently BTC and ETH; GET /instruments, all pages), valued at the underlying's perpetual market last match price (one side, consistent with Rocket's perp OI adapter).",
 };
 
 const breakdownMethodology = {
