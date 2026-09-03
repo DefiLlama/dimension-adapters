@@ -1,34 +1,33 @@
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchRocketInstruments, isRocketLinear } from "../helpers/rocket";
+import { fetchRocketInstruments, isRocketLinear, rocketNonNegative } from "../helpers/rocket";
 
 /*
  * Open interest for Rocket's linear derivatives (perps & dated futures).
  * Options OI is reported separately by open-interest/rocket-options.ts.
  */
-async function fetch() {
+const fetch = async (_options: FetchOptions) => {
     const { instruments, instrumentStats } = await fetchRocketInstruments();
 
+    // Fail closed on inconsistent upstream data rather than publishing a partial snapshot
+    for (const id of Object.keys(instrumentStats)) {
+        if (!instruments[id]) throw new Error(`Rocket OI: stats returned for unknown instrument ${id}`);
+    }
+
     let openInterestAtEnd = 0;
-    for (const [id, stats] of Object.entries(instrumentStats)) {
-        const inst = instruments[id];
-        if (!inst) {
-            console.log(`Rocket OI: stats returned for unknown instrument ${id}, skipping`);
-            continue;
-        }
+    for (const [id, inst] of Object.entries(instruments)) {
         // Only linear derivatives are counted; options are excluded
         // (their lastMatchPrice is the premium, not a notional price)
         if (!isRocketLinear(inst.instrumentType)) continue;
-        const price = Number(inst.lastMatchPrice);
-        const oi = Number(stats.openInterest ?? 0);
-        if (!Number.isFinite(price) || !Number.isFinite(oi)) {
-            throw new Error(`Rocket OI: invalid data for ${inst.ticker}: openInterest=${stats.openInterest} lastMatchPrice=${inst.lastMatchPrice}`);
-        }
+        const stats = instrumentStats[id];
+        if (!stats) throw new Error(`Rocket OI: no stats for ${inst.ticker}`);
+        const oi = rocketNonNegative(stats.openInterest, `openInterest for ${inst.ticker}`);
+        const price = rocketNonNegative(inst.lastMatchPrice, `lastMatchPrice for ${inst.ticker}`);
         openInterestAtEnd += oi * price;
     }
 
     return { openInterestAtEnd };
-}
+};
 
 const adapter: SimpleAdapter = {
     // version 1: the API only exposes a live snapshot (no historical time ranges)
