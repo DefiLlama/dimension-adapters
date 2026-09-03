@@ -1,5 +1,6 @@
 // console.log("Building import files for tvl/dimensions/emissions/liquidations adapters")
 
+import { execSync } from "child_process";
 import { readdir, writeFile } from "fs/promises";
 import { ADAPTER_TYPES, AdapterType, whitelistedBaseAdapterKeys } from "../adapters/types";
 import { setModuleDefaults } from "../adapters/utils/runAdapter";
@@ -25,6 +26,7 @@ async function run() {
   // Add helper-based adapters for all adapter types
   await addFactoryAdapters()
   addDeadAdapters()
+  stampGitAddedInfo()
 
   await writeFile(outputFile, JSON.stringify(dimensionsImports))
 
@@ -129,6 +131,28 @@ async function run() {
     }
   }
 
+  // stamp each adapter with the commit that added its code file (addedCommit),
+  // so consumers (born-to-llama bot) do not need a local clone for commit links
+  function stampGitAddedInfo() {
+    try {
+      const { fileMap, dirMap } = getGitAddedInfo()
+      for (const adapters of Object.values(dimensionsImports)) {
+        for (const entry of Object.values(adapters as any)) {
+          const codePath = (entry as any).codePath
+          if (!codePath) continue
+          // codePath is a file (dexs/uniswap.ts), a directory (dexs/uniswap)
+          // or a bare helper name (aave.ts -> helpers/aave.ts or helpers/aave/)
+          const commit = fileMap[codePath] ?? dirMap[codePath]
+            ?? fileMap[`helpers/${codePath}`]
+            ?? dirMap[`helpers/${String(codePath).replace(/\.(ts|js)$/, '')}`]
+          if (commit) (entry as any).addedCommit = commit
+        }
+      }
+    } catch (e) {
+      console.error('Error stamping git added commit:', e)
+    }
+  }
+
   function addDeadAdapters() {
 
     const defaultCommitHash = "1e8620166b5772c02e5e68e9dcd2cbb818724d69"  // /dead folder is deleted after this step
@@ -148,6 +172,38 @@ async function run() {
       }
     }
   }
+}
+
+// walk git history once and map every file to the commit that added it
+// fileMap: exact file path -> latest commit that added it (handles delete + re-add)
+// dirMap: directory path -> commit that added the first file under it (adapter creation)
+function getGitAddedInfo() {
+  // --first-parent: walk only the mainline, so a file shows as added at the
+  // commit or PR merge that landed it on master, never at a side-branch commit
+  // --no-renames: files moved into place still show as added instead of renamed
+  const output = execSync('git log --first-parent --no-renames --format="%H|" --name-only --diff-filter=A', { maxBuffer: 1024 * 1024 * 512, cwd: __dirname + '/..' }).toString()
+
+  const fileMap: Record<string, string> = {}
+  const dirMap: Record<string, string> = {}
+  let commit = ''
+  for (const line of output.split('\n')) {
+    if (!line) continue
+    if (line.length === 41 && line[40] === '|' && /^[0-9a-f]{40}$/.test(line.slice(0, 40))) {
+      commit = line.slice(0, 40)
+    } else if (commit) {
+      // log is newest-first, first occurrence = latest commit that added this path
+      if (!fileMap[line]) fileMap[line] = commit
+      // keep overwriting ancestor dirs: the last write is the oldest file addition
+      const parts = line.split('/')
+      parts.pop()
+      let dir = ''
+      for (const part of parts) {
+        dir = dir ? `${dir}/${part}` : part
+        dirMap[dir] = commit
+      }
+    }
+  }
+  return { fileMap, dirMap }
 }
 
 //Replace all fuctions with mock functions in an object all the way down
