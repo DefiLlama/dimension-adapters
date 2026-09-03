@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
-import { queryEvents } from "../../helpers/sui";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryEventsAllium } from "../../helpers/sui";
 
 const NAVI_ROUTER_EVENT = '0x88dfe5e893bc9fa984d121e4d0d5b2e873dc70ae430cf5b3228ae6cb199cb32b::slippage::SwapEvent';
 
@@ -13,25 +13,20 @@ function extractCoinTypes(typeString: string) {
   };
 }
 
-const fetchDailyVolume = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  // Mengambil event langsung dari RPC Sui menggunakan helper yang sudah dimodifikasi
-  const events = await queryEvents({
-    eventType: NAVI_ROUTER_EVENT,
-    options: {
-      startTimestamp: options.fromTimestamp,
-      endTimestamp: options.toTimestamp,
-    },
+  const events = await queryEventsAllium([NAVI_ROUTER_EVENT], {
+    fromTimestamp: options.fromTimestamp,
+    toTimestamp: options.toTimestamp,
   });
 
-  for (const event of events) {
+  for (const event of events[NAVI_ROUTER_EVENT]) {
     if (!event.type) continue;
 
     const coins = extractCoinTypes(event.type);
     if (!coins) continue;
 
-    // Menambahkan volume token masuk (amount_in) ke kalkulasi balance DefiLlama
     if (event.amount_in) {
       dailyVolume.add(coins.coinIn, event.amount_in);
     }
@@ -42,14 +37,17 @@ const fetchDailyVolume = async (options: FetchOptions) => {
   };
 };
 
-const navi_aggregator: any = {
+const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetchDailyVolume,
+      fetch,
       start: "2024-10-05",
     },
   },
 };
 
-export default navi_aggregator;
+export default adapter;
