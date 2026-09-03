@@ -98,11 +98,17 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
   return established;
 }
 
+// Fail fast above 10% failed balance calls to tolerate isolated RPC errors without
+// reporting a mostly-failed batch of pools as legitimately empty. See PR #8565 for the
+// original all-or-nothing precedent this threshold replaces.
+const MAX_FAILED_BALANCE_CALL_RATIO = 0.1
+
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
   const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
-  if (balanceCalls.length && res.every((bal) => bal == null))
-    throw new Error(`filterPools: every pooled balance call failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as empty`)
+  const failedCalls = res.filter((bal) => bal == null).length
+  if (balanceCalls.length && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO)
+    throw new Error(`filterPools: ${failedCalls}/${balanceCalls.length} pooled balance calls failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as (partly) empty`)
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   res.forEach((bal, i) => {
