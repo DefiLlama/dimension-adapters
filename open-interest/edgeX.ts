@@ -15,10 +15,10 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.EDGEX],
     fetch,
     start: "2024-08-06",
-    //runAtCurrTime: true,
+    runAtCurrTime: true,
     // The v1 host now serves v2's exchange-wide figure, so this leg duplicates open-interest/edgex-v2.
     // Same cause and same date as the v1 fee leg, stopped in #9109.
-    //deadFrom: "2026-08-15",
+    deadFrom: "2026-08-15",
 }
 
 export default adapter;
