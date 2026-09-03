@@ -108,6 +108,9 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (xReserve) {
+    // The xReserve route has no relayer fee: users pay only the Allbridge bridge fee (adminFeeTokenAmount).
+    // `maxFee` in the event is the cap for the partner protocol's own transfer fee, which is charged by Circle,
+    // not by Allbridge, and is therefore excluded like the other partner-protocol fees.
     const logs = await options.getLogs({ target: xReserve.bridge, eventAbi: EVENT_XRESERVE_TOKENS_SENT });
     logs.forEach((log: any) => {
       dailyFees.add(xReserve.token, log.adminFeeTokenAmount, BRIDGE_FEES);
