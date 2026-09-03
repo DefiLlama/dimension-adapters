@@ -13,7 +13,7 @@ const diffBase = process.env.DIFF_BASE || 'HEAD~1'
 const fileSet = new Set();
 
 [...MODIFIED, ...ADDED].forEach(file => {
-  // Skip markdown documentation files (e.g., GUIDELINES.md)
+  // Skip markdown documentation files (e.g., AGENTS.md)
   if (!file || file.endsWith('.md')) return
 
   const [root, adapter] = file.split('/')

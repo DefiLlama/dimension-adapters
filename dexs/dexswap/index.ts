@@ -25,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
 	while (true) {
 		const dataFees = await request(endpoints[options.chain], gql
 			`query DexSwapFees {
-				dexSwapFees(first: 1000,skip: ${skip}, orderBy: timestamp, where: { timestamp_gt: ${date}, timestamp_lte: ${options.endTimestamp} }) {
+				dexSwapFees(first: 1000,skip: ${skip}, orderBy: timestamp, where: { timestamp_gt: ${date}, timestamp_lt: ${options.endTimestamp} }) {
 					volume,
 					timestamp
 				}

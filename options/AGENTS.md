@@ -58,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
 
 ## Fees/Revenue Tracking
 
-If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`. Options protocols typically have:
+If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Options protocols typically have:
 - **Trading fees** - Fee on premium
 - **Settlement fees** - Fee on exercise/settlement
 - **Vault management fees** - For vault-based options

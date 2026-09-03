@@ -98,7 +98,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1, // Dune adapters must be v1 (GUIDELINES.md)
+  version: 1, // Dune adapters must be v1 (AGENTS.md)
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-04-09",

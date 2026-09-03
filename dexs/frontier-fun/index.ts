@@ -63,15 +63,28 @@ const CURVE_FEE_DISTRIBUTED_EVENT =
 const GRADUATION_FEES_PAID_EVENT =
   "event GraduationFeesPaid(address indexed feeRecipient, address indexed caller, uint256 creatorAmount, uint256 protocolAmount, uint256 refundAmount)";
 
-// v1.2 Uniswap V4 side, all live since 2026-08-15 with the v1.2 factory.
+// v1.2 Uniswap V4 side, live since 2026-08-15 with the v1.2 factory.
 // Singleton hook attached to every Frontier pool (PoolRegistered, SwapFeeDistributed).
-// https://robinhoodchain.blockscout.com/address/0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc
-const FACTORY_HOOK = "0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc";
+// The hook is rotated by generation, but a pool keeps the hook its PoolKey embeds
+// forever — retired generations keep trading and paying fees, so every generation
+// is listened to. Same event signatures across generations.
+const FACTORY_HOOKS = [
+  // gen-1, 2026-08-15 → 2026-08-28: https://robinhoodchain.blockscout.com/address/0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc
+  "0xb31780AAd49D3Cc7Dd6E03E9e462606F0A5A30Cc",
+  // gen-2, since 2026-08-28: https://robinhoodchain.blockscout.com/address/0xee588bCF2bd3e658f5160489f4199d1851BBf0Cc
+  "0xee588bCF2bd3e658f5160489f4199d1851BBf0Cc",
+];
 // Receives the LP fees of the permanently locked seed positions when someone
 // calls Harvester.collect (permissionless) and splits them (FeesDistributed).
 // Source: Harvester.distributor() on 0x2F33cb57fAa8bF1EB52ea18D90B0dc2f8cc2Db1f.
-// https://robinhoodchain.blockscout.com/address/0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc
-const POL_DISTRIBUTOR = "0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc";
+// Rotated with the hook generations; collections of fees accrued before the
+// switch can still land on a retired distributor, so every generation is kept.
+const POL_DISTRIBUTORS = [
+  // gen-1, 2026-08-15 → 2026-08-28: https://robinhoodchain.blockscout.com/address/0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc
+  "0x9604e6fad64f0fe7fe84be6cd3079e7a8c6265cc",
+  // gen-2, since 2026-08-28 (block 48591579): https://robinhoodchain.blockscout.com/address/0x57ceF9B5844e2fB0181bd12d3918A8c6dCaa8F4e
+  "0x57ceF9B5844e2fB0181bd12d3918A8c6dCaa8F4e",
+];
 // Canonical Uniswap V4 PoolManager on Robinhood Chain, the same address
 // dexs/uniswap-v4 scans for this chain.
 // https://robinhoodchain.blockscout.com/address/0x8366a39cc670b4001a1121b8f6a443a643e40951
@@ -304,7 +317,7 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
       FROM uniswap_v4_multichain.poolmanager_evt_initialize
       WHERE chain = 'robinhood'
         AND contract_address = ${POOL_MANAGER}
-        AND LOWER(CAST(hooks AS VARCHAR)) = '${FACTORY_HOOK.toLowerCase()}'
+        AND LOWER(CAST(hooks AS VARCHAR)) IN (${FACTORY_HOOKS.map((hook) => `'${hook.toLowerCase()}'`).join(", ")})
     ),
     wash_ev AS (
       SELECT id, COUNT(*) AS trades, COUNT(DISTINCT evt_tx_from) AS eoas
@@ -357,7 +370,7 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
         SUM(bytearray_to_uint256(bytearray_substring(data, 65, 32))) AS vault_amount,
         SUM(bytearray_to_uint256(bytearray_substring(data, 97, 32))) AS recipient_amount
       FROM robinhood.logs
-      WHERE contract_address = ${FACTORY_HOOK}
+      WHERE contract_address IN (${FACTORY_HOOKS.join(", ")})
         AND topic0 = ${V4_SWAP_FEE_TOPIC}
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})
@@ -373,7 +386,7 @@ const addV4 = async (options: FetchOptions, day: DayBalances) => {
         SUM(bytearray_to_uint256(bytearray_substring(data, 161, 32))) AS protocol_weth,
         SUM(bytearray_to_uint256(bytearray_substring(data, 193, 32))) AS protocol_coin
       FROM robinhood.logs
-      WHERE contract_address = ${POL_DISTRIBUTOR}
+      WHERE contract_address IN (${POL_DISTRIBUTORS.join(", ")})
         AND topic0 = ${V4_POL_FEE_TOPIC}
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})

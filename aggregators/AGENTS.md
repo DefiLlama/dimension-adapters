@@ -43,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
 
 ## Fees/Revenue Tracking
 
-If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`. Common aggregator fee patterns:
+If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Common aggregator fee patterns:
 - Positive slippage capture
 - Integration fees
 - Protocol fees on certain routes

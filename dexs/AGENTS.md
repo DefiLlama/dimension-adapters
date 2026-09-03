@@ -73,7 +73,7 @@ const fetch = async (options: FetchOptions) => {
 
 ## Fees/Revenue Tracking
 
-If this adapter also tracks fees/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`. Include:
+If this adapter also tracks fees/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Include:
 - `dailyFees` - All swap fees collected
 - `dailyRevenue` - Protocol's portion of fees
 - `dailySupplySideRevenue` - LP's portion of fees

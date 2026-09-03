@@ -1,13 +1,9 @@
-import { SimpleAdapter, FetchOptions } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 
-const API_URL = "https://v3.potatoswap.finance/api/pool/list-all";
-
-// Labels kept identical to the ones getUniV2LogAdapter emits, so the breakdown
-// is consistent whether the API path (recent) or the on-chain log path (older)
-// runs for a given day.
+// Labels kept identical to what getUniV2LogAdapter itself emits, so the
+// breakdown stays consistent for anyone relying on these label strings.
 const LABELS = {
   SwapFees: 'Token Swap Fees',
   TradingFees: 'Trading fees',
@@ -16,41 +12,17 @@ const LABELS = {
   TokenholderFees: 'Tokenholder fees',
 }
 
-const fetch = async (options: FetchOptions) => {
-  const response = await fetchURL(API_URL);
-  const pools = response.data.pools;
-
-  const timeNow = Math.floor(Date.now() / 1000)
-  const isCloseToCurrentTime = Math.abs(timeNow - options.toTimestamp) < 3600 * 6 // 6 hour
-
-  if (isCloseToCurrentTime) {
-
-    const dailyVolume = options.createBalances();
-    const dailyFees = options.createBalances();
-
-    for (const { protocol_version, volume_24h_usd, fee_24h_usd } of pools) {
-      if (protocol_version !== "v2") continue;
-
-      dailyVolume.addUSDValue(Number(volume_24h_usd));
-      dailyFees.addUSDValue(Number(fee_24h_usd), LABELS.SwapFees);
-    }
-
-    const dailySupplySideRevenue = dailyFees.clone(0.17 / 0.25, LABELS.LPFees);
-    const dailyHoldersRevenue = dailyFees.clone(0.08 / 0.25, LABELS.TokenholderFees);
-
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyRevenue: dailyFees.clone(0.08 / 0.25, LABELS.ProtocolFees),
-      dailyUserFees: dailyFees.clone(1, LABELS.TradingFees),
-      dailySupplySideRevenue,
-      dailyProtocolRevenue: 0,
-      dailyHoldersRevenue,
-    };
-  }
-  return getUniV2LogAdapter({ factory: '0x630db8e822805c82ca40a54dae02dd5ac31f7fcf', userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 0, holdersRevenueRatio: 8 / 25 })(options)
-
-};
+// PotatoSwap's own stats API (v3.potatoswap.finance/api/pool/list-all) used to
+// power a "recent day" fast path here, but its 24h volume/fee fields have been
+// stuck at 0 since ~2026-05-07 while the pools themselves stay live (TVL
+// current, real on-chain swap activity) - it was a silent-zero, not a dead
+// endpoint. The on-chain log adapter below already handles every day
+// (it's what powered the correct historical backfill) - use it unconditionally.
+//
+// `fees`/`stableFees` are both set explicitly to PotatoSwap's documented flat
+// 0.25% - the helper's own default is 0.30% (Uniswap V2's rate), which would
+// silently overstate every fee/revenue dimension by 20%.
+const fetch = getUniV2LogAdapter({ factory: '0x630db8e822805c82ca40a54dae02dd5ac31f7fcf', fees: 0.0025, stableFees: 0.0025, userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 0, holdersRevenueRatio: 8 / 25 })
 
 const methodology = {
   Fees: "PotatoSwap charges a 0.25% swap fee on v2 pools.",
@@ -83,7 +55,10 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  // v2: fetch is now exclusively on-chain event logs (no daily-aggregate API
+  // dependency), matching this repo's version-2 criteria.
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.XLAYER],
   start: '2024-04-16',

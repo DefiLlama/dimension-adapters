@@ -1,9 +1,10 @@
 import * as sdk from "@defillama/sdk";
 import { Chain, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { Adapter, FetchOptions } from "../adapters/types";
+import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { formatAddress, sleep } from "../utils/utils";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { queryAllium } from "../helpers/allium";
 
 type IConfig = {
   [s: string | Chain]: {
@@ -64,6 +65,45 @@ export const configs: IConfig = {
     getTrasnactionLimit: 10000,
     start: '2026-01-13',
   },
+}
+
+// MetaMask's two Solana fee wallets. A swap pays one of them in the same transaction, which is
+// how fees/metamask.ts already identifies MetaMask activity on Solana - the volume side simply had
+// no Solana leg, so the chain reports fees while reporting no swap volume at all.
+const SOLANA_FEE_WALLETS = [
+  '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
+  'HbBHuvgWoChfztoqz2izLRF5mSoLKQXfU68kueBmhcmL',
+];
+
+// Only transactions that also carry a decoded swap count. The same wallets collect bridge fees,
+// and a bridge has no swap notional behind it.
+export const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const wallets = SOLANA_FEE_WALLETS.map((wallet) => `'${wallet}'`).join(', ');
+  const query = `
+    WITH metamask_txs AS (
+      SELECT DISTINCT txn_id
+      FROM solana.assets.transfers
+      WHERE to_address IN (${wallets})
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ),
+    hop_dedup AS (
+      SELECT t.usd_amount
+      FROM solana.dex.trades t
+      INNER JOIN metamask_txs m ON t.txn_id = m.txn_id
+      WHERE t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY t.txn_id, t.instruction_index
+        ORDER BY t.usd_amount DESC
+      ) = 1
+    )
+    SELECT COALESCE(SUM(usd_amount), 0) AS volume
+    FROM hop_dedup
+  `;
+
+  const data = await queryAllium(query);
+  return { dailyVolume: data[0]?.volume ?? 0 };
 }
 
 async function retry(chain: string, fromBlock: number, toBlock: number, address: string): Promise<Array<any>> {
@@ -127,7 +167,12 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: configs,
+  adapter: {
+    ...configs,
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: '2025-08-12' },
+  },
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
 }
 
 export default adapter;

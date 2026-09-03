@@ -11,7 +11,7 @@ const fetch: any = async (options: FetchOptions) => {
     FROM tokens_solana.transfers
     WHERE 
       block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
       AND to_token_account = '5xUKs45EtfwJAeGAwyvS8WbMebMPY7o334Fi9LxmtyYq'
       AND token_mint_address = 'So11111111111111111111111111111111111111112'
   `

@@ -400,5 +400,6 @@ export enum CHAIN {
   SIS = "sis",
   ASTER = "aster",
   XO = "xo",
-  BOT_CHAIN = "bot"
+  BOT_CHAIN = "bot",
+  NATIVE_CORE = "native_core",
 }

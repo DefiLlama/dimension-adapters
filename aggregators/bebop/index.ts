@@ -9,7 +9,7 @@ import { CHAIN } from "../../helpers/chains"
  * Bebop migrated its settlement contracts over time (legacy Settlement/JAM ->
  * current JAM + Blend/RFQ). Chains covered by the Dune `bebop.trades` table get
  * complete history from Dune (it spans every contract generation). Chains NOT
- * in that table (blast, mode, taiko, hyperliquid) are read on-chain instead.
+ * in that table (blast, mode, taiko, hyperliquid, robinhood) are read on-chain instead.
  *
  * For the on-chain chains we run BOTH the legacy and the current contract logic
  * and sum the result: a given trade is settled by exactly one contract
@@ -279,6 +279,7 @@ const adapter: Adapter = {
     [CHAIN.SCROLL]:      { fetch: fetchDune, start: '2023-05-31', deadFrom: '2026-06-04' },
     // Not in Dune — read on-chain (legacy + current contracts)
     [CHAIN.HYPERLIQUID]: { fetch,            start: '2025-04-28' },
+    [CHAIN.ROBINHOOD]:   { fetch,            start: '2026-07-24' },
     [CHAIN.BLAST]:       { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
     [CHAIN.MODE]:        { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },
     [CHAIN.TAIKO]:       { fetch,            start: '2023-05-31', deadFrom: '2026-06-04' },

@@ -35,7 +35,7 @@ Derivatives aggregators route perpetual and derivatives trades through multiple 
 
 ## Fees/Revenue Tracking
 
-If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/GUIDELINES.md`. Include:
+If the aggregator charges fees and this adapter returns fee/revenue dimensions, follow the guidelines in `fees/AGENTS.md`. Include:
 - `dailyFees` - All fees collected
 - `dailyRevenue` - Aggregator's portion
 - `dailySupplySideRevenue` - Partner/integration fees
