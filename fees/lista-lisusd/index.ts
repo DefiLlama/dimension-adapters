@@ -19,6 +19,10 @@ const oldTreasury =
   "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6";
 const newTreasury =
   "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da";
+// Ops Safe — the treasury operations multisig the PSM/Venus USDT profit now lands in (~monthly),
+// after the payout recipient migrated off the old treasury.
+const opsSafe =
+  "0x00000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b";
 const zeroAddress =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 const transferHash =
@@ -150,15 +154,21 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  // USDT staking profit - venusAdaptor
-  const usdtStakingProfit = await options.getLogs({
-    target: usdt,
-    topics: [
-      transferHash,
-      "0x000000000000000000000000f76d9cfd08df91491680313b1a5b44307129cda9",
-      "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6",
-    ],
-  });
+  // USDT staking profit - venusAdaptor. The claimed profit's recipient migrated from the old
+  // treasury to the Ops Safe (~monthly claim), so query both: old treasury keeps historical days
+  // correct, Ops Safe captures the current revenue that was previously being missed.
+  const venusAdaptorTopic =
+    "0x000000000000000000000000f76d9cfd08df91491680313b1a5b44307129cda9";
+  const usdtStakingProfit = [
+    ...(await options.getLogs({
+      target: usdt,
+      topics: [transferHash, venusAdaptorTopic, oldTreasury],
+    })),
+    ...(await options.getLogs({
+      target: usdt,
+      topics: [transferHash, venusAdaptorTopic, opsSafe],
+    })),
+  ];
 
   // veLista Auto Compound Fee - VeListaAutoCompounder
   const veListaAutoCompoundFee = await options.getLogs({
