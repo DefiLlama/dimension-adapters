@@ -19,6 +19,10 @@ const oldTreasury =
   "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6";
 const newTreasury =
   "0x00000000000000000000000034b504a5cf0ff41f8a480580533b6dda687fa3da";
+// Ops Safe — the treasury operations multisig the PSM/Venus USDT profit now lands in (~monthly),
+// after the payout recipient migrated off the old treasury.
+const opsSafe =
+  "0x00000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b";
 const zeroAddress =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 const transferHash =
@@ -48,9 +52,10 @@ const usdt = ADDRESSES.bsc.USDT;
 const LISUSD_POOL_SET = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf";
 const RATE_SCALE = 10n ** 27n;
 
-// Validator / node-operation rewards: stListaDAO (Stake ListaDAO Credit) is minted to the reward
-// collector as the DAO's validator revenue, denominated in BNB. The previously-used ListaDAOCredit
-// (0x0D92Ac7a…) SafeReceived path is dormant (0 events); this is where the rewards actually flow.
+// Validator / node-operation rewards (BNB-denominated). Track both paths:
+// 1. ListaDAOCredit SafeReceived — historical revenue before the migration.
+// 2. stListaDAO mints to the reward collector — current revenue flow.
+const listaDAOCredit = "0x0D92Ac7a4590874a493eB62b37D3Ea3390966B13";
 const stListaDAO = "0xc096e7781c95a2fc6feb1efe776b570270b3965d";
 const validatorRewardCollector =
   "0x0000000000000000000000007766a5ee8294343bf6c8dcf3aa4b6d856606703a";
@@ -160,15 +165,21 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  // USDT staking profit - venusAdaptor
-  const usdtStakingProfit = await options.getLogs({
-    target: usdt,
-    topics: [
-      transferHash,
-      "0x000000000000000000000000f76d9cfd08df91491680313b1a5b44307129cda9",
-      "0x0000000000000000000000008d388136d578dcd791d081c6042284ced6d9b0c6",
-    ],
-  });
+  // USDT staking profit - venusAdaptor. The claimed profit's recipient migrated from the old
+  // treasury to the Ops Safe (~monthly claim), so query both: old treasury keeps historical days
+  // correct, Ops Safe captures the current revenue that was previously being missed.
+  const venusAdaptorTopic =
+    "0x000000000000000000000000f76d9cfd08df91491680313b1a5b44307129cda9";
+  const usdtStakingProfit = [
+    ...(await options.getLogs({
+      target: usdt,
+      topics: [transferHash, venusAdaptorTopic, oldTreasury],
+    })),
+    ...(await options.getLogs({
+      target: usdt,
+      topics: [transferHash, venusAdaptorTopic, opsSafe],
+    })),
+  ];
 
   // veLista Auto Compound Fee - VeListaAutoCompounder
   const veListaAutoCompoundFee = await options.getLogs({
@@ -180,9 +191,11 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  // validator rewards - stListaDAO minted to the reward collector, valued as BNB.
-  // Excludes the one-off startup-funding mint.
-  const validatorRewards = (
+  const validatorRewardsListaDAOCredit = await options.getLogs({
+    target: listaDAOCredit,
+    eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
+  });
+  const validatorRewardsStListaDAO = (
     await options.getLogs({
       target: stListaDAO,
       topics: [transferHash, zeroAddress, validatorRewardCollector],
@@ -191,7 +204,6 @@ const fetch = async (options: FetchOptions) => {
     (log: any) =>
       (log.transactionHash ?? "").toLowerCase() !== VALIDATOR_STARTUP_TX,
   );
-
   // LP staking rewards
   const lpStakeRewardsFromHash =
     "0x00000000000000000000000062dfec5c9518fe2e0ba483833d1bad94ecf68153";
@@ -256,7 +268,10 @@ const fetch = async (options: FetchOptions) => {
   [...usdtStakingProfit].forEach((log) => {
     dailyFees.add(usdt, Number(log.data), USDT_STAKING_PROFIT);
   });
-  [...validatorRewards].forEach((log) => {
+  [...validatorRewardsListaDAOCredit].forEach((log) => {
+    dailyFees.add(bnb, Number(log.value), VALIDATOR_REWARDS);
+  });
+  [...validatorRewardsStListaDAO].forEach((log) => {
     dailyFees.add(bnb, Number(log.data), VALIDATOR_REWARDS);
   });
   [...lpStakingListaRewards].forEach((log) => {
@@ -313,7 +328,8 @@ const LISUSD_BREAKDOWN = {
   [VELISTA_AUTO_COMPOUND_FEE]: 'Fee taken on veLista auto-compounding',
   [PSM_CONVERT_FEE]: 'PSM (USDT) conversion fee',
   [USDT_STAKING_PROFIT]: 'Profit from USDT staking via VenusAdapter',
-  [VALIDATOR_REWARDS]: 'BNB validator / node-operation rewards (stListaDAO minted to the reward collector)',
+  [VALIDATOR_REWARDS]:
+    'BNB validator / node-operation rewards (ListaDAOCredit SafeReceived historically; stListaDAO minted to the reward collector currently)',
   [LP_STAKING_REWARDS]: 'CAKE / LISTA rewards from PancakeSwap LP staking',
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
