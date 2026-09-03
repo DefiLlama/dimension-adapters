@@ -4,7 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { METRIC } from "./metrics";
 
-// Umia protocol contracts on Base: https://github.com/umiafinance/umia
+// Umia protocol contracts on Base: https://github.com/umiafinance/protocol
 const HUB = "0x120dbCDd58Bb787309573e29159fE6D37A1983F6";
 const MARKET_CORE = "0x55975E430Cc54C63dff03B1E6d27Be574Ce229F6";
 // Uniswap v4 singleton on Base
