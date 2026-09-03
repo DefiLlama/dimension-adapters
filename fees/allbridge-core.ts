@@ -1,200 +1,149 @@
-import { Balances } from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { Chain, FetchOptions, SimpleAdapter } from "../adapters/types";
-import { httpGet } from "../utils/fetchURL";
-import { queryEvents } from '../helpers/sui';
-import { METRIC } from "../helpers/metrics";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
-type TChainAddress = {
-  [s: Chain | string]: string[];
-}
+/*
+Allbridge Core (https://core.allbridge.io) is a stablecoin bridge built on burn-and-mint transfer
+protocols (Circle CCTP v1/v2, LayerZero OFT, Circle xReserve). Nothing is locked in Allbridge contracts.
 
-const lpTokenAddresses: TChainAddress = {
-  [CHAIN.ETHEREUM]: [
-    '0xa7062bbA94c91d565Ae33B893Ab5dFAF1Fc57C4d',
-    '0x7DBF07Ad92Ed4e26D5511b4F285508eBF174135D',
-    '0xcaB34d4D532A9c9929f4f96D239653646351Abad',
-  ],
-  [CHAIN.BSC]: [
-    '0x8033d5b454Ee4758E4bD1D37a49009c1a81D8B10',
-    '0xf833afA46fCD100e62365a0fDb0734b7c4537811',
-    '0x731822532CbC1c7C48462c9e5Dc0c04A1Ff29953',
-  ],
-  [CHAIN.POLYGON]: [
-    '0x58Cc621c62b0aa9bABfae5651202A932279437DA',
-    '0x0394c4f17738A10096510832beaB89a9DD090791',
-    '0x4C42DfDBb8Ad654b42F66E0bD4dbdC71B52EB0A6',
-  ],
-  [CHAIN.ARBITRUM]: [
-    '0x690e66fc0F8be8964d40e55EdE6aEBdfcB8A21Df',
-    '0x47235cB71107CC66B12aF6f8b8a9260ea38472c7',
-    '0x2B5E5E6008742Cd9D139c6ADd9CaC57679C59D6d',
-  ],
-  [CHAIN.AVAX]: [
-    '0xe827352A0552fFC835c181ab5Bf1D7794038eC9f',
-    '0x2d2f460d7a1e7a4fcC4Ddab599451480728b5784',
-  ],
-  [CHAIN.BASE]: [
-    '0xDA6bb1ec3BaBA68B26bEa0508d6f81c9ec5e96d5',
-  ],
-  [CHAIN.OPTIMISM]: [
-    '0x3B96F88b2b9EB87964b852874D41B633e0f1f68F',
-    '0xb24A05d54fcAcfe1FC00c59209470d4cafB0deEA',
-  ],
-  [CHAIN.CELO]: [
-    '0xfb2C7c10e731EBe96Dabdf4A96D656Bfe8e2b5Af',
-  ],
-  [CHAIN.SONIC]: [
-    '0xCA0dc31BdA6B7588590a742b2Ae6A4F67b43c71F',
-  ],
-  [CHAIN.UNICHAIN]: [
-    '0xBA2FBA24B0dD81a67BBdD95bB7a9d0336ea094D7',
-    '0xD0a1Ff86C2f1c3522f183400fDE355f6B3d9fCE1',
-  ],
-  [CHAIN.TRON]: [
-    'TAC21biCBL9agjuUyzd4gZr356zRgJq61b'
-  ]
-}
+Users pay two kinds of fees on the source chain, both emitted by the Allbridge bridge contracts:
+  - bridge fee: a share (bps) of the transferred stablecoin kept by Allbridge (adminFeeTokenAmount);
+  - relayer fee: covers delivery on the destination chain, paid either in native gas (msg.value,
+    receivedRelayerFeeFromGas) or deducted from the stablecoin (receivedRelayerFeeTokenAmount).
+Fees charged by the underlying transfer protocols themselves (e.g. Circle's fast-transfer fee) are not counted.
+Contracts: https://github.com/allbridge-io/allbridge-core-evm-contracts
+Addresses: https://api.core.allbridge.io/token-info
+*/
 
-const SUI_EVENT_TYPES = [
-  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedToVUsdEvent",
-  "0x83d6f864a6b0f16898376b486699aa6321eb6466d1daf6a2e3764a51908fe99d::events::SwappedFromVUsdEvent",
-];
+const BRIDGE_FEES = "Bridge Fees";
+const RELAYER_FEES = "Relayer Fees";
 
-const event_swap_fromUSD = 'event SwappedFromVUsd(address recipient,address token,uint256 vUsdAmount,uint256 amount,uint256 fee)';
-const event_swap_toUSD = 'event SwappedToVUsd(address sender,address token,uint256 amount,uint256 vUsdAmount,uint256 fee)';
+const EVENT_CCTP_V1_TOKENS_SENT =
+  "event TokensSent(uint256 amount, address sender, bytes32 recipient, uint256 destinationChainId, uint256 nonce, uint256 receivedRelayerFeeFromGas, uint256 receivedRelayerFeeFromTokens, uint256 relayerFee, uint256 receivedRelayerFeeTokenAmount, uint256 adminFeeTokenAmount)";
+const EVENT_CCTP_V2_TOKENS_SENT =
+  "event TokensSent(address sender, bytes32 recipient, uint256 amount, uint256 destinationChainId, uint256 receivedRelayerFeeFromGas, uint256 receivedRelayerFeeFromTokens, uint256 relayerFee, uint256 receivedRelayerFeeTokenAmount, uint256 adminFeeTokenAmount, uint256 maxFee)";
+const EVENT_OFT_TOKENS_SENT =
+  "event OftTokensSent(address sender, bytes32 recipient, address tokenAddress, uint256 amount, uint256 destinationChainId, uint256 receivedRelayerFeeFromGas, uint256 receivedRelayerFeeFromTokens, uint256 relayerFeeWithExtraGas, uint256 receivedRelayerFeeTokenAmount, uint256 adminFeeTokenAmount, uint256 extraGasDestinationToken)";
+const EVENT_XRESERVE_TOKENS_SENT =
+  "event XReserveTokensSent(address sender, bytes32 recipient, uint256 amount, uint256 destinationChainId, uint256 adminFeeTokenAmount, uint256 maxFee)";
 
-const fetchFees = async ({ getLogs, createBalances, chain, api }: FetchOptions): Promise<Balances> => {
-  const balances = createBalances();
-  const pools = lpTokenAddresses[chain]
-  const logs_fromUSD = await getLogs({ targets: pools, eventAbi: event_swap_fromUSD, flatten: false, })
-  const logs_toUSD = await getLogs({ targets: pools, eventAbi: event_swap_toUSD, flatten: false, })
-  const tokens = await api.multiCall({ abi: "address:token", calls: pools });
-
-  logs_fromUSD.forEach(addLogs)
-  logs_toUSD.forEach(addLogs)
-
-  function addLogs(logs: any, index: number) {
-    const token = tokens[index]
-    // if (!token) return;
-    if (!token){
-      logs.forEach((log: any) => balances.addGasToken(log.fee, METRIC.SWAP_FEES));
-    }else {
-      logs.forEach((log: any) => balances.add(token, log.fee, METRIC.SWAP_FEES))
-    }
-  }
-  return balances;
+type TokenBridge = { bridge: string; token: string };
+type ChainConfig = {
+  start: string;
+  cctpV1?: TokenBridge;
+  cctpV2?: TokenBridge;
+  oft?: { bridge: string };
+  xReserve?: TokenBridge;
 };
 
-const fetchFeesSui = async (options: FetchOptions): Promise<Balances> => {
-  const { createBalances } = options;
-  const balances = createBalances();
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.ETHEREUM]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 19512388; CctpV2Bridge 2025-04-14, OftBridge 2025-07-07, XReserveBridge 2026-04-08
+    cctpV1: { bridge: "0xC51397b75B783E31469bFaADE79913F3f82210d6", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+    cctpV2: { bridge: "0x7972d6907739593C00e6284c53C83dB3ECd15c33", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+    oft: { bridge: "0xeC455fFC19811e573eb5700a1bDff6ee1C47AB7B" },
+    xReserve: { bridge: "0x44F9E60cB5543777492101BF424271c5F252cF15", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+  },
+  [CHAIN.ARBITRUM]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 194098736; CctpV2Bridge 2025-05-02, OftBridge 2025-07-07
+    cctpV1: { bridge: "0x23e1aEC13c92158643cF2aA17E155D27A792ccdb", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
+    cctpV2: { bridge: "0x7ED5343dFC95dc3eBe5B6de64F5B5423A888Ca18", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
+    oft: { bridge: "0xB074e73e637E778BE6411c3732bD58D44194FDEa" },
+  },
+  [CHAIN.AVAX]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 43359916; CctpV2Bridge 2025-04-14
+    cctpV1: { bridge: "0x65dE05Fccce36Ce7FdDd668Ef4348D9e933B57Ff", token: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
+    cctpV2: { bridge: "0x5FBf8d23fa705A0bADb6f398fDcdC28FCCB521c0", token: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
+  },
+  [CHAIN.BASE]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 12295119; CctpV2Bridge deployed at block 28919906 (2025-04-14)
+    cctpV1: { bridge: "0x1eFE2C85989D97fEBbD0743cdd79B9F0826314f6", token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+    cctpV2: { bridge: "0x214D972b8c869cfcE50D55B595adC7eF336D7FAd", token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+  },
+  [CHAIN.POLYGON]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 55066880
+    cctpV1: { bridge: "0x710282BfeB554Ed0A34dFaD061C7c343221AC82C", token: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
+  },
+  [CHAIN.OPTIMISM]: {
+    start: "2024-03-25", // CctpBridge (v1) deployed at block 117890737
+    cctpV1: { bridge: "0x08391edF36f41f05d27A1e0fD7a29448417C1CD0", token: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" },
+  },
+  [CHAIN.UNICHAIN]: {
+    start: "2025-09-04", // OftBridge deployed at block 26240639
+    oft: { bridge: "0xe8A580782942e072C57bcf7db8329C7a7CC0528B" },
+  },
+  [CHAIN.TRON]: {
+    start: "2025-07-07", // OftBridge deployed 2025-07-07 (tronscan)
+    oft: { bridge: "0xe012a88a7555bba9b69c9dd44a04b5f88937fd35" }, // TWPziSAroSacAjDuL52ByQzU86s9mP2gPr
+  },
+};
 
-  for (const eventType of SUI_EVENT_TYPES) {
-    const events = await queryEvents({
-      eventType,
-      options,
+const fetch = async (options: FetchOptions) => {
+  const { cctpV1, cctpV2, oft, xReserve } = chainConfig[options.chain];
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const addStablecoinBridgeFees = (token: string, log: any) => {
+    dailyFees.add(token, log.adminFeeTokenAmount, BRIDGE_FEES);
+    dailyRevenue.add(token, log.adminFeeTokenAmount, BRIDGE_FEES);
+    dailyFees.add(token, log.receivedRelayerFeeTokenAmount, RELAYER_FEES);
+    dailyFees.addGasToken(log.receivedRelayerFeeFromGas, RELAYER_FEES);
+  };
+
+  if (cctpV1) {
+    const logs = await options.getLogs({ target: cctpV1.bridge, eventAbi: EVENT_CCTP_V1_TOKENS_SENT });
+    logs.forEach((log: any) => addStablecoinBridgeFees(cctpV1.token, log));
+  }
+
+  if (cctpV2) {
+    const logs = await options.getLogs({ target: cctpV2.bridge, eventAbi: EVENT_CCTP_V2_TOKENS_SENT });
+    logs.forEach((log: any) => addStablecoinBridgeFees(cctpV2.token, log));
+  }
+
+  if (oft) {
+    const logs = await options.getLogs({ target: oft.bridge, eventAbi: EVENT_OFT_TOKENS_SENT });
+    logs.forEach((log: any) => addStablecoinBridgeFees(log.tokenAddress, log));
+  }
+
+  if (xReserve) {
+    const logs = await options.getLogs({ target: xReserve.bridge, eventAbi: EVENT_XRESERVE_TOKENS_SENT });
+    logs.forEach((log: any) => {
+      dailyFees.add(xReserve.token, log.adminFeeTokenAmount, BRIDGE_FEES);
+      dailyRevenue.add(xReserve.token, log.adminFeeTokenAmount, BRIDGE_FEES);
     });
-    events.forEach((eventData) => balances.add('0x' + eventData.token, eventData.fee, METRIC.SWAP_FEES));
   }
 
-  return balances;
-};
-
-export async function fetchFeesAmountFromAnalyticsApi(
-  chainCode: string,
-  options: FetchOptions,
-): Promise<Balances> {
-  const { createBalances, fromTimestamp, toTimestamp } = options;
-  const balances = createBalances();
-
-  const eventData = await getEventsFromAnalyticsApi(chainCode, fromTimestamp * 1000, toTimestamp * 1000);
-  eventData
-    // defensively re-filter: the API can return events slightly outside the requested
-    // window, which matters more now that we pull hourly (24 boundary slices per day)
-    .filter((data) => data.blockTime >= fromTimestamp && data.blockTime < toTimestamp)
-    .map((data) => balances.add(data.token, data.fee, METRIC.SWAP_FEES));
-
-  return balances;
-}
-
-interface AnalyticsEvent {
-  blockTime: number;
-  token: string;
-  fee: string;
-}
-
-export async function getEventsFromAnalyticsApi(
-  chainCode: string,
-  fromTimestampMs: number,
-  toTimestampMs: number,
-): Promise<AnalyticsEvent[]> {
-  const from = new Date(fromTimestampMs).toISOString();
-  const to = new Date(toTimestampMs).toISOString();
-  return await httpGet(`https://core.api.allbridgecoreapi.net/analytics/inflows?chain=${chainCode}&from=${from}&to=${to}`);
-}
-
-const fetch: any = async (options: FetchOptions) => {
-  let dailyFees: Balances;
-  if (options.chain === CHAIN.TRON) {
-    dailyFees = await fetchFeesAmountFromAnalyticsApi('TRX', options);
-  } else if (options.chain === CHAIN.SUI) {
-    dailyFees = await fetchFeesSui(options);
-  } else if (options.chain === CHAIN.STELLAR) {
-    dailyFees = await fetchFeesAmountFromAnalyticsApi('SRB', options);
-  } else {
-    dailyFees = await fetchFees(options);
-  }
-  const dailySupplySideRevenue = dailyFees.clone();
-  dailySupplySideRevenue.resizeBy(0.8);
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.resizeBy(0.2);
   return {
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
 const methodology = {
-  Fees: "A 0.3% fee is charged for token swaps",
-  SupplySideRevenue: "80% of the swap fees are distributed to liquidity providers",
-  Revenue: "20% of the swap fees goes to governance",
+  Fees: "Bridge fees (a share of the transferred stablecoin) plus relayer fees (paid in native gas or deducted from the stablecoin) charged on the source chain of every Allbridge Core transfer.",
+  UserFees: "All fees are paid by the users sending transfers.",
+  Revenue: "Bridge fees kept by Allbridge. Relayer fees are spent on delivering the transfer on the destination chain and are not counted as revenue.",
+  ProtocolRevenue: "All revenue goes to the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: 'Fees collected from cross-chain token swaps at a 0.3% rate.',
-  },
-  SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: '80% of swap fees distributed to liquidity providers.',
+    [BRIDGE_FEES]: "Share of the transferred stablecoin kept by Allbridge, emitted as adminFeeTokenAmount.",
+    [RELAYER_FEES]: "Relayer fee covering delivery on the destination chain, paid in native gas (receivedRelayerFeeFromGas) or in the stablecoin (receivedRelayerFeeTokenAmount).",
   },
   Revenue: {
-    [METRIC.SWAP_FEES]: '20% of swap fees going to protocol governance.',
+    [BRIDGE_FEES]: "Share of the transferred stablecoin kept by Allbridge.",
   },
 };
 
-const adapters: SimpleAdapter = {
+const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
-  fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: '2023-05-14', },
-    [CHAIN.BSC]: { start: '2023-05-14', },
-    [CHAIN.POLYGON]: { start: '2023-05-14', },
-    [CHAIN.ARBITRUM]: { start: '2023-06-27', },
-    [CHAIN.AVAX]: { start: '2023-10-23', },
-    [CHAIN.BASE]: { start: '2024-02-01', },
-    [CHAIN.OPTIMISM]: { start: '2023-12-18', },
-    [CHAIN.CELO]: { start: '2024-05-13', },
-    [CHAIN.SONIC]: { start: '2025-05-27', },
-    [CHAIN.UNICHAIN]: { start: '2025-08-26', },
-    [CHAIN.TRON]: { start: '2023-05-26', },
-    [CHAIN.SUI]: { start: "2025-01-24", },
-    [CHAIN.STELLAR]: { start: "2024-04-16", },
-  },
 };
 
-export default adapters;
+export default adapter;
