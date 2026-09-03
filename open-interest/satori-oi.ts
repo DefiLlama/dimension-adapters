@@ -26,6 +26,11 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2023-05-13',
   runAtCurrTime: true,
+  // Same DNS-dead host as the volume leg, which was marked dead in daa93f11d. This leg kept
+  // reporting until 2026-07-07 because open interest was the last field the API still served.
+  // Satori's own vaults on Polygon zkEVM hold 0 USDC and the Ethereum ones were emptied on
+  // 2026-07-23, so there is no position left for it to report.
+  deadFrom: '2026-07-08',
 };
 
 export default adapter;
