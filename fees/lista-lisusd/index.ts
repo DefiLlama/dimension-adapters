@@ -48,6 +48,16 @@ const usdt = ADDRESSES.bsc.USDT;
 const LISUSD_POOL_SET = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf";
 const RATE_SCALE = 10n ** 27n;
 
+// Validator / node-operation rewards: stListaDAO (Stake ListaDAO Credit) is minted to the reward
+// collector as the DAO's validator revenue, denominated in BNB. The previously-used ListaDAOCredit
+// (0x0D92Ac7a…) SafeReceived path is dormant (0 events); this is where the rewards actually flow.
+const stListaDAO = "0xc096e7781c95a2fc6feb1efe776b570270b3965d";
+const validatorRewardCollector =
+  "0x0000000000000000000000007766a5ee8294343bf6c8dcf3aa4b6d856606703a";
+// One-off startup funding mint — not revenue, excluded.
+const VALIDATOR_STARTUP_TX =
+  "0x0a6b673be9105a33756f4c6a6213ad4712c027c6ea001a9717f1a0b13fcdc343";
+
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver
 const liquidatorProfitReceiver =
   "0x00000000000000000000000086e09296aeda129d3b0b4c134b3202b84cd8945c";
@@ -170,14 +180,17 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  // validaator rewards - stake ListaDAOCredit
-  const validatorRewards = await options.getLogs({
-    target: "0x0D92Ac7a4590874a493eB62b37D3Ea3390966B13",
-    // topics: [
-    //   "0x8119d5d4b103c44e50f575099834c726e011a0ffd633ba386e8e0a0d61c659c3" // SafeReceived event topic
-    // ],
-    eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
-  });
+  // validator rewards - stListaDAO minted to the reward collector, valued as BNB.
+  // Excludes the one-off startup-funding mint.
+  const validatorRewards = (
+    await options.getLogs({
+      target: stListaDAO,
+      topics: [transferHash, zeroAddress, validatorRewardCollector],
+    })
+  ).filter(
+    (log: any) =>
+      (log.transactionHash ?? "").toLowerCase() !== VALIDATOR_STARTUP_TX,
+  );
 
   // LP staking rewards
   const lpStakeRewardsFromHash =
@@ -244,7 +257,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(usdt, Number(log.data), USDT_STAKING_PROFIT);
   });
   [...validatorRewards].forEach((log) => {
-    dailyFees.add(bnb, Number(log.value), VALIDATOR_REWARDS);
+    dailyFees.add(bnb, Number(log.data), VALIDATOR_REWARDS);
   });
   [...lpStakingListaRewards].forEach((log) => {
     dailyFees.add(lista, Number(log.data), LP_STAKING_REWARDS);
@@ -300,7 +313,7 @@ const LISUSD_BREAKDOWN = {
   [VELISTA_AUTO_COMPOUND_FEE]: 'Fee taken on veLista auto-compounding',
   [PSM_CONVERT_FEE]: 'PSM (USDT) conversion fee',
   [USDT_STAKING_PROFIT]: 'Profit from USDT staking via VenusAdapter',
-  [VALIDATOR_REWARDS]: 'BNB validator staking rewards',
+  [VALIDATOR_REWARDS]: 'BNB validator / node-operation rewards (stListaDAO minted to the reward collector)',
   [LP_STAKING_REWARDS]: 'CAKE / LISTA rewards from PancakeSwap LP staking',
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
