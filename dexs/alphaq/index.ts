@@ -1,11 +1,14 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex"
 
 // https://www.alphaq.xyz/docs
 const FEE_RATE = 0.00001; // 0.001%
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options)
+
   const query = `
     with swaps as (
       select
