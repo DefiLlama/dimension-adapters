@@ -9,10 +9,11 @@ import { METRIC } from "../../helpers/metrics";
 // rate multiplied by supply; the protocol distributes that yield on-chain instead, so the transfer
 // is read directly and no rate feed is needed.
 //
-// Solstice's yield account emits a TransferInYield event on each DistributeYield call. Its payload
+// Solstice's yield program emits a TransferInYield event on each DistributeYield call. Its payload
 // carries the USX amount handed to the eUSX backing account, which is exactly the yield accrued to
-// eUSX holders for the period.
-const YIELD_ACCOUNT = "HARVSXaBpt1TuD4PvqnscCQLzAWgDzGpkDadr76a489L";
+// eUSX holders for the period; the amount reconciles with the USX token balance delta the same
+// transaction records.
+const YIELD_PROGRAM = "HARVSXaBpt1TuD4PvqnscCQLzAWgDzGpkDadr76a489L";
 const USX = "6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG";
 const TRANSFER_IN_YIELD_DISCRIMINATOR = "3983162e2b54bd7a";
 // Anchor lays the event out as an 8 byte discriminator then its fields; the transferred USX amount
@@ -22,10 +23,22 @@ const AMOUNT_OFFSET = 72;
 const FEES_YIELD_LABEL = METRIC.ASSETS_YIELDS;
 const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
 
+// Every signature in the window is fetched, so one transient failure would otherwise take the whole
+// day down with it. The error is still raised once the attempts are spent rather than turned into a
+// missing distribution.
 const rpc = async (method: string, params: any[]) => {
-    const { data } = await axios.post(getEnv('SOLANA_RPC'), { jsonrpc: "2.0", id: 1, method, params });
-    if (data.error) throw new Error(`solstice: solana rpc ${method} failed: ${JSON.stringify(data.error)}`);
-    return data.result;
+    let lastError: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const { data } = await axios.post(getEnv('SOLANA_RPC'), { jsonrpc: "2.0", id: 1, method, params });
+            if (data.error) throw new Error(`solstice: solana rpc ${method} failed: ${JSON.stringify(data.error)}`);
+            return data.result;
+        } catch (e) {
+            lastError = e;
+            await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        }
+    }
+    throw lastError;
 };
 
 // The yield account is only touched by these distributions, a couple of transactions a day, so
@@ -34,7 +47,7 @@ const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) =>
     const signatures: string[] = [];
     let before: string | undefined;
     while (true) {
-        const page = await rpc("getSignaturesForAddress", [YIELD_ACCOUNT, before ? { limit: 1000, before } : { limit: 1000 }]);
+        const page = await rpc("getSignaturesForAddress", [YIELD_PROGRAM, before ? { limit: 1000, before } : { limit: 1000 }]);
         if (!page?.length) break;
         for (const entry of page) {
             if (entry.blockTime >= fromTimestamp && entry.blockTime < toTimestamp && !entry.err) signatures.push(entry.signature);
@@ -48,15 +61,32 @@ const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) =>
     return signatures;
 };
 
+// A distribution is a chain of cross program invocations, so the transaction's logs carry data from
+// several programs and a signature only proves the yield program was touched somewhere. Invocations
+// nest, so the program a log belongs to is the innermost frame still open, tracked as a stack; only
+// the frames the yield program itself is executing in can carry its events.
+const yieldProgramEvents = (logs: string[]) => {
+    const events: Buffer[] = [];
+    const frames: string[] = [];
+    for (const log of logs) {
+        const invoked = log.match(/^Program (\S+) invoke \[\d+\]$/);
+        if (invoked) { frames.push(invoked[1]); continue; }
+        if (/^Program \S+ (success|failed)/.test(log)) { frames.pop(); continue; }
+        const emitted = log.match(/^Program data: (\S+)$/);
+        if (emitted && frames[frames.length - 1] === YIELD_PROGRAM)
+            events.push(Buffer.from(emitted[1], "base64"));
+    }
+    return events;
+};
+
 const yieldFromTransaction = async (signature: string) => {
     const tx = await rpc("getTransaction", [signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
-    // A null result means the node could not serve the transaction, not that it distributed nothing;
-    // treating it as zero would quietly understate the day.
-    if (!tx) throw new Error(`solstice: solana rpc returned no transaction for ${signature}`);
+    // No transaction, or one without metadata, means the node could not serve the logs, not that
+    // nothing was distributed; treating either as zero would quietly understate the day.
+    if (!tx?.meta?.logMessages)
+        throw new Error(`solstice: solana rpc returned no transaction logs for ${signature}`);
     let amount = 0;
-    for (const log of (tx?.meta?.logMessages ?? [])) {
-        if (!log.includes("Program data:")) continue;
-        const event = Buffer.from(log.split("Program data:")[1].trim(), "base64");
+    for (const event of yieldProgramEvents(tx.meta.logMessages)) {
         if (event.length < AMOUNT_OFFSET + 8) continue;
         if (event.subarray(0, 8).toString("hex") !== TRANSFER_IN_YIELD_DISCRIMINATOR) continue;
         amount += Number(event.readBigUInt64LE(AMOUNT_OFFSET));
