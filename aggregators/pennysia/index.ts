@@ -5,9 +5,8 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // PennysiaSettlement on Ethereum Mainnet
 // https://etherscan.io/address/0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E
 const SETTLEMENT = "0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E";
-
-// Hard-intent partner fee recipient (webapp INTENT_FEE_RECIPIENT / RELAYER_ADDRESS)
-const PARTNER = "0xA9801117912b5849867378DabE8e12C725F7bf28";
+// Settlement feeRecipient() — also the hard-intent partner fee recipient.
+const FEE_RECIPIENT = "0x6104a46Aa05Ad8054441043Fc2e1123F91e59651";
 // Default NEXT_PUBLIC_INTENT_FEE_BPS. Used only to invert UniswapX fee outputs
 // back to quoted output volume (fee = output * bps / 10000).
 const INTENT_FEE_BPS = 50n;
@@ -87,13 +86,13 @@ const fetch = async (options: FetchOptions) => {
     addAmount(dailyFees, log.token, log.amount, SURPLUS_FEE);
   }
 
-  // Incoming ERC-20 to the Pennysia partner address tags CoW / UniswapX / Velora
+  // Incoming ERC-20 to the Settlement fee recipient tags CoW / UniswapX / Velora
   // hard intents submitted from the Pennysia app (partnerAddress + partnerFeeBps).
   // extraTopics[1] is Transfer `to`, so this is not a full-chain scan.
   const partnerTransfers = await options.getLogs({
     noTarget: true,
     eventAbi: transferEvent,
-    extraTopics: [null, padAddress(PARTNER)],
+    extraTopics: [null, padAddress(FEE_RECIPIENT)],
     entireLog: true,
   });
   const partnerTxs = new Set(partnerTransfers.map(txHash).filter(Boolean));
@@ -158,11 +157,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Sell-token input from SwapExecuted on Pennysia Settlement (SYNC, including ETH↔WETH wrap/unwrap, and SODAX opens), plus hard-intent fills tagged by a partner-fee transfer to Pennysia's fee recipient: CoW Trade.sellAmount, Velora Delta OrderSettled.srcAmount, and UniswapX Fill output inferred as partner fee × 10000 / 50.",
+    "Sell-token input from SwapExecuted on Pennysia Settlement (SYNC, including ETH↔WETH wrap/unwrap, and SODAX opens), plus hard-intent fills tagged by a partner-fee transfer to the Settlement fee recipient: CoW Trade.sellAmount, Velora Delta OrderSettled.srcAmount, and UniswapX Fill output inferred as partner fee × 10000 / 50.",
   Fees:
-    "Settlement FeeCollected (SYNC surplus, capped at 10% of gross, plus leftover sweeps) and hard-intent partner fees transferred to the Pennysia partner address. No surplus fee on SODAX intent opens.",
+    "Settlement FeeCollected (SYNC surplus, capped at 10% of gross, plus leftover sweeps) and hard-intent partner fees transferred to the Settlement fee recipient. No surplus fee on SODAX intent opens.",
   Revenue: "Pennysia retains 100% of collected surplus, leftover sweeps, and hard-intent partner fees.",
-  ProtocolRevenue: "All collected amounts go to the Settlement fee recipient or the hard-intent partner address.",
+  ProtocolRevenue: "All collected amounts go to the Settlement fee recipient.",
 };
 
 const breakdownMethodology = {
@@ -170,7 +169,7 @@ const breakdownMethodology = {
     [SURPLUS_FEE]:
       "FeeCollected on Settlement: surplus above the quoted output (capped at 10% of gross) plus leftover token/ETH sweeps.",
     [INTENT_FEE]:
-      "Partner fees on CoW, UniswapX, and Velora Delta hard intents paid to 0xA9801117912b5849867378DabE8e12C725F7bf28.",
+      "Partner fees on CoW, UniswapX, and Velora Delta hard intents paid to the Settlement fee recipient 0x6104a46Aa05Ad8054441043Fc2e1123F91e59651.",
   },
   Revenue: {
     [SURPLUS_FEE]: "Pennysia retains 100% of collected surplus and leftover sweeps.",
@@ -178,7 +177,7 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [SURPLUS_FEE]: "Collected amounts are sent to the Settlement fee recipient.",
-    [INTENT_FEE]: "Hard-intent partner fees are sent to the Pennysia partner address.",
+    [INTENT_FEE]: "Hard-intent partner fees are sent to the Settlement fee recipient.",
   },
 };
 
