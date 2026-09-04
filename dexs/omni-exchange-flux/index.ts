@@ -89,6 +89,9 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: flux_SUBGRAPHS,
   methodology,
+  // All fourteen subgraphs this adapter reads (a clamm and a bin one on each of the seven chains)
+  // return 404 from Goldsky, so no chain has a source left. Last published point 2026-02-10 ($58).
+  deadFrom: '2026-02-11',
 };
 
 export default adapter;
