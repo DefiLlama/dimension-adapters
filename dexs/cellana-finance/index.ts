@@ -64,6 +64,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.APTOS],
     start: '2024-02-28',
     dependencies: [Dependencies.DUNE],
+    isExpensiveAdapter: true,
     methodology: {
         Volume: "Sum of the coin paid into each swap on Cellana's pools, from the liquidity_pool SwapEvent. Each swap is counted once, on the side it was paid in on.",
         Fees: "Swap fees, taken off the amount paid in at each pool's own swap_fee_bps.",
