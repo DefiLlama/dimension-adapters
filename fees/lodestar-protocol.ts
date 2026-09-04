@@ -1,51 +1,78 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 // Lodestar — no-liquidation fixed-term lending on Flare.
 //
-// Unlike a rate-based money market, a borrower pays ONE flat fee up front when the loan is opened,
-// deducted from the principal, and nothing accrues afterwards. So fees are event-driven, not a
-// function of utilisation over time:
-//   LoanOpened.fee   — the origination fee for the chosen term/LTV tier
-//   LoanRolled.addFee — charged again when a borrower extends into a new term
+// Nothing accrues here. A borrower pays one flat fee up front, netted out of the principal, and the
+// loan then simply has a deadline. So every revenue stream is an event, not a rate integral:
 //
-// The split between lenders and the protocol reserve is on-chain and governance-settable
-// (`feeReserveBps`), so it is read per-run rather than hardcoded — a Safe change would otherwise
-// silently make this adapter wrong. It is 30% to the reserve / 70% to lenders as of 2026-09-02.
+//   LoanOpened.fee / LoanRolled.addFee  borrower's cost of the loan (USDT0), split with lenders
+//   DefaultPenaltyPaid.amount           penalty for curing past the grace period (USDT0), all protocol
+//   YieldSkimmed.amount                 protocol's cut of LST collateral appreciation, all protocol,
+//                                       denominated in the collateral token, not the stable
+//
+// The lender/protocol split is NOT recomputed from `feeReserveBps`. The book pays the lender share by
+// calling `pool.lockFee(fee - reserveCut)`, which emits FeeLocked with that exact amount, so the split
+// is read from what was actually paid. A governance change to the rate mid-window therefore cannot
+// desynchronise the two sides, and no rate needs to be read at all.
+//
+// Settlement proceeds are deliberately not touched: they are principal being recovered, not fees. Any
+// penalty inside a settlement is routed through the same _bookPenalty helper and so already arrives
+// as DefaultPenaltyPaid.
 const BOOK = "0x9b479f47ef25E0Ed2134F38d3c4e1022A8695ed8";
-const USDT0 = "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"; // fees are always paid in the pool asset
+const POOL = "0x87b09bE7A253C2af187c9af17cDEDcEAf4A9780E";
+const USDT0 = "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"; // the pool asset: all stable fees are in this
+
+const LOAN_OPENED =
+  "event LoanOpened(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 collAmount, uint256 principal, uint256 fee, uint64 dueAt)";
+const LOAN_ROLLED = "event LoanRolled(uint256 indexed id, uint64 newDueAt, uint256 addFee)";
+const PENALTY_PAID = "event DefaultPenaltyPaid(uint256 indexed id, address payer, uint256 amount)";
+const YIELD_SKIMMED = "event YieldSkimmed(uint256 indexed id, address indexed collateral, uint256 amount)";
+const FEE_LOCKED = "event FeeLocked(uint256 amount, uint256 lockedTotal)";
+
+const PENALTIES = "Default Penalties";
+const SKIM = "Collateral Yield Skim";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [opened, rolled] = await Promise.all([
-    options.getLogs({
-      target: BOOK,
-      eventAbi:
-        "event LoanOpened(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 collAmount, uint256 principal, uint256 fee, uint64 dueAt)",
-    }),
-    options.getLogs({
-      target: BOOK,
-      eventAbi: "event LoanRolled(uint256 indexed id, uint64 newDueAt, uint256 addFee)",
-    }),
+  const [opened, rolled, penalties, skims, locked] = await Promise.all([
+    options.getLogs({ target: BOOK, eventAbi: LOAN_OPENED }),
+    options.getLogs({ target: BOOK, eventAbi: LOAN_ROLLED }),
+    options.getLogs({ target: BOOK, eventAbi: PENALTY_PAID }),
+    options.getLogs({ target: BOOK, eventAbi: YIELD_SKIMMED }),
+    options.getLogs({ target: POOL, eventAbi: FEE_LOCKED }),
   ]);
 
-  const reserveBps = Number(
-    await options.api.call({ target: BOOK, abi: "function feeReserveBps() view returns (uint16)" })
-  );
+  // --- borrower's cost of the loan, shared with lenders ---
+  let borrowFees = BigInt(0);
+  for (const log of opened) borrowFees += BigInt(log.fee);
+  for (const log of rolled) borrowFees += BigInt(log.addFee);
 
-  let total = BigInt(0);
-  for (const log of opened) total += BigInt(log.fee);
-  for (const log of rolled) total += BigInt(log.addFee);
+  let toLenders = BigInt(0);
+  for (const log of locked) toLenders += BigInt(log.amount);
+  // Clamp: FeeLocked is emitted inside the same transactions, but never let a boundary log make the
+  // protocol's share negative.
+  if (toLenders > borrowFees) toLenders = borrowFees;
 
-  const toReserve = (total * BigInt(reserveBps)) / BigInt(10000);
-  const toLenders = total - toReserve;
+  dailyFees.add(USDT0, borrowFees, { label: METRIC.BORROW_INTEREST });
+  dailySupplySideRevenue.add(USDT0, toLenders, { label: METRIC.BORROW_INTEREST });
+  dailyProtocolRevenue.add(USDT0, borrowFees - toLenders, { label: METRIC.BORROW_INTEREST });
 
-  dailyFees.add(USDT0, total);
-  dailyProtocolRevenue.add(USDT0, toReserve);
-  dailySupplySideRevenue.add(USDT0, toLenders);
+  // --- penalties: paid by a borrower curing after the grace period, 100% to the first-loss buffer ---
+  let penaltyTotal = BigInt(0);
+  for (const log of penalties) penaltyTotal += BigInt(log.amount);
+  dailyFees.add(USDT0, penaltyTotal, { label: PENALTIES });
+  dailyProtocolRevenue.add(USDT0, penaltyTotal, { label: PENALTIES });
+
+  // --- yield skim: protocol's cut of LST collateral appreciation, paid in the collateral token ---
+  for (const log of skims) {
+    dailyFees.add(log.collateral, log.amount, { label: SKIM });
+    dailyProtocolRevenue.add(log.collateral, log.amount, { label: SKIM });
+  }
 
   return {
     dailyFees,
@@ -55,17 +82,43 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   };
 };
 
+const methodology = {
+  Fees: "Everything borrowers pay: the flat fee charged when a loan is opened or extended, penalties paid when a loan is cured after its grace period, and the protocol's cut of any appreciation on yield-bearing collateral. Lodestar charges no interest, so nothing accrues over the life of a loan.",
+  Revenue: "The portion of the above kept by the protocol: the reserve cut of borrower fees, plus all penalties and all collateral yield skim.",
+  ProtocolRevenue: "The portion kept by the protocol, routed to the first-loss reserve that absorbs settlement shortfalls before lenders do.",
+  SupplySideRevenue: "The portion of borrower fees paid through to lenders in the USDT0 pool, taken from the amount the loan book actually locks for them rather than recomputed from the fee rate.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]:
+      "One flat fee charged up front at origination and again on each extension, set by the term/LTV tier the borrower chose. It is netted out of the principal, so it is paid whether or not the loan is repaid.",
+    [PENALTIES]: "Charged when a borrower repays after the deadline's grace period, as a share of the principal being repaid, fixed at the rate in force when the loan was opened.",
+    [SKIM]: "A share of the appreciation on yield-bearing collateral (sFLR, stXRP) over the life of a loan, taken in the collateral token when it is returned. Recognised appreciation is capped at 20% per term, so an abnormal rate feed cannot inflate it.",
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: "The reserve's cut of each borrower fee, being the fee less the amount locked for lenders.",
+    [PENALTIES]: "All of it. Penalties are moved straight into the first-loss reserve.",
+    [SKIM]: "All of it. The skim is transferred to the reserve in the collateral token.",
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: "The reserve's cut of each borrower fee, being the fee less the amount locked for lenders.",
+    [PENALTIES]: "All of it. Penalties are moved straight into the first-loss reserve.",
+    [SKIM]: "All of it. The skim is transferred to the reserve in the collateral token.",
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]:
+      "The lender share of each borrower fee, read from the amount the loan book locks in the pool for vesting. Lenders receive none of the penalties or the yield skim.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.FLARE],
   start: "2026-08-29", // LodestarLoanBook genesis, Flare block 68517390
-  methodology: {
-    Fees: "One-time fee paid by borrowers when a loan is opened, plus the additional fee paid when a loan is extended into a new term. Lodestar charges no interest, so there are no accruing borrow costs.",
-    Revenue: "The share of borrower fees routed to the protocol's first-loss reserve, set on-chain by feeReserveBps (30% as of 2026-09-02).",
-    ProtocolRevenue: "The share of borrower fees routed to the protocol's first-loss reserve.",
-    SupplySideRevenue: "The remaining share of borrower fees accruing to lenders in the USDT0 pool (70% as of 2026-09-02).",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
