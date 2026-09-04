@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { getConfig } from '../helpers/cache';
 import { CHAIN } from '../helpers/chains';
 import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../helpers/uniswap';
-import { httpGet } from '../utils/fetchURL';
 
 const methodology = {
   Fees: "Total fees paid by users on every swap, determined by the pool's fee tier (e.g., 0.01%, 0.05%, 0.30%, 1.00%).",
@@ -38,24 +38,11 @@ const breakdownMethodology = {
 };
 
 async function fetch(options: FetchOptions) {
-  // PotatoSwap's own stats API is still used to discover the current set of
-  // v3 pool addresses (that part is fine), but its per-pool 24h volume/fee
-  // fields have been stuck at 0 since ~2026-05-07 while the pools themselves
-  // stay live - a silent-zero, not a dead endpoint. The on-chain log adapter
-  // below already handles every day correctly (it's what powered the correct
-  // historical backfill before this file's "recent day" fast path shipped) -
-  // use it unconditionally instead of trusting the API's own stats fields.
-  const poolsResponse: any = await httpGet('https://v3.potatoswap.finance/api/pool/list-all');
-
-  if (!poolsResponse.data || !poolsResponse.data.pools || poolsResponse.data.pools.length === 0) {
-    throw new Error("Failed to fetch pool data");
-  }
-
-  const pools = (poolsResponse.data.pools).filter((pool: any) => pool.protocol_version === 'v3');
-  if (!pools.length) throw new Error("No v3 pools returned by PotatoSwap's pool-list API");
+  const { data } = await getConfig('potatoswap-v3-xlayer', 'https://potatoswap.finance/api/pool/list-all?keyword=&protocol_version=v3')
+  const pools = data.pools.map((i: any) => i.address);
 
   return getUniV3LogAdapter({
-    pools: pools.map((i: any) => i.address),
+    pools,
     userFeesRatio: 1,
     // Read each pool's live on-chain feeProtocol (slot0) instead of a fixed
     // ratio, matching the methodology documented above - this is the exact

@@ -1417,6 +1417,20 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
+  'oter-fi': {
+    config: {
+      [CHAIN.ROBINHOOD]: {
+        start: '2026-09-04',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x127797f6dBBD03bDDA09A70a8347dcfd1CF598B9',
+            dataProvider: '0xD95D42BAd744821af78da755C6fC012f10ad1824',
+          },
+        ],
+      },
+    },
+  },
 }
 
 const aaveProtocols = Object.fromEntries(

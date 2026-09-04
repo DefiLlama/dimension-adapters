@@ -12,13 +12,6 @@ const LABELS = {
   TokenholderFees: 'Tokenholder fees',
 }
 
-// PotatoSwap's own stats API (v3.potatoswap.finance/api/pool/list-all) used to
-// power a "recent day" fast path here, but its 24h volume/fee fields have been
-// stuck at 0 since ~2026-05-07 while the pools themselves stay live (TVL
-// current, real on-chain swap activity) - it was a silent-zero, not a dead
-// endpoint. The on-chain log adapter below already handles every day
-// (it's what powered the correct historical backfill) - use it unconditionally.
-//
 // `fees`/`stableFees` are both set explicitly to PotatoSwap's documented flat
 // 0.25% - the helper's own default is 0.30% (Uniswap V2's rate), which would
 // silently overstate every fee/revenue dimension by 20%.
