@@ -2,14 +2,21 @@ import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { queryDuneSql } from "./dune";
 
+// Dune finishes indexing a Solana day several hours after it ends, so a window that reaches into
+// that period returns a partial answer rather than an error. Any adapter reading Solana tables has
+// to wait, otherwise the truncated figure is what gets published.
+export function assertDuneSolanaIndexed(options: FetchOptions) {
+    const now = Date.now()
+    const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+    if ((options.toTimestamp * 1000) > tenHoursAgo) {
+        console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
+        throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+    }
+}
+
 export function duneSolanaDexTrades(project: string, start: string) {
     const fetch = async (options: FetchOptions) => {
-        const now = Date.now()
-        const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-        if ((options.toTimestamp * 1000) > tenHoursAgo) {
-            console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
-            throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
-        }
+        assertDuneSolanaIndexed(options)
 
         const query = `
             SELECT
