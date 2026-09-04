@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
@@ -17,12 +17,8 @@ const inputCoin = (eventType: string) =>
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const dailyVolume = options.createBalances();
 
-    // Whole UTC day, half open. Kriya emits a few thousand swaps a day, which is more than the
-    // GraphQL RPC will page back through, so this reads the events from Allium the way
-    // queryEventsAllium in helpers/sui.ts does. The type is selected as well as the payload
-    // because the coin paid in is carried in the event's type parameter.
-    const start = new Date(options.startOfDay * 1000).toISOString();
-    const end = new Date((options.startOfDay + 86400) * 1000).toISOString();
+    const start = new Date(options.fromTimestamp * 1000).toISOString();
+    const end = new Date(options.toTimestamp * 1000).toISOString();
 
     const rows: { type: string, parsed_json: any }[] = await queryAllium(`
         SELECT type, parsed_json
@@ -41,7 +37,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
+    dependencies: [Dependencies.ALLIUM],
+    isExpensiveAdapter: true,
     fetch,
     chains: [CHAIN.SUI],
     start: '2023-05-09',
