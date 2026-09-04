@@ -1,49 +1,68 @@
-import { httpGet } from "../../utils/fetchURL";
-import { SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-//API
-const config_rule = {
-    headers: {
-        'user-agent': 'axios/1.6.7'
-    },
-    withCredentials: true
-}
-const cellanaDappUrl = 'https://api.cellana.finance/api/v1/tool/trading-volume-chart?timeframe=';
+import { queryDuneSql } from "../../helpers/dune";
+import { view } from "../../helpers/aptos";
 
-const dayEndpoint = (endTimestamp: number, timeframe: string) =>
-    cellanaDappUrl + timeframe + `&endTimestamp=${endTimestamp}`
+// api.cellana.finance is NXDOMAIN and the cellana.finance apex resolves with no A record, so the
+// dapp endpoint this adapter read is gone along with the site. The pools are still trading, mostly
+// routed in by aggregators, so volume and fees are read from the swap events they emit.
+const CELLANA = "0x4bf51972879e3b95c4781a5cdcb9e1ee24ef483e7d22f2d903626f126df62bd1";
+const SWAP_EVENT = `${CELLANA}::liquidity_pool::SwapEvent`;
+const BPS = 10000;
 
-interface IVolumeall {
-    value: number;
-    timestamp: string;
-}
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+    const dailyVolume = options.createBalances();
+    const dailyFees = options.createBalances();
 
-const fetch = async (options: FetchOptions) => {
-    const dayVolumeQuery = (await httpGet(dayEndpoint(options.toTimestamp, "VOLUME_1H"), config_rule)).data;
-    const dailyVolume = dayVolumeQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+    // The event names the coin paid in and the amount, so a swap is booked once from the side it
+    // was paid in on rather than from both legs.
+    const rows: { pool: string, from_token: string, amount_in: number }[] = await queryDuneSql(options, `
+        SELECT json_extract_scalar(data, '$.pool') AS pool,
+               json_extract_scalar(data, '$.from_token') AS from_token,
+               sum(cast(json_extract_scalar(data, '$.amount_in') AS double)) AS amount_in
+        FROM aptos.events
+        WHERE TIME_RANGE
+          AND event_type = '${SWAP_EVENT}'
+          AND tx_success = true
+        GROUP BY 1, 2
+    `);
 
+    // Each pool sets its own rate and the fee is taken off the amount paid in: for a pool whose
+    // swap_fee_bps is 10, get_amount_out reports a fee of exactly amount_in / 1000 on either side.
+    // A day touches a couple of dozen pools, so this is one call per pool that actually traded.
+    const pools = [...new Set(rows.map((row) => row.pool))];
+    const feeBps: Record<string, number> = {};
+    await Promise.all(pools.map(async (pool) => {
+        const [bps] = await view(`${CELLANA}::liquidity_pool::swap_fee_bps`, [], [pool]);
+        feeBps[pool] = Number(bps);
+    }));
 
-    const dayFeesQuery = (await httpGet(dayEndpoint(options.toTimestamp, "FEE_1H"), config_rule)).data;
-    const dailyFees = dayFeesQuery.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
-    const dailyProtocolRevenue = 0;
-    const dailyHoldersRevenue = dailyFees;
+    for (const row of rows) {
+        dailyVolume.add(row.from_token, row.amount_in);
+        dailyFees.add(row.from_token, row.amount_in * feeBps[row.pool] / BPS);
+    }
 
     return {
         dailyVolume,
         dailyFees,
         dailyRevenue: dailyFees,
-        dailyProtocolRevenue,
-        dailyHoldersRevenue,
+        dailyProtocolRevenue: 0,
+        dailyHoldersRevenue: dailyFees,
     };
 };
 
-
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.APTOS]: {
-            fetch,
-            start: '2024-02-28'
-        },
+    version: 1,
+    fetch,
+    chains: [CHAIN.APTOS],
+    start: '2024-02-28',
+    dependencies: [Dependencies.DUNE],
+    methodology: {
+        Volume: "Sum of the coin paid into each swap on Cellana's pools, from the liquidity_pool SwapEvent. Each swap is counted once, on the side it was paid in on.",
+        Fees: "Swap fees, taken off the amount paid in at each pool's own swap_fee_bps.",
+        Revenue: "All swap fees, which on Cellana go to veCELL voters rather than the protocol.",
+        ProtocolRevenue: "Cellana keeps no share of swap fees.",
+        HoldersRevenue: "All swap fees are distributed to veCELL voters.",
     },
 };
 
