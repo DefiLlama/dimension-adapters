@@ -100,6 +100,9 @@ const isVolumeFarmer = (wallet: Wallet): boolean => {
 };
 
 const fetch = async (options: FetchOptions) => {
+  // startOfDay pairs with endTimestamp to tile the calendar: 86400 seconds
+  // against the half-open filter below. startTimestamp is a second earlier, so
+  // consecutive days would share their boundary and double-count a trade on it.
   const from = new Date(options.startOfDay * 1000).toISOString();
   const to = new Date(options.endTimestamp * 1000).toISOString();
 
