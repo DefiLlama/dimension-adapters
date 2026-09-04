@@ -34,7 +34,7 @@ const uniswapxFillEvent =
 const veloraSettledEvent =
   "event OrderSettled(address indexed owner, address indexed beneficiary, uint8 kind, address srcToken, address destToken, uint256 srcAmount, uint256 destAmount, uint256 returnAmount, uint256 protocolFee, uint256 partnerFee, bytes32 indexed orderHash)";
 
-const SURPLUS_FEE = "Surplus Fees";
+const SETTLEMENT_FEE = "Settlement Fees";
 const INTENT_FEE = "Intent Fees";
 
 const NATIVE = new Set([
@@ -181,7 +181,7 @@ const fetch = async (options: FetchOptions) => {
     skipIndexer: true,
   });
   for (const log of feeLogs) {
-    addRetainedFee(log.token, log.amount, SURPLUS_FEE);
+    addRetainedFee(log.token, log.amount, SETTLEMENT_FEE);
   }
 
   // Incoming ERC-20 to the active Settlement fee recipient(s) tags CoW /
@@ -269,26 +269,26 @@ const methodology = {
   Volume:
     "Pennysia-routed volume only (not inner DEX swaps): sell-token input from SwapExecuted on Settlement, plus each hard-intent fill that has a matching fee-output Transfer to the Settlement fee recipient (CoW Trade.sellAmount, Velora Delta OrderSettled.srcAmount, UniswapX Fill output inferred as that fee × 10000 / 50).",
   Fees:
-    "Settlement FeeCollected (SYNC surplus, capped at 10% of gross, plus leftover sweeps) and the matched hard-intent partner-fee Transfer (Velora uses OrderSettled.partnerFee when present). No surplus fee on SODAX intent opens.",
+    "Settlement FeeCollected (SYNC surplus capped at 10% of gross, leftover token/ETH sweeps, and gas markup on extra executeSwap msg.value) and the matched hard-intent partner-fee Transfer (Velora uses OrderSettled.partnerFee when present). No FeeCollected on SODAX intent opens. Hard intents have no Settlement gas markup.",
   Revenue:
-    "Pennysia retains 100% of Settlement surplus and of hard-intent partner-fee receipts at the Settlement fee recipient. UniswapX fee outputs and Velora Delta partner fees are paid in full to that address. CoW CIP-75's 25% service fee is withheld before payout, so it is not in these logs and is not counted as supply-side here.",
+    "Pennysia retains 100% of Settlement FeeCollected and of hard-intent partner-fee receipts at the Settlement fee recipient. UniswapX fee outputs and Velora Delta partner fees are paid in full to that address. CoW CIP-75's 25% service fee is withheld before payout, so it is not in these logs and is not counted as supply-side here.",
   ProtocolRevenue: "All retained amounts go to the Settlement fee recipient.",
   SupplySideRevenue: "None on these logs. CoW's off-chain service fee does not arrive at the Settlement fee recipient.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [SURPLUS_FEE]:
-      "FeeCollected on Settlement: surplus above the quoted output (capped at 10% of gross) plus leftover token/ETH sweeps.",
+    [SETTLEMENT_FEE]:
+      "FeeCollected on Settlement: surplus above the quoted output (capped at 10% of gross), leftover token/ETH sweeps, and gas markup (extra ETH on executeSwap msg.value). ETH↔WETH wrap/unwrap leftover is transferred without FeeCollected and is not in this bucket.",
     [INTENT_FEE]:
       "Matched partner-fee Transfer (or Velora OrderSettled.partnerFee) to the active Settlement feeRecipient() on CoW, UniswapX, and Velora Delta fills.",
   },
   Revenue: {
-    [SURPLUS_FEE]: "Pennysia retains 100% of collected surplus and leftover sweeps.",
+    [SETTLEMENT_FEE]: "Pennysia retains 100% of FeeCollected (surplus, leftover sweeps, and gas markup).",
     [INTENT_FEE]: "Pennysia retains 100% of partner-fee receipts at the Settlement fee recipient.",
   },
   ProtocolRevenue: {
-    [SURPLUS_FEE]: "Collected amounts are sent to the Settlement fee recipient.",
+    [SETTLEMENT_FEE]: "Collected amounts are sent to the Settlement fee recipient.",
     [INTENT_FEE]: "Matched hard-intent partner fees are sent to the Settlement fee recipient.",
   },
 };
