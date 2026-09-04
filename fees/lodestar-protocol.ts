@@ -115,6 +115,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.FLARE],
   start: "2026-08-29", // LodestarLoanBook genesis, Flare block 68517390
   methodology,
