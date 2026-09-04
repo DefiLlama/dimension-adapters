@@ -82,8 +82,9 @@ const chainConfig: Record<string, {
     start: '2026-03-23',
   },
   [CHAIN.XLAYER]: {
+    // X Layer isn't in evm_indexer either, so fall back to the RPC-backed LOGS path.
     factory: '0xDf38F24fE153761634Be942F9d859f3DBA857E95',
-    source: 'CLICKHOUSE',
+    source: 'LOGS',
     start: '2026-01-05',
     feeSwitchDate: "2026-03-08",
   },
