@@ -39,7 +39,10 @@ const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) =>
         for (const entry of page) {
             if (entry.blockTime >= fromTimestamp && entry.blockTime < toTimestamp && !entry.err) signatures.push(entry.signature);
         }
-        if (page[page.length - 1].blockTime < fromTimestamp || page.length < 1000) break;
+        // A signature whose blockTime is still null has not been timestamped yet, so the page says
+        // nothing about whether the window is covered; keep paging rather than stopping short of it.
+        const oldest = [...page].reverse().find((entry: any) => typeof entry.blockTime === "number");
+        if (page.length < 1000 || (oldest && oldest.blockTime < fromTimestamp)) break;
         before = page[page.length - 1].signature;
     }
     return signatures;
@@ -47,6 +50,9 @@ const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) =>
 
 const yieldFromTransaction = async (signature: string) => {
     const tx = await rpc("getTransaction", [signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
+    // A null result means the node could not serve the transaction, not that it distributed nothing;
+    // treating it as zero would quietly understate the day.
+    if (!tx) throw new Error(`solstice: solana rpc returned no transaction for ${signature}`);
     let amount = 0;
     for (const log of (tx?.meta?.logMessages ?? [])) {
         if (!log.includes("Program data:")) continue;
