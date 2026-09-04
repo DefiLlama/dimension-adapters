@@ -8,12 +8,6 @@ interface DailyProtocolFees {
   creatorFees: number;
 }
 
-interface DailyFees {
-  date: string;
-  clanker: number;
-  doppler: number;
-}
-
 interface DailyByChain {
   date: string;
   base: number;
@@ -22,29 +16,35 @@ interface DailyByChain {
 
 interface BankrDashboard {
   dailyProtocolFees: DailyProtocolFees[];
-  dailyFees: DailyFees[];
   dailyFeesByChain: DailyByChain[];
   dailyVolumeByChain: DailyByChain[];
 }
 
 // API structure:
-// dailyProtocolFees.bankrFees  -> protocol revenue, all chains combined
-// dailyProtocolFees.creatorFees-> creator/supply side revenue, all chains combined
-// dailyFees.clanker            -> clanker integration fees, all chains combined
-// dailyFees.doppler            -> doppler integration fees, all chains combined
-// dailyFeesByChain             -> creator fees split per chain
-// dailyVolumeByChain           -> trade volume split per chain
+// dailyProtocolFees.bankrFees   -> protocol revenue, all chains combined
+// dailyProtocolFees.creatorFees -> creator fees, all chains combined
+// dailyFees.clanker/.doppler    -> gross fees by launch venue, all chains combined
+// dailyFeesByChain              -> creator fees split per chain
+// dailyVolumeByChain            -> trade volume split per chain
 //
-// dailyFeesByChain.base + .robinhood reproduces dailyProtocolFees.creatorFees on
-// every one of the 529 days the dashboard publishes, and dailyVolumeByChain does
-// the same against dailyFees.clanker + dailyFees.doppler across all 641 volume
-// days, so both splits are the exact per-chain decomposition and not an estimate.
-// There is no per-chain split for bankrFees or for the clanker/doppler fee legs,
-// so those stay on Base, see the methodology note below.
+// Gross fees decompose exactly: dailyFees.clanker + dailyFees.doppler equals
+// dailyProtocolFees.creatorFees + dailyProtocolFees.bankrFees on all 529 days the
+// dashboard publishes. So the venue split (clanker/doppler) and the income split
+// (creator/protocol) are two views of the same total, and only the income one can
+// be attributed per chain: dailyFeesByChain.base + .robinhood reproduces
+// creatorFees on all 529 days, and dailyVolumeByChain reproduces total volume on
+// all 641 volume days, with zero mismatches on either.
+//
+// Fees are therefore built from creator + protocol rather than clanker + doppler.
+// The two totals are identical in aggregate, but only this one can be split per
+// chain without booking the Robinhood creator leg twice.
 const CHAIN_KEY: Record<string, keyof Omit<DailyByChain, "date">> = {
   [CHAIN.BASE]: "base",
   [CHAIN.ROBINHOOD]: "robinhood",
 };
+
+const CREATOR_FEES = "Creator Fees";
+const BANKR_FEES = "Bankr Launch and Integration Fees";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -67,25 +67,19 @@ const fetch = async (options: FetchOptions) => {
   // a missing row here keeps the existing behaviour of reporting nothing.
   const feesByChain = dashboard.dailyFeesByChain.find(d => d.date === targetDate);
   const creatorFees = feesByChain ? feesByChain[chainKey] ?? 0 : 0;
-  dailySupplySideRevenue.addUSDValue(creatorFees, 'Creator Fees');
 
-  if (options.chain === CHAIN.ROBINHOOD) {
-    // creator fees are the only Robinhood leg the dashboard attributes per chain.
-    // Booking them as the chain's fees keeps the chain internally consistent and
-    // understates rather than overstates it.
-    dailyFees.addUSDValue(creatorFees, 'Creator Fees');
-    return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue: 0 };
-  }
+  dailyFees.addUSDValue(creatorFees, CREATOR_FEES);
+  dailySupplySideRevenue.addUSDValue(creatorFees, CREATOR_FEES);
 
-  const protocolData = dashboard.dailyProtocolFees.find(d => d.date === targetDate);
-  const feesData = dashboard.dailyFees.find(d => d.date === targetDate);
-
-  if (feesData) {
-    dailyFees.addUSDValue(feesData.clanker, 'Clanker Fees');
-    dailyFees.addUSDValue(feesData.doppler, 'Doppler Fees');
-  }
-  if (protocolData) {
-    dailyRevenue.addUSDValue(protocolData.bankrFees, 'Protocol Fees');
+  // the dashboard reports bankrFees combined across chains with no split, so the
+  // whole protocol leg is booked on Base. Adding it to both chains would double
+  // count it, and splitting it pro rata would be a guess.
+  if (options.chain === CHAIN.BASE) {
+    const protocolData = dashboard.dailyProtocolFees.find(d => d.date === targetDate);
+    if (protocolData) {
+      dailyFees.addUSDValue(protocolData.bankrFees, BANKR_FEES);
+      dailyRevenue.addUSDValue(protocolData.bankrFees, BANKR_FEES);
+    }
   }
 
   return {
@@ -108,24 +102,27 @@ const adapter: SimpleAdapter = {
   ],
   methodology: {
     Volume: 'Trade volume routed through Bankr, taken per chain from the dashboard\'s dailyVolumeByChain series.',
-    Fees: 'On Base, Clanker integration LP fees and Doppler integration fees. On Robinhood, the creator fee leg, which is the only fee figure the dashboard splits per chain.',
-    Revenue: 'Protocol fees from Bankr token launches and integrations. The dashboard publishes this combined across chains, so it is reported on Base only.',
-    SupplySideRevenue: 'Creator fees from token launches, split per chain.',
+    Fees: 'Creator fees plus Bankr\'s own launch and integration fees. Creator fees are split per chain; the Bankr leg is only published combined, so it is reported on Base.',
+    Revenue: 'Bankr\'s fees from token launches and integrations. The dashboard publishes this combined across chains, so it is reported on Base only.',
+    ProtocolRevenue: 'Bankr\'s fees from token launches and integrations.',
+    SupplySideRevenue: 'Fees paid out to token creators, split per chain.',
   },
   breakdownMethodology: {
     Volume: {
       'Trade Volume': 'Buy and sell volume routed through Bankr on this chain',
     },
     Fees: {
-      'Clanker Fees': 'LP fees from Clanker token integration',
-      'Doppler Fees': 'Fees from Doppler integration',
-      'Creator Fees': 'Fees distributed to token creators on this chain',
+      [CREATOR_FEES]: 'Fees paid out to token creators on this chain',
+      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations, reported combined across chains',
     },
     Revenue: {
-      'Protocol Fees': 'All protocol revenue from Bankr operations',
+      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations, reported combined across chains',
+    },
+    ProtocolRevenue: {
+      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations, reported combined across chains',
     },
     SupplySideRevenue: {
-      'Creator Fees': 'Fees distributed to token creators on this chain',
+      [CREATOR_FEES]: 'Fees paid out to token creators on this chain',
     },
   }
 };
