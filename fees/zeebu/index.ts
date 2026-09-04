@@ -79,6 +79,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { start: 1728518400 },
     [CHAIN.BSC]: { start: 1688083200 },
   },
+  // Both subgraphs this adapter reads are gone: `deployment u89152/s85605/latest does not exist`
+  // (BSC) and `u89152/s86401/latest` (Base). Each chain has exactly one source, so neither can run.
+  // The runtime only stops an adapter when deadFrom is strictly before the previous day, so this is
+  // dated back rather than to today. This module has no published series to date the break from.
+  deadFrom: '2026-09-01',
 }
 
 export default adapter;
