@@ -1,83 +1,101 @@
+import axios from "axios";
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
-import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
-import { getTokenSupply } from '../../helpers/solana';
-import fetchURL from "../../utils/fetchURL";
+import { getEnv } from "../../helpers/env";
 import { METRIC } from "../../helpers/metrics";
 
-const EUSX = '3ThdFZQKM6kRyVGLG48kaPg5TRMhYMKY1iCRa9xop1WC';
-const PYTH_EUSX_REDEMPTION_PRICE_ID = 'f36e12e65d2969b242fb97d3ebaa32ec55d5794189b64d1a07dc4f41425c9378';
-const PYTH_HERMES_PRICE_API = 'https://hermes.pyth.network/v2/updates/price';
+// Pyth's Hermes endpoint started requiring an API key and now answers 401, which took the previous
+// version of this adapter down with it. It priced yield as the daily change in the eUSX redemption
+// rate multiplied by supply; the protocol distributes that yield on-chain instead, so the transfer
+// is read directly and no rate feed is needed.
+//
+// Solstice's yield account emits a TransferInYield event on each DistributeYield call. Its payload
+// carries the USX amount handed to the eUSX backing account, which is exactly the yield accrued to
+// eUSX holders for the period.
+const YIELD_ACCOUNT = "HARVSXaBpt1TuD4PvqnscCQLzAWgDzGpkDadr76a489L";
+const USX = "6FrrzDk5mQARGc1TDYoyVnSyRdds1t4PbtohCD6p3tgG";
+const TRANSFER_IN_YIELD_DISCRIMINATOR = "3983162e2b54bd7a";
+// Anchor lays the event out as an 8 byte discriminator then its fields; the transferred USX amount
+// is the u64 at byte 72.
+const AMOUNT_OFFSET = 72;
+
 const FEES_YIELD_LABEL = METRIC.ASSETS_YIELDS;
 const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
 
-const getRedemptionPrice = async (timestamp: number) => {
-  const response = await fetchURL(`${PYTH_HERMES_PRICE_API}/${timestamp}?ids%5B%5D=${PYTH_EUSX_REDEMPTION_PRICE_ID}`);
-  const pythPrice = response?.parsed?.[0]?.price;
-  const price = Number(pythPrice?.price);
-  const exponent = Number(pythPrice?.expo);
-
-  if (!Number.isFinite(price) || !Number.isInteger(exponent))
-    throw new Error(`Pyth Hermes returned invalid EUSX redemption price for ${timestamp}`);
-
-  return price * 10 ** exponent;
+const rpc = async (method: string, params: any[]) => {
+    const { data } = await axios.post(getEnv('SOLANA_RPC'), { jsonrpc: "2.0", id: 1, method, params });
+    if (data.error) throw new Error(`solstice: solana rpc ${method} failed: ${JSON.stringify(data.error)}`);
+    return data.result;
 };
 
-const fetch: any = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dailyFees = options.createBalances();
+// The yield account is only touched by these distributions, a couple of transactions a day, so
+// walking its signatures back to the start of the day is cheap.
+const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) => {
+    const signatures: string[] = [];
+    let before: string | undefined;
+    while (true) {
+        const page = await rpc("getSignaturesForAddress", [YIELD_ACCOUNT, before ? { limit: 1000, before } : { limit: 1000 }]);
+        if (!page?.length) break;
+        for (const entry of page) {
+            if (entry.blockTime >= fromTimestamp && entry.blockTime < toTimestamp && !entry.err) signatures.push(entry.signature);
+        }
+        if (page[page.length - 1].blockTime < fromTimestamp || page.length < 1000) break;
+        before = page[page.length - 1].signature;
+    }
+    return signatures;
+};
 
-  const { results, errors } = await PromisePool
-    .withConcurrency(2)
-    .for([options.fromTimestamp, options.endTimestamp])
-    .process(async (timestamp) => [timestamp, await getRedemptionPrice(timestamp)] as const);
+const yieldFromTransaction = async (signature: string) => {
+    const tx = await rpc("getTransaction", [signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
+    let amount = 0;
+    for (const log of (tx?.meta?.logMessages ?? [])) {
+        if (!log.includes("Program data:")) continue;
+        const event = Buffer.from(log.split("Program data:")[1].trim(), "base64");
+        if (event.length < AMOUNT_OFFSET + 8) continue;
+        if (event.subarray(0, 8).toString("hex") !== TRANSFER_IN_YIELD_DISCRIMINATOR) continue;
+        amount += Number(event.readBigUInt64LE(AMOUNT_OFFSET));
+    }
+    return amount;
+};
 
-  if (errors.length > 0) throw errors[0];
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+    const dailyFees = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
-  const pricesByTimestamp = new Map(results);
-  const priceYesterday = pricesByTimestamp.get(options.fromTimestamp);
-  const priceToday = pricesByTimestamp.get(options.endTimestamp);
+    const signatures = await signaturesInWindow(options.startTimestamp, options.endTimestamp);
+    const amounts = await Promise.all(signatures.map(yieldFromTransaction));
+    const distributed = amounts.reduce((total, amount) => total + amount, 0);
 
-  if (!priceToday || !priceYesterday || !Number.isFinite(priceYesterday) || !Number.isFinite(priceToday))
-    throw new Error("Pyth Hermes returned incomplete EUSX redemption prices");
+    dailyFees.add(USX, distributed, FEES_YIELD_LABEL);
+    dailySupplySideRevenue.add(USX, distributed, SUPPLY_SIDE_YIELD_LABEL);
 
-  const totalSupply = await getTokenSupply(EUSX)
-  const dailyYield = (priceToday - priceYesterday) * totalSupply;
-
-  if (!Number.isFinite(dailyYield))
-    throw new Error("Pyth API returned invalid EUSX redemption prices");
-
-  dailyFees.addUSDValue(dailyYield, FEES_YIELD_LABEL);
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(dailyYield, SUPPLY_SIDE_YIELD_LABEL);
-
-  return {
-    dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue,
-  };
+    return {
+        dailyFees,
+        dailyRevenue: 0,
+        dailySupplySideRevenue,
+    };
 };
 
 const adapters: SimpleAdapter = {
-  version: 1,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  start: '2025-10-05',
-  allowNegativeValue: true, // Yield strategies aren't risk-free
-  methodology: {
-    Fees: 'Yield generated from Solstice various strategies',
-    Revenue: 'No protocol revenue (yield fully passed to eUSX holders)',
-    SupplySideRevenue: 'Total yield accrued through eUSX price appreciation, distributed to holders',
-  },
-  breakdownMethodology: {
-    Fees: {
-      [FEES_YIELD_LABEL]: 'Daily change in eUSX/USX redemption rate multiplied by total eUSX supply',
+    version: 1,
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2025-10-05',
+    methodology: {
+        Fees: 'USX paid into the eUSX backing account by Solstice yield distributions, which is the yield eUSX holders accrue.',
+        Revenue: 'No protocol revenue (yield fully passed to eUSX holders)',
+        SupplySideRevenue: 'All distributed yield goes to eUSX holders.',
     },
-    Revenue: 'No protocol revenue; all eUSX redemption-rate yield is passed through to eUSX holders.',
-    SupplySideRevenue: {
-      [SUPPLY_SIDE_YIELD_LABEL]: '100% of eUSX redemption-rate yield is distributed to eUSX holders',
-    },
-    HoldersRevenue: 'Not separately tracked in this adapter; holder distributions are represented in SupplySideRevenue.',
-  }
+    breakdownMethodology: {
+        Fees: {
+            [FEES_YIELD_LABEL]: 'USX transferred in by each DistributeYield call over the day.',
+        },
+        Revenue: 'No protocol revenue; all yield is passed through to eUSX holders.',
+        SupplySideRevenue: {
+            [SUPPLY_SIDE_YIELD_LABEL]: '100% of distributed yield is credited to eUSX holders',
+        },
+        HoldersRevenue: 'Not separately tracked in this adapter; holder distributions are represented in SupplySideRevenue.',
+    }
 };
 
 export default adapters;
