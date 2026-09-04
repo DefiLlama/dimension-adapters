@@ -1,8 +1,7 @@
 import type { Balances } from "@defillama/sdk";
 import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
-import { sleep } from "../../utils/utils";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 // Native Core CLOB fees — same listing slug as `dexs/native-core`.
 // Public stats: GET /api/v3/stats/window (https://api-ui.native.org)
@@ -34,6 +33,7 @@ const CG_IDS: Record<string, string> = {
   SOL: "solana",
   PAXG: "pax-gold",
   XAUt: "tether-gold",
+  CASHCAT: "cash-cat"
 };
 
 type FeeRow = {
@@ -75,23 +75,10 @@ function parseAmount(raw: string, symbol: string, side: string): number {
 
 let venuePrices: Map<string, VenuePrice> | undefined;
 
-async function httpGetRetry429<T>(url: string): Promise<T> {
-  // stats class is 10 req / 10s; hourly backfill and the local 24h test can burst past that.
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      return await httpGet(url);
-    } catch (error: any) {
-      if (attempt === 4 || !String(error?.message ?? error).includes("429")) throw error;
-      await sleep(2000 * (attempt + 1));
-    }
-  }
-  throw new Error(`Native Core request failed: ${url}`);
-}
-
 async function getVenuePrices(): Promise<Map<string, VenuePrice>> {
   if (venuePrices) return venuePrices;
 
-  const tickers: CgTicker[] = await httpGetRetry429(TICKERS_URL);
+  const tickers: CgTicker[] = await fetchURLAutoHandleRateLimit(TICKERS_URL);
   const prices = new Map<string, VenuePrice>([
     ["USDC", { cgId: "usd-coin", price: 1 }],
     ["USDT", { cgId: "tether", price: 1 }],
@@ -138,7 +125,7 @@ async function addFee(
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { from, to } = hourWindow(options.endTimestamp);
-  const snap: StatsWindow = await httpGetRetry429(
+  const snap: StatsWindow = await fetchURLAutoHandleRateLimit(
     `${STATS_WINDOW_URL}?from=${from}&to=${to}`,
   );
 
@@ -174,7 +161,7 @@ const methodology = {
     "Maker and taker trading fees on Native Core CLOB fills. Each side pays independently, so both legs are counted. Taken from GET /api/v3/stats/window over the hour. Assets without a CoinGecko id are converted through the venue USDC/USDT last price.",
   UserFees: "Same as fees — traders pay both the maker and taker legs.",
   Revenue: "Native keeps 100% of maker and taker fees. Nothing is paid to LPs.",
-  ProtocolRevenue: "Same as revenue — everything goes to the protocol treasury.",
+  ProtocolRevenue: "Native keeps 100% of maker and taker fees. Nothing is paid to LPs.",
   SupplySideRevenue: "Always zero. Native Core does not share trading fees with the supply side.",
 };
 
