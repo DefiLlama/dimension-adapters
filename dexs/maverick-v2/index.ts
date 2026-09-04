@@ -21,6 +21,8 @@ const POOL_ABI = {
   tokenA: "function tokenA() view returns (address)",
   tokenB: "function tokenB() view returns (address)",
   fee: "function fee(bool tokenAIn) view returns (uint256)", // D18: 1e18 == 100%
+  getState:
+    "function getState() view returns ((uint128 reserveA, uint128 reserveB, int64 lastTwaD8, int64 lastLogPriceD8, uint40 lastTimestamp, int32 activeTick, bool isLocked, uint32 binCounter, uint8 protocolFeeRatioD3))",
 };
 
 // topic0: 0x103ed084e94a44c8f5f6ba8e3011507c41063177e29949083c439777d8d63f60
@@ -28,15 +30,36 @@ const POOL_SWAP_EVENT =
   "event PoolSwap(address sender, address recipient, (uint256 amount, bool tokenAIn, bool exactOutput, int32 tickLimit) params, uint256 amountIn, uint256 amountOut)";
 
 const D18 = 10n ** 18n;
+const D3 = 1000n; // protocolFeeRatioD3 is the protocol's cut of the swap fee, 1e3 == 100%
+
+const methodology = {
+  Volume: "Value of the tokens traders paid into Maverick V2 pools, counted once per swap.",
+  Fees: "Swap fee charged on the amount paid into each pool, at the rate that pool sets for the traded direction.",
+  SupplySideRevenue: "The part of the swap fee that stays in the pool for liquidity providers.",
+  Revenue: "The protocol's cut of the swap fee, set per pool. Every pool is currently set to 0%, so this is zero.",
+  ProtocolRevenue: "The protocol's cut of the swap fee, collected by the Maverick fee receiver. Zero while every pool is set to 0%.",
+  HoldersRevenue: "Zero. Swap fees are not shared with MAV or veMAV holders.",
+};
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { api, getLogs, createBalances, chain } = options;
   const dailyFees = createBalances();
   const dailyVolume = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
   const factory = FACTORY[chain];
 
+  const result: FetchResultV2 = {
+    dailyVolume,
+    dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue: 0,
+  };
+
   const poolCount: string = await api.call({ target: factory, abi: FACTORY_ABI.poolCount });
-  if (Number(poolCount) === 0) return { dailyVolume, dailyFees };
+  if (Number(poolCount) === 0) return result;
 
   const pools: string[] = await api.call({
     target: factory,
@@ -44,12 +67,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     params: [0, poolCount],
   });
 
-  const [tokenAs, tokenBs, feeAIns, feeBIns]: [string[], string[], string[], string[]] =
+  const [tokenAs, tokenBs, feeAIns, feeBIns, states]: [string[], string[], string[], string[], any[]] =
     await Promise.all([
       api.multiCall({ calls: pools, abi: POOL_ABI.tokenA }),
       api.multiCall({ calls: pools, abi: POOL_ABI.tokenB }),
       api.multiCall({ calls: pools.map((p) => ({ target: p, params: [true] })), abi: POOL_ABI.fee }),
       api.multiCall({ calls: pools.map((p) => ({ target: p, params: [false] })), abi: POOL_ABI.fee }),
+      api.multiCall({ calls: pools, abi: POOL_ABI.getState }),
     ]);
 
   // one array of logs per pool
@@ -62,6 +86,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   logsPerPool.forEach((logs, i) => {
     const feeA = BigInt(feeAIns[i]);
     const feeB = BigInt(feeBIns[i]);
+    const protocolFeeRatio = BigInt(states[i].protocolFeeRatioD3);
     for (const log of logs) {
       const tokenAIn: boolean = log.params.tokenAIn;
       const amountIn = BigInt(log.amountIn.toString());
@@ -69,18 +94,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       const feeRate = tokenAIn ? feeA : feeB;
 
       // Maverick charges the swap fee on the input token
+      const fee = (amountIn * feeRate) / D18;
+      const protocolFee = (fee * protocolFeeRatio) / D3;
+
       dailyVolume.add(inToken, amountIn);
-      dailyFees.add(inToken, (amountIn * feeRate) / D18);
+      dailyFees.add(inToken, fee);
+      dailyRevenue.add(inToken, protocolFee);
+      dailySupplySideRevenue.add(inToken, fee - protocolFee);
     }
   });
 
-  return { dailyVolume, dailyFees };
+  return result;
 };
 
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
+  methodology,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2024-06-03" },
     [CHAIN.ARBITRUM]: { start: "2024-06-03" },
