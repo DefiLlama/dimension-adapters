@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const DUNE_MATERIALIZED_VIEW = "dune.stambouli_o1.result_daily_fee_revenue";
-const UTC_DAY_SECONDS = 24 * 60 * 60;
 
 const MARKETS = ["Crypto", "Stocks"] as const;
 type Market = typeof MARKETS[number];
@@ -21,14 +20,16 @@ const duneChainNames: Record<string, string> = {
   [CHAIN.ROBINHOOD]: "Robinhood",
 };
 
-const labels: Record<Market, { fees: string; revenue: string }> = {
+const labels: Record<Market, { fees: string; revenue: string; supplySide: string }> = {
   Crypto: {
     fees: "Crypto Fees",
     revenue: "Crypto Fees to Protocol",
+    supplySide: "Crypto Fees to Creators and Referrers",
   },
   Stocks: {
     fees: "Stocks Fees",
     revenue: "Stocks Fees to Protocol",
+    supplySide: "Stocks Fees to Creators and Referrers",
   },
 };
 
@@ -41,12 +42,8 @@ const assertOutsideMaterializedViewRefreshWindow = () => {
   }
 };
 
-const isFinalUtcHour = (options: FetchOptions) =>
-  options.endTimestamp % UTC_DAY_SECONDS === 0;
-
 const prefetch = async (options: FetchOptions) => {
   assertOutsideMaterializedViewRefreshWindow();
-  if (!isFinalUtcHour(options)) return [];
 
   return queryDuneSql(options, `
     SELECT date, chain, market, fee_usd, revenue_usd
@@ -73,19 +70,17 @@ const toFiniteNonNegativeNumber = (
 const createEmptyResult = (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const result = createEmptyResult(options);
-
-  // The Dune source contains completed-day totals. Hourly adapter results are
-  // summed by DefiLlama, so record each daily total only in its final UTC hour.
-  if (!isFinalUtcHour(options)) return result;
 
   const duneChainName = duneChainNames[options.chain];
   if (!duneChainName) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
@@ -115,9 +110,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
       );
     }
 
+    const supplySide = fees - revenue;
     const marketLabels = labels[market];
     result.dailyFees.addUSDValue(fees, marketLabels.fees);
     result.dailyRevenue.addUSDValue(revenue, marketLabels.revenue);
+    result.dailySupplySideRevenue.addUSDValue(supplySide, marketLabels.supplySide);
   }
 
   return result;
@@ -125,7 +122,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees: "Quote-denominated swap fees plus token-launch fees, valued in USD at event time by the o1 Launchpad Dune materialized view.",
-  Revenue: "The platform and fixed protocol share of swap fees plus token-launch fees.",
+  Revenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
+  SupplySideRevenue: "Swap fees allocated to token creators and referrers.",
 };
 
 const breakdownMethodology = {
@@ -137,13 +135,14 @@ const breakdownMethodology = {
     labels[market].revenue,
     `${market} market fees retained by the protocol.`,
   ])),
+  SupplySideRevenue: Object.fromEntries(MARKETS.map((market) => [
+    labels[market].supplySide,
+    `${market} market swap fees allocated to token creators and referrers.`,
+  ])),
 };
 
 const adapter: SimpleAdapter = {
-  // Deliberately hourly: this only scans a precomputed materialized view, and
-  // fetch attributes its completed-day total to one hourly slot.
-  version: 2,
-  pullHourly: true,
+  version: 1,
   prefetch,
   fetch,
   chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
