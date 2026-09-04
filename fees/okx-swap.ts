@@ -30,16 +30,30 @@ interface IRouter {
 // 0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d, which is also the dominant payee of the routers
 // previously configured here. Listed oldest-first.
 //
-// To refresh this list after the next rotation, or to check the dates above, group every log
-// carrying one of the four commission topics by chain and emitter and keep the emitters that have
-// paid that referrer; `retiredOn` is each emitter's last such log. topic0s are
-// 0x0d3b1268ca3dbb6d3d8a0ea35f44f8f9d58cf578d732680b71b6904fb2733e0d and
-// 0xf171268de859ec269c52bbfac94dcb7715e784de194342abb284bf34fd30b32d for the three-argument pair,
-// 0xcd5eae9d9d0b96532bd1b7dbf6628ce436b2af735829087a03c548439f8bf850 and
-// 0x3cfb523a4c38d88561dd3bf04805a31715c8b5fc468a03b8d684356f360dea99 for the four-argument pair;
-// the referrer is the third word of `data`. That query is also what dates V2_EVENTS_START and
-// V1_EVENTS_END above (first and last log of each pair, plus a margin). Metis and Blast have to be
-// read from the chains directly, since Dune does not index either.
+// To refresh this list after the next rotation, or to check the dates above, run this query; it
+// returns the routers configured for a chain, oldest-first, and its first_log / last_log are what
+// date V2_EVENTS_START and V1_EVENTS_END above (first and last log of each event generation, plus a
+// margin). Drop the blockchain filter to cover every chain in one pass, at the cost of a far longer
+// scan.
+//
+//   SELECT blockchain, contract_address, min(block_time) AS first_log, max(block_time) AS last_log
+//   FROM evms.logs
+//   WHERE blockchain = 'ethereum'
+//     AND block_time >= timestamp '2025-09-01'
+//     AND topic0 IN (
+//       0x0d3b1268ca3dbb6d3d8a0ea35f44f8f9d58cf578d732680b71b6904fb2733e0d,  -- CommissionFromTokenRecord
+//       0xf171268de859ec269c52bbfac94dcb7715e784de194342abb284bf34fd30b32d,  -- CommissionToTokenRecord
+//       0xcd5eae9d9d0b96532bd1b7dbf6628ce436b2af735829087a03c548439f8bf850,  -- ...FromTokenRecord, 4 args
+//       0x3cfb523a4c38d88561dd3bf04805a31715c8b5fc468a03b8d684356f360dea99)  -- ...ToTokenRecord, 4 args
+//     AND bytearray_substring(data, 65, 32)  -- the referrer is the third word of `data`
+//       = 0x0000000000000000000000006ea08ca8f313d860808ef7431fc72c6fbcf4a72d
+//   GROUP BY 1, 2
+//   ORDER BY 1, 3
+//
+// `retiredOn` is a router's last commission log to ANY referrer, which is the same query without
+// the referrer line: a router can keep paying other referrers after it stops paying this one, and
+// cutting it off at the earlier date would drop those fees. Metis and Blast have to be read from
+// the chains directly, since Dune does not index either.
 const routers: Record<string, IRouter> = {
   [CHAIN.ETHEREUM]: {
     addresses: [
