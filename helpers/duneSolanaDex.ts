@@ -2,10 +2,16 @@ import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { queryDuneSql } from "./dune";
 
-// Dune finishes indexing a Solana day several hours after it ends, so a window that reaches into
-// that period returns a partial answer rather than an error. Any adapter reading Solana tables has
-// to wait, otherwise the truncated figure is what gets published.
-export function assertDuneSolanaIndexed(options: FetchOptions) {
+/**
+ * Throws unless Dune has had time to finish indexing the window's Solana data.
+ *
+ * Dune finishes a Solana day several hours after it ends, and a window reaching into that period
+ * answers with a partial sum rather than an error, so an adapter that does not wait publishes a
+ * truncated day. Call this before querying any `solana.*`, `tokens_solana.*` or `dex_solana.*`
+ * table. Only safe on single-chain adapters: `runAdapter` drops every chain's record when one
+ * chain throws.
+ */
+export function assertDuneSolanaIndexed(options: FetchOptions): void {
     const now = Date.now()
     const tenHoursAgo = now - (10 * 60 * 60 * 1000)
     if ((options.toTimestamp * 1000) > tenHoursAgo) {
