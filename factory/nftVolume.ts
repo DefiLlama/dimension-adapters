@@ -17,32 +17,24 @@ function getAlliumVolume(chain: string) {
 async function flow(options: FetchOptions) {
   const { startTimestamp, endTimestamp, createBalances } = options;
   const data = await queryDune("3996608", { fullQuery: `
-    WITH decoded_events AS (
-      SELECT COALESCE(
-        TRY(json_parse(data)),
-        TRY(json_parse(from_utf8(from_base64(data))))
-      ) AS event
+    WITH sales AS (
+      SELECT
+        regexp_replace(
+          json_extract_scalar(json_parse(data), '$.salePaymentVaultType'),
+          '\\.Vault$',
+          ''
+        ) AS currency,
+        TRY_CAST(json_extract_scalar(json_parse(data), '$.salePrice') AS DOUBLE) AS amount
       FROM flow.cadence_events
       WHERE block_date BETWEEN DATE(from_unixtime(${startTimestamp})) AND DATE(from_unixtime(${endTimestamp}))
         AND timestamp >= from_unixtime(${startTimestamp})
         AND timestamp < from_unixtime(${endTimestamp})
-    ), sales AS (
-      SELECT
-        json_extract_scalar(event, '$.value.id') AS event_type,
-        TRY_CAST(json_extract_scalar(event, '$.value.fields[2].value.value') AS BOOLEAN) AS purchased,
-        regexp_replace(
-          json_extract_scalar(event, '$.value.fields[6].value.value.staticType.typeID'),
-          '\\.Vault$',
-          ''
-        ) AS currency,
-        TRY_CAST(json_extract_scalar(event, '$.value.fields[7].value.value') AS DOUBLE) AS amount
-      FROM decoded_events
-      WHERE event IS NOT NULL
+        AND topics[1] LIKE '%Storefront%ListingCompleted%'
+        AND TRY_CAST(json_extract_scalar(json_parse(data), '$.purchased') AS BOOLEAN) = true
     )
     SELECT currency, SUM(amount) AS amount
     FROM sales
-    WHERE event_type = 'A.4eb8a10cb9f87357.NFTStorefrontV2.ListingCompleted'
-      AND purchased
+    WHERE currency IS NOT NULL
     GROUP BY 1
   ` }, options)
 
