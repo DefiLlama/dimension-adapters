@@ -1,5 +1,4 @@
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
-import { CHAIN } from "./chains";
 import { httpGet } from '../utils/fetchURL';
 
 
@@ -16,7 +15,7 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
     const feesToday = dailyFees.split("\r\n").find((d: any) => d?.split(",")?.[1]?.slice(1, -1) == startOfDay)
 
     if (!feesToday) {
-        throw Error('no fee found for totay from etherscan')
+        throw Error('No fee found for today from Etherscan')
     }
 
     return Number(feesToday?.split(",")[2].slice(1, -1))
@@ -24,7 +23,7 @@ export async function getEtherscanFees({ startOfDay, }: FetchOptions, url: strin
 
 export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string) {
     const adapter: Adapter = {
-        version: 2,
+        version: 1,
         adapter: {
             [chain]: {
                 fetch: async (options: FetchOptions) => {
@@ -34,11 +33,6 @@ export function etherscanFeeAdapter(chain: string, url: string, cgToken?: string
                         dailyFees.addCGToken(cgToken, amount / 1e18)
                     else
                         dailyFees.addGasToken(amount)
-
-                    if (options.chain === CHAIN.FANTOM) {
-                        const dailyRevenue = dailyFees.clone(0.3)
-                        return { timestamp: options.startOfDay, dailyFees, dailyRevenue }
-                    }
 
                     return {
                         dailyFees,
