@@ -15,7 +15,7 @@ const baseFeeVault = '0x4200000000000000000000000000000000000019';
 // of them during the window. `withdrawingVaults` narrows which vaults' Withdrawal events are added
 // back, for chains where one vault pays into another and the value never leaves the tracked set;
 // it defaults to every vault, which is the plain OP-stack case.
-export async function getFees(options: FetchOptions, { feeVaults, gasToken, withdrawingVaults, label }: { feeVaults: string[], gasToken?: string, withdrawingVaults?: string[], label?: string }) {
+export async function getFees(options: FetchOptions, { feeVaults, gasToken, withdrawingVaults }: { feeVaults: string[], gasToken?: string, withdrawingVaults?: string[] }) {
   const { api, fromApi, createBalances, getLogs } = options;
   const balances = createBalances();
   const eventAbi = 'event Withdrawal(uint256 value, address to, address from)'
@@ -27,13 +27,13 @@ export async function getFees(options: FetchOptions, { feeVaults, gasToken, with
 
   logs.map((log) => {
     if (gasToken)
-      balances.addTokenVannila(gasToken, log.value, label)
+      balances.addTokenVannila(gasToken, log.value)
     else
-      balances.addGasToken(log.value, label)
+      balances.addGasToken(log.value)
   })
 
-  balances.addBalances(api.getBalancesV2(), label)
-  balances.subtract(fromApi.getBalancesV2(), label)
+  balances.addBalances(api.getBalancesV2())
+  balances.subtract(fromApi.getBalancesV2())
   return balances
 }
 
