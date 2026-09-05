@@ -167,9 +167,6 @@ const fetch = async (options: FetchOptions) => {
   const swapLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: swapExecutedEvent,
-    // Indexer currently returns an empty set for this custom event; RPC is cheap
-    // (single Settlement address, low log volume).
-    skipIndexer: true,
   });
   for (const log of swapLogs) {
     addAmount(dailyVolume, log.sellToken, log.amountIn);
@@ -178,7 +175,6 @@ const fetch = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: feeCollectedEvent,
-    skipIndexer: true,
   });
   for (const log of feeLogs) {
     addRetainedFee(log.token, log.amount, SETTLEMENT_FEE);
