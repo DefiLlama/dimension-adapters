@@ -227,7 +227,7 @@ const methodology = {
   Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
   Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
   ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury',
-  HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
+  HoldersRevenue: 'LIT bought back by the treasury, measured from its trades on the LIT/USDC market. The size is not a share of the period fees: cumulative buybacks have run ahead of cumulative revenue since the first one in January 2026.',
   SupplySideRevenue: 'Liquidation fees paid to the LLP (Lighter Liquidity Pool / insurance fund).',
 }
 
@@ -253,7 +253,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]:
-      'LIT token buybacks from treasury. Buybacks can be tracked at https://app.lighter.xyz/explorer/accounts/0',
+      'LIT bought back by the treasury, tracked at https://app.lighter.xyz/explorer/accounts/0. Not drawn from the period fees, so it sits beside protocol revenue rather than reducing it.',
   },
 }
 
