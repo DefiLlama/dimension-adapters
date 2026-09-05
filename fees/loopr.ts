@@ -74,8 +74,7 @@ const fetch = async (options: FetchOptions) => {
     const mintLogs = await options.getLogs({
       targets: basketAddresses,
       eventAbi: MINTED_ABI,
-      entireLog: true,
-      parseLog: true,
+      onlyArgs: false,
     });
 
     mintLogs.forEach((log: any) => {
@@ -116,13 +115,11 @@ const fetch = async (options: FetchOptions) => {
     target: PONS_HOOK,
     eventAbi: POOL_FEES_SWEPT_ABI,
     topics: [POOL_FEES_SWEPT_TOPIC0, LOOPR_POOL_ID],
-    entireLog: true,
-    parseLog: true,
   });
 
   sweptLogs.forEach((log: any) => {
-    const creatorAmount = BigInt(log.args.creatorAmount);
-    const protocolAmount = BigInt(log.args.protocolAmount);
+    const creatorAmount = BigInt(log.creatorAmount);
+    const protocolAmount = BigInt(log.protocolAmount);
     const totalAmount = creatorAmount + protocolAmount;
     if (totalAmount === 0n) return;
 
@@ -135,12 +132,10 @@ const fetch = async (options: FetchOptions) => {
   const depositLogs = await options.getLogs({
     target: COMMUNITY_VAULT,
     eventAbi: DEPOSITED_ABI,
-    entireLog: true,
-    parseLog: true,
   });
 
   depositLogs.forEach((log: any) => {
-    const amount = BigInt(log.args.amount);
+    const amount = BigInt(log.amount);
     if (amount === 0n) return;
 
     dailyFees.addGasToken(amount, "LOOPR Community Vault Deposits");
@@ -161,7 +156,7 @@ const methodology = {
   Revenue:
     "Loopr's 30% cut of each basket's mint fee, the LOOPR token creator + protocol tax paid to Loopr's own wallet, and ETH deposited into Loopr's community vault.",
   ProtocolRevenue:
-    "Same as Revenue — all legs accrue directly to Loopr, not to a separate treasury/DAO split.",
+    "Loopr's 30% cut of each basket's mint fee, the LOOPR token creator + protocol tax paid to Loopr's own wallet, and ETH deposited into Loopr's community vault.",
   SupplySideRevenue:
     "The 70% of each basket's mint fee paid to that specific basket's own (possibly third-party, permissionless) creator.",
 };
@@ -208,6 +203,7 @@ const adapter: SimpleAdapter = {
       start: "2026-09-03",
     },
   },
+  doublecounted: true,
 };
 
 export default adapter;
