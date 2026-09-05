@@ -26,11 +26,11 @@ const WITHDRAWING_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT];
 const LABEL = 'sequencer fees';
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = await getFees(options, {
+  const fees = await getFees(options, {
     feeVaults: FEE_VAULTS,
     withdrawingVaults: WITHDRAWING_VAULTS,
-    label: LABEL,
   });
+  const dailyFees = fees.clone(1, LABEL);
 
   return { dailyFees, dailyRevenue: dailyFees.clone() };
 };
