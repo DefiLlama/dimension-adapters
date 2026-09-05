@@ -27,10 +27,11 @@ const fetch = async (options: FetchOptions) => {
   const dayTimestamp = Math.floor(options.startOfDay / 86400) * 86400;
   const variables = { id: `${dayTimestamp}:daily` };
 
-  const stats = await request(endpoint, statsQuery, variables).catch(() => ({}));
+  const stats = await request(endpoint, statsQuery, variables);
 
-  const volume = stats.volumeStat;
-  const fees = stats.feeStat;
+  // volumeStat/feeStat are genuinely absent (not an error) on a day with no trades at all
+  const volume = stats.volumeStat ?? {};
+  const fees = stats.feeStat ?? {};
 
   const dailyVolume = Object.values(volume).reduce((a: number, b: any) => a + Number(b || 0) / 1e30, 0);
   const dailyFees = Object.values(fees).reduce((a: number, b: any) => a + Number(b || 0) / 1e30, 0);
