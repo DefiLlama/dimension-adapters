@@ -25,6 +25,11 @@ const POOLS_BY_CHAIN: Record<string, readonly PoolConfig[]> = {
             address: "0x0000eFC4ec03a7c47D3a38A9Be7Ff1d52dD01b99",
             feeModel: "dark_pools_v2",
         },
+        {
+            // USDC/cbBTC, same owner() as the three above
+            address: "0xcb1c06554772bc855d81a6be648cc599710e1b99",
+            feeModel: "dark_pools_v2",
+        },
     ],
     [CHAIN.MONAD]: [
         {
