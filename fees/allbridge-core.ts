@@ -129,7 +129,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Bridge fees (a share of the transferred stablecoin) plus relayer fees (paid in native gas or deducted from the stablecoin) paid by users on the source chain of every Allbridge Core transfer.",
   Revenue: "Bridge fees kept by Allbridge.",
-  ProtocolRevenue: "All revenue goes to the protocol.",
+  ProtocolRevenue: "All revenue (bridge fees) goes to the protocol.",
   SupplySideRevenue: "Relayer fees, which go to the relayers that deliver the transfer on the destination chain.",
 };
 
@@ -151,7 +151,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
