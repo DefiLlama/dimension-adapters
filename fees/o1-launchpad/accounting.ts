@@ -163,6 +163,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         if (revision !== undefined && old?.revision !== undefined)
           requireThat(revision > old.revision, `non-monotonic quote revision ${token}`);
         const decimals = Number(a.decimals), tick = Number(a.tick);
+        // QuoteRegistered encodes decimals as uint8 (see events.ts), whose maximum is 2^8 - 1 = 255.
         requireThat(Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
           && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK, `invalid quote configuration ${token}`);
         quotes.set(token, { registered: true, decimals, tick, supply, revision,

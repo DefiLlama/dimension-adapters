@@ -130,6 +130,7 @@ async function addFees(options: FetchOptions, fees: Fee[]) {
         timestamps.set(fee.log.blockNumber, timestamp);
       }
       // Batch missing stock assets at each historical hour. No current-price fallback.
+      // Block timestamps are Unix seconds; one hour is 60 minutes * 60 seconds = 3600 seconds.
       const hour = Math.floor(timestamp / 3600) * 3600;
       if (!fallbackPrices.has(hour)) {
         const tokens = [...new Set(fees.filter(f => f.market === "Stocks" && f.currency !== ZERO && f.stockPrice === undefined)
