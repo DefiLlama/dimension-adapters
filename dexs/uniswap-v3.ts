@@ -245,6 +245,9 @@ async function fetchFromOku(options: FetchOptions) {
 
 const factoryConfig: Record<string, string> ={
   [CHAIN.OG]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+  // dex.trades has all but stopped carrying uni-v3 rows for these two, so they read the pools directly
+  [CHAIN.SCROLL]: "0x70C62C8b8e801124A4Aa81ce07b637A3e83cb919",
+  [CHAIN.BLAST]: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd",
 }
 
 async function fetchFromLogs(options: FetchOptions) {
@@ -291,10 +294,10 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.AVAX]: { blockchain: 'avalanche_c', start: '2023-06-21', fetch: fetchFromDune },
   [CHAIN.BASE]: { blockchain: 'base', start: '2023-07-31', fetch: fetchFromDune },
   [CHAIN.ERA]: { blockchain: 'zksync', start: '2023-08-31', fetch: fetchFromDune },
-  [CHAIN.SCROLL]: { blockchain: 'scroll', start: '2023-10-14', fetch: fetchFromDune },
+  [CHAIN.SCROLL]: { blockchain: 'scroll', start: '2023-10-14', fetch: fetchFromLogs },
   [CHAIN.LINEA]: { blockchain: 'linea', start: '2023-11-11', fetch: fetchFromDune },
   [CHAIN.XDAI]: { blockchain: 'gnosis', start: '2023-11-28', fetch: fetchFromDune },
-  [CHAIN.BLAST]: { blockchain: 'blast', start: '2024-03-05', fetch: fetchFromDune },
+  [CHAIN.BLAST]: { blockchain: 'blast', start: '2024-03-05', fetch: fetchFromLogs },
   [CHAIN.ZORA]: { blockchain: 'zora', start: '2024-03-26', fetch: fetchFromDune },
   [CHAIN.MANTLE]: { blockchain: 'mantle', start: '2024-05-16', fetch: fetchFromDune },
   [CHAIN.WC]: { blockchain: 'worldchain', start: '2024-08-28', fetch: fetchFromDune },
