@@ -11,6 +11,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const unixTodayInMs = options.startOfDay * 1000;
 
     const { chartSeries } = await httpGet(STATS_URL, { headers: HEADERS });
+    // Outside the endpoint's rolling window a day has no entry, not a zero
+    if (!chartSeries.some((chart: any) => chart.data.some((entry: any) => entry[0] === unixTodayInMs))) {
+        throw new Error(`eosauthority has no ${options.dateString}, serving ${chartSeries[0]?.data?.length ?? 0} days`);
+    }
     chartSeries.forEach((chart: any) => {
         const feeType = chart.name;
         const feeToday = chart.data.find((entry: any) => entry[0] === unixTodayInMs);
