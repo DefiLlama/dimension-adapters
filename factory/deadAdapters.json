@@ -7249,6 +7249,34 @@
         "runAtCurrTime": false
       }
     },
+    "valorem": {
+      "commit": "705f435b166c6fe492051b170ff727abc074a9ee",
+      "codePath": "fees/valorem",
+      "module": {
+        "deadFrom": "2023-10-31",
+        "version": 1,
+        "methodology": {
+          "Fees": "All fees come from users of Valorem Protocol.",
+          "UserFees": "Valorem collects fees when users write and exercise options.",
+          "Revenue": "All revenue generated comes from user fees.",
+          "ProtocolRevenue": "Valorem collects fees when users write and exercise options.",
+          "HoldersRevenue": "Valorem has no governance token.",
+          "SupplySideRevenue": "Valorem has no LPs."
+        },
+        "fetch": "_f",
+        "chains": [
+          "arbitrum"
+        ],
+        "start": 1693526399,
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1693526399
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "vela": {
       "modulePath": "-",
       "codePath": "dead/fees/vela",
@@ -7586,6 +7614,30 @@
           "arbitrum": {
             "fetch": "_f",
             "start": "2024-02-05"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "valorem": {
+      "commit": "705f435b166c6fe492051b170ff727abc074a9ee",
+      "codePath": "options/valorem",
+      "module": {
+        "deadFrom": "2023-10-31",
+        "fetch": "_f",
+        "chains": [
+          "arbitrum"
+        ],
+        "start": 1693526399,
+        "methodology": {
+          "NotionalVolume": "Notional Volume is calculated with the market value of the Underlying + Exercise assets of a position at the time of Write/Exercise/Redeem/Transfer.",
+          "PremiumVolume": "Premium Volume is calculated with the market price an Option/Claim position is trading for on the Exchange."
+        },
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": 1693526399
           }
         },
         "version": 1,
