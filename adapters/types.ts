@@ -217,10 +217,27 @@ export enum AdapterType {
   NFT_VOLUME = 'nft-volume',
   ACTIVE_USERS = 'active-users',
   NEW_USERS = 'new-users',
+  RETENTION = 'retention',
   LIQUIDATIONS = 'liquidations',
 }
 
-export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives & FetchResultActiveUsers & FetchResultNewUsers & FetchResultLiquidations
+// Rolling weekly cohort retention. Each day ends a complete 7-day return window;
+// W4 / W12 compare it with the same 7-day window shifted 4 / 12 weeks earlier.
+// Rates are not stored — FE / backend compute them from the counts:
+//   wallet retention = ReturnedWallets / CohortWallets
+//   volume retention = ReturnedVolume  / CohortVolume   (can exceed 100%)
+export type FetchResultRetention = FetchResultBase & {
+  dailyRetentionW4CohortWallets?: FetchResponseValue
+  dailyRetentionW4ReturnedWallets?: FetchResponseValue
+  dailyRetentionW4CohortVolume?: FetchResponseValue
+  dailyRetentionW4ReturnedVolume?: FetchResponseValue
+  dailyRetentionW12CohortWallets?: FetchResponseValue
+  dailyRetentionW12ReturnedWallets?: FetchResponseValue
+  dailyRetentionW12CohortVolume?: FetchResponseValue
+  dailyRetentionW12ReturnedVolume?: FetchResponseValue
+};
+
+export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives & FetchResultActiveUsers & FetchResultNewUsers & FetchResultLiquidations & FetchResultRetention
 
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
@@ -230,6 +247,8 @@ export const whitelistedDimensionKeys = new Set([
   'tokenIncentives',
   'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome',, 'dailyPremiumVolume', 'dailyNotionalVolume',
   'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed',
+  'dailyRetentionW4CohortWallets', 'dailyRetentionW4ReturnedWallets', 'dailyRetentionW4CohortVolume', 'dailyRetentionW4ReturnedVolume',
+  'dailyRetentionW12CohortWallets', 'dailyRetentionW12ReturnedWallets', 'dailyRetentionW12CohortVolume', 'dailyRetentionW12ReturnedVolume',
   'dailyCollateralLiquidated', 'dailyLiquidationVolume',
 ])
 export const accumulativeKeySet = new Set([

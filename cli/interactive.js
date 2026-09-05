@@ -13,6 +13,7 @@ const ADAPTER_TYPES = [
   'fees', 'dexs', 'incentives', 'aggregators', 'options', 'open-interest',
   'aggregator-derivatives', 'bridge-aggregators', 'normalized-volume',
   'nft-volume', 'active-users', 'new-users', 'liquidations',
+  'retention',
 ]
 const ADAPTER_TYPE_SET = new Set(ADAPTER_TYPES)
 const EXCLUDE_NAMES = new Set(['index', 'README', 'AGENTS', '.gitkeep'])
