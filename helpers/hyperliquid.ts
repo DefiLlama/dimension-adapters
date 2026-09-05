@@ -1,14 +1,14 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import * as fs from "fs";
-import * as path from "path";
+import { Balances } from "@defillama/sdk";
 import axios from "axios";
+import * as fs from "fs";
 import { decompressFrame } from "lz4-napi";
-import { getEnv } from "./env";
+import * as path from "path";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { formatAddress, sleep } from "../utils/utils";
-import { Balances } from "@defillama/sdk";
-import { findClosest } from "./utils/findClosest";
 import { CHAIN } from "./chains";
+import { getEnv } from "./env";
+import { findClosest } from "./utils/findClosest";
 
 export type HyperliquidMarket = "all" | "hip3" | "hip4";
 
@@ -22,6 +22,7 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
  *
  * @param options - FetchOptions containing startOfDay timestamp and other utilities
  * @param builder_address - The builder address to fetch data for
+ * @param hip3DeployerId - Optional HIP-3 namespace filter; includes only `${hip3DeployerId}:*` coins and requires `market: "hip3"`
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
@@ -33,16 +34,22 @@ export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
   market = "all",
+  hip3DeployerId,
 }: {
   options: FetchOptions;
   builder_address: string;
   market?: HyperliquidMarket;
+  hip3DeployerId?: string;
 }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const isHIP3Market = market === "hip3";
   const isHIP4Market = market === "hip4";
+
+  if (hip3DeployerId && !isHIP3Market) {
+    throw new Error("hip3DeployerId requires market='hip3'");
+  }
 
   // try with llama hl indexer
   const endpoint = getEnv("LLAMA_HL_INDEXER");
@@ -141,6 +148,9 @@ export const fetchBuilderCodeRevenue = async ({
 
           // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
           if (isHIP3Market && !coin?.includes(":")) {
+            continue;
+          }
+          if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
             continue;
           }
           if (isHIP4Market && !/^#\d+$/.test(coin)) {
