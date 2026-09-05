@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { METRIC } from "../../helpers/metrics";
 
 // ARMSys — a Uniswap v4 dynamic-fee hook (volatility-laddered swap fees) live on
 // Base (ETH/USDC) and Robinhood Chain (tokenized equities NVDA/INTC/SPCX vs USDG).
@@ -112,14 +113,23 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(lpFees);
-  dailyFees.addBalances(hookFees);
+  dailyFees.addBalances(lpFees, METRIC.LP_FEES);
+  dailyFees.addBalances(hookFees, "Hook Fees");
+
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(lpFees, "Token Swap Fees To LPs");
+
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(hookFees, "Hook Fees To Treasury");
+
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(hookFees, "Hook Fees To Treasury");
 
   return {
     dailyFees,
-    dailyRevenue: hookFees,
-    dailyProtocolRevenue: hookFees,
-    dailySupplySideRevenue: lpFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -130,9 +140,28 @@ const methodology = {
   SupplySideRevenue: "The LP share of swap fees, excluding the protocol's own keeper flow.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.LP_FEES]: "LP share of dynamic swap fees from PoolManager Swap events (fee field in pips, charged on the input side).",
+    "Hook Fees": "Protocol hook treasury share from HookFeeCollected events, minted before the LP fee applies.",
+  },
+  Revenue: {
+    "Hook Fees To Treasury": "The hook's treasury share of swap fees (HookFeeCollected events), excluding the protocol's own keeper flow.",
+  },
+  ProtocolRevenue: {
+    "Hook Fees To Treasury": "The hook's treasury share of swap fees (HookFeeCollected events), excluding the protocol's own keeper flow.",
+  },
+  SupplySideRevenue: {
+    "Token Swap Fees To LPs": "The LP share of swap fees from PoolManager Swap events, excluding the protocol's own keeper flow.",
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
+  breakdownMethodology,
+  doublecounted: true, // LP fees from the same Uniswap v4 PoolManager Swap events are counted in dexs/uniswap-v4
   adapter: {
     [CHAIN.BASE]: { fetch, start: "2026-04-27" },
     [CHAIN.ROBINHOOD]: { fetch, start: "2026-07-31" },
