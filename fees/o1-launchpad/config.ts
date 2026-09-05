@@ -108,4 +108,25 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
     // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/quotes.ts
     cryptoQuotes: [ZERO, "0x5fc5360d0400a0fd4f2af552add042d716f1d168"], // ETH, USDG
   },
+  [CHAIN.MONAD]: {
+    // The new Minimal V4 suite was deployed on September 5, 2026 (UTC).
+    // Addresses and earliest deployment block (including constructor configuration events):
+    // https://github.com/o1exchange/o1-launch/blob/d85fda18291e05f26fe0556e8ca99d8341106d7b/docs/MONAD_DEPLOYMENT_TRACKER.md
+    start: "2026-09-05",
+    suites: [
+      { // monad-mainnet-launchpad-v4-minimal; Standard crypto route only.
+        factory: "0x99c09a90feed8d5e57a19a8c1f103ae29ba5b5b7",
+        hook: "0x8aea397f75d046feaf43d2897548f3a18fd92acc",
+        escrow: "0x27bc99240f2c3895cb91663932d97a29ddd99a93",
+        firstBlock: 102181199, minimal: true, route: "standard", launchFee: "native",
+      },
+    ],
+    // Registered Standard-route quotes; WMON is routing infrastructure, not a launch quote.
+    // https://github.com/o1exchange/o1-launch/blob/d85fda18291e05f26fe0556e8ca99d8341106d7b/shared/quotes.ts
+    cryptoQuotes: [
+      ZERO, // Native MON
+      "0x754704bc059f8c67012fed69bc8a327a5aafb603", // USDC
+      "0xee8c0e9f1bffb4eb878d8f15f368a02a35481242", // WETH
+    ],
+  },
 };

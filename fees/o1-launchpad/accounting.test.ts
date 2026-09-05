@@ -260,6 +260,53 @@ test("failed block resolution never becomes a scan from genesis", async () => {
   await assert.rejects(adapter.fetch!(options), /Invalid o1 Launchpad block interval/);
 });
 
+test("Monad keeps MON launch fees separate from native and ERC20 swap fees", async () => {
+  const config = chainConfig.monad, deployed = config.suites[0], offset = deployed.firstBlock;
+  for (const quote of config.cryptoQuotes) {
+    // Synthetic atomic creation: 12 units of native launch fee plus 101 quote units of swap fees.
+    const data = history(quote).filter(l => l.kind !== "pool" && l.kind !== "launch");
+    data.push(log("nativeFeeConfig", { amount: 12n }, 80),
+      log("launch", { poolId, quote, creator }, 100, 0),
+      ...bundle(100, quote).map(l => ({ ...l, logIndex: l.logIndex + 1 })),
+      log("nativeLaunchFee", { payer: creator, recipient: treasury, amount: 12n }, 100, 20),
+      log("launchBuy", { poolId, originalCreator: creator }, 100, 21));
+    const requests: string[] = [];
+    const options = {
+      chain: "monad", getFromBlock: async () => offset + 99, getToBlock: async () => offset + 100,
+      createBalances: () => new Balances({ chain: "monad" }),
+      getLogs: async (p: any) => {
+        const kind = Object.entries(events).find(([, abi]) => abi === p.eventAbi)![0];
+        requests.push(kind);
+        const target = kind === "credit" ? deployed.escrow : ["trade", "component"].includes(kind) ? deployed.hook : deployed.factory;
+        assert.deepEqual(p.targets, [target]);
+        assert.ok(p.fromBlock >= offset);
+        return data.filter(l => l.kind === kind && l.blockNumber + offset >= p.fromBlock && l.blockNumber + offset <= p.toBlock)
+          .map(l => ({ ...l, blockNumber: l.blockNumber + offset, address: target }));
+      },
+    } as unknown as FetchOptions;
+    const result = await adapter.fetch!(options) as Record<string, Balances>;
+    const nativeId = `monad:${ZERO}`, quoteId = `monad:${quote}`;
+    const expectedFees = { [quoteId]: "101" }, expectedRevenue = { [quoteId]: "61" };
+    expectedFees[nativeId] = String(BigInt(expectedFees[nativeId] ?? 0) + 12n);
+    expectedRevenue[nativeId] = String(BigInt(expectedRevenue[nativeId] ?? 0) + 12n);
+    assert.deepEqual(result.dailyFees.getBalances(), expectedFees);
+    assert.deepEqual(result.dailyRevenue.getBalances(), expectedRevenue);
+    assert.deepEqual(result.dailyProtocolRevenue.getBalances(), expectedRevenue);
+    assert.deepEqual(result.dailySupplySideRevenue.getBalances(), { [quoteId]: "40" });
+    assert.deepEqual(result.dailyFees._usdBalances, {});
+    assert.deepEqual(result.dailyFees._breakdownBalances["Crypto Launch Fees"].getBalances(), { [nativeId]: "12" });
+    assert.deepEqual(result.dailyFees._breakdownBalances["Crypto Swap Fees"].getBalances(), { [quoteId]: "101" });
+    for (const kind of ["minimalQuote", "nativeFeeConfig", "nativeLaunchFee", "launchBuy", "component"])
+      assert.ok(requests.includes(kind), `missing Monad event query: ${kind}`);
+
+    requests.length = 0;
+    const beforeDeployment = await adapter.fetch!({ ...options,
+      getFromBlock: async () => offset - 2, getToBlock: async () => offset - 1 }) as Record<string, Balances>;
+    assert.deepEqual(requests, []);
+    assert.deepEqual(beforeDeployment.dailyFees.getBalances(), {});
+  }
+});
+
 test("historical pool lookup follows the creation block of the traded pool", async () => {
   const deployed = chainConfig.base.suites[0], offset = deployed.firstBlock;
   const data = [...history(), ...bundle(100, ZERO, false)].map(l => ({ ...l,
