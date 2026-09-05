@@ -164,6 +164,10 @@ const cryptoCardProtocols: Record<string, SimpleAdapter> = {
       start: '2022-11-01',
       paymentRecipients: NexoCardPaymentRecipients,
     },
+    [CHAIN.BSC]: {
+      start: '2022-11-01',
+      paymentRecipients: NexoCardPaymentRecipients,
+    },
   }),
   'holyheld': cryptoCardAdapterExport({
     [CHAIN.ETHEREUM]: {
