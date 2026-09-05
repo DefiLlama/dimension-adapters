@@ -988,14 +988,22 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
 }
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
-const hip3DexConfigs: Record<string, { dexId: string; start: string; methodologyName: string }> = {
-  "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
+const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: string; methodologyName: string }> = {
+  // Tether-backed Dreamcash kept its main frontend but retired the CASH
+  // HIP-3 market once USDC became the dominant Hyperliquid quote asset,
+  // making a USDT-quoted deployer market unviable. Last fees 2026-07-02.
+  "dreamcash-markets": { dexId: "cash", start: "2026-01-20", deadFrom: "2026-07-03", methodologyName: "Dreamcash" },
   "entropy": { dexId: "io", start: "2026-08-19", methodologyName: "Entropy" },
-  "felix-perp": { dexId: "flx", start: "2025-11-13", methodologyName: "Felix protocol" },
+  // Felix, the first HIP-3 platform on Hyperliquid, announced its shutdown
+  // on 2026-06-19 with all perp markets liquidated (Felix's CDP/Vaults/USDhl
+  // products are unrelated and still live).
+  "felix-perp": { dexId: "flx", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
-  "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
+  // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
+  // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
+  "ventuals": { dexId: "vntl", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Ventuals" },
   "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
@@ -1035,6 +1043,7 @@ for (const [name, config] of Object.entries(hip3DexConfigs)) {
   dexsProtocols[name] = exportHIP3DeployerAdapter(config.dexId, {
     type: "dexs",
     start: config.start,
+    deadFrom: config.deadFrom,
     methodology: hip3Methodology(config.methodologyName),
   });
 }
