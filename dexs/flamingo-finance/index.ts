@@ -12,7 +12,9 @@ const fetch = async ({ dateString }: FetchOptions) => {
   // Its total_order_volume reads "0.0", which is indistinguishable from a quiet day, so refuse the
   // row instead of storing that zero. A day that genuinely had no swaps still carries
   // total_transactions, since Neo blocks carry traffic other than Flamingo's.
-  if (dayData.total_data?.total_transactions === undefined)
+  // == null so a written row reporting a real 0 still publishes, while both an absent and an
+  // explicitly null field are refused
+  if (dayData.total_data?.total_transactions == null)
     throw new Error(`Flamingo analytics has not written a row for ${dateString} yet`)
 
   return { dailyVolume: dayData.total_data.total_order_volume, dailyFees: dayData.total_data.total_order_fee_usd };
