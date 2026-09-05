@@ -28,14 +28,14 @@ const fetch = async (options: FetchOptions) => {
 
   const data: InsightXDailyStats = response;
 
-  if (!data || !data.volume) {
+  if (!data) {
     throw new Error(`insightx api returned no volume for ${options.dateString}`);
   }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  dailyVolume.addUSDValue(data.volume);
+  dailyVolume.addUSDValue(data.volume || 0);
   dailyFees.addUSDValue(data.fees || 0);
 
   return {
