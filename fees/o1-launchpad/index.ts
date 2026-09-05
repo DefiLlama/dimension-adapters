@@ -1,156 +1,182 @@
-import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { Balances, coins, util } from "@defillama/sdk";
+import BigNumber from "bignumber.js";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { accountSuite, Fee } from "./accounting";
+import { chainConfig, Market, Suite, ZERO } from "./config";
+import { EventKind, events, Log, lower } from "./events";
 
-const DUNE_MATERIALIZED_VIEW = "dune.stambouli_o1.result_daily_fee_revenue";
+const markets: Market[] = ["Crypto", "Stocks"];
+const labels = (market: Market) => ({
+  swap: `${market} Swap Fees`,
+  launch: `${market} Launch Fees`,
+  protocol: `${market} Swap Fees To Protocol`,
+  launchProtocol: `${market} Launch Fees To Protocol`,
+  creator: `${market} Swap Fees To Creators`,
+  referrer: `${market} Swap Fees To Referrers`,
+});
 
-const MARKETS = ["Crypto", "Stocks"] as const;
-type Market = typeof MARKETS[number];
-
-type DuneFeeRevenueRow = {
-  date: string;
-  chain: string;
-  market: string;
-  fee_usd: number | string;
-  revenue_usd: number | string;
-};
-
-const duneChainNames: Record<string, string> = {
-  [CHAIN.BASE]: "Base",
-  [CHAIN.ROBINHOOD]: "Robinhood",
-};
-
-const labels: Record<Market, { fees: string; revenue: string; supplySide: string }> = {
-  Crypto: {
-    fees: "Crypto Fees",
-    revenue: "Crypto Fees to Protocol",
-    supplySide: "Crypto Fees to Creators and Referrers",
-  },
-  Stocks: {
-    fees: "Stocks Fees",
-    revenue: "Stocks Fees to Protocol",
-    supplySide: "Stocks Fees to Creators and Referrers",
-  },
-};
-
-const assertOutsideMaterializedViewRefreshWindow = () => {
-  const utcHour = new Date().getUTCHours();
-  if (utcHour < 2) {
-    throw new Error(
-      "o1 Launchpad Dune materialized view is refreshing between 00:00 and 02:00 UTC",
-    );
+async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fromBlock: number, toBlock: number): Promise<Log[]> {
+  if (fromBlock > toBlock) return [];
+  const target = kind === "credit" ? suite.escrow
+    : ["trade", "component", "pool"].includes(kind) ? suite.hook : suite.factory;
+  const logs = await options.getLogs({
+    // The SDK's RPC fallback needs a non-empty block span even for one-block requests.
+    targets: [target], eventAbi: events[kind], fromBlock: fromBlock === toBlock ? fromBlock - 1 : fromBlock, toBlock,
+    onlyArgs: false, entireLog: true, parseLog: true,
+  });
+  const unique = new Map<string, Log>();
+  for (const log of logs) {
+    const blockNumber = Number(log.blockNumber ?? log.block_number);
+    const logIndex = Number(log.logIndex ?? log.index ?? log.log_index);
+    const address = lower(log.address ?? log.source);
+    const transactionHash = log.transactionHash ?? log.transaction_hash;
+    if (!log.args || !Number.isInteger(blockNumber) || !Number.isInteger(logIndex)
+      || !transactionHash || address !== target || blockNumber > toBlock)
+      throw new Error(`Invalid o1 Launchpad ${kind} log from ${target}`);
+    if (blockNumber < fromBlock) continue;
+    const parsed: Log = { kind, address, transactionHash: lower(transactionHash), blockNumber, logIndex, args: log.args };
+    const identity = `${parsed.transactionHash}:${logIndex}`;
+    const previous = unique.get(identity);
+    if (previous) {
+      // Some RPC/cache responses repeat an event. Count identical copies once, but never
+      // accept different payloads for the same on-chain identity.
+      const json = (args: Log) => JSON.stringify(args, (_, value) => typeof value === "bigint" ? value.toString() : value);
+      if (json(previous) !== json(parsed)) throw new Error(`Conflicting o1 Launchpad log ${identity}`);
+    } else unique.set(identity, parsed);
   }
-};
+  return [...unique.values()];
+}
 
-const prefetch = async (options: FetchOptions) => {
-  assertOutsideMaterializedViewRefreshWindow();
+async function collectSuite(options: FetchOptions, suite: Suite, fromBlock: number, toBlock: number): Promise<Log[]> {
+  const windowKinds: EventKind[] = ["trade", "credit", "launch"];
+  if (suite.minimal) windowKinds.push("component");
+  if (suite.launchFee !== "none") windowKinds.push(suite.minimal ? "nativeLaunchFee" : "launchFee");
+  let logs: Log[] = [];
+  for (const kind of windowKinds) logs = logs.concat(await readLogs(options, suite, kind, fromBlock, toBlock));
+  if (!logs.length) return [];
 
-  return queryDuneSql(options, `
-    SELECT date, chain, market, fee_usd, revenue_usd
-    FROM ${DUNE_MATERIALIZED_VIEW}
-    WHERE date = '${options.dateString}'
-    ORDER BY chain, market
-  `);
-};
-
-const toFiniteNonNegativeNumber = (
-  value: number | string,
-  field: "fee_usd" | "revenue_usd",
-  row: DuneFeeRevenueRow,
-) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(
-      `Invalid ${field} for ${row.date} ${row.chain} ${row.market}: ${value}`,
-    );
+  const hasLaunches = logs.some(log => log.kind === "launch");
+  const hasTrades = logs.some(log => log.kind === "trade");
+  if (suite.minimal && hasLaunches) logs = logs.concat(await readLogs(options, suite, "launchBuy", fromBlock, toBlock));
+  // SDK getLogs caches historical ranges and only fills gaps. Old pools and quote state
+  // remain necessary even when the requested hour contains no new launches.
+  const historyKinds: EventKind[] = ["launch"];
+  if (suite.launchFee !== "none" || suite.route !== "standard") {
+    historyKinds.push(suite.minimal ? "minimalQuote" : "quote", suite.minimal ? "minimalUnregister" : "unregister");
+    if (suite.route !== "standard") historyKinds.push("supply");
+    if (suite.minimal) historyKinds.push("tick");
   }
-  return parsed;
-};
+  if (hasLaunches && suite.launchFee === "native") historyKinds.push("nativeFeeConfig");
+  if (hasLaunches && suite.launchFee === "quote") historyKinds.push("quoteFeeConfig");
+  logs = logs.filter(log => log.kind !== "launch");
+  for (const kind of historyKinds) logs = logs.concat(await readLogs(options, suite, kind, suite.firstBlock, toBlock));
+  if (!suite.minimal && hasTrades) {
+    // PoolRegistered is emitted in the pool's creation transaction. Read only the
+    // creation-block span of pools trading now, not the entire lifetime of the hook.
+    const tradedPools = new Set(logs.filter(log => log.kind === "trade").map(log => lower(log.args.poolId)));
+    const creations = logs.filter(log => log.kind === "launch" && tradedPools.has(lower(log.args.poolId)));
+    if (creations.length !== tradedPools.size) throw new Error(`Missing o1 pool creation history for ${suite.hook}`);
+    const first = creations.reduce((block, log) => Math.min(block, log.blockNumber), toBlock);
+    const last = creations.reduce((block, log) => Math.max(block, log.blockNumber), suite.firstBlock);
+    logs = logs.concat(await readLogs(options, suite, "pool", first, last));
+  }
+  return logs;
+}
 
-const createEmptyResult = (options: FetchOptions) => {
+async function addFees(options: FetchOptions, fees: Fee[]) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const fallbackPrices = new Map<number, Awaited<ReturnType<typeof coins.getPrices>>>();
+  const timestamps = new Map<number, number>();
 
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
-  };
-};
-
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const result = createEmptyResult(options);
-
-  const duneChainName = duneChainNames[options.chain];
-  if (!duneChainName) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
-
-  const rows = (options.preFetchedResults ?? []) as DuneFeeRevenueRow[];
-  const chainRows = rows.filter((row) => row.chain === duneChainName);
-  if (chainRows.length !== MARKETS.length) {
-    throw new Error(
-      `Expected ${MARKETS.length} o1 Launchpad Dune rows for ${duneChainName} on ${options.dateString}, received ${chainRows.length}`,
-    );
-  }
-
-  for (const market of MARKETS) {
-    const marketRows = chainRows.filter((row) => row.market === market);
-    if (marketRows.length !== 1) {
-      throw new Error(
-        `Expected one o1 Launchpad Dune row for ${duneChainName} ${market} on ${options.dateString}, received ${marketRows.length}`,
-      );
+  for (const fee of fees) {
+    if (fee.fees === 0n) continue;
+    const names = labels(fee.market);
+    let stockPrice = fee.stockPrice;
+    const stockCurrency = fee.market === "Stocks" && fee.currency !== ZERO;
+    if (stockCurrency && stockPrice === undefined) {
+      let timestamp = timestamps.get(fee.log.blockNumber);
+      if (timestamp === undefined) {
+        timestamp = await util.getTimestamp(fee.log.blockNumber, options.chain);
+        timestamps.set(fee.log.blockNumber, timestamp);
+      }
+      // Batch missing stock assets at each historical hour. No current-price fallback.
+      const hour = Math.floor(timestamp / 3600) * 3600;
+      if (!fallbackPrices.has(hour)) {
+        const tokens = [...new Set(fees.filter(f => f.market === "Stocks" && f.currency !== ZERO && f.stockPrice === undefined)
+          .map(f => `${options.chain}:${f.currency}`))];
+        fallbackPrices.set(hour, await coins.getPrices(tokens, hour));
+      }
+      const price = fallbackPrices.get(hour)![`${options.chain}:${fee.currency}`];
+      if (!price || !Number.isFinite(price.price) || price.price <= 0 || !Number.isInteger(price.decimals))
+        throw new Error(`Missing historical o1 stock price ${options.chain}:${fee.currency} at ${hour}`);
+      stockPrice = price.price / 10 ** price.decimals;
     }
-
-    const row = marketRows[0];
-    const fees = toFiniteNonNegativeNumber(row.fee_usd, "fee_usd", row);
-    const revenue = toFiniteNonNegativeNumber(row.revenue_usd, "revenue_usd", row);
-    if (revenue > fees) {
-      throw new Error(
-        `o1 Launchpad revenue exceeds fees for ${duneChainName} ${market} on ${options.dateString}: ${revenue} > ${fees}`,
-      );
-    }
-
-    const supplySide = fees - revenue;
-    const marketLabels = labels[market];
-    result.dailyFees.addUSDValue(fees, marketLabels.fees);
-    result.dailyRevenue.addUSDValue(revenue, marketLabels.revenue);
-    result.dailySupplySideRevenue.addUSDValue(supplySide, marketLabels.supplySide);
+    const add = (balances: Balances, raw: bigint, label: string) => {
+      if (stockCurrency) {
+        const usd = new BigNumber(raw.toString()).times(stockPrice!).toNumber();
+        if (!Number.isFinite(usd)) throw new Error(`Invalid o1 USD value for ${fee.currency}`);
+        balances.addUSDValue(usd, label, { id: `${options.chain}:${fee.currency}` });
+      } else if (fee.currency === ZERO) balances.addGasToken(raw, label);
+      else balances.add(fee.currency, raw, label);
+    };
+    add(dailyFees, fee.fees, fee.launch ? names.launch : names.swap);
+    add(dailyRevenue, fee.revenue, fee.launch ? names.launchProtocol : names.protocol);
+    add(dailySupplySideRevenue, fee.creator, names.creator);
+    add(dailySupplySideRevenue, fee.referrer, names.referrer);
   }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+}
 
-  return result;
+const fetch = async (options: FetchOptions) => {
+  const config = chainConfig[options.chain];
+  if (!config) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
+  // The start block is the previous period's ending block. Exclude it so adjacent
+  // hourly windows cannot count the same block twice.
+  const previousBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  if (!Number.isInteger(previousBlock) || previousBlock <= 0 || !Number.isInteger(toBlock) || toBlock < previousBlock)
+    throw new Error("Invalid o1 Launchpad block interval");
+  const fromBlock = previousBlock + 1;
+  let fees: Fee[] = [];
+  for (const suite of config.suites) {
+    if (suite.firstBlock > toBlock) continue;
+    const start = Math.max(fromBlock, suite.firstBlock);
+    const logs = await collectSuite(options, suite, start, toBlock);
+    if (logs.length) fees = fees.concat(accountSuite(suite, config.cryptoQuotes, logs, start, toBlock));
+  }
+  return addFees(options, fees);
 };
 
 const methodology = {
-  Fees: "Quote-denominated swap fees plus token-launch fees, valued in USD at event time by the o1 Launchpad Dune materialized view.",
-  Revenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
-  SupplySideRevenue: "Swap fees allocated to token creators and referrers.",
+  Fees: "Quote-denominated swap fees from Hook Trade events plus token-launch payment events across all historical suites. Legacy launch-token-denominated swap fees are excluded because reliable historical USD valuation is unavailable. Crypto uses token balances; Stocks use the event-time factory tick reference price under the documented $4,000 opening-cap convention, with historical DefiLlama prices only when that reference is unavailable.",
+  Revenue: "Actual platform and protocol-owned fixed-component swap credits, plus token-launch fees. Includes anti-snipe surcharges, referral fallback and rounding retained by the protocol. Claims do not count again.",
+  ProtocolRevenue: "Swap and launch fees retained by the protocol treasury.",
+  SupplySideRevenue: "Actual swap credits allocated to creators and referrers, including amounts still unclaimed.",
 };
-
-const breakdownMethodology = {
-  Fees: Object.fromEntries(MARKETS.map((market) => [
-    labels[market].fees,
-    `${market} market swap and token-launch fees.`,
-  ])),
-  Revenue: Object.fromEntries(MARKETS.map((market) => [
-    labels[market].revenue,
-    `${market} market fees retained by the protocol.`,
-  ])),
-  SupplySideRevenue: Object.fromEntries(MARKETS.map((market) => [
-    labels[market].supplySide,
-    `${market} market swap fees allocated to token creators and referrers.`,
-  ])),
-};
-
+const revenueBreakdown = Object.fromEntries(markets.flatMap(m => [
+  [labels(m).protocol, `${m} swap fees credited to the protocol, including treasury-owned fixed components.`],
+  [labels(m).launchProtocol, `${m} token-launch fees paid to the protocol.`],
+]));
 const adapter: SimpleAdapter = {
-  version: 1,
-  prefetch,
+  version: 2,
+  pullHourly: true,
   fetch,
-  chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
-  start: "2026-07-01",
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
+  adapter: chainConfig,
   methodology,
-  breakdownMethodology,
+  breakdownMethodology: {
+    Fees: Object.fromEntries(markets.flatMap(m => [
+      [labels(m).swap, `${m} quote-denominated swap fees, including anti-snipe surcharges.`],
+      [labels(m).launch, `${m} token-launch fees from Factory payment events.`],
+    ])),
+    Revenue: revenueBreakdown,
+    ProtocolRevenue: revenueBreakdown,
+    SupplySideRevenue: Object.fromEntries(markets.flatMap(m => [
+      [labels(m).creator, `${m} swap fees credited to token creators.`],
+      [labels(m).referrer, `${m} swap fees credited to valid referrers.`],
+    ])),
+  },
 };
 
 export default adapter;
