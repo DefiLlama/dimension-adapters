@@ -120,16 +120,15 @@ const fetch = async (options: FetchOptions) => {
       target: ZRO_BUYBACK_WALLET,
       tokens: [ZRO_TOKEN],
     });
-    // The buyback is funded from an allocation rather than a cut of the day's messaging fees, and
-    // it lands in one transfer a month, so booking it as revenue makes revenue exceed the fees it
-    // is supposed to be a share of. Kept to holders' revenue, the way euler books its EUL buyback.
-    dailyHoldersRevenue.addBalances(buyback.clone(1, METRIC.TOKEN_BUY_BACK));
+    const buybackHolders = buyback.clone(1, METRIC.TOKEN_BUY_BACK);
+    dailyRevenue.addBalances(buybackHolders);
+    dailyHoldersRevenue.addBalances(buybackHolders);
   }
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -142,8 +141,8 @@ const adapter: Adapter = {
   adapter: config,
   methodology: {
     Fees: "Native token fees paid by users for cross-chain messaging, summed from ExecutorFeePaid and DVNFeePaid events on SendUln302 (V2 default) and SendUln301 (V1-compat through V2 endpoints) across supported chains.",
-    Revenue: "Zero. LayerZero takes a 0% protocol take rate on messaging fees, so all of them are supply side.",
-    ProtocolRevenue: "Zero, for the same reason as Revenue.",
+    Revenue: "ZRO buybacks funded by Stargate ecosystem allocation routed to LayerZero Foundation. LayerZero takes a 0% protocol take rate on messaging fees.",
+    ProtocolRevenue: "LayerZero takes a 0% protocol take rate on messaging fees.",
     HoldersRevenue: "ZRO buybacks distributed to ZRO holders.",
     SupplySideRevenue: "Approximately 100% of messaging fees flow to DVNs and Executors that secure and deliver cross-chain messages.",
   },
@@ -152,7 +151,9 @@ const adapter: Adapter = {
       'DVN_FEES': "Native token fees paid to required and optional DVNs that verify cross-chain messages.",
       'EXECUTOR_FEES': "Native token fees paid to Executors that deliver and execute messages on the destination chain.",
     },
-    Revenue: "No protocol revenue; messaging fees are paid straight to DVNs and Executors.",
+    Revenue: {
+      [METRIC.TOKEN_BUY_BACK]: "ZRO bought back using Stargate ecosystem revenue.",
+    },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: "ZRO bought back and distributed to holders.",
     },
