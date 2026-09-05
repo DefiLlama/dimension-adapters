@@ -138,6 +138,19 @@ const cryptoCardProtocols: Record<string, SimpleAdapter> = {
         '0x0c06ccf38114ddfc35e07427b9424adcca9f44f8',
       ]
     },
+    // the same wallet is paid on these three as well
+    [CHAIN.ETHEREUM]: {
+      start: '2024-10-25',
+      paymentRecipients: ['0x476756C3d75A05757E3e8abaD6736EA6AB14675f'],
+    },
+    [CHAIN.POLYGON]: {
+      start: '2024-10-25',
+      paymentRecipients: ['0x476756C3d75A05757E3e8abaD6736EA6AB14675f'],
+    },
+    [CHAIN.BASE]: {
+      start: '2024-10-25',
+      paymentRecipients: ['0x476756C3d75A05757E3e8abaD6736EA6AB14675f'],
+    },
   }),
   'nexo-card': cryptoCardAdapterExport({
     [CHAIN.ETHEREUM]: {
