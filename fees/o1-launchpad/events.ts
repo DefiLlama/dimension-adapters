@@ -31,5 +31,7 @@ export type Log = {
   args: Record<string, any>;
 };
 
+/** Compare logs in chain execution order, including events within the same block. */
 export const compareLogs = (a: Log, b: Log) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
+/** Normalize hexadecimal addresses, hashes and identifiers for case-insensitive matching. */
 export const lower = (value: string): string => value.toLowerCase();

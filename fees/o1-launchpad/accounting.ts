@@ -2,6 +2,12 @@ import { encodeBytes32String } from "ethers";
 import { Market, Suite, ZERO } from "./config";
 import { compareLogs, Log, lower } from "./events";
 
+// Uniswap v4 TickMath uses symmetric bounds of +/-887272, derived from
+// log base 1.0001 of 2^128. The protocol's RWA pricing helper uses the same bounds.
+// https://github.com/Uniswap/v4-core/blob/e50237c43811bd9b526eff40f26772152a42daba/src/libraries/TickMath.sol#L18-L23
+// https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/rwaTicks.ts#L5-L6
+const MAX_TICK = 887272;
+
 type Quote = { registered: boolean; decimals: number; tick: number; supply?: bigint; creationFee: bigint; revision?: bigint };
 type Pool = { quote: string; creator: string; market: Market; log: Log };
 type Credit = { recipient: string; currency: string; amount: bigint; componentId?: string; poolId?: string };
@@ -18,17 +24,27 @@ export type Fee = {
   stockPrice?: number;
 };
 
+/** Convert a decoded unsigned amount to bigint, rejecting invalid or negative values. */
 const amount = (value: any): bigint => {
   const n = BigInt(value);
   if (n < 0n) throw new Error("Negative o1 fee amount");
   return n;
 };
+/** Sum raw credit amounts without converting them to floating-point numbers. */
 const sum = (credits: Credit[]) => credits.reduce((total, c) => total + c.amount, 0n);
 const componentNames = new Map(["CREATOR", "REFERRER", "PLATFORM"].map(name => [lower(encodeBytes32String(name)), name]));
+/** Throw with adapter context when an event or accounting invariant fails. */
 const requireThat = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(`o1 Launchpad: ${message}`);
 };
 
+/**
+ * Recover the stock reference price using the tick and supply captured together.
+ * Standalone supply updates do not reprice an existing quote snapshot.
+ * @param quote State captured at the latest quote registration or tick update.
+ * @returns USD per raw quote unit, or undefined when no active pricing snapshot exists.
+ * @throws If the computed reference price is non-finite or non-positive.
+ */
 function pricePerRawUnit(quote?: Quote): number | undefined {
   if (!quote?.registered || !quote.supply) return undefined;
   // Operator's $4,000 opening-cap convention, also used by the historical analytics:
@@ -39,6 +55,17 @@ function pricePerRawUnit(quote?: Quote): number | undefined {
   return price;
 }
 
+/**
+ * Reconcile a Trade with its escrow credits and attribute the actual fee amounts.
+ * @param suite Deployment generation used to select component or historical attribution.
+ * @param trade Trade event closing the credit bundle.
+ * @param pool Historical pool state identifying the creator.
+ * @param treasury Historical treasury, required for non-minimal suites.
+ * @param credits Escrow credits preceding the trade, in event order.
+ * @param components Minimal-suite component events paired with those credits.
+ * @returns Total, creator, referrer and protocol amounts in raw fee-currency units.
+ * @throws If credits disagree with the trade or cannot be attributed unambiguously.
+ */
 function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | undefined, credits: Credit[], components: Credit[]) {
   const total = amount(trade.args.totalFee);
   const currency = lower(trade.args.feeCurrency);
@@ -75,6 +102,7 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
     // Match the ordered subsequence, rather than merging distinct roles by wallet.
     const recipients = [pool.creator, referrer, treasury];
     const candidates: bigint[][] = [];
+    /** Enumerate ordered role assignments, allowing roles with zero credit to be omitted. */
     const match = (role: number, index: number, values: bigint[]) => {
       if (role === recipients.length) {
         if (index === credits.length) candidates.push(values);
@@ -93,7 +121,16 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
   return { fees: total, creator: creatorAmount, referrer: referrerAmount, revenue: protocolAmount };
 }
 
-/** Replay one immutable suite. Only fee events inside [fromBlock, toBlock] are supplied. */
+/**
+ * Replay one immutable suite's history and reconcile fees within an inclusive block range.
+ * @param suite Deployment addresses, generation and fee configuration.
+ * @param cryptoQuotes Quote addresses classified as Crypto on dual-route suites.
+ * @param logs Historical state and in-window fee events; sorted in place by block and log index.
+ * @param fromBlock First block whose fees are included; earlier state events remain effective.
+ * @param toBlock Last included block; later logs are ignored.
+ * @returns Reconciled swap and launch fees, excluding legacy launch-token-denominated swaps.
+ * @throws If state is missing, fee events fall outside the window, or attribution is inconsistent.
+ */
 export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], fromBlock: number, toBlock: number): Fee[] {
   const pools = new Map<string, Pool>();
   const treasuries = new Map<string, string>();
@@ -127,7 +164,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
           requireThat(revision > old.revision, `non-monotonic quote revision ${token}`);
         const decimals = Number(a.decimals), tick = Number(a.tick);
         requireThat(Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
-          && Number.isInteger(tick) && Math.abs(tick) <= 887272, `invalid quote configuration ${token}`);
+          && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK, `invalid quote configuration ${token}`);
         quotes.set(token, { registered: true, decimals, tick, supply, revision,
           // Old tick updates share QuoteRegistered's signature. Only a new lifecycle resets creationFee.
           creationFee: old?.registered ? old.creationFee : 0n });
@@ -137,7 +174,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         const token = lower(a.quote), old = quotes.get(token);
         requireThat(old?.registered, `tick update without registration ${token}`);
         const revision = amount(a.revision), tick = Number(a.tick);
-        requireThat(revision > (old!.revision ?? 0n) && Number.isInteger(tick) && Math.abs(tick) <= 887272,
+        requireThat(revision > (old!.revision ?? 0n) && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK,
           `invalid quote tick/revision ${token}`);
         quotes.set(token, { ...old!, tick, supply, revision });
         break;

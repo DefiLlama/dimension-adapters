@@ -6,6 +6,7 @@ import { chainConfig, Market, Suite, ZERO } from "./config";
 import { EventKind, events, Log, lower } from "./events";
 
 const markets: Market[] = ["Crypto", "Stocks"];
+/** Build the fee-source and recipient labels shared by balances and their methodology. */
 const labels = (market: Market) => ({
   swap: `${market} Swap Fees`,
   launch: `${market} Launch Fees`,
@@ -15,6 +16,16 @@ const labels = (market: Market) => ({
   referrer: `${market} Swap Fees To Referrers`,
 });
 
+/**
+ * Read one event kind from its suite contract and normalize SDK/RPC log shapes.
+ * @param options Fetch context providing the SDK log reader.
+ * @param suite Deployment used to select the emitting contract.
+ * @param kind Event ABI and normalized kind to attach to each log.
+ * @param fromBlock Inclusive first block; single-block RPC queries are widened then filtered.
+ * @param toBlock Inclusive last block.
+ * @returns Validated logs with identical copies deduplicated, or an empty array for an empty range.
+ * @throws On retrieval failure, malformed logs or conflicting copies of the same event.
+ */
 async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fromBlock: number, toBlock: number): Promise<Log[]> {
   if (fromBlock > toBlock) return [];
   const target = kind === "credit" ? suite.escrow
@@ -40,6 +51,7 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
     if (previous) {
       // Some RPC/cache responses repeat an event. Count identical copies once, but never
       // accept different payloads for the same on-chain identity.
+      /** Serialize bigint fields so duplicate normalized logs can be compared. */
       const json = (args: Log) => JSON.stringify(args, (_, value) => typeof value === "bigint" ? value.toString() : value);
       if (json(previous) !== json(parsed)) throw new Error(`Conflicting o1 Launchpad log ${identity}`);
     } else unique.set(identity, parsed);
@@ -47,6 +59,15 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
   return [...unique.values()];
 }
 
+/**
+ * Collect in-window activity and the historical state required to replay its accounting.
+ * @param options Fetch context providing cached, contract-scoped log retrieval.
+ * @param suite Deployment defining applicable event generations and launch-fee behavior.
+ * @param fromBlock Inclusive first block for fee activity.
+ * @param toBlock Inclusive last block for activity and historical state.
+ * @returns Window events plus relevant launch, quote, supply and fee-configuration history.
+ * @throws On retrieval failure or missing creation history for a traded historical pool.
+ */
 async function collectSuite(options: FetchOptions, suite: Suite, fromBlock: number, toBlock: number): Promise<Log[]> {
   const windowKinds: EventKind[] = ["trade", "credit", "launch"];
   if (suite.minimal) windowKinds.push("component");
@@ -83,6 +104,13 @@ async function collectSuite(options: FetchOptions, suite: Suite, fromBlock: numb
   return logs;
 }
 
+/**
+ * Aggregate reconciled fees into labeled fee, protocol and supply-side balances.
+ * @param options Chain context used for balances and historical-price fallback.
+ * @param fees Raw fee records carrying event-time stock prices when available.
+ * @returns Fee, revenue, protocol-revenue and supply-side balances with token attribution.
+ * @throws If a required historical stock price is unavailable or USD valuation is non-finite.
+ */
 async function addFees(options: FetchOptions, fees: Fee[]) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -113,6 +141,7 @@ async function addFees(options: FetchOptions, fees: Fee[]) {
         throw new Error(`Missing historical o1 stock price ${options.chain}:${fee.currency} at ${hour}`);
       stockPrice = price.price / 10 ** price.decimals;
     }
+    /** Add a raw fee in its native token or convert Stocks units using the resolved event price. */
     const add = (balances: Balances, raw: bigint, label: string) => {
       if (stockCurrency) {
         const usd = new BigNumber(raw.toString()).times(stockPrice!).toNumber();
@@ -129,6 +158,12 @@ async function addFees(options: FetchOptions, fees: Fee[]) {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
+/**
+ * Collect and account for every configured suite on the requested chain.
+ * @param options V2 fetch context; its starting boundary block is excluded and ending block included.
+ * @returns Fee and revenue dimensions aggregated across the chain's historical deployments.
+ * @throws On unsupported chains, invalid block ranges, or any collection, accounting or pricing failure.
+ */
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (!config) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);

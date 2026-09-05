@@ -16,16 +16,19 @@ const stock = "0x0000000000000000000000000000000000000004";
 const poolId = "0x" + "11".repeat(32);
 const suite: Suite = { factory: "0x" + "aa".repeat(20), hook: "0x" + "bb".repeat(20), escrow: "0x" + "cc".repeat(20),
   firstBlock: 1, minimal: true, route: "dual", launchFee: "native" };
+/** Build a decoded fixture event with its suite emitter and caller-selected execution position. */
 function log(kind: EventKind, args: Record<string, any>, blockNumber: number, logIndex = 0, transactionHash = `tx-${blockNumber}`): Log {
   return { kind, args, blockNumber, logIndex, transactionHash,
     address: kind === "credit" ? suite.escrow : ["trade", "pool", "component"].includes(kind) ? suite.hook : suite.factory };
 }
+/** Seed the supply, quote registration, treasury and launch state required by a fixture pool. */
 function history(quote = ZERO, originalCreator = creator): Log[] {
   return [log("supply", { supply: 10n ** 27n }, 1),
     log("minimalQuote", { quote, decimals: 18, tick: 0, revision: 1n }, 2),
     log("pool", { poolId, creator: originalCreator, treasury }, 3),
     log("launch", { poolId, quote, creator: originalCreator, supply: 10n ** 27n }, 4)];
 }
+/** Build ordered escrow credits, optional minimal-suite components and their closing Trade. */
 function bundle(block = 100, currency = ZERO, minimal = true, recipients = [creator, referrer, treasury], amounts = [30n, 10n, 61n]): Log[] {
   const result: Log[] = [];
   let index = 0;
@@ -37,6 +40,7 @@ function bundle(block = 100, currency = ZERO, minimal = true, recipients = [crea
   result.push(log("trade", { poolId, feeCurrency: currency, referrer, totalFee: amounts.reduce((x, y) => x + y, 0n) }, block, index));
   return result;
 }
+/** Sum raw fee destinations across records to assert exact accounting identities. */
 function totals(fees: Fee[]) {
   return fees.reduce((t, f) => ({ fees: t.fees + f.fees, revenue: t.revenue + f.revenue,
     creator: t.creator + f.creator, referrer: t.referrer + f.referrer }), { fees: 0n, revenue: 0n, creator: 0n, referrer: 0n });
@@ -217,6 +221,7 @@ test("adapter uses disjoint windows, returns four dimensions and preserves stock
   const offset = deployed.firstBlock;
   const data = [...history(stock), ...bundle(100, stock), ...bundle(101, stock)].map(l => ({ ...l, blockNumber: l.blockNumber + offset }));
   const requests: { fromBlock?: number; toBlock?: number }[] = [];
+  /** Run an adapter window against fixture logs, optionally injecting a conflicting duplicate. */
   const run = async (start: number, end: number, conflict = false) => {
     const options = {
       chain: "base", getFromBlock: async () => offset + start, getToBlock: async () => offset + end,
