@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { ChainApi } from "@defillama/sdk";
@@ -66,6 +66,13 @@ const LOCKER_REWARDS = "U1 Locker Distributions";
 
 type ClaimLog = { blockNumber: number; logIndex: number; args: { amount: bigint; feeToken?: string } };
 
+/**
+ * Enumerate only factories deployed at the snapshot (read-only RPC).
+ * @param api Snapshot-bound SDK client.
+ * @param factories Factory addresses with deployment blocks.
+ * @param block Snapshot block used to exclude undeployed factories.
+ * @returns Pool addresses available at that snapshot.
+ */
 async function listPairs(
   api: ChainApi,
   factories: { factory: string; fromBlock: number }[],
@@ -76,7 +83,12 @@ async function listPairs(
   return api.fetchList({ targets: deployed.map(({ factory }) => factory), lengthAbi: abi.allPairsLength, itemAbi: abi.allPairs });
 }
 
-const fetch = async (options: FetchOptions) => {
+/**
+ * Read swap accrual and separately funded holder distributions for one window.
+ * @param options Native SDK snapshots, log bounds and balance factory.
+ * @returns Volume, fees, gross treasury accrual, LP income and holder funding.
+ */
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
@@ -196,6 +208,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -206,7 +219,8 @@ const methodology = {
     "Sum of the input amount of every swap on Umbrae's DLMM (Liquidity Book style concentrated liquidity) and DAMM (dynamic-fee constant product) pools on Base. Pools are enumerated on chain from their factories and volume is read from each pool's swap events.",
   Fees: "Swap fees on the listed DLMM and DAMM factories only; excludes aggregator, keeper, flash-loan and liquidity-composition fees. DLMM uses SwapDetailed; DAMM uses changes in protocol and LP fee accumulators plus claims, in each historical fee token.",
   Revenue: "The protocol's share of swap fees, which accrues to the protocol fee recipient.",
-  HoldersRevenue: "Actual WETH distributions credited to U1 lockers by RewardsAdded, including external funding. These can occur after swap revenue accrues. The operational forwarding percentage is not enforced by the contracts, so no fixed treasury allocation is assumed.",
+  ProtocolRevenue: "Gross protocol swap-fee share accruing to the fee treasury, before later discretionary distributions. This is the same accrual as Revenue, not net retained income after holder allocations.",
+  HoldersRevenue: "Actual WETH distributions credited to U1 lockers by RewardsAdded, including external funding. These can occur after swap revenue accrues and are not added again to Revenue. No fixed forwarding percentage or net retained share is assumed.",
   SupplySideRevenue: "The share of swap fees that accrues to liquidity providers.",
   UserFees: "Swap fees paid by traders, which is the whole of Fees.",
 };
@@ -223,6 +237,9 @@ const breakdownMethodology = {
   },
   Revenue: {
     [SWAP_FEES_TO_PROTOCOL]: "Protocol share of swap fees.",
+  },
+  ProtocolRevenue: {
+    [SWAP_FEES_TO_PROTOCOL]: "Gross swap-fee accrual to the fee treasury before discretionary holder allocations; not net retained income.",
   },
   HoldersRevenue: {
     [LOCKER_REWARDS]: "WETH credited to U1 lockers at funding time, not again when users claim it.",
