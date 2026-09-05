@@ -102,6 +102,11 @@ const adapter: Adapter = {
     [CHAIN.ARBITRUM]: { fetch },
     [CHAIN.AURORA]: { fetch },
     [CHAIN.BOBA]: { fetch },
+    // the volume adapter reads these three from the same api and they have traded every week;
+    // the fee query answers for them under the same chain key
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.AVAX]: { fetch },
+    [CHAIN.OPTIMISM]: { fetch },
   },
   runAtCurrTime: true,
   methodology,
