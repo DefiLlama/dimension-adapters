@@ -160,6 +160,10 @@ const adapter: SimpleAdapter = {
    start: '2024-12-09',
    dependencies: [Dependencies.DUNE],
    isExpensiveAdapter: true,
+   // macaron.bid no longer has an A record (nothing hosted, just parked
+   // nameservers), and both mining programs have received no fees since
+   // 2026-02-25.
+   deadFrom: '2026-02-26',
    methodology: {
       Fees: 'Total fees from both Auction-based Mining and Block-based Mining. Auction: Dutch auction mechanism where price doubles after each bid then decreases to 0 over 1 hour. Block: Players deploy SOL to mine blocks and earn tokens.',
       Revenue:
