@@ -77,6 +77,9 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BSC],
   start: '2023-07-19',
+  // the only subgraph this reads is gone from the network, palmswap.org publishes no address,
+  // and tvl has been zero since 2024-10-01
+  deadFrom: '2024-10-02',
 };
 
 export default adapter;
