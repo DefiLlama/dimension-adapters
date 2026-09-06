@@ -52,6 +52,13 @@ export default {
                 // replaced those fields with the 1e9-scaled rate pair. That reported a few hundred
                 // thousand nanoGRAM per round -- about six millionths of the real figure.
                 const newCoins = (totalTokens * (currentRate - previousRate)) / 1_000_000_000
+                // governance_fee is a uint16 out of 65535, and set_governance_fee in the treasury
+                // bounds it only by the governor's signature -- 65535 is a reachable value, and it
+                // would divide by zero below and publish Infinity. Reject it rather than emit it.
+                if (!Number.isFinite(governanceFee) || governanceFee < 0 || governanceFee >= 65535) {
+                    throw new Error('Expected a governance fee below 65535, but got ' + governanceFee)
+                }
+
                 // Not floored. newCoins used to be a difference of two integers, so flooring the
                 // reward was a no-op; it is a scaled product now, and flooring it leaves protocolFee
                 // holding the negative fractional remainder -- a revenue of -1e-9 when the fee is 0.
