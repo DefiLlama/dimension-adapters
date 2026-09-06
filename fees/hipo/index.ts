@@ -28,27 +28,34 @@ export default {
                     throw new Error('Expected a zero exit code, but got ' + getTreasuryState.exit_code)
                 }
 
-                const getTimes = await postURL('https://toncenter.com/api/v3/runGetMethod', {
-                    address,
-                    method: 'get_times',
-                    stack: [],
-                })
-                if (getTimes.exit_code !== 0) {
-                    throw new Error('Expected a zero exit code, but got ' + getTimes.exit_code)
-                }
+                // get_treasury_state mirrors the treasury's storage order. The upgrade of 2026-09-06
+                // inserted deficit at index 5 and round_duration + last_settled_round after the rate
+                // pair, taking the tuple from 21 values to 24, so every index from 5 on moved.
+                const totalTokens = Number(getTreasuryState.stack[1].value)
+                const previousRate = Number(getTreasuryState.stack[12].value)
+                const currentRate = Number(getTreasuryState.stack[13].value)
+                const roundDuration = Number(getTreasuryState.stack[14].value)
+                const governanceFee = Number(getTreasuryState.stack[19].value)
 
-                const lastStaked = Number(getTreasuryState.stack[11].value)
-                const lastRecovered = Number(getTreasuryState.stack[12].value)
-                const governanceFee = Number(getTreasuryState.stack[16].value)
+                // round_duration is the number of seconds current_rate took to grow out of
+                // previous_rate, measured on chain between the last two settled rounds. It replaces
+                // the round length that used to come from a second get_times call: the treasury only
+                // moves the rates when a round it lent into settles, so a round in which nothing was
+                // lent widens this interval rather than passing unnoticed.
+                const normalize = normalizer(roundDuration)
 
-                const currentRoundSince = Number(getTimes.stack[0].value)
-                const nextRoundSince = Number(getTimes.stack[3].value)
-
-                const duration = nextRoundSince - currentRoundSince
-                const normalize = normalizer(duration)
-
-                const newCoins = lastRecovered - lastStaked
-                const treasuryReward = Math.floor(newCoins * 65535 / (65535 - governanceFee))
+                // The reward that accrued to stakers, in nanoGRAM. It is the rate move applied to the
+                // whole hGRAM supply -- total_coins = total_tokens * rate / 1e9, so a rate move of
+                // (current - previous) is worth total_tokens * (current - previous) / 1e9 in coins.
+                // Indices 11 and 12 used to hold last_staked and last_recovered, and this adapter was
+                // still subtracting them as if they were coin amounts long after the treasury
+                // replaced those fields with the 1e9-scaled rate pair. That reported a few hundred
+                // thousand nanoGRAM per round -- about six millionths of the real figure.
+                const newCoins = (totalTokens * (currentRate - previousRate)) / 1_000_000_000
+                // Not floored. newCoins used to be a difference of two integers, so flooring the
+                // reward was a no-op; it is a scaled product now, and flooring it leaves protocolFee
+                // holding the negative fractional remainder -- a revenue of -1e-9 when the fee is 0.
+                const treasuryReward = newCoins * 65535 / (65535 - governanceFee)
                 const protocolFee = treasuryReward - newCoins
 
                 const supplySideRevenue = newCoins / 1000000000
