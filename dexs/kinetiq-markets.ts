@@ -3,27 +3,49 @@ import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue, fetchHIP3DeployerData } from "../helpers/hyperliquid";
 
 const KINETIQ_MARKETS_LEGACY_END_DATE = "2026-06-20";
-const KINETIQ_MARKETS_BUILDER_ADDRESS = '0x42f3226007290b02c5a0b15bccbb1ba6df04f992';
+
+const KINETIQ_MARKETS_BUILDERS = [
+  {
+    // Markets builder.
+    address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
+    start: '2026-01-12',
+  },
+  {
+    // Markets Mobile builder.
+    address: '0x2af94a24e1f744a8e251b4996283ffb4657e915d',
+    start: '2025-12-02',
+  },
+] as const;
 
 const fetch = async (options: FetchOptions) => {
   const deployerId = options.dateString > KINETIQ_MARKETS_LEGACY_END_DATE ? 'mkts' : 'km';
-  const { dailyVolume: builderVolume, dailyFees: builderFees } = await fetchBuilderCodeRevenue({
-    options,
-    builder_address: KINETIQ_MARKETS_BUILDER_ADDRESS,
-  });
 
+  const builderVolume = options.createBalances();
+  const builderFees = options.createBalances();
   const builderHip3OverlapVolume = options.createBalances();
 
-  // No builder activity means the builder/HIP-3 intersection is necessarily zero.
-  if (await builderVolume.getUSDValue()) {
-    const { dailyVolume: builderHip3Volume } = await fetchBuilderCodeRevenue({
+  for (const builder of KINETIQ_MARKETS_BUILDERS) {
+    if (options.dateString < builder.start) continue;
+
+    const { dailyVolume: builderDailyVolume, dailyFees: builderDailyFees } = await fetchBuilderCodeRevenue({
       options,
-      builder_address: KINETIQ_MARKETS_BUILDER_ADDRESS,
-      market: 'hip3',
-      hip3DeployerId: deployerId,
+      builder_address: builder.address,
     });
 
-    builderHip3OverlapVolume.add(builderHip3Volume);
+    builderVolume.add(builderDailyVolume);
+    builderFees.add(builderDailyFees);
+
+    // No builder activity means the builder/HIP-3 intersection is necessarily zero.
+    if (await builderDailyVolume.getUSDValue()) {
+      const { dailyVolume: builderHip3Volume } = await fetchBuilderCodeRevenue({
+        options,
+        builder_address: builder.address,
+        market: 'hip3',
+        hip3DeployerId: deployerId,
+      });
+
+      builderHip3OverlapVolume.add(builderHip3Volume);
+    }
   }
 
   const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, dailyDeployerFee: hip3DeployerFee } = await fetchHIP3DeployerData({
@@ -63,11 +85,11 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
-  start: '2025-12-16',
+  start: '2025-12-02',
   doublecounted: true,
   methodology: {
-    Volume: "Unique trading volume routed through Kinetiq Markets' builder code or executed on Kinetiq's HIP-3 markets. Builder-routed trades on Kinetiq's own HIP-3 markets are counted once.",
-    Fees: "Trading fees paid by users on Hyperliquid via Kinetiq's builder code and its HIP-3 markets.",
+    Volume: "Unique trading volume routed through Kinetiq Markets' builder codes or executed on Kinetiq's HIP-3 markets. Builder-routed trades on Kinetiq's own HIP-3 markets are counted once.",
+    Fees: "Trading fees paid by users on Hyperliquid via Kinetiq's builder codes and its HIP-3 markets.",
     Revenue: "Builder-code fees (retained by Kinetiq) plus Kinetiq's deployer-fee cut of its HIP-3 market fees.",
     ProtocolRevenue: "Same as Revenue — retained by Kinetiq.",
     SupplySideRevenue: "The remainder of HIP-3 market fees, paid through to Hyperliquid.",
