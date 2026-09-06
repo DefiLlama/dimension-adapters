@@ -11,6 +11,11 @@ const MEME_HOOK = "0x57387759Ea3a3116330f4Bd2cae48B03091A2044";
 // verified against the Robinhood Chain RPC.
 const FACTORY_DEPLOYED_BLOCK = 55493136;
 const BPS = 10000;
+// Pez's official deployment/docs do not identify a separate platform token;
+// buybacks of launched tokens are supply-side revenue. Add a verified platform
+// token address here if Pez deploys one, so only that token's buyback is holders
+// revenue. See https://pez.family/docs.
+const PLATFORM_TOKENS = new Set<string>();
 
 const TOKEN_LAUNCHED_EVENT =
   "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)";
@@ -145,11 +150,12 @@ async function fetch(options: FetchOptions) {
           (fee * BigInt(creatorBps)) / BigInt(BPS),
           "Curve Swap Fees to Creators"
         );
-        dailyHoldersRevenue.add(
-          quoteToken,
-          (fee * BigInt(buybackBps)) / BigInt(BPS),
-          METRIC.TOKEN_BUY_BACK
-        );
+        const buybackAmount = (fee * BigInt(buybackBps)) / BigInt(BPS);
+        if (PLATFORM_TOKENS.has(curve.token)) {
+          dailyHoldersRevenue.add(quoteToken, buybackAmount, METRIC.TOKEN_BUY_BACK);
+        } else {
+          dailySupplySideRevenue.add(quoteToken, buybackAmount, "Curve Swap Fees to Meme Token Buybacks");
+        }
         dailySupplySideRevenue.add(quoteToken, tax, "Creator Tax");
       });
     });
@@ -171,7 +177,11 @@ async function fetch(options: FetchOptions) {
     );
     dailyRevenue.add(pairToken, log.protocolAmount, "Token Swap Fees to Protocol");
     dailySupplySideRevenue.add(pairToken, log.creatorAmount, "Token Swap Fees to Creators");
-    dailyHoldersRevenue.add(pairToken, log.buybackAmount, METRIC.TOKEN_BUY_BACK);
+    if (PLATFORM_TOKENS.has(token)) {
+      dailyHoldersRevenue.add(pairToken, log.buybackAmount, METRIC.TOKEN_BUY_BACK);
+    } else {
+      dailySupplySideRevenue.add(pairToken, log.buybackAmount, "Token Swap Fees to Meme Token Buybacks");
+    }
   }
 
   return {
@@ -189,8 +199,8 @@ const methodology = {
   Fees: "Includes Pez curve trade fees, creator taxes, and graduated-pool swap fees realized through PoolFeesSwept events. Pez's current deployment has no launch fee.",
   Revenue: "Zero under Pez's current zero-platform-fee policy; any non-zero protocol amount is read from the on-chain fee policy or PoolFeesSwept events.",
   ProtocolRevenue: "Pez's current deployment has no protocol fee share; the adapter retains this field to detect future on-chain policy changes.",
-  HoldersRevenue: "Buyback-and-lock amounts funded from the creator's share of Pez trade fees.",
-  SupplySideRevenue: "Creator fee and creator tax amounts paid to token creators. Buyback-and-lock is reported separately as holders revenue.",
+  HoldersRevenue: "Buyback-and-lock amounts funded from the creator's share of Pez trade fees only when the bought-back token is a verified Pez platform token.",
+  SupplySideRevenue: "Creator fee, creator tax, and launched-token buyback amounts paid from Pez trade fees. Buybacks of launched tokens are supply-side revenue; only a verified platform-token buyback is holders revenue.",
 };
 
 const breakdownMethodology = {
@@ -211,8 +221,10 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     "Curve Swap Fees to Creators": "Creator share of curve swap fees.",
+    "Curve Swap Fees to Meme Token Buybacks": "Buyback share of curve swap fees used to buy launched tokens.",
     "Creator Tax": "Creator tax collected on curve swaps.",
     "Token Swap Fees to Creators": "Creator amount emitted by PoolFeesSwept for graduated pools.",
+    "Token Swap Fees to Meme Token Buybacks": "Buyback amount emitted by PoolFeesSwept and used to buy launched tokens.",
   },
 };
 
