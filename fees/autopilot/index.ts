@@ -77,6 +77,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.BASE],
     start: '2025-07-24',
+    deadFrom: '2026-03-26', // Autopilot shut down (epoch 134, 2026-03-25 was the last epoch served); no FeeCollected/nonzero RewardsSnapshot event since
     methodology,
     breakdownMethodology
 }
