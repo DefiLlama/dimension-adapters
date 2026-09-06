@@ -11,7 +11,6 @@ const MAINNET_VOLUME_START_TIMESTAMP = 1_788_615_060
 interface Market {
   symbol: string
   quoteAsset: string
-  status: string
 }
 
 interface Candle {
@@ -27,10 +26,10 @@ const fetch = async (options: FetchOptions) => {
     throw new Error('BULK exchangeInfo response is invalid')
 
   const symbols = [...new Set(markets
-    .filter((market: Market) => market?.status === 'TRADING' && market?.quoteAsset === 'USD')
+    .filter((market: Market) => market?.quoteAsset === 'USD')
     .map((market: Market) => market.symbol))]
   if (!symbols.length || symbols.some(symbol => typeof symbol !== 'string' || !symbol.length))
-    throw new Error('BULK exchangeInfo response has no valid trading USD markets')
+    throw new Error('BULK exchangeInfo response has no valid USD markets')
 
   const startTime = Math.max(options.startTimestamp, MAINNET_VOLUME_START_TIMESTAMP) * 1000
   const endTime = options.endTimestamp * 1000

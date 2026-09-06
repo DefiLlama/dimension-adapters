@@ -135,7 +135,6 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // A carried rebate reserve can make net revenue negative for a sampling window.
   methodology: {
     Fees: 'Taker trading fees measured from daily changes in BULK mainnet cumulative fee settlement.',
-    UserFees: 'Taker trading fees debited from users during the sampling window.',
     SupplySideRevenue: 'Realized trading-fee rebates credited to makers during the sampling window.',
     Revenue: 'Net fee settlement after realized maker rebates during the sampling window.',
   },

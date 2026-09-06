@@ -10,11 +10,13 @@ type StatsResponse = {
   openInterest?: { totalUsd?: unknown }
 }
 
-async function fetch(_options: FetchOptions): Promise<FetchResultVolume> {
+async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
   const response: StatsResponse = await httpGet(STATS_URL)
   const timestamp = response.timestamp
   const openInterest = response.openInterest?.totalUsd
-  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > MAX_STATS_AGE_MS)
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)
+    || Math.abs(Date.now() - timestamp) > MAX_STATS_AGE_MS
+    || Math.abs(Date.now() - options.endTimestamp * 1000) > 24 * 60 * 60 * 1000)
     throw new Error('BULK stats response is stale')
   if (typeof openInterest !== 'number' || !Number.isFinite(openInterest) || openInterest < 0)
     throw new Error('BULK stats response has invalid open interest')
