@@ -287,7 +287,8 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
+  // clickhouse chains: evm_indexer has no sync guard, an hourly window reads a partial hour (#9100)
+  pullHourly: false,
   fetch,
   adapter: chainConfig,
   methodology,
