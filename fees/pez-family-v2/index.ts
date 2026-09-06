@@ -10,9 +10,6 @@ const MEME_HOOK = "0x57387759Ea3a3116330f4Bd2cae48B03091A2044";
 // Factory deployment block observed from the official Pez deployment status and
 // verified against the Robinhood Chain RPC.
 const FACTORY_DEPLOYED_BLOCK = 55493136;
-// Pez's live factory reports a zero launch fee; keep the constant explicit so a
-// future fee change is visible and can be handled as a methodology update.
-const LAUNCH_FEE_WEI = 0;
 const BPS = 10000;
 
 const TOKEN_LAUNCHED_EVENT =
@@ -28,6 +25,8 @@ const CURVE_SELL_EVENT =
   "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax)";
 
 const POSITION_INFO_FUNCTION = "function positionInfo(uint256 tokenId) view returns (uint256 info)";
+// Pez docs: the current deployment has no platform share; creator fees may be
+// routed to buyback-and-lock instead. See https://pez.family/docs.
 const LAUNCH_FEE_POLICY_FUNCTION =
   "function getLaunchFeePolicy(address token) view returns (tuple(address protocolFeeRecipient, uint16 protocolFeeShareBps, uint16 buybackBurnBps, uint16 hookFeeBps, uint16 maxInternalPriceImpactBps))";
 
@@ -35,6 +34,7 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const tokenLaunchedLogs = await options.getLogs({
@@ -49,11 +49,6 @@ async function fetch(options: FetchOptions) {
     eventAbi: POOL_GRADUATED_EVENT,
     fromBlock: FACTORY_DEPLOYED_BLOCK,
     cacheInCloud: true,
-  });
-
-  const tokenLaunchedLogsToday = await options.getLogs({
-    target: FACTORY,
-    eventAbi: TOKEN_LAUNCHED_EVENT,
   });
 
   const curveToTokens = new Map<string, { token: string; pairToken: string }>();
@@ -124,9 +119,6 @@ async function fetch(options: FetchOptions) {
     });
   }
 
-  dailyFees.addGasToken(LAUNCH_FEE_WEI * tokenLaunchedLogsToday.length, "Launch Fees");
-  dailyRevenue.addGasToken(LAUNCH_FEE_WEI * tokenLaunchedLogsToday.length, "Launch Fees to Protocol");
-
   const addCurveLogs = (logsByCurve: any[], isBuy: boolean) => {
     logsByCurve.forEach((logs, index) => {
       const curve = curveToTokens.get(curveAddresses[index]);
@@ -153,10 +145,10 @@ async function fetch(options: FetchOptions) {
           (fee * BigInt(creatorBps)) / BigInt(BPS),
           "Curve Swap Fees to Creators"
         );
-        dailySupplySideRevenue.add(
+        dailyHoldersRevenue.add(
           quoteToken,
           (fee * BigInt(buybackBps)) / BigInt(BPS),
-          "Curve Swap Fees to Meme Token Buybacks"
+          METRIC.TOKEN_BUY_BACK
         );
         dailySupplySideRevenue.add(quoteToken, tax, "Creator Tax");
       });
@@ -179,41 +171,48 @@ async function fetch(options: FetchOptions) {
     );
     dailyRevenue.add(pairToken, log.protocolAmount, "Token Swap Fees to Protocol");
     dailySupplySideRevenue.add(pairToken, log.creatorAmount, "Token Swap Fees to Creators");
-    dailySupplySideRevenue.add(pairToken, log.buybackAmount, "Token Swap Fees to Meme Token Buybacks");
+    dailyHoldersRevenue.add(pairToken, log.buybackAmount, METRIC.TOKEN_BUY_BACK);
   }
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 }
 
 const methodology = {
   Volume: "Volume of all swaps on Pez's launch curves; external Uniswap v4 swaps are excluded.",
-  Fees: "Includes Pez launch fees, curve swap fees, creator taxes, and swap fees realized through PoolFeesSwept events after graduation.",
-  Revenue: "Includes launch fees and the protocol share of curve and graduated-pool swap fees.",
-  SupplySideRevenue: "Includes creator fees, creator taxes, and meme-token buybacks funded by curve and graduated-pool fees.",
+  Fees: "Includes Pez curve trade fees, creator taxes, and graduated-pool swap fees realized through PoolFeesSwept events. Pez's current deployment has no launch fee.",
+  Revenue: "Zero under Pez's current zero-platform-fee policy; any non-zero protocol amount is read from the on-chain fee policy or PoolFeesSwept events.",
+  ProtocolRevenue: "Pez's current deployment has no protocol fee share; the adapter retains this field to detect future on-chain policy changes.",
+  HoldersRevenue: "Buyback-and-lock amounts funded from the creator's share of Pez trade fees.",
+  SupplySideRevenue: "Creator fee and creator tax amounts paid to token creators. Buyback-and-lock is reported separately as holders revenue.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Launch Fees": "Launch fee charged for each token launched; Pez's current factory configuration is zero.",
-    "Curve Swap Fees": "Fees and creator taxes collected from swaps on Pez launch curves.",
+    "Curve Swap Fees": "Base trade fees and creator taxes collected from swaps on Pez launch curves.",
     [METRIC.SWAP_FEES]: "Fees collected from Uniswap v4 swaps on graduated Pez pools, realized through PoolFeesSwept events.",
   },
   Revenue: {
-    "Launch Fees to Protocol": "Launch fees collected by the Pez factory.",
     "Curve Swap Fees to Protocol": "Protocol share of curve swap fees defined by each token's launch fee policy.",
     "Token Swap Fees to Protocol": "Protocol amount emitted by PoolFeesSwept for graduated pools.",
   },
+  ProtocolRevenue: {
+    "Curve Swap Fees to Protocol": "Protocol share of curve swap fees; zero under the current Pez policy.",
+    "Token Swap Fees to Protocol": "Protocol amount emitted by PoolFeesSwept; zero under the current Pez policy.",
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "Buyback-and-lock amounts from the creator's share of Pez trade fees.",
+  },
   SupplySideRevenue: {
     "Curve Swap Fees to Creators": "Creator share of curve swap fees.",
-    "Curve Swap Fees to Meme Token Buybacks": "Buyback share of curve swap fees when enabled by the token creator.",
     "Creator Tax": "Creator tax collected on curve swaps.",
     "Token Swap Fees to Creators": "Creator amount emitted by PoolFeesSwept for graduated pools.",
-    "Token Swap Fees to Meme Token Buybacks": "Buyback amount emitted by PoolFeesSwept for graduated pools.",
   },
 };
 
