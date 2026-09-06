@@ -123,7 +123,7 @@ async function fetch(options: FetchOptions) {
   dailyFees.addUSDValue(metrics.fees, 'Taker Trading Fees')
   dailySupplySideRevenue.addUSDValue(metrics.supplySideRevenue, 'Trading Fees To Makers')
   dailyRevenue.addUSDValue(metrics.revenue, 'Trading Fees After Maker Rebates')
-  return { dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue }
+  return { dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -137,12 +137,14 @@ const adapter: SimpleAdapter = {
     Fees: 'Taker trading fees measured from daily changes in BULK mainnet cumulative fee settlement.',
     SupplySideRevenue: 'Realized trading-fee rebates credited to makers during the sampling window.',
     Revenue: 'Net fee settlement after realized maker rebates during the sampling window.',
+    ProtocolRevenue: 'Net fee settlement allocated to the BULK protocol treasury after realized maker rebates.',
   },
   breakdownMethodology: {
     Fees: { 'Taker Trading Fees': 'Taker trading fees charged during the sampling window.' },
     UserFees: { 'Taker Trading Fees': 'Taker trading fees debited from users during the sampling window.' },
     SupplySideRevenue: { 'Trading Fees To Makers': 'Realized trading-fee rebates credited to makers.' },
     Revenue: { 'Trading Fees After Maker Rebates': 'Net trading-fee settlement after realized maker rebates.' },
+    ProtocolRevenue: { 'Trading Fees After Maker Rebates': 'Net trading-fee settlement allocated to the BULK protocol treasury.' },
   },
 }
 
