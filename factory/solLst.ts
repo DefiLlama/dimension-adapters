@@ -849,18 +849,20 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
-  "save-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
-    stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
-    lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
-    lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
-    start: "2025-03-31",
-    methodology: {
-      Fees: "Staking rewards from staked SOL on save staked solana",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-    },
-  }),
+  // moved to fees/save-staked-sol/index.ts, the pool has a 0% epoch fee and saveSOL has no price feed,
+  // so withdrawal fees need to be converted to SOL at the pool exchange rate
+  // "save-staked-sol": simpleConfig({
+  //   stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
+  //   stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
+  //   lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
+  //   lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
+  //   start: "2025-03-31",
+  //   methodology: {
+  //     Fees: "Staking rewards from staked SOL on save staked solana",
+  //     Revenue: "Includes withdrawal fees and management fees collected by fee collector",
+  //     ProtocolRevenue: "Revenue going to treasury/team",
+  //   },
+  // }),
 
   "solayer-staked-sol": simpleConfig({
     stakePoolReserveAccount: "Brh9rB6npnjM1vDXyCXtzkXVGRnsh6KHqmBz26tVACg9",
