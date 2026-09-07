@@ -105,6 +105,11 @@ const EXECUTORS = [
   "0x26a5d02938fbf70af4c114c2ff432ed3be0d3b62", // gen-9, live 2026-08-21
   // https://robinhoodchain.blockscout.com/address/0xf85018dE9ebE0fbDf7D559c8814cEBE709855029
   "0xf85018de9ebe0fbdf7d559c8814cebe709855029", // gen-10, live 2026-09-02, block 52857836
+  // gen-11, seated ahead of its deployment: no code, nonce 0 and no balance at
+  // the time of writing, so it emits nothing and changes no figure until the
+  // team switches it on — at which point its first event is already counted.
+  // https://robinhoodchain.blockscout.com/address/0x5d2Adb3322E650Dc9f8FFfaF4b3cb9c3c21F74d8
+  "0x5d2adb3322e650dc9f8fffaf4b3cb9c3c21f74d8",
 ];
 const EXECUTOR_SET = new Set(EXECUTORS);
 
