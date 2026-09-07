@@ -6,8 +6,8 @@
 // is not that number: it is the position in units of the index at 18 decimals,
 // so a filled trade carrying 1.344 USDC at 500x emits 11.3202 against an
 // openPrice of 59.3632, and 11.3202 x 59.3632 is the 672 USDC the fee is
-// charged on. Reading it as USDC overstates the day by twelve orders of
-// magnitude, which is what the harness rejected.
+// charged on. Read as 6-decimal USDC it comes out about ten orders of magnitude
+// high, the twelve decimals it carries over USDC's six less the index price.
 //
 // Funding is a transfer between the two sides of the book and is not volume; it
 // is not counted here or in fees/domination-finance.ts.
@@ -18,8 +18,8 @@ import ADDRESSES from "../helpers/coreAssets.json";
 
 const CALLBACKS = "0x837a6E61C123c6e7cDfff2219A46898D0415343F";
 
-// The Trade tuple is inlined because the topic is the keccak of the canonical
-// signature: this one hashes to 0xf14b6175, which is what the contract emits.
+// The Trade tuple is inlined from the implementation behind the proxy, whose
+// verified ABI declares both events with these nine components in this order.
 const TRADE =
   "(uint256 collateral, uint192 openPrice, uint192 tp, uint192 sl, address trader, uint32 leverage, uint16 pairIndex, uint8 index, bool buy)";
 const MARKET_OPEN_EXECUTED =
