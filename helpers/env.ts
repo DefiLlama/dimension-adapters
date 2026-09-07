@@ -109,6 +109,7 @@ export const ENV_KEYS = new Set([
   'TRONSCAN_API_KEY',
   'ROBINHOOD_RPC',
   'INTERNAL_API_KEY',
+  'RELAY_API_KEY',
   'MARKETS_API'
 ])
 
