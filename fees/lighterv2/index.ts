@@ -225,7 +225,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const methodology = {
   Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
   Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
-  HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
+  HoldersRevenue: 'LIT bought back by the treasury, measured from its trades on the LIT/USDC market. The buyback is not a share of the period\'s fees: since the first on 5 January 2026 it totals 27.0m against 25.8m of revenue, and the running buyback has led the running revenue on 241 of those 245 days.',
   SupplySideRevenue: 'Liquidation fees paid to the LLP (Lighter Liquidity Pool / insurance fund).',
 }
 
