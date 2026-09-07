@@ -57,7 +57,7 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 import { queryDune } from "../helpers/dune";
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { getDexTokensBlacklisted } from "../helpers/lists";
 import { isCoreAsset } from "../helpers/prices";
 import {
   getEstablishedTokens, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
@@ -402,7 +402,7 @@ async function fetch(options: FetchOptions) {
         }
       }
 
-      const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+      const blacklistTokens = new Set(await getDexTokensBlacklisted(options))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
       // flagged pools whose sides are all established (core or CG-listed) are
       // spared - one batched price lookup, see getEstablishedTokens

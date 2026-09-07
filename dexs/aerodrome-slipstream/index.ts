@@ -1,7 +1,7 @@
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
+import { getDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
 import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
 import { formatAddress } from '../../utils/utils';
@@ -126,7 +126,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 
   // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
   // downstream (volume, fees, revenue splits) derives from rawPools
-  const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(chain))
+  const blacklistTokens = new Set(await getDexTokensBlacklisted(fetchOptions))
   rawPools = rawPools.filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
 
   // drop the day's wash-flagged pools (see getWashPools), unless every side is
