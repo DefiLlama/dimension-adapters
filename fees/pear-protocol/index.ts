@@ -93,7 +93,11 @@ const buildNewFetch = (connector: "hyperliquid" | "lighter") => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  // Kept on version 1: fetchLegacy only supports a single endTimestamp per
+  // call (one aggregate per day), it cannot serve an arbitrary timestamp
+  // range, so this whole file is called on the fixed one-day-at-a-time
+  // schedule that version 1 guarantees.
+  version: 1,
   adapter: {
     // Legacy engine, stops being queried once the new engines take over.
     [CHAIN.ARBITRUM]: {
