@@ -196,7 +196,6 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   start: "2026-08-03"
