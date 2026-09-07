@@ -543,6 +543,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "rainbow-perps": {
     addresses: ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"],
     start: "2025-09-15",
+    breakdownFees: true,
     methodology: {
       Fees: "builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
