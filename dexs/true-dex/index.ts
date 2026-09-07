@@ -2,13 +2,13 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-// TRUE DEX: perpetuals venue on Solana (https://app.truefinance.ai/perps).
-// Trades match on an off-chain sequencer and settle on Solana through a ZK
-// verifier program (ttaiNybR4ncnBFsBCQKdVus8BNHepErToRp5cuULduL), so there
-// are no per-trade on-chain logs to index. Daily aggregates come from the
-// project's public per-UTC-day endpoint, which is built from the venue trade
-// tape (one row per venue trade id); the same tape backs the live
-// https://dex-prod.truefinance.ai/v1/markets/stats volume_24h figure.
+// TRUE DEX: perpetuals venue (https://app.truefinance.ai/perps). Trades match
+// on an off-chain sequencer; only ZK-verified block roots settle on Solana
+// (verifier ttaiNybR4ncnBFsBCQKdVus8BNHepErToRp5cuULduL), so individual
+// trades are not Solana transactions and the volume is listed as off-chain.
+// Daily aggregates come from the project's public per-UTC-day endpoint, built
+// from the venue trade tape (one row per venue trade id); the same tape backs
+// the live https://dex-prod.truefinance.ai/v1/markets/stats volume_24h figure.
 const STATS_URL = "https://app.truefinance.ai/api/public/dex/stats";
 
 interface DayStats {
@@ -67,7 +67,9 @@ const adapter: SimpleAdapter = {
   // version 1: the project endpoint returns per-UTC-day aggregates only.
   version: 1,
   fetch,
-  chains: [CHAIN.SOLANA],
+  // Trades are not Solana transactions (see header); collateral custody is on
+  // Solana and is covered by the TVL adapter.
+  chains: [CHAIN.OFF_CHAIN],
   // First UTC day covered by the venue trade tape.
   start: "2026-08-23",
   methodology,
