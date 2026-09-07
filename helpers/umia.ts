@@ -35,6 +35,9 @@ const PROPOSAL_TO_MARKET = "function proposalToMarket(uint256) view returns (uin
 const MARKET_PROPOSAL_IDS = "function marketProposalIds(uint256) view returns (uint256[])";
 const PROPOSAL_FEE_STATE =
   "function proposalFeeState(uint256) view returns (uint256 ventureFee, uint256 moneyFee)";
+const PROTOCOL_FEE_RECIPIENT = "function protocolFeeRecipient() view returns (address)";
+const SHARE_BALANCE = "function shareBalance(address) view returns (uint256)";
+const TOTAL_SHARES = "function totalShares() view returns (uint256)";
 
 const SPOT_SWAP_EVENT =
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
@@ -51,9 +54,11 @@ const PROTOCOL_FEES_COLLECTED_EVENT =
 const LABEL = {
   SPOT_FEES: METRIC.SWAP_FEES,
   SPOT_PROTOCOL: "Spot protocol fee",
+  SPOT_POL: "Spot LP fees on protocol-owned vault shares",
   SPOT_LP: "Spot LP fees (venture vault)",
   DM_FEES: "Decision market swap fees",
   DM_PROTOCOL: "Decision market protocol fee",
+  DM_POL: "Decision market LP fees on protocol-owned vault shares",
   DM_LP: "Decision market LP fees (venture vault)",
   SPOT_VOLUME: "Spot swap volume",
   DM_VOLUME: "Decision market swap volume",
@@ -128,6 +133,26 @@ async function getVaultShare(options: FetchOptions, spot: SpotContext): Promise<
 }
 
 /**
+ * The share of the vault owned by the protocol fee recipient. What the vault earns
+ * as an LP accrues to its share holders, so that part of the LP half is protocol
+ * revenue too. It is 1 for UMIA, whose treasury is both the fee recipient and the
+ * vault's only depositor, and 0 for a venture whose vault the protocol holds no
+ * shares of, where the LP half is that venture's own income.
+ */
+async function getRecipientShare(options: FetchOptions, spot: SpotContext | null): Promise<number> {
+  if (!spot) return 0;
+  const { api } = options;
+  const recipient = await api.call({ target: HUB, abi: PROTOCOL_FEE_RECIPIENT });
+  if (!recipient || recipient === NULL_ADDRESS) return 0;
+  const [held, total] = await Promise.all([
+    api.call({ target: spot.vault, abi: SHARE_BALANCE, params: [recipient] }),
+    api.call({ target: spot.vault, abi: TOTAL_SHARES }),
+  ]);
+  if (!Number(total)) return 0;
+  return Math.min(1, Number(held) / Number(total));
+}
+
+/**
  * Spot swap fees on the venture's Uniswap v4 pool, booked in the money token.
  *
  * v4 Swap amounts are the swapper's own deltas, so the negative leg is what they
@@ -144,6 +169,7 @@ async function addSpotFees(
   spot: SpotContext,
   balances: { fees: any; protocol: any; supplySide: any; volume: any },
   volumeOnly: boolean,
+  recipientShare: number,
 ) {
   const logs = await options.getLogs({
     target: POOL_MANAGER,
@@ -163,6 +189,7 @@ async function addSpotFees(
 
   const protocolCutBps = Number(await options.api.call({ target: HUB, abi: "function spotProtocolFeeCutBps() view returns (uint16)" }));
   const vaultShare = await getVaultShare(options, spot);
+  const cut = protocolCutBps / BPS_DENOM;
 
   for (const log of logs) {
     const moneyDelta = Number(spot.moneyIsCurrency0 ? log.amount0 : log.amount1);
@@ -173,11 +200,16 @@ async function addSpotFees(
     if (!rate || rate >= 1) continue;
 
     const fee = moneyDelta < 0 ? Math.abs(moneyDelta) * rate : (moneyDelta * rate) / (1 - rate);
-    const protocolFee = (fee * protocolCutBps * vaultShare) / BPS_DENOM;
+    // Fees accrue to LPs pro rata; the protocol cut is skimmed off the vault's slice
+    // only, and the rest of that slice belongs to the vault's share holders.
+    const vaultFee = fee * vaultShare;
+    const protocolCut = vaultFee * cut;
+    const polFee = (vaultFee - protocolCut) * recipientShare;
 
     balances.fees.add(ctx.moneyToken, fee, LABEL.SPOT_FEES);
-    balances.protocol.add(ctx.moneyToken, protocolFee, LABEL.SPOT_PROTOCOL);
-    balances.supplySide.add(ctx.moneyToken, fee - protocolFee, LABEL.SPOT_LP);
+    balances.protocol.add(ctx.moneyToken, protocolCut, LABEL.SPOT_PROTOCOL);
+    if (polFee) balances.protocol.add(ctx.moneyToken, polFee, LABEL.SPOT_POL);
+    balances.supplySide.add(ctx.moneyToken, fee - protocolCut - polFee, LABEL.SPOT_LP);
   }
 }
 
@@ -225,6 +257,7 @@ async function addDecisionMarketFees(
   ventureId: number,
   balances: { fees: any; protocol: any; supplySide: any; volume: any },
   volumeOnly: boolean,
+  recipientShare: number,
 ) {
   const swapLogs = await options.getLogs({ target: MARKET_CORE, eventAbi: DM_SWAP_EVENT });
   const settledLogs = volumeOnly
@@ -266,7 +299,10 @@ async function addDecisionMarketFees(
         const fee = log.zeroForOne ? (notional * rate) / (1 - rate) : notional * rate;
         balances.fees.add(ctx.moneyToken, fee, LABEL.DM_FEES);
         // Only the LP half is recognised while trading; the protocol half waits for settlement.
-        balances.supplySide.add(ctx.moneyToken, (fee * (BPS_DENOM - protocolCutBps)) / BPS_DENOM, LABEL.DM_LP);
+        const lpFee = (fee * (BPS_DENOM - protocolCutBps)) / BPS_DENOM;
+        const polFee = lpFee * recipientShare;
+        if (polFee) balances.protocol.add(ctx.moneyToken, polFee, LABEL.DM_POL);
+        balances.supplySide.add(ctx.moneyToken, lpFee - polFee, LABEL.DM_LP);
       });
     }
   }
@@ -300,19 +336,25 @@ async function addDecisionMarketFees(
 
     proposalIds.forEach((proposalId: any, i: number) => {
       const won = String(proposalId) === String(winningProposalId);
-      // The winner's accrued cut is the protocol's; every loser's returns to the vault.
-      const bucket = won ? "protocol" : "supplySide";
-      const label = won ? LABEL.DM_PROTOCOL : LABEL.DM_LP;
       let moneyFee = Number(feeStates[i].moneyFee);
       let ventureFee = Number(feeStates[i].ventureFee);
       if (won && !moneyFee && !ventureFee) {
         const collected = collectedByMarket.get(String(marketId));
         if (collected) ({ money: moneyFee, venture: ventureFee } = collected);
       }
-      if (moneyFee) balances[bucket].add(ctx.moneyToken, moneyFee, label);
+      // The winner's accrued cut is the protocol's; every loser's returns to the
+      // vault, where the fee recipient's share of it is protocol revenue too.
+      const book = (token: string, amount: number) => {
+        if (!amount) return;
+        if (won) return balances.protocol.add(token, amount, LABEL.DM_PROTOCOL);
+        const pol = amount * recipientShare;
+        if (pol) balances.protocol.add(token, pol, LABEL.DM_POL);
+        balances.supplySide.add(token, amount - pol, LABEL.DM_LP);
+      };
+      book(ctx.moneyToken, moneyFee);
       // The cut accrues in whichever token was swapped in, so a venture-token
       // sell leaves real income on the venture side too.
-      if (ventureFee) balances[bucket].add(ctx.ventureToken, ventureFee, label);
+      book(ctx.ventureToken, ventureFee);
     });
   }
 }
@@ -329,8 +371,9 @@ function ventureFetch(ventureId: number, mode: "fees" | "volume") {
     const ctx = await getVentureContext(options, ventureId);
     if (ctx) {
       const volumeOnly = mode === "volume";
-      if (ctx.spot) await addSpotFees(options, ctx, ctx.spot, balances, volumeOnly);
-      await addDecisionMarketFees(options, ctx, ventureId, balances, volumeOnly);
+      const recipientShare = volumeOnly ? 0 : await getRecipientShare(options, ctx.spot);
+      if (ctx.spot) await addSpotFees(options, ctx, ctx.spot, balances, volumeOnly, recipientShare);
+      await addDecisionMarketFees(options, ctx, ventureId, balances, volumeOnly, recipientShare);
     }
 
     if (mode === "volume") return { dailyVolume: balances.volume };
@@ -349,9 +392,9 @@ function ventureFetch(ventureId: number, mode: "fees" | "volume") {
 const FEES_METHODOLOGY = {
   Fees: "Swap fees paid by traders: 1% on the venture's Uniswap v4 spot pool, and 1% on conditional trades in the venture's decision markets. Both are read from swap events and booked in the venture's money token at the swap's own realised price.",
   UserFees: "Identical to Fees. Traders pay the swap fee; there is no other charge, and Umia takes no fee on a launch.",
-  Revenue: "Umia's cut: 50% of spot swap fees, weighted by the venture vault's share of pool liquidity, plus 50% of decision-market fees on the winning proposal, recognised when the market settles.",
-  ProtocolRevenue: "Identical to Revenue. All of it accrues to the protocol fee recipient.",
-  SupplySideRevenue: "The venture's cut, which accrues to its SpotLiquidityVault: the LP half of spot swap fees, the LP half of decision-market fees, and the protocol half accrued by losing proposals, which returns to the vault with the liquidity when the market settles.",
+  Revenue: "What accrues to the protocol fee recipient: 50% of spot swap fees, weighted by the venture vault's share of pool liquidity, plus 50% of decision-market fees on the winning proposal, recognised when the market settles. The other half accrues to the vault's share holders, and the fee recipient's share of it is counted here too: 100% for UMIA, whose treasury is the vault's only depositor, and 0% for a venture whose vault the protocol holds no shares of.",
+  ProtocolRevenue: "Identical to Revenue. All of it accrues to the protocol fee recipient, directly as the protocol cut or through the vault shares it holds.",
+  SupplySideRevenue: "What accrues to the venture's SpotLiquidityVault for share holders other than the protocol fee recipient: the LP half of spot swap fees, the LP half of decision-market fees, and the protocol half accrued by losing proposals, which returns to the vault with the liquidity when the market settles. Zero for UMIA while its treasury is the vault's only depositor.",
   HoldersRevenue: "None. No buyback, burn or staker distribution exists on-chain.",
 };
 
@@ -360,20 +403,21 @@ const FEE_LABELS = {
     [LABEL.DM_FEES]: "1% swap fee on conditional trades in the venture's decision markets, taken on the gross input of each swap.",
 };
 
+const REVENUE_LABELS = {
+  [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees, weighted by the venture vault's share of pool liquidity.",
+  [LABEL.SPOT_POL]: "The LP half of spot swap fees on the vault shares held by the protocol fee recipient. 100% for UMIA, whose treasury is the vault's only depositor.",
+  [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised on the day the market settles.",
+  [LABEL.DM_POL]: "The LP half of decision-market fees, plus losing proposals' protocol cuts returned to the vault, on the vault shares held by the protocol fee recipient.",
+};
+
 const FEES_BREAKDOWN = {
   Fees: FEE_LABELS,
   UserFees: FEE_LABELS,
-  Revenue: {
-    [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees, weighted by the venture vault's share of pool liquidity.",
-    [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised on the day the market settles.",
-  },
-  ProtocolRevenue: {
-    [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees, weighted by the venture vault's share of pool liquidity.",
-    [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised on the day the market settles.",
-  },
+  Revenue: REVENUE_LABELS,
+  ProtocolRevenue: REVENUE_LABELS,
   SupplySideRevenue: {
-    [LABEL.SPOT_LP]: "The LP half of spot swap fees, which accrues to the venture's SpotLiquidityVault.",
-    [LABEL.DM_LP]: "The LP half of decision-market fees, plus the protocol half accrued by losing proposals, both of which return to the venture's vault.",
+    [LABEL.SPOT_LP]: "The LP half of spot swap fees accruing to the venture's SpotLiquidityVault, less the fee recipient's share.",
+    [LABEL.DM_LP]: "The LP half of decision-market fees, plus the protocol half accrued by losing proposals, both of which return to the venture's vault, less the fee recipient's share.",
   },
 };
 
