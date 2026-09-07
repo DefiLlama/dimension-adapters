@@ -74,8 +74,8 @@ const chainConfig: Record<string, ChainConfig> = {
       bstonk: "0x0f61edbfe6cd86024c0f210c0695b08df55fdfc9",
       // BSTONK's dividend distributor: the payee on BSTONK's own pool
       tracker: "0x7f03e814eb1b5dd0c587dc637eea591bce0cd2ce",
-      // the basket vaults, paid as a payee on launches and by launch
-      // distributors, and paying BSTONK holders in rounds
+      // the basket vaults, paid as a payee on launches, paying BSTONK holders
+      // in rounds
       vaults: [
         "0xa971a4627a6388f38e0ab6cf53f69196ee58293d", // v1
         "0x99feb612f130c5e981dbc0a96c436bc06ca0fe9e", // v2
@@ -102,8 +102,6 @@ const launchedV2Abi =
   "event AdvancedLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, address pairToken, uint160 sqrtPriceX96, uint16 taxBps, uint16 burnBps, uint16 liquidityBps, uint256 payees)";
 const launchedV6Abi =
   "event AdvancedLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, address pairToken, uint160 sqrtPriceX96, uint16 buyTaxBps, uint16 sellTaxBps, uint16 burnBps, uint16 liquidityBps, uint256 payees)";
-// a launch that opened a dividend distributor names it here
-const rewardsEnabledAbi = "event RewardsEnabled(address indexed token, address indexed distributor, uint16 rewardsBps)";
 
 // Hook events. Same signatures on every generation.
 const feeTakenAbi = "event FeeTaken(bytes32 indexed id, address currency, uint256 platform, uint256 creator)";
@@ -138,7 +136,7 @@ const abs = (v: bigint) => (v < 0n ? -v : v);
 const topicOf = (address: string) => "0x" + address.toLowerCase().replace("0x", "").padStart(64, "0");
 const Q192 = 1n << 192n;
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResultV2> => {
   const { getLogs, createBalances, chain } = options;
   const config = chainConfig[chain];
   const hooks = config.hooks;
@@ -181,13 +179,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    transaction, ordered by log index. One request per active pool with the
   //    pool id as the indexed topic rather than every Swap the PoolManager
   //    emitted - the v4 singleton on Base carries every pool on the chain.
-  const activePools = new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)));
+  const activePools = [...new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)))]
+    .filter((id) => launches.has(id)); // an unknown pool is reported when its fee is booked
+  const swapLogs = await Promise.all(
+    activePools.map((id) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics: [SWAP_TOPIC, id], ...logOptions })),
+  );
   const swapsByPool = new Map<string, Map<string, SwapLog[]>>();
-  for (const id of activePools) {
-    if (!launches.has(id)) continue; // reported when its fee is booked
-    const logs = await getLogs({ target: config.poolManager, eventAbi: swapAbi, topics: [SWAP_TOPIC, id], ...logOptions });
+  activePools.forEach((id, i) => {
     const byTx = new Map<string, SwapLog[]>();
-    for (const log of logs) {
+    for (const log of swapLogs[i]) {
       const tx = low(log.transactionHash);
       const row = byTx.get(tx) ?? [];
       row.push({
@@ -201,7 +201,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
     for (const row of byTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
     swapsByPool.set(id, byTx);
-  }
+  });
 
   // The hook emits its events from afterSwap, so the Swap a fee belongs to is
   // the nearest one before it in the same transaction and pool. Its
@@ -210,9 +210,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const priceIn = (id: string, tx: string, logIndex: number): bigint | undefined => {
     const row = swapsByPool.get(id)?.get(tx);
     if (!row?.length) return undefined;
-    let pick = row[0];
+    let pick: SwapLog | undefined;
     for (const s of row) if (s.logIndex < logIndex) pick = s;
-    return pick.sqrtPriceX96;
+    return pick?.sqrtPriceX96;
   };
 
   // Book an amount in a currency that has a market: a pair-denominated amount
@@ -275,60 +275,50 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     put(swept, currency, amount);
   }
 
-  // 6. what reached BSTONK holders (Base only). Three routes, all of them
-  //    ERC-20 transfers the PoolManager or a launch distributor makes:
-  //    - BSTONK's own pool pays its creator cut to BSTONK's distributor;
-  //    - launches carry the basket vault as a payee, and their distributors
-  //      forward a share of their holders' dividends to it, in basket assets;
-  //    - BSTONK's own pool burns half its creator cut.
-  //    The vault-to-vault migration and the treasury are not income.
-  const heldBack: Ledger = new Map(); // same-transaction payouts, netted from the creator's cut
+  // 6. what reached BSTONK holders (Base only), in the transaction the fee was
+  //    taken: the hook pays BSTONK's dividend distributor and the basket vault
+  //    as payees through the PoolManager, and burns BSTONK from BSTONK's own
+  //    pool. A launch distributor also forwards part of its holders' stream to
+  //    the vault later, in basket assets; that value was booked supply-side on
+  //    its fee day and is deliberately not counted again here, so that
+  //    Fees = Revenue + SupplySideRevenue holds within the period.
+  const heldBack: Ledger = new Map();
   const recipients = config.holderRecipients;
-  if (recipients) {
-    const distributors = new Set<string>();
-    const rewardLogs = await getLogs({
-      targets: config.launchers,
-      eventAbi: rewardsEnabledAbi,
-      fromBlock: config.launchGenesisBlock,
-      cacheInCloud: true,
-    });
-    for (const log of rewardLogs) distributors.add(low(log.distributor));
-    const internal = new Set([recipients.tracker, ...recipients.vaults]);
-
-    // A launch token arriving as a payout is priced at its pool when the same
-    // transaction swapped there - a buy's fee, paid in the token. Otherwise it
-    // arrived as the PAIR of some other pool (BSTONK is the pair of most
-    // launches) and is booked as it is, a currency with a market.
+  if (recipients && !volumeOnly) {
+    // A launch token arriving as a payout is priced at its pool when its own
+    // pool swapped earlier in the same transaction - a buy's fee, paid in the
+    // token. Otherwise it arrived as the PAIR of some other pool (BSTONK is
+    // the pair of most launches, and a route through BSTONK's own pool comes
+    // later in the transaction) and is booked as it is, a currency with a
+    // market.
     const priceTransfer = (log: any): [string, bigint] => {
       const token = low(log.address);
       const amount = big(log.args.value);
       const tx = low(log.transactionHash);
+      const logIndex = Number(log.logIndex);
       const id = poolOfToken.get(token);
-      if (!id || !swapsByPool.get(id)?.has(tx)) return [token, amount];
-      return toPair(id, token, amount, tx, Number(log.logIndex)) ?? [token, amount];
+      if (!id || priceIn(id, tx, logIndex) === undefined) return [token, amount];
+      return toPair(id, token, amount, tx, logIndex) ?? [token, amount];
     };
 
-    for (const recipient of [recipients.tracker, ...recipients.vaults]) {
-      const logs = await getLogs({
-        noTarget: true,
-        eventAbi: transferAbi,
-        topics: [TRANSFER_TOPIC, null as any, topicOf(recipient)],
-        ...logOptions,
-      });
-      const isVault = recipient !== recipients.tracker;
+    const payouts = await Promise.all(
+      [recipients.tracker, ...recipients.vaults].map((recipient) =>
+        getLogs({
+          noTarget: true,
+          eventAbi: transferAbi,
+          topics: [TRANSFER_TOPIC, topicOf(config.poolManager), topicOf(recipient)],
+          ...logOptions,
+        }),
+      ),
+    );
+    payouts.forEach((logs, i) => {
+      const label = i === 0 ? LABEL.toBstonkHolders : LABEL.basketToBstonkHolders;
       for (const log of logs) {
-        const from = low(log.args.from);
-        if (internal.has(from)) continue;
-        const fromPoolManager = from === config.poolManager;
-        // the hook pays both through the PoolManager; a distributor pays only
-        // the vault, later and in basket assets, out of its holders' stream.
-        // Anything else arriving is not fee income.
-        if (!fromPoolManager && !(isVault && distributors.has(from))) continue;
         const [currency, amount] = priceTransfer(log);
-        dailyHoldersRevenue.add(currency, amount, isVault ? LABEL.basketToBstonkHolders : LABEL.toBstonkHolders);
-        if (fromPoolManager) put(heldBack, currency, amount);
+        dailyHoldersRevenue.add(currency, amount, label);
+        put(heldBack, currency, amount);
       }
-    }
+    });
 
     const burns = await getLogs({
       target: recipients.bstonk,
@@ -344,13 +334,17 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 
   // 7. the creator's cut less what the treasury swept and what BSTONK holders
-  //    were paid in the same transactions is supply-side: creator wallets,
-  //    each token's own holders, its burn and its liquidity wedge. A basket
-  //    delivery a distributor makes later was supply-side on the day its fee
-  //    was taken, so it is counted to holders without being netted here.
+  //    were paid is supply-side: creator wallets, each token's own holders,
+  //    its burn and its liquidity wedge. The three legs come out of the same
+  //    events, so the residual cannot go negative; if it does, something above
+  //    is double-counted and the shortfall is reported rather than hidden.
   for (const [currency, amount] of creatorCut) {
     const left = amount - (swept.get(currency) ?? 0n) - (heldBack.get(currency) ?? 0n);
-    if (left > 0n) dailySupplySideRevenue.add(currency, left, LABEL.toCreators);
+    if (left < 0n) {
+      console.error(`basestonk: ${chain} creator cut in ${currency} short by ${-left} after sweeps and BSTONK holder payouts`);
+      continue;
+    }
+    dailySupplySideRevenue.add(currency, left, LABEL.toCreators);
   }
 
   dailyRevenue.addBalances(dailyProtocolRevenue);
@@ -372,11 +366,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyVolume };
 };
 
+const fetch = (options: FetchOptions) => run(options);
+// the volume adapter needs the launch map and the swaps, not the attribution
+export const fetchVolume = (options: FetchOptions) => run(options, true);
+
 const methodology = {
   Fees: "The tax BaseStonk's Uniswap v4 hook takes on every swap in a launched token's pool, from the hook's FeeTaken event. Each launch sets its own buy and sell rate. A buy pays the tax in the launch token and a sell in the pair; token-denominated amounts are converted into the pair at the pool price the same transaction's Swap reports.",
   Revenue: "The platform's cut of the tax plus what reaches BSTONK holders: half the tax capped at 1% of the trade to the treasury, any part of the creator's cut the payee list left unplaced and the hook swept to the treasury, and the share of the creator's cut paid to BSTONK's dividend distributor, to the BSTONK basket vault, or burnt as BSTONK.",
   ProtocolRevenue: "The treasury's take: half the tax capped at 1% of the trade, plus unplaced creator fees swept to it.",
-  HoldersRevenue: "Value to BSTONK holders: BSTONK's own pool pays its creator cut to BSTONK's dividend distributor and burns half of it; launches carry the basket vault as a payee and their distributors forward part of their holders' dividends to it in basket assets; the vault pays BSTONK holders in rounds. Base only - BSTONK lives on Base.",
+  HoldersRevenue: "Value to BSTONK holders, paid by the hook in the transaction the fee was taken: BSTONK's own pool pays its creator cut to BSTONK's dividend distributor and burns half of it, and launches carry the BSTONK basket vault as a payee; the vault pays BSTONK holders in rounds. Base only - BSTONK lives on Base.",
   SupplySideRevenue: "The creator's cut of the tax less what the treasury swept and what reached BSTONK holders: the creator's wallets, the launch token's own holders through its dividend distributor, the burn of the launch token and the hook-owned liquidity wedge, as each launch configured them.",
   Volume: "The pair side of every swap in a taxed pool, including the creator's dev buy at launch and excluding the hook's own buyback and liquidity swaps. Counted under Uniswap v4 as well.",
 };
@@ -389,7 +387,7 @@ const breakdownMethodology = {
     [LABEL.toTreasury]: "The platform's cut of the tax: half of it, capped at 1% of the trade, paid to the treasury.",
     [LABEL.sweptToTreasury]: "The part of the creator's cut the launch's payee list left unplaced, swept to the treasury.",
     [LABEL.toBstonkHolders]: "The creator cut of BSTONK's own pool, paid to BSTONK's dividend distributor.",
-    [LABEL.basketToBstonkHolders]: "Paid to the BSTONK basket vault: as a payee on launches, and by launch distributors out of their holders' dividends, in basket assets.",
+    [LABEL.basketToBstonkHolders]: "Paid by the hook to the BSTONK basket vault as a payee on launches.",
     [LABEL.bstonkBurn]: "BSTONK the hook burnt from BSTONK's own pool: the launch token on buys, bought back on sells.",
   },
   ProtocolRevenue: {
@@ -398,7 +396,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [LABEL.toBstonkHolders]: "The creator cut of BSTONK's own pool, paid to BSTONK's dividend distributor.",
-    [LABEL.basketToBstonkHolders]: "Paid to the BSTONK basket vault: as a payee on launches, and by launch distributors out of their holders' dividends, in basket assets.",
+    [LABEL.basketToBstonkHolders]: "Paid by the hook to the BSTONK basket vault as a payee on launches.",
     [LABEL.bstonkBurn]: "BSTONK the hook burnt from BSTONK's own pool: the launch token on buys, bought back on sells.",
   },
   SupplySideRevenue: {

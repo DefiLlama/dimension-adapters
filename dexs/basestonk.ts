@@ -1,11 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import feesAdapter from "../fees/basestonk";
+import feesAdapter, { fetchVolume } from "../fees/basestonk";
 
 // Swap volume in BaseStonk's launched pools. The fee adapter already reads
 // every Swap in a taxed pool to price its fees; this lists the same volume
 // on the DEX dashboard.
 const fetch = async (options: FetchOptions) => {
-  const { dailyVolume } = await feesAdapter.fetch!(options);
+  const { dailyVolume } = await fetchVolume(options);
   return { dailyVolume };
 };
 
