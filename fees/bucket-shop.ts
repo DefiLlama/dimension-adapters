@@ -84,10 +84,12 @@ const fetch = async (options: FetchOptions) => {
       ? (ethLeg * HOOK_FEE_BPS) / (10_000n - HOOK_FEE_BPS)
       : (ethLeg * HOOK_FEE_BPS) / 10_000n;
     const lpFeeWei = (ethLeg * BigInt(log.fee)) / 1_000_000n;
-    dailyFees.add(nullAddress, lpFeeWei + hookFeeWei);
-    dailyRevenue.add(nullAddress, lpFeeWei + hookFeeWei);
-    dailyProtocolRevenue.add(nullAddress, lpFeeWei);     // locked protocol LP
-    dailyHoldersRevenue.add(nullAddress, hookFeeWei);    // Treasury -> payouts
+    dailyFees.add(nullAddress, lpFeeWei, "BUCKET Pool LP Fees");
+    dailyFees.add(nullAddress, hookFeeWei, "BucketFeeHook Treasury Fee");
+    dailyRevenue.add(nullAddress, lpFeeWei, "BUCKET Pool LP Fees To Protocol");
+    dailyRevenue.add(nullAddress, hookFeeWei, "BucketFeeHook Treasury Fee To Holders");
+    dailyProtocolRevenue.add(nullAddress, lpFeeWei, "BUCKET Pool LP Fees To Protocol");
+    dailyHoldersRevenue.add(nullAddress, hookFeeWei, "BucketFeeHook Treasury Fee To Holders");
   }
 
   // 2. Stockback router fees, exact per-swap fee in the input currency;
@@ -101,10 +103,10 @@ const fetch = async (options: FetchOptions) => {
     const token = log.currencyIn === "0x0000000000000000000000000000000000000000"
       ? nullAddress
       : log.currencyIn;
-    dailyFees.add(token, fee);
-    dailyRevenue.add(token, fee / 2n);
-    dailyHoldersRevenue.add(token, fee / 2n);
-    dailySupplySideRevenue.add(token, fee - fee / 2n);
+    dailyFees.add(token, fee, "Stockback Router Fees");
+    dailyRevenue.add(token, fee / 2n, "Stockback Router Fees To Holders");
+    dailyHoldersRevenue.add(token, fee / 2n, "Stockback Router Fees To Holders");
+    dailySupplySideRevenue.add(token, fee - fee / 2n, "Stockback Router Fees To Traders");
   }
 
   return {
@@ -115,6 +117,29 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "BUCKET Pool LP Fees": "1% LP fee on the protocol-owned BUCKET/ETH Uniswap v4 pool, measured on the ETH leg of each Swap event.",
+    "BucketFeeHook Treasury Fee": "3% Treasury fee (FEE_BPS = 300, verified on-chain constant) charged by the BucketFeeHook on each pool swap, measured on the ETH leg.",
+    "Stockback Router Fees": "0.5% fee on the input of swaps routed through the Stockback router (exact per-swap amount from its Swapped event).",
+  },
+  Revenue: {
+    "BUCKET Pool LP Fees To Protocol": "1% LP fee accruing to the protocol's permanently locked liquidity position.",
+    "BucketFeeHook Treasury Fee To Holders": "3% Treasury fee that funds the payout engine for BUCKET holder distributions.",
+    "Stockback Router Fees To Holders": "Protocol's half of each Stockback router fee, funding holder payouts.",
+  },
+  ProtocolRevenue: {
+    "BUCKET Pool LP Fees To Protocol": "1% LP fee accruing to the protocol's permanently locked liquidity position.",
+  },
+  HoldersRevenue: {
+    "BucketFeeHook Treasury Fee To Holders": "3% Treasury fee converted into tokenized stocks delivered to BUCKET holder wallets.",
+    "Stockback Router Fees To Holders": "Protocol's half of each Stockback router fee, funding holder payouts.",
+  },
+  SupplySideRevenue: {
+    "Stockback Router Fees To Traders": "Trader's half of each Stockback router fee, credited back as stock rewards.",
+  },
 };
 
 const methodology = {
@@ -132,6 +157,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: "2026-08-07", // BUCKET/ETH pool initialized, block 30506396
   methodology,
+  breakdownMethodology,
+  pullHourly: true,
+  doublecounted: true, // uniswap v4
 };
 
 export default adapter;
