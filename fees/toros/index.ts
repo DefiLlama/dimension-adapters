@@ -6,7 +6,7 @@ import * as sdk from "@defillama/sdk";
 const queryManagerFeeMinteds = `
       query managerFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         managerFeeMinteds(
-          where: { manager: $manager, managerFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+          where: { manager: $manager, managerFee_not: 0, blockTimestamp_gte: $startTimestamp, blockTimestamp_lt: $endTimestamp },
           first: $first, skip: $skip, orderBy: blockTimestamp, orderDirection: desc
         ) { managerFee, tokenPriceAtFeeMint, pool, manager, block }
       }`
@@ -14,7 +14,7 @@ const queryManagerFeeMinteds = `
 const queryEntryFeeMinteds = `
       query entryFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         entryFeeMinteds(
-          where: { managerAddress: $manager, time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { managerAddress: $manager, time_gte: $startTimestamp, time_lt: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { entryFeeAmount, tokenPrice }
       }`
@@ -22,7 +22,7 @@ const queryEntryFeeMinteds = `
 const queryExitFeeMinteds = `
       query exitFeeMinteds($manager: Bytes!, $startTimestamp: BigInt!, $endTimestamp: BigInt!, $first: Int!, $skip: Int!) {
         exitFeeMinteds(
-          where: { managerAddress: $manager, time_gte: $startTimestamp, time_lte: $endTimestamp },
+          where: { managerAddress: $manager, time_gte: $startTimestamp, time_lt: $endTimestamp },
           first: $first, skip: $skip, orderBy: time, orderDirection: desc
         ) { exitFeeAmount, tokenPrice }
       }`
@@ -71,7 +71,7 @@ const CONFIG = {
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
   [CHAIN.HYPERLIQUID]: {
-    endpoint: 'https://api.subgraph.ormilabs.com/api/public/a5914000-d7d2-47be-b0cb-6719f6678ff0/subgraphs/dhedge/v0.0.3/gn',
+    endpoint: 'https://api.goldsky.com/api/public/project_cmkxyxmvlm2ta01w16jst63i3/subgraphs/dhedge-v2-hyperevm/v0.0.12/gn',
     torosManagerAddress: "0xfbd2b4216f422dc1eee1cff4fb64b726f099def5",
   },
 };

@@ -70,6 +70,8 @@ function adapterConstructor(
     },
     version: 2,
     adapter: chainVolumes,
+    // c3.io + api.c3.io DNS-dead, deadUrl flagged on llama, TVL $44; last nonzero volume 2024-10-14
+    deadFrom: '2024-10-15',
   };
 }
 

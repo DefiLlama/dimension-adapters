@@ -49,7 +49,7 @@ const fetch = async (options: FetchOptions) => {
   // block_date is the partition key on these tables; filtering on it (alongside
   // the block_time TIME_RANGE) prunes partitions and keeps the query from
   // timing out.
-  const dateRange = `block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))`;
+  const dateRange = `block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.toTimestamp}))`;
 
   const query = `
     WITH

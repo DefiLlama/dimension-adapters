@@ -1,8 +1,6 @@
 import {Dependencies, FetchOptions, FetchResultFees, SimpleAdapter} from "../../adapters/types";
 import {CHAIN} from "../../helpers/chains";
 import {queryAllium} from "../../helpers/allium";
-import {APTOS_RPC, getVersionFromTimestamp} from "../../helpers/aptos";
-import fetchURL from "../../utils/fetchURL";
 import * as sdk from "@defillama/sdk";
 
 const EVM_ABI = {
@@ -163,13 +161,18 @@ const fetchAptos: any = async (options: FetchOptions): Promise<FetchResultFees> 
   // 20 bps management fee. Source: static.primary_market_listing (BUIDL / aptos).
   const APTOS_BPS = 20
 
-  // Point-in-time FA supply at period start (matches EVM fromApi). getTokenSupply /
-  // current REST only return latest state, which breaks backfills when supply changes.
-  const ledgerVersion = await getVersionFromTimestamp(new Date(options.fromTimestamp * 1000));
-  const res = await fetchURL(
-    `${APTOS_RPC}/v1/accounts/${APTOS_BUIDL_CONTRACT}/resource/0x1::fungible_asset::ConcurrentSupply?ledger_version=${ledgerVersion}`
-  );
-  const totalSupply = Number(res.data.current.value);
+  const rows = await queryAllium(`
+    SELECT COALESCE(SUM(raw_balance), 0) AS supply
+    FROM (
+      SELECT raw_balance
+      FROM aptos.assets.fungible_balances_eod
+      WHERE block_timestamp <= TO_TIMESTAMP_NTZ(${options.fromTimestamp})
+        AND token_address = '${APTOS_BUIDL_CONTRACT}'
+        AND token_standard = 'fungible_asset'
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY address, fa_store_address ORDER BY global_change_index DESC) = 1
+    )
+  `);
+  const totalSupply = rows[0].supply;
 
   await addFeesAndYield(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, totalSupply, APTOS_BPS);
 

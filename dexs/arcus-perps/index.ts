@@ -1,7 +1,8 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 
 const API_BASE = "https://api.arcus.xyz/v1";
 
@@ -9,7 +10,7 @@ const fetch = async (options: FetchOptions) => {
   // Arcus candle timestamps are Unix microseconds.
   const start = options.startOfDay * 1e6;
   const end = (options.startOfDay + 86400) * 1e6;
-  const { markets } = await fetchURL(`${API_BASE}/markets`);
+  const { markets } = await getConfig('arcus-perps/markets', `${API_BASE}/markets`);
   const perpMarkets: string[] = markets
     .filter((market: any) => market.type === "PERPETUAL")
     .map((market: any) => market.marketDisplayName);

@@ -1,13 +1,15 @@
 import { gql, request } from "graphql-request";
-import { SimpleAdapter, FetchResultV2, FetchOptions } from "../../adapters/types";
+import {
+  SimpleAdapter,
+  FetchResultV2,
+  FetchOptions,
+} from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
-// Old Perps (V21) and New Perps (V22) are separate deployments; markets may share
-// names but pools/trading are isolated, so overlapping days are summed.
-const ENDPOINT_OLD_PERPS =
-  "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-trade/latest/gn";
+// V21 metrics are served from a frozen snapshot; V22 remains a live subgraph.
+// The deployments are isolated, so overlapping days are summed.
 const ENDPOINT_NEW_PERPS =
   "https://api.goldsky.com/api/public/project_cm1tgcbwdqg8b01un9jf4a64o/subgraphs/sparkdex-trade-v2/latest/gn";
 
@@ -21,24 +23,15 @@ const NEW_PERPS_START = 1782172800; // 2026-06-23
 const BBB_START = 1779062400; // 2026-05-18
 
 /**
- * Frozen Old Perps daily metrics hosted after the V21 subgraph is retired.
- * Plan: publish the day map to this URL, then flip OLD_PERPS_USE_SNAPSHOT so
- * historical refills read the snapshot instead of Goldsky V21.
+ * V21's subgraph was stopped, so historical metrics use the immutable snapshot
+ * served by api.sparkdex.ai. The adapter switched to this snapshot on 2026-08-05.
  */
 const OLD_PERPS_SNAPSHOT_URL =
-  "https://api.sparkdex.ai/defillama/sparkdex-perps-v21-daily.json";
+  "https://api.sparkdex.ai/snapshots/perps/v21/defillama-daily.json";
 
 /**
- * When true, Old Perps metrics come only from OLD_PERPS_SNAPSHOT_URL (throw if
- * the day is missing — never return 0 and overwrite DefiLlama history).
- * Keep false while the Old Perps subgraph is still live.
- */
-const OLD_PERPS_USE_SNAPSHOT = false;
-
-/**
- * Inclusive last UTC day that may still carry Old Perps volume. Old Perps fully
- * stops on 2026-07-31 12:00 UTC; until then wind-down days may have no stats.
- * After this day the Old Perps contribution is 0 without reading live subgraph.
+ * Inclusive last UTC day covered by the V21 snapshot. V21 fully stopped on
+ * 2026-07-31 12:00 UTC; after this day its contribution is 0.
  */
 const OLD_PERPS_LAST_DAY = 1785456000; // 2026-07-31
 
@@ -179,7 +172,10 @@ const graphQuery = (todaysTimestamp: number) => gql`
 `;
 
 /** Pre-BBB: 60% protocol / 40% LPs on trading fees. */
-const attributePreBbb = (dailyVolume: number, tradingFees: number): DayMetrics => {
+const attributePreBbb = (
+  dailyVolume: number,
+  tradingFees: number,
+): DayMetrics => {
   const dailyProtocolRevenue = tradingFees * PROTOCOL_FEE_SHARE;
   const dailyLpFees = tradingFees - dailyProtocolRevenue;
   return {
@@ -220,7 +216,11 @@ const attributeFromSnapshotRow = (
   todaysTimestamp: number,
   row: Partial<DayMetrics>,
 ): DayMetrics => {
-  const dailyVolume = requireSnapshotMetric(row, "dailyVolume", todaysTimestamp);
+  const dailyVolume = requireSnapshotMetric(
+    row,
+    "dailyVolume",
+    todaysTimestamp,
+  );
   const dailyFees = requireSnapshotMetric(row, "dailyFees", todaysTimestamp);
   const dailyUserFees =
     row.dailyUserFees !== undefined
@@ -341,28 +341,9 @@ const sumTreasuryBbbStats = (response: GraphDayResponse): DayMetrics => {
   };
 };
 
-const sumPreBbbStats = (response: GraphDayResponse): DayMetrics => {
-  let tradingFeesUSD = BigInt(0);
-  for (const fee of response.feeStats) {
-    tradingFeesUSD += BigInt(fee.feeUsd);
-  }
-  return attributePreBbb(sumVolume(response), Number(tradingFeesUSD) / 1e18);
-};
-
-const queryOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
-  const raw = await request(ENDPOINT_OLD_PERPS, graphQuery(todaysTimestamp));
-  const response = assertGraphDayResponse(raw, "Old Perps", todaysTimestamp, {
-    allowEmpty: true,
-  });
-  if (!response) {
-    return emptyDay();
-  }
-  return todaysTimestamp >= BBB_START
-    ? sumTreasuryBbbStats(response)
-    : sumPreBbbStats(response);
-};
-
-const queryNewPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
+const queryNewPerpsDay = async (
+  todaysTimestamp: number,
+): Promise<DayMetrics> => {
   const raw = await request(ENDPOINT_NEW_PERPS, graphQuery(todaysTimestamp));
   const response = assertGraphDayResponse(raw, "New Perps", todaysTimestamp);
   if (!response) {
@@ -375,7 +356,9 @@ const queryNewPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> =>
 
 let snapshotCache: Promise<Record<string, Partial<DayMetrics>>> | null = null;
 
-const loadOldPerpsSnapshot = async (): Promise<Record<string, Partial<DayMetrics>>> => {
+const loadOldPerpsSnapshot = async (): Promise<
+  Record<string, Partial<DayMetrics>>
+> => {
   if (!snapshotCache) {
     snapshotCache = fetchURL(OLD_PERPS_SNAPSHOT_URL)
       .then((res) => {
@@ -395,23 +378,21 @@ const loadOldPerpsSnapshot = async (): Promise<Record<string, Partial<DayMetrics
   return snapshotCache;
 };
 
-const fetchOldPerpsDay = async (todaysTimestamp: number): Promise<DayMetrics> => {
+const fetchOldPerpsDay = async (
+  todaysTimestamp: number,
+): Promise<DayMetrics> => {
   if (todaysTimestamp > OLD_PERPS_LAST_DAY) {
     return emptyDay();
   }
 
-  if (OLD_PERPS_USE_SNAPSHOT) {
-    const days = await loadOldPerpsSnapshot();
-    const row = days[String(todaysTimestamp)];
-    if (!row) {
-      throw new Error(
-        `No SparkDEX Old Perps snapshot for ${todaysTimestamp}; refusing to return 0 so DefiLlama refill cannot overwrite stored history`,
-      );
-    }
-    return attributeFromSnapshotRow(todaysTimestamp, row);
+  const days = await loadOldPerpsSnapshot();
+  const row = days[String(todaysTimestamp)];
+  if (!row) {
+    throw new Error(
+      `No SparkDEX Old Perps snapshot for ${todaysTimestamp}; refusing to return 0 so DefiLlama refill cannot overwrite stored history`,
+    );
   }
-
-  return queryOldPerpsDay(todaysTimestamp);
+  return attributeFromSnapshotRow(todaysTimestamp, row);
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -475,10 +456,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Volume:
     "Sum of daily perpetual trading volume on Old Perps and New Perps. The two deployments are isolated; overlapping days are added together.",
-  Fees:
-    "Trading fees paid by perpetual traders on Old Perps and New Perps (summed on overlapping days).",
-  UserFees:
-    "Same as Fees — trading fees paid by perpetual traders.",
+  Fees: "Trading fees paid by perpetual traders on Old Perps and New Perps (summed on overlapping days).",
+  UserFees: "Same as Fees — trading fees paid by perpetual traders.",
   Revenue:
     "Before 2026-05-18: 60% of trading fees kept by the protocol. From 2026-05-18: the protocol treasury share of trading fees is used to buy back and burn SPRK.",
   ProtocolRevenue:
@@ -495,8 +474,7 @@ const breakdownMethodology = {
       "Perpetual trading fees paid by traders on Old Perps and New Perps.",
   },
   UserFees: {
-    [METRIC.MARGIN_FEES]:
-      "Trading fees paid by perpetual traders.",
+    [METRIC.MARGIN_FEES]: "Trading fees paid by perpetual traders.",
   },
   Revenue: {
     [METRIC.MARGIN_FEES]:
@@ -515,8 +493,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [METRIC.LP_FEES]:
       "Trading fees distributed to perpetual liquidity providers.",
-    [KEEPER_FEES]:
-      "Trading fees paid to keepers.",
+    [KEEPER_FEES]: "Trading fees paid to keepers.",
   },
 };
 

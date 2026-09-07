@@ -26,7 +26,9 @@ const feeWallets = [
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
 
-const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+const bscOldTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+const bscNewTradeContract = '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d';
+const BSC_CONTRACT_SWITCH_DATE = '2026-06-29';
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
@@ -41,6 +43,7 @@ const assertIndexed = (options: FetchOptions) => {
 const prefetch = async (options: FetchOptions) => {
   assertIndexed(options);
   const formattedFeeWallets = formatAddresses(feeWallets);
+  const bscTradeContract = options.dateString >= BSC_CONTRACT_SWITCH_DATE ? bscNewTradeContract : bscOldTradeContract;
 
   return queryDuneSql(options, `
     WITH axiom_txs AS (
@@ -56,24 +59,18 @@ const prefetch = async (options: FetchOptions) => {
         t.tx_id,
         t.trader_id,
         t.amount_usd,
-        t.token_bought_symbol,
-        t.token_sold_symbol,
+        -- one leg per trade: prefer the SOL leg as the notional, else the largest leg
         ROW_NUMBER() OVER (
           PARTITION BY t.tx_id, t.trader_id
           ORDER BY
-            CASE WHEN t.token_bought_symbol = 'WSOL' OR t.token_sold_symbol = 'WSOL' THEN 0 ELSE 1 END,
+            CASE WHEN t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
+                   OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}' THEN 0 ELSE 1 END,
             t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
       JOIN axiom_txs a ON t.tx_id = a.tx_id
       WHERE TIME_RANGE
         AND t.trader_id NOT IN (${formattedFeeWallets})
-        AND (
-          t.token_bought_symbol = 'WSOL'
-          OR t.token_sold_symbol = 'WSOL'
-          OR t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
-          OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
-        )
     )
     SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
@@ -91,7 +88,8 @@ const fetch: any = async (options: FetchOptions) => {
   assertIndexed(options);
 
   const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
-  const row = (options.preFetchedResults || []).find((r: any) => r.chain === target);
+  const row = options.preFetchedResults.find((r: any) => r.chain === target);
+  if (!row) throw new Error(`Axiom: no prefetched Dune result for ${target}`);
 
   return { dailyVolume: row.total_volume };
 };
@@ -102,7 +100,7 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   methodology: {
-    Volume: "Total USD volume of spot swaps made through Axiom. On Solana it counts trades whose transaction paid a fee to Axiom, and on BSC trades routed through Axiom's trading contract.",
+    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor.",
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },

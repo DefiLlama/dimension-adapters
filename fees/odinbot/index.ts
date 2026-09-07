@@ -82,7 +82,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
@@ -90,6 +90,7 @@ const adapter: SimpleAdapter = {
   start: "2024-03-01",
   methodology,
   breakdownMethodology,
+  deadFrom: "2026-07-24", // acquired by cielo
 }
 
 export default adapter;

@@ -646,6 +646,47 @@ const configs: Record<string, SolLstConfig> = {
       ProtocolRevenue: "Revenue going to treasury/team",
     },
   }),
+  
+  "hubra-staked-sol": {
+    stakePoolReserveAccount: "B4puwNbu1fARV4pdcDonreDTXec5JNAiG7MhiVjVRCtx",
+    stakePoolWithdrawAuthority: "Am87irh66UBgzkQUrw2XdUYE6r2XLFfADgmSFdZk2K4r",
+    lstFeeTokenAccount: "9x4pcNGeSuLasataBqdG3fS1gkzTTe8SgZkKAXt3hLm2",
+    lstFeeTokenAccountSwitcher: (startOfDay: number) =>
+      startOfDay < 1760054400
+        ? "2hE6xh1r41WESQZ73FXpsnw5h39GU5W2g692juJgrcY9"
+        : "9x4pcNGeSuLasataBqdG3fS1gkzTTe8SgZkKAXt3hLm2",
+    lstMint: "HUBsveNpjo5pWqNkH57QzxjQASdTVXcSK7bVKTSZtcSX",
+    start: "2024-11-10",
+    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "addCGToken", cgId: "solanahub-staked-sol", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.975, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.025, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
+    methodology: {
+      Fees: "Staking rewards from staked SOL on Hubra staked solana (raSOL), plus withdrawal fees",
+      Revenue: "2.5% epoch fee on staking rewards plus 0.1% withdrawal fees collected by the fee collector",
+      ProtocolRevenue: "Revenue going to treasury/team",
+      SupplySideRevenue: "97.5% of the staking rewards go to stakers",
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Hubra",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% withdrawal fee",
+      },
+      Revenue: {
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% withdrawal fee",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "2.5% of the staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.1% withdrawal fee",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "97.5% of the staking rewards are distributed to raSOL",
+      },
+    },
+  },
 
   "jagpool-staked-sol": simpleConfig({
     stakePoolReserveAccount: "jagDaER73YqodaLRGpYMvEjRjVCx962LLebG9QGh11X",
@@ -758,6 +799,43 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
+  "phase-delegation": {
+    stakePoolReserveAccount: "aeroivis36SwDvAJpzQCDX9Y7cCLXBdv9vTn1DtDnVC",
+    stakePoolWithdrawAuthority: "AKJt3m2xJ6ANda9adBGqb5BMrheKJSwxyCfYkLuZNmjn",
+    lstFeeTokenAccount: "55Kw1KRAVTjqzNf1ZXoYAJk3o7Q2NifpPh3VtGeiyMpo",
+    lstMint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF",
+    start: "2024-06-09",
+    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "add", mint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
+    methodology: {
+      Fees: "Staking rewards from staked SOL on phase delegation staked solana, plus withdrawal fees",
+      Revenue: "5% epoch fee on staking rewards plus 0.05% withdrawal fees collected by the fee collector",
+      ProtocolRevenue: "Revenue going to treasury/team",
+      SupplySideRevenue: "95% of the staking rewards go to stakers",
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Phase Delegation",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      Revenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to pdSOL",
+      },
+    },
+  },
+
   "pico-staked-sol": simpleConfig({
     stakePoolReserveAccount: "2ArodFTZhNqVWJT92qEGDxigAvouSo1kfgfEcC3KEWUK",
     stakePoolWithdrawAuthority: "4At8nQXanWgRvjbrVXmxMBBdfz39txWVm4SiXEoP1kGh",
@@ -771,18 +849,20 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
-  "save-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
-    stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
-    lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
-    lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
-    start: "2025-03-31",
-    methodology: {
-      Fees: "Staking rewards from staked SOL on save staked solana",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-    },
-  }),
+  // moved to fees/save-staked-sol/index.ts, the pool has a 0% epoch fee and saveSOL has no price feed,
+  // so withdrawal fees need to be converted to SOL at the pool exchange rate
+  // "save-staked-sol": simpleConfig({
+  //   stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
+  //   stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
+  //   lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
+  //   lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
+  //   start: "2025-03-31",
+  //   methodology: {
+  //     Fees: "Staking rewards from staked SOL on save staked solana",
+  //     Revenue: "Includes withdrawal fees and management fees collected by fee collector",
+  //     ProtocolRevenue: "Revenue going to treasury/team",
+  //   },
+  // }),
 
   "solayer-staked-sol": simpleConfig({
     stakePoolReserveAccount: "Brh9rB6npnjM1vDXyCXtzkXVGRnsh6KHqmBz26tVACg9",

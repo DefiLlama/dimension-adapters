@@ -41,7 +41,6 @@ const targets: any = {
   ],
   [CHAIN.BASE]: [
     "0xaD01C20d5886137e056775af56915de824c8fCe5",
-    "0xaD01C20d5886137e056775af56915de824c8fCe5",
     "0x19cd4F3820E7BBed45762a30BFA37dFC6c9C145b"
   ],
   [CHAIN.POLYGON]: [

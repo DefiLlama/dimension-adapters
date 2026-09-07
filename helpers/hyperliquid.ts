@@ -1,14 +1,14 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import * as fs from "fs";
-import * as path from "path";
+import { Balances } from "@defillama/sdk";
 import axios from "axios";
+import * as fs from "fs";
 import { decompressFrame } from "lz4-napi";
-import { getEnv } from "./env";
+import * as path from "path";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { formatAddress, sleep } from "../utils/utils";
-import { Balances } from "@defillama/sdk";
-import { findClosest } from "./utils/findClosest";
 import { CHAIN } from "./chains";
+import { getEnv } from "./env";
+import { findClosest } from "./utils/findClosest";
 
 export type HyperliquidMarket = "all" | "hip3" | "hip4";
 
@@ -22,6 +22,7 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
  *
  * @param options - FetchOptions containing startOfDay timestamp and other utilities
  * @param builder_address - The builder address to fetch data for
+ * @param hip3DeployerId - Optional HIP-3 namespace filter; includes only `${hip3DeployerId}:*` coins and requires `market: "hip3"`
  * @returns Promise with dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue
  */
 // hl indexer only supports data from this date
@@ -33,16 +34,22 @@ export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
   market = "all",
+  hip3DeployerId,
 }: {
   options: FetchOptions;
   builder_address: string;
   market?: HyperliquidMarket;
+  hip3DeployerId?: string;
 }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const isHIP3Market = market === "hip3";
   const isHIP4Market = market === "hip4";
+
+  if (hip3DeployerId && !isHIP3Market) {
+    throw new Error("hip3DeployerId requires market='hip3'");
+  }
 
   // try with llama hl indexer
   const endpoint = getEnv("LLAMA_HL_INDEXER");
@@ -141,6 +148,9 @@ export const fetchBuilderCodeRevenue = async ({
 
           // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
           if (isHIP3Market && !coin?.includes(":")) {
+            continue;
+          }
+          if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
             continue;
           }
           if (isHIP4Market && !/^#\d+$/.test(coin)) {
@@ -547,6 +557,34 @@ export async function queryHypurrscanApi(
   return result;
 }
 
+const HYPURRSCAN_SPOT_AUCTIONS_API =
+  "https://api.hypurrscan.io/pastAuctions";
+
+export async function queryHypurrscanSpotAuctionBurns(
+  options: FetchOptions,
+): Promise<Balances> {
+  const dailyBurns = options.createBalances();
+  const response = await httpGet(HYPURRSCAN_SPOT_AUCTIONS_API);
+  const startTimeMs = options.startTimestamp * 1000;
+  const endTimeMs = options.endTimestamp * 1000;
+
+  // Negative deployGas is HYPE burned; positive is pre-HYPE-era proceeds collected in USDC-> Assistance Fund.
+  let hypeBurned = 0;
+  let usdcCollected = 0;
+  for (const item of response) {
+    if (item.time >= startTimeMs && item.time < endTimeMs) {
+      const deployGas = Number(item.deployGas);
+      if (deployGas < 0) hypeBurned += Math.abs(deployGas);
+      else usdcCollected += deployGas;
+    }
+  }
+
+  if (hypeBurned) dailyBurns.addCGToken("hyperliquid", hypeBurned);
+  if (usdcCollected) dailyBurns.addCGToken("usd-coin", usdcCollected);
+
+  return dailyBurns;
+}
+
 export const fetchHIP3DeployerData = async ({
   options,
   hip3DeployerId,
@@ -584,7 +622,7 @@ export const fetchHIP3DeployerData = async ({
 
 export const exportHIP3DeployerAdapter = (
   dexId: string,
-  props: { type: "dexs" | "oi"; start?: string; methodology?: any },
+  props: { type: "dexs" | "oi"; start?: string; deadFrom?: string; methodology?: any },
 ) => {
   const adapter: SimpleAdapter = {
     version: 1,
@@ -648,6 +686,8 @@ export const exportHIP3DeployerAdapter = (
       }
     }
   };
+
+  if (props.deadFrom) adapter.deadFrom = props.deadFrom;
 
   return adapter;
 };
@@ -723,6 +763,20 @@ export const exportBuilderAdapter = (
             "Builder code revenue from Hyperliquid Perps Trades.",
         },
   };
+
+  if (props.breakdownFees) {
+    adapter.breakdownMethodology = {
+      Fees: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees paid by users on Hyperliquid trades.',
+      },
+      Revenue: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees collected by the builder.',
+      },
+      ProtocolRevenue: {
+        'Hyperliquid Builder Code Fees': 'Builder code fees collected by the builder.',
+      },
+    };
+  }
 
   if (props.deadFrom) adapter.deadFrom = props.deadFrom;
 

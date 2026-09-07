@@ -94,6 +94,8 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
+  // Protocol TVL is $121 across all chains, last recorded volume 2026-05-25, and the team deleted their Graph Studio deployments (berachain/base).
+  deadFrom: '2026-05-26',
   methodology,
   adapter: Object.keys(endpoints).reduce((acc, chain) => {
     return {

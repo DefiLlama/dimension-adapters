@@ -40,36 +40,26 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const fragmentAddressList = FRAGMENT_ADDRESSES.map(a => `'${a}'`).join(', ');
   const telegramAddressList = TELEGRAM_WALLETS.map(a => `'${a}'`).join(', ');
 
+  // Both sides read the same window of the same table, so they are one pass. message_count is that
+  // window's total row count: it separates a day Fragment really took nothing from a day
+  // ton.messages has not been loaded for, which the sums cannot do on their own.
   const query = `
-    WITH fees AS (
-      SELECT SUM(value / 1e9) AS ton_received
-      FROM ton.messages
-      WHERE direction = 'in'
-        AND NOT bounced
-        AND value > 0
-        AND destination IN (${fragmentAddressList})
-        AND source NOT IN (${fragmentAddressList})
-        AND source NOT IN (${telegramAddressList})
-        AND block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
-    ),
-    supply_side AS (
-      SELECT SUM(value / 1e9) AS ton_sent
-      FROM ton.messages
-      WHERE direction = 'in'
-        AND NOT bounced
-        AND value > 0
-        AND source IN (${fragmentAddressList})
-        AND destination NOT IN (${fragmentAddressList})
-        AND destination NOT IN (${telegramAddressList})
-        AND block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
-    )
     SELECT
-      COALESCE(fees.ton_received, 0) AS ton_received,
-      COALESCE(supply_side.ton_sent, 0) AS ton_sent
-    FROM fees
-    CROSS JOIN supply_side`;
+      COUNT(*) AS message_count,
+      COALESCE(SUM(CASE WHEN destination IN (${fragmentAddressList})
+                         AND source NOT IN (${fragmentAddressList})
+                         AND source NOT IN (${telegramAddressList})
+                        THEN value / 1e9 END), 0) AS ton_received,
+      COALESCE(SUM(CASE WHEN source IN (${fragmentAddressList})
+                         AND destination NOT IN (${fragmentAddressList})
+                         AND destination NOT IN (${telegramAddressList})
+                        THEN value / 1e9 END), 0) AS ton_sent
+    FROM ton.messages
+    WHERE direction = 'in'
+      AND NOT bounced
+      AND value > 0
+      AND block_time >= from_unixtime(${options.fromTimestamp})
+      AND block_time < from_unixtime(${options.toTimestamp})`;
 
   const queryResults = await queryDuneSql(options, query);
 
@@ -79,6 +69,12 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
   if (queryResults[0].ton_received == null || queryResults[0].ton_sent == null) {
     throw new Error(`Unexpected Dune result shape: ${JSON.stringify(queryResults[0])}`);
+  }
+
+  // A TON day carries millions of messages, so an empty window means the table has not been loaded
+  // that far yet rather than that nothing happened. Publishing the sums as a zero day would bury it.
+  if (Number(queryResults[0].message_count) === 0) {
+    throw new Error(`ton.messages has no rows for ${options.dateString}, refusing to report it as a zero fee day`);
   }
 
   const dailyFees = options.createBalances();

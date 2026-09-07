@@ -490,7 +490,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
     SELECT mint as token, SUM(raw_amount) as amount
     FROM solana.assets.transfers
     WHERE to_address IN (${formattedAddresses})
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ${mintsCondition}
     ${blacklistCondition}
     ${blacklist_signersCondition}
@@ -507,7 +507,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   //   SELECT mint, SUM(usd_amount * 1000000) as amount
   //   FROM solana.assets.transfers
   //   WHERE to_address IN (${formattedAddresses})
-  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   //   ${blacklistCondition}
   //   ${blacklist_signersCondition}
   //   ${blacklist_mintsCondition}
@@ -590,7 +590,7 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
     SELECT token_mint_address as mint, SUM(amount) as amount
     FROM tokens_solana.transfers
     WHERE to_owner IN (${formattedAddresses})
-    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time <= from_unixtime(${options.endTimestamp})
+    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
@@ -605,7 +605,7 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   //   SELECT mint, SUM(usd_amount * 1000000) as amount
   //   FROM solana.assets.transfers
   //   WHERE to_address IN (${formattedAddresses})
-  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   //   ${blacklistCondition}
   //   ${blacklist_signersCondition}
   //   ${blacklist_mintsCondition}
@@ -706,7 +706,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
       WHERE to_address in ${targetList} 
       ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   } else {
     // support all EVM chain on allium now
@@ -718,7 +718,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
       WHERE to_address in ${targetList} 
       AND status = 1
       ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }
 
@@ -816,7 +816,7 @@ export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
     FROM crosschain.assets.transfers
     WHERE 
     chain = '${chainKey}'
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
 
   if (toAddrs.length) {

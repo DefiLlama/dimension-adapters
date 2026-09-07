@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from '../../helpers/token';
 import { METRIC } from "../../helpers/metrics";
 
@@ -56,7 +56,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
-    const { autopools } = await fetchURL(`${AUTOFINANCE_API}/${chainId}/gen3`);
+    const { autopools } = await getConfig(`autofinance/${chainId}`, `${AUTOFINANCE_API}/${chainId}/gen3`);
     const autopoolAddresses = autopools.map((autopool: any) => autopool.id);
 
     const feeDetails = await options.api.multiCall({

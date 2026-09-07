@@ -48,8 +48,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Staking rewards from staked SOL on jito staked solana',
-  Revenue: 'Includes withdrawal fees and management fees collected by fee collector.',
-  ProtocolRevenue: 'Revenue going to treasury/team',
+  Revenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
+  ProtocolRevenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
   HoldersRevenue: 'No revenue share to JTO token holders.',
   SupplySideRevenue: '96% of the staking rewards go to stakers'
 
@@ -60,7 +60,7 @@ export default {
   methodology,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: "2024-04-08",
+  start: "2022-11-21",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   breakdownMethodology: {

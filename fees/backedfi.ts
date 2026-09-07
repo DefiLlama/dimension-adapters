@@ -2,7 +2,7 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
-import fetchURL from "../utils/fetchURL";
+import { getConfig } from "../helpers/cache";
 
 // Source: https://docs.backed.fi/backed-platform/issuance-and-redemption
 // Fees are charged on issuance (minting) and redemption (burning) of backed tokens
@@ -57,20 +57,10 @@ const CHAIN_NAME_MAP: Record<string, string> = {
   [CHAIN.SOLANA]: 'Solana',
 };
 
-let cachedProducts: ApiProduct[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL = 3600000; // 1 hour
-
 async function getProducts(): Promise<ApiProduct[]> {
-  const now = Date.now();
-  if (cachedProducts && (now - cacheTimestamp) < CACHE_TTL) {
-    return cachedProducts;
-  }
-
-  const response: ApiResponse = await fetchURL('https://api.backed.fi/rest/tokens');
-  cachedProducts = response.nodes;
-  cacheTimestamp = now;
-  return cachedProducts;
+  const response: ApiResponse = await getConfig('backedfi/tokens', 'https://api.backed.fi/rest/tokens');
+  if (!Array.isArray(response.nodes)) throw new Error('Backed tokens config is unavailable');
+  return response.nodes;
 }
 
 async function getAddressesByChain(products: ApiProduct[], chainName: string): Promise<string[]> {

@@ -69,9 +69,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         pythFeePerRequest = 0;
     }
 
-    dailyFees.addGasToken(BigInt(feePerRequest) * numRequests);
-    dailyRevenue.addGasToken(BigInt(pythFeePerRequest) * numRequests);
-    dailySupplySideRevenue.addGasToken(BigInt(feePerRequest - pythFeePerRequest) * numRequests);
+    dailyFees.addGasToken(BigInt(feePerRequest) * numRequests, "Randomness Service Fees");
+    dailyRevenue.addGasToken(BigInt(pythFeePerRequest) * numRequests, "Randomness Service Fees To Pyth DAO");
+    dailySupplySideRevenue.addGasToken(BigInt(feePerRequest - pythFeePerRequest) * numRequests, "Randomness Service Fees To Providers");
 
     return {
         dailyFees,
@@ -86,12 +86,25 @@ const methodology = {
     SupplySideRevenue: 'Provider fees paid to randomness providers for fulfilling requests (includes gas cost reimbursement).',
 };
 
+const breakdownMethodology = {
+    Fees: {
+        'Randomness Service Fees': 'Total fees paid per Entropy randomness request. Fee = Provider fee (dynamic, covers gas) + Protocol fee (set by Pyth DAO governance).',
+    },
+    Revenue: {
+        'Randomness Service Fees To Pyth DAO': 'Protocol fees collected by Pyth DAO treasury per randomness request.',
+    },
+    SupplySideRevenue: {
+        'Randomness Service Fees To Providers': 'Provider fees paid to randomness providers for fulfilling requests (includes gas cost reimbursement).',
+    },
+};
+
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
     adapter: chainConfig,
     methodology,
+    breakdownMethodology,
 }
 
 export default adapter;

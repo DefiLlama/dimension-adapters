@@ -15,13 +15,21 @@ const fetch = async (_options: FetchOptions) => {
     .process(async (symbol: string) => {
       const oi = await fetchURLAutoHandleRateLimit(`${baseUrl}/perp/v1/open-interest?symbol=${symbol}`);
       await sleep(500);
-      return oi;
+      return { symbol, oi };
     });
 
-  const openInterestAtEnd = oiResponses.reduce(
-    (acc: number, oi: any) => acc + Number(oi.notionalValue),
-    0
-  );
+  // A symbol can be listed on /ticker/24hr while /open-interest answers 200 with
+  // {"success":false,"error":{"code":"NOTFOUND"}} and no notionalValue. Skip those instead of
+  // letting one of them turn the whole sum into NaN; the guard below still fires if every
+  // symbol fails.
+  const openInterestAtEnd = oiResponses.reduce((acc: number, { symbol, oi }: any) => {
+    const notionalValue = Number(oi?.notionalValue);
+    if (!Number.isFinite(notionalValue)) {
+      console.info(`bullbit: no open interest returned for ${symbol}, skipping it`);
+      return acc;
+    }
+    return acc + notionalValue;
+  }, 0);
 
   if (!openInterestAtEnd)
     throw new Error("No open interest data found");

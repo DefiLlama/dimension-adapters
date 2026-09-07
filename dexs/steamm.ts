@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 import PromisePool from "@supercharge/promise-pool";
 
-const suilendPoolsURL = () => `https://global.suilend.fi/steamm/pools/all`;
+const suilendPoolsURL = () => `https://api.suilend.fi/steamm/pools/all`;
 
 interface PoolInfo {
   id: string;
@@ -21,7 +21,7 @@ const suilendPoolHistoricalURL = (
   fromTimestamp: number,
   toTimestamp: number
 ) =>
-  `https://global.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
+  `https://api.suilend.fi/steamm/historical/volume?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60 * 60 * 24}&poolId=${poolId}`;
 
 
 async function fetchPoolsStats(startTimestamp: number, endTimestamp: number): Promise<Array<PoolInfo>> {

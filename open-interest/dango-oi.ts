@@ -24,7 +24,7 @@ async function fetch(options: FetchOptions) {
 
     const response = await httpPost(DANGO_GRAPH_URL, { query });
 
-    const pricesMap = new Map(response.data.allPerpsPairStats.map(p => [p.pairId, p.currentPrice]));
+    const pricesMap = new Map(response.data.allPerpsPairStats.map((p: any) => [p.pairId, p.currentPrice]));
     const pairStates = response.data.queryApp.wasm_smart;
 
     for (const pair of Object.keys(pairStates)) {
@@ -47,6 +47,7 @@ const adapter: SimpleAdapter = {
     runAtCurrTime: true,
     chains: [CHAIN.DANGO],
     fetch,
+    deadFrom: "2026-07-29",
 }
 
 export default adapter;

@@ -73,11 +73,11 @@ const adapter: SimpleAdapter = {
       fetch: fetchExtended,
       start: "2026-01-28",
     },
-    // [CHAIN.INK]: {
-    //   fetch: fetchNado,
-    //   start: "2026-03-23",
-    //   runAtCurrTime: true,
-    // },
+    [CHAIN.INK]: {
+      fetch: fetchNado,
+      start: "2026-03-23",
+      runAtCurrTime: true,
+    },
   },
   methodology,
   doublecounted: true,

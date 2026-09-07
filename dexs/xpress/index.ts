@@ -46,6 +46,9 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SONIC],
+  // The subgraph host is up but answers `deployment u61208/s106679/latest does not exist`, and
+  // xpress.trade is NXDOMAIN, so there is nothing left to read. Last published point 2026-06-07.
+  deadFrom: '2026-06-08',
 };
 
 export default adapter;

@@ -3,40 +3,48 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 
-const chainConfig: Record<string, { start: string; router: string; swapEvent?: string }> = {
+const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?: string }> = {
   [CHAIN.BASE]: {
     start: "2025-07-03",
-    router: "0x282970F452371454332Ca522cE59F318a2C81484",
+    // The first router stopped emitting and Base has published 0 since 2026-07-24. The other two
+    // are byte-identical redeployments of it under the same owner, 0x31781b4E7FB61756BD0a0Ef7850d5e7bf6270FC4,
+    // which also owns the router on every other chain here.
+    routers: [
+      "0x282970F452371454332Ca522cE59F318a2C81484",
+      "0x8a33650bbBd7622D7bF1b98d4ae851c134126C18",
+      "0xf0eBB9bA1c3cd95c315f4F80197b85782E756e49",
+    ],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
   },
   [CHAIN.BSC]: {
     start: "2025-07-03",
-    router: "0xd270845b7EBb0B013DfCCD9cA782a57Bfb7A359A",
+    routers: ["0xd270845b7EBb0B013DfCCD9cA782a57Bfb7A359A"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
   },
   [CHAIN.ETHEREUM]: {
     start: "2025-07-15",
-    router: "0x60943cb06b76A24431659165c81a03c16F1C325C",
+    routers: ["0x60943cb06b76A24431659165c81a03c16F1C325C"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
   },
   [CHAIN.HYPERLIQUID]: {
     start: "2025-05-31",
-    router: "0x81DA6BCd98AE46621A1E9743a3F51B10B7e16D97",
+    routers: ["0x81DA6BCd98AE46621A1E9743a3F51B10B7e16D97"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
   },
   [CHAIN.SOLANA]: {
     start: "2025-01-17",
-    router: "AveaiuA1emN71q9mS2QQ9BEWNAAHmp8sHSvwLFHQjufM",
+    routers: ["AveaiuA1emN71q9mS2QQ9BEWNAAHmp8sHSvwLFHQjufM"],
   },
 };
 
 const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
-  const { router, swapEvent } = chainConfig[options.chain];
+  const { routers, swapEvent } = chainConfig[options.chain];
 
   const logs = await options.getLogs({
-    target: router,
+    targets: routers,
     eventAbi: swapEvent,
+    flatten: true,
   });
 
   logs.forEach((log) => {
@@ -51,7 +59,7 @@ const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const fetchSolana = async (options: FetchOptions): Promise<FetchResult> => {
-  const { router } = chainConfig[CHAIN.SOLANA];
+  const [router] = chainConfig[CHAIN.SOLANA].routers;
 
   // Use 10 hours delay as dune has indexing delay for dex_solana.trades table
   const tenHoursAgo = Date.now() - (10 * 60 * 60 * 1000);

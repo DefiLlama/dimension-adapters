@@ -90,6 +90,7 @@ const adapter: SimpleAdapter = {
     start: '2026-04-30',
     methodology,
     breakdownMethodology,
+    deadFrom: "2026-07-29",
 }
 
 export default adapter;

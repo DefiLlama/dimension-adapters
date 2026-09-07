@@ -245,9 +245,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const feeMultiplier = info.rawFee.dividedBy(FEE_DENOMINATOR).toNumber();
 
     for (const log of logs) {
+      // addOneToken picks whichever leg is a core asset and ignores swap direction, so the In
+      // amounts on their own are not enough. When the core asset is the token leaving the pair
+      // its In amount is zero, and the swap gets recorded as zero volume and zero fee. Feed the
+      // Out amounts as well, the way helpers/uniswap.ts does for V2 pairs. Exactly one of the
+      // two calls is non zero for any given swap, so nothing is counted twice.
       addOneToken({ chain, balances: dailyVolume, token0: info.token0, token1: info.token1, amount0: log.amount0In, amount1: log.amount1In, });
+      addOneToken({ chain, balances: dailyVolume, token0: info.token0, token1: info.token1, amount0: log.amount0Out, amount1: log.amount1Out, });
 
-      const fee = addOneToken({ chain, balances: dailyFees, token0: info.token0, token1: info.token1, amount0: Number(log.amount0In) * feeMultiplier, amount1: Number(log.amount1In) * feeMultiplier, label: METRIC.SWAP_FEES });
+      const feeFromIn = addOneToken({ chain, balances: dailyFees, token0: info.token0, token1: info.token1, amount0: Number(log.amount0In) * feeMultiplier, amount1: Number(log.amount1In) * feeMultiplier, label: METRIC.SWAP_FEES });
+      const feeFromOut = addOneToken({ chain, balances: dailyFees, token0: info.token0, token1: info.token1, amount0: Number(log.amount0Out) * feeMultiplier, amount1: Number(log.amount1Out) * feeMultiplier, label: METRIC.SWAP_FEES });
+
+      const fee = feeFromIn?.amount ? feeFromIn : feeFromOut;
 
       if (!fee?.amount) continue;
 

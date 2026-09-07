@@ -4,6 +4,8 @@ import fetchURL from "../utils/fetchURL";
 
 const url_aggregator = 'https://api-core.caviarnine.com/v1.0/stats/product/aggregator';
 
+const volumeThreshold = 50_000_000;
+
 const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
@@ -13,7 +15,7 @@ const adapter: SimpleAdapter = {
           return acc + Number(data[key].interval_1d.usd);
         }, 0);
         return {
-          dailyVolume: dailyVolume,
+          dailyVolume: dailyVolume > volumeThreshold ? 0 : dailyVolume,
         }
       },
       start: '2023-10-31',

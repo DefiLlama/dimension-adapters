@@ -25,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: "Bonding-curve trading volume on Virtual Protocol's own venue, reconstructed on-chain (no private tables). Bonding pairs are collected from the bonding-factory events (PreLaunched/Launched for the current factory generation, PairCreated for the legacy Base FFactories); volume is the VIRTUAL leg of each FPair Swap, priced to USD. Post-graduation trades are excluded as they occur on third-party DEXs already counted elsewhere. Covers Base (legacy + current factories) and Robinhood.",
+  Volume: "Bonding-curve trading volume on Virtual Protocol's own venue, reconstructed on-chain (no private tables). Bonding pairs are collected from the bonding-factory events (PreLaunched/Launched for the current factory generation, PairCreated for the legacy Base FFactories); volume is the VIRTUAL leg of each FPair Swap, priced to USD. Post-graduation trades are excluded as they occur on third-party DEXs already counted elsewhere. Covers Base (legacy + current factories) and Robinhood. On Solana both bonding venues are counted: Virtual Protocol's own program from 2025-02, whose pools are found from the tax paid in each swap because that program is not decoded, and its Meteora Dynamic Bonding Curve from 2026-08-21, whose pools come from the VIRTUAL-quoted DBC configs.",
 }
 
 const adapter: SimpleAdapter = {
@@ -34,6 +34,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BASE]: { start: "2024-10-15", },
     [CHAIN.ROBINHOOD]: { start: "2026-07-02", },
+    [CHAIN.SOLANA]: { start: "2025-02-11", },
   },
   prefetch,
   dependencies: [Dependencies.DUNE],

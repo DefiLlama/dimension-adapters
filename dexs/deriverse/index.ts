@@ -89,7 +89,7 @@ const fetch = async (options: FetchOptions) => {
     return fetchRangeVolume(options, bucketStartTimestamp);
   }
 
-  const matchesWindowStart = bucketStartTimestamp === options.startTimestamp || bucketStartTimestamp === options.startTimestamp + 1;
+  const matchesWindowStart = bucketStartTimestamp === options.startTimestamp;
   if (!matchesWindowStart || bucketStartTimestamp % DAY_SECONDS !== 0) {
     return { dailyVolume: 0 };
   }

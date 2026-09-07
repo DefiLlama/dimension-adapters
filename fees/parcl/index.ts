@@ -38,6 +38,7 @@ const adapter: SimpleAdapter = {
     Revenue: "LP fees collected by the protocol",
     ProtocolRevenue: "100% of collected fees go to the protocol",
   },
+  deadFrom: '2026-04-22', // wound down for v4 development
 };
 
 export default adapter;

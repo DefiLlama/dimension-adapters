@@ -13,6 +13,9 @@ interface CurveChainFees {
   fees_to_lp: number;
   fees_to_dao: number;
   fees_to_treasury: number;
+  // Yield Basis fees, already inside total_fees/fees_to_lp (those pools have admin_fee = 0).
+  // fees/yield-basis reports the same dollars.
+  lp_fees_yb: number;
   chain: string;
 }
 
@@ -33,8 +36,7 @@ export async function fetchCurveApiData(startOfDay: number): Promise<CurveFeesRe
     return cachedPromise.promise;
   }
 
-  // curve api accept exactly start and end timestamp of a given day
-  // other values always return 0
+  // api aggregates over the given [start, end], so pass exact day bounds
   const url = `${CURVE_API_BASE}?start=${startOfDay}&end=${startOfDay + 24 * 3600}`;
   const promise = httpGet(url).catch((err) => {
     // Clear cache on failure so retries can happen

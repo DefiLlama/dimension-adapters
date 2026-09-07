@@ -109,11 +109,12 @@ const alliumChainMap: Record<string, string> = {
     core: CHAIN.CORE,
     tempo: CHAIN.TEMPO,
     stable: CHAIN.STABLE,
+    x_layer: CHAIN.XLAYER,
 }
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
 
-const evmChainMetricConfigKeys = ["core", "merlin"] as const;
+const evmChainMetricConfigKeys = ["core"] as const;
 const evmChainMetricExports = evmChainMetricConfigKeys.map((name) => {
     const config = EVM_CHAIN_METRIC_CONFIGS[name];
     return {

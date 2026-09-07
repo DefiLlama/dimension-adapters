@@ -12,7 +12,8 @@ const fetch = async (options: FetchOptions) => {
   const protocolB = await addTokensReceived({
     options,
     target: "0xc64bc02594ba7f777f26b7a1eec6e6dc4a56362b", //protocol multiSig
-    fromAdddesses: ["0x88eaFE23769a4FC2bBF52E77767C3693e6acFbD5"], //revenue wallet
+    // Revenue is sent by per-pod TokenRewards contracts that change as pods are
+    // deployed, so restricting transfers to one sender omits valid revenue.
   });
 
   const totalB = holdersB.clone();

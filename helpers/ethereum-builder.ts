@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
-import { queryIndexer } from "./indexer";
+import { queryAllium } from "./allium";
 import { getETHReceived } from "./token";
 import { METRIC } from "./metrics";
 
@@ -15,7 +15,7 @@ const KnownValidatorsMevRecipients = [
 ]
 
 function getValidatorsFilter(): string {
-  return KnownValidatorsMevRecipients.map(a => `'\\x${a.slice(2)}'`).join(',');
+  return KnownValidatorsMevRecipients.map(a => `'${a.toLowerCase()}'`).join(',');
 }
 
 interface EthereumBlockBuilderExportOptions {
@@ -48,49 +48,46 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
     fetch: async (options: FetchOptions) => {
       const dailyFees = options.createBalances();
 
-      const formattedBuilderAddress = exportOptions.builderAddress.slice(2);
-      
-      const fromTime = new Date(options.fromTimestamp * 1000).toISOString();
-      const toTime = new Date(options.toTimestamp * 1000).toISOString();
-      
-      // count all block rewards = total transaction fees - total fees burnt
-      const blocks = await queryIndexer(`
-        SELECT number, total_fees, base_fee_per_gas * gas_used as total_fees_burnt
-        FROM ethereum.blocks 
+      const builderAddress = exportOptions.builderAddress.toLowerCase();
+
+      // count all block rewards = total transaction fees - total fees burnt,
+      // computed as the sum of priority tips over transactions in the builder's blocks
+      const [{ block_rewards }] = await queryAllium(`
+        SELECT
+          COALESCE(SUM((t.receipt_effective_gas_price - b.base_fee_per_gas) * t.receipt_gas_used), 0) AS block_rewards
+        FROM ethereum.raw.transactions t
+        JOIN ethereum.raw.blocks b ON t.block_number = b.number
         WHERE
-          miner = '\\x${formattedBuilderAddress}'
-          AND time BETWEEN '${fromTime}' AND '${toTime}'
+          b.miner = '${builderAddress}'
+          AND t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `)
-      
+
       const mevFees = await getETHReceived({ options: options, target: exportOptions.builderAddress })
-      
+
       // count all ETH directly transfer from builder to validators + transaction fees
       // make sure to to_addresses are known validators addresses or transaction value < 1 ETH
-      const fees = await queryIndexer(`
+      const [fees] = await queryAllium(`
         SELECT
-          SUM(value) AS total_fees_priority,
-          SUM(fee) AS total_fees_transactions
-        FROM ethereum.transactions
+          COALESCE(SUM(value), 0) AS total_fees_priority,
+          COALESCE(SUM(receipt_gas_used * receipt_effective_gas_price), 0) AS total_fees_transactions
+        FROM ethereum.raw.transactions
         WHERE
-          from_address = '\\x${formattedBuilderAddress}'
-          AND to_address != '\\x${formattedBuilderAddress}'
-          AND block_time BETWEEN '${fromTime}' AND '${toTime}'
+          from_address = '${builderAddress}'
+          AND to_address != '${builderAddress}'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
           AND (
             to_address IN (${getValidatorsFilter()})
             OR value < 1000000000000000000
           )
       `)
-      
-      const totalFees = options.createBalances();
-      for (const block of blocks) {
-        totalFees.addGasToken(BigInt((block as any).total_fees) - BigInt((block as any).total_fees_burnt))
-      }
 
       const totalPriority = options.createBalances();
-      totalPriority.addGasToken((fees as any)[0].total_fees_priority || 0); // amount paid to validators
-      totalPriority.addGasToken((fees as any)[0].total_fees_transactions || 0); // transactions fees paid
+      totalPriority.addGasToken(fees.total_fees_priority || 0); // amount paid to validators
+      totalPriority.addGasToken(fees.total_fees_transactions || 0); // transactions fees paid
 
-      dailyFees.addBalances(totalFees, METRIC.TRANSACTION_GAS_FEES);
+      dailyFees.addGasToken(block_rewards, METRIC.TRANSACTION_GAS_FEES);
       dailyFees.addBalances(mevFees, METRIC.MEV_REWARDS);
 
       const dailyRevenue = dailyFees.clone();

@@ -35,7 +35,9 @@ const adapter: Adapter = {
             runAtCurrTime: true
         }
     },
-    version: 2
+    version: 2,
+    // api.razordex.xyz DNS-dead; Movement deployment abandoned (project pivoted to Cedra chain); last nonzero volume 2025-12-15 (dust)
+    deadFrom: '2025-12-16',
 }
 
 export default adapter;

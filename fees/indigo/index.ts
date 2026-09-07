@@ -8,7 +8,7 @@ const ANALYTICS_API_ENDPOINT = 'https://analytics.indigoprotocol.io';
 const fetchRevenueTotals = async (endpoint: string, options: FetchOptions): Promise<Record<string, string | number>> => {
   const url = `${ANALYTICS_API_ENDPOINT}/api/revenue/${endpoint}?totals&inflows_only&from=${options.startTimestamp}&to=${options.endTimestamp}`;
   const { data } = await axios.get(url);
-  if (!data || typeof data.totals !== 'object' || data.totals === null) {
+  if (!data || typeof data.totals !== 'object' || data.totals === null || Array.isArray(data.totals)) {
     throw new Error(`Indigo ${endpoint} returned an unexpected response: ${JSON.stringify(data)?.slice(0, 200)}`);
   }
   return data.totals;

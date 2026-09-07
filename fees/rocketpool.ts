@@ -1,4 +1,5 @@
 import * as sdk from "@defillama/sdk";
+import { ethers } from "ethers";
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -126,7 +127,47 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     dailyFees.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
   }
-  
+
+  // Since Saturn 1, node operators can run megapools instead of minipools.
+  // Megapools deposit their rETH reward share through the same EtherDeposited
+  // event, but do not implement getNodeDepositBalance/getNodeFee, so they
+  // revert above and are skipped by the minipool loop. Pick them up from their
+  // own RewardsDistributed event. The node leg is defined on-chain as the
+  // residual (nodeAmount = reward - the other three legs), so the four legs sum
+  // exactly to the full pre-split beacon reward - the megapool analogue of the
+  // minipool rewardFromBeacon above, with no bond/commission gross-up needed.
+  const rocketStorage = '0x1d8f8f00cfa6758d7bE78336684788Fb0ee0Fa46';
+  const megapoolExistsKeys = minipoolAddresses.map((address) =>
+    ethers.solidityPackedKeccak256(['string', 'address'], ['megapool.exists', address])
+  );
+  // getBool returns false for an unset key and never reverts, so unlike the
+  // minipool getters above it needs no permitFailure - letting a genuine RPC
+  // failure throw is preferable to silently dropping a megapool's rewards.
+  const isMegapool = await options.api.multiCall({
+    abi: 'function getBool(bytes32) view returns (bool)',
+    calls: megapoolExistsKeys.map((key) => ({ target: rocketStorage, params: [key] })),
+  })
+  // Scope RewardsDistributed to confirmed megapool emitters. Its topic0 is a
+  // plain five-uint256 signature that unrelated contracts also emit, so an
+  // unscoped scan would overcount; the EtherDeposited senders are the natural,
+  // already-collected candidate set.
+  const megapoolAddresses = minipoolAddresses.filter((_, i) => isMegapool[i] === true)
+  if (megapoolAddresses.length > 0) {
+    const rewardsDistributedLogs = await options.getLogs({
+      targets: megapoolAddresses,
+      eventAbi: 'event RewardsDistributed(uint256 nodeAmount, uint256 voterAmount, uint256 rethAmount, uint256 protocolDaoAmount, uint256 time)',
+    })
+    for (const log of rewardsDistributedLogs) {
+      // The full beacon reward is counted as fees and flows to supply side, the
+      // same as the minipool path above. Saturn 1 added a voter share (~9%) and
+      // a protocol-DAO share (currently 0%) that are arguably protocol revenue
+      // rather than supply-side; reclassifying them is left to a follow-up so
+      // this change stays scoped to the dropped-fees fix (see #8812).
+      const beaconReward = Number(log.nodeAmount) + Number(log.voterAmount) + Number(log.rethAmount) + Number(log.protocolDaoAmount)
+      dailyFees.addGasToken(beaconReward, METRIC.STAKING_REWARDS)
+    }
+  }
+
   // MEV and execution rewards
   const transactions = await sdk.indexer.getTransactions({
     chain: options.chain,

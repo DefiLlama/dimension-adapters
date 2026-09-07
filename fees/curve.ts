@@ -20,7 +20,13 @@ const fetchBribesRevenue = async (options: FetchOptions) => {
     return dailyBribesRevenue;
   }
 
-  const stats = await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)
+  // Source swapped 2026-08: the crvhub bounties file stopped updating on
+  // 2026-07-11, so every day since reads as a zero delta. CurveDEX publishes
+  // the same schema, rebuilt 4x/day from Votemarket (on-chain campaigns) and
+  // Votium. Basis note: it counts incentives ADDED rather than claimed - field
+  // names keep crvhub's spelling for compatibility, and the root carries
+  // `basis` / `granularity` / `disclaimer` spelling that out.
+  const stats = await fetchURL(`https://llama.box/curvedex/api/bribes/stats.json`)
   const daily: any[] = stats.claimsLast365Days?.claims ?? []
   const inception: any[] = stats.claimsSinceInception?.claims ?? []
 
@@ -60,9 +66,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  
+
   dailyFees.add(dexData.dailyFees, LABELS.CurveDEXSwapFees);
   dailyFees.add(dailyBribesRevenue, LABELS.CurveBribesRewards);
+
+  // bribes are paid by gauge-vote bidders, not by users
+  const dailyUserFees = dexData.dailyFees.clone(1, LABELS.CurveDEXSwapFees);
 
   dailyRevenue.add(dexData.dailyRevenue, LABELS.CurveDEXSwapRevenue);
   dailyRevenue.add(dailyBribesRevenue, LABELS.CurveBribesRevenue);
@@ -72,7 +81,7 @@ const fetch = async (options: FetchOptions) => {
   
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyRevenue,
     dailyHoldersRevenue,
     dailyProtocolRevenue: dexData.dailyProtocolRevenue.clone(1, LABELS.CurveDEXFeesTreasury),
@@ -92,16 +101,16 @@ const adapter: SimpleAdapter = {
     return all
   }, {} as any),
   methodology: {
-    Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
-    UserFees: "Trading and liquidity fees paid by users",
-    Revenue: "Fees distributed to veCRV holders and protocol treasury",
-    ProtocolRevenue: "Fees allocated to the protocol treasury",
-    HoldersRevenue: "Fees distributed to veCRV governance token holders",
-    SupplySideRevenue: "Fees distributed to liquidity providers"
+    Fees: "Swap and liquidity fees charged by Curve pools, plus bribes paid to veCRV voters. Fee rates are set per pool - around 0.01%-0.04% on stable pools and up to a few percent on volatile pools.",
+    UserFees: "Swap and liquidity fees paid by traders. Excludes bribes, which are paid by third parties bidding for gauge votes, not by users.",
+    Revenue: "The share of pool fees kept by the protocol rather than paid to liquidity providers - usually half of the fee - plus bribes.",
+    ProtocolRevenue: "10% of the protocol's share of pool fees, sent to the Curve DAO treasury.",
+    HoldersRevenue: "90% of the protocol's share of pool fees, distributed to veCRV holders, plus all bribes.",
+    SupplySideRevenue: "The share of pool fees paid to liquidity providers - usually half of the fee."
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.CurveDEXSwapFees]: 'Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)',
+      [LABELS.CurveDEXSwapFees]: 'Swap and liquidity fees charged by Curve pools',
       [LABELS.CurveBribesRewards]: 'All bribes rewards collected',
     },
     Revenue: {

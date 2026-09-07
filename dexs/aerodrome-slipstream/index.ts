@@ -1,7 +1,10 @@
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
+import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
+import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
@@ -119,6 +122,24 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   for (const factory of CONFIG.factories) {
     const factoryLogs = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, })
     rawPools = rawPools.concat(factoryLogs)
+  }
+
+  // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
+  // downstream (volume, fees, revenue splits) derives from rawPools
+  const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(chain))
+  rawPools = rawPools.filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
+
+  // drop the day's wash-flagged pools (see getWashPools), unless every side is
+  // established (core asset or CoinGecko-listed) - the fake-ticker factory
+  // moved here from uniswap v4 the day the filter shipped there
+  const washPools: Set<string> = fetchOptions.preFetchedResults?.washPools ?? new Set()
+  const flagged = rawPools.filter((p: any) => washPools.has(formatAddress(p.pool)))
+  if (flagged.length) {
+    const established = await getEstablishedTokens(chain, flagged.flatMap((p: any) => [p.token0, p.token1]))
+    const drop = new Set(flagged
+      .filter((p: any) => !(established.has(formatAddress(p.token0)) && established.has(formatAddress(p.token1))))
+      .map((p: any) => formatAddress(p.pool)))
+    rawPools = rawPools.filter((p: any) => !drop.has(formatAddress(p.pool)))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
@@ -271,7 +292,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   }
 }
 
+const prefetch: any = async (options: FetchOptions) => {
+  return { washPools: await getWashPools(options, { blockchain: 'base', project: 'aerodrome', version: 'slipstream' }) }
+}
+
 const methodology = {
+  Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
   Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
   Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
   HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
@@ -299,6 +325,7 @@ const breakdownMethodology = {
 const adapters: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  prefetch,
   methodology,
   breakdownMethodology,
   adapter: {

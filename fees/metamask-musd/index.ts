@@ -6,6 +6,8 @@ const M_TOKEN = "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b";
 const MUSD_TOKEN = "0xacA92E438df0B2401fF60dA7E4337B687a2435DA";
 const ONE_YEAR = 365 * 24 * 60 * 60;
 
+const LABEL = 'mUSD Asset Yields';
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
     const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM });
@@ -25,7 +27,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     const dailyYield = (mTokenBalance * (earnerRate / 100) * (timeframe / ONE_YEAR)) / 100;
 
-    dailyFees.addUSDValue(dailyYield / 1e6);
+    dailyFees.addUSDValue(dailyYield / 1e6, LABEL);
 
     return {
         dailyFees,
@@ -40,12 +42,25 @@ const methodology = {
     ProtocolRevenue: "All the revenue goes to protocol",
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [LABEL]: "M token yield earned by the M backing MetaMask USD (mUSD).",
+    },
+    Revenue: {
+        [LABEL]: "All M token yield is kept as revenue.",
+    },
+    ProtocolRevenue: {
+        [LABEL]: "All revenue goes to the protocol.",
+    },
+};
+
 const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.LINEA],
     start: '2025-08-12',
     methodology,
+    breakdownMethodology,
 };
 
 export default adapter;

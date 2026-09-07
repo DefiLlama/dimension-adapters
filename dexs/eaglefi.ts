@@ -29,6 +29,8 @@ const adapter: Adapter = {
   fetch,
   chains: ['massa'],
   start: "2025-06-23",
+  // mainnet.api.eaglefi.io + ai2.eaglefi.io DNS-dead (frontend still points at them, so site stats are broken too); last nonzero volume 2026-04-23 ($50)
+  deadFrom: '2026-04-24',
 };
 
 export default adapter;

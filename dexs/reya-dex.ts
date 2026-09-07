@@ -96,7 +96,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     options.getToBlock(),
   ]);
 
-  const BLOCKS_PER_BATCH = 10000;
+  // Reya's RPC provider rejects eth_getLogs spanning more than 2,000 blocks (HTTP 400),
+  // so batches have to stay under that. Each call below filters to a single event and the
+  // busiest one runs ~3.8 logs/block, so a 1,000-block batch returns ~3.8k logs — well
+  // inside the provider's 20,000-logs-per-response cap.
+  const BLOCKS_PER_BATCH = 1000;
   const batches: Array<{ fromBlock: number; toBlock: number }> = [];
   for (let block = fromBlock; block <= toBlock; block += BLOCKS_PER_BATCH) {
     batches.push({

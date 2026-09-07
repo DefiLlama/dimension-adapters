@@ -14,6 +14,10 @@ const configs: Record<string, Record<string, any>> = {
   "warpx-v3": {
     [CHAIN.MEGAETH]: { factory: '0xf67cF9d6FC433e97Ec39Ae4b7E4451B56B171C8a' },
   },
+  "helios-v3": {
+    // stock uniV3 fork, every pool initialized with feeProtocol = 68 => 25% of swap fees to protocol
+    [CHAIN.RISE]: { factory: '0xbF30bD8567628Dc4E120b7536d051EaFaA3fD0fa', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+  },
   "mintswap": {
     [CHAIN.MINT]: { factory: '0x1f88BB455E02646224A0a65f3eb4B2FCb4fb8e49' },
   },
@@ -37,6 +41,11 @@ const configs: Record<string, Record<string, any>> = {
   },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
+  },
+  // migrated off deleted subgraph to on-chain logs; factory from DefiLlama-Adapters registries/uniswapV3.js
+  // pancake-v3 style fork: pools emit Swap with protocolFeesToken0/1
+  "rabbitswap-v3": {
+    [CHAIN.TOMOCHAIN]: { factory: '0x1F09b50e8cbAed8A157fEe28716d13AfE36A77E7', start: '2024-11-12', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   },
   "ginsengswap": {
     [CHAIN.CONFLUX]: { factory: '0x62aa0294cb42aae39b7772313eadfa5d489146ec' },
@@ -151,11 +160,6 @@ const configs: Record<string, Record<string, any>> = {
   // with fee ratios / options / methodology
   "squadswap-v3": {
     [CHAIN.BSC]: { factory: '0x009c4ef7C0e0Dd6bd1ea28417c01Ea16341367c3', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
-  },
-  "9mm": {
-    [CHAIN.PULSECHAIN]: { factory: '0xe50dbdc88e87a2c92984d794bcf3d1d76f619c68' },
-    [CHAIN.BASE]: { factory: '0x7b72C4002EA7c276dd717B96b20f4956c5C904E7' },
-    [CHAIN.SONIC]: { factory: '0x924aee3929C8A45aC9c41e9e9Cdf3eA761ca75e5' },
   },
   "maia-v3": {
     [CHAIN.METIS]: { factory: '0xf5fd18Cd5325904cC7141cB9Daca1F2F964B9927', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1, holdersRevenueRatio: 0, start: "2023-04-01" },
@@ -289,8 +293,10 @@ const configs: Record<string, Record<string, any>> = {
   },
   "reservoir-tools-clmm": {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
-    [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
-    [CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    // Ink is Uniswap's own v3 deployment (Uniswap/contracts deployments/json/57073.json; factory
+    // owner is the CrossChainAccount forwarding from the Uniswap timelock), tracked in dexs/uniswap-v3.ts
+    // [CHAIN.INK]: { factory: '0x640887A9ba3A9C53Ed27D0F7e8246A4F933f3424', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
+    //[CHAIN.ZERO]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-12-21', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     [CHAIN.REDSTONE]: { factory: '0xece75613Aa9b1680f0421E5B2eF376DF68aa83Bb', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "shapeswap-v3": {
@@ -415,17 +421,25 @@ const configs: Record<string, Record<string, any>> = {
   'giga-dex-cl': {
     [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
   },
-  "swaphood-v3": {
-    [CHAIN.ROBINHOOD]: { factory: "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7", start: "2026-07-10", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 0.05, holdersRevenueRatio: 0.95 },
+  "betterswap-v3": {
+    [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
-
+  "brownfi-clamm": {
+    [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
+  },
 }
 
-const optionsMap: Record<string, any> = {
-  "9mm": { swapEvent: protocolFeesSwapEvent, },
-}
+const optionsMap: Record<string, any> = {}
 
 const methodologyMap: Record<string, any> = {
+  "betterswap-v3": {
+    Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
+    Fees: "Users pay each pool's configured fee tier on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "No protocol fee is taken, all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "prism-dex": {
     Volume: "Swap volume from all Prism DEX V3 pools deployed via the Prism DEX V3 factory.",
     Fees: "Users pay each pool's configured V3 fee tier on every swap.",

@@ -30,8 +30,8 @@ const fetch = async (options: FetchOptions) => {
     query {
       frankencoinProfitLosss(
         where: {
-          created_gt: "${options.startTimestamp}",
-          created_lte: "${options.endTimestamp}",
+          created_gte: "${options.startTimestamp}",
+          created_lt: "${options.endTimestamp}",
         }
         orderBy: "count",
         orderDirection: "desc",

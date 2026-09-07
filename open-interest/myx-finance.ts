@@ -10,7 +10,7 @@ const chainConfig = {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const url = `https://api.myx.finance/v2/scan/stat/dashboard?chainId=${chainConfig[options.chain].chainId}`
+  const url = `https://api.myx.finance/openapi/gateway/scan/stat/dashboard?chainId=${chainConfig[options.chain].chainId}`
   const data = await fetchURL(url)
   const openInterestAtEnd = Number(data.data.positionAmount);
   return { openInterestAtEnd }

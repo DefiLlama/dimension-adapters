@@ -35,10 +35,10 @@ const config: Record<
 
 const fetch = async (options: FetchOptions) => {
   const dayFeesData = await fetchURL(config[options.chain].fees(options.toTimestamp, '1D'));
-  const dailyFees = dayFeesData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp <= options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyFees = dayFeesData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp < options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
   const dayRevenueData = await fetchURL(config[options.chain].revenue(options.toTimestamp, '1D'));
-  const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp <= options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
+  const dailyRevenue = dayRevenueData.filter((a: IVolumeall) => a.timestamp >= options.startTimestamp && a.timestamp < options.endTimestamp).reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
 
   const dailySupplySideRevenue = dailyFees - dailyRevenue;
 

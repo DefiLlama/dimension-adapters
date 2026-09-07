@@ -111,7 +111,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const fetchAptos = async () => {
-  const res = await fetchURL("https://be.moneyfi.fund/get-fees");
+  const res = await fetchURL("https://api.moneyfi.fund/get-fees");
 
   const daily = res?.fees?.daily ?? 0;
 

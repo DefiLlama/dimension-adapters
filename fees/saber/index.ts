@@ -43,6 +43,9 @@ const adapter: Adapter = {
   chains: [CHAIN.SOLANA],
   start: '2022-03-10',
   runAtCurrTime: true,
+  // volume.json carries no date and one commit, 2025-08-18, so
+  // every day gets it; the series has read 27 since 2025-05-26
+  deadFrom: '2025-05-26',
   methodology: {
     Fees: "Total fees collected from all pools in USD over the last 24 hours, based on the 'feesUsd' field from the volume data.",
     Revenue: "Half of the total fees, representing the portion retained by the protocol.",

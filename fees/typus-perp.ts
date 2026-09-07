@@ -1,6 +1,6 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryEvents } from "../helpers/sui";
+import { queryEventsAllium } from "../helpers/sui";
 import { METRIC } from "../helpers/metrics"
 
 const PROTOCOL_FEE_SHARE = 0.3;
@@ -13,102 +13,62 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const tlpFees = options.createBalances();
   const protocolFees = options.createBalances();
 
-  const minLpEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::MintLpEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::MintLpEvent",
-    options,
-  });
-  for (const parsedJson of minLpEvents) {
+  const pkg = options.startTimestamp < CONTRACT_CHANGE_TIME
+    ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5"
+    : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9";
+
+  const eventTypes = {
+    mintLp: `${pkg}::lp_pool::MintLpEvent`,
+    burnLp: `${pkg}::lp_pool::BurnLpEvent`,
+    swap: `${pkg}::lp_pool::SwapEvent`,
+    withdrawLending: `${pkg}::lp_pool::WithdrawLendingEvent`,
+    liquidate: `${pkg}::trading::LiquidateEvent`,
+    realizeOption: `${pkg}::trading::RealizeOptionPositionEvent`,
+    orderFilled: `${pkg}::position::OrderFilledEvent`,
+    realizeFunding: `${pkg}::position::RealizeFundingEvent`,
+  };
+  const events = await queryEventsAllium(Object.values(eventTypes), options);
+
+  for (const parsedJson of events[eventTypes.mintLp]) {
     protocolFees.addUSDValue(Number(parsedJson.mint_fee_usd) / USD_DECIMALS, METRIC.MINT_REDEEM_FEES);
   }
 
-  const burnLpEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::BurnLpEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::BurnLpEvent",
-    options,
-  });
-  for (const parsedJson of burnLpEvents) {
+  for (const parsedJson of events[eventTypes.burnLp]) {
     protocolFees.addUSDValue(Number(parsedJson.burn_fee_usd) / USD_DECIMALS, METRIC.MINT_REDEEM_FEES);
   }
 
-  const swapEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::SwapEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::SwapEvent",
-    options,
-  });
-  for (const parsedJson of swapEvents) {
+  for (const parsedJson of events[eventTypes.swap]) {
     const token_name = "0x" + parsedJson.from_token_type.name;
     tlpFees.add(token_name, Number(parsedJson.fee_amount) * TLP_FEE_SHARE, METRIC.SWAP_FEES);
     protocolFees.add(token_name, Number(parsedJson.fee_amount) * PROTOCOL_FEE_SHARE, METRIC.SWAP_FEES);
   }
 
-  const withdrawLendingEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::lp_pool::WithdrawLendingEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::lp_pool::WithdrawLendingEvent",
-    options,
-  });
-  for (const parsedJson of withdrawLendingEvents) {
+  for (const parsedJson of events[eventTypes.withdrawLending]) {
     protocolFees.add("0x" + parsedJson.c_token_type.name, Number(parsedJson.protocol_share), METRIC.DEPOSIT_WITHDRAW_FEES);
     protocolFees.add("0x" + parsedJson.r_token_type.name, Number(parsedJson.reward_protocol_share), METRIC.DEPOSIT_WITHDRAW_FEES);
   }
 
-  const liquidateEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::LiquidateEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::trading::LiquidateEvent",
-    options,
-  });
-  for (const parsedJson of liquidateEvents) {
+  for (const parsedJson of events[eventTypes.liquidate]) {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
     protocolFees.add(collateral_token, Number(parsedJson.realized_liquidator_fee), METRIC.LIQUIDATION_FEES);
     tlpFees.add(collateral_token, Number(parsedJson.realized_value_for_lp_pool), METRIC.LIQUIDATION_FEES);
   }
 
-  const realizeOptionEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::trading::RealizeOptionPositionEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::trading::RealizeOptionPositionEvent",
-    options,
-  });
-  for (const parsedJson of realizeOptionEvents) {
+  for (const parsedJson of events[eventTypes.realizeOption]) {
     const collateral_token = "0x" + parsedJson.realize_balance_token_type.name;
     const fee_value = Number(parsedJson.fee_value);
     protocolFees.add(collateral_token, fee_value * PROTOCOL_FEE_SHARE, METRIC.TRADING_FEES);
     tlpFees.add(collateral_token, fee_value * TLP_FEE_SHARE, METRIC.TRADING_FEES);
   }
 
-  const orderFilledEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::OrderFilledEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::position::OrderFilledEvent",
-    options,
-  });
-  for (const parsedJson of orderFilledEvents) {
+  for (const parsedJson of events[eventTypes.orderFilled]) {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
     const realized_fee = Number(parsedJson.realized_trading_fee) + Number(parsedJson.realized_borrow_fee);
     protocolFees.add(collateral_token, realized_fee * PROTOCOL_FEE_SHARE, METRIC.TRADING_FEES);
     tlpFees.add(collateral_token, realized_fee * TLP_FEE_SHARE, METRIC.TRADING_FEES);
   }
 
-  const realizeFundingEvents = await queryEvents({
-    eventType:
-      options.startTimestamp < CONTRACT_CHANGE_TIME
-        ? "0xe27969a70f93034de9ce16e6ad661b480324574e68d15a64b513fd90eb2423e5::position::RealizeFundingEvent"
-        : "0x9003219180252ae6b81d2893b41d430488669027219537236675c0c2924c94d9::position::RealizeFundingEvent",
-    options,
-  });
-  for (const parsedJson of realizeFundingEvents) {
+  for (const parsedJson of events[eventTypes.realizeFunding]) {
     const collateral_token = "0x" + parsedJson.collateral_token.name;
     const sign = parsedJson.realized_funding_sign ? 1 : -1;
     const realized_funding_fee = Number(parsedJson.realized_funding_fee) * sign;
@@ -174,6 +134,8 @@ const adapter: SimpleAdapter = {
       start: "2025-04-01",
     },
   },
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true,

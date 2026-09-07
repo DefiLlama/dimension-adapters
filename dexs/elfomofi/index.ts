@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         dailyVolume.add(log.fromToken, log.fromAmount);
     }
 
-    if (options.chain !== CHAIN.BASE) {
+    if (options.chain !== CHAIN.BASE && options.chain !== CHAIN.BSC) {
         return { dailyVolume };
     }
 

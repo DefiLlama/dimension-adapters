@@ -1,22 +1,14 @@
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryIndexer } from "../helpers/indexer";
+import { getETHReceived } from "../helpers/token";
 
 const PROTOCOL_FEE_LABEL = "Protocol fees";
+const FEE_RECIPIENT = '0xb16c1342E617A5B6E4b631EB114483FDB289c0A4';
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = options.createBalances();
-  const eth_transfer_logs: any = await queryIndexer(`
-      SELECT
-        sum("value") AS eth_value
-      FROM
-        ethereum.traces
-      WHERE
-        block_number > 14645816
-        AND to_address = '\\xb16c1342E617A5B6E4b631EB114483FDB289c0A4'
-        AND block_time BETWEEN llama_replace_date_range;
-        `, options);
-  dailyFees.addGasToken(eth_transfer_logs[0]?.eth_value ?? 0, PROTOCOL_FEE_LABEL);
+  const fees = await getETHReceived({ options, target: FEE_RECIPIENT });
+  dailyFees.addBalances(fees, PROTOCOL_FEE_LABEL);
   return { dailyFees, dailyRevenue: dailyFees, }
 }
 

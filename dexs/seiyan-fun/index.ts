@@ -23,6 +23,9 @@ const adapter = {
   fetch,
   chains: [CHAIN.SEI],
   start: SEIYAN_FUN_INITIAL_TIMESTAMP,
+  // seiyan.fun is NXDOMAIN, apex included, so there is no host left to query. Last published
+  // point 2025-07-02, last non-zero 2025-06-30 ($8), and the protocol no longer reports TVL.
+  deadFrom: '2025-07-03',
 };
 
 export default adapter;

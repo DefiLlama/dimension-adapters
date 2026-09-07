@@ -2,6 +2,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 
 // Morpho Midnight is a fixed-rate, zero-coupon, orderbook lending protocol (distinct from the
 // floating-rate Morpho Blue adapter in fees/morpho). Lenders buy `credit`, borrowers sell `debt
@@ -72,19 +73,25 @@ const breakdownMethodology = {
 // flagged `listed` by the Morpho API trust layer. This is a single filter that can be dropped later
 // to cover every Midnight market (DefiLlama blacklist-style).
 async function getListedMarketIds(chainId: number): Promise<Set<string>> {
-  const ids = new Set<string>();
-  const seenCursors = new Set<string>();
-  let cursor: string | undefined;
-  do {
-    const query = new URLSearchParams({ chain_ids: String(chainId), listed: "true", limit: "100" });
-    if (cursor) query.set("cursor", cursor);
-    const body = await httpGet(`${MORPHO_API}/markets?${query}`, { headers: { accept: "application/json" } });
-    for (const market of body.data) ids.add(String(market.market_id).toLowerCase());
-    cursor = body.cursor ?? undefined;
-    if (cursor && seenCursors.has(cursor)) throw new Error("Morpho Midnight API returned a repeated cursor");
-    if (cursor) seenCursors.add(cursor);
-  } while (cursor);
-  return ids;
+  const marketIds = await getConfig(`morpho-midnight/markets-${chainId}`, undefined, {
+    fetcher: async () => {
+      const ids = new Set<string>();
+      const seenCursors = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const query = new URLSearchParams({ chain_ids: String(chainId), listed: "true", limit: "100" });
+        if (cursor) query.set("cursor", cursor);
+        const body = await httpGet(`${MORPHO_API}/markets?${query}`, { headers: { accept: "application/json" } });
+        for (const market of body.data) ids.add(String(market.market_id).toLowerCase());
+        cursor = body.cursor ?? undefined;
+        if (cursor && seenCursors.has(cursor)) throw new Error("Morpho Midnight API returned a repeated cursor");
+        if (cursor) seenCursors.add(cursor);
+      } while (cursor);
+      return Array.from(ids);
+    },
+  });
+  if (!Array.isArray(marketIds)) throw new Error("Morpho Midnight listed markets config is unavailable");
+  return new Set(marketIds);
 }
 
 // Maps each created market id to its loan token, enumerated purely from MarketCreated logs.

@@ -1,25 +1,13 @@
 import * as sdk from "@defillama/sdk";
 import { Balances } from "@defillama/sdk";
 import { AbiCoder, Interface } from "ethers";
-import { Row } from "@clickhouse/client";
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import ADDRESSES from "./coreAssets.json";
-import getTxReceipts, { getTransactions } from "./getTxReceipts";
+import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "./getTxReceipts";
 import { getBlock } from "./getBlock";
-import { queryClickhouse } from "./indexer";
+import { METRIC } from "./metrics";
 import { httpPost } from "../utils/fetchURL";
-
-type TristeroMarginEscrowConfig = {
-  address: string;
-  start: string;
-  end?: string;
-};
-
-type TristeroMarginChainConfig = {
-  start: string;
-  escrows: TristeroMarginEscrowConfig[];
-};
 
 type TristeroV3MarginEscrowConfig = {
   address: string;
@@ -39,17 +27,23 @@ type TristeroV3RouterConfig = {
   router: string;
 };
 
-type TristeroV3DelegatedSendTargetConfig = {
-  start: string;
-  end?: string;
-  target: string;
-};
-
 type DecodedV3SendOrder = {
   orderType: string;
   srcToken: string;
   srcQuantity: bigint;
   customData: string;
+  sender: string;
+  filler: string;
+  target: string;
+  // Darkpool when the order never touched an external venue: a TAKER fill submitted with no
+  // arb calls (router._fill settles it against the filler directly), or a MARGIN open.
+  // Everything else - TAKER with arb calls, RELAY, CROSS, EXTERNAL - is aggregation flow.
+  isDarkpool: boolean;
+};
+
+export type TristeroVolumeBuckets = {
+  darkpool: Balances;
+  aggregation: Balances;
 };
 
 const MULTICALL_FALLBACK_BATCH_SIZE = 5;
@@ -131,209 +125,54 @@ export async function permitFailureMultiCallWithFallback(
   }
 }
 
-const TRISTERO_MARGIN_CONFIGS: Record<string, TristeroMarginChainConfig> = {
-  [CHAIN.ARBITRUM]: {
-    start: '2026-03-19',
-    escrows: [
-      // Keep the legacy Arbitrum escrow live in the adapter so older positions continue
-      // to contribute TVL, open interest, and borrow-fee accrual until they are closed.
-      { address: '0x270f529f16A578AAD524B94e34f579a51E00611C', start: '2026-03-19' },
-      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
-    ],
-  },
-  [CHAIN.BASE]: {
-    start: '2026-04-02',
-    escrows: [
-      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
-    ],
-  },
-  [CHAIN.ETHEREUM]: {
-    start: '2026-04-02',
-    escrows: [
-      { address: '0xe400000df2f227133ff74c662c9e935439471d2e', start: '2026-04-02' },
-    ],
-  },
-} as const;
+// The only margin escrow and the only vault the adapters read. Earlier escrow and vault
+// generations are deliberately not referenced, so positions opened against them are not counted.
+const TRISTERO_ESCROW = '0x66b53dBA061715CC52059b466eB64e3bF49F12EB';
+const TRISTERO_VAULT = '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00';
+export const TRISTERO_START = '2026-06-18';
 
-// V3 margin contracts follow Tristero backend addresses.yml rollouts
-// (d10f35b9 / 161a80b0; internal) and production contract updates. Older
-// escrows stay active so still-open positions continue to be counted.
 const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = {
   [CHAIN.ARBITRUM]: {
-    start: '2026-05-21',
-    escrows: [
-      {
-        address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
-        vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
-        start: '2026-05-21',
-      },
-      {
-        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-09',
-      },
-      {
-        address: '0x25E1c35721F8826B29401ed628D120037891312c',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-14',
-      },
-      // 2026-06-18 prod rollout; escrow/vault deployed on Arbitrum:
-      // https://arbitrum.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
-      // https://arbitrum.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
-      {
-        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-18',
-      },
-    ],
+    start: TRISTERO_START,
+    escrows: [{ address: TRISTERO_ESCROW, vault: TRISTERO_VAULT, start: TRISTERO_START }],
   },
   [CHAIN.BASE]: {
-    start: '2026-05-21',
-    escrows: [
-      {
-        address: '0x969D1eAb4C39706692d14894924245ca1Fe7cBCe',
-        vault: '0xd329330475126E0Fd0b955C385eaf5de4B684802',
-        start: '2026-05-21',
-      },
-      {
-        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-09',
-      },
-      {
-        address: '0x25E1c35721F8826B29401ed628D120037891312c',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-15',
-      },
-      // 2026-06-18 prod rollout; escrow/vault deployed on Base:
-      // https://base.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
-      // https://base.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
-      {
-        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-18',
-      },
-    ],
+    start: TRISTERO_START,
+    escrows: [{ address: TRISTERO_ESCROW, vault: TRISTERO_VAULT, start: TRISTERO_START }],
   },
   [CHAIN.ETHEREUM]: {
-    start: '2026-06-09',
-    escrows: [
-      {
-        address: '0x2D728047A6012752C77Ae3067c963127e13213cB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-09',
-      },
-      {
-        address: '0x25E1c35721F8826B29401ed628D120037891312c',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-15',
-      },
-      // 2026-06-18 prod rollout; escrow/vault deployed on Ethereum:
-      // https://eth.blockscout.com/address/0x66b53dBA061715CC52059b466eB64e3bF49F12EB
-      // https://eth.blockscout.com/address/0xB49781E8c39c75f413C1178f395bF68b0BEE8d00
-      {
-        address: '0x66b53dBA061715CC52059b466eB64e3bF49F12EB',
-        vault: '0xB49781E8c39c75f413C1178f395bF68b0BEE8d00',
-        start: '2026-06-18',
-      },
-    ],
+    start: TRISTERO_START,
+    escrows: [{ address: TRISTERO_ESCROW, vault: TRISTERO_VAULT, start: TRISTERO_START }],
   },
 } as const;
 
-export const ORDER_FILLED_EVENT = 'event OrderFilled(bytes32 indexed orderUUID,string orderType,address target,address filler,address srcAsset,address dstAsset,uint256 srcQuantity,uint256 dstQuantity)';
 export const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-export const TRISTERO_ROUTER_SCHEDULE = [
-  { address: '0x98888e2e040944cee3d7c8da22368aef18f5a3f4', start: '2025-12-01', end: '2026-01-14' },
-  { address: '0x90000069af5a354cf1dC438dEFbF8e0469d87F02', start: '2026-01-15', end: '2026-01-31' },
-  { address: '0x900000D231B9C5c2374415f0974C1F8a377757E9', start: '2026-02-01', end: '2026-02-28' },
-  { address: '0x4b000001c0be947f4238620f57cbd07421007f43', start: '2026-03-01', end: '2026-04-01' },
-  { address: '0x4d00000075eFB197178E05aeFF759c5c20d3F32d', start: '2026-04-02', end: '2026-04-14' },
-  { address: '0x4e00000193B7Ba7F9e6EB8019373d27e9F0Af80c', start: '2026-04-15' },
-] as const;
+// The six chains where the router is deployed and taking orders. Volume starts at the router's
+// 2026-06-18 rollout because no earlier contract generation is referenced any more.
+export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM];
 
-export const TRISTERO_DEX_CHAINS: Record<string, { start: string }> = {
-  [CHAIN.ABSTRACT]: { start: "2025-08-18" },
-  [CHAIN.APECHAIN]: { start: "2025-08-18" },
-  [CHAIN.BERACHAIN]: { start: "2025-08-18" },
-  [CHAIN.BOB]: { start: "2025-08-18" },
-  [CHAIN.ETHEREUM]: { start: "2025-08-30" },
-  [CHAIN.ARBITRUM]: { start: "2025-08-18" },
-  [CHAIN.XDAI]: { start: "2025-08-18" },
-  [CHAIN.INK]: { start: "2025-11-27" },
-  [CHAIN.MANTLE]: { start: "2025-08-18" },
-  [CHAIN.MODE]: { start: "2025-08-18" },
-  [CHAIN.MONAD]: { start: "2025-11-24" },
-  [CHAIN.OPTIMISM]: { start: "2025-08-18" },
-  [CHAIN.BASE]: { start: "2025-08-18" },
-  [CHAIN.POLYGON]: { start: "2025-08-30" },
-  [CHAIN.RONIN]: { start: "2025-08-18" },
-  [CHAIN.SCROLL]: { start: "2025-08-18" },
-  [CHAIN.SONIC]: { start: "2025-08-18" },
-  [CHAIN.AVAX]: { start: "2025-08-18" },
-  [CHAIN.LINEA]: { start: "2025-09-20" },
-  [CHAIN.UNICHAIN]: { start: "2025-11-27" },
-};
+const TRISTERO_ROUTER = '0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1';
 
-// V3 source-side volume is indexed from router.send() calls. The schedule mirrors
-// Tristero backend addresses.yml generations and production contract updates;
-// day overlaps reflect public explorer cutovers and are safe because each tx has one router.
-const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = {
-  [CHAIN.ARBITRUM]: [
-    { start: "2026-05-21", end: "2026-06-09", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
-    { start: "2026-06-09", end: "2026-06-15", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-14", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
-    // 2026-06-18 prod router; send() activity verified on Arbitrum:
-    // https://arbitrum.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
-    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
-  ],
-  [CHAIN.BASE]: [
-    { start: "2026-05-21", end: "2026-06-08", router: "0x739DfF607F5303a2EB4D2271d11AEC6f642f6480" },
-    { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
-    // 2026-06-18 prod router; send() activity verified on Base:
-    // https://base.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
-    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
-  ],
-  [CHAIN.ETHEREUM]: [
-    { start: "2026-06-09", end: "2026-06-14", router: "0xb998aE9B130a04ac1c56f6877daFE8666aDc38b0" },
-    { start: "2026-06-15", end: "2026-06-18", router: "0x93DeA893cef33bE999133efa3Dd3f514211F56ba" },
-    // 2026-06-18 prod router; send() activity verified on Ethereum:
-    // https://eth.blockscout.com/address/0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1
-    { start: "2026-06-18", router: "0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1" },
-  ],
-};
-
-// Some v3 fills are submitted through EIP-7702/ERC-7579 delegated accounts. Those
-// transactions call execute(bytes32,bytes) on the taker account and carry one or
-// more inner router.send() calls targeted at the Tristero send executor.
-const TRISTERO_V3_DELEGATED_SEND_TARGET = "0xD4c2Ce98CbE2B02bE9449606fdfF75DD700B836F";
-const TRISTERO_V3_DELEGATED_SEND_TARGET_CONFIGS: Record<string, TristeroV3DelegatedSendTargetConfig[]> = {
-  [CHAIN.ARBITRUM]: [
-    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
-  ],
-  [CHAIN.BASE]: [
-    // https://basescan.org/tx/0x3a80afb7ea134650a7906ae05a68a59318967e543d905b3ede4b49db7c151f98
-    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
-  ],
-  [CHAIN.ETHEREUM]: [
-    { start: "2026-06-22", target: TRISTERO_V3_DELEGATED_SEND_TARGET },
-  ],
-};
+// The one router the adapters read. Earlier router generations are not referenced, so volume
+// routed through them is not counted.
+const TRISTERO_V3_ROUTER_CONFIGS: Record<string, TristeroV3RouterConfig[]> = Object.fromEntries(
+  TRISTERO_CHAINS.map((chain) => [chain, [{ start: TRISTERO_START, router: TRISTERO_ROUTER }]]),
+);
 
 const V3_RECEIPT_RPC_FALLBACKS: Record<string, string[]> = {
-  base: ["https://mainnet.base.org"],
+  [CHAIN.BASE]: ["https://mainnet.base.org"],
 };
 
-const WRAPPED_NATIVE_TOKENS: Record<string, string | undefined> = {
-  [CHAIN.APECHAIN]: ADDRESSES[CHAIN.APECHAIN]?.WAPE,
-  [CHAIN.AVAX]: ADDRESSES[CHAIN.AVAX]?.WAVAX,
-  [CHAIN.BERACHAIN]: ADDRESSES[CHAIN.BERACHAIN]?.WBERA,
-  [CHAIN.MANTLE]: ADDRESSES[CHAIN.MANTLE]?.WMNT,
-  [CHAIN.MONAD]: ADDRESSES[CHAIN.MONAD]?.WMON,
-  [CHAIN.RONIN]: ADDRESSES[CHAIN.RONIN]?.WRON,
-  [CHAIN.SONIC]: ADDRESSES[CHAIN.SONIC]?.wS,
-  [CHAIN.XDAI]: ADDRESSES[CHAIN.XDAI]?.WXDAI,
+// Wrapped native token per chain, for orders whose src asset is the zero address. Optimism's
+// canonical WETH is the WETH_1 key in coreAssets and polygon's canonical WMATIC is WMATIC_2.
+const WRAPPED_NATIVE_TOKENS: Record<string, string> = {
+  [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
+  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
+  [CHAIN.BASE]: ADDRESSES.base.WETH,
+  [CHAIN.POLYGON]: ADDRESSES.polygon.WMATIC_2,
+  [CHAIN.AVAX]: ADDRESSES.avax.WAVAX,
+  [CHAIN.OPTIMISM]: ADDRESSES.optimism.WETH_1,
 };
 
 const ORDER_ROUTER_INTERFACE = new Interface([
@@ -342,35 +181,11 @@ const ORDER_ROUTER_INTERFACE = new Interface([
 const ESCROW_INTERFACE = new Interface([
   "function close((uint128 positionId, uint256 sharesToClose, uint256 minOut, uint256 deadline, uint256 permit2Nonce) order, bytes signature, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb)"
 ]);
-const DELEGATED_EXECUTE_INTERFACE = new Interface([
-  "function execute(bytes32 mode, bytes executionCalldata)"
-]);
 const ABI_CODER = AbiCoder.defaultAbiCoder();
 const ORDER_ROUTER_SEND_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction("send")?.selector.toLowerCase();
-const DELEGATED_EXECUTE_SELECTOR = DELEGATED_EXECUTE_INTERFACE.getFunction("execute")?.selector.toLowerCase();
-
-export function getActiveRouters(date: string): string[] {
-  return TRISTERO_ROUTER_SCHEDULE
-    .filter((router) => date >= router.start && (!("end" in router) || !router.end || date <= router.end))
-    .map(({ address }) => address);
-}
 
 export function getTristeroMarginChains(): string[] {
-  return Array.from(new Set([
-    ...Object.keys(TRISTERO_MARGIN_CONFIGS),
-    ...Object.keys(TRISTERO_V3_MARGIN_CONFIGS),
-  ]));
-}
-
-export function getTristeroMarginChainStart(chain: string): string | undefined {
-  const starts = [TRISTERO_MARGIN_CONFIGS[chain]?.start, TRISTERO_V3_MARGIN_CONFIGS[chain]?.start].filter(Boolean) as string[];
-  return starts.sort()[0];
-}
-
-export function getActiveTristeroMarginEscrows(chain: string, date: string): string[] {
-  return (TRISTERO_MARGIN_CONFIGS[chain]?.escrows ?? [])
-    .filter(({ start, end }) => date >= start && (!end || date <= end))
-    .map(({ address }) => address);
+  return Object.keys(TRISTERO_V3_MARGIN_CONFIGS);
 }
 
 export function getActiveTristeroV3MarginEscrows(chain: string, date: string): TristeroV3MarginEscrowConfig[] {
@@ -380,11 +195,6 @@ export function getActiveTristeroV3MarginEscrows(chain: string, date: string): T
 
 export function getActiveTristeroV3Routers(chain: string, date: string): TristeroV3RouterConfig[] {
   return (TRISTERO_V3_ROUTER_CONFIGS[chain] ?? [])
-    .filter(({ start, end }) => date >= start && (!end || date <= end));
-}
-
-function getActiveTristeroV3DelegatedSendTargets(chain: string, date: string): TristeroV3DelegatedSendTargetConfig[] {
-  return (TRISTERO_V3_DELEGATED_SEND_TARGET_CONFIGS[chain] ?? [])
     .filter(({ start, end }) => date >= start && (!end || date <= end));
 }
 
@@ -1008,7 +818,7 @@ export async function getV3CloseSettlements(
   const txHashes = [...new Set(closedPositions.map((position) => position.closeTxHash).filter((txHash): txHash is string => !!txHash))];
   if (!txHashes.length) return settlementByPosition;
 
-  const receipts = await getTxReceipts(options.chain, txHashes);
+  const receipts = await getTxReceiptsWithRetry(options.chain, txHashes);
   const positionsByTxHash = new Map<string, TristeroV3MarginPosition[]>();
 
   closedPositions.forEach((position) => {
@@ -1056,8 +866,9 @@ function normalizeVolumeToken(chain: string, tokenAddress?: string | null): stri
   if (!normalized) return null;
 
   if (normalized === '0x0000000000000000000000000000000000000000' || normalized === 'native') {
-    const wrappedToken = WRAPPED_NATIVE_TOKENS[chain] ?? (ADDRESSES as Record<string, { WETH?: string } | undefined>)[chain]?.WETH;
-    return wrappedToken?.toLowerCase() ?? null;
+    const wrappedToken = WRAPPED_NATIVE_TOKENS[chain];
+    if (!wrappedToken) throw new Error(`Missing wrapped native token mapping for ${chain}`);
+    return wrappedToken.toLowerCase();
   }
 
   return normalized;
@@ -1071,56 +882,23 @@ function decodeV3SendOrder(data?: string): DecodedV3SendOrder | null {
     if (!parsed || parsed.name !== "send") return null;
 
     const order = parsed.args.order;
+    const orderType = String(order.orderType).toUpperCase();
+    const isInternalMatch = orderType === "TAKER" && parsed.args.arb.calls.length === 0;
     return {
       orderType: order.orderType,
       srcToken: order.parameters.srcAsset,
       srcQuantity: BigInt(order.parameters.srcQuantity),
       customData: order.customData,
+      sender: normalizeAddress(order.sender),
+      filler: normalizeAddress(order.filler),
+      target: normalizeAddress(order.target),
+      isDarkpool: orderType === "MARGIN" || isInternalMatch,
     };
   } catch (error) {
     const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
     sdk.log(`Unable to decode Tristero v3 router.send calldata ${calldataContext}: ${(error as Error).message}`);
     throw error;
   }
-}
-
-function isDelegatedBatchExecuteMode(mode: unknown): boolean {
-  const normalized = String(mode).toLowerCase();
-  return normalized.length === 66 && normalized.startsWith("0x01");
-}
-
-function decodeV3DelegatedBatchSendOrders(data: string | undefined, delegatedSendTargets: Set<string>): DecodedV3SendOrder[] {
-  if (!data || !DELEGATED_EXECUTE_SELECTOR || !data.toLowerCase().startsWith(DELEGATED_EXECUTE_SELECTOR)) return [];
-
-  let parsed;
-  try {
-    parsed = DELEGATED_EXECUTE_INTERFACE.parseTransaction({ data });
-  } catch (error) {
-    const calldataContext = `${data.slice(0, 74)}${data.length > 74 ? "..." : ""}`;
-    sdk.log(`Unable to parse Tristero delegated execute calldata ${calldataContext}: ${(error as Error).message}`);
-    return [];
-  }
-
-  if (!parsed || parsed.name !== "execute" || !isDelegatedBatchExecuteMode(parsed.args.mode)) return [];
-
-  let executions: Array<{ target: string; callData: string }>;
-  try {
-    [executions] = ABI_CODER.decode(
-      ["tuple(address target,uint256 value,bytes callData)[]"],
-      parsed.args.executionCalldata,
-    ) as unknown as [Array<{ target: string; callData: string }>];
-  } catch (error) {
-    const executionCalldata = String(parsed.args.executionCalldata);
-    const calldataContext = `${executionCalldata.slice(0, 74)}${executionCalldata.length > 74 ? "..." : ""}`;
-    sdk.log(`Unable to decode Tristero delegated execution calldata ${calldataContext}: ${(error as Error).message}`);
-    return [];
-  }
-
-  return executions.flatMap((execution) => {
-    if (!delegatedSendTargets.has(normalizeAddress(execution.target))) return [];
-    const decodedOrder = decodeV3SendOrder(String(execution.callData));
-    return decodedOrder ? [decodedOrder] : [];
-  });
 }
 
 function decodeV3CloseOrder(data?: string): boolean {
@@ -1147,12 +925,26 @@ function decodeMarginLoan(order: { orderType: string; customData: string }) {
   }
 }
 
+// A darkpool fill where the order's sender is also its filler is circular: the same account
+// posts the dst leg, receives the src leg back, and is swept the output. Nothing changes hands
+// with a third party, so it is not volume. Aggregated fills are exempt - a user routing their
+// own tokens through an external venue is a real swap even when they submit it themselves.
+function isSelfFilledDarkpoolOrder(order: { isDarkpool: boolean; sender: string; filler: string }): boolean {
+  return order.isDarkpool && !!order.sender && order.sender === order.filler;
+}
+
 function addDecodedV3SendOrderVolume(
   options: FetchOptions,
-  dailyVolume: Balances,
+  buckets: TristeroVolumeBuckets,
   decodedOrder: DecodedV3SendOrder,
   txHash: string,
 ) {
+  if (isSelfFilledDarkpoolOrder(decodedOrder)) return;
+
+  const dailyVolume = decodedOrder.isDarkpool ? buckets.darkpool : buckets.aggregation;
+
+  // Source-side amount only. The maker's dst leg is the same trade settling on the other side,
+  // not a second trade - counting it too would double the fill (a $100 fill books $100, not $200).
   const srcTokenAddress = normalizeVolumeToken(options.chain, decodedOrder.srcToken);
   if (srcTokenAddress) dailyVolume.add(srcTokenAddress, decodedOrder.srcQuantity);
 
@@ -1179,7 +971,10 @@ function groupClosePositionsByTxHash(positions: TristeroV3MarginPosition[], clos
   return positionsByTxHash;
 }
 
-async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balances) {
+// Margin closes settle against the filler inside the escrow, so they belong to the darkpool
+// bucket alongside the MARGIN opens they unwind.
+async function addV3MarginCloseVolume(options: FetchOptions, buckets: TristeroVolumeBuckets) {
+  const dailyVolume = buckets.darkpool;
   const activeV3Escrows = getActiveTristeroV3MarginEscrows(options.chain, options.dateString);
   if (!activeV3Escrows.length) return;
 
@@ -1195,126 +990,221 @@ async function addV3MarginCloseVolume(options: FetchOptions, dailyVolume: Balanc
   );
 
   const [closeTransactions, closeReceipts] = await Promise.all([
-    getTransactions(options.chain, closeTxHashes),
-    getTxReceipts(options.chain, closeTxHashes),
+    getTransactionsWithRetry(options.chain, closeTxHashes),
+    getTxReceiptsWithRetry(options.chain, closeTxHashes),
   ]);
 
   const txByHash = new Map(closeTransactions.filter((tx) => tx?.hash).map((tx) => [normalizeAddress(tx!.hash!), tx]));
 
   closeTxHashes.forEach((txHash, index) => {
     const receipt = closeReceipts[index];
-    if (!receipt) throw new Error(`Missing Tristero v3 close receipt for tx ${normalizeAddress(txHash)}`);
+    if (!receipt) throw new Error(`Missing Tristero close receipt for tx ${normalizeAddress(txHash)}`);
 
     const receiptTxHash = normalizeAddress(getReceiptTxHash(receipt as any) ?? txHash);
     const closePositions = closePositionsByTxHash.get(receiptTxHash);
-    if (!closePositions?.length) throw new Error(`Missing Tristero v3 close position state for tx ${receiptTxHash}`);
+    if (!closePositions?.length) throw new Error(`Missing Tristero close position state for tx ${receiptTxHash}`);
     if (closePositions.length !== 1) {
-      throw new Error(`Ambiguous Tristero v3 close volume for tx ${receiptTxHash}: ${closePositions.length} positions share one receipt`);
+      throw new Error(`Ambiguous Tristero close volume for tx ${receiptTxHash}: ${closePositions.length} positions share one receipt`);
     }
 
     const closePosition = closePositions[0];
     const escrow = normalizeAddress(closePosition.escrow);
     const tx = txByHash.get(receiptTxHash) as any;
     if (!tx || normalizeAddress(tx.to) !== escrow || !decodeV3CloseOrder(tx.data ?? tx.input)) {
-      throw new Error(`Missing Tristero v3 close transaction data for ${escrow} tx ${receiptTxHash}`);
+      throw new Error(`Missing Tristero close transaction data for ${escrow} tx ${receiptTxHash}`);
     }
 
     const closeFiller = normalizeAddress(closePosition.closeFiller);
-    if (!closeFiller) throw new Error(`Missing Tristero v3 close filler for ${escrow} tx ${receiptTxHash}`);
+    if (!closeFiller) throw new Error(`Missing Tristero close filler for ${escrow} tx ${receiptTxHash}`);
 
     const amount = sumEscrowToFillerTransfers((receipt.logs ?? []) as any, closePosition.loanAsset, escrow, closeFiller);
     if (amount > 0n) dailyVolume.add(normalizeAddress(closePosition.loanAsset), amount);
   });
 }
 
-async function addV3RouterOpenVolume(options: FetchOptions, dailyVolume: Balances) {
+function toTransferTopic(address: string): string {
+  return `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
+}
+
+type TristeroFillTransaction = { hash: string; input: string; from: string; to: string };
+
+// dexs, aggregators and fees each ask for the same fills over the same window, so the log scan
+// and the transaction fetch behind it are memoised per chain and block range.
+const fillTransactionCache = new Map<string, Promise<TristeroFillTransaction[]>>();
+
+// Every Tristero fill pulls the taker's source leg into the router, which is an ERC20 Transfer
+// with `to` = the router. That makes fills discoverable with a plain topic-filtered getLogs - no
+// transaction scan, so no indexer - even though the router itself emits nothing. The
+// transactions behind those logs are then fetched once and decoded, which preserves the order
+// type, the darkpool flag and the margin loan leg.
+function getTristeroFillTransactions(
+  options: FetchOptions,
+  addresses: string[],
+): Promise<TristeroFillTransaction[]> {
+  // Callers pass router addresses in mixed case, so they are normalised once here. That also
+  // makes the cache key stable, so the volume and fee adapters share one discovery per window.
+  const routers = [...new Set(addresses.map(normalizeAddress))].sort();
+  if (!routers.length) return Promise.resolve([]);
+
+  const cacheKey = `${options.chain}-${options.fromTimestamp}-${options.toTimestamp}-${routers.join(",")}`;
+  const cached = fillTransactionCache.get(cacheKey);
+  if (cached) return cached;
+
+  // Only successful discoveries stay cached. Retaining a rejected promise would make every
+  // later request for the same chain and window fail instantly for the lifetime of the worker,
+  // defeating the retry that a transient provider failure needs.
+  const pending = fetchTristeroFillTransactions(options, routers).catch((error) => {
+    fillTransactionCache.delete(cacheKey);
+    throw error;
+  });
+  fillTransactionCache.set(cacheKey, pending);
+  return pending;
+}
+
+async function fetchTristeroFillTransactions(
+  options: FetchOptions,
+  routers: string[],
+): Promise<TristeroFillTransaction[]> {
+  const logsPerAddress = await Promise.all(routers.map((address) => options.getLogs({
+    noTarget: true,
+    // Match on the recipient only. The sdk accepts a positional null to skip topic1; the
+    // wrapper type declares string[], hence the cast.
+    topics: [ERC20_TRANSFER_TOPIC, null, toTransferTopic(address)] as unknown as string[],
+    entireLog: true,
+  })));
+
+  const txHashes = [...new Set(
+    logsPerAddress.flat()
+      .map((log: any) => getLogTxHash(log))
+      .filter((txHash): txHash is string => !!txHash)
+      .map(normalizeAddress),
+  )];
+  if (!txHashes.length) return [];
+
+  const transactions = await getTransactionsWithRetry(options.chain, txHashes);
+
+  // An unresolved transaction is missing input, not an empty one. Dropping it would silently
+  // lose the volume and gas abstraction it carried.
+  const missingIndex = transactions.findIndex((tx) => !tx);
+  if (missingIndex >= 0) {
+    throw new Error(`Unable to load Tristero fill transaction on ${options.chain}: ${txHashes[missingIndex]}`);
+  }
+
+  // A transfer into the router only proves tokens moved, not that the router was the callee -
+  // an unrelated contract could be called with calldata that happens to share the selector. Only
+  // transactions sent to a configured router are decoded.
+  return transactions
+    .map((tx: any, index: number) => ({
+      hash: tx?.hash ? normalizeAddress(tx.hash) : txHashes[index],
+      from: normalizeAddress(tx?.from),
+      to: normalizeAddress(tx?.to),
+      input: String(tx?.data ?? tx?.input ?? ""),
+    }))
+    .filter(({ to, input }) => routers.includes(to) && input.length > 2);
+}
+
+async function addV3RouterOpenVolume(options: FetchOptions, buckets: TristeroVolumeBuckets) {
+
   const activeV3Routers = getActiveTristeroV3Routers(options.chain, options.dateString);
   if (!activeV3Routers.length || !ORDER_ROUTER_SEND_SELECTOR) return;
 
-  const txRows = (
-    await Promise.all(activeV3Routers.map(({ router }) => queryClickhouse<Row & { hash: string; input: string }>(`
-      SELECT hash, input
-      FROM evm_indexer.transactions
-      WHERE chain = {chain:UInt64}
-        AND to_address = {router:String}
-        AND startsWith(input, {selector:String})
-        AND status = 'success'
-        AND timestamp >= toDateTime({fromTs:UInt32})
-        AND timestamp < toDateTime({toTs:UInt32})
-    `, {
-      chain: Number(options.api.chainId),
-      router: router.toLowerCase(),
-      selector: ORDER_ROUTER_SEND_SELECTOR,
-      fromTs: options.fromTimestamp,
-      toTs: options.toTimestamp,
-    })))
-  ).flat();
+  const txRows = await getTristeroFillTransactions(options, activeV3Routers.map(({ router }) => router));
 
   for (const row of txRows) {
-    const decodedOrder = decodeV3SendOrder(String(row.input));
+    // take() and any other router entry point simply will not match the send selector.
+    const decodedOrder = decodeV3SendOrder(row.input);
     if (!decodedOrder) continue;
 
-    addDecodedV3SendOrderVolume(options, dailyVolume, decodedOrder, row.hash);
+    addDecodedV3SendOrderVolume(options, buckets, decodedOrder, row.hash);
   }
 }
 
-async function addV3DelegatedSendOpenVolume(options: FetchOptions, dailyVolume: Balances) {
-  const activeDelegatedSendTargets = getActiveTristeroV3DelegatedSendTargets(options.chain, options.dateString);
-  if (!activeDelegatedSendTargets.length || !DELEGATED_EXECUTE_SELECTOR) return;
-
-  const delegatedSendTargets = new Set(activeDelegatedSendTargets.map(({ target }) => normalizeAddress(target)));
-  const txRows = (
-    await Promise.all(activeDelegatedSendTargets.map(({ target }) => queryClickhouse<Row & { hash: string; input: string }>(`
-      SELECT hash, input
-      FROM evm_indexer.transactions
-      WHERE chain = {chain:UInt64}
-        AND startsWith(input, {selector:String})
-        AND input LIKE {targetPattern:String}
-        AND status = 'success'
-        AND timestamp >= toDateTime({fromTs:UInt32})
-        AND timestamp < toDateTime({toTs:UInt32})
-    `, {
-      chain: Number(options.api.chainId),
-      selector: DELEGATED_EXECUTE_SELECTOR,
-      targetPattern: `%${normalizeAddress(target).slice(2)}%`,
-      fromTs: options.fromTimestamp,
-      toTs: options.toTimestamp,
-    })))
-  ).flat();
-
-  const seenTxHashes = new Set<string>();
-  for (const row of txRows) {
-    const txHash = normalizeAddress(row.hash);
-    if (seenTxHashes.has(txHash)) continue;
-    seenTxHashes.add(txHash);
-
-    const decodedOrders = decodeV3DelegatedBatchSendOrders(String(row.input), delegatedSendTargets);
-    decodedOrders.forEach((decodedOrder) => addDecodedV3SendOrderVolume(options, dailyVolume, decodedOrder, row.hash));
-  }
-}
-
-export async function fetchDailyVolume(options: FetchOptions): Promise<Balances> {
-  const dailyVolume = options.createBalances();
-  const activeRouters = getActiveRouters(options.dateString);
-
-  if (activeRouters.length) {
-    const logsPerRouter = await Promise.all(
-      activeRouters.map((router) => options.getLogs({ target: router, eventAbi: ORDER_FILLED_EVENT, onlyArgs: true })),
-    );
-
-    logsPerRouter.flat().forEach((log: any) => {
-      if (!log.srcAsset || !log.srcQuantity) return;
-      const tokenAddress = normalizeVolumeToken(options.chain, log.srcAsset);
-      if (!tokenAddress) return;
-      dailyVolume.add(tokenAddress, log.srcQuantity);
-    });
-  }
+export async function fetchTristeroVolumeBuckets(options: FetchOptions): Promise<TristeroVolumeBuckets> {
+  const buckets: TristeroVolumeBuckets = {
+    darkpool: options.createBalances(),
+    aggregation: options.createBalances(),
+  };
 
   await Promise.all([
-    addV3RouterOpenVolume(options, dailyVolume),
-    addV3DelegatedSendOpenVolume(options, dailyVolume),
-    addV3MarginCloseVolume(options, dailyVolume),
+    addV3RouterOpenVolume(options, buckets),
+    addV3MarginCloseVolume(options, buckets),
   ]);
 
-  return dailyVolume;
+  return buckets;
+}
+
+// Gas abstraction: what the filler is paid for submitting an order on the taker's behalf. On
+// aggregated fills the arb executor pays it out of the swap proceeds straight to the submitting
+// account, in the dst asset, sometimes split across several transfers; on RELAY the router
+// itself skims `srcQuantity - minAmountUsdc`. Either way it lands on the submitter, so summing
+// transfers to that account recovers it - with one exclusion: on a darkpool fill the router
+// hands the filler the whole src leg as settlement, which is not a fee.
+export async function fetchTristeroGasAbstractionFees(options: FetchOptions): Promise<Balances> {
+  const dailyFees = options.createBalances();
+
+  const addresses = getActiveTristeroV3Routers(options.chain, options.dateString)
+    .map(({ router }) => normalizeAddress(router));
+  if (!addresses.length) return dailyFees;
+
+  const txs = await getTristeroFillTransactions(options, addresses);
+  const feeBearing = txs
+    .map((tx) => ({ ...tx, orders: [decodeV3SendOrder(tx.input)].filter((order): order is DecodedV3SendOrder => !!order) }))
+    // A self-filled order pays no gas abstraction by definition: the submitter is the taker.
+    // If the submitter is also the order's payout target, the proceeds land on them too and
+    // cannot be told apart from a fee - skip rather than overstate.
+    .filter(({ orders, from }) => orders.some((order) =>
+      order.filler !== order.sender && order.filler === from && order.target !== from));
+  if (!feeBearing.length) return dailyFees;
+
+  const receipts = await getTxReceiptsWithRetry(options.chain, feeBearing.map(({ hash }) => hash));
+
+  feeBearing.forEach(({ hash, from, orders }, index) => {
+    const receipt = receipts[index];
+    // Missing input data, not an empty day: skipping would under-report fees silently.
+    if (!receipt) throw new Error(`Missing Tristero gas abstraction receipt for ${options.chain} tx ${hash}`);
+
+    const darkpoolSrcTokens = new Set(orders.filter(({ isDarkpool }) => isDarkpool).map(({ srcToken }) => normalizeAddress(srcToken)));
+
+    (receipt.logs ?? []).forEach((log: any) => {
+      if (normalizeAddress(log.topics?.[0]) !== ERC20_TRANSFER_TOPIC || log.topics.length !== 3) return;
+      if (topicToAddress(log.topics[2]) !== from) return;
+
+      const token = normalizeAddress(log.address);
+      // Darkpool settlement leg, not a charge.
+      if (addresses.includes(topicToAddress(log.topics[1])) && darkpoolSrcTokens.has(token)) return;
+
+      const amount = toBigIntOrNull(log.data);
+      if (amount && amount > 0n) dailyFees.add(token, amount, METRIC.TRANSACTION_GAS_FEES);
+    });
+  });
+
+  return dailyFees;
+}
+
+// Total capital sitting in the Tristero vault on this chain - idle plus lent out. getTVOL is
+// the vault's own accounting of both.
+export const TRISTERO_VAULT_ASSETS: Record<string, string> = {
+  [CHAIN.ETHEREUM]: ADDRESSES.mantle.AUSD,
+  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.USDC_CIRCLE,
+  [CHAIN.BASE]: ADDRESSES.base.USDC,
+};
+
+export function getTristeroVaultAddress(): string {
+  return TRISTERO_VAULT;
+}
+
+export async function getTristeroVaultTotal(options: FetchOptions): Promise<{ token: string; amount: bigint } | null> {
+  const token = TRISTERO_VAULT_ASSETS[options.chain];
+  if (!token) return null;
+
+  // No permitFailure: a reverted or unreachable vault call is missing input, not a zero
+  // balance, and swallowing it would publish a complete-looking day with the entire protocol
+  // revenue component missing.
+  const total = await options.api.call({
+    target: TRISTERO_VAULT,
+    abi: 'function getTVOL(address _token) view returns (uint256)',
+    params: [token],
+  });
+
+  return { token, amount: toBigIntSafe(total) };
 }

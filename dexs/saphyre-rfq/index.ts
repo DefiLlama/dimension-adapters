@@ -7,10 +7,13 @@ const API_BASE = "https://rfq.saphyre.xyz";
 const fetch = async (options: FetchOptions) => {
     const res = await httpGet(`${API_BASE}/api/v1/analytics/volume?period=all&chain_id=1329`);
 
-    const todaysPoint = res.data_points.find((p: any) => p.timestamp === options.startOfDay);
-    if (!todaysPoint) {
-        throw new Error(`No data found for date ${options.dateString}`);
+    if (!res.data_points?.length) {
+        throw new Error(`No data points returned by ${API_BASE}`);
     }
+
+    // the API only emits a point for days with trades - a missing day is zero volume, not an error
+    const todaysPoint = res.data_points.find((p: any) => p.timestamp === options.startOfDay)
+        ?? { volume: 0, fees: 0 };
 
     const dailyVolume = todaysPoint.volume;
     const dailyFees = options.createBalances();

@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { queryAllium } from "../../helpers/allium";
 import { AbiCoder, keccak256 } from "ethers";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -9,7 +11,10 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
   [CHAIN.ETHEREUM]: {
     TREASURY_CONTRACT: "0x64de97c78f9285C6853F75607E83436eF9698c85",
     CORE_CONTRACT: "0x3cb3D9E659653de02D8e3Aecd4963Ba1Ae429682",
-    HOOK_CONTRACTS: [{ target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" }],
+    HOOK_CONTRACTS: [
+      { target: "0x4Cfea8C14d159D96ffB8C1B7B425E0Ddda6B50Cc", dexType: "uniV4" },
+      { target: "0x72ec860218A711E54c7ca5A390c9A625947890Cc", dexType: "uniV4" },
+    ],
     start: "2025-11-17",
     fromBlock: 23820626,
   },
@@ -18,7 +23,9 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
     CORE_CONTRACT: "0x920b4Ee4970CFE1ef523a0679200f9d9b2F87B2c",
     HOOK_CONTRACTS: [
       { target: "0x80DAefeFb1FC0942c7aC6CC65766A9bb085990cc", dexType: "uniV4" },
+      { target: "0x30f290ce49d4C75a86a2c6d538848693C64750Cc", dexType: "uniV4" },
       { target: "0x106f144922330D6263cd33d71a9B1603bBa0DCCC", dexType: "pcs" },
+      { target: "0xB030d77Cbc0084772084b41799E0CD55120803ef", dexType: "pcs" },
     ],
     start: "2025-11-17",
     fromBlock: 68536068,
@@ -28,7 +35,9 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
     CORE_CONTRACT: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286",
     HOOK_CONTRACTS: [
       { target: "0xea6e57d5FA362C1Fba4F52EE19138a4E79F310CC", dexType: "uniV4" },
+      { target: "0x1995280EC8cbE8136DAfE96645b24c52dF3590CC", dexType: "uniV4" },
       { target: "0xFeA466d80bF94D06c63ccA0C555a8c9A114E60db", dexType: "pcs" },
+      { target: "0x934Ce79eb5f768602991892a4074DcdC217564A1", dexType: "pcs" },
     ],
     start: "2025-11-17",
     fromBlock: 38305943,
@@ -43,11 +52,61 @@ const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: st
   [CHAIN.ROBINHOOD]: {
     TREASURY_CONTRACT: "0xbD66B5E936877505A63ce61b09A5059012b34fc3",
     CORE_CONTRACT: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d",
-    HOOK_CONTRACTS: [{ target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" }],
+    HOOK_CONTRACTS: [
+      { target: "0x2485F30207230128276DA25ca030c77eA3DDD0cc", dexType: "uniV4" },
+      { target: "0xe3f404b9ADfdCFD444853336dD3a89A8dF6110Cc", dexType: "uniV4" },
+    ],
     start: "2026-07-09",
     fromBlock: 4791637,
   },
 }
+
+// Solana: the BasedBid program transfers the protocol's share of creation/trading/
+// finalize/LP-claim fees (WSOL/USDC/USD1) to the hardcoded admin fee wallet. The wallet
+// also collects fees for other products of the team, so inflows are restricted to
+// transactions that include the BasedBid program.
+//
+// Only the protocol fee share is counted. The sub-board, meme-owner and referral fee
+// shares are paid directly to per-token wallets configured at token creation; they
+// cannot be isolated from transfer data alone (a trade also contains the principal leg
+// and temporary WSOL account funding, either of which can exceed the fee legs), and
+// there is no decoded model for this program to read the split from. Solana fees are
+// therefore a conservative undercount limited to the protocol share.
+const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
+const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
+const SOLANA_FEE_MINTS = [
+  ADDRESSES.solana.SOL,
+  ADDRESSES.solana.USDC,
+  "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB", // USD1
+];
+
+const fetchSolana = async (options: FetchOptions) => {
+  const rows = await queryAllium(`
+    WITH program_txs AS (
+      SELECT txn_id
+      FROM solana.raw.transactions
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND success = true
+        AND ARRAY_CONTAINS('${SOLANA_PROGRAM}'::VARIANT, TRANSFORM(account_keys, x -> x:pubkey))
+    )
+    SELECT COALESCE(SUM(tr.usd_amount), 0) AS daily_fees
+    FROM solana.assets.transfers tr
+    JOIN program_txs p ON p.txn_id = tr.txn_id
+    WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND tr.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND tr.to_address = '${SOLANA_FEE_WALLET}'
+      AND tr.from_address != '${SOLANA_FEE_WALLET}'
+      AND tr.mint IN (${SOLANA_FEE_MINTS.map((m) => `'${m}'`).join(", ")})
+  `);
+
+  const dailyFees = Number(rows[0].daily_fees);
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
+};
 
 const METRICS = {
   treasuryRevenue: "Treasury Revenue",
@@ -360,13 +419,20 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  dependencies: [Dependencies.ALLIUM],
+  adapter: {
+    ...chainConfig,
+    [CHAIN.SOLANA]: {
+      fetch: fetchSolana,
+      start: "2025-12-24",
+    },
+  },
   methodology: {
     Fees:
-      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token.",
-    Revenue: "Revenue is measured only from FeeCollected inflows emitted by the treasury contract.",
-    ProtocolRevenue: "Protocol revenue equals treasury FeeCollected inflows.",
-    SupplySideRevenue: "Includes all fees collected from liquidity added, buyback, reward distributed, and custom wallet fees.",
+      "Fees include treasury revenue, BasedBid core fee-recipient events, and BasedBid V4/PCS hook distribution events priced by token. On Solana, fees are the protocol fee share (creation, trading, finalize and LP-claim fees) received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    Revenue: "Revenue is measured only from FeeCollected inflows emitted by the treasury contract. On Solana, revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    ProtocolRevenue: "Protocol revenue equals treasury FeeCollected inflows. On Solana, protocol revenue equals tokens received by the BasedBid admin fee wallet in transactions involving the BasedBid program.",
+    SupplySideRevenue: "Includes all fees collected from liquidity added, buyback, reward distributed, and custom wallet fees. Not tracked on Solana, where sub-board, meme-owner and referral shares are paid directly to per-token wallets.",
   },
   breakdownMethodology: {
     Fees: {

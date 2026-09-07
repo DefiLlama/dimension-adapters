@@ -1,7 +1,6 @@
 import fetchURL from "../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const historicalVolumeBerachainEndpoint = (from: string, to: string) =>
 	`https://api-trading-bera.holdstation.com/api/fees/summary/internal?fromDate=${from}&toDate=${to}`;
@@ -48,13 +47,11 @@ const endpointMap: {
 const fetch = async (options: FetchOptions) => {
 	const { historical, daily } = endpointMap[options.chain];
 
-	const dayTimestamp = getUniqStartOfTodayTimestamp(
-		new Date(options.startTimestamp * 1000)
-	);
-	const fromTimestamp = new Date(dayTimestamp * 1000)
-		.toISOString()
-		.split("T")[0];
-	const toTimestamp = new Date((dayTimestamp + 60 * 60 * 24) * 1000)
+	// startTimestamp is one second before the day being requested, so flooring it to a day landed
+	// on the day before and the adapter asked the API for the wrong date. dateString is already the
+	// requested day.
+	const fromTimestamp = options.dateString;
+	const toTimestamp = new Date((options.startOfDay + 60 * 60 * 24) * 1000)
 		.toISOString()
 		.split("T")[0];
 
@@ -113,10 +110,12 @@ const adapter: SimpleAdapter = {
 			fetch,
 			start: "2025-06-04",
 		},
-		[CHAIN.BSC]: {
-			fetch,
-			start: "2025-09-03",
-		},
+		// bnbfutures.holdstation.com has been returning 502 on every path, the host root included,
+		// and its throw takes World Chain down with it. Last non-zero BSC fee day was 2026-05-05.
+		// [CHAIN.BSC]: {
+		// 	fetch,
+		// 	start: "2025-09-03",
+		// },
 	},
 	methodology,
 	breakdownMethodology,

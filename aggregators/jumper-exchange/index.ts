@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
@@ -21,8 +21,15 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   });
 
+  // count volume only from whitelisted tokens (same filter as the LI.FI dex adapter)
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
-  if (blacklistedTokens.length > 0) {
+  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
+  if (whitelistedTokens.length > 0) {
+    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
+      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
+      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
+    )
+  } else if (blacklistedTokens.length > 0) {
     logs = logs.filter(log => !blacklistedTokens.includes(formatAddress(log.fromAssetId)) && !blacklistedTokens.includes(formatAddress(log.toAssetId)))
   }
 
@@ -40,7 +47,7 @@ const adapter: SimpleAdapter = {
   adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
+      [chain]: { fetch, start: LifiDiamonds[chain].start, }
     }
   }, {})
 };

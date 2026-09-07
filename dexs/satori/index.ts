@@ -43,6 +43,8 @@ async function fetch({ chain }: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {},
+  // satori.finance + trade.satori.finance DNS-dead, deadUrl flagged on llama; last nonzero fees 2026-06-23 (dust)
+  deadFrom: '2026-06-24',
 };
 
 Object.keys(config).forEach((chain) => {

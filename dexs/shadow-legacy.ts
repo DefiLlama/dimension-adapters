@@ -5,47 +5,17 @@ import { addOneToken } from '../helpers/prices';
 import { ethers } from "ethers";
 import { filterPools } from '../helpers/uniswap';
 
-// Fee split source: https://docs.shadow.so/pages/x-33#fee-split
-
 const CONFIG = {
   factory: '0x2dA25E7446A70D7be65fd4c053948BEcAA6374c8',
-  voter: '0x9f59398d0a397b2eeb8a6123a6c7295cb0b0062d',
   treasury: '0xE25E95F75432A79D31256CC3026E24AAA5540882'
 }
 const eventAbis = {
   event_poolCreated: 'event PairCreated(address indexed token0, address indexed token1, address pair, uint256)',
   event_swap: 'event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)',
-  event_gaugeCreated: 'event GaugeCreated(address indexed gauge, address creator, address feeDistributor, address indexed pool)',
-  event_notify_reward: 'event NotifyReward(address indexed from, address indexed reward, uint256 amount, uint256 period)',
 }
 const abis = {
-  fee: 'uint256:fee'
-}
-const firstBlock = 4028276
-
-export const getBribes = async (fetchOptions: FetchOptions, gaugeCreatedEvent: string, voter: string, factory: string): Promise<{ dailyBribesRevenue: sdk.Balances }> => {
-  const { createBalances, getLogs } = fetchOptions
-  const iface = new ethers.Interface([eventAbis.event_notify_reward]);
-  const dailyBribesRevenue = createBalances()
-  const logs_gauge_created = await getLogs({ target: voter, fromBlock: firstBlock, eventAbi: gaugeCreatedEvent, onlyArgs: false, cacheInCloud: true })
-  if (!logs_gauge_created?.length) return { dailyBribesRevenue };
-  const bribes_contract = logs_gauge_created
-    .filter((log) => (log.address || log.source).toLowerCase() === voter.toLowerCase())
-  const pools = bribes_contract.map(log => log.args.pool.toLowerCase())
-  const poolsFactories = (await fetchOptions.api.multiCall({ abi:'address:factory', calls: pools}))
-  const bribes_contracts_v2 = bribes_contract.filter((_, index) => poolsFactories[index].toLowerCase() === factory.toLowerCase()).map((log) => log.args.feeDistributor.toLowerCase())
-  const bribeSet = new Set(bribes_contracts_v2)
-
-  const logs = await getLogs({ noTarget: true, topic: '0x52977ea98a2220a03ee9ba5cb003ada08d394ea10155483c95dc2dc77a7eb24b', entireLog: true })
-  logs.forEach((log: any) => {
-    const contract = (log.address || log.source).toLowerCase()
-    if (!bribeSet.has(contract)) return;
-    const parsedLog = iface.parseLog(log)
-    const token = parsedLog!.args.reward
-    const amount = parsedLog!.args.amount
-    dailyBribesRevenue.add(token, amount)
-  })
-  return { dailyBribesRevenue }
+  fee: 'uint256:fee',
+  feeSplit: 'uint256:feeSplit',
 }
 
 const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
@@ -65,14 +35,17 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const filteredPools = await filterPools({ api: api, pairs: pairObject, createBalances: createBalances})
   const poolAddresses = Object.keys(filteredPools)
   const fees = await api.multiCall({ abi: abis.fee,  calls: poolAddresses })
+  const feeSplits = await api.multiCall({ abi: abis.feeSplit, calls: poolAddresses })
   const feeRecipients = await api.multiCall({ abi: 'address:feeRecipient', calls: poolAddresses })
   const aeroPoolSet = new Set()
   const poolInfoMap = {} as any
   poolAddresses.forEach((pair, index) => {
     const pool = pair.toLowerCase()
     const fee = fees[index] / 1e6
+    // share of the swap fee taken from LPs, in basis points; the rest stays with them
+    const protocolShare = Number(feeSplits[index]) / 10000
     const hasGauge = feeRecipients[index] !== CONFIG.treasury
-    poolInfoMap[pool] = { tokens: pairObject[pair], fee, hasGauge }
+    poolInfoMap[pool] = { tokens: pairObject[pair], fee, protocolShare, hasGauge }
     aeroPoolSet.add(pool)
   })
 
@@ -87,7 +60,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   logs.forEach((log: any) => {
     const pool = (log.address || log.source).toLowerCase()
     if (!aeroPoolSet.has(pool)) return;
-    const { tokens, fee, hasGauge } = poolInfoMap[pool]
+    const { tokens, fee, protocolShare, hasGauge } = poolInfoMap[pool]
     const [token0, token1] = tokens
     const parsedLog = iface.parseLog(log)
     const amount0 = Number(parsedLog!.args.amount0In) + Number(parsedLog!.args.amount0Out)
@@ -95,17 +68,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     const fee0 = amount0 * fee
     const fee1 = amount1 * fee
     addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-    if (hasGauge) {
-      addOneToken({ chain, balances: holdersRevenue, token0, token1, amount0: fee0, amount1: fee1 })
-    }
-    else {
-      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * 0.95, amount1: fee1 * 0.95 })
-      addOneToken({ chain, balances: protocolRevenue, token0, token1, amount0: fee0 * 0.05, amount1: fee1 * 0.05 })
-    }
+    addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * (1 - protocolShare), amount1: fee1 * (1 - protocolShare) })
+    // gauged pairs stream their protocol share to voters, ungauged ones to the treasury
+    const protocolShareBalances = hasGauge ? holdersRevenue : protocolRevenue
+    addOneToken({ chain, balances: protocolShareBalances, token0, token1, amount0: fee0 * protocolShare, amount1: fee1 * protocolShare })
   })
 
-  const { dailyBribesRevenue } = await getBribes(fetchOptions, eventAbis.event_gaugeCreated, CONFIG.voter, CONFIG.factory)
-  
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
@@ -115,14 +83,11 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   dailyFees.addBalances(protocolRevenue, 'Token Swap Fees')
   dailyFees.addBalances(supplySideRevenue, 'Token Swap Fees')
   dailyFees.addBalances(holdersRevenue, 'Token Swap Fees')
-  dailyFees.addBalances(dailyBribesRevenue, 'Bribes Rewards')
 
   dailyRevenue.addBalances(protocolRevenue, 'Token Swap Fees To Protocol')
   dailyRevenue.addBalances(holdersRevenue, 'Token Swap Fees To Holders')
-  dailyRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
 
   dailyHoldersRevenue.addBalances(holdersRevenue, 'Token Swap Fees To Holders')
-  dailyHoldersRevenue.addBalances(dailyBribesRevenue, 'Bribes Revenue')
 
   dailyProtocolRevenue.addBalances(protocolRevenue, 'Token Swap Fees To Protocol')
 
@@ -139,37 +104,33 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   }
 }
 const methodology = {
-  Fees: "Swap fees paid by users plus external bribes deposited for Shadow legacy pools.",
-  UserFees: "Swap fees paid by users plus external bribes deposited for Shadow legacy pools.",
-  Revenue: "Protocol share of swap fees, holder share of swap fees, and external bribes distributed to xSHADOW holders.",
-  ProtocolRevenue: "Protocol share of swap fees from ungauged Shadow legacy pools.",
-  HoldersRevenue: "Swap fees from gauged Shadow legacy pools and external bribes distributed to xSHADOW holders.",
-  SupplySideRevenue: "LP share of swap fees from ungauged Shadow legacy pools.",
+  Fees: "Swap fees paid by traders on Shadow legacy pools.",
+  UserFees: "Swap fees paid by traders on Shadow legacy pools.",
+  Revenue: "The share of swap fees taken from liquidity providers. Each pool sets its own share: pools with a gauge send it to xSHADOW holders who voted for them, pools without a gauge send it to the treasury.",
+  ProtocolRevenue: "The share of swap fees sent to the treasury by pools that have no gauge.",
+  HoldersRevenue: "The share of swap fees sent to xSHADOW holders by pools that have a gauge.",
+  SupplySideRevenue: "The share of swap fees kept by liquidity providers. It is whatever each pool does not route to holders or the treasury: nothing in pools that give the whole fee away, 95% in pools that take a 5% cut.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    'Token Swap Fees': 'Swap fees paid by users on Shadow legacy pools.',
-    'Bribes Rewards': 'External bribes deposited for Shadow legacy pools.',
+    'Token Swap Fees': 'Swap fees paid by traders on Shadow legacy pools.',
   },
   UserFees: {
-    'Token Swap Fees': 'Swap fees paid by users on Shadow legacy pools.',
-    'Bribes Rewards': 'External bribes deposited for Shadow legacy pools.',
+    'Token Swap Fees': 'Swap fees paid by traders on Shadow legacy pools.',
   },
   Revenue: {
-    'Token Swap Fees To Protocol': 'Protocol share of swap fees from ungauged Shadow legacy pools.',
-    'Token Swap Fees To Holders': 'Swap fees from gauged Shadow legacy pools distributed to xSHADOW holders.',
-    'Bribes Revenue': 'External bribes distributed to xSHADOW holders.',
+    'Token Swap Fees To Protocol': 'Swap fees sent to the treasury by pools that have no gauge.',
+    'Token Swap Fees To Holders': 'Swap fees sent to xSHADOW holders by pools that have a gauge.',
   },
   ProtocolRevenue: {
-    'Token Swap Fees To Protocol': 'Protocol share of swap fees from ungauged Shadow legacy pools.',
+    'Token Swap Fees To Protocol': 'Swap fees sent to the treasury by pools that have no gauge.',
   },
   HoldersRevenue: {
-    'Token Swap Fees To Holders': 'Swap fees from gauged Shadow legacy pools distributed to xSHADOW holders.',
-    'Bribes Revenue': 'External bribes distributed to xSHADOW holders.',
+    'Token Swap Fees To Holders': 'Swap fees sent to xSHADOW holders by pools that have a gauge.',
   },
   SupplySideRevenue: {
-    'Token Swap Fees To LPs': 'LP share of swap fees from ungauged Shadow legacy pools.',
+    'Token Swap Fees To LPs': 'The share of swap fees each pool leaves with its liquidity providers.',
   },
 };
 

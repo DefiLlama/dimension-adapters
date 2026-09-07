@@ -10,78 +10,84 @@ const prefetch = async (options: FetchOptions) => {
   }
 
   const query = `
-        WITH merged AS (
+    WITH merged AS (
       SELECT
-          resolve_time,
-          chain,
-          usd_ggr
+        resolve_time,
+        chain,
+        usd_ggr,
+        usd_amount
       FROM dune.azuro.result_ordinars_combos_resolved
       WHERE status != 'Accepted'
       UNION ALL
       SELECT
-          resolve_time,
-          chain,
-          usd_ggr
+        resolve_time,
+        chain,
+        usd_ggr,
+        usd_amount
       FROM dune.azuro.result_v_3_stacked_resolved_bets
       WHERE bet_status != 'accepted'
       UNION ALL
       SELECT
-          call_block_time AS resolve_time,
-          'linea' AS chain,
-          (CAST(finalReserve AS DOUBLE) - CAST(lockedReserve AS DOUBLE)) / 1e6 AS usd_ggr
+        call_block_time AS resolve_time,
+        'linea' AS chain,
+        (CAST(finalReserve AS DOUBLE) - CAST(lockedReserve AS DOUBLE)) / 1e6 AS usd_ggr,
+        0 AS usd_amount
       FROM azuro_linea.lpv2_call_addreserve
       WHERE call_success = true
     ),
     normalized AS (
       SELECT
-          date_trunc('day', resolve_time) AS period,
-          CASE
-              WHEN lower(chain) LIKE 'gnosis%'  THEN '${CHAIN.XDAI}'
-              WHEN lower(chain) LIKE 'polygon%' THEN '${CHAIN.POLYGON}'
-              WHEN lower(chain) LIKE 'base%'    THEN '${CHAIN.BASE}'
-              ELSE chain
-          END AS chain_group,
-          usd_ggr
+        CASE
+          WHEN lower(chain) LIKE 'gnosis%'  THEN '${CHAIN.XDAI}'
+          WHEN lower(chain) LIKE 'polygon%' THEN '${CHAIN.POLYGON}'
+          WHEN lower(chain) LIKE 'base%'    THEN '${CHAIN.BASE}'
+          ELSE chain
+        END AS chain_group,
+        usd_ggr,
+        usd_amount
       FROM merged
       WHERE resolve_time IS NOT NULL
         AND resolve_time >= FROM_UNIXTIME(${options.startTimestamp})
         AND resolve_time <  FROM_UNIXTIME(${options.endTimestamp})
     )
     SELECT
-      period,
       chain_group,
+      SUM(usd_ggr) AS dailyFees,
       SUM(usd_ggr) AS dailyRevenue,
-      SUM(usd_ggr) AS dailyFees
+      COALESCE(SUM(usd_amount), 0) AS dailyVolume
     FROM normalized
-    GROUP BY 1, 2
-    ORDER BY 1, 2
+    GROUP BY 1
+    ORDER BY 1
   `
-  const results = await queryDuneSql(options, query);
-  return results;
+  return await queryDuneSql(options, query);
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyVolume = options.createBalances();
   const prefetchResults = options.preFetchedResults || [];
 
   if (options.chain == CHAIN.CHILIZ) {
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyRevenue, dailyVolume };
   }
+
   if (prefetchResults && prefetchResults.length > 0) {
     for (const row of prefetchResults) {
       if (row.chain_group == options.chain) {
         dailyFees.addUSDValue(row.dailyFees);
         dailyRevenue.addUSDValue(row.dailyRevenue);
+        dailyVolume.addUSDValue(row.dailyVolume);
       }
     }
-    return { dailyFees, dailyRevenue };
+    return { dailyFees, dailyRevenue, dailyVolume };
   }
 
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyVolume };
 };
 
 const methodology = {
+  Volume: "Total wager amount from all settled bets across Azuro V1, V2, and V3 contracts.",
   Fees: "Total pools profits (equals total bets amount minus total won bets amount)",
   Revenue: "Total pools profits (equals total bets amount minus total won bets amount)",
 };

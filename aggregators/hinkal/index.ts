@@ -1,4 +1,3 @@
-import { start } from "repl";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
@@ -20,11 +19,17 @@ const fetch = async (options: FetchOptions) => {
   const chainId = chainConfig[options.chain].id;
   const url = `${VOLUME_URL}/totalVolume/${startOfDay}/${endTimestamp}/${chainId}`;
   const data = await fetchURL(url);
-  if (data?.dailyVolume === undefined) {
-    console.error(`hinkal: no volume returned for chain ${chainId} (${url})`);
-  }
+  const reported = data?.dailyVolume;
+  const dailyVolume =
+    reported == null || (typeof reported === "string" && reported.trim() === "")
+      ? NaN
+      : Number(reported);
+  if (!Number.isFinite(dailyVolume))
+    throw new Error(
+      `hinkal: relayer returned ${JSON.stringify(reported)} for chain ${chainId} on ${options.dateString}, it only serves the day thats still in progress`
+    );
   return {
-    dailyVolume: Number(data.dailyVolume),
+    dailyVolume,
   };
 };
 

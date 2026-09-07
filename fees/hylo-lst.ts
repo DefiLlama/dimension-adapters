@@ -1,6 +1,9 @@
 import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
+
+const STAKING_REWARDS_TO_STAKERS = 'Staking Rewards To Stakers';
 
 const fetch = async (options: FetchOptions) => {
   const STAKE_POOL_RESERVE_ACCOUNT = "rz5G8P4tMbUS9NjwJbbbWMZqrCWEZGV3VmkNdNSn7s9";
@@ -22,16 +25,26 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  results.forEach((row: any) => {
-    if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
-    } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
-    } else if (row.metric_type === 'dailyUserFees') {
-      dailyFees.add(LST_MINT, Number(row.amount) * 1e9 || 0);
-    }
-  });
+  const addPool = (rows: any[], lstMint: string) => {
+    const amount = (metricType: string) =>
+      Number(rows.find((row: any) => row.metric_type === metricType)?.amount) || 0;
+    const stakingRewards = amount('dailyFees');
+    const feeAccountInflows = amount('dailyRevenue');
+    const userFees = amount('dailyUserFees');
+
+    // The fee account takes user transfers and the minted epoch fee, nothing else.
+    const mintedFee = feeAccountInflows - userFees;
+
+    dailyFees.addCGToken("solana", stakingRewards, METRIC.STAKING_REWARDS);
+    dailyFees.add(lstMint, userFees * 1e9, METRIC.DEPOSIT_WITHDRAW_FEES);
+    dailyRevenue.add(lstMint, feeAccountInflows * 1e9, METRIC.MANAGEMENT_FEES);
+    dailySupplySideRevenue.addCGToken("solana", stakingRewards, STAKING_REWARDS_TO_STAKERS);
+    dailySupplySideRevenue.add(lstMint, -mintedFee * 1e9, STAKING_REWARDS_TO_STAKERS);
+  };
+
+  addPool(results, LST_MINT);
 
   const STAKE_POOL_RESERVE_ACCOUNT_PLUS = "rp9wuHdLbzQzSDZmGXCwXbVNLWjuWBZCJZoXV6n6eJT";
   const STAKE_POOL_WITHDRAW_AUTHORITY_PLUS = "92rS1uTEmcATAjap6hW3M34jbNt67kK214PiSkbn25uK";
@@ -50,27 +63,37 @@ const fetch = async (options: FetchOptions) => {
 
   const results_plus = await queryDuneSql(options, query_plus);
 
-  results_plus.forEach((row: any) => {
-    if (row.metric_type === 'dailyFees') {
-      dailyFees.addCGToken("solana", row.amount || 0);
-    } else if (row.metric_type === 'dailyRevenue') {
-      dailyRevenue.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
-    } else if (row.metric_type === 'dailyUserFees') {
-      dailyFees.add(LST_MINT_PLUS, Number(row.amount) * 1e9 || 0);
-    }
-  });
+  addPool(results_plus, LST_MINT_PLUS);
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Hylo and Hylo+ staked solana',
+  Fees: 'Staking rewards from staked SOL on Hylo and Hylo+ staked solana, plus deposit/withdrawal fees paid by users',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
+  SupplySideRevenue: 'Staking rewards distributed to LST stakers, net of the epoch fee',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards earned on SOL staked through hyloSOL and hyloSOL+',
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Deposit/withdrawal fees paid by users on their principal',
+  },
+  Revenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Withdrawal and management fees collected by the Hylo fee collector',
+  },
+  ProtocolRevenue: {
+    [METRIC.MANAGEMENT_FEES]: 'Withdrawal and management fees going to the treasury/team',
+  },
+  SupplySideRevenue: {
+    [STAKING_REWARDS_TO_STAKERS]: 'Staking rewards accruing to the LST stakers, less the epoch fee minted to the fee collector',
+  },
 }
 
 export default {
@@ -81,4 +104,5 @@ export default {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
+  breakdownMethodology,
 };

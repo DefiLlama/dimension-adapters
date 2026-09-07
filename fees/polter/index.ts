@@ -136,7 +136,7 @@ const fetch: FetchV2 = async ({
         rewardPaids(
           first: ${RECORDS_PER_PAGE},
           skip: ${skip}
-          where: { blockTimestamp_lte: ${endTimestamp}, blockTimestamp_gte: ${startTimestamp} },
+          where: { blockTimestamp_lt: ${endTimestamp}, blockTimestamp_gte: ${startTimestamp} },
           orderBy: blockTimestamp
           orderDirection: asc
         ) {
