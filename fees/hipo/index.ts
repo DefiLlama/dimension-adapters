@@ -43,6 +43,15 @@ export default {
                 // moves the rates when a round it lent into settles, so a round in which nothing was
                 // lent widens this interval rather than passing unnoticed.
                 //
+                // One caveat, in the contract rather than here. The treasury moves the rate pair on
+                // every settlement but only advances round_duration when a round settles in order,
+                // so the two are exactly paired in steady state and briefly mismatched if the
+                // elector rejects a newer round's stake and it settles ahead of an older round that
+                // is still validating. Two readings then normalise one round's reward over a
+                // two-round window -- understating, never overstating -- and the next in-order
+                // settlement restores the pairing. Their sum over that window is still the correct
+                // time-average, so a daily sampler sees the right figure on average.
+                //
                 // Zero on a treasury that has never settled a round, which would make normalize()
                 // return Infinity and carry it into the USD conversion. Mainnet cannot be in that
                 // state -- the migration seeded round_duration from the network's round length --
