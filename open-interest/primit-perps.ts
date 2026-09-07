@@ -1,16 +1,18 @@
 import PromisePool from "@supercharge/promise-pool";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 const API_BASE = "https://api.primit.io";
+// httpGet has no default timeout, so an unreachable host would hang the run.
+const REQUEST_TIMEOUT = 10000;
 
 // Primit's position ledger is off-chain. The Avalanche contracts custody collateral
 // and emit audit events (TradeRecorder fills, Vault.PositionClosed) but hold no open
 // position state, so open interest cannot be reconstructed from chain data.
 // Docs: https://developers.primit.io/futures/usdt-margined/market-rest/open-interest
-const fetch = async (_options: FetchOptions) => {
-  const exchangeInfo = await httpGet(`${API_BASE}/fapi/v1/exchangeInfo`);
+const fetch = async () => {
+  const exchangeInfo = await httpGet(`${API_BASE}/fapi/v1/exchangeInfo`, { timeout: REQUEST_TIMEOUT });
   const symbols: string[] = exchangeInfo.symbols
     .filter((market: any) => market.status === "TRADING")
     .map((market: any) => market.symbol);
@@ -20,7 +22,7 @@ const fetch = async (_options: FetchOptions) => {
   const { results, errors } = await PromisePool.withConcurrency(5)
     .for(symbols)
     .process(async (symbol: string) => {
-      const { openInterest } = await httpGet(`${API_BASE}/fapi/v1/openInterest?symbol=${symbol}`);
+      const { openInterest } = await httpGet(`${API_BASE}/fapi/v1/openInterest?symbol=${symbol}`, { timeout: REQUEST_TIMEOUT });
       const notional = Number(openInterest);
       if (!Number.isFinite(notional)) throw new Error(`Primit returned a non-numeric open interest for ${symbol}`);
       return notional;
@@ -35,18 +37,27 @@ const fetch = async (_options: FetchOptions) => {
   // position size in USD server-side), so no mark-price conversion is applied.
   const openInterestAtEnd = results.reduce((sum: number, notional: number) => sum + notional, 0);
 
+  // The endpoint answers 200 with "0" for a symbol it does not know, so a market
+  // list that drifts out of sync would zero the sum without raising anything.
+  if (!openInterestAtEnd) throw new Error("Primit reported zero open interest across all markets");
+
   return { openInterestAtEnd };
 };
 
 const methodology = {
   OpenInterest:
-    "Sum of the USD notional of all open positions across every Primit market that is in TRADING status. The market list comes from GET /fapi/v1/exchangeInfo and each market's figure from GET /fapi/v1/openInterest, both public endpoints of Primit's Binance-compatible market data API. The values the endpoint returns are already USD notional, so no mark-price conversion is applied. Primit runs an off-chain matching engine and position ledger; its Avalanche contracts custody collateral and emit audit events but keep no on-chain position state, so open interest is not reconstructable from chain data. The endpoint publishes only the current figure, so each run records a snapshot taken at collection time rather than the state on a past date. Open interest covers all accounts holding positions, market makers included, as is standard for perpetual venues - note this is a wider scope than the volume reported by the primit-perps adapter, which counts only fills written on-chain by the TradeRecorder contract.",
+    "Sum of the USD notional of all open positions across every Primit market that is in TRADING status. The market list comes from GET /fapi/v1/exchangeInfo and each market's figure from GET /fapi/v1/openInterest, both public endpoints of Primit's Binance-compatible market data API. The values the endpoint returns are already USD notional, so no mark-price conversion is applied, and they count long and short position notional together. Primit runs an off-chain matching engine and position ledger; its Avalanche contracts custody collateral and emit audit events but keep no on-chain position state, so open interest is not reconstructable from chain data. The endpoint publishes only the current figure, so each run records a snapshot taken at collection time rather than the state on a past date. Open interest covers all accounts holding positions, market makers included, as is standard for perpetual venues.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // The endpoint exposes only a live figure, so an hourly pull would re-read the
+  // same snapshot and the slot aggregation would sum a point-in-time value.
+  pullHourly: false,
   fetch,
   chains: [CHAIN.AVAX],
+  // Later than dexs/primit-perps (2026-07-16): the endpoint serves only the
+  // current figure, so nothing before this adapter went live can be recovered.
   start: "2026-09-01",
   runAtCurrTime: true,
   methodology,
