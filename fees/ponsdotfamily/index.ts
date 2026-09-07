@@ -16,7 +16,7 @@ const lpLockers = [
   "0x736D76699C26D0d966744cAe304C000d471f7F35", // new
 ];
 
-const BURNER_WALLET = "0xda4bcee76b29efec9697fcf663601c2042043968";
+const BURNER_WALLETS = ["0xda4bcee76b29efec9697fcf663601c2042043968", "0x5795d227dcc305afe212bef18e81b111def7c324"];
 const PONS_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
@@ -144,7 +144,7 @@ async function fetch(options: FetchOptions) {
 
   const dailyBurns = await addTokensReceived({
     options,
-    fromAddressFilter: BURNER_WALLET,
+    fromAdddesses: BURNER_WALLETS,
     target: DEAD_ADDRESS,
     token: PONS_TOKEN
   })
