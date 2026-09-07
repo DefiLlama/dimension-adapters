@@ -71,9 +71,19 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
   for (const log of swaps) {
-    const ethLeg = abs(BigInt(log.amount0));
+    const a0 = BigInt(log.amount0);
+    const ethLeg = abs(a0);
+    // Fee ordering (per the hook's beforeSwap/afterSwap split):
+    //  - ETH input (a0 < 0): the hook deducts 3% BEFORE the pool, so the
+    //    event's amount0 is NET of the hook fee. Gross it back up:
+    //    hook = net * 300/9700; the LP fee applies to the net amount the
+    //    pool actually swapped.
+    //  - ETH output (a0 > 0): the hook takes 3% of the pool's ETH output in
+    //    afterSwap, so the event amount IS the base: hook = amount * 3%.
+    const hookFeeWei = a0 < 0n
+      ? (ethLeg * HOOK_FEE_BPS) / (10_000n - HOOK_FEE_BPS)
+      : (ethLeg * HOOK_FEE_BPS) / 10_000n;
     const lpFeeWei = (ethLeg * BigInt(log.fee)) / 1_000_000n;
-    const hookFeeWei = (ethLeg * HOOK_FEE_BPS) / 10_000n;
     dailyFees.add(nullAddress, lpFeeWei + hookFeeWei);
     dailyRevenue.add(nullAddress, lpFeeWei + hookFeeWei);
     dailyProtocolRevenue.add(nullAddress, lpFeeWei);     // locked protocol LP
