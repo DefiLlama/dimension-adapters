@@ -1,9 +1,7 @@
-import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getTransactionsWithRetry } from "../../helpers/getTxReceipts";
-import { httpGet } from "../../utils/fetchURL";
+import { httpPost } from "../../utils/fetchURL";
 
 // PennysiaSettlement on Ethereum Mainnet
 // https://etherscan.io/address/0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E
@@ -36,10 +34,6 @@ const uniswapxFillEvent =
   "event Fill(bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)";
 const veloraSettledEvent =
   "event OrderSettled(address indexed owner, address indexed beneficiary, uint8 kind, address srcToken, address destToken, uint256 srcAmount, uint256 destAmount, uint256 returnAmount, uint256 protocolFee, uint256 partnerFee, bytes32 indexed orderHash)";
-
-const cowIface = new ethers.Interface([
-  "function settle(address[] tokens, uint256[] clearingPrices, (uint256 sellTokenIndex, uint256 buyTokenIndex, address receiver, uint256 sellAmount, uint256 buyAmount, uint32 validTo, bytes32 appData, uint256 feeAmount, uint256 flags, uint256 executedAmount, bytes signature)[] trades, (address target, uint256 value, bytes callData)[][3] interactions)",
-]);
 
 const SETTLEMENT_FEE = "Settlement Fees";
 const INTENT_FEE = "Intent Fees";
@@ -189,74 +183,29 @@ function cowPartnerFromAppData(fullAppData: any): CowPartner | undefined {
   }
 }
 
-const cowAppDataCache = new Map<string, CowPartner | null>();
-
-async function resolveCowAppData(appData: string): Promise<CowPartner | undefined> {
-  const hash = String(appData || "").toLowerCase();
-  if (!hash.startsWith("0x") || hash === "0x" + "00".repeat(32)) return;
-  if (cowAppDataCache.has(hash)) return cowAppDataCache.get(hash) || undefined;
-  try {
-    const res = await httpGet(`https://api.cow.fi/mainnet/api/v1/app_data/${hash}`);
-    const partner = cowPartnerFromAppData(res?.fullAppData ?? res);
-    cowAppDataCache.set(hash, partner ?? null);
-    return partner;
-  } catch {
-    cowAppDataCache.set(hash, null);
-  }
+function toOrderUid(value: any): string {
+  const raw = String(value || "").toLowerCase();
+  if (raw.startsWith("0x")) return raw;
+  return "";
 }
 
-async function cowTradesFromSettleTxs(
-  options: FetchOptions,
-  cowTradeLogs: any[],
-  recipients: Set<string>,
-) {
-  const logsByTx = new Map<string, any[]>();
-  for (const log of cowTradeLogs) {
-    const tx = txHash(log);
-    if (!tx) continue;
-    const list = logsByTx.get(tx) || [];
-    list.push(log);
-    logsByTx.set(tx, list);
-  }
-  const unique = [...logsByTx.keys()];
-  if (!unique.length) {
-    return [] as { sellToken: string; sellAmount: any; buyToken: string; buyAmount: any; bps: bigint }[];
-  }
-  const txs = await getTransactionsWithRetry(options.chain, unique);
-  const out: { sellToken: string; sellAmount: any; buyToken: string; buyAmount: any; bps: bigint }[] = [];
-  for (const tx of txs) {
-    if (!tx) continue;
-    const data = (tx as any).data || (tx as any).input;
-    if (!data) continue;
-    let decoded: ethers.TransactionDescription | null = null;
+async function cowPartnersByUid(uids: string[]): Promise<Map<string, CowPartner>> {
+  const unique = [...new Set(uids.filter((uid) => uid.length >= 114))];
+  const out = new Map<string, CowPartner>();
+  for (let i = 0; i < unique.length; i += 128) {
+    const chunk = unique.slice(i, i + 128);
+    let rows: any[] = [];
     try {
-      decoded = cowIface.parseTransaction({ data });
+      rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", chunk);
     } catch {
       continue;
     }
-    if (!decoded || decoded.name !== "settle") continue;
-    const hash = String(tx.hash || "").toLowerCase();
-    const unused = (logsByTx.get(hash) || []).map((log) => ({ log, used: false }));
-    const tokens: string[] = decoded.args.tokens.map(asAddr);
-    for (const trade of decoded.args.trades) {
-      const partner = await resolveCowAppData(trade.appData);
-      if (!partner || !recipients.has(partner.recipient)) continue;
-      const sellToken = tokens[Number(trade.sellTokenIndex)];
-      const executed = BigInt(trade.executedAmount);
-      const hit = unused.find((row) => {
-        if (row.used) return false;
-        const a = argsOf(row.log);
-        return asAddr(a.sellToken) === sellToken && BigInt(a.sellAmount) === executed;
-      });
-      if (hit) hit.used = true;
-      const a = hit ? argsOf(hit.log) : undefined;
-      out.push({
-        sellToken,
-        buyToken: a ? asAddr(a.buyToken) : tokens[Number(trade.buyTokenIndex)],
-        sellAmount: a?.sellAmount ?? trade.executedAmount,
-        buyAmount: a?.buyAmount ?? trade.buyAmount,
-        bps: partner.bps,
-      });
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      const order = row?.order || row;
+      const uid = toOrderUid(order?.uid);
+      const partner = cowPartnerFromAppData(order?.fullAppData);
+      if (uid && partner) out.set(uid, partner);
     }
   }
   return out;
@@ -305,21 +254,22 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: cowTradeEvent,
     entireLog: true,
   });
-  const cowDecoded = await cowTradesFromSettleTxs(
-    options,
-    cowTradeLogs,
-    recipients,
+  const cowPartners = await cowPartnersByUid(
+    cowTradeLogs.map((log) => toOrderUid(argsOf(log).orderUid)),
   );
-  for (const trade of cowDecoded) {
-    addAmount(dailyVolume, trade.sellToken, trade.sellAmount);
-    const gross = BigInt(trade.buyAmount) * trade.bps / 10000n;
+  for (const log of cowTradeLogs) {
+    const a = argsOf(log);
+    const partner = cowPartners.get(toOrderUid(a.orderUid));
+    if (!partner || !recipients.has(partner.recipient)) continue;
+    addAmount(dailyVolume, a.sellToken, a.sellAmount);
+    const gross = BigInt(a.buyAmount) * partner.bps / 10000n;
     const retained = gross * COW_RETAINED_BPS / 100n;
     const cowShare = gross - retained;
-    addAmount(dailyFees, trade.buyToken, gross, INTENT_FEE);
-    addAmount(dailyRevenue, trade.buyToken, retained, INTENT_FEE);
-    addAmount(dailyProtocolRevenue, trade.buyToken, retained, INTENT_FEE);
+    addAmount(dailyFees, a.buyToken, gross, INTENT_FEE);
+    addAmount(dailyRevenue, a.buyToken, retained, INTENT_FEE);
+    addAmount(dailyProtocolRevenue, a.buyToken, retained, INTENT_FEE);
     if (cowShare > 0n) {
-      addAmount(dailySupplySideRevenue, trade.buyToken, cowShare, INTENT_FEE);
+      addAmount(dailySupplySideRevenue, a.buyToken, cowShare, INTENT_FEE);
     }
   }
 
@@ -378,7 +328,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Pennysia-routed volume only (not inner DEX swaps): sell-token input from SwapExecuted on Settlement (SYNC and SODAX opens), CoW GPv2 settle trades whose appData partnerFee.recipient is the Settlement fee recipient, Velora Delta OrderSettled.srcAmount when a partner-fee Transfer hits that recipient, and UniswapX Fill output inferred as that fee × 10000 / 50.",
+    "Pennysia-routed volume only (not inner DEX swaps): sell-token input from SwapExecuted on Settlement (SYNC and SODAX opens), CoW Trade.sellAmount when the order's appData partnerFee.recipient is the Settlement fee recipient, Velora Delta OrderSettled.srcAmount when a partner-fee Transfer hits that recipient, and UniswapX Fill output inferred as that fee × 10000 / 50.",
   Fees:
     "Settlement FeeCollected (SYNC surplus capped at 10% of gross, leftover token/ETH sweeps, and gas markup on extra executeSwap msg.value); CoW partner fee on executed buy at the order's partner bps (CIP-75: 75% protocol / 25% CoW); Velora OrderSettled.partnerFee or the matched Transfer; UniswapX fee-output Transfer. No FeeCollected on SODAX intent opens.",
   Revenue:
