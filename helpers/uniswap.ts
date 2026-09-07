@@ -1,10 +1,9 @@
 import ADDRESSES from './coreAssets.json'
 
-import { Balances, ChainApi, cache } from "@defillama/sdk";
+import { Balances, ChainApi, cache, coins } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
-import { httpGet } from "../utils/fetchURL";
 import { ethers } from "ethers";
 
 const ZERO_ADDRESS = ADDRESSES.null;
@@ -87,13 +86,9 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
     if (token === ZERO_ADDRESS || isCoreAsset(chain, token)) established.add(token);
     else unknown.add(token);
   }
-  const pending = [...unknown];
-  for (let i = 0; i < pending.length; i += 100) {
-    const keys = pending.slice(i, i + 100).map(t => `${chain}:${t}`).join(',');
-    const { coins } = await httpGet(`https://coins.llama.fi/prices/current/${keys}?searchWidth=6h`);
-    for (const [key, info] of Object.entries(coins ?? {}) as [string, any][]) {
-      if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
-    }
+  const priceData = await coins.getPrices([...unknown].map(t => `${chain}:${t}`), 'now');
+  for (const [key, info] of Object.entries(priceData) as [string, any][]) {
+    if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
   }
   return established;
 }
@@ -103,8 +98,42 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 // original all-or-nothing precedent this threshold replaces.
 const MAX_FAILED_BALANCE_CALL_RATIO = 0.1
 
+// Of the given core-asset tokens, the ones the price API can actually price. A core
+// asset without price support must not take the single-sided shortcut below: its side
+// values to 0, doubling still gives 0, and the pair would be dropped even when the
+// other side is priceable. On API failure returns empty (every pair takes the
+// two-sided path, same as before this optimization).
+async function getPricedCoreTokens(chain: string, tokens: string[]): Promise<Set<string>> {
+  try {
+    const priceData = await coins.getPrices(tokens.map(t => `${chain}:${t}`), 'now')
+    return new Set(Object.keys(priceData).map(key => key.split(':')[1].toLowerCase()))
+  } catch (e) {
+    return new Set()
+  }
+}
+
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
-  const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
+  const chain = api.chain
+
+  const coreTokens = new Set<string>()
+  Object.values(pairs).forEach(tokens => tokens.forEach(t => { if (isCoreAsset(chain, t)) coreTokens.add(t.toLowerCase()) }))
+  const pricedCoreTokens = await getPricedCoreTokens(chain, [...coreTokens])
+
+  // A pair holding a priced core asset needs only that side's balance: in an AMM both
+  // sides hold equal value, so pool value ~= 2x the core side. Only pairs without a
+  // priced core asset need both balances (and both tokens priced).
+  const balanceCalls: { target: string, params: string }[] = []
+  const pairHasPricedCore: IJSON<boolean> = {}
+  for (const [pair, tokens] of Object.entries(pairs)) {
+    const coreToken = tokens.find(t => pricedCoreTokens.has(t.toLowerCase()))
+    if (coreToken) {
+      pairHasPricedCore[pair] = true
+      balanceCalls.push({ target: coreToken, params: pair })
+    } else {
+      tokens.forEach(t => balanceCalls.push({ target: t, params: pair }))
+    }
+  }
+
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
   const failedCalls = res.filter((bal) => bal == null).length
   if (balanceCalls.length && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO)
@@ -122,7 +151,9 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   await balances.getUSDValue()
   const filteredPairs: IJSON<number> = {}
   for (const pair of Object.keys(pairs)) {
-    const pooledValue = await pairBalances[pair].getUSDValue()
+    if (!pairBalances[pair]) continue;
+    let pooledValue = await pairBalances[pair].getUSDValue()
+    if (pairHasPricedCore[pair]) pooledValue *= 2
     if (pooledValue < minUSDValue)
       continue;
     filteredPairs[pair] = pooledValue
