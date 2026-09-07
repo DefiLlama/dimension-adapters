@@ -23,7 +23,6 @@ const POSITION_INFO_FUNCTION = "function positionInfo(uint256 tokenId) view retu
 const LAUNCH_FEE_POLICY_FUNCTION = "function getLaunchFeePolicy(address token) view returns (tuple(address protocolFeeRecipient, uint16 protocolFeeShareBps, uint16 buybackBurnBps, uint16 hookFeeBps, uint16 maxInternalPriceImpactBps))"
 
 async function fetch(options: FetchOptions) {
-  throw new Error("Disabled for a short period")
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
