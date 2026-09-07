@@ -217,7 +217,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
@@ -226,7 +225,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const methodology = {
   Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
   Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
-  ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury',
   HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
   SupplySideRevenue: 'Liquidation fees paid to the LLP (Lighter Liquidity Pool / insurance fund).',
 }
@@ -239,11 +237,6 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by traders on the Lighter DEX',
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
-    'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
-  },
-  ProtocolRevenue: {
     [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
     'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
