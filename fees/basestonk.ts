@@ -106,6 +106,11 @@ const launchedV6Abi =
 // Hook events. Same signatures on every generation.
 const feeTakenAbi = "event FeeTaken(bytes32 indexed id, address currency, uint256 platform, uint256 creator)";
 const remainderSweptAbi = "event RemainderSwept(bytes32 indexed id, address currency, uint256 amount)";
+// how the creator's cut was split, emitted just before its FeeTaken: `paid` is
+// what went to the payees, `burnt` what was burnt in the fee's currency
+const creatorShareSplitAbi = "event CreatorShareSplit(bytes32 indexed id, uint256 burnt, uint256 toLiquidity, uint256 paid)";
+// a sell's burn buys the token back first; this carries the token amount burnt
+const boughtBackAbi = "event BoughtBackAndBurnt(bytes32 indexed id, uint256 spent, uint256 burnt)";
 
 // PoolManager Swap - the price every token-denominated amount is converted at
 const swapAbi =
@@ -284,31 +289,59 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const recipients = config.holderRecipients;
   if (recipients && !volumeOnly) {
     // Every payout the hook makes happens inside afterSwap, before the
-    // FeeTaken it belongs to, in the fee's currency - or, for the buyback
-    // burn, in the pool's token. So a transfer to a recipient counts only when
-    // a FeeTaken follows it in the same transaction on a pool that trades that
-    // token, and it is priced exactly as that fee is. A transfer the
-    // PoolManager makes for anyone else - v4 lets any unlock callback take()
-    // to any address - has no such fee and is not income.
-    const feesByTx = new Map<string, { logIndex: number; id: string }[]>();
-    for (const log of feeLogs) {
+    // FeeTaken it belongs to, and the hook says how much it paid: the
+    // CreatorShareSplit just before each FeeTaken carries `paid`, the sum sent
+    // to the payees in the fee's currency, and `burnt`; a sell's buyback
+    // reports the token amount it burnt in BoughtBackAndBurnt. A transfer to a
+    // recipient is booked only against the FeeTaken that follows it in the
+    // transaction, in that fee's currency, within what that fee paid out - a
+    // burn must match the burnt amount exactly. What the PoolManager sends for
+    // anyone else - v4 lets any unlock callback take() to any address - fits
+    // no fee and is not income; and nothing booked here can exceed the
+    // creator's cut it is netted from.
+    type FeeSlot = { logIndex: number; id: string; currency: string; paidLeft: bigint; burn: bigint };
+    const feesByTx = new Map<string, FeeSlot[]>();
+    const slotsOf = (log: any) => {
       const tx = low(log.transactionHash);
       const row = feesByTx.get(tx) ?? [];
-      row.push({ logIndex: Number(log.logIndex), id: low(log.args.id) });
       feesByTx.set(tx, row);
+      return row;
+    };
+    for (const log of feeLogs) {
+      slotsOf(log).push({ logIndex: Number(log.logIndex), id: low(log.args.id), currency: low(log.args.currency), paidLeft: 0n, burn: 0n });
     }
     for (const row of feesByTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
-    const pricePayout = (log: any): [string, bigint] | undefined => {
+    // the fee an event belongs to: the first FeeTaken after it on the same pool
+    const feeAfter = (tx: string, logIndex: number, id: string) => feesByTx.get(tx)?.find((f) => f.logIndex > logIndex && f.id === id);
+    const [splitLogs, buybackLogs] = await Promise.all([
+      getLogs({ targets: hooks, eventAbi: creatorShareSplitAbi, ...logOptions }),
+      getLogs({ targets: hooks, eventAbi: boughtBackAbi, ...logOptions }),
+    ]);
+    for (const log of splitLogs) {
+      const fee = feeAfter(low(log.transactionHash), Number(log.logIndex), low(log.args.id));
+      if (!fee) continue;
+      fee.paidLeft = big(log.args.paid);
+      // a buy burns the fee's own currency, the token; a sell's burn is reported by the buyback
+      if (fee.currency === launches.get(fee.id)?.token) fee.burn = big(log.args.burnt);
+    }
+    for (const log of buybackLogs) {
+      const fee = feeAfter(low(log.transactionHash), Number(log.logIndex), low(log.args.id));
+      if (fee) fee.burn = big(log.args.burnt);
+    }
+    const bookPayout = (log: any, isBurn: boolean): [string, bigint] | undefined => {
       const token = low(log.address);
+      const amount = big(log.args.value);
       const tx = low(log.transactionHash);
       const logIndex = Number(log.logIndex);
       const fee = feesByTx.get(tx)?.find((f) => {
         if (f.logIndex < logIndex) return false;
-        const launch = launches.get(f.id);
-        return !!launch && (launch.token === token || launch.pair === token);
+        if (isBurn) return f.burn === amount && launches.get(f.id)?.token === token;
+        return f.currency === token && f.paidLeft >= amount;
       });
       if (!fee) return undefined;
-      return toPair(fee.id, token, big(log.args.value), tx, fee.logIndex);
+      if (isBurn) fee.burn = 0n;
+      else fee.paidLeft -= amount;
+      return toPair(fee.id, token, amount, tx, fee.logIndex);
     };
 
     const payouts = await Promise.all(
@@ -324,7 +357,7 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     payouts.forEach((logs, i) => {
       const label = i === 0 ? LABEL.toBstonkHolders : LABEL.basketToBstonkHolders;
       for (const log of logs) {
-        const priced = pricePayout(log);
+        const priced = bookPayout(log, false);
         if (!priced) continue;
         const [currency, amount] = priced;
         dailyHoldersRevenue.add(currency, amount, label);
@@ -339,7 +372,7 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
       ...logOptions,
     });
     for (const log of burns) {
-      const priced = pricePayout(log);
+      const priced = bookPayout(log, true);
       if (!priced) continue;
       const [currency, amount] = priced;
       dailyHoldersRevenue.add(currency, amount, LABEL.bstonkBurn);
