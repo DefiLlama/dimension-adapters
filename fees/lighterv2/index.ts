@@ -217,7 +217,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
@@ -226,8 +225,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const methodology = {
   Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
   Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
-  ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury',
-  HoldersRevenue: 'LIT bought back by the treasury, measured from its trades on the LIT/USDC market. The size is not a share of the period fees: cumulative buybacks have run ahead of cumulative revenue since the first one in January 2026.',
+  HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
   SupplySideRevenue: 'Liquidation fees paid to the LLP (Lighter Liquidity Pool / insurance fund).',
 }
 
@@ -243,17 +241,12 @@ const breakdownMethodology = {
     'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
   },
-  ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
-    'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
-  },
   SupplySideRevenue: {
     'Liquidation Fees To LLP': 'Liquidation fees (up to 1% of notional) sent to the LLP / insurance fund.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]:
-      'LIT bought back by the treasury, tracked at https://app.lighter.xyz/explorer/accounts/0. Not drawn from the period fees, so it sits beside protocol revenue rather than reducing it.',
+      'LIT token buybacks from treasury. Buybacks can be tracked at https://app.lighter.xyz/explorer/accounts/0',
   },
 }
 
