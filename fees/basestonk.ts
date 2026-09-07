@@ -152,7 +152,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   // 1. the launch map: pool id -> token and pair, read once from every
   //    launcher since the first went live and carried forward by the cache.
   const launches = new Map<string, Launch>();
-  const poolOfToken = new Map<string, string>();
   for (const eventAbi of [launchedV2Abi, launchedV6Abi]) {
     const logs = await getLogs({
       targets: config.launchers,
@@ -165,7 +164,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
       const pair = low(log.pairToken);
       const id = low(log.poolId);
       launches.set(id, { token, pair, tokenIs0: token < pair });
-      poolOfToken.set(token, id);
     }
   }
 
@@ -285,20 +283,32 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const heldBack: Ledger = new Map();
   const recipients = config.holderRecipients;
   if (recipients && !volumeOnly) {
-    // A launch token arriving as a payout is priced at its pool when its own
-    // pool swapped earlier in the same transaction - a buy's fee, paid in the
-    // token. Otherwise it arrived as the PAIR of some other pool (BSTONK is
-    // the pair of most launches, and a route through BSTONK's own pool comes
-    // later in the transaction) and is booked as it is, a currency with a
-    // market.
-    const priceTransfer = (log: any): [string, bigint] => {
+    // Every payout the hook makes happens inside afterSwap, before the
+    // FeeTaken it belongs to, in the fee's currency - or, for the buyback
+    // burn, in the pool's token. So a transfer to a recipient counts only when
+    // a FeeTaken follows it in the same transaction on a pool that trades that
+    // token, and it is priced exactly as that fee is. A transfer the
+    // PoolManager makes for anyone else - v4 lets any unlock callback take()
+    // to any address - has no such fee and is not income.
+    const feesByTx = new Map<string, { logIndex: number; id: string }[]>();
+    for (const log of feeLogs) {
+      const tx = low(log.transactionHash);
+      const row = feesByTx.get(tx) ?? [];
+      row.push({ logIndex: Number(log.logIndex), id: low(log.args.id) });
+      feesByTx.set(tx, row);
+    }
+    for (const row of feesByTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
+    const pricePayout = (log: any): [string, bigint] | undefined => {
       const token = low(log.address);
-      const amount = big(log.args.value);
       const tx = low(log.transactionHash);
       const logIndex = Number(log.logIndex);
-      const id = poolOfToken.get(token);
-      if (!id || priceIn(id, tx, logIndex) === undefined) return [token, amount];
-      return toPair(id, token, amount, tx, logIndex) ?? [token, amount];
+      const fee = feesByTx.get(tx)?.find((f) => {
+        if (f.logIndex < logIndex) return false;
+        const launch = launches.get(f.id);
+        return !!launch && (launch.token === token || launch.pair === token);
+      });
+      if (!fee) return undefined;
+      return toPair(fee.id, token, big(log.args.value), tx, fee.logIndex);
     };
 
     const payouts = await Promise.all(
@@ -314,7 +324,9 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     payouts.forEach((logs, i) => {
       const label = i === 0 ? LABEL.toBstonkHolders : LABEL.basketToBstonkHolders;
       for (const log of logs) {
-        const [currency, amount] = priceTransfer(log);
+        const priced = pricePayout(log);
+        if (!priced) continue;
+        const [currency, amount] = priced;
         dailyHoldersRevenue.add(currency, amount, label);
         put(heldBack, currency, amount);
       }
@@ -327,7 +339,9 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
       ...logOptions,
     });
     for (const log of burns) {
-      const [currency, amount] = priceTransfer(log);
+      const priced = pricePayout(log);
+      if (!priced) continue;
+      const [currency, amount] = priced;
       dailyHoldersRevenue.add(currency, amount, LABEL.bstonkBurn);
       put(heldBack, currency, amount);
     }
