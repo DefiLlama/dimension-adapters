@@ -24,7 +24,7 @@ const fetch: FetchV2 = async (option: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  fetch, 
+  fetch,
   methodology: info.methodology,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2024-03-18", },
@@ -33,6 +33,10 @@ const adapter: SimpleAdapter = {
   },
   version: 2,
   pullHourly: true,
+  // The USDX/sUSDX V2 pool was drained in the 2025-11-06 Balancer V2 Vault
+  // exploit, USDX depegged from $1 to under $0.01, and the rewards
+  // distributor has emitted nothing since.
+  deadFrom: '2025-11-08',
 };
 
 export default adapter;
