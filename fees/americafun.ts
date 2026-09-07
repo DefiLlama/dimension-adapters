@@ -30,6 +30,22 @@ const fetch = async (options: FetchOptions) => {
   const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
   const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
 
+  const revenueUsd = protocolRevenueUsd + holdersRevenueUsd
+  const supplySideUsd = meteoraFeeUsd + Math.max(lpFeeUsd, 0)
+
+  // 20% tolerance: the known-bad days (#9277) all run 1.33x-79x over fees, while
+  // ordinary day-to-day noise on this adapter tops out around 1.15x (verified
+  // against a broad sample of the adapter's history) - a maintainer already
+  // declined a stricter fix (#8229) as over-correcting on that kind of noise.
+  // This only fires on the clearly-broken class, never on routine timing lag.
+  if (feesUsd > 0 && (revenueUsd + supplySideUsd) > feesUsd * 1.2) {
+    throw new Error(
+      `Upstream defillama.america.fun API returned internally inconsistent fee/revenue/supplySide figures for ${options.dateString}: ` +
+      `feesUsd=${feesUsd}, revenueUsd=${revenueUsd}, supplySideUsd=${supplySideUsd}. ` +
+      `This is a known upstream data issue (GitHub issue #9277), not an adapter bug.`
+    )
+  }
+
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
   if (holdersRevenueUsd > 0) dailyHoldersRevenue.addUSDValue(holdersRevenueUsd, "Swap Fees To Stakers")
