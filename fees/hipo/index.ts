@@ -42,6 +42,15 @@ export default {
                 // the round length that used to come from a second get_times call: the treasury only
                 // moves the rates when a round it lent into settles, so a round in which nothing was
                 // lent widens this interval rather than passing unnoticed.
+                //
+                // Zero on a treasury that has never settled a round, which would make normalize()
+                // return Infinity and carry it into the USD conversion. Mainnet cannot be in that
+                // state -- the migration seeded round_duration from the network's round length --
+                // but the sibling yield adaptor guards the same value, so this one does too.
+                if (!Number.isFinite(roundDuration) || roundDuration <= 0) {
+                    throw new Error('Expected a positive round duration, but got ' + roundDuration)
+                }
+
                 const normalize = normalizer(roundDuration)
 
                 // The reward that accrued to stakers, in nanoGRAM. It is the rate move applied to the
