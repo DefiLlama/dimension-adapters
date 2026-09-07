@@ -10,6 +10,12 @@ const REQUEST_TIMEOUT = 10000;
 // Primit's position ledger is off-chain. The Avalanche contracts custody collateral
 // and emit audit events (TradeRecorder fills, Vault.PositionClosed) but hold no open
 // position state, so open interest cannot be reconstructed from chain data.
+//
+// The endpoint returns USD notional (not a base-asset quantity), counts long and
+// short notional together, and publishes only a live figure — so each run records a
+// snapshot at collection time. It covers every account holding a position, market
+// makers included, as is standard for perpetual venues.
+//
 // Docs: https://developers.primit.io/futures/usdt-margined/market-rest/open-interest
 const fetch = async () => {
   const exchangeInfo = await httpGet(`${API_BASE}/fapi/v1/exchangeInfo`, { timeout: REQUEST_TIMEOUT });
@@ -44,11 +50,6 @@ const fetch = async () => {
   return { openInterestAtEnd };
 };
 
-const methodology = {
-  OpenInterest:
-    "Sum of the USD notional of all open positions across every Primit market that is in TRADING status. The market list comes from GET /fapi/v1/exchangeInfo and each market's figure from GET /fapi/v1/openInterest, both public endpoints of Primit's Binance-compatible market data API. The values the endpoint returns are already USD notional, so no mark-price conversion is applied, and they count long and short position notional together. Primit runs an off-chain matching engine and position ledger; its Avalanche contracts custody collateral and emit audit events but keep no on-chain position state, so open interest is not reconstructable from chain data. The endpoint publishes only the current figure, so each run records a snapshot taken at collection time rather than the state on a past date. Open interest covers all accounts holding positions, market makers included, as is standard for perpetual venues.",
-};
-
 const adapter: SimpleAdapter = {
   version: 2,
   // The endpoint exposes only a live figure, so an hourly pull would re-read the
@@ -60,7 +61,6 @@ const adapter: SimpleAdapter = {
   // current figure, so nothing before this adapter went live can be recovered.
   start: "2026-09-01",
   runAtCurrTime: true,
-  methodology,
 };
 
 export default adapter;
