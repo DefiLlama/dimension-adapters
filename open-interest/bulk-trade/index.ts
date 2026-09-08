@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
-import { httpGet } from '../../utils/fetchURL'
+import fetchURL from '../../utils/fetchURL'
 
 const STATS_URL = 'https://mainnet-api1.bulk.trade/api/v1/stats?period=1d'
 const MAX_STATS_AGE_MS = 20 * 60 * 1000
@@ -11,7 +11,7 @@ type StatsResponse = {
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
-  const response: StatsResponse = await httpGet(STATS_URL)
+  const response: StatsResponse = await fetchURL(STATS_URL)
   const timestamp = response.timestamp
   const openInterest = response.openInterest?.totalUsd
   if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)
