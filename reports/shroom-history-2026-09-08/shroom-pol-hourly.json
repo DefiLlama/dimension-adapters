@@ -1,0 +1,5277 @@
+{
+  "component": "shroom-pol",
+  "adapterSHA256": "ab98939f2aace13ace35cdd7545770d2593826fa2a8e1d0f88bbbe746dad4ce5",
+  "startUTC": "2026-09-02",
+  "endExclusiveUTC": "2026-09-08",
+  "currency": "USD",
+  "slots": [
+    {
+      "startTimestamp": 1788307200,
+      "endTimestamp": 1788310800,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788310800,
+      "endTimestamp": 1788314400,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788314400,
+      "endTimestamp": 1788318000,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788318000,
+      "endTimestamp": 1788321600,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788321600,
+      "endTimestamp": 1788325200,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788325200,
+      "endTimestamp": 1788328800,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788328800,
+      "endTimestamp": 1788332400,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788332400,
+      "endTimestamp": 1788336000,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788336000,
+      "endTimestamp": 1788339600,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788339600,
+      "endTimestamp": 1788343200,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788343200,
+      "endTimestamp": 1788346800,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788346800,
+      "endTimestamp": 1788350400,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788350400,
+      "endTimestamp": 1788354000,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788354000,
+      "endTimestamp": 1788357600,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788357600,
+      "endTimestamp": 1788361200,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788361200,
+      "endTimestamp": 1788364800,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788364800,
+      "endTimestamp": 1788368400,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788368400,
+      "endTimestamp": 1788372000,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788372000,
+      "endTimestamp": 1788375600,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788375600,
+      "endTimestamp": 1788379200,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788379200,
+      "endTimestamp": 1788382800,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788382800,
+      "endTimestamp": 1788386400,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788386400,
+      "endTimestamp": 1788390000,
+      "metrics": {}
+    },
+    {
+      "startTimestamp": 1788390000,
+      "endTimestamp": 1788393600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788393600,
+      "endTimestamp": 1788397200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788397200,
+      "endTimestamp": 1788400800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788400800,
+      "endTimestamp": 1788404400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788404400,
+      "endTimestamp": 1788408000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788408000,
+      "endTimestamp": 1788411600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788411600,
+      "endTimestamp": 1788415200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788415200,
+      "endTimestamp": 1788418800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788418800,
+      "endTimestamp": 1788422400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788422400,
+      "endTimestamp": 1788426000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788426000,
+      "endTimestamp": 1788429600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788429600,
+      "endTimestamp": 1788433200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788433200,
+      "endTimestamp": 1788436800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788436800,
+      "endTimestamp": 1788440400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788440400,
+      "endTimestamp": 1788444000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788444000,
+      "endTimestamp": 1788447600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788447600,
+      "endTimestamp": 1788451200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788451200,
+      "endTimestamp": 1788454800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788454800,
+      "endTimestamp": 1788458400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788458400,
+      "endTimestamp": 1788462000,
+      "metrics": {
+        "dailyFees": 400.4920476179119,
+        "dailyRevenue": 400.4920476179119,
+        "dailyProtocolRevenue": 400.4920476179119
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 400
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 400
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 400
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 400.4920476179119,
+            "usdTokenBalances": {
+              "AAPL": 47.44053763796208,
+              "NVDA": 64.37691176510374,
+              "MSFT": 78.31771230640294,
+              "INTC": 36.729548779986175,
+              "SNDK": 49.37620581645218,
+              "SKHY": 48.516283992725846,
+              "SOXX": 25.209968367408468,
+              "TSM": 50.52487895187042
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "262012220069820607749813",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "145011577679847408",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "280521642621045508",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "152876198882290351",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "399364453408569920",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "31550593658375115",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "295344761628573953",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "50128689051428146",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "121427765511957573"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 400.4920476179119,
+            "usdTokenBalances": {
+              "AAPL": 47.44053763796208,
+              "NVDA": 64.37691176510374,
+              "MSFT": 78.31771230640294,
+              "INTC": 36.729548779986175,
+              "SNDK": 49.37620581645218,
+              "SKHY": 48.516283992725846,
+              "SOXX": 25.209968367408468,
+              "TSM": 50.52487895187042
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "262012220069820607749813",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "145011577679847408",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "280521642621045508",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "152876198882290351",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "399364453408569920",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "31550593658375115",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "295344761628573953",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "50128689051428146",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "121427765511957573"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 400.4920476179119,
+            "usdTokenBalances": {
+              "AAPL": 47.44053763796208,
+              "NVDA": 64.37691176510374,
+              "MSFT": 78.31771230640294,
+              "INTC": 36.729548779986175,
+              "SNDK": 49.37620581645218,
+              "SKHY": 48.516283992725846,
+              "SOXX": 25.209968367408468,
+              "TSM": 50.52487895187042
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "262012220069820607749813",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "145011577679847408",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "280521642621045508",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "152876198882290351",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "399364453408569920",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "31550593658375115",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "295344761628573953",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "50128689051428146",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "121427765511957573"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788462000,
+      "endTimestamp": 1788465600,
+      "metrics": {
+        "dailyFees": 730.2098810605207,
+        "dailyRevenue": 730.2098810605207,
+        "dailyProtocolRevenue": 730.2098810605207
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 730
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 730
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 730
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 730.2098810605207,
+            "usdTokenBalances": {
+              "AMZN": 74.69911701056165,
+              "IBM": 47.71997550283173,
+              "SPCX": 59.547497735425175,
+              "SPY": 114.69164955838515,
+              "PLTR": 51.24082417941068,
+              "ASML": 39.54969177653159,
+              "AMD": 54.251861137349124,
+              "GOOGL": 102.28336985723256,
+              "AVGO": 23.457954450900242,
+              "NET": 32.258399892687414,
+              "TSLA": 67.53671349392158,
+              "META": 62.97282646528377
+            },
+            "rawTokenBalances": {
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "288563988992570019",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "431586468902997643510247",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "203683443254291666",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "397752306027821654",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "148399958023672148",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "280987191157110534",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "24046678143820069",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "119006001946474642",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "298759696977545721",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "65742624191528506",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "113197297632028811",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "179420887833698417",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "103110746918087804"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 730.2098810605207,
+            "usdTokenBalances": {
+              "AMZN": 74.69911701056165,
+              "IBM": 47.71997550283173,
+              "SPCX": 59.547497735425175,
+              "SPY": 114.69164955838515,
+              "PLTR": 51.24082417941068,
+              "ASML": 39.54969177653159,
+              "AMD": 54.251861137349124,
+              "GOOGL": 102.28336985723256,
+              "AVGO": 23.457954450900242,
+              "NET": 32.258399892687414,
+              "TSLA": 67.53671349392158,
+              "META": 62.97282646528377
+            },
+            "rawTokenBalances": {
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "288563988992570019",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "431586468902997643510247",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "203683443254291666",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "397752306027821654",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "148399958023672148",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "280987191157110534",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "24046678143820069",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "119006001946474642",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "298759696977545721",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "65742624191528506",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "113197297632028811",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "179420887833698417",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "103110746918087804"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 730.2098810605207,
+            "usdTokenBalances": {
+              "AMZN": 74.69911701056165,
+              "IBM": 47.71997550283173,
+              "SPCX": 59.547497735425175,
+              "SPY": 114.69164955838515,
+              "PLTR": 51.24082417941068,
+              "ASML": 39.54969177653159,
+              "AMD": 54.251861137349124,
+              "GOOGL": 102.28336985723256,
+              "AVGO": 23.457954450900242,
+              "NET": 32.258399892687414,
+              "TSLA": 67.53671349392158,
+              "META": 62.97282646528377
+            },
+            "rawTokenBalances": {
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "288563988992570019",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "431586468902997643510247",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "203683443254291666",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "397752306027821654",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "148399958023672148",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "280987191157110534",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "24046678143820069",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "119006001946474642",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "298759696977545721",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "65742624191528506",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "113197297632028811",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "179420887833698417",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "103110746918087804"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788465600,
+      "endTimestamp": 1788469200,
+      "metrics": {
+        "dailyFees": 12.224703228961806,
+        "dailyRevenue": 12.224703228961806,
+        "dailyProtocolRevenue": 12.224703228961806
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 12
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 12
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 12
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 12.224703228961806,
+            "usdTokenBalances": {
+              "INTC": 7.278368167658507,
+              "MSFT": 4.946335061303299
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "5234259257493264044684",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "79588498279480669",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "9707451939599048"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 12.224703228961806,
+            "usdTokenBalances": {
+              "INTC": 7.278368167658507,
+              "MSFT": 4.946335061303299
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "5234259257493264044684",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "79588498279480669",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "9707451939599048"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 12.224703228961806,
+            "usdTokenBalances": {
+              "INTC": 7.278368167658507,
+              "MSFT": 4.946335061303299
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "5234259257493264044684",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "79588498279480669",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "9707451939599048"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788469200,
+      "endTimestamp": 1788472800,
+      "metrics": {
+        "dailyFees": 31.722513971845647,
+        "dailyRevenue": 31.722513971845647,
+        "dailyProtocolRevenue": 31.722513971845647
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 32
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 32
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 32
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 31.722513971845647,
+            "usdTokenBalances": {
+              "MSFT": 0.1670743635352066,
+              "AAPL": 2.52901023144642,
+              "INTC": 29.02642937686402
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "20289325564773841414319",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "327799255491542",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "7710749672839977",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "317228736359169589"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 31.722513971845647,
+            "usdTokenBalances": {
+              "MSFT": 0.1670743635352066,
+              "AAPL": 2.52901023144642,
+              "INTC": 29.02642937686402
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "20289325564773841414319",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "327799255491542",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "7710749672839977",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "317228736359169589"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 31.722513971845647,
+            "usdTokenBalances": {
+              "MSFT": 0.1670743635352066,
+              "AAPL": 2.52901023144642,
+              "INTC": 29.02642937686402
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "20289325564773841414319",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "327799255491542",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "7710749672839977",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "317228736359169589"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788472800,
+      "endTimestamp": 1788476400,
+      "metrics": {
+        "dailyFees": 229.53083917649334,
+        "dailyRevenue": 229.53083917649334,
+        "dailyProtocolRevenue": 229.53083917649334
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 230
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 230
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 230
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 229.53083917649334,
+            "usdTokenBalances": {
+              "SOXX": 229.53083917649334
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "457228193297862279",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "182718755177490116635229"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 229.53083917649334,
+            "usdTokenBalances": {
+              "SOXX": 229.53083917649334
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "457228193297862279",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "182718755177490116635229"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 229.53083917649334,
+            "usdTokenBalances": {
+              "SOXX": 229.53083917649334
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "457228193297862279",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "182718755177490116635229"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788476400,
+      "endTimestamp": 1788480000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788480000,
+      "endTimestamp": 1788483600,
+      "metrics": {
+        "dailyFees": 1189.9209603621814,
+        "dailyRevenue": 1189.9209603621814,
+        "dailyProtocolRevenue": 1189.9209603621814
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1190
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1190
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1190
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1189.9209603621814,
+            "usdTokenBalances": {
+              "NVDA": 674.0286309775173,
+              "MSFT": 515.8923293846641
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "290051414612295074645774",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2932663132149225773",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1013331885140911941"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1189.9209603621814,
+            "usdTokenBalances": {
+              "NVDA": 674.0286309775173,
+              "MSFT": 515.8923293846641
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "290051414612295074645774",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2932663132149225773",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1013331885140911941"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1189.9209603621814,
+            "usdTokenBalances": {
+              "NVDA": 674.0286309775173,
+              "MSFT": 515.8923293846641
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "290051414612295074645774",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2932663132149225773",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1013331885140911941"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788483600,
+      "endTimestamp": 1788487200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788487200,
+      "endTimestamp": 1788490800,
+      "metrics": {
+        "dailyFees": 997.1724574658431,
+        "dailyRevenue": 997.1724574658431,
+        "dailyProtocolRevenue": 997.1724574658431
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 997
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 997
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 997
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 997.1724574658431,
+            "usdTokenBalances": {
+              "AAPL": 189.56420535663975,
+              "SPY": 392.33912918147394,
+              "AMD": 415.2691229277295
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "217456610974608929789563",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "577279650876710324",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "507156920109712247",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "906414176576694194"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 997.1724574658431,
+            "usdTokenBalances": {
+              "AAPL": 189.56420535663975,
+              "SPY": 392.33912918147394,
+              "AMD": 415.2691229277295
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "217456610974608929789563",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "577279650876710324",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "507156920109712247",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "906414176576694194"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 997.1724574658431,
+            "usdTokenBalances": {
+              "AAPL": 189.56420535663975,
+              "SPY": 392.33912918147394,
+              "AMD": 415.2691229277295
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "217456610974608929789563",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "577279650876710324",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "507156920109712247",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "906414176576694194"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788490800,
+      "endTimestamp": 1788494400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788494400,
+      "endTimestamp": 1788498000,
+      "metrics": {
+        "dailyFees": 2201.537926411477,
+        "dailyRevenue": 2201.537926411477,
+        "dailyProtocolRevenue": 2201.537926411477
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 2202
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 2202
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 2202
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 2201.537926411477,
+            "usdTokenBalances": {
+              "NVDA": 701.6584585293128,
+              "MSFT": 643.7158047816104,
+              "SPCX": 407.57270270557433,
+              "TSLA": 448.59096039497973
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "358601317864576979206657",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "3047244239248297152",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1262980310747155974",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2703722861160067231",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1212866923687286347"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 2201.537926411477,
+            "usdTokenBalances": {
+              "NVDA": 701.6584585293128,
+              "MSFT": 643.7158047816104,
+              "SPCX": 407.57270270557433,
+              "TSLA": 448.59096039497973
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "358601317864576979206657",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "3047244239248297152",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1262980310747155974",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2703722861160067231",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1212866923687286347"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 2201.537926411477,
+            "usdTokenBalances": {
+              "NVDA": 701.6584585293128,
+              "MSFT": 643.7158047816104,
+              "SPCX": 407.57270270557433,
+              "TSLA": 448.59096039497973
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "358601317864576979206657",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "3047244239248297152",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1262980310747155974",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2703722861160067231",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1212866923687286347"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788498000,
+      "endTimestamp": 1788501600,
+      "metrics": {
+        "dailyFees": 226.19919680147387,
+        "dailyRevenue": 226.19919680147387,
+        "dailyProtocolRevenue": 226.19919680147387
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 226
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 226
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 226
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 226.19919680147387,
+            "usdTokenBalances": {
+              "SOXX": 226.19919680147387
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "444888672805982760",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "34892872650809477752093"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 226.19919680147387,
+            "usdTokenBalances": {
+              "SOXX": 226.19919680147387
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "444888672805982760",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "34892872650809477752093"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 226.19919680147387,
+            "usdTokenBalances": {
+              "SOXX": 226.19919680147387
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "444888672805982760",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "34892872650809477752093"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788501600,
+      "endTimestamp": 1788505200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788505200,
+      "endTimestamp": 1788508800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788508800,
+      "endTimestamp": 1788512400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788512400,
+      "endTimestamp": 1788516000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788516000,
+      "endTimestamp": 1788519600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788519600,
+      "endTimestamp": 1788523200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788523200,
+      "endTimestamp": 1788526800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788526800,
+      "endTimestamp": 1788530400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788530400,
+      "endTimestamp": 1788534000,
+      "metrics": {
+        "dailyFees": 941.6908580878753,
+        "dailyRevenue": 941.6908580878753,
+        "dailyProtocolRevenue": 941.6908580878753
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 942
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 942
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 942
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 941.6908580878753,
+            "usdTokenBalances": {
+              "SNDK": 442.9264887031049,
+              "TSM": 498.7643693847704
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "190666326116798920681663",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "262953336560797944",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1171234532247109581"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 941.6908580878753,
+            "usdTokenBalances": {
+              "SNDK": 442.9264887031049,
+              "TSM": 498.7643693847704
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "190666326116798920681663",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "262953336560797944",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1171234532247109581"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 941.6908580878753,
+            "usdTokenBalances": {
+              "SNDK": 442.9264887031049,
+              "TSM": 498.7643693847704
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "190666326116798920681663",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "262953336560797944",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1171234532247109581"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788534000,
+      "endTimestamp": 1788537600,
+      "metrics": {
+        "dailyFees": 492.6358823043161,
+        "dailyRevenue": 492.6358823043161,
+        "dailyProtocolRevenue": 492.6358823043161
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 493
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 493
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 493
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 492.6358823043161,
+            "usdTokenBalances": {
+              "PLTR": 492.6358823043161
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "2807842019403341045",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "95933245020090371445295"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 492.6358823043161,
+            "usdTokenBalances": {
+              "PLTR": 492.6358823043161
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "2807842019403341045",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "95933245020090371445295"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 492.6358823043161,
+            "usdTokenBalances": {
+              "PLTR": 492.6358823043161
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "2807842019403341045",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "95933245020090371445295"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788537600,
+      "endTimestamp": 1788541200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788541200,
+      "endTimestamp": 1788544800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788544800,
+      "endTimestamp": 1788548400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788548400,
+      "endTimestamp": 1788552000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788552000,
+      "endTimestamp": 1788555600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788555600,
+      "endTimestamp": 1788559200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788559200,
+      "endTimestamp": 1788562800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788562800,
+      "endTimestamp": 1788566400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788566400,
+      "endTimestamp": 1788570000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788570000,
+      "endTimestamp": 1788573600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788573600,
+      "endTimestamp": 1788577200,
+      "metrics": {
+        "dailyFees": 6315.006428278531,
+        "dailyRevenue": 6315.006428278531,
+        "dailyProtocolRevenue": 6315.006428278531
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 6315
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 6315
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 6315
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 6315.006428278531,
+            "usdTokenBalances": {
+              "NVDA": 1510.6597567109723,
+              "MSFT": 1019.0138165004931,
+              "SPY": 759.8291342433815,
+              "GOOGL": 494.2339357102771,
+              "PONS": 1889.7737961808848,
+              "AMZN": 641.4959889325215
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "777695891086090839318843",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "6596479440683693362",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1989406537231058985",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "987464354583815677",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1459079313052511000",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "2769558357720897198116",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2483771131284566858"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 6315.006428278531,
+            "usdTokenBalances": {
+              "NVDA": 1510.6597567109723,
+              "MSFT": 1019.0138165004931,
+              "SPY": 759.8291342433815,
+              "GOOGL": 494.2339357102771,
+              "PONS": 1889.7737961808848,
+              "AMZN": 641.4959889325215
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "777695891086090839318843",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "6596479440683693362",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1989406537231058985",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "987464354583815677",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1459079313052511000",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "2769558357720897198116",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2483771131284566858"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 6315.006428278531,
+            "usdTokenBalances": {
+              "NVDA": 1510.6597567109723,
+              "MSFT": 1019.0138165004931,
+              "SPY": 759.8291342433815,
+              "GOOGL": 494.2339357102771,
+              "PONS": 1889.7737961808848,
+              "AMZN": 641.4959889325215
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "777695891086090839318843",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "6596479440683693362",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1989406537231058985",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "987464354583815677",
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1459079313052511000",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "2769558357720897198116",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2483771131284566858"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788577200,
+      "endTimestamp": 1788580800,
+      "metrics": {
+        "dailyFees": 4687.0068600895975,
+        "dailyRevenue": 4687.0068600895975,
+        "dailyProtocolRevenue": 4687.0068600895975
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 4687
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 4687
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 4687
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 4687.0068600895975,
+            "usdTokenBalances": {
+              "NET": 475.13850204991553,
+              "SPCX": 621.83251139096,
+              "AAPL": 425.285925657117,
+              "META": 535.4005986681623,
+              "SKHY": 529.7303886084655,
+              "IBM": 480.60893086582377,
+              "INTC": 475.03641438369186,
+              "AMD": 679.3620681787892,
+              "ASML": 464.6115202866721
+            },
+            "rawTokenBalances": {
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1689681728484763639",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "587205161683396066866883",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "4106402373314139278",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1371668845854271664",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "869432042072023195",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "3025906883777257306",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2046712081023012270",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "4907147506675191079",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1426182572013832693",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "272190517088625003"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 4687.0068600895975,
+            "usdTokenBalances": {
+              "NET": 475.13850204991553,
+              "SPCX": 621.83251139096,
+              "AAPL": 425.285925657117,
+              "META": 535.4005986681623,
+              "SKHY": 529.7303886084655,
+              "IBM": 480.60893086582377,
+              "INTC": 475.03641438369186,
+              "AMD": 679.3620681787892,
+              "ASML": 464.6115202866721
+            },
+            "rawTokenBalances": {
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1689681728484763639",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "587205161683396066866883",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "4106402373314139278",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1371668845854271664",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "869432042072023195",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "3025906883777257306",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2046712081023012270",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "4907147506675191079",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1426182572013832693",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "272190517088625003"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 4687.0068600895975,
+            "usdTokenBalances": {
+              "NET": 475.13850204991553,
+              "SPCX": 621.83251139096,
+              "AAPL": 425.285925657117,
+              "META": 535.4005986681623,
+              "SKHY": 529.7303886084655,
+              "IBM": 480.60893086582377,
+              "INTC": 475.03641438369186,
+              "AMD": 679.3620681787892,
+              "ASML": 464.6115202866721
+            },
+            "rawTokenBalances": {
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1689681728484763639",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "587205161683396066866883",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "4106402373314139278",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1371668845854271664",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "869432042072023195",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "3025906883777257306",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2046712081023012270",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "4907147506675191079",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1426182572013832693",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "272190517088625003"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788580800,
+      "endTimestamp": 1788584400,
+      "metrics": {
+        "dailyFees": 1590.1991491558658,
+        "dailyRevenue": 1590.1991491558658,
+        "dailyProtocolRevenue": 1590.1991491558658
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1590
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1590
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1590
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1590.1991491558658,
+            "usdTokenBalances": {
+              "SOXX": 423.0715658921459,
+              "PLTR": 284.8762911811643,
+              "TSLA": 542.4201743549105,
+              "AVGO": 339.8311177276452
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "813387997139484766",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "150505233205964834218735",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "1636796754754024932",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1525902452647613733",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "951787919527357232"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1590.1991491558658,
+            "usdTokenBalances": {
+              "SOXX": 423.0715658921459,
+              "PLTR": 284.8762911811643,
+              "TSLA": 542.4201743549105,
+              "AVGO": 339.8311177276452
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "813387997139484766",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "150505233205964834218735",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "1636796754754024932",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1525902452647613733",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "951787919527357232"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1590.1991491558658,
+            "usdTokenBalances": {
+              "SOXX": 423.0715658921459,
+              "PLTR": 284.8762911811643,
+              "TSLA": 542.4201743549105,
+              "AVGO": 339.8311177276452
+            },
+            "rawTokenBalances": {
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "813387997139484766",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "150505233205964834218735",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "1636796754754024932",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1525902452647613733",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "951787919527357232"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788584400,
+      "endTimestamp": 1788588000,
+      "metrics": {
+        "dailyFees": 135.16474504641576,
+        "dailyRevenue": 135.16474504641576,
+        "dailyProtocolRevenue": 135.16474504641576
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 135
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 135
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 135
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 135.16474504641576,
+            "usdTokenBalances": {
+              "PLTR": 135.16474504641576
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "776608032672100560",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "2018326761470984104816"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 135.16474504641576,
+            "usdTokenBalances": {
+              "PLTR": 135.16474504641576
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "776608032672100560",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "2018326761470984104816"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 135.16474504641576,
+            "usdTokenBalances": {
+              "PLTR": 135.16474504641576
+            },
+            "rawTokenBalances": {
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "776608032672100560",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "2018326761470984104816"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788588000,
+      "endTimestamp": 1788591600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788591600,
+      "endTimestamp": 1788595200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788595200,
+      "endTimestamp": 1788598800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788598800,
+      "endTimestamp": 1788602400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788602400,
+      "endTimestamp": 1788606000,
+      "metrics": {
+        "dailyFees": 26650.063494509526,
+        "dailyRevenue": 26650.063494509526,
+        "dailyProtocolRevenue": 26650.063494509526
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 26650
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 26650
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 26650
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 26650.063494509526,
+            "usdTokenBalances": {
+              "USDG": 21336.644445697268,
+              "SNDK": 673.778098960612,
+              "MSFT": 918.6976346901225,
+              "PONS": 1283.703653591463,
+              "NVDA": 1738.5629441720243,
+              "TSM": 698.67671739804
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "21335414506",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "649530373976694029334101",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "388663945292595955",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1793560647163567315",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "1543174043103883167949",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "7591646409204944582",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1653672703900686241"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 26650.063494509526,
+            "usdTokenBalances": {
+              "USDG": 21336.644445697268,
+              "SNDK": 673.778098960612,
+              "MSFT": 918.6976346901225,
+              "PONS": 1283.703653591463,
+              "NVDA": 1738.5629441720243,
+              "TSM": 698.67671739804
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "21335414506",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "649530373976694029334101",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "388663945292595955",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1793560647163567315",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "1543174043103883167949",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "7591646409204944582",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1653672703900686241"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 26650.063494509526,
+            "usdTokenBalances": {
+              "USDG": 21336.644445697268,
+              "SNDK": 673.778098960612,
+              "MSFT": 918.6976346901225,
+              "PONS": 1283.703653591463,
+              "NVDA": 1738.5629441720243,
+              "TSM": 698.67671739804
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "21335414506",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "649530373976694029334101",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "388663945292595955",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1793560647163567315",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "1543174043103883167949",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "7591646409204944582",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1653672703900686241"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788606000,
+      "endTimestamp": 1788609600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788609600,
+      "endTimestamp": 1788613200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788613200,
+      "endTimestamp": 1788616800,
+      "metrics": {
+        "dailyFees": 3690.1498605915313,
+        "dailyRevenue": 3690.1498605915313,
+        "dailyProtocolRevenue": 3690.1498605915313
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 3690
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 3690
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 3690
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 3690.1498605915313,
+            "usdTokenBalances": {
+              "USDG": 2909.777030042139,
+              "SPY": 780.3728305493922
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2909530709",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "80296970298936928532769",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "1014162683062337615"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 3690.1498605915313,
+            "usdTokenBalances": {
+              "USDG": 2909.777030042139,
+              "SPY": 780.3728305493922
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2909530709",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "80296970298936928532769",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "1014162683062337615"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 3690.1498605915313,
+            "usdTokenBalances": {
+              "USDG": 2909.777030042139,
+              "SPY": 780.3728305493922
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2909530709",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "80296970298936928532769",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "1014162683062337615"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788616800,
+      "endTimestamp": 1788620400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788620400,
+      "endTimestamp": 1788624000,
+      "metrics": {
+        "dailyFees": 1000.7650191645582,
+        "dailyRevenue": 1000.7650191645582,
+        "dailyProtocolRevenue": 1000.7650191645582
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1001
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1001
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1001
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1000.7650191645582,
+            "usdTokenBalances": {
+              "USDG": 1000.7650191645582
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "1000716268"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1000.7650191645582,
+            "usdTokenBalances": {
+              "USDG": 1000.7650191645582
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "1000716268"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1000.7650191645582,
+            "usdTokenBalances": {
+              "USDG": 1000.7650191645582
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "1000716268"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788624000,
+      "endTimestamp": 1788627600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788627600,
+      "endTimestamp": 1788631200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788631200,
+      "endTimestamp": 1788634800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788634800,
+      "endTimestamp": 1788638400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788638400,
+      "endTimestamp": 1788642000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788642000,
+      "endTimestamp": 1788645600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788645600,
+      "endTimestamp": 1788649200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788649200,
+      "endTimestamp": 1788652800,
+      "metrics": {
+        "dailyFees": 11151.902293870586,
+        "dailyRevenue": 11151.902293870586,
+        "dailyProtocolRevenue": 11151.902293870586
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 11152
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 11152
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 11152
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 11151.902293870586,
+            "usdTokenBalances": {
+              "USDG": 10349.31344111029,
+              "PONS": 802.0049040570051,
+              "SNDK": 0.5839487032917542
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "10347754623",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "201572467628896786028468",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "876867318366313724588",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "336846518490261"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 11151.902293870586,
+            "usdTokenBalances": {
+              "USDG": 10349.31344111029,
+              "PONS": 802.0049040570051,
+              "SNDK": 0.5839487032917542
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "10347754623",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "201572467628896786028468",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "876867318366313724588",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "336846518490261"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 11151.902293870586,
+            "usdTokenBalances": {
+              "USDG": 10349.31344111029,
+              "PONS": 802.0049040570051,
+              "SNDK": 0.5839487032917542
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "10347754623",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "201572467628896786028468",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "876867318366313724588",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "336846518490261"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788652800,
+      "endTimestamp": 1788656400,
+      "metrics": {
+        "dailyFees": 3.7283381469345067,
+        "dailyRevenue": 3.7283381469345067,
+        "dailyProtocolRevenue": 3.7283381469345067
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 3.73
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 3.73
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 3.73
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 3.7283381469345067,
+            "usdTokenBalances": {
+              "NVDA": 3.1631021945296998,
+              "META": 0.5652359524048071
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "1110015362136542177106",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "13812070191387711",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "917881394929900"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 3.7283381469345067,
+            "usdTokenBalances": {
+              "NVDA": 3.1631021945296998,
+              "META": 0.5652359524048071
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "1110015362136542177106",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "13812070191387711",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "917881394929900"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 3.7283381469345067,
+            "usdTokenBalances": {
+              "NVDA": 3.1631021945296998,
+              "META": 0.5652359524048071
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "1110015362136542177106",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "13812070191387711",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "917881394929900"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788656400,
+      "endTimestamp": 1788660000,
+      "metrics": {
+        "dailyFees": 8814.88618764969,
+        "dailyRevenue": 8814.88618764969,
+        "dailyProtocolRevenue": 8814.88618764969
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 8815
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 8815
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 8815
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 8814.88618764969,
+            "usdTokenBalances": {
+              "USDG": 3306.59182216583,
+              "SPCX": 764.8332336770994,
+              "SKHY": 520.7144390447367,
+              "PLTR": 561.7151845468169,
+              "NVDA": 1150.8216937264858,
+              "META": 500.4406019024617,
+              "AMD": 738.3629558104366,
+              "TSLA": 692.6797373413142,
+              "AMZN": 578.726519434509
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3306330007",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "175794344629333865490761",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "5050737856944458709",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "2974406300772494056",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "3227413511142617589",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "5025202802176699039",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "812660829162578439",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1550042942816073245",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1948603241694392540",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2240737661153843984"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 8814.88618764969,
+            "usdTokenBalances": {
+              "USDG": 3306.59182216583,
+              "SPCX": 764.8332336770994,
+              "SKHY": 520.7144390447367,
+              "PLTR": 561.7151845468169,
+              "NVDA": 1150.8216937264858,
+              "META": 500.4406019024617,
+              "AMD": 738.3629558104366,
+              "TSLA": 692.6797373413142,
+              "AMZN": 578.726519434509
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3306330007",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "175794344629333865490761",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "5050737856944458709",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "2974406300772494056",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "3227413511142617589",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "5025202802176699039",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "812660829162578439",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1550042942816073245",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1948603241694392540",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2240737661153843984"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 8814.88618764969,
+            "usdTokenBalances": {
+              "USDG": 3306.59182216583,
+              "SPCX": 764.8332336770994,
+              "SKHY": 520.7144390447367,
+              "PLTR": 561.7151845468169,
+              "NVDA": 1150.8216937264858,
+              "META": 500.4406019024617,
+              "AMD": 738.3629558104366,
+              "TSLA": 692.6797373413142,
+              "AMZN": 578.726519434509
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3306330007",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "175794344629333865490761",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "5050737856944458709",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "2974406300772494056",
+              "robinhood:0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a": "3227413511142617589",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "5025202802176699039",
+              "robinhood:0xc0d6457c16cc70d6790dd43521c899c87ce02f35": "812660829162578439",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "1550042942816073245",
+              "robinhood:0x322f0929c4625ed5bad873c95208d54e1c003b2d": "1948603241694392540",
+              "robinhood:0x12f190a9f9d7d37a250758b26824b97ce941bf54": "2240737661153843984"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788660000,
+      "endTimestamp": 1788663600,
+      "metrics": {
+        "dailyFees": 453.54033559890644,
+        "dailyRevenue": 453.54033559890644,
+        "dailyProtocolRevenue": 453.54033559890644
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 454
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 454
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 454
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 453.54033559890644,
+            "usdTokenBalances": {
+              "AAPL": 453.54033559890644
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "10236024647838062956597",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1462797405576218001"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 453.54033559890644,
+            "usdTokenBalances": {
+              "AAPL": 453.54033559890644
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "10236024647838062956597",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1462797405576218001"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 453.54033559890644,
+            "usdTokenBalances": {
+              "AAPL": 453.54033559890644
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "10236024647838062956597",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "1462797405576218001"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788663600,
+      "endTimestamp": 1788667200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788667200,
+      "endTimestamp": 1788670800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788670800,
+      "endTimestamp": 1788674400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788674400,
+      "endTimestamp": 1788678000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788678000,
+      "endTimestamp": 1788681600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788681600,
+      "endTimestamp": 1788685200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788685200,
+      "endTimestamp": 1788688800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788688800,
+      "endTimestamp": 1788692400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788692400,
+      "endTimestamp": 1788696000,
+      "metrics": {
+        "dailyFees": 3916.9541756324215,
+        "dailyRevenue": 3916.9541756324215,
+        "dailyProtocolRevenue": 3916.9541756324215
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 3917
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 3917
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 3917
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 3916.9541756324215,
+            "usdTokenBalances": {
+              "USDG": 3322.3044613185743,
+              "PONS": 594.6497143138472
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3322190210",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "162589524480583024355906",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "644970803315533775782"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 3916.9541756324215,
+            "usdTokenBalances": {
+              "USDG": 3322.3044613185743,
+              "PONS": 594.6497143138472
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3322190210",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "162589524480583024355906",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "644970803315533775782"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 3916.9541756324215,
+            "usdTokenBalances": {
+              "USDG": 3322.3044613185743,
+              "PONS": 594.6497143138472
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3322190210",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "162589524480583024355906",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "644970803315533775782"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788696000,
+      "endTimestamp": 1788699600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788699600,
+      "endTimestamp": 1788703200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788703200,
+      "endTimestamp": 1788706800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788706800,
+      "endTimestamp": 1788710400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788710400,
+      "endTimestamp": 1788714000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788714000,
+      "endTimestamp": 1788717600,
+      "metrics": {
+        "dailyFees": 2622.476616505178,
+        "dailyRevenue": 2622.476616505178,
+        "dailyProtocolRevenue": 2622.476616505178
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 2622
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 2622
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 2622
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 2622.476616505178,
+            "usdTokenBalances": {
+              "USDG": 2622.476616505178
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2622698119",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "136873163784921420203588"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 2622.476616505178,
+            "usdTokenBalances": {
+              "USDG": 2622.476616505178
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2622698119",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "136873163784921420203588"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 2622.476616505178,
+            "usdTokenBalances": {
+              "USDG": 2622.476616505178
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "2622698119",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "136873163784921420203588"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788717600,
+      "endTimestamp": 1788721200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788721200,
+      "endTimestamp": 1788724800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788724800,
+      "endTimestamp": 1788728400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788728400,
+      "endTimestamp": 1788732000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788732000,
+      "endTimestamp": 1788735600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788735600,
+      "endTimestamp": 1788739200,
+      "metrics": {
+        "dailyFees": 4524.800579036128,
+        "dailyRevenue": 4524.800579036128,
+        "dailyProtocolRevenue": 4524.800579036128
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 4525
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 4525
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 4525
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 4524.800579036128,
+            "usdTokenBalances": {
+              "GOOGL": 593.5378289909564,
+              "MSFT": 933.4132024577867,
+              "SOXX": 669.007055949374,
+              "NVDA": 561.5945717365053,
+              "IBM": 558.7007937844841,
+              "USDG": 647.8331171336001,
+              "PONS": 560.7140089834207
+            },
+            "rawTokenBalances": {
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1752244646151673885",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "135028078134350506734397",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1822289645968112644",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "1286218108662893418",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2452270956449523065",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2379272607888953942",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "647790482",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "663216097375132965650"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 4524.800579036128,
+            "usdTokenBalances": {
+              "GOOGL": 593.5378289909564,
+              "MSFT": 933.4132024577867,
+              "SOXX": 669.007055949374,
+              "NVDA": 561.5945717365053,
+              "IBM": 558.7007937844841,
+              "USDG": 647.8331171336001,
+              "PONS": 560.7140089834207
+            },
+            "rawTokenBalances": {
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1752244646151673885",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "135028078134350506734397",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1822289645968112644",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "1286218108662893418",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2452270956449523065",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2379272607888953942",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "647790482",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "663216097375132965650"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 4524.800579036128,
+            "usdTokenBalances": {
+              "GOOGL": 593.5378289909564,
+              "MSFT": 933.4132024577867,
+              "SOXX": 669.007055949374,
+              "NVDA": 561.5945717365053,
+              "IBM": 558.7007937844841,
+              "USDG": 647.8331171336001,
+              "PONS": 560.7140089834207
+            },
+            "rawTokenBalances": {
+              "robinhood:0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3": "1752244646151673885",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "135028078134350506734397",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "1822289645968112644",
+              "robinhood:0x75742c18bc1f1c5c5f448f4c9d9c6f66dafaaa38": "1286218108662893418",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "2452270956449523065",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "2379272607888953942",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "647790482",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "663216097375132965650"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788739200,
+      "endTimestamp": 1788742800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788742800,
+      "endTimestamp": 1788746400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788746400,
+      "endTimestamp": 1788750000,
+      "metrics": {
+        "dailyFees": 7078.017784613777,
+        "dailyRevenue": 7078.017784613777,
+        "dailyProtocolRevenue": 7078.017784613777
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 7078
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 7078
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 7078
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 7078.017784613777,
+            "usdTokenBalances": {
+              "USDG": 4952.256878179775,
+              "ASML": 511.0689845697589,
+              "SPY": 667.0307776240711,
+              "AVGO": 406.5082678973975,
+              "NET": 541.1528763427734
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "4952158431",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "192065637564359845618656",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "299407408348741446",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "866864781343216069",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "1138535108732505878",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1924441238772309412"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 7078.017784613777,
+            "usdTokenBalances": {
+              "USDG": 4952.256878179775,
+              "ASML": 511.0689845697589,
+              "SPY": 667.0307776240711,
+              "AVGO": 406.5082678973975,
+              "NET": 541.1528763427734
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "4952158431",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "192065637564359845618656",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "299407408348741446",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "866864781343216069",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "1138535108732505878",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1924441238772309412"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 7078.017784613777,
+            "usdTokenBalances": {
+              "USDG": 4952.256878179775,
+              "ASML": 511.0689845697589,
+              "SPY": 667.0307776240711,
+              "AVGO": 406.5082678973975,
+              "NET": 541.1528763427734
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "4952158431",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "192065637564359845618656",
+              "robinhood:0x47f93d52cbec7c6d2cfc080e154002370a60daea": "299407408348741446",
+              "robinhood:0x117cc2133c37b721f49de2a7a74833232b3b4c0c": "866864781343216069",
+              "robinhood:0x156e175dd063a8ce274c50654ef40e0032b3fbcf": "1138535108732505878",
+              "robinhood:0x116f00968269b7bfbad4109ce591d6e74c0601d4": "1924441238772309412"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788750000,
+      "endTimestamp": 1788753600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788753600,
+      "endTimestamp": 1788757200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788757200,
+      "endTimestamp": 1788760800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788760800,
+      "endTimestamp": 1788764400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788764400,
+      "endTimestamp": 1788768000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788768000,
+      "endTimestamp": 1788771600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788771600,
+      "endTimestamp": 1788775200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788775200,
+      "endTimestamp": 1788778800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788778800,
+      "endTimestamp": 1788782400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788782400,
+      "endTimestamp": 1788786000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788786000,
+      "endTimestamp": 1788789600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788789600,
+      "endTimestamp": 1788793200,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788793200,
+      "endTimestamp": 1788796800,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788796800,
+      "endTimestamp": 1788800400,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788800400,
+      "endTimestamp": 1788804000,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788804000,
+      "endTimestamp": 1788807600,
+      "metrics": {
+        "dailyFees": 4107.7341775817,
+        "dailyRevenue": 4107.7341775817,
+        "dailyProtocolRevenue": 4107.7341775817
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 4108
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 4108
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 4108
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 4107.7341775817,
+            "usdTokenBalances": {
+              "USDG": 3582.9981486055513,
+              "TSM": 524.7360289761493
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3582896557",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "167287215926919590637958",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1208581859794205799"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 4107.7341775817,
+            "usdTokenBalances": {
+              "USDG": 3582.9981486055513,
+              "TSM": 524.7360289761493
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3582896557",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "167287215926919590637958",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1208581859794205799"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 4107.7341775817,
+            "usdTokenBalances": {
+              "USDG": 3582.9981486055513,
+              "TSM": 524.7360289761493
+            },
+            "rawTokenBalances": {
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "3582896557",
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "167287215926919590637958",
+              "robinhood:0x58ffe4a942d3885baa22d7520691f611ef09e7aa": "1208581859794205799"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788807600,
+      "endTimestamp": 1788811200,
+      "metrics": {
+        "dailyFees": 1454.6013073810782,
+        "dailyRevenue": 1454.6013073810782,
+        "dailyProtocolRevenue": 1454.6013073810782
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1455
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1455
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1455
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1454.6013073810782,
+            "usdTokenBalances": {
+              "INTC": 575.3161619067815,
+              "USDG": 25.192616306352516,
+              "PONS": 527.8437871226906,
+              "MU": 326.2487420452535
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "59741430006249805873588",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "5781200441207672963",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "25191902",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "721984215301001671955",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "316577305366312610"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1454.6013073810782,
+            "usdTokenBalances": {
+              "INTC": 575.3161619067815,
+              "USDG": 25.192616306352516,
+              "PONS": 527.8437871226906,
+              "MU": 326.2487420452535
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "59741430006249805873588",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "5781200441207672963",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "25191902",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "721984215301001671955",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "316577305366312610"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1454.6013073810782,
+            "usdTokenBalances": {
+              "INTC": 575.3161619067815,
+              "USDG": 25.192616306352516,
+              "PONS": 527.8437871226906,
+              "MU": 326.2487420452535
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "59741430006249805873588",
+              "robinhood:0xc72b96e0e48ecd4dc75e1e45396e26300bc39681": "5781200441207672963",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "25191902",
+              "robinhood:0x39dbed3a2bd333467115de45665cc57f813c4571": "721984215301001671955",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "316577305366312610"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788811200,
+      "endTimestamp": 1788814800,
+      "metrics": {
+        "dailyFees": 1048.933067045625,
+        "dailyRevenue": 1048.933067045625,
+        "dailyProtocolRevenue": 1048.933067045625
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1049
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1049
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1049
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1048.933067045625,
+            "usdTokenBalances": {
+              "AAPL": 194.08917244270404,
+              "USDG": 279.5029949714451,
+              "SNDK": 492.84595053981803,
+              "NVDA": 82.49494909165792
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "64498020332301587358722",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "608974075404998232",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "279495070",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "280209199499569621",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "357523399027727772"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1048.933067045625,
+            "usdTokenBalances": {
+              "AAPL": 194.08917244270404,
+              "USDG": 279.5029949714451,
+              "SNDK": 492.84595053981803,
+              "NVDA": 82.49494909165792
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "64498020332301587358722",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "608974075404998232",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "279495070",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "280209199499569621",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "357523399027727772"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1048.933067045625,
+            "usdTokenBalances": {
+              "AAPL": 194.08917244270404,
+              "USDG": 279.5029949714451,
+              "SNDK": 492.84595053981803,
+              "NVDA": 82.49494909165792
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "64498020332301587358722",
+              "robinhood:0xaf3d76f1834a1d425780943c99ea8a608f8a93f9": "608974075404998232",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "279495070",
+              "robinhood:0xb90a19ff0af67f7779aff50a882a9cff42446400": "280209199499569621",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "357523399027727772"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788814800,
+      "endTimestamp": 1788818400,
+      "metrics": {
+        "dailyFees": 1160.4796064459954,
+        "dailyRevenue": 1160.4796064459954,
+        "dailyProtocolRevenue": 1160.4796064459954
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1160
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1160
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1160
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1160.4796064459954,
+            "usdTokenBalances": {
+              "MSFT": 147.1559891471244,
+              "SPCX": 316.3422491183321,
+              "SKHY": 203.78141634965118,
+              "NVDA": 122.91028790037704,
+              "IBM": 58.52242298229701,
+              "AMD": 311.76724094821367
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "63607260286593869979036",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "297017810548344217",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2127028066016688703",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "1124466361427237918",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "532678720206193249",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "249807585189298725",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "646652301681542578"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1160.4796064459954,
+            "usdTokenBalances": {
+              "MSFT": 147.1559891471244,
+              "SPCX": 316.3422491183321,
+              "SKHY": 203.78141634965118,
+              "NVDA": 122.91028790037704,
+              "IBM": 58.52242298229701,
+              "AMD": 311.76724094821367
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "63607260286593869979036",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "297017810548344217",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2127028066016688703",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "1124466361427237918",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "532678720206193249",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "249807585189298725",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "646652301681542578"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1160.4796064459954,
+            "usdTokenBalances": {
+              "MSFT": 147.1559891471244,
+              "SPCX": 316.3422491183321,
+              "SKHY": 203.78141634965118,
+              "NVDA": 122.91028790037704,
+              "IBM": 58.52242298229701,
+              "AMD": 311.76724094821367
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "63607260286593869979036",
+              "robinhood:0xe93237c50d904957cf27e7b1133b510c669c2e74": "297017810548344217",
+              "robinhood:0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea": "2127028066016688703",
+              "robinhood:0x84cab63bc87912e71ad199ff14a0ba45de68fef8": "1124466361427237918",
+              "robinhood:0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "532678720206193249",
+              "robinhood:0x980dcf6766fa79f5cf0c4aadb3ab477ff15a9619": "249807585189298725",
+              "robinhood:0x86923f96303d656e4aa86d9d42d1e57ad2023fdc": "646652301681542578"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788818400,
+      "endTimestamp": 1788822000,
+      "metrics": {
+        "dailyFees": 1080.6347365215788,
+        "dailyRevenue": 1080.6347365215788,
+        "dailyProtocolRevenue": 1080.6347365215788
+      },
+      "breakdownByLabel": {
+        "dailyFees": {
+          "LP Fees": 1081
+        },
+        "dailyRevenue": {
+          "LP Fees To Treasury": 1081
+        },
+        "dailyProtocolRevenue": {
+          "LP Fees To Treasury": 1081
+        }
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 1080.6347365215788,
+            "usdTokenBalances": {
+              "MU": 832.9421294954462,
+              "USDG": 247.69260702613266
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "56124232969086279207337",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "808250089268299788",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "247685584"
+            }
+          },
+          "dailyRevenue": {
+            "usdTvl": 1080.6347365215788,
+            "usdTokenBalances": {
+              "MU": 832.9421294954462,
+              "USDG": 247.69260702613266
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "56124232969086279207337",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "808250089268299788",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "247685584"
+            }
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 1080.6347365215788,
+            "usdTokenBalances": {
+              "MU": 832.9421294954462,
+              "USDG": 247.69260702613266
+            },
+            "rawTokenBalances": {
+              "robinhood:0xab093def657f15df31b33922a95e047add645b29": "56124232969086279207337",
+              "robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd": "808250089268299788",
+              "robinhood:0x5fc5360d0400a0fd4f2af552add042d716f1d168": "247685584"
+            }
+          }
+        }
+      }
+    },
+    {
+      "startTimestamp": 1788822000,
+      "endTimestamp": 1788825600,
+      "metrics": {
+        "dailyFees": 0,
+        "dailyRevenue": 0,
+        "dailyProtocolRevenue": 0
+      },
+      "breakdownByLabel": {
+        "dailyFees": {},
+        "dailyRevenue": {},
+        "dailyProtocolRevenue": {}
+      },
+      "breakdownByToken": {
+        "robinhood": {
+          "dailyFees": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          },
+          "dailyProtocolRevenue": {
+            "usdTvl": 0,
+            "usdTokenBalances": {},
+            "rawTokenBalances": {}
+          }
+        }
+      }
+    }
+  ],
+  "updatedAt": "2026-09-08T11:31:36.694Z",
+  "complete": true
+}
