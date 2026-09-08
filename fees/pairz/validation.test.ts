@@ -13,8 +13,8 @@ class Balances {
   sum() { return this.entries.reduce((total, entry) => total + entry.amount, 0n); }
 }
 const options = { createBalances: () => new Balances() } as unknown as FetchOptions;
-const row = { quote_mint: USDC, platform_fee: '9007199254740993', protocol_fee: '50', creator_fee: '7', trade_count: 1, invalid_rows: 0, migration_count: 0 };
-const empty = { quote_mint: null, platform_fee: null, protocol_fee: null, creator_fee: null, trade_count: null, invalid_rows: null, migration_count: 0 };
+const row = { quote_mint: USDC, platform_fee: '9007199254740993', protocol_fee: '50', creator_fee: '7', share_fee: '3', trade_count: 1, invalid_rows: 0, migration_count: 0 };
+const empty = { quote_mint: null, platform_fee: null, protocol_fee: null, creator_fee: null, share_fee: null, trade_count: null, invalid_rows: null, migration_count: 0 };
 let checks = 0;
 const test = (name: string, run: () => void) => { run(); checks++; console.log(`PASS ${name}`); };
 const get = (rows: unknown) => aggregateFees(options, rows) as unknown as Record<string, Balances>;
@@ -28,7 +28,7 @@ test('exact integer accounting and correct quote mints', () => {
     for (const entry of d[field].entries) assert.ok((adapter.breakdownMethodology as any)[metric][entry.label]);
 });
 test('verified empty-query shape returns zero', () => assert.equal(get([empty]).dailyFees.sum(), 0n));
-test('zero fee trades are valid', () => assert.equal(get([{...row,platform_fee:'0',protocol_fee:'0',creator_fee:'0'}]).dailyFees.sum(),0n));
+test('zero fee trades are valid', () => assert.equal(get([{...row,platform_fee:'0',protocol_fee:'0',creator_fee:'0',share_fee:'0'}]).dailyFees.sum(),0n));
 for (const [name, rows] of [
   ['empty provider result', []], ['null provider result', null], ['null row', [null]],
   ['migration coverage gap', [{...row,migration_count:1}]],
