@@ -25,10 +25,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const feesUsd = parseFloat(data.dailyFees) || 0
-  const protocolRevenueUsd = parseFloat(data.dailyProtocolRevenue) || 0
-  const holdersRevenueUsd = parseFloat(data.dailyHoldersRevenue) || 0
   const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
-  const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
+  const dailySupplySideRevenueUsd = parseFloat(data.dailySupplySideRevenue)
+  // defillama.america.fun/api/v1/fees reports exact-zero supply side alongside populated
+  // meteoraFee and inflated revenue on 13 historical days (issue #9277, PR #9310).
+  // The LP remainder and staker split are unknown; default the residual to treasury
+  // conservatively instead of fabricating an unverified staker payout.
+  const deriveRevenue = dailySupplySideRevenueUsd === 0 && feesUsd > 0
+  const protocolRevenueUsd = deriveRevenue ? feesUsd - meteoraFeeUsd : parseFloat(data.dailyProtocolRevenue) || 0
+  const holdersRevenueUsd = deriveRevenue ? 0 : parseFloat(data.dailyHoldersRevenue) || 0
+  const lpFeeUsd = deriveRevenue ? 0 : (dailySupplySideRevenueUsd || 0) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
