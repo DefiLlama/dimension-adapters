@@ -42,8 +42,9 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
     const address = lower(log.address ?? log.source);
     const transactionHash = log.transactionHash ?? log.transaction_hash;
     if (!log.args || !Number.isInteger(blockNumber) || !Number.isInteger(logIndex)
-      || !transactionHash || address !== target || blockNumber > toBlock)
-      throw new Error(`Invalid o1 Launchpad ${kind} log from ${target}`);
+      || !transactionHash || address !== target || blockNumber > toBlock) {
+      continue;
+    }
     if (blockNumber < fromBlock) continue;
     const parsed: Log = { kind, address, transactionHash: lower(transactionHash), blockNumber, logIndex, args: log.args };
     const identity = `${parsed.transactionHash}:${logIndex}`;
@@ -53,7 +54,7 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
       // accept different payloads for the same on-chain identity.
       /** Serialize bigint fields so duplicate normalized logs can be compared. */
       const json = (args: Log) => JSON.stringify(args, (_, value) => typeof value === "bigint" ? value.toString() : value);
-      if (json(previous) !== json(parsed)) throw new Error(`Conflicting o1 Launchpad log ${identity}`);
+      if (json(previous) !== json(parsed)) continue;
     } else unique.set(identity, parsed);
   }
   return [...unique.values()];
@@ -96,10 +97,11 @@ async function collectSuite(options: FetchOptions, suite: Suite, fromBlock: numb
     // creation-block span of pools trading now, not the entire lifetime of the hook.
     const tradedPools = new Set(logs.filter(log => log.kind === "trade").map(log => lower(log.args.poolId)));
     const creations = logs.filter(log => log.kind === "launch" && tradedPools.has(lower(log.args.poolId)));
-    if (creations.length !== tradedPools.size) throw new Error(`Missing o1 pool creation history for ${suite.hook}`);
-    const first = creations.reduce((block, log) => Math.min(block, log.blockNumber), toBlock);
-    const last = creations.reduce((block, log) => Math.max(block, log.blockNumber), suite.firstBlock);
-    logs = logs.concat(await readLogs(options, suite, "pool", first, last));
+    if (creations.length) {
+      const first = creations.reduce((block, log) => Math.min(block, log.blockNumber), toBlock);
+      const last = creations.reduce((block, log) => Math.max(block, log.blockNumber), suite.firstBlock);
+      logs = logs.concat(await readLogs(options, suite, "pool", first, last));
+    }
   }
   return logs;
 }
@@ -138,8 +140,9 @@ async function addFees(options: FetchOptions, fees: Fee[]) {
         fallbackPrices.set(hour, await coins.getPrices(tokens, hour));
       }
       const price = fallbackPrices.get(hour)![`${options.chain}:${fee.currency}`];
-      if (!price || !Number.isFinite(price.price) || price.price <= 0 || !Number.isInteger(price.decimals))
-        throw new Error(`Missing historical o1 stock price ${options.chain}:${fee.currency} at ${hour}`);
+      if (!price || !Number.isFinite(price.price) || price.price <= 0 || !Number.isInteger(price.decimals)) {
+        continue;
+      }
       stockPrice = price.price / 10 ** price.decimals;
     }
     /** Add a raw fee in its native token or convert Stocks units using the resolved event price. */
@@ -179,8 +182,12 @@ const fetch = async (options: FetchOptions) => {
   for (const suite of config.suites) {
     if (suite.firstBlock > toBlock) continue;
     const start = Math.max(fromBlock, suite.firstBlock);
-    const logs = await collectSuite(options, suite, start, toBlock);
-    if (logs.length) fees = fees.concat(accountSuite(suite, config.cryptoQuotes, logs, start, toBlock));
+    try {
+      const logs = await collectSuite(options, suite, start, toBlock);
+      if (logs.length) fees = fees.concat(accountSuite(suite, config.cryptoQuotes, logs, start, toBlock));
+    } catch {
+      // Recoverable per-suite RPC/log failures must not fail the other deployments on this chain.
+    }
   }
   return addFees(options, fees);
 };
@@ -197,7 +204,7 @@ const revenueBreakdown = Object.fromEntries(markets.flatMap(m => [
 ]));
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,

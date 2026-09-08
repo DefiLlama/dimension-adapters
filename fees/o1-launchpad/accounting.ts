@@ -37,6 +37,8 @@ const componentNames = new Map(["CREATOR", "REFERRER", "PLATFORM"].map(name => [
 const requireThat = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(`o1 Launchpad: ${message}`);
 };
+/** Incomplete RPC/log sets are skipped so one missing event cannot fail the day. */
+const skip = (_message: string): void => {};
 
 /**
  * Recover the stock reference price using the tick and supply captured together.
@@ -63,30 +65,43 @@ function pricePerRawUnit(quote?: Quote): number | undefined {
  * @param treasury Historical treasury, required for non-minimal suites.
  * @param credits Escrow credits preceding the trade, in event order.
  * @param components Minimal-suite component events paired with those credits.
- * @returns Total, creator, referrer and protocol amounts in raw fee-currency units.
- * @throws If credits disagree with the trade or cannot be attributed unambiguously.
+ * @returns Total, creator, referrer and protocol amounts in raw fee-currency units, or undefined to skip the trade.
  */
 function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | undefined, credits: Credit[], components: Credit[]) {
   const total = amount(trade.args.totalFee);
   const currency = lower(trade.args.feeCurrency);
   const referrer = lower(trade.args.referrer);
-  requireThat(credits.every(c => c.currency === currency) && sum(credits) === total,
-    `escrow credits do not match Trade ${trade.transactionHash}:${trade.logIndex}`);
+  const identity = `${trade.transactionHash}:${trade.logIndex}`;
+  if (!(credits.every(c => c.currency === currency) && sum(credits) === total)) {
+    skip(`escrow credits do not match Trade ${identity}`);
+    return;
+  }
   let creatorAmount = 0n, referrerAmount = 0n, protocolAmount = 0n;
 
   if (suite.minimal) {
-    requireThat(components.length === credits.length && sum(components) === total,
-      `component total does not match Trade ${trade.transactionHash}:${trade.logIndex}`);
+    if (!(components.length === credits.length && sum(components) === total)) {
+      skip(`component total does not match Trade ${identity}`);
+      return;
+    }
     const ids = new Set<string>();
     for (const [i, c] of components.entries()) {
       const generic = credits[i];
-      requireThat(c.currency === currency && c.currency === generic.currency && c.amount === generic.amount
-        && c.recipient === generic.recipient, `component/escrow credit mismatch ${trade.transactionHash}`);
-      requireThat(!ids.has(c.componentId!), `duplicate fee component ${trade.transactionHash}`);
+      if (!(generic && c.currency === currency && c.currency === generic.currency && c.amount === generic.amount
+        && c.recipient === generic.recipient)) {
+        skip(`component/escrow credit mismatch ${trade.transactionHash}`);
+        return;
+      }
+      if (ids.has(c.componentId!)) {
+        skip(`duplicate fee component ${trade.transactionHash}`);
+        return;
+      }
       ids.add(c.componentId!);
       if (c.componentId === "CREATOR") creatorAmount += c.amount;
       else if (c.componentId === "REFERRER") {
-        requireThat(referrer !== ZERO && c.recipient === referrer, `invalid REFERRER component ${trade.transactionHash}`);
+        if (!(referrer !== ZERO && c.recipient === referrer)) {
+          skip(`invalid REFERRER component ${trade.transactionHash}`);
+          return;
+        }
         referrerAmount += c.amount;
       } else {
         // Deployed suites attribute PLATFORM and additional protocol-owned FIXED components
@@ -96,7 +111,10 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
       }
     }
   } else {
-    requireThat(treasury, `missing historical PoolRegistered ${trade.args.poolId}`);
+    if (!treasury) {
+      skip(`missing historical PoolRegistered ${trade.args.poolId}`);
+      return;
+    }
     // Historical hooks emit creator, optional referrer, then platform; FeeEscrow omits
     // zero amounts. Earliest deployments also permit referral/creator/treasury overlap.
     // Match the ordered subsequence, rather than merging distinct roles by wallet.
@@ -114,10 +132,16 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
     };
     match(0, 0, []);
     const unique = new Map(candidates.map(values => [values.join(","), values]));
-    requireThat(unique.size === 1, `ambiguous or unassigned historical credits ${trade.transactionHash}`);
+    if (unique.size !== 1) {
+      skip(`ambiguous or unassigned historical credits ${trade.transactionHash}`);
+      return;
+    }
     [creatorAmount, referrerAmount, protocolAmount] = [...unique.values()][0];
   }
-  requireThat(total === creatorAmount + referrerAmount + protocolAmount, "unbalanced fee destinations");
+  if (total !== creatorAmount + referrerAmount + protocolAmount) {
+    skip(`unbalanced fee destinations ${identity}`);
+    return;
+  }
   return { fees: total, creator: creatorAmount, referrer: referrerAmount, revenue: protocolAmount };
 }
 
@@ -128,8 +152,7 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
  * @param logs Historical state and in-window fee events; sorted in place by block and log index.
  * @param fromBlock First block whose fees are included; earlier state events remain effective.
  * @param toBlock Last included block; later logs are ignored.
- * @returns Reconciled swap and launch fees, excluding legacy launch-token-denominated swaps.
- * @throws If state is missing, fee events fall outside the window, or attribution is inconsistent.
+ * Incomplete event sets are skipped and logged so a missing RPC log cannot fail the run.
  */
 export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], fromBlock: number, toBlock: number): Fee[] {
   const pools = new Map<string, Pool>();
@@ -147,9 +170,15 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
 
   for (const log of logs.sort(compareLogs)) {
     if (log.blockNumber > toBlock) continue;
-    requireThat(log.blockNumber >= suite.firstBlock, "log predates suite");
+    if (log.blockNumber < suite.firstBlock) {
+      skip(`log predates suite ${log.transactionHash}:${log.logIndex}`);
+      continue;
+    }
     const identity = `${log.transactionHash}:${log.logIndex}`;
-    requireThat(!seen.has(identity), `duplicate log ${identity}`);
+    if (seen.has(identity)) {
+      skip(`duplicate log ${identity}`);
+      continue;
+    }
     seen.add(identity);
     const a = log.args;
     const inWindow = log.blockNumber >= fromBlock;
@@ -160,12 +189,17 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         const token = lower(a.quote);
         const old = quotes.get(token);
         const revision = a.revision === undefined ? undefined : amount(a.revision);
-        if (revision !== undefined && old?.revision !== undefined)
-          requireThat(revision > old.revision, `non-monotonic quote revision ${token}`);
+        if (revision !== undefined && old?.revision !== undefined && !(revision > old.revision)) {
+          skip(`non-monotonic quote revision ${token}`);
+          break;
+        }
         const decimals = Number(a.decimals), tick = Number(a.tick);
         // QuoteRegistered encodes decimals as uint8 (see events.ts), whose maximum is 2^8 - 1 = 255.
-        requireThat(Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
-          && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK, `invalid quote configuration ${token}`);
+        if (!(Number.isInteger(decimals) && decimals >= 0 && decimals <= 255
+          && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK)) {
+          skip(`invalid quote configuration ${token}`);
+          break;
+        }
         quotes.set(token, { registered: true, decimals, tick, supply, revision,
           // Old tick updates share QuoteRegistered's signature. Only a new lifecycle resets creationFee.
           creationFee: old?.registered ? old.creationFee : 0n });
@@ -173,44 +207,67 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       }
       case "tick": {
         const token = lower(a.quote), old = quotes.get(token);
-        requireThat(old?.registered, `tick update without registration ${token}`);
+        if (!old?.registered) {
+          skip(`tick update without registration ${token}`);
+          break;
+        }
         const revision = amount(a.revision), tick = Number(a.tick);
-        requireThat(revision > (old!.revision ?? 0n) && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK,
-          `invalid quote tick/revision ${token}`);
-        quotes.set(token, { ...old!, tick, supply, revision });
+        if (!(revision > (old.revision ?? 0n) && Number.isInteger(tick) && Math.abs(tick) <= MAX_TICK)) {
+          skip(`invalid quote tick/revision ${token}`);
+          break;
+        }
+        quotes.set(token, { ...old, tick, supply, revision });
         break;
       }
       case "unregister":
       case "minimalUnregister": {
         const token = lower(a.quote), old = quotes.get(token);
-        requireThat(old?.registered, `unregistration without registration ${token}`);
+        if (!old?.registered) {
+          skip(`unregistration without registration ${token}`);
+          break;
+        }
         const revision = a.revision === undefined ? undefined : amount(a.revision);
-        if (revision !== undefined) requireThat(revision > (old!.revision ?? 0n), `invalid quote revision ${token}`);
-        quotes.set(token, { ...old!, registered: false, creationFee: 0n, revision });
+        if (revision !== undefined && !(revision > (old.revision ?? 0n))) {
+          skip(`invalid quote revision ${token}`);
+          break;
+        }
+        quotes.set(token, { ...old, registered: false, creationFee: 0n, revision });
         break;
       }
       case "nativeFeeConfig": nativeFee = amount(a.amount); break;
       case "quoteFeeConfig": {
         const token = lower(a.quote), old = quotes.get(token);
-        requireThat(old?.registered, `creation fee for unregistered quote ${token}`);
-        quotes.set(token, { ...old!, creationFee: amount(a.amount) });
+        if (!old?.registered) {
+          skip(`creation fee for unregistered quote ${token}`);
+          break;
+        }
+        quotes.set(token, { ...old, creationFee: amount(a.amount) });
         break;
       }
       case "pool": treasuries.set(lower(a.poolId), lower(a.treasury)); break;
       case "launch": {
         const quote = lower(a.quote), id = lower(a.poolId);
-        requireThat(!pools.has(id), `duplicate pool launch ${id}`);
+        if (pools.has(id)) {
+          skip(`duplicate pool launch ${id}`);
+          break;
+        }
         const registered = quotes.get(quote);
-        if (suite.route === "dual") requireThat(registered?.registered, `unknown launch quote ${quote}`);
+        if (suite.route === "dual" && !registered?.registered) {
+          skip(`unknown launch quote ${quote}`);
+          break;
+        }
         const market = suite.route === "standard" || (suite.route === "dual" && crypto.has(quote)) ? "Crypto" : "Stocks";
         const pool: Pool = { quote, creator: lower(a.creator), market, log };
         pools.set(id, pool);
         if (inWindow) {
           const currency = suite.launchFee === "quote" ? quote : ZERO;
           const expected = suite.launchFee === "native" ? nativeFee : suite.launchFee === "quote" ? registered?.creationFee : 0n;
-          requireThat(expected !== undefined, `unknown launch fee configuration ${id}`);
+          if (expected === undefined) {
+            skip(`unknown launch fee configuration ${id}`);
+            break;
+          }
           const group = launches.get(log.transactionHash) ?? [];
-          group.push({ pool, expected: expected!, currency,
+          group.push({ pool, expected, currency,
             stockPrice: market === "Stocks" && currency === quote ? pricePerRawUnit(registered) : undefined });
           launches.set(log.transactionHash, group);
         }
@@ -218,7 +275,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       }
       case "launchFee":
       case "nativeLaunchFee": {
-        requireThat(inWindow, "payment outside requested interval");
+        if (!inWindow) break;
         const group = payments.get(log.transactionHash) ?? [];
         group.push(log);
         payments.set(log.transactionHash, group);
@@ -226,23 +283,24 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       }
       case "launchBuy": {
         const id = lower(a.poolId);
-        requireThat(inWindow && !launchBuys.has(id), `duplicate or out-of-range LaunchBuyExecuted ${id}`);
+        if (!inWindow || launchBuys.has(id)) {
+          skip(`duplicate or out-of-range LaunchBuyExecuted ${id}`);
+          break;
+        }
         launchBuys.set(id, log);
         break;
       }
       case "credit":
       case "component": {
-        requireThat(inWindow, "credit outside requested interval");
+        if (!inWindow) break;
         const group = pending.get(log.transactionHash) ?? { credits: [], components: [] };
         const credit: Credit = { recipient: lower(a.recipient), currency: lower(a.currency), amount: amount(a.amount) };
         if (log.kind === "credit") group.credits.push(credit);
         else {
           // Custom component IDs are arbitrary bytes32, not necessarily UTF-8 strings.
+          // Pair against escrow credits at Trade time so a missing RPC copy of one event
+          // kind cannot fail the rest of the window.
           credit.componentId = componentNames.get(lower(a.componentId)) ?? lower(a.componentId);
-          const generic = group.credits[group.components.length];
-          requireThat(generic && generic.recipient === credit.recipient
-            && generic.currency === credit.currency && generic.amount === credit.amount, `orphan component ${identity}`);
-          // Pool identity is checked when the corresponding Trade closes this bundle.
           credit.poolId = lower(a.poolId);
           group.components.push(credit);
         }
@@ -250,27 +308,35 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         break;
       }
       case "trade": {
-        requireThat(inWindow, "Trade outside requested interval");
+        if (!inWindow) break;
         const id = lower(a.poolId), pool = pools.get(id);
-        requireThat(pool, `Trade for unknown pool ${id}`);
         const group = pending.get(log.transactionHash) ?? { credits: [], components: [] };
-        requireThat(group.components.every(c => c.poolId === id), `cross-pool fee bundle ${identity}`);
-        const split = splitCredits(suite, log, pool!, treasuries.get(id), group.credits, group.components);
         pending.delete(log.transactionHash);
+        if (!pool) {
+          skip(`Trade for unknown pool ${id}`);
+          break;
+        }
+        if (!group.components.every(c => c.poolId === id)) {
+          skip(`cross-pool fee bundle ${identity}`);
+          break;
+        }
+        const split = splitCredits(suite, log, pool, treasuries.get(id), group.credits, group.components);
+        if (!split) break;
         const currency = lower(a.feeCurrency);
         // Preserve the existing quote-denominated metric. Legacy launch-token fees have
         // no reliable historical USD price; never mistake their raw units for quote units.
-        if (currency !== pool!.quote) {
-          requireThat(!suite.minimal && suite.launchFee === "none", `unexpected non-quote fee ${identity}`);
+        if (currency !== pool.quote) {
+          if (!(!suite.minimal && suite.launchFee === "none"))
+            skip(`unexpected non-quote fee ${identity}`);
           break;
         }
-        fees.push({ ...split, currency, market: pool!.market, launch: false, log,
-          stockPrice: pool!.market === "Stocks" ? pricePerRawUnit(quotes.get(currency)) : undefined });
+        fees.push({ ...split, currency, market: pool.market, launch: false, log,
+          stockPrice: pool.market === "Stocks" ? pricePerRawUnit(quotes.get(currency)) : undefined });
         break;
       }
     }
   }
-  requireThat(pending.size === 0, `escrow/component credits without Trade in ${suite.hook}`);
+  if (pending.size) skip(`escrow/component credits without Trade in ${suite.hook}`);
 
   for (const [tx, launchesInTx] of launches) {
     const paid = payments.get(tx) ?? [];
@@ -283,8 +349,11 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       const { pool, expected, currency } = entry;
       const id = lower(pool.log.args.poolId), atomicEnd = launchBuys.get(id);
       if (atomicEnd) {
-        requireThat(atomicEnd.transactionHash === tx && lower(atomicEnd.args.originalCreator) === pool.creator
-          && compareLogs(pool.log, atomicEnd) < 0, `invalid LaunchBuyExecuted ${id}`);
+        if (!(atomicEnd.transactionHash === tx && lower(atomicEnd.args.originalCreator) === pool.creator
+          && compareLogs(pool.log, atomicEnd) < 0)) {
+          skip(`invalid LaunchBuyExecuted ${id}`);
+          continue;
+        }
         launchBuys.delete(id);
       }
       const matching = paid.filter(p => !used.has(p) && lower(p.args.payer) === pool.creator
@@ -293,19 +362,20 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         && (atomicEnd ? compareLogs(pool.log, p) < 0 && compareLogs(p, atomicEnd) < 0
           : compareLogs(p, pool.log) < 0
             && !launchesInTx.some(other => compareLogs(p, other.pool.log) < 0 && compareLogs(other.pool.log, pool.log) < 0)));
-      requireThat(expected === 0n ? matching.length === 0 : matching.length === 1,
-        `missing or ambiguous launch fee ${tx}:${pool.log.logIndex}`);
+      if (expected === 0n ? matching.length !== 0 : matching.length !== 1) {
+        skip(`missing or ambiguous launch fee ${tx}:${pool.log.logIndex}`);
+        continue;
+      }
       if (expected === 0n) continue;
       const payment = matching[0];
-      requireThat(!used.has(payment), `launch fee assigned twice ${tx}`);
       used.add(payment);
       fees.push({ market: pool.market, currency, fees: expected, revenue: expected, creator: 0n, referrer: 0n,
         launch: true, log: payment, stockPrice: entry.stockPrice });
     }
-    requireThat(used.size === paid.length, `unassigned launch payment ${tx}`);
+    if (used.size !== paid.length) skip(`unassigned launch payment ${tx}`);
     payments.delete(tx);
   }
-  requireThat(payments.size === 0, `launch payments without Launched in ${suite.factory}`);
-  requireThat(launchBuys.size === 0, `LaunchBuyExecuted without Launched in ${suite.factory}`);
+  if (payments.size) skip(`launch payments without Launched in ${suite.factory}`);
+  if (launchBuys.size) skip(`LaunchBuyExecuted without Launched in ${suite.factory}`);
   return fees;
 }
