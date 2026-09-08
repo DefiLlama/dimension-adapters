@@ -18,7 +18,10 @@ const TREASURIES = [
 // results, so fetchURLAutoHandleRateLimit's backoff turns them into a retry rather than into a day
 // reported as zero. The key is here to make a long refill finish, not to keep it correct.
 // DefiLlama's TVL repo already reads this same variable in projects/helper/chain/ton.js.
+// Sent as a header rather than in the query string: formAxiosError attaches the request URL to
+// every error it raises, and those errors are logged, so a key in the URL is a key in the logs.
 const apiKey = getEnv('TONCENTER_API_KEY')
+const headers = apiKey ? { headers: { 'X-API-Key': apiKey } } : undefined
 const PAGE = 256
 // Above fetchURLAutoHandleRateLimit's default of 3, which spends its attempts over ten seconds.
 const RETRIES = 5
@@ -175,9 +178,8 @@ async function repayments(treasury: string, start: number, end: number): Promise
     for (let offset = 0; ; offset += PAGE) {
         const url =
             `https://toncenter.com/api/v3/messages?source=${treasury}&direction=out` +
-            `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc` +
-            (apiKey ? `&api_key=${apiKey}` : '')
-        const data = await fetchURLAutoHandleRateLimit(url, RETRIES)
+            `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`
+        const data = await fetchURLAutoHandleRateLimit(url, RETRIES, headers)
         // A body without a messages array is a failure wearing a 200. Reading it as an empty page
         // would store the day as zero, which is the one outcome worth crashing to avoid.
         if (!Array.isArray(data?.messages)) {
