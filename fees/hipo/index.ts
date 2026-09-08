@@ -19,10 +19,21 @@ const TREASURIES = [
 // results, so fetchURLAutoHandleRateLimit's backoff turns them into a retry rather than into a day
 // reported as zero. The key is here to make a long refill finish, not to keep it correct.
 // DefiLlama's TVL repo already reads this same variable in projects/helper/chain/ton.js.
-// Sent as a header rather than in the query string: formAxiosError attaches the request URL to
-// every error it raises, and those errors are logged, so a key in the URL is a key in the logs.
+// The key goes in a header rather than the query string: formAxiosError attaches the request URL
+// to every error it raises, and those errors are logged, so a key in the URL is a key in the logs.
+//
+// maxRedirects is then required rather than optional. Axios strips Authorization when a redirect
+// crosses hosts but leaves custom headers alone, so a redirect off toncenter would carry the key
+// with it. Toncenter does not redirect, so refusing to follow one costs nothing and the request
+// fails loudly if that ever changes. The timeout is here for the same reason the retries are:
+// axios defaults to none, and a stalled connection would hang the day's pagination forever.
+// Measured response time for these calls is 0.2 to 0.6 seconds.
 const apiKey = getEnv('TONCENTER_API_KEY')
-const headers = apiKey ? { headers: { 'X-API-Key': apiKey } } : undefined
+const requestOptions = {
+    timeout: 30000,
+    maxRedirects: 0,
+    ...(apiKey ? { headers: { 'X-API-Key': apiKey } } : {}),
+}
 const PAGE = 256
 // Above fetchURLAutoHandleRateLimit's default of 3, which spends its attempts over ten seconds.
 const RETRIES = 5
@@ -38,7 +49,7 @@ async function pacedGet(url: string) {
         if (wait > 0) await sleep(wait)
     }
     lastRequestAt = Date.now()
-    return fetchURLAutoHandleRateLimit(url, RETRIES, headers)
+    return fetchURLAutoHandleRateLimit(url, RETRIES, requestOptions)
 }
 
 // The treasury reports every loan repayment as a log: an external-out message whose body carries
