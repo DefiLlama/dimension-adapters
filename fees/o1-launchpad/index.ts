@@ -16,24 +16,32 @@ const labels = (market: Market) => ({
   referrer: `${market} Swap Fees To Referrers`,
 });
 
+const suiteAddresses = (suite: Suite) => new Set([suite.factory, suite.hook, suite.escrow].map(lower));
+const ownedBy = (suite: Suite) => {
+  const addresses = suiteAddresses(suite);
+  return (log: Log) => addresses.has(log.address);
+};
+const emitter = (kind: EventKind, suite: Suite) => kind === "credit" ? suite.escrow
+  : ["trade", "component", "pool"].includes(kind) ? suite.hook : suite.factory;
+
 /**
- * Read one event kind from its suite contract and normalize SDK/RPC log shapes.
+ * Read one event kind from every given contract and normalize SDK/RPC log shapes.
  * @param options Fetch context providing the SDK log reader.
- * @param suite Deployment used to select the emitting contract.
  * @param kind Event ABI and normalized kind to attach to each log.
+ * @param targets Factory, hook or escrow addresses that emit this kind.
  * @param fromBlock Inclusive first block; single-block RPC queries are widened then filtered.
  * @param toBlock Inclusive last block.
+ * @param cacheInCloud Persist genesis-to-now ranges so later hours only fill the new gap.
  * @returns Validated logs with identical copies deduplicated, or an empty array for an empty range.
  * @throws On retrieval failure, malformed logs or conflicting copies of the same event.
  */
-async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fromBlock: number, toBlock: number): Promise<Log[]> {
-  if (fromBlock > toBlock) return [];
-  const target = kind === "credit" ? suite.escrow
-    : ["trade", "component", "pool"].includes(kind) ? suite.hook : suite.factory;
+async function readLogs(options: FetchOptions, kind: EventKind, targets: string[], fromBlock: number, toBlock: number, cacheInCloud = false): Promise<Log[]> {
+  if (fromBlock > toBlock || !targets.length) return [];
+  const wanted = new Set(targets.map(lower));
   const logs = await options.getLogs({
     // The SDK's RPC fallback needs a non-empty block span even for one-block requests.
-    targets: [target], eventAbi: events[kind], fromBlock: fromBlock === toBlock ? fromBlock - 1 : fromBlock, toBlock,
-    onlyArgs: false, entireLog: true, parseLog: true,
+    targets: [...wanted], eventAbi: events[kind], fromBlock: fromBlock === toBlock ? fromBlock - 1 : fromBlock, toBlock,
+    onlyArgs: false, entireLog: true, parseLog: true, cacheInCloud,
   });
   const unique = new Map<string, Log>();
   for (const log of logs) {
@@ -42,7 +50,7 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
     const address = lower(log.address ?? log.source);
     const transactionHash = log.transactionHash ?? log.transaction_hash;
     if (!log.args || !Number.isInteger(blockNumber) || !Number.isInteger(logIndex)
-      || !transactionHash || address !== target || blockNumber > toBlock) {
+      || !transactionHash || !wanted.has(address) || blockNumber > toBlock) {
       continue;
     }
     if (blockNumber < fromBlock) continue;
@@ -61,48 +69,47 @@ async function readLogs(options: FetchOptions, suite: Suite, kind: EventKind, fr
 }
 
 /**
- * Collect in-window activity and the historical state required to replay its accounting.
+ * Collect in-window activity and historical state for every live suite on this chain.
+ * One getLogs per event kind covers all suite contracts; accounting still splits by address.
  * @param options Fetch context providing cached, contract-scoped log retrieval.
- * @param suite Deployment defining applicable event generations and launch-fee behavior.
+ * @param suites Deployments whose first block is at or before toBlock.
  * @param fromBlock Inclusive first block for fee activity.
  * @param toBlock Inclusive last block for activity and historical state.
  * @returns Window events plus relevant launch, quote, supply and fee-configuration history.
  * @throws On retrieval failure or missing creation history for a traded historical pool.
  */
-async function collectSuite(options: FetchOptions, suite: Suite, fromBlock: number, toBlock: number): Promise<Log[]> {
-  const windowKinds: EventKind[] = ["trade", "credit", "launch"];
-  if (suite.minimal) windowKinds.push("component");
-  if (suite.launchFee !== "none") windowKinds.push(suite.minimal ? "nativeLaunchFee" : "launchFee");
+async function collectSuites(options: FetchOptions, suites: Suite[], fromBlock: number, toBlock: number): Promise<Log[]> {
+  if (!suites.length) return [];
+  /** One call for this kind across the suites that emit it. */
+  const read = (kind: EventKind, group: Suite[], cacheInCloud = false, start = fromBlock) =>
+    readLogs(options, kind, group.map(suite => emitter(kind, suite)), start, toBlock, cacheInCloud);
   let logs: Log[] = [];
-  for (const kind of windowKinds) logs = logs.concat(await readLogs(options, suite, kind, fromBlock, toBlock));
+  for (const kind of ["trade", "credit", "launch"] as EventKind[]) logs = logs.concat(await read(kind, suites));
+  logs = logs.concat(await read("component", suites.filter(suite => suite.minimal)));
+  logs = logs.concat(await read("launchFee", suites.filter(suite => !suite.minimal && suite.launchFee !== "none")));
+  logs = logs.concat(await read("nativeLaunchFee", suites.filter(suite => suite.minimal && suite.launchFee !== "none")));
   if (!logs.length) return [];
 
-  const hasLaunches = logs.some(log => log.kind === "launch");
-  const hasTrades = logs.some(log => log.kind === "trade");
-  if (suite.minimal && hasLaunches) logs = logs.concat(await readLogs(options, suite, "launchBuy", fromBlock, toBlock));
-  // SDK getLogs caches historical ranges and only fills gaps. Old pools and quote state
-  // remain necessary even when the requested hour contains no new launches.
-  const historyKinds: EventKind[] = ["launch"];
-  if (suite.launchFee !== "none" || suite.route !== "standard") {
-    historyKinds.push(suite.minimal ? "minimalQuote" : "quote", suite.minimal ? "minimalUnregister" : "unregister");
-    if (suite.route !== "standard") historyKinds.push("supply");
-    if (suite.minimal) historyKinds.push("tick");
-  }
-  if (hasLaunches && suite.launchFee === "native") historyKinds.push("nativeFeeConfig");
-  if (hasLaunches && suite.launchFee === "quote") historyKinds.push("quoteFeeConfig");
+  const launched = suites.filter(suite => suite.minimal && logs.some(log => log.kind === "launch" && ownedBy(suite)(log)));
+  logs = logs.concat(await read("launchBuy", launched));
+  const active = suites.filter(suite => logs.some(ownedBy(suite)));
+  const needsQuote = (suite: Suite) => suite.launchFee !== "none" || suite.route !== "standard";
+  const suitesWithLaunch = new Set(suites.filter(suite => logs.some(log => log.kind === "launch" && ownedBy(suite)(log))));
+  const suitesWithTrade = new Set(suites.filter(suite => logs.some(log => log.kind === "trade" && ownedBy(suite)(log))));
   logs = logs.filter(log => log.kind !== "launch");
-  for (const kind of historyKinds) logs = logs.concat(await readLogs(options, suite, kind, suite.firstBlock, toBlock));
-  if (!suite.minimal && hasTrades) {
-    // PoolRegistered is emitted in the pool's creation transaction. Read only the
-    // creation-block span of pools trading now, not the entire lifetime of the hook.
-    const tradedPools = new Set(logs.filter(log => log.kind === "trade").map(log => lower(log.args.poolId)));
-    const creations = logs.filter(log => log.kind === "launch" && tradedPools.has(lower(log.args.poolId)));
-    if (creations.length) {
-      const first = creations.reduce((block, log) => Math.min(block, log.blockNumber), toBlock);
-      const last = creations.reduce((block, log) => Math.max(block, log.blockNumber), suite.firstBlock);
-      logs = logs.concat(await readLogs(options, suite, "pool", first, last));
-    }
-  }
+  // History starts at the oldest suite in the group so one cached range covers every target.
+  const history = (kind: EventKind, group: Suite[]) =>
+    group.length ? read(kind, group, true, Math.min(...group.map(suite => suite.firstBlock))) : Promise.resolve([]);
+  logs = logs.concat(await history("launch", active));
+  logs = logs.concat(await history("quote", active.filter(suite => needsQuote(suite) && !suite.minimal)));
+  logs = logs.concat(await history("minimalQuote", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await history("unregister", active.filter(suite => needsQuote(suite) && !suite.minimal)));
+  logs = logs.concat(await history("minimalUnregister", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await history("supply", active.filter(suite => suite.route !== "standard")));
+  logs = logs.concat(await history("tick", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await history("nativeFeeConfig", active.filter(suite => suite.launchFee === "native" && suitesWithLaunch.has(suite))));
+  logs = logs.concat(await history("quoteFeeConfig", active.filter(suite => suite.launchFee === "quote" && suitesWithLaunch.has(suite))));
+  logs = logs.concat(await history("pool", active.filter(suite => !suite.minimal && suitesWithTrade.has(suite))));
   return logs;
 }
 
@@ -178,16 +185,13 @@ const fetch = async (options: FetchOptions) => {
   if (!Number.isInteger(previousBlock) || previousBlock <= 0 || !Number.isInteger(toBlock) || toBlock < previousBlock)
     throw new Error("Invalid o1 Launchpad block interval");
   const fromBlock = previousBlock + 1;
+  const suites = config.suites.filter(suite => suite.firstBlock <= toBlock);
+  const logs = await collectSuites(options, suites, fromBlock, toBlock);
   let fees: Fee[] = [];
-  for (const suite of config.suites) {
-    if (suite.firstBlock > toBlock) continue;
+  for (const suite of suites) {
     const start = Math.max(fromBlock, suite.firstBlock);
-    try {
-      const logs = await collectSuite(options, suite, start, toBlock);
-      if (logs.length) fees = fees.concat(accountSuite(suite, config.cryptoQuotes, logs, start, toBlock));
-    } catch {
-      // Recoverable per-suite RPC/log failures must not fail the other deployments on this chain.
-    }
+    const suiteLogs = logs.filter(ownedBy(suite));
+    if (suiteLogs.length) fees = fees.concat(accountSuite(suite, config.cryptoQuotes, suiteLogs, start, toBlock));
   }
   return addFees(options, fees);
 };
@@ -204,7 +208,7 @@ const revenueBreakdown = Object.fromEntries(markets.flatMap(m => [
 ]));
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
