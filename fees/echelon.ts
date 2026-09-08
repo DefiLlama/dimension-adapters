@@ -38,18 +38,30 @@ const config: Record<string, { fees: (endTimestamp: number, timeframe: string) =
   },
 }
 
-const sumValues = (data: IVolumeall[]) => 
+const sumValues = (data: IVolumeall[]) =>
   data.reduce((partialSum: number, a: IVolumeall) => partialSum + a.value, 0);
-    
+
+// The API returns HTTP 200 `{}` for a valid network on a day with no fee rows
+// (Movement activity has decayed to near zero, so whole days can have no rows),
+// while a removed/invalid network returns HTTP 400 {"error":"Invalid network"},
+// which fetchURL throws on. So an empty object is a zero day, not a broken source;
+// any other unexpected shape still throws.
+const getRows = async (url: string): Promise<IVolumeall[]> => {
+  const res = await fetchURL(url);
+  if (Array.isArray(res?.data)) return res.data;
+  if (res && typeof res === "object" && !Array.isArray(res) && Object.keys(res).length === 0) return [];
+  throw new Error(`Unexpected response shape from ${url}: ${JSON.stringify(res).slice(0, 200)}`);
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const dayFeesQuery = (await fetchURL(config[options.chain].fees(options.toTimestamp, "1D")))?.data;
+  const dayFeesQuery = await getRows(config[options.chain].fees(options.toTimestamp, "1D"));
   const feesValue = sumValues(dayFeesQuery);
   dailyFees.addUSDValue(Number(feesValue), 'Lending Fees');
 
-  const dayRevenueQuery = (await fetchURL(config[options.chain].revenue(options.toTimestamp, "1D")))?.data;
+  const dayRevenueQuery = await getRows(config[options.chain].revenue(options.toTimestamp, "1D"));
   const revenueValue = sumValues(dayRevenueQuery);
   dailyRevenue.addUSDValue(Number(revenueValue), 'Protocol Share');
 

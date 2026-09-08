@@ -35,6 +35,8 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  // DPEX is dead: dpex.io unreachable, llama lists deadUrl, last recorded volume 2023-09-13, TVL $148.
+  deadFrom: '2023-09-14',
   fetch,
   chains: [CHAIN.POLYGON],
   start: '2022-11-04',

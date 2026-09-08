@@ -14,6 +14,8 @@ const fetch: any = async ({ getLogs, }: FetchOptions) => {
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2022-05-21',

@@ -9,11 +9,11 @@ const PRD_ADDR = "SP2VCQJGH7PHP2DJK7Z0V48AGBHQAW3R3ZW1QF4N";
 const PRD = "pool-reserve-data";
 const SENDER = `${PRD_ADDR}.${PRD}`;
 
-const PYTH_URL = "https://hermes.pyth.network/v2/updates/price";
-const PYTH_IDS = {
-  STX: "0xec7a775f46379b5e943c3526b1c8d54cd49749176b0b98e02dde68d1bd335c17",
-  BTC: "0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
-  USDC: "0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
+const LLAMA_PRICES_URL = "https://coins.llama.fi/prices/historical";
+const LLAMA_COIN_KEYS = {
+  STX: "coingecko:blockstack",
+  BTC: "coingecko:bitcoin",
+  USDC: "coingecko:usd-coin",
 };
 const DIA_ORACLE = "SP1G48FZ4Y7JY8G2Z0N51QTCYGBQ6F4J43J77BQC0.dia-oracle";
 const STSTX_RATIO =
@@ -165,14 +165,7 @@ function decodeClarity(hex: string): any {
   return read();
 }
 
-// ─── On-chain price loading ─────────────────────────────────────────────────
-
-function normalizePyth(price: bigint, expo: number): bigint {
-  const adj = expo + 8;
-  if (adj === 0) return price;
-  if (adj > 0) return price * BigInt(10 ** adj);
-  return price / BigInt(10 ** -adj);
-}
+// ─── Price loading ──────────────────────────────────────────────────────────
 
 function encodeStringAscii(s: string): string {
   const b = Array.from(new TextEncoder().encode(s));
@@ -198,23 +191,20 @@ async function hiroCallRead(
 }
 
 async function loadPrices(timestamp: number): Promise<Record<string, bigint>> {
-  const query = Object.values(PYTH_IDS)
-    .map((id) => `ids[]=${id}`)
-    .join("&");
-  const pythData: any = await withRetry(() =>
-    httpGet(`${PYTH_URL}/${timestamp}?${query}`)
+  const keys = Object.values(LLAMA_COIN_KEYS).join(",");
+  const priceData: any = await withRetry(() =>
+    httpGet(`${LLAMA_PRICES_URL}/${timestamp}/${keys}`)
   );
 
-  const pyth: Record<string, bigint> = {};
-  for (const item of pythData.parsed || []) {
-    pyth["0x" + item.id] = normalizePyth(
-      BigInt(item.price.price),
-      Number(item.price.expo)
-    );
-  }
-  const STX = pyth[PYTH_IDS.STX] ?? 0n;
-  const BTC = pyth[PYTH_IDS.BTC] ?? 0n;
-  const USDC = pyth[PYTH_IDS.USDC] ?? PRICE_PRECISION;
+  const toFixedPoint = (name: keyof typeof LLAMA_COIN_KEYS): bigint => {
+    const price = priceData?.coins?.[LLAMA_COIN_KEYS[name]]?.price;
+    if (!Number.isFinite(price))
+      throw new Error(`coins.llama.fi returned no ${name} price for ${timestamp}`);
+    return BigInt(Math.round(price * Number(PRICE_PRECISION)));
+  };
+  const STX = toFixedPoint("STX");
+  const BTC = toFixedPoint("BTC");
+  const USDC = toFixedPoint("USDC");
 
   let USDH = PRICE_PRECISION;
   try {
@@ -461,7 +451,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "Gross borrower interest paid across all Zest V1 reserves, derived by inverting the per-reserve reserve-factor against the protocol's accrued-to-treasury delta (gross = protocol_share * 1e8 / reserve_factor). Prices sourced on-chain via Pyth (STX, BTC, USDC), DIA oracle (USDh), and Stacking DAO stSTX ratio contract.",
+    "Gross borrower interest paid across all Zest V1 reserves, derived by inverting the per-reserve reserve-factor against the protocol's accrued-to-treasury delta (gross = protocol_share * 1e8 / reserve_factor). Prices sourced from DefiLlama's price API (STX, BTC, USDC), DIA oracle (USDh), and Stacking DAO stSTX ratio contract.",
   Revenue:
     "Protocol's share of borrower interest, computed directly as the daily change in the accrued-to-treasury accumulator per reserve.",
   ProtocolRevenue: "Same as Revenue.",

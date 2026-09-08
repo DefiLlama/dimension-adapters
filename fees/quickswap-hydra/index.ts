@@ -56,6 +56,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: "All treasuryFee, poolFee and keeperFee are collected",
   },
+  deadFrom: "2025-09-11",
 };
 
 export default adapter;

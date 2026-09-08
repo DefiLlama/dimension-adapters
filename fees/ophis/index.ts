@@ -1,51 +1,59 @@
-import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { fetchOphisChainDay, ophisChainConfig } from "../../helpers/ophis";
 
-const FEE_RECIPIENT = "0x858f0F5eE954846D47155F5203c04aF1819eCeF8";
-const START = "2026-06-08";
-const SAFE_RECEIVED_EVENT = "event SafeReceived (address indexed sender, uint256 value)"
+const OPHIS_FEES = "Ophis swap fees";
+const OPHIS_REVENUE = "Ophis protocol revenue";
+const COW_HOSTED_SHARE = "CoW Protocol hosted-chain share";
 
 const fetch = async (options: FetchOptions) => {
-  const SafeReceivedLogs = await options.getLogs({
-    target: FEE_RECIPIENT,
-    eventAbi: SAFE_RECEIVED_EVENT,
-  })
+  const row = await fetchOphisChainDay(options);
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  dailyFees.addUSDValue(row?.feesUsd ?? 0, OPHIS_FEES);
+  dailyRevenue.addUSDValue(row?.revenueUsd ?? 0, OPHIS_REVENUE);
+  dailySupplySideRevenue.addUSDValue(row?.supplySideRevenueUsd ?? 0, COW_HOSTED_SHARE);
 
-  const dailyFees = options.createBalances()
-
-  for (const log of SafeReceivedLogs) {
-    dailyFees.addGasToken(log.value, 'Partner Fees')
-  }
-
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
+// Fee policy and hosted-chain share sources:
+// https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/stats-page.ts
+// https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/earnings.ts
 const methodology = {
-  Fees: "Flat partner fee taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet.",
-  Revenue: "All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.",
-  ProtocolRevenue: "All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.",
+  Fees: "Ophis fees assessed on successfully settled Ophis-attributed fills, including the 1 bp base fee and capped price-improvement capture. Values come from Ophis' settlement-fill ledger, are bucketed by settlement date, and are valued in USD by the reporting indexer.",
+  Revenue: "Fees retained by Ophis. Ophis-operated chains retain the full fee; on CoW-hosted chains this is net of CoW Protocol's 25% partner-fee share.",
+  ProtocolRevenue: "Revenue retained by Ophis after CoW Protocol's hosted-chain share.",
+  SupplySideRevenue: "CoW Protocol's 25% share of Ophis fees on CoW-hosted chains; zero on Ophis-operated chains.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    'Partner Fees': 'Flat partner fee taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet.',
+    [OPHIS_FEES]: "Base and capped price-improvement fees assessed on successfully settled Ophis fills.",
   },
   Revenue: {
-    'Partner Fees': 'All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.',
+    [OPHIS_REVENUE]: "Fees retained by Ophis after any hosted-chain share.",
   },
   ProtocolRevenue: {
-    'Partner Fees': 'All flat partner fees taken on every Ophis swap (10 bps standard, 1 bp on stablecoin pairs), measured as gas tokens received by protocol safe wallet is retained by Ophis.',
+    [OPHIS_REVENUE]: "Fees retained by Ophis after any hosted-chain share.",
   },
-}
+  SupplySideRevenue: {
+    [COW_HOSTED_SHARE]: "CoW Protocol's share on CoW-hosted chains.",
+  },
+};
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   methodology,
   breakdownMethodology,
-  start: START,
-  chains: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.BSC, CHAIN.XDAI, CHAIN.POLYGON, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.LINEA, CHAIN.INK, CHAIN.PLASMA],
+  adapter: ophisChainConfig,
 };
 
 export default adapter;

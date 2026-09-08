@@ -700,10 +700,12 @@ const adapters = {
   //   fetch,
   //   start: '2024-04-22'
   // },
-  [CHAIN.THUNDERCORE]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // thundercore halted on 2026-09-01 at block 236120709; the stale-head guard throws on the
+  // block lookup and takes every other chain's record down with it
+  // [CHAIN.THUNDERCORE]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.ZETA]: {
     fetch,
     start: '2024-02-25'

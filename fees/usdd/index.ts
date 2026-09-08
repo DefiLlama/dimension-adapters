@@ -1,4 +1,4 @@
-import sdk from "@defillama/sdk";
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -46,23 +46,18 @@ const TRON_HISTORY_API = "https://app-api.usdd.io/data-platform/collateral-histo
 const toWad = (rad: bigint) => rad / RAY;
 const blockOf = ({ blockNumber, block, block_number }: any) => Number(blockNumber ?? block ?? block_number);
 
-const tronRate = (markets: any[]) => {
-  let debt = 0;
-  let fees = 0;
-
-  markets.forEach(({ curMinted, stabilityFee }) => {
-    const minted = Number(curMinted ?? 0);
-    debt += minted;
-    fees += minted * Number(stabilityFee ?? 0);
-  });
-
-  return debt ? fees / debt : 0;
-};
+const tronAnnualFees = (markets: any[]) =>
+  markets.reduce((sum, { curMinted, stabilityFee }) =>
+    sum + Number(curMinted ?? 0) * Number(stabilityFee ?? 0), 0);
 
 const tronDebt = (items: any[], timestamp: number) => {
   const day = new Date(timestamp * 1000).toISOString().slice(0, 10);
   return Number(items.find((item) => item.time?.startsWith(day))?.debt ?? 0);
 };
+
+const tronLatestSupply = (items: any[]) =>
+  items.reduce((latest, item) =>
+    (item.time ?? '') > (latest?.time ?? '') ? item : latest, items[0]);
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -75,7 +70,12 @@ const fetch = async (options: FetchOptions) => {
     
     const YEAR = 365 * 24 * 3600;
     const timeframe = options.toTimestamp - options.fromTimestamp;
-    const fee = tronDebt(history.data?.items ?? [], options.fromTimestamp) * tronRate(collaterals.data?.items ?? []) * timeframe / YEAR;
+    const items = history.data?.items ?? [];
+    const supplyOnDay = tronDebt(items, options.fromTimestamp);
+    const supplyNow = Number(tronLatestSupply(items)?.debt ?? 0);
+    const annualFees = tronAnnualFees(collaterals.data?.items ?? []);
+    if (!supplyNow) throw new Error('usdd: tron collateral-history returned no dated supply rows');
+    const fee = annualFees * (supplyOnDay / supplyNow) * timeframe / YEAR;
 
     dailyFees.addUSDValue(fee, METRIC.BORROW_INTEREST);
 
@@ -85,18 +85,18 @@ const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain] as any;
 
   const [folds, sells, buys, barks] = await Promise.all([
-    options.getLogs({ target: config.vat, eventAbi: ABI.fold }),
+    options.getLogs({ target: config.vat, eventAbi: ABI.fold, onlyArgs: false }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.sellGem, flatten: true }),
     options.getLogs({ targets: config.psms, eventAbi: ABI.buyGem, flatten: true }),
-    options.getLogs({ target: config.dog, eventAbi: ABI.bark }),
+    options.getLogs({ target: config.dog, eventAbi: ABI.bark, onlyArgs: false }),
   ]);
 
   for (const log of folds) {
-    const rateDelta = BigInt(log.rate ?? 0);
+    const rateDelta = BigInt(log.args.rate ?? 0);
     if (rateDelta <= 0n) continue;
 
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.i] });
+    const [art] = await api.call({ target: config.vat, abi: ABI.vatIlks, params: [log.args.i] });
     const fee = toWad(BigInt(art) * rateDelta);
 
     dailyFees.add(config.usdd, fee, METRIC.BORROW_INTEREST);
@@ -111,8 +111,8 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of barks) {
     const api = new sdk.ChainApi({ chain: options.chain, block: blockOf(log) });
-    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.ilk] });
-    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
+    const [, chop] = await api.call({ target: config.dog, abi: ABI.dogIlks, params: [log.args.ilk] });
+    const penalty = BigInt(chop) > WAD ? toWad(BigInt(log.args.due ?? 0) * (BigInt(chop) - WAD) / WAD) : 0n;
     if (!penalty) continue;
 
     dailyFees.add(config.usdd, penalty, METRIC.LIQUIDATION_FEES);

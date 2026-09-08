@@ -27,7 +27,7 @@ import { addTokensReceived } from "../helpers/token";
  * Volume (notional) for FrenFlow as a Polymarket builder is tracked
  * separately in `factory/polymarket.ts`.
  *
- * Income-statement mapping (per GUIDELINES):
+ * Income-statement mapping (per AGENTS.md):
  *   dailyFees            — gross protocol revenue (Service + Builder)
  *   dailyUserFees        — Service Fees only (atomic, user-paid)
  *   dailyRevenue         — gross profit (no supply-side to reimburse)

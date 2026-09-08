@@ -55,6 +55,8 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions): Promise<
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2022-12-29',

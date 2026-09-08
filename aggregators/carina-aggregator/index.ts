@@ -19,4 +19,5 @@ export default {
       start: "2025-11-03",
     },
   },
+  deadFrom: "2026-06-09",
 };

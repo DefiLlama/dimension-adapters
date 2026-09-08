@@ -111,11 +111,11 @@ async function fetchSolana(options: FetchOptions) {
     sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, options.fromTimestamp),
     sdk.blocks.getBlockNumber(CHAIN.ETHEREUM, options.toTimestamp),
     queryAllium(`
-      SELECT CAST(total_supply AS VARCHAR) AS supply
+      SELECT CAST(amount AS VARCHAR) AS supply
       FROM solana.raw.spl_token_total_supply
       WHERE mint = '${config.token}'
-        AND block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
-      ORDER BY block_timestamp DESC
+        AND snapshot_block_timestamp <= TO_TIMESTAMP_NTZ(${options.toTimestamp})
+      ORDER BY snapshot_block_timestamp DESC
       LIMIT 1
     `).then((res: any[]) => String(res[0]?.supply ?? 0).split(".")[0]),
   ]);

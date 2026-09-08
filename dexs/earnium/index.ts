@@ -41,6 +41,8 @@ const adapter: SimpleAdapter = {
   methodology,
   chains: [CHAIN.APTOS],
   start: '2025-08-10',
+  // earnium.io + api.earnium.io DNS-dead, deadUrl flagged on llama; last nonzero volume 2026-04-07
+  deadFrom: '2026-04-08',
 };
 
 export default adapter;

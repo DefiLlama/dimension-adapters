@@ -60,6 +60,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
+  // Ryze.Fi is dead: last recorded volume 2024-04-16, TVL $6k vs $498k peak, ryze.fi domain now squatted by an unrelated blog.
+  deadFrom: '2024-04-17',
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2023-07-21',

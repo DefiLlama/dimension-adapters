@@ -19,7 +19,7 @@ const fetch: any = async (options: FetchOptions) => {
           account_arguments[7] as token_address
         FROM solana.instruction_calls
         WHERE block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time <= from_unixtime(${options.endTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
         AND executing_account = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o'
         AND outer_executing_account = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o'
         AND bytearray_substring(data, 1, 4) = 0x66063d12
@@ -38,7 +38,7 @@ const fetch: any = async (options: FetchOptions) => {
           outer_instruction_index
         FROM solana.instruction_calls
         WHERE block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time <= from_unixtime(${options.endTimestamp})
+        AND block_time < from_unixtime(${options.endTimestamp})
         AND executing_account = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o'
         AND outer_executing_account = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o'
         AND bytearray_substring(data, 1, 4) = 0x33e685a4
@@ -59,7 +59,7 @@ const fetch: any = async (options: FetchOptions) => {
         FROM solana.instruction_calls ic
         join sell_main_instructions mi on ic.tx_id = mi.tx_id and ic.outer_instruction_index = mi.outer_instruction_index
         WHERE ic.block_time >= from_unixtime(${options.startTimestamp})
-        AND ic.block_time <= from_unixtime(${options.endTimestamp})
+        AND ic.block_time < from_unixtime(${options.endTimestamp})
         AND ic.executing_account = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'
         AND ic.outer_executing_account = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o'
         AND bytearray_substring(ic.data, 1, 1) = 0x0c
@@ -76,7 +76,7 @@ const fetch: any = async (options: FetchOptions) => {
         from prices.usd
         where contract_address = FROM_BASE58('So11111111111111111111111111111111111111112')
         and minute >= from_unixtime(${options.startTimestamp})
-        and minute <= from_unixtime(${options.endTimestamp})
+        and minute < from_unixtime(${options.endTimestamp})
       ),
       txs as (
         SELECT

@@ -34,8 +34,24 @@ interface SwapEventArgs {
     token1: string;
 }
 
-async function prefetch(_options: FetchOptions) {
-    return await getConfig('lsita-dex-marketList', `https://api.lista.org/api/moolah/borrow/marketList?page=1&pageSize=1000`);
+// The market list endpoint silently caps pageSize at 200, so a single request for 1000
+// returns only the first 200 of the markets it reports in `total`.
+const MARKET_PAGE_SIZE = 200;
+
+async function prefetch(_options: FetchOptions): Promise<any> {
+    const marketListUrl = (page: number) =>
+        `https://api.lista.org/api/moolah/borrow/marketList?page=${page}&pageSize=${MARKET_PAGE_SIZE}`;
+
+    const firstPage: MarketResponse = await getConfig('lsita-dex-marketList-1', marketListUrl(1));
+    const list = [...(firstPage.data?.list ?? [])];
+    const pageCount = Math.ceil((firstPage.data?.total ?? 0) / MARKET_PAGE_SIZE);
+
+    for (let page = 2; page <= pageCount; page++) {
+        const nextPage: MarketResponse = await getConfig(`lsita-dex-marketList-${page}`, marketListUrl(page));
+        list.push(...(nextPage.data?.list ?? []));
+    }
+
+    return { ...firstPage, data: { ...firstPage.data, list } };
 }
 
 const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {

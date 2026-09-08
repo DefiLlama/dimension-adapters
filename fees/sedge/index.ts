@@ -114,7 +114,8 @@ const adapter: Adapter = {
     Fees: "Fees are collected from users on each trade.",
     HoldersRevenue: "100% of fees go to liquidity providers.",
     Revenue: "0% of fees go to the protocol.",
-  }
+  },
+  deadFrom: '2025-11-05',
 };
 
 export default adapter;

@@ -1,6 +1,7 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const config = {
     [CHAIN.ARBITRUM]: {
@@ -169,6 +170,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailyUserFees = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const swapLogsOfRouters = await Promise.all(
         routers.map((router: string) =>
@@ -194,15 +196,12 @@ const fetch = async (options: FetchOptions) => {
     );
     chargedSwapFeesLogsOfPools.forEach((chargedSwapFeesLogsOfPool, i) => {
         chargedSwapFeesLogsOfPool.forEach((log: any) => {
-            dailyFees.add(
-                assets[i],
-                log.lpFees + log.backstopFees + log.protocolFees
-            );
-            dailyUserFees.add(
-                assets[i],
-                log.lpFees + log.backstopFees + log.protocolFees
-            );
-            dailyProtocolRevenue.add(assets[i], log.protocolFees);
+            const totalFees = log.lpFees + log.backstopFees + log.protocolFees;
+            dailyFees.add(assets[i], totalFees, METRIC.SWAP_FEES);
+            dailyUserFees.add(assets[i], totalFees, METRIC.SWAP_FEES);
+            dailyProtocolRevenue.add(assets[i], log.protocolFees, METRIC.PROTOCOL_FEES);
+            dailySupplySideRevenue.add(assets[i], log.lpFees, 'Swap Fees To LPs');
+            dailySupplySideRevenue.add(assets[i], log.backstopFees, 'Swap Fees To Backstop Depositors');
         });
     });
 
@@ -211,6 +210,7 @@ const fetch = async (options: FetchOptions) => {
         dailyUserFees,
         dailyRevenue: dailyProtocolRevenue,
         dailyProtocolRevenue,
+        dailySupplySideRevenue,
         dailyVolume,
     };
 };
@@ -218,15 +218,36 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
     Fees: "Users pay between 0.01% and 0.1% fees on each swap.",
     UserFees: "Users pay between 0.01% and 0.1% fees on each swap.",
-    Revenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
-    ProtocolRevenue: "Protocol fees will be allocated to the Nabla DAO Treasury.",
+    Revenue: "The share of each swap fee kept by the protocol, allocated to the Nabla DAO Treasury.",
+    ProtocolRevenue: "The share of each swap fee kept by the protocol, allocated to the Nabla DAO Treasury.",
+    SupplySideRevenue: "The rest of each swap fee, paid to the liquidity providers of the swap pool and to the depositors backstopping it.",
     Volume: "Swap Volume on Nabla AMM.",
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: "Total fee charged on each swap, before it is split between liquidity providers, the backstop pool and the treasury.",
+    },
+    UserFees: {
+        [METRIC.SWAP_FEES]: "Total fee charged on each swap.",
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: "The protocol's share of each swap fee.",
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "The protocol's share of each swap fee, allocated to the Nabla DAO Treasury.",
+    },
+    SupplySideRevenue: {
+        'Swap Fees To LPs': "The share of each swap fee paid to the liquidity providers of the swap pool.",
+        'Swap Fees To Backstop Depositors': "The share of each swap fee paid to depositors in the backstop pool that covers the swap pool.",
+    },
 };
 
 export default {
     version: 2,
     pullHourly: true,
     methodology,
+    breakdownMethodology,
     adapter: {
         [CHAIN.ARBITRUM]: {
             fetch,

@@ -41,10 +41,29 @@ const onchainData: Record<string, Record<string, string>> = {
 
 const NASDAQ_API_URL = "https://api.nasdaq.com/api/quote";
 const STELLAR_API_URL = "https://api.stellar.expert/explorer/public/asset"
-const PYTH_1M_TBILL_YIELD_URL = "https://hermes.pyth.network/v2/updates/price/latest?ids%5B%5D=0x60076f4fc0dfd634a88b5c3f41e7f8af80b403ca365442b81e582ceb8fc421a2";
+//Pyth's Hermes endpoint started requiring an API key on 2026-08-26 and now answers 401, which took
+//this adapter down with it. The rate it served is the US 1 month T-bill yield, which the Treasury
+//publishes itself without a key, in percent, in the daily yield curve.
+const TREASURY_YIELD_CURVE_URL = (year: number) => `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/${year}/all?type=daily_treasury_yield_curve&field_tdr_date_value=${year}&page&_format=csv`;
 const headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36"
 };
+
+//Rows are newest first and the Treasury only publishes on business days, so the first one is the
+//latest available rate. The previous year is the fallback for the first days of January, before
+//that year's file has any rows.
+async function get1MonthTBillYield(year: number): Promise<number> {
+    for (const y of [year, year - 1]) {
+        const csv = await httpGet(TREASURY_YIELD_CURVE_URL(y), { headers, responseType: "text" });
+        const rows = String(csv).split("\n").filter(row => row.trim());
+        if (rows.length < 2) continue;
+        const column = rows[0].split(",").map(name => name.trim().replace(/"/g, "")).indexOf("1 Mo");
+        if (column < 0) continue;
+        const yieldPercent = Number(rows[1].split(",")[column]);
+        if (Number.isFinite(yieldPercent)) return yieldPercent;
+    }
+    throw new Error("Could not read the 1 month yield from the treasury daily yield curve");
+}
 
 async function prefetch(options: FetchOptions): Promise<any> {
     for (const [fund, fundDetails] of offChainData) {
@@ -102,8 +121,8 @@ async function prefetch(options: FetchOptions): Promise<any> {
                 fundDetails.nav = +(result.data.primaryData.lastSalePrice.slice(1));
             }
             if (fundDetails.type === "yield") {
-                const result = await httpGet(PYTH_1M_TBILL_YIELD_URL); //Money market yeilds are almost equivalent to tbill yields
-                fundDetails.netYield = result.parsed[0].price.price / 1e8;
+                //Money market yeilds are almost equivalent to tbill yields
+                fundDetails.netYield = await get1MonthTBillYield(new Date(options.startOfDay * 1000).getUTCFullYear());
             }
 
             if (fundDetails.type === "crypto") {

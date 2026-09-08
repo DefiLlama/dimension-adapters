@@ -8,6 +8,7 @@ const INFT_ADDRESS = "0xa155f12D3Be29BF20b615e1e7F066aE9E3C5239a";
 const LINEA_WETH_ADDRESS = ADDRESSES.linea.WETH;
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 const FEE_VOLUME_MULTIPLIER = 1000 / 2;
+const MAX_VOLUME_THRESHOLD = 1_000_000; // historically it had reached only 350k, and now that it's website is down, anything above 1M is bad data
 
 const fetchTotalFees = async (api: ChainApi): Promise<number> => {
   const pools = await api.fetchList({ lengthAbi: 'allPoolsLength', itemAbi: 'allPools', target: FACTORY_ADDRESS })
@@ -35,11 +36,16 @@ const adapter: SimpleAdapter = {
         const cumulativeFees = await fetchTotalFees(currentApi);
         const lastDayCumulativeFees = await fetchTotalFees(lastDayApi)
 
-        const dailyFees = cumulativeFees - lastDayCumulativeFees
+        let dailyFees = cumulativeFees - lastDayCumulativeFees
+        let dailyVolume = FEE_VOLUME_MULTIPLIER * dailyFees;
+        if (dailyVolume > MAX_VOLUME_THRESHOLD) {
+          dailyVolume = 0;
+          dailyFees = 0;
+        }
 
         return {
           dailyFees: Number(dailyFees).toFixed(0),
-          dailyVolume: Number(FEE_VOLUME_MULTIPLIER * dailyFees).toFixed(0),
+          dailyVolume: Number(dailyVolume).toFixed(0),
         } as unknown as FetchResult;
       },
       start: '2023-08-18', // Aug-18-2023 08:39:25 AM +UTC

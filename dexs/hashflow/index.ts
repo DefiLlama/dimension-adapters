@@ -1,49 +1,59 @@
-import type { BaseAdapter, SimpleAdapter, FetchOptions } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
 
-const chains = [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.ARBITRUM, CHAIN.OPTIMISM, CHAIN.POLYGON, CHAIN.SOLANA]
+// Their api endpoint supports only recent history
+//https://hashflow2.metabaseapp.com/api/public/dashboard/f4b12fd4-d28c-4f08-95b9-78b00b83cf17/dashcard/104/card/97?parameters=%5B%5D
+// RFQ DEX. Pools are factory-created, so enumerate them from the factory's CreatePool
+// events and read each pool's Trade / XChainTrade events.
+const TRADE_EVENT = "event Trade(address trader, address effectiveTrader, bytes32 txid, address baseToken, address quoteToken, uint256 baseTokenAmount, uint256 quoteTokenAmount)";
+const XCHAIN_TRADE_EVENT = "event XChainTrade(uint16 dstChainId, bytes32 dstPool, address trader, bytes32 dstTrader, bytes32 txid, address baseToken, bytes32 quoteToken, uint256 baseTokenAmount, uint256 quoteTokenAmount)";
+const CREATE_POOL_EVENT = "event CreatePool(address pool, address operations)";
 
-const dateToTs = (date: string) => new Date(date).getTime() / 1000
-const normalizeChain = (c: string) => {
-  if (c === "bnb") return CHAIN.BSC
-  if (c === "avalanche") return CHAIN.AVAX
-  if(c === "solana-mainnet") return CHAIN.SOLANA
-  return c
-}
+// factory address + block to start scanning for pools (just before the Sep-2023 deploy)
+const config: Record<string, { factory: string; fromBlock: number }> = {
+  [CHAIN.ETHEREUM]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 17952252 },
+  [CHAIN.ARBITRUM]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 123071231 },
+  [CHAIN.OPTIMISM]: { factory: "0x6D551f4D999faC0984eb75B2B230ba7e7651BdE7", fromBlock: 108445412 },
+  [CHAIN.POLYGON]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 46516155 },
+  [CHAIN.BSC]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 31003016 },
+  [CHAIN.AVAX]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 34137624 },
+  [CHAIN.BASE]: { factory: "0xdE828fdc3F497F16416D1bB645261C7C6a62DAb5", fromBlock: 2850127 },
+};
 
-interface IAPIResponse {
-  data: {
-    rows: [string, string, number][] //[chain, dateString, volume]
-  }
-}
+const fetch = async (options: FetchOptions) => {
+  const { factory, fromBlock } = config[options.chain];
+  const dailyVolume = options.createBalances();
 
-const getStartTime = async (chain: string) => {
-  const response = (await httpGet("https://hashflow2.metabaseapp.com/api/public/dashboard/f4b12fd4-d28c-4f08-95b9-78b00b83cf17/dashcard/104/card/97?parameters=%5B%5D")) as IAPIResponse
-  const startTime = response.data.rows.filter(([c]) => normalizeChain(c) === chain).reduce((acc, [_chain, dateString]) => {
-    const potentialStartTimestamp = dateToTs(dateString)
-    if (potentialStartTimestamp < acc) return potentialStartTimestamp
-    else return acc
-  }, Number.POSITIVE_INFINITY)
-  return startTime
-}
+  const poolLogs = await options.getLogs({
+    target: factory,
+    eventAbi: CREATE_POOL_EVENT,
+    fromBlock,
+    cacheInCloud: true,
+  });
+  const targets = poolLogs.map((log: any) => log.pool);
+
+  // single-chain swaps
+  const trades = await options.getLogs({ targets, eventAbi: TRADE_EVENT });
+  trades.forEach((log: any) => dailyVolume.add(log.baseToken, log.baseTokenAmount));
+
+  // cross-chain source leg (destination only emits XChainTradeFill, no amounts)
+  const xChainTrades = await options.getLogs({ targets, eventAbi: XCHAIN_TRADE_EVENT });
+  xChainTrades.forEach((log: any) => dailyVolume.add(log.baseToken, log.baseTokenAmount));
+
+  return { dailyVolume };
+};
+
+const methodology = {
+  Volume: "Sum of the USD value of the token leaving the settling chain on each Hashflow RFQ swap, read from the Trade and XChainTrade events on Hashflow's pool contracts. Each swap is counted once (the base-token leg), including the source-chain leg of cross-chain swaps.",
+};
 
 const adapter: SimpleAdapter = {
-  adapter: chains.reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: async (options: FetchOptions) => {
-          const response = (await httpGet("https://hashflow2.metabaseapp.com/api/public/dashboard/f4b12fd4-d28c-4f08-95b9-78b00b83cf17/dashcard/104/card/97?parameters=%5B%5D")) as IAPIResponse
-          const vol = response.data.rows.filter(([c]) => normalizeChain(c) === chain).find(([_chain, dateString]) => dateToTs(dateString) === options.startOfDay)
-          return {
-            dailyVolume: vol ? vol[2].toString() : undefined,
-          }
-        },
-        // start: async () => getStartTime(chain),
-      }
-    }
-  }, {} as BaseAdapter)
+  version: 2,
+  fetch,
+  methodology,
+  start: "2023-09-01",
+  pullHourly: true,
+  chains: Object.keys(config).map((chain) => chain),
 };
 
 export default adapter;

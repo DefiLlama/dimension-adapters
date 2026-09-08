@@ -34,6 +34,8 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2023-03-10',

@@ -70,6 +70,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  // BMX wound down: bmx.trade returns HTTP 500, the goldsky stats subgraphs were deleted, fees/volume series ended 2026-01-05, and the token migrated to Boardwalk (BWLK).
+  deadFrom: '2026-01-05',
   version: 2,
   fetch,
   methodology,

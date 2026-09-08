@@ -1,37 +1,91 @@
-import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
 import { METRIC } from "../../helpers/metrics";
+import fetchURL from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 const DTRADE_FEE_WALLET = "0:93C1B918FA90EAC774C9BBEFF0E49742B4BFAC15D49E289A43351782C59A650C";
-const TON_COINGECKO_ID = "the-open-network";
-const DTRADE_EFFECTIVE_FEE_RATE = 0.01;
+
+const toBigInt = (v: any): bigint => {
+  if (v === null || v === undefined) return 0n;
+  if (typeof v === "string") return BigInt(v);
+  if (typeof v === "number") return BigInt(Math.trunc(v));
+  return 0n;
+};
+
+const getInboundComment = (inMsg: any): string => {
+  const decoded = inMsg?.message_content?.decoded;
+  if (typeof decoded?.comment === "string") return decoded.comment;
+  if (typeof decoded?.text === "string") return decoded.text;
+  return "";
+};
+
+const fetchFeeInflows = async (start: number, end: number): Promise<bigint> => {
+  let feeNanoton = 0n;
+
+  let before_lt: string | undefined;
+  let before_hash: string | undefined;
+  let offset = 0;
+  const seen = new Set<string>();
+
+  while (true) {
+    const url =
+      `https://toncenter.com/api/v3/transactions?account=${DTRADE_FEE_WALLET}&start_utime=${start}&end_utime=${end}&limit=1000&offset=${offset}&sort=desc` +
+      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
+
+    let data: any;
+    try {
+      data = await fetchURL(url);
+    } catch (e) {
+      throw new Error(`DTrade: failed to fetch fee wallet transactions: ${e}`);
+    }
+
+    const txs: any[] = data.transactions;
+    if (!txs?.length) break;
+
+    for (const tx of txs) {
+      const key = tx.hash ?? `${tx.lt}:${tx.now}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      if (!tx?.description?.action?.success) continue;
+
+      const inMsg = tx.in_msg;
+      if (!inMsg || inMsg.destination?.toLowerCase() !== DTRADE_FEE_WALLET.toLowerCase()) continue;
+      if (inMsg.bounced) continue;
+
+      const comment = getInboundComment(inMsg).toLowerCase();
+      if (!comment.includes("dtrade")) continue;
+
+      feeNanoton += toBigInt(inMsg.value);
+    }
+
+    if (txs.length < 1000) break;
+
+    const lastTx = txs[txs.length - 1];
+    if (lastTx?.lt == null || lastTx?.hash == null) break;
+
+    before_lt = String(lastTx.lt);
+    before_hash = String(lastTx.hash);
+    offset += 1000;
+
+    await sleep(1000);
+  }
+
+  return feeNanoton;
+};
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  //https://dune.com/queries/5351226
-  const query = `
-    SELECT
-      COALESCE(SUM(CAST(value AS DOUBLE)) / 1e9, 0) AS fee_ton
-    FROM ton.messages
-    WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
-      AND direction = 'in'
-      AND bounced = FALSE
-      AND destination = '${DTRADE_FEE_WALLET}'
-      AND LOWER(comment) LIKE '%dtrade%'
-  `;
-
-  const queryResult = await queryDuneSql(options, query);
-  const feeTon = queryResult[0].fee_ton;
-  // Mirrors the xRocket TON Trading Bots dashboard's DTrade methodology:
-  // inferred volume = collected fees / 1% effective fee rate.
-  const inferredVolumeTon = feeTon / DTRADE_EFFECTIVE_FEE_RATE;
+  const { startTimestamp: start, endTimestamp: end } = options;
+  const feeNanoton = await fetchFeeInflows(start, end);
 
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  dailyFees.addCGToken(TON_COINGECKO_ID, feeTon, METRIC.TRADING_FEES);
-  dailyVolume.addCGToken(TON_COINGECKO_ID, inferredVolumeTon);
+  dailyFees.addGasToken(feeNanoton, METRIC.TRADING_FEES);
+  // Mirrors the xRocket TON Trading Bots dashboard's DTrade methodology:
+  // inferred volume = collected fees / 1% effective fee rate.
+  dailyVolume.addGasToken(feeNanoton * 100n);
 
   return {
     dailyVolume,
@@ -56,12 +110,11 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-10-01",
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   skipBreakdownValidation: true,

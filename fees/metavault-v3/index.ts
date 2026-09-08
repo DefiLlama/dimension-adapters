@@ -54,6 +54,10 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.LINEA, CHAIN.SCROLL],
   start: '2024-03-01',
+  // Neither subgraph can answer: the Scroll one is gone (`deployment u55804/s43740/latest does not
+  // exist`) and the Linea one returns `indexing_error` to every query even though _meta responds.
+  // metavault-v3 is already marked dead in factory/uniSubgraph.ts for the same subgraph.
+  deadFrom: '2024-11-20',
   methodology: {
     Fees: "Fees collected from user trading fees",
   },

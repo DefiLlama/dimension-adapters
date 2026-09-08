@@ -33,6 +33,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: fetchObject,
     [CHAIN.SHIMMER_EVM]: fetchObject,
   },
+  // Both API hosts and the swapline.com apex resolve with no A record. All four chains read the
+  // same two hosts, so none of them can report. Last published point 2024-06-03 ($18,388).
+  deadFrom: '2024-06-04',
 };
 
 export default adapter;

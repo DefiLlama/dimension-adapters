@@ -2,6 +2,7 @@
 WITH
     jitostake_pool_fees AS (
         -- Withdrawal Fees / Rewards Fee / Orphaned Acc Fees from query_4908703 logic
+        -- 6wY8t... is the old manager fee account, replaced by feeeFLL... around 2023-12
         SELECT
             block_date,
             amount / 1e9 AS jitoSOL_amt,
@@ -10,7 +11,10 @@ WITH
             tokens_solana.transfers
         WHERE
             (outer_executing_account = 'SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy' OR outer_executing_account = 'SMPLecH534NA9acpos4G6x7uf3LWbCAwZQE9e8ZekMu')
-            AND (to_token_account = 'feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i' OR to_token_account = '8yoigZfzZ1nNaadumY9uPVD118225UYHTDpmjpr2nrSa')
+            AND (to_token_account = 'feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i' OR to_token_account = '8yoigZfzZ1nNaadumY9uPVD118225UYHTDpmjpr2nrSa' OR to_token_account = '6wY8tM91fQqX6aFgH3W9haPpuXqzHDVhV7HDS31xGwEt')
+            -- exclude balance migrations between fee accounts (e.g. 5941.9 jitoSOL moved
+            -- 6wY8t -> feeeFLL on 2023-12-07 when the manager fee account changed)
+            AND (from_token_account IS NULL OR from_token_account NOT IN ('feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i', '8yoigZfzZ1nNaadumY9uPVD118225UYHTDpmjpr2nrSa', '6wY8tM91fQqX6aFgH3W9haPpuXqzHDVhV7HDS31xGwEt'))
             AND block_date >= FROM_UNIXTIME({{start}})
             AND block_date < FROM_UNIXTIME({{end}})
     ),
@@ -69,7 +73,9 @@ WITH
             AND any_match(t.account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
     )
 SELECT
-    (SELECT COALESCE(SUM(usd_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
+    -- raw jitoSOL amount, priced in the adapter: dune amount_usd is null before 2024 so usd_amt
+    -- cannot cover the old fee account history
+    (SELECT COALESCE(SUM(jitoSOL_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM interceptor_fees) AS interceptor_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM tip_router_fees) AS tip_router_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM bam_mev_tips) AS bam_mev_tips

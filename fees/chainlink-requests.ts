@@ -43,34 +43,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   methodology,
-  version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2023-02-03',
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2023-02-03',
-      // runAtCurrTime: true,
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.POLYGON, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.AVAX],
+  start: '2023-02-03',
   isExpensiveAdapter: true,
 }
 export default adapter;

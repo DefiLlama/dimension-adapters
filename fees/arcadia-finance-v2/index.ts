@@ -37,6 +37,19 @@ const chainConfig: Record<string, ChainConfig> = {
       },
     ],
   },
+  [CHAIN.ROBINHOOD]: {
+    lendingPools: [
+      {
+        address: "0x803ea69c7e87D1d6C86adeB40CB636cC0E6B98E2",
+        underlying: ADDRESSES.robinhood.WETH
+      },
+      {
+        // Robinhood's dollar market is USDG; there is no USDC on the chain.
+        address: "0xf37c0C5996503Fdd2b5CCCE36E659cD30393AE59",
+        underlying: ADDRESSES.robinhood.USDG
+      },
+    ],
+  },
   [CHAIN.UNICHAIN]: {
     lendingPools: [
       {
@@ -95,8 +108,13 @@ const ASSET_MANAGERS = [
   "0x01EDaF0067a10D18c88D2876c0A85Ee0096a5Ac0", // Rebalancer Uniswap V4
 
   // --- CoW Swappers ---
-  "0xc928013A219EC9F18dE7B2dee6A50Ba626811854", // CoW Swapper V1
-  "0xFfC742E68D41389BE9Ef1aFD518F036064DA2Bb6", // CoW Swapper V1.1
+  // Ordered oldest to newest. The address-book keys do not follow that order:
+  // V1.1.1, the newest, is stored under COW_SWAPPER_V1 while the two older ones
+  // are COW_SWAPPER_V1_0 and COW_SWAPPER_V1_1 — which is how V1.1.1 came to be
+  // the one missing here.
+  "0xc928013A219EC9F18dE7B2dee6A50Ba626811854", // CoW Swapper V1.0.0
+  "0xFfC742E68D41389BE9Ef1aFD518F036064DA2Bb6", // CoW Swapper V1.1.0
+  "0xb988a32DeF54821Dde0D7382e8a74f1BE4da1f23", // CoW Swapper V1.1.1 (current)
 ];
 
 // ActionTarget used by manual (non-automated) front-end account actions. It emits
@@ -276,6 +294,9 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.UNICHAIN]: {
       start: "2025-11-28"
+    },
+    [CHAIN.ROBINHOOD]: {
+      start: "2026-08-28"
     }
   },
   methodology,

@@ -8,10 +8,6 @@ const chainConfig: Record<string, { api: string; start: string }> = {
     api: "https://mainnet.zklighter.elliot.ai/api/v1",
     start: "2025-01-17",
   },
-  [CHAIN.ROBINHOOD]: {
-    api: "https://api.rh.lighter.xyz/api/v1",
-    start: "2026-06-26",
-  },
 };
 
 const fetch = async (options: FetchOptions) => {

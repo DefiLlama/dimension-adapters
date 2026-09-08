@@ -36,7 +36,18 @@ const abis = {
   numeraire: 'function NUMERAIRE() view returns (address)',
   getVaultState:
     'function getVaultState(address vault) external view returns ((bool paused, uint8 maxPriceAge, uint16 minUpdateIntervalMinutes, uint16 maxPriceToleranceRatio, uint16 minPriceToleranceRatio, uint8 maxUpdateDelayDays, uint32 timestamp, uint24 accrualLag, uint128 unitPrice, uint128 highestPrice, uint128 lastTotalSupply))',
+  // The newer fee calculators (the ones whose version() answers "2.0") return an 18-word state
+  // with a different field order: word 8 is a timestamp there and the unit price is word 10.
+  // The 11-field struct above decodes such a return without complaining, which is how a unix
+  // timestamp ends up being used as a price. Only paused and unitPrice are read here, so this
+  // one is decoded positionally, and a calculator is treated as new only when this wider decode
+  // succeeds - the old ones return 15 words and fail it.
+  getVaultStateWide:
+    'function getVaultState(address vault) external view returns (uint256[18] state)',
 };
+
+const UNIT_PRICE_INDEX = 8;
+const WIDE_UNIT_PRICE_INDEX = 10;
 
 const PROTOCOL_FEE_RATIO = 0.2;
 
@@ -97,31 +108,32 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
-  const [numeraireTokens, vaultStatesStart, vaultStatesEnd] = await Promise.all(
-    [
-      fromApi.multiCall({
-        abi: abis.numeraire,
-        calls: feeCalculators.map((fc) => ({ target: fc })),
-        permitFailure: true,
-      }),
-      fromApi.multiCall({
-        abi: abis.getVaultState,
-        calls: vaults.map((vault, i) => ({
-          target: feeCalculators[i],
-          params: [vault],
-        })),
-        permitFailure: true,
-      }),
-      toApi.multiCall({
-        abi: abis.getVaultState,
-        calls: vaults.map((vault, i) => ({
-          target: feeCalculators[i],
-          params: [vault],
-        })),
-        permitFailure: true,
-      }),
-    ]
-  );
+  const stateCalls = vaults.map((vault, i) => ({
+    target: feeCalculators[i],
+    params: [vault],
+  }));
+
+  const [
+    numeraireTokens,
+    narrowStatesStart,
+    narrowStatesEnd,
+    wideStatesStart,
+    wideStatesEnd,
+  ] = await Promise.all([
+    fromApi.multiCall({
+      abi: abis.numeraire,
+      calls: feeCalculators.map((fc) => ({ target: fc })),
+      permitFailure: true,
+    }),
+    fromApi.multiCall({ abi: abis.getVaultState, calls: stateCalls, permitFailure: true }),
+    toApi.multiCall({ abi: abis.getVaultState, calls: stateCalls, permitFailure: true }),
+    fromApi.multiCall({ abi: abis.getVaultStateWide, calls: stateCalls, permitFailure: true }),
+    toApi.multiCall({ abi: abis.getVaultStateWide, calls: stateCalls, permitFailure: true }),
+  ]);
+
+  const isWide = vaults.map((_, i) => Boolean(wideStatesStart[i]) && Boolean(wideStatesEnd[i]));
+  const vaultStatesStart = vaults.map((_, i) => (isWide[i] ? wideStatesStart[i] : narrowStatesStart[i]));
+  const vaultStatesEnd = vaults.map((_, i) => (isWide[i] ? wideStatesEnd[i] : narrowStatesEnd[i]));
 
   for (let i = 0; i < vaults.length; i++) {
     const totalSupply = totalSupplies[i];
@@ -141,15 +153,16 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // Skip paused vaults — pricing can be frozen or invalid
-    const isPausedStart = vaultStateStart[0];
-    const isPausedEnd = vaultStateEnd[0];
+    const isPausedStart = Boolean(Number(vaultStateStart[0]));
+    const isPausedEnd = Boolean(Number(vaultStateEnd[0]));
 
     if (isPausedStart || isPausedEnd) {
       continue;
     }
 
-    const unitPriceStart = BigInt(vaultStateStart[8]);
-    const unitPriceEnd = BigInt(vaultStateEnd[8]);
+    const priceIndex = isWide[i] ? WIDE_UNIT_PRICE_INDEX : UNIT_PRICE_INDEX;
+    const unitPriceStart = BigInt(vaultStateStart[priceIndex]);
+    const unitPriceEnd = BigInt(vaultStateEnd[priceIndex]);
 
     const unitPriceDelta = unitPriceEnd - unitPriceStart;
 

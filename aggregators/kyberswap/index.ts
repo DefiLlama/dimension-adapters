@@ -27,6 +27,7 @@ const chainConfig: Record<string, { id: number, start: string, deadFrom?: string
   [CHAIN.ETHERLINK]: { id: 42793, start: '2025-10-02', deadFrom: '2026-02-16' },
   [CHAIN.MONAD]: { id: 143, start: '2025-11-23' },
   [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-09' },
+  [CHAIN.ROBINHOOD]: { id: 4663, start: '2026-07-09' },
 };
 
 const fetch = async (options: FetchOptions) => {

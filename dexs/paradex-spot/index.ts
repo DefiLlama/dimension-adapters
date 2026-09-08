@@ -1,4 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
+import { getConfig } from "../../helpers/cache"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -6,8 +7,9 @@ const API_URL = "https://api.prod.paradex.trade/v1";
 
 
 async function fetchMarkets() {
-  const marketsRes = await fetchURL(`https://api.prod.paradex.trade/v1/markets`);
-  const allMarkets = marketsRes.results || [];
+  const marketsRes = await getConfig('paradex-spot/markets', `https://api.prod.paradex.trade/v1/markets`);
+  const allMarkets = marketsRes?.results;
+  if (!Array.isArray(allMarkets)) throw new Error('Paradex markets config is unavailable');
 
   return allMarkets
     .filter(m => m.asset_kind === 'SPOT' && parseFloat(m.max_order_size) > 0)
@@ -17,7 +19,7 @@ async function fetchMarkets() {
 async function fetchCandles(options: FetchOptions, marketId: string) {
   try {
     const { startTimestamp, endTimestamp, startOfDay } = options;
-    const klineUrl = `${API_URL}/tradingview/history?symbol=${marketId}&resolution=1D&from=${startTimestamp + 1}&to=${endTimestamp}&countback=330&price_kind=mark&request_source=paradex-ui`;
+    const klineUrl = `${API_URL}/tradingview/history?symbol=${marketId}&resolution=1D&from=${startTimestamp}&to=${endTimestamp}&countback=330&price_kind=mark&request_source=paradex-ui`;
     const klineRes: { t?: number[], v?: number[] } = await fetchURL(klineUrl);
 
     if (!klineRes?.t || !klineRes?.v || !Array.isArray(klineRes.t) || !Array.isArray(klineRes.v)) {

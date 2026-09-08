@@ -3,9 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const labels: Record<string, string> = {
-  origination: "Loan Origination Fees",
-  repayment: "Loan Repayment Fees",
-  collateral_claim: "Collateral Claim Fees"
+  origination: "Offerbook Loan Origination Fees",
+  repayment: "Offerbook Loan Repayment Fees",
+  collateral_claim: "Offerbook Collateral Claim Fees"
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -59,11 +59,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const row of rows) {
     if (!row.mint) continue;
     if (row.kind === 'interest') {
-      dailyFees.add(row.mint, row.net, "Borrow Interest");
-      dailySupplySideRevenue.add(row.mint, row.net, "Borrow Interest to Lenders");
+      dailyFees.add(row.mint, row.net, "Offerbook Borrow Interest");
+      dailySupplySideRevenue.add(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
     } else if (row.kind === 'repayment') {
       dailyRevenue.add(row.mint, row.net, labels[row.kind]);
-      dailySupplySideRevenue.subtractToken(row.mint, row.net, "Borrow Interest to Lenders");
+      dailySupplySideRevenue.subtractToken(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
     } else {
       dailyFees.add(row.mint, row.net, labels[row.kind]);
       dailyRevenue.add(row.mint, row.net, labels[row.kind]);
@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'Borrow Interest': 'Total interest paid by borrowers over the full term of repaid loans.',
+      'Offerbook Borrow Interest': 'Total interest paid by borrowers over the full term of repaid loans.',
       [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
@@ -102,7 +102,7 @@ const adapter: SimpleAdapter = {
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
     SupplySideRevenue: {
-      'Borrow Interest to Lenders': '90% of borrow interest is paid to lenders'
+      'Offerbook Borrow Interest To Lenders': '90% of borrow interest is paid to lenders'
     }
   },
 };

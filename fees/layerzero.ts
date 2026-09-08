@@ -128,7 +128,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -142,7 +142,7 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Native token fees paid by users for cross-chain messaging, summed from ExecutorFeePaid and DVNFeePaid events on SendUln302 (V2 default) and SendUln301 (V1-compat through V2 endpoints) across supported chains.",
     Revenue: "ZRO buybacks funded by Stargate ecosystem allocation routed to LayerZero Foundation. LayerZero takes a 0% protocol take rate on messaging fees.",
-    ProtocolRevenue: "ZRO buybacks funded by Stargate ecosystem allocation.",
+    ProtocolRevenue: "LayerZero takes a 0% protocol take rate on messaging fees.",
     HoldersRevenue: "ZRO buybacks distributed to ZRO holders.",
     SupplySideRevenue: "Approximately 100% of messaging fees flow to DVNs and Executors that secure and deliver cross-chain messages.",
   },

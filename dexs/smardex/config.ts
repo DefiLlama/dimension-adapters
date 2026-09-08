@@ -1,0 +1,30 @@
+import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
+
+export const CONFIG = {
+  TOKENS: {
+    USDN: "0xde17a000ba631c5d7c2bd9fb692efea52d90dee2",
+    WSTETH: ADDRESSES.ethereum.WSTETH,
+  },
+  CONTRACTS: {
+    USDN: "0x656cb8c6d154aad29d8771384089be5b5141f01a",
+    DIP_ACCUMULATOR: "0xaebcc85a5594e687f6b302405e6e92d616826e03",
+  },
+};
+
+export const CHAIN_CONFIG = {
+  FACTORIES: {
+    [CHAIN.ARBITRUM]: "0x41A00e3FbE7F479A99bA6822704d9c5dEB611F22",
+    [CHAIN.BASE]: "0xdd4536dD9636564D891c919416880a3e250f975A",
+    [CHAIN.BSC]: "0xA8EF6FEa013034E62E2C4A9Ec1CDb059fE23Af33",
+    [CHAIN.ETHEREUM]: "0xB878DC600550367e14220d4916Ff678fB284214F",
+    [CHAIN.POLYGON]: "0x9A1e1681f6D59Ca051776410465AfAda6384398f",
+  } as Record<string, string>,
+  START_TIMES: {
+    [CHAIN.ARBITRUM]: "2023-07-17",
+    [CHAIN.BASE]: "2023-08-08",
+    [CHAIN.BSC]: "2023-07-17",
+    [CHAIN.ETHEREUM]: "2023-03-09",
+    [CHAIN.POLYGON]: "2023-07-17",
+  } as Record<string, string>,
+};

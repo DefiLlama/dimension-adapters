@@ -22,11 +22,17 @@ const fetch = async (options: FetchOptions) => {
   return { openInterestAtEnd };
 };
 
+const methodology = {
+  OpenInterest:
+    "Single-sided USD notional of open positions across all Strike Finance V2 perpetual markets, from the latest daily snapshot in the requested window.",
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.CARDANO],
   start: "2026-03-19",
+  methodology,
 };
 
 export default adapter;

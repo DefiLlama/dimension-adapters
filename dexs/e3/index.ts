@@ -39,12 +39,14 @@ const fetch: any = async ({ getLogs, api, createBalances }: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+	version: 2,
+	pullHourly: true,
 	fetch,
-	adapter: {
-		[CHAIN.FANTOM]: { start: '2023-04-10', },
-		[CHAIN.ARBITRUM]: { start: '2023-06-11', },
-		[CHAIN.BASE]: { start: '2023-08-09', }
-	}
+	chains: [
+		[CHAIN.FANTOM, { start: '2023-04-10' }],
+		[CHAIN.ARBITRUM, { start: '2023-06-11' }],
+		[CHAIN.BASE, { start: '2023-08-09' }],
+	]
 };
 
 export default adapter;

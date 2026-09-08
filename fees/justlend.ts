@@ -225,6 +225,8 @@ const getDailyEnergyRentalFees = async (
 
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TRON],
   start: '2023-11-19',

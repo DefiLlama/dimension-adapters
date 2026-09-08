@@ -11,8 +11,6 @@ export function isCoreAsset(chain: string, address: string): boolean {
 
 export function addOneToken({ chain, balances, token0, amount0, token1, amount1, label }: { balances: Balances, chain?: string, token0: string, amount0: any, token1: string, amount1: any, label?: string }): any {
   if (!chain) chain = balances.chain
-
-  if (label) console.log(label)
   
   amount0 = normalize(amount0)
   amount1 = normalize(amount1)

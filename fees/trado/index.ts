@@ -54,6 +54,8 @@ const adapter: Adapter = {
       fetch,
     },
   },
+  // trado.one is a GoDaddy parking page, perpgql.trado.one DNS-dead, deadUrl flagged on llama; last nonzero fees 2025-06-24
+  deadFrom: '2025-06-25',
 };
 
 export default adapter;

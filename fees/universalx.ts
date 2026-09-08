@@ -96,7 +96,7 @@ const prefetch = async (options: FetchOptions) => {
               ON t.tx_hash    = u.tx_hash
               AND t.blockchain = u.blockchain
               AND t.block_time >= from_unixtime(${options.startTimestamp})
-              AND t.block_time <= from_unixtime(${options.endTimestamp})
+              AND t.block_time < from_unixtime(${options.endTimestamp})
         GROUP BY u.blockchain
     )
 

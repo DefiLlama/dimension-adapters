@@ -1,34 +1,31 @@
 import { Dependencies, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryAllium } from "../helpers/allium";
+import { queryDuneSql } from "../helpers/dune";
 
 const fetch = async (options: FetchOptions) => {
-    const alliumQuery = `
-    WITH trades AS (
-        SELECT maker AS trader, block_timestamp
-        FROM polygon.predictions.trades
-        WHERE protocol = 'polymarket'
-          AND event_name = 'OrderFilled'
-          AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+    const before = `evt_block_time < from_unixtime(${options.endTimestamp})`
+    const query = `
+    WITH fills AS (
+        SELECT maker, taker, evt_block_time FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled WHERE ${before}
         UNION ALL
-        SELECT taker AS trader, block_timestamp
-        FROM polygon.predictions.trades
-        WHERE protocol = 'polymarket'
-          AND event_name = 'OrderFilled'
-          AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        SELECT maker, taker, evt_block_time FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled WHERE ${before}
+        UNION ALL
+        SELECT maker, taker, evt_block_time FROM polymarket_polygon.CTFExchange_evt_OrderFilled WHERE ${before}
+    ),
+    first_seen AS (
+        SELECT trader, MIN(evt_block_time) AS first_ts
+        FROM fills CROSS JOIN UNNEST(ARRAY[maker, taker]) AS t(trader)
+        GROUP BY trader
     )
-    SELECT
-        COUNT(DISTINCT trader)
-        - COUNT(DISTINCT CASE
-            WHEN block_timestamp < TO_TIMESTAMP_NTZ('${options.startTimestamp}') THEN trader
-          END) AS new_users
-    FROM trades
+    SELECT COUNT(*) AS new_users
+    FROM first_seen
+    WHERE first_ts >= from_unixtime(${options.startTimestamp})
     `;
 
-    const alliumResult = await queryAllium(alliumQuery);
+    const result = await queryDuneSql(options, query);
 
     return {
-        dailyNewUsers: alliumResult[0].new_users,
+        dailyNewUsers: result[0].new_users,
     }
 }
 
@@ -36,7 +33,7 @@ const adapter: SimpleAdapter = {
     version: 1,
     fetch,
     chains: [CHAIN.POLYGON],
-    dependencies: [Dependencies.ALLIUM],
+    dependencies: [Dependencies.DUNE],
     isExpensiveAdapter: true,
     start: "2020-09-30",
 };

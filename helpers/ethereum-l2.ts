@@ -1,7 +1,8 @@
 import ADDRESSES from './coreAssets.json'
 import { Adapter, Dependencies, FetchOptions, ProtocolType } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
-import { queryClickhouse, queryIndexer, toByteaArray } from "../helpers/indexer";
+import { queryClickhouse } from "../helpers/indexer";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
 import { Row } from "@clickhouse/client";
@@ -10,7 +11,11 @@ const feeWallet = '0x4200000000000000000000000000000000000011';
 const l1FeeVault = '0x420000000000000000000000000000000000001a';
 const baseFeeVault = '0x4200000000000000000000000000000000000019';
 
-async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaults: string[], gasToken?: string }) {
+// Sums an OP-stack chain's fee vaults over the day: the balance delta plus anything withdrawn out
+// of them during the window. `withdrawingVaults` narrows which vaults' Withdrawal events are added
+// back, for chains where one vault pays into another and the value never leaves the tracked set;
+// it defaults to every vault, which is the plain OP-stack case.
+export async function getFees(options: FetchOptions, { feeVaults, gasToken, withdrawingVaults }: { feeVaults: string[], gasToken?: string, withdrawingVaults?: string[] }) {
   const { api, fromApi, createBalances, getLogs } = options;
   const balances = createBalances();
   const eventAbi = 'event Withdrawal(uint256 value, address to, address from)'
@@ -18,7 +23,7 @@ async function getFees(options: FetchOptions, { feeVaults, gasToken }: { feeVaul
   await api.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
   await fromApi.sumTokens({ owners: feeVaults, tokens: [ADDRESSES.null] })
 
-  const logs = await getLogs({ targets: feeVaults, eventAbi, })
+  const logs = await getLogs({ targets: withdrawingVaults ?? feeVaults, eventAbi, })
 
   logs.map((log) => {
     if (gasToken)
@@ -42,20 +47,29 @@ export function L2FeesFetcher({
   ethereumWallets: string[];
 }): any {
   	return async (options: FetchOptions) => {
-		const sequencerGas = queryIndexer(`
+		// ethereumWallets holds batch-inbox addresses (matched as to_address) or
+		// batcher/proposer EOAs (matched as from_address), depending on the
+		// chain config — match both sides so either style works.
+		const sequencerWallets = ethereumWallets.map(w => `'${w.toLowerCase()}'`).join(', ');
+		const sequencerGas = queryAllium(`
 				SELECT
-					sum(ethereum.transactions.gas_used * ethereum.transactions.gas_price) AS sum
-				FROM
-					ethereum.transactions
-					INNER JOIN ethereum.blocks ON ethereum.transactions.block_number = ethereum.blocks.number
-				WHERE (to_address IN ${toByteaArray(ethereumWallets)}) AND (block_time BETWEEN llama_replace_date_range);
-					`, options);
+					SUM(receipt_gas_used * receipt_effective_gas_price) AS sequencer_gas
+				FROM ethereum.raw.transactions
+				WHERE (from_address IN (${sequencerWallets}) OR to_address IN (${sequencerWallets}))
+					AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+					AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+			`);
 		const [dailyFees, totalSpentBySequencer] = await Promise.all([getFees(options, { feeVaults, gasToken }), sequencerGas]);
+
+		// SUM() over no matching rows is NULL — treat no matches as zero L1 cost
+		// (revenue = fees)
+		const spentBySequencer = (totalSpentBySequencer as any)?.[0]?.sequencer_gas ?? 0
+
 		const dailyRevenue = dailyFees.clone()
 		if (gasToken)
-		dailyRevenue.addTokenVannila(gasToken, (totalSpentBySequencer as any)[0].sum * -1)
+		dailyRevenue.addTokenVannila(gasToken, spentBySequencer * -1)
 		else
-		dailyRevenue.addGasToken((totalSpentBySequencer as any)[0].sum * -1)
+		dailyRevenue.addGasToken(spentBySequencer * -1)
 		return { dailyFees, dailyRevenue, }
   }
 }
@@ -195,7 +209,7 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		FROM gas.fees
 		WHERE blockchain = '${chainName}'
 			AND block_time >= from_unixtime(${options.startTimestamp})
-			AND block_time <= from_unixtime(${options.endTimestamp})
+			AND block_time < from_unixtime(${options.endTimestamp})
 		),
 		l1_fees_cte AS (
 			SELECT

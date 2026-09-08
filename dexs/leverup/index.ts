@@ -20,6 +20,24 @@ const closeTradeSuccessfulV2Abi =
   'event CloseTradeSuccessfulV2(address indexed user,bytes32 indexed tradeHash, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
 const executeCloseSuccessfulV2Abi =
   'event ExecuteCloseSuccessfulV2(address indexed user,bytes32 indexed tradeHash, uint8 executionType, (uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee) closeInfo, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';
+const openTradeEventV2Tuple =
+  '(address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock, int128 accruedFundingFee, uint128 accruedHoldingFee)';
+const positionOpenUpdateTuple =
+  `(uint8 source, bytes32 sourceHash, uint128 addedQty, uint128 addedEntryPrice, ${openTradeEventV2Tuple} position)`;
+const closeInfoTuple =
+  '(uint128 closePrice, int96 fundingFee, uint96 closeFee, int96 pnl, uint96 holdingFee)';
+const openPositionAbi =
+  `event OpenPosition(address indexed user, bytes32 indexed positionHash, bytes32 indexed sourceHash, ${positionOpenUpdateTuple} update)`;
+const positionIncreasedAbi =
+  `event PositionIncreased(address indexed user, bytes32 indexed positionHash, bytes32 indexed sourceHash, ${positionOpenUpdateTuple} update)`;
+const closePositionAbi =
+  `event ClosePosition(address indexed user, bytes32 indexed positionHash, bytes32 indexed closeHash, uint128 closeQty, ${closeInfoTuple} closeInfo, ${openTradeEventV2Tuple} ot)`;
+const positionDecreasedAbi =
+  `event PositionDecreased(address indexed user, bytes32 indexed positionHash, bytes32 indexed closeHash, uint128 closeQty, ${closeInfoTuple} closeInfo, ${openTradeEventV2Tuple} ot)`;
+const executeDecreaseOrderSuccessfulAbi =
+  `event ExecuteDecreaseOrderSuccessful(address indexed user, bytes32 indexed orderHash, bytes32 indexed positionHash, uint8 kind, uint128 closeQty, ${closeInfoTuple} closeInfo, ${openTradeEventV2Tuple} ot)`;
+const openFeeAbi =
+  'event OpenFee(address indexed token, uint256 totalFee, uint256 daoAmount, uint24 brokerId, uint256 brokerAmount, uint256 LpPoolAmount)';
 const lpRevenueAbi =
   'event LpRevenue(address indexed user,bytes32 indexed tradeHash,address lvToken,uint256 slippageAmount,uint256 liquidationAmount)';
 const interestDistributedAbi =
@@ -37,7 +55,21 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances()
 
-  const [openLogs, closeLogs, executeLogs, lpRevenueLogs, interestLogs, redeemLogs, withdrawalLogs] = await Promise.all([
+  const [
+    openLogs,
+    closeLogs,
+    executeLogs,
+    openPositionLogs,
+    positionIncreasedLogs,
+    closePositionLogs,
+    positionDecreasedLogs,
+    executeDecreaseOrderLogs,
+    openFeeLogs,
+    lpRevenueLogs,
+    interestLogs,
+    redeemLogs,
+    withdrawalLogs,
+  ] = await Promise.all([
     options.getLogs({
       target: LEVERUP_DIAMOND,
       eventAbi: openMarketTradeAbi,
@@ -49,6 +81,30 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       target: LEVERUP_DIAMOND,
       eventAbi: executeCloseSuccessfulV2Abi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: openPositionAbi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: positionIncreasedAbi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: closePositionAbi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: positionDecreasedAbi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: executeDecreaseOrderSuccessfulAbi,
+    }),
+    options.getLogs({
+      target: LEVERUP_DIAMOND,
+      eventAbi: openFeeAbi,
     }),
     options.getLogs({
       target: LEVERUP_DIAMOND,
@@ -89,21 +145,39 @@ const fetch = async (options: FetchOptions) => {
     const entryPrice = parseFloat(log.ot.entryPrice);
 
     const lvToken = log.ot.lvToken;
-    // Use BigInt for fees to match fees adapter logic and maintain precision before adding to balances
-    const openFee = BigInt(log.ot.lvOpenFee);
+    // OpenFee is emitted separately for every leg. Only execution fees are read from
+    // the legacy event because V2 merged-position events expose cumulative fee fields.
     const execFee = BigInt(log.ot.lvExecutionFee);
 
     // Volume = (qty * price) / 1e28
     dailyVolume += (qty * entryPrice) / 1e28;
 
     // Add fees using the helper
-    addFee(dailyFees, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
-    addFee(dailyProtocolRevenue, lvToken, openFee + execFee, METRIC.OPEN_CLOSE_FEES);
+    if (execFee > 0n) {
+      addFee(dailyFees, lvToken, execFee, METRIC.OPEN_CLOSE_FEES);
+      addFee(dailyProtocolRevenue, lvToken, execFee, METRIC.OPEN_CLOSE_FEES);
+    }
+  });
+
+  // V2 merged-position events carry the size and price of the newly added leg.
+  [...openPositionLogs, ...positionIncreasedLogs].forEach((log: any) => {
+    const qty = parseFloat(log.update.addedQty);
+    const entryPrice = parseFloat(log.update.addedEntryPrice);
+    dailyVolume += (qty * entryPrice) / 1e28;
+  });
+
+  // OpenFee is per leg, unlike the cumulative fee fields on a merged position.
+  openFeeLogs.forEach((log: any) => {
+    const openFee = BigInt(log.totalFee);
+    if (openFee > 0n) {
+      addFee(dailyFees, log.token, openFee, METRIC.OPEN_CLOSE_FEES);
+      addFee(dailyProtocolRevenue, log.token, openFee, METRIC.OPEN_CLOSE_FEES);
+    }
   });
 
   // 2. Process Close Events
-  const processCloseLog = (log: any) => {
-    const qty = parseFloat(log.ot.qty);
+  const processCloseLog = (log: any, closeQty: any) => {
+    const qty = parseFloat(closeQty);
     // Use closePrice for volume calculation on close? Or entryPrice?
     // Usually volume is notional value. On close, notional is also qty * closePrice.
     const closePrice = parseFloat(log.closeInfo.closePrice);
@@ -126,8 +200,11 @@ const fetch = async (options: FetchOptions) => {
     }
   };
 
-  closeLogs.forEach(processCloseLog);
-  executeLogs.forEach(processCloseLog);
+  closeLogs.forEach((log: any) => processCloseLog(log, log.ot.qty));
+  executeLogs.forEach((log: any) => processCloseLog(log, log.ot.qty));
+  [...closePositionLogs, ...positionDecreasedLogs, ...executeDecreaseOrderLogs].forEach((log: any) =>
+    processCloseLog(log, log.closeQty)
+  );
 
   // 3. LP Revenue
   lpRevenueLogs.forEach((log: any) => {
@@ -181,7 +258,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.MONAD],
   start: '2025-11-23',
   methodology: {
-    Volume: 'Volume is calculated by summing the notional value (qty * entryPrice) of all OpenMarketTrade events.',
+    Volume: 'Volume is the notional value of opened and closed trade legs. Legacy trades use OpenMarketTrade, CloseTradeSuccessfulV2, and ExecuteCloseSuccessfulV2; V2 merged positions use OpenPosition, PositionIncreased, ClosePosition, PositionDecreased, and ExecuteDecreaseOrderSuccessful.',
     Fees: 'Total fees include perps fees, redeem/withdrawal fees, and InterestDistributed.interest from LVMON events.',
     Revenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',
     ProtocolRevenue: 'Protocol revenue includes all fees except InterestDistributed, where only interestFee is protocol revenue.',

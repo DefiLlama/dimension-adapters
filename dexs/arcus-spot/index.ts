@@ -23,7 +23,7 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.add(log.tokenIn, log.amountIn);
   });
 
-  return { dailyVolume };
+  return { dailyVolume, };
 };
 
 const methodology = {
@@ -35,6 +35,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: chainConfig,
+  start: "2026-07-01",
   methodology,
 };
 

@@ -206,7 +206,6 @@ const fetchSui: any = async (options: FetchOptions): Promise<FetchResultFees> =>
   // Sui message fees are currently set at 0, it can be adjusted with gov in the future.
   // source: https://suiscan.xyz/mainnet/object/0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c/fields
   const dailyFees = options.createBalances()
-  dailyFees.add(ADDRESSES.sui.SUI, 1e9, FEE_LABELS.executor);
 
   const events = await querySuiEvents({
     eventType:
@@ -282,7 +281,7 @@ const fetchSolana: any = async (options: FetchOptions): Promise<FetchResultFees>
             tx_success = true
             AND executing_account = 'worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth'
             AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-            AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+            AND block_time < FROM_UNIXTIME(${options.endTimestamp})
             AND length(data) >= 1
             AND (
               bytearray_substring(data, 1, 1) = 0x01

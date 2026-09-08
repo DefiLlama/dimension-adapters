@@ -49,8 +49,6 @@ const tokens = {
     [CHAIN.BASE]: []
 } as any;
 
-const DEXT = "0xfb7b4564402e5500db5bb6d63ae671302777c75a";
-
 const target_even: any = {
     [CHAIN.ETHEREUM]: [
         '0x4f62c60468A8F4291fec23701A73a325b2540765',
@@ -78,17 +76,29 @@ const fetchEvm = async (options: FetchOptions) => {
     if (tokens[options.chain].length > 0) {
         await addTokensReceived({ options, tokens: tokens[options.chain], targets: target_even[options.chain], balances: dailyFees })
     }
+    // DEXT is a subset of dailyFees on both Ethereum and BSC (on BSC, DEXT is the entire
+    // ERC20 fee stream, see `tokens[CHAIN.BSC]` above) and per methodology is fully burnt,
+    // i.e. it belongs to holders, not the protocol. Track it on both chains and subtract it
+    // out of dailyProtocolRevenue below rather than double-booking it as 100% protocol
+    // revenue. Use the chain-specific DEXT address (Ethereum and BSC have different DEXT
+    // contracts, see `tokens` above) via the plural `tokens` param, not singular `token` -
+    // `_addTokensReceivedIndexer` only forwards `tokens`, so `token` alone silently drops
+    // the filter on the indexer fast path and would sweep in every token received (USDC,
+    // USDT, ...), not just DEXT.
+    const dextForChain = tokens[options.chain][0]
     const dailyHoldersRevenue = options.createBalances();
-    if (options.chain === CHAIN.ETHEREUM)
-        await addTokensReceived({ options, token: DEXT, targets: target_even[options.chain], balances: dailyHoldersRevenue })
+    if (dextForChain && (options.chain === CHAIN.ETHEREUM || options.chain === CHAIN.BSC))
+        await addTokensReceived({ options, tokens: [dextForChain], targets: target_even[options.chain], balances: dailyHoldersRevenue })
     await getETHReceived({ options, balances: dailyFees, targets: target_even[options.chain] })
-    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue }
+    const dailyProtocolRevenue = dailyFees.clone();
+    dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue, dailyHoldersRevenue }
 }
 
 const methodology = {
     Fees: 'All fees paid by users for token profile listing.',
     Revenue: 'All fees collected by DexTools.',
-    ProtocolRevenue: 'All fees collected by DexTools.',
+    ProtocolRevenue: 'All fees collected by DexTools, excluding the DEXT social-update fees that are burnt (see HoldersRevenue).',
     HoldersRevenue: 'All the social update fees paid in DEXT are burnt',
 }
 

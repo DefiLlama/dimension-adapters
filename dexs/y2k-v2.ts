@@ -28,6 +28,8 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions): Promise<F
 };
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2023-05-30',

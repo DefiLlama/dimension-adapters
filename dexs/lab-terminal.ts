@@ -13,8 +13,7 @@ const fetch: any = async (options: FetchOptions) => {
     FROM
       dune.lab_terminal.historical_aggregates_v3
     WHERE
-      snapshot_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
-      AND snapshot_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
+      snapshot_date = CAST(from_unixtime(${options.toTimestamp}) AS DATE)
     LIMIT 1
   `;
 

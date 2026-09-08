@@ -107,7 +107,8 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   fetch,
   chains: [CHAIN.ETHEREUM],
-  start: '2024-09-02'
+  start: '2024-09-02',
+  deadFrom: '2026-03-22', // hacked
 };
 
 export default adapter;

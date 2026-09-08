@@ -7,7 +7,7 @@ const config: Record<string, any> = {
   [CHAIN.BASE]: {contract: '0x9D93e5B2364070bC9837e91833F162430246DD57' },
 }
 
-import { ChainBlocks, FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const abis = {
   "OpenMarketTrade": "event OpenMarketTrade(address indexed user, bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint64 entryPrice, address pairBase, address tokenIn, uint96 margin, uint64 stopLoss, uint64 takeProfit, uint24 broker, bool isLong, uint96 openFee, int256 longAccFundingFeePerShare, uint96 executionFee, uint40 timestamp, uint80 qty, uint40 holdingFeeRate, uint256 openBlock) ot)",
@@ -35,10 +35,12 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   return { dailyVolume }
 };
 
-const adapter: any = {
-  adapter: {},
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: Object.keys(config),
+  start: '2023-08-01',
 };
-
-Object.keys(config).forEach((chain) => adapter.adapter[chain] = { fetch, start: '2023-08-01', });
 
 export default adapter;

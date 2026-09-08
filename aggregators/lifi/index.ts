@@ -1,16 +1,19 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
+const NATIVE = nullAddress
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  if (options.chain === CHAIN.BITCOIN || options.chain === CHAIN.SOLANA) {
-    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, integrators, [], 'same-chain');
+  if (LIFI_API_CHAINS.includes(options.chain as CHAIN)) {
+    // exclude jumper integrators to match the on-chain path (this adapter counts LI.FI ex-Jumper)
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], integrators, 'same-chain');
     return {
       dailyVolume: dailyVolume
     };
@@ -21,6 +24,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
+    maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   })
 
   // count volune only from whitelisted tokens
@@ -35,7 +39,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
   logs.forEach((log: any) => {
     if (!integrators.includes(log.integrator)) {
-      dailyVolume.add(log.fromAssetId, log.fromAmount);
+      // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
+      // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
+      // ERC20 out instead — that amount is measured from the diamond's balance.
+      if (formatAddress(log.fromAssetId) === NATIVE) {
+        dailyVolume.add(log.toAssetId, log.toAmount);
+      } else {
+        dailyVolume.add(log.fromAssetId, log.fromAmount);
+      }
     }
   });
 
@@ -44,11 +55,10 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
   adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
+      [chain]: { fetch, start: LifiDiamonds[chain].start, }
     }
   }, {})
 };

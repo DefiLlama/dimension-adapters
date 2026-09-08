@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from '../../helpers/token';
 import { METRIC } from "../../helpers/metrics";
 
@@ -56,7 +56,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
-    const { autopools } = await fetchURL(`${AUTOFINANCE_API}/${chainId}/gen3`);
+    const { autopools } = await getConfig(`autofinance/${chainId}`, `${AUTOFINANCE_API}/${chainId}/gen3`);
     const autopoolAddresses = autopools.map((autopool: any) => autopool.id);
 
     const feeDetails = await options.api.multiCall({
@@ -100,7 +100,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const yieldForPeriod = (Number(exchangeRatesAfter[index]) - Number(exchangeRatesBefore[index])) * Number(totalSupplies[index]) / 1e18;
 
-        const managmentFeesForPeriod = Number(totalAssets[index]) * feeDetails[index].periodicFeeBps * periodWrtYear / 100;
+        const managmentFeesForPeriod = Number(totalAssets[index]) * feeDetails[index].periodicFeeBps * periodWrtYear / 10000;
 
         dailyFees.add(baseAssetId, managmentFeesForPeriod, METRIC.MANAGEMENT_FEES);
         dailyRevenue.add(baseAssetId, managmentFeesForPeriod, METRIC.MANAGEMENT_FEES);
@@ -108,7 +108,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         const currentNav = +(Number(exchangeRatesAfter[index]) / (10 ** assetDecimals[index])).toFixed(4);
         const isPositivePerformance = (currentNav > feeDetails[index].navPerShareLastFeeMark / 1e4) && (yieldForPeriod > 0);
 
-        const performanceFeesForPeriod = isPositivePerformance ? (yieldForPeriod * feeDetails[index].streamingFeeBps / 100) : 0;
+        const performanceFeesForPeriod = isPositivePerformance ? (yieldForPeriod * feeDetails[index].streamingFeeBps / 10000) : 0;
 
         dailyFees.add(baseAssetId, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(baseAssetId, yieldForPeriod, METRIC.ASSETS_YIELDS);

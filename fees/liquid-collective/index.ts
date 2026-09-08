@@ -31,7 +31,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     abi: 'uint256:totalUnderlyingSupply',
   })
 
-  const dailyLsEthHoldersYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18) * 1e18;
+  // The service fee is charged by minting new lsETH to the collector, not by reducing the
+  // exchange rate, so the rate growth below is already net of it. Gross it back up to get
+  // the total rewards before the fee.
+  const lsEthHoldersYield = (totalUnderlyingSupplyAfter / totalSupplyAfter - totalUnderlyingSupplyBefore / totalSupplyBefore) * (totalSupplyAfter / 1e18) * 1e18;
+  const dailyLsEthHoldersYield = lsEthHoldersYield / (1 - ProtocolFeeRate);
 
   // MEV and execution rewards
   let mevRewards = 0

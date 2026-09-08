@@ -32,21 +32,25 @@ const fetch = async ({ startOfDay, dateString, createBalances }: FetchOptions) =
   const ExternalRewards = day.external_rewards / 1e7
 
   const dailyFees = createBalances()
+  const dailyUserFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
 
   dailyFees.addUSDValue(ProtocolFees + LPFees, 'Token Swap Fees');
   dailyFees.addUSDValue(ExternalRewards, 'External Bribes Rewards');
 
+  // Traders only pay swap fees; bribes are third-party incentives, not user fees.
+  dailyUserFees.addUSDValue(ProtocolFees + LPFees, 'Token Swap Fees');
+
   dailyRevenue.addUSDValue(ProtocolFees, 'Token Swap Fees To Holders');
   dailyRevenue.addUSDValue(ExternalRewards, 'External Bribes Revenue');
 
   dailySupplySideRevenue.addUSDValue(LPFees, 'Token Swap Fees To LPs');
-  
+
   return {
     dailyVolume: day.volume / 1e7,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailySupplySideRevenue,
     dailyRevenue,
     dailyHoldersRevenue: dailyRevenue,
@@ -57,9 +61,9 @@ const fetch = async ({ startOfDay, dateString, createBalances }: FetchOptions) =
 const methodology = {
   Fees: "All fees including 100% of the swap fees and external rewards for AQUA holders.",
   UserFees: "100% of the swap fees",
-  Revenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected",
+  Revenue: "The protocol's 50% share of swap fees plus external bribes, all distributed to AQUA holders who voted for the markets where they were collected",
   ProtocolRevenue: "Share of the fees kept by Aquarius. Currently equals 0.",
-  HoldersRevenue: "50% of the swap fees that are received by the protocol and then distributed between AQUA holders that voted for the markets where these fees have been collected.",
+  HoldersRevenue: "The protocol's 50% share of swap fees plus external bribes, all distributed to AQUA holders who voted for the markets where they were collected.",
   SupplySideRevenue: "50% of the swap fees that are shared with the Aquarius liquidity providers",
 }
 

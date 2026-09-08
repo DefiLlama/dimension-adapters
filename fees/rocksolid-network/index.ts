@@ -131,6 +131,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     pullHourly: true,
+    allowNegativeValue: true, // yields can be negative
 }
 
 export default adapter;

@@ -68,6 +68,7 @@ const adapter: Adapter = {
     },
   },
   methodology,
+  deadFrom: '2025-05-11'
 }
 
 export default adapter;

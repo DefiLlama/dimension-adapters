@@ -22,6 +22,7 @@ const fetch = async (_options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: "2026-07-08",
   adapter: {
     [CHAIN.N1]: {
       fetch,

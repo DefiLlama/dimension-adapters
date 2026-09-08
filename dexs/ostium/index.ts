@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS open_interest
       FROM orders
-      WHERE executed_at <= from_unixtime(${options.endTimestamp})
+      WHERE executed_at < from_unixtime(${options.endTimestamp})
       GROUP BY 1, is_buy
     ),
     latest_oi_per_side AS (
@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
           open_interest,
           row_number() OVER (PARTITION BY is_buy ORDER BY day DESC) AS rn
         FROM oi_daily
-        WHERE day <= from_unixtime(${options.endTimestamp})
+        WHERE day < from_unixtime(${options.endTimestamp})
       )
       WHERE rn = 1
     ),

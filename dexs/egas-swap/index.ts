@@ -13,11 +13,13 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: TOKEN_EXCHANGED_EVENT
   });
 
+  // Each conversion emits two legs: a buy (token into the proxy) and an
+  // offsetting sell (token out). Count only the buy leg to avoid 2x volume.
   for (const log of logs) {
+    if (!log.isBuy) continue;
     const token = (log.tokenAddress as string)?.toLowerCase();
     if (!token) continue;
-    const amount = log.isBuy ? log.fromAmount : log.toAmount;
-    dailyVolume.add(token, amount);
+    dailyVolume.add(token, log.fromAmount);
   }
 
   return { dailyVolume };
@@ -31,8 +33,8 @@ const adapter: SimpleAdapter = {
   start: "2025-06-09",
   methodology: {
     Volume:
-      "Calculates swap volume from the TokenExchanged event emitted by the EGAS Swap proxy. " +
-      "The ERC20 asset side of each swap is counted as volume.",
+      "Swap volume from the TokenExchanged events emitted by the EGAS Swap proxy. " +
+      "Each swap emits two events (the token going in and the token coming out)",
   },
 };
 

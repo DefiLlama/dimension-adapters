@@ -64,8 +64,8 @@ const fetch = async (options: FetchOptions) => {
     }
 
     const dailyRevenue = dailyFees.clone(graphiteTotalPercentage)
-    const dailyProtocolRevenue = dailyRevenue.clone(graphiteProtocolRevenuePercentage)
-    const dailyHoldersRevenue = dailyRevenue.clone(graphiteHoldersRevenuePercentage)
+    const dailyProtocolRevenue = dailyFees.clone(graphiteProtocolRevenuePercentage)
+    const dailyHoldersRevenue = dailyFees.clone(graphiteHoldersRevenuePercentage)
 
     return {
         dailyFees: dailyRevenue,

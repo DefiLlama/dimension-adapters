@@ -6,9 +6,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.METER]: {
-      fetch: getUniV2LogAdapter({ factory: '0x56aD9A9149685b290ffeC883937caE191e193135' }),
+      fetch: getUniV2LogAdapter({ factory: '0x56aD9A9149685b290ffeC883937caE191e193135', revenueRatio: 1, protocolRevenueRatio: 0, holderRevenueRatio: 1 }),
     }
   },
+  pullHourly: true,
 };
 
 export default adapter;

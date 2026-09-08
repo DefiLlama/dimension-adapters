@@ -114,31 +114,26 @@ function getGraphDimensions2({
     const prevTotalVolume = graphResPrevTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
     dailyVolume = totalVolume - prevTotalVolume
 
-    // TOTAL FEES
+    const canDeriveFeesFromVolume = feesPercent?.type === 'volume' && typeof feesPercent.Fees === 'number'
+    let dailyFees: number | undefined
+    try {
+      const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain])
+      const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
-    const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]).catch(_e => {
-      if (totalVolume === undefined || feesPercent?.Fees === undefined)
-        console.error(`Unable to get total fees on ${chain} from graph.`)
-    });
-    const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
+      const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain])
+      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
 
-    // PREV TOTAL FEES
-    const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]).catch(_e => {
-      if (totalVolume === undefined || feesPercent?.Fees === undefined)
-        console.error(`Unable to get total fees on ${chain} from graph.`)
-    });
-    const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
+      if (totalFees === undefined || prevTotalFees === undefined)
+        throw new Error('The subgraph returned an incomplete cumulative fee snapshot')
 
-    const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees
+      dailyFees = totalFees - prevTotalFees
+    } catch (error) {
+      const message = wrapGraphError(error as Error).message
+      if (!canDeriveFeesFromVolume)
+        throw new Error(`Unable to get total fees on ${chain} from graph: ${message}`)
 
-    // const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
-    // const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
-
-    // // PREV TOTAL FEES
-    // const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
-    // const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
-
-    // const dailyFees = (totalFees == undefined && prevTotalFees == undefined) ? undefined : totalFees - prevTotalFees
+      console.error(`Unable to get total fees on ${chain} from graph; deriving fees from volume instead: ${message}`)
+    }
 
     // ts-node --transpile-only cli/testAdapter.ts protocols uniswap
     let response: FetchResultGeneric = {

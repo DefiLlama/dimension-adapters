@@ -24,6 +24,9 @@ const adapter: any = {
       start: '2024-12-9',
     },
   },
+  // api.utyabswap.com is NXDOMAIN and the utyabswap.com apex resolves with no A record. Last
+  // published point 2025-08-26 ($1,994) and TVL is down to $6.
+  deadFrom: '2025-08-27',
 };
 
 export default adapter;

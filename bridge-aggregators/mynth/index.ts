@@ -100,6 +100,9 @@ const adapter: SimpleAdapter = {
   },
   prefetch,
   start: "2025-06-20",
+  // api.novaswap.io serves a *.b-cdn.net certificate now, app.novaswap.io is NXDOMAIN, and the
+  // operator's site no longer mentions the product; last published day was 2026-06-24
+  deadFrom: "2026-06-25",
 };
 
 export default adapter;

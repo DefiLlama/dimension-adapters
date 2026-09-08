@@ -55,7 +55,8 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-    version: 1,
+    version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.ETHEREUM],
     start: '2025-04-15',

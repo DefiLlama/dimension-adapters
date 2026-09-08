@@ -72,6 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     // all perp fees
     dailyFees.add(result.dailyPerpRevenue, 'Perp Fees') // = hyperliquid fees + deployer fees
+    dailyFees.add(result.dailyBuildersRevenue.clone(-1), 'Perp Fees')
     dailyFees.add(result.dailyBuildersRevenue, 'Builder Code Fees')
     // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
 

@@ -74,10 +74,10 @@ const fetch = async (options: FetchOptions) => {
     const result = data[0];
     const gachaTotalSpend = (result.gacha_spend || 0) + (result.gacha_spend1 || 0);
     const gachaNetRevenue = gachaTotalSpend - (result.buyback || 0);
-    dailyFees.add(ADDRESSES.solana.USDC, gachaNetRevenue > 0 ? gachaNetRevenue * 1e6 : 0, 'GACHA_FEES');
-    dailyFees.add(ADDRESSES.solana.USDC, result.luckydraw_fees || 0, 'LUCKYDRAW_FEES');
-    dailyFees.add(ADDRESSES.solana.USDC, result.royalties || 0, 'ROYALTIES');
-    dailyVolume.add(ADDRESSES.solana.USDC, gachaTotalSpend);
+    dailyFees.add(ADDRESSES.solana.USDC, gachaNetRevenue * 1e6, 'GACHA_FEES');
+    dailyFees.add(ADDRESSES.solana.USDC, (result.luckydraw_fees || 0) * 1e6, 'LUCKYDRAW_FEES');
+    dailyFees.add(ADDRESSES.solana.USDC, (result.royalties || 0) * 1e6, 'ROYALTIES');
+    dailyVolume.add(ADDRESSES.solana.USDC, gachaTotalSpend * 1e6);
   }
 
   return {
@@ -116,6 +116,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
+  allowNegativeValue: true,
 }
 
 export default adapter;

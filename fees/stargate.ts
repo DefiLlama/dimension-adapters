@@ -129,46 +129,25 @@ const methodology = {
 }
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   methodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.ARBITRUM]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.AVAX]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.BSC]: {
-      start: '2022-09-01',
-    },
-    // [CHAIN.FANTOM]: {
-    //   start: '2022-09-01',
-    // },
-    [CHAIN.OPTIMISM]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.POLYGON]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.METIS]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.BASE]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.LINEA]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.MANTLE]: {
-      start: '2022-09-01',
-    },
-    [CHAIN.KAVA]: {
-      start: '2022-09-01',
-    },
-  },
+  start: '2022-09-01',
+  chains: [
+    CHAIN.ETHEREUM,
+    CHAIN.ARBITRUM,
+    CHAIN.AVAX,
+    CHAIN.BSC,
+    // CHAIN.FANTOM,
+    CHAIN.OPTIMISM,
+    CHAIN.POLYGON,
+    CHAIN.METIS,
+    CHAIN.BASE,
+    CHAIN.LINEA,
+    CHAIN.MANTLE,
+    CHAIN.KAVA,
+  ],
 };
 
 export default adapter;

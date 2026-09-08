@@ -206,6 +206,12 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     allowNegativeValue: true,
+    // The yield and admin fees booked here are the downstream share of trading
+    // fees earned in the Yield Basis pools, which are Curve pools. dexs/curve
+    // already reports those trading fees, and reports them gross, so counting
+    // this adapter in the aggregates as well would count the same flow twice.
+    // dexs/yield-basis carries the same flag for the volume side of this overlap.
+    doublecounted: true,
 }
 
 export default adapter;

@@ -40,17 +40,35 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances(); // LP share
 
   // 1. Discover all pools (standard + custom) from the factory
-  const poolLogs = await options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: POOL_CREATED, cacheInCloud: true });
-  const customPoolLogs = await options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: CUSTOM_POOL_CREATED, cacheInCloud: true });
-  const pools: string[] = [...new Set([...poolLogs, ...customPoolLogs].map((log: any) => log.pool))];
+  const [poolLogs, customPoolLogs] = await Promise.all([
+    options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: POOL_CREATED, cacheInCloud: true }),
+    options.getLogs({ target: FACTORY, fromBlock: FACTORY_FROM_BLOCK, eventAbi: CUSTOM_POOL_CREATED, cacheInCloud: true }),
+  ]);
+  const poolSet = new Set([...poolLogs, ...customPoolLogs].map((log: any) => log.pool.toLowerCase()));
 
-  // 2. Per-pool Swap logs (volume) and SwapFee logs (per-swap fee rate), index-aligned 1:1 with `pools`
-  const swapLogs = await options.getLogs({ targets: pools, eventAbi: SWAP, flatten: false });
-  const swapFeeLogs = await options.getLogs({ targets: pools, eventAbi: SWAP_FEE, flatten: false });
+  // 2. Chain-wide topic scans for Swap (volume) and SwapFee (per-swap fee rate), filtered to
+  // our pools.
+  const [rawSwapLogs, rawSwapFeeLogs] = await Promise.all([
+    options.getLogs({ noTarget: true, eventAbi: SWAP, entireLog: true }),
+    options.getLogs({ noTarget: true, eventAbi: SWAP_FEE, entireLog: true }),
+  ]);
+
+  // Group by pool, preserving log order
+  const groupByPool = (logs: any[]) => {
+    const byPool = new Map<string, any[]>();
+    for (const log of logs) {
+      const pool = (log.address || log.source).toLowerCase();
+      if (!poolSet.has(pool)) continue;
+      if (!byPool.has(pool)) byPool.set(pool, []);
+      byPool.get(pool)!.push(log.args);
+    }
+    return byPool;
+  };
+  const swapsByPool = groupByPool(rawSwapLogs);
+  const swapFeesByPool = groupByPool(rawSwapFeeLogs);
 
   // 3. Only fetch token pair + fees for pools that traded in this window
-  const activeIndexes = swapLogs.map((logs: any[], i: number) => (logs.length ? i : -1)).filter((i: number) => i >= 0);
-  const activePools = activeIndexes.map((i: number) => pools[i]);
+  const activePools = [...swapsByPool.keys()];
   // These pools all came from the factory's own creation events, so token0/token1/globalState
   // must resolve. Don't permit failures here: a failed call is a transient RPC error, and
   // silently zeroing it would undercount volume/fees for a pool that definitely traded.
@@ -58,14 +76,14 @@ const fetch = async (options: FetchOptions) => {
   const token1s = await options.api.multiCall({ abi: "address:token1", calls: activePools });
   const globalStates = await options.api.multiCall({ abi: GLOBAL_STATE, calls: activePools });
 
-  activeIndexes.forEach((poolIndex: number, k: number) => {
+  activePools.forEach((pool: string, k: number) => {
     const token0 = token0s[k];
     const token1 = token1s[k];
     const gs = globalStates[k];
     const communityFee = Number(gs.communityFee); // 0..1000
     const staticFee = Number(gs.lastFee); // fallback for pools without a dynamic fee
-    const poolSwaps = swapLogs[poolIndex];
-    const poolSwapFees = swapFeeLogs[poolIndex] || [];
+    const poolSwaps = swapsByPool.get(pool)!;
+    const poolSwapFees = swapFeesByPool.get(pool) || [];
 
     poolSwaps.forEach((swap: any, j: number) => {
       const amount0 = BigInt(swap.amount0);

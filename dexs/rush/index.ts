@@ -31,6 +31,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2025-11-07",
   methodology,
+  // stats.rushbot.io is NXDOMAIN and so is the rushbot.io apex. The adapter only ever produced
+  // 24 points, the last on 2025-12-01 ($11), and the protocol no longer reports TVL.
+  deadFrom: '2025-12-02',
 };
 
 export default adapter;

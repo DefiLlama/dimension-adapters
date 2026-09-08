@@ -33,6 +33,8 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions): Promise<FetchR
 
 
 const adapter: Adapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.AVAX],
   start: '2021-11-14',

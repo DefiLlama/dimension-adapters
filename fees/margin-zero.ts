@@ -71,6 +71,8 @@ const fetchFn = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const adapter: SimpleAdapter = {
+  // MarginZero is dead: marginzero.xyz/app return 503, github org emptied, goldsky subgraph deleted, last nonzero fees 2025-04-05, TVL $21k vs $495k peak.
+  deadFrom: '2025-04-06',
   version: 2,
   adapter: {
     [CHAIN.SONIC]: {

@@ -47,6 +47,10 @@ const adapter: SimpleAdapter = {
       [METRIC.PROTOCOL_FEES]: "One-third of total reward distributions retained as Equilibria protocol revenue.",
     },
   },
+  // Pendle replaced vePENDLE with sPENDLE (snapshot 2026-01-29), which made
+  // Equilibria's ePENDLE model obsolete; Equilibria proposed a structured
+  // wind-down and RewardAdded events stopped on 2026-03-25.
+  deadFrom: '2026-03-26',
 };
 
 export default adapter;

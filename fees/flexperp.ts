@@ -67,6 +67,7 @@ const adapter: Adapter = {
   version: 1,
   fetch,
   adapter: chainConfig,
+  deadFrom: "2026-03-05",
 };
 
 export default adapter;

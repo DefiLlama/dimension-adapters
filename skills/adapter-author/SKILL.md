@@ -27,7 +27,7 @@ Then grill-style: one unresolved question at a time, recommend an answer when us
 
 ## Workflow
 
-1. Read `GUIDELINES.md`, `pull_request_template.md`, the relevant category `GUIDELINES.md`, and `adapters/types.ts`.
+1. Read `AGENTS.md`, `pull_request_template.md`, the relevant category `AGENTS.md`, and `adapters/types.ts`.
 2. Apply the repo-fit gate. If it fails, stop and route.
 3. Classify the category and helper/factory choice from `references/patterns.md`.
 4. Inspect representative adapters and the matching helper or factory before writing code. Reuse helpers and factories when the protocol shape matches - that is the default, not an option.

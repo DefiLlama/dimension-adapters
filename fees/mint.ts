@@ -14,6 +14,7 @@ const adapter: Adapter = {
     [CHAIN.MINT]: {
       fetch: L2FeesFetcher({ ethereumWallets }),
       start: '2024-05-17',
+      deadFrom: "2026-04-17"
     },
   },
   protocolType: ProtocolType.CHAIN,

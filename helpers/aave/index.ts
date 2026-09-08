@@ -5,6 +5,7 @@ import {decodeReserveConfig} from "./helper";
 import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
+import { cache } from "@defillama/sdk";
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -35,11 +36,34 @@ const LiquidityIndexDecimals = BigInt(1e27);
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
 
+// The stuck-markets cache records one entry per pool, whose value names the
+// offending reserves in a fixed shape: "SYMBOL: reason", several of them joined
+// by " | ". Every one of the 41 entries in the cache follows it, including
+// awkward ones like "SolvBTC.b", "USDC.e", "oUSDC", "WETH/USDT WLP" and
+// "T-2250_2750-WETH-USDC", none of which contain a colon or a pipe.
+//
+// Returns an empty array for anything it cannot read, which the caller treats as
+// "drop the whole pool", i.e. the behaviour before reserve-level filtering.
+export function parseStuckReserveSymbols(reason: unknown): Array<string> {
+  if (typeof reason !== 'string' || !reason.trim()) return []
+  const symbols = reason
+    .split('|')
+    .map(segment => {
+      const separator = segment.indexOf(':')
+      return separator === -1 ? '' : segment.slice(0, separator).trim()
+    })
+    .filter(Boolean)
+  // A partially parseable reason is not good enough: one unreadable segment
+  // would let its reserve through. Treat the whole thing as unreadable.
+  if (symbols.length !== reason.split('|').length) return []
+  return [...new Set(symbols)]
+}
+
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
   dailySupplySideRevenue: sdk.Balances,
   dailyProtocolRevenue: sdk.Balances,
-}) {
+}, skipReserveSymbols?: Array<string>) {
   // get reserve (token) list which are supported by the lending pool
   const reservesList: Array<string> = await options.fromApi.call({
     target: pool.lendingPoolProxy,
@@ -50,6 +74,36 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   // in this case the market is not exists yet
   if (!reservesList || reservesList.length == 0) {
     return;
+  }
+
+  // Resolve the stuck-reserve symbols the cache names for this pool into reserve
+  // indexes, so only those reserves are dropped instead of the whole pool.
+  //
+  // Deliberately fails closed: if any named symbol cannot be matched to a
+  // reserve on this pool, we skip the entire pool, which is exactly what the
+  // caller did before this existed. So the worst case is the previous
+  // behaviour, never a stuck reserve slipping into the totals.
+  let skipReserveIndexes = new Set<number>()
+  if (skipReserveSymbols?.length && reservesList?.length) {
+    const symbols: Array<string | null> = await options.fromApi.multiCall({
+      abi: 'string:symbol',
+      calls: reservesList,
+      permitFailure: true,
+    })
+    const wanted = new Set(skipReserveSymbols.map(symbol => symbol.trim().toLowerCase()))
+    const matched = new Set<string>()
+    symbols.forEach((symbol, index) => {
+      const normalised = typeof symbol === 'string' ? symbol.trim().toLowerCase() : ''
+      if (normalised && wanted.has(normalised)) {
+        skipReserveIndexes.add(index)
+        matched.add(normalised)
+      }
+    })
+    if (matched.size !== wanted.size) {
+      const unmatched = [...wanted].filter(symbol => !matched.has(symbol))
+      sdk.log(`aave: ${options.chain} ${pool.lendingPoolProxy} could not match stuck reserve symbol(s) ${unmatched.join(', ')}, skipping the whole pool`)
+      return
+    }
   }
 
   // get reserve configs
@@ -81,6 +135,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
 
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
+    if (skipReserveIndexes.has(reserveIndex)) continue
     if (!reserveDataBefore[reserveIndex] || !reserveDataAfter[reserveIndex]) continue
     if (pool.version !== 1 && !reserveConfigs[reserveIndex]) continue
 
@@ -247,12 +302,35 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         let dailyProtocolRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        const aaveInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/aave.json`;
+        const insolventMarketsDetails = await cache.readCache(aaveInsolventMarketsCacheKey, { readFromR2Cache: true });
+        // Keyed by lowercased pool address, value is the cache's reason string.
+        const stuckReasons: Record<string, unknown> = {};
+        for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {})) {
+          stuckReasons[poolAddress.toLowerCase()] = reason;
+        }
+        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+
         for (const pool of config.pools) {
+          const poolAddress = pool.lendingPoolProxy.toLowerCase();
+
+          // Insolvency stays pool-level. A backing gap or unrepayable debt is a
+          // statement about the market as a whole, not about one reserve's rate.
+          if (insolventMarkets.includes(poolAddress)) continue;
+
+          let skipReserveSymbols: Array<string> | undefined;
+          if (poolAddress in stuckReasons) {
+            skipReserveSymbols = parseStuckReserveSymbols(stuckReasons[poolAddress]);
+            // No parseable symbols means we cannot tell which reserves are stuck,
+            // so fall back to dropping the pool the way this did before.
+            if (!skipReserveSymbols.length) continue;
+          }
+
           await getPoolFees(pool, options, {
             dailyFees,
             dailySupplySideRevenue,
             dailyProtocolRevenue,
-          })
+          }, skipReserveSymbols)
         }
 
         return {
@@ -529,28 +607,6 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             dataProvider: '0x96086C25d13943C80Ff9a19791a40Df6aFC08328',
           },
         ],
-      },
-    },
-  },
-  'neverland': {
-    config: {
-      [CHAIN.MONAD]: {
-        start: '2025-11-23',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585',
-            dataProvider: '0xfd0b6b6F736376F7B99ee989c749007c7757fDba',
-          },
-        ],
-      },
-    },
-    global: {
-      methodology: {
-        Fees: 'Interest paid by borrowers, flashloan fees, and liquidation fees.',
-        Revenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
-        SupplySideRevenue: 'Portion of interest distributed to lenders.',
-        ProtocolRevenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
       },
     },
   },
@@ -1356,6 +1412,20 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 3,
             lendingPoolProxy: '0x202FC1FEf70C8a7001f1579518e9288A547C12Ee',
             dataProvider: '0x6da56B769B42952CACA18D37Feda3015FDB2fE67',
+          },
+        ],
+      },
+    },
+  },
+  'oter-fi': {
+    config: {
+      [CHAIN.ROBINHOOD]: {
+        start: '2026-09-04',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x127797f6dBBD03bDDA09A70a8347dcfd1CF598B9',
+            dataProvider: '0xD95D42BAd744821af78da755C6fC012f10ad1824',
           },
         ],
       },

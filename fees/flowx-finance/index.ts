@@ -36,9 +36,12 @@ const fetch = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
     endTime: toTimestamp * 1000,
   });
   const totalFees: IExchangeStats = statsRes.exchangeTotalFeesInPeriod;
-  return {
-    dailyFees: totalFees.totalFees,
-  };
+  const dailyFees = Number(totalFees?.totalFees);
+  if (!Number.isFinite(dailyFees) || dailyFees <= 0)
+    throw new Error(
+      `flowx-finance: api.flowx.finance returned no usable fees (${totalFees?.totalFees}) for ${fromTimestamp}-${toTimestamp}`,
+    );
+  return { dailyFees };
 };
 
 const adapter: SimpleAdapter = {

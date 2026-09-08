@@ -47,6 +47,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SONIC],
   start: '2021-09-02',
+  deadFrom: "2025-12-20",
 };
 
 export default adapter;

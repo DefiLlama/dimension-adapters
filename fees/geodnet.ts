@@ -67,17 +67,12 @@ const fetchSolana = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2023-09-10',
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetchSolana,
-      start: '2024-09-24',
-    }
-  },
+  version: 2,
+  pullHourly: true,
+  chains: [
+    [CHAIN.POLYGON, { fetch, start: '2023-09-10' }],
+    [CHAIN.SOLANA, { fetch: fetchSolana, start: '2024-09-24' }],
+  ],
   methodology: {
     Fees: 'GEODNET receives fees for station access to their RTK network.',
     Revenue: "When GEODNET receives fees for station access, 80% of the fees are used to repurchase GEOD tokens from the open market and remove them from circulation. The remaining 20% supports the foundation's organizational costs.",

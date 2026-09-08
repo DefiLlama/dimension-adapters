@@ -42,6 +42,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 }
 
 const adapter: SimpleAdapter = {
+  // Lexer Markets is dead: app.lexer.markets is down, llama lists deadUrl, last volume 2024-12-03 (matches dexs/lexer-derivatives), TVL $30.
+  deadFrom: '2024-12-03',
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2024-01-09',

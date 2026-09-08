@@ -21,7 +21,8 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.LINEA],
   start: '2023-08-01',

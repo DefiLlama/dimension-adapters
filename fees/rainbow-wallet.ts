@@ -38,6 +38,10 @@ const chainConfig: ChainConfig = {
   [CHAIN.PLUME]: { router: rainbowRouter, duneChain: 'plume', start: '2025-10-14' },
   [CHAIN.RONIN]: { router: rainbowRouter, duneChain: 'ronin', start: '2025-10-14' },
   [CHAIN.MEGAETH]: { router: rainbowRouter, duneChain: 'megaeth', start: '2025-12-02' },
+  [CHAIN.ROBINHOOD]: { router: rainbowRouter, duneChain: 'robinhood', start: '2026-07-10' },
+  [CHAIN.XDAI]: { router: rainbowRouter, duneChain: 'gnosis', start: '2026-03-01' },
+  [CHAIN.ABSTRACT]: { router: rainbowRouter, duneChain: 'abstract', start: '2026-03-01' },
+  [CHAIN.ERA]: { router: rainbowRouter, duneChain: 'zksync', start: '2026-07-17' },
 }
 
 const getRouterValues = (config: ChainConfig) => Object.entries(config)
@@ -70,19 +74,37 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
       VALUES
       ${routerValues}
   ),
+  -- dex.trades has one row per pool hop, so summing it double-counts multi-hop
+  -- routes; dex_aggregator.trades has the full order amount for decoded
+  -- aggregator fills (including split routes)
+  all_trades AS (
+      SELECT blockchain, tx_hash, tx_to, amount_usd, block_date
+      FROM dex.trades
+      WHERE blockchain IN (${duneChainList})
+        AND block_date >= date(from_unixtime(${options.startTimestamp}))
+        AND block_date <= date(from_unixtime(${options.toTimestamp}))
+        AND TIME_RANGE
+      UNION ALL
+      SELECT blockchain, tx_hash, tx_to, amount_usd, block_date
+      FROM dex_aggregator.trades
+      WHERE blockchain IN (${duneChainList})
+        AND block_date >= date(from_unixtime(${options.startTimestamp}))
+        AND block_date <= date(from_unixtime(${options.toTimestamp}))
+        AND TIME_RANGE
+  ),
   eoa_router_trades AS (
       SELECT
-          r.chain,
-          SUM(t.amount_usd)          AS volume,
-          SUM(t.amount_usd * 0.0085) AS fees
-      FROM dex.trades t
-      INNER JOIN routers r
-        ON t.blockchain = r.blockchain
-       AND t.tx_to = r.router
-      WHERE t.blockchain IN (${duneChainList})
-        AND t.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND t.block_date <= date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+          chain,
+          SUM(tx_amount)          AS volume,
+          SUM(tx_amount * 0.0085) AS fees
+      FROM (
+          SELECT r.chain, t.tx_hash, MAX(t.amount_usd) AS tx_amount
+          FROM all_trades t
+          INNER JOIN routers r
+            ON t.blockchain = r.blockchain
+           AND t.tx_to = r.router
+          GROUP BY 1, 2
+      )
       GROUP BY 1
   ),
 
@@ -96,32 +118,32 @@ const PRE_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =>
         AND tf.tx_from = tf.tx_to
         AND tf.block_date >= DATE '${SMART_WALLET_START}'
         AND tf.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND tf.block_date <= date(from_unixtime(${options.endTimestamp}))
+        AND tf.block_date <= date(from_unixtime(${options.toTimestamp}))
         AND TIME_RANGE
   ),
 
   smart_wallet_trades AS (
       SELECT
-          s.chain,
-          SUM(t.amount_usd)          AS volume,
-          SUM(t.amount_usd * 0.0085) AS fees
-      FROM dex.trades t
-      INNER JOIN smart_wallet_validated s
-        ON t.blockchain = s.blockchain
-       AND t.tx_hash = s.tx_hash
-      WHERE t.blockchain IN (${duneChainList})
-        AND t.block_date >= DATE '${SMART_WALLET_START}'
-        AND t.block_date >= date(from_unixtime(${options.startTimestamp}))
-        AND t.block_date <= date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+          chain,
+          SUM(tx_amount)          AS volume,
+          SUM(tx_amount * 0.0085) AS fees
+      FROM (
+          SELECT s.chain, t.tx_hash, MAX(t.amount_usd) AS tx_amount
+          FROM all_trades t
+          INNER JOIN smart_wallet_validated s
+            ON t.blockchain = s.blockchain
+           AND t.tx_hash = s.tx_hash
+          WHERE t.block_date >= DATE '${SMART_WALLET_START}'
+          GROUP BY 1, 2
+      )
       GROUP BY 1
   ),
 
   relay_bridge AS (
       SELECT
           r.chain,
-          SUM(rb.usd_vol)          AS volume,
-          SUM(rb.usd_vol) * 0.0025 AS fees
+          SUM(rb.usd_vol)  AS volume,
+          SUM(rb.fee_usd)  AS fees
       FROM dune.rainbowdotme.result_rainbow_relay_tx rb
       INNER JOIN routers r
         ON rb.origin = r.blockchain
@@ -181,8 +203,8 @@ const POST_APRIL_SQL = (options: FetchOptions, activeChainConfig: ChainConfig) =
   relay_bridge AS (
       SELECT
           r.chain,
-          SUM(rb.usd_vol)          AS volume,
-          SUM(rb.usd_vol) * 0.0025 AS fees
+          SUM(rb.usd_vol)  AS volume,
+          SUM(rb.fee_usd)  AS fees
       FROM dune.rainbowdotme.result_rainbow_relay_tx rb
       INNER JOIN routers r
         ON rb.origin = r.blockchain
@@ -238,23 +260,23 @@ const fetch: any = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "0.85% fees from trading volume and 0.25% fees from bridge relaying volume",
-  Revenue: "0.85% revenue from trading volume and 0.25% revenue from bridge relaying volume",
-  ProtocolRevenue: "0.85% protocol revenue from trading volume and 0.25% protocol revenue from bridge relaying volume",
+  Fees: "0.85% fees from trading volume, plus the bridge relaying fee charged on each bridge transfer",
+  Revenue: "0.85% revenue from trading volume, plus the bridge relaying fee charged on each bridge transfer",
+  ProtocolRevenue: "0.85% protocol revenue from trading volume, plus the bridge relaying fee charged on each bridge transfer",
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is fees",
-    'Bridge Fees': "0.25% of the volume is fees",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   },
   Revenue: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is revenue",
-    'Bridge Fees': "0.25% of the volume is revenue",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   },
   ProtocolRevenue: {
     [METRIC.SWAP_FEES]: "0.85% of the volume is protocol revenue",
-    'Bridge Fees': "0.25% of the volume is protocol revenue",
+    'Bridge Fees': "the relaying fee charged on each bridge transfer",
   }
 }
 

@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HAVEN1],
   start: '2025-04-24',
   methodology,
+  deadFrom: "2025-11-15",
 };
 
 export default adapter;

@@ -33,8 +33,23 @@ interface VaultConfig {
 const PLASMA_USDT0 = "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb";
 const PLASMA_YZUSD = "0x6695c0f8706c5ace3bdf8995073179cca47926dc";
 const MONAD_USD = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // yzPrime asset()
+const ETHEREUM_USDC = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
 
 const chainConfig: Record<string, { start: string, vaults: VaultConfig[] }> = {
+  [CHAIN.ETHEREUM]: {
+    start: "2026-07-18",
+    vaults: [
+    {
+      vault: "0x224e90591a2d63fb66e677d0561ea4a6ad1f098d", // yzCash
+      underlying: ETHEREUM_USDC,
+      label: "yzCash Yield To Holders",
+    },
+    {
+      vault: "0xc9854f2af89d4d26837004d1e154bd3c3c1009b1", // yzSyrup
+      underlying: ETHEREUM_USDC,
+      label: "yzSyrup Yield To Holders",
+    },
+  ]},
   [CHAIN.PLASMA]: {
     start: "2025-08-01",
     vaults: [

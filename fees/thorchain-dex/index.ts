@@ -4,17 +4,19 @@ import { httpGet } from "../../utils/fetchURL";
 
 // Start dates are each chain's first trading day on THORChain, taken from the first non-zero day in
 // raynalytics swap-volume-fees-by-chain (ETH/BTC/LTC = genesis; the rest are when their pools went live).
-const chainConfig = {
+const chainConfig: Record<string, { start: string; symbol: string, deadFrom?: string, extraSymbols?: string[] }> = {
   [CHAIN.ETHEREUM]: { start: '2021-04-11', symbol: 'ETH' },
   [CHAIN.BITCOIN]: { start: '2021-04-11', symbol: 'BTC' },
   [CHAIN.LITECOIN]: { start: '2021-04-11', symbol: 'LTC' },
   [CHAIN.DOGE]: { start: '2022-01-16', symbol: 'DOGE' },
   // dead: Terra Classic collapsed, no THORChain swaps after 2022-05-10. Kept for historical data; returns 0 since.
   [CHAIN.TERRA]: { start: '2022-03-24', deadFrom: '2022-05-10', symbol: 'TERRA' },
-  // Binance Beacon Chain (feed "BNB", dead 2024-03-25) omitted: no DefiLlama chain key for it (CHAIN.BSC is Binance Smart Chain).
   [CHAIN.COSMOS]: { start: '2022-07-05', symbol: 'GAIA' },
   [CHAIN.AVAX]: { start: '2022-09-23', symbol: 'AVAX' },
-  [CHAIN.BSC]: { start: '2023-09-10', symbol: 'BSC' },
+  // Binance Beacon Chain (feed "BNB", traded 2021-04-11..2024-03-25, ~$8.35M lifetime swap fees) has no
+  // DefiLlama chain key, so its pools are attributed to BSC. Start is BNB's first trading day; native BSC
+  // pools only start 2023-09-10.
+  [CHAIN.BSC]: { start: '2021-04-11', symbol: 'BSC', extraSymbols: ['BNB'] },
   [CHAIN.BITCOIN_CASH]: { start: '2021-04-11', symbol: 'BCH' },
   [CHAIN.BASE]: { start: '2025-01-08', symbol: 'BASE' },
   [CHAIN.THORCHAIN]: { start: '2021-04-11', symbol: 'THOR' },
@@ -82,17 +84,18 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const fetch: any = async (options: FetchOptions) => {
   const startOfDay = options.startOfDay;
   const chainShortName = chainConfig[options.chain].symbol;
+  // Feed symbols this DefiLlama chain claims (e.g. bsc covers both BSC and the dead BNB Beacon Chain).
+  const chainSymbols = new Set([chainShortName, ...(chainConfig[options.chain].extraSymbols || [])]);
   const earningsUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/earnings?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
-  // Official Midgard reserve history via the Liquify gateway (full daily history; same fields as before).
-  const reserveUrl = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/reserve?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
-  // Per-chain daily swap volume, full history. Used only to split the network-level outbound fee across
-  // chains by activity share. Different host (no date param), fetched once and reused for every chain.
+  // Daily fee components in USD (gross OUTBOUND_FEE, SLASHING_FEE, ...), full history.
+  const incomeExpensesUrl = `https://raynalytics.net/api/income-expenses`;
+  // Per-chain daily swap volume, full history. Used only to split the network-level outbound/slashing fees
+  // across chains by activity share. Different host (no date param), fetched once and reused for every chain.
   const volumeByChainUrl = `https://raynalytics.net/api/swap-volume-fees-by-chain`;
 
   const earnings = await fetchCacheURL(earningsUrl);
   await sleep(3000);
-  const revenue = await fetchCacheURL(reserveUrl);
-  await sleep(2000);
+  const incomeExpenses = await fetchCacheURL(incomeExpensesUrl);
   const volumeByChain = await fetchCacheURL(volumeByChainUrl);
 
   // Affiliate (interface/wallet) fees only apply to the THOR native chain. Sourced from raynalytics
@@ -105,32 +108,40 @@ const fetch: any = async (options: FetchOptions) => {
   }
 
   const selectedEarningInterval = findInterval(startOfDay, earnings.intervals);
-  const selectedRevenueInterval = findInterval(startOfDay, revenue.intervals);
 
-  const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => assetFromString(pool.pool)?.chain === chainShortName);
+  const poolsByChainEarnings: Pool[] = selectedEarningInterval.pools.filter((pool: any) => chainSymbols.has(assetFromString(pool.pool)?.chain as string));
 
   const runePriceUSD = Number(selectedEarningInterval.runePriceUSD || 0);
   // RUNE amounts are in 1e8 base units; values here are USD fees in the thousands, well within JS precision.
   const toUSD = (runeBaseUnits: any) => (Number(runeBaseUnits) || 0) / 1e8 * runePriceUSD;
   const sumVolume = (rows: any[]) => rows.reduce((acc: number, r: any) => acc + (r.USD_VOLUME || 0), 0);
 
-  // Net outbound (network) fee kept by the protocol: outbound gas charged minus gas reimbursed. It is a single
-  // network-wide reserve figure, so we split it across chains by each chain's share of that day's swap volume.
+  // Gross outbound and slashing fees (USD) paid into the Reserve, from raynalytics. Fees must be gross: the old
+  // Midgard gasFeeOutbound - gasReimbursement figure was net of gas reimbursed to nodes. NETWORK_FEE (native
+  // 0.02 RUNE tx fee) is excluded here - it is already counted in the thorchain CHAIN fees adapter. These are
+  // network-wide figures, so we split them across chains by each chain's share of that day's swap volume.
   // The denominator is restricted to the chains we track, so the shares re-normalise to 1 and the network-wide
-  // outbound total is preserved.
+  // total is preserved.
   const dateStr = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const netOutboundRune = Number(selectedRevenueInterval?.gasFeeOutbound || 0) - Number(selectedRevenueInterval?.gasReimbursement || 0);
+  const incomeRow = incomeExpenses.find((r: any) => r.DAY.slice(0, 10) === dateStr);
 
-  const trackedSymbols = new Set(Object.values(chainConfig).map((c: any) => c.symbol));
+  const trackedSymbols = new Set(Object.values(chainConfig).flatMap((c: any) => [c.symbol, ...(c.extraSymbols || [])]));
   const dayVolumeRows = volumeByChain.filter((r: any) => r.DATE.slice(0, 10) === dateStr && trackedSymbols.has(r.CHAIN));
   const totalVolume = sumVolume(dayVolumeRows);
-  // Outbound fee is split by swap-volume share. When there is no volume (e.g. exchange halt 2026-05-16..2026-06-21,
+  // Split by swap-volume share. When there is no volume (e.g. exchange halt 2026-05-16..2026-06-21,
   // or raynalytics feed gap) fall back to 0 rather than attributing across chains.
   const volumeShare = totalVolume
-    ? sumVolume(dayVolumeRows.filter((r: any) => r.CHAIN === chainShortName)) / totalVolume
+    ? sumVolume(dayVolumeRows.filter((r: any) => chainSymbols.has(r.CHAIN))) / totalVolume
     : 0;
 
-  const outboundFee = Math.max(0, toUSD(netOutboundRune) * volumeShare);
+  const outboundFee = Math.max(0, Number(incomeRow?.OUTBOUND_FEE || 0) * volumeShare);
+  const slashingFee = Math.max(0, Number(incomeRow?.SLASHING_FEE || 0) * volumeShare);
+  // EXPENSES = outbound gas the Reserve reimburses to nodes (verified vs Midgard gasReimbursement). It is paid
+  // out of the gross outbound fee to nodes, so it is supply-side; the protocol keeps outbound minus this.
+  // Capped at the outbound fee so the protocol-kept remainder never goes negative and Fees = Revenue +
+  // SupplySideRevenue holds exactly.
+  const gasReimbursement = Math.min(Number(incomeRow?.EXPENSES || 0), Number(incomeRow?.OUTBOUND_FEE || 0)) * volumeShare;
+  const outboundToProtocol = outboundFee - gasReimbursement;
 
   // Network-wide Incentive Pendulum split of system income between nodes (RUNE bonders) and LPs. We apply this
   // ratio to the chain's actual swap fees, so RUNE block-reward emissions are excluded from fees/revenue.
@@ -169,41 +180,53 @@ const fetch: any = async (options: FetchOptions) => {
 
   // Emit each component under its own label so the breakdown is itemized in the UI.
   // Only the RUNE burn accrues to every RUNE holder -> holders. The node-bonder (security) share, the LP
-  // share, affiliate (integrator) fees and TCY rewards all pay suppliers -> supply. Outbound fee and the
-  // developer/marketing funds are kept by the protocol -> protocol.
+  // share, affiliate (integrator) fees, TCY rewards and the gas reimbursed to nodes all pay suppliers ->
+  // supply. The protocol-kept outbound remainder, slashing and the developer/marketing funds -> protocol.
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(swapFees, 'Swap Fees');
   dailyFees.addUSDValue(outboundFee, 'Outbound Fees');
+  dailyFees.addUSDValue(slashingFee, 'Slashing Fees');
   dailyFees.addUSDValue(affiliateFees, 'Affiliate Fees');
+
+  // Slashing is paid by misbehaving nodes, not users, so it is excluded from user fees.
+  const dailyUserFees = options.createBalances();
+  dailyUserFees.addUSDValue(swapFees, 'Swap Fees');
+  dailyUserFees.addUSDValue(outboundFee, 'Outbound Fees');
+  dailyUserFees.addUSDValue(affiliateFees, 'Affiliate Fees');
 
   // RUNE-holder value is only the RUNE burn - the single component that accrues to every RUNE holder.
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.addUSDValue(burn, 'RUNE Burn');
 
   // Supply-side value: the node-operator (RUNE bonder) share is a security cost, the LP share pays
-  // liquidity providers, affiliate fees pass through to integrators, and TCY rewards pay TCY stakers.
+  // liquidity providers, affiliate fees pass through to integrators, TCY rewards pay TCY stakers, and the
+  // gas reimbursement covers nodes' outbound gas costs.
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.addUSDValue(nodeRevenue, 'Swap Fees To RUNE Bonders');
   dailySupplySideRevenue.addUSDValue(lpRevenue, 'Swap Fees To LPs');
   dailySupplySideRevenue.addUSDValue(affiliateFees, 'Affiliate Fees To Integrators');
   dailySupplySideRevenue.addUSDValue(tcy, 'TCY Staker Rewards');
+  dailySupplySideRevenue.addUSDValue(gasReimbursement, 'Gas Reimbursement');
 
-  // Revenue = protocol-kept income (outbound + dev + marketing) + the RUNE burn. The node-bonder share is a
-  // security cost and the LP/affiliate/TCY shares pay suppliers, so none of those count as revenue.
+  // Revenue = protocol-kept income (outbound net of gas reimbursement + slashing + dev + marketing) + the RUNE
+  // burn. The node-bonder share is a security cost and the LP/affiliate/TCY shares pay suppliers, so none of
+  // those count as revenue.
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addUSDValue(outboundFee, 'Outbound Fees To Protocol');
+  dailyProtocolRevenue.addUSDValue(outboundToProtocol, 'Outbound Fees');
+  dailyProtocolRevenue.addUSDValue(slashingFee, 'Slashing Fees');
   dailyProtocolRevenue.addUSDValue(dev, 'Developer Fund');
   dailyProtocolRevenue.addUSDValue(marketing, 'Marketing Fund');
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addUSDValue(burn, 'RUNE Burn');
-  dailyRevenue.addUSDValue(outboundFee, 'Outbound Fees To Protocol');
+  dailyRevenue.addUSDValue(outboundToProtocol, 'Outbound Fees');
+  dailyRevenue.addUSDValue(slashingFee, 'Slashing Fees');
   dailyRevenue.addUSDValue(dev, 'Developer Fund');
   dailyRevenue.addUSDValue(marketing, 'Marketing Fund');
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -212,33 +235,40 @@ const fetch: any = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools, the protocol's net outbound (network) fee, and affiliate fees charged by interfaces/wallets (affiliate fees are attributed to the THORChain native chain). RUNE block-reward emissions are excluded.",
-  UserFees: "All swap, outbound and affiliate fees paid by users when swapping through THORChain.",
-  Revenue: "The 5% of swap fees burned as RUNE (value to all RUNE holders) plus protocol-kept income (net outbound network fee, developer fund and marketing fund). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
-  ProtocolRevenue: "Income kept by the protocol: the net outbound network fee plus the 5% developer fund and 5% marketing fund taken from swap fees.",
+  Fees: "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools, gross outbound fees and slashing fees paid into the Reserve, and affiliate fees charged by interfaces/wallets (affiliate fees are attributed to the THORChain native chain). RUNE block-reward emissions and the native tx fee (counted in the THORChain chain fees adapter) are excluded.",
+  UserFees: "All swap, outbound and affiliate fees paid by users when swapping through THORChain (slashing is paid by nodes, not users).",
+  Revenue: "The 5% of swap fees burned as RUNE (value to all RUNE holders) plus protocol-kept income (outbound fees net of the gas reimbursed to nodes, slashing fees, developer fund and marketing fund). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
+  ProtocolRevenue: "Income kept by the protocol: outbound fees net of the gas reimbursed to nodes, slashing fees paid into the Reserve, plus the 5% developer fund and 5% marketing fund taken from swap fees.",
   HoldersRevenue: "Value to RUNE holders: the 5% of swap fees burned as RUNE (permanently removed from supply), the only component that accrues to every RUNE holder.",
-  SupplySideRevenue: "Value paid to suppliers: the node-operator (RUNE bonder) share of swap fees set by the Incentive Pendulum (a security cost), the liquidity-provider share of swap fees (LP side of the Incentive Pendulum), affiliate fees passed through to integrators, and the 10% of swap fees paid to TCY stakers.",
+  SupplySideRevenue: "Value paid to suppliers: the node-operator (RUNE bonder) share of swap fees set by the Incentive Pendulum (a security cost), the liquidity-provider share of swap fees (LP side of the Incentive Pendulum), affiliate fees passed through to integrators, the 10% of swap fees paid to TCY stakers, and the outbound gas costs reimbursed from the Reserve to nodes.",
 };
+
+const outboundNote = "Gross outbound fees charged to users and paid into the Reserve, a network-level figure split across chains by each chain's share of daily swap volume.";
+const outboundNetNote = "Outbound fees kept by the protocol: gross outbound fees charged to users minus the gas reimbursed to nodes, a network-level figure split across chains by each chain's share of daily swap volume.";
+const slashingNote = "Fees slashed from misbehaving nodes and paid into the Reserve, a network-level figure split across chains by each chain's share of daily swap volume.";
 
 const breakdownMethodology = {
   Fees: {
     'Swap Fees': "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools.",
-    'Outbound Fees': "Net outbound network fee (outbound gas charged minus gas reimbursed) paid by users.",
+    'Outbound Fees': outboundNote,
+    'Slashing Fees': slashingNote,
     'Affiliate Fees': "Fees charged by the interface or wallet that built the swap (attributed to the THORChain native chain).",
   },
   UserFees: {
     'Swap Fees': "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools.",
-    'Outbound Fees': "Net outbound network fee (outbound gas charged minus gas reimbursed) paid by users.",
+    'Outbound Fees': outboundNote,
     'Affiliate Fees': "Fees charged by the interface or wallet that built the swap (attributed to the THORChain native chain).",
   },
   Revenue: {
     'RUNE Burn': "5% of swap fees burned, permanently removing RUNE from supply (since 2024-09-16).",
-    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol.",
+    'Outbound Fees': outboundNetNote,
+    'Slashing Fees': slashingNote,
     'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
   },
   ProtocolRevenue: {
-    'Outbound Fees To Protocol': "Net outbound network fee kept by the protocol, a network-level figure split across chains by each chain's share of daily swap volume.",
+    'Outbound Fees': outboundNetNote,
+    'Slashing Fees': slashingNote,
     'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
   },
@@ -250,6 +280,7 @@ const breakdownMethodology = {
     'Swap Fees To LPs': "Liquidity providers' share of swap fees (the LP side of the Incentive Pendulum).",
     'Affiliate Fees To Integrators': "Affiliate fees passed through to the integrator that built the swap.",
     'TCY Staker Rewards': "10% of swap fees paid in RUNE to TCY stakers (since 2025-05-01).",
+    'Gas Reimbursement': "Outbound gas costs reimbursed from the Reserve to the nodes that broadcast outbound transactions, paid out of the gross outbound fee.",
   },
 };
 

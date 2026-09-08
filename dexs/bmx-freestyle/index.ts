@@ -115,6 +115,8 @@ const fetch = async ( options: FetchOptions): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
+  // BMX wound down (token migrated to Boardwalk/BWLK, bmx.trade returns HTTP 500); Freestyle fees series ended 2026-04-28 and the goldsky analytics subgraphs were deleted.
+  deadFrom: '2026-04-28',
   version: 1,
   adapter: {
     [CHAIN.BASE]: {

@@ -12,11 +12,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const totalAssets = await options.api.call({ abi: "uint256:totalAssets", target: SUPERLEND_USD })
+  const totalSupply = await options.api.call({ abi: "uint256:totalSupply", target: SUPERLEND_USD })
   const slUsdPriceYesterday = await options.fromApi.call({ abi: PRICE_ABI, target: SUPERLEND_USD, params: ["1000000000000000000"] })
   const slUsdPriceToday = await options.toApi.call({ abi: PRICE_ABI, target: SUPERLEND_USD, params: ["1000000000000000000"] })
 
-  const totalYieldIncludeProtocolFees = (slUsdPriceToday - slUsdPriceYesterday) * totalAssets / (1 - PROTOCOL_FEE) / 1e18;
+  const totalYieldIncludeProtocolFees = (slUsdPriceToday - slUsdPriceYesterday) * totalSupply / (1 - PROTOCOL_FEE) / 1e18;
   const protocolFees = totalYieldIncludeProtocolFees * PROTOCOL_FEE;
 
   dailyFees.add(USDC, totalYieldIncludeProtocolFees)

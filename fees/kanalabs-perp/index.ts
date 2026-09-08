@@ -46,6 +46,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.APTOS],
   start: '2024-09-12',
   methodology,
+  deadFrom: "2026-04-10",
 };
 
 export default adapter;

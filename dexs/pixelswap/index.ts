@@ -39,6 +39,9 @@ const adapter: any = {
             start: '2024-09-11',
         },
     },
+    // api.pixelswap.io and the pixelswap.io apex both SERVFAIL, so the delegation itself is broken.
+    // Last published point 2026-01-28, last non-zero 2024-12-06 ($510).
+    deadFrom: '2026-01-29',
 };
 
 export default adapter;

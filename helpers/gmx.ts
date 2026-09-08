@@ -41,8 +41,8 @@ const getGmxV1LogAdapter: any = ({
       eventAbi: 'event SellUSDG(address account,address token,uint256 usdgAmount,uint256 tokenAmount,uint256 feeBasisPoints)',
     })
 
-    // liquidation fees
-    const liquidationLogs = await getLogs({
+    // Margin fees
+    const marginFeeLogs = await getLogs({
       target: vault,
       eventAbi: 'event CollectMarginFees(address token,uint256 feeUsd,uint256 feeTokens)',
     })
@@ -52,13 +52,11 @@ const getGmxV1LogAdapter: any = ({
       eventAbi: 'event LiquidatePosition(bytes32 key,address account,address collateralToken,address indexToken,bool isLong,uint256 size,uint256 collateral,uint256 reserveAmount,int256 realisedPnl,uint256 markPrice)',
     })
 
-    // Calculate fees
+    // Calculate volume
     increasePositionLogs.forEach((log: any) => {
-      dailyFees.addUSDValue(Number(log.fee)/1e30, METRIC.MARGIN_FEES)
       dailyVolume.addUSDValue(Number(log.sizeDelta)/1e30)
     })
     decreasePositionLogs.forEach((log: any) => {
-      dailyFees.addUSDValue(Number(log.fee)/1e30, METRIC.MARGIN_FEES)
       dailyVolume.addUSDValue(Number(log.sizeDelta)/1e30)
     })
 
@@ -69,10 +67,10 @@ const getGmxV1LogAdapter: any = ({
       dailyVolume.add(log.tokenIn, Number(log.amountIn))
     })
 
-    // Calculate liquidation fees
-    liquidationLogs.forEach((log: any) => {
-      dailyFees.addUSDValue(Number(log.feeUsd)/1e30, METRIC.LIQUIDATION_FEES)
-      dailyUserFees.addUSDValue(Number(log.feeUsd)/1e30, METRIC.LIQUIDATION_FEES)
+    // Calculate margin fees
+    marginFeeLogs.forEach((log: any) => {
+      dailyFees.addUSDValue(Number(log.feeUsd)/1e30, METRIC.MARGIN_FEES)
+      dailyUserFees.addUSDValue(Number(log.feeUsd)/1e30, METRIC.MARGIN_FEES)
     })
 
     // Calculate sell fees
@@ -121,11 +119,10 @@ const breakdownMethodology = {
     [METRIC.MARGIN_FEES]: 'Fees paid by traders when opening or closing leveraged positions',
     [METRIC.SWAP_FEES]: 'Fees paid by users when swapping tokens through the vault',
     [METRIC.MINT_REDEEM_FEES]: 'Fees paid when minting or redeeming USDG stablecoin',
-    [METRIC.LIQUIDATION_FEES]: 'Fees collected from liquidations of under-collateralized positions',
   },
   UserFees: {
+    [METRIC.MARGIN_FEES]: 'Position and funding fees paid by traders',
     [METRIC.SWAP_FEES]: 'Swap fees paid by users',
-    [METRIC.LIQUIDATION_FEES]: 'Liquidation fees paid by liquidated positions',
   },
   Revenue: {
     [METRIC.PROTOCOL_FEES]: 'Portion of all fees retained by the protocol treasury',

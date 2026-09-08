@@ -5,7 +5,7 @@ import {
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-export const SUILEND_API_ENDPOINT = 'https://global.suilend.fi';
+export const SUILEND_API_ENDPOINT = 'https://api.suilend.fi';
 const suilendFeesURL = SUILEND_API_ENDPOINT + '/stats/fees';
 
 export const SuiLendMetrics = {

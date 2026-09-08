@@ -78,7 +78,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     const totalDeposited = Number(totalSupplyAtStart) * Number(startRate) / vaultRateBase
 
-    const supplySideYield = totalDeposited * growthRate / vaultRateBase
+    const supplySideYield = Number(totalSupplyAtStart) * growthRate / vaultRateBase
 
     dailyFees.add(token, supplySideYield, METRIC.ASSETS_YIELDS)
     dailySupplySideRevenue.add(token, supplySideYield, METRIC.ASSETS_YIELDS)

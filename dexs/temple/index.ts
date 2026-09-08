@@ -1,41 +1,86 @@
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const TICKERS_URL = "https://api.templedigitalgroup.com/api/exchange/tickers";
+const API_BASE_URL = "https://api.templedigitalgroup.com/api/exchange";
+const SETTLED_VOLUME_URL = `${API_BASE_URL}/settled_volume`;
+const MAKER_FEE_BPS = 0.5;
+const TAKER_FEE_BPS = 1;
+const BPS = 10000;
 
-type TempleTicker = {
-  ticker_id: string;
-  base_currency: string;
-  target_currency: string;
-  target_volume: string;
+type SettledVolumeResponse = {
+  start_time: string;
+  end_time: string;
+  total_volume_usd: number;
 };
 
-const fetch = async (_options: FetchOptions): Promise<FetchResultVolume> => {
-  const tickers: TempleTicker[] = await fetchURL(TICKERS_URL);
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  const requestStartTimestamp = options.startTimestamp + 1;
+  const startTime = new Date(requestStartTimestamp * 1000).toISOString();
+  const endTime = new Date(options.endTimestamp * 1000).toISOString();
+  const params = new URLSearchParams({
+    start_time: startTime,
+    end_time: endTime,
+  });
+  const response: SettledVolumeResponse = await fetchURL(
+    `${SETTLED_VOLUME_URL}?${params}`,
+  );
+  const dailyVolume = Number(response?.total_volume_usd);
+  if (
+    !response ||
+    Date.parse(response.start_time) !== requestStartTimestamp * 1000 ||
+    Date.parse(response.end_time) !== options.endTimestamp * 1000 ||
+    !Number.isFinite(dailyVolume) ||
+    dailyVolume < 0
+  )
+    throw new Error("Temple settled volume response malformed or mismatched");
 
-  const dailyVolume = tickers.reduce((sum, ticker) => {
-    const volume = Number(ticker.target_volume);
-    if (!Number.isFinite(volume))
-      throw new Error(`Invalid target_volume for ticker ${ticker.ticker_id}: ${ticker.target_volume}`);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees");
+  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees");
 
-    return sum + volume;
-  }, 0);
-
-  return { dailyVolume };
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
+  };
 };
 
 const methodology = {
   Volume:
-    "24h spot orderbook volume for all mainnet-enabled Temple Lightspeed markets, fetched from Temple's public exchange-listing API. The adapter sums each ticker's quote-side `target_volume`; current production markets quote in USDA, treated as USD-pegged volume.",
+    "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Temple aggregates current and legacy markets for the requested half-open time window.",
+  Fees: "Trading fees charged by the Temple orderbook: 0.5 bps maker + 1 bp taker = 1.5 bps applied to settled volume.",
+  Revenue: "All trading fees are retained by the protocol.",
+  ProtocolRevenue: "All trading fees are retained by the protocol.",
+  SupplySideRevenue: "Zero. No trading-fee share is paid to liquidity providers or market makers.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
+  },
+  Revenue: {
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
+  },
+  ProtocolRevenue: {
+    "Maker Fees": "0.5 bps maker fee applied to settled volume.",
+    "Taker Fees": "1 bp taker fee applied to settled volume.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.CANTON],
-  runAtCurrTime: true,
+  start: "2025-12-18",
+  // One bounded aggregate request is made for each daily backfill window.
+  pullHourly: false,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

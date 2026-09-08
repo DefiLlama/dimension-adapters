@@ -289,10 +289,10 @@ const blacklistPools = [
 const fetchSolanaV3 = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  let dailyRevenue = options.createBalances();
-  let dailyProtocolRevenue = options.createBalances();
-  let dailyHoldersRevenue = options.createBalances();
-  let dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   let page = 1;
   let allPools: Array<any> = [];
@@ -340,12 +340,10 @@ const fetchSolanaV3 = async (options: FetchOptions) => {
     const revenueRatio = protocolRevenueRatio + holdersRevenueRatio;
     const supplySideRevenueRatio = 1 - revenueRatio;
 
-    dailyProtocolRevenue = dailyFees.clone(protocolRevenueRatio)
-    dailyHoldersRevenue = dailyFees.clone(holdersRevenueRatio)
-    dailySupplySideRevenue = dailyFees.clone(supplySideRevenueRatio)
-    
-    dailyRevenue = dailyProtocolRevenue.clone(1)
-    dailyRevenue.add(dailyHoldersRevenue)
+    dailyRevenue.addUSDValue(fee * revenueRatio);
+    dailyProtocolRevenue.addUSDValue(fee * protocolRevenueRatio);
+    dailyHoldersRevenue.addUSDValue(fee * holdersRevenueRatio);
+    dailySupplySideRevenue.addUSDValue(fee * supplySideRevenueRatio);
   }
 
   return {

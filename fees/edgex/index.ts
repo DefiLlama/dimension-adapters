@@ -90,7 +90,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.EDGEX]: { fetch, start: '2025-02-25'},
+    [CHAIN.EDGEX]: { fetch, start: '2025-02-25', deadFrom: '2026-08-15' },
     [CHAIN.ETHEREUM]: { fetch: fetchBB, start: '2026-04-01'},
   },
   methodology,

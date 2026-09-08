@@ -1,4 +1,3 @@
-import * as sdk from '@defillama/sdk'
 import { FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -10,14 +9,11 @@ const eventAbis = {
   event_swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const BLOCK_STEP = 10_000;
-
 const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
-  const { api, createBalances, getFromBlock, getLogs } = fetchOptions;
+  const { createBalances, getToBlock, getLogs } = fetchOptions;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
-  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), (await api.getBlock()) - 100]);
+  const toBlock = await getToBlock();
 
   const rawPairs = await getLogs({ target: factory, fromBlock: factory_block, toBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, });
   const pairs = rawPairs.map(({ token0, token1, fee, tickSpacing, pool }) => ({ token0, token1, pool_fees: fee, tickSpacing, pool }));
@@ -27,49 +23,34 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     pairInfoMap[p.pool] = p;
   });
 
-  const targetChunkSize = 50;
-  const pairChunks = sdk.util.sliceIntoChunks(pairs, targetChunkSize);
+  const targets = pairs.map(({ pool }) => pool);
+  const rawLogs = await getLogs({
+    targets,
+    eventAbi: eventAbis.event_swap,
+    flatten: false,
+    onlyArgs: true,
+  });
 
-  for (let i = 0; i < pairChunks.length; i++) {
-    const chunk = pairChunks[i];
-    const targets = chunk.map(({ pool }) => pool);
+  rawLogs.forEach((logs: any[], idx: number) => {
+    const pool = targets[idx];
+    const info = pairInfoMap[pool];
+    if (!info) return;
 
-    for (let start = fromBlock; start <= toBlock; start += BLOCK_STEP) {
-      const end = Math.min(start + BLOCK_STEP - 1, toBlock);
-      await sleep(500);
-
-      const rawLogs = await getLogs({
-        targets,
-        eventAbi: eventAbis.event_swap,
-        flatten: false,
-        fromBlock: start,
-        toBlock: end,
-        onlyArgs: true,
-        skipCache: true,
-        skipCacheRead: true
-      });
-
-      rawLogs.forEach((logs: any[], idx: number) => {
-        const pool = targets[idx];
-        const info = pairInfoMap[pool];
-        if (!info) return;
-
-        const { token1, pool_fees } = info;
-        logs.forEach(({ amount1 }: any) => {
-          const absAmount = amount1 < 0n ? -amount1 : amount1;
-          const fee = Math.round((Number(absAmount) * Number(pool_fees)) / 1_000_000);
-          dailyVolume.add(token1, absAmount);
-          dailyFees.add(token1, fee);
-        });
-      });
-    }
-  }
+    const { token1, pool_fees } = info;
+    logs.forEach(({ amount1 }: any) => {
+      const absAmount = amount1 < 0n ? -amount1 : amount1;
+      const fee = Math.round((Number(absAmount) * Number(pool_fees)) / 1_000_000);
+      dailyVolume.add(token1, absAmount);
+      dailyFees.add(token1, fee);
+    });
+  });
 
   return { dailyVolume, dailyFees };
 };
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SONEIUM],
   start: '2025-01-13',

@@ -10,19 +10,22 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const tickers = data.data
-    .filter((tradeSummary: any) => tradeSummary.instrument_type === 'spot')
+    .filter((tradeSummary: any) => tradeSummary.instrument_type === 'spot'
+      && (!tradeSummary.created_at || tradeSummary.created_at < options.endTimestamp * 1000))
     .map((tradeSummary: any) => tradeSummary.symbol)
   let dailyVolume = 0;
 
-  await PromisePool.withConcurrency(1)
+  const { errors } = await PromisePool.withConcurrency(1)
     .for(tickers)
     .process(async (ticker) => {
       const data = await fetchURLAutoHandleRateLimit(`https://api.pacifica.fi/api/v1/kline?symbol=${ticker}&interval=1d&start_time=${(options.startOfDay) * 1000}`)
-      const todaysData = data.data.filter((kline: any) => kline.t == options.startOfDay * 1000);
-      const volume = (todaysData[0].v * +todaysData[0].c) / 2; // They include taker + maker in ohlcv candles
-      dailyVolume += volume;
+      const todaysData = data.data.find((kline: any) => kline.t == options.startOfDay * 1000);
+      if (todaysData) dailyVolume += (todaysData.v * +todaysData.c) / 2; // They include taker + maker in ohlcv candles
+      else throw new Error(`No data found for ${ticker} on ${options.startOfDay}`);
       await new Promise(r => setTimeout(r, 4000));
     })
+
+  if (errors.length) throw errors[0];
 
   return { dailyVolume }
 }

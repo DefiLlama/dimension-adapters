@@ -82,7 +82,7 @@ const fetch: any = async (options: FetchOptions) => {
                         )
                         AND topic0 = 0x447452569a869245fac1955d7c6c762fbd3b4ad4c1695b1b0f1cc5985958a271
                         AND block_time >= from_unixtime(${options.startTimestamp})
-                        AND block_time <= from_unixtime(${options.endTimestamp})
+                        AND block_time < from_unixtime(${options.endTimestamp})
                     )
                 )
             )
@@ -96,7 +96,7 @@ const fetch: any = async (options: FetchOptions) => {
             left join incentives_token a on a.token = t.token
         where
             t.block_time >= from_unixtime(${options.startTimestamp})
-            AND t.block_time <= from_unixtime(${options.endTimestamp})
+            AND t.block_time < from_unixtime(${options.endTimestamp})
         group by
             t.token
     ),
@@ -109,7 +109,7 @@ const fetch: any = async (options: FetchOptions) => {
             left join incentives_token a on a.token = t.token
         where
             t.evt_block_time >= from_unixtime(${options.startTimestamp})
-            AND t.evt_block_time <= from_unixtime(${options.endTimestamp})
+            AND t.evt_block_time < from_unixtime(${options.endTimestamp})
         group by
             t.token
     ),
@@ -149,7 +149,7 @@ const fetch: any = async (options: FetchOptions) => {
                         )
                         AND topic0 = 0x38cdaea8a7ee499a6e329f9f098f5b7943ea1e992b5fb4ad0a88884db15c3f89
                         AND block_time >= from_unixtime(${options.startTimestamp})
-                        AND block_time <= from_unixtime(${options.endTimestamp})
+                        AND block_time < from_unixtime(${options.endTimestamp})
                 )
             )
         )
@@ -163,7 +163,7 @@ const fetch: any = async (options: FetchOptions) => {
             left join incentives_token a on a.token = it.token
         where
             it.block_time >= from_unixtime(${options.startTimestamp})
-            AND it.block_time <= from_unixtime(${options.endTimestamp})
+            AND it.block_time < from_unixtime(${options.endTimestamp})
         group by
             it.token
     )

@@ -81,6 +81,7 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
   [CHAIN.PLASMA]: { dune: "plasma", wrapped: "0x6100e367285b01f48d07953803a2d8dca5d19873" },
   [CHAIN.KATANA]: { dune: "katana", wrapped: "0xEE7D8BCFb72bC1880D0Cf19822eB0A2e6577aB62" },
   [CHAIN.PLUME]: { dune: "plume", wrapped: "0xEa237441c92CAe6FC17Caaf9a7acB3f953be4bd1" },
+  [CHAIN.ROBINHOOD]: { dune: "robinhood", wrapped: "0x0bd7d308f8e1639fab988df18a8011f41eacad73" },
 };
 
 // Native and ERC20 flows, dedupe largest per tx, group by chain + token for DefiLlama pricing

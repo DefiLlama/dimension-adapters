@@ -47,6 +47,10 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.STARKNET],
   start: '2022-11-28',
+  // Same situation as the v2 adapter, marked dead in #9207: api.jediswap.xyz is NXDOMAIN and the
+  // jediswap.xyz apex resolves with no A record, so the app is gone too. Last published point
+  // 2025-07-30, last non-zero 2025-01-15 ($167).
+  deadFrom: '2025-07-31',
 };
 
 export default adapter;

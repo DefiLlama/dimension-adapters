@@ -18,9 +18,15 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' }
 }
 
+// Skate AMM v2 only. v1 was retired in Aug 2026 once its liquidity was fully
+// withdrawn (every v1 pool drained to zero), so its `amm-data/pools/stats`
+// endpoint is no longer part of the protocol's supported surface.
+//
+// Historical note — v1 produced the bulk of the $548,689,421 all-time volume
+// recorded for Skate AMM up to 2026-08-06 (465 daily datapoints, 13 chains).
+// From this change onward the series reflects v2 only.
 const skateDataApis = [
-    "https://api.skatechain.org/amm-data/pools/stats",    // AMM v1
-    "https://api.skatechain.org/amm-data-v2/pools/stats", // AMM v2
+    "https://api.skatechain.org/amm-data-v2/pools/stats",
 ];
 
 const fetch = async (options: FetchOptions) => {

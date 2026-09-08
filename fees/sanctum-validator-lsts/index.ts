@@ -39,7 +39,7 @@ const fetch: any = async (options: FetchOptions) => {
           /* deposit stake */, 0x0e /* deposit sol */, 0x17 /* deposit stake with slippage */, 0x19 /* deposit sol with slippage */)
           AND tx_success = TRUE
           AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-          AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+          AND block_time < FROM_UNIXTIME(${options.endTimestamp})
       ), transfer_txns AS (
         SELECT
           tx_id,
@@ -70,7 +70,7 @@ const fetch: any = async (options: FetchOptions) => {
           )
           AND tx_success = TRUE
           AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-          AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+          AND block_time < FROM_UNIXTIME(${options.endTimestamp})
       ), daily_withdraw_and_deposit_fees AS (
         SELECT SUM(t.amount) / 1e9 AS daily_withdraw_and_deposit_fees
         FROM stake_pool_instructions s
@@ -90,7 +90,8 @@ const fetch: any = async (options: FetchOptions) => {
             ON vsa.stake_account = rew.recipient
         WHERE
             rew.reward_type = 'Staking'
-            AND rew.block_time BETWEEN FROM_UNIXTIME(${options.startTimestamp}) AND FROM_UNIXTIME(${options.endTimestamp})
+            AND rew.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+            AND rew.block_time < FROM_UNIXTIME(${options.endTimestamp})
       )
       SELECT
         TRY_CAST(efs.daily_revenue AS DOUBLE) AS daily_epoch_revenue,

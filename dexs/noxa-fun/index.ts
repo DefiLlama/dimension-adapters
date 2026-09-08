@@ -213,7 +213,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Includes uniswap swap fees for tokens graduated from noxa fun (filtered by pools with >$5k TVL)",
+  Fees: "Includes uniswap swap fees for tokens graduated from noxa fun (filtered by pools with >$1000 TVL)",
   Revenue: "Revenue is disabled for now",
   SupplySideRevenue: "All fees collected from swaps are distributed to the creator of the token",
 }

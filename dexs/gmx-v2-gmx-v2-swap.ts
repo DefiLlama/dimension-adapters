@@ -1,6 +1,7 @@
 import request, { gql } from 'graphql-request';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { getTimestampAtStartOfDayUTC } from '../utils/date';
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ARBITRUM]: 'https://gmx.squids.live/gmx-synthetics-arbitrum:prod/api/graphql',
@@ -9,41 +10,27 @@ const endpoints: { [key: string]: string } = {
   [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth:prod/api/graphql",
 };
 
-const historicalDataSwap = gql`
-  query get_volume($period: String!) {
-    volumeInfos(
-      where: { period_eq: $period }
-      limit: 1
-      orderBy: timestamp_DESC
-    ) {
-      swapVolumeUsd
-    }
-  }
-`;
-
-interface IGraphResponse {
-  volumeInfos: Array<{
-    swapVolumeUsd: string;
-  }>;
-}
-
 const fetch = async (options: FetchOptions) => {
-  const dailyData: IGraphResponse = await request(
-    endpoints[options.chain],
-    historicalDataSwap,
-    {
-      period: '1d',
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
+  const query = gql`
+    query get_volume($id: String!) {
+      volumeInfos(where: {id_eq: $id, period_eq: "1d"}, limit: 1) {
+        swapVolumeUsd
+      }
     }
-  );
-  const dailyVolume =
-    dailyData.volumeInfos.length > 0
-      ? Number(dailyData.volumeInfos[0].swapVolumeUsd) * 10 ** -30
-      : 0;
+  `
+  const dailyData = await request(endpoints[options.chain], query, {
+    id: '1d:' + String(dayTimestamp),
+  })
+
+  const dailyVolume = dailyData.volumeInfos.length > 0
+    ? Number(dailyData.volumeInfos[0].swapVolumeUsd) * 10 ** -30
+    : 0
 
   return {
     dailyVolume,
-  };
-};
+  }
+}
 
 const methodology = {
   Volume: 'Sum of daily total volume for all markets on a given day.',

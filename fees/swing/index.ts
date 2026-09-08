@@ -89,7 +89,8 @@ const adapter: SimpleAdapter = {
     version: 1,
     chains: Object.keys(chains),
     start: '2023-11-01',
-    adapter: {}
+    adapter: {},
+    deadFrom: "2026-02-05",
 };
 
 export default adapter;

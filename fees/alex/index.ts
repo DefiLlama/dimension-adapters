@@ -99,7 +99,7 @@ async function v1_1Fees(start: number, end: number): Promise<FeeStats> {
   return stats;
 }
 
-const fetch = async (_timestamp: number, _chainBlocks: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const stats = options.startOfDay >= AMM_V2_START
     ? await v2Fees(options.startOfDay, options.endTimestamp)
     : await v1_1Fees(options.startOfDay, options.endTimestamp);

@@ -240,7 +240,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           // rate is always greater than or equal 1
           const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
-          const supplySideYield = totalDeposited * growthRate / vaultRateBase
+          const supplySideYield = Number(totalSupplyAtUpdated) * growthRate / vaultRateBase
           const totalYield = supplySideYield / (1 - performanceFeeRate)
           const protocolFee = totalYield - supplySideYield
 

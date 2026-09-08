@@ -1,4 +1,4 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const chainConfig: Record<string, { address: string, start: string }> = {
@@ -102,10 +102,11 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
-const adapter: Adapter = {
-  version: 1,
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  chains: Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }]),
   methodology: {
     Fees: "Fees paid by users for actions on On-chain Check-in",
     Revenue: "Protocol revenue, defined as the total amount of user fees collected by On-chain Check-in",

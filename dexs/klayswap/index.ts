@@ -24,7 +24,8 @@ async function fetch({ createBalances, getLogs, api, }: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.KLAYTN],
 };

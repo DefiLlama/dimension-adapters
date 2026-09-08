@@ -199,7 +199,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   start: "2025-08-11",
   chains: CHAINS,

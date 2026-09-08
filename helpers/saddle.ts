@@ -42,26 +42,46 @@ type SaddleConfig = {
   start?: string,
 }
 
+const methodology = {
+  Volume: 'Total token swap volume across the configured pools.',
+  Fees: 'Swap fees paid by users based on each pool\'s configured swap fee.',
+  Revenue: 'The admin share of swap fees retained by the protocol.',
+  SupplySideRevenue: 'The remaining swap fees distributed to liquidity providers.',
+}
 
-export function getSaddleExports(config: IJSON<SaddleConfig>, { runAsV1 = false } = {}) {
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Swap fees paid by users.',
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: 'The admin share of swap fees retained by the protocol.',
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: 'The remaining swap fees distributed to liquidity providers.',
+  },
+}
+
+export function getSaddleExports(config: IJSON<SaddleConfig>, { runAsV1 = false, pullHourly = true, ...otherRootOptions } = {}) {
   const exportObject: BaseAdapter = {}
-  const exportObjectV1: BaseAdapter = {}
 
-
-  Object.entries(config).map(([chain, chainConfig]) => {
+  Object.entries(config).forEach(([chain, chainConfig]) => {
     const fetch: any = (options: FetchOptions) => getSaddleVolume(options, chainConfig.pools)
-    exportObject[chain] = { fetch }
-    exportObjectV1[chain] = {
-      fetch: async (options: FetchOptions) => fetch(options),
+    exportObject[chain] = {
+      fetch,
       start: chainConfig.start,
     }
   })
 
-
   if (runAsV1)
-    return { adapter: exportObjectV1, version: 1 } as SimpleAdapter
+    return { adapter: exportObject, version: 1 } as SimpleAdapter
 
-
-  return { adapter: exportObject, version: 2 } as SimpleAdapter
+  return {
+    methodology,
+    breakdownMethodology,
+    ...otherRootOptions,
+    adapter: exportObject,
+    version: 2,
+    pullHourly,
+  } as SimpleAdapter
 
 }

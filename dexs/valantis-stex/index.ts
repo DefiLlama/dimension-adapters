@@ -2,6 +2,7 @@ import { FetchOptions, IJSON, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { addOneToken } from '../../helpers/prices';
 import { filterPools } from "../../helpers/uniswap"
+import { METRIC } from '../../helpers/metrics';
 
 const factory = "0x7E028ac56cB2AF75292F3D967978189698C24732"
 const poolCreated = "event SovereignPoolDeployed(address indexed token0, address indexed token1, address pool)"
@@ -38,22 +39,22 @@ async function fetch(options: FetchOptions) {
         const { amountIn, amountOut, isZeroToOne, fee} = log.args
         const [token0, token1, protocolFeeBips] = pairObject[pool.toLowerCase()]
         const protocolFee = Number(protocolFeeBips) / 10000
+        const feeToken = isZeroToOne ? token0 : token1
         if (isZeroToOne) {
             addOneToken({ chain: options.chain, balances: dailyVolume, token0: token0, amount0: amountIn, token1: token1, amount1: amountOut})
-            dailySupplySideRevenue.add(token0, Number(fee) * (1-protocolFee))
-            dailyProtocolRevenue.add(token0, Number(fee) * protocolFee)
         }
         else {
             addOneToken({ chain: options.chain, balances: dailyVolume, token0: token0, amount0: amountOut, token1: token1, amount1: amountIn})
-            dailySupplySideRevenue.add(token1, Number(fee) * (1-protocolFee))
-            dailyProtocolRevenue.add(token1, Number(fee) * protocolFee)
         }
+        dailySupplySideRevenue.add(feeToken, Number(fee) * (1-protocolFee), METRIC.LP_FEES)
+        dailyProtocolRevenue.add(feeToken, Number(fee) * protocolFee, METRIC.PROTOCOL_FEES)
     })
-    const dailyFees = dailySupplySideRevenue.clone() 
-    dailyFees.addBalances(dailyProtocolRevenue)
+    // Total swap fees = supply-side (LP) share + protocol share, relabeled as swap fees.
+    const dailyFees = dailySupplySideRevenue.clone(1, METRIC.SWAP_FEES)
+    dailyFees.addBalances(dailyProtocolRevenue, METRIC.SWAP_FEES)
     return {
         dailyVolume,
-        dailyFees: dailyFees,
+        dailyFees,
         dailyRevenue: dailyProtocolRevenue,
         dailySupplySideRevenue,
         dailyProtocolRevenue
@@ -67,13 +68,29 @@ const methodology = {
     Revenue: "The protocol keeps 20% of the swap fees"
 }
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.SWAP_FEES]: "Swap fees paid by traders on Valantis STEX pools",
+    },
+    Revenue: {
+        [METRIC.PROTOCOL_FEES]: "The protocol's share of the swap fees (20%)",
+    },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "The protocol's share of the swap fees (20%)",
+    },
+    SupplySideRevenue: {
+        [METRIC.LP_FEES]: "80% of the swap fees distributed to liquidity providers",
+    },
+}
+
 const adapter : SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
     chains: [CHAIN.HYPERLIQUID],
     start: "2025-03-27",
-    methodology
+    methodology,
+    breakdownMethodology
 }
 
 export default adapter

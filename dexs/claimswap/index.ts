@@ -41,6 +41,9 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.KLAYTN],
   start: START_TIME,
+  // data-api.claimswap.org and the claimswap.org apex both SERVFAIL. Last published point
+  // 2026-04-27, last non-zero 2025-07-28 ($11,202).
+  deadFrom: '2026-04-28',
 };
 
 export default adapter;

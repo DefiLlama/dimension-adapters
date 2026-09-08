@@ -10,7 +10,16 @@ const PositiveSlippageCapturedEvent =
 const FeeCapturedEvent =
   "event FeeCaptured(address indexed sender, address feeRecipient, address protocolFeeRecipient, address token, uint256 totalFee, uint256 feeToRecipient, uint256 feeToProtocolRecipient, uint256 timestamp)";
 
-const LIQUIDSWAP_ADDRESS = "0x744489ee3d540777a66f2cf297479745e0852f7a";
+const chainConfig: Record<string, { start: string, address: string }> = {
+  [CHAIN.HYPERLIQUID]: {
+    start: "2025-04-02",
+    address: "0x744489ee3d540777a66f2cf297479745e0852f7a",
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-07-14",
+    address: "0xfc020bBCe0365f56bbBb78Ce504cE2a2b24E0ae6",
+  },
+}
 
 // const PROTOCOL_FEE_ADDRESS = "0xaC7d51dB236fae22Ceb6453443da248F3A53f94d";
 
@@ -31,7 +40,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 
   // Get SwapExecuted events for volume
   const swapLogs = await options.getLogs({
-    target: LIQUIDSWAP_ADDRESS,
+    target: chainConfig[options.chain].address,
     eventAbi: SwapExecutedEvent,
   });
   for (const swapLog of swapLogs) {
@@ -40,7 +49,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 
   // Get PositiveSlippageCaptured events for positive slippage revenue
   const slippageLogs = await options.getLogs({
-    target: LIQUIDSWAP_ADDRESS,
+    target: chainConfig[options.chain].address,
     eventAbi: PositiveSlippageCapturedEvent,
   });
   for (const slippageLog of slippageLogs) {
@@ -54,7 +63,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 
   // Get FeeCaptured events for fees
   const feeLogs = await options.getLogs({
-    target: LIQUIDSWAP_ADDRESS,
+    target: chainConfig[options.chain].address,
     eventAbi: FeeCapturedEvent,
   });
   for (const feeLog of feeLogs) {
@@ -80,7 +89,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  start: "2025-04-02",
+  adapter: chainConfig,
   methodology: {
     Volume: "Volume is calculated from SwapExecuted events emitted by the LiquidSwap aggregator contract.",
     Fees: "Fees are tracked from PositiveSlippageCaptured and FeeCaptured events.",
@@ -107,7 +116,6 @@ const adapter: SimpleAdapter = {
       [METRICS.PositiveSlippageCapturedToProtocol]: 'Profit from possitive slippage shared to protocol.',
     },
   },
-  chains: [CHAIN.HYPERLIQUID],
 };
 
 export default adapter;
