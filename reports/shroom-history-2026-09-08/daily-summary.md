@@ -1,18 +1,20 @@
 # SHROOM token and Shroom treasury income
 
-Status: Complete. UTC dates, September 2–7, 2026.
+Status: Incomplete — missing hours or USD valuations are pending. UTC dates, September 2–7, 2026.
 
 **These columns are separate scopes and must not be added together.** The earlier combined revenue table is superseded.
 
-| Date | Token fees | Token revenue: MU dividend allocation | Treasury LP income | Treasury MU dividends received | Treasury revenue |
-|---|---:|---:|---:|---:|---:|
-| 2026-09-02 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 |
-| 2026-09-03 | $137,606.97 | $128,073.00 | $1,404.18 | $6,502.59 | $7,906.77 |
-| 2026-09-04 | $123,017.13 | $114,494.01 | $6,049.16 | $2,999.37 | $9,048.52 |
-| 2026-09-05 | $142,112.48 | $132,266.35 | $55,220.26 | $5,358.87 | $60,579.12 |
-| 2026-09-06 | $87,945.64 | $81,852.41 | $20,336.39 | $2,491.49 | $22,827.87 |
-| 2026-09-07 | $26,799.40 | $24,942.63 | $15,930.40 | $969.54 | $16,899.94 |
-| **Total** | **$517,481.62** | **$481,628.39** | **$98,940.38** | **$18,321.85** | **$117,262.23** |
+| Date | Token fees | Token revenue: MU dividend allocation | Pons supply-side revenue | Treasury LP income | Treasury MU dividends received | Treasury revenue |
+|---|---:|---:|---:|---:|---:|---:|
+| 2026-09-02 | Pending | Pending | Pending | Pending | Pending | Pending |
+| 2026-09-03 | $137,606.97 | $128,073.00 | $9,533.97 | $1,404.18 | $6,502.59 | $7,906.77 |
+| 2026-09-04 | $123,017.13 | $114,494.01 | $8,523.13 | $6,049.16 | $2,999.37 | $9,048.52 |
+| 2026-09-05 | $142,112.48 | $132,266.35 | $9,846.13 | $55,220.26 | $5,358.87 | $60,579.12 |
+| 2026-09-06 | $87,945.64 | $81,852.41 | $6,093.23 | $20,336.39 | $2,491.49 | $22,827.87 |
+| 2026-09-07 | $26,799.40 | $24,942.63 | $1,856.77 | $15,930.40 | $969.54 | $16,899.94 |
+| **Total** | **Pending** | **Pending** | **Pending** | **Pending** | **Pending** | **Pending** |
+
+Missing USD valuations are pending, not zero. An explicit numeric USD zero is retained; the existing unpriced-token limitation still applies.
 
 Token revenue uses the agreed hook-sweep basis: MU allocated for all SHROOM holders, not necessarily paid to wallets that same hour. Token fees = token revenue + Pons supply-side share.
 

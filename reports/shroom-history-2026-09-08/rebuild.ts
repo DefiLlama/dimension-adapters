@@ -4,12 +4,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { saveJson, validateHours, usd, sumUsd } from './report-utils';
 import runAdapter from '../../adapters/utils/runAdapter';
 import treasury, { fetchTreasuryDividends } from '../../fees/shroom-treasury';
 
 const dir = __dirname;
 const read = (name: string) => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
-const save = (name: string, value: any) => fs.writeFileSync(path.join(dir, name), JSON.stringify(value, null, 2) + '\n');
+const save = (name: string, value: any) => saveJson(path.join(dir, name), value);
 const hash = (file: string) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 const hook = read('shroom-hourly.json');
 const lp = read('shroom-pol-hourly.json'); // Original LP-only snapshot, retained for provenance.
@@ -32,24 +33,25 @@ const dividendModule = { ...treasury, fetch: async (options: any) => {
   dailyRevenue.add(receipts, 'MU Dividends To Treasury');
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 } };
-const usd = (s: any, key: string) => s.breakdownByToken?.robinhood?.[key]?.usdTvl ?? 0;
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n: number | null) => n === null ? 'Pending' : '$' + fmt(n);
 function report() {
+  const coverageComplete = validateHours(cash.slots, hook.slots);
   const days: any[] = [];
   for (let d = 0; d < 6; d++) {
     const h = hook.slots.slice(d * 24, (d + 1) * 24), p = lp.slots.slice(d * 24, (d + 1) * 24);
     const c = cash.slots.filter((s: any) => s.startTimestamp >= h[0].startTimestamp && s.endTimestamp <= h[23].endTimestamp);
-    const sum = (slots: any[], key: string) => slots.reduce((v, s) => v + usd(s, key), 0);
+    const sum = sumUsd;
     const tokenFees = sum(h, 'dailyFees'), tokenRevenue = sum(h, 'dailyRevenue'), pons = sum(h, 'dailySupplySideRevenue');
     const treasuryLPIncome = sum(p, 'dailyRevenue'), treasuryDividends = c.length === 24 ? sum(c, 'dailyRevenue') : null;
-    if (Math.abs(tokenFees - tokenRevenue - pons) > 1e-6) throw new Error('Token identity failed');
-    days.push({ date: new Date(h[0].startTimestamp * 1000).toISOString().slice(0, 10), complete: c.length === 24,
+    if (tokenFees !== null && tokenRevenue !== null && pons !== null && Math.abs(tokenFees - tokenRevenue - pons) > 1e-6) throw new Error('Token identity failed');
+    days.push({ date: new Date(h[0].startTimestamp * 1000).toISOString().slice(0, 10), complete: c.length === 24 && [tokenFees, tokenRevenue, pons, treasuryLPIncome, treasuryDividends].every(v => v !== null),
       tokenFees, tokenRevenue, tokenHoldersRevenue: tokenRevenue, pons,
-      treasuryLPIncome, treasuryDividends, treasuryRevenue: treasuryDividends === null ? null : treasuryLPIncome + treasuryDividends,
-      treasuryDividendRawMU: c.length === 24 ? c.reduce((v: bigint, s: any) => v + BigInt(s.breakdownByToken?.robinhood?.dailyRevenue?.rawTokenBalances?.['robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd'] || 0), 0n).toString() : null,
+      treasuryLPIncome, treasuryDividends, treasuryRevenue: treasuryDividends === null || treasuryLPIncome === null ? null : treasuryLPIncome + treasuryDividends,
+      treasuryDividendRawMU: treasuryDividends !== null ? c.reduce((v: bigint, s: any) => v + BigInt(s.breakdownByToken?.robinhood?.dailyRevenue?.rawTokenBalances?.['robinhood:0xff080c8ce2e5feadaca0da81314ae59d232d4afd'] || 0), 0n).toString() : null,
     });
   }
-  const complete = days.every(d => d.complete);
+  const complete = coverageComplete && days.every(d => d.complete);
   const result = { generatedAt: new Date().toISOString(), complete, currency: 'USD',
     scopes: 'Token and treasury are separate views, not additive. Treasury revenue is LP income plus MU receipts; token revenue is all-holder MU dividend allocation.',
     provenance: { tokenSnapshotSHA256: hook.adapterSHA256, lpSnapshotSHA256: lp.adapterSHA256, treasuryAdapterSHA256: adapterSHA256,
@@ -58,12 +60,13 @@ function report() {
   save('daily-summary.json', result);
   const columns = ['date','tokenFees','tokenRevenue','pons','treasuryLPIncome','treasuryDividends','treasuryRevenue','treasuryDividendRawMU'];
   fs.writeFileSync(path.join(dir, 'daily-summary.csv'), columns.join(',') + '\n' + days.map(d => columns.map(k => d[k] ?? 'PENDING').join(',')).join('\n') + '\n');
-  const lines = ['# SHROOM token and Shroom treasury income', '', `Status: ${complete ? 'Complete' : 'In progress — treasury dividends pending'}. UTC dates, September 2–7, 2026.`, '',
+  const lines = ['# SHROOM token and Shroom treasury income', '', `Status: ${complete ? 'Complete' : 'Incomplete — missing hours or USD valuations are pending'}. UTC dates, September 2–7, 2026.`, '',
     '**These columns are separate scopes and must not be added together.** The earlier combined revenue table is superseded.', '',
-    '| Date | Token fees | Token revenue: MU dividend allocation | Treasury LP income | Treasury MU dividends received | Treasury revenue |',
-    '|---|---:|---:|---:|---:|---:|', ...days.map(d => `| ${d.date} | $${fmt(d.tokenFees)} | $${fmt(d.tokenRevenue)} | $${fmt(d.treasuryLPIncome)} | ${d.complete ? '$' + fmt(d.treasuryDividends) : 'Pending'} | ${d.complete ? '$' + fmt(d.treasuryRevenue) : 'Pending'} |`)];
-  if (result.totals) { const t: any = result.totals; lines.push(`| **Total** | **$${fmt(t.tokenFees)}** | **$${fmt(t.tokenRevenue)}** | **$${fmt(t.treasuryLPIncome)}** | **$${fmt(t.treasuryDividends)}** | **$${fmt(t.treasuryRevenue)}** |`); }
-  lines.push('', 'Token revenue uses the agreed hook-sweep basis: MU allocated for all SHROOM holders, not necessarily paid to wallets that same hour. Token fees = token revenue + Pons supply-side share.', '',
+    '| Date | Token fees | Token revenue: MU dividend allocation | Pons supply-side revenue | Treasury LP income | Treasury MU dividends received | Treasury revenue |',
+    '|---|---:|---:|---:|---:|---:|---:|', ...days.map(d => `| ${d.date} | ${money(d.tokenFees)} | ${money(d.tokenRevenue)} | ${money(d.pons)} | ${money(d.treasuryLPIncome)} | ${money(d.treasuryDividends)} | ${money(d.treasuryRevenue)} |`)];
+  if (result.totals) { const t: any = result.totals; lines.push(`| **Total** | **$${fmt(t.tokenFees)}** | **$${fmt(t.tokenRevenue)}** | **$${fmt(t.pons)}** | **$${fmt(t.treasuryLPIncome)}** | **$${fmt(t.treasuryDividends)}** | **$${fmt(t.treasuryRevenue)}** |`); }
+  else lines.push('| **Total** | **Pending** | **Pending** | **Pending** | **Pending** | **Pending** | **Pending** |');
+  lines.push('', 'Missing USD valuations are pending, not zero. An explicit numeric USD zero is retained; the existing unpriced-token limitation still applies.', '', 'Token revenue uses the agreed hook-sweep basis: MU allocated for all SHROOM holders, not necessarily paid to wallets that same hour. Token fees = token revenue + Pons supply-side share.', '',
     'Treasury revenue = earned LP fees + actual MU receipts from the confirmed distributor into the two treasury wallets. No all-holder allocations or LP principal are added. Treasury fees and protocol revenue equal treasury revenue under the repository income statement convention; this does not imply the treasury charges a new user fee.', '',
     'The shared distributor transfers identify the MU payer and recipient, not the underlying launch token. Treasury receipts are therefore reported as MU dividend income without claiming an on-chain SHROOM-only attribution. Never total the shared distributor for the token view.', '',
     'USD amounts use unrounded hourly SDK valuations. Unpriced SHROOM LP fee amounts remain in the original raw balances and are excluded from USD totals. September 8 is incomplete and excluded.', '',
@@ -71,7 +74,9 @@ function report() {
   fs.writeFileSync(path.join(dir, 'daily-summary.md'), lines.join('\n') + '\n');
 }
 async function main() {
-  report(); // Immediately supersede the misleading combined summary, even during a partial run.
+  report(); // Validate the cache before trusting any resume/completion state.
+  cash.complete = validateHours(cash.slots, hook.slots) && cash.slots.every((s: any) => usd(s, 'dailyRevenue') !== null);
+  save(cashFile, cash); // Persist corrected completion even when all cached rows already exist.
   for (const slot of hook.slots) {
     if (cash.slots.some((s: any) => s.endTimestamp === slot.endTimestamp)) continue;
     let result: any;
@@ -80,7 +85,7 @@ async function main() {
       catch (error) { if (attempt >= 3) throw error; console.error('Retry', slot.endTimestamp, error); await new Promise(r => setTimeout(r, 45000)); }
     }
     cash.slots.push({ startTimestamp: slot.startTimestamp, endTimestamp: slot.endTimestamp, breakdownByToken: result.breakdownByToken });
-    cash.complete = cash.slots.length === 144;
+    cash.complete = validateHours(cash.slots, hook.slots) && cash.slots.every((s: any) => usd(s, 'dailyRevenue') !== null);
     save(cashFile, cash); report();
     console.log('DIVIDENDS', cash.slots.length + '/144', new Date(slot.startTimestamp * 1000).toISOString(), usd(cash.slots[cash.slots.length - 1], 'dailyRevenue'));
   }

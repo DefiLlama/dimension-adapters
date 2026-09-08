@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-08T12:37:21.483Z",
-  "complete": true,
+  "generatedAt": "2026-09-08T14:53:13.989Z",
+  "complete": false,
   "currency": "USD",
   "scopes": "Token and treasury are separate views, not additive. Treasury revenue is LP income plus MU receipts; token revenue is all-holder MU dividend allocation.",
   "provenance": {
@@ -12,15 +12,15 @@
   "days": [
     {
       "date": "2026-09-02",
-      "complete": true,
-      "tokenFees": 0,
-      "tokenRevenue": 0,
-      "tokenHoldersRevenue": 0,
-      "pons": 0,
-      "treasuryLPIncome": 0,
-      "treasuryDividends": 0,
-      "treasuryRevenue": 0,
-      "treasuryDividendRawMU": "0"
+      "complete": false,
+      "tokenFees": null,
+      "tokenRevenue": null,
+      "tokenHoldersRevenue": null,
+      "pons": null,
+      "treasuryLPIncome": null,
+      "treasuryDividends": null,
+      "treasuryRevenue": null,
+      "treasuryDividendRawMU": null
     },
     {
       "date": "2026-09-03",
@@ -83,12 +83,5 @@
       "treasuryDividendRawMU": "951144600212024313"
     }
   ],
-  "totals": {
-    "tokenFees": 517481.6240175995,
-    "tokenRevenue": 481628.3937161494,
-    "pons": 35853.23030145032,
-    "treasuryLPIncome": 98940.38202935454,
-    "treasuryDividends": 18321.851500602723,
-    "treasuryRevenue": 117262.23352995726
-  }
+  "totals": null
 }
