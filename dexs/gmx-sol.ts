@@ -7,39 +7,28 @@ const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql
 // sizes in the subgraph are scaled by 1e20
 const SCALE = 1e20;
 
-// 50k rows per request covers the busiest day so far (129k events on 2026-06-01)
-// in three requests. The cap is a stop so a subgraph that keeps returning full
-// pages cannot spin here forever; it is well clear of any real day.
+// 50k rows covers the busiest day so far, 129k events on 2026-06-01, in three
+// requests. The cap stops a subgraph that keeps returning full pages.
 const PAGE = 50000;
 const MAX_EVENTS = 1_000_000;
+// The event budget counts pages read, not seconds waited, so a page that never
+// answers would hold the run.
+const REQUEST_TIMEOUT_MS = 60_000;
 
-// Volume farming filter, see issue #7120. Measurements behind every number here
-// are in that thread.
+// Volume farming filter, see issue #7120 for the measurements. Wallets farming GT
+// points turn over far more volume than they ever have at risk.
 //
-// Wallets farming the GT points programme churn a wide book, turning over far more
-// volume than they ever have capital at risk. Three numbers per wallet per day:
-//
-//   turnover    volume / the largest capital the wallet ever had deployed at one
-//               time, summed across its open positions. One open and close of the
-//               whole book is 2. Ten round trips is 20.
+//   turnover    volume / peak concurrent capital. One round trip of the book is 2.
 //   imbalance   |long volume - short volume| / volume. Flat books sit near 0.
-//   positions   distinct positions the wallet touched during the day.
+//   positions   distinct positions touched during the day.
 //
-// Flagged on churn plus either a flat book or a wide one. Both branches earn their
-// place: not every farmer hedges, and turnover on its own also catches directional
-// scalpers working one or two positions on small capital, who are most of the
-// early backfill.
+// Churn plus either a flat book or a wide one: not every farmer hedges, and
+// turnover alone catches directional scalpers on small capital.
 //
-// Turnover has to be measured against total concurrent capital rather than the
-// largest single position, or running dozens of positions at once understates a
-// wallet's capital by roughly that factor.
-//
-// What this cannot see: a position that never trades during the day emits no
-// event, and the subgraph has no position entity, so its capital is invisible.
-// Capital carried in is counted, idle capital is not, which makes turnover an
-// upper bound and the flagged set sensitive to it. That is the reason not to lower
-// these. Backfill also runs to 2025-02-12 and the early days behave nothing like
-// the 2026 spikes, so measure both eras before changing any of them.
+// A position that never trades emits no event and the subgraph has no position
+// entity, so idle capital is invisible and turnover is an upper bound. Backfill
+// reaches 2025-02-12, whose days behave nothing like the 2026 spikes, so measure
+// both eras before moving these.
 const MIN_TURNOVER = 20;
 const MAX_IMBALANCE = 0.15;
 const MIN_POSITIONS = 8;
@@ -56,10 +45,9 @@ interface Wallet {
   volume: number;
   longVolume: number;
   shortVolume: number;
-  // position -> its size in usd right now. closing a position sets the entry to 0
-  // rather than removing it, so the key count is how many distinct positions the
-  // wallet touched over the day, which is what MIN_POSITIONS reads. do not delete
-  // closed keys here, it would quietly change the filter.
+  // position -> size in usd. a close sets the entry to 0 rather than removing it,
+  // so the key count is what MIN_POSITIONS reads: deleting closed keys would
+  // quietly change the filter.
   positionSize: Map<string, number>;
   exposure: number; // sum of positionSize
   peakExposure: number;
@@ -100,25 +88,28 @@ const isVolumeFarmer = (wallet: Wallet): boolean => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  // startOfDay pairs with endTimestamp to tile the calendar: 86400 seconds
-  // against the half-open filter below. startTimestamp is a second earlier, so
-  // consecutive days would share their boundary and double-count a trade on it.
+  // startOfDay against the half-open filter tiles the calendar. startTimestamp is
+  // a second earlier, so consecutive days would share a boundary trade.
   const from = new Date(options.startOfDay * 1000).toISOString();
   const to = new Date(options.endTimestamp * 1000).toISOString();
 
   const events: TradeEvent[] = [];
   let complete = false;
   for (let offset = 0; offset < MAX_EVENTS; offset += PAGE) {
-    const res = await request(url, tradesQuery, { from, to, limit: PAGE, offset });
+    const res: any = await request({
+      url,
+      document: tradesQuery,
+      variables: { from, to, limit: PAGE, offset },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
     const page: TradeEvent[] = res.tradeEvents;
     events.push(...page);
     if (page.length < PAGE) { complete = true; break; }
   }
 
   if (!events.length) throw new Error("No trade events found for the day.");
-  // a short page is the only proof the day is fully read. running out of budget
-  // with every page full means there is more, and carrying on would report a
-  // truncated day as if it were the whole one
+  // a short page is the only proof the day is fully read: a full last page means
+  // there is more, and carrying on would report a truncated day as the whole one
   if (!complete) {
     throw new Error(
       `Read ${events.length} trade events without reaching the end of the day. ` +
@@ -142,8 +133,8 @@ const fetch = async (options: FetchOptions) => {
 
     let held = wallet.positionSize.get(event.position);
     if (held === undefined) {
-      // first sighting: whatever the position held before this trade is already
-      // capital at risk, so count it before applying the trade
+      // on a first sighting the position's prior size is capital at risk, so
+      // count it before applying the trade
       held = before;
       wallet.exposure += before;
       wallet.peakExposure = Math.max(wallet.peakExposure, wallet.exposure);
