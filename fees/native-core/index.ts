@@ -2,6 +2,7 @@ import type { Balances } from "@defillama/sdk";
 import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchURLAutoHandleRateLimit, httpPost } from "../../utils/fetchURL";
+import { sleep } from "../../utils/utils";
 
 // Native Core CLOB fees — same listing slug as `dexs/native-core`.
 // Public stats: GET /api/v3/stats/window (https://api-ui.native.org)
@@ -155,6 +156,15 @@ function rescaleAtoms(
 let poolAssets: Map<number, PoolAsset> | undefined;
 let coreAssetTokens: CoreAssetTokens | undefined;
 let venuePrices: Map<string, VenuePrice> | undefined;
+let distributionCache:
+  | {
+      items: PoolDistribution[];
+      oldestMs: number;
+      nextBeforeId?: number;
+      exhausted: boolean;
+    }
+  | undefined;
+let distributionMutex: Promise<void> = Promise.resolve();
 
 async function getVenuePrices(): Promise<Map<string, VenuePrice>> {
   if (venuePrices) return venuePrices;
@@ -181,16 +191,25 @@ async function getVenuePrices(): Promise<Map<string, VenuePrice>> {
   return prices;
 }
 
-async function postEarn<T>(body: Record<string, unknown>): Promise<T> {
-  const response: EarnEnvelope<T> = await httpPost(EARN_URL, body, {
-    headers: { "content-type": "application/json" },
-  });
-  if (response.code !== 0 || response.data === undefined) {
-    throw new Error(
-      `Native Pool earn ${JSON.stringify(body)} failed: ${response.message ?? "no data"}`,
-    );
+async function postEarn<T>(body: Record<string, unknown>, retries = 5): Promise<T> {
+  let lastMessage = "no data";
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const response: EarnEnvelope<T> = await httpPost(EARN_URL, body, {
+      headers: { "content-type": "application/json" },
+    });
+    if (response.code === 0 && response.data !== undefined) {
+      return response.data;
+    }
+    lastMessage = response.message ?? "no data";
+    const rateLimited = /rate/i.test(lastMessage);
+    if (!rateLimited || attempt === retries - 1) {
+      break;
+    }
+    await sleep(5000 * (attempt + 1));
   }
-  return response.data;
+  throw new Error(
+    `Native Pool earn ${JSON.stringify(body)} failed: ${lastMessage}`,
+  );
 }
 
 async function getPoolAssets(): Promise<Map<number, PoolAsset>> {
@@ -232,34 +251,64 @@ async function getPoolDistributions(
   fromMilliseconds: number,
   toMilliseconds: number,
 ): Promise<PoolDistribution[]> {
-  const distributions: PoolDistribution[] = [];
-  let beforeId: number | undefined;
+  const previous = distributionMutex;
+  let release!: () => void;
+  distributionMutex = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
 
-  do {
-    const page = await postEarn<DistributionPage>({
-      type: "distributions",
-      limit: 200,
-      ...(beforeId === undefined ? {} : { before_id: beforeId }),
-    });
+  try {
+    if (!distributionCache) {
+      distributionCache = {
+        items: [],
+        oldestMs: Number.POSITIVE_INFINITY,
+        exhausted: false,
+      };
+    }
 
-    for (const distribution of page.items ?? []) {
-      if (!Number.isFinite(distribution.completed_at_unix_ms)) {
-        throw new Error(
-          `Native Pool distribution ${distribution.id} has an invalid completion timestamp`,
+    while (
+      !distributionCache.exhausted &&
+      distributionCache.oldestMs > fromMilliseconds
+    ) {
+      const page = await postEarn<DistributionPage>({
+        type: "distributions",
+        limit: 200,
+        ...(distributionCache.nextBeforeId === undefined
+          ? {}
+          : { before_id: distributionCache.nextBeforeId }),
+      });
+
+      for (const distribution of page.items ?? []) {
+        if (!Number.isFinite(distribution.completed_at_unix_ms)) {
+          throw new Error(
+            `Native Pool distribution ${distribution.id} has an invalid completion timestamp`,
+          );
+        }
+        distributionCache.items.push(distribution);
+        distributionCache.oldestMs = Math.min(
+          distributionCache.oldestMs,
+          distribution.completed_at_unix_ms,
         );
       }
-      if (distribution.completed_at_unix_ms < fromMilliseconds) {
-        return distributions;
-      }
-      if (distribution.completed_at_unix_ms < toMilliseconds) {
-        distributions.push(distribution);
+
+      distributionCache.nextBeforeId = page.next_before_id ?? undefined;
+      if (
+        distributionCache.nextBeforeId === undefined ||
+        !(page.items ?? []).length
+      ) {
+        distributionCache.exhausted = true;
       }
     }
 
-    beforeId = page.next_before_id ?? undefined;
-  } while (beforeId !== undefined);
-
-  return distributions;
+    return distributionCache.items.filter(
+      (distribution) =>
+        distribution.completed_at_unix_ms >= fromMilliseconds &&
+        distribution.completed_at_unix_ms < toMilliseconds,
+    );
+  } finally {
+    release();
+  }
 }
 
 async function addFee(
