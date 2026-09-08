@@ -42,3 +42,15 @@ npm test fees pairz 2026-09-08
 ```
 
 `DUNE_API_KEYS` is the existing upstream helper's environment variable. Never commit credentials. Dune-backed adapters use version 1 per repository rules. Query errors propagate rather than becoming zero revenue.
+
+## Prelaunch preparation update
+
+The query explicitly filters successful transactions. The aggregator rejects partial empty-row sentinels, duplicate quote aggregates, malformed amounts and absent trade coverage. Run the checked-in offline suite:
+
+```sh
+npx ts-node --transpile-only fees/pairz/validation.test.ts
+```
+
+26 offline checks pass. These do not establish that Dune indexed every transaction or that its current schema matches the query. Public production start time, private test exclusions and a verified pool registry remain prerequisites for customer-activity reporting.
+
+The upstream CLI treats its date argument as the end of a daily interval: `npm test fees pairz 2026-09-09` tests 8 September UTC. The earlier command ending on 8 September tested the preceding day and failed before retrieving any data.
