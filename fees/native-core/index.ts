@@ -12,6 +12,7 @@ import { fetchURLAutoHandleRateLimit, httpPost } from "../../utils/fetchURL";
 const STATS_WINDOW_URL = "https://api-ui.native.org/api/v3/stats/window";
 const TICKERS_URL = "https://api-ui.native.org/api/v3/cg/tickers";
 const EARN_URL = "https://api-ui.native.org/api/v3/earn";
+const REGISTRY_URL = "https://api-ui.native.org/api/v3/core/registry";
 const HOUR = 3600;
 const USD_QUOTES = new Set(["USDC", "USDT"]);
 
@@ -21,26 +22,12 @@ const MAKER_TO_TREASURY = "Maker Fees To Treasury";
 const TAKER_TO_TREASURY = "Taker Fees To Treasury";
 const POOL_YIELD_TO_LPS = "Native Pool Yield To LPs";
 
-// CoinGecko slugs for assets DefiLlama already prices. Everything else is
-// converted through a USDC/USDT CLOB last price from /cg/tickers.
-const CG_IDS: Record<string, string> = {
-  USDC: "usd-coin",
-  USDT: "tether",
-  ETH: "ethereum",
-  BNB: "binancecoin",
-  BTC: "bitcoin",
-  WBTC: "wrapped-bitcoin",
-  cbBTC: "coinbase-wrapped-btc",
-  USDE: "ethena-usde",
-  wstETH: "wrapped-steth",
-  SOL: "solana",
-  PAXG: "pax-gold",
-  XAUt: "tether-gold",
-  CASHCAT: "cash-cat"
-};
-
 type FeeRow = {
+  asset_id: number;
   symbol: string;
+  decimals: number;
+  maker_atoms: string;
+  taker_atoms: string;
   maker: string;
   taker: string;
 };
@@ -85,6 +72,33 @@ type DistributionPage = {
   next_before_id: number | null;
 };
 
+type RegistryUnderlying = {
+  assetId: number;
+  symbol: string;
+  nativeSymbol: string;
+  address: string;
+  decimals: number;
+  enabled: boolean;
+};
+
+type RegistryChain = {
+  chainKey: string;
+  underlyings: RegistryUnderlying[];
+};
+
+type RegistryResponse = {
+  data?: { chains?: RegistryChain[] };
+};
+
+type CoreAssetToken = {
+  token: string;
+  decimals: number;
+};
+
+type CoreAssetTokens = {
+  byAssetId: Map<number, CoreAssetToken>;
+};
+
 function hourWindow(endTimestamp: number): { from: number; to: number } {
   // FetchOptions.startTimestamp is (end - window - 1s). Flooring that would
   // request the previous hour; Native rejects any from/to not on an hour mark.
@@ -100,7 +114,7 @@ function parseAmount(raw: string, symbol: string, side: string): number {
   return amount;
 }
 
-function parseAtoms(raw: string, decimals: number, symbol: string): number {
+function parseAtomAmount(raw: string, decimals: number, symbol: string): bigint {
   let atoms: bigint;
   try {
     atoms = BigInt(raw);
@@ -114,21 +128,33 @@ function parseAtoms(raw: string, decimals: number, symbol: string): number {
       `Native Pool distribution for ${symbol} has invalid amount or decimals`,
     );
   }
-
-  const scale = 10n ** BigInt(decimals);
-  const wholeAmount = atoms / scale;
-  if (wholeAmount > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new Error(
-      `Native Pool distribution for ${symbol} cannot be represented safely: ${raw}`,
-    );
-  }
-  const amount =
-    Number(wholeAmount) + Number(atoms % scale) / Number(scale);
-  return amount;
+  return atoms;
 }
 
-let venuePrices: Map<string, VenuePrice> | undefined;
+function rescaleAtoms(
+  raw: string,
+  fromDecimals: number,
+  toDecimals: number,
+  symbol: string,
+): bigint {
+  const atoms = parseAtomAmount(raw, fromDecimals, symbol);
+  const decimalDifference = toDecimals - fromDecimals;
+  if (decimalDifference >= 0) {
+    return atoms * 10n ** BigInt(decimalDifference);
+  }
+
+  const scale = 10n ** BigInt(-decimalDifference);
+  if (atoms % scale !== 0n) {
+    throw new Error(
+      `Native Pool distribution for ${symbol} cannot be represented with ${toDecimals} decimals`,
+    );
+  }
+  return atoms / scale;
+}
+
 let poolAssets: Map<number, PoolAsset> | undefined;
+let coreAssetTokens: CoreAssetTokens | undefined;
+let venuePrices: Map<string, VenuePrice> | undefined;
 
 async function getVenuePrices(): Promise<Map<string, VenuePrice>> {
   if (venuePrices) return venuePrices;
@@ -175,6 +201,33 @@ async function getPoolAssets(): Promise<Map<number, PoolAsset>> {
   return poolAssets;
 }
 
+async function getCoreAssetTokens(): Promise<CoreAssetTokens> {
+  if (coreAssetTokens) return coreAssetTokens;
+
+  const registry: RegistryResponse = await fetchURLAutoHandleRateLimit(REGISTRY_URL);
+  const byAssetId = new Map<number, CoreAssetToken>();
+
+  for (const chain of registry.data?.chains ?? []) {
+    for (const underlying of chain.underlyings ?? []) {
+      if (!underlying.enabled || !underlying.address) continue;
+      const asset = {
+        token: `${chain.chainKey}:${underlying.address}`,
+        decimals: underlying.decimals,
+      };
+      // An asset may be bridged to several chains. Use the enabled
+      // representation with the most decimals so Core's balance atoms can be
+      // represented exactly; the same choice serves fees and Pool payouts.
+      const existing = byAssetId.get(underlying.assetId);
+      if (!existing || asset.decimals > existing.decimals) {
+        byAssetId.set(underlying.assetId, asset);
+      }
+    }
+  }
+
+  coreAssetTokens = { byAssetId };
+  return coreAssetTokens;
+}
+
 async function getPoolDistributions(
   fromMilliseconds: number,
   toMilliseconds: number,
@@ -211,25 +264,58 @@ async function getPoolDistributions(
 
 async function addFee(
   balances: Balances,
-  symbol: string,
-  amount: number,
+  fee: FeeRow,
+  rawAmount: string,
+  rawAtoms: string,
   label: string,
 ): Promise<void> {
+  const amount = parseAmount(rawAmount, fee.symbol, "fee");
   if (amount === 0) return;
 
-  const cgId = CG_IDS[symbol];
-  if (cgId) {
-    balances.addCGToken(cgId, amount, label);
+  const asset = (await getCoreAssetTokens()).byAssetId.get(fee.asset_id);
+  if (asset) {
+    balances.addTokenVannila(
+      asset.token,
+      rescaleAtoms(rawAtoms, fee.decimals, asset.decimals, fee.symbol),
+      label,
+    );
     return;
   }
 
-  const venue = (await getVenuePrices()).get(symbol);
+  // CLOB-only synthetic assets (for example MUon) have no canonical token in
+  // the registry, so use their direct USD-quoted CLOB market as a fallback.
+  const venue = (await getVenuePrices()).get(fee.symbol);
   if (!venue) {
     throw new Error(
-      `Native Core fee asset ${symbol} has no CoinGecko id and no USDC/USDT CLOB price`,
+      `Native Core fee asset ${fee.symbol} has no Core registry token or USDC/USDT CLOB price`,
     );
   }
   balances.addCGToken(venue.cgId, amount * venue.price, label);
+}
+
+async function addPoolDistribution(
+  balances: Balances,
+  asset: PoolAsset,
+  distribution: PoolDistribution,
+): Promise<void> {
+  const registryAsset = (await getCoreAssetTokens()).byAssetId.get(asset.asset_id);
+  if (!registryAsset) {
+    throw new Error(
+      `Native Pool distribution ${distribution.id} has no Core registry token for ${asset.symbol}`,
+    );
+  }
+  // Pool balances and the registry's EVM token may use different decimals.
+  // Rescaling atoms changes only units, while retaining the same asset token.
+  balances.addTokenVannila(
+    registryAsset.token,
+    rescaleAtoms(
+      distribution.distribution_amount,
+      asset.balance_decimals,
+      registryAsset.decimals,
+      asset.symbol,
+    ),
+    POOL_YIELD_TO_LPS,
+  );
 }
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
@@ -249,12 +335,10 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   for (const row of snap.fees ?? []) {
-    const maker = parseAmount(row.maker, row.symbol, "maker");
-    const taker = parseAmount(row.taker, row.symbol, "taker");
-    await addFee(dailyFees, row.symbol, maker, MAKER_FEES);
-    await addFee(dailyFees, row.symbol, taker, TAKER_FEES);
-    await addFee(dailyRevenue, row.symbol, maker, MAKER_TO_TREASURY);
-    await addFee(dailyRevenue, row.symbol, taker, TAKER_TO_TREASURY);
+    await addFee(dailyFees, row, row.maker, row.maker_atoms, MAKER_FEES);
+    await addFee(dailyFees, row, row.taker, row.taker_atoms, TAKER_FEES);
+    await addFee(dailyRevenue, row, row.maker, row.maker_atoms, MAKER_TO_TREASURY);
+    await addFee(dailyRevenue, row, row.taker, row.taker_atoms, TAKER_TO_TREASURY);
   }
 
   const assets = await getPoolAssets();
@@ -266,12 +350,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         `Native Pool distribution ${distribution.id} has unknown asset ${distribution.asset_id}`,
       );
     }
-    const amount = parseAtoms(
-      distribution.distribution_amount,
-      asset.balance_decimals,
-      asset.symbol,
-    );
-    await addFee(dailySupplySideRevenue, asset.symbol, amount, POOL_YIELD_TO_LPS);
+    await addPoolDistribution(dailySupplySideRevenue, asset, distribution);
   }
   dailyRevenue.subtract(dailySupplySideRevenue, POOL_YIELD_TO_LPS);
 
@@ -286,7 +365,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    "Maker and taker trading fees on Native Core CLOB fills. Each side pays independently, so both legs are counted. Taken from GET /api/v3/stats/window over the hour. Assets without a CoinGecko id are converted through the venue USDC/USDT last price.",
+    "Maker and taker trading fees on Native Core CLOB fills. Each side pays independently, so both legs are counted. Taken from GET /api/v3/stats/window over the hour. Settlement assets are recorded under their Native Core registry token; CLOB-only synthetic assets without a canonical token are valued from their USDC/USDT market.",
   UserFees: "Same as fees — traders pay both the maker and taker legs.",
   Revenue:
     "Maker and taker fees Native retains after subtracting Native Pool yield distributed to LPs. Revenue can be negative in a distribution hour because Pool payouts include extra rewards as well as fee-funded yield.",
