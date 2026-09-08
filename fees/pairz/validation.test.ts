@@ -1,7 +1,7 @@
 // Offline regression tests. These never execute Dune or prove real fee totals.
 // Run: npx ts-node --transpile-only fees/pairz/validation.test.ts
 import assert from 'node:assert/strict';
-import { aggregateFees, feeQuery } from './index';
+import { aggregateFees, feeQuery, dailyOptions } from './index';
 import adapter from './index';
 import { FetchOptions } from '../../adapters/types';
 
@@ -57,4 +57,6 @@ test('query uses successful txs and half-open intervals', () => {
 });
 for (const window of [{startTimestamp:200,endTimestamp:100},{startTimestamp:0,endTimestamp:0},{startTimestamp:-1,endTimestamp:1},{startTimestamp:0,endTimestamp:NaN}])
   test('reject invalid query window '+JSON.stringify(window),()=>assert.throws(()=>feeQuery(window)));
+test('daily adapter excludes preceding second',()=>{const daily=dailyOptions({...options,startOfDay:1788825600,startTimestamp:1788825599,endTimestamp:1788912000});assert.equal(daily.startTimestamp,1788825600);assert.equal(daily.endTimestamp,1788912000);});
+test('decoded calls use real transaction success instead of nonexistent call_success',()=>{const sql=feeQuery({startTimestamp:1788825600,endTimestamp:1788912000});assert.ok(!sql.includes('call_success'));assert.match(sql,/tx.id = call_tx_id AND tx.success/);});
 console.log(`${checks} offline checks passed; live SQL, data coverage and chain reconciliation remain unverified.`);

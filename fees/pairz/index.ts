@@ -19,15 +19,39 @@ export const feeQuery = (options: Pick<FetchOptions, 'startTimestamp' | 'endTime
     WITH initializations AS (
       SELECT account_pool_state AS pool, account_quote_mint AS quote_mint
       FROM raydium_solana.raydium_launchpad_call_initialize
-      WHERE account_platform_config = '${PLATFORM}' AND call_success
+      WHERE account_platform_config = '${PLATFORM}'
+        AND call_block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND EXISTS (
+        SELECT 1 FROM solana.transactions tx
+        WHERE tx.id = call_tx_id AND tx.success
+          AND tx.block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+          AND tx.block_time < from_unixtime(${options.endTimestamp})
+      )
       UNION
       SELECT account_pool_state, account_quote_mint
       FROM raydium_solana.raydium_launchpad_call_initialize_v2
-      WHERE account_platform_config = '${PLATFORM}' AND call_success
+      WHERE account_platform_config = '${PLATFORM}'
+        AND call_block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND EXISTS (
+        SELECT 1 FROM solana.transactions tx
+        WHERE tx.id = call_tx_id AND tx.success
+          AND tx.block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+          AND tx.block_time < from_unixtime(${options.endTimestamp})
+      )
       UNION
       SELECT account_pool_state, account_quote_mint
       FROM raydium_solana.raydium_launchpad_call_initialize_with_token_2022
-      WHERE account_platform_config = '${PLATFORM}' AND call_success
+      WHERE account_platform_config = '${PLATFORM}'
+        AND call_block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND EXISTS (
+        SELECT 1 FROM solana.transactions tx
+        WHERE tx.id = call_tx_id AND tx.success
+          AND tx.block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+          AND tx.block_time < from_unixtime(${options.endTimestamp})
+      )
     ), pools AS (
       SELECT pool, MIN(quote_mint) AS quote_mint,
              COUNT(DISTINCT quote_mint) AS quote_count,
@@ -36,8 +60,15 @@ export const feeQuery = (options: Pick<FetchOptions, 'startTimestamp' | 'endTime
     ), migrations AS (
       SELECT COUNT(*) AS migration_count
       FROM raydium_solana.raydium_launchpad_call_migrate_to_cpswap
-      WHERE account_platform_config = '${PLATFORM}' AND call_success
+      WHERE account_platform_config = '${PLATFORM}'
+        AND call_block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
         AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND EXISTS (
+        SELECT 1 FROM solana.transactions tx
+        WHERE tx.id = call_tx_id AND tx.success
+          AND tx.block_time >= TIMESTAMP '2026-09-07 00:00:00 UTC'
+          AND tx.block_time < from_unixtime(${options.endTimestamp})
+      )
     ), fees AS (
       SELECT p.quote_mint,
              CAST(SUM(CAST(t.platform_fee AS DECIMAL(38,0))) AS VARCHAR) AS platform_fee,
@@ -102,7 +133,15 @@ export const aggregateFees = (options: Pick<FetchOptions, 'createBalances'>, row
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
-const fetch = async (options: FetchOptions) => aggregateFees(options, await queryDuneSql(options, feeQuery(options)));
+// The upstream runner's v1 startTimestamp includes the preceding second.
+// Use the actual UTC day and pass the same bounds to Dune's TIME_RANGE macro.
+export const dailyOptions = (options: FetchOptions): FetchOptions => ({
+  ...options, startTimestamp: options.startOfDay, endTimestamp: options.startOfDay + 86400,
+});
+const fetch = async (options: FetchOptions) => {
+  const daily = dailyOptions(options);
+  return aggregateFees(daily, await queryDuneSql(daily, feeQuery(daily)));
+};
 
 const adapter: SimpleAdapter = {
   version: 1, // Dune is queried daily, per repository guidance.

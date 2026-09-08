@@ -3,54 +3,58 @@
 Website: https://pairz.fun
 Twitter: https://x.com/PairzFun
 Docs: https://docs.pairz.fun
-Chain: Solana
-Requested category: Launchpad
+Chain: Solana; requested category: Launchpad
 Protocol token: `3URpNcV9wAPjwMAyuBsPjwwkGN9wFJuwcRs3RMbdpair`
 
-This is a **draft, not a complete or validated protocol listing**. Do not merge until the items below are resolved.
+This remains a draft, not complete protocol coverage. Public launch time and private-test treatment must be agreed before listing customer activity.
 
-## Implemented scope
+## Implemented and tested
 
-The query attributes LaunchLab pools by Pairz platform config `3om3BermKeuUVXEbtktzkiuPh4mY5fn1c8cNh1TR3DUj`, not mint suffix, transaction signer, or all deposits into an operator wallet. It reads actual platform/protocol/creator fee fields and returns raw integer strings by quote mint; USDC and stock quotes must not be priced as SOL. Successful initialization variants are deduplicated before joining trades. Daily fees equal platform revenue plus the Raydium and creator shares. Platform registration on 7 September 2026 defines the start of this product's history.
+LaunchLab pools are attributed by platform `3om3BermKeuUVXEbtktzkiuPh4mY5fn1c8cNh1TR3DUj`, not mint suffix or incoming wallet transfers. Successful transactions are checked against `solana.transactions`: the decoded LaunchLab call tables do not expose `call_success`. The three initialization variants are deduplicated before joining trades. Registration on 7 September 2026 bounds history scans.
+
+Actual platform, Raydium protocol and creator fees are aggregated as integer strings in each quote mint. Fees equal Pairz platform revenue plus the other two components. No completed buyback is inferred from an allocation. Raydium overlap is marked `doublecounted`.
 
 Platform registration: https://solscan.io/tx/5W1AnfdEMHBAoYPkAeMMoPcsnh8VjzRjDzFeWjgzRoLdVuDPj1JG4cgS4ri3mJuoR4kzEgMzx78FxfVN9u2VV2Yb
 
-Example USDC launch: `bKvdbmnAtMyiXpqB1ZKW2fJJf9hzw1yRzaRqAMFpair`.
-Example AAPLx launch: `74sAvxkRQH1iUKR7t321rjqfuntsDf2irqapfGMGpair`.
-These are launch evidence, not evidence of fee-generating trading.
+Live Dune validation on 8 September 2026:
 
-Raydium protocol fees overlap the existing LaunchLab listing, so the adapter is marked doublecounted. Maintainers should confirm whether to display gross launchpad fees or only the Pairz platform slice.
+| Private test pool quote | Trades | Pairz platform fee, raw | Raydium fee, raw | Creator fee, raw |
+| --- | ---: | ---: | ---: | ---: |
+| USDC (6 decimals) | 2 | 20405 | 5102 | 0 |
+| AAPLx (8 decimals) | 4 | 63892 | 15975 | 0 |
 
-## Required before merge
+These are a partial day's private-test observations, not customer revenue or public launch traction. All six events had zero share_fee. Six unique trade records reconciled exactly with the per-quote aggregate; buys and sells were present in both pools. This is reconciliation within Dune, not an independent RPC finality audit.
 
-- Execute the Dune query and validate its schema and successful-event coverage, including the token-2022 initialization variant; compare results with actual finalized trade receipts. Local mocked tests are not a live query run.
-- Check a no-trade day and at least one nonzero-fee day; validate both buys and sells and mixed quote assets. Confirm DeFiLlama price coverage for stock quote mints.
-- Add migrated CPMM fees; this draft throws when it detects a migration rather than publishing incomplete totals.
-- Resolve historical Pump creator-fee accounting, including documented cost deductions and distributions. Do not extrapolate today's LaunchLab policy backward or claim this is full Pairz history.
-- Add actual settled PAIRZ buyback/holder revenue with attributable funding and confirmed settlement evidence. An allocation or a wallet transfer alone is not a completed buyback. Do not assign 100% of accrual to completed holder revenue.
-- Account for holder transfer taxes if enabled and actually charged; keep rewards to launched-coin holders distinct from PAIRZ governance-token holder revenue.
-- Confirm treasury/holder attribution and coverage boundaries with maintainers before marking ready.
+Dune executions:
+- Decoded LaunchLab schema: `01M1ZAWXKQFJADGMMP0J0MGWMG`
+- Nonzero aggregate: `01M1ZAY5D2CXRW5WF6TP5GMWX4`
+- Six individual trade records: `01M1ZB14KFS42SAFYMHBX1G52T`
+- CPMM schema: `01M1ZAYSMJ4M6HW5V5RY5BW783`
 
-No TVL or volume is claimed by this draft. LP balances, token market capitalization, launch deposits, account rent, operational funding and reimbursements are not substituted for fee revenue.
-
-## Validation
-
-Run with a privately configured Dune credential:
+Both upstream commands passed after schema correction:
 
 ```sh
-npm test fees pairz 2026-09-08
+npm test fees pairz 2026-09-08 # 7 September UTC: zero activity
+npm test fees pairz 2026-09-09 # 8 September UTC: partial private-test day
 ```
 
-`DUNE_API_KEYS` is the existing upstream helper's environment variable. Never commit credentials. Dune-backed adapters use version 1 per repository rules. Query errors propagate rather than becoming zero revenue.
+The latter priced both quote tokens and printed approximately $0.2808 fees, $0.2246 Pairz revenue and $0.0562 supply-side revenue at test time. Prices and the current day's totals can change. Version 1 explicitly uses `startOfDay` through the next midnight, avoiding the upstream runner's extra preceding second.
 
-## Prelaunch preparation update
-
-The query explicitly filters successful transactions. The aggregator rejects partial empty-row sentinels, duplicate quote aggregates, malformed amounts and absent trade coverage. Run the checked-in offline suite:
+28 offline checks and a targeted TypeScript check also pass:
 
 ```sh
 npx ts-node --transpile-only fees/pairz/validation.test.ts
 ```
 
-26 offline checks pass. These do not establish that Dune indexed every transaction or that its current schema matches the query. Public production start time, private test exclusions and a verified pool registry remain prerequisites for customer-activity reporting.
+No credentials are included in this submission.
 
-The upstream CLI treats its date argument as the end of a daily interval: `npm test fees pairz 2026-09-09` tests 8 September UTC. The earlier command ending on 8 September tested the preceding day and failed before retrieving any data.
+## Remaining before merge
+
+- Confirm public production start time, pool coverage, test-activity exclusions, and independent finalized transaction reconciliation.
+- Add migrated CPMM fees. Live schema inspection found the existing `raydium_cp_swap_evt_swapevent` table lacks input/output mint, trade-fee and creator-fee fields from the newer Raydium event. An updated decoder or independently verified raw-event source is required. This draft stops if a migration is detected.
+- Add historical Pump creator-fee accounting with the actual dated fee policy, operating costs, reserve and distribution evidence. Do not apply today's LaunchLab allocation backward.
+- Add attributable, completed PAIRZ buybacks and holder distributions. The newer manual-buyback-funding completion proves a transfer only, not a completed buyback; acquisition and burn must not be counted twice.
+- Verify transfer-tax and nonzero referral/share-fee treatment before reporting periods where they apply.
+- Agree treasury/holder classification and Raydium fee overlap with maintainers. Validate pricing for additional quote and launched-token fee assets.
+
+No TVL or volume is claimed. Rent, deposits, market capitalization, funding, reimbursements and launch receipts are not fee revenue.
