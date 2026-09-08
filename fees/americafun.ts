@@ -26,15 +26,12 @@ const fetch = async (options: FetchOptions) => {
 
   const feesUsd = parseFloat(data.dailyFees) || 0
   const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
-  const dailySupplySideRevenueUsd = parseFloat(data.dailySupplySideRevenue)
-  // defillama.america.fun/api/v1/fees reports exact-zero supply side alongside populated
-  // meteoraFee and inflated revenue on 13 historical days (issue #9277, PR #9310).
-  // The LP remainder and staker split are unknown; default the residual to treasury
-  // conservatively instead of fabricating an unverified staker payout.
-  const deriveRevenue = dailySupplySideRevenueUsd === 0 && feesUsd > 0
-  const protocolRevenueUsd = deriveRevenue ? feesUsd - meteoraFeeUsd : parseFloat(data.dailyProtocolRevenue) || 0
-  const holdersRevenueUsd = deriveRevenue ? 0 : parseFloat(data.dailyHoldersRevenue) || 0
-  const lpFeeUsd = deriveRevenue ? 0 : (dailySupplySideRevenueUsd || 0) - meteoraFeeUsd
+  const supplySideUsd = parseFloat(data.dailySupplySideRevenue)
+  // upstream returns supply side 0 with inflated revenue on some days (#9277); rebuild the split from the two fields that stay consistent
+  const rebuildSplit = supplySideUsd === 0
+  const protocolRevenueUsd = rebuildSplit ? feesUsd - meteoraFeeUsd : parseFloat(data.dailyProtocolRevenue) || 0
+  const holdersRevenueUsd = rebuildSplit ? 0 : parseFloat(data.dailyHoldersRevenue) || 0
+  const lpFeeUsd = rebuildSplit ? 0 : (supplySideUsd || 0) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")
