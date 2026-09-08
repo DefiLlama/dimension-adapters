@@ -12,12 +12,16 @@ const TREASURIES = [
     'EQCLyZHP4Xe8fpchQz76O-_RmUhaVc_9BAoGyJrwJrcbz2eZ',
 ]
 
-// Toncenter allows one request per second unauthenticated, and -- this is the dangerous part --
-// answers a throttled request with an empty result set rather than an error, which reads as "no
-// activity" instead of "ask again". A key removes the limit; DefiLlama's TVL repo already reads
-// this same variable in projects/helper/chain/ton.js.
+// Toncenter allows one request per second unauthenticated, and under that limit this endpoint
+// answers with HTTP 500 "timeout: context deadline exceeded" often enough to matter -- five of six
+// back-to-back requests, in a burst measured while writing this. Those are errors rather than empty
+// results, so fetchURLAutoHandleRateLimit's backoff turns them into a retry rather than into a day
+// reported as zero. The key is here to make a long refill finish, not to keep it correct.
+// DefiLlama's TVL repo already reads this same variable in projects/helper/chain/ton.js.
 const apiKey = getEnv('TONCENTER_API_KEY')
 const PAGE = 256
+// Above fetchURLAutoHandleRateLimit's default of 3, which spends its attempts over ten seconds.
+const RETRIES = 5
 
 // The treasury reports every loan repayment as a log: an external-out message whose body carries
 // the round's reward already split into its destinations. Reading the split from the log is what
@@ -173,7 +177,7 @@ async function repayments(treasury: string, start: number, end: number): Promise
             `https://toncenter.com/api/v3/messages?source=${treasury}&direction=out` +
             `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc` +
             (apiKey ? `&api_key=${apiKey}` : '')
-        const data = await fetchURLAutoHandleRateLimit(url)
+        const data = await fetchURLAutoHandleRateLimit(url, RETRIES)
         const messages: any[] = data?.messages ?? []
         for (const message of messages) {
             // logs are external-out, which the API reports with no destination
