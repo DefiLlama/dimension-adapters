@@ -54,6 +54,56 @@ async function flow(options: FetchOptions) {
   return { dailyVolume };
 }
 
+// OpenSea's Seaport 1.6 is the only NFT marketplace deployed on Robinhood Chain
+// (1.4 and 1.5 have no bytecode there), and OpenSea serves the chain through its own
+// `seaport-rh` provider, so every marketplace sale lands in this one contract.
+const seaport_1_6 = '0x0000000000000068F116a894984e2DB1123eB395';
+const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)";
+
+// Seaport item types: 0 NATIVE, 1 ERC20, 2 ERC721, 3 ERC1155, 4/5 the *_WITH_CRITERIA variants
+const isNftItem = (itemType: any) => Number(itemType) >= 2;
+const isCurrencyItem = (itemType: any) => Number(itemType) <= 1;
+
+async function robinhood({ createBalances, getLogs }: FetchOptions) {
+  const dailyVolume = createBalances();
+  const logs = await getLogs({ target: seaport_1_6, eventAbi: event_order_fulfilled, entireLog: true, onlyArgs: false });
+
+  const trades: Record<string, { isBid: boolean, payments: [string, bigint][] }[]> = {};
+
+  logs.forEach((log: any) => {
+    const { offer, consideration } = log.args;
+    const offeredNfts = offer.filter((i: any) => isNftItem(i.itemType));
+    const requestedNfts = consideration.filter((i: any) => isNftItem(i.itemType));
+    // exactly one side of the trade is the NFT; skip barters and pure token orders
+    if (!offeredNfts.length === !requestedNfts.length) return;
+
+    const isBid = !offeredNfts.length;
+    // a listing is paid through `consideration` (seller proceeds + fees + royalties), a bid
+    // pays out of `offer` - either way the currency legs sum to the gross price
+    const payments = (isBid ? offer : consideration)
+      .filter((i: any) => isCurrencyItem(i.itemType))
+      .map((i: any) => [i.token, BigInt(i.amount)] as [string, bigint]);
+
+    const nfts = (isBid ? requestedNfts : offeredNfts).map((i: any) => `${i.token}:${i.identifier}`);
+    const key = `${log.transactionHash}:${nfts.sort().join(',')}`;
+    if (!trades[key]) trades[key] = [];
+    trades[key].push({ isBid, payments });
+  });
+
+  // an accepted bid goes through `matchOrders`, which emits OrderFulfilled for BOTH sides of
+  // the same trade. Pair the legs up per tx + nft and keep the bid leg, which is what the
+  // buyer actually paid; anything unpaired is an ordinary one-sided fill.
+  Object.values(trades).forEach((fills) => {
+    const bids = fills.filter((i) => i.isBid);
+    const asks = fills.filter((i) => !i.isBid);
+    [...bids, ...asks.slice(bids.length)].forEach(({ payments }) => {
+      payments.forEach(([token, amount]) => dailyVolume.add(token, amount));
+    });
+  });
+
+  return { dailyVolume };
+}
+
 // --- v1 adapters: only support pulling daily/current data ---
 
 async function immutablex({ startOfDay, createBalances }: FetchOptions) {
@@ -128,6 +178,7 @@ const chains = [
   { chain: "avalanche", fetch: getAlliumVolume("avalanche"), },
   { chain: "polygon", fetch: getAlliumVolume("polygon"), },
   { chain: "solana", fetch: getAlliumVolume("solana"), },
+  { chain: "robinhood", fetch: robinhood, },
   //{ chain: "bitcoin",  fetch: getAlliumVolume("bitcoin"),    },
   // v1: daily/current data only
   { chain: "ethereum", fetch: ethereum, runAtCurrTime: true },
