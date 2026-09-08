@@ -48,3 +48,11 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 2. Not accounting for leverage in notional calculations
 3. Missing multi-market aggregation
 4. Not handling liquidated positions
+
+## Units and sources
+
+- Export open interest in USD, never raw contract units: contracts (times the contract size/multiplier where the venue has one) times the mark or index price AT THE WINDOW END, not a window average. Inverse and quanto contracts use the venue's own notional formula; state it in a comment.
+- Follow the venue's total-OI convention: if the venue's total already counts each contract once, do not add longs and shorts on top of it. Apply the same convention to every market of the adapter. A large day-to-day swing without a matching price or position change usually means a unit or side bug.
+- A source that only serves current OI uses `runAtCurrTime: true`; snapshot metrics never carry cumulative columns.
+- OI is a snapshot at the window end, never a sum over the window. Under `pullHourly` a summed OI comes out 24x too high.
+- Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
