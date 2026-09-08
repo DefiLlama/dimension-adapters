@@ -183,9 +183,12 @@ async function repayments(treasury: string, start: number, end: number): Promise
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const found = (await Promise.all(
-        TREASURIES.map((t) => repayments(t, options.startTimestamp, options.endTimestamp))
-    )).flat()
+    // Sequential on purpose. Unauthenticated toncenter allows one request per second, and two
+    // streams racing it just means both spend their retries backing off each other.
+    const found: Repayment[] = []
+    for (const treasury of TREASURIES) {
+        found.push(...(await repayments(treasury, options.startTimestamp, options.endTimestamp)))
+    }
 
     let stakers = 0n
     let governor = 0n
