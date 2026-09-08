@@ -157,6 +157,15 @@ const LAUNCHER_STONK_BPS = 3333n;
 // Token vesting locker — 1 bps deposit fee → SafetyDepositClockInV3.
 const VESTING_LOCKER = "0x2b4aD79DA7BD3bF340bBd2aD2039b149214e9Aa9";
 
+// Smart LP (Volatility Farming) — immutable concentrated-liquidity vaults on
+// canonical Uniswap V3 pools (live 2026-09-08). The on-chain registry is the
+// single discovery surface for the fleet (~165 vaults). Every fee collection
+// emits FeesCollected on the vault: fees0/fees1 = gross pool fees collected,
+// skim0/skim1 = the 10% performance fee, which splits 50% StockBooster
+// (Clock In dividends) / 50% $STONKBROKER buybacks. The remaining 90%
+// auto-compounds back into the vault position for depositors.
+const SMART_LP_REGISTRY = "0xE8749183Fbf6A657EB58B3a4D3E4B9Cc09560146";
+
 const NFT_SOLD =
   "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
 const NFT_BOUGHT =
@@ -199,6 +208,8 @@ const CURVE_TRADE =
   "event Trade(address indexed trader, bool indexed isBuy, uint256 quoteAmount, uint256 tokenAmount, uint256 feeAmount, uint256 newRealQuote, uint256 newSold)";
 const POSITION_LOCKED =
   "event PositionLocked(address indexed token, uint256 indexed lockTokenId, address indexed owner, address vault, uint64 startUnlock, uint64 finishUnlock, uint256 initialAmount, uint256 feeAmount)";
+const SMART_LP_FEES_COLLECTED =
+  "event FeesCollected(uint256 fees0, uint256 fees1, uint256 skim0, uint256 skim1)";
 
 /** USDG on Robinhood Chain — sell-back rail payout token. */
 const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
@@ -237,6 +248,10 @@ const LABELS = {
   CURVE_CREATOR: "Bonding-curve fees → creator (33.33%)",
   CURVE_STONK: "Bonding-curve fees → StonkBrokers Directed Clock In / pot (33.33%)",
   VESTING_FEES: "Token vesting locker deposit fees (0.01%)",
+  SMARTLP_FEES: "Smart LP vault pool fees (Volatility Farming)",
+  SMARTLP_COMPOUND: "Smart LP fees auto-compounded to vault depositors (90%)",
+  SMARTLP_DIVIDENDS: "Smart LP performance fee → StockBooster Clock In dividends (5%)",
+  SMARTLP_BUYBACK: "Smart LP performance fee → $STONKBROKER buybacks (5%)",
 };
 
 const RANDOM_FEE_BPS = 1000n;
@@ -391,6 +406,26 @@ const fetchRobinhood = async (options: FetchOptions) => {
     target: VESTING_LOCKER,
     eventAbi: POSITION_LOCKED,
   });
+
+  // Smart LP vault fleet — registry-enumerated (the registry is the only
+  // discovery surface). try/catch: the registry deploys 2026-09-05, so
+  // historical refills before that block must degrade to "no vaults", not
+  // fail the day. flatten:false so each vault's logs attribute to its own
+  // token0/token1 pair.
+  let smartLpVaults: string[] = [];
+  try {
+    smartLpVaults =
+      (await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY })) ?? [];
+  } catch (e) {
+    smartLpVaults = [];
+  }
+  const smartLpFeeLogsByVault: any[][] = smartLpVaults.length
+    ? await options.getLogs({
+        targets: smartLpVaults,
+        eventAbi: SMART_LP_FEES_COLLECTED,
+        flatten: false,
+      })
+    : [];
 
   const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
     options.getLogs({
@@ -682,6 +717,54 @@ const fetchRobinhood = async (options: FetchOptions) => {
     }
   }
 
+  // ── Smart LP vaults (Volatility Farming) ─────────────────────────────────
+  // FeesCollected(fees0, fees1, skim0, skim1): fees = gross pool fees pulled
+  // from the vault's Uniswap V3 position, skim = the 10% performance fee
+  // (perfFeeBps) taken out of them. The remaining 90% auto-compounds back
+  // into the position for depositors; the skim splits 50% StockBooster
+  // (Clock In dividends — supply-side, matching every other booster leg
+  // here) / 50% $STONKBROKER buybacks (holders revenue).
+  {
+    const activeIdx: number[] = [];
+    smartLpFeeLogsByVault.forEach((logs, i) => {
+      if (logs?.length) activeIdx.push(i);
+    });
+    if (activeIdx.length) {
+      const [token0s, token1s] = await Promise.all([
+        options.api.multiCall({
+          abi: "address:token0",
+          calls: activeIdx.map((i) => smartLpVaults[i]),
+        }),
+        options.api.multiCall({
+          abi: "address:token1",
+          calls: activeIdx.map((i) => smartLpVaults[i]),
+        }),
+      ]);
+      activeIdx.forEach((vaultIdx, j) => {
+        const pair: [string, string] = [token0s[j], token1s[j]];
+        for (const log of smartLpFeeLogsByVault[vaultIdx]) {
+          const legs: [string, bigint, bigint][] = [
+            [pair[0], BigInt(log.fees0), BigInt(log.skim0)],
+            [pair[1], BigInt(log.fees1), BigInt(log.skim1)],
+          ];
+          for (const [token, fees, skim] of legs) {
+            if (fees <= 0n) continue;
+            const buyback = skim / 2n;
+            const dividends = skim - buyback;
+            dailyFees.addToken(token, fees, LABELS.SMARTLP_FEES);
+            dailySupplySideRevenue.addToken(token, fees - skim, LABELS.SMARTLP_COMPOUND);
+            if (dividends > 0n)
+              dailySupplySideRevenue.addToken(token, dividends, LABELS.SMARTLP_DIVIDENDS);
+            if (buyback > 0n) {
+              dailyHoldersRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
+              dailyRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
+            }
+          }
+        }
+      });
+    }
+  }
+
   return {
     dailyVolume,
     dailyFees,
@@ -727,15 +810,15 @@ const adapter: SimpleAdapter = {
     Volume:
       "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); and StonkVestingLocker 0.01% deposit fees.",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; and Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, and vesting-locker deposit fees.",
+      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, and the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
     ProtocolRevenue:
       "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 33.34% of bonding-curve trade fees; vesting-locker deposit fees.",
     HoldersRevenue:
-      "Half of the $STONKBROKER activation/upgrade fees burned.",
+      "Half of the $STONKBROKER activation/upgrade fees burned, plus the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%).",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee.",
   },
   breakdownMethodology: {
     Volume: {
@@ -770,6 +853,8 @@ const adapter: SimpleAdapter = {
         "1% trade fee on StonkCurvePool (bonding-curve Stonk Launcher factory), waterfall 33.33% creator / 33.34% protocol / 33.33% StonkBrokers.",
       [LABELS.VESTING_FEES]:
         "0.01% (1 bps) StonkVestingLocker deposit fee (PositionLocked.feeAmount), routed to SafetyDepositClockInV3.",
+      [LABELS.SMARTLP_FEES]:
+        "Gross Uniswap V3 pool fees collected by every registry-listed Smart LP vault (SmartLpVault FeesCollected fees0/fees1).",
     },
     Revenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -783,6 +868,8 @@ const adapter: SimpleAdapter = {
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
+      [LABELS.SMARTLP_BUYBACK]:
+        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
     },
     ProtocolRevenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -799,6 +886,8 @@ const adapter: SimpleAdapter = {
     },
     HoldersRevenue: {
       [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
+      [LABELS.SMARTLP_BUYBACK]:
+        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
     },
     SupplySideRevenue: {
       [LABELS.AMM_STOCK_DIVIDENDS]:
@@ -824,6 +913,10 @@ const adapter: SimpleAdapter = {
       [LABELS.CURVE_CREATOR]: "33.33% of bonding-curve trade fees → launch creator.",
       [LABELS.CURVE_STONK]:
         "33.33% of bonding-curve trade fees → StonkBrokers Directed Clock In engine / jackpot pot.",
+      [LABELS.SMARTLP_COMPOUND]:
+        "90% of Smart LP vault pool fees auto-compounded back into the vault's position for depositors.",
+      [LABELS.SMARTLP_DIVIDENDS]:
+        "Half of the Smart LP 10% performance fee → StockBooster Clock In dividends to activated brokers.",
     },
   },
 };
