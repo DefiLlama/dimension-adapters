@@ -14,8 +14,9 @@ const REGISTRY_ABI = {
     getAllVersions: "function getAllVersions(string contractName) view returns (address[])",
 };
 
-// Frotas históricas que antecedem o SwapVersionRegistry (v1 Aave original, v4 Base, v1 individuais)
-// Confirmado via probe M.1 on-chain contra as 7 redes. O dedup Set cobre qualquer overlap.
+// Frotas legadas que antecedem o SwapVersionRegistry e que getAllVersions NÃO retorna
+// (v1 Aave original, v4 Base, v1 individuais). Derivado por probe on-chain em 2026-09-08
+// (getAllVersions x 5 adapters x 7 chains). O dedup Set cobre qualquer overlap residual.
 const EXTRA_CONTRACTS: Record<string, string[]> = {
     [CHAIN.ETHEREUM]: [
         "0x0c6be4c1b1c368d2cd95caf9b4be3793711bc91c",
@@ -31,19 +32,16 @@ const EXTRA_CONTRACTS: Record<string, string[]> = {
         "0x9af98545c4402e0114d644212112e97362b0d029",
     ],
     [CHAIN.BSC]: [
+        // Aave swap adapter v1 (original fleet) — legado pré-registry
         "0x29e1fd1a1ceafaee68d0a14139d7e424eef44433",
-        "0x72a5baea0f512705199ff9d63ad9226cfd5bfdb1",
-        "0x7d6a422ea7be7e39efaaae8916ce9d1e57c6b8bf",
-        "0x2cfb37b51b0f5923984bf402170327f2cbb4d97d",
-        "0x4a9d701a520a7b48956bb2013f9c6d4838612140",
-        "0x098ce1a64f3316982ec4584bbfe2fbcbfb184e9d",
+        "0x7d5bd4646debeef13449af97e6f20d02496cef52",
+        "0x43f597dfe2840ce39663c676c078b0fed86013b3",
     ],
     [CHAIN.POLYGON]: [
-        "0xd1beafb7ba408fa2321453b34208a0df7fc2ee2f",
-        "0xefb09c2a6476bbff76e6a18d18408f90c3757434",
-        "0x904a085ec669d0cf3f413a968bb03b10bce9052b",
-        "0x351d1a6039535eb07e446555dd5dff7e0996f014",
-        "0xd9f6a735c023d8c1170d10b70ad00a6e0df311dc",
+        // Aave swap adapter v1 (original fleet) — legado pré-registry
+        "0x54f33b724ebf94673f843572f7b1d5edcb19615e",
+        "0x4123125394b21aae3061e253b60bd79c58a25049",
+        "0x283d20ee2c5263bc14b83dd9d8c21bae79d3dd2a",
     ],
     [CHAIN.BASE]: [
         "0xa7a7747172f39130f9a59dce68585771702f05fd",
@@ -67,7 +65,8 @@ const EXTRA_CONTRACTS: Record<string, string[]> = {
     ],
 };
 
-// Snapshot de CONTINGÊNCIA (v1..v10) usado estritamente se o RPC falhar e o cache estiver vazio (N2).
+// Snapshot de CONTINGÊNCIA: CONTRACTS estático integral (097ede92, v1..v10 por chain) —
+// usado estritamente se a leitura do registry falhar e o cache S3 estiver vazio (N2).
 const FALLBACK_CONTRACTS: Record<string, string[]> = {
     [CHAIN.ETHEREUM]: [
         "0x0c6be4c1b1c368d2cd95caf9b4be3793711bc91c",
@@ -97,25 +96,34 @@ const FALLBACK_CONTRACTS: Record<string, string[]> = {
         "0x9af98545c4402e0114d644212112e97362b0d029",
     ],
     [CHAIN.BSC]: [
+        // v1 Aave original fleet (3)
         "0x29e1fd1a1ceafaee68d0a14139d7e424eef44433",
-        "0x72a5baea0f512705199ff9d63ad9226cfd5bfdb1",
-        "0x7d6a422ea7be7e39efaaae8916ce9d1e57c6b8bf",
-        "0x2cfb37b51b0f5923984bf402170327f2cbb4d97d",
+        "0x7d5bd4646debeef13449af97e6f20d02496cef52",
+        "0x43f597dfe2840ce39663c676c078b0fed86013b3",
+        // CollateralSwap v8 / v10
+        "0x106f51573d9c3b56105a9f9c7a45a37758aabaaf",
         "0x5681dc09bf0402a49ea755ad40d90286f9d2214c",
+        // CompoundSwap v9
         "0xcf834ddf504406613cd934144cccbeece85685f2",
-        "0x4a9d701a520a7b48956bb2013f9c6d4838612140",
+        // DebtSwap v8 / v10
+        "0x8018071f5784dc92c042972aa5c1fb57abbb2e29",
         "0xf07e0c454642b2f14dc54519247378561727e071",
-        "0x098ce1a64f3316982ec4584bbfe2fbcbfb184e9d",
+        // Repay v8 / v10
+        "0x363aa4ee5bce709ec660627c508a9d9bf20c0a50",
         "0xfe031c91ac69e88093a8a34cc54cd89a190129df",
     ],
     [CHAIN.POLYGON]: [
-        "0xd1beafb7ba408fa2321453b34208a0df7fc2ee2f",
-        "0xefb09c2a6476bbff76e6a18d18408f90c3757434",
-        "0x904a085ec669d0cf3f413a968bb03b10bce9052b",
-        "0x351d1a6039535eb07e446555dd5dff7e0996f014",
+        // v1 Aave original fleet (3)
+        "0x54f33b724ebf94673f843572f7b1d5edcb19615e",
+        "0x4123125394b21aae3061e253b60bd79c58a25049",
+        "0x283d20ee2c5263bc14b83dd9d8c21bae79d3dd2a",
+        // CollateralSwap v8 / v10
+        "0xb5b96007429c73ca5eb2109f1dd64c63e6efc856",
         "0xeb4a8b3196adebd69e36023b2d537224be2cb519",
-        "0xd9f6a735c023d8c1170d10b70ad00a6e0df311dc",
+        // DebtSwap v8 / v10
+        "0xd54a77a13d4dbc8409769fd3133fa24258ceff49",
         "0x5eedd2c4d4a0ac91d9023b54fce228765609d506",
+        // Repay v8 / v10
         "0x1b84191ad0885e6a6251daff71a9a7fa55e62a5a",
         "0x22cd30be2fa36b89ed8a9ba0cc3a6e9919ee3c13",
     ],
