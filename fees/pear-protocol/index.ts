@@ -1,6 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
+
+const TRADING_FEES_TO_TREASURY = "Trading Fees To Treasury";
+const TRADING_FEES_TO_STAKERS = "Trading Fees To Stakers";
+const HYPERLIQUID_TRADING_FEES = "Hyperliquid Trading Fees";
+const LIGHTER_TRADING_FEES = "Lighter Trading Fees";
 
 // Pear migrated its trading engine around 2026-05-27. Before that date, all
 // fees ran through the legacy endpoint below. From that date onward, fees are
@@ -30,18 +36,36 @@ const getRevenueSplit = (options: FetchOptions) => {
   return { protocolShare: 0.3, holdersShare: 0.7 };
 };
 
-const buildRevenueBalances = (options: FetchOptions, feesUsd: number) => {
+const getHoldersRevenueLabel = (options: FetchOptions) => {
+  const changeMs = new Date(REVENUE_SPLIT_CHANGE_DATE).getTime();
+  const requestMs = options.startTimestamp * 1000;
+  if (requestMs < changeMs) {
+    return TRADING_FEES_TO_STAKERS;
+  }
+  return METRIC.TOKEN_BUY_BACK;
+};
+
+const buildRevenueBalances = (
+  options: FetchOptions,
+  feesUsd: number,
+  feesLabel: string
+) => {
   const { protocolShare, holdersShare } = getRevenueSplit(options);
+  const holdersLabel = getHoldersRevenueLabel(options);
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(feesUsd);
-  dailyRevenue.addUSDValue(feesUsd); // 100%: ProtocolRevenue + HoldersRevenue, nothing goes to LPs
-  dailyProtocolRevenue.addUSDValue(feesUsd * protocolShare);
-  dailyHoldersRevenue.addUSDValue(feesUsd * holdersShare);
+  dailyFees.addUSDValue(feesUsd, feesLabel);
+  dailyRevenue.addUSDValue(feesUsd * protocolShare, TRADING_FEES_TO_TREASURY);
+  dailyRevenue.addUSDValue(feesUsd * holdersShare, holdersLabel);
+  dailyProtocolRevenue.addUSDValue(
+    feesUsd * protocolShare,
+    TRADING_FEES_TO_TREASURY
+  );
+  dailyHoldersRevenue.addUSDValue(feesUsd * holdersShare, holdersLabel);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
@@ -52,7 +76,7 @@ const fetchLegacy = async (options: FetchOptions) => {
   const response = await fetchURL(url);
   const feesUsd = response.payload.dailyFees;
 
-  return buildRevenueBalances(options, feesUsd);
+  return buildRevenueBalances(options, feesUsd, METRIC.TRADING_FEES);
 };
 
 // New endpoint, one connector at a time (hyperliquid or lighter).
@@ -66,7 +90,8 @@ const fetchConnectorStats = async (
     `https://pro-gateway.pearprotocol.io/statistics/volume` +
     `?connector=${connector}&resolution=24h&startDate=${startDate}&endDate=${endDate}`;
   const response = await fetchURL(url);
-  return response?.data ?? [];
+  if (!response.data || response.data.length === 0) throw new Error("No data found for the given date: " + options.dateString);
+  return response.data;
 };
 
 // Defensive sum: only counts rows whose timestamp actually falls inside the
@@ -88,8 +113,41 @@ const buildNewFetch = (connector: "hyperliquid" | "lighter") => {
     const rows = await fetchConnectorStats(connector, options);
     const feesUsd = sumInRange(rows, options, "fees");
 
-    return buildRevenueBalances(options, feesUsd);
+    const feesLabel =
+      connector === "hyperliquid"
+        ? HYPERLIQUID_TRADING_FEES
+        : LIGHTER_TRADING_FEES;
+    return buildRevenueBalances(options, feesUsd, feesLabel);
   };
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.TRADING_FEES]:
+      "Trading fees from Pear Protocol perpetual trades via the legacy Arbitrum engine.",
+    [HYPERLIQUID_TRADING_FEES]:
+      "Trading fees from Pear Protocol perpetual trades routed through the Hyperliquid connector.",
+    [LIGHTER_TRADING_FEES]:
+      "Trading fees from Pear Protocol perpetual trades routed through the Lighter connector.",
+  },
+  Revenue: {
+    [TRADING_FEES_TO_TREASURY]:
+      "Share of trading fees allocated to the Pear Protocol treasury.",
+    [TRADING_FEES_TO_STAKERS]:
+      "Share of trading fees shared directly with PEAR token stakers (before 2026-01-27).",
+    [METRIC.TOKEN_BUY_BACK]:
+      "Share of trading fees used for PEAR token buybacks (from 2026-01-27 onward).",
+  },
+  ProtocolRevenue: {
+    [TRADING_FEES_TO_TREASURY]:
+      "Share of trading fees allocated to the Pear Protocol treasury: 20% before 2026-01-27, 30% from that date onward.",
+  },
+  HoldersRevenue: {
+    [TRADING_FEES_TO_STAKERS]:
+      "Share of trading fees shared directly with PEAR token stakers: 80% before 2026-01-27.",
+    [METRIC.TOKEN_BUY_BACK]:
+      "Share of trading fees used for PEAR token buybacks: 70% from 2026-01-27 onward.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -124,6 +182,7 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "Share of fees paid directly to the Pear Protocol treasury: 20% before 2026-01-27, 30% from that date onward.",
     HoldersRevenue: "Share of fees going to PEAR token holders: 80% before 2026-01-27 (shared directly with stakers), 70% from that date onward (used for token buybacks instead).",
   },
+  breakdownMethodology,
 };
 
 export default adapter;
