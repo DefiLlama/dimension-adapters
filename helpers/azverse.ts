@@ -2,7 +2,7 @@ import { httpGet } from "../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 
-const BASE_URL = "https://app.azverse.xyz/exapi/stats/v1/stats/public/defillama";
+const BASE_URL = "https://app.azverse.net/exapi/stats/v1/stats/public/defillama";
 
 export type AzverseMarket = "perp" | "spot";
 
