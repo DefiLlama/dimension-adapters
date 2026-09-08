@@ -32,6 +32,7 @@ const YIELDS_TO_TREASURY = "Assets Yields To Treasury";
 const KEEPER_BOUNTY = "Harvest Keeper Bounty";
 const MINT_REDEEM_TO_PROTOCOL = "Mint/Redeem Fees To Protocol";
 const PROTOCOL_DEPOSITS_TO_POOLS = "Protocol Deposits To Stability Pools";
+const EARLY_WITHDRAW_TO_PROTOCOL = "Early Withdrawal Fees To Protocol";
 
 const asAddress = (value?: string) => {
   if (!value) return undefined;
@@ -50,6 +51,29 @@ const uniqueAddresses = (...values: (string | undefined)[]) => {
     out.push(addr);
   }
   return out;
+};
+
+// ha tokens are not on coins.llama.fi. Count them as the Chainlink peg Harbor uses
+// (ETH/USD, BTC/USD, EUR/USD, USD) via a priced canonical token. ha is 18 decimals.
+// New markets: add the ha token here. Unmapped ha sits at $0 if added raw; fetch
+// throws instead so a missing peg cannot silently store a zero day.
+const WETH = "0xC02aaa39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const WBTC = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const EURC = "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c"; // Circle EURC — EUR/USD
+const HA_DECIMALS = 18n;
+const HA_PEG: Record<string, { token: string; decimals: bigint }> = {
+  "0x7a53ebc85453dd006824084c4f4be758fcf8a5b5": { token: WETH, decimals: 18n }, // haETH
+  "0x25ba4a826e1a1346dca2ab530831dbff9c08bea7": { token: WBTC, decimals: 8n }, // haBTC
+  "0x83fd69e0ff5767972b46e61c6833408361bf7346": { token: EURC, decimals: 6n }, // haEUR
+  "0x2536a8636a99466173229ab15fdb37fcaa05ba1a": { token: USDC, decimals: 6n }, // haUSD
+};
+
+const scaleHaToPeg = (amount: string, outDecimals: bigint) => {
+  const value = BigInt(amount);
+  if (outDecimals === HA_DECIMALS) return value.toString();
+  if (outDecimals > HA_DECIMALS) return (value * (10n ** (outDecimals - HA_DECIMALS))).toString();
+  return (value / (10n ** (HA_DECIMALS - outDecimals))).toString();
 };
 
 type Market = {
@@ -101,6 +125,7 @@ const markets: Market[] = [
     start: "2026-01-20", // startBlock 24271147
     wrappedCollateral: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
     minter: "0x68911ea33E11bc77e07f6dA4db6cd23d723641cE",
+    peggedToken: "0x83Fd69E0FF5767972b46E61C6833408361bF7346", // haEUR
     poolCollateral: "0x000564B33FFde65E6c3b718166856654e039D69B",
     poolLeveraged: "0x7553fb328ef35aF1c2ac4E91e53d6a6B62DFDdEa",
   },
@@ -110,6 +135,7 @@ const markets: Market[] = [
     start: "2026-01-20", // startBlock 24271147
     wrappedCollateral: "0x7743e50F534a7f9F1791DdE7dCD89F7783Eefc39", // fxSAVE
     minter: "0xDEFB2C04062350678965CBF38A216Cc50723B246",
+    peggedToken: "0x83Fd69E0FF5767972b46E61C6833408361bF7346", // haEUR
     poolCollateral: "0xe60054E6b518f67411834282cE1557381f050B13",
     poolLeveraged: "0xc5e0dA7e0a178850438E5E97ed59b6eb2562e88E",
   },
@@ -204,6 +230,40 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // Early-withdrawal fee: pool transfers ha (ASSET_TOKEN) to getFeeAddress()
+  // when a user withdraws outside the requested window.
+  // https://docs.harborfinance.io/tech-docs/contracts/stability-pool
+  const poolLegs: { token: string; pool: string }[] = [];
+  for (const market of liveMarkets) {
+    if (!market.peggedToken) continue;
+    for (const pool of [market.poolCollateral, market.poolLeveraged]) {
+      if (pool) poolLegs.push({ token: market.peggedToken, pool });
+    }
+  }
+  const poolFeeAddresses = poolLegs.length === 0 ? [] : await options.api.multiCall({
+    abi: "address:getFeeAddress",
+    calls: poolLegs.map((leg) => leg.pool),
+    permitFailure: true,
+  });
+  const seenWithdrawFee = new Set<string>();
+  for (const [i, leg] of poolLegs.entries()) {
+    const feeAddress = asAddress(poolFeeAddresses[i]);
+    if (!feeAddress) continue;
+    const key = `${leg.token}:${leg.pool}:${feeAddress}`;
+    if (seenWithdrawFee.has(key)) continue;
+    seenWithdrawFee.add(key);
+    const peg = HA_PEG[leg.token.toLowerCase()];
+    // Unmapped ha has no Llama price — would record $0. Fail the window instead.
+    if (!peg) throw new Error(`Harbor: unmapped ha token ${leg.token} (add HA_PEG or it prices at $0)`);
+    const logs = await getTransfers(options, leg.token, leg.pool, feeAddress);
+    for (const log of logs) {
+      const priced = scaleHaToPeg(log.value, peg.decimals);
+      dailyFees.add(peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyUserFees.add(peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyRevenue.add(peg.token, priced, EARLY_WITHDRAW_TO_PROTOCOL);
+    }
+  }
+
   const liveHarvest = harvestMarkets.filter((m) => options.dateString >= m.start);
   if (liveHarvest.length === 0) {
     return {
@@ -279,9 +339,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Mint and redeem fees paid by users, plus collateral yield harvested from fxSAVE and wstETH. Excludes stability-pool early-withdrawal fees and off-chain TIDE buybacks. Harvested wstETH and fxSAVE yield is also counted by Lido and f(x) Protocol.",
-  UserFees: "Mint and redeem fees paid when opening or closing ha or hs positions.",
-  Revenue: "Mint and redeem fees and the harvest cut held by the owner Safe or market feeReceiver, minus wrapped collateral those wallets later deposit into stability pools.",
+  Fees: "Mint and redeem fees paid by users, stability-pool early-withdrawal fees paid in ha (valued at the Chainlink ETH/BTC/EUR/USD peg), plus collateral yield harvested from fxSAVE and wstETH. Excludes off-chain TIDE buybacks. Harvested wstETH and fxSAVE yield is also counted by Lido and f(x) Protocol.",
+  Revenue: "Mint and redeem fees, early-withdrawal fees, and the harvest cut held by the owner Safe or market feeReceiver, minus wrapped collateral those wallets later deposit into stability pools.",
   ProtocolRevenue: "Same as revenue. TIDE buybacks are not counted until they happen on-chain.",
   SupplySideRevenue: "Wrapped collateral the owner Safe or feeReceiver deposits into stability pools, any on-chain harvest remainder, and the harvest keeper bounty.",
 };
@@ -289,18 +348,18 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.MINT_REDEEM_FEES]: "Fees paid by users when minting or redeeming ha or hs, taken in wrapped collateral and sent to the owner Safe or the minter feeReceiver.",
+    [METRIC.DEPOSIT_WITHDRAW_FEES]: "Early-withdrawal fees deducted from ha when a user leaves a stability pool outside the requested withdrawal window, sent to the pool fee address. Valued as the Chainlink peg (haETH→ETH, haBTC→BTC, haEUR→EUR, haUSD→USD).",
     [METRIC.ASSETS_YIELDS]: "Gross collateral yield realized when harvest is called on a stability pool manager (fxSAVE or wstETH appreciation), including automated keeper harvests. Also counted by Lido and f(x) Protocol.",
-  },
-  UserFees: {
-    [METRIC.MINT_REDEEM_FEES]: "Mint and redeem fees paid by users.",
   },
   Revenue: {
     [MINT_REDEEM_TO_PROTOCOL]: "Mint and redeem fees sitting at the owner Safe or minter feeReceiver.",
+    [EARLY_WITHDRAW_TO_PROTOCOL]: "Early-withdrawal fees sent to each pool's getFeeAddress.",
     [YIELDS_TO_TREASURY]: "Harvest cut (harvestCutRatio, 99% today) sent to the manager feeReceiver, plus leftover harvest when both stability pools are empty.",
     [PROTOCOL_DEPOSITS_TO_POOLS]: "Deposits from the Safe or feeReceiver into stability pools, subtracted from revenue on the deposit day (can be fronted before harvest, including automated keepers).",
   },
   ProtocolRevenue: {
     [MINT_REDEEM_TO_PROTOCOL]: "Mint and redeem fees sitting at the owner Safe or minter feeReceiver.",
+    [EARLY_WITHDRAW_TO_PROTOCOL]: "Early-withdrawal fees sent to each pool's getFeeAddress.",
     [YIELDS_TO_TREASURY]: "Harvest cut sent to the manager feeReceiver, plus leftover harvest when both stability pools are empty.",
     [PROTOCOL_DEPOSITS_TO_POOLS]: "Deposits from the Safe or feeReceiver into stability pools, subtracted from protocol revenue on the deposit day.",
   },
