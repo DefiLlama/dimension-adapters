@@ -114,11 +114,17 @@ class Reader {
     }
 }
 
-// loan_amount + accrue_amount is the pool's own money going back out, and every share is paid from
-// what the elector returned, so both are bounded by the repayment. A body of the wrong log type
-// that happens to fit the bit layout will not usually satisfy these.
-const consistent = (v: bigint[]) =>
-    v[1] + v[2] <= v[0] && v.slice(3).reduce((a, b) => a + b, 0n) <= v[0]
+// Every share is carved out of what came back from the elector, so their sum cannot exceed the
+// repayment. That one bound is what separates a repayment from another log whose body happens to
+// fit the same bit layout: three such bodies appear in 2025 alone, and they read as an 80 GRAM
+// repayment paying a 50,405 GRAM governance fee.
+//
+// It is deliberately the only check. An earlier version also required loan + accrue <= repayment,
+// which rejects nothing the bound above does not already catch, and which stops being true in the
+// one case that matters: when a validator defaults the elector returns less than was lent, and the
+// treasury books the gap as deficit. Dropping a repayment there would silently understate the day.
+const sharesFitRepayment = (v: bigint[]) =>
+    v.slice(3).reduce((a, b) => a + b, 0n) <= v[0]
 
 const readCoinsThenAddress = (b64: string, n: number): bigint[] | null => {
     const cell = parseBoc(b64)
@@ -128,7 +134,7 @@ const readCoinsThenAddress = (b64: string, n: number): bigint[] | null => {
         r.uint(32) // round_since
         const v: bigint[] = []
         for (let i = 0; i < n; i++) v.push(r.coins())
-        return r.addrStd() && consistent(v) ? v : null
+        return r.addrStd() && sharesFitRepayment(v) ? v : null
     } catch { return null }
 }
 
@@ -143,7 +149,7 @@ const readAddressThenCoins = (b64: string, n: number): bigint[] | null => {
         r.big(256)
         const v: bigint[] = []
         for (let i = 0; i < n; i++) v.push(r.coins())
-        return r.left() === 0 && consistent(v) ? v : null
+        return r.left() === 0 && sharesFitRepayment(v) ? v : null
     } catch { return null }
 }
 
