@@ -1,16 +1,7 @@
-// Domination Finance fees on Base. Every maker and taker fee splits in two and
-// the callback emits each half as its own event: the vault's as
-// VaultOpeningFeeCharged or VaultClosingFeeCharged, the treasury's as
-// DevFeeCharged. Both are read, so the split is measured rather than taken from
-// the 50 in DomfiPairsStorage. Liquidation margin is the vault's alone.
-//
-// Funding is outside dailyFees: FeesCharged.fundingFees is an int256 paid from
-// the crowded side of the book to the underweight one. Price impact is a spread
-// on the execution price rather than a charge.
-//
-// The oracle fee is 0.10 USDC per price-requiring action and goes wholly to the
-// protocol. No event carries it and it is pulled inside the same USDC transfer
-// as the collateral, so reading it would need a transfer diff.
+// Each trading fee splits in two and the callback emits both halves: the vault's
+// as VaultOpeningFeeCharged or VaultClosingFeeCharged, the treasury's as
+// DevFeeCharged. Liquidation margin is the vault's alone. Funding is a signed
+// transfer between the two sides of the book and no part of fees.
 
 import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -43,6 +34,7 @@ const fetch = async (options: FetchOptions) => {
     await add(eventAbi, dailySupplySideRevenue, METRIC.TRADING_FEES);
   }
   await add(VAULT_LIQ_FEE, dailySupplySideRevenue, METRIC.LIQUIDATION_FEES);
+  // one trading fee, charged once; where it went is the split below
   await add(DEV_FEE, dailyRevenue, METRIC.TRADING_FEES);
 
   dailyFees.addBalances(dailyRevenue);
