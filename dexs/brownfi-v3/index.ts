@@ -86,10 +86,14 @@ export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (o
     const [token0, token1] = pairObject[pair]
     const feeRate = fee / (1 + fee)
     logs.forEach((log: any) => {
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
-      addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
-      addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
-      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
+      // addOneToken prices a swap through the pair's core asset, so both the input and the
+      // output side have to be offered or swaps whose input is the non-core token are dropped
+      for (const [amount0, amount1] of [[log.amount0In, log.amount1In], [log.amount0Out, log.amount1Out]]) {
+        addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+        addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(amount0) * feeRate, amount1: Number(amount1) * feeRate })
+        addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(amount0) * feeRate * protocolFee, amount1: Number(amount1) * feeRate * protocolFee })
+        addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(amount0) * feeRate * (1 - protocolFee), amount1: Number(amount1) * feeRate * (1 - protocolFee) })
+      }
     })
   })
 
