@@ -34,6 +34,19 @@ const MARKET_CREATED_EVENT =
   "event MarketCreated(uint256 indexed marketId, uint256 indexed ventureId, string title, uint256 createdAt, uint256 tradingStart, uint256 tradingEnd, uint256[] proposalIds)";
 const PROTOCOL_FEES_COLLECTED_EVENT =
   "event ProtocolFeesCollected(uint256 indexed marketId, address indexed feeRecipient, uint256 feeVenture, uint256 feeMoney)";
+// Every way ownership can move: vault shares are minted by bootstrap and deposit
+// and burned by withdraw, with no transfer path, and the hub emits on the two
+// settings the split depends on.
+const OWNERSHIP_EVENTS = {
+  vault: [
+    "event Deposit(address indexed sender, address indexed receiver, uint256 ventureUsed, uint256 moneyUsed, uint256 sharesMinted)",
+    "event Withdraw(address indexed sender, address indexed receiver, uint256 sharesBurned, uint256 ventureOut, uint256 moneyOut)",
+  ],
+  hub: [
+    "event ProtocolFeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient)",
+    "event SpotProtocolFeeCutBpsUpdated(uint16 oldBps, uint16 newBps)",
+  ],
+};
 const topicOf = (eventAbi: string) => ethers.id(ethers.EventFragment.from(eventAbi).format());
 
 const LABEL = {
@@ -60,7 +73,6 @@ type SpotContext = { vault: string; poolId: string; moneyIsCurrency0: boolean };
 
 type VentureContext = {
   id: number;
-  venture: string;
   moneyToken: string;
   ventureToken: string;
   marketCore: string;
@@ -101,7 +113,7 @@ async function getVentureContext(options: FetchOptions, ventureId: number): Prom
     { target: HUB, abi: VENTURE_VAULT, params: [info.venture] },
     { target: HUB, abi: "address:umiaMarketCore" },
   ]);
-  const ctx: VentureContext = { id: ventureId, venture: info.venture, moneyToken, ventureToken, marketCore, spot: null };
+  const ctx: VentureContext = { id: ventureId, moneyToken, ventureToken, marketCore, spot: null };
   if (!vault || vault === nullAddress) return ctx;
 
   const poolKey: PoolKey = await api.call({ target: vault, abi: POOL_KEY });
@@ -139,27 +151,25 @@ async function ownershipAt(api: ChainApi, spot: SpotContext | null): Promise<Own
   return { recipient, share, spotCutBps: Number(spotCutBps) };
 }
 
-const sameOwnership = (a: Ownership, b: Ownership) =>
-  a.recipient === b.recipient && a.share === b.share && a.spotCutBps === b.spotCutBps;
-
-/**
- * Ownership at the start of the window. A vault that was deployed inside the
- * window does not exist at its first block, and nothing could have traded on
- * it before then, so the end-of-window reading covers the whole window.
- */
-async function ownershipAtStart(options: FetchOptions, ctx: VentureContext | null, atEnd: Ownership): Promise<Ownership> {
-  if (!ctx?.spot) return atEnd;
-  const vault = await options.fromApi.call({ target: HUB, abi: VENTURE_VAULT, params: [ctx.venture] });
-  if (!vault || vault === nullAddress) return atEnd;
-  return ownershipAt(options.fromApi, ctx.spot);
+/** Blocks in the window where an ownership-moving event landed, ascending. */
+async function ownershipChangeBlocks(options: FetchOptions, spot: SpotContext | null): Promise<number[]> {
+  const streams = [
+    ...OWNERSHIP_EVENTS.hub.map(eventAbi => ({ target: HUB, eventAbi })),
+    ...(spot ? OWNERSHIP_EVENTS.vault.map(eventAbi => ({ target: spot.vault, eventAbi })) : []),
+  ];
+  const logs: { blockNumber: number }[][] = await Promise.all(
+    streams.map(stream => options.getLogs({ ...stream, onlyArgs: false })),
+  );
+  return [...new Set(logs.flat().map(log => log.blockNumber))].sort((a, b) => a - b);
 }
 
 /**
  * The four balance sheets, plus the one split rule every fee goes through.
  *
- * Ownership is read at both ends of the window. When it did not change, which
- * is every window in practice, that one reading covers every event. When it
- * did, each event is attributed at its own block.
+ * Ownership is piecewise constant between the events that move it, so it is
+ * read once per change block and each fee takes the state after the last
+ * change at or before its block. A window with no change, which is every
+ * window in practice, uses the end-of-window reading alone.
  */
 class Books {
   fees: Balances;
@@ -171,7 +181,7 @@ class Books {
   constructor(
     private readonly options: FetchOptions,
     private readonly spot: SpotContext | null,
-    private readonly atStart: Ownership,
+    private readonly changeBlocks: number[],
     private readonly atEnd: Ownership,
   ) {
     this.fees = options.createBalances();
@@ -182,17 +192,21 @@ class Books {
 
   static async open(options: FetchOptions, ctx: VentureContext | null): Promise<Books> {
     const spot = ctx?.spot ?? null;
-    const atEnd = await ownershipAt(options.api, spot);
-    const atStart = await ownershipAtStart(options, ctx, atEnd);
-    return new Books(options, spot, atStart, atEnd);
+    const [changeBlocks, atEnd] = await Promise.all([ownershipChangeBlocks(options, spot), ownershipAt(options.api, spot)]);
+    return new Books(options, spot, changeBlocks, atEnd);
   }
 
   ownership(block: number): Promise<Ownership> {
-    if (sameOwnership(this.atStart, this.atEnd)) return Promise.resolve(this.atEnd);
-    if (!this.atBlock.has(block)) {
-      this.atBlock.set(block, ownershipAt(new ChainApi({ chain: this.options.chain, block }), this.spot));
+    if (!this.changeBlocks.length) return Promise.resolve(this.atEnd);
+    // The state before the first change is read one block before it. No fee can
+    // precede the vault's bootstrap, which is itself a change block, so that
+    // read never lands before the vault exists.
+    let readAt = this.changeBlocks[0] - 1;
+    for (const changed of this.changeBlocks) if (changed <= block) readAt = changed;
+    if (!this.atBlock.has(readAt)) {
+      this.atBlock.set(readAt, ownershipAt(new ChainApi({ chain: this.options.chain, block: readAt }), this.spot));
     }
-    return this.atBlock.get(block)!;
+    return this.atBlock.get(readAt)!;
   }
 
   /** Splits an amount that accrues to the vault's share holders between the fee recipient and everyone else. */
