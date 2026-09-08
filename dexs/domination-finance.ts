@@ -1,7 +1,6 @@
 // A position is taken on an asset's share of total market cap, so the index is a
-// percentage and the collateral is USDC. Size is collateral x leverage; the
-// tradeNotional on the same event is that position in units of the index at 18
-// decimals, which read as USDC is ten orders of magnitude out.
+// percentage and the collateral USDC. Size is collateral x leverage; tradeNotional
+// is that position in index units at 18 decimals, ten orders of magnitude out.
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
