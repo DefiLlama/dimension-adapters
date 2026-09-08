@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getConfig } from "../../helpers/cache";
+import { getConfig, getCache } from "../../helpers/cache";
 import { ChainApi } from "@defillama/sdk";
 import * as sdk from "@defillama/sdk";
 
@@ -170,8 +170,6 @@ const FALLBACK_CONTRACTS: Record<string, string[]> = {
     ],
 };
 
-const lastResolvedByChain: Record<string, string[]> = {};
-
 const getContracts = async (options: FetchOptions): Promise<string[]> => {
     const dynamic = await getConfig(`dashswallet/${options.chain}`, undefined, {
         fetcher: async () => {
@@ -198,16 +196,24 @@ const getContracts = async (options: FetchOptions): Promise<string[]> => {
             const extras = (EXTRA_CONTRACTS[options.chain] || []).map((a) => a.toLowerCase());
             const combined = [...new Set([...registered, ...extras])];
 
-            // Observabilidade (A.4): detecta nova versão (ex: V11) adicionada on-chain
-            const prev = lastResolvedByChain[options.chain];
-            if (prev && prev.length > 0) {
-                const prevSet = new Set(prev);
-                const newAddrs = combined.filter((a) => !prevSet.has(a));
-                if (newAddrs.length > 0) {
-                    sdk.log(`[dashswallet] Novo(s) contrato(s) detectado(s) em ${options.chain}: ${newAddrs.join(", ")}`);
+            // Observabilidade (A.4): compara com o último snapshot PERSISTIDO no S3, não com
+            // um estado em memória. O fetcher do getConfig roda no máximo 1x por processo
+            // (a promise é memoizada em helpers/cache.ts:56), então comparar contra uma
+            // variável de módulo nunca dispararia. Neste ponto o S3 ainda guarda o snapshot
+            // do processo anterior (getConfig só o reescreve DEPOIS que o fetcher retorna),
+            // então a chegada de uma nova versão (ex: V11) fica de fato observável no log.
+            try {
+                const prevSnapshot = await getCache("config-cache", `dashswallet/${options.chain}`);
+                if (Array.isArray(prevSnapshot) && prevSnapshot.length > 0) {
+                    const prevSet = new Set(prevSnapshot.map((a: string) => a.toLowerCase()));
+                    const newAddrs = combined.filter((a) => !prevSet.has(a));
+                    if (newAddrs.length > 0) {
+                        sdk.log(`[dashswallet] Novo(s) contrato(s) detectado(s) em ${options.chain}: ${newAddrs.join(", ")}`);
+                    }
                 }
+            } catch {
+                // observabilidade nunca deve quebrar a resolução de targets
             }
-            lastResolvedByChain[options.chain] = combined;
 
             return combined;
         },
