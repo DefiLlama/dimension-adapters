@@ -3,6 +3,7 @@ import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
 import { getEnv } from '../../helpers/env'
 import { fetchURLAutoHandleRateLimit } from '../../utils/fetchURL'
+import { sleep } from '../../utils/utils'
 
 // Every treasury Hipo has run. v1 served from launch until v2 replaced it on 2024-03-19; both are
 // queried for every window rather than switched on a hardcoded date, so the cutover needs no
@@ -25,6 +26,20 @@ const headers = apiKey ? { headers: { 'X-API-Key': apiKey } } : undefined
 const PAGE = 256
 // Above fetchURLAutoHandleRateLimit's default of 3, which spends its attempts over ten seconds.
 const RETRIES = 5
+
+// Without a key, keep to toncenter's documented one request per second rather than spending
+// retries on self-inflicted throttling. A single day is one page per treasury, so this costs about
+// a second per run; over a full refill it is what keeps an unauthenticated run from tripping over
+// itself. With a key it does nothing.
+let lastRequestAt = 0
+async function pacedGet(url: string) {
+    if (!apiKey) {
+        const wait = lastRequestAt + 1100 - Date.now()
+        if (wait > 0) await sleep(wait)
+    }
+    lastRequestAt = Date.now()
+    return fetchURLAutoHandleRateLimit(url, RETRIES, headers)
+}
 
 // The treasury reports every loan repayment as a log: an external-out message whose body carries
 // the round's reward already split into its destinations. Reading the split from the log is what
@@ -179,7 +194,7 @@ async function repayments(treasury: string, start: number, end: number): Promise
         const url =
             `https://toncenter.com/api/v3/messages?source=${treasury}&direction=out` +
             `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`
-        const data = await fetchURLAutoHandleRateLimit(url, RETRIES, headers)
+        const data = await pacedGet(url)
         // A body without a messages array is a failure wearing a 200. Reading it as an empty page
         // would store the day as zero, which is the one outcome worth crashing to avoid.
         if (!Array.isArray(data?.messages)) {
