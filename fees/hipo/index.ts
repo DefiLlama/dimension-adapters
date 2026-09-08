@@ -232,12 +232,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 }
 
 const methodology = {
-    Fees: 'Validation rewards credited to the pool, summed from the treasury\'s repayment logs for the day, plus the borrower fee that is burned as HPO. The validators\' own share of a round\'s reward is deducted before the pool is credited, so it is not counted.',
-    UserFees: 'Stakers pay no fees for using Hipo. Borrowers -- the validators the pool lends to -- pay a fee out of their own share of each round\'s reward.',
-    SupplySideRevenue: 'Rewards credited to stakers, which they receive as the hGRAM exchange rate rising rather than as a separate claim.',
-    ProtocolRevenue: 'The governance fee, taken out of the pool\'s reward before it reaches stakers. It is 0.00% on mainnet today and was 6.25% until 2026.',
-    HoldersRevenue: 'The borrower fee, which the treasury forwards to a swap-and-burn contract that stakes it, buys HPO with the resulting hGRAM on DeDust, and burns the HPO.',
-    Revenue: 'The governance fee plus the borrower fee that is burned as HPO.',
+    Fees: 'Validation rewards credited to the pool, summed from the treasury\'s repayment logs for the day, plus the borrower fee that is burned as HPO. The validators\' own share of a round\'s reward is deducted before the pool is credited, so it is not counted here.',
+    UserFees: 'Stakers pay no fees for using Hipo. The borrowers the pool lends to, who are validators, pay a fee out of their own share of each round\'s reward.',
+    SupplySideRevenue: 'Rewards credited to stakers, which reach them as a rise in the hGRAM exchange rate rather than as a separate claim.',
+    ProtocolRevenue: 'The governance fee, deducted from the pool\'s reward before it reaches stakers. Its rate is set by Hipo\'s governor and can be zero.',
+    HoldersRevenue: 'The borrower fee, which the treasury forwards to a swap-and-burn contract. That contract stakes the GRAM, buys HPO with the resulting hGRAM on DeDust, and burns it, lowering the total supply of HPO.',
+    Revenue: 'The governance fee, plus the borrower fee that is burned as HPO.',
 }
 
 const breakdownMethodology = {
@@ -249,7 +249,7 @@ const breakdownMethodology = {
         [METRIC.TOKEN_BUY_BACK]: 'The borrower fee, paid by validators out of their own share of a round\'s reward.',
     },
     SupplySideRevenue: {
-        [METRIC.STAKING_REWARDS]: 'Rewards to stakers, delivered as a rising hGRAM exchange rate.',
+        [METRIC.STAKING_REWARDS]: 'Rewards to stakers, delivered as a rise in the hGRAM exchange rate.',
     },
     ProtocolRevenue: {
         [METRIC.STAKING_REWARDS]: 'The governance fee, deducted from the pool\'s reward.',
