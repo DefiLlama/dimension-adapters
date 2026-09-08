@@ -1,53 +1,33 @@
-import * as sdk from "@defillama/sdk";
+import { Balances } from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { METRIC } from "./metrics";
+import { nullAddress } from "./token";
 
 // Umia protocol contracts on Base: https://github.com/umiafinance/protocol
 const HUB = "0x120dbCDd58Bb787309573e29159fE6D37A1983F6";
-const MARKET_CORE = "0x55975E430Cc54C63dff03B1E6d27Be574Ce229F6";
-// Uniswap v4 singleton on Base
+// Uniswap v4 PoolManager on Base: https://docs.uniswap.org/contracts/v4/deployments
 const POOL_MANAGER = "0x498581fF718922c3f8e6A244956aF099B2652b2b";
-const STATE_VIEW = "0xA3c0c9b65baD0b08107Aa264b0f3dB444b867A71";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
-
-// Ventures 1-6 are test deployments that predate the first real launch.
-const FIRST_REAL_VENTURE_ID = 7;
 
 const BPS_DENOM = 10000;
-// Umia's first Base deployment; MarketCore has emitted every market since.
-// contracts.json -> mainnet.base.startBlock
-const MARKET_CORE_FROM_BLOCK = 50401538;
 // Uniswap v4 reports the LP fee in hundredths of a bip (1_000_000 = 100%)
 const PIPS_DENOM = 1e6;
 
 const VENTURE_BY_ID =
   "function ventureById(uint256) view returns (tuple(uint256 id, address venture, string name, uint256 createdAt))";
-const VENTURE_TOKEN_BY_ID = "function ventureTokenById(uint256) view returns (address)";
-const VENTURE_MONEY_TOKEN_BY_ID = "function ventureMoneyTokenById(uint256) view returns (address)";
 const VENTURE_VAULT = "function ventureLiquidityVault(address) view returns (address)";
+const SPOT_PROTOCOL_CUT_BPS = "function spotProtocolFeeCutBps() view returns (uint16)";
+const DECISION_PROTOCOL_CUT_BPS = "function decisionProtocolFeeCutBps() view returns (uint16)";
 const POOL_KEY =
   "function getPoolKey() view returns ((address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks))";
-const CURRENT_LIQUIDITY = "function currentLiquidity() view returns (uint128)";
-const GET_LIQUIDITY = "function getLiquidity(bytes32 poolId) view returns (uint128 liquidity)";
-const PROPOSAL_TO_MARKET = "function proposalToMarket(uint256) view returns (uint256)";
-const MARKET_PROPOSAL_IDS = "function marketProposalIds(uint256) view returns (uint256[])";
-const PROPOSAL_FEE_STATE =
-  "function proposalFeeState(uint256) view returns (uint256 ventureFee, uint256 moneyFee)";
-const PROTOCOL_FEE_RECIPIENT = "function protocolFeeRecipient() view returns (address)";
 const SHARE_BALANCE = "function shareBalance(address) view returns (uint256)";
-const TOTAL_SHARES = "function totalShares() view returns (uint256)";
+const MARKET_INFO =
+  "function marketInfo(uint256) view returns (uint256 id, uint256 ventureId, uint256 tradingStart, uint256 tradingEnd)";
 
 const SPOT_SWAP_EVENT =
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
-const SPOT_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-const DM_SWAP_EVENT =
-  "event Swap(uint256 indexed proposalId, address indexed trader, bool zeroForOne, uint256 amountIn, uint256 amountOut, uint256 priceBeforeX96, uint256 priceAfterX96, uint256 priceImpactBps, uint256 protocolFee)";
-const MARKET_CREATED_EVENT =
-  "event MarketCreated(uint256 indexed marketId, uint256 indexed ventureId, string title, uint256 createdAt, uint256 tradingStart, uint256 tradingEnd, uint256[] proposalIds)";
-const MARKET_SETTLED_EVENT =
-  "event MarketSettled(uint256 indexed marketId, uint256 winningProposalId, uint256 winningPriceX112, uint256 noOpPriceX112, uint256 priceDeltaBps)";
+const SPOT_SWAP_TOPIC = ethers.id(ethers.EventFragment.from(SPOT_SWAP_EVENT).format());
 const PROTOCOL_FEES_COLLECTED_EVENT =
   "event ProtocolFeesCollected(uint256 indexed marketId, address indexed feeRecipient, uint256 feeVenture, uint256 feeMoney)";
 
@@ -61,18 +41,15 @@ const LABEL = {
   DM_POL: "Decision market LP fees on protocol-owned vault shares",
   DM_LP: "Decision market LP fees (venture vault)",
   SPOT_VOLUME: "Spot swap volume",
-  DM_VOLUME: "Decision market swap volume",
 };
 
-type SpotContext = {
-  vault: string;
-  poolId: string;
-  moneyIsCurrency0: boolean;
-};
+type SpotContext = { vault: string; poolId: string; moneyIsCurrency0: boolean };
 
 type VentureContext = {
+  id: number;
   moneyToken: string;
   ventureToken: string;
+  marketCore: string;
   // null until the venture's launch settles and its spot liquidity is migrated
   spot: SpotContext | null;
 };
@@ -91,25 +68,28 @@ function poolKeyToId(poolKey: any): string {
   );
 }
 
+/**
+ * The venture at the block being read, or null before the hub created it.
+ * `ventureById` is a plain mapping read, so an unknown id returns a zero struct
+ * rather than reverting.
+ */
 async function getVentureContext(options: FetchOptions, ventureId: number): Promise<VentureContext | null> {
   const { api } = options;
-  const moneyToken = await api.call({ target: HUB, abi: VENTURE_MONEY_TOKEN_BY_ID, params: [ventureId] });
-  // The venture does not exist yet at this block.
-  if (!moneyToken || moneyToken === NULL_ADDRESS) return null;
+  const info = await api.call({ target: HUB, abi: VENTURE_BY_ID, params: [ventureId] });
+  if (!info.venture || info.venture === nullAddress) return null;
 
-  const [ventureToken, info] = await Promise.all([
-    api.call({ target: HUB, abi: VENTURE_TOKEN_BY_ID, params: [ventureId] }),
-    api.call({ target: HUB, abi: VENTURE_BY_ID, params: [ventureId] }),
+  const [ventureToken, moneyToken, vault, marketCore] = await api.batchCall([
+    { target: info.venture, abi: "address:token" },
+    { target: info.venture, abi: "address:moneyToken" },
+    { target: HUB, abi: VENTURE_VAULT, params: [info.venture] },
+    { target: HUB, abi: "address:umiaMarketCore" },
   ]);
-  const vault = await api.call({ target: HUB, abi: VENTURE_VAULT, params: [info.venture] });
-  // Decision markets can trade before a spot vault is registered, so only the
-  // spot half of the adapter waits for one.
-  if (!vault || vault === NULL_ADDRESS) return { moneyToken, ventureToken, spot: null };
+  const ctx: VentureContext = { id: ventureId, moneyToken, ventureToken, marketCore, spot: null };
+  if (!vault || vault === nullAddress) return ctx;
 
   const poolKey = await api.call({ target: vault, abi: POOL_KEY });
   return {
-    moneyToken,
-    ventureToken,
+    ...ctx,
     spot: {
       vault,
       poolId: poolKeyToId(poolKey),
@@ -120,36 +100,45 @@ async function getVentureContext(options: FetchOptions, ventureId: number): Prom
 }
 
 /**
- * The vault is the pool's only permitted liquidity operator by design, so this is
- * 1 today. It drops the moment anyone LPs on the pool directly, and the protocol
- * only earns its cut on the vault's slice, so weight by it from the start.
+ * The fee recipient and its share of the vault. What the vault earns as an LP
+ * accrues to its share holders, so that part of the LP half is protocol revenue
+ * too. The share is 1 for UMIA, whose treasury is both the fee recipient and the
+ * vault's only depositor, and 0 for a venture whose vault the protocol holds no
+ * shares of, where the LP half is that venture's own income. Read at the
+ * window's block; deposits are rare enough that a mid-window change is noise.
  */
-async function getVaultShare(options: FetchOptions, spot: SpotContext): Promise<number> {
+async function getRecipient(options: FetchOptions, ctx: VentureContext): Promise<{ address: string; share: number }> {
   const { api } = options;
-  const vaultLiquidity = Number(await api.call({ target: spot.vault, abi: CURRENT_LIQUIDITY }));
-  const poolLiquidity = Number(await api.call({ target: STATE_VIEW, abi: GET_LIQUIDITY, params: [spot.poolId] }));
-  if (!poolLiquidity) return 1;
-  return Math.min(1, vaultLiquidity / poolLiquidity);
+  const address = await api.call({ target: HUB, abi: "address:protocolFeeRecipient" });
+  if (!ctx.spot || !address || address === nullAddress) return { address: nullAddress, share: 0 };
+  const [held, total] = await api.batchCall([
+    { target: ctx.spot.vault, abi: SHARE_BALANCE, params: [address] },
+    { target: ctx.spot.vault, abi: "uint256:totalShares" },
+  ]);
+  if (!Number(total)) return { address, share: 0 };
+  return { address, share: Math.min(1, Number(held) / Number(total)) };
 }
 
-/**
- * The share of the vault owned by the protocol fee recipient. What the vault earns
- * as an LP accrues to its share holders, so that part of the LP half is protocol
- * revenue too. It is 1 for UMIA, whose treasury is both the fee recipient and the
- * vault's only depositor, and 0 for a venture whose vault the protocol holds no
- * shares of, where the LP half is that venture's own income.
- */
-async function getRecipientShare(options: FetchOptions, spot: SpotContext | null): Promise<number> {
-  if (!spot) return 0;
-  const { api } = options;
-  const recipient = await api.call({ target: HUB, abi: PROTOCOL_FEE_RECIPIENT });
-  if (!recipient || recipient === NULL_ADDRESS) return 0;
-  const [held, total] = await Promise.all([
-    api.call({ target: spot.vault, abi: SHARE_BALANCE, params: [recipient] }),
-    api.call({ target: spot.vault, abi: TOTAL_SHARES }),
-  ]);
-  if (!Number(total)) return 0;
-  return Math.min(1, Number(held) / Number(total));
+/** The four balance sheets, plus the one split rule every fee goes through. */
+class Books {
+  fees: Balances;
+  protocol: Balances;
+  supplySide: Balances;
+  volume: Balances;
+
+  constructor(options: FetchOptions, readonly recipient: { address: string; share: number }) {
+    this.fees = options.createBalances();
+    this.protocol = options.createBalances();
+    this.supplySide = options.createBalances();
+    this.volume = options.createBalances();
+  }
+
+  /** Splits an amount that accrues to the vault's share holders between the fee recipient and everyone else. */
+  toVault(token: string, amount: number, polLabel: string, lpLabel: string) {
+    const pol = amount * this.recipient.share;
+    this.protocol.add(token, pol, polLabel);
+    this.supplySide.add(token, amount - pol, lpLabel);
+  }
 }
 
 /**
@@ -162,15 +151,11 @@ async function getRecipientShare(options: FetchOptions, spot: SpotContext | null
  * the output is what remains after the fee was taken off the other leg. Reading
  * the money leg in both directions means a venture token that DefiLlama has not
  * priced yet still reports correct fees from its first swap.
+ *
+ * The hook only lets the vault add liquidity to the pool, so every fee accrues
+ * to the vault. The vault skips the protocol skim when no recipient is set.
  */
-async function addSpotFees(
-  options: FetchOptions,
-  ctx: VentureContext,
-  spot: SpotContext,
-  balances: { fees: any; protocol: any; supplySide: any; volume: any },
-  volumeOnly: boolean,
-  recipientShare: number,
-) {
+async function addSpot(options: FetchOptions, ctx: VentureContext, spot: SpotContext, books: Books) {
   const logs = await options.getLogs({
     target: POOL_MANAGER,
     eventAbi: SPOT_SWAP_EVENT,
@@ -179,283 +164,150 @@ async function addSpotFees(
   });
   if (!logs.length) return;
 
-  if (volumeOnly) {
-    for (const log of logs) {
-      const moneyDelta = Number(spot.moneyIsCurrency0 ? log.amount0 : log.amount1);
-      balances.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_VOLUME);
-    }
-    return;
-  }
-
-  const protocolCutBps = Number(await options.api.call({ target: HUB, abi: "function spotProtocolFeeCutBps() view returns (uint16)" }));
-  const vaultShare = await getVaultShare(options, spot);
-  const cut = protocolCutBps / BPS_DENOM;
+  const cutBps = books.recipient.address === nullAddress
+    ? 0
+    : Number(await options.api.call({ target: HUB, abi: SPOT_PROTOCOL_CUT_BPS }));
+  const cut = cutBps / BPS_DENOM;
 
   for (const log of logs) {
     const moneyDelta = Number(spot.moneyIsCurrency0 ? log.amount0 : log.amount1);
     // volume is recorded first: a pool configured with a zero fee still trades
-    balances.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_VOLUME);
+    books.volume.add(ctx.moneyToken, Math.abs(moneyDelta), LABEL.SPOT_VOLUME);
 
     const rate = Number(log.fee) / PIPS_DENOM;
     if (!rate || rate >= 1) continue;
 
     const fee = moneyDelta < 0 ? Math.abs(moneyDelta) * rate : (moneyDelta * rate) / (1 - rate);
-    // Fees accrue to LPs pro rata; the protocol cut is skimmed off the vault's slice
-    // only, and the rest of that slice belongs to the vault's share holders.
-    const vaultFee = fee * vaultShare;
-    const protocolCut = vaultFee * cut;
-    const polFee = (vaultFee - protocolCut) * recipientShare;
-
-    balances.fees.add(ctx.moneyToken, fee, LABEL.SPOT_FEES);
-    balances.protocol.add(ctx.moneyToken, protocolCut, LABEL.SPOT_PROTOCOL);
-    if (polFee) balances.protocol.add(ctx.moneyToken, polFee, LABEL.SPOT_POL);
-    balances.supplySide.add(ctx.moneyToken, fee - protocolCut - polFee, LABEL.SPOT_LP);
+    const protocolCut = fee * cut;
+    books.fees.add(ctx.moneyToken, fee, LABEL.SPOT_FEES);
+    books.protocol.add(ctx.moneyToken, protocolCut, LABEL.SPOT_PROTOCOL);
+    books.toVault(ctx.moneyToken, fee - protocolCut, LABEL.SPOT_POL, LABEL.SPOT_LP);
   }
 }
 
 /**
- * Maps every market ever created back to its venture.
- *
- * `MarketCore` is a singleton whose market struct has no public getter, and
- * `activeMarketByVenture` holds only a venture's newest market. Creating a market
- * is gated on the previous one having settled, so a settle-then-create inside a
- * single window would drop the settled market's last swaps and its whole
- * settlement recognition. Creation events give the complete map instead, and the
- * contract has emitted a handful of them, so the scan is cheap and cached.
+ * A decision market's fees are recognised once, when the winning proposal's
+ * protocol cut is collected after settlement. Fees paid on losing proposals never
+ * become real tokens: settlement returns the vault only the winner's remainder and
+ * the losers' balances are void, so counting them would inflate fees by the number
+ * of proposals. The collection event carries the winner's exact cut in both tokens
+ * and the whole fee follows from the cut rate. Markets snapshot that rate at
+ * creation without a getter, so the hub's current value is used. The LP half
+ * accrues to the winning pool's liquidity, which is the vault's seed plus any
+ * liquidity users added; it is attributed to the vault.
  */
-async function getMarketOwners(options: FetchOptions): Promise<Map<string, number>> {
-  const logs = await options.getLogs({
-    target: MARKET_CORE,
-    eventAbi: MARKET_CREATED_EVENT,
-    fromBlock: MARKET_CORE_FROM_BLOCK,
-    toBlock: await options.getToBlock(),
-    cacheInCloud: true,
-  });
-  const owners = new Map<string, number>();
-  for (const log of logs) {
-    const ventureId = Number(log.ventureId);
-    if (ventureId >= FIRST_REAL_VENTURE_ID) owners.set(String(log.marketId), ventureId);
-  }
-  return owners;
-}
-
-/**
- * Decision-market swap fees, booked in the money token.
- *
- * `amountIn` in the Swap event is the gross input and the fee is `amountIn *
- * decisionSwapFeeBps / BPS_DENOM`, verified against live markets. `zeroForOne`
- * means the venture token went in, so the fee accrued in the venture token and is
- * converted at the swap's own realised price; otherwise it is already money.
- *
- * The protocol's cut is recognised on settlement, not per swap: every proposal
- * accrues one while trading but only the winning proposal's is kept, and the
- * losing proposals' cuts return to the venture's vault with the liquidity.
- */
-async function addDecisionMarketFees(
-  options: FetchOptions,
-  ctx: VentureContext,
-  ventureId: number,
-  balances: { fees: any; protocol: any; supplySide: any; volume: any },
-  volumeOnly: boolean,
-  recipientShare: number,
-) {
-  const swapLogs = await options.getLogs({ target: MARKET_CORE, eventAbi: DM_SWAP_EVENT });
-  const settledLogs = volumeOnly
-    ? []
-    : await options.getLogs({ target: MARKET_CORE, eventAbi: MARKET_SETTLED_EVENT, entireLog: true });
-  if (!swapLogs.length && !settledLogs.length) return;
-
+async function addDecisionMarkets(options: FetchOptions, ctx: VentureContext, books: Books) {
+  if (ctx.marketCore === nullAddress) return;
   const { api } = options;
-  const owners = await getMarketOwners(options);
-  const isOurs = (marketId: any) => owners.get(String(marketId)) === ventureId;
+  const logs = await options.getLogs({ target: ctx.marketCore, eventAbi: PROTOCOL_FEES_COLLECTED_EVENT });
+  if (!logs.length) return;
 
-  if (swapLogs.length) {
-    // many swaps share a proposal, so resolve each proposal once
-    const proposals = [...new Set<string>(swapLogs.map((log: any) => String(log.proposalId)))];
-    const resolved = await api.multiCall({ target: MARKET_CORE, abi: PROPOSAL_TO_MARKET, calls: proposals });
-    const marketOf = new Map<string, string>();
-    proposals.forEach((proposalId, i) => marketOf.set(proposalId, String(resolved[i])));
-    const markets = swapLogs.map((log: any) => marketOf.get(String(log.proposalId)));
+  // Indexed uints decode as padded hex on the indexer path and as decimal on
+  // the RPC path; BigInt reads both.
+  const marketIds = logs.map((log: any) => BigInt(log.marketId).toString());
+  const [infos, cutBps] = await Promise.all([
+    api.multiCall({ target: ctx.marketCore, abi: MARKET_INFO, calls: marketIds }),
+    api.call({ target: HUB, abi: DECISION_PROTOCOL_CUT_BPS }),
+  ]);
+  if (!Number(cutBps)) return;
 
-    // Virtual tokens redeem 1:1 with the real token, so a money-side amount is
-    // already in money-token units.
-    const notionalOf = (log: any) => Number(log.zeroForOne ? log.amountOut : log.amountIn);
-
-    if (volumeOnly) {
-      swapLogs.forEach((log: any, i: number) => {
-        if (isOurs(markets[i])) balances.volume.add(ctx.moneyToken, notionalOf(log), LABEL.DM_VOLUME);
-      });
-    } else {
-      const swapFeeBps = Number(await api.call({ target: HUB, abi: "function decisionSwapFeeBps() view returns (uint16)" }));
-      const protocolCutBps = Number(await api.call({ target: HUB, abi: "function decisionProtocolFeeCutBps() view returns (uint16)" }));
-      const rate = swapFeeBps / BPS_DENOM;
-
-      swapLogs.forEach((log: any, i: number) => {
-        if (!isOurs(markets[i])) return;
-        const notional = notionalOf(log);
-        balances.volume.add(ctx.moneyToken, notional, LABEL.DM_VOLUME);
-        if (!rate || rate >= 1) return;
-
-        const fee = log.zeroForOne ? (notional * rate) / (1 - rate) : notional * rate;
-        balances.fees.add(ctx.moneyToken, fee, LABEL.DM_FEES);
-        // Only the LP half is recognised while trading; the protocol half waits for settlement.
-        const lpFee = (fee * (BPS_DENOM - protocolCutBps)) / BPS_DENOM;
-        const polFee = lpFee * recipientShare;
-        if (polFee) balances.protocol.add(ctx.moneyToken, polFee, LABEL.DM_POL);
-        balances.supplySide.add(ctx.moneyToken, lpFee - polFee, LABEL.DM_LP);
-      });
-    }
-  }
-
-  if (!settledLogs.length) return;
-
-  // `collectProtocolFees` is permissionless and zeroes the winning proposal's
-  // accrued fee, so reading at the window's end block returns 0 whenever a
-  // keeper collects in the same hour it settled, losing the whole protocol cut
-  // for that market. Read each market's fee state at its own settlement block,
-  // and fall back to the collection event for a settle-and-collect in one block.
-  const collectedLogs = await options.getLogs({
-    target: MARKET_CORE,
-    eventAbi: PROTOCOL_FEES_COLLECTED_EVENT,
+  logs.forEach((log: any, i: number) => {
+    if (Number(infos[i].ventureId) !== ctx.id) return;
+    const book = (token: string, cut: number) => {
+      if (!cut) return;
+      const total = (cut * BPS_DENOM) / Number(cutBps);
+      books.fees.add(token, total, LABEL.DM_FEES);
+      books.protocol.add(token, cut, LABEL.DM_PROTOCOL);
+      books.toVault(token, total - cut, LABEL.DM_POL, LABEL.DM_LP);
+    };
+    book(ctx.moneyToken, Number(log.feeMoney));
+    book(ctx.ventureToken, Number(log.feeVenture));
   });
-  const collectedByMarket = new Map<string, { money: number; venture: number }>();
-  for (const log of collectedLogs)
-    collectedByMarket.set(String(log.marketId), { money: Number(log.feeMoney), venture: Number(log.feeVenture) });
-
-  for (const log of settledLogs) {
-    const { marketId, winningProposalId } = log.args ?? log;
-    if (!isOurs(marketId)) continue;
-
-    const atSettlement = new sdk.ChainApi({ chain: options.chain, block: Number(log.blockNumber) });
-    const proposalIds: any[] = await atSettlement.call({ target: MARKET_CORE, abi: MARKET_PROPOSAL_IDS, params: [marketId] });
-    const feeStates = await atSettlement.multiCall({
-      target: MARKET_CORE,
-      abi: PROPOSAL_FEE_STATE,
-      calls: proposalIds.map((proposalId: any) => String(proposalId)),
-    });
-
-    proposalIds.forEach((proposalId: any, i: number) => {
-      const won = String(proposalId) === String(winningProposalId);
-      let moneyFee = Number(feeStates[i].moneyFee);
-      let ventureFee = Number(feeStates[i].ventureFee);
-      if (won && !moneyFee && !ventureFee) {
-        const collected = collectedByMarket.get(String(marketId));
-        if (collected) ({ money: moneyFee, venture: ventureFee } = collected);
-      }
-      // The winner's accrued cut is the protocol's; every loser's returns to the
-      // vault, where the fee recipient's share of it is protocol revenue too.
-      const book = (token: string, amount: number) => {
-        if (!amount) return;
-        if (won) return balances.protocol.add(token, amount, LABEL.DM_PROTOCOL);
-        const pol = amount * recipientShare;
-        if (pol) balances.protocol.add(token, pol, LABEL.DM_POL);
-        balances.supplySide.add(token, amount - pol, LABEL.DM_LP);
-      };
-      book(ctx.moneyToken, moneyFee);
-      // The cut accrues in whichever token was swapped in, so a venture-token
-      // sell leaves real income on the venture side too.
-      book(ctx.ventureToken, ventureFee);
-    });
-  }
 }
 
-function ventureFetch(ventureId: number, mode: "fees" | "volume") {
+function ventureFetch(ventureId: number) {
   return async (options: FetchOptions) => {
-    const balances = {
-      fees: options.createBalances(),
-      protocol: options.createBalances(),
-      supplySide: options.createBalances(),
-      volume: options.createBalances(),
-    };
-
     const ctx = await getVentureContext(options, ventureId);
+    const books = new Books(options, ctx ? await getRecipient(options, ctx) : { address: nullAddress, share: 0 });
     if (ctx) {
-      const volumeOnly = mode === "volume";
-      const recipientShare = volumeOnly ? 0 : await getRecipientShare(options, ctx.spot);
-      if (ctx.spot) await addSpotFees(options, ctx, ctx.spot, balances, volumeOnly, recipientShare);
-      await addDecisionMarketFees(options, ctx, ventureId, balances, volumeOnly, recipientShare);
+      if (ctx.spot) await addSpot(options, ctx, ctx.spot, books);
+      await addDecisionMarkets(options, ctx, books);
     }
-
-    if (mode === "volume") return { dailyVolume: balances.volume };
-
     return {
-      dailyFees: balances.fees,
-      dailyUserFees: balances.fees,
-      dailyRevenue: balances.protocol,
-      dailyProtocolRevenue: balances.protocol,
-      dailySupplySideRevenue: balances.supplySide,
+      dailyVolume: books.volume,
+      dailyFees: books.fees,
+      dailyUserFees: books.fees,
+      dailyRevenue: books.protocol,
+      dailyProtocolRevenue: books.protocol,
+      dailySupplySideRevenue: books.supplySide,
       dailyHoldersRevenue: 0,
     };
   };
 }
 
-const FEES_METHODOLOGY = {
-  Fees: "Swap fees paid by traders: 1% on the venture's Uniswap v4 spot pool, and 1% on conditional trades in the venture's decision markets. Both are read from swap events and booked in the venture's money token at the swap's own realised price.",
+const METHODOLOGY = {
+  Fees: "1% swap fee on the venture's Uniswap v4 spot pool, read from swap events and booked in the money token at each swap's realised price, plus the fees of the winning proposal in each decision market, recognised when its protocol cut is collected after settlement. Fees paid on losing proposals never become real tokens and are not counted.",
   UserFees: "Identical to Fees. Traders pay the swap fee; there is no other charge, and Umia takes no fee on a launch.",
-  Revenue: "What accrues to the protocol fee recipient: 50% of spot swap fees, weighted by the venture vault's share of pool liquidity, plus 50% of decision-market fees on the winning proposal, recognised when the market settles. The other half accrues to the vault's share holders, and the fee recipient's share of it is counted here too: 100% for UMIA, whose treasury is the vault's only depositor, and 0% for a venture whose vault the protocol holds no shares of.",
+  Revenue: "What accrues to the protocol fee recipient: the 50% protocol cut of spot fees and of the winning proposal's decision-market fees, plus the recipient's share of the other half through the vault shares it holds. That share is 100% for UMIA, whose treasury is the vault's only depositor, and 0% for a venture whose vault the protocol holds no shares of.",
   ProtocolRevenue: "Identical to Revenue. All of it accrues to the protocol fee recipient, directly as the protocol cut or through the vault shares it holds.",
-  SupplySideRevenue: "What accrues to the venture's SpotLiquidityVault for share holders other than the protocol fee recipient: the LP half of spot swap fees, the LP half of decision-market fees, and the protocol half accrued by losing proposals, which returns to the vault with the liquidity when the market settles. Zero for UMIA while its treasury is the vault's only depositor.",
+  SupplySideRevenue: "The LP half of spot and winning-proposal decision-market fees, which accrues to the venture's SpotLiquidityVault, less the fee recipient's share. Zero for UMIA while its treasury is the vault's only depositor.",
   HoldersRevenue: "None. No buyback, burn or staker distribution exists on-chain.",
+  Volume: "Money-token leg of every swap on the venture's Uniswap v4 spot pool. Pool ids come from the venture vault's own pool key, so only pools operated by Umia count. Decision-market trades are conditional and are not counted as volume.",
 };
 
 const FEE_LABELS = {
-    [LABEL.SPOT_FEES]: "1% swap fee on the venture's Uniswap v4 spot pool, taken on the gross input of each swap and measured on the money-token leg.",
-    [LABEL.DM_FEES]: "1% swap fee on conditional trades in the venture's decision markets, taken on the gross input of each swap.",
+  [LABEL.SPOT_FEES]: "1% swap fee on the venture's Uniswap v4 spot pool, taken on the gross input of each swap and measured on the money-token leg.",
+  [LABEL.DM_FEES]: "Fees of the winning proposal in a settled decision market, recognised when its protocol cut is collected.",
 };
 
 const REVENUE_LABELS = {
-  [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees, weighted by the venture vault's share of pool liquidity.",
+  [LABEL.SPOT_PROTOCOL]: "50% of spot swap fees.",
   [LABEL.SPOT_POL]: "The LP half of spot swap fees on the vault shares held by the protocol fee recipient. 100% for UMIA, whose treasury is the vault's only depositor.",
-  [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised on the day the market settles.",
-  [LABEL.DM_POL]: "The LP half of decision-market fees, plus losing proposals' protocol cuts returned to the vault, on the vault shares held by the protocol fee recipient.",
+  [LABEL.DM_PROTOCOL]: "50% of the winning proposal's decision-market fees, recognised when collected after settlement.",
+  [LABEL.DM_POL]: "The LP half of the winning proposal's decision-market fees on the vault shares held by the protocol fee recipient.",
 };
 
-const FEES_BREAKDOWN = {
+const BREAKDOWN = {
   Fees: FEE_LABELS,
   UserFees: FEE_LABELS,
   Revenue: REVENUE_LABELS,
   ProtocolRevenue: REVENUE_LABELS,
   SupplySideRevenue: {
     [LABEL.SPOT_LP]: "The LP half of spot swap fees accruing to the venture's SpotLiquidityVault, less the fee recipient's share.",
-    [LABEL.DM_LP]: "The LP half of decision-market fees, plus the protocol half accrued by losing proposals, both of which return to the venture's vault, less the fee recipient's share.",
+    [LABEL.DM_LP]: "The LP half of the winning proposal's decision-market fees accruing to the venture's vault, less the fee recipient's share.",
   },
-};
-
-const VOLUME_METHODOLOGY = {
-  Volume: "Money-token notional of every swap on the venture's Uniswap v4 spot pool, plus the notional of conditional trades in its decision markets. Spot pool ids come from the venture vault's own pool key, so only pools operated by Umia count.",
-};
-
-const VOLUME_BREAKDOWN = {
   Volume: {
     [LABEL.SPOT_VOLUME]: "Money-token leg of every swap on the venture's Uniswap v4 spot pool.",
-    [LABEL.DM_VOLUME]: "Money-token notional of conditional trades in the venture's decision markets.",
   },
 };
 
-export function ventureFees(ventureId: number, start: string): SimpleAdapter {
+function ventureAdapter(ventureId: number, start: string): SimpleAdapter {
   return {
     version: 2,
     pullHourly: true,
-    fetch: ventureFetch(ventureId, "fees"),
+    fetch: ventureFetch(ventureId),
     chains: [CHAIN.BASE],
     start,
-    methodology: FEES_METHODOLOGY,
-    breakdownMethodology: FEES_BREAKDOWN,
-    // spot leg trades on a Uniswap v4 pool, so those fees also count under Uniswap
+    methodology: METHODOLOGY,
+    breakdownMethodology: BREAKDOWN,
+    // The spot pool is a Uniswap v4 pool, so its fees and volume also count
+    // under Uniswap. The flag is adapter-wide and also covers the much smaller
+    // decision-market leg.
     doublecounted: true,
   };
 }
 
+/**
+ * Fees, revenue and volume for one venture launched on Umia.
+ * @param ventureId the venture's id on the Umia hub
+ * @param start the day before its spot pool went live: with hourly pulls the
+ *   runner only serves slots from one full day after `start`
+ */
+export function ventureFees(ventureId: number, start: string): SimpleAdapter {
+  return ventureAdapter(ventureId, start);
+}
+
+/** The same adapter for the volume dashboard; the runner keeps the keys it needs. */
 export function ventureVolume(ventureId: number, start: string): SimpleAdapter {
-  return {
-    version: 2,
-    pullHourly: true,
-    fetch: ventureFetch(ventureId, "volume"),
-    chains: [CHAIN.BASE],
-    start,
-    methodology: VOLUME_METHODOLOGY,
-    breakdownMethodology: VOLUME_BREAKDOWN,
-    // spot leg trades on a Uniswap v4 pool, so that volume also counts under Uniswap
-    doublecounted: true,
-  };
+  return ventureAdapter(ventureId, start);
 }
