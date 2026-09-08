@@ -178,7 +178,12 @@ async function repayments(treasury: string, start: number, end: number): Promise
             `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc` +
             (apiKey ? `&api_key=${apiKey}` : '')
         const data = await fetchURLAutoHandleRateLimit(url, RETRIES)
-        const messages: any[] = data?.messages ?? []
+        // A body without a messages array is a failure wearing a 200. Reading it as an empty page
+        // would store the day as zero, which is the one outcome worth crashing to avoid.
+        if (!Array.isArray(data?.messages)) {
+            throw new Error('Expected a messages array from toncenter for ' + treasury)
+        }
+        const messages: any[] = data.messages
         for (const message of messages) {
             // logs are external-out, which the API reports with no destination
             if (message.destination !== null && message.destination !== undefined) continue
