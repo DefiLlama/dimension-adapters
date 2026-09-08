@@ -59,7 +59,6 @@ const abi = {
 // https://basescan.org/address/0xf771F202e8B49612e83f18B68D6b268765A40F72#code
 const U1_LOCK_VAULT = "0xf771F202e8B49612e83f18B68D6b268765A40F72";
 
-const SWAP_VOLUME = "Swap Volume";
 const SWAP_FEES_TO_LPS = "Swap Fees To LPs";
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
 const LOCKER_REWARDS = "U1 Locker Distributions";
@@ -93,6 +92,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -118,11 +118,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (BigInt(log.totalFee) !== BigInt(log.lpFee) + BigInt(log.protocolFee))
           throw new Error("Umbrae: DLMM swap fee split does not balance");
 
-        dailyVolume.add(tokenIn, log.amountIn, SWAP_VOLUME);
+        dailyVolume.add(tokenIn, log.amountIn);
         dailyFees.add(tokenIn, log.totalFee, METRIC.SWAP_FEES);
         dailyUserFees.add(tokenIn, log.totalFee, METRIC.SWAP_FEES);
         dailySupplySideRevenue.add(tokenIn, log.lpFee, SWAP_FEES_TO_LPS);
         dailyRevenue.add(tokenIn, log.protocolFee, SWAP_FEES_TO_PROTOCOL);
+        dailyProtocolRevenue.add(tokenIn, log.protocolFee, SWAP_FEES_TO_PROTOCOL);
       });
     });
   }
@@ -180,7 +181,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         const xToY = BigInt(log.amountXIn) > 0n;
         const tokenIn = xToY ? tokenX[i] : tokenY[i];
         const amountIn = xToY ? BigInt(log.amountXIn) : BigInt(log.amountYIn);
-        dailyVolume.add(tokenIn, amountIn, SWAP_VOLUME);
+        dailyVolume.add(tokenIn, amountIn);
       });
 
       // Only swap accrual increases these accumulators; claims decrease them.
@@ -193,6 +194,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailyUserFees.add(pairFeeToken, feeAmount, METRIC.SWAP_FEES);
         dailySupplySideRevenue.add(pairFeeToken, lpCut, SWAP_FEES_TO_LPS);
         dailyRevenue.add(pairFeeToken, protocolCut, SWAP_FEES_TO_PROTOCOL);
+        dailyProtocolRevenue.add(pairFeeToken, protocolCut, SWAP_FEES_TO_PROTOCOL);
       }
     });
   }
@@ -200,7 +202,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const rewards = await options.getLogs({ target: U1_LOCK_VAULT, eventAbi: "event RewardsAdded(address indexed funder, uint256 amount, uint256 newRewardIndex)", ...logWindow });
   if (rewards.length) {
     const rewardToken = await options.api.call({ target: U1_LOCK_VAULT, abi: "address:rewardToken" });
-    for (const reward of rewards) dailyHoldersRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+    for (const reward of rewards) {
+      dailyFees.add(rewardToken, reward.amount, LOCKER_REWARDS);
+      dailyRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+      dailyHoldersRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+    }
   }
 
   return {
@@ -208,7 +214,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees,
     dailyUserFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -217,29 +223,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Volume:
     "Sum of the input amount of every swap on Umbrae's DLMM (Liquidity Book style concentrated liquidity) and DAMM (dynamic-fee constant product) pools on Base. Pools are enumerated on chain from their factories and volume is read from each pool's swap events.",
-  Fees: "Swap fees on the listed DLMM and DAMM factories only; excludes aggregator, keeper, flash-loan and liquidity-composition fees. DLMM uses SwapDetailed; DAMM uses changes in protocol and LP fee accumulators plus claims, in each historical fee token.",
-  Revenue: "The protocol's share of swap fees, which accrues to the protocol fee recipient.",
-  ProtocolRevenue: "Gross protocol swap-fee share accruing to the fee treasury, before later discretionary distributions. This is the same accrual as Revenue, not net retained income after holder allocations.",
-  HoldersRevenue: "Actual WETH distributions credited to U1 lockers by RewardsAdded, including external funding. These can occur after swap revenue accrues and are not added again to Revenue. No fixed forwarding percentage or net retained share is assumed.",
+  Fees: "Swap fees on the listed DLMM and DAMM factories plus WETH credited to U1 lockers. Excludes aggregator, keeper, flash-loan and liquidity-composition fees. DLMM uses SwapDetailed; DAMM uses changes in protocol and LP fee accumulators plus claims, in each historical fee token.",
+  Revenue: "The protocol's share of swap fees accruing to the fee recipient, plus WETH credited to U1 lockers (including external funding).",
+  ProtocolRevenue: "Gross protocol swap-fee share accruing to the fee treasury.",
+  HoldersRevenue: "Actual WETH distributions credited to U1 lockers by RewardsAdded, including external funding. Counted in Fees and Revenue at funding time, not again when users claim. No fixed forwarding percentage is assumed.",
   SupplySideRevenue: "The share of swap fees that accrues to liquidity providers.",
-  UserFees: "Swap fees paid by traders, which is the whole of Fees.",
+  UserFees: "Swap fees paid by traders. Locker distributions are not user fees.",
 };
 
 const breakdownMethodology = {
-  Volume: {
-    [SWAP_VOLUME]: "Input amount of every swap through Umbrae DLMM and DAMM pools.",
-  },
   Fees: {
     [METRIC.SWAP_FEES]: "Total swap fees charged by Umbrae DLMM and DAMM pools.",
+    [LOCKER_REWARDS]: "WETH credited to U1 lockers, including external funding.",
   },
   UserFees: {
     [METRIC.SWAP_FEES]: "Total swap fees charged by Umbrae DLMM and DAMM pools, all of which is paid by traders.",
   },
   Revenue: {
     [SWAP_FEES_TO_PROTOCOL]: "Protocol share of swap fees.",
+    [LOCKER_REWARDS]: "WETH credited to U1 lockers, including external funding.",
   },
   ProtocolRevenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Gross swap-fee accrual to the fee treasury before discretionary holder allocations; not net retained income.",
+    [SWAP_FEES_TO_PROTOCOL]: "Gross swap-fee accrual to the fee treasury.",
   },
   HoldersRevenue: {
     [LOCKER_REWARDS]: "WETH credited to U1 lockers at funding time, not again when users claim it.",
