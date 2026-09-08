@@ -36,7 +36,8 @@ const fetchConnectorStats = async (
     `https://pro-gateway.pearprotocol.io/statistics/volume` +
     `?connector=${connector}&resolution=24h&startDate=${startDate}&endDate=${endDate}`;
   const response = await fetchURL(url);
-  return response?.data ?? [];
+  if (!response.data || response.data.length === 0) throw new Error("No data found for the given date: " + options.dateString);
+  return response.data;
 };
 
 // Defensive sum: only counts rows whose timestamp actually falls inside the
