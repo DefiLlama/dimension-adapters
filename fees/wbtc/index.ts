@@ -26,6 +26,9 @@ export default {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2018-11-24',
+  // On-chain Factory mint/burn confirmations stopped 2026-06-07; WBTC total supply has
+  // been completely flat since; last non-zero fee day was 2026-06-09.
+  deadFrom: "2026-06-10",
   methodology: {
     Fees: "Minting and buring fees paid by users.",
     Revenue: "All fees are revenue.",
