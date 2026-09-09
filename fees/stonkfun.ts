@@ -16,7 +16,7 @@ const STONK = "6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx";
 const PLATFORM_FEE_WALLET = "AvVCE7Ue49iZjYzkkHz6ZhVyvY6NLHw67vB8eQaffVPz";
 const JUPITER = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
-// Raydium CPMM. LaunchLab graduations migrate into a CPMM config with a 1% creator fee, and the
+// Raydium CPMM. LaunchLab graduations migrate into a CPMM config with the creator fee, and the
 // operator is the pool creator, so it claims that fee with collect_creator_fee directly on this
 // program. Those transfers never pass the lock program, which is why the harvest branch misses them.
 const CPMM_PROGRAM = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
@@ -194,7 +194,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "StonkFun's share of trading fees only. Three sources: the 1% platform fee on every trade against the Raydium LaunchLab bonding curves it configures; the 1% creator fee on every swap in the Raydium CPMM pools those launches graduate into, which StonkFun claims as pool creator; and its share of trading fees harvested from the permanently locked liquidity behind each launch. Raydium's protocol fee and third-party creator fees are excluded. All amounts are in each pool's quote token.",
+  Fees: "StonkFun's share of trading fees only. Three sources: the 1% platform fee on every trade against the Raydium LaunchLab bonding curves it configures; the creator fee on every swap in the Raydium CPMM pools those launches graduate into, which StonkFun claims as pool creator; and its share of trading fees harvested from the permanently locked liquidity behind each launch. Raydium's protocol fee and third-party creator fees are excluded. All amounts are in each pool's quote token.",
   Revenue: "Same as fees. Platform fees accrue on the curve, creator fees and locked-position fees are claimed into the treasury.",
   HoldersRevenue:
     "Quote assets spent buying STONK on Jupiter, identified on-chain as swaps that returned STONK to the operator wallet. Measured at the amount spent, not the value of the tokens later burned.",
@@ -205,7 +205,7 @@ const breakdownMethodology = {
     "Launch Curve Platform Fee":
       "1% of every LaunchLab bonding curve trade, charged in the pool's quote token and claimable by StonkFun's fee wallet.",
     "Graduated Pool Creator Fee":
-      "1% creator fee on swaps in the CPMM pools graduated launches migrate into, claimed by StonkFun as pool creator; quote side only.",
+      "Creator fee on swaps in the CPMM pools graduated launches migrate into, claimed by StonkFun as pool creator; quote side only.",
     "Locked LP Trading Fees":
       "Quote-token fees harvested from the permanently locked launch positions.",
   },
