@@ -32,8 +32,9 @@ async function fetch(options: FetchOptions) {
         shortOpenInterestAtEnd.addUSDValue(Number(pairStates[pair].short_oi) * Number(pricesMap.get(pair)));
     }
 
+    // The vault takes the other side of every position, so long_oi == short_oi always and
+    // summing them double-counts. (Contrast pool venues like GMX, where L and S are independent.)
     const openInterestAtEnd = longOpenInterestAtEnd.clone();
-    openInterestAtEnd.add(shortOpenInterestAtEnd);
 
     return {
         shortOpenInterestAtEnd,

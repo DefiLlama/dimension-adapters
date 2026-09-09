@@ -92,7 +92,8 @@ const getOpenInterest = async ({
   return {
     longOpenInterestAtEnd: totalLongOIUsd,
     shortOpenInterestAtEnd: totalShortOIUsd,
-    openInterestAtEnd: totalLongOIUsd + totalShortOIUsd,
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: (totalLongOIUsd + totalShortOIUsd) / 2,
   };
 };
 

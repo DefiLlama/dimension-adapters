@@ -23,7 +23,8 @@ const fetch = async (options: any) => {
     if (!price || !price.markPrice || !longOpenInterest || !shortOpenInterest) {
       throw new Error(`Missing Synthetix mark price or open interest for ${symbol}`);
     }
-    openInterestAtEnd.addUSDValue(Number(price.markPrice) * (Number(longOpenInterest) + Number(shortOpenInterest)));
+    // long == short exactly on every market, so summing the two sides double-counts
+    openInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
     longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
     shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest));
   });

@@ -15,7 +15,8 @@ async function fetch() {
 
     statsList.forEach((statsEntry: any) => {
         const currentPrice = currencyList.filter((currencyEntry: any) => statsEntry.currency === currencyEntry.currency).at(0)?.spot_price ?? 0;
-        openInterestAtEnd += (statsEntry.open_interest * currentPrice * 2);
+        // statistics.open_interest is one-sided; get_ticker's open_interest is the 2x version
+        openInterestAtEnd += (statsEntry.open_interest * currentPrice);
     });
 
     return { openInterestAtEnd }

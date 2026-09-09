@@ -9,7 +9,12 @@ const fetch = async (_: any) => {
   const data = await fetchUrl(URL);
 
   return {
-    openInterestAtEnd: data.open_interest,
+    // Two factors. The headline open_interest counts each position from both counterparties, so
+    // it is exactly 2.0000x the sum of the per-listing long_open_interest + short_open_interest.
+    // That sum is then halved again: Variational is an RFQ/dealer venue where long != short
+    // (Sigma long $576.5M vs Sigma short $312.0M), so the one-sided figure is the average of the
+    // two sides, not either one. Net: a quarter of the published number.
+    openInterestAtEnd: Number(data.open_interest) / 4,
     dailyVolume: data?.total_volume_24h ,
   };
 };

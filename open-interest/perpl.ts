@@ -32,7 +32,8 @@ const fetch = async (options: FetchOptions) => {
     longOpenInterestAtEnd += longOI * markPrice;
     shortOpenInterestAtEnd += shortOI * markPrice;
   }
-  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+  // Matched book: longOpenInterestLNS == shortOpenInterestLNS exactly, so their sum double-counts.
+  const openInterestAtEnd = longOpenInterestAtEnd;
 
   return { longOpenInterestAtEnd, shortOpenInterestAtEnd, openInterestAtEnd };
 };

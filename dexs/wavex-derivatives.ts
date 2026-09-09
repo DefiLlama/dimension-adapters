@@ -45,7 +45,8 @@ const fetch = async (options: FetchOptions) => {
     shortOpenInterestAtEnd = Number(
       tradingStats.tradingStat.shortOpenInterest || 0
     );
-    openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd = (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2;
   }
 
   const DECIMALS = 30;

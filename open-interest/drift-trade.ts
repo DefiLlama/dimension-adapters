@@ -18,7 +18,8 @@ async function fetch() {
       const lastPrice = parseFloat(contract.price);
       return acc + (openInterest * lastPrice);
     }, 0);
-  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+  // pool venue with no single-sided field: average the two sides instead of summing them
+  const openInterestAtEnd = (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2;
 
   return {
     openInterestAtEnd,

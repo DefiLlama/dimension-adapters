@@ -68,7 +68,11 @@ const fetch = async () => {
 
   const v2DailyVolume = await fetchV2Volume();
 
-  const dailyOpenInterest = v2DailyVolume.openInterestAtEnd + v1DailyOpenInterest;
+  // Aster docs: "Both long and short open positions are counted as part of Open interest.
+  // It is calculated both ways." This bapi ticker `openInterest` is that UI figure (USD notional),
+  // so halve it for the one-sided convention. Aster's Binance-shaped /fapi/v1/openInterest is
+  // one-sided already and would be the cleaner source to switch to.
+  const dailyOpenInterest = (v2DailyVolume.openInterestAtEnd + v1DailyOpenInterest) / 2;
 
   return { openInterestAtEnd: dailyOpenInterest };
 };

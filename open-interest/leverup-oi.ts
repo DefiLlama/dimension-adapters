@@ -56,7 +56,8 @@ async function fetch(options: FetchOptions) {
   });
 
   return {
-    openInterestAtEnd: longOpenInterest + shortOpenInterest,
+    // long == short exactly (LP is the counterparty on both legs), so the sum double-counts
+    openInterestAtEnd: longOpenInterest,
     longOpenInterestAtEnd: longOpenInterest,
     shortOpenInterestAtEnd: shortOpenInterest,
   };

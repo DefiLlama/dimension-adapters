@@ -16,7 +16,8 @@ const fetch = async (options: FetchOptions) => {
   const data = await fetchURL(`${api}/orderBookDetails`);
   const markets = data.order_book_details;
   markets.forEach((market: any) => {
-    openInterestAtEnd += (Number(market.open_interest || 0) * Number(market.last_trade_price || 0) * 2); // * 2 because of double sided OI
+    // Lighter's open_interest is already one-sided (verified against trade deltas: moves 1:1 with fill size)
+    openInterestAtEnd += (Number(market.open_interest || 0) * Number(market.last_trade_price || 0));
   });
 
   return { openInterestAtEnd };

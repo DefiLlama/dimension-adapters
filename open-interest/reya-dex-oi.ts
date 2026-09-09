@@ -48,7 +48,8 @@ const fetch = async (options: FetchOptions) => {
   const shortOpenInterestAtEnd = oneSidedOpenInterest;
 
   return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
+    // one-sided convention: don't sum long + short into the headline number
+    openInterestAtEnd: oneSidedOpenInterest,
     longOpenInterestAtEnd,
     shortOpenInterestAtEnd,
   };

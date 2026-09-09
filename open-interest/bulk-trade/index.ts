@@ -23,7 +23,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
   if (!Number.isFinite(openInterest * 2))
     throw new Error('BULK stats response has invalid open interest')
   return {
-    openInterestAtEnd: openInterest * 2,
+    // The API's one-sided figure is the headline: aggregate longs equal aggregate shorts, so
+    // reporting their sum would double-count.
+    openInterestAtEnd: openInterest,
     longOpenInterestAtEnd: openInterest,
     shortOpenInterestAtEnd: openInterest,
   }
@@ -37,7 +39,7 @@ const adapter: SimpleAdapter = {
   // Open interest is a point-in-time snapshot and must not be summed across hourly runs.
   pullHourly: false,
   methodology: {
-    OpenInterest: 'Current gross long-plus-short open interest across all BULK perpetual markets. The BULK API exposes one-sided open interest from positive positions; aggregate longs equal aggregate shorts, so the adapter reports the API value for each side and their sum as gross open interest.',
+    OpenInterest: 'Current open interest across all BULK perpetual markets, one-sided. The BULK API exposes one-sided open interest from positive positions; aggregate longs equal aggregate shorts, so the API value is reported as-is rather than summed across both sides.',
   },
 }
 

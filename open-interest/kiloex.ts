@@ -64,7 +64,8 @@ const fetch = async (options: FetchOptions) => {
   const shortOpenInterestSum = shortOis.reduce((sum: bigint, oi: bigint) => sum + BigInt(oi), 0n);
 
   return {
-    openInterestAtEnd: formatOI(longOpenInterestSum + shortOpenInterestSum),
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: formatOI((longOpenInterestSum + shortOpenInterestSum) / 2n),
     longOpenInterestAtEnd: formatOI(longOpenInterestSum),
     shortOpenInterestAtEnd: formatOI(shortOpenInterestSum),
   };
