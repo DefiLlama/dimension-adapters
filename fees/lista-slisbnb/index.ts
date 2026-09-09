@@ -13,50 +13,45 @@ import { CHAIN } from "../../helpers/chains";
 
 const ListaStakeManagerAddress = "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6";
 
-// token
-const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
+// ListaStakeManager.compoundRewards() runs once a day: it books the BSC staking rewards earned by the
+// pool, keeps synFee of them as the protocol commission (minted as slisBNB to revenuePool) and emits
+// RewardsCompounded(_amount) with that commission in BNB.
+//
+// The commission is read from this event rather than inferred from the slisBNB exchange-rate move,
+// because the rate also rises for two reasons that are not staking rewards and carry no fee:
+// (1) the validator-commission refund that RefundCommission deposits and compoundRewards burns back to
+//     holders day by day, and
+// (2) rewards accrued on shares awaiting withdrawal, which ClaimUndelegatedFrom leaves with the
+//     remaining holders.
+// Inferring from the rate overstated Revenue by ~3.5% in Aug-2026 versus the fee actually minted.
+const REWARDS_COMPOUNDED = "event RewardsCompounded(uint256 _amount)";
 
 const fetch = async (options: FetchOptions) => {
-  const slilsBnbSupplyBefore = await options.fromApi.call({
-    target: slisBNB,
-    abi: 'uint256:totalSupply',
-  });
-
-  const slisBnbSupplyAfter = await options.toApi.call({
-    target: slisBNB,
-    abi: 'uint256:totalSupply',
-  });
-
-  const pooledBnbBefore = await options.fromApi.call({
+  const logs = await options.getLogs({
     target: ListaStakeManagerAddress,
-    abi: 'uint256:getTotalPooledBnb',
+    eventAbi: REWARDS_COMPOUNDED,
   });
-
-  const pooledBnbAfter = await options.toApi.call({
-    target: ListaStakeManagerAddress,
-    abi: 'uint256:getTotalPooledBnb',
-  });
-
-  // staking rewards distributed post revenue cut
-  const supplySideRewards = (pooledBnbAfter / slisBnbSupplyAfter - pooledBnbBefore / slilsBnbSupplyBefore) * (slisBnbSupplyAfter / 1e18);
 
   // Commission rate is configurable on-chain (ListaStakeManager.synFee, 1e10 precision).
-  // Read it live instead of hardcoding, so Fees/Revenue always track the current rate.
   const synFee = await options.toApi.call({
     target: ListaStakeManagerAddress,
     abi: 'uint256:synFee',
   });
   const commissionRate = Number(synFee) / 1e10;
-  const supplyRate = 1 - commissionRate;
-  if (supplyRate <= 0) throw new Error(`Invalid synFee (commission >= 100%): ${synFee}`);
+  if (commissionRate <= 0 || commissionRate >= 1) throw new Error(`Invalid synFee: ${synFee}`);
 
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addCGToken("binancecoin", supplySideRewards / supplyRate, 'BNB Staking Rewards');
-  dailySupplySideRevenue.addCGToken("binancecoin", supplySideRewards, 'BNB Staking Rewards To Stakers');
+  for (const log of logs) {
+    const commission = Number(log._amount) / 1e18; // BNB kept by the protocol in this compound run
+    const rewards = commission / commissionRate; // total staking rewards compounded in this run
+    dailyFees.addCGToken("binancecoin", rewards, 'BNB Staking Rewards');
+    dailyRevenue.addCGToken("binancecoin", commission, 'BNB Staking Rewards Commission');
+    dailySupplySideRevenue.addCGToken("binancecoin", rewards - commission, 'BNB Staking Rewards To Stakers');
+  }
 
-  const dailyRevenue = dailyFees.clone(commissionRate, 'BNB Staking Rewards Commission');
   const dailyHoldersRevenue = dailyRevenue.clone(0.3, 'Token Buy Back'); // 30% of commission buys back LISTA
   const dailyProtocolRevenue = dailyRevenue.clone(0.7, 'BNB Staking Rewards Commission'); // 70% to treasury
 
@@ -70,7 +65,7 @@ const fetch = async (options: FetchOptions) => {
 };
 const methodology = {
   Fees: 'Total yields from staked BNB.',
-  Revenue: 'Lista DAO charges a commission on the staking yields (rate read on-chain from ListaStakeManager.synFee, 1e10 precision).',
+  Revenue: 'Lista DAO charges a commission (ListaStakeManager.synFee) on the staking yields, read from the daily RewardsCompounded event, i.e. the commission actually minted to revenuePool.',
   ProtocolRevenue: '70% of the commission is retained by the treasury.',
   HoldersRevenue: '30% of the commission is used to buy back LISTA.',
   SupplySideRevenue: 'Stakers earn the staking rewards net of the commission.',
@@ -89,7 +84,7 @@ const adapter: SimpleAdapter = {
       'BNB Staking Rewards': 'Total BNB staking rewards collected by running BSC validators.',
     },
     Revenue: {
-      'BNB Staking Rewards Commission': 'Commission charged on staking rewards (synFee, read on-chain).',
+      'BNB Staking Rewards Commission': 'Commission actually taken on each compoundRewards run (RewardsCompounded._amount).',
     },
     ProtocolRevenue: {
       'BNB Staking Rewards Commission': '70% of the commission is retained by the treasury.',
