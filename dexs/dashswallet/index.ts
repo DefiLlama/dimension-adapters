@@ -221,24 +221,19 @@ const getContracts = async (options: FetchOptions): Promise<string[]> => {
             const extras = (chainConfig[options.chain]?.legacy || []).map((a) => a.toLowerCase());
             const combined = [...new Set([...registered, ...extras])];
 
-            // Observabilidade: compara com o ultimo snapshot PERSISTIDO no S3, nao com estado em
-            // memoria. O fetcher do getConfig roda no maximo 1x por processo (a promise e memoizada),
-            // entao comparar contra uma variavel de modulo nunca dispararia. Neste ponto o S3 ainda
-            // guarda o snapshot do processo anterior (getConfig so o reescreve DEPOIS do fetcher
-            // retornar), entao a chegada de uma nova versao fica de fato observavel no log.
-            try {
-                const prevSnapshot = await getCache("config-cache", `dashswallet/${options.chain}`);
-                if (Array.isArray(prevSnapshot) && prevSnapshot.length > 0) {
-                    const prevSet = new Set(prevSnapshot.map((a: string) => a.toLowerCase()));
-                    const newAddrs = combined.filter((a) => !prevSet.has(a));
-                    if (newAddrs.length > 0) {
-                        sdk.log(`[dashswallet] Novo(s) contrato(s) detectado(s) em ${options.chain}: ${newAddrs.join(", ")}`);
-                    }
+            // Observabilidade: compara com o ultimo snapshot PERSISTIDO no S3. getCache trata erro
+            // internamente e devolve {} em falha (helpers/cache.ts) — nunca lanca, entao nao ha erro
+            // a engolir aqui. O fetcher do getConfig roda no maximo 1x por processo (a promise e
+            // memoizada), entao comparar contra uma variavel de modulo nunca dispararia; neste ponto
+            // o S3 ainda guarda o snapshot do processo anterior (getConfig so o reescreve DEPOIS do
+            // fetcher retornar), entao a chegada de uma nova versao fica de fato observavel no log.
+            const prevSnapshot = await getCache("config-cache", `dashswallet/${options.chain}`);
+            if (Array.isArray(prevSnapshot) && prevSnapshot.length > 0) {
+                const prevSet = new Set(prevSnapshot.map((a: string) => a.toLowerCase()));
+                const newAddrs = combined.filter((a) => !prevSet.has(a));
+                if (newAddrs.length > 0) {
+                    sdk.log(`[dashswallet] Novo(s) contrato(s) detectado(s) em ${options.chain}: ${newAddrs.join(", ")}`);
                 }
-            } catch (e) {
-                // Observabilidade nunca deve quebrar a resolucao de targets: loga o erro e segue,
-                // sem re-lancar (re-lancar zeraria o dia por causa de uma leitura de log — proibido, N2).
-                sdk.log(`[dashswallet] leitura do snapshot S3 p/ deteccao de versao falhou em ${options.chain}:`, e);
             }
 
             return combined;
@@ -277,7 +272,8 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
-    chains: Object.entries(chainConfig).map(([chain, cfg]) => [chain, { start: cfg.start }] as [string, { start: string }]),
+    chains: Object.keys(chainConfig),
+    start: "2026-06-27",
     methodology: {
         Volume: "Sell-side value of each swap executed through DashsWallet collateral, debt, repay, compound and morpho swap adapters across 7 chains, denominated in the source token.",
     },
