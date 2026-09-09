@@ -2,16 +2,29 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
+// Cook Market launchpad on Robinhood Chain. Every launch opens a Uniswap v4 pool guarded by the
+// hook below, which runs the bonding curve, graduates the pool in place and charges every fee,
+// so both phases of a coin's life are read from these two contracts.
+// https://cook.market
+// CookLauncherFactory: https://robinhoodchain.blockscout.com/address/0x059bCe487C6be54CEb4E79C60a6D95F9119732dc
 const FACTORY = "0x059bCe487C6be54CEb4E79C60a6D95F9119732dc"
+// CookHook: https://robinhoodchain.blockscout.com/address/0xfe3eFA722DCAB53e87E94593cB41Bc706C1E3044
 const COOK_HOOK = "0xfe3eFA722DCAB53e87E94593cB41Bc706C1E3044"
 
+// shortly before the factory's first TokenLaunched (block 57711220, 2026-09-08)
 const FACTORY_DEPLOYED_BLOCK = 57700000
 const BPS = 10000n
+// progressBps is base raised towards the graduation threshold; 10000 means the pool has graduated
 const GRADUATED_PROGRESS_BPS = 10000
 
+// one per launch: `curve` is the hook, `pairToken` is the quote asset (ETH or USDG)
 const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold, bytes32 poolId, uint256 mainBandTokenId, uint256 tailBandTokenId, string name, string symbol, uint256 totalSupply, uint128 startAmount, uint16 taxBps, uint8 baseDecimals)"
+// one per swap. Amounts are pool-side and gross of the hook cut; `fee` and `tax` are charged on
+// the swap's unspecified leg, so they can be denominated in either the pair token or the coin.
 const CURVE_BUY_EVENT = "event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax, bytes32 indexed poolId, address token, uint16 progressBps)"
 const CURVE_SELL_EVENT = "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax, bytes32 indexed poolId, address token, uint16 progressBps)"
+// emitted immediately before each CurveBuy/CurveSell in the same tx, and names the currency the
+// cut was actually taken in
 const HOOK_FEE_COLLECTED_EVENT = "event HookFeeCollected(bytes32 indexed poolId, address currency, uint256 feeAmount, uint256 taxAmount)"
 
 const PROTOCOL_FEE_SHARE_BPS_FUNCTION = "function protocolFeeShareBps() view returns (uint16)"
@@ -41,8 +54,8 @@ async function fetch(options: FetchOptions) {
   }
   if (!poolIdToLaunch.size) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue }
 
+  // live protocol share of the swap fee, owner-settable on the hook (1000 = 10% at time of writing)
   const protocolShareBps = BigInt(await options.api.call({ target: COOK_HOOK, abi: PROTOCOL_FEE_SHARE_BPS_FUNCTION }))
-  const creatorShareBps = BPS - protocolShareBps
 
   const curveBuyLogs = await options.getLogs({ target: COOK_HOOK, eventAbi: CURVE_BUY_EVENT, entireLog: true })
   const curveSellLogs = await options.getLogs({ target: COOK_HOOK, eventAbi: CURVE_SELL_EVENT, entireLog: true })
@@ -86,11 +99,16 @@ async function fetch(options: FetchOptions) {
     const phase = isGraduated ? "Token" : "Curve"
     const feeLabel = isGraduated ? METRIC.SWAP_FEES : "Curve Swap Fees"
 
+    // split the fee once and give the creator the remainder, so that
+    // dailyFees == dailyRevenue + dailySupplySideRevenue holds exactly
+    const protocolCut = fee * protocolShareBps / BPS
+    const creatorCut = fee - protocolCut
+
     dailyVolume.add(launch.pairToken, quoteAmount)
     dailyFees.add(launch.pairToken, fee + tax, feeLabel)
-    dailyRevenue.add(launch.pairToken, fee * protocolShareBps / BPS, `${phase} Swap Fees to Protocol`)
-    dailyProtocolRevenue.add(launch.pairToken, fee * protocolShareBps / BPS, `${phase} Swap Fees to Protocol`)
-    dailySupplySideRevenue.add(launch.pairToken, fee * creatorShareBps / BPS, `${phase} Swap Fees to Creators`)
+    dailyRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
+    dailyProtocolRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
+    dailySupplySideRevenue.add(launch.pairToken, creatorCut, `${phase} Swap Fees to Creators`)
     dailySupplySideRevenue.add(launch.pairToken, tax, "Creator Tax")
   }
 
@@ -139,6 +157,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   start: "2026-09-08",
+  // the pools are Uniswap v4 pools, already counted by the uniswap-v4 adapter on this chain
   doublecounted: true,
 }
 
