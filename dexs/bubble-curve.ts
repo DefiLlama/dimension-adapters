@@ -15,14 +15,12 @@ const GRADUATED = "event Graduated(address indexed token, address indexed pool, 
 const SHIDO = ADDRESSES.shido.WSHIDO;
 
 const feeBreakdown = {
-  "Bonding Curve Protocol Trading Fees": "Protocol trading fees emitted by the production factory's Trade events, accrued when each trade executes.",
-  "Bonding Curve Creator Trading Fees": "Creator trading fees emitted by Trade events, accrued to token creators regardless of when claimed.",
+  "Bonding Curve Trading Fees": "Protocol and creator trading fees emitted by the production factory's Trade events, accrued when each trade executes regardless of when claimed.",
   "Graduation Fees": "The graduationFee emitted by Graduated, deducted from the curve's native reserve before DEX liquidity is created.",
 };
 
 const userFeeBreakdown = {
-  "Bonding Curve Protocol Trading Fees": "Protocol trading fees directly paid by bonding-curve traders.",
-  "Bonding Curve Creator Trading Fees": "Creator trading fees directly paid by bonding-curve traders.",
+  "Bonding Curve Trading Fees": "Protocol and creator trading fees directly paid by bonding-curve traders.",
 };
 
 const revenueBreakdown = {
@@ -48,24 +46,13 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.add(
       SHIDO,
-      trade.protocolFee,
-      "Bonding Curve Protocol Trading Fees"
+      trade.protocolFee + trade.creatorFee,
+      "Bonding Curve Trading Fees"
     );
     dailyUserFees.add(
       SHIDO,
-      trade.protocolFee,
-      "Bonding Curve Protocol Trading Fees"
-    );
-
-    dailyFees.add(
-      SHIDO,
-      trade.creatorFee,
-      "Bonding Curve Creator Trading Fees"
-    );
-    dailyUserFees.add(
-      SHIDO,
-      trade.creatorFee,
-      "Bonding Curve Creator Trading Fees"
+      trade.protocolFee + trade.creatorFee,
+      "Bonding Curve Trading Fees"
     );
 
     dailyRevenue.add(
@@ -104,7 +91,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -120,7 +107,7 @@ const adapter: SimpleAdapter = {
     Fees: "Actual protocol and creator trading fees from Trade, plus the graduationFee from Graduated. Accrual basis in native SHIDO, valued using its 1:1 WSHIDO wrapper. No fixed fee-rate estimates, claim double-counting, gas fees or post-graduation fees.",
     UserFees: "Protocol and creator trading fees directly paid by bonding-curve traders. Graduation fees are excluded because they are deducted from the curve reserve before migration rather than charged directly to an end-user.",
     Revenue: "Protocol trading fees plus graduation fees, excluding the creator trading-fee share and all post-graduation revenue.",
-    ProtocolRevenue: "Same as Revenue: fees allocated to the protocol when accrued at the factory. Subsequent treasury spending or announced buybacks are not measured by this adapter.",
+    ProtocolRevenue: "Same as Revenue (protocol trading fees + graduation fees): fees allocated to the protocol when accrued at the factory. Subsequent treasury spending or announced buybacks are not measured by this adapter.",
     SupplySideRevenue: "Creator trading fees accrued by Trade events. This is creator income, not LP fees or revenue of holders of the Bubble Protocol token.",
   },
   breakdownMethodology: {
