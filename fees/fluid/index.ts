@@ -27,6 +27,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   }
 }
 
+const DUNE_SOLANA_INDEXING_DELAY_MS = 10 * 60 * 60 * 1000;
+
+const SKIP_SOLANA_LEG = {
+  dailyFees: undefined,
+  dailyRevenue: undefined,
+  dailyProtocolRevenue: undefined,
+  dailyHoldersRevenue: undefined,
+  dailySupplySideRevenue: undefined,
+};
+
 // Revenu share from Jupiter Lend
 const fetchSolana: FetchV2 = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -49,7 +59,15 @@ const fetchSolana: FetchV2 = async (options: FetchOptions) => {
     group by 1
     order by day desc
   `
+  if (options.toTimestamp * 1000 > Date.now() - DUNE_SOLANA_INDEXING_DELAY_MS) {
+    return SKIP_SOLANA_LEG;
+  }
+
   const data: any[] = await queryDuneSql(options, sql);
+  if (!data || data.length === 0) {
+    return SKIP_SOLANA_LEG;
+  }
+
   const jupiterRevenue = data.reduce((sum, row) => sum + (row.daily_revenue_usd || 0), 0);
   dailyFees.addUSDValue(jupiterRevenue * 0.5, FLUID_METRICS.RevenueShareFromJupLend);
   
