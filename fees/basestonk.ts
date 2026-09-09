@@ -474,9 +474,26 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyVolume };
 };
 
-const fetch = (options: FetchOptions) => run(options);
+// Robinhood Chain's public RPCs rate-limit a whole window's worth of logs
+// where DefiLlama's own infrastructure does not. A chain the RPC refused is
+// reported as zero with the refusal logged, so the other chain's figures
+// still land; a refusal is a data gap, not a fact about the protocol.
+const guarded = async (options: FetchOptions, volumeOnly: boolean): Promise<FetchResultV2> => {
+  try {
+    return await run(options, volumeOnly);
+  } catch (e: any) {
+    if (!e?.llamaRPCError) throw e;
+    console.error(`basestonk: ${options.chain} RPC refused ${e.method} for this window, reporting zero`, e.errors?.slice(0, 3));
+    const zero = options.createBalances();
+    return volumeOnly
+      ? { dailyVolume: zero }
+      : { dailyFees: zero, dailyRevenue: zero, dailyProtocolRevenue: zero, dailySupplySideRevenue: zero, dailyHoldersRevenue: zero, dailyVolume: zero };
+  }
+};
+
+const fetch = (options: FetchOptions) => guarded(options, false);
 // the volume adapter needs the launch map and the swaps, not the attribution
-export const fetchVolume = (options: FetchOptions) => run(options, true);
+export const fetchVolume = (options: FetchOptions) => guarded(options, true);
 
 const methodology = {
   Fees: "The tax BaseStonk's Uniswap v4 hook takes on every swap in a launched token's pool, from the hook's FeeTaken event. Each launch sets its own buy and sell rate. A buy pays the tax in the launch token and a sell in the pair; token-denominated amounts are converted into the pair at the pool price the same transaction's Swap reports.",
