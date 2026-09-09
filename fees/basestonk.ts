@@ -1,4 +1,7 @@
+import * as sdk from "@defillama/sdk";
+import { AbiCoder, keccak256 } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
@@ -30,10 +33,10 @@ import { METRIC } from "../helpers/metrics";
 type ChainConfig = {
   start: string;
   poolManager: string;
-  // the block the first launcher went live; the launch map is read from here
-  launchGenesisBlock: number;
-  launchers: string[];
   hooks: string[];
+  // the pairs every day's fees are certain to include, so a pool whose other
+  // side never paid a fee in the window can still be placed
+  knownPairs: string[];
   // BSTONK's own value-accrual recipients - Base only, BSTONK lives on Base
   holderRecipients?: { bstonk: string; tracker: string; vaults: string[] };
 };
@@ -44,18 +47,10 @@ const chainConfig: Record<string, ChainConfig> = {
     start: "2026-08-17",
     // https://basescan.org/address/0x498581fF718922c3f8e6A244956aF099B2652b2b
     poolManager: "0x498581ff718922c3f8e6a244956af099b2652b2b",
-    launchGenesisBlock: 50069724,
-    // every launcher generation; a retired one still serves its pools
-    launchers: [
-      "0x74655f443d25c5d401a582c68dea02acd170e12f", // v2
-      "0xde15bf7592970e2458239a308cdf727e8780c62a", // v3
-      "0x5263e7264c817909893aa9a00dc2f4b433040fc1", // v4
-      "0xf505085d8db742fc0053897ac7b9b1fa6b64d3eb", // v5
-      "0x1b6cec29f67f17e484363bb9343d3f38c6a1003e", // v5
-      "0xae31b51460da9c7cbf906cbaf39ba55e47c3de42", // v5
-      "0x80459e17ec8269f058152169e58022a70ed9f1fa", // v6
-      "0x7dea3db7988f0c70e6d51920bae8cafbe943e6d5", // B20 v1 (Coinbase-issued stock pairs)
-      "0x445f7d3533f956fe25eaf55ebadf3d2ade153151", // B20 v6
+    knownPairs: [
+      "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC
+      "0x4200000000000000000000000000000000000006", // WETH
+      "0x0f61edbfe6cd86024c0f210c0695b08df55fdfc9", // BSTONK
     ],
     // every hook generation; each one emits the same FeeTaken / RemainderSwept
     hooks: [
@@ -87,21 +82,20 @@ const chainConfig: Record<string, ChainConfig> = {
     start: "2026-09-04",
     // https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
     poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951",
-    launchGenesisBlock: 54058114,
-    // https://robinhoodchain.blockscout.com/address/0x302BdDA741dff12c298F68eDc67b4fA830a1f6A4
-    launchers: ["0x302bdda741dff12c298f68edc67b4fa830a1f6a4"],
+    knownPairs: [
+      "0x5fc5360d0400a0fd4f2af552add042d716f1d168", // USDG
+      "0x0bd7d308f8e1639fab988df18a8011f41eacad73", // WETH
+    ],
     // https://robinhoodchain.blockscout.com/address/0xF42bC6ca0D082D3Af51771392CeC847a01A6e044
     hooks: ["0xf42bc6ca0d082d3af51771392cec847a01a6e044"], // v6
   },
 };
 
-// Launch events. Two shapes are live: the v2-v5 and B20 launchers emit the
-// first, the v6 launchers (Base and Robinhood) the second. Both carry the
-// token, the pool id and the pair, which is all the map needs.
-const launchedV2Abi =
-  "event AdvancedLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, address pairToken, uint160 sqrtPriceX96, uint16 taxBps, uint16 burnBps, uint16 liquidityBps, uint256 payees)";
-const launchedV6Abi =
-  "event AdvancedLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, address pairToken, uint160 sqrtPriceX96, uint16 buyTaxBps, uint16 sellTaxBps, uint16 burnBps, uint16 liquidityBps, uint256 payees)";
+// Every launcher opens its pool with the same fee and spacing, so a pool id is
+// keccak256(abi.encode(currency0, currency1, 3000, 60, hook)) and a guess at
+// the second currency can be checked without asking the chain.
+const POOL_FEE = 3000;
+const TICK_SPACING = 60;
 
 // Hook events. Same signatures on every generation.
 const feeTakenAbi = "event FeeTaken(bytes32 indexed id, address currency, uint256 platform, uint256 creator)";
@@ -145,7 +139,12 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const { getLogs, createBalances, chain } = options;
   const config = chainConfig[chain];
   const hooks = config.hooks;
-  const logOptions = { entireLog: true, parseLog: true };
+  // Two backends serve these logs. DefiLlama's indexer takes one pool id per
+  // query and any range; a public RPC takes an OR of pool ids in one query
+  // but caps the range - Base's public nodes serve 4,000 blocks and refuse
+  // 10,000 - so without the indexer every window is read in chunks.
+  const viaRpc = !sdk.indexer.isIndexerEnabled(chain);
+  const logOptions = { entireLog: true, parseLog: true, ...(viaRpc ? { maxBlockRange: 4000 } : {}) };
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -154,29 +153,87 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const dailyHoldersRevenue = createBalances();
   const dailyVolume = createBalances();
 
-  // 1. the launch map: pool id -> token and pair, read once from every
-  //    launcher since the first went live and carried forward by the cache.
-  const launches = new Map<string, Launch>();
-  for (const eventAbi of [launchedV2Abi, launchedV6Abi]) {
-    const logs = await getLogs({
-      targets: config.launchers,
-      eventAbi,
-      fromBlock: config.launchGenesisBlock,
-      cacheInCloud: true,
-    });
-    for (const log of logs) {
-      const token = low(log.token);
-      const pair = low(log.pairToken);
-      const id = low(log.poolId);
-      launches.set(id, { token, pair, tokenIs0: token < pair });
-    }
-  }
-
-  // 2. what the hooks took. Every FeeTaken is one taxed swap; the pool id
-  //    says which launch, the currency says whether it was a buy (launch
-  //    token) or a sell (pair).
+  // 1. what the hooks took, before anything else: the pool ids to place and
+  //    the currencies that place them.
   const feeLogs = await getLogs({ targets: hooks, eventAbi: feeTakenAbi, ...logOptions });
   const sweptLogs = await getLogs({ targets: hooks, eventAbi: remainderSweptAbi, ...logOptions });
+
+  // 2. the launch map for the window: pool id -> token and pair. A pool id is
+  //    the hash of its key, so one known currency and a candidate for the
+  //    other is a check, not a lookup. Candidates are every currency any fee
+  //    in the window was taken in, plus the pairs every day includes; the
+  //    launch token's own dividend distributor names its pair for a pool
+  //    only bought in the window; and for a pool only sold in the window,
+  //    the taxed transaction's receipt names every token that moved through
+  //    the PoolManager, and one of them is the pool's.
+  const poolIdOf = (a: string, b: string, hook: string) => {
+    const [c0, c1] = a < b ? [a, b] : [b, a];
+    return keccak256(AbiCoder.defaultAbiCoder().encode(["address", "address", "uint24", "int24", "address"], [c0, c1, POOL_FEE, TICK_SPACING, hook]));
+  };
+  const launches = new Map<string, Launch>();
+  // every launcher mines the token's CREATE2 salt so it sorts below its pair
+  // (a launch that would not reverts with TokenMustSortBelowPair), so the
+  // token is always currency0
+  const place = (id: string, a: string, b: string) => {
+    const [token, pair] = a < b ? [a, b] : [b, a];
+    launches.set(id, { token, pair, tokenIs0: true });
+  };
+  const seenOn = new Map<string, { hook: string; currencies: Set<string>; tx: string }>();
+  for (const log of [...feeLogs, ...sweptLogs]) {
+    const id = low(log.args.id);
+    const row = seenOn.get(id) ?? { hook: low(log.address), currencies: new Set<string>(), tx: low(log.transactionHash) };
+    row.currencies.add(low(log.args.currency));
+    seenOn.set(id, row);
+  }
+  const candidates = new Set<string>(config.knownPairs);
+  for (const row of seenOn.values()) for (const c of row.currencies) candidates.add(c);
+  const unplaced: string[] = [];
+  for (const [id, row] of seenOn) {
+    const [c] = row.currencies;
+    const other = [...candidates].find((x) => x !== c && poolIdOf(c, x, row.hook) === id);
+    if (other) place(id, c, other);
+    else unplaced.push(id);
+  }
+  if (unplaced.length) {
+    // a launch token names its distributor, and the distributor names the pair
+    const trackers = await options.api.multiCall({
+      abi: "address:rewardTracker",
+      calls: unplaced.map((id) => [...seenOn.get(id)!.currencies][0]),
+      permitFailure: true,
+    });
+    const pairs = await options.api.multiCall({
+      abi: "address:rewardToken",
+      calls: trackers.map((t: string | null) => t ?? "0x0000000000000000000000000000000000000000"),
+      permitFailure: true,
+    });
+    for (let i = unplaced.length - 1; i >= 0; i--) {
+      const id = unplaced[i];
+      const { hook, currencies } = seenOn.get(id)!;
+      const [token] = currencies;
+      const pair = pairs[i] ? low(pairs[i]) : undefined;
+      if (pair && poolIdOf(token, pair, hook) === id) {
+        place(id, token, pair);
+        unplaced.splice(i, 1);
+      }
+    }
+  }
+  if (unplaced.length) {
+    const receipts = await getTxReceiptsWithRetry(chain, unplaced.map((id) => seenOn.get(id)!.tx));
+    receipts.forEach((receipt, i) => {
+      const id = unplaced[i];
+      const { hook, currencies } = seenOn.get(id)!;
+      const [known] = currencies;
+      const moved = new Set<string>();
+      for (const log of receipt?.logs ?? []) {
+        if (log.topics[0] !== TRANSFER_TOPIC || log.topics.length < 3) continue;
+        const from = "0x" + log.topics[1].slice(26);
+        const to = "0x" + log.topics[2].slice(26);
+        if (from === config.poolManager || to === config.poolManager) moved.add(low(log.address));
+      }
+      const other = [...moved].find((x) => x !== known && poolIdOf(known, x, hook) === id);
+      if (other) place(id, known, other);
+    });
+  }
 
   // 3. the swaps of every pool that was taxed in the window, keyed by
   //    transaction, ordered by log index. One request per active pool with the
@@ -184,27 +241,27 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   //    emitted - the v4 singleton on Base carries every pool on the chain.
   const activePools = [...new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)))]
     .filter((id) => launches.has(id)); // an unknown pool is reported when its fee is booked
-  const swapLogs = await Promise.all(
-    activePools.map((id) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics: [SWAP_TOPIC, id], ...logOptions })),
-  );
+  const swapQuery = (topics: any) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics, ...logOptions });
+  const swapLogs = viaRpc
+    ? [await swapQuery([SWAP_TOPIC, activePools])]
+    : await Promise.all(activePools.map((id) => swapQuery([SWAP_TOPIC, id])));
   const swapsByPool = new Map<string, Map<string, SwapLog[]>>();
-  activePools.forEach((id, i) => {
-    const byTx = new Map<string, SwapLog[]>();
-    for (const log of swapLogs[i]) {
-      const tx = low(log.transactionHash);
-      const row = byTx.get(tx) ?? [];
-      row.push({
-        logIndex: Number(log.logIndex),
-        sqrtPriceX96: big(log.args.sqrtPriceX96),
-        sender: low(log.args.sender),
-        amount0: big(log.args.amount0),
-        amount1: big(log.args.amount1),
-      });
-      byTx.set(tx, row);
-    }
-    for (const row of byTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
-    swapsByPool.set(id, byTx);
-  });
+  for (const id of activePools) swapsByPool.set(id, new Map());
+  for (const log of swapLogs.flat()) {
+    const byTx = swapsByPool.get(low(log.args.id));
+    if (!byTx) continue;
+    const tx = low(log.transactionHash);
+    const row = byTx.get(tx) ?? [];
+    row.push({
+      logIndex: Number(log.logIndex),
+      sqrtPriceX96: big(log.args.sqrtPriceX96),
+      sender: low(log.args.sender),
+      amount0: big(log.args.amount0),
+      amount1: big(log.args.amount1),
+    });
+    byTx.set(tx, row);
+  }
+  for (const byTx of swapsByPool.values()) for (const row of byTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
 
   // The hook emits its events from afterSwap, so the Swap a fee belongs to is
   // the nearest one before it in the same transaction and pool. Its
