@@ -4,8 +4,22 @@ import { METRIC } from "../helpers/metrics";
 
 // Live Ethereum markets from Harbor's published address book
 // https://docs.harborfinance.io/tech-docs/integrators/addresses-and-abis
-// https://docs.harborfinance.io/integrators/addresses/mainnet-v1.json (generatedAt 2026-08-14)
-// Skip relaunch-pending (gold/silver/mcap). steth-eur has no manager — mint/redeem + owner deposits only.
+// https://docs.harborfinance.io/integrators/addresses/mainnet-v1.json
+// Skip relaunch-pending. New live market: copy from that JSON and set start to the
+// UTC date of startBlock (or the manager create block if that is later — see usd-*).
+// Do not guess start; do not move adapter.start later. Adapter start stays the
+// earliest live market (btc-steth 2025-12-19). A later market only needs its own
+// entry.start — fetch skips it until that date.
+//
+// Address book → adapter field, and what we scan from that date:
+//   wrappedCollateralToken → wrappedCollateral  minter→OWNER/feeReceiver (mint fees)
+//   minter                  → minter             also minter.feeReceiver() each window
+//   stabilityPoolManager    → manager            Harvested + harvest ratios (omit if none)
+//   peggedToken             → peggedToken        pool→getFeeAddress() ha (early withdraw)
+//   stabilityPoolCollateral → poolCollateral     OWNER/feeReceiver→pool (deposits)
+//   stabilityPoolLeveraged  → poolLeveraged      same
+// feeReceiver / getFeeAddress are read on-chain; do not hardcode. New ha token:
+// add HA_PEG (Chainlink peg → WETH/WBTC/EURC/USDC) or fetch throws.
 const ZERO = "0x0000000000000000000000000000000000000000";
 const WAD = 10n ** 18n;
 
@@ -381,6 +395,9 @@ const adapter: SimpleAdapter = {
   start: "2025-12-19",
   methodology,
   breakdownMethodology,
+  // Harvested wstETH/fxSAVE yield overlaps Lido and f(x) (stated in methodology).
+  // Do not set doublecounted: that flag is adapter-wide and would also drop
+  // Harbor-only mint/redeem and early-withdrawal fees from category totals.
   // Protocol wallets may deposit (front) rewards into pools on a different day than harvest/mint fees.
   allowNegativeValue: true,
 };
