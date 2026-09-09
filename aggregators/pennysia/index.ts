@@ -37,6 +37,7 @@ const veloraSettledEvent =
 
 const SETTLEMENT_FEE = "Settlement Fees";
 const INTENT_FEE = "Intent Fees";
+const COW_PARTNER_FEE = "Partner Fees for CoW";
 
 const NATIVE = new Set([
   ADDRESSES.null.toLowerCase(),
@@ -131,7 +132,6 @@ async function feeRecipientsInWindow(options: FetchOptions): Promise<string[]> {
     target: SETTLEMENT,
     eventAbi: feeRecipientUpdatedEvent,
     entireLog: true,
-    skipIndexer: true,
   });
   for (const log of updates) {
     const recipient = argsOf(log).recipient;
@@ -229,8 +229,6 @@ const fetch = async (options: FetchOptions) => {
   const swapLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: swapExecutedEvent,
-    // Indexer returns empty for this custom event. RPC is cheap (one address).
-    skipIndexer: true,
   });
   for (const log of swapLogs) {
     addAmount(dailyVolume, log.sellToken, log.amountIn);
@@ -239,7 +237,6 @@ const fetch = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: feeCollectedEvent,
-    skipIndexer: true,
   });
   for (const log of feeLogs) {
     addRetainedFee(log.token, log.amount, SETTLEMENT_FEE);
@@ -269,7 +266,7 @@ const fetch = async (options: FetchOptions) => {
     addAmount(dailyRevenue, a.buyToken, retained, INTENT_FEE);
     addAmount(dailyProtocolRevenue, a.buyToken, retained, INTENT_FEE);
     if (cowShare > 0n) {
-      addAmount(dailySupplySideRevenue, a.buyToken, cowShare, INTENT_FEE);
+      addAmount(dailySupplySideRevenue, a.buyToken, cowShare, COW_PARTNER_FEE);
     }
   }
 
@@ -277,7 +274,6 @@ const fetch = async (options: FetchOptions) => {
     target: VELORA_DELTA,
     eventAbi: veloraSettledEvent,
     entireLog: true,
-    skipIndexer: true,
   });
   const veloraFroms = new Set([VELORA_DELTA].map(asAddr));
   for (const log of veloraSettled) {
@@ -334,7 +330,7 @@ const methodology = {
   Revenue:
     "Pennysia retains 100% of Settlement FeeCollected, UniswapX fee outputs, and Velora partner fees at the Settlement fee recipient. CoW protocol revenue is 75% of the partner fee; CIP-75's 25% is supply-side.",
   ProtocolRevenue: "All retained amounts go to the Settlement fee recipient, except CoW's 25% service fee.",
-  SupplySideRevenue: "CoW CIP-75 25% service fee on Pennysia-tagged CoW trades. UniswapX and Velora partner fees are paid in full to Pennysia.",
+  SupplySideRevenue: "Partner Fees for CoW: CIP-75 service fee (~25% of the partner fee) withheld by CoW Swap on Pennysia-tagged trades. UniswapX and Velora partner fees are paid in full to Pennysia.",
 };
 
 const breakdownMethodology = {
@@ -353,7 +349,8 @@ const breakdownMethodology = {
     [INTENT_FEE]: "Matched hard-intent partner fees except CoW's 25% service fee.",
   },
   SupplySideRevenue: {
-    [INTENT_FEE]: "CoW CIP-75 25% withheld from the partner fee before payout.",
+    [COW_PARTNER_FEE]:
+      "Service fee from partner integrations (~25% on average). CIP-75 withholds this share of the CoW partner fee before payout to Pennysia.",
   },
 };
 
