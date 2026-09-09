@@ -27,14 +27,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SUI],
   runAtCurrTime: true,
-  methodology: {
-    OpenInterest: "USD value of outstanding contracts in Aftermath's relaunched USDC perpetual markets, counting each contract once at the current index price; excludes legacy markets.",
-  },
-  breakdownMethodology: {
-    OpenInterest: {
-      "Open Interest": "Outstanding base-token contracts, counted as total long positions, multiplied by each market's USD index price.",
-    },
-  },
 };
 
 export default adapter;
