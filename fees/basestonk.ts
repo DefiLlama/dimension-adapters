@@ -242,9 +242,13 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const activePools = [...new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)))]
     .filter((id) => launches.has(id)); // an unknown pool is reported when its fee is booked
   const swapQuery = (topics: any) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics, ...logOptions });
-  const swapLogs = viaRpc
-    ? [await swapQuery([SWAP_TOPIC, activePools])]
-    : await Promise.all(activePools.map((id) => swapQuery([SWAP_TOPIC, id])));
+  // an empty OR of pool ids is a wildcard on some nodes: a quiet window must
+  // ask for nothing rather than for every swap on the chain
+  const swapLogs = !activePools.length
+    ? []
+    : viaRpc
+      ? [await swapQuery([SWAP_TOPIC, activePools])]
+      : await Promise.all(activePools.map((id) => swapQuery([SWAP_TOPIC, id])));
   const swapsByPool = new Map<string, Map<string, SwapLog[]>>();
   for (const id of activePools) swapsByPool.set(id, new Map());
   for (const log of swapLogs.flat()) {
