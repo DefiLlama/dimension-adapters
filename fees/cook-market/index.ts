@@ -13,6 +13,7 @@ const COOK_HOOK = "0xfe3eFA722DCAB53e87E94593cB41Bc706C1E3044"
 
 // shortly before the factory's first TokenLaunched (block 57711220, 2026-09-08)
 const FACTORY_DEPLOYED_BLOCK = 57700000
+// the hook denominates every fee share in basis points
 const BPS = 10000n
 // progressBps is base raised towards the graduation threshold; 10000 means the pool has graduated
 const GRADUATED_PROGRESS_BPS = 10000
@@ -31,6 +32,15 @@ const PROTOCOL_FEE_SHARE_BPS_FUNCTION = "function protocolFeeShareBps() view ret
 
 type Launch = { token: string, pairToken: string }
 
+/**
+ * Reads a window of Cook Market activity straight from the factory and hook logs.
+ *
+ * Launches are resolved first, so every swap can be mapped back to the pool's pair token.
+ * Each swap contributes its quote leg to volume, and its fee and tax to fees. The hook charges
+ * both on the swap's unspecified leg, so when the cut lands in the launched coin it is converted
+ * to the pair token at that swap's own execution price - no external price feed is needed.
+ * The fee is then split once between the treasury and the coin's creator.
+ */
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
