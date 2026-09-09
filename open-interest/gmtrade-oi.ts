@@ -17,8 +17,8 @@ const fetch = async (_a: any) => {
   }
 
   return {
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
     // pool venue with no single-sided field: average the two sides instead of summing them
     openInterestAtEnd: (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2,
   }

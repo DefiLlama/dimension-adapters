@@ -22,9 +22,10 @@ async function fetch(options: FetchOptions) {
       abi: oiAbi,
     });
     return {
-      openInterestAtEnd: Number(oi.totalUsd) / 1e18,
-      longOpenInterestAtEnd: Number(oi.longUsd) / 1e18,
-      shortOpenInterestAtEnd: Number(oi.shortUsd) / 1e18,
+      // totalUsd is longUsd + shortUsd; average the sides so the breakdown sums to the total
+      openInterestAtEnd: Number(oi.totalUsd) / 1e18 / 2,
+      longOpenInterestAtEnd: Number(oi.longUsd) / 1e18 / 2,
+      shortOpenInterestAtEnd: Number(oi.shortUsd) / 1e18 / 2,
     };
   }
 

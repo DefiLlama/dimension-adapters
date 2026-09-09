@@ -35,6 +35,9 @@ async function fetch(options: FetchOptions) {
     // The vault takes the other side of every position, so long_oi == short_oi always and
     // summing them double-counts. (Contrast pool venues like GMX, where L and S are independent.)
     const openInterestAtEnd = longOpenInterestAtEnd.clone();
+    // halved: each leg's contribution to the one-sided total
+    longOpenInterestAtEnd.resizeBy(0.5);
+    shortOpenInterestAtEnd.resizeBy(0.5);
 
     return {
         shortOpenInterestAtEnd,

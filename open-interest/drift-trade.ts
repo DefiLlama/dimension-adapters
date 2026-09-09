@@ -23,8 +23,8 @@ async function fetch() {
 
   return {
     openInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
   };
 }
 

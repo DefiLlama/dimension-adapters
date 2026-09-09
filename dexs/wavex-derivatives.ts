@@ -53,10 +53,10 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     longOpenInterestAtEnd: longOpenInterestAtEnd
-      ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((longOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     shortOpenInterestAtEnd: shortOpenInterestAtEnd
-      ? String(shortOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((shortOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     openInterestAtEnd: openInterestAtEnd
       ? String(openInterestAtEnd * 10 ** -DECIMALS)

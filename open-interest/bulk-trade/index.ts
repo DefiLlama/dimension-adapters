@@ -26,8 +26,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
     // The API's one-sided figure is the headline: aggregate longs equal aggregate shorts, so
     // reporting their sum would double-count.
     openInterestAtEnd: openInterest,
-    longOpenInterestAtEnd: openInterest,
-    shortOpenInterestAtEnd: openInterest,
+    longOpenInterestAtEnd: openInterest / 2,
+    shortOpenInterestAtEnd: openInterest / 2,
   }
 }
 

@@ -44,8 +44,9 @@ const fetch = async (options: FetchOptions) => {
     return sum + oi * price;
   }, 0);
 
-  const longOpenInterestAtEnd = oneSidedOpenInterest;
-  const shortOpenInterestAtEnd = oneSidedOpenInterest;
+  // each contract contributes one long leg and one short leg to the one-sided total
+  const longOpenInterestAtEnd = oneSidedOpenInterest / 2;
+  const shortOpenInterestAtEnd = oneSidedOpenInterest / 2;
 
   return {
     // one-sided convention: don't sum long + short into the headline number

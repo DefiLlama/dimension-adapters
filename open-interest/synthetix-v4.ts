@@ -25,8 +25,9 @@ const fetch = async (options: any) => {
     }
     // long == short exactly on every market, so summing the two sides double-counts
     openInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
-    longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
-    shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest));
+    // halved: each leg's contribution to the one-sided total above
+    longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest) / 2);
+    shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest) / 2);
   });
 
   return {

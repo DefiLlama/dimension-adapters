@@ -33,9 +33,14 @@ const fetch = async (options: FetchOptions) => {
     shortOpenInterestAtEnd += shortOI * markPrice;
   }
   // Matched book: longOpenInterestLNS == shortOpenInterestLNS exactly, so their sum double-counts.
+  // The halved sides are each leg's contribution to that one-sided total.
   const openInterestAtEnd = longOpenInterestAtEnd;
 
-  return { longOpenInterestAtEnd, shortOpenInterestAtEnd, openInterestAtEnd };
+  return {
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
+    openInterestAtEnd,
+  };
 };
 
 const adapter: SimpleAdapter = {
