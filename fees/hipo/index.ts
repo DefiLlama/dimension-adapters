@@ -294,40 +294,24 @@ const readReceived = (b64: string): Receipt | null => {
     } catch { return null }
 }
 
-async function receipts(burner: string, start: number, end: number): Promise<Receipt[]> {
-    const found: Receipt[] = []
+// Both the treasury and the burn contracts are read the same way: page their external-out
+// messages over the window and keep the ones that parse as the log we are after.
+async function logs<T>(
+    source: string,
+    start: number,
+    end: number,
+    parse: (body: string) => T | null,
+): Promise<T[]> {
+    const found: T[] = []
     for (let offset = 0; ; offset += PAGE) {
         const url =
-            `https://toncenter.com/api/v3/messages?source=${burner}&direction=out` +
-            `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`
-        const data = await pacedGet(url)
-        if (!Array.isArray(data?.messages)) {
-            throw new Error('Expected a messages array from toncenter for ' + burner)
-        }
-        const messages: any[] = data.messages
-        for (const message of messages) {
-            if (message.destination !== null && message.destination !== undefined) continue
-            const body = message.message_content?.body
-            if (!body) continue
-            const receipt = readReceived(body)
-            if (receipt) found.push(receipt)
-        }
-        if (messages.length < PAGE) break
-    }
-    return found
-}
-
-async function repayments(treasury: string, start: number, end: number): Promise<Repayment[]> {
-    const found: Repayment[] = []
-    for (let offset = 0; ; offset += PAGE) {
-        const url =
-            `https://toncenter.com/api/v3/messages?source=${treasury}&direction=out` +
+            `https://toncenter.com/api/v3/messages?source=${source}&direction=out` +
             `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`
         const data = await pacedGet(url)
         // A body without a messages array is a failure wearing a 200. Reading it as an empty page
         // would store the day as zero, which is the one outcome worth crashing to avoid.
         if (!Array.isArray(data?.messages)) {
-            throw new Error('Expected a messages array from toncenter for ' + treasury)
+            throw new Error('Expected a messages array from toncenter for ' + source)
         }
         const messages: any[] = data.messages
         for (const message of messages) {
@@ -335,8 +319,8 @@ async function repayments(treasury: string, start: number, end: number): Promise
             if (message.destination !== null && message.destination !== undefined) continue
             const body = message.message_content?.body
             if (!body) continue
-            const repayment = readRepayment(body)
-            if (repayment) found.push(repayment)
+            const parsed = parse(body)
+            if (parsed !== null) found.push(parsed)
         }
         if (messages.length < PAGE) break
     }
@@ -348,14 +332,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // streams racing it just means both spend their retries backing off each other.
     const found: Repayment[] = []
     for (const treasury of TREASURIES) {
-        found.push(...(await repayments(treasury, options.startTimestamp, options.endTimestamp)))
+        found.push(...(await logs(treasury, options.startTimestamp, options.endTimestamp, readRepayment)))
     }
 
     // The burn side comes from the burner itself, so that the trading bot's profit -- which never
     // touches the treasury -- is counted alongside the borrower fee.
     const income: Receipt[] = []
     for (const burner of BURNERS) {
-        income.push(...(await receipts(burner, options.startTimestamp, options.endTimestamp)))
+        income.push(...(await logs(burner, options.startTimestamp, options.endTimestamp, readReceived)))
     }
 
     let stakers = 0n
