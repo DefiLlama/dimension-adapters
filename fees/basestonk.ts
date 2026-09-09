@@ -482,8 +482,11 @@ const guarded = async (options: FetchOptions, volumeOnly: boolean): Promise<Fetc
   try {
     return await run(options, volumeOnly);
   } catch (e: any) {
-    if (!e?.llamaRPCError) throw e;
-    console.error(`basestonk: ${options.chain} RPC refused ${e.method} for this window, reporting zero`, e.errors?.slice(0, 3));
+    // a chunked read runs in the SDK's promise pool, which rewraps the RPC
+    // error as a plain Error carrying only the message
+    const rpcRefused = e?.llamaRPCError || /Llama RPC error/.test(String(e?.message ?? e));
+    if (!rpcRefused) throw e;
+    console.error(`basestonk: ${options.chain} RPC refused the logs for this window, reporting zero:`, String(e?.message ?? e).slice(0, 400));
     const zero = options.createBalances();
     return volumeOnly
       ? { dailyVolume: zero }
