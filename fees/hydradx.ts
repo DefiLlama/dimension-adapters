@@ -3,42 +3,29 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import AaveAbis from '../helpers/aave/abi';
 import { METRIC } from "../helpers/metrics";
 
-const FEES_API = "https://hydration-metrics-aggregator.indexer.hydration.cloud/api/v1/fees/charts"
-
-// Streams not covered by the EVM lending calculation below:
-// - liquidation_penalty: treasury's 10% cut from MM liquidations (event-based, not in liquidity index)
-// - pepl_liquidation_profit: 100% protocol revenue from PEPL liquidations
-// - hsm_revenue: HSM arb profits + yield from yield-bearing stablecoins
-const EXTRA_PROTOCOL_STREAMS = [
-  { productType: "money-market", streamType: "liquidation_penalty", label: "Liquidation Fees", revenueLabel: "Liquidation Penalty To Treasury" },
-  { productType: "money-market", streamType: "pepl_liquidation_profit", label: "PEPL Liquidation Profit", revenueLabel: "PEPL Liquidation Profit To Treasury" },
-  { productType: "hollar", streamType: "hsm_revenue", label: "HSM Revenue", revenueLabel: "HSM Revenue To Treasury" },
-] as const
-
-async function fetchProtocolStream(productType: string, streamType: string, startTime: string, endTime: string): Promise<number> {
-  const params = new URLSearchParams({ productType, feeDestination: "protocol", streamType, startTime, endTime, bucketSize: "24hour" })
-  const res = await globalThis.fetch(`${FEES_API}?${params}`)
-  const json = await res.json()
-  return Math.max(0, json.periodAggregate ?? 0)
-}
-
 const PercentageMathDecimals = 1e4;
 const LiquidityIndexDecimals = BigInt(1e27);
+const SECONDS_PER_YEAR = BigInt(365 * 24 * 60 * 60);
 
 // HOLLAR is a CDP stablecoin: users cannot supply it, on-chain RF = 0%, totalAToken = 0.
 // All borrow interest is protocol revenue. Tracked separately via rate × debt.
 const HOLLAR = '0x531a654d1696ed52e7275a8cede955e82620f99a'
+
+// Money-market pool on Hydration EVM (Aave V3 fork).
+const pool = {
+  version: 3 as const,
+  lendingPoolProxy: '0x1b02E051683b5cfaC5929C25E84adb26ECf87B38',
+  dataProvider: '0xdf18300261edfF47b28c6a6adBCBCf468B52e5a5',
+}
 
 const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances()
   let dailyProtocolRevenue = options.createBalances()
   let dailySupplySideRevenue = options.createBalances()
 
-  const pool = {
-    version: 3 as const,
-    lendingPoolProxy: '0x1b02E051683b5cfaC5929C25E84adb26ECf87B38',
-    dataProvider: '0xdf18300261edfF47b28c6a6adBCBCf468B52e5a5',
-  }
+  // Window length for rate-based accruals (HOLLAR + index-growth fallback).
+  // Never assume 86400 — v2 runs hourly.
+  const windowSeconds = BigInt(Math.max(0, options.toTimestamp - options.fromTimestamp))
 
   // get reserve (token) list which are supported by the lending pool
   const reservesList: Array<string> = await options.fromApi.call({
@@ -85,14 +72,14 @@ const fetch = async (options: FetchOptions) => {
   // Always use rate × debt estimate, 100% is protocol revenue.
   // Computed unconditionally here so it doesn't interfere with hasAnyGrowth logic below.
   const hollarIndex = reservesList.findIndex(r => r.toLowerCase() === HOLLAR)
-  if (hollarIndex >= 0) {
+  if (hollarIndex >= 0 && windowSeconds > 0n) {
     const totalDebt = BigInt(reserveDataBefore[hollarIndex].totalVariableDebt)
     const borrowRate = BigInt(reserveDataBefore[hollarIndex].variableBorrowRate)
     if (totalDebt > 0 && borrowRate > 0) {
-      const dailyInterest = totalDebt * borrowRate / BigInt(365) / LiquidityIndexDecimals
-      const dailyInterestUSD = Number(dailyInterest) / 1e18
-      dailyFees.addUSDValue(dailyInterestUSD, METRIC.BORROW_INTEREST)
-      dailyProtocolRevenue.addUSDValue(dailyInterestUSD, 'Borrow Interest To Treasury')
+      const interest = totalDebt * borrowRate * windowSeconds / SECONDS_PER_YEAR / LiquidityIndexDecimals
+      const interestUSD = Number(interest) / 1e18
+      dailyFees.addUSDValue(interestUSD, METRIC.BORROW_INTEREST)
+      dailyProtocolRevenue.addUSDValue(interestUSD, 'Borrow Interest To Treasury')
     }
   }
 
@@ -112,58 +99,37 @@ const fetch = async (options: FetchOptions) => {
     if (growthLiquidityIndex > 0) {
       const interestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
       const revenueAccrued = Number(interestAccrued) * reserveFactor
+      const supplierShare = Number(interestAccrued) - revenueAccrued
 
-      dailyFees.add(reservesList[reserveIndex], interestAccrued)
-      dailySupplySideRevenue.add(reservesList[reserveIndex], Number(interestAccrued) - revenueAccrued)
-      dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued)
+      dailyFees.add(reservesList[reserveIndex], interestAccrued, METRIC.BORROW_INTEREST)
+      dailySupplySideRevenue.add(reservesList[reserveIndex], supplierShare, 'Borrow Interest To Lenders')
+      dailyProtocolRevenue.add(reservesList[reserveIndex], revenueAccrued, 'Borrow Interest To Treasury')
       hasAnyGrowth = true;
     }
   }
 
   // Fallback calculation when no liquidity index growth is detected
-  if (!hasAnyGrowth) {
+  if (!hasAnyGrowth && windowSeconds > 0n) {
     for (let i = 0; i < reservesList.length; i++) {
       const current = reserveDataAfter[i];
 
       if (current && (current.totalAToken > 0 || current.totalVariableDebt > 0 || current.totalStableDebt > 0)) {
         if (reservesList[i].toLowerCase() === HOLLAR) continue // already handled above
 
-        const reserveConfig = await options.fromApi.call({
-          target: pool.dataProvider,
-          abi: AaveAbis.getReserveConfiguration,
-          params: [reservesList[i]],
-        });
+        const reserveFactor = reserveFactors[i] / PercentageMathDecimals;
+        const totalBorrows = BigInt(current.totalVariableDebt) + BigInt(current.totalStableDebt);
+        if (totalBorrows > 0 && current.variableBorrowRate > 0) {
+          const borrowRate = BigInt(current.variableBorrowRate);
+          const totalInterest = totalBorrows * borrowRate * windowSeconds / SECONDS_PER_YEAR / LiquidityIndexDecimals;
+          const protocolShare = Number(totalInterest) * reserveFactor;
+          const supplierShare = Number(totalInterest) - protocolShare;
 
-        if (reserveConfig) {
-          const reserveFactor = Number(reserveConfig.reserveFactor) / PercentageMathDecimals;
-          const totalBorrows = BigInt(current.totalVariableDebt) + BigInt(current.totalStableDebt);
-          if (totalBorrows > 0 && current.variableBorrowRate > 0) {
-            const borrowDailyRate = BigInt(current.variableBorrowRate) / BigInt(365);
-            const totalDailyInterest = totalBorrows * borrowDailyRate / LiquidityIndexDecimals;
-            const protocolShare = Number(totalDailyInterest) * reserveFactor;
-            const supplierShare = Number(totalDailyInterest) - protocolShare;
-
-            dailyFees.add(reservesList[i], totalDailyInterest);
-            dailyProtocolRevenue.add(reservesList[i], protocolShare);
-            dailySupplySideRevenue.add(reservesList[i], supplierShare);
-          }
+          dailyFees.add(reservesList[i], totalInterest, METRIC.BORROW_INTEREST);
+          dailyProtocolRevenue.add(reservesList[i], protocolShare, 'Borrow Interest To Treasury');
+          dailySupplySideRevenue.add(reservesList[i], supplierShare, 'Borrow Interest To Lenders');
         }
       }
     }
-  }
-
-  // Add protocol-only streams not captured by the liquidity index approach above
-  const startTime = new Date(options.fromTimestamp * 1000).toISOString()
-  const endTime = new Date(options.toTimestamp * 1000).toISOString()
-  const extraAmounts = await Promise.all(
-    EXTRA_PROTOCOL_STREAMS.map(({ productType, streamType }) =>
-      fetchProtocolStream(productType, streamType, startTime, endTime)
-    )
-  )
-  for (let i = 0; i < EXTRA_PROTOCOL_STREAMS.length; i++) {
-    const { label, revenueLabel } = EXTRA_PROTOCOL_STREAMS[i]
-    dailyFees.addUSDValue(extraAmounts[i], label)
-    dailyProtocolRevenue.addUSDValue(extraAmounts[i], revenueLabel)
   }
 
   return {
@@ -174,28 +140,43 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
+const methodology = {
+  Fees:
+    'Borrow interest across Hydration money-market reserves (including HOLLAR CDP debt). Excludes money-market liquidation penalties, PEPL liquidation profit, and HSM revenue — those Substrate/runtime streams previously came from hydration-metrics-aggregator.indexer.hydration.cloud, which has returned 404 since 2026-08-29, and Hydration has no block-by-timestamp resolution for EVM getLogs.',
+  Revenue:
+    'Protocol share of borrow interest (reserve factor on supplied reserves, and 100% of HOLLAR CDP interest).',
+  ProtocolRevenue:
+    'Same as Revenue — Hydration treasury share of money-market borrow interest.',
+  SupplySideRevenue:
+    'Borrow interest paid to money-market lenders.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers across all money market reserves, including HOLLAR CDP debt.',
+  },
+  Revenue: {
+    'Borrow Interest To Treasury': 'Protocol reserve-factor share of borrow interest, and 100% of HOLLAR CDP interest.',
+  },
+  ProtocolRevenue: {
+    'Borrow Interest To Treasury': 'Protocol reserve-factor share of borrow interest, and 100% of HOLLAR CDP interest.',
+  },
+  SupplySideRevenue: {
+    'Borrow Interest To Lenders': 'Borrow interest distributed to money-market lenders.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.HYDRADX]: {
       fetch,
       start: '2024-11-26',
     }
   },
-  breakdownMethodology: {
-    Fees: {
-      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers across all money market reserves.',
-      [METRIC.LIQUIDATION_FEES]: "Treasury's 10% cut from money market liquidations.",
-      'PEPL Liquidation Profit': 'Protocol revenue from PEPL (Peg Enforcement Protection Liquidation) liquidations.',
-      'HSM Revenue': 'Hollar Stability Module arb profits and yield from yield-bearing stablecoins.',
-    },
-    ProtocolRevenue: {
-      'Borrow Interest To Treasury': 'HOLLAR borrow interest — CDP stablecoin where 100% goes to Treasury.',
-      'Liquidation Penalty To Treasury': "Treasury's 10% cut from money market liquidations.",
-      'PEPL Liquidation Profit To Treasury': '100% of PEPL liquidation proceeds to Treasury.',
-      'HSM Revenue To Treasury': 'Hollar Stability Module revenue to Treasury.',
-    },
-  },
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter
