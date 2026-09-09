@@ -291,7 +291,6 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
     fetch,
     chains: Object.entries(chainConfig).map(([chain, cfg]) => [chain, { start: cfg.start }] as [string, { start: string }]),
     methodology: {
