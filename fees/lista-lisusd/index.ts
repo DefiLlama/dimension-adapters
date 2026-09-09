@@ -11,6 +11,7 @@ import { CHAIN } from "../../helpers/chains";
  * @treasury
  * https://bscscan.com/address/0x8d388136d578dcd791d081c6042284ced6d9b0c6#tokentxns
  * https://bscscan.com/address/0x34b504a5cf0ff41f8a480580533b6dda687fa3da#tokentxns
+ * https://bscscan.com/address/0x09702ea135d9d707dd51f530864f2b9220aad87b (DAO collection wallet / Ops Safe)
  */
 
 const newTreasuryActivationTime = 1727222400 //2024-09-25;
@@ -23,6 +24,9 @@ const newTreasury =
 // after the payout recipient migrated off the old treasury.
 const opsSafe =
   "0x00000000000000000000000009702ea135d9d707dd51f530864f2b9220aad87b";
+// Same Ops Safe, unpadded — it is also the DAO collection wallet for native BNB income (Gnosis Safe,
+// emits SafeReceived) and the receiver() of the voting-reward buyback contract.
+const daoCollectionWallet = "0x09702Ea135d9D707DD51f530864f2B9220aAD87B";
 const zeroAddress =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 const transferHash =
@@ -33,6 +37,25 @@ const SnBnbYieldConverterStrategy =
   "0x0000000000000000000000006f28fec449dbd2056b76ac666350af8773e03873";
 const CeETHVault = "0xA230805C28121cc97B348f8209c79BEBEa3839C0";
 const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
+
+// Auto Launchpool income (native BNB). The clisBNB launchpool reward distributors forward the DAO's
+// share of each launchpool round to the DAO collection wallet (SafeReceived). Only these two senders
+// are counted: the same Safe also receives the validator revenue forwarded from the ListaDAOCredit
+// Safe (0x0D92…), which is already booked as Validator Rewards on 0x0D92's own SafeReceived, so it
+// must not be counted a second time here.
+const launchpoolDistributors = new Set([
+  "0x81a62b329cc8939494d8613f614171a9955a46e8", // ClisBNBLaunchPoolDistributor
+  "0x8b7d334d243b74d63c4b963893267a0f5240f990", // ClisBNBLaunchPoolDistributorPendle
+]);
+
+// Voting rewards (USDT). Bribes / gauge-voting incentives earned by the DAO's veCAKE / veTHE
+// positions are collected by the ops bribe wallet (0x85ce…) and pushed into this VotingReward
+// buyback contract, where the bot swaps them to USDT and the contract forwards the USDT to its
+// receiver() — the DAO collection wallet — in the same tx (BoughtBack). That forwarded USDT is the
+// realised income; the intermediate swap legs (router -> contract) are the same money and are not
+// counted.
+const votingRewardBuyback =
+  "0x000000000000000000000000098a0c419915bffa99983abee5d960c193cc9bfb";
 
 // token
 const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
@@ -84,6 +107,8 @@ const VALIDATOR_REWARDS = "Validator Rewards";
 const LP_STAKING_REWARDS = "LP Staking Rewards";
 const FREEZE_LISTA = "Freeze LISTA";
 const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
+const LAUNCHPOOL_INCOME = "Launchpool Income";
+const VOTING_REWARDS = "Voting Rewards";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -194,6 +219,20 @@ const fetch = async (options: FetchOptions) => {
     target: listaDAOCredit,
     eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
   });
+
+  // Auto Launchpool income: native BNB from the launchpool distributors into the DAO collection wallet
+  const launchpoolIncome = (
+    await options.getLogs({
+      target: daoCollectionWallet,
+      eventAbi: "event SafeReceived(address indexed sender, uint256 value)",
+    })
+  ).filter((log: any) => launchpoolDistributors.has(String(log.sender).toLowerCase()));
+
+  // Voting rewards: USDT forwarded by the buyback contract to the DAO collection wallet
+  const votingRewards = await options.getLogs({
+    target: usdt,
+    topics: [transferHash, votingRewardBuyback, opsSafe],
+  });
   // LP staking rewards
   const lpStakeRewardsFromHash =
     "0x00000000000000000000000062dfec5c9518fe2e0ba483833d1bad94ecf68153";
@@ -261,6 +300,12 @@ const fetch = async (options: FetchOptions) => {
   [...validatorRewardsListaDAOCredit].forEach((log) => {
     dailyFees.add(bnb, Number(log.value), VALIDATOR_REWARDS);
   });
+  [...launchpoolIncome].forEach((log) => {
+    dailyFees.add(bnb, Number(log.value), LAUNCHPOOL_INCOME);
+  });
+  [...votingRewards].forEach((log) => {
+    dailyFees.add(usdt, Number(log.data), VOTING_REWARDS);
+  });
   [...lpStakingListaRewards].forEach((log) => {
     dailyFees.add(lista, Number(log.data), LP_STAKING_REWARDS);
   });
@@ -318,6 +363,10 @@ const LISUSD_BREAKDOWN = {
   [VALIDATOR_REWARDS]:
     'BNB validator commission, booked once when it is deposited into the ListaDAOCredit Safe (SafeReceived)',
   [LP_STAKING_REWARDS]: 'CAKE / LISTA rewards from PancakeSwap LP staking',
+  [LAUNCHPOOL_INCOME]:
+    'BNB share of clisBNB launchpool rewards forwarded by the launchpool distributors to the DAO collection wallet (SafeReceived)',
+  [VOTING_REWARDS]:
+    'veCAKE / veTHE gauge-voting bribes, counted as the USDT the voting-reward buyback contract forwards to the DAO collection wallet after swapping',
   [FREEZE_LISTA]: 'Frozen (burned) LISTA deducted from revenue',
 };
 
@@ -342,7 +391,7 @@ const adapter: SimpleAdapter = {
     },
   },
   methodology: {
-    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, and PSM/veLista/LP/validator fees), net of frozen LISTA.',
+    Fees: 'All protocol income collected by Lista DAO on BSC (staking profits, borrow interest, liquidation profit, PSM/veLista/LP/validator fees, launchpool income and voting rewards), net of frozen LISTA.',
     Revenue: 'Collected income kept by the protocol, net of the sLisUSD savings interest paid out to sLisUSD depositors.',
     ProtocolRevenue: 'Collected income kept by the protocol treasury, net of the sLisUSD savings interest.',
     SupplySideRevenue: 'Interest earned by third-party sLisUSD depositors in the savings pool (LisUSDPoolSet), measured as the duty-rate accrual over the period (totalSupply * change in getRate index).',
