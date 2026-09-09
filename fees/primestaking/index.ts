@@ -71,8 +71,8 @@ const adapter: SimpleAdapter = {
   start: "2026-07-06",
   methodology: {
     Fees: "All gross masternode reward XDC distributed into the PrimeStakedXDC_V3_2 (psXDC) vault via each RewardsDistributed event's grossAmount, before any protocol fee split. Currently no fee is skimmed, so all of this amount currently flows through to stakers as SupplySideRevenue.",
-    Revenue: "100% of the protocol fee goes to the on-chain feeRecipient with no further split.",
-    ProtocolRevenue: "Same as Revenue — the on-chain feeRecipient is the protocol treasury itself, so there is no separate operator/treasury split to break out.",
+    Revenue: "100% of the protocol fee (RewardsDistributed.fee) goes to the on-chain feeRecipient with no further split.",
+    ProtocolRevenue: "100% of the protocol fee (RewardsDistributed.fee) goes to the feeRecipient with no further split.",
     SupplySideRevenue: "Gross rewards distributed to the psXDC vault (RewardsDistributed.grossAmount) minus the protocol fee. This is what backs psXDC's share-price appreciation for stakers.",
   },
   breakdownMethodology: {
