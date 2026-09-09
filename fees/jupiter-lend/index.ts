@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
 // Jupiter Lend runs on Fluid infra as two instances tagged by `instance_name`
 // in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) market
@@ -19,6 +20,7 @@ const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCa
 const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  assertDuneSolanaIndexed(options)
 
   // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
   //   start: options.startTimestamp,
