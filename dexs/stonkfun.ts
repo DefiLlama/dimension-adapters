@@ -56,6 +56,7 @@ const adapter: Adapter = {
   version: 1,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  doublecounted: true, // LaunchLab reports the same bonding curve trades.
   methodology: {
     Volume: "Quote-token value of every buy and sell on the Raydium LaunchLab bonding curves configured by StonkFun, denominated in each pool's quote token (SOL, ZEC, wBTC, xStocks, STONK, ...).",
   },
