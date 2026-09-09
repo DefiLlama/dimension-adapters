@@ -36,8 +36,9 @@ type Launch = { token: string, pairToken: string }
  * Reads a window of Cook Market activity straight from the factory and hook logs.
  *
  * Launches are resolved first, so every swap can be mapped back to the pool's pair token.
- * Each swap contributes its quote leg to volume, and its fee and tax to fees. The hook charges
- * both on the swap's unspecified leg, so when the cut lands in the launched coin it is converted
+ * Pre-graduation swaps contribute their quote leg to volume; fees and tax are counted in both
+ * phases. The hook charges both on the swap's unspecified leg, so when the cut lands in the
+ * launched coin it is converted
  * to the pair token at that swap's own execution price - no external price feed is needed.
  * The fee is then split once between the treasury and the coin's creator.
  */
@@ -114,7 +115,8 @@ async function fetch(options: FetchOptions) {
     const protocolCut = fee * protocolShareBps / BPS
     const creatorCut = fee - protocolCut
 
-    dailyVolume.add(launch.pairToken, quoteAmount)
+    // post-graduation volume already lives on the uniswap-v4 listing; only the bonding curve is unique
+    if (!isGraduated) dailyVolume.add(launch.pairToken, quoteAmount)
     dailyFees.add(launch.pairToken, fee + tax, feeLabel)
     dailyRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
     dailyProtocolRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
@@ -132,10 +134,10 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Volume of all swaps on Cook Market launched pools (bonding-curve phase and post-graduation), measured in the pool's pair token",
+  Volume: "Volume of bonding-curve (pre-graduation) swaps on Cook Market launched pools, measured in the pool's pair token. Post-graduation Uniswap v4 volume is excluded.",
   Fees: "Swap fees (1% of the swap) and optional creator tax charged by the Cook hook on every swap, before and after graduation, there is no launch fee",
   Revenue: "Part of the swap fees (protocolFeeShareBps, 10% at launch) sent to the Cook treasury",
-  ProtocolRevenue: "All revenue goes to the Cook treasury, there is no token holder distribution",
+  ProtocolRevenue: "Part of the swap fees (protocolFeeShareBps, 10% at launch) sent to the Cook treasury",
   SupplySideRevenue: "Remaining swap fees and 100% of the creator tax paid to token creators",
 }
 
