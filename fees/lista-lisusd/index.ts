@@ -52,12 +52,14 @@ const usdt = ADDRESSES.bsc.USDT;
 const LISUSD_POOL_SET = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf";
 const RATE_SCALE = 10n ** 27n;
 
-// Validator / node-operation rewards (BNB-denominated), counted once, when they land in the
-// ListaDAOCredit Safe (SafeReceived). The validator commission first accrues as stListaDAO shares
-// minted daily to the validator operator (0x7766…), the operator undelegates and claims the BNB
-// monthly and forwards it to the ops multisig, which deposits it into this Safe. Counting the daily
-// share mints as well double-counted the commission (the two legs are the same money, accrual vs.
-// realised), so only the Safe receipt is booked.
+// Validator / node-operation revenue (BNB). Lista operates several BSC validators (operators
+// 0x7766…, 0x5f04…, 0x5b2b…). Each operator's commission accrues as StakeCredit shares, is
+// undelegated and claimed monthly and forwarded to the ops multisig (0x1d60…8f66); the ops multisig
+// then deposits the DAO's share into this ListaDAOCredit Safe, which forwards it to the DAO
+// collection wallet (0x0970…) a few days later. The Safe receipt (SafeReceived) is therefore the
+// amount the DAO actually books as validator revenue, and it is counted once here. The previous
+// extra leg (daily stListaDAO share mints to 0x7766…) covered only one of the validators, valued
+// shares 1:1 as BNB, and double-counted the commission already contained in the Safe deposit.
 const listaDAOCredit = "0x0D92Ac7a4590874a493eB62b37D3Ea3390966B13";
 
 // Liquidation profit: Moolah / broker liquidations settle their USDT profit to this receiver

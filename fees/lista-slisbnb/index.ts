@@ -14,8 +14,10 @@ import { CHAIN } from "../../helpers/chains";
 const ListaStakeManagerAddress = "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6";
 
 // ListaStakeManager.compoundRewards() runs once a day: it books the BSC staking rewards earned by the
-// pool, keeps synFee of them as the protocol commission (minted as slisBNB to revenuePool) and emits
-// RewardsCompounded(_amount) with that commission in BNB.
+// pool (totalProfit), takes fee = max(totalProfit * synFee, totalDelegated * annualRate / 365) as the
+// protocol commission (minted as slisBNB to revenuePool) and emits RewardsCompounded(fee) in BNB.
+// Revenue below is that exact fee; gross rewards are derived as fee / synFee, which is exact whenever
+// the profit-based branch binds (every day in Aug-2026).
 //
 // The commission is read from this event rather than inferred from the slisBNB exchange-rate move,
 // because the rate also rises for two reasons that are not staking rewards and carry no fee:
