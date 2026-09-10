@@ -101,14 +101,20 @@ export const fetchBuilderCodeRevenue = async ({
 
   const url = `https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/${builder_address}/${dateStr}.csv.lz4`;
 
-  const tempDir = path.join(__dirname, "temp");
+  // ⛔ A directory per call. The path used to be `temp/${dateStr}.csv.lz4`,
+  // keyed on the date and nothing else, so two builders downloading the same
+  // day at the same time wrote and unlinked each other's file. That was
+  // already reachable through the hip3/hip4 builders; `builderFills` widens
+  // it to all-markets ones, so it is fixed here rather than left to grow.
+  const baseTmp = path.join(__dirname, "temp");
+  if (!fs.existsSync(baseTmp)) {
+    fs.mkdirSync(baseTmp, { recursive: true });
+  }
+  const tempDir = fs.mkdtempSync(path.join(baseTmp, `${dateStr}-`));
   const lz4FilePath = path.join(tempDir, `${dateStr}.csv.lz4`);
   const csvFilePath = path.join(tempDir, `${dateStr}.csv`);
 
   try {
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
 
     let response;
     try {
@@ -127,8 +133,11 @@ export const fetchBuilderCodeRevenue = async ({
         // or a quiet builder never gets a row and the run fails forever. A
         // more recent 403 keeps throwing so the day is retried once the file
         // lands.
-        const ageSeconds = Math.floor(Date.now() / 1000) - startTimestamp;
-        if (ageSeconds > 2 * 86400) {
+        // ⛔ From the day's CLOSE. `startTimestamp` is its start, so measuring
+        // from there declares a day permanently empty a full 24h early — a
+        // Sep 8 file would stop being retried during Sep 10.
+        const closedForSeconds = Math.floor(Date.now() / 1000) - (startTimestamp + 86400);
+        if (closedForSeconds > 2 * 86400) {
           return {
             dailyVolume,
             dailyFees,
@@ -215,6 +224,10 @@ export const fetchBuilderCodeRevenue = async ({
       }
       if (fs.existsSync(csvFilePath)) {
         fs.unlinkSync(csvFilePath);
+      }
+      // The per-call directory goes too, or `temp/` fills with empty dirs.
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
       }
     } catch (cleanupError) {
       // Silently ignore cleanup errors
