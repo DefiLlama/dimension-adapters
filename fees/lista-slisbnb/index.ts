@@ -80,6 +80,7 @@ const adapter: SimpleAdapter = {
       start: '2023-08-30',
     },
   },
+  pullHourly: true,
   methodology,
   breakdownMethodology: {
     Fees: {
