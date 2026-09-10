@@ -64,7 +64,6 @@ export const PRE_LAUNCH_TOKEN_PRICING: any = {
     tradesFrom: '2026-06-05'
   },
   // Hunter Biden's Laptop ($LAPTOP), launched on Base on 2026-09-09.
-  // Contract: https://claim.laptoptoken.network/
   '0xb095274743941e953c746f9c228da9c18bb6ec29': {
     decimals: 18,
     conversionRate: 1.86,
