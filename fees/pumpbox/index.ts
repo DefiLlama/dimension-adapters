@@ -7,9 +7,10 @@ type PumpBoxChainConfig = {
   checkout: string;
   paymentToken: string;
   subscriptionReceiver: string;
+  start: string;
 };
 
-const CONFIG: Partial<Record<CHAIN, PumpBoxChainConfig>> = {
+const CONFIG: Record<string, PumpBoxChainConfig> = {
   [CHAIN.BASE]: {
     // PumpBox checkout contract on Base:
     // https://basescan.org/address/0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68
@@ -18,6 +19,7 @@ const CONFIG: Partial<Record<CHAIN, PumpBoxChainConfig>> = {
     // PumpBox treasury / PumpDaily subscription receiver on Base:
     // https://basescan.org/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
     subscriptionReceiver: "0x646308ef20fb48101662dda0fb2dc7c677bc1b59",
+    start: "2026-06-01",
   },
   [CHAIN.ROBINHOOD]: {
     // PumpBox checkout contract on Robinhood Chain:
@@ -27,6 +29,7 @@ const CONFIG: Partial<Record<CHAIN, PumpBoxChainConfig>> = {
     // PumpBox treasury / PumpDaily subscription receiver on Robinhood Chain:
     // https://robinhoodchain.blockscout.com/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
     subscriptionReceiver: "0x646308ef20fb48101662dda0fb2dc7c677bc1b59",
+    start: "2026-08-13",
   },
 };
 
@@ -115,8 +118,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
-  start: "2026-06-01",
+  adapter: CONFIG,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // Buyback spends can exceed box opening fees in a window
