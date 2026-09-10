@@ -12,9 +12,9 @@ const post = async (params: any) => {
 };
 
 const fetch = async (options: any) => {
+  // long == short exactly on every market, so one side is the one-sided total and a
+  // long/short split would report it twice.
   const openInterestAtEnd = options.createBalances();
-  const longOpenInterestAtEnd = options.createBalances();
-  const shortOpenInterestAtEnd = options.createBalances();
   const marketPrices = await post({ action: "getMarketPrices" });
   const openInterest = await post({ action: "getOpenInterest" });
 
@@ -23,18 +23,10 @@ const fetch = async (options: any) => {
     if (!price || !price.markPrice || !longOpenInterest || !shortOpenInterest) {
       throw new Error(`Missing Synthetix mark price or open interest for ${symbol}`);
     }
-    // long == short exactly on every market, so summing the two sides double-counts
     openInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
-    // halved: each leg's contribution to the one-sided total above
-    longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest) / 2);
-    shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest) / 2);
   });
 
-  return {
-    openInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
-  };
+  return { openInterestAtEnd };
 };
 
 const adapter = {

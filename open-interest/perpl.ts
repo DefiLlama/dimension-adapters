@@ -19,8 +19,9 @@ const fetch = async (options: FetchOptions) => {
     permitFailure: true,
   });
 
-  let longOpenInterestAtEnd = 0;
-  let shortOpenInterestAtEnd = 0;
+  // Matched book: longOpenInterestLNS == shortOpenInterestLNS exactly, so one side is the
+  // one-sided total and a long/short split would report it twice.
+  let openInterestAtEnd = 0;
 
   for (const info of results) {
     if (!info) continue;
@@ -28,19 +29,10 @@ const fetch = async (options: FetchOptions) => {
     const lotDecimals = Number(info.lotDecimals);
     const markPrice = Number(info.markPNS) / 10 ** priceDecimals;
     const longOI = Number(info.longOpenInterestLNS) / 10 ** lotDecimals;
-    const shortOI = Number(info.shortOpenInterestLNS) / 10 ** lotDecimals;
-    longOpenInterestAtEnd += longOI * markPrice;
-    shortOpenInterestAtEnd += shortOI * markPrice;
+    openInterestAtEnd += longOI * markPrice;
   }
-  // Matched book: longOpenInterestLNS == shortOpenInterestLNS exactly, so their sum double-counts.
-  // The halved sides are each leg's contribution to that one-sided total.
-  const openInterestAtEnd = longOpenInterestAtEnd;
 
-  return {
-    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
-    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
-    openInterestAtEnd,
-  };
+  return { openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {

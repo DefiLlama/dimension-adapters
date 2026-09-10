@@ -21,12 +21,9 @@ async function fetch(options: FetchOptions) {
       target: LEVERUP_DIAMOND,
       abi: oiAbi,
     });
-    return {
-      // totalUsd is longUsd + shortUsd; average the sides so the breakdown sums to the total
-      openInterestAtEnd: Number(oi.totalUsd) / 1e18 / 2,
-      longOpenInterestAtEnd: Number(oi.longUsd) / 1e18 / 2,
-      shortOpenInterestAtEnd: Number(oi.shortUsd) / 1e18 / 2,
-    };
+    // longUsd == shortUsd (the LP is the counterparty on both legs), so totalUsd double-counts
+    // and a long/short split would report the same number twice.
+    return { openInterestAtEnd: Number(oi.totalUsd) / 1e18 / 2 };
   }
 
   // Pre-V2 days: original method, so existing history is reproduced unchanged.
@@ -44,24 +41,16 @@ async function fetch(options: FetchOptions) {
   });
 
   let longOpenInterest = 0;
-  let shortOpenInterest = 0;
 
   marketInfos.forEach((info: any) => {
     const lQty = parseFloat(info.longQty);
-    const sQty = parseFloat(info.shortQty);
     const lPrice = parseFloat(info.lpLongAvgPrice);
-    const sPrice = parseFloat(info.lpShortAvgPrice);
 
     longOpenInterest += (lQty * lPrice) / 1e28;
-    shortOpenInterest += (sQty * sPrice) / 1e28;
   });
 
-  return {
-    // long == short exactly (LP is the counterparty on both legs), so the sum double-counts
-    openInterestAtEnd: longOpenInterest,
-    longOpenInterestAtEnd: longOpenInterest,
-    shortOpenInterestAtEnd: shortOpenInterest,
-  };
+  // long == short exactly (LP is the counterparty on both legs), so the sum double-counts
+  return { openInterestAtEnd: longOpenInterest };
 }
 
 const adapter: SimpleAdapter = {
