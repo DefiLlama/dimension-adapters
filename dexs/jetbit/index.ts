@@ -3,6 +3,9 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
 
+const TRADING_FEES_TO_REFERRERS = "Trading Fees To Referrers";
+const TRADING_FEES_TO_PROTOCOL = "Trading Fees To Protocol";
+
 // Jetbit is a perpetual-futures exchange where every position fills against a
 // single on-chain USDT pool on BNB Chain (custody/settlement is on-chain; the
 // matching engine is off-chain). Per-trade volume therefore cannot be read from
@@ -68,9 +71,9 @@ const fetch = async (options: FetchOptions) => {
 
   dailyVolume.addUSDValue(volume);
   dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
-  dailySupplySideRevenue.addUSDValue(rebates);
-  dailyRevenue.addUSDValue(protocolNet);
-  dailyProtocolRevenue.addUSDValue(protocolNet);
+  dailySupplySideRevenue.addUSDValue(rebates, TRADING_FEES_TO_REFERRERS);
+  dailyRevenue.addUSDValue(protocolNet, TRADING_FEES_TO_PROTOCOL);
+  dailyProtocolRevenue.addUSDValue(protocolNet, TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyVolume,
@@ -100,6 +103,15 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: "Trading commission charged on perp trades.",
+  },
+  SupplySideRevenue: {
+    [TRADING_FEES_TO_REFERRERS]: "Share of trading commission paid back out to referrers.",
+  },
+  Revenue: {
+    [TRADING_FEES_TO_PROTOCOL]: "Trading commission retained by the protocol after referral rebates.",
+  },
+  ProtocolRevenue: {
+    [TRADING_FEES_TO_PROTOCOL]: "Trading commission retained by the Jetbit protocol treasury after referral rebates.",
   },
 };
 
