@@ -17,7 +17,7 @@ const fetch = async (_options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.EVENTUM]: {
+    [CHAIN.OFF_CHAIN]: {
       fetch,
       runAtCurrTime: true,
     },
