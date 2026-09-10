@@ -30,6 +30,17 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "alphapilot": {
+    // AlphaPilot builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1/20260908.csv.lz4
+    addresses: ["0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1"],
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades routed through AlphaPilot's builder code.",
+      Fees: "Builder code fees paid on Hyperliquid trades routed through AlphaPilot; excludes Hyperliquid exchange trading fees.",
+      Revenue: "Builder code fees collected by AlphaPilot from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by AlphaPilot from Hyperliquid trades.",
+    },
+    breakdownFees: true,
+  },
   "whale-ag": {
     addresses: ["0xfa4a0d1ca5288478f2c515d5574d53631e7fa711"],
     start: "2026-04-23",
