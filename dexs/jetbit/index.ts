@@ -34,8 +34,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  dailyVolume.addUSDValue(Number(volRow?.volume) || 0);
-  dailyFees.addUSDValue(Number(feeRow?.fees) || 0, METRIC.TRADING_FEES);
+  // Only record finite, non-negative aggregates — a malformed feed row must never
+  // write Infinity/NaN/negative amounts into the metrics (`Number(x) || 0` alone
+  // would let Infinity and negatives through).
+  const clean = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  dailyVolume.addUSDValue(clean(volRow?.volume));
+  dailyFees.addUSDValue(clean(feeRow?.fees), METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
@@ -50,8 +57,14 @@ const methodology = {
     "Real perpetual-futures notional (filled_quantity x filled_price) from Jetbit's " +
     "public aggregate feed; copy-trade mirror volume and display padding are excluded.",
   Fees: "Trading commission collected on perp trades (funding payments excluded).",
-  Revenue: "All trading fees are protocol revenue.",
-  ProtocolRevenue: "All trading fees go to the protocol.",
+  // On Jetbit the single USDT pool is the trade COUNTERPARTY: liquidity providers
+  // earn traders' net PnL (settled on-chain), not a share of trading commission, so
+  // there is no supply-side split of fees. Trading commission accrues to the protocol
+  // treasury, hence Revenue = Protocol Revenue = Fees. (A referral program rebates up
+  // to 5% of a referred user's fees as a downstream marketing cost — an expense, not a
+  // supply-side fee stream, so it is not netted from Revenue here.)
+  Revenue: "Trading commission, which accrues to the Jetbit protocol treasury.",
+  ProtocolRevenue: "Trading commission collected by the protocol treasury.",
 };
 
 const breakdownMethodology = {
