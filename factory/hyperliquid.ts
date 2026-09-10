@@ -9,6 +9,7 @@ interface BuilderConfig {
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidMarket;
+  builderFills?: boolean; // read HL's builder_fills files (zero-fee fills included) instead of the indexer
 }
 
 // this config is used for both superx and superX
@@ -109,6 +110,10 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Liquary from Hyperliquid trades.",
     },
     breakdownFees: true,
+    // Liquary attaches its builder code at f = 0 during fee holidays, so the
+    // indexer (fee-paying activity only) reads $0 while HL's builder_fills
+    // carries every fill — 22 fills / $26.7k on 2026-09-01, all at fee 0.
+    builderFills: true,
   },
   "ohayo-perps": {
     addresses: ["0x46f64c854d3736f31b1650823a7fcfc592e202f1"],
@@ -1040,6 +1045,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
     market: config.market,
+    builderFills: config.builderFills,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {

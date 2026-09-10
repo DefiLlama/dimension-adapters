@@ -35,11 +35,25 @@ export const fetchBuilderCodeRevenue = async ({
   builder_address,
   market = "all",
   hip3DeployerId,
+  builderFills = false,
 }: {
   options: FetchOptions;
   builder_address: string;
   market?: HyperliquidMarket;
   hip3DeployerId?: string;
+  /**
+   * Read Hyperliquid's own `builder_fills` files even for `market: "all"`,
+   * instead of the llama indexer.
+   *
+   * The two sources do not agree on zero-fee fills. A builder that attaches
+   * its code with `f: 0` (a fee holiday, or a maker leg its schedule resolves
+   * to zero) still appears in `builder_fills` — every fill, `builder_fee` 0 —
+   * while the indexer only reports fee-paying activity, so its volume reads
+   * $0 for as long as the fee is off. `hip3`/`hip4` builders already take
+   * this path (that is how they show volume with near-zero fees); this lets an
+   * all-markets builder opt into the same source.
+   */
+  builderFills?: boolean;
 }) => {
   const startTimestamp = options.startOfDay;
   const dailyFees = options.createBalances();
@@ -53,7 +67,7 @@ export const fetchBuilderCodeRevenue = async ({
 
   // try with llama hl indexer
   const endpoint = getEnv("LLAMA_HL_INDEXER");
-  if (market === "all" && startTimestamp >= LLAMA_HL_INDEXER_FROM_TIME && endpoint) {
+  if (market === "all" && !builderFills && startTimestamp >= LLAMA_HL_INDEXER_FROM_TIME && endpoint) {
     const dateString = new Date(startTimestamp * 1000)
       .toISOString()
       .split("T")[0]
@@ -106,6 +120,22 @@ export const fetchBuilderCodeRevenue = async ({
       });
     } catch (error: any) {
       if (error.response?.status === 403) {
+        // Hyperliquid publishes no file for a day on which the builder had no
+        // fills at all, and answers 403 for it — the same status as "not yet
+        // processed". Tell them apart by age: a day closed more than 48h ago
+        // that still has no file is an empty day and must be recorded as zero,
+        // or a quiet builder never gets a row and the run fails forever. A
+        // more recent 403 keeps throwing so the day is retried once the file
+        // lands.
+        const ageSeconds = Math.floor(Date.now() / 1000) - startTimestamp;
+        if (ageSeconds > 2 * 86400) {
+          return {
+            dailyVolume,
+            dailyFees,
+            dailyRevenue: dailyFees,
+            dailyProtocolRevenue: dailyFees,
+          };
+        }
         throw new Error(
           `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
         );
@@ -694,7 +724,7 @@ export const exportHIP3DeployerAdapter = (
 
 export const exportBuilderAdapter = (
   builderAddresses: Array<string>,
-  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean, market?: HyperliquidMarket },
+  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean, market?: HyperliquidMarket, builderFills?: boolean },
 ) => {
   const extraFields = props.extraReturnFields || {};
   const startDate = props.start ? props.start : "2025-08-01";
@@ -716,6 +746,7 @@ export const exportBuilderAdapter = (
               options,
               builder_address: address,
               market,
+              builderFills: props.builderFills,
             });
             dailyVolume.addBalances(result.dailyVolume);
             dailyFees.addBalances(result.dailyFees, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
