@@ -36,19 +36,28 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`No data found for date ${options.dateString}`);
   }
 
-  // Only record finite, non-negative aggregates — a malformed feed row must never
-  // write Infinity/NaN/negative amounts into the metrics (`Number(x) || 0` alone
-  // would let Infinity and negatives through).
-  const clean = (v: any) => {
+  // REQUIRED aggregates: a malformed row (missing/NaN/Infinity/negative) must FAIL,
+  // not silently record a false zero — DefiLlama should flag the data gap instead.
+  const required = (v: any, label: string): number => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(`Invalid ${label} for date ${options.dateString}: ${v}`);
+    }
+    return n;
+  };
+  // OPTIONAL aggregate (referral rebates): absent/invalid → 0 is correct (a day may
+  // legitimately have no rebates, and the field predates its rollout on the feed).
+  const optional = (v: any) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
 
-  const fees = clean(feeRow.fees);
+  const volume = required(volRow.volume, "volume");
+  const fees = required(feeRow.fees, "fees");
   // Referral rebates = commission paid back out to referrers (supply side). Capped at
   // the day's fees so revenue (fees − rebates) can't go negative and the split
   // reconciles: supplySide + revenue = fees.
-  const rebates = Math.min(clean(rebateRow?.rebates), fees);
+  const rebates = Math.min(optional(rebateRow?.rebates), fees);
   const protocolNet = fees - rebates;
 
   const dailyVolume = options.createBalances();
@@ -57,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  dailyVolume.addUSDValue(clean(volRow.volume));
+  dailyVolume.addUSDValue(volume);
   dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
   dailySupplySideRevenue.addUSDValue(rebates);
   dailyRevenue.addUSDValue(protocolNet);
