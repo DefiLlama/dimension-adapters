@@ -427,17 +427,10 @@ const fetchRobinhood = async (options: FetchOptions) => {
   });
 
   // Smart LP vault fleet — registry-enumerated (the registry is the only
-  // discovery surface). try/catch: the registry deploys 2026-09-05, so
-  // historical refills before that block must degrade to "no vaults", not
-  // fail the day. flatten:false so each vault's logs attribute to its own
-  // token0/token1 pair.
-  let smartLpVaults: string[] = [];
-  try {
-    smartLpVaults =
-      (await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY })) ?? [];
-  } catch (e) {
-    smartLpVaults = [];
-  }
+  // discovery surface). flatten:false so each vault's logs attribute to its
+  // own token0/token1 pair.
+  const smartLpVaults: string[] =
+    (await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY }));
   const smartLpFeeLogsByVault: any[][] = smartLpVaults.length
     ? await options.getLogs({
         targets: smartLpVaults,
@@ -450,18 +443,13 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // always in range), then the pool's Swap tape. Each Swap log carries the
   // pool's active liquidity during that swap — the escrow's fee share of a
   // swap is posLiquidity / swapLiquidity, capped at 1.
-  let polV4Liquidity = 0n;
-  try {
-    polV4Liquidity = BigInt(
-      (await options.api.call({
-        abi: "function getPositionLiquidity(uint256) view returns (uint128)",
-        target: UNI_V4_POSM,
-        params: [POL_V4_POSITION_ID],
-      })) ?? 0,
-    );
-  } catch (e) {
-    polV4Liquidity = 0n;
-  }
+  const polV4Liquidity = BigInt(
+    (await options.api.call({
+      abi: "function getPositionLiquidity(uint256) view returns (uint128)",
+      target: UNI_V4_POSM,
+      params: [POL_V4_POSITION_ID],
+    })),
+  );
   const polV4SwapLogs =
     polV4Liquidity > 0n
       ? await options.getLogs({
@@ -902,6 +890,7 @@ const adapter: SimpleAdapter = {
       start: "2026-07-17",
     },
   },
+  doublecounted: true,
   methodology: {
     Volume:
       "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
