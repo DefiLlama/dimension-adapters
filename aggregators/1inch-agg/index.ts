@@ -40,6 +40,7 @@ const chainConfig: Record<
   [CHAIN.SONIC]: { dune: "sonic", start: "2025-05-26" },
   [CHAIN.UNICHAIN]: { dune: "unichain", start: "2025-05-26" },
   [CHAIN.ROBINHOOD]: { dune: "robinhood", start: "2026-06-23" },
+  [CHAIN.MONAD]: { dune: "monad", start: "2026-09-09" },
 };
 
 const prefetch = async (options: FetchOptions) => {
