@@ -128,6 +128,7 @@ const chains = [
   { chain: "avalanche", fetch: getAlliumVolume("avalanche"), },
   { chain: "polygon", fetch: getAlliumVolume("polygon"), },
   { chain: "solana", fetch: getAlliumVolume("solana"), },
+  { chain: "robinhood", fetch: getAlliumVolume("robinhood"), },
   //{ chain: "bitcoin",  fetch: getAlliumVolume("bitcoin"),    },
   // v1: daily/current data only
   { chain: "ethereum", fetch: ethereum, runAtCurrTime: true },
