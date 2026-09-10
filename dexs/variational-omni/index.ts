@@ -9,12 +9,12 @@ const fetch = async (_: any) => {
   const data = await fetchUrl(URL);
 
   return {
-    // Two factors. The headline open_interest counts each position from both counterparties, so
-    // it is exactly 2.0000x the sum of the per-listing long_open_interest + short_open_interest.
-    // That sum is then halved again: Variational is an RFQ/dealer venue where long != short
-    // (Sigma long $576.5M vs Sigma short $312.0M), so the one-sided figure is the average of the
-    // two sides, not either one. Net: a quarter of the published number.
-    openInterestAtEnd: Number(data.open_interest) / 4,
+    // The headline open_interest is gross both-legs: exactly 2.00000x the sum of the per-listing
+    // long_open_interest + short_open_interest (measured on two snapshots). Those per-listing
+    // sides are user exposure against the dealer, not the two legs of one contract - Variational
+    // is RFQ, and 51 of 550 markets carry longs with short exactly 0, which a two-leg field pair
+    // could not - so their sum already counts each position once. Halve once, not twice.
+    openInterestAtEnd: Number(data.open_interest) / 2,
     dailyVolume: data?.total_volume_24h ,
   };
 };
