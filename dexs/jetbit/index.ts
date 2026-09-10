@@ -22,14 +22,16 @@ const OVERVIEW = "https://jetbit.com/_exchange/api/v1/public/defillama/overview"
 
 const fetch = async (options: FetchOptions) => {
   const data = await fetchURL(OVERVIEW);
-  const day = options.startOfDay; // UTC start-of-day, unix seconds
-  const dayStr = new Date(day * 1000).toISOString().slice(0, 10);
 
   const volRows: any[] = Array.isArray(data.dailyVolume) ? data.dailyVolume : [];
   const feeRows: any[] = Array.isArray(data.dailyFees) ? data.dailyFees : [];
 
-  const volRow = volRows.find((r) => r.date === dayStr);
-  const feeRow = feeRows.find((r) => r.date === dayStr);
+  const volRow = volRows.find((r) => r.date === options.dateString);
+  const feeRow = feeRows.find((r) => r.date === options.dateString);
+
+  if (!volRow || !feeRow) {
+    throw new Error(`No data found for date ${options.dateString}`);
+  }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -41,8 +43,8 @@ const fetch = async (options: FetchOptions) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
-  dailyVolume.addUSDValue(clean(volRow?.volume));
-  dailyFees.addUSDValue(clean(feeRow?.fees), METRIC.TRADING_FEES);
+  dailyVolume.addUSDValue(clean(volRow.volume));
+  dailyFees.addUSDValue(clean(feeRow.fees), METRIC.TRADING_FEES);
 
   return {
     dailyVolume,
@@ -81,7 +83,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  chains: [CHAIN.BSC],
+  chains: [CHAIN.OFF_CHAIN],
   fetch,
   start: "2026-07-04",
   methodology,
