@@ -34,7 +34,6 @@ const VELO_KITE_LABEL = "VELO / KITE Rewards";
 const AERO_LABEL = "AERO Rewards";
 const CRV_OETH_FXN_REWARDS_LABEL = "CRV / OETH / FXN Rewards";
 const UNIV3_LABEL = "UniV3 LP Fees";
-const GOV_LABEL = "Governance Rewards";
 const MET_DISTRIBUTION_LABEL = "MET Distribution";
 
 type InflowEntry = {
@@ -178,15 +177,6 @@ const UNIV3_ABIS = {
   positions: "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
   collect: "event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)",
   decreaseLiquidity: "event DecreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)",
-};
-
-const GOVERNANCE_INFLOWS: Record<string, Array<{ holder: string; token: string; fromAddressFilter?: string }>> = {
-  [CHAIN.ETHEREUM]: [
-    {
-      holder: "0xf9eeb67238dfb16e6bbf14ab560d18b740f820a9",
-      token: "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B", // CVX (vlCVX rewards)
-    },
-  ],
 };
 
 // Treasury-internal transfers wrongly counted as revenue (e.g. minting synths against
@@ -356,13 +346,6 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addBalances(bal, label);
   }
 
-  for (const g of (GOVERNANCE_INFLOWS[options.chain] ?? [])) {
-    const params: any = { options, tokens: [g.token], targets: [g.holder] };
-    if (g.fromAddressFilter) params.fromAddressFilter = g.fromAddressFilter;
-    const res = await addTokensReceived(params);
-    dailyFees.addBalances(res, GOV_LABEL);
-  }
-
   if (options.chain === CHAIN.ETHEREUM) {
     const metTransfers = await addTokensReceived({
       options,
@@ -384,7 +367,7 @@ const adapter: SimpleAdapter = {
   // pullHourly: true,
   fetch,
   methodology: {
-    Fees: "Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN), UniV3 fees on treasury-owned positions, and governance staking rewards.",
+    Fees: "Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN) and UniV3 fees on treasury-owned positions.",
     Revenue: "Same as Fees.",
     HoldersRevenue: "MET distributed to holders.",
   },
@@ -398,7 +381,6 @@ const adapter: SimpleAdapter = {
       [VELO_KITE_LABEL]: "VELO/KITE rewards to the Optimism treasury (excl. MetBasis).",
       [CRV_OETH_FXN_REWARDS_LABEL]: "CRV/OETH/FXN rewards to the Ethereum treasury.",
       [UNIV3_LABEL]: "Ethereum UniV3 LP fees, net of same-tx liquidity withdrawals.",
-      [GOV_LABEL]: "Convex vlCVX reward claims.",
     },
     HoldersRevenue: {
       [MET_DISTRIBUTION_LABEL]: "MET distributed to holders.",
