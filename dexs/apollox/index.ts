@@ -1,3 +1,4 @@
+import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -37,7 +38,7 @@ async function sleep(time: number) {
 }
 let sleepCount = 0;
 
-const fetchV2Volume = async (retry = 0) => {
+const fetchV2Volume = async (options: FetchOptions, retry = 0) => {
   if (retry >= 3) {
     throw new Error("Failed to fetch v2 volume after 3 retries");
   }
@@ -47,28 +48,34 @@ const fetchV2Volume = async (retry = 0) => {
   const res = (await httpGet(v2VolumeAPI, {
     params: { excludeCake: true },
   })) as { data: ResponseItem[]; success: boolean };
+  const dailyVolume = options.createBalances()
   if (res.data === null && res.success === false) {
-    return fetchV2Volume(retry + 1);
+    return fetchV2Volume(options, retry + 1);
   }
-  const dailyVolume = (res.data || []).reduce((p, c) => p + +c.qutoVol, 0);
-
+  res.data.forEach(row => {
+    dailyVolume.addUSDValue(row.qutoVol, {id: row.baseAsset, isUSDValue: true} )
+  })
   return { dailyVolume, };
 };
 
-const fetchV1Volume = async () => {
+const fetchV1Volume = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances()
   const data = (await httpGet(v1VolumeAPI)) as { data: V1TickerItem[] };
-  const dailyVolume = data.data.reduce((p, c) => p + +c.quoteVolume, 0);
-
-  return { dailyVolume };
+    data.data.forEach(row => {
+    dailyVolume.addUSDValue(row.quoteVolume, {id: row.baseAsset, isUSDValue: true} )
+  })
+  return { dailyVolume, };
 };
 
-const fetch = async () => {
-  const v1DailyVolume = await fetchV1Volume();
+const fetch = async (options: FetchOptions) => {
+  const v1DailyVolume = await fetchV1Volume(options);
 
-  const v2DailyVolume = await fetchV2Volume();
+  const v2DailyVolume = await fetchV2Volume(options);
 
-  let dailyVolume = v2DailyVolume.dailyVolume + v1DailyVolume.dailyVolume;
-  if (dailyVolume >= 35_000_000_000) {
+  const dailyVolume = v2DailyVolume.dailyVolume
+  dailyVolume.addBalances(v1DailyVolume.dailyVolume)
+  const usdValue = await dailyVolume.getUSDValue()
+  if (usdValue >= 35_000_000_000) {
     console.log("Daily volume is greater than 35 billion", dailyVolume);
     throw new Error("Daily volume is too high, something went wrong");
   }
