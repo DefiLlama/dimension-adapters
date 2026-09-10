@@ -94,6 +94,7 @@ const adapter: SimpleAdapter = {
     CHAIN.UNICHAIN,
     CHAIN.ERA,
     [CHAIN.ROBINHOOD, { start: "2026-07-19" }],
+    [CHAIN.MONAD, { start: "2026-09-09" }],
   ],
   start: "2025-11-17", // Aqua developer release: https://blog.1inch.com/aqua-developer-release/
   methodology: {
