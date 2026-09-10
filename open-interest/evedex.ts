@@ -24,4 +24,4 @@ const adapter: SimpleAdapter = {
   },
 };
 
-export default adapter;
+// export default adapter;
