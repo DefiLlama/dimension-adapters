@@ -25,16 +25,16 @@ const fetch = async (options: FetchOptions) => {
 
   const volRows: any[] = Array.isArray(data.dailyVolume) ? data.dailyVolume : [];
   const feeRows: any[] = Array.isArray(data.dailyFees) ? data.dailyFees : [];
+  const rebateRows: any[] = Array.isArray(data.dailyReferralRebates) ? data.dailyReferralRebates : [];
 
   const volRow = volRows.find((r) => r.date === options.dateString);
   const feeRow = feeRows.find((r) => r.date === options.dateString);
+  // Referral rebates are optional (a day may have none) — never throw on their absence.
+  const rebateRow = rebateRows.find((r) => r.date === options.dateString);
 
   if (!volRow || !feeRow) {
     throw new Error(`No data found for date ${options.dateString}`);
   }
-
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
 
   // Only record finite, non-negative aggregates — a malformed feed row must never
   // write Infinity/NaN/negative amounts into the metrics (`Number(x) || 0` alone
@@ -43,14 +43,32 @@ const fetch = async (options: FetchOptions) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
+
+  const fees = clean(feeRow.fees);
+  // Referral rebates = commission paid back out to referrers (supply side). Capped at
+  // the day's fees so revenue (fees − rebates) can't go negative and the split
+  // reconciles: supplySide + revenue = fees.
+  const rebates = Math.min(clean(rebateRow?.rebates), fees);
+  const protocolNet = fees - rebates;
+
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+
   dailyVolume.addUSDValue(clean(volRow.volume));
-  dailyFees.addUSDValue(clean(feeRow.fees), METRIC.TRADING_FEES);
+  dailyFees.addUSDValue(fees, METRIC.TRADING_FEES);
+  dailySupplySideRevenue.addUSDValue(rebates);
+  dailyRevenue.addUSDValue(protocolNet);
+  dailyProtocolRevenue.addUSDValue(protocolNet);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue,
   };
 };
 
@@ -59,24 +77,19 @@ const methodology = {
     "Real perpetual-futures notional (filled_quantity x filled_price) from Jetbit's " +
     "public aggregate feed; copy-trade mirror volume and display padding are excluded.",
   Fees: "Trading commission collected on perp trades (funding payments excluded).",
-  // On Jetbit the single USDT pool is the trade COUNTERPARTY: liquidity providers
-  // earn traders' net PnL (settled on-chain), not a share of trading commission, so
-  // there is no supply-side split of fees. Trading commission accrues to the protocol
-  // treasury, hence Revenue = Protocol Revenue = Fees. (A referral program rebates up
-  // to 5% of a referred user's fees as a downstream marketing cost — an expense, not a
-  // supply-side fee stream, so it is not netted from Revenue here.)
-  Revenue: "Trading commission, which accrues to the Jetbit protocol treasury.",
-  ProtocolRevenue: "Trading commission collected by the protocol treasury.",
+  // Note on the pool: Jetbit's single USDT pool is the trade COUNTERPARTY, so LPs
+  // earn traders' net PnL (settled on-chain), NOT a share of trading commission —
+  // that is a separate stream, not part of Fees. The one supply-side slice of the
+  // commission is the referral program: a share of a referred user's fees paid back
+  // out to their referrer. Reported as Supply-Side Revenue and netted from protocol
+  // revenue.
+  SupplySideRevenue: "Referral rebates — trading commission paid back out to referrers.",
+  Revenue: "Trading commission retained by the protocol after referral rebates (fees − rebates).",
+  ProtocolRevenue: "Trading commission retained by the Jetbit protocol treasury (fees − referral rebates).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Trading commission charged on perp trades.",
-  },
-  Revenue: {
-    [METRIC.TRADING_FEES]: "Trading commission charged on perp trades.",
-  },
-  ProtocolRevenue: {
     [METRIC.TRADING_FEES]: "Trading commission charged on perp trades.",
   },
 };
