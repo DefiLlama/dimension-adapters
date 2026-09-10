@@ -43,7 +43,7 @@ const fetchSolana: FetchV2 = async (options: FetchOptions) => {
       , sum(borrow_fees_usd) as daily_fees_usd
       , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
       , sum(day_revenue_usd) as daily_revenue_usd
-    from dune."0xfluid".result_juplend_historical_tvl_by_token_mv
+    from dune."jupiter".result_juplend_historical_tvl_by_token_mv
     where day >= FROM_UNIXTIME(${options.startTimestamp})
         and day < FROM_UNIXTIME(${options.endTimestamp})
     group by 1
