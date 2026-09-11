@@ -181,12 +181,31 @@ const harvestMarkets = markets.filter((m): m is Market & { manager: string; pegg
   Boolean(m.manager && m.peggedToken && m.poolCollateral && m.poolLeveraged),
 );
 
-const getTransfers = async (options: FetchOptions, token: string, from: string, to: string) => {
-  if (from === ZERO || to === ZERO) return [];
-  return options.getLogs({
-    target: token,
+type TransferQuery = { token: string; from: string; to: string };
+
+// One getLogs per flow (mint, pool deposits, early withdraw) instead of one per
+// (token, from, to) triple. Topic1/topic2 are OR'd across senders and receivers;
+// filter back to the exact triple so minter A → sink B is not counted as a fee.
+const getTransferLogs = async (options: FetchOptions, queries: TransferQuery[]) => {
+  if (queries.length === 0) return [] as any[][];
+  const tokens = uniqueAddresses(...queries.map((q) => q.token));
+  const froms = uniqueAddresses(...queries.map((q) => q.from));
+  const tos = uniqueAddresses(...queries.map((q) => q.to));
+  const grouped: any[][] = await options.getLogs({
+    targets: tokens,
     eventAbi: TRANSFER_EVENT,
-    topics: [TRANSFER_TOPIC, topicAddress(from), topicAddress(to)],
+    topics: [TRANSFER_TOPIC, froms.map(topicAddress), tos.map(topicAddress)] as any,
+    flatten: false,
+  });
+  const byToken = new Map(tokens.map((token, i) => [token, grouped[i] ?? []]));
+  return queries.map((query) => {
+    const token = asAddress(query.token);
+    const from = asAddress(query.from);
+    const to = asAddress(query.to);
+    if (!token || !from || !to) return [];
+    return (byToken.get(token) ?? []).filter((log: any) =>
+      asAddress(log.from) === from && asAddress(log.to) === to
+    );
   });
 };
 
@@ -197,53 +216,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const liveMarkets = markets.filter((m) => options.dateString >= m.start);
   const managedMarkets = liveMarkets.filter((m): m is Market & { manager: string } => Boolean(m.manager));
-  const [minterReceivers, managerReceivers] = await Promise.all([
-    options.api.multiCall({
-      abi: "address:feeReceiver",
-      calls: liveMarkets.map((m) => m.minter),
-      permitFailure: true,
-    }),
-    options.api.multiCall({
-      abi: "address:feeReceiver",
-      calls: managedMarkets.map((m) => m.manager),
-      permitFailure: true,
-    }),
-  ]);
-  const managerReceiverById = Object.fromEntries(managedMarkets.map((m, i) => [m.id, managerReceivers[i]]));
-
-  // Mint events omit the fee amount. Sequential (token, from, to) logs — do not
-  // fan out with addTokensReceived. Sink is the Safe today, minter.feeReceiver later.
-  for (const [i, market] of liveMarkets.entries()) {
-    for (const sink of uniqueAddresses(OWNER, minterReceivers[i])) {
-      const logs = await getTransfers(options, market.wrappedCollateral, market.minter, sink);
-      for (const log of logs) {
-        dailyFees.add(market.wrappedCollateral, log.value, METRIC.MINT_REDEEM_FEES);
-        dailyUserFees.add(market.wrappedCollateral, log.value, METRIC.MINT_REDEEM_FEES);
-        dailyRevenue.add(market.wrappedCollateral, log.value, MINT_REDEEM_TO_PROTOCOL);
-      }
-    }
-  }
-
-  // Protocol wallet → pool depositReward (Safe today, feeReceiver + keepers later).
-  // Not new fees: reclassify revenue to supply side. Often a different day than harvest().
-  const seenDeposit = new Set<string>();
-  for (const [i, market] of liveMarkets.entries()) {
-    const sinks = uniqueAddresses(OWNER, minterReceivers[i], managerReceiverById[market.id]);
-    for (const pool of [market.poolCollateral, market.poolLeveraged]) {
-      if (!pool) continue;
-      for (const sink of sinks) {
-        const key = `${market.wrappedCollateral}:${sink}:${pool}`.toLowerCase();
-        if (seenDeposit.has(key)) continue;
-        seenDeposit.add(key);
-        const logs = await getTransfers(options, market.wrappedCollateral, sink, pool);
-        for (const log of logs) {
-          dailySupplySideRevenue.add(market.wrappedCollateral, log.value, PROTOCOL_DEPOSITS_TO_POOLS);
-          dailyRevenue.add(market.wrappedCollateral, `-${log.value}`, PROTOCOL_DEPOSITS_TO_POOLS);
-        }
-      }
-    }
-  }
-
+  const liveHarvest = harvestMarkets.filter((m) => options.dateString >= m.start);
   // Early-withdrawal fee: pool transfers ha (ASSET_TOKEN) to getFeeAddress()
   // when a user withdraws outside the requested window.
   // https://docs.harborfinance.io/tech-docs/contracts/stability-pool
@@ -254,11 +227,51 @@ const fetch = async (options: FetchOptions) => {
       if (pool) poolLegs.push({ token: market.peggedToken, pool });
     }
   }
-  const poolFeeAddresses = poolLegs.length === 0 ? [] : await options.api.multiCall({
-    abi: "address:getFeeAddress",
-    calls: poolLegs.map((leg) => leg.pool),
-    permitFailure: true,
-  });
+  const [minterReceivers, managerReceivers, poolFeeAddresses] = await Promise.all([
+    options.api.multiCall({
+      abi: "address:feeReceiver",
+      calls: liveMarkets.map((m) => m.minter),
+      permitFailure: true,
+    }),
+    options.api.multiCall({
+      abi: "address:feeReceiver",
+      calls: managedMarkets.map((m) => m.manager),
+      permitFailure: true,
+    }),
+    poolLegs.length === 0 ? Promise.resolve([]) : options.api.multiCall({
+      abi: "address:getFeeAddress",
+      calls: poolLegs.map((leg) => leg.pool),
+      permitFailure: true,
+    }),
+  ]);
+  const managerReceiverById = Object.fromEntries(managedMarkets.map((m, i) => [m.id, managerReceivers[i]]));
+
+  // Mint events omit the fee amount. Sink is the Safe today, minter.feeReceiver later.
+  const mintQueries: TransferQuery[] = [];
+  for (const [i, market] of liveMarkets.entries()) {
+    for (const sink of uniqueAddresses(OWNER, minterReceivers[i])) {
+      mintQueries.push({ token: market.wrappedCollateral, from: market.minter, to: sink });
+    }
+  }
+
+  // Protocol wallet → pool depositReward (Safe today, feeReceiver + keepers later).
+  // Not new fees: reclassify revenue to supply side. Often a different day than harvest().
+  const depositQueries: TransferQuery[] = [];
+  const seenDeposit = new Set<string>();
+  for (const [i, market] of liveMarkets.entries()) {
+    const sinks = uniqueAddresses(OWNER, minterReceivers[i], managerReceiverById[market.id]);
+    for (const pool of [market.poolCollateral, market.poolLeveraged]) {
+      if (!pool) continue;
+      for (const sink of sinks) {
+        const key = `${market.wrappedCollateral}:${sink}:${pool}`.toLowerCase();
+        if (seenDeposit.has(key)) continue;
+        seenDeposit.add(key);
+        depositQueries.push({ token: market.wrappedCollateral, from: sink, to: pool });
+      }
+    }
+  }
+
+  const withdrawQueries: (TransferQuery & { peg: { token: string; decimals: bigint } })[] = [];
   const seenWithdrawFee = new Set<string>();
   for (const [i, leg] of poolLegs.entries()) {
     const feeAddress = asAddress(poolFeeAddresses[i]);
@@ -269,55 +282,65 @@ const fetch = async (options: FetchOptions) => {
     const peg = HA_PEG[leg.token.toLowerCase()];
     // Unmapped ha has no Llama price — would record $0. Fail the window instead.
     if (!peg) throw new Error(`Harbor: unmapped ha token ${leg.token} (add HA_PEG or it prices at $0)`);
-    const logs = await getTransfers(options, leg.token, leg.pool, feeAddress);
-    for (const log of logs) {
-      const priced = scaleHaToPeg(log.value, peg.decimals);
-      dailyFees.add(peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
-      dailyUserFees.add(peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
-      dailyRevenue.add(peg.token, priced, EARLY_WITHDRAW_TO_PROTOCOL);
-    }
-  }
-
-  const liveHarvest = harvestMarkets.filter((m) => options.dateString >= m.start);
-  if (liveHarvest.length === 0) {
-    return {
-      dailyFees,
-      dailyUserFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue.clone(),
-      dailySupplySideRevenue,
-    };
+    withdrawQueries.push({ token: leg.token, from: leg.pool, to: feeAddress, peg });
   }
 
   const managers = liveHarvest.map((m) => m.manager);
-  const [harvestLogs, bountyRatios, cutRatios, collateralHoldings, sailHoldings] = await Promise.all([
-    options.getLogs({
+  const [mintLogs, depositLogs, withdrawLogs, harvestLogs, bountyRatios, cutRatios, collateralHoldings, sailHoldings] = await Promise.all([
+    getTransferLogs(options, mintQueries),
+    getTransferLogs(options, depositQueries),
+    getTransferLogs(options, withdrawQueries),
+    liveHarvest.length === 0 ? Promise.resolve([] as any[][]) : options.getLogs({
       targets: managers,
       eventAbi: HARVESTED_EVENT,
       flatten: false,
     }),
-    // USD managers were created mid-day 18 May 2026; earlier hours that day have no code.
-    options.api.multiCall({
+    liveHarvest.length === 0 ? Promise.resolve([] as any[]) : options.api.multiCall({
+      // USD managers were created mid-day 18 May 2026; earlier hours that day have no code.
       abi: "uint256:harvestBountyRatio",
       calls: managers,
       permitFailure: true,
     }),
-    options.api.multiCall({
+    liveHarvest.length === 0 ? Promise.resolve([] as any[]) : options.api.multiCall({
       abi: "uint256:harvestCutRatio",
       calls: managers,
       permitFailure: true,
     }),
-    options.api.multiCall({
+    liveHarvest.length === 0 ? Promise.resolve([] as any[]) : options.api.multiCall({
       abi: "erc20:balanceOf",
       calls: liveHarvest.map((m) => ({ target: m.peggedToken, params: [m.poolCollateral] })),
       permitFailure: true,
     }),
-    options.api.multiCall({
+    liveHarvest.length === 0 ? Promise.resolve([] as any[]) : options.api.multiCall({
       abi: "erc20:balanceOf",
       calls: liveHarvest.map((m) => ({ target: m.peggedToken, params: [m.poolLeveraged] })),
       permitFailure: true,
     }),
   ]);
+
+  mintQueries.forEach((query, i) => {
+    for (const log of mintLogs[i]) {
+      dailyFees.add(query.token, log.value, METRIC.MINT_REDEEM_FEES);
+      dailyUserFees.add(query.token, log.value, METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.add(query.token, log.value, MINT_REDEEM_TO_PROTOCOL);
+    }
+  });
+
+  depositQueries.forEach((query, i) => {
+    for (const log of depositLogs[i]) {
+      dailySupplySideRevenue.add(query.token, log.value, PROTOCOL_DEPOSITS_TO_POOLS);
+      dailyRevenue.add(query.token, `-${log.value}`, PROTOCOL_DEPOSITS_TO_POOLS);
+    }
+  });
+
+  withdrawQueries.forEach((query, i) => {
+    for (const log of withdrawLogs[i]) {
+      const priced = scaleHaToPeg(log.value, query.peg.decimals);
+      dailyFees.add(query.peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyUserFees.add(query.peg.token, priced, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyRevenue.add(query.peg.token, priced, EARLY_WITHDRAW_TO_PROTOCOL);
+    }
+  });
 
   liveHarvest.forEach((market, i) => {
     if (bountyRatios[i] == null || cutRatios[i] == null) return;
