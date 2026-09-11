@@ -5,7 +5,8 @@ import ADDRESSES from '../helpers/coreAssets.json'
 // Every ReferralEscrow deployment on Base mainnet that has settled or can still settle a claim.
 const ESCROWS = [
   "0xa9f96c74230810205023c3E3AFEe33d3151e5Ee8", // first mainnet escrow, archived
-  "0xA4bFddBc6Bb8F589a92A4d4595c6902e95eb9a38", // live
+  "0xA4bFddBc6Bb8F589a92A4d4595c6902e95eb9a38", // second, archived 2026-09-11
+  "0xe9339BecfB1F6F4d0A031e7132fCf745CEb6611A", // live since 2026-09-11 (block 51164040)
 ];
 
 // Emitted once per settled claim. feePaid is the protocol fee on a slot that paid out:
