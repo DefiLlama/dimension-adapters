@@ -4,8 +4,11 @@ import { httpGet } from "../../utils/fetchURL";
 
 // WESO DeFi AMM factory on Terra Classic (chain key: terra, NOT terra2).
 const LCD = "https://terra-classic-lcd.publicnode.com";
+const FCD = "https://terra-classic-fcd.publicnode.com";
 const FACTORY =
   "terra1veqa6znu8lfdmz9kp9v047chfmn84q5k3pacme75gl8ywmplk92q6xnq2k";
+const WESO =
+  "terra13ryrrlcskwa05cd94h54c8rnztff9l82pp0zqnfvlwt77za8wjjsld36ms";
 
 // CW20 1:1 wraps — map to native denoms so Llama can price volume.
 const CWLUNC =
@@ -17,11 +20,12 @@ const WRAP_AS_NATIVE: Record<string, string> = {
   [CWUSTC]: "uusd",
 };
 
-// Wrap/unwrap + converter are not DEX swaps.
+// Wrap/unwrap + converter are not DEX swaps. $WESO bonding curve is counted separately.
 const EXCLUDED_PAIR_TYPES = new Set(["token_bonding", "converter"]);
 
-// On-chain hourly volume buckets retain at most 168 hours (7d).
 const BUCKET_LIMIT = 168;
+const FCD_PAGE = 100;
+const FCD_MAX_PAGES = 40;
 
 const LCD_HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; DefiLlama/1.0)",
@@ -121,6 +125,84 @@ function bucketOverlaps(
   return hourStart < endTimestamp && hourEnd > startTimestamp;
 }
 
+function ulunaAmount(raw: string | undefined): string | null {
+  if (!raw) return null;
+  if (raw.endsWith("uluna")) {
+    const n = raw.slice(0, -5);
+    return n && n !== "0" ? n : null;
+  }
+  return null;
+}
+
+function addWesoCurveTx(dailyVolume: { add: (t: string, a: string) => void }, tx: any) {
+  const val = tx?.tx?.value || {};
+  for (const m of val.msg || []) {
+    const mv = m.value || {};
+    if (mv.contract !== WESO) continue;
+    const inner = mv.msg || {};
+    const sender = mv.sender;
+
+    if (inner.buy) {
+      const funds = mv.funds || mv.sent_funds || [];
+      for (const coin of funds) {
+        if (coin?.denom === "uluna" && coin.amount && coin.amount !== "0") {
+          dailyVolume.add("uluna", coin.amount);
+        }
+      }
+      continue;
+    }
+
+    if (inner.burn || inner.sell) {
+      let payout = 0n;
+      for (const log of tx.logs || []) {
+        for (const ev of log.events || []) {
+          if (ev.type !== "transfer") continue;
+          const attrs: Record<string, string> = {};
+          for (const a of ev.attributes || []) attrs[a.key] = a.value;
+          if (attrs.sender !== WESO || attrs.recipient !== sender) continue;
+          const n = ulunaAmount(attrs.amount);
+          if (!n) continue;
+          const bn = BigInt(n);
+          if (bn > payout) payout = bn;
+        }
+      }
+      if (payout > 0n) dailyVolume.add("uluna", payout.toString());
+    }
+  }
+}
+
+async function addWesoCurveVolume(
+  dailyVolume: { add: (t: string, a: string) => void },
+  startTimestamp: number,
+  endTimestamp: number,
+) {
+  let offset: number | undefined;
+  for (let i = 0; i < FCD_MAX_PAGES; i++) {
+    const qs = new URLSearchParams({
+      account: WESO,
+      limit: String(FCD_PAGE),
+    });
+    if (offset != null) qs.set("offset", String(offset));
+    const data = await httpGet(`${FCD}/v1/txs?${qs.toString()}`, {
+      headers: LCD_HEADERS,
+    });
+    const txs: any[] = data?.txs || [];
+    if (!txs.length) break;
+
+    for (const tx of txs) {
+      const ts = Date.parse(tx.timestamp) / 1000;
+      if (!Number.isFinite(ts)) continue;
+      if (ts >= endTimestamp || ts < startTimestamp) continue;
+      addWesoCurveTx(dailyVolume, tx);
+    }
+
+    const oldest = Date.parse(txs[txs.length - 1].timestamp) / 1000;
+    if (Number.isFinite(oldest) && oldest < startTimestamp) break;
+    if (data.next == null) break;
+    offset = data.next;
+  }
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const pairs = await getAmmPairContracts();
@@ -141,7 +223,6 @@ const fetch = async (options: FetchOptions) => {
       ) {
         continue;
       }
-      // base_volume / quote_volume are offer-side amounts (one side per swap).
       if (base && bucket.base_volume && bucket.base_volume !== "0") {
         dailyVolume.add(base, bucket.base_volume);
       }
@@ -151,12 +232,18 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  await addWesoCurveVolume(
+    dailyVolume,
+    options.startTimestamp,
+    options.endTimestamp,
+  );
+
   return { dailyVolume };
 };
 
 const methodology = {
   Volume:
-    "On-chain hourly volume_buckets from WESO AMM factory pairs on Terra Classic (reflective + cumulative). Counts offer-side swap amounts as raw token balances. Excludes CWLUNC/CWUSTC token_bonding wrap/unwrap and converter pairs. $WESO cw20_bonding curve buys/sells are not included (curve has no time-bucketed volume query). Buckets retain at most 168 hours.",
+    "Factory AMM swaps (reflective + cumulative) from on-chain volume_buckets, plus $WESO bonding-curve buy/sell volume as native LUNC. Buys count uluna paid into terra13ryrr…ld36ms; sells count uluna paid back to the trader. Excludes CWLUNC/CWUSTC wrap/unwrap, converter pairs, and non-swap curve transfers (e.g. flywheel). AMM buckets retain 168 hours; curve volume is read from FCD txs in the requested window.",
 };
 
 const adapter: SimpleAdapter = {
@@ -164,7 +251,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.TERRA],
-  // Factory instantiate height 27353737 @ 2026-02-17T02:40:17Z (terra-classic-lcd.publicnode.com).
+  // Factory instantiate height 27353737 @ 2026-02-17T02:40:17Z.
   start: "2026-02-17",
   methodology,
 };
