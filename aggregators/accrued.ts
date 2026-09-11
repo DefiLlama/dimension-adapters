@@ -16,7 +16,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
   const dailyVolume = options.createBalances();
 
   for (const log of swapLogs) {
-    addOneToken({ balances: dailyVolume, token0: String(log.tokenIn).toLowerCase(), amount0: BigInt(log.amountIn), token1: String(log.tokenOut).toLowerCase(), amount1: BigInt(log.amountOut) });
+    addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
   }
 
   return { dailyVolume };
