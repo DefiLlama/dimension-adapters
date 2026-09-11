@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
   // one trading fee, charged once; where it went is the split below
   await add(CALLBACKS, DEV_FEE, "amount", dailyRevenue, METRIC.TRADING_FEES);
   // charged by DomfiTrading when the order is queued, not by the callback
-  await add(TRADING, ORACLE_FEE, "oracleFee", dailyRevenue, METRIC.SERVICE_FEES);
+  await add(TRADING, ORACLE_FEE, "oracleFee", dailyRevenue, "Oracle Fee");
 
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailySupplySideRevenue);
@@ -57,19 +57,32 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.BASE],
   start: "2026-06-23",
   methodology: {
     Fees: "Maker and taker fees on every open and close, liquidation margin, and the oracle fee charged once per price-requiring action. Both halves of each trading fee are read from the callback, the vault's and the treasury's. Funding is excluded: it moves between longs and shorts rather than to the protocol.",
     Revenue: "The treasury's half of every maker and taker fee, from DevFeeCharged, plus the oracle fee from OracleFeeCharged. Liquidation margin is excluded, since it goes wholly to the vault.",
-    ProtocolRevenue: "Same as Revenue. DomFi has no governance token, so no share of fees reaches holders.",
+    ProtocolRevenue: "The treasury's half of every maker and taker fee, from DevFeeCharged, plus the oracle fee from OracleFeeCharged.",
     SupplySideRevenue: "The vault's half of every trading fee, plus the whole of the liquidation margin. Vault LPs are the counterparty to every trade.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "Maker and taker fees, charged on collateral x leverage at open and at close, where closing is a quarter of opening on every pair.",
       [METRIC.LIQUIDATION_FEES]: "Up to 25% of collateral on a liquidation, paid to the vault.",
-      [METRIC.SERVICE_FEES]: "The oracle fee, from OracleFeeCharged on DomfiTrading, which charges it when the order is queued. DomfiPairsStorage sets the rate and returns a flat 0.10 USDC on every pair.",
+      "Oracle Fee": "The oracle fee, from OracleFeeCharged on DomfiTrading, which charges it when the order is queued. DomfiPairsStorage sets the rate and returns a flat 0.10 USDC on every pair.",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]: "The treasury's half of every maker and taker fee, from DevFeeCharged.",
+      "Oracle Fee": "The oracle fee, kept by the protocol, from OracleFeeCharged.",
+    },
+    ProtocolRevenue: {
+      [METRIC.TRADING_FEES]: "The treasury's half of every maker and taker fee, from DevFeeCharged.",
+      "Oracle Fee": "The oracle fee, kept by the protocol, from OracleFeeCharged.",
+    },
+    SupplySideRevenue: {
+      [METRIC.TRADING_FEES]: "The vault's half of every maker and taker fee, from VaultOpeningFeeCharged and VaultClosingFeeCharged.",
+      [METRIC.LIQUIDATION_FEES]: "The liquidation fees, from VaultLiqFeeCharged, paid to vault LPs.",
     },
   },
 };
