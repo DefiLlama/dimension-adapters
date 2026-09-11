@@ -80,8 +80,8 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Fees: "0.35% redeem fee on private transfers (withheld from the gross amount before zAssets are minted to the recipient, live since 2026-06-02) plus liquidity-based unwrap fees charged by the LiquidityManagers.",
-  Revenue: "All fees are retained by the protocol: the redeem fee is never minted, and unwrap fees accrue to the LiquidityManager fee surplus.",
-  ProtocolRevenue: "All fees are retained by the protocol.",
+  Revenue: "All fees (redeem and unwrap) are retained by the protocol: the redeem fee is never minted, and unwrap fees accrue to the LiquidityManager fee surplus.",
+  ProtocolRevenue: "All fees (redeem and unwrap) are retained by the protocol.",
 };
 
 const breakdownMethodology = {
