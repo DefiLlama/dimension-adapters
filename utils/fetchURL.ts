@@ -58,10 +58,10 @@ export async function httpPost(url: string, data: any, options?: AxiosRequestCon
   }
 }
 
-export async function fetchURLAutoHandleRateLimit(url: string, retries = 3, options?: AxiosRequestConfig) {
+export async function fetchURLAutoHandleRateLimit(url: string, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      return await httpGet(url, options)
+      return await httpGet(url)
     } catch (error) {
       if (i < retries - 1) {
         await sleep(5000)
