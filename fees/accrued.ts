@@ -3,11 +3,18 @@
  *
  * Copy to: dimension-adapters/fees/accrued.ts
  */
-import type { SimpleAdapter, FetchOptions, FetchResult } from "../../adapters/types";
+import type { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
 
-const START_BLOCK = 59334164;
+/** AccruedSwapRouter deploy date on Robinhood mainnet (block 59334164). */
+const ROUTER_START = "2026-09-10";
 
-async function fetch(_options: FetchOptions): Promise<FetchResult> {
+/**
+ * Accrued charges no interface or protocol fee today.
+ * Returns zero fee metrics until an on-chain fee is added to AccruedSwapRouter.
+ */
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  void options.startOfDay;
   return {
     dailyFees: 0,
     dailyRevenue: 0,
@@ -16,18 +23,17 @@ async function fetch(_options: FetchOptions): Promise<FetchResult> {
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    robinhood: {
-      start: START_BLOCK,
-      fetch,
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  fetch,
+  start: ROUTER_START,
+  chains: [CHAIN.ROBINHOOD],
   methodology: {
     Fees: "Accrued does not charge an interface fee. Uniswap LP fees are not Accrued protocol revenue.",
     Revenue: "No protocol revenue until an on-chain fee is added to AccruedSwapRouter.",
     ProtocolRevenue: "Zero.",
   },
+  breakdownMethodology: {},
 };
 
 export default adapter;
