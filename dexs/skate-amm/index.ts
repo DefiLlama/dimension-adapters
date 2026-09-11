@@ -15,7 +15,8 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.SUI]: { id: 1001, start: '2025-06-22' },
     [CHAIN.MONAD]: { id: 143, start: '2025-11-25' },
     [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-18' },
-    [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' }
+    [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' },
+    [CHAIN.ROBINHOOD]: { id: 4663, start: '2026-07-09' }
 }
 
 // Skate AMM v2 only. v1 was retired in Aug 2026 once its liquidity was fully

@@ -3,54 +3,79 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { addTokensReceived } from "../../helpers/token";
 
-// PumpBox checkout contract on Base:
-// https://basescan.org/address/0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68
-const CHECKOUT_CONTRACT = "0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68";
-const USDC_BASE = ADDRESSES.base.USDC;
-// PumpBox treasury / PumpDaily subscription receiver on Base:
-// https://basescan.org/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
-const PUMPDAILY_SUBSCRIPTION_RECEIVER = "0x646308ef20fb48101662dda0fb2dc7c677bc1b59";
+type PumpBoxChainConfig = {
+  checkout: string;
+  paymentToken: string;
+  subscriptionReceiver: string;
+  start: string;
+};
+
+const CONFIG: Record<string, PumpBoxChainConfig> = {
+  [CHAIN.BASE]: {
+    // PumpBox checkout contract on Base:
+    // https://basescan.org/address/0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68
+    checkout: "0x64FEeB41A17Dd29b9BAF6d45Ca2d359aE55d8C68",
+    paymentToken: ADDRESSES.base.USDC,
+    // PumpBox treasury / PumpDaily subscription receiver on Base:
+    // https://basescan.org/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
+    subscriptionReceiver: "0x646308ef20fb48101662dda0fb2dc7c677bc1b59",
+    start: "2026-06-01",
+  },
+  [CHAIN.ROBINHOOD]: {
+    // PumpBox checkout contract on Robinhood Chain:
+    // https://robinhoodchain.blockscout.com/address/0x641c14BB5DeBE0a5e22546f48292c388e42459db
+    checkout: "0x641c14BB5DeBE0a5e22546f48292c388e42459db",
+    paymentToken: ADDRESSES.robinhood.USDG,
+    // PumpBox treasury / PumpDaily subscription receiver on Robinhood Chain:
+    // https://robinhoodchain.blockscout.com/address/0x646308ef20fb48101662dda0fb2dc7c677bc1b59
+    subscriptionReceiver: "0x646308ef20fb48101662dda0fb2dc7c677bc1b59",
+    start: "2026-08-13",
+  },
+};
 
 const OPEN_BOX_REQUESTED =
   "event OpenBoxRequested(address indexed user, bytes32 indexed boxId, uint256 indexed requestId, uint32 quantity, uint256 paidAmount, uint256 clientEntropy)";
 
 const BUYBACK_EXECUTED = "event BuybackExecuted(address indexed seller, uint256 indexed tokenId, uint256 buybackPrice)";
 
-const isSubscriptionFee = (log: any) =>
-  (log.from_address ?? log.from ?? "").toLowerCase() !== CHECKOUT_CONTRACT.toLowerCase();
+const isSubscriptionFee = (checkout: string) => (log: any) =>
+  (log.from_address ?? log.from ?? "").toLowerCase() !== checkout.toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
+  const config = CONFIG[options.chain];
+  if (!config) throw new Error(`Unsupported chain: ${options.chain}`);
+
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailyVolume = createBalances();
 
   const boxOpenedLogs = await getLogs({
-    target: CHECKOUT_CONTRACT,
+    target: config.checkout,
     eventAbi: OPEN_BOX_REQUESTED,
   });
 
   const buybackLogs = await getLogs({
-    target: CHECKOUT_CONTRACT,
+    target: config.checkout,
     eventAbi: BUYBACK_EXECUTED,
   });
 
   const subscriptionFees = await addTokensReceived({
     options,
-    token: USDC_BASE,
-    target: PUMPDAILY_SUBSCRIPTION_RECEIVER,
-    logFilter: isSubscriptionFee,
+    tokens: [config.paymentToken],
+    target: config.subscriptionReceiver,
+    logFilter: isSubscriptionFee(config.checkout),
   });
 
   for (const log of boxOpenedLogs) {
-    dailyVolume.add(USDC_BASE, log.paidAmount);
-    dailyFees.add(USDC_BASE, log.paidAmount, "Box Opening Fees");
-    dailyRevenue.add(USDC_BASE, log.paidAmount, "Box Opening Fees");
+    dailyVolume.add(config.paymentToken, log.paidAmount);
+    dailyFees.add(config.paymentToken, log.paidAmount, "Box Opening Fees");
+    dailyRevenue.add(config.paymentToken, log.paidAmount, "Box Opening Fees");
   }
 
   for (const log of buybackLogs) {
-    dailyFees.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
-    dailyRevenue.add(USDC_BASE, -1 * Number(log.buybackPrice), "Buyback Spends");
+    dailyFees.add(config.paymentToken, -1 * Number(log.buybackPrice), "Buyback Spends");
+    dailyRevenue.add(config.paymentToken, -1 * Number(log.buybackPrice), "Buyback Spends");
   }
 
   dailyFees.addBalances(subscriptionFees, "Subscription Fees");
@@ -93,8 +118,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.BASE],
-  start: "2026-06-01",
+  adapter: CONFIG,
   methodology,
   breakdownMethodology,
   allowNegativeValue: true, // Buyback spends can exceed box opening fees in a window

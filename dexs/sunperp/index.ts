@@ -29,7 +29,8 @@ const fetch = async (options: FetchOptions) => {
     });
 
   return {
-    dailyVolume: results.reduce((sum, volume) => sum + volume, 0),
+    // SunX klines report buy+sell turnover (HTX-clone convention), halve for the one-sided volume
+    dailyVolume: results.reduce((sum, volume) => sum + volume, 0) / 2,
   };
 };
 

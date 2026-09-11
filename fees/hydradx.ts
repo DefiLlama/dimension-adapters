@@ -3,7 +3,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import AaveAbis from '../helpers/aave/abi';
 import { METRIC } from "../helpers/metrics";
 
-const FEES_API = "https://hydration-metrics-aggregator.indexer.hydration.cloud/api/v1/fees/charts"
+const FEES_API = "https://hydration-api.neckwork.net/api/v1/fees/charts"
 
 // Streams not covered by the EVM lending calculation below:
 // - liquidation_penalty: treasury's 10% cut from MM liquidations (event-based, not in liquidity index)

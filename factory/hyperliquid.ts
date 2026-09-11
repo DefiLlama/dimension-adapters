@@ -30,6 +30,17 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "alphapilot": {
+    // AlphaPilot builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1/20260908.csv.lz4
+    addresses: ["0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1"],
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades routed through AlphaPilot's builder code.",
+      Fees: "Builder code fees paid on Hyperliquid trades routed through AlphaPilot; excludes Hyperliquid exchange trading fees.",
+      Revenue: "Builder code fees collected by AlphaPilot from Hyperliquid trades.",
+      ProtocolRevenue: "Builder code fees collected by AlphaPilot from Hyperliquid trades.",
+    },
+    breakdownFees: true,
+  },
   "whale-ag": {
     addresses: ["0xfa4a0d1ca5288478f2c515d5574d53631e7fa711"],
     start: "2026-04-23",
@@ -243,7 +254,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
   },
   "arena-perps": { addresses: ["0x7056a6bc0a962b6ca37bc5da4c4c5127c81b7af3"], start: "2026-01-23", breakdownFees: true },
-  "minaraai-perps": { addresses: ["0x5a3bc60b0a99a7f4fbf0d15554fa5fe88e7628c2"], start: "2025-12-22" },
+  // "minaraai-perps" fees/volume is handled by standalone dexs/minaraai-perps.ts (HL builder + Lighter partner)
   "apexliquid-perps": { addresses: ["0xe1f55f2f25884c2ddc86b6f7efa5f45b2ef04221"], start: "2025-07-06" },
   "coin98-perps": { addresses: ["0x3342ee6851ef0ec3cf42658c2be3b28a905271aa"], start: "2025-09-26" },
   "coinpilot-perps": {
@@ -359,15 +370,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     addresses: ["0x90536b9d94d65c9fabd372002bdfc2ef012231b2"],
     start: "2026-05-27",
     market: "hip4",
-  },
-  "pear-interface": {
-    addresses: ["0xa47d4d99191db54a4829cdf3de2417e527c3b042"],
-    start: "2025-07-08",
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
   },
   "rabby-perps": {
     addresses: ["0xad9be64fd7a35d99a138b87cb212baefbcdcf045"],
@@ -543,6 +545,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "rainbow-perps": {
     addresses: ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"],
     start: "2025-09-15",
+    breakdownFees: true,
     methodology: {
       Fees: "builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "builder code revenue from Hyperliquid Perps Trades.",
@@ -988,14 +991,22 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
 }
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
-const hip3DexConfigs: Record<string, { dexId: string; start: string; methodologyName: string }> = {
-  "dreamcash-markets": { dexId: "cash", start: "2026-01-20", methodologyName: "Dreamcash" },
+const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: string; methodologyName: string }> = {
+  // Tether-backed Dreamcash kept its main frontend but retired the CASH
+  // HIP-3 market once USDC became the dominant Hyperliquid quote asset,
+  // making a USDT-quoted deployer market unviable. Last fees 2026-07-02.
+  "dreamcash-markets": { dexId: "cash", start: "2026-01-20", deadFrom: "2026-07-03", methodologyName: "Dreamcash" },
   "entropy": { dexId: "io", start: "2026-08-19", methodologyName: "Entropy" },
-  "felix-perp": { dexId: "flx", start: "2025-11-13", methodologyName: "Felix protocol" },
+  // Felix, the first HIP-3 platform on Hyperliquid, announced its shutdown
+  // on 2026-06-19 with all perp markets liquidated (Felix's CDP/Vaults/USDhl
+  // products are unrelated and still live).
+  "felix-perp": { dexId: "flx", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
-  "ventuals": { dexId: "vntl", start: "2025-11-13", methodologyName: "Ventuals" },
+  // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
+  // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
+  "ventuals": { dexId: "vntl", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Ventuals" },
   "paragon": { dexId: "para", start: "2026-03-30", methodologyName: "Paragon" },
 };
 
@@ -1035,6 +1046,7 @@ for (const [name, config] of Object.entries(hip3DexConfigs)) {
   dexsProtocols[name] = exportHIP3DeployerAdapter(config.dexId, {
     type: "dexs",
     start: config.start,
+    deadFrom: config.deadFrom,
     methodology: hip3Methodology(config.methodologyName),
   });
 }

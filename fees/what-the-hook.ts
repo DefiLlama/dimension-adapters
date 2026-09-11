@@ -29,6 +29,13 @@ import { METRIC } from "../helpers/metrics";
 //   - the remainder of the hook's total is the cashback paid to the trader
 //     whose swap created the opportunity.
 //
+// The executor that changed the split was deployed at block 52850943. No rule
+// keys off that number: before it there are no ProtocolRevenue events and the
+// treasury's income is whatever was donated into its own pools; after it those
+// pools receive nothing at all, the split having become 90/10 with no LP
+// share. The data draws the line by itself, and cannot draw it in the wrong
+// place.
+//
 // Before the new executor every distribution paid out in full to the trader
 // and the pool's LPs, so for that period the same reading gives revenue equal
 // to the donations into WTH's own pools and nothing else. The event's own
@@ -37,14 +44,46 @@ import { METRIC } from "../helpers/metrics";
 
 // https://robinhoodchain.blockscout.com/address/0xc52fc52698479e42f0da9a8a75296ec3871454c0
 const HOOK = "0xc52fc52698479e42f0da9a8a75296ec3871454c0";
-// Uniswap v4 PoolManager on Robinhood Chain, created at block 9070 — pools
-// the hook serves can predate the hook, so pool lookups start there
-// https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
-const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
-const POOL_MANAGER_DEPLOY_BLOCK = 9070;
-// the protocol's token; a pool with WTH on either side is the protocol's own
+// v4 uses the zero address for native ETH; the pools settle in WETH and USDG.
+// The hook reports a WETH-pool distribution in WETH while the executor pays
+// the treasury and the pools in native ETH out of the same profit, so the two
+// are one currency for the purpose of splitting a transaction's total.
+const NATIVE = "0x0000000000000000000000000000000000000000";
+// https://robinhoodchain.blockscout.com/token/0x0Bd7d308F8e1639fAB988DF18A8011f41EacAd73
+const WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
 // https://robinhoodchain.blockscout.com/token/0xb8Fa8010833463Aac5595b55B9045479239EfF79
 const WTH = "0xb8fa8010833463aac5595b55b9045479239eff79";
+const family = (currency: string) => (currency === NATIVE || currency === WETH ? "eth" : currency);
+// Uniswap v4 PoolManager on Robinhood Chain
+// https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
+const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
+
+// The protocol's own pools. Under the old revenue model these two were the
+// only pools the protocol had, and they are the only two that ever received a
+// donation from an executor — 14,323 and 14,315 of them, the last at block
+// 52758567. Profit donated into them was the treasury's, because the protocol
+// owns the in-range liquidity there; profit donated anywhere else belongs to
+// that pool's LPs.
+//
+// The list is closed rather than maintained. Since the executor of 2 September
+// 2026 the treasury's share arrives as a ProtocolRevenue event and no donation
+// is made into a protocol pool at all, so no pool can ever join this set — it
+// describes a chapter that has ended, not a registry to keep up to date.
+//
+// They are named rather than discovered because discovering them meant asking
+// the chain for each donated-to pool's Initialize event across the
+// PoolManager's whole history, once per pool the adapter had not seen before.
+// A day that opens ten new pools issues ten such scans in one hour, the node
+// starts refusing them, and a refusal took the whole hourly slot with it:
+// 6 September 2026 reported $1,175 of fees against $10,368 on chain.
+// Both are WETH/WTH pools, currency0 WETH and currency1 WTH, so a donation
+// into either can be booked in its own token without asking the chain.
+const PROTOCOL_POOLS: Record<string, [string, string]> = {
+  // https://dexscreener.com/robinhood/0x79723a75c401d5c3ad66b0d0837739e502f08799ebf6a503e6e4d0827b3eb7e5
+  "0x79723a75c401d5c3ad66b0d0837739e502f08799ebf6a503e6e4d0827b3eb7e5": [WETH, WTH],
+  // https://dexscreener.com/robinhood/0x6ff5c44dbae70efd0c5124979b803395163c8e93e7d1f97a7fcdeb1ed875f5c2
+  "0x6ff5c44dbae70efd0c5124979b803395163c8e93e7d1f97a7fcdeb1ed875f5c2": [WETH, WTH],
+};
 
 // Every arbitrage executor the hook has used. Only an address in this list
 // may emit the ProtocolRevenue and ReferralRewarded legs or send a Donate the
@@ -66,6 +105,14 @@ const EXECUTORS = [
   "0x26a5d02938fbf70af4c114c2ff432ed3be0d3b62", // gen-9, live 2026-08-21
   // https://robinhoodchain.blockscout.com/address/0xf85018dE9ebE0fbDf7D559c8814cEBE709855029
   "0xf85018de9ebe0fbdf7d559c8814cebe709855029", // gen-10, live 2026-09-02, block 52857836
+  // https://robinhoodchain.blockscout.com/address/0x5d2Adb3322E650Dc9f8FFfaF4b3cb9c3c21F74d8
+  "0x5d2adb3322e650dc9f8fffaf4b3cb9c3c21f74d8", // gen-11, live 2026-09-07
+  // gen-12, deployed but not yet switched on — it implements Pons hook
+  // simulation correctness. An address that emits nothing changes no figure,
+  // so listing it now means its first event is counted the moment the team
+  // turns it on, rather than after another pull request.
+  // https://robinhoodchain.blockscout.com/address/0x2F4f6Dd51c0D8869852916Fceb869339Fe16aFB3
+  "0x2f4f6dd51c0d8869852916fceb869339fe16afb3",
 ];
 const EXECUTOR_SET = new Set(EXECUTORS);
 
@@ -74,7 +121,6 @@ const EXECUTOR_SET = new Set(EXECUTORS);
 //   ProfitCurrencyDistribute 0x7b1f2ac966718a4fe501511d1cdc7d0671a76732a9213ee292a41bffdd8051fa
 //   Donate                   0x29ef05caaff9404b7cb6d1c0e9bbae9eaa7ab2541feba1a9c4248594c08156cb
 //   ProtocolRevenue          0x72a888fd93a6302c4cb123dfe9b12b97a7188a0c3f5a2d917802936032538848
-//   Initialize               0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438
 // ReferralRewarded is taken from the executor's interface; no pool has a
 // referral configured yet, so it has not been observed on chain.
 const profitDistributeAbi =
@@ -82,18 +128,6 @@ const profitDistributeAbi =
 const donateAbi = "event Donate(bytes32 indexed id, address indexed sender, uint256 amount0, uint256 amount1)";
 const protocolRevenueAbi = "event ProtocolRevenue(address indexed token, uint256 amount)";
 const referralRewardedAbi = "event ReferralRewarded(address indexed token, address indexed recipient, uint256 amount)";
-const initializeAbi =
-  "event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, uint24 fee, int24 tickSpacing, address hooks, uint160 sqrtPriceX96, int24 tick)";
-const INITIALIZE_TOPIC = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438";
-
-// v4 uses the zero address for native ETH; pools also settle in WETH and USDG.
-// The hook reports a WETH-pool distribution in WETH while the executor pays the
-// treasury and the pools in native ETH out of the same profit, so the two are
-// one currency for the purpose of splitting a transaction's total.
-const NATIVE = "0x0000000000000000000000000000000000000000";
-// https://robinhoodchain.blockscout.com/token/0x0Bd7d308F8e1639fAB988DF18A8011f41EacAd73
-const WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
-const family = (currency: string) => (currency === NATIVE || currency === WETH ? "eth" : currency);
 
 // One historical distribution the hook reported in a currency it did not pay
 // in. An earlier arbitrage executor could return profit to the hook in WETH
@@ -179,53 +213,62 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
 
   // 2. the treasury's share and the referral share, emitted by the executor
-  //    in the distributing transaction. Only the executors' own logs count,
+  //    in the distributing transaction. Only an executor's own logs count,
   //    and only inside a transaction the hook distributed in; no leg may
   //    exceed what the hook reported for that transaction and currency.
+  //
+  //    The emitter is checked on the log rather than passed as `targets`,
+  //    which the SDK fans out into one request per address: ten executors
+  //    across two events is twenty requests for a single hourly slot, and the
+  //    public RPCs start answering 429 long before the day is done. The log's
+  //    own address is the emitter, so this authenticates exactly as well for
+  //    a tenth of the traffic.
   const retained = ledger();
   const referred = ledger();
-  for (const log of await getLogs({ targets: EXECUTORS, eventAbi: protocolRevenueAbi, ...logOptions })) {
+  const fromExecutor = (log: any) => EXECUTOR_SET.has(low(log.address));
+  for (const log of await getLogs({ noTarget: true, eventAbi: protocolRevenueAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
-    if (!totals.has(tx)) continue;
+    if (!totals.has(tx) || !fromExecutor(log)) continue;
     put(retained, tx, low(log.args.token), big(log.args.amount));
   }
-  for (const log of await getLogs({ targets: EXECUTORS, eventAbi: referralRewardedAbi, ...logOptions })) {
+  for (const log of await getLogs({ noTarget: true, eventAbi: referralRewardedAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
-    if (!totals.has(tx)) continue;
+    if (!totals.has(tx) || !fromExecutor(log)) continue;
     put(referred, tx, low(log.args.token), big(log.args.amount));
   }
 
   // 3. what went to liquidity providers: the PoolManager's Donate events sent
-  //    by an executor in those same transactions, each valued in the
-  //    currencies of its pool. Pool currencies come from the pool's Initialize
-  //    event, looked up by pool id from the PoolManager's deployment so the
-  //    cache carries it forward between runs.
-  const toWthPools = ledger();
+  //    by an executor inside one of those transactions. Whose pool it was is
+  //    read from the pool id alone, and the amount is booked in the currency
+  //    the hook named for that transaction, because the executor donates out
+  //    of the profit it has just reported. Checked over the hook's whole
+  //    history: all 10,678 donation legs into outside pools carried exactly
+  //    one non-zero amount, and every one of them was in the named currency.
+  //    A protocol pool needs no such argument: its two tokens are known.
+  const toProtocolPools = ledger();
   const toOtherPools = ledger();
   const donateLogs = await getLogs({ target: POOL_MANAGER, eventAbi: donateAbi, ...logOptions });
-  const donates = donateLogs.filter(
-    (log: any) => totals.has(low(log.transactionHash)) && EXECUTOR_SET.has(low(log.args.sender)),
-  );
-  const poolCurrencies = new Map<string, [string, string]>();
-  for (const id of new Set(donates.map((log: any) => low(log.args.id)))) {
-    const init = await getLogs({
-      target: POOL_MANAGER,
-      eventAbi: initializeAbi,
-      topics: [INITIALIZE_TOPIC, id], // the pool id is the first indexed argument
-      fromBlock: POOL_MANAGER_DEPLOY_BLOCK,
-      cacheInCloud: true,
-      ...logOptions,
-    });
-    if (!init.length) throw new Error(`what-the-hook: no Initialize event for pool ${id}`);
-    poolCurrencies.set(id, [low(init[0].args.currency0), low(init[0].args.currency1)]);
-  }
-  for (const log of donates) {
+  for (const log of donateLogs) {
     const tx = low(log.transactionHash);
-    const [currency0, currency1] = poolCurrencies.get(low(log.args.id))!;
-    const own = currency0 === WTH || currency1 === WTH;
-    const book = own ? toWthPools : toOtherPools;
-    put(book, tx, currency0, big(log.args.amount0));
-    put(book, tx, currency1, big(log.args.amount1));
+    if (!totals.has(tx) || !EXECUTOR_SET.has(low(log.args.sender))) continue;
+    const own = PROTOCOL_POOLS[low(log.args.id)];
+    if (own) {
+      // a protocol pool: each side goes in under its own token, so a WETH
+      // donation inside a transaction the hook named in USDG stays WETH and
+      // simply finds no total to come off — left in the cashback remainder,
+      // exactly as the previous adapter left it
+      put(toProtocolPools, tx, own[0], big(log.args.amount0));
+      put(toProtocolPools, tx, own[1], big(log.args.amount1));
+      continue;
+    }
+    const named = bookedIn.get(tx);
+    if (!named) continue;
+    const amount = big(log.args.amount0) + big(log.args.amount1);
+    if (amount === 0n) continue;
+    // every one of the 10,678 donation legs into an outside pool carried a
+    // single non-zero amount in the currency the hook had already named, so
+    // the named currency identifies it; the cap in step 4 bounds it anyway
+    for (const currency of named.values()) { put(toOtherPools, tx, currency, amount); break; }
   }
 
   // 4. book every transaction: Fees is the hook's total; the treasury legs are
@@ -234,19 +277,18 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    the three supply-side legs plus Revenue equal Fees exactly and the
   //    breakdowns line up without a late subtract.
   //
-  //    A leg paid in a currency the hook did not name for that transaction —
-  //    an ETH-pool donation inside a total reported in USDG, which a few early
-  //    distributions did (0.06 ETH over the hook's whole history, none since
-  //    the current executor) — cannot be taken off that total without a
-  //    price, so it is deliberately left inside the cashback remainder rather
-  //    than added on top: revenue is understated by that much, and Fees still
-  //    equals Revenue plus supply-side.
+  //    A treasury or referral leg paid in a currency the hook did not name
+  //    for that transaction cannot be taken off that total without a price, so
+  //    it is left inside the cashback remainder rather than added on top:
+  //    revenue is understated by that much, and Fees still equals Revenue plus
+  //    supply-side. A donation can no longer fall into that case — it is
+  //    booked in the named currency by construction.
   const min = (a: bigint, b: bigint) => (a < b ? a : b);
   for (const [tx, row] of totals) {
     for (const [key, total] of row) {
       const currency = bookedIn.get(tx)!.get(key)!;
       let left = total;
-      const protocol = min(left, take(retained, tx, key) + take(toWthPools, tx, key));
+      const protocol = min(left, take(retained, tx, key) + take(toProtocolPools, tx, key));
       left -= protocol;
       const lps = min(left, take(toOtherPools, tx, key));
       left -= lps;

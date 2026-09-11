@@ -35,7 +35,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     fetch,
-    chains: [CHAIN.EVENTUM],
+    chains: [CHAIN.OFF_CHAIN],
     start: "2025-06-30",
     methodology,
 };

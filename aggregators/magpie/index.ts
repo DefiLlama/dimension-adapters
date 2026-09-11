@@ -1,11 +1,11 @@
 import { postURL } from "../../utils/fetchURL";
-import { ChainBlocks, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date"
 import { CHAIN } from "../../helpers/chains";
 
 const inflatedVolumes: { [key: string]: string[] } = {
   [CHAIN.ETHEREUM]: ["2026-04-18","2026-04-19", "2026-04-28", "2026-06-02"],
-  [CHAIN.BSC]: ["2026-06-03", "2026-06-04", "2026-06-17"],
+  [CHAIN.BSC]: ["2026-06-03", "2026-06-04", "2026-06-17", "2026-09-10"],
 }
 
 const fetch = async ({ chain, startOfDay, dateString }: FetchOptions): Promise<FetchResult> => {

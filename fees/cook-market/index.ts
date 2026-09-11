@@ -1,0 +1,176 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+
+// Cook Market launchpad on Robinhood Chain. Every launch opens a Uniswap v4 pool guarded by the
+// hook below, which runs the bonding curve, graduates the pool in place and charges every fee,
+// so both phases of a coin's life are read from these two contracts.
+// https://cook.market
+// CookLauncherFactory: https://robinhoodchain.blockscout.com/address/0x059bCe487C6be54CEb4E79C60a6D95F9119732dc
+const FACTORY = "0x059bCe487C6be54CEb4E79C60a6D95F9119732dc"
+// CookHook: https://robinhoodchain.blockscout.com/address/0xfe3eFA722DCAB53e87E94593cB41Bc706C1E3044
+const COOK_HOOK = "0xfe3eFA722DCAB53e87E94593cB41Bc706C1E3044"
+
+// shortly before the factory's first TokenLaunched (block 57711220, 2026-09-08)
+const FACTORY_DEPLOYED_BLOCK = 57700000
+// the hook denominates every fee share in basis points
+const BPS = 10000n
+// progressBps is base raised towards the graduation threshold; 10000 means the pool has graduated
+const GRADUATED_PROGRESS_BPS = 10000
+
+// one per launch: `curve` is the hook, `pairToken` is the quote asset (ETH or USDG)
+const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold, bytes32 poolId, uint256 mainBandTokenId, uint256 tailBandTokenId, string name, string symbol, uint256 totalSupply, uint128 startAmount, uint16 taxBps, uint8 baseDecimals)"
+// one per swap. Amounts are pool-side and gross of the hook cut; `fee` and `tax` are charged on
+// the swap's unspecified leg, so they can be denominated in either the pair token or the coin.
+const CURVE_BUY_EVENT = "event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax, bytes32 indexed poolId, address token, uint16 progressBps)"
+const CURVE_SELL_EVENT = "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax, bytes32 indexed poolId, address token, uint16 progressBps)"
+// emitted immediately before each CurveBuy/CurveSell in the same tx, and names the currency the
+// cut was actually taken in
+const HOOK_FEE_COLLECTED_EVENT = "event HookFeeCollected(bytes32 indexed poolId, address currency, uint256 feeAmount, uint256 taxAmount)"
+
+const PROTOCOL_FEE_SHARE_BPS_FUNCTION = "function protocolFeeShareBps() view returns (uint16)"
+
+type Launch = { token: string, pairToken: string }
+
+/**
+ * Reads a window of Cook Market activity straight from the factory and hook logs.
+ *
+ * Launches are resolved first, so every swap can be mapped back to the pool's pair token.
+ * Pre-graduation swaps contribute their quote leg to volume; fees and tax are counted in both
+ * phases. The hook charges both on the swap's unspecified leg, so when the cut lands in the
+ * launched coin it is converted
+ * to the pair token at that swap's own execution price - no external price feed is needed.
+ * The fee is then split once between the treasury and the coin's creator.
+ */
+async function fetch(options: FetchOptions) {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
+
+  const tokenLaunchedLogs = await options.getLogs({
+    target: FACTORY,
+    eventAbi: TOKEN_LAUNCHED_EVENT,
+    fromBlock: FACTORY_DEPLOYED_BLOCK,
+    cacheInCloud: true,
+  })
+
+  const poolIdToLaunch = new Map<string, Launch>()
+  for (const log of tokenLaunchedLogs) {
+    poolIdToLaunch.set(String(log.poolId).toLowerCase(), {
+      token: log.token.toLowerCase(),
+      pairToken: log.pairToken.toLowerCase(),
+    })
+  }
+  if (!poolIdToLaunch.size) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue }
+
+  // live protocol share of the swap fee, owner-settable on the hook (1000 = 10% at time of writing)
+  const protocolShareBps = BigInt(await options.api.call({ target: COOK_HOOK, abi: PROTOCOL_FEE_SHARE_BPS_FUNCTION }))
+
+  const curveBuyLogs = await options.getLogs({ target: COOK_HOOK, eventAbi: CURVE_BUY_EVENT, entireLog: true })
+  const curveSellLogs = await options.getLogs({ target: COOK_HOOK, eventAbi: CURVE_SELL_EVENT, entireLog: true })
+  const hookFeeCollectedLogs = await options.getLogs({ target: COOK_HOOK, eventAbi: HOOK_FEE_COLLECTED_EVENT, entireLog: true })
+
+  const feeCurrencyQueue = new Map<string, string[]>()
+  const txPoolKey = (log: any, poolId: string) => `${String(log.transactionHash).toLowerCase()}:${poolId}`
+  const byLogIndex = (a: any, b: any) => (a.blockNumber - b.blockNumber) || (a.logIndex - b.logIndex)
+
+  for (const log of [...hookFeeCollectedLogs].sort(byLogIndex)) {
+    const args = log.args ?? log
+    const key = txPoolKey(log, String(args.poolId).toLowerCase())
+    if (!feeCurrencyQueue.has(key)) feeCurrencyQueue.set(key, [])
+    feeCurrencyQueue.get(key)!.push(String(args.currency).toLowerCase())
+  }
+
+  const swaps = [
+    ...curveBuyLogs.map((log: any) => ({ log, isBuy: true })),
+    ...curveSellLogs.map((log: any) => ({ log, isBuy: false })),
+  ].sort((a, b) => byLogIndex(a.log, b.log))
+
+  for (const { log, isBuy } of swaps) {
+    const args = log.args ?? log
+    const poolId = String(args.poolId).toLowerCase()
+    const launch = poolIdToLaunch.get(poolId)
+    if (!launch) continue
+
+    const quoteAmount = BigInt(isBuy ? args.quoteIn : args.quoteOut)
+    const tokenAmount = BigInt(isBuy ? args.tokensOut : args.tokensIn)
+    let fee = BigInt(args.fee)
+    let tax = BigInt(args.tax)
+
+    const feeCurrency = feeCurrencyQueue.get(txPoolKey(log, poolId))?.shift() ?? launch.pairToken
+    if (feeCurrency === launch.token) {
+      if (tokenAmount === 0n) continue
+      fee = fee * quoteAmount / tokenAmount
+      tax = tax * quoteAmount / tokenAmount
+    }
+
+    const isGraduated = Number(args.progressBps) >= GRADUATED_PROGRESS_BPS
+    const phase = isGraduated ? "Token" : "Curve"
+    const feeLabel = isGraduated ? METRIC.SWAP_FEES : "Curve Swap Fees"
+
+    // split the fee once and give the creator the remainder, so that
+    // dailyFees == dailyRevenue + dailySupplySideRevenue holds exactly
+    const protocolCut = fee * protocolShareBps / BPS
+    const creatorCut = fee - protocolCut
+
+    // post-graduation volume already lives on the uniswap-v4 listing; only the bonding curve is unique
+    if (!isGraduated) dailyVolume.add(launch.pairToken, quoteAmount)
+    dailyFees.add(launch.pairToken, fee + tax, feeLabel)
+    dailyRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
+    dailyProtocolRevenue.add(launch.pairToken, protocolCut, `${phase} Swap Fees to Protocol`)
+    dailySupplySideRevenue.add(launch.pairToken, creatorCut, `${phase} Swap Fees to Creators`)
+    dailySupplySideRevenue.add(launch.pairToken, tax, "Creator Tax")
+  }
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+  }
+}
+
+const methodology = {
+  Volume: "Volume of bonding-curve (pre-graduation) swaps on Cook Market launched pools, measured in the pool's pair token. Post-graduation Uniswap v4 volume is excluded.",
+  Fees: "Swap fees (1% of the swap) and optional creator tax charged by the Cook hook on every swap, before and after graduation, there is no launch fee",
+  Revenue: "Part of the swap fees (protocolFeeShareBps, 10% at launch) sent to the Cook treasury",
+  ProtocolRevenue: "Part of the swap fees (protocolFeeShareBps, 10% at launch) sent to the Cook treasury",
+  SupplySideRevenue: "Remaining swap fees and 100% of the creator tax paid to token creators",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    "Curve Swap Fees": "Fees and taxes collected from swaps while the pool is still in its bonding-curve phase",
+    [METRIC.SWAP_FEES]: "Fees and taxes collected from swaps on graduated pools",
+  },
+  Revenue: {
+    "Curve Swap Fees to Protocol": "Part of (protocolFeeShareBps, 10% at launch) the curve swap fees collected goes to the protocol treasury",
+    "Token Swap Fees to Protocol": "Part of (protocolFeeShareBps, 10% at launch) the graduated pool swap fees collected goes to the protocol treasury",
+  },
+  ProtocolRevenue: {
+    "Curve Swap Fees to Protocol": "Part of (protocolFeeShareBps, 10% at launch) the curve swap fees collected goes to the protocol treasury",
+    "Token Swap Fees to Protocol": "Part of (protocolFeeShareBps, 10% at launch) the graduated pool swap fees collected goes to the protocol treasury",
+  },
+  SupplySideRevenue: {
+    "Curve Swap Fees to Creators": "Part of (90% at launch) the curve swap fees collected goes to the creators",
+    "Token Swap Fees to Creators": "Part of (90% at launch) the graduated pool swap fees collected goes to the creators",
+    "Creator Tax": "Optional tax (0-10%, chosen per launch) on every swap, paid entirely to the creator",
+  },
+}
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ROBINHOOD],
+  methodology,
+  breakdownMethodology,
+  start: "2026-09-08",
+  // the pools are Uniswap v4 pools, already counted by the uniswap-v4 adapter on this chain
+  doublecounted: true,
+}
+
+export default adapter;

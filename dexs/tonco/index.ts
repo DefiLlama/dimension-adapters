@@ -20,6 +20,7 @@ const SWAPS_QUERY = (from: number, to: number) => `
             amount
             isZeroToOne
             pool {
+                version
                 fee
                 jetton0 {
                     address
@@ -40,15 +41,26 @@ const SWAPS_QUERY = (from: number, to: number) => `
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
+    let protocolFeePerc = 0.1;
+    if (options.startTimestamp > 1752105600) { // Protocol Fee changed on 2025-07-10 from 10% of lp fees to 20% of lp fees
+        protocolFeePerc = 0.2;
+    }
+
     const swaps = await postURL(GRAPHQL_ENDPOINT, {
         query: SWAPS_QUERY(options.fromTimestamp * 1000, options.toTimestamp * 1000)
     })
 
     let dailyVolume = 0;
+    let dailyFees = 0;
 
     for (const swap of swaps.data.swaps) {
 
         const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
+
+        // v1.6 pools are TONCO v2.0 - counted by the tonco-v2 adapter
+        if (swap.pool.version === 'v1.6') {
+            continue;
+        }
 
         if (!WHITELIST_JETTONS.includes(swap.pool.jetton0.address) && !WHITELIST_JETTONS.includes(swap.pool.jetton1.address)) {
             continue;
@@ -57,22 +69,40 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         if (String(swap.amount) === String(swap.toRefund0) || String(swap.amount) === String(swap.toRefund1)) {
             continue;
         }
-        
+
         const amount = Number(swap.amount) / ( 10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals) );
         const amountUsd = amount * fromJetton.derivedUsd;
 
         dailyVolume += amountUsd
 
+        // v1.5 pool volume is counted but its fees are not (kept from the old fees/tonco adapter)
+        if (swap.pool.version !== 'v1.5') {
+            dailyFees += amountUsd * swap.pool.fee / 10_000
+        }
+
     }
-    
+
+    const dailyRevenue = dailyFees * protocolFeePerc;
+
     return {
         dailyVolume,
-        timestamp: options.startTimestamp
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailySupplySideRevenue: dailyFees - dailyRevenue,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     }
 
 };
 
 const adapter: SimpleAdapter = {
+    methodology: {
+        Fees: 'Users pay fees on each swap.',
+        UserFees: 'Users pay fees on each swap.',
+        Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
+        SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
+    },
     version: 2,
     pullHourly: true,
     adapter: {

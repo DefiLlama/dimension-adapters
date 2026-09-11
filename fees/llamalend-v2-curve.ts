@@ -23,6 +23,11 @@ const LlamaLendV2Factories: {[key: string]: LlamaLendV2Factory} = {
     start: '2026-06-09',
     fromBlock: 152707737,
   },
+  [CHAIN.ETHEREUM]: {
+    address: '0x8f6B56ec5DdF1f2691a1059f1D3cd97AC9EAB0Bd',
+    start: '2026-07-13',
+    fromBlock: 25523555,
+  }
 };
 
 const EventNewVault = 'event NewVault(uint256 indexed id, address indexed collateral_token, address indexed borrowed_token, address vault, address controller, address amm, address price_oracle, address monetary_policy)'
