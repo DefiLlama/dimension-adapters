@@ -1,6 +1,6 @@
 import { ChainApi } from "@defillama/sdk";
 import PromisePool from "@supercharge/promise-pool";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { FetchGetLogsOptions, FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { filterPools } from "../helpers/uniswap";
@@ -11,6 +11,8 @@ const FACTORY_FROM_BLOCK = 25450093; // First Ethereum mainnet Ammalgam PairCrea
 // https://github.com/Ammalgam-Protocol/deployments/blob/main/interfaces/tokens/ITokenController.sol
 const DEPOSIT_L = 0; // allAssets[0] is deposited liquidity (DEPOSIT_L).
 const BORROW_L = 3; // allAssets[3] is borrowed liquidity debt (BORROW_L).
+// ITokenController exposes depositL/X/Y and borrowL/X/Y in six ordered token slots.
+const LENDING_TOKEN_SLOT_COUNT = 6;
 // Five safely bounds block-specific RPC calls while balancing provider load and adapter latency.
 const PAIR_STATE_CONCURRENCY = 5;
 const SWAP_VOLUME = "Swap Volume";
@@ -47,8 +49,6 @@ const PROTOCOL_FEE_LABELS: Record<ProtocolFeeSource, { feeLabel: string; revenue
 
 const PAIR_CREATED_EVENT =
   "event PairCreated(address indexed tokenX, address indexed tokenY, address pair, uint256 allPairsLength)";
-const LENDING_TOKENS_CREATED_EVENT =
-  "event LendingTokensCreated(address indexed pair, address depositL, address depositX, address depositY, address borrowL, address borrowX, address borrowY)";
 const SWAP_EVENT =
   "event Swap(address indexed sender, uint256 amountXIn, uint256 amountYIn, uint256 amountXOut, uint256 amountYOut, address indexed to)";
 const SYNC_EVENT = "event Sync(uint256 reserveXAssets, uint256 reserveYAssets)";
@@ -70,6 +70,10 @@ const GET_RESERVES_ABI =
   "function getReserves() view returns (uint112 reserveXAssets, uint112 reserveYAssets, uint32 lastTimestamp)";
 const TOTAL_ASSETS_AND_SHARES_ABI =
   "function totalAssetsAndShares(bool withInterest) view returns (uint112[6] allAssets, uint112[6] allShares)";
+const ALL_PAIRS_LENGTH_ABI = "uint256:allPairsLength";
+const ALL_PAIRS_ABI = "function allPairs(uint256) view returns (address)";
+const UNDERLYING_TOKENS_ABI = "function underlyingTokens() view returns (address tokenX, address tokenY)";
+const TOKENS_ABI = "function tokens(uint256) view returns (address)";
 
 interface AmmalgamSwapLog {
   amountXIn: bigint | string | number;
@@ -166,6 +170,91 @@ const getReserveState = (reserves: any): ReserveState => ({
   reserveYAssets: toBigInt(reserves.reserveYAssets ?? reserves[1]),
 });
 
+const getCanonicalPairConfigs = async ({
+  api,
+  toBlock,
+}: {
+  api: Pick<ChainApi, "call" | "multiCall">;
+  toBlock: number;
+}): Promise<PairConfig[]> => {
+  if (toBlock < FACTORY_FROM_BLOCK) return [];
+
+  const pairCount = Number(await api.call({ target: FACTORY, abi: ALL_PAIRS_LENGTH_ABI }));
+  if (!pairCount) return [];
+
+  const pairIds = await api.multiCall({
+    target: FACTORY,
+    abi: ALL_PAIRS_ABI,
+    calls: Array.from({ length: pairCount }, (_, index) => ({ params: [index] })),
+  });
+  const [underlyingTokenPairs, lendingTokens] = await Promise.all([
+    api.multiCall({ calls: pairIds, abi: UNDERLYING_TOKENS_ABI }),
+    api.multiCall({
+      abi: TOKENS_ABI,
+      calls: pairIds.flatMap((target) =>
+        Array.from({ length: LENDING_TOKEN_SLOT_COUNT }, (_, tokenType) => ({ target, params: [tokenType] }))),
+    }),
+  ]);
+
+  return pairIds.map((pair, index) => {
+    const underlyingTokens = underlyingTokenPairs[index];
+    const tokenOffset = index * LENDING_TOKEN_SLOT_COUNT;
+    const [depositL, depositX, depositY, borrowL, borrowX, borrowY] = lendingTokens.slice(
+      tokenOffset,
+      tokenOffset + LENDING_TOKEN_SLOT_COUNT,
+    );
+    return {
+      pair,
+      tokenX: underlyingTokens.tokenX ?? underlyingTokens[0],
+      tokenY: underlyingTokens.tokenY ?? underlyingTokens[1],
+      depositL,
+      depositX,
+      depositY,
+      borrowL,
+      borrowX,
+      borrowY,
+    };
+  });
+};
+
+const getCanonicalInWindowPairCreatedLogs = async ({
+  fromBlock,
+  toBlock,
+  getLogs,
+}: {
+  fromBlock: number;
+  toBlock: number;
+  getLogs: (request: FetchGetLogsOptions) => Promise<any[]>;
+}) => {
+  if (toBlock < FACTORY_FROM_BLOCK) return [];
+
+  return getLogs({
+    target: FACTORY,
+    eventAbi: PAIR_CREATED_EVENT,
+    fromBlock: Math.max(fromBlock, FACTORY_FROM_BLOCK),
+    toBlock,
+    onlyArgs: true,
+    skipIndexer: true,
+    skipCache: true,
+  });
+};
+
+const buildPreExistingPairCalls = ({
+  pairIds,
+  inWindowPairCreatedLogs,
+}: {
+  pairIds: string[];
+  inWindowPairCreatedLogs: any[];
+}) => {
+  const inWindowPairIds = new Set(
+    inWindowPairCreatedLogs.map((log) => toLower(String(getArgs(log).pair))),
+  );
+
+  return pairIds
+    .map((target, index) => ({ target, index }))
+    .filter(({ target }) => !inWindowPairIds.has(toLower(target)));
+};
+
 export const selectInitialRawReserveState = ({
   latestSyncLog,
   preStartReserve,
@@ -173,6 +262,43 @@ export const selectInitialRawReserveState = ({
   latestSyncLog?: any;
   preStartReserve: any;
 }) => getReserveState(latestSyncLog ? getArgs(latestSyncLog) : preStartReserve);
+
+const getLatestLog = (logs: any[]) => {
+  const sortedLogs = [...logs].sort(
+    (a, b) => getBlockNumber(a) - getBlockNumber(b) || getLogIndex(a) - getLogIndex(b),
+  );
+  return sortedLogs[sortedLogs.length - 1];
+};
+
+const resolveInitialRawReserveState = async ({
+  cachedSyncLogs,
+  preStartReserve,
+  canonicalRecoveryFromBlock,
+  getCanonicalSyncLogs,
+}: {
+  cachedSyncLogs: any[];
+  preStartReserve: any;
+  canonicalRecoveryFromBlock: number;
+  getCanonicalSyncLogs: (fromBlock: number) => Promise<any[]>;
+}) => {
+  const latestCachedSyncLog = getLatestLog(cachedSyncLogs);
+  // Treat the indexed/cache result only as a lower-bound hint. A canonical tail query is required
+  // even when its reserves look plausible because an unaccounted token transfer can mask staleness.
+  let canonicalSyncLogs = await getCanonicalSyncLogs(
+    latestCachedSyncLog ? getBlockNumber(latestCachedSyncLog) : canonicalRecoveryFromBlock,
+  );
+  // A cached log that disappeared after a reorg cannot be reused as the baseline. Search from the
+  // canonical factory deployment lower bound for the latest surviving Sync instead.
+  if (!canonicalSyncLogs.length && latestCachedSyncLog) {
+    canonicalSyncLogs = await getCanonicalSyncLogs(canonicalRecoveryFromBlock);
+  }
+  const latestCanonicalSyncLog = getLatestLog(canonicalSyncLogs);
+
+  return selectInitialRawReserveState({
+    latestSyncLog: latestCanonicalSyncLog,
+    preStartReserve,
+  });
+};
 
 export const getPairStateKey = (pair: string, block: number) => `${toLower(pair)}:${block}`;
 export const getLogKey = (log: any) => `${getBlockNumber(log)}:${getLogIndex(log)}`;
@@ -259,35 +385,6 @@ export const convertLiquidityFeeToUnderlying = ({
     tokenXAmount: (liquidity * toBigInt(reserveXAssets)) / activeLiquidity,
     tokenYAmount: (liquidity * toBigInt(reserveYAssets)) / activeLiquidity,
   };
-};
-
-export const buildPairConfigs = (pairCreatedLogs: any[], lendingTokensCreatedLogs: any[]): PairConfig[] => {
-  const pairTokens: Record<string, { tokenX: string; tokenY: string }> = {};
-  pairCreatedLogs.forEach((log: any) => {
-    const args = getArgs(log);
-    pairTokens[toLower(args.pair)] = { tokenX: args.tokenX, tokenY: args.tokenY };
-  });
-
-  return lendingTokensCreatedLogs
-    .map((log: any) => {
-      const args = getArgs(log);
-      const pair = args.pair;
-      const tokens = pairTokens[toLower(pair)];
-      if (!tokens) return undefined;
-
-      return {
-        pair,
-        tokenX: tokens.tokenX,
-        tokenY: tokens.tokenY,
-        depositL: args.depositL,
-        depositX: args.depositX,
-        depositY: args.depositY,
-        borrowL: args.borrowL,
-        borrowX: args.borrowX,
-        borrowY: args.borrowY,
-      };
-    })
-    .filter(Boolean) as PairConfig[];
 };
 
 export const buildPairStateRequests = (pairConfigs: PairConfig[], depositLLogs: any[][]): PairStateRequest[] => {
@@ -447,40 +544,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const [pairCreatedLogs, lendingTokensCreatedLogs] = await Promise.all([
-    options.getLogs({
-      target: FACTORY,
-      eventAbi: PAIR_CREATED_EVENT,
-      fromBlock: FACTORY_FROM_BLOCK,
-      cacheInCloud: true,
-      entireLog: true,
-      parseLog: true,
-    }),
-    options.getLogs({
-      target: FACTORY,
-      eventAbi: LENDING_TOKENS_CREATED_EVENT,
-      fromBlock: FACTORY_FROM_BLOCK,
-      cacheInCloud: true,
-      entireLog: true,
-      parseLog: true,
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  const endBlockApi = new ChainApi({ chain: options.chain, block: toBlock });
+  const [pairConfigs, inWindowPairCreatedLogs] = await Promise.all([
+    getCanonicalPairConfigs({ api: endBlockApi, toBlock }),
+    getCanonicalInWindowPairCreatedLogs({
+      fromBlock,
+      toBlock,
+      getLogs: (request) => options.getLogs(request),
     }),
   ]);
-
-  const pairObject: Record<string, string[]> = {};
-  const pairCreatedBlock: Record<string, number> = {};
-  pairCreatedLogs.forEach((log: any) => {
-    const args = getArgs(log);
-    pairObject[args.pair] = [args.tokenX, args.tokenY];
-    pairCreatedBlock[args.pair] = Number(log.blockNumber);
-  });
+  const pairObject = Object.fromEntries(
+    pairConfigs.map(({ pair, tokenX, tokenY }) => [pair, [tokenX, tokenY]]),
+  );
 
   const filteredPairs = await filterPools({ api: options.api, pairs: pairObject, createBalances: options.createBalances });
   const pairIds = Object.keys(filteredPairs);
-  const pairConfigs = buildPairConfigs(pairCreatedLogs, lendingTokensCreatedLogs);
 
   if (pairIds.length) {
-    const [fromBlock, swapLogs, syncLogs, interestLogs] = await Promise.all([
-      options.getFromBlock(),
+    const [swapLogs, syncLogs, interestLogs] = await Promise.all([
       options.getLogs({
         targets: pairIds,
         eventAbi: SWAP_EVENT,
@@ -507,13 +589,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const preStartBlock = fromBlock - 1;
     const initialSwapReserves = pairIds.map(emptyReserveState);
     const initialRawReserves = pairIds.map(emptyReserveState);
-    const preExistingPairCalls = pairIds
-      .map((pair, index) => ({ target: pair, index }))
-      .filter(({ target }) => pairCreatedBlock[target] <= preStartBlock);
+    const preStartApi = new ChainApi({ chain: options.chain, block: preStartBlock });
+    // End-block factory state is canonical, and the uncached log query only identifies pairs
+    // created inside this bounded window. Historical reserve calls below are fail-closed.
+    const preExistingPairCalls = buildPreExistingPairCalls({ pairIds, inWindowPairCreatedLogs });
 
     if (preExistingPairCalls.length) {
       const preExistingPairs = preExistingPairCalls.map(({ target }) => target);
-      const preStartApi = new ChainApi({ chain: options.chain, block: preStartBlock });
       const [preStartReserves, preStartSyncLogs] = await Promise.all([
         preStartApi.multiCall({
           calls: preExistingPairs,
@@ -530,19 +612,40 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
           cacheInCloud: true,
         }),
       ]);
+      const preExistingPairStates = preExistingPairCalls.map((pairCall, stateIndex) => ({
+        ...pairCall,
+        preStartReserve: preStartReserves[stateIndex],
+      }));
 
-      preStartReserves.forEach((reserves: any, index: number) => {
-        initialSwapReserves[preExistingPairCalls[index].index] = getReserveState(reserves);
+      preExistingPairStates.forEach(({ index, preStartReserve }) => {
+        initialSwapReserves[index] = getReserveState(preStartReserve);
       });
 
-      preExistingPairCalls.forEach(({ index: pairIndex }, index: number) => {
-        const logs = preStartSyncLogs[index] ?? [];
-        const sortedLogs = [...logs].sort(sortLogs);
-        const latestSyncLog = sortedLogs[sortedLogs.length - 1];
-        initialRawReserves[pairIndex] = selectInitialRawReserveState({
-          latestSyncLog,
-          preStartReserve: preStartReserves[index],
+      const { results, errors } = await PromisePool.withConcurrency(PAIR_STATE_CONCURRENCY)
+        .for(preExistingPairStates.map((pairCall, stateIndex) => ({ pairCall, stateIndex })))
+        .process(async ({ pairCall, stateIndex }) => {
+          const rawReserveState = await resolveInitialRawReserveState({
+            cachedSyncLogs: preStartSyncLogs[stateIndex] ?? [],
+            preStartReserve: pairCall.preStartReserve,
+            canonicalRecoveryFromBlock: FACTORY_FROM_BLOCK,
+            getCanonicalSyncLogs: (fromBlock) => options.getLogs({
+              target: pairCall.target,
+              eventAbi: SYNC_EVENT,
+              fromBlock,
+              toBlock: preStartBlock,
+              entireLog: true,
+              parseLog: true,
+              skipIndexer: true,
+              skipCache: true,
+            }),
+          });
+
+          return { pairIndex: pairCall.index, rawReserveState };
         });
+
+      if (errors.length) throw errors[0];
+      results.forEach(({ pairIndex, rawReserveState }) => {
+        initialRawReserves[pairIndex] = rawReserveState;
       });
     }
 
