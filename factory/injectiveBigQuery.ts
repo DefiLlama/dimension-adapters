@@ -70,6 +70,9 @@ const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-derivatives": {
     endpoint: "injective_derivative_volume",
     start: "2021-07-17",
+    methodology: {
+      Volume: "Total derivatives trading volume sourced from the Injective BigQuery endpoint. The Aug 3, 2026 spike was likely caused by a market-maker reporting error in the upstream data; the exact market-level row was unavailable for verification.",
+    },
   },
   "helix-helix": {
     endpoint: "helix_spot_volume",
