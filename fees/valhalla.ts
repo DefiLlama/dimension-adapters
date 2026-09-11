@@ -30,6 +30,7 @@ const METEORA_DLMM = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo";
 const METEORA_DAMM_V2 = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG";
 
 const LABEL = "Meteora Liquidity-Management Fees";
+const REFERRAL_LABEL = "Referral Payouts";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -90,7 +91,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.add(
     ADDRESSES.solana.SOL,
     result?.referral_amount ?? 0,
-    "Referral Payouts",
+    REFERRAL_LABEL,
   );
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailySupplySideRevenue);
@@ -116,7 +117,8 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL]: "Native-SOL treasury fee transfers and their immediately following referral payouts, counted only after successful Meteora DLMM or DAMM v2 instructions.",
+    [LABEL]: "Native-SOL treasury fee transfers counted only after successful Meteora DLMM or DAMM v2 instructions.",
+    [REFERRAL_LABEL]: "Referral payouts paired with a qualifying Valhalla treasury fee transfer.",
   },
   Revenue: {
     [LABEL]: "The portion of those attributable liquidity-management fees received by the Valhalla treasury.",
@@ -125,7 +127,7 @@ const breakdownMethodology = {
     [LABEL]: "The portion of those attributable liquidity-management fees received by the Valhalla treasury.",
   },
   SupplySideRevenue: {
-    "Referral Payouts": "Direct referral payouts paired with a qualifying Valhalla treasury fee transfer.",
+    [REFERRAL_LABEL]: "Direct referral payouts paired with a qualifying Valhalla treasury fee transfer.",
   },
 };
 
