@@ -102,11 +102,18 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 // reporting a mostly-failed batch of pools as legitimately empty. See PR #8565 for the
 // original all-or-nothing precedent this threshold replaces.
 const MAX_FAILED_BALANCE_CALL_RATIO = 0.1
+const MAX_BALANCE_CALL_RETRIES = 2
 
 export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
-  const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
+  const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.filter((i) => i !== ZERO_ADDRESS).map(i => ({ target: i, params: pair }))).flat()
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
-  const failedCalls = res.filter((bal) => bal == null).length
+  let failedIndices = res.map((bal, i) => bal == null ? i : -1).filter((i) => i > -1)
+  for (let attempt = 0; attempt < MAX_BALANCE_CALL_RETRIES && failedIndices.length; attempt++) {
+    const retried = await api.multiCall({ abi: 'erc20:balanceOf', calls: failedIndices.map((i) => balanceCalls[i]), permitFailure: true, })
+    retried.forEach((bal, j) => { if (bal != null) res[failedIndices[j]] = bal })
+    failedIndices = failedIndices.filter((_, j) => retried[j] == null)
+  }
+  const failedCalls = failedIndices.length
   if (balanceCalls.length && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO)
     throw new Error(`filterPools: ${failedCalls}/${balanceCalls.length} pooled balance calls failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as (partly) empty`)
   const balances: Balances = createBalances()
