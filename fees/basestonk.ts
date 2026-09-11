@@ -1,6 +1,5 @@
-import * as sdk from "@defillama/sdk";
 import { AbiCoder, keccak256 } from "ethers";
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -69,8 +68,6 @@ const chainConfig: Record<string, ChainConfig> = {
       bstonk: "0x0f61edbfe6cd86024c0f210c0695b08df55fdfc9",
       // BSTONK's dividend distributor: the payee on BSTONK's own pool
       tracker: "0x7f03e814eb1b5dd0c587dc637eea591bce0cd2ce",
-      // the basket vaults, paid as a payee on launches, paying BSTONK holders
-      // in rounds
       vaults: [
         "0xa971a4627a6388f38e0ab6cf53f69196ee58293d", // v1
         "0x99feb612f130c5e981dbc0a96c436bc06ca0fe9e", // v2
@@ -97,23 +94,15 @@ const chainConfig: Record<string, ChainConfig> = {
 const POOL_FEE = 3000;
 const TICK_SPACING = 60;
 
-// Hook events. Same signatures on every generation.
 const feeTakenAbi = "event FeeTaken(bytes32 indexed id, address currency, uint256 platform, uint256 creator)";
 const remainderSweptAbi = "event RemainderSwept(bytes32 indexed id, address currency, uint256 amount)";
-// how the creator's cut was split, emitted just before its FeeTaken: `paid` is
-// what went to the payees, `burnt` what was burnt in the fee's currency
 const creatorShareSplitAbi = "event CreatorShareSplit(bytes32 indexed id, uint256 burnt, uint256 toLiquidity, uint256 paid)";
-// a sell's burn buys the token back first; this carries the token amount burnt
 const boughtBackAbi = "event BoughtBackAndBurnt(bytes32 indexed id, uint256 spent, uint256 burnt)";
-
-// PoolManager Swap - the price every token-denominated amount is converted at
 const swapAbi =
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
 const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-
 const transferAbi = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-// where the hook sends what it burns
 const BURN = "0x000000000000000000000000000000000000dead";
 
 const LABEL = {
@@ -135,16 +124,11 @@ const abs = (v: bigint) => (v < 0n ? -v : v);
 const topicOf = (address: string) => "0x" + address.toLowerCase().replace("0x", "").padStart(64, "0");
 const Q192 = 1n << 192n;
 
-const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions) => {
   const { getLogs, createBalances, chain } = options;
   const config = chainConfig[chain];
   const hooks = config.hooks;
-  // Two backends serve these logs. DefiLlama's indexer takes one pool id per
-  // query and any range; a public RPC takes an OR of pool ids in one query
-  // but caps the range - Base's public nodes serve 4,000 blocks and refuse
-  // 10,000 - so without the indexer every window is read in chunks.
-  const viaRpc = !sdk.indexer.isIndexerEnabled(chain);
-  const logOptions = { entireLog: true, parseLog: true, ...(viaRpc ? { maxBlockRange: 4000 } : {}) };
+  const logOptions = { entireLog: true, parseLog: true };
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -153,19 +137,9 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   const dailyHoldersRevenue = createBalances();
   const dailyVolume = createBalances();
 
-  // 1. what the hooks took, before anything else: the pool ids to place and
-  //    the currencies that place them.
   const feeLogs = await getLogs({ targets: hooks, eventAbi: feeTakenAbi, ...logOptions });
   const sweptLogs = await getLogs({ targets: hooks, eventAbi: remainderSweptAbi, ...logOptions });
 
-  // 2. the launch map for the window: pool id -> token and pair. A pool id is
-  //    the hash of its key, so one known currency and a candidate for the
-  //    other is a check, not a lookup. Candidates are every currency any fee
-  //    in the window was taken in, plus the pairs every day includes; the
-  //    launch token's own dividend distributor names its pair for a pool
-  //    only bought in the window; and for a pool only sold in the window,
-  //    the taxed transaction's receipt names every token that moved through
-  //    the PoolManager, and one of them is the pool's.
   const poolIdOf = (a: string, b: string, hook: string) => {
     const [c0, c1] = a < b ? [a, b] : [b, a];
     return keccak256(AbiCoder.defaultAbiCoder().encode(["address", "address", "uint24", "int24", "address"], [c0, c1, POOL_FEE, TICK_SPACING, hook]));
@@ -195,7 +169,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     else unplaced.push(id);
   }
   if (unplaced.length) {
-    // a launch token names its distributor, and the distributor names the pair
     const trackers = await options.api.multiCall({
       abi: "address:rewardTracker",
       calls: unplaced.map((id) => [...seenOn.get(id)!.currencies][0]),
@@ -235,20 +208,13 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     });
   }
 
-  // 3. the swaps of every pool that was taxed in the window, keyed by
-  //    transaction, ordered by log index. One request per active pool with the
-  //    pool id as the indexed topic rather than every Swap the PoolManager
-  //    emitted - the v4 singleton on Base carries every pool on the chain.
-  const activePools = [...new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)))]
-    .filter((id) => launches.has(id)); // an unknown pool is reported when its fee is booked
-  const swapQuery = (topics: any) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics, ...logOptions });
-  // an empty OR of pool ids is a wildcard on some nodes: a quiet window must
-  // ask for nothing rather than for every swap on the chain
+  const activePools = [...new Set<string>([...feeLogs, ...sweptLogs].map((l: any) => low(l.args.id)))].filter((id) => launches.has(id));
+
+  // one call per pool id: topic1 OR of many ids is slower on the v4 PoolManager
+  // (some indexers scan every Swap then filter) and can hit the log cap
   const swapLogs = !activePools.length
     ? []
-    : viaRpc
-      ? [await swapQuery([SWAP_TOPIC, activePools])]
-      : await Promise.all(activePools.map((id) => swapQuery([SWAP_TOPIC, id])));
+    : await Promise.all(activePools.map((id) => getLogs({ target: config.poolManager, eventAbi: swapAbi, topics: [SWAP_TOPIC, id], ...logOptions })));
   const swapsByPool = new Map<string, Map<string, SwapLog[]>>();
   for (const id of activePools) swapsByPool.set(id, new Map());
   for (const log of swapLogs.flat()) {
@@ -267,10 +233,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   }
   for (const byTx of swapsByPool.values()) for (const row of byTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
 
-  // The hook emits its events from afterSwap, so the Swap a fee belongs to is
-  // the nearest one before it in the same transaction and pool. Its
-  // sqrtPriceX96 is the pool's price at that moment: currency1 per currency0,
-  // as (sqrtPriceX96 / 2^96)^2.
   const priceIn = (id: string, tx: string, logIndex: number): bigint | undefined => {
     const row = swapsByPool.get(id)?.get(tx);
     if (!row?.length) return undefined;
@@ -279,11 +241,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     return pick?.sqrtPriceX96;
   };
 
-  // Book an amount in a currency that has a market: a pair-denominated amount
-  // as it is, a token-denominated amount converted into the pair at the
-  // transaction's pool price. An amount this adapter cannot place is logged
-  // and left out rather than guessed at - the launch map or the swap lookup
-  // is what to fix.
   const toPair = (id: string, currency: string, amount: bigint, tx: string, logIndex: number): [string, bigint] | undefined => {
     const launch = launches.get(id);
     if (!launch) {
@@ -301,12 +258,9 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
       return undefined;
     }
     const p2 = sqrtPriceX96 * sqrtPriceX96;
-    // token is currency0: pair per token is the price; token is currency1: its inverse
     return [launch.pair, launch.tokenIs0 ? (amount * p2) / Q192 : (amount * Q192) / p2];
   };
 
-  // 4. book the tax. Fees is the whole of it; the platform's cut is treasury
-  //    revenue; the creator's cut is held back and split below.
   type Ledger = Map<string, bigint>;
   const put = (l: Ledger, currency: string, amount: bigint) => l.set(currency, (l.get(currency) ?? 0n) + amount);
   const creatorCut: Ledger = new Map();
@@ -319,16 +273,12 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     const priced = toPair(id, low(log.args.currency), platform + creator, tx, idx);
     if (!priced) continue;
     const [currency, total] = priced;
-    // split the priced total in the event's own proportion rather than
-    // converting twice, so the two parts sum to exactly what was booked
     const platformPriced = platform + creator === 0n ? 0n : (total * platform) / (platform + creator);
     dailyFees.add(currency, total, LABEL.swapFees);
     dailyProtocolRevenue.add(currency, platformPriced, LABEL.toTreasury);
     put(creatorCut, currency, total - platformPriced);
   }
 
-  // 5. what the creator's cut did not place and the hook swept to the
-  //    treasury - also revenue, taken out of the creator's cut.
   const swept: Ledger = new Map();
   for (const log of sweptLogs) {
     const id = low(log.args.id);
@@ -339,40 +289,18 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     put(swept, currency, amount);
   }
 
-  // 6. what reached BSTONK holders (Base only), in the transaction the fee was
-  //    taken: the hook pays BSTONK's dividend distributor and the basket vault
-  //    as payees through the PoolManager, and burns BSTONK from BSTONK's own
-  //    pool. A launch distributor also forwards part of its holders' stream to
-  //    the vault later, in basket assets; that value was booked supply-side on
-  //    its fee day and is deliberately not counted again here, so that
-  //    Fees = Revenue + SupplySideRevenue holds within the period.
   const heldBack: Ledger = new Map();
   const recipients = config.holderRecipients;
-  if (recipients && !volumeOnly) {
-    // Every payout the hook makes happens inside afterSwap, before the
-    // FeeTaken it belongs to, and the hook says how much it paid: the
-    // CreatorShareSplit just before each FeeTaken carries `paid`, the sum sent
-    // to the payees in the fee's currency, and `burnt`; a sell's buyback
-    // reports the token amount it burnt in BoughtBackAndBurnt. A transfer to a
-    // recipient is booked only against the FeeTaken that follows it in the
-    // transaction, in that fee's currency, within what that fee paid out - a
-    // burn must match the burnt amount exactly. What the PoolManager sends for
-    // anyone else - v4 lets any unlock callback take() to any address - fits
-    // no fee and is not income; and nothing booked here can exceed the
-    // creator's cut it is netted from.
+  if (recipients) {
     type FeeSlot = { logIndex: number; id: string; currency: string; paidLeft: bigint; burn: bigint };
     const feesByTx = new Map<string, FeeSlot[]>();
-    const slotsOf = (log: any) => {
+    for (const log of feeLogs) {
       const tx = low(log.transactionHash);
       const row = feesByTx.get(tx) ?? [];
+      row.push({ logIndex: Number(log.logIndex), id: low(log.args.id), currency: low(log.args.currency), paidLeft: 0n, burn: 0n });
       feesByTx.set(tx, row);
-      return row;
-    };
-    for (const log of feeLogs) {
-      slotsOf(log).push({ logIndex: Number(log.logIndex), id: low(log.args.id), currency: low(log.args.currency), paidLeft: 0n, burn: 0n });
     }
     for (const row of feesByTx.values()) row.sort((a, b) => a.logIndex - b.logIndex);
-    // the fee an event belongs to: the first FeeTaken after it on the same pool
     const feeAfter = (tx: string, logIndex: number, id: string) => feesByTx.get(tx)?.find((f) => f.logIndex > logIndex && f.id === id);
     const [splitLogs, buybackLogs] = await Promise.all([
       getLogs({ targets: hooks, eventAbi: creatorShareSplitAbi, ...logOptions }),
@@ -382,7 +310,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
       const fee = feeAfter(low(log.transactionHash), Number(log.logIndex), low(log.args.id));
       if (!fee) continue;
       fee.paidLeft = big(log.args.paid);
-      // a buy burns the fee's own currency, the token; a sell's burn is reported by the buyback
       if (fee.currency === launches.get(fee.id)?.token) fee.burn = big(log.args.burnt);
     }
     for (const log of buybackLogs) {
@@ -441,11 +368,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
     }
   }
 
-  // 7. the creator's cut less what the treasury swept and what BSTONK holders
-  //    were paid is supply-side: creator wallets, each token's own holders,
-  //    its burn and its liquidity wedge. The three legs come out of the same
-  //    events, so the residual cannot go negative; if it does, something above
-  //    is double-counted and the shortfall is reported rather than hidden.
   for (const [currency, amount] of creatorCut) {
     const left = amount - (swept.get(currency) ?? 0n) - (heldBack.get(currency) ?? 0n);
     if (left < 0n) {
@@ -458,8 +380,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
   dailyRevenue.addBalances(dailyProtocolRevenue);
   dailyRevenue.addBalances(dailyHoldersRevenue);
 
-  // 8. volume: the pair side of every swap in a taxed pool, the launcher's own
-  //    dev buy included, the hook's buyback and wedge swaps excluded.
   const hookSet = new Set(hooks);
   for (const [id, byTx] of swapsByPool) {
     const launch = launches.get(id)!;
@@ -473,30 +393,6 @@ const run = async (options: FetchOptions, volumeOnly = false): Promise<FetchResu
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyVolume };
 };
-
-// Robinhood Chain's public RPCs rate-limit a whole window's worth of logs
-// where DefiLlama's own infrastructure does not. A chain the RPC refused is
-// reported as zero with the refusal logged, so the other chain's figures
-// still land; a refusal is a data gap, not a fact about the protocol.
-const guarded = async (options: FetchOptions, volumeOnly: boolean): Promise<FetchResultV2> => {
-  try {
-    return await run(options, volumeOnly);
-  } catch (e: any) {
-    // a chunked read runs in the SDK's promise pool, which rewraps the RPC
-    // error as a plain Error carrying only the message
-    const rpcRefused = e?.llamaRPCError || /Llama RPC error/.test(String(e?.message ?? e));
-    if (!rpcRefused) throw e;
-    console.error(`basestonk: ${options.chain} RPC refused the logs for this window, reporting zero:`, String(e?.message ?? e).slice(0, 400));
-    const zero = options.createBalances();
-    return volumeOnly
-      ? { dailyVolume: zero }
-      : { dailyFees: zero, dailyRevenue: zero, dailyProtocolRevenue: zero, dailySupplySideRevenue: zero, dailyHoldersRevenue: zero, dailyVolume: zero };
-  }
-};
-
-const fetch = (options: FetchOptions) => guarded(options, false);
-// the volume adapter needs the launch map and the swaps, not the attribution
-export const fetchVolume = (options: FetchOptions) => guarded(options, true);
 
 const methodology = {
   Fees: "The tax BaseStonk's Uniswap v4 hook takes on every swap in a launched token's pool, from the hook's FeeTaken event. Each launch sets its own buy and sell rate. A buy pays the tax in the launch token and a sell in the pair; token-denominated amounts are converted into the pair at the pool price the same transaction's Swap reports.",
