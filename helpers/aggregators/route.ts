@@ -32,7 +32,14 @@ export function addToken(balance: ReturnType<FetchOptions['createBalances']>, to
 }
 
 // Count a single, preferentially priceable side. Never price long-tail tokens at $1.
-export function volumeSide(log: any): [string, string] {
+type SwapLog = {
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: { toString(): string };
+  amountOut: { toString(): string };
+};
+
+export function volumeSide(log: SwapLog): [string, string] {
   const preferred = [ADDRESSES.robinhood.USDG, ADDRESSES.null, ADDRESSES.robinhood.WETH].map(x => x.toLowerCase());
   for (const token of preferred) {
     if (log.tokenIn.toLowerCase() === token) return [log.tokenIn, log.amountIn.toString()];

@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
   // Revenue belongs to Route; buying protocol-owned LP is not a payment to outside LPs.
   // Do not add receiver conversions/escrow claims again. The mixed-source worker cannot
   // attribute realized holder distributions to swap fees alone; omit that metric, not zero.
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue: 0 };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue: 0 };
 };
 
 const adapter: SimpleAdapter = {
@@ -30,11 +30,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Actual Route output-token swap fees from historical FeePaid and current Settled events; excludes pool/provider fees, gas, creator fees and private transfers.',
     Revenue: 'All collected Route swap fees accrue to Route-controlled recipients; later conversions and allocations are not counted again.',
+    ProtocolRevenue: 'Swap fees retained by Route at collection, before subsequent capital allocations; excludes unverified holder distributions.',
     SupplySideRevenue: 'No portion of this aggregator fee is paid to external liquidity providers or referrers; protocol-owned liquidity is a capital allocation.',
   },
   breakdownMethodology: {
     Fees: { 'Swap Fees': 'Actual emitted fee amounts, not an assumed fee rate multiplied by volume; includes historical fees and the September 11, 2026 tiered collector.' },
     Revenue: { 'Swap Fees To Route': 'Swap fees received by Route treasury or its fee receiver, before subsequent buybacks and protocol-owned liquidity allocations.' },
+    ProtocolRevenue: { 'Swap Fees To Route': 'Route-retained swap fees at collection; subsequent conversions and escrow claims are not additional revenue.' },
   },
 };
 export default adapter;

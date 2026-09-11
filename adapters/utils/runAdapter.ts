@@ -465,7 +465,8 @@ async function _runAdapter({
   }
 
   async function setChainValidStart(chain: string) {
-    const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
+    // Hourly backfills must admit the first hour, not wait until a full day has elapsed.
+    const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - WINDOW_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
     let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
