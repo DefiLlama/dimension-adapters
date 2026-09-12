@@ -42,10 +42,9 @@ type ChainConfig = {
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.BASE]: {
-    // first launch (BSTONK itself), block 50069724, 2026-08-17 01:06 UTC
-    // first launch (BSTONK itself) at 2026-08-16 22:50 UTC, block 50065628;
-    // the launch day carried $5.3M of volume and $52.6k of fees, and a start
-    // of 08-17 dropped every hour of it
+    // first launch (BSTONK itself) at 2026-08-16 22:50 UTC, block 50065628.
+    // The launch day carried $5.3M of volume and $52.6k of fees; a start of
+    // 08-17 dropped every hour of it.
     start: "2026-08-16",
     // https://basescan.org/address/0x498581fF718922c3f8e6A244956aF099B2652b2b
     poolManager: "0x498581ff718922c3f8e6a244956af099b2652b2b",
