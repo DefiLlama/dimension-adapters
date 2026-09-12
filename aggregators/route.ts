@@ -66,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
       // The tiered collector is NOT in engines: it emits Settled, so its engine swap counts once.
       if (engines.includes(log.sender.toLowerCase())) continue;
       const [token, amount] = volumeSide(log);
-      dailyVolume.add(token, amount);
+      addToken(dailyVolume, token, amount, '');
     }
   }
   const oldFees = await options.getLogs({ targets: engines, eventAbi: feePaid });
@@ -97,7 +97,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
   fetch,
   start: '2026-09-05',
