@@ -1,8 +1,8 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { Interface } from 'ethers';
 import { CHAIN } from '../helpers/chains';
-import ADDRESSES from '../helpers/coreAssets.json';
 import { METRIC } from '../helpers/metrics';
+import { addOneToken } from '../helpers/prices';
 
 // Historical settlement registry: https://github.com/routerh/route/blob/main/lib/route/activity.ts
 // Keep old emitters for backfills. They are not current approval recommendations.
@@ -29,21 +29,6 @@ const swapEvents = [
 ];
 export const feePaid = 'event FeePaid(address indexed sender,address indexed recipient,address indexed token,uint256 grossAmountOut,uint256 feeAmount)';
 
-function addToken(balance: ReturnType<FetchOptions['createBalances']>, token: string, amount: string, label: string) {
-  if (token.toLowerCase() === ADDRESSES.null) balance.addGasToken(amount, label);
-  else balance.add(token, amount, label);
-}
-
-// Count a single, preferentially priceable side. Never price long-tail tokens at $1.
-function volumeSide(log: { tokenIn: string; tokenOut: string; amountIn: { toString(): string }; amountOut: { toString(): string } }): [string, string] {
-  const preferred = [ADDRESSES.robinhood.USDG, ADDRESSES.null, ADDRESSES.robinhood.WETH].map(x => x.toLowerCase());
-  for (const token of preferred) {
-    if (log.tokenIn.toLowerCase() === token) return [log.tokenIn, log.amountIn.toString()];
-    if (log.tokenOut.toLowerCase() === token) return [log.tokenOut, log.amountOut.toString()];
-  }
-  return [log.tokenIn, log.amountIn.toString()];
-}
-
 // Verified manager binds this escrow and ROUTE pool hook in escrow()/poolKey():
 // https://repo.sourcify.dev/4663/0xDa5790345FD25878e5186EBd98823814188AcfBE
 const creatorEscrow = '0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e';
@@ -65,19 +50,18 @@ const fetch = async (options: FetchOptions) => {
       // Wrappers emit the final swap as well as their inner engine. Count only the outer one.
       // The tiered collector is NOT in engines: it emits Settled, so its engine swap counts once.
       if (engines.includes(log.sender.toLowerCase())) continue;
-      const [token, amount] = volumeSide(log);
-      addToken(dailyVolume, token, amount, '');
+      addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
     }
   }
   const oldFees = await options.getLogs({ targets: engines, eventAbi: feePaid });
   const currentFees = await options.getLogs({ target: collector, eventAbi: settled });
   for (const log of oldFees) {
-    addToken(dailyFees, log.token, log.feeAmount.toString(), 'Swap Fees');
-    addToken(dailyRevenue, log.token, log.feeAmount.toString(), 'Swap Fees To Route');
+    dailyFees.add(log.token, log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(log.token, log.feeAmount, 'Swap Fees To Route');
   }
   for (const log of currentFees) {
-    addToken(dailyFees, log.tokenOut, log.feeAmount.toString(), 'Swap Fees');
-    addToken(dailyRevenue, log.tokenOut, log.feeAmount.toString(), 'Swap Fees To Route');
+    dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
   }
   // Revenue belongs to Route; buying protocol-owned LP is not a payment to outside LPs.
   // Do not add receiver conversions/escrow claims again. The mixed-source worker cannot
