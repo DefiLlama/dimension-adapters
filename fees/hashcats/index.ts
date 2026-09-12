@@ -70,7 +70,7 @@ const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
 // The block the collection's code first appears in, found by bisecting
 // eth_getCode. Below it every call to either contract reverts, so the exact
 // height matters: it is the lowest block a state read may target.
-const DEPLOY_BLOCK = 60412470;
+const DEPLOY_TIMESTAMP = 1789145587;
 
 const BPS = 10000n;
 
@@ -130,7 +130,7 @@ const fetch = async (options: FetchOptions) => {
   // missing data: the protocol was not deployed yet. The adapter starts on the
   // day of deployment, so on that first day most hourly windows end below this
   // block and every read below would revert.
-  if ((await options.getToBlock()) < DEPLOY_BLOCK) return result;
+  if (options.toTimestamp < DEPLOY_TIMESTAMP) return result;
 
   // Read at the END of the window, not the start: the first day's window opens
   // hours before the collection is deployed, and reading there would revert.
@@ -161,7 +161,7 @@ const fetch = async (options: FetchOptions) => {
   // which makes the difference zero no matter what happened.
   const windowStart = await options.getFromBlock();
   const [dueBefore, dueAfter] = await Promise.all([
-    windowStart > DEPLOY_BLOCK
+    options.fromTimestamp > DEPLOY_TIMESTAMP
       ? new ChainApi({ chain: options.chain, block: windowStart - 1 }).call({
           abi: "uint256:hookDue",
           target: COLLECTION,
