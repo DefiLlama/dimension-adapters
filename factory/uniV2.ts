@@ -12,11 +12,12 @@ const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const configs: Record<string, Record<string, any>> = {
   "ebisus-bay-dex": {
     [CHAIN.CRONOS]: {
-      // Existing TVL factory: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/ebisus-bay/index.js
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
-      // Factory deployed at Cronos block 13,195,043; first-day Swap logs verified.
       start: '2024-03-27',
-      
+    },
+    [CHAIN.CRONOS_ZKEVM]: {
+      factory: '0x1A695B3aC30D41F9A1D856A27DD0D9DdaaCe750d',
+      start: '2024-08-13',
     },
   },
   "katana": {
@@ -839,7 +840,8 @@ const optionsMap: Record<string, any> = {
 
 const methodologyMap: Record<string, any> = {
   "ebisus-bay-dex": {
-    Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes Cronos zkEVM and NFT trades.",
+    Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes NFT trades.",
+    Fees: "Swap fees paid by users"
   },
   "zyberswap-v2": {
     UserFees: "User pays 0.25% fees on each swap.",
