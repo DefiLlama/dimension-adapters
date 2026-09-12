@@ -38,7 +38,10 @@ const CHAIN_CONFIG: Record<string, ChainConfig> = {
     ],
     // Keep historical lockers here after successors are deployed so their fee
     // deposits remain part of the protocol's time series.
-    lpLockers: ["0xae2a15309cd4401AF710CE014ec61246a7706B08"],
+    lpLockers: [
+      "0xae2a15309cd4401AF710CE014ec61246a7706B08", // superseded 2026-09-09 (issue #762)
+      "0x97d863C592ffe30c8D8621c869f143cF34F18A9D", // live locker for new launches
+    ],
     feeLocker: "0x04f034649b72e7f4F167BeE683797C0C35067528",
     start: "2026-09-03",
   },
