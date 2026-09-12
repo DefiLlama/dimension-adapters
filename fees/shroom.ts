@@ -131,8 +131,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
-  // Genesis Swap.fee is zero; these hook charges are not Uniswap LP fees.
-  doublecounted: false,
+  doublecounted: true, //pons
 };
 
 export default adapter;
