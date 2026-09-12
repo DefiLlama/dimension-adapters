@@ -58,6 +58,7 @@
 // The hook's own buybacks pay no trading fee: Uniswap does not invoke hooks on
 // swaps the hook itself sends, so they cannot inflate this adapter.
 
+import { ChainApi } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -65,6 +66,11 @@ import { METRIC } from "../../helpers/metrics";
 const COLLECTION = "0xca75df55cc9c476db27a7375d1fc8e794cf80721";
 const HOOK = "0xca757986e932bc55776492cca0b413e9b3d02acc";
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+
+// The block the collection's code first appears in, found by bisecting
+// eth_getCode. Below it every call to either contract reverts, so the exact
+// height matters: it is the lowest block a state read may target.
+const DEPLOY_TIMESTAMP = 1789145587;
 
 const BPS = 10000n;
 
@@ -119,6 +125,13 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue,
   };
 
+  // A window that ends before the collection exists has nothing in it, and the
+  // contracts cannot be called at that height either. This is a real zero, not
+  // missing data: the protocol was not deployed yet. The adapter starts on the
+  // day of deployment, so on that first day most hourly windows end below this
+  // block and every read below would revert.
+  if (options.toTimestamp < DEPLOY_TIMESTAMP) return result;
+
   // Read at the END of the window, not the start: the first day's window opens
   // hours before the collection is deployed, and reading there would revert.
   // The three price constants are immutable, so the height cannot change them;
@@ -137,18 +150,23 @@ const fetch = async (options: FetchOptions) => {
   // mints - and the rent, being the remainder, straight into nonsense. Taking
   // the change in hookDue puts every mint's cut back in its own window.
   //
-  // The two readings have to bracket exactly the blocks whose logs a re counted.
+  // The two readings have to bracket exactly the blocks whose logs are counted.
   // getLogs includes the window's first block, while fromApi reads the state
   // after that block has already run, so the opening reading is taken one block
   // earlier - otherwise a deferral in that first block would be missing from the
   // difference while its mint was counted, and the rent would absorb the error.
+  //
+  // It needs its own ChainApi: a per-call block is ignored, so asking options.api
+  // for an earlier height silently returns the value at the end of the window,
+  // which makes the difference zero no matter what happened.
   const windowStart = await options.getFromBlock();
   const [dueBefore, dueAfter] = await Promise.all([
-    options.api.call({
-      abi: "uint256:hookDue",
-      target: COLLECTION,
-      block: windowStart - 1,
-    }),
+    options.fromTimestamp > DEPLOY_TIMESTAMP
+      ? new ChainApi({ chain: options.chain, block: windowStart - 1 }).call({
+          abi: "uint256:hookDue",
+          target: COLLECTION,
+        })
+      : Promise.resolve(0),
     options.toApi.call({ abi: "uint256:hookDue", target: COLLECTION }),
   ]);
 
