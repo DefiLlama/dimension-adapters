@@ -51,6 +51,7 @@ const allBlueFetch = getUniV2LogAdapter({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume: "Total swap volume from the legacy PumpSpace V2 and current AllBlue V2 deployments on Avalanche.",
     Fees: "Legacy PumpSpace V2 charges a 0.5% swap fee and AllBlue V2 charges a 0.3% swap fee. Both split fees 50% to LPs and 50% to the protocol treasury.",
