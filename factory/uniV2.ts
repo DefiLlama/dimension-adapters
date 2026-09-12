@@ -16,8 +16,7 @@ const configs: Record<string, Record<string, any>> = {
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
       // Factory deployed at Cronos block 13,195,043; first-day Swap logs verified.
       start: '2024-03-27',
-      // Volume only: historical fee rates and revenue splits have not been verified.
-      volumeOnly: true,
+      
     },
   },
   "katana": {
