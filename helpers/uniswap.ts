@@ -189,7 +189,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, allowReadPairs, volumeOnly } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, allowReadPairs } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -234,8 +234,6 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
-    if (!pairIds.length && volumeOnly) return { dailyVolume }
-
     if (!pairIds.length) return {
       dailyVolume,
       dailyFees: swapFees,
@@ -266,8 +264,6 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
         addOneToken({ chain, balances: swapFees, token0, token1, amount0: Number(log.amount0Out) * _fees, amount1: Number(log.amount1Out) * _fees })
       })
     })
-
-    if (volumeOnly) return { dailyVolume }
 
     if (customLogic)
       return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
@@ -503,8 +499,6 @@ type UniV2Config = {
   voter?: string,
   maxPairSize?: number,
   customLogic?: any,
-  /** Return only volume, including when no pools pass the liquidity filters. */
-  volumeOnly?: boolean,
   start?: string,
   blacklistedAddresses?: string[],
   userFeesRatio?: number,
