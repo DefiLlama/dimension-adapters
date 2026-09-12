@@ -234,7 +234,6 @@ const getCanonicalInWindowPairCreatedLogs = async ({
     fromBlock: Math.max(fromBlock, FACTORY_FROM_BLOCK),
     toBlock,
     onlyArgs: true,
-    skipIndexer: true,
     skipCache: true,
   });
 };
@@ -635,7 +634,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
               toBlock: preStartBlock,
               entireLog: true,
               parseLog: true,
-              skipIndexer: true,
               skipCache: true,
             }),
           });
