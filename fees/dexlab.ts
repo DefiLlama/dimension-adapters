@@ -43,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -62,10 +63,17 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Fees: 'Flat SOL fees paid by users to create a token, manage a token, create an OpenBook market and bulk send tokens on DexLab, received by the DexLab fee wallet on Solana.',
-    Revenue: 'All fees are kept by DexLab. There is no supplier side and no token holder share.',
+    Revenue: 'All fees (SOL paid by users to create a token, manage a token, create an OpenBook market and bulk send tokens on DexLab) are kept by DexLab. There is no supplier side and no token holder share.',
+    ProtocolRevenue: 'All fees (SOL paid by users to create a token, manage a token, create an OpenBook market and bulk send tokens on DexLab) are kept by DexLab. There is no supplier side and no token holder share.',
   },
   breakdownMethodology: {
     Fees: {
+      [METRIC.PROTOCOL_FEES]: 'All flat SOL fees received by the DexLab fee wallet on Solana, retained entirely by the protocol.',
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: 'All flat SOL fees received by the DexLab fee wallet on Solana, retained entirely by the protocol.',
+    },
+    ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: 'All flat SOL fees received by the DexLab fee wallet on Solana, retained entirely by the protocol.',
     },
   },
