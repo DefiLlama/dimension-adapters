@@ -44,14 +44,8 @@ const fetch = async (options: FetchOptions) => {
     return sum + oi * price;
   }, 0);
 
-  const longOpenInterestAtEnd = oneSidedOpenInterest;
-  const shortOpenInterestAtEnd = oneSidedOpenInterest;
-
-  return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
-  };
+  // Matched book, so no long/short split is reported: it would be this number twice.
+  return { openInterestAtEnd: oneSidedOpenInterest };
 };
 
 const adapter: SimpleAdapter = {

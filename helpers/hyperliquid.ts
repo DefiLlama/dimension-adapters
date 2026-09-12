@@ -469,12 +469,16 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
     hip3Deployers: {},
   }
 
+  // Hyperliquid's openInterest counts both sides of each contract (measured at exactly 2x CMC's
+  // one-sided figure), so halve it here to match the one-sided convention used across perp OI.
+  const oneSided = (item: any) => (Number(item.openInterest) * Number(item.markPx)) / 2;
+
   // default perps
   const metaAndAssetCtxs = await getMetaAndAssetCtxs(options);
   if (metaAndAssetCtxs) {
     for (const item of metaAndAssetCtxs[1]) {
-      result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
-      result.defaultPerpsOpenInterest += Number(item.openInterest) * Number(item.markPx);
+      result.totalOpenInterest += oneSided(item);
+      result.defaultPerpsOpenInterest += oneSided(item);
     }
   }
 
@@ -484,8 +488,8 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
     if (metaAndAssetCtxsDex) {
       result.hip3Deployers[dex] = 0;
       for (const item of metaAndAssetCtxsDex[1]) {
-        result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
-        result.hip3Deployers[dex] += Number(item.openInterest) * Number(item.markPx);
+        result.totalOpenInterest += oneSided(item);
+        result.hip3Deployers[dex] += oneSided(item);
       }
     }
   }

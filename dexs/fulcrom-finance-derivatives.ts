@@ -47,9 +47,10 @@ const fetch = async (options: FetchOptions) => {
   const oi = dailyData.tradingStats[0];
 
   const dailyVolume = toUSD(BigInt(volume.margin) + BigInt(volume.liquidation));
-  const longOpenInterestAtEnd = toUSD(oi.longOpenInterest);
-  const shortOpenInterestAtEnd = toUSD(oi.shortOpenInterest);
-  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+  const longOpenInterestAtEnd = toUSD(oi.longOpenInterest) / 2;
+  const shortOpenInterestAtEnd = toUSD(oi.shortOpenInterest) / 2;
+  // pool venue with no single-sided field: average the two sides instead of summing them
+  const openInterestAtEnd = (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2;
 
   return {
     dailyVolume,

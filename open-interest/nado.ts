@@ -49,7 +49,8 @@ const sumAllProductOpenInterests = (open_interests: IData): number => {
   for (const v of Object.values(open_interests)) {
     sum += parseInt(v);
   }
-  return sum / 1e18;
+  // Nado reports long+short summed OI, halve it for the one-sided convention
+  return sum / 1e18 / 2;
 };
 
 const fetch = async (options: FetchOptions) => {

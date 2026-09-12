@@ -14,9 +14,10 @@ const fetch = async (options: FetchOptions) => {
   if (!item) throw new Error(`No SparkDEX OI data for ${options.endTimestamp}`);
 
   return {
-    openInterestAtEnd: item.openInterest,
-    longOpenInterestAtEnd: item.longOpenInterest,
-    shortOpenInterestAtEnd: item.shortOpenInterest,
+    // openInterest is long + short; pool venue with no single-sided field, so average them
+    openInterestAtEnd: item.openInterest / 2,
+    longOpenInterestAtEnd: item.longOpenInterest / 2,
+    shortOpenInterestAtEnd: item.shortOpenInterest / 2,
   };
 };
 

@@ -90,9 +90,10 @@ const getOpenInterest = async ({
   });
 
   return {
-    longOpenInterestAtEnd: totalLongOIUsd,
-    shortOpenInterestAtEnd: totalShortOIUsd,
-    openInterestAtEnd: totalLongOIUsd + totalShortOIUsd,
+    longOpenInterestAtEnd: totalLongOIUsd / 2,
+    shortOpenInterestAtEnd: totalShortOIUsd / 2,
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: (totalLongOIUsd + totalShortOIUsd) / 2,
   };
 };
 

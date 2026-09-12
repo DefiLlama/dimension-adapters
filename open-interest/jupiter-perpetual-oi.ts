@@ -46,6 +46,10 @@ const fetch = async (options: FetchOptions) => {
 
   const openInterestAtEnd = longOpenInterestAtEnd.clone();
   openInterestAtEnd.add(shortOpenInterestAtEnd);
+  // pool venue with no single-sided field: average the two sides instead of summing them
+  openInterestAtEnd.resizeBy(0.5);
+  longOpenInterestAtEnd.resizeBy(0.5);
+  shortOpenInterestAtEnd.resizeBy(0.5);
 
   return {
     longOpenInterestAtEnd,

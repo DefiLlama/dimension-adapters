@@ -22,9 +22,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   return {
-    openInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    // totalOpenInterest is long + short; pool venue with no single-sided field, so average them
+    openInterestAtEnd: openInterestAtEnd / 2,
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
   };
 };
 
