@@ -58,6 +58,7 @@
 // The hook's own buybacks pay no trading fee: Uniswap does not invoke hooks on
 // swaps the hook itself sends, so they cannot inflate this adapter.
 
+import { ChainApi } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -66,9 +67,10 @@ const COLLECTION = "0xca75df55cc9c476db27a7375d1fc8e794cf80721";
 const HOOK = "0xca757986e932bc55776492cca0b413e9b3d02acc";
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
 
-// Deployment block of the collection: the first cat is mined in it, and before
-// it neither contract can be called.
-const DEPLOY_BLOCK = 60412000;
+// The block the collection's code first appears in. Before it neither contract
+// can be called at all, so the exact height matters: it is the lowest block a
+// state read may target.
+const DEPLOY_BLOCK = 60412470;
 
 const BPS = 10000n;
 
@@ -145,10 +147,19 @@ const fetch = async (options: FetchOptions) => {
   // mint, which would otherwise push a window's receipts out of step with its
   // mints - and the rent, being the remainder, straight into nonsense. Taking
   // the change in hookDue puts every mint's cut back in its own window.
+  //
+  // The two readings have to bracket exactly the blocks whose logs are counted.
+  // getLogs includes the window's first block, while fromApi reads the state
+  // after that block has already run, so the opening reading is taken one block
+  // earlier - otherwise a deferral in that first block would be missing from the
+  // difference while its mint was counted, and the rent would absorb the error.
   const windowStart = await options.getFromBlock();
   const [dueBefore, dueAfter] = await Promise.all([
-    windowStart >= DEPLOY_BLOCK
-      ? options.fromApi.call({ abi: "uint256:hookDue", target: COLLECTION })
+    windowStart > DEPLOY_BLOCK
+      ? new ChainApi({ chain: options.chain, block: windowStart - 1 }).call({
+          abi: "uint256:hookDue",
+          target: COLLECTION,
+        })
       : Promise.resolve(0),
     options.toApi.call({ abi: "uint256:hookDue", target: COLLECTION }),
   ]);

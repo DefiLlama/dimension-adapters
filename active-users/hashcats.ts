@@ -61,7 +61,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  // Deployment block of the collection, 60412000: the first cat is mined in it.
+  // The collection's code appears in block 60412470, and the first cat is mined
+  // a few minutes later in block 60415844.
   start: "2026-09-11",
   methodology:
     "Counts unique addresses that interacted with the HASHCATS collection directly - mining a cat (Mined), claiming accrued rent (RentClaimed) or burning a cat for $HASH (CatBurned) - and the transactions those actions occurred in. Rent is usually claimed for several cats at once, so transactions are fewer than events. Swaps of $HASH are excluded: they arrive through routers, so the address on a swap is the router rather than the trader.",

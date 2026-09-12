@@ -13,9 +13,10 @@ import { CHAIN } from "../helpers/chains";
 // history cheap to walk even as it grows.
 const COLLECTION = "0xca75df55cc9c476db27a7375d1fc8e794cf80721";
 
-// Deployment block of the collection: the first cat is mined in it, so there is
-// nothing to scan before it.
-const FROM_BLOCK = 60412000;
+// The block the collection's code appears in. Nothing it emits can predate it,
+// so the history walk starts here. The first cat is mined a few minutes later,
+// in block 60415844.
+const FROM_BLOCK = 60412470;
 
 const MINED =
   "event Mined(uint256 indexed tokenId, address indexed miner, uint256 seed, uint256 work, bytes32 anchor, uint256 target, uint256 nonce, uint256 unique)";
