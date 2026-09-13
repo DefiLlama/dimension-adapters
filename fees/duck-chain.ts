@@ -83,6 +83,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.DUCKCHAIN]: {
       fetch,
+      // SDK marks DuckChain dead; both mainnet RPCs are down, with last nonzero fees on 2026-07-13.
+      deadFrom: '2026-07-14',
     },
   },
   protocolType: ProtocolType.CHAIN,

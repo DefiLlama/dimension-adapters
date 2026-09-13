@@ -4,6 +4,10 @@ import { postURL } from "../../utils/fetchURL";
 
 const GRAPHQL_ENDPOINT = 'https://indexer.tonco.io';
 
+// TONCO v2.0 pools are indexed with version "v1.6"; the v1 adapter (dexs/tonco)
+// skips them so the two adapters never double count.
+const V2_POOL_VERSION = 'v1.6';
+
 // Numeraires with a reliable indexer USD price; a swap is counted (in either
 // direction) when one side of its pool is one of these.
 const WHITELIST_JETTONS = [
@@ -36,28 +40,24 @@ const SWAPS_QUERY = (from: number, to: number) => `
                 }
             }
         }
-    } 
+    }
 `
 
+// v2.0 launched after the 2025-07-10 protocol fee change, so the split is flat
+const PROTOCOL_FEE_PERC = 0.2;
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-    let protocolFeePerc = 0.1;
-    let supplySideRevenuePerc = 0.9;
-    if (options.startTimestamp > 1752105600) { // Protocol Fee changed on 2025-07-10 from 10% of lp fees to 20% of lp fees
-        protocolFeePerc = 0.2;
-        supplySideRevenuePerc = 0.8;
-    }
+
     const swaps = await postURL(GRAPHQL_ENDPOINT, {
         query: SWAPS_QUERY(options.fromTimestamp * 1000, options.toTimestamp * 1000)
     })
 
-    let totalFees = 0;
-    let totalProtocolFees = 0;
+    let dailyVolume = 0;
+    let dailyFees = 0;
 
     for (const swap of swaps.data.swaps) {
 
-        const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
-
-        if (swap.pool.version === 'v1.5') {
+        if (swap.pool.version !== V2_POOL_VERSION) {
             continue;
         }
 
@@ -69,43 +69,44 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
             continue;
         }
 
-        const amount = Number(swap.amount) / (10 ** (swap.isZeroToOne ? swap.pool.jetton0.decimals : swap.pool.jetton1.decimals));
+        const fromJetton = swap.isZeroToOne ? swap.pool.jetton0 : swap.pool.jetton1;
+        const amount = Number(swap.amount) / (10 ** fromJetton.decimals);
         const amountUsd = amount * fromJetton.derivedUsd;
 
-        const fee = swap.pool.fee / 10_000;
-        const lpFee = amountUsd * fee;
-        const protocolFee = lpFee * protocolFeePerc;
-
-        totalFees += lpFee
-        totalProtocolFees += protocolFee
+        dailyVolume += amountUsd
+        dailyFees += amountUsd * swap.pool.fee / 10_000
 
     }
+
+    const dailyRevenue = dailyFees * PROTOCOL_FEE_PERC;
 
     return {
-        dailyUserFees: totalFees,
-        dailyFees: totalFees,
-        dailySupplySideRevenue: totalFees * supplySideRevenuePerc,
-        dailyRevenue: totalProtocolFees,
-        dailyProtocolRevenue: totalProtocolFees
+        dailyVolume,
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailySupplySideRevenue: dailyFees - dailyRevenue,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue,
     }
+
 };
 
 const adapter: SimpleAdapter = {
     methodology: {
         Fees: 'Users pay fees on each swap.',
         UserFees: 'Users pay fees on each swap.',
-        Revenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
-        ProtocolRevenue: 'The protocol previously received 10% but currently receives 20% of the fees paid by users.',
-        SupplySideRevenue: '(prev 90%) 80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
+        Revenue: 'The protocol receives 20% of the fees paid by users.',
+        ProtocolRevenue: 'The protocol receives 20% of the fees paid by users.',
+        SupplySideRevenue: '80% of user jetton fees are distributed among LPs, based on the amount of user liquidity utilized in a particular swap.'
     },
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.TON]: {
-            fetch,
-            start: '2024-11-25',
+            start: '2026-06-01',
+            fetch
         },
-    },
-    pullHourly: true,
+    }
 };
 
 export default adapter;

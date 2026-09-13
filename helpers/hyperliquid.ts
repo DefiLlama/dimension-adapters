@@ -1,8 +1,6 @@
 import { Balances } from "@defillama/sdk";
 import axios from "axios";
-import * as fs from "fs";
 import { decompressFrame } from "lz4-napi";
-import * as path from "path";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { formatAddress, sleep } from "../utils/utils";
@@ -93,146 +91,105 @@ export const fetchBuilderCodeRevenue = async ({
     };
   }
 
-  const date = new Date(startTimestamp * 1000);
-  const dateStr =
-    date.getFullYear().toString() +
-    (date.getMonth() + 1).toString().padStart(2, "0") +
-    date.getDate().toString().padStart(2, "0");
+  // UTC, like the indexer branch above. `startOfDay` is a UTC day boundary, so
+  // the local-time getters this used to call name the previous day on any host
+  // west of UTC - the same function would then ask the indexer for one day and
+  // the file for another.
+  const dateStr = new Date(startTimestamp * 1000)
+    .toISOString()
+    .split("T")[0]
+    .replace(/-/g, "");
 
   const url = `https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/${builder_address}/${dateStr}.csv.lz4`;
 
-  // ⛔ A directory per call. The path used to be `temp/${dateStr}.csv.lz4`,
-  // keyed on the date and nothing else, so two builders downloading the same
-  // day at the same time wrote and unlinked each other's file. That was
-  // already reachable through the hip3/hip4 builders; `builderFills` widens
-  // it to all-markets ones, so it is fixed here rather than left to grow.
-  const baseTmp = path.join(__dirname, "temp");
-  if (!fs.existsSync(baseTmp)) {
-    fs.mkdirSync(baseTmp, { recursive: true });
-  }
-  const tempDir = fs.mkdtempSync(path.join(baseTmp, `${dateStr}-`));
-  const lz4FilePath = path.join(tempDir, `${dateStr}.csv.lz4`);
-  const csvFilePath = path.join(tempDir, `${dateStr}.csv`);
-
+  let response;
   try {
-
-    let response;
-    try {
-      response = await axios({
-        method: "GET",
-        url: url,
-        responseType: "stream",
-        timeout: 30000, // 30 second timeout
-      });
-    } catch (error: any) {
-      if (error.response?.status === 403) {
-        // Hyperliquid publishes no file for a day on which the builder had no
-        // fills at all, and answers 403 for it — the same status as "not yet
-        // processed". Tell them apart by age: a day closed more than 48h ago
-        // that still has no file is an empty day and must be recorded as zero,
-        // or a quiet builder never gets a row and the run fails forever. A
-        // more recent 403 keeps throwing so the day is retried once the file
-        // lands.
-        // ⛔ From the day's CLOSE. `startTimestamp` is its start, so measuring
-        // from there declares a day permanently empty a full 24h early — a
-        // Sep 8 file would stop being retried during Sep 10.
-        const closedForSeconds = Math.floor(Date.now() / 1000) - (startTimestamp + 86400);
-        if (closedForSeconds > 2 * 86400) {
-          return {
-            dailyVolume,
-            dailyFees,
-            dailyRevenue: dailyFees,
-            dailyProtocolRevenue: dailyFees,
-          };
-        }
-        throw new Error(
-          `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
-        );
-      }
-      throw new Error(`Failed to download builder fee data: ${error.message}`);
-    }
-
-    const writer = fs.createWriteStream(lz4FilePath);
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-      writer.on("finish", resolve);
-      writer.on("error", reject);
+    response = await axios({
+      method: "GET",
+      url: url,
+      responseType: "arraybuffer",
+      timeout: 30000, // 30 second timeout
     });
-    const compressedData = fs.readFileSync(lz4FilePath);
-
-    let decompressedBuffer: Buffer = await decompressFrame(compressedData);
-    const csvContent = decompressedBuffer.toString("utf8");
-
-    const lines = csvContent
-      .split("\n")
-      .filter((line) => line.trim().length > 0);
-    const headers = lines[0].split(",").map((h: string) => h.trim());
-    const builderFeeIndex = headers.findIndex((h: string) => h === "builder_fee");
-    const coinIndex = headers.findIndex((h: string) => h === "coin");
-    const pxIndex = headers.findIndex((h: string) => h === "px");
-    const szIndex = headers.findIndex((h: string) => h === "sz");
-    if ((isHIP3Market || isHIP4Market) && coinIndex === -1) throw new Error(`missing coin column for ${market} builder fills`);
-
-    let totalBuilderFees = 0;
-    let totalVolume = 0;
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line) {
-        const values = line.split(",");
-
-        if (values.length >= Math.max(builderFeeIndex, pxIndex, szIndex) + 1) {
-          const coin = values[coinIndex]?.trim();
-
-          // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
-          if (isHIP3Market && !coin?.includes(":")) {
-            continue;
-          }
-          if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
-            continue;
-          }
-          if (isHIP4Market && !/^#\d+$/.test(coin)) {
-            continue;
-          }
-
-          const builderFee = parseFloat(values[builderFeeIndex]) || 0;
-          const px = parseFloat(values[pxIndex]) || 0;
-          const sz = parseFloat(values[szIndex]) || 0;
-
-          totalBuilderFees += builderFee;
-          totalVolume += px * sz;
-        }
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      // Hyperliquid publishes no file for a day on which the builder had no
+      // fills at all, and answers 403 for it - the same status as "not yet
+      // processed". Tell them apart by age: a day closed more than 48h ago that
+      // still has no file is an empty day and must be recorded as zero, or a
+      // quiet builder never gets a row and the run fails forever. A more recent
+      // 403 keeps throwing, so the day is retried once the file lands.
+      // Measured from the day's CLOSE: `startTimestamp` is its start, so
+      // measuring from there declares a day permanently empty 24h early.
+      const closedForSeconds = Math.floor(Date.now() / 1000) - (startTimestamp + 86400);
+      if (closedForSeconds > 2 * 86400) {
+        return {
+          dailyVolume,
+          dailyFees,
+          dailyRevenue: dailyFees,
+          dailyProtocolRevenue: dailyFees,
+        };
       }
+      throw new Error(
+        `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+      );
     }
+    throw new Error(`Failed to download builder fee data: ${error.message}`);
+  }
 
-    dailyFees.addCGToken("usd-coin", totalBuilderFees);
-    dailyVolume.addCGToken("usd-coin", totalVolume);
+  const decompressedBuffer: Buffer = await decompressFrame(Buffer.from(response.data));
+  const csvContent = decompressedBuffer.toString("utf8");
 
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
-  } catch (error) {
-    throw error;
-  } finally {
-    try {
-      if (fs.existsSync(lz4FilePath)) {
-        fs.unlinkSync(lz4FilePath);
+  const lines = csvContent
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  const headers = lines[0].split(",").map((h: string) => h.trim());
+  const builderFeeIndex = headers.findIndex((h: string) => h === "builder_fee");
+  const coinIndex = headers.findIndex((h: string) => h === "coin");
+  const pxIndex = headers.findIndex((h: string) => h === "px");
+  const szIndex = headers.findIndex((h: string) => h === "sz");
+  if ((isHIP3Market || isHIP4Market) && coinIndex === -1) throw new Error(`missing coin column for ${market} builder fills`);
+
+  let totalBuilderFees = 0;
+  let totalVolume = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line) {
+      const values = line.split(",");
+
+      if (values.length >= Math.max(builderFeeIndex, pxIndex, szIndex) + 1) {
+        const coin = values[coinIndex]?.trim();
+
+        // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
+        if (isHIP3Market && !coin?.includes(":")) {
+          continue;
+        }
+        if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
+          continue;
+        }
+        if (isHIP4Market && !/^#\d+$/.test(coin)) {
+          continue;
+        }
+
+        const builderFee = parseFloat(values[builderFeeIndex]) || 0;
+        const px = parseFloat(values[pxIndex]) || 0;
+        const sz = parseFloat(values[szIndex]) || 0;
+
+        totalBuilderFees += builderFee;
+        totalVolume += px * sz;
       }
-      if (fs.existsSync(csvFilePath)) {
-        fs.unlinkSync(csvFilePath);
-      }
-      // The per-call directory goes too, or `temp/` fills with empty dirs.
-      if (fs.existsSync(tempDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    } catch (cleanupError) {
-      // Silently ignore cleanup errors
     }
   }
+
+  dailyFees.addCGToken("usd-coin", totalBuilderFees);
+  dailyVolume.addCGToken("usd-coin", totalVolume);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 // confirm from hyperliquid team

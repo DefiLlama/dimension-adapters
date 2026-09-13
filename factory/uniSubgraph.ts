@@ -96,6 +96,7 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 85,
     },
     start: "2024-03-19",
+    deadFrom: "2026-09-11",
   },
   // "retro": {
   //   graphUrls: {

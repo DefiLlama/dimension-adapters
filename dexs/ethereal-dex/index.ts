@@ -50,7 +50,8 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.ETHEREAL],
     methodology,
-    start: '2025-10-21'
+    start: '2025-10-21',
+    deadFrom: '2026-08-25'
 }
 
 export default adapter;

@@ -157,6 +157,15 @@ const LAUNCHER_STONK_BPS = 3333n;
 // Token vesting locker — 1 bps deposit fee → SafetyDepositClockInV3.
 const VESTING_LOCKER = "0x2b4aD79DA7BD3bF340bBd2aD2039b149214e9Aa9";
 
+// Smart LP (Volatility Farming) — immutable concentrated-liquidity vaults on
+// canonical Uniswap V3 pools (live 2026-09-08). The on-chain registry is the
+// single discovery surface for the fleet (~165 vaults). Every fee collection
+// emits FeesCollected on the vault: fees0/fees1 = gross pool fees collected,
+// skim0/skim1 = the 10% performance fee, which splits 50% StockBooster
+// (Clock In dividends) / 50% $STONKBROKER buybacks. The remaining 90%
+// auto-compounds back into the vault position for depositors.
+const SMART_LP_REGISTRY = "0xE8749183Fbf6A657EB58B3a4D3E4B9Cc09560146";
+
 const NFT_SOLD =
   "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
 const NFT_BOUGHT =
@@ -199,6 +208,8 @@ const CURVE_TRADE =
   "event Trade(address indexed trader, bool indexed isBuy, uint256 quoteAmount, uint256 tokenAmount, uint256 feeAmount, uint256 newRealQuote, uint256 newSold)";
 const POSITION_LOCKED =
   "event PositionLocked(address indexed token, uint256 indexed lockTokenId, address indexed owner, address vault, uint64 startUnlock, uint64 finishUnlock, uint256 initialAmount, uint256 feeAmount)";
+const SMART_LP_FEES_COLLECTED =
+  "event FeesCollected(uint256 fees0, uint256 fees1, uint256 skim0, uint256 skim1)";
 
 /** USDG on Robinhood Chain — sell-back rail payout token. */
 const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
@@ -223,6 +234,8 @@ const LABELS = {
   LOCKER_FEES: "Safety Deposit Box liquidity-locker protocol fees",
   LOCKER_STOCK_DIVIDENDS: "Locker fees → SafetyDepositClockIn brokers (90%)",
   LOCKER_PROTOCOL: "Locker fees → protocol wallet (10%)",
+  LOCKER_LP_FEES: "Locked-LP trading fees claimed by lock owners (80% creator share)",
+  POL_V4_FEES: "Uniswap v4 POL fee income (forever-locked STONK/ETH position → treasury)",
   SWAP_DESK_FEES: "Swap-desk Relay app fees (1%)",
   LAUNCH_TAX: "Anti-snipe launch tax (time-decay snipe tax on curve buys)",
   LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
@@ -237,7 +250,28 @@ const LABELS = {
   CURVE_CREATOR: "Bonding-curve fees → creator (33.33%)",
   CURVE_STONK: "Bonding-curve fees → StonkBrokers Directed Clock In / pot (33.33%)",
   VESTING_FEES: "Token vesting locker deposit fees (0.01%)",
+  SMARTLP_FEES: "Smart LP vault pool fees (Volatility Farming)",
+  SMARTLP_COMPOUND: "Smart LP fees auto-compounded to vault depositors (90%)",
+  SMARTLP_DIVIDENDS: "Smart LP performance fee → StockBooster Clock In dividends (5%)",
+  SMARTLP_BUYBACK: "Smart LP performance fee → $STONKBROKER buybacks (5%)",
 };
+
+// Uniswap v4 protocol-owned liquidity: the canonical STONK/ETH 1% pool's
+// dominant position (#175704) sits in an ownerless forever-escrow whose sole
+// irrevocable fee recipient is the treasury. Principal is locked forever as
+// market depth; the fee stream is protocol revenue. Fees are computed from
+// the PoolManager's Swap events on that pool, attributed by the escrow
+// position's share of the active liquidity carried in each Swap log (the
+// position is full-range, so it is always in range).
+const UNI_V4_POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
+const UNI_V4_POSM = "0x58daec3116aae6D93017bAAea7749052E8a04fA7";
+const POL_V4_POOL_ID =
+  "0xd33c8fd38b06e989cdbd4dffdefab71c4bdd415b24964c8d69e38ff35b068f92";
+const POL_V4_POSITION_ID = 175704;
+const UNI_V4_SWAP =
+  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
+const UNI_V4_SWAP_TOPIC0 =
+  "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 
 const RANDOM_FEE_BPS = 1000n;
 const SPECIFIC_FEE_BPS = 1500n;
@@ -391,6 +425,39 @@ const fetchRobinhood = async (options: FetchOptions) => {
     target: VESTING_LOCKER,
     eventAbi: POSITION_LOCKED,
   });
+
+  // Smart LP vault fleet — registry-enumerated (the registry is the only
+  // discovery surface). flatten:false so each vault's logs attribute to its
+  // own token0/token1 pair.
+  const smartLpVaults: string[] =
+    (await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY }));
+  const smartLpFeeLogsByVault: any[][] = smartLpVaults.length
+    ? await options.getLogs({
+        targets: smartLpVaults,
+        eventAbi: SMART_LP_FEES_COLLECTED,
+        flatten: false,
+      })
+    : [];
+
+  // v4 POL: read the escrow position's live liquidity (full-range, so it is
+  // always in range), then the pool's Swap tape. Each Swap log carries the
+  // pool's active liquidity during that swap — the escrow's fee share of a
+  // swap is posLiquidity / swapLiquidity, capped at 1.
+  const polV4Liquidity = BigInt(
+    (await options.api.call({
+      abi: "function getPositionLiquidity(uint256) view returns (uint128)",
+      target: UNI_V4_POSM,
+      params: [POL_V4_POSITION_ID],
+    })),
+  );
+  const polV4SwapLogs =
+    polV4Liquidity > 0n
+      ? await options.getLogs({
+          target: UNI_V4_POOL_MANAGER,
+          eventAbi: UNI_V4_SWAP,
+          topics: [UNI_V4_SWAP_TOPIC0, POL_V4_POOL_ID],
+        })
+      : [];
 
   const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
     options.getLogs({
@@ -665,6 +732,23 @@ const fetchRobinhood = async (options: FetchOptions) => {
         addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
         addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
       }
+      // LockFeesCollected also carries the lock owner's 80% LP-fee share
+      // (userAmount0/1) — genuine trading-fee income earned through the
+      // protocol's locked positions, booked as supply-side. Withdrawal logs
+      // (LockLiquidityDecreased, distinguished by the liquidity field) pay
+      // PRINCIPAL in userAmount0/1 and must never be counted as fees.
+      const isWithdraw = log.liquidity !== undefined && log.liquidity !== null;
+      if (!isWithdraw) {
+        const userAmounts: [string, bigint][] = [
+          [pair[0], BigInt(log.userAmount0)],
+          [pair[1], BigInt(log.userAmount1)],
+        ];
+        for (const [token, amount] of userAmounts) {
+          if (amount <= 0n) continue;
+          addProtocolCut(dailyFees, token, amount, LABELS.LOCKER_LP_FEES);
+          addProtocolCut(dailySupplySideRevenue, token, amount, LABELS.LOCKER_LP_FEES);
+        }
+      }
     }
   }
   // Gauge-staking payout cuts (token address rides in the event).
@@ -672,13 +756,96 @@ const fetchRobinhood = async (options: FetchOptions) => {
     for (const log of logs) {
       const token = String(log.token || ZERO).toLowerCase();
       const amount = BigInt(log.protocolAmount);
-      if (amount <= 0n) continue;
-      const brokerAmt = (amount * LOCKER_BROKER_BPS) / 10_000n;
-      const protocolAmt = (amount * LOCKER_PROTOCOL_BPS) / 10_000n;
-      addProtocolCut(dailyFees, token, amount, LABELS.LOCKER_FEES);
-      addProtocolCut(dailySupplySideRevenue, token, brokerAmt, LABELS.LOCKER_STOCK_DIVIDENDS);
-      addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
-      addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
+      if (amount > 0n) {
+        const brokerAmt = (amount * LOCKER_BROKER_BPS) / 10_000n;
+        const protocolAmt = (amount * LOCKER_PROTOCOL_BPS) / 10_000n;
+        addProtocolCut(dailyFees, token, amount, LABELS.LOCKER_FEES);
+        addProtocolCut(dailySupplySideRevenue, token, brokerAmt, LABELS.LOCKER_STOCK_DIVIDENDS);
+        addProtocolCut(dailyProtocolRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
+        addProtocolCut(dailyRevenue, token, protocolAmt, LABELS.LOCKER_PROTOCOL);
+      }
+      // Gauge-staking rewards paid to the lock owner (80% share) — earned
+      // through the locked positions, booked gross as supply-side fees.
+      const userAmt = BigInt(log.userAmount);
+      if (userAmt > 0n) {
+        addProtocolCut(dailyFees, token, userAmt, LABELS.LOCKER_LP_FEES);
+        addProtocolCut(dailySupplySideRevenue, token, userAmt, LABELS.LOCKER_LP_FEES);
+      }
+    }
+  }
+
+  // ── Uniswap v4 protocol-owned liquidity fees ─────────────────────────────
+  // The forever-escrowed STONK/ETH position earns LP fees on every swap in
+  // the canonical v4 pool; the treasury is the escrow's sole irrevocable fee
+  // recipient. v4 Swap deltas are user-perspective (negative = input token);
+  // the LP fee is charged on the input amount at the event's fee (ppm).
+  // currency0 on this pool is native ETH, currency1 is $STONKBROKER.
+  if (polV4Liquidity > 0n) {
+    for (const log of polV4SwapLogs) {
+      const swapLiquidity = BigInt(log.liquidity);
+      if (swapLiquidity <= 0n) continue;
+      const posShareLiq =
+        polV4Liquidity > swapLiquidity ? swapLiquidity : polV4Liquidity;
+      const amount0 = BigInt(log.amount0);
+      const amount1 = BigInt(log.amount1);
+      const inputIsEth = amount0 < 0n;
+      const inputAmount = inputIsEth ? -amount0 : -amount1;
+      if (inputAmount <= 0n) continue;
+      const feeAmount = (inputAmount * BigInt(log.fee)) / 1_000_000n;
+      const escrowFee = (feeAmount * posShareLiq) / swapLiquidity;
+      if (escrowFee <= 0n) continue;
+      const token = inputIsEth ? ZERO : STONKBROKER;
+      addProtocolCut(dailyFees, token, escrowFee, LABELS.POL_V4_FEES);
+      addProtocolCut(dailyProtocolRevenue, token, escrowFee, LABELS.POL_V4_FEES);
+      addProtocolCut(dailyRevenue, token, escrowFee, LABELS.POL_V4_FEES);
+    }
+  }
+
+  // ── Smart LP vaults (Volatility Farming) ─────────────────────────────────
+  // FeesCollected(fees0, fees1, skim0, skim1): fees = gross pool fees pulled
+  // from the vault's Uniswap V3 position, skim = the 10% performance fee
+  // (perfFeeBps) taken out of them. The remaining 90% auto-compounds back
+  // into the position for depositors; the skim splits 50% StockBooster
+  // (Clock In dividends — supply-side, matching every other booster leg
+  // here) / 50% $STONKBROKER buybacks (holders revenue).
+  {
+    const activeIdx: number[] = [];
+    smartLpFeeLogsByVault.forEach((logs, i) => {
+      if (logs?.length) activeIdx.push(i);
+    });
+    if (activeIdx.length) {
+      const [token0s, token1s] = await Promise.all([
+        options.api.multiCall({
+          abi: "address:token0",
+          calls: activeIdx.map((i) => smartLpVaults[i]),
+        }),
+        options.api.multiCall({
+          abi: "address:token1",
+          calls: activeIdx.map((i) => smartLpVaults[i]),
+        }),
+      ]);
+      activeIdx.forEach((vaultIdx, j) => {
+        const pair: [string, string] = [token0s[j], token1s[j]];
+        for (const log of smartLpFeeLogsByVault[vaultIdx]) {
+          const legs: [string, bigint, bigint][] = [
+            [pair[0], BigInt(log.fees0), BigInt(log.skim0)],
+            [pair[1], BigInt(log.fees1), BigInt(log.skim1)],
+          ];
+          for (const [token, fees, skim] of legs) {
+            if (fees <= 0n) continue;
+            const buyback = skim / 2n;
+            const dividends = skim - buyback;
+            dailyFees.addToken(token, fees, LABELS.SMARTLP_FEES);
+            dailySupplySideRevenue.addToken(token, fees - skim, LABELS.SMARTLP_COMPOUND);
+            if (dividends > 0n)
+              dailySupplySideRevenue.addToken(token, dividends, LABELS.SMARTLP_DIVIDENDS);
+            if (buyback > 0n) {
+              dailyHoldersRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
+              dailyRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
+            }
+          }
+        }
+      });
     }
   }
 
@@ -723,19 +890,20 @@ const adapter: SimpleAdapter = {
       start: "2026-07-17",
     },
   },
+  doublecounted: true,
   methodology: {
     Volume:
       "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); and StonkVestingLocker 0.01% deposit fees.",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, and vesting-locker deposit fees.",
+      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, the $STONKBROKER-buyback half of the Smart LP 10% performance fee, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
     ProtocolRevenue:
-      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 33.34% of bonding-curve trade fees; vesting-locker deposit fees.",
+      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 33.34% of bonding-curve trade fees; vesting-locker deposit fees; and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
     HoldersRevenue:
-      "Half of the $STONKBROKER activation/upgrade fees burned.",
+      "Half of the $STONKBROKER activation/upgrade fees burned, plus the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%).",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
   },
   breakdownMethodology: {
     Volume: {
@@ -770,6 +938,12 @@ const adapter: SimpleAdapter = {
         "1% trade fee on StonkCurvePool (bonding-curve Stonk Launcher factory), waterfall 33.33% creator / 33.34% protocol / 33.33% StonkBrokers.",
       [LABELS.VESTING_FEES]:
         "0.01% (1 bps) StonkVestingLocker deposit fee (PositionLocked.feeAmount), routed to SafetyDepositClockInV3.",
+      [LABELS.SMARTLP_FEES]:
+        "Gross Uniswap V3 pool fees collected by every registry-listed Smart LP vault (SmartLpVault FeesCollected fees0/fees1).",
+      [LABELS.LOCKER_LP_FEES]:
+        "LP trading fees earned by positions locked in the Safety Deposit Box and claimed by lock owners — the 80% userAmount share of LockFeesCollected plus gauge-staking rewards (LockTokensPaid userAmount). Withdrawal principal (LockLiquidityDecreased) is excluded.",
+      [LABELS.POL_V4_FEES]:
+        "LP fee income of the protocol-owned Uniswap v4 STONK/ETH position (forever-escrowed, treasury is the sole irrevocable fee recipient). Computed from PoolManager Swap events on the canonical pool: input-amount × swap fee (ppm), attributed by the position's share of the active liquidity carried in each Swap log (the position is full range, so it is always in range).",
     },
     Revenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -783,6 +957,10 @@ const adapter: SimpleAdapter = {
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
+      [LABELS.SMARTLP_BUYBACK]:
+        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
+      [LABELS.POL_V4_FEES]:
+        "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     ProtocolRevenue: {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
@@ -796,9 +974,13 @@ const adapter: SimpleAdapter = {
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
+      [LABELS.POL_V4_FEES]:
+        "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     HoldersRevenue: {
       [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
+      [LABELS.SMARTLP_BUYBACK]:
+        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
     },
     SupplySideRevenue: {
       [LABELS.AMM_STOCK_DIVIDENDS]:
@@ -824,6 +1006,12 @@ const adapter: SimpleAdapter = {
       [LABELS.CURVE_CREATOR]: "33.33% of bonding-curve trade fees → launch creator.",
       [LABELS.CURVE_STONK]:
         "33.33% of bonding-curve trade fees → StonkBrokers Directed Clock In engine / jackpot pot.",
+      [LABELS.SMARTLP_COMPOUND]:
+        "90% of Smart LP vault pool fees auto-compounded back into the vault's position for depositors.",
+      [LABELS.SMARTLP_DIVIDENDS]:
+        "Half of the Smart LP 10% performance fee → StockBooster Clock In dividends to activated brokers.",
+      [LABELS.LOCKER_LP_FEES]:
+        "Lock owners' 80% share of LP trading fees + gauge rewards claimed through Safety Deposit Box locked positions.",
     },
   },
 };
