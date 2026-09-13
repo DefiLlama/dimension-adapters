@@ -3,13 +3,13 @@ import { FetchOptions, FetchResult } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const list_of_mints: string[] = [
-  ADDRESSES.solana.SOL,
-  "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh",
-  "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
+const markets: { mint: string; symbol: string }[] = [
+  { mint: ADDRESSES.solana.SOL, symbol: "SOL" },
+  { mint: "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh", symbol: "BTC" }, // Wrapped BTC (Wormhole)
+  { mint: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs", symbol: "ETH" }, // Ethereum (Wormhole)
 ]
 
-const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const header_user = {
     "accept": "*/*",
     "accept-language": "en-US,en;q=0.9",
@@ -26,8 +26,12 @@ const fetch = async (_options: FetchOptions): Promise<FetchResult> => {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36",
   }
   const url = (token: string) => `https://perp-api.jup.ag/trpc/tradeVolume?batch=1&input={"0":{"json":{"mint":"${token}"}}}`
-  const fetches = (await Promise.all(list_of_mints.map(token => httpGet(url(token), { headers: header_user })))).flat();
-  const dailyVolume = fetches.reduce((acc, { result }) => acc + result.data.json.volume, 0);
+  const dailyVolume = options.createBalances();
+  await Promise.all(markets.map(async ({ mint, symbol }) => {
+    const res: any[] = (await httpGet(url(mint), { headers: header_user })).flat();
+    const volume = res.reduce((acc: number, { result }: any) => acc + result.data.json.volume, 0);
+    dailyVolume.addUSDValue(volume, { id: symbol, isUSDValue: true });
+  }));
 
   // // Fetch JLP pool info for open interest calculation
   // const jlpInfoUrl = 'https://perps-api.jup.ag/v1/jlp-info';
