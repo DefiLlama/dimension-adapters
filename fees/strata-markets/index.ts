@@ -48,15 +48,13 @@ const CDOS: CDOConfig[] = [
     srt: "0xCcEd21d609CaC4A272d0c01a8FF4de9cEBc40d60",
     start: "2026-04-12",
   },
-  {
-    name: "sUSDat",
-    cdo: "0xa617763cEB808f43eC9D532cbE8C65819afb846b",
-    accounting: "0x180f7b3b807FA91EDb6e864802e4664D6Ee8Cf88",
-    strategy: "0xce7B00D1004d9ED22E702A6a7F5bBdcE7297B090",
-    jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
-    srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
-    start: "2026-05-01",
-  },
+  // sUSDat excluded: its underlying (STRC) is priced by a discrete RWA oracle
+  // that reprices infrequently, causing large mark-to-market swings in
+  // totalAssets() that dwarf the actual yield. These are temporary M2M
+  // adjustments — not realised gains or losses — and they distort the
+  // income statement with multi-million-dollar negative spikes (e.g. -$3.1M
+  // on a single day). Once the oracle settles, the NAV recovers. The sUSDat
+  // CDO will be re-added when the underlying switches to a continuous feed.
   {
     name: "PRIME",
     cdo: "0xff408b4843CDD4a33CD49EB2aBe057fE8D71C234",
