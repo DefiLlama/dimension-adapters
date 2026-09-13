@@ -588,7 +588,7 @@ export const fetchHIP3DeployerData = async ({
 
 export const exportHIP3DeployerAdapter = (
   dexId: string,
-  props: { type: "dexs" | "oi"; start?: string; methodology?: any },
+  props: { type: "dexs" | "oi"; start?: string; deadFrom?: string; methodology?: any },
 ) => {
   const adapter: SimpleAdapter = {
     version: 1,
@@ -652,6 +652,8 @@ export const exportHIP3DeployerAdapter = (
       }
     }
   };
+
+  if (props.deadFrom) adapter.deadFrom = props.deadFrom;
 
   return adapter;
 };
