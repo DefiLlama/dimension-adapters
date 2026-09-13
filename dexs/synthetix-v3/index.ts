@@ -31,5 +31,6 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE, { start: '2024-01-13' }],
     [CHAIN.ARBITRUM, { start: '2024-06-24' }],
   ],
+  deadFrom: "2026-06-26"
 }
 export default adapters
