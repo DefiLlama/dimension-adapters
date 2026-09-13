@@ -1,8 +1,6 @@
 import { Balances } from "@defillama/sdk";
 import axios from "axios";
-import * as fs from "fs";
 import { decompressFrame } from "lz4-napi";
-import * as path from "path";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { formatAddress, sleep } from "../utils/utils";
@@ -87,109 +85,77 @@ export const fetchBuilderCodeRevenue = async ({
 
   const url = `https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/${builder_address}/${dateStr}.csv.lz4`;
 
-  const tempDir = path.join(__dirname, "temp");
-  const lz4FilePath = path.join(tempDir, `${dateStr}.csv.lz4`);
-  const csvFilePath = path.join(tempDir, `${dateStr}.csv`);
-
+  let response;
   try {
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
-    let response;
-    try {
-      response = await axios({
-        method: "GET",
-        url: url,
-        responseType: "stream",
-        timeout: 30000, // 30 second timeout
-      });
-    } catch (error: any) {
-      if (error.response?.status === 403) {
-        throw new Error(
-          `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
-        );
-      }
-      throw new Error(`Failed to download builder fee data: ${error.message}`);
-    }
-
-    const writer = fs.createWriteStream(lz4FilePath);
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-      writer.on("finish", resolve);
-      writer.on("error", reject);
+    response = await axios({
+      method: "GET",
+      url: url,
+      responseType: "arraybuffer",
+      timeout: 30000, // 30 second timeout
     });
-    const compressedData = fs.readFileSync(lz4FilePath);
-
-    let decompressedBuffer: Buffer = await decompressFrame(compressedData);
-    const csvContent = decompressedBuffer.toString("utf8");
-
-    const lines = csvContent
-      .split("\n")
-      .filter((line) => line.trim().length > 0);
-    const headers = lines[0].split(",").map((h: string) => h.trim());
-    const builderFeeIndex = headers.findIndex((h: string) => h === "builder_fee");
-    const coinIndex = headers.findIndex((h: string) => h === "coin");
-    const pxIndex = headers.findIndex((h: string) => h === "px");
-    const szIndex = headers.findIndex((h: string) => h === "sz");
-    if ((isHIP3Market || isHIP4Market) && coinIndex === -1) throw new Error(`missing coin column for ${market} builder fills`);
-
-    let totalBuilderFees = 0;
-    let totalVolume = 0;
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line) {
-        const values = line.split(",");
-
-        if (values.length >= Math.max(builderFeeIndex, pxIndex, szIndex) + 1) {
-          const coin = values[coinIndex]?.trim();
-
-          // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
-          if (isHIP3Market && !coin?.includes(":")) {
-            continue;
-          }
-          if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
-            continue;
-          }
-          if (isHIP4Market && !/^#\d+$/.test(coin)) {
-            continue;
-          }
-
-          const builderFee = parseFloat(values[builderFeeIndex]) || 0;
-          const px = parseFloat(values[pxIndex]) || 0;
-          const sz = parseFloat(values[szIndex]) || 0;
-
-          totalBuilderFees += builderFee;
-          totalVolume += px * sz;
-        }
-      }
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      throw new Error(
+        `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+      );
     }
+    throw new Error(`Failed to download builder fee data: ${error.message}`);
+  }
 
-    dailyFees.addCGToken("usd-coin", totalBuilderFees);
-    dailyVolume.addCGToken("usd-coin", totalVolume);
+  const decompressedBuffer: Buffer = await decompressFrame(Buffer.from(response.data));
+  const csvContent = decompressedBuffer.toString("utf8");
 
-    return {
-      dailyVolume,
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees,
-    };
-  } catch (error) {
-    throw error;
-  } finally {
-    try {
-      if (fs.existsSync(lz4FilePath)) {
-        fs.unlinkSync(lz4FilePath);
+  const lines = csvContent
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  const headers = lines[0].split(",").map((h: string) => h.trim());
+  const builderFeeIndex = headers.findIndex((h: string) => h === "builder_fee");
+  const coinIndex = headers.findIndex((h: string) => h === "coin");
+  const pxIndex = headers.findIndex((h: string) => h === "px");
+  const szIndex = headers.findIndex((h: string) => h === "sz");
+  if ((isHIP3Market || isHIP4Market) && coinIndex === -1) throw new Error(`missing coin column for ${market} builder fills`);
+
+  let totalBuilderFees = 0;
+  let totalVolume = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line) {
+      const values = line.split(",");
+
+      if (values.length >= Math.max(builderFeeIndex, pxIndex, szIndex) + 1) {
+        const coin = values[coinIndex]?.trim();
+
+        // Source: asset ID docs; HIP-3 perps use {dex}:{coin}, HIP-4 outcomes use #<encoding>.
+        if (isHIP3Market && !coin?.includes(":")) {
+          continue;
+        }
+        if (hip3DeployerId && !coin?.startsWith(`${hip3DeployerId}:`)) {
+          continue;
+        }
+        if (isHIP4Market && !/^#\d+$/.test(coin)) {
+          continue;
+        }
+
+        const builderFee = parseFloat(values[builderFeeIndex]) || 0;
+        const px = parseFloat(values[pxIndex]) || 0;
+        const sz = parseFloat(values[szIndex]) || 0;
+
+        totalBuilderFees += builderFee;
+        totalVolume += px * sz;
       }
-      if (fs.existsSync(csvFilePath)) {
-        fs.unlinkSync(csvFilePath);
-      }
-    } catch (cleanupError) {
-      // Silently ignore cleanup errors
     }
   }
+
+  dailyFees.addCGToken("usd-coin", totalBuilderFees);
+  dailyVolume.addCGToken("usd-coin", totalVolume);
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 };
 
 // confirm from hyperliquid team
