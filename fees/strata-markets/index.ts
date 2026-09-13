@@ -9,6 +9,11 @@ type CDOConfig = {
   jrt: string;
   srt: string;
   start: string;
+  // For CDOs with discrete/infrequent oracle repricing (e.g. sUSDat/STRC),
+  // the NAV-delta approach produces artificial M2M spikes because
+  // totalAssets() jumps discontinuously when the RWA oracle reprices.
+  // When true, yield is computed as APR × TVL using CDOLens on-chain data.
+  useAprMethod?: boolean;
 };
 
 const CDOS: CDOConfig[] = [
@@ -48,13 +53,25 @@ const CDOS: CDOConfig[] = [
     srt: "0xCcEd21d609CaC4A272d0c01a8FF4de9cEBc40d60",
     start: "2026-04-12",
   },
-  // sUSDat excluded: its underlying (STRC) is priced by a discrete RWA oracle
-  // that reprices infrequently, causing large mark-to-market swings in
-  // totalAssets() that dwarf the actual yield. These are temporary M2M
-  // adjustments — not realised gains or losses — and they distort the
-  // income statement with multi-million-dollar negative spikes (e.g. -$3.1M
-  // on a single day). Once the oracle settles, the NAV recovers. The sUSDat
-  // CDO will be re-added when the underlying switches to a continuous feed.
+  {
+    // sUSDat's underlying (sUSDat vault -> STRC) is priced by a discrete RWA
+    // oracle that reprices infrequently. totalAssets() jumps discontinuously
+    // on repricing, producing multi-million-dollar M2M swings (e.g. -$3.1M
+    // on a single day) that dwarf actual yield. These are temporary mark-to-
+    // market adjustments, not realised gains or losses.
+    //
+    // We use APR × TVL via CDOLens for this CDO: CDOLens.getAPRs(cdo).base
+    // reads the annualized STRC dividend yield from the on-chain provider,
+    // which reflects actual yield accrual rather than oracle repricing events.
+    name: "sUSDat",
+    cdo: "0xa617763cEB808f43eC9D532cbE8C65819afb846b",
+    accounting: "0x180f7b3b807FA91EDb6e864802e4664D6Ee8Cf88",
+    strategy: "0xce7B00D1004d9ED22E702A6a7F5bBdcE7297B090",
+    jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
+    srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
+    start: "2026-05-01",
+    useAprMethod: true,
+  },
   {
     name: "PRIME",
     cdo: "0xff408b4843CDD4a33CD49EB2aBe057fE8D71C234",
@@ -75,28 +92,115 @@ const CDOS: CDOConfig[] = [
   },
 ];
 
-// events 
+// CDOLens: on-chain lens contract that reads APRs from the AprPairFeed
+// for each CDO. Used only for CDOs with useAprMethod=true.
+// Deployed: https://etherscan.io/address/0xeA62e3a2D5FE8D5b66dc8E1bd2405AD23C851f4e
+const CDO_LENS = "0xeA62e3a2D5FE8D5b66dc8E1bd2405AD23C851f4e";
+
+// events
 const ERC4626_DEPOSIT = "event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)";
 const ERC4626_WITHDRAW = "event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)";
 const FEE_ACCRUED = "event FeeAccrued(bool isJrt, uint256 amountToReserve, uint256 amountToTranche)";
 const RESERVE_REDUCED = "event ReserveReduced(address token, uint256 amount)";
 
-// ABIs 
+// ABIs
 const STRATEGY_TOTAL_ASSETS_ABI = "function totalAssets() view returns (uint256)";
 const RESERVE_BPS_ABI = "function reserveBps() view returns (uint256)";
 const ASSET_ABI = "function asset() view returns (address)";
 const CONVERT_TO_ASSETS_ABI = "function convertToAssets(address token, uint256 amount, uint8 rounding) view returns (uint256)";
+// CDOLens APR values use 1e12 precision: 1e12 = 100% APR.
+// getAPRs().base returns the NET base APR (after reserveBps performance fee deduction).
+const GET_APRS_ABI = "function getAPRs(address cdo) external view returns (int64 base, int64 target, int64 jrt, int64 srt)";
+
+const ONE_WAD = 10n ** 18n;
+const APR_SCALE = 10n ** 12n; // 1e12 = 100% APR
+const SECONDS_PER_YEAR = 31_536_000n;
 
 const sumLogField = (logs: any[], field: string): bigint =>
   logs.reduce<bigint>((acc, l) => acc + BigInt(l[field]), 0n);
 
-async function processCDO(
+/**
+ * APR × TVL methodology for CDOs with discrete oracle pricing (e.g. sUSDat).
+ *
+ * Instead of measuring the NAV delta (which captures oracle repricing events
+ * as artificial fee spikes), we read the strategy's annualized yield rate
+ * from CDOLens and pro-rate it over the measurement window.
+ *
+ * CDOLens.getAPRs(cdo).base returns the NET APR (after performance fee),
+ * so we un-deduct it to get the GROSS APR for dailyFees reporting.
+ *
+ * Exit fees (FeeAccrued events) are still tracked from on-chain logs -
+ * those are real events unaffected by oracle timing.
+ */
+async function processCDOWithApr(
   options: FetchOptions,
   cfg: CDOConfig,
   dailyFees: any,
   dailyRevenue: any,
   dailyProtocolRevenue: any,
-  dailySupplySideRevenue: any
+  dailySupplySideRevenue: any,
+) {
+  const { toApi, getLogs } = options;
+
+  const [aprs, tvlRaw, reserveBpsRaw, baseAsset, feeAccrued] = await Promise.all([
+    toApi.call({ target: CDO_LENS, abi: GET_APRS_ABI, params: [cfg.cdo] }),
+    toApi.call({ target: cfg.strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }),
+    toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
+    toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
+    getLogs({ target: cfg.accounting, eventAbi: FEE_ACCRUED }),
+  ]);
+
+  const tvl = BigInt(tvlRaw);
+  const reserveBps = BigInt(reserveBpsRaw); // 1e18 scale (e.g. 5% = 5e16)
+  const netBaseApr = BigInt(Math.max(0, Number(aprs.base))); // 1e12 scale
+
+  // CDOLens.getAPRs().base is NET (after performance fee deduction):
+  //   net = gross * (1e18 - reserveBps) / 1e18
+  // Un-deduct to get gross APR for dailyFees:
+  //   gross = net * 1e18 / (1e18 - reserveBps)
+  const grossBaseApr = reserveBps < ONE_WAD
+    ? (netBaseApr * ONE_WAD) / (ONE_WAD - reserveBps)
+    : netBaseApr;
+
+  // Pro-rate to actual window duration (1 hour under pullHourly)
+  const windowSeconds = BigInt(options.endTimestamp - options.startTimestamp);
+
+  // Gross yield for this window: TVL × grossAPR × windowSeconds / (1e12 × secondsPerYear)
+  const grossYield = (tvl * grossBaseApr * windowSeconds) / (APR_SCALE * SECONDS_PER_YEAR);
+
+  // Protocol takes performance fee from yield
+  const protocolFromYield = (grossYield * reserveBps) / ONE_WAD;
+  const supplyFromYield = grossYield - protocolFromYield;
+
+  // Exit fees from FeeAccrued on-chain events (real events, not oracle-dependent)
+  const exitFeeToReserve = sumLogField(feeAccrued, "amountToReserve");
+  const exitFeeToTranche = sumLogField(feeAccrued, "amountToTranche");
+  const exitFeesTotal = exitFeeToReserve + exitFeeToTranche;
+
+  dailyFees.add(baseAsset, (grossYield + exitFeesTotal).toString());
+
+  dailyRevenue.add(baseAsset, (protocolFromYield + exitFeeToReserve).toString());
+
+  dailyProtocolRevenue.add(baseAsset, (protocolFromYield + exitFeeToReserve).toString());
+
+  dailySupplySideRevenue.add(baseAsset, (supplyFromYield + exitFeeToTranche).toString());
+}
+
+/**
+ * NAV-delta methodology for CDOs with continuous/monotonic price feeds.
+ *
+ * Measures the actual change in strategy.totalAssets() between the start and
+ * end of the window, adjusted for deposit/withdrawal flows and reserve
+ * withdrawals. Can go negative when a strategy marks down - those losses
+ * are absorbed by the tranches (allowNegativeValue: true).
+ */
+async function processCDOWithNavDelta(
+  options: FetchOptions,
+  cfg: CDOConfig,
+  dailyFees: any,
+  dailyRevenue: any,
+  dailyProtocolRevenue: any,
+  dailySupplySideRevenue: any,
 ) {
   const { fromApi, toApi, getLogs } = options;
 
@@ -151,21 +255,15 @@ async function processCDO(
   const exitFeeToTranche = sumLogField(feeAccrued, "amountToTranche");
   const exitFeesTotal = exitFeeToReserve + exitFeeToTranche;
 
-  // we calculate this yield from the delta of strategy assets.
-  // this can be negative when the strategy marks down, which happens on the
-  // RWA-backed CDOs whose NAV follows a discrete oracle (sUSDat/STRC) rather
-  // than a monotonic exchange rate. those losses are absorbed by the tranches,
-  // so they belong in supply side revenue as a negative, not clamped away.
-  // clamping each window at zero only ever books the up moves and ratchets
-  // cumulative fees upwards, which is worse under pullHourly because a day is
-  // cut into 24 chances to discard downside instead of 1.
+  // yield = NAV change adjusted for flows. Can be negative for strategies
+  // that mark down (e.g. RWA with continuous feeds). Those losses are
+  // absorbed by the tranches.
   const yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
 
-  // the reserve takes a performance fee out of yield, but does not refund it on
-  // a loss, so on a negative window the whole markdown lands on the tranches.
-  const ONE = 10n ** 18n;
+  // the reserve takes a performance fee out of yield, but does not refund it
+  // on a loss, so on a negative window the whole markdown lands on the tranches.
   const protocolFromYield =
-    yieldAmount > 0n ? (yieldAmount * reserveBps) / ONE : 0n;
+    yieldAmount > 0n ? (yieldAmount * reserveBps) / ONE_WAD : 0n;
   const supplyFromYield = yieldAmount - protocolFromYield;
 
   dailyFees.add(baseAsset, yieldAmount.toString());
@@ -194,13 +292,16 @@ const fetch = async (options: FetchOptions) => {
 
   await Promise.all(
     active.map(async (cfg) => {
-      await processCDO(
+      const processFn = cfg.useAprMethod
+        ? processCDOWithApr
+        : processCDOWithNavDelta;
+      await processFn(
         options,
         cfg,
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
-        dailySupplySideRevenue
+        dailySupplySideRevenue,
       );
     })
   );
@@ -214,7 +315,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata.",
+  Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata. Most CDOs use NAV-delta (change in strategy.totalAssets adjusted for flows). CDOs with discrete oracle pricing (sUSDat) use APR × TVL via CDOLens to avoid mark-to-market spike artifacts.",
   Revenue: "Protocol revenue consists of performance fees (5-10%) charged by Strata on the yield generated and redemption fees paid by the users.",
   ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
   SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche. Goes negative on days a strategy marks down, since those losses are absorbed by the tranches.",
@@ -232,7 +333,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: earliestStart,
   methodology,
-  allowNegativeValue: true, // strategy NAV can mark down, the loss is absorbed by the tranches
+  allowNegativeValue: true, // NAV-delta CDOs can mark down; losses absorbed by tranches
 };
 
 export default adapter;
