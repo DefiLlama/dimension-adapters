@@ -76,15 +76,6 @@ async function immutablex({ startOfDay, createBalances }: FetchOptions) {
   return { dailyVolume };
 }
 
-async function ronin({ createBalances }: FetchOptions) {
-  const data = await httpPost('https://graphql-gateway.axieinfinity.com/graphql',
-    { "operationName": "GetOverviewToday", "variables": {}, "query": "query GetOverviewToday {\n  marketStats {\n    last24Hours {\n      ...OverviewFragment\n      __typename\n    }\n    last7Days {\n      ...OverviewFragment\n      __typename\n    }\n    last30Days {\n      ...OverviewFragment\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment OverviewFragment on SettlementStats {\n  count\n  axieCount\n  volume\n  volumeUsd\n  __typename\n}\n" }
-  )
-  const dailyVolume = createBalances();
-  dailyVolume.addCGToken("tether", Number(data.data.marketStats.last24Hours.volumeUsd));
-  return { dailyVolume };
-}
-
 async function cardano({ createBalances }: FetchOptions) {
   const data = await httpGet("https://server.jpgstoreapis.com/analytics/marketStats?timeframe=24h", {
     headers: {
@@ -133,7 +124,7 @@ const chains = [
   // v1: daily/current data only
   { chain: "ethereum", fetch: ethereum, runAtCurrTime: true },
   { chain: "immutablex", fetch: immutablex,},
-  { chain: "ronin", fetch: ronin, runAtCurrTime: true },
+  { chain: "ronin", fetch: getAlliumVolume("ronin") },
   { chain: "cardano", fetch: cardano, runAtCurrTime: true },
 ].reduce((acc, { chain, fetch, runAtCurrTime }) => {
   acc[chain] = { fetch: (options: FetchOptions) => fetch(options), version: 1, runAtCurrTime, chains: [chain], };

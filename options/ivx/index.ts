@@ -21,6 +21,7 @@ const adapter: Adapter = {
             fetch,
         },
     },
+    deadFrom: "2026-02-21"
 };
 
 export default adapter;

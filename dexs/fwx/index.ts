@@ -85,6 +85,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { start: "2024-09-04" },
     [CHAIN.BSC]: { start: "2024-01-22" },
   },
+  deadFrom: "2026-02-22"
 };
 
 export default adapter;
