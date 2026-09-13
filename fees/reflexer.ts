@@ -1,4 +1,3 @@
-import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -46,12 +45,6 @@ const abi = {
     "event ConfiscateSAFECollateralAndDebt(bytes32 indexed collateralType, address indexed safe, address collateralCounterparty, address debtCounterparty, int256 deltaCollateral, int256 deltaDebt, uint256 globalUnbackedDebt)",
 };
 
-const safeEngineInterface = new Interface([abi.modifySAFE, abi.confiscateSAFE]);
-const taxCollectorInterface = new Interface([abi.distributeTax]);
-const liquidationEngineInterface = new Interface([abi.liquidate]);
-const collateralAuctionInterface = new Interface([abi.buyCollateral]);
-const surplusAuctionInterface = new Interface([abi.surplusBid, abi.surplusSettle]);
-
 type ReflexerEvent = {
   blockNumber: number;
   logIndex: number;
@@ -72,9 +65,10 @@ const toNumber = (value: number | string) => Number(value);
 
 const normalizeCollateralType = (collateralType: string) => collateralType.toLowerCase();
 
+// getLogs normalizes the log index differently per source (indexer vs rpc).
 const getEventPosition = (log: any) => ({
   blockNumber: toNumber(log.blockNumber),
-  logIndex: toNumber(log.logIndex),
+  logIndex: toNumber(log.logIndex ?? log.index ?? log.log_index),
 });
 
 const getDebtAmount = (collateralType: any) => BigInt(collateralType?.debtAmount ?? collateralType?.[0] ?? 0);
@@ -83,6 +77,15 @@ const getAddress = (log: any) => (log.address || log.source || "").toLowerCase()
 
 const isWithinCurrentWindow = (event: { blockNumber: number }, fromBlock: number, toBlock: number) =>
   event.blockNumber >= fromBlock && event.blockNumber <= toBlock;
+
+// getLogs is inclusive of options.getFromBlock() and consecutive runs resolve to the
+// same block there, so events in it would be counted on both days. Starting one block
+// later partitions the days cleanly and lines the debt replay up with options.fromApi,
+// which reads SAFEEngine state after that block already executed.
+async function getWindow(options: FetchOptions) {
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  return { fromBlock: fromBlock + 1, toBlock };
+}
 
 const getStabilityFeeRevenueLabel = (target: string) => {
   switch (target.toLowerCase()) {
@@ -137,87 +140,72 @@ async function getInitialDebtByCollateral(options: FetchOptions, collateralTypes
 
 function parseDebtEvents(logs: any[], eventCollateralTypes: Set<string>) {
   return logs.map((log) => {
-    const parsedLog = safeEngineInterface.parseLog(log);
-    const collateralType = normalizeCollateralType(parsedLog!.args.collateralType);
+    const collateralType = normalizeCollateralType(log.args.collateralType);
     eventCollateralTypes.add(collateralType);
 
     return {
       ...getEventPosition(log),
       type: "debt" as const,
       collateralType,
-      deltaDebt: BigInt(parsedLog!.args.deltaDebt),
+      deltaDebt: BigInt(log.args.deltaDebt),
     };
   });
 }
 
 function parseTaxEvents(logs: any[], eventCollateralTypes: Set<string>) {
   return logs.map((log) => {
-    const parsedLog = taxCollectorInterface.parseLog(log);
-    const collateralType = normalizeCollateralType(parsedLog!.args.collateralType);
+    const collateralType = normalizeCollateralType(log.args.collateralType);
     eventCollateralTypes.add(collateralType);
 
     return {
       ...getEventPosition(log),
       type: "tax" as const,
       collateralType,
-      target: parsedLog!.args.target.toLowerCase(),
-      taxCut: BigInt(parsedLog!.args.taxCut),
+      target: log.args.target.toLowerCase(),
+      taxCut: BigInt(log.args.taxCut),
     };
   });
 }
 
 function parseLiquidationAuctions(logs: any[]) {
   return logs.map((log) => {
-    const parsedLog = liquidationEngineInterface.parseLog(log);
-    const auctioneer = parsedLog!.args.collateralAuctioneer.toLowerCase();
-    const id = parsedLog!.args.auctionId.toString();
+    const auctioneer = log.args.collateralAuctioneer.toLowerCase();
+    const id = log.args.auctionId.toString();
 
     return {
       ...getEventPosition(log),
       auctioneer,
       id,
       // Liquidate.amountToRaise is rate adjusted SAFE debt in rad. The auction target includes the liquidation penalty.
-      rateAdjustedDebt: BigInt(parsedLog!.args.amountToRaise),
+      rateAdjustedDebt: BigInt(log.args.amountToRaise),
     };
   });
 }
 
 function parseBuyCollateralEvents(logs: any[]) {
-  return logs.map((log) => {
-    const parsedLog = collateralAuctionInterface.parseLog(log);
-
-    return {
-      ...getEventPosition(log),
-      auctioneer: getAddress(log),
-      id: parsedLog!.args.id.toString(),
-      amountPaid: BigInt(parsedLog!.args.wad) * RAY,
-    };
-  });
+  return logs.map((log) => ({
+    ...getEventPosition(log),
+    auctioneer: getAddress(log),
+    id: log.args.id.toString(),
+    amountPaid: BigInt(log.args.wad) * RAY,
+  }));
 }
 
 const getAuctionKey = ({ auctioneer, id }: { auctioneer: string; id: string }) => `${auctioneer}:${id}`;
 
 function parseSurplusBids(logs: any[]) {
-  return logs.map((log) => {
-    const parsedLog = surplusAuctionInterface.parseLog(log);
-
-    return {
-      ...getEventPosition(log),
-      id: parsedLog!.args.id.toString(),
-      bid: BigInt(parsedLog!.args.bid),
-    };
-  });
+  return logs.map((log) => ({
+    ...getEventPosition(log),
+    id: log.args.id.toString(),
+    bid: BigInt(log.args.bid),
+  }));
 }
 
 function parseSurplusSettlements(logs: any[]) {
-  return logs.map((log) => {
-    const parsedLog = surplusAuctionInterface.parseLog(log);
-
-    return {
-      ...getEventPosition(log),
-      id: parsedLog!.args.id.toString(),
-    };
-  });
+  return logs.map((log) => ({
+    ...getEventPosition(log),
+    id: log.args.id.toString(),
+  }));
 }
 
 async function addStabilityFees(
@@ -269,12 +257,12 @@ async function addLiquidationFees(
   dailyUserFees: any,
   dailyRevenue: any
 ) {
-  const toBlock = await options.getToBlock();
+
+  const { fromBlock, toBlock } = await getWindow(options);
   const liquidationLogs = await options.getLogs({
     target: LIQUIDATION_ENGINE,
     eventAbi: abi.liquidate,
     fromBlock: START_BLOCK,
-    toBlock,
     entireLog: true,
     cacheInCloud: true,
   });
@@ -290,12 +278,10 @@ async function addLiquidationFees(
 
   if (!auctioneers.size) return;
 
-  const fromBlock = await options.getFromBlock();
   const buyCollateralLogs = await options.getLogs({
     targets: Array.from(auctioneers),
     eventAbi: abi.buyCollateral,
     fromBlock: START_BLOCK,
-    toBlock,
     entireLog: true,
     cacheInCloud: true,
   });
@@ -400,7 +386,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: "2021-02-13",
   pullHourly: true,
-  isExpensiveAdapter: true,
   // Revenue can be negative during rate takebacks and when holder allocations exceed same period revenue.
   allowNegativeValue: true,
   methodology: {
