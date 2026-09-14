@@ -16,12 +16,7 @@ interface PoolStatistics {
   };
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  if (options.dateString === '2026-09-12') {
-    return {
-      dailyFees: 0,
-    }
-  }
+const fetch = async (_a: FetchOptions): Promise<FetchResultFees> => {
   const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
   const index = response.findIndex(pool => pool.pool_type === 'basic');
   const dailyFees = Number(response[index].fees.usd["24h"]);
@@ -36,7 +31,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.RADIXDLT]: {
       fetch,
       start: '2023-10-01',
-      //runAtCurrTime: true,
+      runAtCurrTime: true,
     }
   }
 }
