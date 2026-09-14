@@ -1,6 +1,6 @@
 /**
  * Shared fail-closed guards for aggregators/grom.
- * Keep in sync with local GROM unit tests (grom-guards.js mirror).
+ * Keep in sync with local GROM unit tests (aggregators/grom-guards.js mirror).
  *
  * Never coerce false / "" / [] into 0 via Number().
  */
@@ -29,41 +29,51 @@ export function assertFiniteNonNeg(n: unknown, label: string): number {
   return n;
 }
 
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`grom aggregator: invalid ${label}`);
+  }
+  return value as Record<string, unknown>;
+}
+
 export function assertOkDimensionsResponse(
-  data: any,
+  data: unknown,
   want: { chainKey: string; startTimestamp: number; endTimestamp: number }
 ): { volume: number; fees: number } {
-  if (!data || data.ok !== true) {
+  const body = asRecord(data, "response");
+
+  if (body.ok !== true) {
     throw new Error(
-      `grom aggregator: rejected response for ${want.chainKey} [${want.startTimestamp},${want.endTimestamp}): ${data?.code || ""} ${data?.error || "ok!==true"}`
+      `grom aggregator: rejected response for ${want.chainKey} [${want.startTimestamp},${want.endTimestamp}): ${String(body.code || "")} ${String(body.error || "ok!==true")}`
     );
   }
 
-  if (!data.coverage || data.coverage.status !== "ready") {
+  const coverage = asRecord(body.coverage, "coverage");
+  if (coverage.status !== "ready") {
     throw new Error(
-      `grom aggregator: coverage not ready for ${want.chainKey}: ${data.coverage?.status || "missing"}`
+      `grom aggregator: coverage not ready for ${want.chainKey}: ${String(coverage.status || "missing")}`
     );
   }
 
-  if (typeof data.chainKey !== "string" || !data.chainKey.trim()) {
+  if (typeof body.chainKey !== "string" || !body.chainKey.trim()) {
     throw new Error(`grom aggregator: missing chainKey for ${want.chainKey}`);
   }
-  if (data.chainKey !== want.chainKey) {
+  if (body.chainKey !== want.chainKey) {
     throw new Error(
-      `grom aggregator: chainKey mismatch want=${want.chainKey} got=${data.chainKey}`
+      `grom aggregator: chainKey mismatch want=${want.chainKey} got=${body.chainKey}`
     );
   }
 
   if (
-    Number(data.startTimestamp) !== Number(want.startTimestamp) ||
-    Number(data.endTimestamp) !== Number(want.endTimestamp)
+    Number(body.startTimestamp) !== Number(want.startTimestamp) ||
+    Number(body.endTimestamp) !== Number(want.endTimestamp)
   ) {
     throw new Error(
-      `grom aggregator: window mismatch want=[${want.startTimestamp},${want.endTimestamp}) got=[${data.startTimestamp},${data.endTimestamp})`
+      `grom aggregator: window mismatch want=[${want.startTimestamp},${want.endTimestamp}) got=[${body.startTimestamp},${body.endTimestamp})`
     );
   }
 
-  const volume = assertFiniteNonNeg(data.dailyVolumeUsd, "dailyVolumeUsd");
-  const fees = assertFiniteNonNeg(data.dailyFeesUsd, "dailyFeesUsd");
+  const volume = assertFiniteNonNeg(body.dailyVolumeUsd, "dailyVolumeUsd");
+  const fees = assertFiniteNonNeg(body.dailyFeesUsd, "dailyFeesUsd");
   return { volume, fees };
 }

@@ -25,6 +25,8 @@ import fetchURL from "../utils/fetchURL";
 import { assertOkDimensionsResponse } from "../helpers/aggregators/grom";
 
 const API = "https://grom.exchange/api/public/dimensions";
+/** LiFi integrator id — ledger is already scoped to this; query documents attribution. */
+const INTEGRATOR = "grom-exchange";
 /** Earliest UTC day a GROM index window may begin (not proof every chain is covered). */
 const START = "2026-08-22";
 const DAY = 86400;
@@ -38,19 +40,6 @@ const CHAIN_KEYS: Record<string, string> = {
   [CHAIN.AVAX]: "avax",
   [CHAIN.BASE]: "base",
   [CHAIN.SOLANA]: "solana",
-};
-
-type DimensionsResponse = {
-  ok?: boolean;
-  dailyVolumeUsd?: number | null;
-  dailyFeesUsd?: number | null;
-  fillCount?: number | null;
-  chainKey?: string;
-  startTimestamp?: number;
-  endTimestamp?: number;
-  coverage?: { status?: string };
-  error?: string;
-  code?: string;
 };
 
 /** Map harness/backfill windows onto completed UTC calendar days (GROM ledger unit). */
@@ -68,16 +57,18 @@ async function fetchDimensions(
   const { start, end } = utcDayWindow(options.startTimestamp, options.endTimestamp);
   const url =
     `${API}?product=swap` +
+    `&integrator=${encodeURIComponent(INTEGRATOR)}` +
     `&chainKey=${encodeURIComponent(chainKey)}` +
     `&startTimestamp=${start}` +
     `&endTimestamp=${end}`;
 
-  let data: DimensionsResponse;
+  let data: unknown;
   try {
     data = await fetchURL(url);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `grom aggregator: upstream fetch failed for ${chainKey} [${start},${end}): ${err?.message || err}`
+      `grom aggregator: upstream fetch failed for ${chainKey} [${start},${end}): ${message}`
     );
   }
 
