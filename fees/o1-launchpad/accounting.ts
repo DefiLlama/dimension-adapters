@@ -38,7 +38,9 @@ const requireThat = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(`o1 Launchpad: ${message}`);
 };
 /** Incomplete RPC/log sets are skipped so one missing event cannot fail the day. */
-const skip = (_message: string): void => {};
+const skip = (message: string): void => {
+  console.warn(`o1 Launchpad: skipped ${message}`);
+};
 
 /**
  * Recover the stock reference price using the tick and supply captured together.
