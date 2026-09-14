@@ -73,9 +73,14 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
 
   let amount = await options.api.getBalancesV2();
   if (dataType == "fee") {
+    // protocolFeeRatio is 0 on every pool, so LPs keep the whole swap fee
     return {
       dailyFees: amount,
       dailyUserFees: amount,
+      dailySupplySideRevenue: amount,
+      dailyRevenue: 0,
+      dailyProtocolRevenue: 0,
+      dailyHoldersRevenue: 0,
     };
   } else {
     return {

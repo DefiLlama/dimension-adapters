@@ -81,6 +81,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchEclipse,
       runAtCurrTime: true,
       start: "2024-12-22",
+      deadFrom: "2026-03-10", // stats.invariant.app eclipse snapshot stopped advancing on 2026-03-09
     },
   },
 };

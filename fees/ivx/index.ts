@@ -20,6 +20,7 @@ const adapter: Adapter = {
     version: 1,
     fetch,
     chains: [CHAIN.BERACHAIN],
+    deadFrom: "2026-02-21"
 };
 
 export default adapter;

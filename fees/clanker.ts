@@ -37,6 +37,13 @@ const CHAIN_CONFIG: Record<string, { feeWallets: string[]; weth: string; start: 
     weth: CoreAddresses.monad.WETH,
     start: "2025-10-20",
   },
+  [CHAIN.ROBINHOOD]: {
+    // the Clanker factory itself, same role the clanker_factory entry plays on
+    // base and unichain. Deployed 2026-07-08 at block 4570632.
+    feeWallets: ['0xD3f2cC1731b7Fd17f28798835C2E02f0a1839A94'],
+    weth: CoreAddresses.robinhood.WETH,
+    start: "2026-07-08",
+  },
 };
 
 const fetch = async (options: FetchOptions) => {

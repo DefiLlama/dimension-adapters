@@ -4,7 +4,7 @@ import { filterPools } from "../helpers/uniswap";
 import { ethers } from "ethers";
 import { addOneToken } from "../helpers/prices";
 
-const poolEvent = 'event CustomPool(address indexed token0, address indexed token1, address pool)'
+const poolEvent = 'event Pool(address indexed token0, address indexed token1, address pool)'
 const customPoolEvent = 'event CustomPool(address indexed deployer, address indexed token0, address indexed token1, address pool)'
 const poolSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const globalStateAbi = 'function globalState() view returns (uint160 price, int24 tick, uint16 lastFee, uint8 pluginConfig, uint16 communityFee, bool unlocked)'

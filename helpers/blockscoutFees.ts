@@ -17,7 +17,7 @@ export const chainConfigMap: any = {
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
   [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://stats-etherlink-mainnet.k8s-prod-1.blockscout.com' },
   [CHAIN.REDSTONE]: { explorer: 'https://explorer.redstone.xyz', CGToken: 'ethereum', allStatsApi: 'https://stats-redstone.k8s.blockscout.com' },
-  [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer' },
+  [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer', deadFrom: '2026-07-28' }, // ShimmerEVM sunset: explorer redirects to explorer.shimmer.network, RPCs stopped; last fees 2026-07-27
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
   [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain', deadFrom: '2026-01-15', },
   [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
@@ -55,7 +55,7 @@ export const chainConfigMap: any = {
   [CHAIN.CHILIZ]: { explorer: 'https://scan-api.chiliz.com', CGToken: 'chiliz', start: '2025-11-02' },
   [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum', allStatsApi: 'https://explorer-superposition-1v9rjalnat.t.conduit.xyz', },
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
-  [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
+  [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://explorer.reya.network/stats-service' },
   [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
   [CHAIN.ZORA]: { explorer: 'https://explorer.zora.co', CGToken: 'ethereum', allStatsApi: 'https://explorer.zora.co' },
   [CHAIN.WC]: { explorer: 'https://worldchain-mainnet.explorer.alchemy.com', CGToken: 'ethereum', allStatsApi: 'https://stats-alchemy-worldchain-mainnet.k8s.blockscout.com' },
@@ -117,7 +117,7 @@ export const chainConfigMap: any = {
   [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
   [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
-  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2 },
+  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2, deadFrom: '2025-09-22' }, // legacy totalfees endpoint returns null for every date; last nonzero fees 2025-09-21
   //[CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
@@ -240,12 +240,20 @@ export function blockscoutFeeAdapter2(chain: string) {
 
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
-          if (!fees || fees.result === undefined || fees.result === null) {
+          let feesWei: number | undefined = fees?.result ?? undefined
+          if ((feesWei === undefined || feesWei === null) && allStatsApi) {
+            // newer blockscout deployments return result: null from the legacy totalfees endpoint;
+            // fall back to the stats service daily txnsFee series (values are in the native coin)
+            const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`, requestConfig)
+            const row = chart?.find((c: any) => c.date === dateString)
+            if (row) feesWei = Number(row.value) * 1e18
+          }
+          if (feesWei === undefined || feesWei === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
-          if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else dailyFees.addGasToken(fees.result)
+          if (CGToken) dailyFees.addCGToken(CGToken, feesWei / 1e18)
+          else dailyFees.addGasToken(feesWei)
 
           if (config.burnRatio !== undefined && config.burnRatio !== null) {
             const dailyRevenue = dailyFees.clone(config.burnRatio);

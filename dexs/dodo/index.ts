@@ -81,30 +81,43 @@ interface IDailyResponse {
 //   };
 // }
 
+function trailingMedian(list: IDailyResponse['data']['dashboard_chain_day_data']['list'], chain: string, startOfDay: number): number {
+  const trailing = list
+    .filter((item: any) => item.timestamp < startOfDay && item.timestamp >= startOfDay - 7 * 24 * 60 * 60)
+    .map((item: any) => Number(item.volume[chain]))
+    .filter((value: number) => Number.isFinite(value))
+    .sort((a: number, b: number) => a - b)
+  return trailing.length ? trailing[Math.floor(trailing.length / 2)] : 0
+}
+
 const fetch = async (options: FetchOptions) => {
   const chain = chainConversion(options.chain)
   const dailyResponse = (await postURL(dailyEndpoint, dailyVolumePayload(chain))) as IDailyResponse
   const list = dailyResponse.data.dashboard_chain_day_data.list
   const day = list.find((item: any) => item.timestamp === options.startOfDay)
+  const median = trailingMedian(list, chain, options.startOfDay)
 
-  if (!day)
+  // the day table sometimes returns 0 / no row for a chain it has not finished
+  // aggregating yet, then backfills later (#9111/#9296). returning that 0 would
+  // cache a fake quiet day; throwing would abort Promise.all and blank every
+  // other chain. null is not stored, so siblings can still publish.
+  const skipUnfinished = () => {
+    console.error(`dodo: ${chain} looks unfinished for ${options.dateString} against a 7 day median of ${Math.round(median)}; skipping this chain so other chains can still publish`)
+    return { dailyVolume: null as any }
+  }
+
+  if (!day) {
+    // dust chains genuinely miss quiet days; a high median means lag, not quiet
+    if (median > 10000) return skipUnfinished()
     throw new Error(`dodo: dashboard_chain_day_data has no ${chain} row for ${options.dateString}`)
+  }
 
   const dailyVolume = Number(day.volume[chain])
 
   if (!Number.isFinite(dailyVolume))
     throw new Error(`dodo: ${chain} is missing from the volume object for ${options.dateString}`)
 
-  if (dailyVolume === 0) {
-    const trailing = list
-      .filter((item: any) => item.timestamp < options.startOfDay && item.timestamp >= options.startOfDay - 7 * 24 * 60 * 60)
-      .map((item: any) => Number(item.volume[chain]))
-      .filter((value: number) => Number.isFinite(value))
-      .sort((a: number, b: number) => a - b)
-    const median = trailing.length ? trailing[Math.floor(trailing.length / 2)] : 0
-    if (median > 10000)
-      throw new Error(`dodo: ${chain} reports 0 volume for ${options.dateString} against a 7 day median of ${Math.round(median)}, refusing to publish a day the dashboard has not finished aggregating`)
-  }
+  if (dailyVolume === 0 && median > 10000) return skipUnfinished()
 
   return { dailyVolume }
 }

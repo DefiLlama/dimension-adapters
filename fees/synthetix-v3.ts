@@ -56,5 +56,6 @@ const adapters: SimpleAdapter = {
     [CHAIN.ARBITRUM, { start: '2024-08-15' }],
   ],
   methodology,
+  deadFrom: "2026-06-26"
 }
 export default adapters

@@ -1,22 +1,9 @@
 import { SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 import { queryAllium } from "../helpers/allium";
+import { queryDune } from "../helpers/dune";
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { FetchOptions } from "../adapters/types";
-
-// --- v2 adapters: support time-range queries via FetchOptions ---
-
-async function optimism({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
-
-async function avalanche({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
-
-async function flow({ }: FetchOptions) {
-  throw new Error("Not implemented yet, find solution")
-}
 
 function getAlliumVolume(chain: string) {
   return async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
@@ -25,6 +12,46 @@ function getAlliumVolume(chain: string) {
     dailyVolume.addCGToken("tether", Number(query[0].usd_volume));
     return { dailyVolume };
   }
+}
+
+async function flow(options: FetchOptions) {
+  const { startTimestamp, endTimestamp, createBalances } = options;
+  const data = await queryDune("3996608", { fullQuery: `
+    WITH sales AS (
+      SELECT
+        regexp_replace(
+          json_extract_scalar(json_parse(data), '$.salePaymentVaultType'),
+          '\\.Vault$',
+          ''
+        ) AS currency,
+        TRY_CAST(json_extract_scalar(json_parse(data), '$.salePrice') AS DOUBLE) AS amount
+      FROM flow.cadence_events
+      WHERE block_date BETWEEN DATE(from_unixtime(${startTimestamp})) AND DATE(from_unixtime(${endTimestamp}))
+        AND timestamp >= from_unixtime(${startTimestamp})
+        AND timestamp < from_unixtime(${endTimestamp})
+        AND topics[1] LIKE '%Storefront%ListingCompleted%'
+        AND TRY_CAST(json_extract_scalar(json_parse(data), '$.purchased') AS BOOLEAN) = true
+    )
+    SELECT currency, SUM(amount) AS amount
+    FROM sales
+    WHERE currency IS NOT NULL
+    GROUP BY 1
+  ` }, options)
+
+  const tokenMap: Record<string, string> = {
+    "A.ead892083b3e2c6c.DapperUtilityCoin": "usd-coin",
+    "A.3c5959b568896393.FUSD": "usd-coin",
+    "A.1654653399040a61.FlowToken": "flow",
+    "A.ead892083b3e2c6c.FlowUtilityToken": "flow",
+    "A.d01e482eb680ec9f.REVV": "revv",
+    "A.b19436aae4d94622.FiatToken": "usd-coin",
+  };
+  const dailyVolume = createBalances();
+  data.forEach(({ currency, amount }: { currency: string, amount: number }) => {
+    const cgId = tokenMap[currency];
+    if (cgId) dailyVolume.addCGToken(cgId, Number(amount));
+  });
+  return { dailyVolume };
 }
 
 // --- v1 adapters: only support pulling daily/current data ---
@@ -46,15 +73,6 @@ async function immutablex({ startOfDay, createBalances }: FetchOptions) {
     return closest;
   }).trade_volume_usd;
   dailyVolume.addCGToken("tether", Number(volumeUsd));
-  return { dailyVolume };
-}
-
-async function ronin({ createBalances }: FetchOptions) {
-  const data = await httpPost('https://graphql-gateway.axieinfinity.com/graphql',
-    { "operationName": "GetOverviewToday", "variables": {}, "query": "query GetOverviewToday {\n  marketStats {\n    last24Hours {\n      ...OverviewFragment\n      __typename\n    }\n    last7Days {\n      ...OverviewFragment\n      __typename\n    }\n    last30Days {\n      ...OverviewFragment\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment OverviewFragment on SettlementStats {\n  count\n  axieCount\n  volume\n  volumeUsd\n  __typename\n}\n" }
-  )
-  const dailyVolume = createBalances();
-  dailyVolume.addCGToken("tether", Number(data.data.marketStats.last24Hours.volumeUsd));
   return { dailyVolume };
 }
 
@@ -96,16 +114,17 @@ missing:
 
 const chains = [
   // v2: time-range aware
-  { chain: "optimism", fetch: optimism, },
+  { chain: "optimism", fetch: getAlliumVolume("optimism"), },
   { chain: "flow", fetch: flow, },
-  { chain: "avalanche", fetch: avalanche, },
+  { chain: "avalanche", fetch: getAlliumVolume("avalanche"), },
   { chain: "polygon", fetch: getAlliumVolume("polygon"), },
   { chain: "solana", fetch: getAlliumVolume("solana"), },
+  { chain: "robinhood", fetch: getAlliumVolume("robinhood"), },
   //{ chain: "bitcoin",  fetch: getAlliumVolume("bitcoin"),    },
   // v1: daily/current data only
   { chain: "ethereum", fetch: ethereum, runAtCurrTime: true },
   { chain: "immutablex", fetch: immutablex,},
-  { chain: "ronin", fetch: ronin, runAtCurrTime: true },
+  { chain: "ronin", fetch: getAlliumVolume("ronin") },
   { chain: "cardano", fetch: cardano, runAtCurrTime: true },
 ].reduce((acc, { chain, fetch, runAtCurrTime }) => {
   acc[chain] = { fetch: (options: FetchOptions) => fetch(options), version: 1, runAtCurrTime, chains: [chain], };

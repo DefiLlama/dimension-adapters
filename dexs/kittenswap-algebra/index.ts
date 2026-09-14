@@ -10,13 +10,29 @@ const poolSwapEvent = "event Swap(address indexed sender, address indexed recipi
 // emitted immediately before each Swap, carrying the fee actually charged on it
 const swapFeeEvent = "event SwapFee(address indexed sender, uint24 overrideFee, uint24 pluginFee)";
 
-// AlgebraFactory: purrsec.com/address/0x5f95E92c338e6453111Fc55ee66D4AafccE661A7
-const factory = "0x5f95E92c338e6453111Fc55ee66D4AafccE661A7";
-// the factory's first Pool event, 2025-08-15
-const fromBlock = 11198369;
-// Voter, the communityFeeReceiver of gauged pools, which forwards their fees to veKITTEN voters.
-// Pools pointing anywhere else pay the treasury multisig instead, so their share is protocol revenue.
-const voter = "0xb7f7053f7e6c210e6777d5ba758e4b3eca6c88a0";
+type ChainConfig = {
+  factory: string;
+  fromBlock: number;
+  // Voter, the communityFeeReceiver of gauged pools, which forwards their fees to veKITTEN voters.
+  // Pools pointing anywhere else pay the treasury instead, so their share is protocol revenue.
+  voter?: string;
+};
+
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.HYPERLIQUID]: {
+    // AlgebraFactory: purrsec.com/address/0x5f95E92c338e6453111Fc55ee66D4AafccE661A7
+    factory: "0x5f95E92c338e6453111Fc55ee66D4AafccE661A7",
+    // the factory's first Pool event, 2025-08-15
+    fromBlock: 11198369,
+    voter: "0xb7f7053f7e6c210e6777d5ba758e4b3eca6c88a0",
+  },
+  [CHAIN.ROBINHOOD]: {
+    // AlgebraFactory Integral 1.2.3
+    factory: "0xf03875b5Ec5eAc83cab83A6c2ab17844304AA7a0",
+    // the factory's first Pool event, 2026-09-05
+    fromBlock: 54695982,
+  },
+};
 
 // Algebra Integral holds both as private constants, so they cannot be read on-chain
 const COMMUNITY_FEE_DENOMINATOR = 1000; // globalState().communityFee, out of 1000
@@ -34,6 +50,9 @@ const logIndexOf = (log: any) => Number(log.logIndex ?? log.index);
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options;
+  const { factory, fromBlock, voter } = chainConfig[chain] ?? {};
+  if (!factory || fromBlock == null)
+    throw new Error(`kittenswap-algebra: missing chain config for ${chain}`);
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
@@ -75,7 +94,7 @@ const fetch = async (options: FetchOptions) => {
   const vaultInfo: IJSON<{ algebraFee: number, toVoter: boolean }> = {};
   vaultList.forEach((vault, i) => {
     if (algebraFees[i] == null || receivers[i] == null) return;
-    vaultInfo[vault] = { algebraFee: Number(algebraFees[i]), toVoter: receivers[i].toLowerCase() === voter };
+    vaultInfo[vault] = { algebraFee: Number(algebraFees[i]), toVoter: !!voter && receivers[i].toLowerCase() === voter };
   });
 
   // each pool splits its swap fee differently, so a pool we cannot read is skipped rather than guessed at
@@ -182,7 +201,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.HYPERLIQUID],
+  chains: [
+    CHAIN.HYPERLIQUID,
+    [CHAIN.ROBINHOOD, { start: '2026-09-05' }],
+  ],
   start: '2025-08-15',
   methodology,
   breakdownMethodology,

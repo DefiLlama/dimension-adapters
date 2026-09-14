@@ -33,7 +33,10 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
     chains: [CHAIN.ARBITRUM],
     fetch,
-    start: '2025-06-15'
+    start: '2025-06-15',
+    // dHedge removed getOptionsVolume from api-v2.dhedge.org/graphql (verified via
+    // introspection 2026-09-11) - no data source until they restore or replace it
+    deadFrom: '2026-09-10',
 };
 
 export default adapter;

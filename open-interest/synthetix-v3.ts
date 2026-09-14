@@ -22,6 +22,7 @@ const adapters: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: '2024-01-13',
   runAtCurrTime: true,
+  deadFrom: "2026-06-26"
 }
 
 export default adapters

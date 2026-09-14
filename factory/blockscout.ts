@@ -136,6 +136,7 @@ const protocolChainMap: Record<string, string> = {
 
 const deadFromMap: Record<string, string> = {
   "kroma": "2025-06-30",
+  "edu-chain": "2026-08-03", // educhain.blockscout.com now redirects to the Open Campus docs; the chain never reported nonzero fees
 }
 
 const methodologyMap: Record<string, any> = {

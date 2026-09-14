@@ -10,6 +10,16 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "ebisus-bay-dex": {
+    [CHAIN.CRONOS]: {
+      factory: '0x5f1d751f447236f486f4268b883782897a902379',
+      start: '2024-03-27',
+    },
+    [CHAIN.CRONOS_ZKEVM]: {
+      factory: '0x1A695B3aC30D41F9A1D856A27DD0D9DdaaCe750d',
+      start: '2024-08-13',
+    },
+  },
   "katana": {
     [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
   },
@@ -829,6 +839,10 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "ebisus-bay-dex": {
+    Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes NFT trades.",
+    Fees: "Swap fees paid by users"
+  },
   "zyberswap-v2": {
     UserFees: "User pays 0.25% fees on each swap.",
     Fees: "A 0.25% of each swap is collected as trading fees",
