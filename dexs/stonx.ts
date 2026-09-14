@@ -15,6 +15,7 @@ const VE33 = "0xD18685A514E59b06d59824e16Db07e73345d9953";
 const PAGE_SIZE = 200;
 // Bound concurrent API requests while keeping the per-pool history fan-out fast.
 const API_CONCURRENCY = 8;
+const MAX_FAILED_POOL_RATIO = 0.1;
 // EVM addresses are 20 bytes, or 40 hexadecimal characters.
 const EVM_ADDRESS_BYTES = 20;
 const EVM_ADDRESS_HEX_LENGTH = EVM_ADDRESS_BYTES * 2;
@@ -95,7 +96,8 @@ const fetch = async (options: FetchOptions) => {
     .for(pools)
     .process((pool) => httpGet(poolVolumeUrl(pool)) as Promise<PoolVolumeResponse>);
 
-  if (errors.length) throw errors[0];
+  if (pools.length && errors.length / pools.length > MAX_FAILED_POOL_RATIO)
+    throw new Error(`stonx: ${errors.length}/${pools.length} pool volume requests failed, refusing to report a partial day`);
 
   results.forEach(({ volumeByTokenByDate }) => {
     volumeByTokenByDate
