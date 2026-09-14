@@ -99,10 +99,12 @@ const fetch = async (options: FetchOptions) => {
   if (pools.length && errors.length / pools.length > MAX_FAILED_POOL_RATIO)
     throw new Error(`stonx: ${errors.length}/${pools.length} pool volume requests failed, refusing to report a partial day`);
 
+  let matchedRows = 0;
   results.forEach(({ volumeByTokenByDate }) => {
     volumeByTokenByDate
       .filter(({ date }) => date.slice(0, 10) === options.dateString)
       .forEach(({ token, volume, fees, ve33_fees }) => {
+        matchedRows += 1;
         if (BigInt(fees) !== BigInt(ve33_fees)) {
           throw new Error("STONX Ve33 swap fees no longer equal voter fees; update the revenue split");
         }
@@ -113,6 +115,10 @@ const fetch = async (options: FetchOptions) => {
         dailyHoldersRevenue.add(address, ve33_fees, VOTER_FEES);
       });
   });
+
+  if (!matchedRows) {
+    throw new Error(`No STONX Ve33 pair-volume rows for ${options.dateString}`);
+  }
 
   return {
     dailyVolume,
