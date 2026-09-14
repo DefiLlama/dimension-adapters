@@ -64,12 +64,11 @@ export function assertOkDimensionsResponse(
     );
   }
 
-  if (
-    Number(body.startTimestamp) !== Number(want.startTimestamp) ||
-    Number(body.endTimestamp) !== Number(want.endTimestamp)
-  ) {
+  const gotStart = assertFiniteNonNeg(body.startTimestamp, "startTimestamp");
+  const gotEnd = assertFiniteNonNeg(body.endTimestamp, "endTimestamp");
+  if (gotStart !== Number(want.startTimestamp) || gotEnd !== Number(want.endTimestamp)) {
     throw new Error(
-      `grom aggregator: window mismatch want=[${want.startTimestamp},${want.endTimestamp}) got=[${body.startTimestamp},${body.endTimestamp})`
+      `grom aggregator: window mismatch want=[${want.startTimestamp},${want.endTimestamp}) got=[${gotStart},${gotEnd})`
     );
   }
 
