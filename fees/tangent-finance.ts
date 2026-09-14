@@ -37,7 +37,9 @@ const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 // older period would be valued at zero. Use the feed when it has a price, fall back to the peg.
 const usgPrice = async (timestamp: number): Promise<number | undefined> => {
     const key = `ethereum:${USG}`
+    // a failed lookup is the same as no feed: fall back to the peg rather than failing the day
     const { coins } = await httpGet(`https://coins.llama.fi/prices/historical/${timestamp}/${key}`)
+        .catch(() => ({ coins: {} }))
     return coins[key]?.price
 }
 
@@ -71,6 +73,7 @@ const fetch = async (options: FetchOptions) => {
             topics: [TRANSFER_TOPIC, ethers.zeroPadValue(TREASURY, 32), null as any],
             entireLog: true,
             parseLog: true,
+            onlyArgs: false
         }),
         usgPrice(options.startTimestamp),
     ])
