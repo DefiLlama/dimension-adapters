@@ -22,6 +22,10 @@ import { addTokensReceived } from "../../helpers/token";
  *    90% StockBooster / 10% launch dev, pushed live per trade. First
  *    production launch: Card Wall ($WALL), 2026-08-14 — raise bonded into
  *    permanently locked LP, so the tax is the only extractable fee leg.
+ *    Second instance: the Civilization anti-snipe pad (Nightshades faction
+ *    launches, 2026-09-14) — same decay curve, WETH-quoted, tax split by the
+ *    game hook 50% boost pot / 10% faction pool / 13.33% StockBooster /
+ *    13.33% protocol / 13.34% creator, read exactly from PadTaxCollected.
  * 7. Safe Launch / Stonklauncher pads (public go-live 2026-08-17, V2 live
  *    2026-08-21/22, r2/"v3" pad generation 2026-08-23): every window buy/sell
  *    pays the decaying snipe tax, split 16.5% launch creator / 16.5% protocol
@@ -41,6 +45,7 @@ import { addTokensReceived } from "../../helpers/token";
  * - Certificate Counter stock purchase (CertificateBought.spendWei)
  * - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
  * - Anti-snipe launch buys (WallBought.ethIn)
+ * - Civilization anti-snipe pad buys (PadBuy.quoteIn, WETH)
  * - Safe Launch / Stonklauncher window buys AND sells on every pad generation
  *   (buy = tax-inclusive quote in; sell = net quote out + tax)
  * - StonkCurvePool Trade.quoteAmount (bonding-curve launcher)
@@ -88,6 +93,18 @@ const ANTI_SNIPE_LAUNCHES = [
   "0xEa371F8122630d05352Cf15b608402DB2069bdd6", // Card Wall ($WALL), 2026-08-14
 ];
 const LAUNCH_BOOSTER_BPS = 9000n;
+
+// Civilization anti-snipe pad (Nightshades faction launch, 2026-09-14). One
+// singleton pad hosts all four faction curves (launch ids 1–4: Ghosts,
+// Watchers, Knights, Zombies) — same 99% → 0 time-decay snipe tax over a
+// 99-minute buys-only window, quoted in WETH. Every buy emits PadBuy (gross
+// quoteIn → volume) AND PadTaxCollected with the exact wei split the hook
+// applied: 50% next-night boost pot (funds the survivor buy) / 10% the
+// faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury /
+// 13.34% game creator. Legs are read from the event, never re-derived.
+const CIV_ANTI_SNIPE_PADS = [
+  "0xca389585c4940B107D49AF4A37aD259c5fb69081", // Nightshades (Meebco), 2026-09-14
+];
 
 // Safe Launch / Stonklauncher pads. quote=null → native ETH (legacy ETH pad);
 // otherwise amounts in SafeBuy/SafeSell are the lane's quote token (field
@@ -198,6 +215,10 @@ const LOCK_TOKENS_PAID =
   "event LockTokensPaid(uint256 indexed lockTokenId, address indexed token, uint256 userAmount, uint256 protocolAmount)";
 const WALL_BOUGHT =
   "event WallBought(address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
+const PAD_BUY =
+  "event PadBuy(uint256 indexed launchId, address indexed buyer, uint256 quoteIn, uint256 taxPaid, uint256 netIn, uint256 tokensOut)";
+const PAD_TAX_COLLECTED =
+  "event PadTaxCollected(uint256 indexed launchId, uint256 tax, uint256 boost, uint256 lp, uint256 booster, uint256 protocol, uint256 creator)";
 const SAFE_BUY =
   "event SafeBuy(uint256 indexed id, address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
 const SAFE_SELL =
@@ -240,6 +261,12 @@ const LABELS = {
   LAUNCH_TAX: "Anti-snipe launch tax (time-decay snipe tax on curve buys)",
   LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
   LAUNCH_TAX_DEV: "Anti-snipe launch tax → launch dev (10%)",
+  CIV_TAX: "Civilization anti-snipe pad snipe tax (Nightshades faction launches, time-decay tax on curve buys)",
+  CIV_TAX_PROTOCOL: "Civilization pad tax → protocol treasury (13.33%)",
+  CIV_TAX_BOOST: "Civilization pad tax → next-night boost pot (50%)",
+  CIV_TAX_LP: "Civilization pad tax → faction's own locked pool (10%)",
+  CIV_TAX_BOOSTER: "Civilization pad tax → StockBooster dividends (13.33%)",
+  CIV_TAX_CREATOR: "Civilization pad tax → game creator (13.34%)",
   SAFE_TAX: "Safe Launch / Stonklauncher snipe tax (time-decay tax on window trades)",
   SAFE_TAX_PROTOCOL: "Safe Launch tax → protocol accrual (16.5%)",
   SAFE_TAX_CREATOR: "Safe Launch tax → launch creator (16.5%)",
@@ -384,10 +411,20 @@ const fetchRobinhood = async (options: FetchOptions) => {
     }),
   ]);
 
-  const launchBuyLogs = await options.getLogs({
-    targets: ANTI_SNIPE_LAUNCHES,
-    eventAbi: WALL_BOUGHT,
-  });
+  const [launchBuyLogs, civBuyLogs, civTaxLogs] = await Promise.all([
+    options.getLogs({
+      targets: ANTI_SNIPE_LAUNCHES,
+      eventAbi: WALL_BOUGHT,
+    }),
+    options.getLogs({
+      targets: CIV_ANTI_SNIPE_PADS,
+      eventAbi: PAD_BUY,
+    }),
+    options.getLogs({
+      targets: CIV_ANTI_SNIPE_PADS,
+      eventAbi: PAD_TAX_COLLECTED,
+    }),
+  ]);
 
   const [safeBuyLogsByPad, safeSellLogsByPad] = await Promise.all([
     options.getLogs({
@@ -618,6 +655,33 @@ const fetchRobinhood = async (options: FetchOptions) => {
     // The 10% dev leg pays the launching team, not the protocol — counted in
     // fees, excluded from revenue/protocolRevenue.
     dailySupplySideRevenue.addGasToken(tax - toBooster, LABELS.LAUNCH_TAX_DEV);
+  }
+
+  // ── Civilization anti-snipe pad (Nightshades faction launches) ───────────
+  // Same 99% → 0 time-decay snipe tax over a 99-minute buys-only window, but
+  // quoted in WETH and split by the game hook: 50% next-night boost pot / 10%
+  // the faction's own locked pool / 13.33% StockBooster / 13.33% protocol /
+  // 13.34% game creator. PadBuy.quoteIn is the tax-inclusive notional; the fee
+  // legs come straight off PadTaxCollected (exact wei, no re-derivation).
+  // The net raise bonds into the hooked v4 pool under the game vault, so the
+  // tax is again the only leg that leaves the curve.
+  for (const log of civBuyLogs) {
+    const quoteIn = BigInt(log.quoteIn);
+    if (quoteIn > 0n) dailyVolume.add(ROBINHOOD_WETH, quoteIn);
+  }
+  for (const log of civTaxLogs) {
+    const tax = BigInt(log.tax);
+    if (tax <= 0n) continue;
+    const toProtocol = BigInt(log.protocol);
+    dailyFees.add(ROBINHOOD_WETH, tax, LABELS.CIV_TAX);
+    dailyRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
+    dailyProtocolRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.boost), LABELS.CIV_TAX_BOOST);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.lp), LABELS.CIV_TAX_LP);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.booster), LABELS.CIV_TAX_BOOSTER);
+    // The creator leg pays the game team, not the protocol — counted in fees,
+    // excluded from revenue/protocolRevenue (same treatment as the WALL dev leg).
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.creator), LABELS.CIV_TAX_CREATOR);
   }
 
   // ── Safe Launch / Stonklauncher pads (V1 ETH + quoted + V2 + r2) ────────
@@ -893,9 +957,9 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Volume:
-      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
+      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Civilization anti-snipe pad PadBuy.quoteIn (WETH, Nightshades faction launches) + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); the Civilization anti-snipe pad snipe tax on Nightshades faction curve buys (PadTaxCollected — 50% next-night boost pot / 10% faction pool / 13.33% StockBooster / 13.33% protocol / 13.34% game creator, WETH); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
     Revenue:
       "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, the $STONKBROKER-buyback half of the Smart LP 10% performance fee, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
     ProtocolRevenue:
@@ -903,7 +967,7 @@ const adapter: SimpleAdapter = {
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned, plus the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Civilization pad tax legs to the next-night boost pot (50%), the faction's own locked pool (10%), StockBooster (13.33%) and the game creator (13.34%); Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
   },
   breakdownMethodology: {
     Volume: {
@@ -913,6 +977,8 @@ const adapter: SimpleAdapter = {
         "Broker Box PullOpened.ticketWei + SoldBack/SoldBackUsdg payouts + Certificate Counter spendWei.",
       [LABELS.LAUNCH_TAX]:
         "Anti-snipe one-off launch buys (WallBought.ethIn).",
+      [LABELS.CIV_TAX]:
+        "Civilization anti-snipe pad curve buys on the Nightshades faction launches (PadBuy.quoteIn, tax-inclusive, WETH).",
       [LABELS.SAFE_TAX]:
         "Safe Launch / Stonklauncher window buy+sell notional on every pad (V1 ETH + V1 quoted + V2 + r2). Buys = tax-inclusive quote in; sells = net quote out + tax.",
       [LABELS.CURVE_FEES]:
@@ -932,6 +998,8 @@ const adapter: SimpleAdapter = {
         "1% Relay app fee on the crypto swap desk, measured as Base USDC Transfer outflows from the fee wallet toward StockBooster.",
       [LABELS.LAUNCH_TAX]:
         "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
+      [LABELS.CIV_TAX]:
+        "Time-decay snipe tax on Civilization anti-snipe pad curve buys (Nightshades faction launches; 99% at the bell falling to 0 over a 99-minute buys-only window; PadTaxCollected.tax, WETH). Split by the game hook per trade: 50% next-night boost pot / 10% the faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",
       [LABELS.SAFE_TAX]:
         "Time-decay snipe tax on Safe Launch / Stonklauncher window buys AND sells (SafeBuy/SafeSell taxPaid) across the V1 ETH pad, V1 quoted lanes, V2 lanes, and r2 pads. Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve or ICO Bonus / 17% StockBooster + Clock In Card referrers, snapshotted per launch. Quoted-lane amounts are in the quote token.",
       [LABELS.CURVE_FEES]:
@@ -955,6 +1023,7 @@ const adapter: SimpleAdapter = {
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
+      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad snipe tax (Nightshades).",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
       [LABELS.SMARTLP_BUYBACK]:
@@ -972,6 +1041,7 @@ const adapter: SimpleAdapter = {
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
+      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad snipe tax (Nightshades).",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
       [LABELS.POL_V4_FEES]:
@@ -998,6 +1068,13 @@ const adapter: SimpleAdapter = {
         "90% of the anti-snipe launch snipe tax → StockBooster → Clock In stock dividends to activated brokers.",
       [LABELS.LAUNCH_TAX_DEV]:
         "10% of the anti-snipe launch snipe tax → launch dev.",
+      [LABELS.CIV_TAX_BOOST]:
+        "50% of the Civilization pad snipe tax → the next night's boost pot (buys the surviving faction after each night; escrowed in the game vault).",
+      [LABELS.CIV_TAX_LP]:
+        "10% of the Civilization pad snipe tax → the paying faction's own protocol-owned locked pool.",
+      [LABELS.CIV_TAX_BOOSTER]:
+        "13.33% of the Civilization pad snipe tax → StockBooster → Clock In dividends to activated brokers.",
+      [LABELS.CIV_TAX_CREATOR]: "13.34% of the Civilization pad snipe tax → game creator (Meebco).",
       [LABELS.SAFE_TAX_CREATOR]: "16.5% of the Safe Launch / Stonklauncher snipe tax → launch creator.",
       [LABELS.SAFE_TAX_BOOSTER]:
         "17% of the Safe Launch / Stonklauncher snipe tax punched through the Clock In Card: ~0.5% of tax to the referrer, the rest to StockBooster Clock In dividends.",
