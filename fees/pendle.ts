@@ -19,7 +19,7 @@ type IConfig = {
     treasury: string;
     blacklists?: Array<string>;
     airdropFunders?: Array<string>;
-    usdtAddress: string;
+    usdtAddress?: string;
   };
 };
 
@@ -101,6 +101,13 @@ const chainConfig: IConfig = {
   [CHAIN.MONAD]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
     usdtAddress: "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"
+  },
+  [CHAIN.XLAYER]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.xlayer.USDT
+  },
+  [CHAIN.ROBINHOOD]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
   }
 };
 
@@ -112,6 +119,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
+
+  if (!markets.length) {
+    return {
+      dailyFees,
+      dailyRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+      dailyHoldersRevenue: options.createBalances(),
+      dailySupplySideRevenue,
+    };
+  }
 
   const rewardTokens: string[] = (
     await api.multiCall({
@@ -234,7 +251,7 @@ const fetch = async (options: FetchOptions) => {
     fromAdddesses: sources,
   })
 
-  tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
+  if (chainConfig[chain].usdtAddress) tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress!) // ignore USDT airdrop
 
   const dailyRevenue = options.createBalances()
   dailyRevenue.addBalances(treasuryInflows, 'YT And Swap Fees')
@@ -301,7 +318,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: { start: '2025-02-07' }, 
     [CHAIN.PLASMA]: { start: '2025-09-24' },
     [CHAIN.HYPERLIQUID]: { start: '2025-07-09' },
-    [CHAIN.MONAD]: { start: '2026-06-19' }
+    [CHAIN.MONAD]: { start: '2026-06-19' },
+    [CHAIN.XLAYER]: { start: '2026-08-02' },
+    [CHAIN.ROBINHOOD]: { start: '2026-09-02' },
   },
   methodology,
   breakdownMethodology,

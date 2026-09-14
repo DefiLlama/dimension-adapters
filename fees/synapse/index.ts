@@ -29,7 +29,7 @@ const bridgeConfig: Record<string, { bridge: string; start: string; deadFrom?: s
   [CHAIN.KLAYTN]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2022-06-18" },
   [CHAIN.ARBITRUM]: { bridge: "0x6F4e8eBa4D337f874Ab57478AcC2Cb5BACdc19c9", start: "2021-09-12" },
   [CHAIN.AVAX]: { bridge: "0xC05e61d0E7a63D27546389B7aD62FdFf5A91aACE", start: "2021-08-25" },
-  [CHAIN.DFK]: { bridge: "0xE05c976d3f045D0E6E7A6f61083d98A15603cF6A", start: "2022-03-25" },
+  [CHAIN.DFK]: { bridge: "0xE05c976d3f045D0E6E7A6f61083d98A15603cF6A", start: "2022-03-25", deadFrom: "2026-08-29" },
   [CHAIN.AURORA]: { bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE", start: "2021-12-27" },
   [CHAIN.HARMONY]: { bridge: "0xAf41a65F786339e7911F4acDAD6BD49426F2Dc6b", start: "2021-10-25" },
   //[CHAIN.CANTO]: { bridge: "0xDde5BEC4815E1CeCf336fb973Ca578e8D83606E0", start: "2022-10-05", deadFrom: "2026-08-11" },

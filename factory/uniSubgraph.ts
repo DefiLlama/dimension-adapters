@@ -96,6 +96,7 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 85,
     },
     start: "2024-03-19",
+    deadFrom: "2026-09-11",
   },
   // "retro": {
   //   graphUrls: {
@@ -188,7 +189,9 @@ const configs: Record<string, SubgraphConfig> = {
       [CHAIN.SHIDO]: "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet",
     },
     start: "2024-09-18",
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    // subgraph was redeployed with snake_case fields (2026-09)
+    totalVolume: { factory: "factories", field: "total_volume_usd" },
+    totalFees: { factory: "factories", field: "total_fees_usd" },
     feesPercent: {
       type: "fees",
       ProtocolRevenue: 0,
@@ -421,7 +424,7 @@ for (const [name, config] of Object.entries(configs)) {
 
   const adapter: SimpleAdapter = {
     version: 2,
-    // pullHourly: true,
+    pullHourly: true,
     adapter: chains.reduce((acc, chain) => ({
       ...acc,
       [chain]: {

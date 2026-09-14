@@ -19,6 +19,7 @@ const GRAPHQL = "https://api.dotrobin.xyz/graphql";
 // payment asset. Source-verified:
 // https://robinhoodchain.blockscout.com/token/0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168
 const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const ROBIN = "0x627869916e7a9db463679cab838a614d8f09cad1"
 
 const REGISTRATION = "Name registration fees";
 const RENEWAL = "Name renewal fees";
@@ -67,7 +68,9 @@ const fetch = async (options: FetchOptions) => {
       const amount = BigInt(ev.baseCost) + BigInt(ev.premium);
       const label = ev.kind === "renewal" ? RENEWAL : REGISTRATION;
       if (ev.currency === "USDG") dailyFees.add(USDG, amount, label);
-      else dailyFees.addGasToken(amount, label);
+      else if (ev.currency === "ROBIN") dailyFees.add(ROBIN, amount, label);
+      else if (ev.currency === "ETH") dailyFees.addGasToken(amount, label);
+      else throw new Error(`Unknown currency: ${ev.currency}`);
     }
     after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (after);
@@ -80,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Name registration and renewal fees for .robin names (annual rentals, plus temporary Dutch-auction premiums on recently expired names), paid in ETH or USDG.",
+  Fees: "Name registration and renewal fees for .robin names (annual rentals, plus temporary Dutch-auction premiums on recently expired names), paid in ETH or USDG or ROBIN.",
   Revenue:
     "Same as fees: 100% of registration and renewal costs accrue to the protocol treasury (a 2-of-3 Safe). There are no third-party fee splits.",
   ProtocolRevenue: "Same as revenue (100% of registration and renewal costs) — all fees accrue to the protocol treasury.",
@@ -96,18 +99,18 @@ const adapter: Adapter = {
   breakdownMethodology: {
     Fees: {
       [REGISTRATION]:
-        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
-      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
+        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG or ROBIN.",
     },
     ProtocolRevenue: {
       [REGISTRATION]:
-        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
-      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
+        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG or ROBIN.",
     },
     Revenue: {
       [REGISTRATION]:
-        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG.",
-      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG.",
+        "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+      [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG or ROBIN.",
     },
   },
 };

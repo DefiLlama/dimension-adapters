@@ -24,9 +24,10 @@ const fetch = async (options: FetchOptions) => {
     const chainData = historicalVolume.stats.evm.find((cd: any) => cd.chainId === chainId);
     if (!chainData) throw new Error(`Chain data not found for chainId: ${chainId}`);
 
+    // the API publishes an explicit row per day, so a 0 volume is a real quiet day, not missing data
     const dailyVolume = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.volume;
-    if (!dailyVolume) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
+    if (dailyVolume === undefined || dailyVolume === null) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
 
     return {
         dailyVolume,

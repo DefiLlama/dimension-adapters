@@ -82,15 +82,19 @@ const abis = {
   totalSupply: "function totalSupply() view returns (uint256)",
   convertToAssets: "function convertToAssets(uint256) view returns (uint256)",
   performanceFee: "function performanceFee(address) view returns (uint256)",
-  managementFee: "function managementFee(address) view returns (uint256)",
   managerSplit: "function managerSplit(address,bool) view returns (uint256)",
   managerSplitLegacy: "function managerSplit(address) view returns (uint256)",
+  // Absent on v1.0 strategies (no version() at all) — a failed read is treated
+  // as "legacy", same convention as managementFee/managerSplit below.
+  version: "function version() view returns (uint256)",
+  treasury: "function treasury() view returns (address)",
   delinquencyStartTime:
     "function delinquencyStartTime() view returns (uint256)",
   penaltiesEnabled: "function penaltiesEnabled() view returns (bool)",
   loan: "function loan() view returns ((uint256 minDeposit,uint256 minRedeem,uint256 maxCapacity,uint256 minCapacity,uint256 reserveThreshold,uint256 outstandingPrincipal,uint256 outstandingInterest,uint256 drawableFunds,uint256 interestRate,uint256 lateInterestPenalty,uint256 claimableInterest,uint256 interestInterval,uint256 startTime,uint256 termsSetTime,uint256 termsUpdateTime,uint256 duration,uint256 depositPeriod,uint256 acceptGracePeriod,uint256 withdrawalPeriod,uint256 lateInterestGracePeriod))",
   feeSharesMinted:
     "event FeeSharesMinted(address indexed recipient, uint256 shares)",
+  upgraded: "event Upgraded(address indexed implementation)",
 };
 
 // `scaleFactor()` on the credit strategies is an accrual index scaled by 1e36,
@@ -350,10 +354,100 @@ const fetch = async (options: FetchOptions) => {
       permitFailure: true,
     });
     const perfFees = await fmCall(abis.performanceFee);
-    const mgmtFees = await fmCall(abis.managementFee);
     const perfSplits = await fmCall(abis.managerSplit, true);
-    const mgmtSplits = await fmCall(abis.managerSplit, false);
     const legacySplits = await fmCall(abis.managerSplitLegacy);
+    const treasuries = await toApi.multiCall({
+      abi: abis.treasury,
+      calls: active.map((a) => feeManagers[a.i]),
+      permitFailure: true,
+    });
+
+    // version() gates the fee-delivery mechanism, mirroring backend_new's
+    // ManagerFeeService._SHARE_FEE_MIN_VERSION: a v2+ strategy never leaves a
+    // fee balance in the FeeManager — performanceFee()/managementFee() are
+    // just rates — every crystallization mints vault shares straight to the
+    // recipient (FeeSharesMinted), so it has to be read from that event
+    // rather than estimated off accrued interest. Confirmed on monad
+    // 2026-09-09: aHYPER's FeeManager switched that day from a
+    // performanceFee-only config to management-fee-only, and its strategy
+    // minted FeeSharesMinted for the very first time in the SAME transaction —
+    // a one-off catch-up of months of previously-accrued, not-yet-crystallized
+    // performance fee (~$570k) that a notional formula would never see, and
+    // would keep missing on every ordinary day after (management fee is never
+    // realized as a FeeManager balance on these contracts). A failed read is
+    // treated as "legacy" (v1.0), the same convention as the managementFee/
+    // managerSplit absences below.
+    const versions = await toApi.multiCall({
+      abi: abis.version,
+      calls: active.map((a) => strategies[a.i]),
+      permitFailure: true,
+    });
+    const shareFee = active.map((_, k) => Number(versions[k] || 0) >= 2);
+
+    const shareFeeTargets = active
+      .filter((_, k) => shareFee[k])
+      .map((a) => strategies[a.i]);
+    const mintLogs = shareFeeTargets.length
+      ? await options.getLogs({
+          targets: shareFeeTargets,
+          eventAbi: abis.feeSharesMinted,
+          entireLog: true,
+          parseLog: true,
+        })
+      : [];
+    // A contract upgrade (UUPS `Upgraded`) can bundle, in the SAME transaction,
+    // a one-off mint that migrates value already accrued and reported under
+    // the OLD fee model — not fresh income earned today. Confirmed on monad
+    // 2026-09-08: aHYPER's Upgraded + Initialized(v3) + Initialized(v4) +
+    // FeeStructureSet + both FeeSharesMinted events (400,699.82 to the manager,
+    // 133,566.61 to treasury) all fired in one execTransaction. That value was
+    // already recognized day by day under the prior performanceFee formula
+    // (see the legacy path below); booking it again here on the settlement day
+    // would double-count it. Excluded by transaction hash, not by date, so an
+    // ordinary same-day mint that happens to land after the upgrade still
+    // counts normally.
+    const upgradeTxs = shareFeeTargets.length
+      ? await options.getLogs({
+          targets: shareFeeTargets,
+          eventAbi: abis.upgraded,
+          entireLog: true,
+        })
+      : [];
+    const migrationTxHashes = new Set(
+      (upgradeTxs || []).map(
+        (log) => `${log.address.toLowerCase()}:${log.transactionHash.toLowerCase()}`,
+      ),
+    );
+
+    // Grouped by (strategy, recipient): the recipient is the ground truth for
+    // manager-vs-protocol attribution. A split ratio read at the end of the
+    // window is not — aHYPER's very first mint paid out under the OLD split,
+    // in the same transaction that changed the split to the new one.
+    const mintedByRecipient: Record<string, Record<string, bigint>> = {};
+    for (const log of mintLogs || []) {
+      const strategyKey = log.address.toLowerCase();
+      if (migrationTxHashes.has(`${strategyKey}:${log.transactionHash.toLowerCase()}`))
+        continue;
+      const recipientKey = (log.args.recipient as string).toLowerCase();
+      mintedByRecipient[strategyKey] ??= {};
+      mintedByRecipient[strategyKey][recipientKey] =
+        (mintedByRecipient[strategyKey][recipientKey] || 0n) +
+        BigInt(log.args.shares);
+    }
+
+    const mintedTotals = active.map((a) => {
+      const byRecipient = mintedByRecipient[strategies[a.i].toLowerCase()];
+      if (!byRecipient) return 0n;
+      return Object.values(byRecipient).reduce((sum, s) => sum + s, 0n);
+    });
+    const mintedValues = await toApi.multiCall({
+      abi: abis.convertToAssets,
+      calls: active.map((a, k) => ({
+        target: vaults[a.i],
+        params: [mintedTotals[k].toString()],
+      })),
+      permitFailure: true,
+    });
 
     active.forEach((a, k) => {
       const token = assets[k];
@@ -362,11 +456,42 @@ const fetch = async (options: FetchOptions) => {
           `Accountable: could not read the asset of ${strategies[a.i]} on ${options.chain}`,
         );
 
-      // The performance fee and the manager split are what separate protocol
-      // revenue from the manager's cut, so a failed read of either must not
-      // pass as a zero rate. The nulls that are expected: `managementFee` is
-      // absent from the first-generation FeeManagers, and of the two
-      // `managerSplit` overloads only one exists on any given generation.
+      if (shareFee[k]) {
+        const totalShares = mintedTotals[k];
+        if (totalShares === 0n) {
+          // Nothing crystallized this window — a real zero, not a gap to estimate.
+          book(token, a.interest, 0n, 0n, METRIC.BORROW_INTEREST);
+          return;
+        }
+        if (mintedValues[k] === null)
+          throw new Error(
+            `Accountable: could not convert minted fee shares to assets for ${strategies[a.i]} on ${options.chain}`,
+          );
+        const treasury = (treasuries[k] || "").toLowerCase();
+        if (!treasury)
+          throw new Error(
+            `Accountable: could not read the treasury of feeManager ${feeManagers[a.i]} on ${options.chain}, refusing to attribute a real fee mint for ${strategies[a.i]}`,
+          );
+        const byRecipient =
+          mintedByRecipient[strategies[a.i].toLowerCase()] || {};
+        let protocolShares = 0n;
+        for (const [recipient, shares] of Object.entries(byRecipient)) {
+          if (recipient === treasury) protocolShares += shares;
+        }
+        const mintedValue = big(mintedValues[k]);
+        const protocol = (mintedValue * protocolShares) / totalShares;
+        const manager = mintedValue - protocol;
+        // Gross stays the window's own interest, full stop — a mint can
+        // crystallize months of prior accrual in one shot (the aHYPER
+        // catch-up above), and `book()`'s depositors leg is what absorbs that:
+        // it can go negative on such a day rather than being floored at zero.
+        // `allowNegativeValue` is set for exactly this.
+        book(token, a.interest, manager, protocol, METRIC.BORROW_INTEREST);
+        return;
+      }
+
+      // Legacy (v1.0) path: fee accrues as an estimate against interest and is
+      // claimed later via Collected — unchanged.
       if (perfFees[k] === null)
         throw new Error(
           `Accountable: could not read the performance fee of ${strategies[a.i]} on ${options.chain}`,
@@ -377,30 +502,10 @@ const fetch = async (options: FetchOptions) => {
         );
 
       const perfFee = (a.interest * big(perfFees[k])) / FEE_DENOMINATOR;
-      const mgmtFee =
-        (a.aum * big(mgmtFees[k]) * elapsed) / (YEAR * FEE_DENOMINATOR);
-      const total = perfFee + mgmtFee;
-
-      // Capped at the interest so that fees = supply side + revenue stays exact.
-      // A management fee accrues on AUM, so in a very low interest window it can
-      // exceed the interest earned; the excess is dropped rather than reported.
-      const charged = total > a.interest ? a.interest : total;
-      const perfPart = total === 0n ? 0n : (charged * perfFee) / total;
-      const mgmtPart = charged - perfPart;
-
       const perfSplit = big(perfSplits[k] ?? legacySplits[k]);
-      const mgmtSplit = big(mgmtSplits[k] ?? legacySplits[k]);
-      const manager =
-        (perfPart * perfSplit) / FEE_DENOMINATOR +
-        (mgmtPart * mgmtSplit) / FEE_DENOMINATOR;
+      const manager = (perfFee * perfSplit) / FEE_DENOMINATOR;
 
-      book(
-        token,
-        a.interest,
-        manager,
-        charged - manager,
-        METRIC.BORROW_INTEREST,
-      );
+      book(token, a.interest, manager, perfFee - manager, METRIC.BORROW_INTEREST);
     });
   }
 

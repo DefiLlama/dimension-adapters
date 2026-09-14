@@ -117,6 +117,7 @@ const adapter: SimpleAdapter = {
   start: AFX_START,
   methodology,
   breakdownMethodology,
+  deadFrom: '2026-08-11'
 };
 
 export default adapter;

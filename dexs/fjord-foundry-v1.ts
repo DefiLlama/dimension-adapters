@@ -19,9 +19,10 @@ const fetch = async (options: FetchOptions) => {
 
     const chainData = historicalVolume.stats.find((cd: any) => cd.chainId === chainId);
 
+    // the API publishes an explicit row per day, so a 0 volume is a real quiet day, not missing data
     const dailyVolume = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.volume
-    if (!dailyVolume) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
+    if (dailyVolume === undefined || dailyVolume === null) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
 
     return {
         dailyVolume: dailyVolume,
@@ -29,6 +30,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+    deadFrom: '2023-12-21', // fjord-api v1 stats end on 2023-12-20; v1 LBPs were superseded by Fjord Foundry v2
     adapter: Object.keys(v1ChainIDs).reduce((acc, chain) => {
         return {
             ...acc,

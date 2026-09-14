@@ -1,33 +1,32 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet, httpPost } from "../utils/fetchURL";
+import { getAftermathMarkets } from "../helpers/aftermath";
 
-const CCXT_MARKETS_URL = "https://aftermath.finance/api/ccxt/markets";
-const MARKETS_URL = "https://aftermath.finance/api/perpetuals/markets";
-
-const fetch = async (_options: FetchOptions) => {
-  const markets: any[] = await httpGet(CCXT_MARKETS_URL);
-  const marketIds = markets.map((m: any) => m.id);
-
-  const marketsRes = await httpPost(MARKETS_URL, { marketIds });
-
-  const openInterestAtEnd = marketsRes.marketDatas.reduce(
-    (acc: number, m: any) => acc + (m.market.marketState.openInterest * m.market.indexPrice),
-    0
-  );
+const fetch = async (options: FetchOptions) => {
+  const markets = await getAftermathMarkets();
+  const openInterestAtEnd = options.createBalances();
+  for (const market of markets) {
+    const openInterest = market.marketState?.openInterest;
+    if (!Number.isFinite(openInterest) || openInterest < 0)
+      throw new Error(`Invalid Aftermath open interest: ${market.objectId}`);
+    // An explicitly empty market contributes zero even if its oracle has not started yet.
+    if (openInterest === 0) continue;
+    if (!Number.isFinite(market.indexPrice) || market.indexPrice <= 0)
+      throw new Error(`Invalid Aftermath open interest or index price: ${market.objectId}`);
+    // API decodes the on-chain 18-decimal fixed-point amount to base tokens. OI counts longs
+    // once; multiply by the USD index price without a contractSize or collateral-decimal factor.
+    openInterestAtEnd.addUSDValue(openInterest * market.indexPrice, "Open Interest");
+  }
 
   return { openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.SUI]: {
-      fetch,
-      runAtCurrTime: true,
-      start: "2025-02-18",
-    },
-  },
+  pullHourly: false, // The API only serves current OI; daily snapshots must not sum hourly values.
+  fetch,
+  chains: [CHAIN.SUI],
+  runAtCurrTime: true,
 };
 
 export default adapter;

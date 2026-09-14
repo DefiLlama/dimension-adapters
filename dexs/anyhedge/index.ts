@@ -19,11 +19,14 @@ export const anyhedgeVolumeEndpoint = (day: string) => {
 }
 
 const fetch: any = async (options: FetchOptions) => {
-  const dayString = new Date(options.toTimestamp * 1000).toISOString().slice(0, 10);
+  // each CSV row is stamped with the day it covers, so use the start of the window, not its end
+  const dayString = new Date(options.fromTimestamp * 1000).toISOString().slice(0, 10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
+  if (!anyhedgeVolumeData || !Number.isFinite(Number(anyhedgeVolumeData.daily_volume)))
+    throw new Error(`AnyHedge stats CSV for ${dayString} is not published yet`);
 
   const dailyVolume = options.createBalances();
-  dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.daily_volume));
+  dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData.daily_volume));
 
   return {
     dailyVolume,

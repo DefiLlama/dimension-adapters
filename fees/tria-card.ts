@@ -8,7 +8,6 @@ const FEE_RECIPIENT = '0xea8cd5684f2a44a593975cf42f5a88f27f21c513';
 const SOURCE_ADDRESSES = [
   '0xa66b23D9a8a46C284fa5b3f2E2b59Eb5cc3817F4', //crossmint treasury
   '0x9C8B5b82FD99c6e46c9DA84d9A1bf176AAbdc16D', //daimo pay executor
-  '0x9C8B5b82FD99c6e46c9DA84d9A1bf176AAbdc16D', //daimo pay executor - old
   '0xa7F0804632966D94292fe0deb8F2a93f202e2527', //tria core sale
   '0x123ae52505570Ba1300aA4519722f5963aeDE10e', //tria card booking
 ];

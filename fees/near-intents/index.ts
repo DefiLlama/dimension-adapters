@@ -19,6 +19,8 @@ import { queryDuneSql } from "../../helpers/dune";
  *   Both come from the same wallet sweeps, so the split is consistent and each
  *   part is always >= 0 (revenue.near.org's exact per-stream split is backend
  *   logic and not reproducible from on-chain data).
+ *   Internal hops between these wallets (e.g. 1cs DAO → buybacks) are excluded;
+ *   they are treasury movements of already-captured revenue, not new inflows.
  *
  * SupplySideRevenue: gross fees minus NEAR's captured revenue - the affiliate
  *   fees kept by solvers and third-party distribution channels (e.g. SwapKit).
@@ -60,12 +62,15 @@ const fetch = async (options: FetchOptions) => {
       FROM near.actions
       WHERE action_kind = 'TRANSFER' AND execution_status = 'SUCCESS_VALUE'
         AND receipt_receiver_account_id IN (SELECT wallet FROM fee_wallets)
+        -- skip DAO/self hops and 1cs ↔ fe ↔ buybacks treasury moves
+        AND receipt_predecessor_account_id NOT IN (SELECT wallet FROM fee_wallets)
         AND block_date = DATE '${options.dateString}'
       UNION ALL
       SELECT affected_account_id AS wallet, CAST(delta_amount AS DOUBLE) / 1e24 AS amt
       FROM near.ft_transfers
       WHERE contract_account_id = 'wrap.near' AND delta_amount > 0
         AND affected_account_id IN (SELECT wallet FROM fee_wallets)
+        AND (involved_account_id IS NULL OR involved_account_id NOT IN (SELECT wallet FROM fee_wallets))
         AND block_date = DATE '${options.dateString}'
     )
     SELECT
@@ -120,7 +125,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // sweep days: captured revenue can exceed that day's accrued fees
   methodology: {
     Fees: "Gross fees charged on NEAR Intents swaps - the protocol fee plus the affiliate (distribution) fee each frontend collects, summed across all integrators.",
-    Revenue: "NEAR's net captured revenue, measured as NEAR/wNEAR swept into its revenue wallets (reconciles with revenue.near.org and the on-chain buyback). Split by destination wallet into front-end affiliate revenue and Other.",
+    Revenue: "NEAR's net captured revenue, measured as NEAR/wNEAR swept into its revenue wallets (reconciles with revenue.near.org and the on-chain buyback). Split by destination wallet into front-end affiliate revenue and Other. Transfers between those wallets are excluded.",
     ProtocolRevenue: "Captured revenue held by the treasury before the 2026-02-23 buyback program.",
     HoldersRevenue: "Since 2026-02-23, NEAR's captured Intents revenue is used to buy back $NEAR on the open market (not burned), returning value to holders.",
     SupplySideRevenue: "Gross fees minus NEAR's captured revenue - the affiliate fees kept by solvers and third-party distribution channels (e.g. SwapKit).",

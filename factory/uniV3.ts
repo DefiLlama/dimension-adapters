@@ -231,7 +231,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.XRPL_EVM]: { factory: '0x678100B9095848FCD4AE6C79A7D29c11815D07fe', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "prism-dex": {
-    [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09' },
+    [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09', deadFrom: '2026-09-09' },
   },
   "parity-dex-cl": {
     [CHAIN.MONAD]: { factory: '0x2A6CE23C5017aF1b07B9c4E4014442aDE18Bd404', start: '2026-02-11' },
@@ -417,9 +417,6 @@ const configs: Record<string, Record<string, any>> = {
   },
   'sheriff-v3': { 
     [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
-  },
-  'giga-dex-cl': {
-    [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
   },
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },

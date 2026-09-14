@@ -161,6 +161,9 @@ const adapter: SimpleAdapter = {
     isExpensiveAdapter: true,
     dependencies: [Dependencies.DUNE],
     methodology,
+    // chopcorp.io's Vercel deployment has been torn down (DEPLOYMENT_NOT_FOUND),
+    // TVL is down to $43, and no fees since 2026-05-18.
+    deadFrom: '2026-05-19',
 }
 
 export default adapter

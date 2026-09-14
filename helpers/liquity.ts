@@ -234,21 +234,21 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       }
     })
     
-    // count liquidation gain to supplyside
+    // count liquidation gain to supplyside: collateral gained by stability pool depositors minus the
+    // stablecoin they burned. Net the two in USD so a day with heavy stablecoin losses cannot push the
+    // stablecoin balance negative (the validator rejects negative per-token values).
+    const liquidationGain = createBalances()
+    const liquidationLoss = createBalances()
     ETHGainWithdrawnLogs.forEach((logs) => {
-      // add col gain to balance
-      if (config.collateralCoin) {
-        dailyFees.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
-        dailySupplySideRevenue.add(config.collateralCoin, BigInt(logs['_ETH']), METRICS.LiquidationProfit)
-      } else {
-        dailyFees.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
-        dailySupplySideRevenue.addGasToken(BigInt(logs['_ETH']), METRICS.LiquidationProfit)
-      }
-      
-      // add stablecoin loss to balance
-      dailyFees.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
-      dailySupplySideRevenue.add(config.stableCoin, -Number(logs['_LUSDLoss']), METRICS.LiquidationProfit)
+      if (config.collateralCoin) liquidationGain.add(config.collateralCoin, BigInt(logs['_ETH']))
+      else liquidationGain.addGasToken(BigInt(logs['_ETH']))
+      liquidationLoss.add(config.stableCoin, BigInt(logs['_LUSDLoss']))
     })
+    const liquidationProfitUsd = (await liquidationGain.getUSDValue()) - (await liquidationLoss.getUSDValue())
+    if (liquidationProfitUsd > 0) {
+      dailyFees.addUSDValue(liquidationProfitUsd, METRICS.LiquidationProfit)
+      dailySupplySideRevenue.addUSDValue(liquidationProfitUsd, METRICS.LiquidationProfit)
+    }
 
     return {
       dailyFees,

@@ -28,6 +28,7 @@ const fetchFees = async (): Promise<FetchResultFees> => {
 
 const adapters: SimpleAdapter = {
   version: 1,
+  deadFrom: '2026-09-04', // stats API returns an empty summary; product TVL is 0 and last nonzero fees were dust on 2026-09-03
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch: fetchFees,

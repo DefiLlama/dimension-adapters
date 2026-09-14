@@ -4,8 +4,11 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 const fetch: any = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options)
+
   const vol = await queryDuneSql(options, `
     SELECT 
       SUM(
