@@ -49,6 +49,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: '2024-07-01',
   chains: [CHAIN.BSC],
+  deadFrom: '2026-08-12', // Goldsky subgraph removed, moneyx.pro offline, no volume reported in the trailing 30 days
   methodology: {
     Fees: "trading fees (swap, margin, mint, burn, liquidation) paid by users.",
     Revenue: "revenue from trading fees (swap, margin, mint, burn, liquidation) paid by users.",

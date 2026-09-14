@@ -36,6 +36,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: '2024-05-03',
+  deadFrom: '2025-12-03', // stats API returns no data for any month after Dec 2025; last nonzero income 2025-12-02
 };
 
 export default adapter;

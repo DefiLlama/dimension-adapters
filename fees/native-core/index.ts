@@ -144,13 +144,10 @@ function rescaleAtoms(
     return atoms * 10n ** BigInt(decimalDifference);
   }
 
+  // Core tracks some assets (e.g. FOLKS) with more precision than their canonical
+  // token; round to the nearest representable atom instead of failing on dust.
   const scale = 10n ** BigInt(-decimalDifference);
-  if (atoms % scale !== 0n) {
-    throw new Error(
-      `Native Pool distribution for ${symbol} cannot be represented with ${toDecimals} decimals`,
-    );
-  }
-  return atoms / scale;
+  return (atoms + scale / 2n) / scale;
 }
 
 let poolAssets: Map<number, PoolAsset> | undefined;

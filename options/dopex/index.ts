@@ -24,6 +24,7 @@ const clammStartTimes: { [chain: string]: number } = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2025-06-17', // Stryke CLAMM has reported zero premium volume on every chain since 2025-06-16; the Sonic subgraph is gone
   adapter: Object.keys(clammEndpoints).reduce((acc, chain) => {
     return {
       ...acc,

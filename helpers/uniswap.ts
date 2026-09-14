@@ -136,14 +136,23 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   }
 
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
+
+  // Retry failed calls to separate infra failure from deterministic reverts:
+  // - every call still fails after the retries -> the RPC is dead, throw
+  // - the retries fixed some calls (flaky/rate-limited RPC) and too many still fail -> throw
+  // - the retries fixed nothing while the rest of the batch succeeds -> the failures are
+  //   deterministic (broken token contracts, seen on hyperliquid) and count as zero
   let failedIndices = res.map((bal, i) => bal == null ? i : -1).filter((i) => i > -1)
+  let retryFixed = 0
   for (let attempt = 0; attempt < MAX_BALANCE_CALL_RETRIES && failedIndices.length; attempt++) {
     const retried = await api.multiCall({ abi: 'erc20:balanceOf', calls: failedIndices.map((i) => balanceCalls[i]), permitFailure: true, })
-    retried.forEach((bal, j) => { if (bal != null) res[failedIndices[j]] = bal })
+    retried.forEach((bal, j) => { if (bal != null) { res[failedIndices[j]] = bal; retryFixed++ } })
     failedIndices = failedIndices.filter((_, j) => retried[j] == null)
   }
   const failedCalls = failedIndices.length
-  if (balanceCalls.length && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO)
+  const rpcIsDead = balanceCalls.length > 0 && failedCalls === balanceCalls.length
+  const rpcIsFlaky = retryFixed > 0 && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO
+  if (rpcIsDead || rpcIsFlaky)
     throw new Error(`filterPools: ${failedCalls}/${balanceCalls.length} pooled balance calls failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as (partly) empty`)
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
