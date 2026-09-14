@@ -3,7 +3,7 @@
  *
  * Copy into https://github.com/DefiLlama/dimension-adapters as:
  *   aggregators/grom.ts
- *   aggregators/grom-guards.js
+ *   helpers/aggregators/grom.ts
  *
  * Data source: GROM confirmed-fill ledger (read-only).
  *   GET https://grom.exchange/api/public/dimensions
@@ -15,11 +15,14 @@
  *
  * Methodology: Instant Swap volume attributed via LiFi integrator only
  * (see ../METHODOLOGY.md). Other GROM routers are out of scope until indexed.
+ *
+ * Do not put helper modules under aggregators/ — CI treats every file there
+ * as a runnable adapter.
  */
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
-import { assertOkDimensionsResponse } from "./grom-guards.js";
+import { assertOkDimensionsResponse } from "../helpers/aggregators/grom";
 
 const API = "https://grom.exchange/api/public/dimensions";
 /** Earliest UTC day a GROM index window may begin (not proof every chain is covered). */

@@ -1,23 +1,18 @@
 /**
- * Shared DefiLlama aggregators/grom response guards.
- * Keep in sync with aggregators/grom.ts (imported from there).
+ * Shared fail-closed guards for aggregators/grom.
+ * Keep in sync with local GROM unit tests (grom-guards.js mirror).
  *
- * Fail closed: never coerce false / "" / [] into 0 via Number().
+ * Never coerce false / "" / [] into 0 via Number().
  */
 
-/**
- * @param {unknown} n
- * @param {string} label
- * @returns {number}
- */
-export function assertFiniteNonNeg(n, label) {
+export function assertFiniteNonNeg(n: unknown, label: string): number {
   if (n === null || n === undefined) {
     throw new Error(`grom aggregator: missing ${label}`);
   }
-  if (typeof n === 'boolean' || Array.isArray(n) || (typeof n === 'object')) {
+  if (typeof n === "boolean" || Array.isArray(n) || (typeof n === "object")) {
     throw new Error(`grom aggregator: invalid ${label}=${String(n)}`);
   }
-  if (typeof n === 'string') {
+  if (typeof n === "string") {
     const t = n.trim();
     if (!t || !/^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(t)) {
       throw new Error(`grom aggregator: invalid ${label}=${String(n)}`);
@@ -28,30 +23,29 @@ export function assertFiniteNonNeg(n, label) {
     }
     return v;
   }
-  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) {
+  if (typeof n !== "number" || !Number.isFinite(n) || n < 0) {
     throw new Error(`grom aggregator: invalid ${label}=${String(n)}`);
   }
   return n;
 }
 
-/**
- * @param {any} data
- * @param {{ chainKey: string, startTimestamp: number, endTimestamp: number }} want
- */
-export function assertOkDimensionsResponse(data, want) {
+export function assertOkDimensionsResponse(
+  data: any,
+  want: { chainKey: string; startTimestamp: number; endTimestamp: number }
+): { volume: number; fees: number } {
   if (!data || data.ok !== true) {
     throw new Error(
-      `grom aggregator: rejected response for ${want.chainKey} [${want.startTimestamp},${want.endTimestamp}): ${data?.code || ''} ${data?.error || 'ok!==true'}`
+      `grom aggregator: rejected response for ${want.chainKey} [${want.startTimestamp},${want.endTimestamp}): ${data?.code || ""} ${data?.error || "ok!==true"}`
     );
   }
 
-  if (!data.coverage || data.coverage.status !== 'ready') {
+  if (!data.coverage || data.coverage.status !== "ready") {
     throw new Error(
-      `grom aggregator: coverage not ready for ${want.chainKey}: ${data.coverage?.status || 'missing'}`
+      `grom aggregator: coverage not ready for ${want.chainKey}: ${data.coverage?.status || "missing"}`
     );
   }
 
-  if (typeof data.chainKey !== 'string' || !data.chainKey.trim()) {
+  if (typeof data.chainKey !== "string" || !data.chainKey.trim()) {
     throw new Error(`grom aggregator: missing chainKey for ${want.chainKey}`);
   }
   if (data.chainKey !== want.chainKey) {
@@ -69,7 +63,7 @@ export function assertOkDimensionsResponse(data, want) {
     );
   }
 
-  const volume = assertFiniteNonNeg(data.dailyVolumeUsd, 'dailyVolumeUsd');
-  const fees = assertFiniteNonNeg(data.dailyFeesUsd, 'dailyFeesUsd');
+  const volume = assertFiniteNonNeg(data.dailyVolumeUsd, "dailyVolumeUsd");
+  const fees = assertFiniteNonNeg(data.dailyFeesUsd, "dailyFeesUsd");
   return { volume, fees };
 }
