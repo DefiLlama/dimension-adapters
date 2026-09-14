@@ -27,6 +27,7 @@ import { assertOkDimensionsResponse } from "../helpers/aggregators/grom";
 const API = "https://grom.exchange/api/public/dimensions";
 /** Earliest UTC day a GROM index window may begin (not proof every chain is covered). */
 const START = "2026-08-22";
+const DAY = 86400;
 
 const CHAIN_KEYS: Record<string, string> = {
   [CHAIN.ETHEREUM]: "ethereum",
@@ -52,29 +53,38 @@ type DimensionsResponse = {
   code?: string;
 };
 
+/** Map harness/backfill windows onto completed UTC calendar days (GROM ledger unit). */
+function utcDayWindow(startTimestamp: number, endTimestamp: number): { start: number; end: number } {
+  const start = Math.floor(Number(startTimestamp) / DAY) * DAY;
+  let end = Math.floor(Number(endTimestamp) / DAY) * DAY;
+  if (!(end > start)) end = start + DAY;
+  return { start, end };
+}
+
 async function fetchDimensions(
   options: FetchOptions,
   chainKey: string
 ): Promise<{ dailyVolume: ReturnType<FetchOptions["createBalances"]>; dailyFees: ReturnType<FetchOptions["createBalances"]> }> {
+  const { start, end } = utcDayWindow(options.startTimestamp, options.endTimestamp);
   const url =
     `${API}?product=swap` +
     `&chainKey=${encodeURIComponent(chainKey)}` +
-    `&startTimestamp=${options.startTimestamp}` +
-    `&endTimestamp=${options.endTimestamp}`;
+    `&startTimestamp=${start}` +
+    `&endTimestamp=${end}`;
 
   let data: DimensionsResponse;
   try {
     data = await fetchURL(url);
   } catch (err: any) {
     throw new Error(
-      `grom aggregator: upstream fetch failed for ${chainKey} [${options.startTimestamp},${options.endTimestamp}): ${err?.message || err}`
+      `grom aggregator: upstream fetch failed for ${chainKey} [${start},${end}): ${err?.message || err}`
     );
   }
 
   const { volume, fees } = assertOkDimensionsResponse(data, {
     chainKey,
-    startTimestamp: options.startTimestamp,
-    endTimestamp: options.endTimestamp,
+    startTimestamp: start,
+    endTimestamp: end,
   });
 
   const dailyVolume = options.createBalances();
