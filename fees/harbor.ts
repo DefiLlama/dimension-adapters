@@ -38,6 +38,16 @@ const OWNER = "0x9bABfC1A1952a6ed2caC1922BFfE80c0506364a2";
 const HARVESTED_EVENT = "event Harvested(uint256 amount)";
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+// Mint/redeem events omit the fee. Redeem* collateralOut is the user's (or
+// treasury's) wrapped collateral back — not a fee. Sample treasury self-redeem:
+// 0xa5f5bd0e1a12dcc510277220798c160346cb7e801270aa56bab0a0adb2e2a34a
+// (25 Jan 2026, eth-fxusd: 2.5 hs → 8354 fxSAVE principal + 60 fee, both
+// minter→Safe). Same pattern 31 Jan 0x3a233070…. Drop collateralOut; keep the fee.
+// https://github.com/baofinance/harbor/blob/main/src/interfaces/IMinter.sol
+const REDEEM_PEGGED_EVENT =
+  "event RedeemPeggedToken(address indexed sender, address indexed receiver, uint256 peggedTokenBurned, uint256 collateralOut, uint256 leveragedOut)";
+const REDEEM_LEVERAGED_EVENT =
+  "event RedeemLeveragedToken(address indexed sender, address indexed receiver, uint256 leveragedTokenBurned, uint256 collateralOut)";
 
 const topicAddress = (address: string) => `0x${address.slice(2).toLowerCase().padStart(64, "0")}`;
 
@@ -186,7 +196,12 @@ type TransferQuery = { token: string; from: string; to: string };
 // One getLogs per flow (mint, pool deposits, early withdraw) instead of one per
 // (token, from, to) triple. Topic1/topic2 are OR'd across senders and receivers;
 // filter back to the exact triple so minter A → sink B is not counted as a fee.
-const getTransferLogs = async (options: FetchOptions, queries: TransferQuery[]) => {
+const transferFrom = (log: any) => asAddress(log.from ?? log.args?.from);
+const transferTo = (log: any) => asAddress(log.to ?? log.args?.to);
+const transferValue = (log: any) => String(log.value ?? log.args?.value ?? "0");
+const logTxHash = (log: any) => String(log.transactionHash ?? log.hash ?? "").toLowerCase();
+
+const getTransferLogs = async (options: FetchOptions, queries: TransferQuery[], onlyArgs = true) => {
   if (queries.length === 0) return [] as any[][];
   const tokens = uniqueAddresses(...queries.map((q) => q.token));
   const froms = uniqueAddresses(...queries.map((q) => q.from));
@@ -196,6 +211,7 @@ const getTransferLogs = async (options: FetchOptions, queries: TransferQuery[]) 
     eventAbi: TRANSFER_EVENT,
     topics: [TRANSFER_TOPIC, froms.map(topicAddress), tos.map(topicAddress)] as any,
     flatten: false,
+    onlyArgs,
   });
   const byToken = new Map(tokens.map((token, i) => [token, grouped[i] ?? []]));
   return queries.map((query) => {
@@ -204,9 +220,27 @@ const getTransferLogs = async (options: FetchOptions, queries: TransferQuery[]) 
     const to = asAddress(query.to);
     if (!token || !from || !to) return [];
     return (byToken.get(token) ?? []).filter((log: any) =>
-      asAddress(log.from) === from && asAddress(log.to) === to
+      transferFrom(log) === from && transferTo(log) === to
     );
   });
+};
+
+const redeemPrincipalKey = (txHash: string, minter: string, receiver: string, amount: string | bigint) =>
+  `${txHash}:${minter}:${receiver}:${BigInt(amount)}`;
+
+const collectRedeemPrincipal = (minters: string[], grouped: any[][]) => {
+  const keys = new Set<string>();
+  minters.forEach((minter, i) => {
+    const from = asAddress(minter);
+    for (const log of grouped[i] ?? []) {
+      const args = log.args ?? log;
+      const receiver = asAddress(args.receiver);
+      const txHash = logTxHash(log);
+      if (!from || !receiver || !txHash || args.collateralOut == null) continue;
+      keys.add(redeemPrincipalKey(txHash, from, receiver, args.collateralOut));
+    }
+  });
+  return keys;
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -246,7 +280,7 @@ const fetch = async (options: FetchOptions) => {
   ]);
   const managerReceiverById = Object.fromEntries(managedMarkets.map((m, i) => [m.id, managerReceivers[i]]));
 
-  // Mint events omit the fee amount. Sink is the Safe today, minter.feeReceiver later.
+  // Mint/redeem events omit the fee amount. Sink is the Safe today, minter.feeReceiver later.
   const mintQueries: TransferQuery[] = [];
   for (const [i, market] of liveMarkets.entries()) {
     for (const sink of uniqueAddresses(OWNER, minterReceivers[i])) {
@@ -286,10 +320,24 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const managers = liveHarvest.map((m) => m.manager);
-  const [mintLogs, depositLogs, withdrawLogs, harvestLogs, bountyRatios, cutRatios, collateralHoldings, sailHoldings] = await Promise.all([
-    getTransferLogs(options, mintQueries),
+  const minters = liveMarkets.map((m) => m.minter);
+  const [mintLogs, depositLogs, withdrawLogs, peggedRedeems, leveragedRedeems, harvestLogs, bountyRatios, cutRatios, collateralHoldings, sailHoldings] = await Promise.all([
+    // onlyArgs: false — need txHash to drop Redeem* collateralOut (treasury self-redeem).
+    getTransferLogs(options, mintQueries, false),
     getTransferLogs(options, depositQueries),
     getTransferLogs(options, withdrawQueries),
+    minters.length === 0 ? Promise.resolve([] as any[][]) : options.getLogs({
+      targets: minters,
+      eventAbi: REDEEM_PEGGED_EVENT,
+      onlyArgs: false,
+      flatten: false,
+    }),
+    minters.length === 0 ? Promise.resolve([] as any[][]) : options.getLogs({
+      targets: minters,
+      eventAbi: REDEEM_LEVERAGED_EVENT,
+      onlyArgs: false,
+      flatten: false,
+    }),
     liveHarvest.length === 0 ? Promise.resolve([] as any[][]) : options.getLogs({
       targets: managers,
       eventAbi: HARVESTED_EVENT,
@@ -318,11 +366,22 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
+  const redeemPrincipal = new Set<string>([
+    ...collectRedeemPrincipal(minters, peggedRedeems),
+    ...collectRedeemPrincipal(minters, leveragedRedeems),
+  ]);
+
   mintQueries.forEach((query, i) => {
+    const minter = asAddress(query.from);
     for (const log of mintLogs[i]) {
-      dailyFees.add(query.token, log.value, METRIC.MINT_REDEEM_FEES);
-      dailyUserFees.add(query.token, log.value, METRIC.MINT_REDEEM_FEES);
-      dailyRevenue.add(query.token, log.value, MINT_REDEEM_TO_PROTOCOL);
+      const value = transferValue(log);
+      const to = transferTo(log);
+      const txHash = logTxHash(log);
+      // Treasury/self-redeem: collateralOut and the fee both go minter→Safe.
+      if (minter && to && txHash && redeemPrincipal.has(redeemPrincipalKey(txHash, minter, to, value))) continue;
+      dailyFees.add(query.token, value, METRIC.MINT_REDEEM_FEES);
+      dailyUserFees.add(query.token, value, METRIC.MINT_REDEEM_FEES);
+      dailyRevenue.add(query.token, value, MINT_REDEEM_TO_PROTOCOL);
     }
   });
 
@@ -376,7 +435,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Mint and redeem fees paid by users, stability-pool early-withdrawal fees paid in ha (valued at the Chainlink ETH/BTC/EUR/USD peg), plus collateral yield harvested from fxSAVE and wstETH. Excludes off-chain TIDE buybacks. Harvested wstETH and fxSAVE yield is also counted by Lido and f(x) Protocol.",
+  Fees: "Mint and redeem fees paid by users, stability-pool early-withdrawal fees paid in ha (valued at the Chainlink ETH/BTC/EUR/USD peg), plus collateral yield harvested from fxSAVE and wstETH. Excludes wrapped collateral returned when the owner Safe redeems its own treasury ha or hs (only the redeem fee is counted), and excludes off-chain TIDE buybacks. Harvested wstETH and fxSAVE yield is also counted by Lido and f(x) Protocol.",
   Revenue: "Mint and redeem fees, early-withdrawal fees, and the harvest cut held by the owner Safe or market feeReceiver, minus wrapped collateral those wallets later deposit into stability pools.",
   ProtocolRevenue: "Same as revenue. TIDE buybacks are not counted until they happen on-chain.",
   SupplySideRevenue: "Wrapped collateral the owner Safe or feeReceiver deposits into stability pools, any on-chain harvest remainder, and the harvest keeper bounty.",
@@ -384,7 +443,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.MINT_REDEEM_FEES]: "Fees paid by users when minting or redeeming ha or hs, taken in wrapped collateral and sent to the owner Safe or the minter feeReceiver.",
+    [METRIC.MINT_REDEEM_FEES]: "Fees paid when minting or redeeming ha or hs, taken in wrapped collateral and sent to the owner Safe or the minter feeReceiver. Excludes redeem collateralOut to that same wallet (treasury self-redeem).",
     [METRIC.DEPOSIT_WITHDRAW_FEES]: "Early-withdrawal fees deducted from ha when a user leaves a stability pool outside the requested withdrawal window, sent to the pool fee address. Valued as the Chainlink peg (haETH→ETH, haBTC→BTC, haEUR→EUR, haUSD→USD).",
     [METRIC.ASSETS_YIELDS]: "Gross collateral yield realized when harvest is called on a stability pool manager (fxSAVE or wstETH appreciation), including automated keeper harvests. Also counted by Lido and f(x) Protocol.",
   },
