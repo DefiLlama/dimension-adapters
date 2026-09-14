@@ -11,7 +11,7 @@ const zJPYC = "0xd33Bed4Ae7Fe50107c532f63740B1bF2dabf2b30";
 const JPYC = "0xE7C3D8C9a439feDe00D2600032D5dB0Be71C3c29";
 const zETH_LM = "0xcC10b7098FEf1aB2f0FF3bE91d2A7B3230b90CF0";
 const zUSDC_LM = "0x04be137Df79bE7B5F3314C4a84D1C5E0d99BD477";
-const zJPYC_LM = "0x12609C3a7A1A212953417c90472cDCF034965A1c";
+const zJPYC_LM = "0x12609C3A7a1A212953417c90472cdcf034965a1C";
 
 // Redeem fee: 0.35% of the gross private-transfer amount, withheld before the Verifier mints,
 // so minted amounts (recipient + relayer legs) are gross * (1 - 0.35%).
