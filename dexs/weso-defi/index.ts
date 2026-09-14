@@ -203,6 +203,60 @@ async function addWesoCurveVolume(
   }
 }
 
+const ORDERBOOK_MARKETS_URL = "https://weso.world/api/orderbook-markets";
+const ORDERBOOK_FILLS_URL = "https://weso.world/api/orderbook-fills";
+
+type OrderbookMarket = {
+  id: string;
+  contractAddress?: string;
+  quoteSymbol?: string;
+};
+
+type OrderbookFill = {
+  timestamp?: string;
+  quoteAmountRaw?: string;
+  quoteAmount?: number;
+  quoteSymbol?: string;
+};
+
+async function addForexOrderbookVolume(
+  dailyVolume: { add: (t: string, a: string) => void },
+  startTimestamp: number,
+  endTimestamp: number,
+) {
+  const marketsRes = await httpGet(ORDERBOOK_MARKETS_URL, {
+    headers: LCD_HEADERS,
+  });
+  const markets: OrderbookMarket[] = Array.isArray(marketsRes?.markets)
+    ? marketsRes.markets
+    : [];
+
+  for (const market of markets) {
+    if (!market?.id) continue;
+    const fillsRes = await httpGet(
+      `${ORDERBOOK_FILLS_URL}?marketId=${encodeURIComponent(market.id)}`,
+      { headers: LCD_HEADERS },
+    );
+    const fills: OrderbookFill[] = Array.isArray(fillsRes?.fills)
+      ? fillsRes.fills
+      : [];
+    for (const fill of fills) {
+      const ts = Date.parse(fill.timestamp || "") / 1000;
+      if (!Number.isFinite(ts)) continue;
+      if (ts < startTimestamp || ts >= endTimestamp) continue;
+      // Count taker notional once on the LUNC quote side so Llama can price it.
+      if (fill.quoteSymbol && fill.quoteSymbol.toUpperCase() !== "LUNC") continue;
+      let raw = fill.quoteAmountRaw;
+      if ((!raw || raw === "0") && fill.quoteAmount != null) {
+        // amounts are human units with 6 decimals when raw is missing
+        raw = String(Math.round(Number(fill.quoteAmount) * 1e6));
+      }
+      if (!raw || raw === "0") continue;
+      dailyVolume.add("uluna", raw);
+    }
+  }
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const pairs = await getAmmPairContracts();
@@ -238,12 +292,18 @@ const fetch = async (options: FetchOptions) => {
     options.endTimestamp,
   );
 
+  await addForexOrderbookVolume(
+    dailyVolume,
+    options.startTimestamp,
+    options.endTimestamp,
+  );
+
   return { dailyVolume };
 };
 
 const methodology = {
   Volume:
-    "Factory AMM swaps (reflective + cumulative) from on-chain volume_buckets, plus $WESO bonding-curve buy/sell volume as native LUNC. Buys count uluna paid into terra13ryrr…ld36ms; sells count uluna paid back to the trader. Excludes CWLUNC/CWUSTC wrap/unwrap, converter pairs, and non-swap curve transfers (e.g. flywheel). AMM buckets retain 168 hours; curve volume is read from FCD txs in the requested window.",
+    "Factory AMM swaps (reflective + cumulative) from on-chain volume_buckets, plus $WESO bonding-curve buy/sell volume as native LUNC, plus forex/stablecoin CLOB taker fills counted once on the LUNC quote side (uluna) from https://weso.world/api/orderbook-fills. Buys count uluna paid into terra13ryrr…ld36ms; sells count uluna paid back to the trader. Excludes CWLUNC/CWUSTC wrap/unwrap, converter pairs, and non-swap curve transfers (e.g. flywheel). AMM buckets retain 168 hours; curve volume is read from FCD txs in the requested window; orderbook history is limited to what the fills API returns.",
 };
 
 const adapter: SimpleAdapter = {
