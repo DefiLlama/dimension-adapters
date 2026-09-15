@@ -7,8 +7,7 @@ import { nullAddress } from "../helpers/token";
  * Iter (formerly Standard) - fully onchain CLOB exchange with band liquidity pools,
  * stop orders and a token launchpad. Contracts: https://github.com/iter-cx/iter-monorepo
  *
- * Every chain needs the MatchingEngine. The other contracts exist only on the newer
- * deployment generation and are read when configured:
+ * Every chain needs the MatchingEngine. The other contracts are read when configured:
  *   stopOrderEngine - StopOrderEngine; it matches triggered stop orders itself and emits
  *                     the same OrderMatched event as the engine
  *   swapRouter      - BandSwapRouter; the only external entry point into band pool swaps
@@ -24,9 +23,24 @@ interface ChainConfig {
   start: string;
 }
 
+// Addresses come from packages/deployments/deployments.json in iter-monorepo.
 const chainConfig: Record<string, ChainConfig> = {
-  // Exchange-only generation: no stop orders, band pools or launchpad on this engine.
-  [CHAIN.SOMNIA]: { matchingEngine: '0x3Cb2CBb0CeB96c9456b11DbC7ab73c4848F9a14c', start: '2025-08-31' },
+  [CHAIN.ARC_TESTNET]: {
+    matchingEngine: '0xD44e3b8bdDC46E112C4eB99EdcF08FF88cf4b0Da',
+    stopOrderEngine: '0x0e7091a9cb0520DA70F947aF67afc3Cb12807341',
+    swapRouter: '0x3d752EE5a67409eAf7809fabB3301506ade67110',
+    bandPoolFactory: '0x1844A8bCDcaa53B54a873220E4Ef7a4a53eF73E5',
+    assetGenerator: '0x2a34500cFe38Bd401320E9D8f247E20C5FD5d355',
+    start: '2026-09-14',
+  },
+  [CHAIN.RISE_TESTNET]: {
+    matchingEngine: '0x631eb12F60698C869a192217C0055CCb660ff9c1',
+    stopOrderEngine: '0xBCBFD284c037bdCf87c494b6Cd92029527b60e65',
+    swapRouter: '0xb7C0dEFbB427Be3155120EEdCAc25F8df5B4329d',
+    bandPoolFactory: '0xA3b41c0F07533B3807E07A688556A6DD68799c8c',
+    assetGenerator: '0x07B43f1e64fE740c2f38e23Ee2cb88c1539Cf4b7',
+    start: '2026-09-07',
+  },
 }
 
 // Fee rates, prices and pool fee shares are all scaled by MatchingEngine.DENOM.
@@ -206,7 +220,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const FEE_LABELS = {
-  [METRIC.TRADING_FEES]: 'Fees taken from each orderbook fill, in the token of the leg they were charged on. The taker pays on the current deployment generation; the first generation also charged makers.',
+  [METRIC.TRADING_FEES]: 'Fees taken from each orderbook fill, in the token of the leg they were charged on. Only the taker leg is charged.',
   [METRIC.SWAP_FEES]: 'Fees charged by band pools on the output token of each swap, at the engine taker rate times the tightest band premium.',
   [LAUNCH_FEES]: 'Flat fee paid to the protocol for every token launched through the launchpad, in the payment token chosen by the creator.',
 };
