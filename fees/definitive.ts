@@ -66,41 +66,59 @@ const fetch = async (options: FetchOptions) => {
     });
 
     dailyFees.addBalances(solanaFees, METRIC.TRADING_FEES);
-
-    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-  }
-
-  // Handle EVM chains with Dune query
-  const preFetchedResults = options.preFetchedResults || [];
-  const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
-
-  if (!dune_chain) {
-    console.log(`No Dune mapping found for chain ${options.chain}`);
-    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-  }
-
-  const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
-
-  if (data) {
-    const usdcFees = data.total_amount_usdc || 0;
-    dailyFees.addUSDValue(usdcFees, METRIC.TRADING_FEES);
   } else {
-    console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+    // Handle EVM chains with Dune query
+    const preFetchedResults = options.preFetchedResults || [];
+    const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
+
+    if (!dune_chain) {
+      console.log(`No Dune mapping found for chain ${options.chain}`);
+    } else {
+      const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
+
+      if (data) {
+        const usdcFees = data.total_amount_usdc || 0;
+        dailyFees.addUSDValue(usdcFees, METRIC.TRADING_FEES);
+      } else {
+        console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+      }
+    }
   }
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  // From inception, 20% of revenue funds EDGE buybacks; the remaining 80% goes to Definitive.
+  // https://docs.definitive.fi/edge/buybacks-and-rewards
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue: dailyFees.clone(),
+    dailyProtocolRevenue: dailyFees.clone(0.8),
+    dailyHoldersRevenue: dailyFees.clone(0.2, METRIC.TOKEN_BUY_BACK),
+  }
 }
 
 const methodology = {
   Fees: 'User pays 0.05% - 0.25% fee on each trade',
   UserFees: 'User pays 0.05% - 0.25% fee on each trade',
-  Revenue: 'Fees are distributed to Definitive',
-  ProtocolRevenue: 'Fees are distributed to Definitive',
+  Revenue: 'Trading fees are split between Definitive and EDGE holders',
+  ProtocolRevenue: '80% of revenue is allocated to Definitive',
+  HoldersRevenue: '20% of revenue funds EDGE buybacks to reduce circulating supply and reward stakers',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses',
+  },
+  UserFees: {
+    [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) paid by users',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees split between Definitive and EDGE holders',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: '80% of trading fee revenue is allocated to Definitive',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: '20% of trading fee revenue funds EDGE buybacks: 10% to reduce circulating supply and 10% redistributed as staked EDGE rewards',
   },
 }
 
