@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 /**
@@ -25,6 +25,8 @@ import { sleep } from "../../utils/utils";
  */
 
 const FEE_RECIPIENT = "0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594";
+const PAGE = 1000;
+const TONCENTER_SLEEP_MS = 1500;
 
 const toBigInt = (v: any) => {
   if (v === null || v === undefined) return 0n;
@@ -40,52 +42,39 @@ const fetch = async (options: FetchOptions) => {
   const end = options.endTimestamp;
 
   let total = 0n;
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-
   const seen = new Set<string>();
 
-  while (true) {
-    const url = `https://tonapi.io/v2/blockchain/accounts/${FEE_RECIPIENT}/transactions?limit=1000&sort_order=desc${before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : ""}`;
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch transactions: ${e}`);
+  for (let offset = 0; ; offset += PAGE) {
+    const url =
+      `https://toncenter.com/api/v3/transactions?account=${FEE_RECIPIENT}` +
+      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`;
+
+    const data = await fetchURLAutoHandleRateLimit(url, 5);
+    if (!Array.isArray(data?.transactions)) {
+      throw new Error("Expected a transactions array from toncenter for GroypFi fee wallet");
     }
 
-    const txs = data.transactions;
+    const txs: any[] = data.transactions;
     if (!txs.length) break;
 
-    let reachedBeforeStart = false;
-
     for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
+      const now = tx.now ?? tx.utime;
+      const key = tx.hash ?? `${tx.lt}:${now}`;
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (tx.utime < start) {
-        reachedBeforeStart = true;
-        break;
-      }
+      if (now < start || now >= end) continue;
+      if (tx.description?.action?.success === false) continue;
 
-      if (tx.utime >= end) continue; // exclusive upper bound
-      if (!tx.success) continue;
+      const inMsg = tx.in_msg;
+      if (!inMsg || inMsg.bounced) continue;
+      if (inMsg.destination?.toLowerCase() !== FEE_RECIPIENT.toLowerCase()) continue;
 
-      if (tx.in_msg.destination.address === FEE_RECIPIENT) {
-        total += toBigInt(tx.in_msg.value);
-      }
+      total += toBigInt(inMsg.value);
     }
 
-    if (reachedBeforeStart) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-
-    await sleep(120);
+    if (txs.length < PAGE) break;
+    await sleep(TONCENTER_SLEEP_MS);
   }
 
   dailyFees.addGasToken(total.toString());
@@ -113,7 +102,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   start: "2025-01-04",
   methodology,
-  //pullHourly: true
+  pullHourly: true,
 };
 
 export default adapter;
