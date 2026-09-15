@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -22,7 +23,7 @@ import { METRIC } from "../helpers/metrics";
 // as DefaultPenaltyPaid.
 const BOOK = "0x9b479f47ef25E0Ed2134F38d3c4e1022A8695ed8";
 const POOL = "0x87b09bE7A253C2af187c9af17cDEDcEAf4A9780E";
-const USDT0 = "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"; // the pool asset: all stable fees are in this
+const USDT0 = ADDRESSES.flare.USDT0; // the pool asset: all stable fees are in this
 
 const LOAN_OPENED =
   "event LoanOpened(uint256 indexed id, address indexed borrower, address indexed collateral, uint256 collAmount, uint256 principal, uint256 fee, uint64 dueAt)";

@@ -1,3 +1,4 @@
+import ADDRESSES from './coreAssets.json'
 import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "../factory/registry";
 import { CHAIN } from "./chains";
@@ -364,7 +365,7 @@ const v1Entries: Record<string, any> = {
     [CHAIN.ETHEREUM]: {
       start: '2021-04-06',
       troveManager: '0xA39739EF8b0231DbFA0DcdA07d7e29faAbCf4bb2',
-      stableCoin: '0x5f98805A4E8be255a32880FDeC7F6728C6568bA0',
+      stableCoin: ADDRESSES.ethereum.LUSD,
       holderRevenuePercentage: 100,
       protocolRevenuePercentage: 0,
     },

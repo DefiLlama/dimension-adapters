@@ -52,7 +52,7 @@ const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const DEPOSIT_TOPIC =
   "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
-const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const NATIVE_TOKEN = ADDRESSES.GAS_TOKEN_2;
 const SWAP_EXECUTED_EVENT =
   "event SwapExecuted(address indexed sender, address indexed srcToken, address indexed dstToken, address logic, uint256 amountIn, uint256 amountOut)";
 

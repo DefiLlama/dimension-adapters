@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { getSqlFromFile, queryDuneResult, queryDuneSql } from '../helpers/dune';
 
 const MARKETS: Record<string, { cgId: string }> = {
-  'So11111111111111111111111111111111111111112': { cgId: 'solana' },
+  [ADDRESSES.solana.SOL]: { cgId: 'solana' },
   '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh': { cgId: 'bitcoin' },
   '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs': { cgId: 'ethereum' },
 };

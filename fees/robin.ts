@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpPost } from "../utils/fetchURL";
@@ -18,7 +19,7 @@ const GRAPHQL = "https://api.dotrobin.xyz/graphql";
 // Global Dollar (USDG, 6 decimals) on Robinhood Chain — the protocol's stable
 // payment asset. Source-verified:
 // https://robinhoodchain.blockscout.com/token/0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 const ROBIN = "0x627869916e7a9db463679cab838a614d8f09cad1"
 
 const REGISTRATION = "Name registration fees";

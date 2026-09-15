@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
@@ -10,7 +11,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       '0x6d1eff1aFF1dc9978d851D09d9d15f2938Da7BD7',
       '0x335Fd459eADf098f8B2f26692936Ee3D5Bb425A2',
     ], // v3, v4, v5 and v5.1 fee collectors
-    tokens: ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
+    tokens: [ADDRESSES.ethereum.USDC],
     options
   })
   const dailyRevenue = dailyFees.clone();

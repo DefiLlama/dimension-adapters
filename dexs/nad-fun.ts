@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -30,8 +31,8 @@ const v2 = {
   nadFunFactory: "0xA25b13127e63ddae6d0b35570FF3D39dBD621001",
   // WMON/LVMON are both treated as MON-denominated quote assets.
   monEquivalentQuoteTokens: [
-    "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
-    "0x91b81bfbe3A747230F0529Aa28d8b2Bc898E6D56",
+    ADDRESSES.monad.WMON,
+    ADDRESSES.monad.LVMON,
   ],
 };
 

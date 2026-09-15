@@ -23,11 +23,11 @@ const BPS_DENOMINATOR = 10000;
 const USDC: Record<string, string> = {
   [CHAIN.AVAX]: ADDRESSES.avax.USDC,
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.USDC,
-  [CHAIN.PLUME]: "0x3938A812c54304fEffD266C7E2E70B48F9475aD6", // USDC on Plume
+  [CHAIN.PLUME]: ADDRESSES.plume.USDC_e, // USDC on Plume
 };
 
 const EURC: Record<string, string> = {
-  [CHAIN.AVAX]: "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD", // EURC on Avalanche
+  [CHAIN.AVAX]: ADDRESSES.avax.EURC, // EURC on Avalanche
   [CHAIN.ETHEREUM]: "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c", // EURC on Ethereum
 };
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { AbiCoder, keccak256 } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
@@ -49,8 +50,8 @@ const chainConfig: Record<string, ChainConfig> = {
     // https://basescan.org/address/0x498581fF718922c3f8e6A244956aF099B2652b2b
     poolManager: "0x498581ff718922c3f8e6a244956af099b2652b2b",
     knownPairs: [
-      "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC
-      "0x4200000000000000000000000000000000000006", // WETH
+      ADDRESSES.base.USDC, // USDC
+      ADDRESSES.optimism.WETH_1, // WETH
       "0x0f61edbfe6cd86024c0f210c0695b08df55fdfc9", // BSTONK
     ],
     // every hook generation; each one emits the same FeeTaken / RemainderSwept
@@ -82,8 +83,8 @@ const chainConfig: Record<string, ChainConfig> = {
     // https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
     poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951",
     knownPairs: [
-      "0x5fc5360d0400a0fd4f2af552add042d716f1d168", // USDG
-      "0x0bd7d308f8e1639fab988df18a8011f41eacad73", // WETH
+      ADDRESSES.robinhood.USDG, // USDG
+      ADDRESSES.robinhood.WETH, // WETH
     ],
     // https://robinhoodchain.blockscout.com/address/0xF42bC6ca0D082D3Af51771392CeC847a01A6e044
     hooks: ["0xf42bc6ca0d082d3af51771392cec847a01a6e044"], // v6
@@ -178,7 +179,7 @@ const fetch = async (options: FetchOptions) => {
     });
     const pairs = await options.api.multiCall({
       abi: "address:rewardToken",
-      calls: trackers.map((t: string | null) => t ?? "0x0000000000000000000000000000000000000000"),
+      calls: trackers.map((t: string | null) => t ?? ADDRESSES.null),
       permitFailure: true,
     });
     for (let i = unplaced.length - 1; i >= 0; i--) {

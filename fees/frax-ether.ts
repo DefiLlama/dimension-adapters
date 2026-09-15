@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -11,7 +12,7 @@ const fetch = async (options: FetchOptions) => {
   const rewards = options.createBalances();
 
   const logs = await options.getLogs({
-    target: '0xac3e018457b222d93114458476f3e3416abbe38f',
+    target: ADDRESSES.ethereum.sfrxETH,
     eventAbi: 'event NewRewardsCycle (uint32 indexed cycleEnd, uint256 rewardAmount)',
   })
 

@@ -1,8 +1,9 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
+const USDT_BSC = ADDRESSES.bsc.USDT;
 
 const CONTRACTS = {
   EXCHANGES: [

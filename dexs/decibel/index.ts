@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
@@ -16,7 +17,7 @@ const DECIBEL_PACKAGE =
 // both are 6-decimal fungible assets on Aptos
 const FEE_ASSET_TYPES = new Set([
   // Native USDC on Aptos (Circle CCTP)
-  "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+  ADDRESSES.aptos.USDC_3,
   // USDCbl
   "0x96401f1e3ab3245d056d5a1ba67eef066ac3edc4d5f1b16adc5d567e79a845b0",
 ]);

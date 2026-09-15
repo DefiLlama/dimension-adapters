@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -61,7 +62,7 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
         myt: "0xeba62b842081cef5a8184318dc5c4e4aaca9f651",
         alchemist: "0x930750a3510e703535e943e826aba3c364ffc1de",
         transmuter: "0x693b7594ae0633d9c5574d0da46a040f92f5b281",
-        syntheticToken: "0xCB8FA9a76b8e203D8C3797bF438d8FB81Ea3326A",
+        syntheticToken: ADDRESSES.optimism.alUSD,
       },
       {
         myt: "0xfe8f223f3d81462f55bf8609897b8cecfa4b195c",
@@ -81,7 +82,7 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
         myt: "0xaf510a560744880410f0f65e3341a020fbc2ca41",
         alchemist: "0x930750a3510e703535e943e826aba3c364ffc1de",
         transmuter: "0x693b7594ae0633d9c5574d0da46a040f92f5b281",
-        syntheticToken: "0xCB8FA9a76b8e203D8C3797bF438d8FB81Ea3326A",
+        syntheticToken: ADDRESSES.optimism.alUSD,
       },
       {
         myt: "0x91b8657aea26caa8a0e9d6dd4e24727ccf32f822",

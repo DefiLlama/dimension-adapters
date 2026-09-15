@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -5,7 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 // liquidations are emitted from this single contract.
 const PERPETUAL_MANAGER = "0x38c4E93bac87b2fb96931dAB876Bb683D388f1A8";
 // Collateral of the PredictEX liquidity pool (native USDC on Base).
-const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const USDC = ADDRESSES.base.USDC;
 const USDC_DECIMALS = 6;
 
 const TRADE_EVENT =

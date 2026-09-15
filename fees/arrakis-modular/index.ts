@@ -9,7 +9,7 @@ const FACTORY = "0x820FB8127a689327C863de8433278d6181123982";
 // Arrakis denominates the manager fee share in PIPS (1e6 = 100%).
 const PIPS = 1_000_000n;
 
-const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const NATIVE = ADDRESSES.GAS_TOKEN_2;
 
 // Peoples Reserve (PRN), https://etherscan.io/token/0x0c5d9fae8670cfa0aA5f57b42CCd630c46BBe498
 const PRN = "0x0c5d9fae8670cfa0aa5f57b42ccd630c46bbe498";

@@ -7,8 +7,8 @@ const iBTC_arbitrum = '0x050C24dBf1eEc17babE5fc585F06116A259CC77A'
 const WSOL_arbitrum = '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07'
 const UNI_arbitrum = '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'
 const cbBTC_base = ADDRESSES.ethereum.cbBTC
-const USDT_btr = '0xfe9f969faf8ad72a83b761138bf25de87eff9dd2'
-const btr_btc = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+const USDT_btr = ADDRESSES.btr.USDT
+const btr_btc = ADDRESSES.GAS_TOKEN_2
 const btr_wbtc = ADDRESSES.btr.WBTC
 
 type TokenContracts = {

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -72,14 +73,14 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
       // Old MetBasis msUSD/msETH gauge (retired; kept for history).
       label: METBASIS_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
-      tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO from MetBasis gauge
+      tokens: [ADDRESSES.base.AERO], // AERO from MetBasis gauge
       fromAddressFilter: "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765",
     },
     {
       // New MetBasis msUSD/msETH gauge, live since the pool migration.
       label: METBASIS_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
-      tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO from MetBasis gauge
+      tokens: [ADDRESSES.base.AERO], // AERO from MetBasis gauge
       fromAddressFilter: "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514",
     },
     {
@@ -105,7 +106,7 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
     {
       label: AERO_LABEL,
       target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
-      tokens: ["0x940181a94A35A4569E4529A3CDfB74e38FD98631"], // AERO
+      tokens: [ADDRESSES.base.AERO], // AERO
       excludeFromAddresses: [
         "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765", // old MetBasis gauge
         "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514", // new MetBasis gauge
@@ -117,9 +118,9 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
       label: CRV_OETH_FXN_REWARDS_LABEL,
       target: "0xCE3187216B39ED222319D877956aC6b2eF1961E9",
       tokens: [
-        "0xD533a949740bb3306d119CC777fa900bA034cd52", // CRV
+        ADDRESSES.ethereum.CRV, // CRV
         "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3", // OETH
-        "0x365accfca291e7d3914637abf1f7635db165bb09", // FXN
+        ADDRESSES.ethereum.FXN, // FXN
       ],
     },
   ],

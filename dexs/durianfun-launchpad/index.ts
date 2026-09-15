@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 /**
  * Durianfun Launchpad — bonding-curve DEX adapter.
  *
@@ -113,9 +114,9 @@ const FACTORY_V5   = "0xE3861e300043d8c20A927340cbA6379D0BECb793"; // current pr
 
 // KKUB (wrapped KUB) — the priced token DefiLlama's Bitkub oracle
 // resolves. Native-KUB amounts are credited to this address.
-const KKUB = "0x67eBD850304c70d983B2d1b93ea79c7CD6c3F6b5";
+const KKUB = ADDRESSES.bitkub.KKUB;
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const TOKEN_CREATED_ABI =
   "event TokenCreated(address indexed token, address indexed market, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp)";

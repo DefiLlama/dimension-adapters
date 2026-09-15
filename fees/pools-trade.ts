@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // pools.trade — Uniswap Labs' token launchpad on Robinhood Chain, built on the
 // Uniswap Liquidity Launcher (https://pools.trade).
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -15,7 +16,7 @@ const UERC20_FACTORY = "0x000000e200088d55c39a11f609e5f667729ad49b";
 const TOKEN_CREATED = "0x4ef8284ecf42d4cd19686572ffd87f630858c82398911e776cb831de35eddbf4";
 const ERC721_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const LP_FEE = 2500; // InstantLaunchStrategy.LP_FEE / LBP graduation lpFee, in pips
 
 // UERC20Factory deployment (block 4516017, 2026-07-08 16:55:22 UTC): nothing

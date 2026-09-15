@@ -67,7 +67,7 @@ const fetchSolana = async (options: FetchOptions) => {
         AND action = 'transfer'
         AND token_mint_address IN (
           'So11111111111111111111111111111111111111111',
-          'So11111111111111111111111111111111111111112'
+          ADDRESSES.solana.SOL
         )
         AND to_owner = '${feeWallet}'
         AND (from_owner IS NULL OR from_owner <> '${feeWallet}')

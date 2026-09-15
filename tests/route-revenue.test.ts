@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Balances } from '@defillama/sdk';
@@ -7,7 +8,7 @@ import adapter from '../aggregators/route';
 const manager = '0xda5790345fd25878e5186ebd98823814188acfbe';
 const hook = '0xe5e702641ea86f4ae6cc3cdaed2b886f976be044';
 const receiver = '0xcceb9655af6877d5c8c2919902c356bed71fa1fc';
-const eth = 'robinhood:0x0000000000000000000000000000000000000000';
+const eth = 'robinhood:' + ADDRESSES.null;
 const deploymentTime = 1789087787;
 // First successful batch: 0x441e085960be4a8350fdd4f3c7891774dfef483eb981bbd10f22410368717c19.
 const execution = {

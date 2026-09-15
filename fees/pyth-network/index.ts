@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import {
   Dependencies,
@@ -358,7 +359,7 @@ async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
 }
 
 // ============ Sui Fetch Function ============
-const SUI_COIN_TYPE = "0x2::sui::SUI";
+const SUI_COIN_TYPE = ADDRESSES.sui.SUI;
 
 async function fetchSui(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
@@ -386,7 +387,7 @@ async function fetchSui(options: FetchOptions): Promise<FetchResult> {
 }
 
 // ============ Aptos Fetch Function ============
-const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
+const APTOS_COIN_TYPE = ADDRESSES.aptos.APT;
 
 async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();

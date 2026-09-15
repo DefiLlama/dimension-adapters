@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -37,7 +38,7 @@ const PUT_MARKETPLACE = '0x31248663adccdbcad155555b7717697b76cf570c';
 const TREASURY = '0x1118e1c057211306a40A4d7006C040dbfE1370Cb';
 
 // stETH on Ethereum mainnet
-const STETH = '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84';
+const STETH = ADDRESSES.ethereum.STETH;
 
 // ETH cost basis for initial stETH acquisition (2192.99 ETH sent to CoWSwap)
 // Used as baseline when start-of-period balance is 0 (acquisition day)

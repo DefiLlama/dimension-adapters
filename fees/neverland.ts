@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 /**
  * Neverland fees & revenue adapter (Monad).
  *
@@ -37,8 +38,8 @@ const LENDING_POOL: AaveLendingPoolConfig = {
 
 const ADDR = {
   dust: "0xAD96C3dffCD6374294e2573A7fBBA96097CC8d7c",
-  usdc: "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
-  wmon: "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
+  usdc: ADDRESSES.monad.USDC,
+  wmon: ADDRESSES.monad.WMON,
   revenueReward: "0xff20ac10eb808B1e31F5CfCa58D80eDE2Ba71c43",
   revenueWallet: "0x909b176220b7e782C0f3cEccaB4b19D2c433c6BB",
   royaltyReceiver: "0x000012a6ec4bb0F2fcfF0440B7d80aD605700069",

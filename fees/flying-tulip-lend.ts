@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 
@@ -20,19 +21,19 @@ const RFQ_ENGINE = '0xEB00B335Ca52216Fb60fdFFA361397367C39Dc32'
 //     curl https://api.flyingtulip.com/mm/lend?chainId=1   | jq '.data.chains[0].assets[].address'
 const RESERVES: Record<string, string[]> = {
   [CHAIN.SONIC]: [
-    '0x29219dd400f2bf60e5a23d13be72b486d4038894', // USDC
-    '0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38', // wS
+    ADDRESSES.sonic.USDC_e, // USDC
+    ADDRESSES.sonic.wS, // wS
     '0x5dd1a7a369e8273371d2dbf9d83356057088082c', // FT (address LendingLens is configured to key on)
-    '0xe5da20f15420ad15de0fa650600afc998bbe3955', // stS
+    ADDRESSES.sonic.STS, // stS
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD
     '0x50c42deacd8fc9773493ed674b675be577f2634b', // WETH
-    '0x0555e30da8f98308edb960aa94c0db47230d2b9c', // WBTC
+    ADDRESSES.bsc.WBTC, // WBTC
   ],
   [CHAIN.ETHEREUM]: [
-    '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-    '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
-    '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-    '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
+    ADDRESSES.ethereum.USDC, // USDC
+    ADDRESSES.ethereum.USDT, // USDT
+    ADDRESSES.ethereum.WETH, // WETH
+    ADDRESSES.ethereum.WBTC, // WBTC
     '0x5dd1a7a369e8273371d2dbf9d83356057088082c', // FT
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD (CREATE2 same address as Sonic)
   ],
@@ -62,7 +63,7 @@ const LIQUIDATION_FEE_COLLECTED =
 
 const WAD = 10n ** 18n
 const SECONDS_PER_YEAR = 365n * 24n * 60n * 60n
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ZERO_ADDRESS = ADDRESSES.null
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -55,7 +56,7 @@ const DEAD = "0x000000000000000000000000000000000000dead";
 const STATE_VIEW = "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b";
 
 // Uniswap v4 represents native ETH as the zero address.
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 // Every hook declares this event with the same types. The sixth field is the
 // creator's slice of the skim; hooks name it `creatorFee` or `toBuyback`

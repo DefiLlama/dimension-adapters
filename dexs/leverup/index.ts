@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics'
@@ -9,10 +10,10 @@ const LVMON_ISSUER = "0xbF52cED429C3901AfA4BBF25849269eF7A4ad105";
 const LEVERUP_DIAMOND = '0xea1b8E4aB7f14F7dCA68c5B214303B13078FC5ec';
 
 const LVUSD = '0xFD44B35139Ae53FFF7d8F2A9869c503D987f00d1';
-const LVMON = '0x91b81bfbe3A747230F0529Aa28d8b2Bc898E6D56';
+const LVMON = ADDRESSES.monad.LVMON;
 
-const USDC_MAINNET = '0x754704Bc059F8C67012fEd69BC8A327a5aafb603'; // Monad USDC
-const WMON_MAINNET = '0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A'; // Monad MON
+const USDC_MAINNET = ADDRESSES.monad.USDC; // Monad USDC
+const WMON_MAINNET = ADDRESSES.monad.WMON; // Monad MON
 
 const openMarketTradeAbi =
   'event OpenMarketTrade(address indexed user,bytes32 indexed tradeHash, (address user, uint32 userOpenTradeIndex, uint40 holdingFeeRate, uint128 entryPrice, uint128 qty, address pairBase, address tokenPay, address lvToken, uint96 lvMargin, uint128 stopLoss, uint128 takeProfit, uint24 broker, bool isLong, uint32 timestamp, uint96 lvOpenFee, uint96 lvExecutionFee, int256 longAccFundingFeePerShare, uint256 openBlock) ot)';

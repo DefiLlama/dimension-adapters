@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { nullAddress } from "../helpers/token";
@@ -100,7 +101,7 @@ const fetch = async (options: FetchOptions) => {
   });
   for (const log of routed) {
     const fee = BigInt(log.fee);
-    const token = log.currencyIn === "0x0000000000000000000000000000000000000000"
+    const token = log.currencyIn === ADDRESSES.null
       ? nullAddress
       : log.currencyIn;
     dailyFees.add(token, fee, "Stockback Router Fees");

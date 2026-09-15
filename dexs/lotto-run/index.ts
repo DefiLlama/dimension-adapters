@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { view, getVersionFromTimestamp } from "../../helpers/aptos";
 
 const MODULE = "lotto_run";
-const APT_TOKEN = "0x1::aptos_coin::AptosCoin";
+const APT_TOKEN = ADDRESSES.aptos.APT;
 const APT_DECIMALS = 1e8;
 
 const POOLS = [

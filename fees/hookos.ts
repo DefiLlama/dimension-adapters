@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -134,7 +135,7 @@ const CONFIG: Record<string, ChainConfig> = {
     BotTradeRouter: ["0x0Df97B522f8d280bEca2E2f547e62f17DA533da9"],
     LPFeeSplitter: "0xC3e9f677B16e84A12EAae10cCf3Ba166B5A02a79",
     // No graduation hook: V4GraduationAdapterHooked.hook() reverts on chain 1.
-    wrappedNative: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    wrappedNative: ADDRESSES.ethereum.WETH,
     feeSources: {
       "0xa7d00760693cec4f8c622eed44c786a190fba342": LABEL.launch,        // TokenFactory
       "0x93f35a190e6b7ed05e7bbab78199720c0c849dde": LABEL.registration,  // HookRegistry
@@ -157,7 +158,7 @@ const CONFIG: Record<string, ChainConfig> = {
     BotTradeRouter: ["0xE61c1Bd903f635f192FBf7E43831BF62E0Df3645"],
     LPFeeSplitter: "0x19c279c03B4aaB972E7293b688c81801Aa90d8B2",
     GraduationHook: "0x000ef9d52e7E177f5468C10F14b3a09f84dAA0CC",
-    wrappedNative: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    wrappedNative: ADDRESSES.bsc.WBNB,
     CreatorMarketplace: "0xe37A32a58e30Df97E1d6D3E84fc8F613bE5c9180",
     CampaignMarketplace: "0xDa80b9bE913C243a6394a7A86e153AC03a8eAc50",
     ProfileMonetization: "0xd641fA4f0592d93CC9989659527936F998669c4B",
@@ -202,7 +203,7 @@ const CONFIG: Record<string, ChainConfig> = {
     HookOSV3FeeVault: "0x502AA94344a5FCA6766C3fF382f1CdD435A7e6Ef",
     PresaleVault: "0xA5B6BD70911aa351AD971d302f16eB2656a17d19",
     BotTradeRouter: ["0xe79D1C0941E0448E3793afeA8dF0542c9B032343"],
-    wrappedNative: "0x5555555555555555555555555555555555555555",
+    wrappedNative: ADDRESSES.hyperliquid.WHYPE,
     feeSources: {
       "0x96c5e38362f86e52389e15a86247fb7326503c8d": LABEL.launch,        // TokenFactory
       "0x64e3167b2b4ea1b8e3ddcafe66a5b435be7cd75f": LABEL.registration,  // HookRegistry
@@ -220,7 +221,7 @@ const CONFIG: Record<string, ChainConfig> = {
     PoolFactory: "0x1106A0257bbB2f7950f5bcf366e966D24c6F5cDd",
     HookOSV3FeeVault: "0x710cd7173AdF70ff50428590210f746ac54De816",
     v4PoolManager: "0xaCB7e78fa05D562e0A5D3089ec896D57D057d38E",
-    wrappedNative: "0x4200000000000000000000000000000000000006",
+    wrappedNative: ADDRESSES.optimism.WETH_1,
     PresaleVault: "0xA62690b3D90ad7F0b09aB90B25D64989B3bcFe0A",
     BotTradeRouter: ["0x03D99492aB49204868556fCD768F135F5e711185"],
     LPFeeSplitter: "0x985F8Be988aB5029045d56069fD89a1aD19fB801",
@@ -267,7 +268,7 @@ const CONFIG: Record<string, ChainConfig> = {
     LPFeeSplitter: "0xa3df1c2969452ad3F0C3ca041430E2a8EE2ffa80",
     GraduationHook: "0x102D845539515733D5D56a8542E65eb1961420cc",
     StockTaxHook: "0x45F983076500a670EB12B2F3Aa6863d53dC880CC",
-    wrappedNative: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+    wrappedNative: ADDRESSES.robinhood.WETH,
     CreatorMarketplace: "0x360E1FCEcACe39a7d96883e5Ae640DA6E88e6579",
     CampaignMarketplace: "0xd16e3Ed4ABf1957100DC4063F179C0Ccb7dd895E",
     ProfileMonetization: "0xD9Ff755b6113f80276fE36DCddF931084051FD68",
@@ -307,7 +308,7 @@ const CONFIG: Record<string, ChainConfig> = {
     BotTradeRouter: ["0x2f6f6b6BCBe57830a592C3700c520721540A5524"],
     LPFeeSplitter: "0x6659D10166a3f546B2C9a0073AF1032C1e54A432",
     GraduationHook: "0x5f79b85f833eC0c88948Ba1b04faD5Be6C5D60Cc",
-    wrappedNative: "0x4200000000000000000000000000000000000006",
+    wrappedNative: ADDRESSES.optimism.WETH_1,
     CreatorMarketplace: "0x7B17C24Db13f94344A5b9183D92F232d7768Ffb9",
     CampaignMarketplace: "0x9D11060832B21C18329dD3BfEae3A6d43A552Fd8",
     ProfileMonetization: "0x0fD41607e121F300bc5785fEcB20e8680DCA6373",
@@ -337,7 +338,7 @@ const CONFIG: Record<string, ChainConfig> = {
   },
 };
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 // ── Event ABIs, verified against the deployed contract source ───────────────
 // FeeRouter.receive() — fires for every native fee any module routes in.

@@ -92,7 +92,7 @@ const SOLANA_REFERRAL_INTERNAL = [...SOLANA_REFERRAL_WALLETS, 'BCNsHAH2887uUF4gd
 // Stablecoins GMGN pays referral in (all 6dp ≈ $1; summed and booked as USDC).
 const SOLANA_REFERRAL_STABLES = [
   ADDRESSES.solana.USDC,
-  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+  ADDRESSES.solana.USDT, // USDT
   'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB',  // USD1
 ];
 // Real referral payouts are small per-referrer; any single referral transfer
@@ -101,7 +101,7 @@ const SOLANA_REFERRAL_STABLES = [
 // stables are ~$1 so the raw amount is the USD value.
 const REFERRAL_MAX_USD = 150000;
 
-const NATIVE = '0x0000000000000000000000000000000000000000';
+const NATIVE = ADDRESSES.null;
 const sqlList = (xs: string[]) => xs.map((x) => `'${x}'`).join(', ');
 
 // Single query for ALL chains, one row per (day, chain). EVM legs report fees in

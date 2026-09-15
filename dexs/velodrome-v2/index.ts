@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { cache } from "@defillama/sdk"
 import { CHAIN } from "../../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
@@ -14,7 +15,7 @@ const OP_FACTORY = '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a'
 const OP_VOTER = '0x41C914ee0c7E1A5edCD0295623e6dC557B5aBf3C'
 const LEAF_FACTORY = '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0'
 const LEAF_VOTER = '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123'
-const ZERO = '0x0000000000000000000000000000000000000000'
+const ZERO = ADDRESSES.null
 
 type GaugeCreatedSrc = { voter: string; fromBlock: number; abi: string; bribeField: string }
 type ChainCfg = {

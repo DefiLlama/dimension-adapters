@@ -1,6 +1,7 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 
-export const ZERO = "0x0000000000000000000000000000000000000000";
+export const ZERO = ADDRESSES.null;
 export type Market = "Crypto" | "Stocks";
 export type Suite = {
   factory: string;
@@ -59,8 +60,8 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
     // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/quotes.ts
     cryptoQuotes: [
       ZERO,
-      "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC
-      "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf", // CBBTC
+      ADDRESSES.base.USDC, // USDC
+      ADDRESSES.ethereum.cbBTC, // CBBTC
       "0xcbd06e5a2b0c65597161de254aa074e489deb510", // CBDOGE
       "0xcb585250f852c6c6bf90434ab21a00f02833a4af", // CBXRP
       "0xcb17c9db87b595717c857a08468793f5bab6445f", // CBLTC
@@ -106,7 +107,7 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
     ],
     // Robinhood Standard-route quotes:
     // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/quotes.ts
-    cryptoQuotes: [ZERO, "0x5fc5360d0400a0fd4f2af552add042d716f1d168"], // ETH, USDG
+    cryptoQuotes: [ZERO, ADDRESSES.robinhood.USDG], // ETH, USDG
   },
   [CHAIN.MONAD]: {
     // The new Minimal V4 suite was deployed on September 5, 2026 (UTC).
@@ -125,8 +126,8 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
     // https://github.com/o1exchange/o1-launch/blob/d85fda18291e05f26fe0556e8ca99d8341106d7b/shared/quotes.ts
     cryptoQuotes: [
       ZERO, // Native MON
-      "0x754704bc059f8c67012fed69bc8a327a5aafb603", // USDC
-      "0xee8c0e9f1bffb4eb878d8f15f368a02a35481242", // WETH
+      ADDRESSES.monad.USDC, // USDC
+      ADDRESSES.monad.WETH, // WETH
     ],
   },
 };

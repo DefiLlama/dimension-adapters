@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -15,11 +16,11 @@ const abi = {
 // side is a trusted numeraire, valued by that side's real amount and market price.
 // The fee is charged on tokenIn at the pool's swapFee fraction (1e18 = 100%).
 const NUMERAIRES = new Set([
-  '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', // WETH
-  '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-  '0xdac17f958d2ee523a2206206994597c13d831ec7', // USDT
-  '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', // WBTC
+  ADDRESSES.ethereum.WETH, // WETH
+  ADDRESSES.ethereum.DAI, // DAI
+  ADDRESSES.ethereum.USDC, // USDC
+  ADDRESSES.ethereum.USDT, // USDT
+  ADDRESSES.ethereum.WBTC, // WBTC
   '0xba100000625a3754423978a60c9317c58a424e3d', // BAL
 ])
 

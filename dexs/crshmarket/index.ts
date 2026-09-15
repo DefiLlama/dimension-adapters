@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -12,7 +13,7 @@ const MARKET_CONTRACTS = [
   "0x7b9256fd345b6dFa78017094caE64B153dE21fb2",
 ];
 // USDC (6 decimals): https://monadscan.com/token/0x754704bc059f8c67012fed69bc8a327a5aafb603
-const USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+const USDC = ADDRESSES.monad.USDC;
 
 const BET_PLACED_EVENT =
   "event BetPlaced(uint256 indexed marketId, address indexed user, uint8 option, uint256 amount, uint256 weightBps, uint256 weightedAmount, uint256 impactAmount)";

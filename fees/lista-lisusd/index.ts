@@ -59,7 +59,7 @@ const votingRewardBuyback =
 
 // token
 const lista = "0xFceB31A79F71AC9CBDCF853519c1b12D379EdC46";
-const cake = "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82";
+const cake = ADDRESSES.bsc.CAKE;
 const slisBNB = "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b";
 const eth = ADDRESSES.bsc.ETH;
 const wbeth = ADDRESSES.bsc.wBETH;

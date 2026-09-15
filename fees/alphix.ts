@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -17,10 +18,10 @@ const config: Record<string, ChainConfig> = {
     poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b',
     pools: [
       // AlphixLVRFee hook (0x7cBbfF9C4fcd74B221C535F4fB4B1Db04F1B9044) — pure swap fee, no lending
-      { id: '0xebb666a5c6449b83536950b975d74deb32aca1537a501b58161a896816b04da6', token: '0x4200000000000000000000000000000000000006' }, // ETH/USDC
-      { id: '0x3860784278e9e481ffd0888430ab2af8f2bb1180069f31cde9e1066728bbe73b', token: '0x4200000000000000000000000000000000000006' }, // ETH/cbBTC
+      { id: '0xebb666a5c6449b83536950b975d74deb32aca1537a501b58161a896816b04da6', token: ADDRESSES.optimism.WETH_1 }, // ETH/USDC
+      { id: '0x3860784278e9e481ffd0888430ab2af8f2bb1180069f31cde9e1066728bbe73b', token: ADDRESSES.optimism.WETH_1 }, // ETH/cbBTC
       // AlphixPro hook (0x2f9Cf87A6CbFA53C3F1B184900de17298e3F9080) — asymmetric dynamic fee, no lending
-      { id: '0x2d926f31a3b94ae9e0d22a0606f7684c9dbee8fcf46fae2ea68557ac1c48cb2d', token: '0x4200000000000000000000000000000000000006' }, // ETH/ZFI
+      { id: '0x2d926f31a3b94ae9e0d22a0606f7684c9dbee8fcf46fae2ea68557ac1c48cb2d', token: ADDRESSES.optimism.WETH_1 }, // ETH/ZFI
       // Alphix rehypothecation hooks
       { id: '0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71', token: '0x820c137fa70c8691f0e44dc420a5e53c168921dc' }, // USDS/USDC
     ],
@@ -28,22 +29,22 @@ const config: Record<string, ChainConfig> = {
       '0x0e4b892df7c5bcf5010faf4aa106074e555660c0',
     ],
     wrappers: [
-      { address: '0xf62bca61Fe33f166791c3c6989b0929CCaaDA5B2', underlying: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' }, // USDC
-      { address: '0x59f5245129faBEde6FC4243518B74b1DF78A2D9E', underlying: '0x4200000000000000000000000000000000000006' }, // WETH
+      { address: '0xf62bca61Fe33f166791c3c6989b0929CCaaDA5B2', underlying: ADDRESSES.base.USDC }, // USDC
+      { address: '0x59f5245129faBEde6FC4243518B74b1DF78A2D9E', underlying: ADDRESSES.optimism.WETH_1 }, // WETH
       { address: '0xc7b9A2146E9c7F081C84D20626641fc59F3d4cab', underlying: '0x820c137fa70c8691f0e44dc420a5e53c168921dc' }, // USDS
     ],
   },
   [CHAIN.ARBITRUM]: {
     poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32',
     pools: [
-      { id: '0xe2c28a234aadc40f115dcc56b70a759d02a372db90dfeed19048392d942ee286', token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831' }, // USDC
+      { id: '0xe2c28a234aadc40f115dcc56b70a759d02a372db90dfeed19048392d942ee286', token: ADDRESSES.arbitrum.USDC_CIRCLE }, // USDC
     ],
     hooks: [
       '0x5e645c3d580976ca9e3fe77525d954e73a0ce0c0',
     ],
     wrappers: [
-      { address: '0x968eD10776AC144308ae4160E2F5017A6999126C', underlying: '0xaf88d065e77c8cc2239327c5edb3a432268e5831' }, // USDC
-      { address: '0x7d1613B33e0d0E5c5707287b148CAdb3590e702a', underlying: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9' }, // USDT
+      { address: '0x968eD10776AC144308ae4160E2F5017A6999126C', underlying: ADDRESSES.arbitrum.USDC_CIRCLE }, // USDC
+      { address: '0x7d1613B33e0d0E5c5707287b148CAdb3590e702a', underlying: ADDRESSES.arbitrum.USDT }, // USDT
     ],
   },
 }

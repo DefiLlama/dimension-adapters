@@ -32,7 +32,7 @@ const CONFIG: Record<string, ChainCfg> = {
       { // ETH/USDC, dynamic fee
         pid: "0x088b6b69cbcaf84dae02a28dc7b62912ec105b6970d1ab7b985e4e50b6088ccd",
         token0: ADDRESSES.null, // native ETH is currency0 in v4
-        token1: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC
+        token1: ADDRESSES.base.USDC, // USDC
       },
     ],
   },
@@ -43,18 +43,18 @@ const CONFIG: Record<string, ChainCfg> = {
     pools: [
       { // USDG/NVDA
         pid: "0x53e74184f024eb01ceb7bbde68866bff3cc3ddf378c78745eb52bdd9ad7bcd91",
-        token0: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token0: ADDRESSES.robinhood.USDG, // USDG
         token1: "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec", // NVDA
       },
       { // USDG/INTC
         pid: "0x0703d548618b02c35d53acc889c1edb792aabccde3217004cd7dabb604fad3bd",
-        token0: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token0: ADDRESSES.robinhood.USDG, // USDG
         token1: "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681", // INTC
       },
       { // SPCX/USDG — note the inverted order: SPCX sorts below USDG
         pid: "0xdbd476102c84ca90d501b1330b11e9a6c092ab9a811a7f6a45b1d971872fab13",
         token0: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", // SPCX
-        token1: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token1: ADDRESSES.robinhood.USDG, // USDG
       },
     ],
   },
@@ -109,7 +109,7 @@ const fetch = async (options: FetchOptions) => {
     if (keeperTx.has(tx)) continue; // the keeper paying the hook is not revenue
     const currency = "0x" + log.data.slice(2 + 24, 2 + 64);
     const amount = word(log.data, 1);
-    hookFees.add(currency === "0x0000000000000000000000000000000000000000" ? ADDRESSES.null : currency, amount);
+    hookFees.add(currency === ADDRESSES.null ? ADDRESSES.null : currency, amount);
   }
 
   const dailyFees = options.createBalances();

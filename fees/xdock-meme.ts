@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const FeeCollectedEvent = "event TradeToken(address account,address token,bool isBuy,uint32 timestamp,uint256 ethAmount,uint256 tokenAmount,uint256 feeAmount,uint256 virtualTokenReserves,uint256 virtualEthReserves)"
 const FeeToCreatorEvent = "event GraduateRewards(address token, address creator, uint256 rewards, uint32 timestamp)"
 
-const WOKB = '0xe538905cf8410324e03a5a23c1c177a474d59b2b';
+const WOKB = ADDRESSES.xlayer.WOKB;
 const XdockFeeCollector = '0xe6A5f4b8257BbAd4F033D3831ebF23E0F833961F';
 
 const fetch = async (options: FetchOptions) => {

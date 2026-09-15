@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -18,7 +19,7 @@ const ADDRESSES: any = {
         token: "0xD11c452fc99cF405034ee446803b6F6c1F6d5ED8", //tEth
         redemption: "0xcd63a29FAfF07130d3Af89bB4f40778938AaBB85",
         fastlaneRedemption: "0x829525417Cd78CBa0f99A8736426fC299506C0d6",
-        stakedToken: "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0", // Lido wstEth
+        stakedToken: ADDRESSES.ethereum.WSTETH, // Lido wstEth
         excludeWallets: [
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
           '0x2ab1a0477504d243fd9801c94db5181104bda38a',
@@ -31,7 +32,7 @@ const ADDRESSES: any = {
         token: "0x14a84f1a61ccd7d1be596a6cc11fe33a36bc1646", //tAvax
         redemption: "0x765f6dc8496ca7EF1e4a391bE10185229AACf04b",
         fastlaneRedemption: "0x3D00a639183B07e35EFEF044eE6cC14e8598A01c",
-        stakedToken: "0x2b2c81e08f1af8835a78bb2a90ae924ace0ea4be", //benqi sAvax
+        stakedToken: ADDRESSES.avax.SAVAX, //benqi sAvax
         excludeWallets: [
           '0xf37856a029d87dbc53cf751c4864edab919b4702',
           '0x2ab1a0477504d243fd9801c94db5181104bda38a',

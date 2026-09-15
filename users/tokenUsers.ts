@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { alliumTokenUsersExport } from "./utils/alliumUsers";
 
@@ -5,7 +6,7 @@ const tokenUsers = [
   {
     id: "182", // Lido
     chain: CHAIN.ETHEREUM,
-    token: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", // stETH
+    token: ADDRESSES.ethereum.STETH, // stETH
     // The protocol burns stETH on finalisation, so the exit is the queue transfer.
     exitAddresses: ["0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1"], // unstETH withdrawal queue
     start: "2020-12-18",
@@ -13,7 +14,7 @@ const tokenUsers = [
   {
     id: "2626", // ether.fi Stake
     chain: CHAIN.ETHEREUM,
-    token: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", // eETH, the stake receipt; weETH only wraps it
+    token: ADDRESSES.ethereum.EETH, // eETH, the stake receipt; weETH only wraps it
     // Withdrawals park eETH here and burn later on claim.
     exitAddresses: ["0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c"], // Withdraw Request NFT
     start: "2023-11-16",
@@ -21,13 +22,13 @@ const tokenUsers = [
   {
     id: "900", // Rocket Pool
     chain: CHAIN.ETHEREUM,
-    token: "0xae78736Cd615f374D3085123A210448E74Fc6393", // rETH, burns straight to zero on redeem
+    token: ADDRESSES.ethereum.RETH, // rETH, burns straight to zero on redeem
     start: "2021-10-07",
   },
   {
     id: "4133", // Ethena USDe
     chain: CHAIN.ETHEREUM,
-    token: "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497",
+    token: ADDRESSES.ethereum.sUSDe,
     start: "2023-11-21",
   },
   {

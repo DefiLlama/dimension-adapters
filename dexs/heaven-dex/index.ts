@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
@@ -74,7 +75,7 @@ const fetch: any = async (options: FetchOptions) => {
       prices as (
         select price, minute
         from prices.usd
-        where contract_address = FROM_BASE58('So11111111111111111111111111111111111111112')
+        where contract_address = FROM_BASE58(ADDRESSES.solana.SOL)
         and minute >= from_unixtime(${options.startTimestamp})
         and minute < from_unixtime(${options.endTimestamp})
       ),

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getConfig } from "../helpers/cache";
@@ -164,7 +165,7 @@ const fetch = async (options: FetchOptions) => {
             });
             const registered = results
                 .flat()
-                .filter((addr: any) => typeof addr === "string" && addr !== "0x0000000000000000000000000000000000000000")
+                .filter((addr: any) => typeof addr === "string" && addr !== ADDRESSES.null)
                 .map((addr: string) => addr.toLowerCase());
             return [...new Set([...registered, ...known])];
         },

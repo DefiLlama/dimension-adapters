@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getChainStats, getOnchainStats, IOptionMarket, ONCHAIN_LABELS } from "./clamm";
 import { CHAIN } from "../../helpers/chains";
@@ -7,7 +8,7 @@ import { CHAIN } from "../../helpers/chains";
 // https://api.stryke.xyz/v1.1/clamm/option-markets?chains=<chainId>, which lists markets the docs omit).
 type ChainConfig = { start: number; graphUrl?: string; markets?: IOptionMarket[] };
 
-const SONIC_USDC_E = "0x29219dd400f2Bf60E5a23d13Be72B486D4038894";
+const SONIC_USDC_E = ADDRESSES.sonic.USDC_e;
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ARBITRUM]: {
@@ -24,24 +25,24 @@ const chainConfig: Record<string, ChainConfig> = {
       },
       { // wS/USDC.e
         address: "0x342e4068bA07bbCcBDDE503b2451FAa3D3C0278B",
-        callAsset: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
+        callAsset: ADDRESSES.sonic.wS,
         putAsset: SONIC_USDC_E,
       },
       { // WBTC/USDC.e
         address: "0x5E44581CaF0D9b25bA5F58DD773c76039140261f",
-        callAsset: "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c",
+        callAsset: ADDRESSES.bsc.WBTC,
         putAsset: SONIC_USDC_E,
       },
       // Registered in the CLAMM FeeStrategy (OptionMarketRegistered) but not listed by the Stryke API;
       // no options minted on them so far.
       { // wS/scUSD
         address: "0x1e3b3a28614cbab66c72b8a2f17c0bde9b3107a7",
-        callAsset: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
-        putAsset: "0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE",
+        callAsset: ADDRESSES.sonic.wS,
+        putAsset: ADDRESSES.sonic.scUSD,
       },
       { // wS/USDC.e (second pool)
         address: "0xafd9352af9a75e52ba2889ba9fa3b2a960abef61",
-        callAsset: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
+        callAsset: ADDRESSES.sonic.wS,
         putAsset: SONIC_USDC_E,
       },
     ],

@@ -1,8 +1,9 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const MODULE1 = "0x9f17a5d7cd90181a34a2011e900b440d71e2c011";
-const USDT0 = "0xe7cd86e13AC4309349F30B3435a9d337750fC82D";
+const USDT0 = ADDRESSES.flare.USDT0;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();

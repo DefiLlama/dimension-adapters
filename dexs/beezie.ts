@@ -210,7 +210,7 @@ const fetchBase = async (options: FetchOptions) => {
 //    stays 600bps — if the claw's `Machine.fee_bps` or the Core royalty
 //    percentage is ever retuned, this must be retuned with it.
 
-const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const SOLANA_USDC = ADDRESSES.solana.USDC;
 
 const SOLANA_CLAW_POOL_WALLET = "3K3MmyppnUDhd2o7qSYL8fmcw44f9gm4MdweFr1kF1xY";
 

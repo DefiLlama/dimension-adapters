@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
@@ -54,7 +55,7 @@ const VAULTS: VaultMeta[] = [
     underlyingDecimals: 6,
     underlyingSymbol: "stSTX",
     underlyingFtAssetId:
-      "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststx-token::ststx",
+      ADDRESSES.stacks.stSTX,
   },
   {
     key: "ststxbtc",
@@ -63,7 +64,7 @@ const VAULTS: VaultMeta[] = [
     underlyingDecimals: 6,
     underlyingSymbol: "stSTXbtc",
     underlyingFtAssetId:
-      "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG.ststxbtc-token-v2::ststxbtc",
+      ADDRESSES.stacks.stSTXbtc,
   },
   {
     key: "usdc",

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 
@@ -19,11 +20,11 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 const contractsConfig: Record<string, { contract: string; usdc: string }> = {
     [CHAIN.ETHEREUM]: {
         contract: '0xaa48ecbc843cf7e9a29155d112b8cb27902bd23c',
-        usdc: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        usdc: ADDRESSES.ethereum.USDC,
     },
     [CHAIN.SONIC]: {
         contract: '0x0c6f8ec81c3ea5bff06f6cd0791780f9f050ee31',
-        usdc: '0x29219dd400f2bf60e5a23d13be72b486d4038894',
+        usdc: ADDRESSES.sonic.USDC_e,
     },
 }
 

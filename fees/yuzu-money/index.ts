@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -30,10 +31,10 @@ interface VaultConfig {
   label: string;
 }
 
-const PLASMA_USDT0 = "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb";
+const PLASMA_USDT0 = ADDRESSES.corn.USDT0;
 const PLASMA_YZUSD = "0x6695c0f8706c5ace3bdf8995073179cca47926dc";
-const MONAD_USD = "0x754704bc059f8c67012fed69bc8a327a5aafb603"; // yzPrime asset()
-const ETHEREUM_USDC = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+const MONAD_USD = ADDRESSES.monad.USDC; // yzPrime asset()
+const ETHEREUM_USDC = ADDRESSES.ethereum.USDC;
 
 const chainConfig: Record<string, { start: string, vaults: VaultConfig[] }> = {
   [CHAIN.ETHEREUM]: {

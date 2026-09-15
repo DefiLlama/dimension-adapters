@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
@@ -85,7 +86,7 @@ GROUP BY GROUPING SETS ((chain, project), (project))`;
   return runOnce(query);
 }
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // Token-shaped protocols (liquid staking, RWA) have no curated table: a user is a
 // wallet that minted the token (entry) or sent it to a burn/exit address (exit).

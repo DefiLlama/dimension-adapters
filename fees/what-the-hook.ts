@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -48,9 +49,9 @@ const HOOK = "0xc52fc52698479e42f0da9a8a75296ec3871454c0";
 // The hook reports a WETH-pool distribution in WETH while the executor pays
 // the treasury and the pools in native ETH out of the same profit, so the two
 // are one currency for the purpose of splitting a transaction's total.
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 // https://robinhoodchain.blockscout.com/token/0x0Bd7d308F8e1639fAB988DF18A8011f41EacAd73
-const WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
+const WETH = ADDRESSES.robinhood.WETH;
 // https://robinhoodchain.blockscout.com/token/0xb8Fa8010833463Aac5595b55B9045479239EfF79
 const WTH = "0xb8fa8010833463aac5595b55b9045479239eff79";
 const family = (currency: string) => (currency === NATIVE || currency === WETH ? "eth" : currency);

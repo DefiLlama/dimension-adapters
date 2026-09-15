@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { queryAllium } from "../../helpers/allium";
@@ -49,8 +50,8 @@ const addBabylonFees = async (options: FetchOptions, dailyFees: sdk.Balances, da
       GROUP BY transaction_hash, event_index
     )
     SELECT
-      SUM(TRY_TO_NUMBER(REPLACE(reward, 'ubbn', ''))) AS rewards,
-      SUM(TRY_TO_NUMBER(REPLACE(fee, 'ubbn', ''))) AS fees
+      SUM(TRY_TO_NUMBER(REPLACE(reward, ADDRESSES.babylon.BABY, ''))) AS rewards,
+      SUM(TRY_TO_NUMBER(REPLACE(fee, ADDRESSES.babylon.BABY, ''))) AS fees
     FROM events
     WHERE reward_type = 'distribute_reward'
       AND action_type IN ('BABYStaking', 'CoStaking')

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -14,8 +15,8 @@ const FACTORY_DEPLOY_BLOCK = 12923899
 // Canonical WETH on Robinhood Chain (chain id 4663). Native-ETH markets use the
 // zero address as their collateral/quote token; we normalize it to WETH so a
 // market's volume/fees land under one key instead of splitting native vs WETH.
-const WETH = '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73'
-const ZERO = '0x0000000000000000000000000000000000000000'
+const WETH = ADDRESSES.robinhood.WETH
+const ZERO = ADDRESSES.null
 const quoteToken = (collateral: string) => (collateral === ZERO ? WETH : collateral)
 
 const CURVE_EVENT = 'event NewRHTokenCurveParams(address indexed addr, address indexed bondingCurve, uint256 initialTokenSupply, uint256 virtualCollateralReservesInitial, uint256 virtualTokenReservesInitial, uint256 feeBPS, uint256 mcLowerLimit, uint256 mcUpperLimit, uint256 tokensMigrationThreshold, uint256 fixedMigrationFee, uint256 firstBuyFee, uint256 targetCollectionAmount, address collateralToken)'

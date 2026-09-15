@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
@@ -230,7 +231,7 @@ async function fetch(options: FetchOptions) {
 
       // Look up bribe address for each asset from Voter
       const infoCalls = assetAddresses
-        .filter((a: string) => a && a !== "0x0000000000000000000000000000000000000000");
+        .filter((a: string) => a && a !== ADDRESSES.null);
 
       if (infoCalls.length > 0) {
         const infos = await api.multiCall({
@@ -240,7 +241,7 @@ async function fetch(options: FetchOptions) {
 
         const bribeAddresses = infos
           .map((info: any) => info?.bribe)
-          .filter((b: string) => b && b !== "0x0000000000000000000000000000000000000000");
+          .filter((b: string) => b && b !== ADDRESSES.null);
 
         if (bribeAddresses.length > 0) {
           // Get OnReward events from all bribe contracts

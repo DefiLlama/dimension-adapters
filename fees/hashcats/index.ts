@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // HASHCATS — fees & revenue adapter.
 //
 // HASHCATS is a proof-of-work NFT collection on Robinhood Chain (chainId 4663).
@@ -65,7 +66,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const COLLECTION = "0xca75df55cc9c476db27a7375d1fc8e794cf80721";
 const HOOK = "0xca757986e932bc55776492cca0b413e9b3d02acc";
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+const WETH = ADDRESSES.robinhood.WETH;
 
 // The block the collection's code first appears in, found by bisecting
 // eth_getCode. Below it every call to either contract reverts, so the exact

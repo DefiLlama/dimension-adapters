@@ -63,7 +63,7 @@ const CHAIN_CONFIG: Record<string, { weth: string; initializers: string[] }> = {
   },
   [CHAIN.ROBINHOOD]: {
     // Robinhood Chain WETH is RH's own deployment, NOT the OP-stack 0x42..0006.
-    weth: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    weth: ADDRESSES.robinhood.WETH,
     initializers: [
       "0x4e3468951d49f2eea976ed0d6e75ffcb44a9a544", // dopplerHookInitializer (4663)
       "0x6f02324d20cc679d0e585290caa6b16bacbc0f77", // rehypeDopplerHookInitializer (4663)
@@ -85,7 +85,7 @@ const WEDGE_FACTORY = "0xE3b4d1c71283012D7392d358dA2feEE2a6D22d3d"; // AgntFeeWe
 const WEDGE_FACTORY_START_BLOCK = 47600000; // just below the first wedge deploy (2026-08-27)
 const WEDGE_DEPLOYED_ABI = "event WedgeDeployed(bytes32 indexed launchId, address indexed wedge, address forwardTarget)";
 const WEDGE_SPLIT_ABI = "event Split(address indexed currency, uint256 total, uint256 toAgnt, uint256 forwarded)";
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 // ── AGNTS NFT mint (Robinhood) ──────────────────────────────────────────────
 // AGNT's own PFP collection (AGNTS, 0x57efd86c…f2d5) mints through a controller

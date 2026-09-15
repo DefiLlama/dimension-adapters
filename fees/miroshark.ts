@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -16,7 +17,7 @@ import { METRIC } from "../helpers/metrics";
 //   43%   launch platform beneficiaries (Bankr/Doppler & interface)
 const UNIV4_POOL_MANAGER = '0x498581ff718922c3f8e6a244956af099b2652b2b';
 const MIROSHARK_WETH_POOL_ID = '0x83a29b6619907f80e5a47d40f53d4af239a69980f22a08b10f43d357a9f06209';
-const WETH = '0x4200000000000000000000000000000000000006';
+const WETH = ADDRESSES.optimism.WETH_1;
 
 const MULTICURVE_INITIALIZER = '0xD59cE43E53D69F190E15d9822Fb4540dCcc91178';
 // MiroShark-controlled beneficiaries over the pool's lifetime — shares are

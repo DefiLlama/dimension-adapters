@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
@@ -58,8 +59,8 @@ async function fetch(options: FetchOptions) {
   if (hasMissingMarket)
     MarketRegisteredEvents.push({
       market: '0x699AbC15308156E9a3AB89Ec7387e9CfE1c86A3b',
-      baseAsset: '0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a',
-      quoteAsset: '0x754704Bc059F8C67012fEd69BC8A327a5aafb603',
+      baseAsset: ADDRESSES.mantle.AUSD,
+      quoteAsset: ADDRESSES.monad.USDC,
       pricePrecision: BigInt(100000000),
       sizePrecision: BigInt(1000000),
       takerFeeBps: BigInt(0),
@@ -78,13 +79,13 @@ async function fetch(options: FetchOptions) {
       makerFeeBps: BigInt(log.makerFeeBps),
     }
 
-    if (log.quoteAsset === '0x0000000000000000000000000000000000000000') {
+    if (log.quoteAsset === ADDRESSES.null) {
       quoteAssetPrecisions[formatAddress(log.quoteAsset)] = BigInt(1e18);
     } else {
       quoteAssetPrecisions[formatAddress(log.quoteAsset)] = BigInt(0);
     }
 
-    if (log.baseAsset === '0x0000000000000000000000000000000000000000') {
+    if (log.baseAsset === ADDRESSES.null) {
       baseAssetPrecisions[formatAddress(log.baseAsset)] = BigInt(1e18);
     } else {
       baseAssetPrecisions[formatAddress(log.baseAsset)] = BigInt(0);

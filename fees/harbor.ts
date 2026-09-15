@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -20,7 +21,7 @@ import { METRIC } from "../helpers/metrics";
 //   stabilityPoolLeveraged  → poolLeveraged      same
 // feeReceiver / getFeeAddress are read on-chain; do not hardcode. New ha token:
 // add HA_PEG (Chainlink peg → WETH/WBTC/EURC/USDC) or fetch throws.
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 const WAD = 10n ** 18n;
 
 // Harbor owner Safe. Today mint/redeem fees and the 99% harvest cut land here
@@ -81,9 +82,9 @@ const uniqueAddresses = (...values: (string | undefined)[]) => {
 // (ETH/USD, BTC/USD, EUR/USD, USD) via a priced canonical token. ha is 18 decimals.
 // New markets: add the ha token here. Unmapped ha sits at $0 if added raw; fetch
 // throws instead so a missing peg cannot silently store a zero day.
-const WETH = "0xC02aaa39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-const WBTC = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
-const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const WETH = ADDRESSES.ethereum.WETH;
+const WBTC = ADDRESSES.ethereum.WBTC;
+const USDC = ADDRESSES.ethereum.USDC;
 const EURC = "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c"; // Circle EURC — EUR/USD
 const HA_DECIMALS = 18n;
 const HA_PEG: Record<string, { token: string; decimals: bigint }> = {
@@ -135,7 +136,7 @@ const markets: Market[] = [
   {
     id: "btc-steth",
     start: "2025-12-19", // startBlock 24049273
-    wrappedCollateral: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
+    wrappedCollateral: ADDRESSES.ethereum.WSTETH, // wstETH
     minter: "0xF42516EB885E737780EB864dd07cEc8628000919",
     manager: "0x5e9Bcaa1EDfD665c09a9e6693B447581d61A85A1",
     peggedToken: "0x25bA4A826E1A1346dcA2Ab530831dbFF9C08bEA7",
@@ -147,7 +148,7 @@ const markets: Market[] = [
     // Owner deposited wstETH rewards here on 8 Sep 2026 (tx 0xf57d013b…).
     id: "steth-eur",
     start: "2026-01-20", // startBlock 24271147
-    wrappedCollateral: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
+    wrappedCollateral: ADDRESSES.ethereum.WSTETH, // wstETH
     minter: "0x68911ea33E11bc77e07f6dA4db6cd23d723641cE",
     peggedToken: "0x83Fd69E0FF5767972b46E61C6833408361bF7346", // haEUR
     poolCollateral: "0x000564B33FFde65E6c3b718166856654e039D69B",
@@ -167,7 +168,7 @@ const markets: Market[] = [
     id: "usd-steth",
     // Manager 0x377a4A6B… created block 25118688 (18 May 2026 01:06 UTC).
     start: "2026-05-18",
-    wrappedCollateral: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0", // wstETH
+    wrappedCollateral: ADDRESSES.ethereum.WSTETH, // wstETH
     minter: "0xC14837C30BEdF3081cBa2cDeB067fA6F0381e69b",
     manager: "0x377a4A6BEC4C75F2B7054B67Df03ce9A7497c33d",
     peggedToken: "0x2536A8636A99466173229AB15fdb37Fcaa05BA1A",
@@ -178,7 +179,7 @@ const markets: Market[] = [
     id: "usd-wbtc",
     // Manager 0x2506223d… created block 25118640 (18 May 2026 00:56 UTC).
     start: "2026-05-18",
-    wrappedCollateral: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // WBTC
+    wrappedCollateral: ADDRESSES.ethereum.WBTC, // WBTC
     minter: "0x0aA2b6Ee6D079f39A52725B33B15854505542B51",
     manager: "0x2506223d01072f795487Ff1f67aD40E1D3B15De0",
     peggedToken: "0x2536A8636A99466173229AB15fdb37Fcaa05BA1A",

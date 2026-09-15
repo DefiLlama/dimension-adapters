@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 // import { queryDuneSql } from "../helpers/dune"
@@ -34,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
     // `
 
     // const queryResults = await queryDuneSql(options, duneQuery);
-    // dailyFees.add('So11111111111111111111111111111111111111112', queryResults[0].fees_daily_sol)
+    // dailyFees.add(ADDRESSES.solana.SOL, queryResults[0].fees_daily_sol)
   }
 
   const protocolRevenueRatio = options.startOfDay > 1685577600 ? 0.5 : 1

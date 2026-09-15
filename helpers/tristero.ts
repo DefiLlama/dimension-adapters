@@ -865,7 +865,7 @@ function normalizeVolumeToken(chain: string, tokenAddress?: string | null): stri
   const normalized = tokenAddress?.toLowerCase();
   if (!normalized) return null;
 
-  if (normalized === '0x0000000000000000000000000000000000000000' || normalized === 'native') {
+  if (normalized === ADDRESSES.null || normalized === 'native') {
     const wrappedToken = WRAPPED_NATIVE_TOKENS[chain];
     if (!wrappedToken) throw new Error(`Missing wrapped native token mapping for ${chain}`);
     return wrappedToken.toLowerCase();

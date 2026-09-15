@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -66,7 +67,7 @@ const fetch = async (options: FetchOptions) => {
   const v1Assets: any[] = await api.call({ target: cfg.v1Pool, abi: v1Abi });
   for (const a of v1Assets) {
     if (BigInt(a.flags) & ASSET_IS_STABLE) continue;
-    if (a.tokenAddress === "0x0000000000000000000000000000000000000000") continue;
+    if (a.tokenAddress === ADDRESSES.null) continue;
     const dec = Number(a.decimals);
     addOI(a.tokenAddress, normalizeSize(a.totalLongPosition, dec), true);
     addOI(a.tokenAddress, normalizeSize(a.totalShortPosition, dec), false);
@@ -100,7 +101,7 @@ const fetch = async (options: FetchOptions) => {
       if (!oid) return;
       if (oid.slice(-24) !== "0".repeat(24)) return; // non-address oracle (e.g. WLFI string ID)
       const addr = "0x" + oid.slice(2, 42);
-      if (addr === "0x0000000000000000000000000000000000000000") return;
+      if (addr === ADDRESSES.null) return;
       tokenByMarket[marketId] = addr;
     });
 
@@ -148,7 +149,7 @@ const fetch = async (options: FetchOptions) => {
       if (!addrRaw || !decRaw) continue;
       // getAssetParameter returns bytes32; token address is left-padded (address(uint160(uint256(v))))
       const token = "0x" + addrRaw.slice(-40);
-      if (token === "0x0000000000000000000000000000000000000000") continue;
+      if (token === ADDRESSES.null) continue;
       const dec = Number(BigInt(decRaw));
       addOI(token, normalizeSize(a.totalLongPosition, dec), true);
       addOI(token, normalizeSize(a.totalShortPosition, dec), false);

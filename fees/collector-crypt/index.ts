@@ -1,8 +1,9 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
-const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const USDC_MINT = ADDRESSES.solana.USDC;
 
 // On-chain crypto gacha sinks. All non-team USDC inflows are pack purchases, so there is no
 // price-tier filter: CC keeps launching new tiers (150/151/420/5000 in Jul-2026) and a hardcoded

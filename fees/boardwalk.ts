@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -12,7 +13,7 @@ const TAX_RECEIVED = 'event TaxReceived(uint256 amount, uint256 lpShare, uint256
 const EPOCH_EXECUTED = 'event EpochExecuted(uint256 indexed epoch, uint8 option, uint256 raiseTokenAmount, bool forced, address destination)'
 const LAUNCH_INFO_ABI = 'function launches(address) view returns (address token, address feeDistributor, address presaleManager, address vestingStream, address lpStaking, address issuer, uint8 path, uint32 createdAt)'
 
-const NULL_ADDRESS = '0x0000000000000000000000000000000000000000'
+const NULL_ADDRESS = ADDRESSES.null
 
 // LaunchFactory per chain, with its deploy block for the launch enumeration
 const config: Record<string, { factory: string, fromBlock: number, start: string }> = {

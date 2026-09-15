@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import {Adapter, FetchOptions} from "../adapters/types";
 import {CHAIN} from "../helpers/chains";
 import {addTokensReceived} from "../helpers/token";
@@ -6,9 +7,9 @@ import BigNumber from "bignumber.js";
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
 const BOOSTER   = "0xF403C135812408BFbE8713b5A23a04b3D48AAE31"; // Convex Booster
-const CRV_TOKEN = "0xD533a949740bb3306d119CC777fa900bA034cd52"; // Curve DAO Token
-const CVX_TOKEN = "0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B"; // Convex Token
-const FXS_TOKEN = "0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0"; // Frax Share
+const CRV_TOKEN = ADDRESSES.ethereum.CRV; // Curve DAO Token
+const CVX_TOKEN = ADDRESSES.ethereum.CVX; // Convex Token
+const FXS_TOKEN = ADDRESSES.ethereum.FXS; // Frax Share
 
 // Convex protocol fee recipients — verified by inspecting CRV Transfer events
 // from the Booster (0xF403...AAE31) over a 7-day window via Ethereum event logs.

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { cache } from "@defillama/sdk"
 import { CHAIN } from "../../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
@@ -17,7 +18,7 @@ const CL_FACTORY = '0x5481864ddd46a2D798Df0925C23B7846e776E5E3'
 const CL_GAUGE_FACTORY = '0xD75e0c050FD32469DB14Cf6d3897e22825cD23E1'
 const RAPH_VOTER = '0x81024323a84Ae2DCaCee4E1d4087Cc2fb424fb27'
 const CL_DEPLOY_BLOCK = 54367028
-const ZERO = '0x0000000000000000000000000000000000000000'
+const ZERO = ADDRESSES.null
 
 type ChainCfg = {
   factory: string

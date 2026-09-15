@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
@@ -64,13 +65,13 @@ const fetch = async (options: FetchOptions) => {
   const supplySideAmount = (BigInt(rewards_earned_today) - BigInt(fees_minted_today)).toString();
 
   const dailyFees = options.createBalances();
-  dailyFees.add("uzig", rewards_earned_today, METRIC.STAKING_REWARDS);
+  dailyFees.add(ADDRESSES.zigchain.uzig, rewards_earned_today, METRIC.STAKING_REWARDS);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.add("uzig", fees_minted_today, METRIC.PROTOCOL_FEES);
+  dailyProtocolRevenue.add(ADDRESSES.zigchain.uzig, fees_minted_today, METRIC.PROTOCOL_FEES);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.add("uzig", supplySideAmount, METRIC.STAKING_REWARDS);
+  dailySupplySideRevenue.add(ADDRESSES.zigchain.uzig, supplySideAmount, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,

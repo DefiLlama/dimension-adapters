@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { request, gql } from 'graphql-request'
 import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getConfig } from '../../helpers/cache'
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ZERO_ADDRESS = ADDRESSES.null
 
 // Subgraph endpoints for fetching torex contract addresses
 const TOREX_GRAPHQL_ENDPOINTS: Record<string, string> = {

@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from '../../helpers/dune';
 
 // Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
-const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
+const WBNB = ADDRESSES.bsc.WBNB
 
 // Quote token: ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if any supported stable moves in the same tx (router/PCS paths never touch TokenManager2 directly); else BNB.
 const fetch = async (options: FetchOptions) => {

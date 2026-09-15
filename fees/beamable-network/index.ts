@@ -28,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
     JOIN calls c ON t.tx_id = c.tx_id
     WHERE t.block_time >= from_unixtime(${options.fromTimestamp})
       AND t.block_time < from_unixtime(${options.toTimestamp})
-      AND t.token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      AND t.token_mint_address = ADDRESSES.solana.USDC
     ORDER BY t.block_slot DESC
   `;
 

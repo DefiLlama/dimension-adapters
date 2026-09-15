@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 import { AbiCoder, keccak256 } from "ethers";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const PCS_HOOK_PARAMETERS = "0x0000000000000000000000000000000000000000000000000000000000c80cc2";
 
 const chainConfig: Record<string, { TREASURY_CONTRACT: string; CORE_CONTRACT: string; HOOK_CONTRACTS: { target: string; dexType: "uniV4" | "pcs" }[]; start: string; fromBlock: number }> = {

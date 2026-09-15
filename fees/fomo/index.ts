@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -13,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   const feesReceived = await getSolanaReceived({ 
     options, 
     target: 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX',
-    mints: ['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v']
+    mints: [ADDRESSES.solana.USDC]
   })
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();

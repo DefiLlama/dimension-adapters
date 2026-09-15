@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { addGasTokensReceived } from "../../helpers/token"
 import { METRIC } from "../../helpers/metrics"
 import * as sdk from '@defillama/sdk'
 
-const cmETH = '0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA';
+const cmETH = ADDRESSES.mantle.cmETH;
 const accountant = '0x6049Bd892F14669a4466e46981ecEd75D610a2eC';
 const stakingContract = '0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f';
 const pauserContract = '0x29Ab878aEd032e2e2c86FF4A9a9B05e3276cf1f8';

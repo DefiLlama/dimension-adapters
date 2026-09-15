@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 
@@ -20,7 +21,7 @@ const USD_PRECISION = 10n ** BigInt(USD_DECIMALS)
 const HFUSD = '0x7F7AD43d1Baa6BeA7f53F72D97D90b4FC0f662DF'
 const HFUSD1 = '0x026C39Ab4B07f4C8C62b5824F0F9D7BE5087405a'
 const U = '0xcE24439F2D9C6a2289F741120FE202248B666666'
-const USD1 = '0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d'
+const USD1 = ADDRESSES.bsc.USD1
 
 const WRAPPER_TO_UNDERLYING: Record<string, string> = {
   [HFUSD.toLowerCase()]: U,

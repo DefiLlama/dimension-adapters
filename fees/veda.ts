@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Interface } from "ethers"
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
@@ -33,13 +34,13 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     { vault: "0xf0bb20865277aBd641a307eCe5Ee04E79073416C", accountant: "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198" }, // Liquid ETH
     { vault: "0x7223442cad8e9cA474fC40109ab981608F8c4273", accountant: "0x126af21dc55C300B7D0bBfC4F3898F558aE8156b" }, // Karak
     { vault: "0x86B5780b606940Eb59A062aA85a07959518c0161", accountant: "0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b" }, // Staked ETHFI
-    { vault: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642", accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // eBTC
+    { vault: ADDRESSES.ethereum.EBTC, accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // eBTC
     { vault: "0xeDa663610638E6557c27e2f4e973D3393e844E70", accountant: "0x1D4F0F05e50312d3E7B65659Ef7d06aa74651e0C" }, // Liquid Usual
     { vault: "0x352180974C71f84a934953Cf49C4E538a6F9c997", accountant: "0xBae19b38Bf727Be64AF0B578c34985c3D612e2Ba" }, // Liquid Elixir
-    { vault: "0x939778D83b46B456224A33Fb59630B11DEC56663", accountant: "0xEB440B36f61Bf62E0C54C622944545f159C3B790" }, // eUSD
+    { vault: ADDRESSES.ethereum.EUSD, accountant: "0xEB440B36f61Bf62E0C54C622944545f159C3B790" }, // eUSD
     { vault: "0x42A03534DBe07077d705311854E3B6933dD6Af85", accountant: "0x1c217f17d57d3CCD1CB3d8CB16B21e8f0b544156" }, // Coinbase BTCv
     { vault: "0xE77076518A813616315EaAba6cA8e595E845EeE9", accountant: "0x075e60550C6f77f430B284E76aF699bC31651f75" }, // eEigen
-    { vault: "0xE6829d9a7eE3040e1276Fa75293Bde931859e8fA", accountant: "0x6049Bd892F14669a4466e46981ecEd75D610a2eC" }, // Mantle cMETH
+    { vault: ADDRESSES.mantle.cmETH, accountant: "0x6049Bd892F14669a4466e46981ecEd75D610a2eC" }, // Mantle cMETH
     { vault: "0xFE0C961A49E1aEe2AE2d842fE40157365C6d978f", accountant: "0xf1ecf4802C2b5Cf9c830A4AF297842Daa6D0f986" }, // Pump BTC-Fi
     { vault: "0xf6d71c15657A7f2B9aeDf561615feF9E05fE2cb3", accountant: "0x37e6e4526483D05711b8D6F92c27F2f3a16FC45b" }, // Bedrock Uni BTC-Fi
     { vault: "0x5f46d540b6eD704C3c8789105F30E075AA900726", accountant: "0xEa23aC6D7D11f6b181d6B98174D334478ADAe6b0" }, // Liquid BTC
@@ -59,7 +60,7 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     { vault: "0x42A03534DBe07077d705311854E3B6933dD6Af85", accountant: "0x1c217f17d57d3CCD1CB3d8CB16B21e8f0b544156" }, // Coinbase BTC
     { vault: "0x86B5780b606940Eb59A062aA85a07959518c0161", accountant: "0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b" }, // Staked ETHFI
     { vault: "0x5401b8620E5FB570064CA9114fd1e135fd77D57c", accountant: "0x28634D0c5edC67CF2450E74deA49B90a4FF93dCE" }, // Lombard BTC
-    { vault: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642", accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // EBTC
+    { vault: ADDRESSES.ethereum.EBTC, accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // EBTC
     { vault: "0xf0bb20865277aBd641a307eCe5Ee04E79073416C", accountant: "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198" }, // Liquid ETH
   ],
   [CHAIN.OPTIMISM]: [
@@ -82,8 +83,8 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     { vault: "0x9998e05030Aee3Af9AD3df35A34F5C51e1628779", accountant: "0x22b025037ff1F6206F41b7b28968726bDBB5E7D5" }, // Hybrid BTC
   ],
   [CHAIN.SONIC]: [
-    { vault: "0x3bcE5CB273F0F148010BbEa2470e7b5df84C7812", accountant: "0x3a592F9Ea2463379c4154d03461A73c484993668" }, // Sonic scETH
-    { vault: "0xd3DCe716f3eF535C5Ff8d041c1A41C3bd89b97aE", accountant: "0xA76E0F54918E39A63904b51F688513043242a0BE" }, // Sonic scUSD
+    { vault: ADDRESSES.sonic.scETH, accountant: "0x3a592F9Ea2463379c4154d03461A73c484993668" }, // Sonic scETH
+    { vault: ADDRESSES.sonic.scUSD, accountant: "0xA76E0F54918E39A63904b51F688513043242a0BE" }, // Sonic scUSD
     { vault: "0xBb30e76d9Bb2CC9631F7fC5Eb8e87B5Aff32bFbd", accountant: "0xC1a2C650D2DcC8EAb3D8942477De71be52318Acb" }, // Sonic scBTC
     { vault: "0x309f25d839A2fe225E80210e110C99150Db98AAF", accountant: "0x0639e239E417Ab9D1f0f926Fd738a012153930A7" }, // Sonic LBTC Vault
   ],
@@ -91,8 +92,8 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
     { vault: "0xf0bb20865277aBd641a307eCe5Ee04E79073416C", accountant: "0x0d05D94a5F1E76C18fbeB7A13d17C8a314088198" }, // Liquid ETH
     { vault: "0x08c6F91e2B681FaF5e17227F2a44C307b3C1364C", accountant: "0xc315D6e14DDCDC7407784e2Caf815d131Bc1D3E7" }, // Liquid USD
     { vault: "0x5f46d540b6eD704C3c8789105F30E075AA900726", accountant: "0xEa23aC6D7D11f6b181d6B98174D334478ADAe6b0" }, // Liquid BTC
-    { vault: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642", accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // eBTC
-    { vault: "0x939778D83b46B456224A33Fb59630B11DEC56663", accountant: "0xEB440B36f61Bf62E0C54C622944545f159C3B790" }, // eUSD
+    { vault: ADDRESSES.ethereum.EBTC, accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // eBTC
+    { vault: ADDRESSES.ethereum.EUSD, accountant: "0xEB440B36f61Bf62E0C54C622944545f159C3B790" }, // eUSD
   ],
   [CHAIN.PLASMA]: [
     { vault: "0xd1074E0AE85610dDBA0147e29eBe0D8E5873a000", accountant: "0x737f2522d09E58a3Ea9dcCFDB127dD0dF5eB3F18" }, // Plasma USD
@@ -106,7 +107,7 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
   ],
   [CHAIN.ARBITRUM]: [
     { vault: "0x86B5780b606940Eb59A062aA85a07959518c0161", accountant: "0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b" }, // Staked ETHFI
-    { vault: "0x657e8C867D8B37dCC18fA4Caead9C45EB088C642", accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // EBTC
+    { vault: ADDRESSES.ethereum.EBTC, accountant: "0x1b293DC39F94157fA0D1D36d7e0090C8B8B8c13F" }, // EBTC
   ],
 }
 

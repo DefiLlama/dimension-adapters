@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -7,14 +8,14 @@ const configs: any = {
     SHINY_ORDERS: '0x2F84B71ad6cC656C35316E728290eeb75cbAeD0F',
     PAYMENT_ROUTER: '0x2F84B71ad6cC656C35316E728290eeb75cbAeD0F',
     NFT: '0x911Dbdd9841B53eE5a08170109DAf7Ad82684108',
-    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    USDC: ADDRESSES.base.USDC,
   },
   [CHAIN.ABSTRACT]: {
     start: '2026-01-20',
     SHINY_ORDERS: '0x5c9CE8Be7Aa92fD089bE31B154be47a0e59d4282',
     PAYMENT_ROUTER: '0xBb8c7575F798a82eF02B428aB4693dFfe258E266',
     NFT: '0x911Dbdd9841B53eE5a08170109DAf7Ad82684108',
-    USDC: '0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1',
+    USDC: ADDRESSES.abstract.USDC,
   },
 }
 

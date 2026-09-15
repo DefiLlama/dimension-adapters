@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -19,9 +20,9 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     let token = log.inputToken;
-    if (log.inputToken === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+    if (log.inputToken === ADDRESSES.GAS_TOKEN_2) {
       // price for native token not supported - WXPL
-      token = "0x6100E367285b01F48D07953803A2d8dCA5D19873";
+      token = ADDRESSES.plasma.WXPL;
     }
     dailyVolume.add(token, log.inputTokenAmount);
     dailyFees.add(token, Number(log.inputTokenAmount) * FLAT_FEE_RATE);

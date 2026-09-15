@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -51,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
 
 	const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
 	const whitesliedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== '0x0000000000000000000000000000000000000000')) {
+	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== ADDRESSES.null)) {
 		if (options.chain === CHAIN.BSC) {
 			if (whitesliedTokens.includes(formatAddress(token.token))) {
 				dailyVolume.add(token.token, token.amount);
@@ -77,7 +78,7 @@ const fetchSolana = async (options: FetchOptions) => {
 		SELECT
 			'solana' AS chain,
 			(CASE
-				WHEN source_token_mint = '11111111111111111111111111111111' THEN 'So11111111111111111111111111111111111111112'
+				WHEN source_token_mint = '11111111111111111111111111111111' THEN ADDRESSES.solana.SOL
 				ELSE source_token_mint
 			END) AS token,
 			SUM(amount_in) as amount

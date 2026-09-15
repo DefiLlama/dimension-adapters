@@ -68,7 +68,7 @@ const SOLANA_FEE_WALLETS = [
 // fees/gmgnai.ts books as fees. Matching the fee asset by contract address means a token someone
 // sends to the collector cannot mark an unrelated swap as GMGN's. A chain with no entry here still
 // counts its native-token fees.
-const NATIVE = '0x0000000000000000000000000000000000000000';
+const NATIVE = ADDRESSES.null;
 const FEE_STABLE_BY_CHAIN: Record<string, string> = {
   ethereum: ADDRESSES.ethereum.USDC,
   bnb: ADDRESSES.bsc.USDC,

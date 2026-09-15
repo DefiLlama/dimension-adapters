@@ -134,7 +134,7 @@ const cryptoCardProtocols: Record<string, SimpleAdapter> = {
       paymentRecipients: ['0x476756C3d75A05757E3e8abaD6736EA6AB14675f'],
       paymentTokens: [
         ...DefaultPaymentTokens[CHAIN.ARBITRUM],
-        '0xfa5ed56a203466cbbc2430a43c66b9d8723528e7',
+        ADDRESSES.arbitrum.EURA,
         '0x0c06ccf38114ddfc35e07427b9424adcca9f44f8',
       ]
     },

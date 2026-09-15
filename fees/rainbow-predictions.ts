@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { addTokensReceived } from "../helpers/token"
@@ -7,7 +8,7 @@ import { fetchPolymarketV2BuilderFees } from "../helpers/polymarket"
 const RainbowFeeWallet = '0x757758506d6a4F8a433F8BECaFd52545f9Cb050a';
 
 // USDC.e on Polygon
-const USDC_E = '0x2791bca1f2de4661ed88a30c99a7a9449aa84174';
+const USDC_E = ADDRESSES.polygon.USDC;
 
 // Rainbow's builder code in Polymarket v2
 const RAINBOW_BUILDER_CODE = '0xabce5abdc189cba6fb85edb9170e3e6e41607e946b06d112b7f87e2f2977020c';

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
@@ -96,7 +97,7 @@ const DBC_PROGRAM = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
  * wrong asset, so the test beside this file holds it to this repository's own
  * WSOL constant.
  */
-const QUOTE_MINT_DEFAULT = 'So11111111111111111111111111111111111111112';
+const QUOTE_MINT_DEFAULT = ADDRESSES.solana.SOL;
 
 /**
  * `creatorTradingFeePercentage` on the config above, read from chain. It is a

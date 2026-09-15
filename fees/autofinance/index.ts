@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getConfig } from "../../helpers/cache";
@@ -36,7 +37,7 @@ const CHAIN_CONFIG: Record<string, any> = {
 const ADDRESSES = {
     feeRedeemer: "0xD1057B6C6736bf4f5B4a850Cff02054F1f38e581",
     rewardsDistributor: "0xD69e57336377460707d579CB24f9Ba0aEDf88003",
-    tokemakToken: "0x2e9d63788249371f1DFC918a52f8d799F4a38C94"
+    tokemakToken: ADDRESSES.ethereum.TOKE
 };
 
 const ABIs = {

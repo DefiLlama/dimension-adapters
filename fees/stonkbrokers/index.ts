@@ -256,7 +256,7 @@ const SMART_LP_FEES_COLLECTED =
   "event FeesCollected(uint256 fees0, uint256 fees1, uint256 skim0, uint256 skim1)";
 
 /** USDG on Robinhood Chain — sell-back rail payout token. */
-const ROBINHOOD_USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+const ROBINHOOD_USDG = ADDRESSES.robinhood.USDG;
 
 const LABELS = {
   AMM_FEES: "NFT AMM trade fees",
@@ -335,7 +335,7 @@ const ACTIVATION_PROTOCOL_BPS = 5000n;
 const LOCKER_PROTOCOL_BPS = 1000n; // SafetyDepositClockInV3 PROTOCOL_BPS
 const LOCKER_BROKER_BPS = 9000n;
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 type LockerKind = "v3" | "v4" | "upv2" | "upcl";
 
