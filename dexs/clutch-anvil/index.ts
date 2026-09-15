@@ -112,17 +112,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailySupplySideRevenue = createBalances();  
 
   const factories: FactoryConfig[] = [{ factory, fromBlock }, ...extraFactories];
-  const marketsPerFactory = await Promise.all(
-    factories.map((f) =>
-      getLogs({
-        target: f.factory,
-        fromBlock: f.fromBlock,
-        eventAbi: MARKET_CREATED_ABI,
-        cacheInCloud: true,
-      }),
-    ),
-  );
-  const markets = marketsPerFactory.flat();
+  const markets = await getLogs({
+    targets: factories.map((f) => f.factory),
+    fromBlock: Math.min(...factories.map((f) => f.fromBlock)),
+    eventAbi: MARKET_CREATED_ABI,
+    cacheInCloud: true,
+  });
 
   const ammByToken = new Map<string, string>();
   const loanVaults: string[] = [];
