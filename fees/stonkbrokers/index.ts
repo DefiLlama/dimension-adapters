@@ -106,6 +106,19 @@ const CIV_ANTI_SNIPE_PADS = [
   "0xca389585c4940B107D49AF4A37aD259c5fb69081", // Nightshades (Meebco), 2026-09-14
 ];
 
+// Civilization post-bond game pools. Each faction bonds into a Uniswap v4
+// pool hooked by FactionGameHook; the ONLY liquidity provider is the
+// FactionLiquidityVault (beforeAddLiquidity reverts for anyone else), so the
+// pool's 1% LP fee (GAME_LP_FEE) accrues 100% to the protocol-owned game
+// position. Pool ids are discovered from the vault's FactionRegistered events
+// (never hardcoded — new factions register themselves). After every night the
+// hook re-opens trading behind a decaying snipe tax and emits SnipeTaxCollected
+// with the exact wei split (50% next-night boost / 10% faction LP / 13.33%
+// StockBooster / 13.33% protocol treasury / 13.34% game creator).
+const CIV_FACTION_VAULT = "0xfff716727d7E80E29eab5D3498b7F28431e65C58";
+const CIV_GAME_HOOK = "0x065388FA59505ceF471529FFa08d7EcfaB1fAACc";
+const CIV_FACTION_VAULT_START = 62553793;
+
 // Safe Launch / Stonklauncher pads. quote=null → native ETH (legacy ETH pad);
 // otherwise amounts in SafeBuy/SafeSell are the lane's quote token (field
 // names stay ethIn/ethOut on-chain). ClockInCard punches ride the tax split
@@ -219,6 +232,10 @@ const PAD_BUY =
   "event PadBuy(uint256 indexed launchId, address indexed buyer, uint256 quoteIn, uint256 taxPaid, uint256 netIn, uint256 tokensOut)";
 const PAD_TAX_COLLECTED =
   "event PadTaxCollected(uint256 indexed launchId, uint256 tax, uint256 boost, uint256 lp, uint256 booster, uint256 protocol, uint256 creator)";
+const FACTION_REGISTERED =
+  "event FactionRegistered(bytes32 indexed factionId, address indexed token, bytes32 indexed poolId, address anvilFactory, uint256 anvilMarketId, address nftCollection)";
+const SNIPE_TAX_COLLECTED =
+  "event SnipeTaxCollected(bytes32 indexed poolId, uint256 taxWeth, uint16 taxBps, uint256 boostAmount, uint256 lpAmount, uint256 boosterAmount, uint256 protocolAmount, uint256 creatorAmount)";
 const SAFE_BUY =
   "event SafeBuy(uint256 indexed id, address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
 const SAFE_SELL =
@@ -262,11 +279,14 @@ const LABELS = {
   LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
   LAUNCH_TAX_DEV: "Anti-snipe launch tax → launch dev (10%)",
   CIV_TAX: "Civilization anti-snipe pad snipe tax (Nightshades faction launches, time-decay tax on curve buys)",
-  CIV_TAX_PROTOCOL: "Civilization pad tax → protocol treasury (13.33%)",
-  CIV_TAX_BOOST: "Civilization pad tax → next-night boost pot (50%)",
-  CIV_TAX_LP: "Civilization pad tax → faction's own locked pool (10%)",
-  CIV_TAX_BOOSTER: "Civilization pad tax → StockBooster dividends (13.33%)",
-  CIV_TAX_CREATOR: "Civilization pad tax → game creator (13.34%)",
+  CIV_REOPEN_TAX: "Civilization sunrise reopen snipe tax (daily time-decay tax on hooked v4 pool trades after each night)",
+  CIV_TAX_PROTOCOL: "Civilization snipe tax → protocol treasury (13.33%)",
+  CIV_TAX_BOOST: "Civilization snipe tax → next-night boost pot (50%)",
+  CIV_TAX_LP: "Civilization snipe tax → faction's own locked pool (10%)",
+  CIV_TAX_BOOSTER: "Civilization snipe tax → StockBooster dividends (13.33%)",
+  CIV_TAX_CREATOR: "Civilization snipe tax → game creator (13.34%)",
+  CIV_POOL_SWAPS: "Civilization faction pool swaps (Nightshades hooked Uniswap v4 pools)",
+  CIV_POOL_LP_FEES: "Civilization faction pool 1% LP fee (100% protocol-owned game liquidity)",
   SAFE_TAX: "Safe Launch / Stonklauncher snipe tax (time-decay tax on window trades)",
   SAFE_TAX_PROTOCOL: "Safe Launch tax → protocol accrual (16.5%)",
   SAFE_TAX_CREATOR: "Safe Launch tax → launch creator (16.5%)",
@@ -425,6 +445,45 @@ const fetchRobinhood = async (options: FetchOptions) => {
       eventAbi: PAD_TAX_COLLECTED,
     }),
   ]);
+
+  // Civilization post-bond game pools: discover every faction's hooked v4
+  // pool id from the vault's registration events (full history, cached), then
+  // read the PoolManager Swap tape for those pools plus the hook's reopen
+  // snipe tax. entireLog keeps transactionHash so a buy's tax can be re-added
+  // to the net-of-tax Swap delta (see the volume section below).
+  const factionRegistered = await options.getLogs({
+    target: CIV_FACTION_VAULT,
+    fromBlock: CIV_FACTION_VAULT_START,
+    eventAbi: FACTION_REGISTERED,
+    cacheInCloud: true,
+  });
+  const civPoolIds = [
+    ...new Set(
+      factionRegistered
+        .map((l: any) => String(l.poolId || "").toLowerCase())
+        .filter((id: string) => /^0x[0-9a-f]{64}$/.test(id)),
+    ),
+  ];
+  // One Swap query per pool id (topic1 filter) — the indexer path takes a
+  // single topic1 string, so an OR-array of pool ids is not portable.
+  const [civPoolSwapLogsByPool, civReopenTaxLogs] = await Promise.all([
+    Promise.all(
+      civPoolIds.map((poolId) =>
+        options.getLogs({
+          target: UNI_V4_POOL_MANAGER,
+          topics: [UNI_V4_SWAP_TOPIC0, poolId],
+          eventAbi: UNI_V4_SWAP,
+          entireLog: true,
+        }),
+      ),
+    ),
+    options.getLogs({
+      target: CIV_GAME_HOOK,
+      eventAbi: SNIPE_TAX_COLLECTED,
+      entireLog: true,
+    }),
+  ]);
+  const civPoolSwapLogs: any[] = civPoolSwapLogsByPool.flat();
 
   const [safeBuyLogsByPad, safeSellLogsByPad] = await Promise.all([
     options.getLogs({
@@ -682,6 +741,95 @@ const fetchRobinhood = async (options: FetchOptions) => {
     // The creator leg pays the game team, not the protocol — counted in fees,
     // excluded from revenue/protocolRevenue (same treatment as the WALL dev leg).
     dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.creator), LABELS.CIV_TAX_CREATOR);
+  }
+
+  // ── Civilization faction pools (post-bond, hooked Uniswap v4) ───────────
+  // After the pad bonds, every faction trades in its own hooked v4 pool that
+  // ONLY the game vault may LP (FactionGameHook.beforeAddLiquidity reverts for
+  // any other sender), so 100% of the pool's 1% LP fee accrues to protocol-
+  // owned game liquidity. Pool ids come from the vault's FactionRegistered
+  // events, so new factions are picked up with no adapter change.
+  //
+  // Volume = WETH-side notional of every user swap (the vault's own night
+  // operations — damage sells / survivor buys, sender == vault — are internal
+  // rebalances and excluded). During the daily sunrise reopen the hook levies
+  // a decaying snipe tax: on BUYS it is removed via beforeSwapDelta, so the
+  // Swap event carries the net-of-tax WETH — the same-tx SnipeTaxCollected
+  // adds it back to reach the gross the user paid; on SELLS the event already
+  // carries the gross WETH out (the hook skims the tax in afterSwap).
+  //
+  // The v4 LP fee is charged on the input currency. WETH-input fees are
+  // booked as-is; faction-token-input fees are valued in WETH at the swap's
+  // own execution price (|amountWeth| / |amountToken|), since faction tokens
+  // have no oracle price feed.
+  const civTokenByPool = new Map<string, string>();
+  for (const l of factionRegistered) {
+    const id = String(l.poolId || "").toLowerCase();
+    const token = String(l.token || "").toLowerCase();
+    if (id && token) civTokenByPool.set(id, token);
+  }
+  const civReopenTaxByTxPool = new Map<string, bigint>();
+  for (const log of civReopenTaxLogs) {
+    const args = log.args ?? log.parsedLog?.args ?? log;
+    const taxWeth = BigInt(args.taxWeth ?? 0);
+    if (taxWeth <= 0n) continue;
+    const key = `${String(log.transactionHash).toLowerCase()}:${String(args.poolId).toLowerCase()}`;
+    civReopenTaxByTxPool.set(key, (civReopenTaxByTxPool.get(key) ?? 0n) + taxWeth);
+    const toProtocol = BigInt(args.protocolAmount ?? 0);
+    dailyFees.add(ROBINHOOD_WETH, taxWeth, LABELS.CIV_REOPEN_TAX);
+    dailyRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
+    dailyProtocolRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.boostAmount ?? 0), LABELS.CIV_TAX_BOOST);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.lpAmount ?? 0), LABELS.CIV_TAX_LP);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.boosterAmount ?? 0), LABELS.CIV_TAX_BOOSTER);
+    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.creatorAmount ?? 0), LABELS.CIV_TAX_CREATOR);
+  }
+  const civVaultLower = CIV_FACTION_VAULT.toLowerCase();
+  const civWethLower = ROBINHOOD_WETH.toLowerCase();
+  for (const log of civPoolSwapLogs) {
+    const args = log.args ?? log.parsedLog?.args ?? log;
+    const poolId = String(args.id ?? "").toLowerCase();
+    const sender = String(args.sender ?? "").toLowerCase();
+    if (sender === civVaultLower) continue; // vault night ops, not user flow
+    const token = civTokenByPool.get(poolId);
+    if (!token) continue;
+    // v4 sorts currencies by address; WETH is currency0 iff it is the lower.
+    const wethIs0 = civWethLower < token;
+    const amount0 = BigInt(args.amount0);
+    const amount1 = BigInt(args.amount1);
+    const amountWeth = wethIs0 ? amount0 : amount1;
+    const amountToken = wethIs0 ? amount1 : amount0;
+    const absWeth = amountWeth < 0n ? -amountWeth : amountWeth;
+    const absToken = amountToken < 0n ? -amountToken : amountToken;
+    if (absWeth <= 0n) continue;
+    const wethIsInput = amountWeth < 0n;
+
+    let grossWeth = absWeth;
+    if (wethIsInput) {
+      // Buy during a reopen window: add the tax the hook stripped pre-swap.
+      const key = `${String(log.transactionHash).toLowerCase()}:${poolId}`;
+      const tax = civReopenTaxByTxPool.get(key);
+      if (tax) {
+        grossWeth += tax;
+        civReopenTaxByTxPool.delete(key); // count once per tx/pool
+      }
+    }
+    dailyVolume.add(ROBINHOOD_WETH, grossWeth, LABELS.CIV_POOL_SWAPS);
+
+    const feePpm = BigInt(args.fee ?? 0);
+    if (feePpm <= 0n) continue;
+    const inputAmount = wethIsInput ? absWeth : absToken;
+    const feeAmount = (inputAmount * feePpm) / 1_000_000n;
+    if (feeAmount <= 0n) continue;
+    const feeWeth = wethIsInput
+      ? feeAmount
+      : absToken > 0n
+        ? (feeAmount * absWeth) / absToken
+        : 0n;
+    if (feeWeth <= 0n) continue;
+    dailyFees.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
+    dailyRevenue.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
+    dailyProtocolRevenue.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
   }
 
   // ── Safe Launch / Stonklauncher pads (V1 ETH + quoted + V2 + r2) ────────
@@ -957,17 +1105,17 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Volume:
-      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Civilization anti-snipe pad PadBuy.quoteIn (WETH, Nightshades faction launches) + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
+      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Civilization anti-snipe pad PadBuy.quoteIn (WETH, Nightshades faction launches) + post-bond Civilization faction pool swaps (WETH-side notional of every user swap in the four hooked Uniswap v4 faction pools; reopen-window buys grossed up by the same-tx SnipeTaxCollected; the vault's own night rebalances excluded) + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); the Civilization anti-snipe pad snipe tax on Nightshades faction curve buys (PadTaxCollected — 50% next-night boost pot / 10% faction pool / 13.33% StockBooster / 13.33% protocol / 13.34% game creator, WETH); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
+      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); the Civilization anti-snipe pad snipe tax on Nightshades faction curve buys (PadTaxCollected — 50% next-night boost pot / 10% faction pool / 13.33% StockBooster / 13.33% protocol / 13.34% game creator, WETH); the Civilization sunrise reopen snipe tax levied by the game hook on hooked v4 pool trades after each night (SnipeTaxCollected, same five-way split); the 1% LP fee on every user swap in the hooked Civilization faction pools (100% protocol-owned game liquidity — the vault is the pools' only permitted LP); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, the $STONKBROKER-buyback half of the Smart LP 10% performance fee, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
+      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, the 13.33% protocol treasury leg of the Civilization pad + sunrise reopen snipe taxes, the 1% LP fee accruing to the protocol-owned Civilization faction pool liquidity, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, the $STONKBROKER-buyback half of the Smart LP 10% performance fee, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
     ProtocolRevenue:
-      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 33.34% of bonding-curve trade fees; vesting-locker deposit fees; and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
+      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 13.33% of the Civilization pad + sunrise reopen snipe taxes → protocol treasury; the Civilization faction pools' 1% LP fee → the vault's protocol-owned game liquidity position (compounds into game LP, not distributed); 33.34% of bonding-curve trade fees; vesting-locker deposit fees; and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
     HoldersRevenue:
       "Half of the $STONKBROKER activation/upgrade fees burned, plus the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Civilization pad tax legs to the next-night boost pot (50%), the faction's own locked pool (10%), StockBooster (13.33%) and the game creator (13.34%); Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
+      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Civilization pad + sunrise reopen tax legs to the next-night boost pot (50%), the faction's own locked pool (10%), StockBooster (13.33%) and the game creator (13.34%); Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
   },
   breakdownMethodology: {
     Volume: {
@@ -979,6 +1127,8 @@ const adapter: SimpleAdapter = {
         "Anti-snipe one-off launch buys (WallBought.ethIn).",
       [LABELS.CIV_TAX]:
         "Civilization anti-snipe pad curve buys on the Nightshades faction launches (PadBuy.quoteIn, tax-inclusive, WETH).",
+      [LABELS.CIV_POOL_SWAPS]:
+        "WETH-side notional of user swaps in the hooked Uniswap v4 Civilization faction pools (pool ids from FactionLiquidityVault.FactionRegistered). Reopen-window buys are grossed up by the same-tx SnipeTaxCollected.taxWeth (the hook strips the tax before the swap); sells already carry gross WETH out. Swaps with sender == the game vault (night damage sells / survivor buys) are internal rebalances and excluded.",
       [LABELS.SAFE_TAX]:
         "Safe Launch / Stonklauncher window buy+sell notional on every pad (V1 ETH + V1 quoted + V2 + r2). Buys = tax-inclusive quote in; sells = net quote out + tax.",
       [LABELS.CURVE_FEES]:
@@ -1000,6 +1150,10 @@ const adapter: SimpleAdapter = {
         "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
       [LABELS.CIV_TAX]:
         "Time-decay snipe tax on Civilization anti-snipe pad curve buys (Nightshades faction launches; 99% at the bell falling to 0 over a 99-minute buys-only window; PadTaxCollected.tax, WETH). Split by the game hook per trade: 50% next-night boost pot / 10% the faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",
+      [LABELS.CIV_REOPEN_TAX]:
+        "Daily sunrise reopen snipe tax levied by FactionGameHook on hooked v4 faction pool buys and sells after each night (SnipeTaxCollected.taxWeth; decays from 99% to 0 over the 60-minute sunrise window). Same five-way split as the pad tax: 50% next-night boost / 10% faction pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",
+      [LABELS.CIV_POOL_LP_FEES]:
+        "1% Uniswap v4 LP fee on every user swap in the hooked Civilization faction pools (Swap.fee ppm × input amount). The game vault is the only LP the hook permits, so 100% accrues to protocol-owned game liquidity. WETH-input fees booked as-is; faction-token-input fees valued in WETH at the swap's own execution price.",
       [LABELS.SAFE_TAX]:
         "Time-decay snipe tax on Safe Launch / Stonklauncher window buys AND sells (SafeBuy/SafeSell taxPaid) across the V1 ETH pad, V1 quoted lanes, V2 lanes, and r2 pads. Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve or ICO Bonus / 17% StockBooster + Clock In Card referrers, snapshotted per launch. Quoted-lane amounts are in the quote token.",
       [LABELS.CURVE_FEES]:
@@ -1023,7 +1177,9 @@ const adapter: SimpleAdapter = {
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
-      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad snipe tax (Nightshades).",
+      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad + sunrise reopen snipe taxes (Nightshades).",
+      [LABELS.CIV_POOL_LP_FEES]:
+        "1% LP fee on Civilization faction pool swaps accruing to the vault's protocol-owned game liquidity position (compounds into game LP; not distributed to holders).",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
       [LABELS.SMARTLP_BUYBACK]:
@@ -1041,7 +1197,9 @@ const adapter: SimpleAdapter = {
       [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
-      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad snipe tax (Nightshades).",
+      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad + sunrise reopen snipe taxes (Nightshades).",
+      [LABELS.CIV_POOL_LP_FEES]:
+        "1% LP fee on Civilization faction pool swaps accruing to the vault's protocol-owned game liquidity position (compounds into game LP; not distributed to holders).",
       [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
       [LABELS.POL_V4_FEES]:
@@ -1069,12 +1227,12 @@ const adapter: SimpleAdapter = {
       [LABELS.LAUNCH_TAX_DEV]:
         "10% of the anti-snipe launch snipe tax → launch dev.",
       [LABELS.CIV_TAX_BOOST]:
-        "50% of the Civilization pad snipe tax → the next night's boost pot (buys the surviving faction after each night; escrowed in the game vault).",
+        "50% of the Civilization pad + sunrise reopen snipe taxes → the next night's boost pot (buys the surviving faction after each night; escrowed in the game vault).",
       [LABELS.CIV_TAX_LP]:
-        "10% of the Civilization pad snipe tax → the paying faction's own protocol-owned locked pool.",
+        "10% of the Civilization pad + sunrise reopen snipe taxes → the paying faction's own protocol-owned locked pool.",
       [LABELS.CIV_TAX_BOOSTER]:
-        "13.33% of the Civilization pad snipe tax → StockBooster → Clock In dividends to activated brokers.",
-      [LABELS.CIV_TAX_CREATOR]: "13.34% of the Civilization pad snipe tax → game creator (Meebco).",
+        "13.33% of the Civilization pad + sunrise reopen snipe taxes → StockBooster → Clock In dividends to activated brokers.",
+      [LABELS.CIV_TAX_CREATOR]: "13.34% of the Civilization pad + sunrise reopen snipe taxes → game creator (Meebco).",
       [LABELS.SAFE_TAX_CREATOR]: "16.5% of the Safe Launch / Stonklauncher snipe tax → launch creator.",
       [LABELS.SAFE_TAX_BOOSTER]:
         "17% of the Safe Launch / Stonklauncher snipe tax punched through the Clock In Card: ~0.5% of tax to the referrer, the rest to StockBooster Clock In dividends.",
