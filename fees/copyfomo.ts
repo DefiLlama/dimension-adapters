@@ -26,9 +26,11 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   for (const row of rows) {
     if (DUNE_TO_CHAIN[row.chain] !== options.chain) continue;
-    // service fees = what reached the treasury minus the gas the bot paid for the user
-    dailyFees.addUSDValue((Number(row.fees_usd) || 0) - (Number(row.gas_usd) || 0));
-    dailySupplySideRevenue.addUSDValue(Number(row.referral_usd) || 0);
+    // gross: everything that reached the treasury (service fee + gas billed to the user)
+    dailyFees.addUSDValue(Number(row.fees_usd) || 0);
+    // what leaves the treasury: referral rewards to users + the gas the bundler paid to the
+    // network for those users' operations (the user's gas leg, passed through to validators)
+    dailySupplySideRevenue.addUSDValue((Number(row.referral_usd) || 0) + (Number(row.gas_usd) || 0));
   }
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue);
@@ -42,10 +44,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Service fees paid by traders on every copied buy and sell. Measured on-chain as every stablecoin transfer into the copyfomo treasury (USDC on Base and Solana, USDT/USDC on BNB Chain, USDG on Robinhood Chain), minus the gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint for those users' operations. Fees are collected in a separate transaction from the trade, so the day of collection is used. Same definition as the 'protocol fees, after gas' figure published on copyfomo.com/data.",
+  Fees: "Everything traders pay copyfomo on every copied buy and sell: the service fee (2% of the trade) plus the gas billed back to them. Measured on-chain as every stablecoin transfer into the copyfomo treasury (USDC on Base and Solana, USDT/USDC on BNB Chain, USDG on Robinhood Chain). Fees are collected in a separate transaction from the trade, so the day of collection is used.",
   UserFees: "Same as Fees: everything is paid by the trader.",
-  SupplySideRevenue: "Referral rewards: stablecoins sent from the treasury back to copyfomo user wallets (referrers).",
-  Revenue: "Fees minus referral rewards.",
+  SupplySideRevenue: "What leaves the treasury: referral rewards sent back to copyfomo user wallets, plus the gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint (network validators) for those users' operations, priced with the daily WETH / WBNB price.",
+  Revenue: "Fees minus SupplySideRevenue: the service fee plus the margin on gas. Same definition as the 'protocol fees, after gas' figure published on copyfomo.com/data.",
   ProtocolRevenue: "All revenue goes to the treasury.",
 };
 

@@ -14,8 +14,6 @@
 
 // Treasury receiving service fees on every EVM chain (same address on base, bnb, robinhood).
 export const TREASURY_EVM = "0xe26fbe48ba4f9ad167e66106070fc6966dd913e0";
-// Treasury used until 2026-08-26 (kept so early days backfill correctly).
-export const TREASURY_EVM_OLD = "0xbcf475a30f1aab10aaea562864642a780aabf3c5";
 // Treasury receiving service fees on Solana (USDC).
 export const TREASURY_SOL = "PRYvrMW7TBLGydidijJviy2oC3nQHP2zAWBbeqVSNAb";
 // Solana fee payer: signs and pays every copyfomo Solana transaction.
@@ -55,6 +53,8 @@ export const partitionRange = (startTimestamp: number, endTimestamp: number) =>
 export const withPartition = (sql: string, options: { startTimestamp: number; endTimestamp: number }) =>
   sql
     .split("PARTITION_RANGE").join(partitionRange(options.startTimestamp, options.endTimestamp))
+    .split("DISCOVERY_END_DATE").join(`cast(from_unixtime(${options.endTimestamp}) as date)`)
+    .split("DISCOVERY_END_TS").join(`from_unixtime(${options.endTimestamp})`)
     .split("PRICE_RANGE").join(
       `timestamp >= cast(from_unixtime(${options.startTimestamp}) as date) - interval '2' day AND timestamp <= cast(from_unixtime(${options.endTimestamp}) as date)`,
     );
@@ -62,13 +62,14 @@ export const withPartition = (sql: string, options: { startTimestamp: number; en
 const hexList = (arr: string[]) => arr.join(", ");
 const strList = (arr: string[]) => arr.map((a) => `'${a}'`).join(", ");
 
-const TRES_EVM = hexList([TREASURY_EVM, TREASURY_EVM_OLD]);
+const TRES_EVM = hexList([TREASURY_EVM]);
 const STABLES_BASE_BNB = hexList([...STABLES_EVM.base, ...STABLES_EVM.bnb]);
 const EMITTERS = hexList(BUNDLER_EMITTERS);
 
-// Wallet sets. Cheap by construction: only addresses that ever sent a stablecoin to the
-// treasury are considered, then kept only if they are contracts created by the
-// LightAccountFactory (this removes exchanges/solvers that ever touched the treasury).
+// Wallet sets. Cheap by construction: only addresses that sent a stablecoin to the
+// treasury up to the end of the requested window are considered (no future data), then
+// kept only if they are contracts created by the LightAccountFactory (this removes
+// exchanges/solvers that ever touched the treasury).
 const EVM_WALLETS_CTE = `
   contracts AS (
     SELECT 'base' AS blockchain, address FROM base.creation_traces WHERE "from" = ${LIGHT_ACCOUNT_FACTORY} AND block_time >= TIMESTAMP '2026-08-01'
@@ -79,14 +80,14 @@ const EVM_WALLETS_CTE = `
     FROM tokens.transfers t
     JOIN contracts c ON c.blockchain = t.blockchain AND c.address = t."from"
     WHERE t.blockchain IN ('base', 'bnb')
-      AND t.block_date >= DATE '2026-08-20'
+      AND t.block_date >= DATE '2026-08-20' AND t.block_date <= DISCOVERY_END_DATE
       AND t."to" IN (${TRES_EVM})
   ),
   rh_wallets AS (
     SELECT DISTINCT t."from" AS wallet
     FROM erc20_robinhood.evt_Transfer t
     JOIN robinhood.creation_traces c ON c.address = t."from" AND c."from" = ${LIGHT_ACCOUNT_FACTORY} AND c.block_time >= TIMESTAMP '2026-08-01'
-    WHERE t.evt_block_time >= TIMESTAMP '2026-08-20'
+    WHERE t.evt_block_time >= TIMESTAMP '2026-08-20' AND t.evt_block_time <= DISCOVERY_END_TS
       AND t."to" IN (${TRES_EVM})
   )`;
 
