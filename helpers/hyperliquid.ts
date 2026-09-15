@@ -41,11 +41,20 @@ export async function getHyperliquidHip3Dexs(): Promise<string[]> {
   if (hip3DexsCache) return hip3DexsCache;
   try {
     const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
-    // The first entry is null: it is the main perp dex, which is not a HIP-3 deployment.
-    const dexs = response.filter((item: any) => item?.name).map((item: any) => item.name);
+    if (!Array.isArray(response)) throw new Error("perpDexs did not return an array");
+    // The first entry is null: it is the main perp dex, which is not a HIP-3 deployment. Any
+    // other shape is dropped rather than passed on, so a malformed entry cannot become a dex id.
+    const dexs = response
+      .map((item: any) => item?.name)
+      .filter((name: any): name is string => typeof name === "string" && name.length > 0);
     if (dexs.length) hip3DexsCache = dexs;
+    else throw new Error("perpDexs returned no usable dex names");
   } catch (e) {
-    console.error("failed to list HIP-3 dexes, falling back to the static list", e);
+    // Deliberately not rethrown. This helper feeds Hyperliquid's total open interest, and
+    // Hyperliquid's own perps are the overwhelming majority of it; failing the whole day over an
+    // auxiliary listing call would lose far more than the stale list does. The fallback is the
+    // previous behaviour exactly, and the failure is logged rather than hidden.
+    console.error("hyperliquid: perpDexs listing failed, using the static HIP-3 dex list", e);
   }
   return hip3DexsCache ?? HYPERLIQUID_HIP3_DEXS;
 }
