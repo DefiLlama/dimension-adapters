@@ -245,7 +245,8 @@ async function addForexOrderbookVolume(
       if (!Number.isFinite(ts)) continue;
       if (ts < startTimestamp || ts >= endTimestamp) continue;
       // Count taker notional once on the LUNC quote side so Llama can price it.
-      if (fill.quoteSymbol && fill.quoteSymbol.toUpperCase() !== "LUNC") continue;
+      const quoteSymbol = fill.quoteSymbol ?? market.quoteSymbol;
+      if (quoteSymbol?.toUpperCase() !== "LUNC") continue;
       let raw = fill.quoteAmountRaw;
       if ((!raw || raw === "0") && fill.quoteAmount != null) {
         // amounts are human units with 6 decimals when raw is missing
