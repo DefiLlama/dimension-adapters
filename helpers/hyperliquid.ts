@@ -27,7 +27,29 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400; // 2025-08-01
 export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = '2026-04-15';
 export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
+// Fallback only. New HIP-3 dexes are permissionless, so a hardcoded list goes stale silently:
+// every dex missing from it is dropped from Hyperliquid's total open interest with no error.
 export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
+
+let hip3DexsCache: string[] | undefined;
+
+// The live set of HIP-3 dexes, from the chain itself. Deployers come and go, so this is queried
+// rather than listed. Dexes that did not yet exist on the day being fetched simply have no
+// snapshot and are skipped by the caller.
+
+export async function getHyperliquidHip3Dexs(): Promise<string[]> {
+  if (hip3DexsCache) return hip3DexsCache;
+  try {
+    const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
+    // The first entry is null: it is the main perp dex, which is not a HIP-3 deployment.
+    const dexs = response.filter((item: any) => item?.name).map((item: any) => item.name);
+    if (dexs.length) hip3DexsCache = dexs;
+  } catch (e) {
+    console.error("failed to list HIP-3 dexes, falling back to the static list", e);
+  }
+  return hip3DexsCache ?? HYPERLIQUID_HIP3_DEXS;
+}
+
 export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
@@ -445,7 +467,7 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
   }
 
   // HIP-3 markets
-  for (const dex of HYPERLIQUID_HIP3_DEXS) {
+  for (const dex of await getHyperliquidHip3Dexs()) {
     const metaAndAssetCtxsDex = await getMetaAndAssetCtxs(options, dex);
     if (metaAndAssetCtxsDex) {
       result.hip3Deployers[dex] = 0;
