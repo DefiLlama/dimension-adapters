@@ -189,7 +189,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
       const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
       tokens = ankrTokens[ankrChainMapping[chain]] ?? []
     } else {
-      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options, logFilter)
+      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options)
     }
   }
 
@@ -314,8 +314,7 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
 }
 
 async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter: string | null,
-  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions,
-  logFilter: (log: any) => boolean = () => true) {
+  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions) {
   const logs = await options.getLogs({
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer(address,address,uint256)
@@ -329,9 +328,6 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
 
   logs.forEach((log) => {
     if (log.data == '0x') return
-    const from = log.from ?? (log.topics && log.topics[1] ? '0x' + log.topics[1].slice(26) : undefined)
-    const logForFilter = { ...log, from, fromAddress: from }
-    if (!logFilter(logForFilter)) return
     balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
