@@ -25,8 +25,8 @@ const METRICS = {
 
 const methodology = {
   Fees: "Trading fees paid in KNTQ on Hyperliquid spot, which is the side of a KNTQ trade the HIP-1 deployer's share applies to.",
-  Revenue: "All of it. deployerTradingFeeShare on KNTQ is 1.0, so the deployer keeps the whole KNTQ-denominated fee.",
-  ProtocolRevenue: "Same as Revenue.",
+  Revenue: "All of the trading fees paid in KNTQ on Hyperliquid spot. deployerTradingFeeShare on KNTQ is 1.0, so the deployer keeps the whole KNTQ-denominated fee.",
+  ProtocolRevenue: "All of the trading fees paid in KNTQ on Hyperliquid spot. deployerTradingFeeShare on KNTQ is 1.0, so the deployer keeps the whole KNTQ-denominated fee.",
 };
 
 const breakdownMethodology = {
@@ -54,7 +54,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
       fetch,
