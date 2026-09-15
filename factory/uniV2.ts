@@ -33,6 +33,10 @@ const configs: Record<string, Record<string, any>> = {
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
   },
+  "heliswap": {
+    // uniV2 fork on Hedera, replaces dead GraphQL backend
+    [CHAIN.HEDERA]: { factory: '0x0000000000000000000000000000000000134224', start: '2022-10-05' },
+  },
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
   },
