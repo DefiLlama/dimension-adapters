@@ -43,6 +43,25 @@ const chainConfig: Record<string, ChainConfig> = {
   },
 }
 
+// The SDK ships no providers for these testnets, so the adapter registers them itself.
+// Env values set by the runner take precedence. BLOCK_LOW keeps the SDK's block search
+// above the deployment block: the RISE node prunes state older than about a week.
+const rpcs: Record<string, { rpc: string; chainId: number; deployBlock: number }> = {
+  // Blockdaemon first: the official endpoint allows only a handful of eth_getLogs per minute.
+  [CHAIN.ARC_TESTNET]: { rpc: 'https://rpc.blockdaemon.testnet.arc.network,https://rpc.testnet.arc.network', chainId: 5042002, deployBlock: 62130888 },
+  [CHAIN.RISE_TESTNET]: { rpc: 'https://testnet.riselabs.xyz', chainId: 11155931, deployBlock: 53699750 },
+};
+for (const [chain, { rpc, chainId, deployBlock }] of Object.entries(rpcs)) {
+  const key = chain.toUpperCase();
+  process.env[`${key}_RPC`] ??= rpc;
+  process.env[`${key}_RPC_CHAIN_ID`] ??= String(chainId);
+  // Multicall3 is at its canonical address on both chains.
+  process.env[`${key}_RPC_MULTICALL_V3`] ??= '0xcA11bde05977b3631167028862bE2a173976CA11';
+  process.env[`${key}_BLOCK_LOW`] ??= String(deployBlock);
+  // Public testnet RPCs answer 429 to the SDK's default 25 parallel getLogs calls.
+  process.env[`${chain}_RPC_GET_LOGS_CONCURRENCY_LIMIT`] ??= '3';
+}
+
 // Fee rates, prices and pool fee shares are all scaled by MatchingEngine.DENOM.
 const DENOM = 1e8;
 
