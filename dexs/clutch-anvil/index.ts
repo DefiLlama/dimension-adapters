@@ -36,7 +36,26 @@ import { METRIC } from "../../helpers/metrics";
 // activate). Swap fee splits 50% treasury / 50% StockBooster; loan +
 // activation ETH fees go 100% to the treasury.
 
-const chainsConfig: Record<string, { factory: string; fromBlock: number; start: string }> = {
+// A chain may run several factory generations side by side. Every factory
+// listed here emits the same MarketCreated shape and spawns vaults with the
+// same NFTBought / NFTSold / fee events, so markets are unioned across them.
+//
+// Robinhood Chain:
+//   - gen-6 factory 0x432D…7351 (live 2026-08-05, legacy V2 path, still open)
+//   - AMMFactoryV3 0x8b18…9069 (canonical since 2026-08-17)
+//   - Civilization AMMFactoryV3 0xb6B6…393b (Meebco's Nightshades faction
+//     markets — Ghosts / Watchers / Knights / Zombies, 2026-09-14). The four
+//     faction tokens launched through the Civilization anti-snipe pad (99% →
+//     0 time-decay snipe tax, 99-minute buys-only window) and their NFT
+//     markets are full Anvil V3 markets (swap + snipe + loans + soft staking),
+//     so their volume/fees ride the identical event shapes. NOTE: Nightshades
+//     TOKEN trading is confined to the game's hooked Uniswap v4 pool; only the
+//     NFT ⇄ token swaps on these vaults are DEX volume here, and the launch
+//     snipe tax itself is booked by fees/stonkbrokers, not this adapter.
+type FactoryConfig = { factory: string; fromBlock: number };
+type ChainConfig = { factory: string; fromBlock: number; start: string; extraFactories?: FactoryConfig[] };
+
+const chainsConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
     factory: "0xEA095646EC6A56EDbFEe84cCcf23eFCec12566A0",
     fromBlock: 24720104,
@@ -56,6 +75,12 @@ const chainsConfig: Record<string, { factory: string; fromBlock: number; start: 
     factory: "0x432D20AAe5605b1E94C914283d7155eBc6727351",
     fromBlock: 28775550,
     start: "2026-08-05",
+    extraFactories: [
+      // AMMFactoryV3 — canonical Anvil factory on Robinhood since 2026-08-17
+      { factory: "0x8b186717a20845b514344b17fd5e198aDCab9069", fromBlock: 38344900 },
+      // Civilization AMMFactoryV3 — Nightshades faction markets (2026-09-14)
+      { factory: "0xb6B6F342B11b275d1F1FAA27552fFef2a4F0393b", fromBlock: 62891600 },
+    ],
   },
 };
 
@@ -79,17 +104,18 @@ const ACTIVATION_ETH_FEE_ABI =
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { chain, createBalances, getLogs } = options;
-  const { factory, fromBlock } = chainsConfig[chain];
+  const { factory, fromBlock, extraFactories = [] } = chainsConfig[chain];
 
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();  
 
+  const factories: FactoryConfig[] = [{ factory, fromBlock }, ...extraFactories];
   const markets = await getLogs({
-    target: factory,
-    fromBlock,
-    eventAbi: MARKET_CREATED_ABI, 
+    targets: factories.map((f) => f.factory),
+    fromBlock: Math.min(...factories.map((f) => f.fromBlock)),
+    eventAbi: MARKET_CREATED_ABI,
     cacheInCloud: true,
   });
 
@@ -206,7 +232,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factory.",
+  Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factories (on Robinhood Chain: the gen-6 factory, AMMFactoryV3, and the Civilization AMMFactoryV3 that hosts the Nightshades faction markets).",
   Fees: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards. On Robinhood Chain every swap additionally pays a flat oracle-priced ~$2 ETH fee (RobinhoodSwapFeePaid), every loan create pays ~$2 ETH (LoanEthFeePaid), and every soft-staking activate/upgrade pays ~$1 ETH (ActivationEthFeePaid).",
   Revenue: "Robinhood Chain only: 50% of the flat ETH swap fee to the protocol treasury, plus 100% of loan-creation and soft-staking activation ETH fees to the treasury.",
   ProtocolRevenue: "Robinhood Chain only: 50% of the flat ETH swap fee to the protocol treasury, plus 100% of loan-creation and soft-staking activation ETH fees to the treasury.",
