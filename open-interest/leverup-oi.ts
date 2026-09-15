@@ -21,8 +21,8 @@ async function fetch(options: FetchOptions) {
       target: LEVERUP_DIAMOND,
       abi: oiAbi,
     });
-    // longUsd == shortUsd (the LP is the counterparty on both legs), so totalUsd double-counts
-    // and a long/short split would report the same number twice.
+    // totalUsd is longUsd + shortUsd, and the two sides are independent, so the one-sided
+    // figure is their average.
     return { openInterestAtEnd: Number(oi.totalUsd) / 1e18 / 2 };
   }
 
@@ -41,16 +41,21 @@ async function fetch(options: FetchOptions) {
   });
 
   let longOpenInterest = 0;
+  let shortOpenInterest = 0;
 
   marketInfos.forEach((info: any) => {
     const lQty = parseFloat(info.longQty);
+    const sQty = parseFloat(info.shortQty);
     const lPrice = parseFloat(info.lpLongAvgPrice);
+    const sPrice = parseFloat(info.lpShortAvgPrice);
 
     longOpenInterest += (lQty * lPrice) / 1e28;
+    shortOpenInterest += (sQty * sPrice) / 1e28;
   });
 
-  // long == short exactly (LP is the counterparty on both legs), so the sum double-counts
-  return { openInterestAtEnd: longOpenInterest };
+  // The two sides are independent (they have run 37% apart historically), so the one-sided
+  // figure is their average rather than either leg.
+  return { openInterestAtEnd: (longOpenInterest + shortOpenInterest) / 2 };
 }
 
 const adapter: SimpleAdapter = {
