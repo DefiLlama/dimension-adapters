@@ -45,7 +45,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const historical: IResponse = await fetchURL(config.endpoints.historicalVolume(timestampISO))
   const dailyVolume = historical.data.reduce((a: number, b: IVolumeall) => a + Number(b.tradingVolume), 0) / 2
   const res = (await fetchURL(config.endpoints.markets)).data
-  const openInterestAtEnd = res.reduce((a: number, b: any) => a + Number(b.marketStats.openInterest || 0), 0)
+  // marketStats.openInterest sums long and short, halve it like tradingVolume above
+  const openInterestAtEnd = res.reduce((a: number, b: any) => a + Number(b.marketStats.openInterest || 0), 0) / 2
 
   return {
     dailyVolume,

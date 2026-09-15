@@ -19,8 +19,9 @@ const query = `{
 }`
 
 async function fetch(options: FetchOptions) {
-    const shortOpenInterestAtEnd = options.createBalances();
-    const longOpenInterestAtEnd = options.createBalances();
+    // The vault takes the other side of every position, so long_oi == short_oi always: one
+    // side is the one-sided total and a long/short split would report it twice.
+    const openInterestAtEnd = options.createBalances();
 
     const response = await httpPost(DANGO_GRAPH_URL, { query });
 
@@ -28,18 +29,10 @@ async function fetch(options: FetchOptions) {
     const pairStates = response.data.queryApp.wasm_smart;
 
     for (const pair of Object.keys(pairStates)) {
-        longOpenInterestAtEnd.addUSDValue(Number(pairStates[pair].long_oi) * Number(pricesMap.get(pair)));
-        shortOpenInterestAtEnd.addUSDValue(Number(pairStates[pair].short_oi) * Number(pricesMap.get(pair)));
+        openInterestAtEnd.addUSDValue(Number(pairStates[pair].long_oi) * Number(pricesMap.get(pair)));
     }
 
-    const openInterestAtEnd = longOpenInterestAtEnd.clone();
-    openInterestAtEnd.add(shortOpenInterestAtEnd);
-
-    return {
-        shortOpenInterestAtEnd,
-        longOpenInterestAtEnd,
-        openInterestAtEnd,
-    }
+    return { openInterestAtEnd }
 }
 
 const adapter: SimpleAdapter = {
