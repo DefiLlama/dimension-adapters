@@ -766,27 +766,36 @@ const fetchRobinhood = async (options: FetchOptions) => {
   // operations — damage sells / survivor buys, sender == vault — are internal
   // rebalances and excluded). During the daily sunrise reopen the hook levies
   // a decaying snipe tax: on BUYS it is removed via beforeSwapDelta, so the
-  // Swap event carries the net-of-tax WETH — the same-tx SnipeTaxCollected
+  // Swap event carries the net-of-tax WETH — the matching SnipeTaxCollected
   // adds it back to reach the gross the user paid; on SELLS the event already
-  // carries the gross WETH out (the hook skims the tax in afterSwap).
+  // carries the gross WETH out (the hook skims the tax off the output).
+  // The hook distributes + emits the tax in afterSwap for BOTH directions, so
+  // SnipeTaxCollected always follows its Swap in the same tx: each swap
+  // consumes the first not-yet-claimed tax log after it (same tx + pool), and
+  // only WETH-input swaps gross up — a taxed sell in the same tx never leaks
+  // into a buy's notional.
   //
   // The v4 LP fee is charged on the input currency. WETH-input fees are
   // booked as-is; faction-token-input fees are valued in WETH at the swap's
-  // own execution price (|amountWeth| / |amountToken|), since faction tokens
-  // have no oracle price feed.
+  // own execution price (|amountWeth| / net token input, i.e. |amountToken|
+  // less the fee that never reached the curve), since faction tokens have no
+  // oracle price feed.
   const civTokenByPool = new Map<string, string>();
   for (const l of factionRegistered) {
     const id = String(l.poolId || "").toLowerCase();
     const token = String(l.token || "").toLowerCase();
     if (id && token) civTokenByPool.set(id, token);
   }
-  const civReopenTaxByTxPool = new Map<string, bigint>();
+  const civLogIndex = (log: any): number => Number(log.logIndex ?? log.index ?? log.log_index ?? 0);
+  const civReopenTaxByTxPool = new Map<string, { logIndex: number; taxWeth: bigint }[]>();
   for (const log of civReopenTaxLogs) {
     const args = log.args ?? log.parsedLog?.args ?? log;
     const taxWeth = BigInt(args.taxWeth ?? 0);
     if (taxWeth <= 0n) continue;
     const key = `${String(log.transactionHash).toLowerCase()}:${String(args.poolId).toLowerCase()}`;
-    civReopenTaxByTxPool.set(key, (civReopenTaxByTxPool.get(key) ?? 0n) + taxWeth);
+    const list = civReopenTaxByTxPool.get(key) ?? [];
+    list.push({ logIndex: civLogIndex(log), taxWeth });
+    civReopenTaxByTxPool.set(key, list);
     const toProtocol = BigInt(args.protocolAmount ?? 0);
     dailyFees.add(ROBINHOOD_WETH, taxWeth, LABELS.CIV_REOPEN_TAX);
     dailyRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
@@ -812,8 +821,11 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(token, toPot, LABELS.CIV_NFT_ROYALTY_POT);
     dailySupplySideRevenue.add(token, toTeam, LABELS.CIV_NFT_ROYALTY_TEAM);
   }
+  for (const list of civReopenTaxByTxPool.values()) list.sort((a, b) => a.logIndex - b.logIndex);
   const civVaultLower = CIV_FACTION_VAULT.toLowerCase();
   const civWethLower = ROBINHOOD_WETH.toLowerCase();
+  // Ascending logIndex so swaps inside one tx claim their tax logs in order.
+  civPoolSwapLogs.sort((a, b) => civLogIndex(a) - civLogIndex(b));
   for (const log of civPoolSwapLogs) {
     const args = log.args ?? log.parsedLog?.args ?? log;
     const poolId = String(args.id ?? "").toLowerCase();
@@ -832,16 +844,20 @@ const fetchRobinhood = async (options: FetchOptions) => {
     if (absWeth <= 0n) continue;
     const wethIsInput = amountWeth < 0n;
 
-    let grossWeth = absWeth;
-    if (wethIsInput) {
-      // Buy during a reopen window: add the tax the hook stripped pre-swap.
-      const key = `${String(log.transactionHash).toLowerCase()}:${poolId}`;
-      const tax = civReopenTaxByTxPool.get(key);
-      if (tax) {
-        grossWeth += tax;
-        civReopenTaxByTxPool.delete(key); // count once per tx/pool
-      }
+    // Claim this swap's reopen tax log (the first unclaimed one emitted after
+    // it in the same tx + pool) regardless of direction, so a taxed sell can
+    // never hand its tax to a later buy in the same tx.
+    let reopenTax = 0n;
+    const taxKey = `${String(log.transactionHash).toLowerCase()}:${poolId}`;
+    const taxList = civReopenTaxByTxPool.get(taxKey);
+    if (taxList?.length) {
+      const swapIdx = civLogIndex(log);
+      const at = taxList.findIndex((t) => t.logIndex > swapIdx);
+      if (at >= 0) reopenTax = taxList.splice(at, 1)[0].taxWeth;
     }
+    // Buy during a reopen window: the hook stripped the tax pre-swap, so add
+    // it back to reach the gross the user paid. Sells already carry gross out.
+    const grossWeth = wethIsInput ? absWeth + reopenTax : absWeth;
     dailyVolume.add(ROBINHOOD_WETH, grossWeth, LABELS.CIV_POOL_SWAPS);
 
     const feePpm = BigInt(args.fee ?? 0);
@@ -849,10 +865,13 @@ const fetchRobinhood = async (options: FetchOptions) => {
     const inputAmount = wethIsInput ? absWeth : absToken;
     const feeAmount = (inputAmount * feePpm) / 1_000_000n;
     if (feeAmount <= 0n) continue;
+    // Token-input fee is valued at the curve's execution price: the WETH out
+    // was bought with the NET token input (gross minus the fee kept by LPs).
+    const netTokenInput = absToken - feeAmount;
     const feeWeth = wethIsInput
       ? feeAmount
-      : absToken > 0n
-        ? (feeAmount * absWeth) / absToken
+      : netTokenInput > 0n
+        ? (feeAmount * absWeth) / netTokenInput
         : 0n;
     if (feeWeth <= 0n) continue;
     dailyFees.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
