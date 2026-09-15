@@ -87,16 +87,18 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // From October 1, 2025, 20% of revenue funds EDGE buybacks.
+  // From October 1, 2025, 10% of revenue funds EDGE buybacks and 10% funds EDGE staker rewards.
   // https://docs.definitive.fi/edge/buybacks-and-rewards
   const holdersRevenueShare = options.dateString >= BUYBACK_START_DATE ? 0.2 : 0;
+  const dailyHoldersRevenue = dailyFees.clone(holdersRevenueShare / 2, METRIC.TOKEN_BUY_BACK);
+  dailyHoldersRevenue.addBalances(dailyFees.clone(holdersRevenueShare / 2, METRIC.STAKING_REWARDS));
 
   return {
     dailyFees,
     dailyUserFees: dailyFees.clone(),
     dailyRevenue: dailyFees.clone(),
     dailyProtocolRevenue: dailyFees.clone(1 - holdersRevenueShare),
-    dailyHoldersRevenue: dailyFees.clone(holdersRevenueShare, METRIC.TOKEN_BUY_BACK),
+    dailyHoldersRevenue,
   }
 }
 
@@ -105,7 +107,7 @@ const methodology = {
   UserFees: 'User pays 0.25% - 0.85% fee on each trade',
   Revenue: 'Trading fees are split between Definitive and EDGE holders',
   ProtocolRevenue: '100% of revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
-  HoldersRevenue: '20% of revenue funds EDGE buybacks from October 1, 2025; zero before this date',
+  HoldersRevenue: 'From October 1, 2025, 10% of revenue funds EDGE buybacks and 10% funds EDGE staker rewards',
 }
 
 const breakdownMethodology = {
@@ -122,7 +124,8 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: '100% of trading fee revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: '20% of trading fee revenue funds EDGE buybacks from October 1, 2025; zero before this date',
+    [METRIC.TOKEN_BUY_BACK]: '10% of trading fee revenue funds EDGE buybacks from October 1, 2025',
+    [METRIC.STAKING_REWARDS]: '10% of trading fee revenue funds EDGE staker rewards from October 1, 2025',
   },
 }
 
