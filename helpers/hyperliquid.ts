@@ -42,13 +42,18 @@ export async function getHyperliquidHip3Dexs(): Promise<string[]> {
   try {
     const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
     if (!Array.isArray(response)) throw new Error("perpDexs did not return an array");
-    // The first entry is null: it is the main perp dex, which is not a HIP-3 deployment. Any
-    // other shape is dropped rather than passed on, so a malformed entry cannot become a dex id.
-    const dexs = response
-      .map((item: any) => item?.name)
-      .filter((name: any): name is string => typeof name === "string" && name.length > 0);
-    if (dexs.length) hip3DexsCache = dexs;
-    else throw new Error("perpDexs returned no usable dex names");
+    const dexs: string[] = [];
+    for (const item of response as unknown[]) {
+      // The first entry is null: it is the main perp dex, not a HIP-3 deployment.
+      if (item === null || item === undefined) continue;
+      const name = (item as { name?: unknown }).name;
+      // Dropping just the bad entry would reintroduce the very bug this fixes: a dex missing from
+      // the list with nothing to say so. One malformed entry discards the whole listing.
+      if (typeof name !== "string" || !name.length) throw new Error("perpDexs entry has no usable name");
+      dexs.push(name);
+    }
+    if (!dexs.length) throw new Error("perpDexs returned no dex names");
+    hip3DexsCache = dexs;
   } catch (e) {
     // Deliberately not rethrown. This helper feeds Hyperliquid's total open interest, and
     // Hyperliquid's own perps are the overwhelming majority of it; failing the whole day over an
