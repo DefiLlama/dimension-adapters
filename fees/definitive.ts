@@ -101,8 +101,8 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'User pays 0.05% - 0.25% fee on each trade',
-  UserFees: 'User pays 0.05% - 0.25% fee on each trade',
+  Fees: 'User pays 0.25% - 0.85% fee on each trade. Majors and Stables have feeless trading.',
+  UserFees: 'User pays 0.25% - 0.85% fee on each trade',
   Revenue: 'Trading fees are split between Definitive and EDGE holders',
   ProtocolRevenue: '100% of revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
   HoldersRevenue: '20% of revenue funds EDGE buybacks from October 1, 2025; zero before this date',
@@ -110,10 +110,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses',
+    [METRIC.TRADING_FEES]: 'Trading fees (0.25%-0.85% per trade) collected at Definitive fee addresses. Majors and Stables have feeless trading.',
   },
   UserFees: {
-    [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) paid by users',
+    [METRIC.TRADING_FEES]: 'Trading fees (0.25%-0.85% per trade) paid by users. Majors and Stables have feeless trading.',
   },
   Revenue: {
     [METRIC.TRADING_FEES]: 'Trading fees split between Definitive and EDGE holders',
