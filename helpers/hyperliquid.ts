@@ -29,19 +29,12 @@ export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = '2026-04-15';
 export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
 // Fallback only. New HIP-3 dexes are permissionless, so a hardcoded list goes stale silently:
 // every dex missing from it is dropped from Hyperliquid's total open interest with no error.
-export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
-
-// Short-lived so a long-running worker picks up a newly deployed dex, but long enough that a
-// backfill sweeping many intervals does not re-list on every one.
-const HIP3_DEXS_CACHE_TTL = 10 * 60 * 1000;
-let hip3DexsCache: string[] | undefined;
-let hip3DexsCachedAt = 0;
+export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash', 'mkts', 'abcd', 'para', 'io'];
 
 // The live set of HIP-3 dexes, from the chain itself. Deployers come and go, so this is queried
 // rather than listed. Dexes that did not yet exist on the day being fetched simply have no
 // snapshot and are skipped by the caller.
 export async function getHyperliquidHip3Dexs(): Promise<string[]> {
-  if (hip3DexsCache && Date.now() - hip3DexsCachedAt < HIP3_DEXS_CACHE_TTL) return hip3DexsCache;
   try {
     const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
     if (!Array.isArray(response)) throw new Error("perpDexs did not return an array");
@@ -56,16 +49,15 @@ export async function getHyperliquidHip3Dexs(): Promise<string[]> {
       dexs.push(name);
     }
     if (!dexs.length) throw new Error("perpDexs returned no dex names");
-    hip3DexsCache = dexs;
-    hip3DexsCachedAt = Date.now();
+    return dexs;
   } catch (e) {
     // Deliberately not rethrown. This helper feeds Hyperliquid's total open interest, and
     // Hyperliquid's own perps are the overwhelming majority of it; failing the whole day over an
     // auxiliary listing call would lose far more than the stale list does. The fallback is the
     // previous behaviour exactly, and the failure is logged rather than hidden.
     console.error("hyperliquid: perpDexs listing failed, using the static HIP-3 dex list", e);
+    return HYPERLIQUID_HIP3_DEXS;
   }
-  return hip3DexsCache ?? HYPERLIQUID_HIP3_DEXS;
 }
 
 export const fetchBuilderCodeRevenue = async ({
@@ -475,12 +467,16 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
     hip3Deployers: {},
   }
 
+  // Hyperliquid's openInterest counts both sides of each contract (measured at exactly 2x CMC's
+  // one-sided figure), so halve it here to match the one-sided convention used across perp OI.
+  const oneSided = (item: any) => (Number(item.openInterest) * Number(item.markPx)) / 2;
+
   // default perps
   const metaAndAssetCtxs = await getMetaAndAssetCtxs(options);
   if (metaAndAssetCtxs) {
     for (const item of metaAndAssetCtxs[1]) {
-      result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
-      result.defaultPerpsOpenInterest += Number(item.openInterest) * Number(item.markPx);
+      result.totalOpenInterest += oneSided(item);
+      result.defaultPerpsOpenInterest += oneSided(item);
     }
   }
 
@@ -490,8 +486,8 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
     if (metaAndAssetCtxsDex) {
       result.hip3Deployers[dex] = 0;
       for (const item of metaAndAssetCtxsDex[1]) {
-        result.totalOpenInterest += Number(item.openInterest) * Number(item.markPx);
-        result.hip3Deployers[dex] += Number(item.openInterest) * Number(item.markPx);
+        result.totalOpenInterest += oneSided(item);
+        result.hip3Deployers[dex] += oneSided(item);
       }
     }
   }
