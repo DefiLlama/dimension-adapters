@@ -18,9 +18,17 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`shield-swap: ${options.dateString} is older than the ${RETENTION_DAYS} day call-metrics window`);
 
   const days: { day: string; calls: number }[] = await fetchURL(CALLS_PER_DAY);
+  const availableDays = days.map((entry) => entry.day.slice(0, 10));
+  const latestAvailableDay = availableDays.reduce((latest, day) => day > latest ? day : latest, "");
   const day = days.find((entry) => entry.day.slice(0, 10) === options.dateString);
 
-  // Days with no calls are omitted from the response rather than returned as zero.
+  // Provable can publish the previous day's aggregate after DefiLlama's daily run. Do not persist a
+  // false zero while the requested day is still newer than the latest aggregate: failing the run
+  // lets it be retried once the source catches up. A missing older day is a genuine zero because
+  // the endpoint omits days with no calls.
+  if (!day && (!latestAvailableDay || options.dateString > latestAvailableDay))
+    throw new Error(`shield-swap: metrics for ${options.dateString} are not available yet`);
+
   return { dailyTransactionsCount: day?.calls ?? 0 };
 };
 
