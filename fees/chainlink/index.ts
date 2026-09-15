@@ -15,6 +15,7 @@ async function fetch(options: FetchOptions) {
   dailyFees.addBalances(feeBalance, METRIC.SERVICE_FEES);
 
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const reserveRevenue = await addTokensReceived({ options: options, targets: [reserve], fromAddressFilter: paymentLayer, token: coreAssets.ethereum.LINK })
   const withdrawnEvents = await options.getLogs({ target: paymentLayer, eventAbi: withdrawnEvent })
 
@@ -25,7 +26,7 @@ async function fetch(options: FetchOptions) {
   withdrawnEvents
     .filter((event) => event.serviceProvider.toLowerCase() !== reserve.toLowerCase())
     .forEach((event) => {
-      dailyRevenue.add(coreAssets.ethereum.LINK, event.amount, METRIC.STAKING_REWARDS);
+      dailySupplySideRevenue.add(coreAssets.ethereum.LINK, event.amount, METRIC.STAKING_REWARDS);
     })
 
   const dailyHoldersRevenue = reserveRevenue.clone(1, METRIC.TOKEN_BUY_BACK);
@@ -33,6 +34,7 @@ async function fetch(options: FetchOptions) {
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
     dailyHoldersRevenue,
   }
 }
@@ -42,7 +44,9 @@ const breakdownMethodology = {
     [METRIC.SERVICE_FEES]: 'Fees paid by users for Chainlink oracle data feed services, collected through the fee aggregator contract'
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: 'LINK tokens transferred from the Payment Abstraction Layer to the protocol reserve contract',
+    [METRIC.PROTOCOL_FEES]: 'LINK tokens transferred from the Payment Abstraction Layer to the protocol reserve contract'
+  },
+  SupplySideRevenue: {
     [METRIC.STAKING_REWARDS]: 'LINK paid out through Withdrawn events emitted by the Reserves/paymentLayer contract directly to allowlisted Chainlink service providers (node operators)'
   },
   HoldersRevenue: {
@@ -58,7 +62,8 @@ const adapter: SimpleAdapter = {
   start: "2025-02-21",
   methodology: {
     Fees: "All the tokens received by the fee aggregator contract",
-    Revenue: "LINK transferred from the PaymentAbstractionLayer to the Reserve contract, plus LINK paid out through Withdrawn events emitted by the Reserves/paymentLayer contract directly to allowlisted Chainlink service providers (node operators)",
+    Revenue: "LINK transferred from the PaymentAbstractionLayer to the Reserve contract",
+    SupplySideRevenue: "LINK paid out through Withdrawn events emitted by the Reserves/paymentLayer contract directly to allowlisted Chainlink service providers (node operators)",
     HoldersRevenue: "LINK token buybacks funded via revenue from various offchain and onchain sources"
   },
   breakdownMethodology
