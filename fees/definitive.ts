@@ -6,6 +6,8 @@ import { METRIC } from "../helpers/metrics";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
 
+const BUYBACK_START_DATE = '2025-10-01';
+
 // Solana addresses for legacy fee collection
 const SOLANA_FEE_ADDRESSES = [
   "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
@@ -85,14 +87,16 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // From inception, 20% of revenue funds EDGE buybacks; the remaining 80% goes to Definitive.
+  // From October 1, 2025, 20% of revenue funds EDGE buybacks.
   // https://docs.definitive.fi/edge/buybacks-and-rewards
+  const holdersRevenueShare = options.dateString >= BUYBACK_START_DATE ? 0.2 : 0;
+
   return {
     dailyFees,
     dailyUserFees: dailyFees.clone(),
     dailyRevenue: dailyFees.clone(),
-    dailyProtocolRevenue: dailyFees.clone(0.8),
-    dailyHoldersRevenue: dailyFees.clone(0.2, METRIC.TOKEN_BUY_BACK),
+    dailyProtocolRevenue: dailyFees.clone(1 - holdersRevenueShare),
+    dailyHoldersRevenue: dailyFees.clone(holdersRevenueShare, METRIC.TOKEN_BUY_BACK),
   }
 }
 
@@ -100,8 +104,8 @@ const methodology = {
   Fees: 'User pays 0.05% - 0.25% fee on each trade',
   UserFees: 'User pays 0.05% - 0.25% fee on each trade',
   Revenue: 'Trading fees are split between Definitive and EDGE holders',
-  ProtocolRevenue: '80% of revenue is allocated to Definitive',
-  HoldersRevenue: '20% of revenue funds EDGE buybacks to reduce circulating supply and reward stakers',
+  ProtocolRevenue: '100% of revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
+  HoldersRevenue: '20% of revenue funds EDGE buybacks from October 1, 2025; zero before this date',
 }
 
 const breakdownMethodology = {
@@ -115,10 +119,10 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: 'Trading fees split between Definitive and EDGE holders',
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: '80% of trading fee revenue is allocated to Definitive',
+    [METRIC.TRADING_FEES]: '100% of trading fee revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: '20% of trading fee revenue funds EDGE buybacks: 10% to reduce circulating supply and 10% redistributed as staked EDGE rewards',
+    [METRIC.TOKEN_BUY_BACK]: '20% of trading fee revenue funds EDGE buybacks from October 1, 2025; zero before this date',
   },
 }
 
