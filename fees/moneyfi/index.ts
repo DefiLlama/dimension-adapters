@@ -183,16 +183,14 @@ async function addV2BscFees(
     const totalFeeShares = managementFeeShares + performanceFeeShares;
     const postFeePps = eventArg(event.args, "postFeePps", 4);
     const netYield = (postFeePps - state.postFeePps) * state.supply / PPS_SCALE;
-    const managementFees = managementFeeShares * postFeePps / PPS_SCALE;
     const protocolRevenue = totalFeeShares * postFeePps / PPS_SCALE;
 
     if (event.blockNumber > fromBlock && event.blockNumber <= toBlock) {
       const token = assetByVault.get(event.vault);
       if (!token) throw new Error(`MoneyFi V2 Vault ${event.vault} has no underlying asset`);
 
-      // postFeePps is net of both fee types. Add management fees back to the
-      // supplier side because DefiLlama classifies them as a separate charge.
-      const depositorYield = netYield + managementFees;
+      // postFeePps is net of both management and performance fee dilution.
+      const depositorYield = netYield;
       const totalFees = depositorYield + protocolRevenue;
       if (totalFees !== 0n) dailyFees.add(token, totalFees, METRICS.V2_VAULT_YIELD);
       if (depositorYield !== 0n) {
@@ -288,16 +286,16 @@ const adapter: SimpleAdapter = {
   // so hourly bucketing would over-count it ~24x. Daily window is fine for the EVM log ranges.
   pullHourly: false,
   methodology: {
-    Fees: "Gross yield generated between MoneyFi Vault checkpoints plus management fees charged on managed assets.",
+    Fees: "Gross Vault yield reconstructed from post-fee depositor returns plus crystallized management and performance fee-share value.",
     UserFees: "Legacy MoneyFi gross vault yield retained for continuity with the existing adapter. V2 vault yield is not classified as a direct user-paid fee.",
     Revenue: "Protocol fees retained by MoneyFi. V2 values management and performance fee shares when they are crystallized.",
     ProtocolRevenue: "Revenue allocated to the MoneyFi protocol treasury.",
-    SupplySideRevenue: "Checkpoint-to-checkpoint Vault yield accruing to depositors after performance fees. Negative values represent negative Vault returns."
+    SupplySideRevenue: "Checkpoint-to-checkpoint Vault yield accruing to depositors after management and performance fees. Negative values represent negative Vault returns."
   },
   breakdownMethodology: {
     Fees: {
       [METRICS.LEGACY_VAULT_YIELD]: "Gross Vault yield inferred from legacy on-chain protocol fee events and the legacy 20% fee split.",
-      [METRICS.V2_VAULT_YIELD]: "V2 BSC yield reconstructed from post-fee share-price growth and replayed share supply, grossed up for crystallized fees, plus management fees.",
+      [METRICS.V2_VAULT_YIELD]: "V2 BSC gross yield reconstructed from post-fee share-price return and the value of crystallized management and performance fee shares.",
     },
     UserFees: {
       [METRICS.LEGACY_VAULT_YIELD]: "Legacy gross Vault yield retained under the adapter's historical user-fee classification.",
@@ -312,7 +310,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [METRICS.LEGACY_YIELD_TO_DEPOSITORS]: "Legacy Vault yield accruing to depositors after the protocol fee.",
-      [METRICS.V2_YIELD_TO_DEPOSITORS]: "V2 Vault post-fee share-price return with management fees added back, equivalent to gross yield less performance fees.",
+      [METRICS.V2_YIELD_TO_DEPOSITORS]: "V2 Vault post-fee share-price return after both management and performance fees.",
     },
   },
   // Negative values reflect negative Vault returns between on-chain checkpoints.
