@@ -587,6 +587,41 @@ export async function queryHypurrscanSpotAuctionBurns(
   return dailyBurns;
 }
 
+/** Spot fees denominated in `token`, for the day, straight off the indexer.
+ *
+ * Hyperliquid charges a spot fee in whichever token the filler receives, and a HIP-1 deployer's
+ * `deployerTradingFeeShare` applies only to the fees paid in the token it deployed. So for a token
+ * that trades solely on its deployer's own pairs, the fees denominated in it are exactly the
+ * deployer's take, and the other side of every trade is Hyperliquid's.
+ *
+ * Returned raw rather than as Balances, and deliberately not routed through CoinGeckoMaps: a token
+ * added there is credited to Hyperliquid's own spot revenue, which is the opposite of what a
+ * deployer fee is.
+ */
+export async function fetchHyperliquidSpotFeesByToken({
+  options,
+  token,
+}: {
+  options: FetchOptions;
+  token: string;
+}): Promise<number> {
+  if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
+    throw Error("request data too old, unsupported by LLAMA_HL_INDEXER");
+  }
+  const endpoint = getEnv("LLAMA_HL_INDEXER");
+  if (!endpoint) throw Error("missing LLAMA_HL_INDEXER env");
+
+  const dateString = new Date(options.startOfDay * 1000).toISOString().split("T")[0].replace(/-/g, "");
+  const response = await _requestIndexer(endpoint, dateString);
+
+  let total = 0;
+  for (const item of response.data) {
+    const fees = item.spotFeeByTokens?.[token];
+    if (fees !== undefined) total += Number(fees) || 0;
+  }
+  return total;
+}
+
 export const fetchHIP3DeployerData = async ({
   options,
   hip3DeployerId,
