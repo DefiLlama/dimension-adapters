@@ -37,19 +37,24 @@ const CHAIN_KEYS: Record<string, string> = {
   [CHAIN.BASE]: "base",
 };
 
-/** Map harness/backfill windows onto completed UTC calendar days (GROM ledger unit). */
-function utcDayWindow(startTimestamp: number, endTimestamp: number): { start: number; end: number } {
+/**
+ * Expand harness/backfill windows into completed UTC calendar days.
+ * GROM ledger is day-granular; multi-day runWindow must be fetched per day and summed.
+ */
+function utcDayStarts(startTimestamp: number, endTimestamp: number): number[] {
   const start = Math.floor(Number(startTimestamp) / DAY) * DAY;
   let end = Math.floor(Number(endTimestamp) / DAY) * DAY;
   if (!(end > start)) end = start + DAY;
-  return { start, end };
+  const days: number[] = [];
+  for (let t = start; t < end; t += DAY) days.push(t);
+  return days;
 }
 
-async function fetchDimensions(
-  options: FetchOptions,
-  chainKey: string
-): Promise<{ dailyVolume: ReturnType<FetchOptions["createBalances"]>; dailyFees: ReturnType<FetchOptions["createBalances"]> }> {
-  const { start, end } = utcDayWindow(options.startTimestamp, options.endTimestamp);
+async function fetchOneDay(
+  chainKey: string,
+  start: number,
+  end: number
+): Promise<{ volume: number; fees: number }> {
   const url =
     `${API}?product=swap` +
     `&integrator=${encodeURIComponent(INTEGRATOR)}` +
@@ -67,17 +72,40 @@ async function fetchDimensions(
     );
   }
 
-  const { volume, fees } = assertOkDimensionsResponse(data, {
+  return assertOkDimensionsResponse(data, {
     chainKey,
     startTimestamp: start,
     endTimestamp: end,
   });
+}
+
+async function fetchDimensions(options: FetchOptions, chainKey: string) {
+  const days = utcDayStarts(options.startTimestamp, options.endTimestamp);
+  let volumeSum = 0;
+  let feesSum = 0;
+  for (const start of days) {
+    const { volume, fees } = await fetchOneDay(chainKey, start, start + DAY);
+    volumeSum += volume;
+    feesSum += fees;
+  }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  dailyVolume.addUSDValue(volume);
-  dailyFees.addUSDValue(fees);
-  return { dailyVolume, dailyFees };
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  dailyVolume.addUSDValue(volumeSum);
+  // GROM Instant Swap fees are retained by the protocol (no LP/supply-side cut in this ledger).
+  dailyFees.addUSDValue(feesSum, "GROM Instant Swap fees");
+  dailyRevenue.addUSDValue(feesSum, "GROM Instant Swap fees");
+  dailyProtocolRevenue.addUSDValue(feesSum, "GROM Instant Swap fees");
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue: 0,
+  };
 }
 
 function makeFetch(chainKey: string) {
@@ -100,6 +128,12 @@ const adapter: SimpleAdapter = {
       "GROM Instant Swap executions confirmed in the GROM fill ledger for the requested chain and half-open UTC window with persisted LiFi-integrator index coverage. Partner/venue global volume and other GROM routers (e.g. CoWSwap xStocks) are never assigned to GROM here. Tokenized-stock swaps that settle via Instant Swap / LiFi rails are included once under swap.",
     Fees:
       "Actual GROM fee receipts recorded on those confirmed LiFi-attributed fills for that covered chain/window. Fee-wallet transfers alone are not treated as swap volume.",
+    Revenue:
+      "Same as Fees: GROM retains Instant Swap fee receipts from the confirmed LiFi-attributed fill ledger.",
+    ProtocolRevenue:
+      "Same as Fees/Revenue: protocol-retained Instant Swap fees (no supply-side split in this ledger).",
+    SupplySideRevenue:
+      "Zero for this adapter — Instant Swap fee receipts in the GROM ledger are not paid to LPs.",
   },
 };
 
