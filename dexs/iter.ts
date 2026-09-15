@@ -13,6 +13,8 @@ import { nullAddress } from "../helpers/token";
  *   swapRouter      - BandSwapRouter; the only external entry point into band pool swaps
  *   bandPoolFactory - BandPoolFactory; needed to know which addresses are band pools
  *   assetGenerator  - AssetGenerator; the launchpad that charges a fee per token launch
+ *   stablecoins     - USD tokens the exchange quotes in; every other token is priced
+ *                     through its orderbook (see usdPrices)
  */
 interface ChainConfig {
   matchingEngine: string;
@@ -20,6 +22,7 @@ interface ChainConfig {
   swapRouter?: string;
   bandPoolFactory?: string;
   assetGenerator?: string;
+  stablecoins?: string[];
   start: string;
 }
 
@@ -31,6 +34,8 @@ const chainConfig: Record<string, ChainConfig> = {
     swapRouter: '0x3d752EE5a67409eAf7809fabB3301506ade67110',
     bandPoolFactory: '0x1844A8bCDcaa53B54a873220E4Ef7a4a53eF73E5',
     assetGenerator: '0x2a34500cFe38Bd401320E9D8f247E20C5FD5d355',
+    // Arc's native USDC, read through its 6-decimal ERC-20 view.
+    stablecoins: ['0x3600000000000000000000000000000000000000'],
     start: '2026-09-14',
   },
   [CHAIN.RISE_TESTNET]: {
@@ -39,6 +44,8 @@ const chainConfig: Record<string, ChainConfig> = {
     swapRouter: '0xb7C0dEFbB427Be3155120EEdCAc25F8df5B4329d',
     bandPoolFactory: '0xA3b41c0F07533B3807E07A688556A6DD68799c8c',
     assetGenerator: '0x07B43f1e64fE740c2f38e23Ee2cb88c1539Cf4b7',
+    // USDC and USDT from the Iter token list for RISE testnet.
+    stablecoins: ['0x1f18a1724D8960f10165788dba3123F3f5623BB9', '0xB780aa7C36Abd888f81Be044569F4Bf7F2422e07'],
     start: '2026-09-07',
   },
 }
@@ -67,6 +74,10 @@ const DENOM = 1e8;
 
 const ABI = {
   orderbookFactory: 'address:orderbookFactory',
+  allPairsLength: 'uint256:allPairsLength',
+  allPairs: 'function allPairs(uint256) view returns (address)',
+  mktPrice: 'uint256:mktPrice',
+  decimals: 'erc20:decimals',
   getBaseQuote: 'function getBaseQuote() view returns (address base, address quote)',
   getPool: 'address:getPool',
   poolFeeShare: 'uint32:poolFeeShare',
@@ -96,6 +107,38 @@ const EVENT = {
 
 const LAUNCH_FEES = 'Token Launch Fees';
 
+type Tokens = { base: string; quote: string };
+
+// Prices tokens with the exchange's own market price. A stablecoin is $1; a token is worth
+// its orderbook's mktPrice times the USD price of the quote token, so a token quoted in
+// WETH is priced through the WETH/stablecoin book. mktPrice is quote-per-base in whole
+// tokens, scaled by 1e8, and reverts on a book that has never traded or quoted.
+async function usdPrices(options: FetchOptions, stablecoins: string[], books: string[], pairTokens: Tokens[]) {
+  const tokens = [...new Set(pairTokens.flatMap(({ base, quote }) => [base, quote]).map((t) => t.toLowerCase()))];
+  const [decimals, prices] = await Promise.all([
+    options.api.multiCall({ abi: ABI.decimals, calls: tokens }),
+    options.api.multiCall({ abi: ABI.mktPrice, calls: books, permitFailure: true }),
+  ]);
+  const decimalsOf = new Map(tokens.map((t, i) => [t, Number(decimals[i])]));
+  const usdPerToken = new Map(stablecoins.map((s) => [s.toLowerCase(), 1]));
+  // Each pass prices tokens quoted in something priced by an earlier pass, so a direct
+  // stablecoin book always wins over a route through another token.
+  for (let hop = 0; hop < 3; hop++) {
+    const priced = new Map(usdPerToken);
+    pairTokens.forEach(({ base, quote }, i) => {
+      const b = base.toLowerCase(), q = quote.toLowerCase();
+      if (usdPerToken.has(b) || !priced.has(q) || !prices[i]) return;
+      usdPerToken.set(b, (Number(prices[i]) / DENOM) * priced.get(q)!);
+    });
+  }
+  // USD for a raw amount, or undefined when the exchange cannot price the token.
+  return (token: string, amount: bigint | number | string): number | undefined => {
+    const t = token.toLowerCase();
+    if (!usdPerToken.has(t)) return undefined;
+    return (Number(amount) / 10 ** decimalsOf.get(t)!) * usdPerToken.get(t)!;
+  };
+}
+
 // Raw logs carry the index as `logIndex` from an RPC and as `index` from ethers.
 const logIndex = (log: any) => Number(log.logIndex ?? log.index);
 
@@ -107,12 +150,25 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   const factory: string = await options.api.call({ target: cfg.matchingEngine, abi: ABI.orderbookFactory });
-  const tokensOf = new Map<string, { base: string; quote: string }>();
-  const resolveTokens = async (contracts: string[]) => {
-    const missing = [...new Set(contracts.map((c) => c.toLowerCase()))].filter((c) => !tokensOf.has(c));
-    if (!missing.length) return;
-    const res = await options.api.multiCall({ abi: ABI.getBaseQuote, calls: missing });
-    missing.forEach((c, i) => tokensOf.set(c, { base: res[i].base, quote: res[i].quote }));
+  const tokensOf = new Map<string, Tokens>();
+  const resolveTokens = async (contracts: string[]): Promise<Tokens[]> => {
+    const lower = contracts.map((c) => c.toLowerCase());
+    const missing = [...new Set(lower)].filter((c) => !tokensOf.has(c));
+    if (missing.length) {
+      const res = await options.api.multiCall({ abi: ABI.getBaseQuote, calls: missing });
+      missing.forEach((c, i) => tokensOf.set(c, { base: res[i].base, quote: res[i].quote }));
+    }
+    return lower.map((c) => tokensOf.get(c)!);
+  };
+
+  // Every listed book, for pricing. Tokens the exchange can price are added in USD; the
+  // rest stay as raw balances so DefiLlama can price them if it ever has a feed for them.
+  const books: string[] = await options.api.fetchList({ target: factory, lengthAbi: ABI.allPairsLength, itemAbi: ABI.allPairs });
+  const usdOf = await usdPrices(options, cfg.stablecoins ?? [], books, await resolveTokens(books));
+  const add = (balances: ReturnType<typeof options.createBalances>, token: string, amount: bigint | number | string, label?: string) => {
+    const usd = usdOf(token, amount);
+    if (usd === undefined) balances.add(token, amount, label);
+    else balances.addUSDValue(usd, label);
   };
 
   // Band pools are the only fee payers whose fees are shared with LPs; everything else
@@ -126,10 +182,10 @@ const fetch = async (options: FetchOptions) => {
   }
   const addFee = (token: string, fee: bigint | number, label: string, sharedWithLps: boolean) => {
     if (!fee) return;
-    dailyFees.add(token, fee, label);
+    add(dailyFees, token, fee, label);
     const lpShare = sharedWithLps ? (BigInt(fee) * BigInt(poolFeeShare)) / BigInt(DENOM) : 0n;
-    dailySupplySideRevenue.add(token, lpShare, METRIC.LP_FEES);
-    dailyRevenue.add(token, BigInt(fee) - lpShare, label);
+    add(dailySupplySideRevenue, token, lpShare, METRIC.LP_FEES);
+    add(dailyRevenue, token, BigInt(fee) - lpShare, label);
   };
 
   // 1. CLOB fills. Volume is the quote leg of each fill.
@@ -141,7 +197,7 @@ const fetch = async (options: FetchOptions) => {
   for (const log of matches) {
     const { base, quote } = tokensOf.get(log.pair.toLowerCase())!;
     const m = log.orderMatch;
-    dailyVolume.add(quote, m.quoteAmount);
+    add(dailyVolume, quote, m.quoteAmount);
     const takerIsPool = pools.has(m.sender.toLowerCase());
     addFee(base, m.baseFee, METRIC.TRADING_FEES, takerIsPool);
     addFee(quote, m.quoteFee, METRIC.TRADING_FEES, takerIsPool);
@@ -199,7 +255,7 @@ const fetch = async (options: FetchOptions) => {
         // amountOut is net: gross = net / (1 - rate), fee = gross - net.
         const fee = (swap.amountOut * rate) / (BigInt(DENOM) - rate);
         const outToken = swap.quoteToBase ? base : quote;
-        dailyVolume.add(quote, swap.quoteToBase ? swap.amountIn : swap.amountOut + fee);
+        add(dailyVolume, quote, swap.quoteToBase ? swap.amountIn : swap.amountOut + fee);
         addFee(outToken, fee, METRIC.SWAP_FEES, true);
       }
     }
@@ -250,7 +306,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    Volume: 'Quote-token leg of every orderbook fill (including triggered stop orders) and of every band pool swap, whether routed by the swap router or by the engine as the unfilled remainder of a market order.',
+    Volume: 'Quote-token leg of every orderbook fill (including triggered stop orders) and of every band pool swap, whether routed by the swap router or by the engine as the unfilled remainder of a market order. Tokens are valued with the exchange market price of their stablecoin-quoted book, hopping through the quote token (for example WETH) where needed.',
     Fees: 'Orderbook trading fees, band pool swap fees, and launchpad token launch fees.',
     UserFees: 'Identical to Fees: traders pay the trading and swap fees and creators pay the launch fee.',
     Revenue: 'Everything sent to the protocol fee recipient: all orderbook and launch fees, plus the share of band pool swap fees not credited to LPs.',
