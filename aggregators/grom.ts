@@ -1,5 +1,5 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../adapters/types";
-import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../helpers/aggregators/lifi";
+import { LifiDiamonds } from "../helpers/aggregators/lifi";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { CHAIN } from "../helpers/chains";
 import { formatAddress } from "../utils/utils";
@@ -41,7 +41,7 @@ const adapter: SimpleAdapter = {
   chains,
   start: START,
   methodology: {
-    Volume: "Same-chain swap volume routed through LI.FI with integrator grom-exchange. API-routed chains use LI.FI analytics; other chains use LiFiGenericSwapCompleted logs on the LI.FI diamond. Other GROM routers are excluded.",
+    Volume: "Same-chain swap volume completed through GROM Instant Swap on LI.FI. Other GROM routers are excluded.",
   },
 };
 
