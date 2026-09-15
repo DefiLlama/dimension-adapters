@@ -251,12 +251,16 @@ async function addForexOrderbookVolume(
         quoteSymbol.toUpperCase() !== "LUNC"
       )
         continue;
-      let raw = fill.quoteAmountRaw;
-      if ((!raw || raw === "0") && fill.quoteAmount != null) {
-        // amounts are human units with 6 decimals when raw is missing
-        raw = String(Math.round(Number(fill.quoteAmount) * 1e6));
+      let raw =
+        typeof fill.quoteAmountRaw === "string" ? fill.quoteAmountRaw : "";
+      // Accept only non-negative integer raw units; reject NaN/Infinity/fractional/negative.
+      if (!/^\d+$/.test(raw) || raw === "0") {
+        const amt = Number(fill.quoteAmount);
+        if (!Number.isFinite(amt) || amt <= 0) continue;
+        // human units with 6 decimals when a valid raw string is missing
+        raw = String(Math.round(amt * 1e6));
       }
-      if (!raw || raw === "0") continue;
+      if (!/^\d+$/.test(raw) || raw === "0") continue;
       dailyVolume.add("uluna", raw);
     }
   }
