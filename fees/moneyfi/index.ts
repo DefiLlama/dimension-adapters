@@ -2,8 +2,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-// MoneyFi V2 BSC deployment; registry: https://bscscan.com/address/0x3B46e8E9533545fd751365386Ca298e64598c5DF
-const V2_BSC_START_BLOCK = 113632649;
+// Replay checkpoint immediately before this on-chain settlement transaction:
+// https://bscscan.com/tx/0x4eb5d916687c0f451d8f9cd83bdc5e44c3c5abfc42900f5378e892888f10a722
+const V2_BSC_CHECKPOINT_BLOCK = 121894881;
 const V2_BSC_VAULTS = [
   "0xC45f0c6a22dd5bA2fa75b803bBabc67CC212838c",
   "0xBC96E51AE3A3D0A32091396339a0c2B68DF97e2A",
@@ -14,6 +15,14 @@ const V2_FEES_UPDATED = "event FeesUpdated(uint256 managementFeeAssets,uint256 m
 const V2_DEPOSIT_SETTLED = "event DepositEpochSettled(uint64 indexed epochId,uint256 grossAssets,uint256 feeAssets,bool feeCovered,uint256 netAssets,uint256 shares,uint256 pps)";
 const V2_REDEEM_SETTLED = "event RedeemEpochSettled(uint64 indexed epochId,uint256 shares,uint256 grossAssets,uint256 feeAssets,bool feeCovered,uint256 netAssets,uint256 pps)";
 const PPS_SCALE = 10n ** 18n;
+const V2_BSC_CHECKPOINT_STATES: Record<string, { supply: bigint; postFeePps: bigint }> = {
+  "0xc45f0c6a22dd5ba2fa75b803bbabc67cc212838c": { supply: 0n, postFeePps: PPS_SCALE },
+  "0xbc96e51ae3a3d0a32091396339a0c2b68df97e2a": { supply: 0n, postFeePps: PPS_SCALE },
+  "0xf3400439439c911952e9949b6a522ed78504a253": {
+    supply: 21177716303472423621264n,
+    postFeePps: 1108335865802285946n,
+  },
+};
 
 const METRICS = {
   LEGACY_VAULT_YIELD: "Legacy Vault Yield",
@@ -109,7 +118,7 @@ async function addV2BscFees(
   dailySupplySideRevenue: ReturnType<FetchOptions["createBalances"]>,
 ) {
   const toBlock = await options.getToBlock();
-  if (toBlock < V2_BSC_START_BLOCK) return;
+  if (toBlock < V2_BSC_CHECKPOINT_BLOCK) return;
 
   const fromBlock = await options.getFromBlock();
   const [feeLogs, depositLogs, redeemLogs] = await Promise.all([
@@ -118,7 +127,8 @@ async function addV2BscFees(
       eventAbi: V2_FEES_UPDATED,
       onlyArgs: false,
       flatten: true,
-      fromBlock: V2_BSC_START_BLOCK,
+      fromBlock: V2_BSC_CHECKPOINT_BLOCK,
+      toBlock,
       cacheInCloud: true,
     }),
     options.getLogs({
@@ -126,7 +136,8 @@ async function addV2BscFees(
       eventAbi: V2_DEPOSIT_SETTLED,
       onlyArgs: false,
       flatten: true,
-      fromBlock: V2_BSC_START_BLOCK,
+      fromBlock: V2_BSC_CHECKPOINT_BLOCK,
+      toBlock,
       cacheInCloud: true,
     }),
     options.getLogs({
@@ -134,7 +145,8 @@ async function addV2BscFees(
       eventAbi: V2_REDEEM_SETTLED,
       onlyArgs: false,
       flatten: true,
-      fromBlock: V2_BSC_START_BLOCK,
+      fromBlock: V2_BSC_CHECKPOINT_BLOCK,
+      toBlock,
       cacheInCloud: true,
     }),
   ]);
@@ -147,9 +159,7 @@ async function addV2BscFees(
   // Shares are non-transferable and the current Vault implementation changes
   // supply only through these fee/deposit/redeem paths. Extend this replay if a
   // future implementation introduces another mint or burn path.
-  const states = new Map(
-    V2_BSC_VAULTS.map((vault) => [vault.toLowerCase(), { supply: 0n, postFeePps: PPS_SCALE }]),
-  );
+  const states = new Map(Object.entries(V2_BSC_CHECKPOINT_STATES).map(([vault, state]) => [vault, { ...state }]));
 
   for (const event of events) {
     const state = states.get(event.vault);
