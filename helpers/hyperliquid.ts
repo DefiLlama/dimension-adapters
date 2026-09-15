@@ -27,7 +27,39 @@ export type HyperliquidMarket = "all" | "hip3" | "hip4";
 export const LLAMA_HL_INDEXER_FROM_TIME = 1754006400; // 2025-08-01
 export const LLAMA_HL_INDEXER_SNAPSHOTS_FROM_TIME = '2026-04-15';
 export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from this date, indexer start to store snapshots of meta assets
-export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
+// Fallback only. New HIP-3 dexes are permissionless, so a hardcoded list goes stale silently:
+// every dex missing from it is dropped from Hyperliquid's total open interest with no error.
+export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash', 'mkts', 'abcd', 'para', 'io'];
+
+// The live set of HIP-3 dexes, from the chain itself. Deployers come and go, so this is queried
+// rather than listed. Dexes that did not yet exist on the day being fetched simply have no
+// snapshot and are skipped by the caller.
+export async function getHyperliquidHip3Dexs(): Promise<string[]> {
+  try {
+    const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
+    if (!Array.isArray(response)) throw new Error("perpDexs did not return an array");
+    const dexs: string[] = [];
+    for (const item of response as unknown[]) {
+      // The first entry is null: it is the main perp dex, not a HIP-3 deployment.
+      if (item === null || item === undefined) continue;
+      const name = (item as { name?: unknown }).name;
+      // Dropping just the bad entry would reintroduce the very bug this fixes: a dex missing from
+      // the list with nothing to say so. One malformed entry discards the whole listing.
+      if (typeof name !== "string" || !name.length) throw new Error("perpDexs entry has no usable name");
+      dexs.push(name);
+    }
+    if (!dexs.length) throw new Error("perpDexs returned no dex names");
+    return dexs;
+  } catch (e) {
+    // Deliberately not rethrown. This helper feeds Hyperliquid's total open interest, and
+    // Hyperliquid's own perps are the overwhelming majority of it; failing the whole day over an
+    // auxiliary listing call would lose far more than the stale list does. The fallback is the
+    // previous behaviour exactly, and the failure is logged rather than hidden.
+    console.error("hyperliquid: perpDexs listing failed, using the static HIP-3 dex list", e);
+    return HYPERLIQUID_HIP3_DEXS;
+  }
+}
+
 export const fetchBuilderCodeRevenue = async ({
   options,
   builder_address,
@@ -449,7 +481,7 @@ export async function queryHyperliquidIndexerOpenInterest(options: FetchOptions)
   }
 
   // HIP-3 markets
-  for (const dex of HYPERLIQUID_HIP3_DEXS) {
+  for (const dex of await getHyperliquidHip3Dexs()) {
     const metaAndAssetCtxsDex = await getMetaAndAssetCtxs(options, dex);
     if (metaAndAssetCtxsDex) {
       result.hip3Deployers[dex] = 0;
