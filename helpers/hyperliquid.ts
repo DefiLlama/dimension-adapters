@@ -31,14 +31,17 @@ export const LLAMA_HL_INDEXER_META_SNAPSHOTS_FROM_TIME = 1779753600; // from thi
 // every dex missing from it is dropped from Hyperliquid's total open interest with no error.
 export const HYPERLIQUID_HIP3_DEXS = ['xyz', 'vntl', 'flx', 'km', 'hyna', 'cash'];
 
+// Short-lived so a long-running worker picks up a newly deployed dex, but long enough that a
+// backfill sweeping many intervals does not re-list on every one.
+const HIP3_DEXS_CACHE_TTL = 10 * 60 * 1000;
 let hip3DexsCache: string[] | undefined;
+let hip3DexsCachedAt = 0;
 
 // The live set of HIP-3 dexes, from the chain itself. Deployers come and go, so this is queried
 // rather than listed. Dexes that did not yet exist on the day being fetched simply have no
 // snapshot and are skipped by the caller.
-
 export async function getHyperliquidHip3Dexs(): Promise<string[]> {
-  if (hip3DexsCache) return hip3DexsCache;
+  if (hip3DexsCache && Date.now() - hip3DexsCachedAt < HIP3_DEXS_CACHE_TTL) return hip3DexsCache;
   try {
     const response = await httpPost("https://api.hyperliquid.xyz/info", { type: "perpDexs" });
     if (!Array.isArray(response)) throw new Error("perpDexs did not return an array");
@@ -54,6 +57,7 @@ export async function getHyperliquidHip3Dexs(): Promise<string[]> {
     }
     if (!dexs.length) throw new Error("perpDexs returned no dex names");
     hip3DexsCache = dexs;
+    hip3DexsCachedAt = Date.now();
   } catch (e) {
     // Deliberately not rethrown. This helper feeds Hyperliquid's total open interest, and
     // Hyperliquid's own perps are the overwhelming majority of it; failing the whole day over an
