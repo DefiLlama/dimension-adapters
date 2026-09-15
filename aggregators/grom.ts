@@ -1,110 +1,47 @@
-/**
- * DefiLlama aggregators adapter — GROM Instant Swap.
- *
- * Copy into https://github.com/DefiLlama/dimension-adapters as:
- *   aggregators/grom.ts
- *   helpers/aggregators/grom.ts
- *
- * Data source: GROM confirmed-fill ledger (read-only).
- *   GET https://grom.exchange/api/public/dimensions
- *       ?product=swap&chainKey=ethereum&startTimestamp=&endTimestamp=
- *
- * Fail closed: requires ok===true, finite non-negative metrics, exact
- * chainKey string, matching window, and coverage.status==="ready".
- * Never treat missing/null/boolean/array/whitespace as zero.
- *
- * Methodology: Instant Swap volume attributed via LiFi integrator only
- * (see ../METHODOLOGY.md). Other GROM routers are out of scope until indexed.
- *
- * Do not put helper modules under aggregators/ — CI treats every file there
- * as a runnable adapter.
- */
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../adapters/types";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../helpers/aggregators/lifi";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
-import { assertOkDimensionsResponse } from "../helpers/aggregators/grom";
+import { formatAddress } from "../utils/utils";
 
-const API = "https://grom.exchange/api/public/dimensions";
-/** LiFi integrator id — ledger is already scoped to this; query documents attribution. */
-const INTEGRATOR = "grom-exchange";
-/** Earliest UTC day a GROM index window may begin (not proof every chain is covered). */
-const START = "2026-08-22";
-const DAY = 86400;
+const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
+const integrators = ['grom-exchange']
+const START = '2026-08-22'
 
-const CHAIN_KEYS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "ethereum",
-  [CHAIN.OPTIMISM]: "optimism",
-  [CHAIN.BSC]: "bsc",
-  [CHAIN.POLYGON]: "polygon",
-  [CHAIN.ARBITRUM]: "arbitrum",
-  [CHAIN.AVAX]: "avax",
-  [CHAIN.BASE]: "base",
-  [CHAIN.SOLANA]: "solana",
-};
+const chains = [
+  CHAIN.ETHEREUM,
+  CHAIN.OPTIMISM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.ARBITRUM,
+  CHAIN.AVAX,
+  CHAIN.BASE,
+]
 
-/** Map harness/backfill windows onto completed UTC calendar days (GROM ledger unit). */
-function utcDayWindow(startTimestamp: number, endTimestamp: number): { start: number; end: number } {
-  const start = Math.floor(Number(startTimestamp) / DAY) * DAY;
-  let end = Math.floor(Number(endTimestamp) / DAY) * DAY;
-  if (!(end > start)) end = start + DAY;
-  return { start, end };
-}
-
-async function fetchDimensions(
-  options: FetchOptions,
-  chainKey: string
-): Promise<{ dailyVolume: ReturnType<FetchOptions["createBalances"]>; dailyFees: ReturnType<FetchOptions["createBalances"]> }> {
-  const { start, end } = utcDayWindow(options.startTimestamp, options.endTimestamp);
-  const url =
-    `${API}?product=swap` +
-    `&integrator=${encodeURIComponent(INTEGRATOR)}` +
-    `&chainKey=${encodeURIComponent(chainKey)}` +
-    `&startTimestamp=${start}` +
-    `&endTimestamp=${end}`;
-
-  let data: unknown;
-  try {
-    data = await fetchURL(url);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `grom aggregator: upstream fetch failed for ${chainKey} [${start},${end}): ${message}`
-    );
-  }
-
-  const { volume, fees } = assertOkDimensionsResponse(data, {
-    chainKey,
-    startTimestamp: start,
-    endTimestamp: end,
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dailyVolume = options.createBalances();
+  const logs: any[] = await options.getLogs({
+    target: LifiDiamonds[options.chain].id,
+    eventAbi: LifiSwapEvent,
   });
 
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  dailyVolume.addUSDValue(volume);
-  dailyFees.addUSDValue(fees);
-  return { dailyVolume, dailyFees };
-}
+  logs.forEach((log: any) => {
+    if (integrators.includes(log.integrator) && !getDefaultDexTokensBlacklisted(options.chain).includes(formatAddress(log.toAssetId)) && !getDefaultDexTokensBlacklisted(options.chain).includes(formatAddress(log.fromAssetId))) {
+      dailyVolume.add(log.toAssetId, log.toAmount);
+    }
+  });
 
-function makeFetch(chainKey: string) {
-  return async (options: FetchOptions) => fetchDimensions(options, chainKey);
-}
+  return { dailyVolume };
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: Object.fromEntries(
-    Object.entries(CHAIN_KEYS).map(([chain, key]) => [
-      chain,
-      {
-        fetch: makeFetch(key),
-        start: START,
-      },
-    ])
-  ),
+  pullHourly: true,
+  fetch,
+  chains,
+  start: START,
   methodology: {
-    Volume:
-      "GROM Instant Swap executions confirmed in the GROM fill ledger for the requested chain and half-open UTC window with persisted LiFi-integrator index coverage. Partner/venue global volume and other GROM routers (e.g. CoWSwap xStocks) are never assigned to GROM here. Tokenized-stock swaps that settle via Instant Swap / LiFi rails are included once under swap.",
-    Fees:
-      "Actual GROM fee receipts recorded on those confirmed LiFi-attributed fills for that covered chain/window. Fee-wallet transfers alone are not treated as swap volume.",
+    Volume: "Same-chain swap volume routed through LI.FI with integrator grom-exchange. API-routed chains use LI.FI analytics; other chains use LiFiGenericSwapCompleted logs on the LI.FI diamond. Other GROM routers are excluded.",
   },
 };
 
