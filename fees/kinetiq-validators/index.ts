@@ -1,4 +1,4 @@
-import PromisePool from "@supercharge/promise-pool";
+import { PromisePool } from "@supercharge/promise-pool";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -17,13 +17,15 @@ const METRICS = {
   ValidatorCommission: "Validator Commission",
   CommissionToOperators: "Validator Commission To Operators",
   CommissionInvoiced: "Validator Commission Invoiced To Kinetiq",
+  TokenBuyBack: "Token Buy Back",
 };
 
 const methodology = {
   Fees: "Commission charged by the validators kHYPE delegates to, on the staking rewards they produce for kHYPE.",
   Revenue: "The half of that commission Kinetiq invoices back to each validator operator (invoice_rate_bps, 5000 to date).",
-  ProtocolRevenue: "Same as Revenue - the invoiced amount accrues to Kinetiq.",
+  ProtocolRevenue: "30% of the invoiced amount, kept by the treasury from 2026-04-09.",
   SupplySideRevenue: "The half of the commission the validator operators retain for running the nodes.",
+  HoldersRevenue: "70% of the invoiced amount, used to buy back KNTQ for sKNTQ holders from 2026-04-09.",
 };
 
 const breakdownMethodology = {
@@ -34,10 +36,13 @@ const breakdownMethodology = {
     [METRICS.CommissionInvoiced]: "Commission invoiced back to validator operators by Kinetiq.",
   },
   ProtocolRevenue: {
-    [METRICS.CommissionInvoiced]: "Commission invoiced back to validator operators by Kinetiq.",
+    [METRICS.CommissionInvoiced]: "30% of the invoiced commission, kept by the treasury.",
   },
   SupplySideRevenue: {
     [METRICS.CommissionToOperators]: "Commission retained by the validator operators.",
+  },
+  HoldersRevenue: {
+    [METRICS.TokenBuyBack]: "70% of the invoiced commission, used to buy back KNTQ for sKNTQ holders.",
   },
 };
 
@@ -55,6 +60,14 @@ const breakdownMethodology = {
 // it stores `commission_rate_bps` as it was at each distribution.
 const KEEPERS_API = "https://rpc.km.xyz/kinetiq";
 const PAGE_SIZE = 500;
+const REQUEST_TIMEOUT = 10000;
+
+// Kinetiq's treasury policy since 2026-04-09: 30% of revenue is kept by the protocol and 70% buys
+// back KNTQ for sKNTQ holders. The same split the kinetiq-staked-hype adapter already encodes;
+// this adapter's first distribution is 2026-04-08, so one day precedes the policy and is
+// immaterial against the window.
+const PROTOCOL_SHARE = 0.3;
+const HOLDERS_SHARE = 0.7;
 
 interface InvoiceEvent {
   block_timestamp: number;
@@ -67,8 +80,14 @@ const toHype = (wei: string): number => Number(BigInt(wei)) / 1e18;
 async function validatorInvoices(validator: string, fromTimestamp: number, toTimestamp: number): Promise<InvoiceEvent[]> {
   const events: InvoiceEvent[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { items } = await httpGet(`${KEEPERS_API}/validator/${validator}/invoices?limit=${PAGE_SIZE}&offset=${offset}&sort=desc`);
-    if (!items?.length) break;
+    const { items } = await httpGet(
+      `${KEEPERS_API}/validator/${validator}/invoices?limit=${PAGE_SIZE}&offset=${offset}&sort=desc`,
+      { timeout: REQUEST_TIMEOUT },
+    );
+    // A missing or non-array `items` is a broken response, not an empty page. Breaking on it would
+    // silently book the validator at zero for the day, so it fails loudly instead.
+    if (!Array.isArray(items)) throw new Error(`keepers invoices returned no items array for ${validator}`);
+    if (!items.length) break;
     for (const item of items) {
       const timestamp = Number(item.block_timestamp);
       if (timestamp >= fromTimestamp && timestamp < toTimestamp) events.push(item);
@@ -84,12 +103,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
 
   const { validators } = await httpGet(`${KEEPERS_API}/invoices/summary`);
 
-  const { results } = await PromisePool.withConcurrency(5)
+  const { results, errors } = await PromisePool.withConcurrency(5)
     .for(validators as { validator: string }[])
     .process(({ validator }) => validatorInvoices(validator, options.fromTimestamp, options.toTimestamp));
+
+  // The pool collects rejections instead of throwing. Swallowing them would drop whole validators
+  // from the day and report the remainder as if it were the total.
+  if (errors.length) throw errors[0].raw ?? errors[0];
 
   for (const events of results) {
     for (const { commission_wei, invoice_wei } of events) {
@@ -97,12 +121,13 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const invoiced = toHype(invoice_wei);
       dailyFees.addCGToken("hyperliquid", commission, METRICS.ValidatorCommission);
       dailyRevenue.addCGToken("hyperliquid", invoiced, METRICS.CommissionInvoiced);
-      dailyProtocolRevenue.addCGToken("hyperliquid", invoiced, METRICS.CommissionInvoiced);
+      dailyProtocolRevenue.addCGToken("hyperliquid", invoiced * PROTOCOL_SHARE, METRICS.CommissionInvoiced);
+      dailyHoldersRevenue.addCGToken("hyperliquid", invoiced * HOLDERS_SHARE, METRICS.TokenBuyBack);
       dailySupplySideRevenue.addCGToken("hyperliquid", commission - invoiced, METRICS.CommissionToOperators);
     }
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
 }
 
 const adapter: Adapter = {
