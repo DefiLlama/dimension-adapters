@@ -66,7 +66,15 @@ const FEE_FRACTION = 0.01;
 //                             protocol-wide constant, so it isn't broken out
 //                             into its own dailyHoldersRevenue line here.
 const ADMIN_VAULT_RATIO = 0.10;
-const PROTOCOL_SIDE_RATIO = 0.10 + 0.05 + 0.05; // admin + fefer + pumper vaults
+const FEFER_VAULT_RATIO = 0.05;
+const PUMPER_VAULT_RATIO = 0.05;
+const SUPPLY_SIDE_RATIO = 1 - ADMIN_VAULT_RATIO - FEFER_VAULT_RATIO - PUMPER_VAULT_RATIO; // 80%
+
+const SWAP_FEES = "Swap Fees";
+const SWAP_FEES_TO_ADMIN_VAULT = "Swap Fees To Admin Vault";
+const SWAP_FEES_TO_FEFER_VAULT = "Swap Fees To Fefer Vault";
+const SWAP_FEES_TO_PUMPER_VAULT = "Swap Fees To Pumper Vault";
+const SWAP_FEES_TO_CREATORS_AND_STAKERS = "Swap Fees To Creators And Token Stakers";
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
@@ -110,11 +118,13 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         token1,
         amount0: Number(log.amount0) * FEE_FRACTION,
         amount1: Number(log.amount1) * FEE_FRACTION,
-        label: "Swap Fees",
+        label: SWAP_FEES,
       });
-      dailyRevenue.add(feeToken, feeAmount * PROTOCOL_SIDE_RATIO);
-      dailySupplySideRevenue.add(feeToken, feeAmount * (1 - PROTOCOL_SIDE_RATIO));
-      dailyProtocolRevenue.add(feeToken, feeAmount * ADMIN_VAULT_RATIO);
+      dailyRevenue.add(feeToken, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
+      dailyRevenue.add(feeToken, feeAmount * FEFER_VAULT_RATIO, SWAP_FEES_TO_FEFER_VAULT);
+      dailyRevenue.add(feeToken, feeAmount * PUMPER_VAULT_RATIO, SWAP_FEES_TO_PUMPER_VAULT);
+      dailySupplySideRevenue.add(feeToken, feeAmount * SUPPLY_SIDE_RATIO, SWAP_FEES_TO_CREATORS_AND_STAKERS);
+      dailyProtocolRevenue.add(feeToken, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
     });
   });
 
@@ -133,9 +143,25 @@ const adapter: Adapter = {
   start: "2026-07-01",
   methodology: {
     Fees: "Swap fees paid by users on Uniswap V3 pools for tokens launched through Pumper Launchpad (fixed 1% fee tier), discovered from PumperProtocolRegistry's TokenRegistered events -- isolated to pools Pumper's own launchpad created, not the shared Uniswap V3 factory's other pools.",
-    Revenue: "The protocol-side cut taken on each fee harvest: ADMIN_VAULT_BPS (10%) + FEFER_VAULT_BPS (5%) + PUMPER_VAULT_BPS (5%) of swap fees, per PumperLaunchpad.sol's fixed constants.",
-    ProtocolRevenue: "ADMIN_VAULT_BPS alone (10% of swap fees) -- the pure protocol-treasury slice of Revenue, paid to adminVault.",
+    Revenue: "The protocol-side cut taken on each fee harvest: 10% to adminVault, 5% to feferVault, and 5% to pumperVault, per PumperLaunchpad.sol's fixed constants.",
+    ProtocolRevenue: "The 10% of swap fees paid to adminVault, the protocol treasury.",
     SupplySideRevenue: "The remaining 80% of swap fees, split between each launched token's stakers/holders and its creator in a ratio the creator sets per token (holderShareBps) -- not further broken out here since it varies per token.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [SWAP_FEES]: "1% swap fees paid by traders on Uniswap V3 pools for tokens launched through Pumper Launchpad.",
+    },
+    Revenue: {
+      [SWAP_FEES_TO_ADMIN_VAULT]: "10% of swap fees sent to adminVault on each collectLpFees harvest.",
+      [SWAP_FEES_TO_FEFER_VAULT]: "5% of swap fees sent to feferVault on each collectLpFees harvest.",
+      [SWAP_FEES_TO_PUMPER_VAULT]: "5% of swap fees sent to pumperVault on each collectLpFees harvest.",
+    },
+    ProtocolRevenue: {
+      [SWAP_FEES_TO_ADMIN_VAULT]: "10% of swap fees sent to adminVault, the protocol treasury.",
+    },
+    SupplySideRevenue: {
+      [SWAP_FEES_TO_CREATORS_AND_STAKERS]: "80% of swap fees split between each launched token's stakers/holders and its creator, using the creator-set holderShareBps ratio.",
+    },
   },
   pullHourly: true,
   doublecounted: true, // stableswap
