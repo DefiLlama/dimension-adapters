@@ -137,37 +137,37 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
+    //dailyRevenue,
+    //dailyProtocolRevenue: dailyRevenue,
+    //dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Fees:
     "Gross LP trading fees claimed by Valhalla-managed Meteora DLMM positions. Each public Meteora claim event is counted only when its transaction contains Valhalla's matching post-workflow management-fee transfer; claim assets are measured directly, not inferred from a fee rate. DAMM v2 and opening fees are excluded.",
-  Revenue:
-    "The verified native-SOL management-fee receipts retained by the Valhalla treasury in those same Meteora DLMM claim transactions.",
-  ProtocolRevenue:
-    "The verified native-SOL management-fee receipts to the Valhalla treasury in attributable Meteora DLMM claim transactions.",
-  SupplySideRevenue:
-    "Net LP trading fees retained by position owners after Valhalla's management fee, plus direct referral payouts from that fee.",
+  // Revenue:
+  //   "The verified native-SOL management-fee receipts retained by the Valhalla treasury in those same Meteora DLMM claim transactions.",
+  // ProtocolRevenue:
+  //   "The verified native-SOL management-fee receipts to the Valhalla treasury in attributable Meteora DLMM claim transactions.",
+  // SupplySideRevenue:
+  //   "Net LP trading fees retained by position owners after Valhalla's management fee, plus direct referral payouts from that fee.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [LP_FEE_LABEL]: "Gross LP trading fees paid out by decoded Meteora DLMM claim events in attributable Valhalla transactions.",
   },
-  Revenue: {
-    [LABEL]: "Native-SOL management-fee transfers received by the Valhalla treasury in the attributable DLMM claim transactions.",
-  },
-  ProtocolRevenue: {
-    [LABEL]: "Native-SOL management-fee transfers retained by the Valhalla treasury in the attributable DLMM claim transactions.",
-  },
-  SupplySideRevenue: {
-    [LP_FEE_LABEL]: "Gross DLMM LP claim proceeds less Valhalla's management fee and paired referral payout.",
-    [REFERRAL_LABEL]: "Direct referral payouts paired with an attributable Valhalla DLMM claim fee.",
-  },
+  // Revenue: {
+  //   [LABEL]: "Native-SOL management-fee transfers received by the Valhalla treasury in the attributable DLMM claim transactions.",
+  // },
+  // ProtocolRevenue: {
+  //   [LABEL]: "Native-SOL management-fee transfers retained by the Valhalla treasury in the attributable DLMM claim transactions.",
+  // },
+  // SupplySideRevenue: {
+  //   [LP_FEE_LABEL]: "Gross DLMM LP claim proceeds less Valhalla's management fee and paired referral payout.",
+  //   [REFERRAL_LABEL]: "Direct referral payouts paired with an attributable Valhalla DLMM claim fee.",
+  // },
 };
 
 const adapter: SimpleAdapter = {
@@ -184,6 +184,8 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   doublecounted: true, // Meteora's underlying swap fees are tracked separately.
+  skipBreakdownValidation: true, // inconsitency in calculating the breakdown of the fees
 };
 
 export default adapter;
+
