@@ -71,7 +71,6 @@ const PROTOCOL_SIDE_RATIO = 0.10 + 0.05 + 0.05; // admin + fefer + pumper vaults
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { getLogs, createBalances } = options;
 
-  const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
@@ -82,6 +81,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     eventAbi: TOKEN_REGISTERED_EVENT,
     fromBlock: REGISTRY_DEPLOY_BLOCK,
     flatten: true,
+    cacheInCloud: true,
   });
 
   // token0/token1 for each pool: Pumper always pairs the launched token
@@ -94,7 +94,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   }
   const pools = Object.keys(pairObject);
   if (!pools.length) {
-    return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyVolume, dailyProtocolRevenue: 0 };
+    return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: 0, dailyProtocolRevenue: 0 };
   }
 
   const allLogs = await getLogs({ targets: pools, eventAbi: V3_SWAP_EVENT, flatten: false });
@@ -103,7 +103,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const pool = pools[i];
     const [token0, token1] = pairObject[pool];
     logs.forEach((log: any) => {
-      addOneToken({ chain: CHAIN.STABLE, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 });
       const { token: feeToken, amount: feeAmount } = addOneToken({
         chain: CHAIN.STABLE,
         balances: dailyFees,
@@ -120,7 +119,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   });
 
   return {
-    dailyVolume,
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
@@ -139,6 +137,8 @@ const adapter: Adapter = {
     ProtocolRevenue: "ADMIN_VAULT_BPS alone (10% of swap fees) -- the pure protocol-treasury slice of Revenue, paid to adminVault.",
     SupplySideRevenue: "The remaining 80% of swap fees, split between each launched token's stakers/holders and its creator in a ratio the creator sets per token (holderShareBps) -- not further broken out here since it varies per token.",
   },
+  pullHourly: true,
+  doublecounted: true, // stableswap
 };
 
 export default adapter;
