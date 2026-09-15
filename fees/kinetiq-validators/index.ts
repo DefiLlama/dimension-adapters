@@ -143,6 +143,7 @@ const adapter: Adapter = {
   },
   methodology,
   breakdownMethodology,
+  doublecounted: true,
 };
 
 export default adapter;
