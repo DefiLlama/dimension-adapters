@@ -23,7 +23,7 @@ const METRICS = {
 const methodology = {
   Fees: "Commission charged by the validators kHYPE delegates to, on the staking rewards they produce for kHYPE.",
   Revenue: "The half of that commission Kinetiq invoices back to each validator operator (invoice_rate_bps, 5000 to date).",
-  ProtocolRevenue: "30% of the invoiced amount, kept by the treasury from 2026-04-09.",
+  ProtocolRevenue: "From 2026-04-09, 30% of the invoiced amount is kept by the treasury; it was 100% before.",
   SupplySideRevenue: "The half of the commission the validator operators retain for running the nodes.",
   HoldersRevenue: "70% of the invoiced amount, used to buy back KNTQ for sKNTQ holders from 2026-04-09.",
 };
@@ -36,7 +36,7 @@ const breakdownMethodology = {
     [METRICS.CommissionInvoiced]: "Commission invoiced back to validator operators by Kinetiq.",
   },
   ProtocolRevenue: {
-    [METRICS.CommissionInvoiced]: "30% of the invoiced commission, kept by the treasury.",
+    [METRICS.CommissionInvoiced]: "From 2026-04-09, 30% of the invoiced commission is kept by the treasury; it was 100% before.",
   },
   SupplySideRevenue: {
     [METRICS.CommissionToOperators]: "Commission retained by the validator operators.",
@@ -62,12 +62,13 @@ const KEEPERS_API = "https://rpc.km.xyz/kinetiq";
 const PAGE_SIZE = 500;
 const REQUEST_TIMEOUT = 10000;
 
-// Kinetiq's treasury policy since 2026-04-09: 30% of revenue is kept by the protocol and 70% buys
-// back KNTQ for sKNTQ holders. The same split the kinetiq-staked-hype adapter already encodes;
-// this adapter's first distribution is 2026-04-08, so one day precedes the policy and is
-// immaterial against the window.
-const PROTOCOL_SHARE = 0.3;
-const HOLDERS_SHARE = 0.7;
+// Kinetiq's treasury policy: before 2026-04-09 the protocol kept all of its revenue; from that
+// date 30% is kept and 70% buys back KNTQ for sKNTQ holders. Same boundary and same split the
+// kinetiq-staked-hype adapter encodes. This adapter's first distribution is 2026-04-08, one day
+// before the change, so the split is chosen per event rather than for the adapter as a whole.
+const TREASURY_SPLIT_FROM = 1775692800; // 2026-04-09
+const SHARES_BEFORE = { protocol: 1, holders: 0 };
+const SHARES_AFTER = { protocol: 0.3, holders: 0.7 };
 
 interface InvoiceEvent {
   block_timestamp: number;
@@ -116,13 +117,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (errors.length) throw errors[0].raw ?? errors[0];
 
   for (const events of results) {
-    for (const { commission_wei, invoice_wei } of events) {
+    for (const { block_timestamp, commission_wei, invoice_wei } of events) {
       const commission = toHype(commission_wei);
       const invoiced = toHype(invoice_wei);
+      const shares = Number(block_timestamp) >= TREASURY_SPLIT_FROM ? SHARES_AFTER : SHARES_BEFORE;
       dailyFees.addCGToken("hyperliquid", commission, METRICS.ValidatorCommission);
       dailyRevenue.addCGToken("hyperliquid", invoiced, METRICS.CommissionInvoiced);
-      dailyProtocolRevenue.addCGToken("hyperliquid", invoiced * PROTOCOL_SHARE, METRICS.CommissionInvoiced);
-      dailyHoldersRevenue.addCGToken("hyperliquid", invoiced * HOLDERS_SHARE, METRICS.TokenBuyBack);
+      dailyProtocolRevenue.addCGToken("hyperliquid", invoiced * shares.protocol, METRICS.CommissionInvoiced);
+      if (shares.holders) dailyHoldersRevenue.addCGToken("hyperliquid", invoiced * shares.holders, METRICS.TokenBuyBack);
       dailySupplySideRevenue.addCGToken("hyperliquid", commission - invoiced, METRICS.CommissionToOperators);
     }
   }
