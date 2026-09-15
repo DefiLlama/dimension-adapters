@@ -145,6 +145,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.ETHEREUM],
     start: '2026-04-25',
     allowNegativeValue: true,
+    pullHourly: true,
     methodology: {
         Fees: 'Borrow interest paid by USG borrowers, plus every reward harvested from the collateral deposited in Tangent markets.',
         Revenue: 'Borrow interest and the protocol cut of harvested collateral rewards, less what that pool pays out to sUSG savers and spends on vote incentives (bribes).',
