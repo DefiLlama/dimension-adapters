@@ -403,4 +403,5 @@ export enum CHAIN {
   XO = "xo",
   BOT_CHAIN = "bot",
   NATIVE_CORE = "native_core",
+  STRATO = "strato",
 }
