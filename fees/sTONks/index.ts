@@ -259,7 +259,7 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
