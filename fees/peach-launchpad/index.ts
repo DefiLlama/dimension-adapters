@@ -24,10 +24,10 @@ const adapter: SimpleAdapter = {
   start: launchpadStart,
   fetch,
   methodology: {
-    Fees: 'Backend USD valuation of actual BONDING and LP fee allocations recorded on chain: USDC at dashboard parity, token fees at their unambiguous canonical swap execution rate; including creator tax when present. Allocations are counted once at accrual, never again at claim.',
-    Revenue: 'Net platform amount recorded in those fee allocations. Deferred buyback-token releases are disclosed separately by the API and excluded from this metric.',
-    ProtocolRevenue: 'Same net platform allocations as Revenue; no claim-time double counting.',
-    SupplySideRevenue: 'Creator, partner, referral and launched-token buyback allocations. Launched tokens are not the launchpad governance token.',
+    Fees: 'Backend USD valuation of actual BONDING and LP fee allocations recorded on chain: USDC at dashboard parity, token fees at their unambiguous canonical swap execution rate; including creator tax when present. Allocations are counted once at accrual, never again at claim. Allocations without a USD valuation are excluded.',
+    Revenue: 'Net platform amount from fee allocations with a USD valuation. Deferred buyback-token releases are disclosed separately by the API and excluded from this metric.',
+    ProtocolRevenue: 'Same USD-valued net platform allocations as Revenue; no claim-time double counting.',
+    SupplySideRevenue: 'Creator, partner, referral and launched-token buyback allocations with a USD valuation. Launched tokens are not the launchpad governance token.',
   },
   breakdownMethodology: {
     Fees: {

@@ -18,7 +18,7 @@ const adapter: SimpleAdapter = {
   start: launchpadStart,
   fetch,
   methodology: {
-    Volume: 'Gross quote-token value of user trades on Peach bonding curves, valuing USDC at USD parity; excludes graduated-pool swaps, internal buybacks and liquidity operations.',
+    Volume: 'Gross quote-token value of user trades on Peach bonding curves, valuing USDC at USD parity; excludes graduated-pool swaps, internal buybacks, liquidity operations and trades without a USD valuation.',
   },
 };
 

@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   start: aggregatorStart,
   fetch,
   methodology: {
-    Volume: 'Persisted backend USD value of each successful router ConfirmedSwapEvent, shared with the Peach dashboard. Takes the larger priced input/output side using PDS at first successful projection; price timestamps are retained. Historical replay uses a projection-time snapshot, not historical oracle prices. Each fill is counted once; StepSwapEvent hops are excluded.',
+    Volume: 'Persisted backend USD value of each successful router ConfirmedSwapEvent, shared with the Peach dashboard. Takes the larger priced input/output side using PDS at first successful projection; price timestamps are retained. Historical replay uses a projection-time snapshot, not historical oracle prices. Each fill is counted once; StepSwapEvent hops are excluded. Records without a USD valuation are excluded.',
   },
 };
 

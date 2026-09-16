@@ -37,7 +37,7 @@ export interface Amounts {
 const usdKeys = ['volume_usd', 'fees_usd', 'revenue_usd', 'creator_usd', 'partner_usd', 'referrer_usd', 'buyback_usd'] as const;
 const amountKeys = ['volume_raw', 'fees_raw', 'revenue_raw', 'creator_raw', 'partner_raw', 'referrer_raw', 'buyback_raw'] as const;
 
-/** Fetch mainnet event totals and reject incomplete pricing or inconsistent allocations. */
+/** Fetch priced mainnet totals and validate pricing coverage and allocations. */
 export async function getPeachAmounts(options: FetchOptions, product: 'aggregator' | 'launchpad'): Promise<Amounts[]> {
   // The runner's startTimestamp is one second before the requested window.
   // Peach uses [from, to), so advance it to avoid counting boundary events twice.
@@ -49,18 +49,20 @@ export async function getPeachAmounts(options: FetchOptions, product: 'aggregato
     throw new Error('Peach returned an invalid report, time range, or mainnet identity');
   }
   const methodology = product === 'aggregator' ? 'pds_max_side_snapshot_v1' : 'launchpad_usdc_parity_execution_v1';
-  if (data.usd_methodology !== methodology || data.usd_complete !== true || data.unpriced_records !== 0
-    || data.fees_measured !== (product === 'launchpad')) {
-    throw new Error('Peach USD report is incomplete or uses an unexpected valuation methodology');
+  if (data.usd_methodology !== methodology || data.fees_measured !== (product === 'launchpad')) {
+    throw new Error('Peach USD report uses an unexpected valuation methodology');
   }
+  validatePricingCoverage(data);
   validateUSD(data);
   const seen = new Set<string>();
+  let unpricedRecords = 0;
   for (const row of data.amounts) {
     const sources = product === 'aggregator' ? ['aggregator'] : ['bonding', 'dex'];
     if (!sources.includes(row.source) || typeof row.asset !== 'string' || !/^0x[0-9a-f]{40}$/.test(row.asset)) {
       throw new Error('Peach returned an invalid source or asset');
     }
-    if (row.usd_complete !== true || row.unpriced_records !== 0) throw new Error('Peach returned unpriced source records');
+    validatePricingCoverage(row);
+    unpricedRecords += row.unpriced_records;
     validateUSD(row);
     const key = `${row.source}:${row.asset}`;
     if (seen.has(key)) throw new Error('Peach returned a duplicate source/asset');
@@ -71,15 +73,28 @@ export async function getPeachAmounts(options: FetchOptions, product: 'aggregato
     const split = BigInt(row.revenue_raw) + BigInt(row.creator_raw) + BigInt(row.partner_raw) + BigInt(row.referrer_raw) + BigInt(row.buyback_raw);
     if (split !== BigInt(row.fees_raw)) throw new Error('Peach fee allocations do not reconcile');
   }
+  if (unpricedRecords !== data.unpriced_records) throw new Error('Peach unpriced record count does not reconcile');
   for (const field of usdKeys) {
     if (!equalSum(data[field], data.amounts.map((row: Amounts) => row[field]))) throw new Error(`Peach ${field} total does not reconcile`);
+  }
+  // The API sums only priced facts into USD fields. A source/asset row can
+  // contain priced and unpriced facts, so retain its priced subtotal.
+  if (unpricedRecords > 0) {
+    console.warn(`Peach ${product}: excluded ${unpricedRecords} unpriced records in [${fromTimestamp}, ${options.endTimestamp}); reporting priced USD amounts only.`);
   }
   return data.amounts;
 }
 
+function validatePricingCoverage(row: Pick<Amounts, 'usd_complete' | 'unpriced_records'>) {
+  if (!Number.isSafeInteger(row.unpriced_records) || row.unpriced_records < 0
+    || row.usd_complete !== (row.unpriced_records === 0)) {
+    throw new Error('Peach returned invalid pricing coverage');
+  }
+}
+
 // Validate decimal strings exactly before converting USD to the SDK's numeric format.
 // addUSDValue treats strings as integer balances. Raw token amounts stay as strings
-// and are never repriced by the SDK; missing USD is an error.
+// and are never repriced by the SDK; absent USD fields remain an error.
 function validateUSD(row: Record<string, any>) {
   for (const field of usdKeys) {
     const value = row[field];
