@@ -234,8 +234,7 @@ async function fetchBsc(options: FetchOptions) {
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
-  dailyRevenue.addGasToken(-BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
@@ -283,8 +282,7 @@ async function fetchRobinhood(options: FetchOptions) {
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
-  dailyRevenue.addGasToken(-BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
