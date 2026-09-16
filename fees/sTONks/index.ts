@@ -114,6 +114,7 @@ const scanTonWallet = async (
 
     // Only count incoming messages TO our wallet
     const dest = inMsg.destination;
+    if (inMsg.bounced) continue;
     if (!dest || dest !== wallet) continue;
 
     const value = toBigInt(inMsg.value);
