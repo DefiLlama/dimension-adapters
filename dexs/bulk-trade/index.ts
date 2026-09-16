@@ -83,7 +83,7 @@ const adapter: SimpleAdapter = {
   pullHourly: false,
   fetch,
   chains: [CHAIN.BULK],
-  start: '2026-09-05',
+  start: '2026-09-04',
   methodology: {
     Volume: 'One-sided perpetual volume for every trading USD market, calculated from BULK mainnet one-minute candles as base volume multiplied by each candle close price.',
   },
