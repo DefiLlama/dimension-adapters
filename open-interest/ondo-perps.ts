@@ -13,14 +13,13 @@ type OpenInterestItem = {
 
 const fetch = async (_options: FetchOptions) => {
   const response = await fetchURL(API);
-  // notionalValue is long+short summed, halve it for the one-sided convention
-  const openInterestAtEnd = response.result.reduce((acc: number, market: OpenInterestItem) => acc + Number(market.notionalValue), 0) / 2
+  const openInterestAtEnd = response.result.reduce((acc: number, market: OpenInterestItem) => acc + Number(market.notionalValue), 0)
   return { openInterestAtEnd }
 }
 
 const methodology = {
   OpenInterest:
-    "Open interest is the sum of notionalValue from Ondo Perps's open interest API, halved because that field sums long and short.",
+    "Open interest is the sum of notionalValue from Ondo Perps's open interest API.",
 };
 
 const adapter: SimpleAdapter = {
