@@ -39,10 +39,13 @@ const amountKeys = ['volume_raw', 'fees_raw', 'revenue_raw', 'creator_raw', 'par
 
 /** Fetch mainnet event totals and reject incomplete pricing or inconsistent allocations. */
 export async function getPeachAmounts(options: FetchOptions, product: 'aggregator' | 'launchpad'): Promise<Amounts[]> {
-  const response = await httpGet(`${API}/${product}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp}`);
+  // The runner's startTimestamp is one second before the requested window.
+  // Peach uses [from, to), so advance it to avoid counting boundary events twice.
+  const fromTimestamp = options.startTimestamp + 1;
+  const response = await httpGet(`${API}/${product}?fromTimestamp=${fromTimestamp}&toTimestamp=${options.endTimestamp}`);
   const data = response?.data;
   if (response?.code !== 0 || !data || data.chain !== 'arc' || data.chain_id !== '5042' || data.network !== 'arc-mainnet'
-    || data.from_timestamp !== options.startTimestamp || data.to_timestamp !== options.endTimestamp || !Array.isArray(data.amounts)) {
+    || data.from_timestamp !== fromTimestamp || data.to_timestamp !== options.endTimestamp || !Array.isArray(data.amounts)) {
     throw new Error('Peach returned an invalid report, time range, or mainnet identity');
   }
   const methodology = product === 'aggregator' ? 'pds_max_side_snapshot_v1' : 'launchpad_usdc_parity_execution_v1';
