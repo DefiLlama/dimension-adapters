@@ -30,6 +30,15 @@ import { METRIC } from "../helpers/metrics";
 //   - the remainder of the hook's total is the cashback paid to the trader
 //     whose swap created the opportunity.
 //
+// The HOOKR integration is read differently, because its executor states the
+// split itself. Where a transaction carries an ArbitrageProfitSplit event the
+// protocol keeps wthProtocolAmount and the whole remainder is the partner's:
+// the trader's cashback, the trigger pool's donation and the partner's own
+// share are paid on out of it, and how it is divided from there is HOOKR's
+// ledger, not this one. The legs an older executor would have left in the
+// same receipt are then ignored rather than added — they are the same money,
+// said twice.
+//
 // The executor that changed the split was deployed at block 52850943. No rule
 // keys off that number: before it there are no ProtocolRevenue events and the
 // treasury's income is whatever was donated into its own pools; after it those
@@ -114,6 +123,14 @@ const EXECUTORS = [
   // turns it on, rather than after another pull request.
   // https://robinhoodchain.blockscout.com/address/0x2F4f6Dd51c0D8869852916Fceb869339Fe16aFB3
   "0x2f4f6dd51c0d8869852916fceb869339fe16afb3",
+  // The custom executor for the HOOKR integration, deployed and not yet
+  // switched on. It is the first executor that states its own split rather
+  // than leaving it to be read from what moved — see ArbitrageProfitSplit
+  // below. Listed now for the same reason as gen-12: an address that emits
+  // nothing changes no figure, and its first event should count on the day
+  // the team turns it on.
+  // https://robinhoodchain.blockscout.com/address/0x4650EEEB8093dE5412246a4FbD7d08798Fd0ec22
+  "0x4650eeeb8093de5412246a4fbd7d08798fd0ec22",
 ];
 const EXECUTOR_SET = new Set(EXECUTORS);
 
@@ -122,6 +139,7 @@ const EXECUTOR_SET = new Set(EXECUTORS);
 //   ProfitCurrencyDistribute 0x7b1f2ac966718a4fe501511d1cdc7d0671a76732a9213ee292a41bffdd8051fa
 //   Donate                   0x29ef05caaff9404b7cb6d1c0e9bbae9eaa7ab2541feba1a9c4248594c08156cb
 //   ProtocolRevenue          0x72a888fd93a6302c4cb123dfe9b12b97a7188a0c3f5a2d917802936032538848
+//   ArbitrageProfitSplit     0x65c47530703d4eca41f937917aa3f3a7a33c3d85bfb8bc9ebaaaf27f8b57ef6a
 // ReferralRewarded is taken from the executor's interface; no pool has a
 // referral configured yet, so it has not been observed on chain.
 const profitDistributeAbi =
@@ -129,6 +147,14 @@ const profitDistributeAbi =
 const donateAbi = "event Donate(bytes32 indexed id, address indexed sender, uint256 amount0, uint256 amount1)";
 const protocolRevenueAbi = "event ProtocolRevenue(address indexed token, uint256 amount)";
 const referralRewardedAbi = "event ReferralRewarded(address indexed token, address indexed recipient, uint256 amount)";
+// The HOOKR integration's executor states the whole split in one event
+// instead of leaving it to be read from ProtocolRevenue, the donations and
+// the remainder. Where it is present it is taken as the truth for that
+// transaction: the protocol keeps wthProtocolAmount and everything else —
+// the trader's cashback, the trigger pool's donation, the integrating
+// partner's own share — is supply-side.
+const arbitrageProfitSplitAbi =
+  "event ArbitrageProfitSplit(address indexed profitCurrency, address indexed trader, address indexed creator, uint256 totalProfit, uint256 traderAmount, uint256 creatorAmount, uint256 triggerPoolAmount, uint256 wthProtocolAmount, uint256 hookrProtocolAmount)";
 
 // One historical distribution the hook reported in a currency it did not pay
 // in. An earlier arbitrage executor could return profit to the hook in WETH
@@ -158,6 +184,7 @@ const LABEL = {
   toLPs: "MEV Rewards To LPs",
   toProtocol: "MEV Rewards To Protocol",
   toReferrers: "MEV Rewards To Referrers",
+  toPartners: "MEV Rewards To Partners",
 };
 
 // amounts per transaction and currency family — every leg of one
@@ -238,6 +265,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     put(referred, tx, low(log.args.token), big(log.args.amount));
   }
 
+  // 2b. the HOOKR integration's split, stated outright by its executor. The
+  //     currency is the event's own profitCurrency, and the transaction must
+  //     still be one the hook distributed in: a total is only ever split
+  //     against the total the hook reported for it.
+  const splitTotals = ledger();
+  const splitRetained = ledger();
+  for (const log of await getLogs({ noTarget: true, eventAbi: arbitrageProfitSplitAbi, ...logOptions })) {
+    const tx = low(log.transactionHash);
+    if (!totals.has(tx) || !fromExecutor(log)) continue;
+    const currency = low(log.args.profitCurrency);
+    put(splitTotals, tx, currency, big(log.args.totalProfit));
+    put(splitRetained, tx, currency, big(log.args.wthProtocolAmount));
+  }
+
   // 3. what went to liquidity providers: the PoolManager's Donate events sent
   //    by an executor inside one of those transactions. Whose pool it was is
   //    read from the pool id alone, and the amount is booked in the currency
@@ -289,6 +330,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const [key, total] of row) {
       const currency = bookedIn.get(tx)!.get(key)!;
       let left = total;
+      // a transaction the HOOKR executor spoke for: what it says the protocol
+      // kept is Revenue, and everything else is the partner's to pay on. Its
+      // own ProtocolRevenue and Donate legs are passed over here, so nothing
+      // is counted twice and the two legs still sum to the hook's total.
+      if (take(splitTotals, tx, key) > 0n) {
+        const kept = min(left, take(splitRetained, tx, key));
+        left -= kept;
+        add(dailyFees, currency, total, LABEL.captured);
+        add(dailyRevenue, currency, kept, LABEL.toProtocol);
+        add(dailyProtocolRevenue, currency, kept, LABEL.toProtocol);
+        add(dailySupplySideRevenue, currency, left, LABEL.toPartners);
+        continue;
+      }
       const protocol = min(left, take(retained, tx, key) + take(toProtocolPools, tx, key));
       left -= protocol;
       const lps = min(left, take(toOtherPools, tx, key));
@@ -309,9 +363,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees: "The arbitrage profit the hook realises and distributes, summed from the ProfitCurrencyDistribute event the hook emits on every distribution. The hook closes the price gap a swap opens between connected pools within the same transaction, so this is value recaptured from MEV rather than a fee charged to anyone.",
-  Revenue: "The share of that profit retained by the protocol treasury: the executor's ProtocolRevenue event (90% on WTH's own pools, 40% on pools that integrate WTH, since 2 September 2026) plus any profit donated into WTH's own pools, which was the treasury's income before that event existed.",
+  Revenue: "The share of that profit retained by the protocol treasury: the executor's ProtocolRevenue event (90% on WTH's own pools, 40% on pools that integrate WTH, since 2 September 2026) plus any profit donated into WTH's own pools, which was the treasury's income before that event existed. On an arbitrage run by the HOOKR integration it is the wthProtocolAmount leg of that executor's ArbitrageProfitSplit event.",
   ProtocolRevenue: "Same as Revenue — nothing is distributed to token holders on chain.",
-  SupplySideRevenue: "Everything not retained: the cashback paid to the trader whose swap created the opportunity, the profit donated to the liquidity providers of integrating pools, and any referral share paid to an integrating partner.",
+  SupplySideRevenue: "Everything not retained: the cashback paid to the trader whose swap created the opportunity, the profit donated to the liquidity providers of integrating pools, any referral share paid to an integrating partner, and, on an arbitrage run by the HOOKR integration, the whole of the profit the protocol did not keep — the partner pays the trader, the trigger pool and itself out of it.",
   UserFees: "Zero. Users are not charged by the hook; a swapper receives cashback rather than paying anything.",
 };
 
@@ -320,15 +374,16 @@ const breakdownMethodology = {
     [LABEL.captured]: "Arbitrage profit captured by the hook when a swap moves one pool away from a connected pool, closed out in the same transaction.",
   },
   Revenue: {
-    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, plus profit donated into WTH's own pools.",
+    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of the HOOKR executor's ArbitrageProfitSplit, plus profit donated into WTH's own pools.",
   },
   ProtocolRevenue: {
-    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, plus profit donated into WTH's own pools.",
+    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of the HOOKR executor's ArbitrageProfitSplit, plus profit donated into WTH's own pools.",
   },
   SupplySideRevenue: {
     [LABEL.toTraders]: "Cashback paid to the trader whose swap created the arbitrage opportunity.",
     [LABEL.toLPs]: "Donated to the liquidity providers of the integrating pool the profit was taken from.",
     [LABEL.toReferrers]: "Referral share paid to the partner that integrated the pool, where one is configured.",
+    [LABEL.toPartners]: "Profit handed to an integrating partner on an arbitrage its own executor ran — the whole of the total the protocol did not keep. The partner pays the trader's cashback, the trigger pool's liquidity providers and its own share out of it.",
   },
 };
 
