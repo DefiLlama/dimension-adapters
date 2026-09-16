@@ -29,6 +29,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2023-12-29',
+    deadFrom: '2026-09-02'
 }
 
 export default adapter;

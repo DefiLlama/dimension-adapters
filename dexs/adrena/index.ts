@@ -64,6 +64,7 @@ const adapter: SimpleAdapter = {
       start: '2024-11-18',
     }
   },
+  deadFrom: '2026-08-25',
   fetch,
   methodology: {
     Volume: 'Sum of all open/close/increase/liquidate position volumes.',

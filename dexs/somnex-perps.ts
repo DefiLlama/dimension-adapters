@@ -29,17 +29,19 @@ async function fetch({ startOfDay }: FetchOptions) {
   }`
 
   const res = await request(endpoint, query)
-  if (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
-    throw new Error("Error: No data")
-
-  if (!res.today.length || res.today[0].snap.length !== 1) { // somedays have 0 volume, doesnt mean adapter is broken, if broken subgraph query itself would fail
+  // some days have 0 volume, so a snapshot may be missing; that does not mean the adapter is broken
+  if (!res.today.length || res.today[0].snap.length !== 1) {
     return { dailyVolume: 0, dailyFees: 0, }
   }
 
   const volToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
-  const volYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
+  const volYesterday = (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
+    ? 0
+    : res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
   const feesToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
-  const feesYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
+  const feesYesterday = (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
+    ? 0
+    : res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
 
   const dailyVolume = volToday - volYesterday
   const dailyFees = feesToday - feesYesterday

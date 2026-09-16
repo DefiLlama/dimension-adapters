@@ -92,6 +92,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   pullHourly: true,
+  deadFrom: '2026-07-24',
 };
 
 export default adapter;

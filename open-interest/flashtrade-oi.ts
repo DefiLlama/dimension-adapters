@@ -47,6 +47,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   // Earliest date the OpenInterest table has data for (BTC/SOL/ETH).
   start: '2023-12-29',
+  deadFrom: '2026-09-02'
 };
 
 export default adapter;
