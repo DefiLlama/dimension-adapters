@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { uniV2Exports } from "../helpers/uniswap";
+import { getUniV2LogAdapter, uniV2Exports } from "../helpers/uniswap";
 import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
@@ -446,6 +446,7 @@ const configs: Record<string, Record<string, any>> = {
   },
   "hybra-v2": {
     [CHAIN.HYPERLIQUID]: { factory: '0x9c7397c9C5ecC400992843408D3A283fE9108009', start: '2025-05-22', fees: 0.0025, stableFees: 0.0002, userFeesRatio: 1, revenueRatio: 0.12, protocolRevenueRatio: 0.12 },
+    [CHAIN.ROBINHOOD]: { factory: '0x76c1D39C33b773ABe8fBDD6253f4D09B735b2e7b', start: '2026-09-07', userFeesRatio: 1 },
   },
   "superswap-v2": {
     [CHAIN.OPTIMISM]: { factory: '0x22505cb4d5d10b2c848a9d75c57ea72a66066d8c', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
@@ -881,12 +882,12 @@ const methodologyMap: Record<string, any> = {
     HoldersRevenue: '0.1%  swap fees goes to LOVE and gXOXO token stakers',
   },
   "hybra-v2": {
-    Volume: 'Total swap volume collected from factory 0x9c7397c9C5ecC400992843408D3A283fE9108009',
-    Fees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
-    UserFees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
-    Revenue: '12% swap fees collected by protocol Treasury.',
-    ProtocolRevenue: '12% swap fees collected by protocol Treasury.',
-    SupplySideRevenue: '88% swap fees distributed to LPs.',
+    Volume: 'Total swap volume on Hyperliquid and Robinhood.',
+    Fees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs on Hyperliquid; Robinhood uses the factory rates at the end of each window.',
+    UserFees: 'Swap fees paid by users.',
+    Revenue: '12% of swap fees on Hyperliquid; the factory referral share goes to the treasury on Robinhood.',
+    ProtocolRevenue: 'The protocol share of swap fees goes to the treasury.',
+    SupplySideRevenue: 'Swap fees less the protocol share.',
   },
   "superswap-v2": {
     Fees: "User pays 0.3% fees on each swap.",
@@ -1740,6 +1741,27 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   feesProtocols[name] = adapter
+}
+
+// RH has no referral program: Pair._update0/_update1 send MAX_REFERRAL_FEE to the treasury in dibs.
+// Factory: https://robinhoodchain.blockscout.com/address/0x76c1D39C33b773ABe8fBDD6253f4D09B735b2e7b
+protocols['hybra-v2'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['hybra-v2'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['hybra-v2'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['hybra-v2'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['hybra-v2'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['hybra-v2'].SupplySideRevenue },
+}
+protocols['hybra-v2'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOptions) => {
+  const config = configs['hybra-v2'][CHAIN.ROBINHOOD]
+  const volatileFee = await options.api.call({ target: config.factory, abi: 'uint256:volatileFee' })
+  const stableFee = await options.api.call({ target: config.factory, abi: 'uint256:stableFee' })
+  const referralFee = await options.api.call({ target: config.factory, abi: 'uint256:MAX_REFERRAL_FEE' })
+  const revenueRatio = Number(referralFee) / 10000
+  return getUniV2LogAdapter({
+    ...config, fees: Number(volatileFee) / 10000, stableFees: Number(stableFee) / 10000,
+    revenueRatio, protocolRevenueRatio: revenueRatio,
+  })(options)
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
