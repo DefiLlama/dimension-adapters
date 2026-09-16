@@ -20,6 +20,7 @@ const adapter: SimpleAdapter = {
       },
       start: '2023-10-31',
       runAtCurrTime: true,
+      deadFrom: '2026-09-04',
     }
   }
 }

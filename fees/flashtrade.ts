@@ -114,7 +114,8 @@ const adapter: Adapter = {
   chains: [CHAIN.SOLANA],
   fetch,
   start: '2023-12-29',
-  methodology
+  methodology,
+  deadFrom: '2026-09-02'
 };
 
 export default adapter;

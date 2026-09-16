@@ -16,6 +16,7 @@ export default {
     [CHAIN.SEI]: {
       fetch,
       start: "2025-04-14",
+      deadFrom: '2025-09-13',
     },
   },
 }

@@ -64,6 +64,7 @@ const adapter: SimpleAdapter = {
 			start: '2025-11-24',
 		},
 	},
+  deadFrom: '2026-07-31',
 };
 
 export default adapter;
