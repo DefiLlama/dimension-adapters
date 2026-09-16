@@ -2,6 +2,7 @@ import { PromisePool } from '@supercharge/promise-pool'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
+import { sleep } from '../../utils/utils'
 
 const API_URL = 'https://mainnet-api1.bulk.trade/api/v1'
 // Public mainnet launch: https://x.com/bulktrade/status/2096229604654551302.
@@ -31,36 +32,43 @@ const fetch = async (options: FetchOptions) => {
   if (!symbols.length || symbols.some(symbol => typeof symbol !== 'string' || !symbol.length))
     throw new Error('BULK exchangeInfo response has no valid USD markets')
 
-  const startTime = Math.max(options.startTimestamp, MAINNET_VOLUME_START_TIMESTAMP) * 1000
-  const endTime = options.endTimestamp * 1000
-  const { results, errors } = await PromisePool
-    .withConcurrency(5)
-    .useCorrespondingResults()
-    .for(symbols)
-    .process(async symbol => {
-      const candles: unknown = await fetchURL(
-        `${API_URL}/klines?symbol=${encodeURIComponent(symbol)}&interval=1m&startTime=${startTime}&endTime=${endTime}`,
-      )
-      if (!Array.isArray(candles))
-        throw new Error(`BULK ${symbol} candle response is invalid`)
-
-      let volume = 0
-      let lastOpenTime = startTime - 1
-      for (const candle of candles as Candle[]) {
-        if (!Number.isFinite(candle?.t) || !Number.isFinite(candle?.T)
-          || candle.t < startTime || candle.t >= endTime || candle.T <= candle.t || candle.T > endTime
-          || candle.t <= lastOpenTime || !Number.isFinite(candle.c) || candle.c < 0
-          || !Number.isFinite(candle.v) || candle.v < 0)
+  const startTime = Math.round(Math.max(options.startTimestamp, MAINNET_VOLUME_START_TIMESTAMP) / 60) * 60 * 1000
+  const endTime = Math.round(options.endTimestamp / 60) * 60 * 1000
+  const BATCH_SIZE = 5
+  const results: number[] = []
+  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+    if (i > 0)
+      await sleep(1000)
+    const { results: batchResults, errors } = await PromisePool
+      .withConcurrency(BATCH_SIZE)
+      .useCorrespondingResults()
+      .for(symbols.slice(i, i + BATCH_SIZE))
+      .process(async symbol => {
+        const candles: unknown = await fetchURL(
+          `${API_URL}/klines?symbol=${encodeURIComponent(symbol)}&interval=1m&startTime=${startTime}&endTime=${endTime}`,
+        )
+        if (!Array.isArray(candles))
           throw new Error(`BULK ${symbol} candle response is invalid`)
-        volume += candle.c * candle.v
-        lastOpenTime = candle.t
-      }
-      if (!Number.isFinite(volume))
-        throw new Error(`BULK ${symbol} candle volume is invalid`)
-      return volume
-    })
-  if (errors.length)
-    throw errors[0].raw ?? errors[0]
+
+        let volume = 0
+        let lastOpenTime = startTime - 1
+        for (const candle of candles as Candle[]) {
+          if (!Number.isFinite(candle?.t) || !Number.isFinite(candle?.T)
+            || candle.t < startTime || candle.t >= endTime || candle.T <= candle.t || candle.T > endTime
+            || candle.t <= lastOpenTime || !Number.isFinite(candle.c) || candle.c < 0
+            || !Number.isFinite(candle.v) || candle.v < 0)
+            throw new Error(`BULK ${symbol} candle response is invalid`)
+          volume += candle.c * candle.v
+          lastOpenTime = candle.t
+        }
+        if (!Number.isFinite(volume))
+          throw new Error(`BULK ${symbol} candle volume is invalid`)
+        return volume
+      })
+    if (errors.length)
+      throw errors[0].raw ?? errors[0]
+    results.push(...batchResults)
+  }
 
   const dailyVolume = results.reduce((sum, volume) => sum + volume, 0)
   if (!Number.isFinite(dailyVolume) || dailyVolume < 0)
