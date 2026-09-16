@@ -45,6 +45,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapters: SimpleAdapter = {
+  // the only subgraph this reads is gone from the network, optionblitz.co no longer resolves,
+  // and tvl has been zero since 2024-07-11
+  deadFrom: '2026-01-10',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetch as any,

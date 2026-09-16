@@ -22,7 +22,8 @@ async function fetch(_options: FetchOptions): Promise<FetchResult> {
 const adapter: SimpleAdapter = {
     chains: [CHAIN.ETHEREAL],
     fetch,
-    runAtCurrTime: true
+    runAtCurrTime: true,
+    deadFrom: '2026-08-25'
 }
 
 export default adapter;

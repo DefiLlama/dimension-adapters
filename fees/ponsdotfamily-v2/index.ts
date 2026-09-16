@@ -1,8 +1,6 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { queryAllium } from "../../helpers/allium";
-import { id } from "ethers";
 
 const FACTORY = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
 const UNIV4_POOL_MANAGER = "0x58daec3116aae6D93017bAAea7749052E8a04fA7"
@@ -13,11 +11,10 @@ const LAUNCH_FEE_WEI = 500000000000000
 const BPS = 10000
 
 const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)"
+const CURVE_BUY_EVENT = "event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax)"
+const CURVE_SELL_EVENT = "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax)"
 const POOL_GRADUATED_EVENT = "event PoolGraduated(address indexed token, uint256 positionId, uint256 tokenAmount, uint256 pairTokenAmount)"
 const POOL_FEE_SWEPT_EVENT = "event PoolFeesSwept(bytes32 indexed poolId, uint256 protocolAmount, uint256 buybackAmount, uint256 creatorAmount, uint256 tokensLocked)"
-
-const CURVE_BUY_TOPIC0 = id("CurveBuy(address,address,uint256,uint256,uint256,uint256)")
-const CURVE_SELL_TOPIC0 = id("CurveSell(address,address,uint256,uint256,uint256,uint256)")
 
 const POSITION_INFO_FUNCTION = "function positionInfo(uint256 tokenId) view returns (uint256 info)"
 const LAUNCH_FEE_POLICY_FUNCTION = "function getLaunchFeePolicy(address token) view returns (tuple(address protocolFeeRecipient, uint16 protocolFeeShareBps, uint16 buybackBurnBps, uint16 hookFeeBps, uint16 maxInternalPriceImpactBps))"
@@ -58,28 +55,21 @@ async function fetch(options: FetchOptions) {
   const positionIdToTokens = new Map(poolGraduatedLogs.map(log => [log.positionId, log.token.toLowerCase()]));
 
   const tokens = Array.from(curveToTokens.values()).map(token => token.token.toLowerCase())
+  const isCurve = (log: any) => curveToTokens.has(log.address.toLowerCase())
 
-  const curveSwapRows: {
-    address: string
-    topic0: string
-    amount0: string
-    amount1: string
-    fee: string
-    tax: string
-  }[] = await queryAllium(`
-    SELECT
-      LOWER(address) AS address,
-      topic0,
-      TO_VARCHAR(COALESCE(SUM(TRY_TO_NUMBER(common.udfs.js_hextoint_secure('0x' || SUBSTR(data, 3, 64)))), 0)) AS amount0,
-      TO_VARCHAR(COALESCE(SUM(TRY_TO_NUMBER(common.udfs.js_hextoint_secure('0x' || SUBSTR(data, 67, 64)))), 0)) AS amount1,
-      TO_VARCHAR(COALESCE(SUM(TRY_TO_NUMBER(common.udfs.js_hextoint_secure('0x' || SUBSTR(data, 131, 64)))), 0)) AS fee,
-      TO_VARCHAR(COALESCE(SUM(TRY_TO_NUMBER(common.udfs.js_hextoint_secure('0x' || SUBSTR(data, 195, 64)))), 0)) AS tax
-    FROM robinhood.raw.logs
-    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      AND topic0 IN ('${CURVE_BUY_TOPIC0}', '${CURVE_SELL_TOPIC0}')
-    GROUP BY 1, 2
-  `)
+  const curveBuyLogs = (await options.getLogs({
+    noTarget: true,
+    eventAbi: CURVE_BUY_EVENT,
+    entireLog: true,
+    parseLog: true,
+  })).filter(isCurve)
+
+  const curveSellLogs = (await options.getLogs({
+    noTarget: true,
+    eventAbi: CURVE_SELL_EVENT,
+    entireLog: true,
+    parseLog: true,
+  })).filter(isCurve)
 
   const poolFeeSweptLogs = await options.getLogs({
     target: MEME_HOOK,
@@ -124,29 +114,33 @@ async function fetch(options: FetchOptions) {
   dailyFees.addGasToken(LAUNCH_FEE_WEI * tokenLaunchedLogsToday.length, "Launch Fees")
   dailyRevenue.addGasToken(LAUNCH_FEE_WEI * tokenLaunchedLogsToday.length, "Launch Fees to Protocol")
 
-  for (const row of curveSwapRows) {
-    const curve = curveToTokens.get(row.address.toLowerCase())
-    if (!curve) continue
-    const launchFeePolicy = tokenToLaunchFeePolicy.get(curve.token)
-    if (!launchFeePolicy) continue
+  const addCurveLogs = (logs: any[], isBuy: boolean) => {
+    for (const log of logs) {
+      const args = log.args ?? log
+      const quoteAmount = BigInt(isBuy ? args.quoteIn : args.quoteOut)
+      const fee = BigInt(args.fee)
+      const tax = BigInt(args.tax)
+      const curve = curveToTokens.get(log.address.toLowerCase())
+      if (!curve) continue
+      const launchFeePolicy = tokenToLaunchFeePolicy.get(curve.token)
+      if (!launchFeePolicy) continue
 
-    const isBuy = row.topic0.toLowerCase() === CURVE_BUY_TOPIC0.toLowerCase()
-    const quoteAmount = BigInt(isBuy ? row.amount0 : row.amount1) // quoteIn : quoteOut
-    const fee = BigInt(row.fee)
-    const tax = BigInt(row.tax)
-    const { pairToken: quoteToken } = curve
+      const { pairToken: quoteToken } = curve
+      const BPS_TO_PROTOCOL = launchFeePolicy.protocolFeeShareBps
+      const BPS_TO_CREATORS = (BPS - BPS_TO_PROTOCOL) / (BPS / (BPS - launchFeePolicy.buybackBurnBps))
+      const BPS_TO_MEME_TOKEN_BUYBACK = BPS - BPS_TO_CREATORS - BPS_TO_PROTOCOL
 
-    const BPS_TO_PROTOCOL = launchFeePolicy.protocolFeeShareBps
-    const BPS_TO_CREATORS = (BPS - BPS_TO_PROTOCOL) / (BPS / (BPS - launchFeePolicy.buybackBurnBps))
-    const BPS_TO_MEME_TOKEN_BUYBACK = BPS - BPS_TO_CREATORS - BPS_TO_PROTOCOL
-
-    dailyVolume.add(quoteToken, isBuy ? quoteAmount : quoteAmount + fee + tax)
-    dailyFees.add(quoteToken, fee + tax, "Curve Swap Fees")
-    dailyRevenue.add(quoteToken, fee * BigInt(BPS_TO_PROTOCOL) / BigInt(BPS), "Curve Swap Fees to Protocol")
-    dailySupplySideRevenue.add(quoteToken, fee * BigInt(Math.floor(BPS_TO_CREATORS)) / BigInt(BPS), "Curve Swap Fees to Creators")
-    dailySupplySideRevenue.add(quoteToken, fee * BigInt(Math.floor(BPS_TO_MEME_TOKEN_BUYBACK)) / BigInt(BPS), "Curve Swap Fees to Meme Token Buybacks")
-    dailySupplySideRevenue.add(quoteToken, tax, "Creator Tax")
+      dailyVolume.add(quoteToken, isBuy ? quoteAmount : quoteAmount + fee + tax)
+      dailyFees.add(quoteToken, fee + tax, "Curve Swap Fees")
+      dailyRevenue.add(quoteToken, fee * BigInt(BPS_TO_PROTOCOL) / BigInt(BPS), "Curve Swap Fees to Protocol")
+      dailySupplySideRevenue.add(quoteToken, fee * BigInt(Math.floor(BPS_TO_CREATORS)) / BigInt(BPS), "Curve Swap Fees to Creators")
+      dailySupplySideRevenue.add(quoteToken, fee * BigInt(Math.floor(BPS_TO_MEME_TOKEN_BUYBACK)) / BigInt(BPS), "Curve Swap Fees to Meme Token Buybacks")
+      dailySupplySideRevenue.add(quoteToken, tax, "Creator Tax")
+    }
   }
+
+  addCurveLogs(curveBuyLogs, true)
+  addCurveLogs(curveSellLogs, false)
 
   for (const log of poolFeeSweptLogs) {
     const { protocolAmount, buybackAmount, creatorAmount, poolId } = log
@@ -190,6 +184,7 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     "Curve Swap Fees to Creators": "Part of (70% when buyback is disabled, 35% when buyback is enabled) the curve swap fees collected goes to the creators",
+    "Curve Swap Fees to Meme Token Buybacks": "Part of (0% when buyback is disabled, 35% when buyback is enabled) the curve swap fees collected goes to the buyback and burning of meme tokens",
     "Token Swap Fees to Creators": "Part of (70% when buyback is disabled, 35% when buyback is enabled) the uniswap v4 swap fees collected goes to the creators",
     "Creator Tax": "Taxes collected from creators (if enabled) on curve swaps",
     "Token Swap Fees to Meme Token Buybacks": "Part of (0% when buyback is disabled, 35% when buyback is enabled) the uniswap v4 swap fees collected goes to the buyback and burning of meme tokens",
@@ -201,8 +196,6 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  dependencies: [Dependencies.ALLIUM],
-  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   start: "2026-08-03"

@@ -17,6 +17,7 @@ export enum CHAIN {
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
   BLAST = "blast",
+  BULK = "bulk",
   BAHAMUT = "ftn",
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",

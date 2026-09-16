@@ -21,13 +21,9 @@ These guidelines apply to all adapters in the `options/` directory.
 - This is real capital changing hands
 - More relevant for revenue calculations
 
-## Optional Dimensions
+## Open Interest
 
-| Dimension | Description |
-|-----------|-------------|
-| `openInterestAtEnd` | Total open interest at period end |
-| `longOpenInterestAtEnd` | Long positions (buyers) open interest |
-| `shortOpenInterestAtEnd` | Short positions (sellers) open interest |
+Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined. Notional and premium volume are the options metrics.
 
 ## Data Sources
 
@@ -70,3 +66,8 @@ If this adapter returns fee/revenue dimensions, follow the guidelines in `fees/A
 3. Missing exercise/settlement events
 4. Double-counting expired options
 5. Not separating call vs put metrics when useful
+
+## Scope
+
+- Export `dailyNotionalVolume` + `dailyPremiumVolume`, never plain `dailyVolume`.
+- Perpetual options (funding-based, no expiry) do not belong on the options dashboard.

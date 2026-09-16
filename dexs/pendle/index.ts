@@ -36,6 +36,8 @@ const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.PLASMA]: { id: 9745, start: "2025-09-30" },
   [CHAIN.HYPERLIQUID]: { id: 999, start: "2025-07-29" },
   [CHAIN.MONAD]: { id: 143, start: "2026-06-18" },
+  [CHAIN.XLAYER]: { id: 196, start: "2026-08-02" },
+  [CHAIN.ROBINHOOD]: { id: 4663, start: "2026-09-02" },
 };
 
 // every market ever deployed, so that backfills see the markets that were live on that day

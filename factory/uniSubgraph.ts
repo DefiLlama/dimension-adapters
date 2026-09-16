@@ -96,6 +96,7 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 85,
     },
     start: "2024-03-19",
+    deadFrom: "2026-09-11",
   },
   // "retro": {
   //   graphUrls: {
@@ -421,7 +422,7 @@ for (const [name, config] of Object.entries(configs)) {
 
   const adapter: SimpleAdapter = {
     version: 2,
-    // pullHourly: true,
+    pullHourly: true,
     adapter: chains.reduce((acc, chain) => ({
       ...acc,
       [chain]: {

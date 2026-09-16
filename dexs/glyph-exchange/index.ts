@@ -43,6 +43,7 @@ const classic = Object.keys(endpointsClassic).reduce(
     [chain]: {
       fetch,
       start: '2024-03-19',
+      deadFrom: '2026-09-11',
     },
   }),
   {}
@@ -50,6 +51,7 @@ const classic = Object.keys(endpointsClassic).reduce(
 
 export default {
   version: 2,
+  deadFrom: '2026-09-11',
   adapter: classic,
   methodology: {
     Fees: "GlyphExchange charges a flat 0.3% fee",
