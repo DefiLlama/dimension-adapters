@@ -341,15 +341,13 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Pennysia-routed Ethereum volume: Settlement SwapExecuted (SYNC and SODAX opens) plus CoW, UniswapX, and Velora fills tagged to the Settlement fee recipient.",
+    "Settlement SwapExecuted (SYNC and SODAX opens) plus CoW, UniswapX, and Velora fills tagged to the Settlement fee recipient.",
   Fees:
-    "Settlement FeeCollected (surplus, leftover sweeps, gas markup). CoW partner fee on executed buy (CIP-75: 75% protocol / 25% CoW). UniswapX and Velora partner fees paid in the fill transaction.",
+    "Settlement FeeCollected plus partner fees on tagged CoW, UniswapX, and Velora fills.",
   Revenue:
-    "100% of Settlement, UniswapX, and Velora fees. 75% of CoW partner fees after CIP-75.",
-  ProtocolRevenue:
-    "Same as revenue except CoW's 25% CIP-75 service fee, which is withheld by CoW.",
-  SupplySideRevenue:
-    "CoW CIP-75 25% withheld from Pennysia-tagged partner fees.",
+    "100% of Settlement, UniswapX, and Velora fees. 75% of CoW partner fees (CIP-75).",
+  ProtocolRevenue: "Same as revenue.",
+  SupplySideRevenue: "CoW's 25% CIP-75 share of tagged partner fees.",
 };
 
 const breakdownMethodology = {
