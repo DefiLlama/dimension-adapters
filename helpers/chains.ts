@@ -14,6 +14,7 @@ export enum CHAIN {
   TARA = "tara",
   PROTON = "proton",
   ARBITRUM = "arbitrum",
+  ARC = "arc",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
   BLAST = "blast",
