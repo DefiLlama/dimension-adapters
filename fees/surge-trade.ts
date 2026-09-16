@@ -18,6 +18,7 @@ const adapters: SimpleAdapter = {
   chains: [CHAIN.RADIXDLT],
   start: '2023-03-29',
   runAtCurrTime: true,
+  deadFrom: '2026-05-11'
 }
 
 export default adapters

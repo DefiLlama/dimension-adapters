@@ -78,7 +78,7 @@ const fetchSolana = async (options: FetchOptions) => {
 		SELECT
 			'solana' AS chain,
 			(CASE
-				WHEN source_token_mint = '11111111111111111111111111111111' THEN ADDRESSES.solana.SOL
+				WHEN source_token_mint = '11111111111111111111111111111111' THEN '${ADDRESSES.solana.SOL}'
 				ELSE source_token_mint
 			END) AS token,
 			SUM(amount_in) as amount

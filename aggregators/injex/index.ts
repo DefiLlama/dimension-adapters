@@ -15,6 +15,7 @@ const adapter: any = {
     [CHAIN.INJECTIVE]: {
       fetch,
       start: '2024-05-22',
+      deadFrom: '2026-08-26',
     },
   },
 };

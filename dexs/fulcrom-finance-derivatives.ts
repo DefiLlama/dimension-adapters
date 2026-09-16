@@ -7,10 +7,10 @@ const chainConfig: Record<string, { endpoint: string; start: string }> = {
     endpoint: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
     start: '2023-02-27',
   },
-  [CHAIN.CRONOS_ZKEVM]: {
-    endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
-    start: '2024-08-15',
-  },
+  // [CHAIN.CRONOS_ZKEVM]: {
+  //   endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
+  //   start: '2024-08-15',
+  // },
 };
 const toUSD = (value: string | bigint) => Number(BigInt(value) / 10n ** 24n) / 1e6;
 

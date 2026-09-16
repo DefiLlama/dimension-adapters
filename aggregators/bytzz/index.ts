@@ -20,6 +20,7 @@ const adapter: SimpleAdapter = {
     Volume: "Volume from Bytzz",
   },
   chains: [CHAIN.XLAYER],
+  deadFrom: '2025-09-09',
 };
 
 export default adapter;
