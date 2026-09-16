@@ -182,7 +182,7 @@ async function _runAdapter({
   // Run prefetch if provided
   let preFetchedResults: any = null;
   if (typeof prefetch === 'function') {
-    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    const firstChain = chains.find(chain => validStart[chain]?.canRun && (!onlyChains || onlyChains.has(chain)));
     if (firstChain) {
       const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
