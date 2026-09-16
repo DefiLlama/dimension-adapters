@@ -9,6 +9,8 @@
 --   * Legacy Base FFactories (0xd7d3c85b..., 0x158d7cca...): PairCreated (0x0d3648bd...,
 --     the Uniswap-V2 signature, hence scoped to those two factory addresses),
 --     where pair = first data word.
+--   * Arc (FFactory 0x7841c014...): the same PairCreated signature, likewise scoped to that
+--     factory address, and to pairs whose tokenB is VIRTUAL.
 -- Combined this covers ~100% of the internal registry (52,979/52,981 Base, 4,905/4,905 RH;
 -- verified 2026-07) and is in fact more complete than the registry.
 --
@@ -51,6 +53,24 @@ WITH
         AND block_time >= timestamp '2024-10-01'
         AND block_time < from_unixtime({{endTimestamp}})
     ),
+    arc_pairs AS (
+        -- Arc got the current-generation stack only, all deployed 2026-09-14: FFactory
+        -- 0x7841c014 behind FRouterV3 0xB0CAe8fE, driven by Bonding 0xe026b7f0. Its FPair
+        -- bytecode is byte-identical to Base's, so the Swap layout below is the same.
+        -- PairCreated is the Uniswap-V2 signature, hence scoped to the FFactory: Arc's Uniswap
+        -- V2 factory (0x89e5db8b), where these agents graduate, emits the same topic0.
+        -- topic2 = tokenB pins the quote asset to VIRTUAL. The asset token is fixed per FRouter
+        -- generation, and on a USDC-native chain a non-VIRTUAL quote is plausible; such a pair
+        -- drops out here instead of having its quote leg priced as VIRTUAL. A later FFactory
+        -- generation has to be added here, as on Base.
+        SELECT DISTINCT varbinary_substring(data, 13, 20) as pair
+        FROM arc.logs
+        WHERE contract_address = 0x7841c01489be445dc038201f8d5d21b6052a955e
+        AND topic0 = 0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9
+        AND topic2 = 0x0000000000000000000000008c4252c87081c88c6ad57d6dd97e1cafebf842b7
+        AND block_time >= timestamp '2026-09-14'
+        AND block_time < from_unixtime({{endTimestamp}})
+    ),
     rh_pairs AS (
         SELECT DISTINCT varbinary_substring(topic2, 13, 20) as pair
         FROM robinhood.logs
@@ -81,6 +101,17 @@ WITH
         ), 0) as virtual_volume
         FROM robinhood.logs l
         JOIN rh_pairs p ON l.contract_address = p.pair
+        WHERE l.topic0 = 0x298c349c742327269dc8de6ad66687767310c948ea309df826f5bd103e19d207
+        AND l.block_time >= from_unixtime({{startTimestamp}})
+        AND l.block_time < from_unixtime({{endTimestamp}})
+    ),
+    arc_bonding AS (
+        SELECT COALESCE(SUM(
+            (cast(bytearray_to_uint256(bytearray_substring(l.data, 65, 32)) as double)
+             + cast(bytearray_to_uint256(bytearray_substring(l.data, 97, 32)) as double)) / 1e18
+        ), 0) as virtual_volume
+        FROM arc.logs l
+        JOIN arc_pairs p ON l.contract_address = p.pair
         WHERE l.topic0 = 0x298c349c742327269dc8de6ad66687767310c948ea309df826f5bd103e19d207
         AND l.block_time >= from_unixtime({{startTimestamp}})
         AND l.block_time < from_unixtime({{endTimestamp}})
@@ -173,6 +204,8 @@ WITH
 SELECT 'base' as chain, (SELECT virtual_volume FROM base_bonding) as virtual_volume
 UNION ALL
 SELECT 'robinhood' as chain, (SELECT virtual_volume FROM rh_bonding) as virtual_volume
+UNION ALL
+SELECT 'arc' as chain, (SELECT virtual_volume FROM arc_bonding) as virtual_volume
 UNION ALL
 SELECT 'solana' as chain,
        (SELECT virtual_volume FROM sol_prebond) + (SELECT virtual_volume FROM sol_bonding) as virtual_volume
