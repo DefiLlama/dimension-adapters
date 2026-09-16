@@ -189,12 +189,6 @@ export default [
     //     id: "bsv"
     // },
     {
-        name: "stellar",
-        chain: CHAIN.STELLAR,
-        getUsers: coinmetricsData("xlm"),
-        id: "stellar"
-    },
-    {
         name: "xrpl",
         chain: CHAIN.RIPPLE,
         getUsers: coinmetricsData("xrp"),
