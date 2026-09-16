@@ -191,17 +191,24 @@ function toOrderUid(value: any): string {
 }
 
 async function cowOrdersByUids(uids: string[]): Promise<any[]> {
+  let lastError: unknown;
   try {
     const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", uids);
     if (Array.isArray(rows)) return rows;
-  } catch {}
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
   try {
     const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", {
       uids,
     });
     if (Array.isArray(rows)) return rows;
-  } catch {}
-  return [];
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
+  throw lastError;
 }
 
 async function cowPartnersByUid(uids: string[]): Promise<Map<string, CowPartner>> {
