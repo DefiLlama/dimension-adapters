@@ -42,10 +42,11 @@ import { METRIC } from "../helpers/metrics";
 // So a split outside a hook transaction is booked as a distribution of its
 // own — the profit it captured is Fees, wthProtocolAmount is Revenue, and the
 // rest is the partner's, which pays the trader, the trigger pool and its own
-// treasury out of it. A split inside a hook transaction has not happened yet,
-// but What The Hook's own executor for the integration carries the event in
-// its code and would emit one; there the split is taken as the authority for
-// that transaction instead, so the total is read once rather than twice.
+// treasury out of it. A split that names a transaction and a currency the
+// hook also reported is the same money said twice, and is dropped: that
+// transaction is read from the hook's own events exactly as it always was.
+// Only the hook's own executor for the integration could emit such a split,
+// and it carries the ProtocolRevenue event the reading above already uses.
 //
 // The executor that changed the split was deployed at block 52850943. No rule
 // keys off that number: before it there are no ProtocolRevenue events and the
@@ -294,28 +295,24 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     put(referred, tx, low(log.args.token), big(log.args.amount));
   }
 
-  // 2b. the splits. A transaction the hook also distributed in is left to the
-  //     booking loop, which reads the split as the authority for that total;
-  //     every other one is an arbitrage of the integration's own and is booked
-  //     on its own terms in step 5. Thirty-nine of the 213 transactions so far
-  //     carry more than one split, so they accumulate rather than replace.
-  //     The emitter is checked on the log rather than passed as targets, for
-  //     the same reason as the events above: one request instead of four.
-  const splitTotals = ledger();
-  const splitRetained = ledger();
+  // 2b. the splits. A split that names a transaction and a currency the hook
+  //     also distributed in is the same money said twice: the hook's own
+  //     events are the authority there and steps 2 to 4 read them, so it is
+  //     dropped. The currency matters as much as the transaction — a hook
+  //     distribution in USDG says nothing about a split paid in ETH in the
+  //     same receipt, and dropping that one would lose it. Everything else is
+  //     an arbitrage of the integration's own, booked in step 5; thirty-nine
+  //     of the 213 transactions so far carry more than one split, so they
+  //     accumulate rather than replace.
   const ownSplits: { currency: string; total: bigint; kept: bigint }[] = [];
-  for (const log of await getLogs({ noTarget: true, eventAbi: arbitrageProfitSplitAbi, ...logOptions })) {
+  for (const log of await getLogs({ targets: SPLIT_EMITTERS, eventAbi: arbitrageProfitSplitAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
+    // the query already asks for these emitters; the log's own address is
+    // checked again because a filter asked of a node is not a proof
     if (!SPLIT_EMITTER_SET.has(low(log.address))) continue;
     const currency = low(log.args.profitCurrency);
-    const total = big(log.args.totalProfit);
-    const kept = big(log.args.wthProtocolAmount);
-    if (totals.has(tx)) {
-      put(splitTotals, tx, currency, total);
-      put(splitRetained, tx, currency, kept);
-      continue;
-    }
-    ownSplits.push({ currency, total, kept });
+    if (totals.get(tx)?.has(family(currency))) continue;
+    ownSplits.push({ currency, total: big(log.args.totalProfit), kept: big(log.args.wthProtocolAmount) });
   }
 
   // 3. what went to liquidity providers: the PoolManager's Donate events sent
@@ -369,19 +366,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const [key, total] of row) {
       const currency = bookedIn.get(tx)!.get(key)!;
       let left = total;
-      // a transaction whose split was stated outright: what it says the
-      // protocol kept is Revenue and the rest is the partner's to pay on. The
-      // legs an executor leaves in the same receipt are passed over, so
-      // nothing is counted twice and the two still sum to the hook's total.
-      if (take(splitTotals, tx, key) > 0n) {
-        const kept = min(left, take(splitRetained, tx, key));
-        left -= kept;
-        add(dailyFees, currency, total, LABEL.captured);
-        add(dailyRevenue, currency, kept, LABEL.toProtocol);
-        add(dailyProtocolRevenue, currency, kept, LABEL.toProtocol);
-        add(dailySupplySideRevenue, currency, left, LABEL.toPartners);
-        continue;
-      }
       const protocol = min(left, take(retained, tx, key) + take(toProtocolPools, tx, key));
       left -= protocol;
       const lps = min(left, take(toOtherPools, tx, key));
@@ -421,7 +405,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL.captured]: "Arbitrage profit captured by the hook when a swap moves one pool away from a connected pool, closed out in the same transaction.",
+    [LABEL.captured]: "Arbitrage profit captured by the hook when a swap moves one pool away from a connected pool, closed out in the same transaction, together with the profit an integrating partner's own arbitrage reports in its ArbitrageProfitSplit event.",
   },
   Revenue: {
     [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of an ArbitrageProfitSplit, plus profit donated into WTH's own pools.",
