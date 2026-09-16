@@ -35,6 +35,12 @@ const PROTOCOL_SHARE_DENOMINATOR = 1e4;
 const FEE_TOKEN_PAID = 0;
 const FEE_TOKEN_TOKEN0 = 1;
 
+// Wash-trade floor for cheap pools, per dexs/AGENTS.md: "Apply minimum TVL percentage rules for pools
+// with very low fee percentages (like 0.01%)". Lunya's lowest configured tier is the stable pool's
+// 0.05%, so a pool below that rate has been moved there by setFee and is held to a much higher floor.
+const LOW_FEE_RATE = 0.0005;
+const LOW_FEE_MIN_USD = 10_000;
+
 async function fetch(options: FetchOptions) {
   const { api, toApi, chain, createBalances } = options;
   // Queried straight through the sdk, as uniswap-v4 and zora-sofi do, so the window can be split:
@@ -50,26 +56,45 @@ async function fetch(options: FetchOptions) {
   const pairs: Record<string, string[]> = {};
   for (const log of poolLogs) pairs[String(log.pool).toLowerCase()] = [log.token0, log.token1];
 
+  // THE RATE IS READ AT THE END OF THE WINDOW. A dynamic-fee plugin has the pool write the rate into
+  // slot0 inside each swap and emit nothing, so no event carries the rate a given swap paid. Hourly
+  // windows keep that approximation tight; pools without a dynamic fee only change rate through setFee,
+  // and are read exactly. On Arc the plugin ships with the dynamic fee off — pluginConfig 94, which does
+  // not carry DYNAMIC_FEE (1 << 10) — so every pool there is read exactly today.
+  const discovered = Object.keys(pairs);
+  const slot0ByPool: Record<string, any> = {};
+  if (discovered.length) {
+    const slot0s = await toApi.multiCall({ abi: abiSlot0, calls: discovered });
+    discovered.forEach((pool, i) => { slot0ByPool[pool] = slot0s[i]; });
+  }
+
+  // A cheaper pool is cheaper to wash, so the fee rate decides which liquidity floor a pool must clear.
+  const lowFeePairs: Record<string, string[]> = {};
+  const normalPairs: Record<string, string[]> = {};
+  for (const pool of discovered) {
+    const rate = Number(slot0ByPool[pool].fee) / FEE_DENOMINATOR;
+    (rate < LOW_FEE_RATE ? lowFeePairs : normalPairs)[pool] = pairs[pool];
+  }
+
   // NO POOL CAP. filterPools keeps only the 42 most liquid pools by default, which suits a fork with a
   // handful of pairs. Every graduated launch opens its own pool, so the volume lives in a long tail of
   // young pools; the $200 liquidity floor still screens out empty and wash-traded ones. Same choice as
   // noxa-fun, bowdotfun and ponsdotfamily.
-  const filteredPools = await filterPools({ api, pairs, createBalances, maxPairSize: 1_000_000 });
-  const pools = Object.keys(filteredPools);
+  const [filteredNormal, filteredLowFee] = await Promise.all([
+    Object.keys(normalPairs).length ? filterPools({ api, pairs: normalPairs, createBalances, maxPairSize: 1_000_000 }) : {},
+    Object.keys(lowFeePairs).length ? filterPools({ api, pairs: lowFeePairs, createBalances, maxPairSize: 1_000_000, minUSDValue: LOW_FEE_MIN_USD }) : {},
+  ]);
+  const pools = [...Object.keys(filteredNormal), ...Object.keys(filteredLowFee)];
 
   if (pools.length) {
-    // THE RATE IS READ AT THE END OF THE WINDOW. A dynamic-fee plugin has the pool write the rate into
-    // slot0 inside each swap and emit nothing, so no event carries the rate a given swap paid. Hourly
-    // windows keep that approximation tight; pools without a dynamic fee only change rate through
-    // setFee, and are read exactly.
-    const slot0s = await toApi.multiCall({ abi: abiSlot0, calls: pools });
     const feeTokens = await toApi.multiCall({ abi: abiFeeToken, calls: pools });
     const swapLogs = await getEventLogs({ chain, targets: pools, eventAbi: eventSwap, fromBlock, toBlock, onlyArgs: true, flatten: false, maxBlockRange: MAX_BLOCK_RANGE });
 
     swapLogs.forEach((logs: any[], i: number) => {
       if (!logs.length) return;
       const [token0, token1] = pairs[pools[i]];
-      const feeRate = Number(slot0s[i].fee) / FEE_DENOMINATOR;
+      const slot0 = slot0ByPool[pools[i]];
+      const feeRate = Number(slot0.fee) / FEE_DENOMINATOR;
       const feeToken = Number(feeTokens[i]);
 
       for (const log of logs) {
@@ -82,7 +107,7 @@ async function fetch(options: FetchOptions) {
         const amount = Math.abs(Number(feeOnToken0 ? log.amount0 : log.amount1));
         // an input amount includes its fee; an output amount is what was left after it
         const fee = feeOnOutput ? (amount * feeRate) / (1 - feeRate) : amount * feeRate;
-        const protocolShare = Number(feeOnToken0 ? slot0s[i].feeProtocol0 : slot0s[i].feeProtocol1) / PROTOCOL_SHARE_DENOMINATOR;
+        const protocolShare = Number(feeOnToken0 ? slot0.feeProtocol0 : slot0.feeProtocol1) / PROTOCOL_SHARE_DENOMINATOR;
         const token = feeOnToken0 ? token0 : token1;
 
         dailyFees.add(token, fee, METRIC.SWAP_FEES);
@@ -115,8 +140,14 @@ const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Swap amount times the pool's fee rate, taken in the coin the pool's feeToken setting names.",
   },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Traders pay every swap fee, so this is the same figure as Fees.",
+  },
   Revenue: {
     [METRIC.SWAP_FEES]: "Swap fees times the pool's protocol share for the coin the fee was taken in (slot0.feeProtocol0 or feeProtocol1).",
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: "The protocol's share of swap fees, which is all of Revenue: nothing else accrues to the protocol.",
   },
   SupplySideRevenue: {
     [METRIC.SWAP_FEES]: "Swap fees not taken by the protocol, earned by liquidity providers.",

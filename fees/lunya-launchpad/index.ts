@@ -162,6 +162,12 @@ const breakdownMethodology = {
     [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
     [LABEL_REMAINDER]: "The whole remainder accrues to the protocol.",
   },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: "The protocol's share of each trading fee, curveFeeProtocolBps of it.",
+    [LABEL_SNIPE]: "The whole surcharge. The creator is exempt from it and receives none of it.",
+    [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
+    [LABEL_REMAINDER]: "The whole remainder accrues to the protocol.",
+  },
   SupplySideRevenue: {
     [METRIC.TRADING_FEES]: "The creator's share of each trading fee.",
     [LABEL_GRADUATION]: "The graduation reward, capped at the graduation fee, paid to whoever triggers the graduation.",
