@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 /**
@@ -35,11 +35,9 @@ const TON_LAUNCHPAD_ROUTER     = "0:fccfdaaeb90c7bb38c01c11df67d48492fe088854893
 const TON_REFERRAL_WALLET      = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
 const TON_CASHBACK_WALLET      = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
 
-const TON_LAUNCHPAD_SENDERS = new Set([
-  TON_LAUNCHPAD_ROUTER,
-  TON_LAUNCHPAD_CONTRACT_A,
-  TON_LAUNCHPAD_CONTRACT_B,
-]);
+const TON_LAUNCHPAD_SENDERS = new Set(
+  [TON_LAUNCHPAD_ROUTER, TON_LAUNCHPAD_CONTRACT_A, TON_LAUNCHPAD_CONTRACT_B].map((a) => a.toLowerCase())
+);
 
 const TON_PAYOUT_WALLETS = [TON_REFERRAL_WALLET, TON_CASHBACK_WALLET];
 const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
@@ -47,7 +45,10 @@ const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
 const TRADING_FEES = "Trading Fees";
 const LAUNCHPAD_FEES = "Launchpad Fees";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const PAGE = 1000;
+// Unauthenticated toncenter allows ~1 request/sec
+const TONCENTER_SLEEP_MS = 1500;
+
 const toBigInt = (v: any): bigint => {
   if (v === null || v === undefined) return 0n;
   if (typeof v === "string") return BigInt(v);
@@ -55,122 +56,79 @@ const toBigInt = (v: any): bigint => {
   return 0n;
 };
 
+const normAddr = (addr: string | undefined | null): string => (addr ?? "").toLowerCase();
+
+const pageToncenterTxs = async (account: string, start: number, end: number): Promise<any[]> => {
+  const all: any[] = [];
+  const seen = new Set<string>();
+
+  for (let offset = 0; ; offset += PAGE) {
+    const url =
+      `https://toncenter.com/api/v3/transactions?account=${account}` +
+      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`;
+
+    const data = await fetchURLAutoHandleRateLimit(url, 5);
+    if (!Array.isArray(data?.transactions)) {
+      throw new Error(`Expected a transactions array from toncenter for ${account}`);
+    }
+
+    const txs: any[] = data.transactions;
+    if (!txs.length) break;
+
+    for (const tx of txs) {
+      const now = tx.now ?? tx.utime;
+      const key = tx.hash ?? `${tx.lt}:${now}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (now < start || now >= end) continue;
+      all.push(tx);
+    }
+
+    if (txs.length < PAGE) break;
+    await sleep(TONCENTER_SLEEP_MS);
+  }
+
+  return all;
+};
+
 const scanTonWallet = async (
   wallet: string,
   start: number,
   end: number,
-  isLaunchpad: (sender: string | undefined) => boolean = () => false
+  isLaunchpad: (sender: string | undefined) => boolean
 ): Promise<{ tradingFees: bigint; launchpadFees: bigint }> => {
   let tradingFees = 0n;
   let launchpadFees = 0n;
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-  const seen = new Set<string>();
+  const walletNorm = normAddr(wallet);
 
-  while (true) {
-    const url =
-      `https://tonapi.io/v2/blockchain/accounts/${wallet}/transactions?limit=1000&sort_order=desc` +
-      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
 
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch TON transactions for ${wallet}: ${e}`);
-    }
+    const inMsg = tx.in_msg;
+    if (!inMsg || inMsg.bounced) continue;
+    if (normAddr(inMsg.destination) !== walletNorm) continue;
 
-    const txs: any[] = data.transactions;
-    if (!txs || !txs.length) break;
+    const value = toBigInt(inMsg.value);
+    if (value === 0n) continue;
 
-    let reachedBeforeStart = false;
-
-    for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      if (tx.utime < start) { reachedBeforeStart = true; break; }
-      if (tx.utime >= end) continue;
-      if (!tx.success) continue;
-
-      const inMsg = tx.in_msg;
-      if (!inMsg || inMsg.destination?.address !== wallet) continue;
-
-      const value = toBigInt(inMsg.value);
-      if (value === 0n) continue;
-
-      const sender: string | undefined = inMsg.source?.address;
-      if (isLaunchpad(sender)) {
-        launchpadFees += value;
-      } else {
-        tradingFees += value;
-      }
-    }
-
-    if (reachedBeforeStart) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-    await sleep(120);
+    const sender = inMsg.source ? String(inMsg.source) : undefined;
+    if (isLaunchpad(sender)) launchpadFees += value;
+    else tradingFees += value;
   }
 
   return { tradingFees, launchpadFees };
 };
 
-const scanTonPayouts = async (
-  wallet: string,
-  start: number,
-  end: number
-): Promise<bigint> => {
+const scanTonPayouts = async (wallet: string, start: number, end: number): Promise<bigint> => {
   let total = 0n;
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-  const seen = new Set<string>();
 
-  while (true) {
-    const url =
-      `https://tonapi.io/v2/blockchain/accounts/${wallet}/transactions?limit=1000&sort_order=desc` +
-      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
-
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch TON payout transactions for ${wallet}: ${e}`);
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
+    if (!tx.out_msgs) continue;
+    for (const msg of tx.out_msgs) {
+      if (msg.bounced) continue;
+      total += toBigInt(msg.value);
     }
-
-    const txs: any[] = data.transactions;
-    if (!txs || !txs.length) break;
-
-    let reachedBeforeStart = false;
-
-    for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      if (tx.utime < start) { reachedBeforeStart = true; break; }
-      if (tx.utime >= end) continue;
-      if (!tx.success) continue;
-
-      if (tx.out_msgs) {
-        for (const msg of tx.out_msgs) {
-          total += toBigInt(msg.value);
-        }
-      }
-    }
-
-    if (reachedBeforeStart) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-    await sleep(120);
   }
 
   return total;
@@ -183,17 +141,17 @@ const fetch = async (options: FetchOptions) => {
   let tradingFees = 0n;
   let launchpadFees = 0n;
   for (const w of TON_FEE_WALLETS) {
-    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(s ?? ""));
+    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(normAddr(s)));
     tradingFees += r.tradingFees;
     launchpadFees += r.launchpadFees;
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
   const totalFees = tradingFees + launchpadFees;
 
   let totalUserPayouts = 0n;
   for (const w of TON_PAYOUT_WALLETS) {
     totalUserPayouts += await scanTonPayouts(w, start, end);
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
 
   const dailyFees = options.createBalances();
@@ -259,7 +217,7 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
