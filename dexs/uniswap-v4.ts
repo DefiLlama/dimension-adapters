@@ -204,6 +204,12 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     start: '2026-01-01',
   },
+  [CHAIN.ARC]: {
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
+    positionManager: '0x6049c9a0e26405c0985f9e3685c87d0ae917f82b',
+    source: 'LOGS',
+    start: '2026-05-28',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -289,6 +295,7 @@ const DUNE_CHAIN: Record<string, string> = {
   [CHAIN.MONAD]: 'monad',
   [CHAIN.TEMPO]: 'tempo',
   [CHAIN.ROBINHOOD]: 'robinhood',
+  [CHAIN.ARC]: 'arc',
 };
 
 // Counts come from raw Swap events because dex.trades misses ~7% of pool-days
