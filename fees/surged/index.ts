@@ -1,10 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Deployed addresses: https://api.surged.fun/config and https://explorer.arc.io/address/0x2667997e44F01933Db7F612FB8a53aC3Ad0bba7e
 const FACTORY = "0x2667997e44F01933Db7F612FB8a53aC3Ad0bba7e"
 const V3_FEE_COLLECTOR = "0x328fdD261570c03Acbcb25E21fcAcF082BCcDaf4"
+const FEE_ESCROW = "0x0D6f029e9Ec8563D09C67c86d92E1F9E4694C21B"
 const FACTORY_DEPLOYED_BLOCK = 21164125
 const BPS = 10000n
 
@@ -13,6 +15,8 @@ const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address
 const CURVE_BOUGHT_EVENT = "event CurveBought(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 creatorTax, uint256 snipeTax)"
 // quoteOut is what the seller received, after fee and creator tax
 const CURVE_SOLD_EVENT = "event CurveSold(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 creatorTax)"
+// The factory pays the launch fee into the escrow right after TokenLaunched, in the same call; asset 0x0 is native USDC
+const CREDITED_EVENT = "event Credited(address indexed recipient, address indexed asset, uint256 amount)"
 // Graduated Uniswap v3 positions are locked; their LP fees are collected and split by this event
 const POOL_FEES_SWEPT_EVENT = "event PoolFeesSwept(bytes32 indexed poolId, address currency, uint256 protocolAmount, uint256 creatorAmount)"
 
@@ -31,11 +35,27 @@ async function fetch(options: FetchOptions) {
   const launchesInPeriod = await options.getLogs({ target: FACTORY, eventAbi: TOKEN_LAUNCHED_EVENT, entireLog: true })
 
   // Every launch pays the factory's launch fee in native USDC, credited in full to the protocol fee recipient.
-  // The owner can change it (setLaunchFee), so it is read at each launch's block rather than once.
-  for (const log of launchesInPeriod) {
-    const launchFee = await options.api.call({ target: FACTORY, abi: "uint256:launchFee", block: Number(log.blockNumber) })
-    dailyFees.addGasToken(launchFee, "Launch Fees")
-    dailyRevenue.addGasToken(launchFee, "Launch Fees to Protocol")
+  // The fee can change (setLaunchFee), so the amount is taken from the escrow credit the launch itself made:
+  // LaunchFactory emits TokenLaunched and then calls escrow.credit, so it is the first Credited after it in the
+  // same transaction. Not the very next log: Arc emits a native USDC Transfer log for the value in between.
+  if (launchesInPeriod.length) {
+    const credits = await options.getLogs({ target: FEE_ESCROW, eventAbi: CREDITED_EVENT, entireLog: true, parseLog: true })
+    const creditsByTx = new Map<string, any[]>()
+    for (const credit of credits) {
+      const tx = credit.transactionHash.toLowerCase()
+      if (!creditsByTx.has(tx)) creditsByTx.set(tx, [])
+      creditsByTx.get(tx)!.push(credit)
+    }
+    for (const log of launchesInPeriod) {
+      const launchIndex = Number(log.logIndex)
+      const credit = (creditsByTx.get(log.transactionHash.toLowerCase()) ?? [])
+        .filter((c: any) => Number(c.logIndex) > launchIndex)
+        .sort((a: any, b: any) => Number(a.logIndex) - Number(b.logIndex))[0]
+      // A launch with a zero launch fee makes no credit
+      if (!credit || credit.args.asset.toLowerCase() !== ADDRESSES.null) continue
+      dailyFees.addGasToken(credit.args.amount, "Launch Fees")
+      dailyRevenue.addGasToken(credit.args.amount, "Launch Fees to Protocol")
+    }
   }
 
   const curves: string[] = launches.map((l: any) => l.curve.toLowerCase())
