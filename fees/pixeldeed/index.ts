@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 /*
@@ -48,7 +48,7 @@ const SOLD_EVENT =
 const RENTED_EVENT =
   "event Rented(uint256 indexed tokenId, address indexed renter, uint32 numDays, uint64 expiresAt, uint256 paidWei, uint256 platformFeeAmount)";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();             // total: treasury fees + creator royalty
   const dailyProtocolFees = options.createBalances();      // treasury-only cut -> Revenue / ProtocolRevenue
@@ -96,29 +96,35 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: START_BLOCK,
-      pullHourly: true,
-      meta: {
-        methodology: {
-          Fees: "5.5% platform fee on marketplace resales (Sold event) + 2.5% platform fee on rental payments (Rented event) + the 2.5% creator royalty on resales, which is passed through to the original creator rather than kept by the protocol.",
-          Revenue: "Only the treasury-bound platform fees (resale + rental) — excludes the creator royalty.",
-          SupplySideRevenue: "The 2.5% creator royalty on resales, paid to the original creator (royaltyReceiver), not the protocol treasury.",
-        },
-        breakdownMethodology: {
-          Fees: {
-            [METRIC_RESALE_FEES]: "5.5% platform fee taken on every secondary marketplace sale.",
-            [METRIC_RENTAL_FEES]: "2.5% platform fee taken on every rental payment.",
-            [METRIC_CREATOR_ROYALTY]: "2.5% ERC-2981 creator royalty on every secondary sale, paid to the original creator.",
-          },
-        },
-      },
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ROBINHOOD],
+  start: '2026-09-15',
+  methodology: {
+    Volume: "Gross marketplace trade value: secondary sale prices plus rental payments.",
+    Fees: "5.5% platform fee on marketplace resales + 2.5% platform fee on rental payments + the 2.5% creator royalty on resales, which is passed through to the original creator rather than kept by the protocol.",
+    Revenue: "Only the treasury-bound platform fees (resale + rental). Excludes the creator royalty.",
+    ProtocolRevenue: "All treasury-bound platform fees (5.5% on resales and 2.5% on rentals). There is no token-holder split.",
+    SupplySideRevenue: "The 2.5% creator royalty on resales, paid to the original creator, not the protocol treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC_RESALE_FEES]: "5.5% platform fee taken on every secondary marketplace sale.",
+      [METRIC_RENTAL_FEES]: "2.5% platform fee taken on every rental payment.",
+      [METRIC_CREATOR_ROYALTY]: "2.5% ERC-2981 creator royalty on every secondary sale, paid to the original creator.",
+    },
+    Revenue: {
+      [METRIC_RESALE_FEES]: "5.5% platform fee on secondary sales, sent to the treasury.",
+      [METRIC_RENTAL_FEES]: "2.5% platform fee on rental payments, sent to the treasury.",
+    },
+    ProtocolRevenue: {
+      [METRIC_RESALE_FEES]: "5.5% platform fee on secondary sales, sent to the treasury.",
+      [METRIC_RENTAL_FEES]: "2.5% platform fee on rental payments, sent to the treasury.",
+    },
+    SupplySideRevenue: {
+      [METRIC_CREATOR_ROYALTY]: "2.5% ERC-2981 creator royalty on every secondary sale, paid to the original creator.",
     },
   },
 };
 
 export default adapter;
-
-
