@@ -28,14 +28,14 @@ async function fetch(options: FetchOptions) {
     fromBlock: FACTORY_DEPLOYED_BLOCK,
     cacheInCloud: true,
   })
-  const launchesInPeriod = await options.getLogs({ target: FACTORY, eventAbi: TOKEN_LAUNCHED_EVENT })
+  const launchesInPeriod = await options.getLogs({ target: FACTORY, eventAbi: TOKEN_LAUNCHED_EVENT, entireLog: true })
 
-  // Every launch pays the factory's launch fee in native USDC, credited in full to the protocol fee recipient
-  if (launchesInPeriod.length) {
-    const launchFee = await options.toApi.call({ target: FACTORY, abi: "uint256:launchFee" })
-    const launchFees = BigInt(launchFee) * BigInt(launchesInPeriod.length)
-    dailyFees.addGasToken(launchFees, "Launch Fees")
-    dailyRevenue.addGasToken(launchFees, "Launch Fees to Protocol")
+  // Every launch pays the factory's launch fee in native USDC, credited in full to the protocol fee recipient.
+  // The owner can change it (setLaunchFee), so it is read at each launch's block rather than once.
+  for (const log of launchesInPeriod) {
+    const launchFee = await options.api.call({ target: FACTORY, abi: "uint256:launchFee", block: Number(log.blockNumber) })
+    dailyFees.addGasToken(launchFee, "Launch Fees")
+    dailyRevenue.addGasToken(launchFee, "Launch Fees to Protocol")
   }
 
   const curves: string[] = launches.map((l: any) => l.curve.toLowerCase())
