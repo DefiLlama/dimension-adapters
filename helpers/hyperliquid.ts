@@ -763,17 +763,35 @@ export const exportBuilderAdapter = (
           const dailyRevenue = options.createBalances();
           const dailyProtocolRevenue = options.createBalances();
 
+          // A builder listed under several addresses has one code per period,
+          // so every day is a day where the others were idle: HL publishes no
+          // builder_fills file for them and answers 403. On the file path that
+          // is not an error for the DAY, as long as one address answered, so a
+          // failure is only fatal when they all fail. A single-address builder
+          // keeps failing on its own error, unchanged.
+          let answered = 0;
+          let firstError: unknown;
+
           for (const address of builderAddresses) {
-            const result = await fetchBuilderCodeRevenue({
-              options,
-              builder_address: address,
-              market,
-            });
+            let result;
+            try {
+              result = await fetchBuilderCodeRevenue({
+                options,
+                builder_address: address,
+                market,
+              });
+            } catch (e) {
+              firstError = firstError ?? e;
+              continue;
+            }
+            answered++;
             dailyVolume.addBalances(result.dailyVolume);
             dailyFees.addBalances(result.dailyFees, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
             dailyRevenue.addBalances(result.dailyRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
             dailyProtocolRevenue.addBalances(result.dailyProtocolRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
           }
+
+          if (!answered && firstError) throw firstError;
 
           return {
             dailyVolume,
