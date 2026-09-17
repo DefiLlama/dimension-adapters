@@ -100,8 +100,13 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
   },
   "hypersight": {
-    addresses: ["0xc9200c6d0e876d5f63c76618f2c57e5d6a080927"],
-    start: "2026-07-01",
+    // The builder code moved to a dedicated wallet on 2026-06-30: the first
+    // address carried it from 2026-06-01, the second from 2026-07-01.
+    addresses: [
+      "0x9bdf1a9a2e8b5353d19b2e4978e32d9873da1552", // until 2026-06-30
+      "0xc9200c6d0e876d5f63c76618f2c57e5d6a080927", // since 2026-07-01
+    ],
+    start: "2026-06-01",
     methodology: {
       Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Liquary (formerly Hypersight).",
       Fees: "Builder code fees paid by users on trades executed through Liquary (0.05% on perps and on HIP-4 prediction-market closes).",

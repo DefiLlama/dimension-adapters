@@ -127,6 +127,21 @@ export const fetchBuilderCodeRevenue = async ({
     });
   } catch (error: any) {
     if (error.response?.status === 403) {
+      // HL publishes no file for a day on which a builder had no fills, and
+      // answers 403 for it, the same status as "not written yet". Tell them
+      // apart by age: a day closed more than 48h ago that still has no file is
+      // an empty day. Without this, a builder listed under several addresses
+      // (one per period) fails every day, since one of them is always idle.
+      // A more recent 403 still throws, so the day is retried later.
+      const closedForSeconds = Math.floor(Date.now() / 1000) - (startTimestamp + 86400);
+      if (closedForSeconds > 2 * 86400) {
+        return {
+          dailyVolume,
+          dailyFees,
+          dailyRevenue: dailyFees,
+          dailyProtocolRevenue: dailyFees,
+        };
+      }
       throw new Error(
         `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
       );
