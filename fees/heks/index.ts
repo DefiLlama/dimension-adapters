@@ -98,6 +98,12 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "1% of each swap, charged in the pool's pair asset. For the first ten seconds after a launch the rate decays linearly from 80% to 1%, which prices out snipers of the opening block.",
     [LAUNCH_FEES]: "Flat fee in native ETH paid by the creator when a coin is launched.",
   },
+  // dailyUserFees aliases dailyFees: both fees here are paid by users, the swap fee by traders and
+  // the launch fee by the creator, so the breakdown is the same two labels.
+  UserFees: {
+    [METRIC.SWAP_FEES]: "1% of each swap, paid by the trader in the pool's pair asset.",
+    [LAUNCH_FEES]: "Flat fee in native ETH paid by the creator when a coin is launched.",
+  },
   Revenue: {
     [SWAP_FEES_TO_PROTOCOL]: "The protocol's 30% share of each swap fee.",
     [LAUNCH_FEES_TO_PROTOCOL]: "Flat launch fee, kept in full by the protocol.",
