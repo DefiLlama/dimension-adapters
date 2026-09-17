@@ -3,12 +3,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Sashimi (sashimi.fun) - USDC-native bonding-curve launchpad on Arc. Docs: sashimi.fun/docs.
-// See dexs/sashimi for the volume side and the trade-event field verification notes.
-// Sashimi's contracts are not verified/source-published anywhere reachable, so events
-// here are matched by their raw topic0 hash and decoded manually (ethers requires the
-// exact real event name to derive a topic filter from an `eventAbi` string - the name
-// isn't recoverable from the hash, only the field layout is, from raw log data).
+// Sashimi (sashimi.fun) - USDC-native bonding-curve launchpad on Arc. See dexs/sashimi
+// for the volume side and trade-event verification notes. Contracts are unverified, so
+// events are matched by raw topic0 hash and decoded manually, not via eventAbi.
 const CURVE_ENGINE = "0x5b7bf9bd9c35a845ec1d469ed58616e7076a6f5c";
 const FACTORY = "0x0d85ac76baaed7a46cb5133b57bce7d8f9a44d58";
 const USDC = ADDRESSES.arc.USDC;

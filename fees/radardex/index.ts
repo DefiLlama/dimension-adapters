@@ -4,27 +4,18 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 // RadarDEX (radardex.pro) - direct-to-Uniswap-V3 launchpad on Arc, no bonding curve.
-// Docs: radardex.pro/docs. Two independent launch mechanisms sharing the "RadarDEX"
-// brand; only the Reflection mechanism is tracked here (see note below).
+// Two independent launch mechanisms share the brand; only Reflection is tracked here
+// (see note below). 1% trading fee, always in USDC, split 50/50 holders/deployer -
+// RadarDEX itself keeps none of it, confirmed by every real distribution on-chain.
 //
-// Reflection Launch: 1% trading fee, paid entirely in USDC regardless of the pool's
-// quote asset, split 50% to the launched token's holders (pro-rata by balance) and
-// 50% to the deployer. RadarDEX itself keeps none of it (confirmed both by the docs
-// and by every real distribution observed on-chain).
-//
-// RadarDEX's contracts are not verified/source-published anywhere reachable, so this
-// event is matched by its raw topic0 hash and decoded manually - an `eventAbi` string
-// needs the exact real event name to derive a matching topic filter, and the name
-// isn't recoverable from the hash, only the field layout is, from raw log data.
+// Contracts are unverified, so this event is matched by its raw topic0 hash and
+// decoded manually.
 const REFLECTION_LOCKER = "0x8Ce980d8357E404bfd86456c464Dd046E7c517F8";
 const USDC = ADDRESSES.arc.USDC;
 
-// Verified against 66 real on-chain events: the two amount fields are always equal or
-// off by one wei (an odd total splitting 50/50 leaves a 1-wei remainder on one side),
-// confirming this is the documented holder/deployer split rather than two unrelated
-// numbers. The third field is a large accumulator consistent with the standard
-// "magnified dividend per share" pattern RadarDEX's docs describe
-// (withdrawableDividendOf/claim), not independently confirmed.
+// Verified against 66 real events: the two amounts are always equal or off by one wei
+// (an odd total splitting 50/50 leaves a 1-wei remainder), confirming the documented
+// holder/deployer split. Third field is an unused dividend accumulator.
 const FEES_DISTRIBUTED_TOPIC = "0xcb71511b442d8b7bee0ad3e6900d0676a1f626abeb5c4ee82329713f8f504727";
 const abiCoder = AbiCoder.defaultAbiCoder();
 const DISTRIBUTED_DATA_TYPES = ["uint256", "uint256", "uint256"];
