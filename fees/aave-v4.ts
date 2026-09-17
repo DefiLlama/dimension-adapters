@@ -11,6 +11,9 @@ const HUBS: Record<string, string[]> = {
   [CHAIN.AVAX]: [
     '0xd07369fAE4A5BB13c9Ce446B052c7867B1AbDf6e', // Core
   ],
+  [CHAIN.ARC]: [
+    '0x17288dfc86205301064577b98B02b81017e6F79C', // Core
+  ],
 }
 
 const abis = {
@@ -223,6 +226,7 @@ const breakdownMethodology = {
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: '2026-03-30' },
   [CHAIN.AVAX]: { start: '2026-07-07' },
+  [CHAIN.ARC]: { start: '2026-05-28' },
 }
 
 const adapter: SimpleAdapter = {

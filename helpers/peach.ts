@@ -95,7 +95,7 @@ function validatePricingCoverage(row: Pick<Amounts, 'usd_complete' | 'unpriced_r
 // Validate decimal strings exactly before converting USD to the SDK's numeric format.
 // addUSDValue treats strings as integer balances. Raw token amounts stay as strings
 // and are never repriced by the SDK; absent USD fields remain an error.
-function validateUSD(row: Record<string, any>) {
+function validateUSD(row: Pick<Amounts, (typeof usdKeys)[number]>) {
   for (const field of usdKeys) {
     const value = row[field];
     if (typeof value !== 'string' || !/^\d+(\.\d+)?$/.test(value) || !Number.isFinite(Number(value))

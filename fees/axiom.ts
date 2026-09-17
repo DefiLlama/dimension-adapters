@@ -45,12 +45,36 @@ const chainConfig = {
     ],
   },
   [CHAIN.BSC]: {
-    start: '2026-01-25',
+    start: '2025-12-25',
+    // Ordered by first fee paid. Axiom rotates trade contracts, and old ones keep trading for a
+    // while after a new one is live.
     tradeContracts: [
+      '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
       '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
       '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+      '0x9689992f5b5C09447f15906d8d11214944488341', // new trade contract
     ],
     feeReceiver: '0xdec29d79e8cdf009d2fa33e0558cb5648481cac3',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-10',
+    // Axiom rotates trade contracts often; every one so far pays its native ETH fee into the same
+    // fee distributor below. Ordered by first fee paid.
+    tradeContracts: [
+      '0xcda14e87628317e4f90077750fbe9634b896a24f', // 2026-07-10
+      '0x76a0e120631735845769e3de2606924af7716150', // 2026-07-10
+      '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc', // 2026-07-11
+      '0x105358a03c47706ad4697e227d5a8ddfacf85448', // 2026-07-12
+      '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38', // 2026-07-13
+      '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f', // 2026-07-14
+      '0x578980d6cac7ab262c40dfca650b1d2d259c1cca', // 2026-07-16
+      '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60', // 2026-07-17
+      '0x9689992f5b5c09447f15906d8d11214944488341', // 2026-09-06
+    ],
+    feeReceiver: '0x6fb4460e4bebf662fcd9bfa5ce6d6231732bb86c',
+    // Axiom's cross-chain revenue consolidation EOA, the same address as the BSC excluded
+    // receiver. Everything else flowing out of the distributor is user cashback/referral.
     supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
   },
 } as const;
@@ -171,6 +195,11 @@ async function fetchSolana(options: FetchOptions) {
 }
 
 
+// EVM chains: the trade contracts take the full 1% fee at swap time and pay it into a fee
+// distributor, which splits it itself. Sweeps to the consolidation EOA are the protocol's net cut,
+// every other outflow is cashback/referral. Trade fees are the distributor's only inflow, so those
+// payouts are funded from the fees already counted: Fees is the inflow alone and Revenue is inflow
+// minus payouts. Adding the payouts on top would double count them.
 async function fetchBsc(options: FetchOptions) {
   const bscConfig = chainConfig[CHAIN.BSC];
   const dailyFees = options.createBalances();
@@ -204,9 +233,56 @@ async function fetchBsc(options: FetchOptions) {
   `);
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
-  dailyFees.addGasToken(supply_side_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+}
+
+// Same model as fetchBsc, see the comment there.
+async function fetchRobinhood(options: FetchOptions) {
+  const robinhoodConfig = chainConfig[CHAIN.ROBINHOOD];
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const tradeContracts = robinhoodConfig.tradeContracts.join(',');
+
+  // Native transfers in tokens.transfers include internal calls, which is how the trade
+  // contracts pay the distributor.
+  const [{ fees_amount, supply_side_amount }] = await queryDuneSql(options, `
+    SELECT
+      COALESCE(SUM(CASE
+        WHEN "from" in (${tradeContracts})
+         AND "to" = ${robinhoodConfig.feeReceiver}
+        THEN amount_raw
+        ELSE 0
+      END), 0) AS fees_amount,
+      COALESCE(SUM(CASE
+        WHEN "from" = ${robinhoodConfig.feeReceiver}
+         AND "to" <> ${robinhoodConfig.supplySideExcludedReceiver}
+        THEN amount_raw
+        ELSE 0
+      END), 0) AS supply_side_amount
+    FROM tokens.transfers
+    WHERE TIME_RANGE
+      AND blockchain = 'robinhood'
+      AND contract_address = 0x0000000000000000000000000000000000000000
+      AND (
+        ("from" in (${tradeContracts}) AND "to" = ${robinhoodConfig.feeReceiver})
+        OR
+        ("from" = ${robinhoodConfig.feeReceiver} AND "to" <> ${robinhoodConfig.supplySideExcludedReceiver})
+      )
+  `);
+
+  dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
+  dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
@@ -218,6 +294,7 @@ async function fetchBsc(options: FetchOptions) {
 
 const fetch: any = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
+  if (options.chain === CHAIN.ROBINHOOD) return fetchRobinhood(options);
   return fetchBsc(options);
 }
 
@@ -228,10 +305,10 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, //claims may happen at later date
   fetch,
   methodology: {
-    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral and cashback payouts users later claim back.",
+    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral and cashback payouts users later claim back. On Robinhood Chain it is the native ETH the trade contracts pay into Axiom's fee distributor.",
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
-    SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+    SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB and ETH cashback/referral payouts sent out from the BNB Chain and Robinhood Chain fee receivers.',
   },
   breakdownMethodology: {
     Fees: {
@@ -245,7 +322,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [LABELS.REFERRAL_PAYOUTS]: 'Claimed SOL referral payouts sent to users from Axiom referral vaults.',
-      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native BNB and ETH cashback/referral payouts sent out from the BNB Chain and Robinhood Chain fee receivers.',
     },
   },
   adapter: chainConfig,

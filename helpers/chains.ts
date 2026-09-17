@@ -14,7 +14,6 @@ export enum CHAIN {
   TARA = "tara",
   PROTON = "proton",
   ARBITRUM = "arbitrum",
-  ARC = "arc",
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
   BLAST = "blast",
@@ -405,4 +404,5 @@ export enum CHAIN {
   BOT_CHAIN = "bot",
   NATIVE_CORE = "native_core",
   STRATO = "strato",
+  ARC = "arc",
 }

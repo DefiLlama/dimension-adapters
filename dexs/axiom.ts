@@ -26,9 +26,32 @@ const feeWallets = [
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
 
-const bscOldTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
-const bscNewTradeContract = '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d';
-const BSC_CONTRACT_SWITCH_DATE = '2026-06-29';
+// Axiom rotates trade contracts and old ones keep trading for a while after a new one is live, so
+// match on all of them rather than switching by date. Same lists as fees/axiom.ts.
+const bscTradeContracts = [
+  '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
+  '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+  '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+  '0x9689992f5b5C09447f15906d8d11214944488341', // new trade contract
+];
+
+const robinhoodTradeContracts = [
+  '0xcda14e87628317e4f90077750fbe9634b896a24f',
+  '0x76a0e120631735845769e3de2606924af7716150',
+  '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc',
+  '0x105358a03c47706ad4697e227d5a8ddfacf85448',
+  '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38',
+  '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f',
+  '0x578980d6cac7ab262c40dfca650b1d2d259c1cca',
+  '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60',
+  '0x9689992f5b5c09447f15906d8d11214944488341',
+];
+
+const duneChain: Record<string, string> = {
+  [CHAIN.SOLANA]: 'solana',
+  [CHAIN.BSC]: 'bnb',
+  [CHAIN.ROBINHOOD]: 'robinhood',
+};
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
@@ -43,7 +66,6 @@ const assertIndexed = (options: FetchOptions) => {
 const prefetch = async (options: FetchOptions) => {
   assertIndexed(options);
   const formattedFeeWallets = formatAddresses(feeWallets);
-  const bscTradeContract = options.dateString >= BSC_CONTRACT_SWITCH_DATE ? bscNewTradeContract : bscOldTradeContract;
 
   return queryDuneSql(options, `
     WITH axiom_txs AS (
@@ -80,14 +102,20 @@ const prefetch = async (options: FetchOptions) => {
     FROM dex.trades
     WHERE blockchain = 'bnb'
       AND TIME_RANGE
-      AND tx_to = ${bscTradeContract}
+      AND tx_to IN (${bscTradeContracts.join(', ')})
+    UNION ALL
+    SELECT 'robinhood' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
+    FROM dex.trades
+    WHERE blockchain = 'robinhood'
+      AND TIME_RANGE
+      AND tx_to IN (${robinhoodTradeContracts.join(', ')})
   `);
 };
 
 const fetch: any = async (options: FetchOptions) => {
   assertIndexed(options);
 
-  const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
+  const target = duneChain[options.chain];
   const row = options.preFetchedResults.find((r: any) => r.chain === target);
   if (!row) throw new Error(`Axiom: no prefetched Dune result for ${target}`);
 
@@ -104,7 +132,8 @@ const adapter: SimpleAdapter = {
   },
   adapter: {
     [CHAIN.SOLANA]: { start: '2025-01-21' },
-    [CHAIN.BSC]: { start: '2026-01-25' },
+    [CHAIN.BSC]: { start: '2025-12-25' },
+    [CHAIN.ROBINHOOD]: { start: '2026-07-10' },
   },
   isExpensiveAdapter: true,
   doublecounted: true,

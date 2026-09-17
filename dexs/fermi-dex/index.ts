@@ -31,6 +31,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Perpetual volume is served by Fermi's monitoring API, which aggregates on-chain perp fills from the SOL-PERP, ETH-PERP, and BTC-PERP markets.",
   },
+  deadFrom: '2026-08-14', //phase 1 ended
 };
 
 export default adapter;

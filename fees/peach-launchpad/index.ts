@@ -7,6 +7,10 @@ export const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   for (const row of await getPeachAmounts(options, 'launchpad')) {
+    // buyback_usd is the trading-fee budget allocated to launched tokens,
+    // not a card redemption or refund of the user's fee. It remains in gross
+    // fees and is allocated to supply-side revenue when the fee accrues.
+    // Later buyback_releases are excluded to avoid counting the fee twice.
     dailyFees.addUSDValue(Number(row.fees_usd), row.source === 'bonding' ? 'Bonding trading fees' : 'Graduated pool allocations', { id: 'peach-launchpad' });
     dailyRevenue.addUSDValue(Number(row.revenue_usd), 'Platform allocations', { id: 'peach-launchpad' });
     dailySupplySideRevenue.addUSDValue(Number(row.creator_usd), 'Creator allocations', { id: 'peach-launchpad' });
@@ -40,7 +44,7 @@ const adapter: SimpleAdapter = {
       'Creator allocations': 'Creator amount including creator tax and any routing to a launched-token holder distributor.',
       'Partner allocations': 'Partner amount from each allocation event.',
       'Referral allocations': 'Referrer amount from each allocation event.',
-      'Launched-token buyback budgets': 'Budget allocated to launched-token buybacks; not launchpad governance-token holders revenue. Subsequent releases must not be counted a second time as fees.',
+      'Launched-token buyback budgets': 'Share of collected trading fees allocated to launched-token buybacks at accrual; included in gross fees and supply-side revenue. Subsequent releases are excluded. These launched tokens are not the launchpad governance token.',
     },
   },
 };
