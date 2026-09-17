@@ -26,8 +26,6 @@ export const SuiLendMetrics = {
   SteammSwapFees: 'STEAMM Swap Fees',
   SteammSwapFeesToLPs: 'STEAMM Swap Fees To LPs',
   SteammSwapFeesToProtocol: 'STEAMM Swap Fees To Protocol',
-
-  TokenBuyBack: 'Token Buy Back',
 }
 
 interface DailyStats {
@@ -44,7 +42,6 @@ const methodology = {
   Revenue: 'The portion of the total fees going to the Suilend treasury',
   ProtocolRevenue: 'The portion of the total fees going to the Suilend treasury',
   SupplySideRevenue: "The portion of interest earned by lenders, liquidator bonuses and staking rewards",
-  HoldersRevenue: "The portion of treasury are used to buy back SEND",
 }
 
 const breakdownMethodology = {
@@ -66,21 +63,26 @@ const breakdownMethodology = {
     [SuiLendMetrics.LiquidationFeesToLiquidators]: 'Liquidation fees and bonus were paid to liquidators',
     [SuiLendMetrics.StrategiesStakingRewardsToStakers]: 'Suilend strategies staking rewards to stakers/depositors',
   },
-  HoldersRevenue: {
-    [SuiLendMetrics.TokenBuyBack]: 'The portion of treasury are used to buy back SEND',
-  },
 }
 
-const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances, startOfDay }: FetchOptions) => {
+const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances }: FetchOptions) => {
   const url = `${suilendFeesURL}?endTimestamp=${endTimestamp}&startTimestamp=${startTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
+
+  // `protocolFees` is the spread fee the protocol keeps out of the interest
+  // borrowers pay, so it is already inside `borrowInterestPaid` rather than
+  // charged on top of it. On-chain the reserve emits the two from one figure:
+  // `borrow_interest_paid: net_new_debt` and `spread_fee`, with the lenders'
+  // share as `supply_interest_earned: net_new_debt - spread_fee`. Adding it to
+  // total fees counts it twice, and paying lenders the full
+  // `borrowInterestPaid` credits them the protocol's cut.
+  const lenderInterest = stats.borrowInterestPaid - stats.protocolFees;
 
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
-  const dailyHoldersRevenue = createBalances()
 
-  dailyFees.addUSDValue(stats.borrowInterestPaid + stats.borrowFees + stats.protocolFees, SuiLendMetrics.BorrowInterest)
+  dailyFees.addUSDValue(stats.borrowInterestPaid + stats.borrowFees, SuiLendMetrics.BorrowInterest)
   dailyFees.addUSDValue(stats.liquidationProtocolFees + stats.liquidatorBonuses, SuiLendMetrics.LiquidationFees)
   dailyFees.addUSDValue(stats.stakingRevenue, SuiLendMetrics.StrategiesStakingRewards)
 
@@ -88,21 +90,14 @@ const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances,
   dailyRevenue.addUSDValue(stats.liquidationProtocolFees, SuiLendMetrics.LiquidationFeesToTreasury)
 
   dailySupplySideRevenue.addUSDValue(stats.stakingRevenue, SuiLendMetrics.StrategiesStakingRewardsToStakers)
-  dailySupplySideRevenue.addUSDValue(stats.borrowInterestPaid, SuiLendMetrics.BorrowInterestToLenders)
+  dailySupplySideRevenue.addUSDValue(lenderInterest, SuiLendMetrics.BorrowInterestToLenders)
   dailySupplySideRevenue.addUSDValue(stats.liquidatorBonuses, SuiLendMetrics.LiquidationFeesToLiquidators)
 
-  const buyBackData = await fetchURL(`${SUILEND_API_ENDPOINT}/send/charts/send?period=all`);
-  const buyBackDataItem = buyBackData.find((d: any) => d.timestamp === startOfDay);
-  if (buyBackDataItem) {
-    dailyHoldersRevenue.addUSDValue(Number(buyBackDataItem.usdValue), SuiLendMetrics.TokenBuyBack);
-  }
-  
   return {
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue,
   };
 };
 

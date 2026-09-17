@@ -3,62 +3,30 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { SUILEND_API_ENDPOINT, SuiLendMetrics } from "../suilend";
 
-const suilendPoolsURL = () => SUILEND_API_ENDPOINT + '/steamm/pools/all';
-const suilendPoolHistoricalURL = (
-  poolId: string,
-  fromTimestamp: number,
-  toTimestamp: number
-) =>
-  `${SUILEND_API_ENDPOINT}/steamm/historical/fees?startTimestampS=${fromTimestamp}&endTimestampS=${toTimestamp}&intervalS=${60*60*24}&poolId=${poolId}`;
+const suilendDailyFeesURL = (dayTimestamp: number) =>
+  `${SUILEND_API_ENDPOINT}/steamm/daily/fees?ts=${dayTimestamp}`;
 
-interface PoolInfo {
-  id: string;
-  feesUsdValue: number;
-  protocolFeeRate: number;
+interface DailyFees {
+  protocolFeesUsd: string;
+  poolFeesUsd: string;
 }
 
-async function fetchPoolsStats(dayTimestamp: number): Promise<Array<PoolInfo>> {
-  const poolInfos: Array<PoolInfo> = [];
+const fetchSteammStats = async ({ startOfDay, createBalances }: FetchOptions) => {
+  const stats: DailyFees = await fetchURL(suilendDailyFeesURL(startOfDay));
 
-  const poolConfigs = await fetchURL(suilendPoolsURL());
-  for (const poolConfig of poolConfigs) {
-    const historicalItems = await fetchURL(
-      suilendPoolHistoricalURL(
-        poolConfig.pool.id,
-        dayTimestamp,
-        dayTimestamp + 24 * 60 * 60 - 1
-      )
-    );
-    const dayItem = historicalItems.find((item: any) => Number(item.start) === dayTimestamp)
-    if (dayItem) {
-      poolInfos.push({
-        id: poolConfig.pool.id,
-        feesUsdValue: Number(dayItem.usdValue),
-        protocolFeeRate:
-          Number(poolConfig.pool.protocolFees.config.feeNumerator) /
-          Number(poolConfig.pool.protocolFees.config.feeDenominator),
-      });
-    }
-  }
+  // The two figures are disjoint halves of the swap fee, not a total and a
+  // share of it: on-chain, `amount_out_net = amount_out - protocol_fees -
+  // pool_fees`. Total fees are therefore their sum.
+  const protocolRevenue = Number(stats.protocolFeesUsd);
+  const supplySideRevenue = Number(stats.poolFeesUsd);
 
-  return poolInfos;
-}
+  const dailyFees = createBalances();
+  const dailyRevenue = createBalances();
+  const dailySupplySideRevenue = createBalances();
 
-const fetchSteammStats = async ({ fromTimestamp, createBalances }: FetchOptions) => {
-  const dailyFees = createBalances()
-  const dailyRevenue = createBalances()
-  const dailySupplySideRevenue = createBalances()
-  
-  const pools = await fetchPoolsStats(fromTimestamp);
-
-  for (const pool of pools) {
-    const protocolRevenue = Number(pool.feesUsdValue) * Number(pool.protocolFeeRate);
-    const supplySideRevenue = Number(pool.feesUsdValue) - protocolRevenue;
-    
-    dailyFees.addUSDValue(Number(pool.feesUsdValue), SuiLendMetrics.SteammSwapFees);
-    dailySupplySideRevenue.addUSDValue(supplySideRevenue, SuiLendMetrics.SteammSwapFeesToLPs);
-    dailyRevenue.addUSDValue(protocolRevenue, SuiLendMetrics.SteammSwapFeesToProtocol);
-  }
+  dailyFees.addUSDValue(protocolRevenue + supplySideRevenue, SuiLendMetrics.SteammSwapFees);
+  dailySupplySideRevenue.addUSDValue(supplySideRevenue, SuiLendMetrics.SteammSwapFeesToLPs);
+  dailyRevenue.addUSDValue(protocolRevenue, SuiLendMetrics.SteammSwapFeesToProtocol);
 
   return {
     dailyFees,
@@ -71,6 +39,10 @@ const fetchSteammStats = async ({ fromTimestamp, createBalances }: FetchOptions)
 
 const adapter: Adapter = {
   version: 2,
+  // The endpoint aggregates per UTC day and ignores any finer timestamp, so all
+  // 24 hourly slots would return the same daily total and sum to 24x the real
+  // figure.
+  pullHourly: false,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchSteammStats,
