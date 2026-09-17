@@ -83,6 +83,7 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
   [CHAIN.KATANA]: { dune: "katana", wrapped: ADDRESSES.katana.VB_WETH },
   [CHAIN.PLUME]: { dune: "plume", wrapped: ADDRESSES.plume_mainnet.WPLUME },
   [CHAIN.ROBINHOOD]: { dune: "robinhood", wrapped: ADDRESSES.robinhood.WETH },
+  [CHAIN.ARC]: { dune: "arc", wrapped: ADDRESSES.arc.USDC },
 };
 
 // Native and ERC20 flows, dedupe largest per tx, group by chain + token for DefiLlama pricing
