@@ -167,38 +167,38 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Bonding-curve buys and sells only, in the launch's quote token. Buys count quoteAmount plus the fee the trader paid. Sells count quoteAmount, the reserve taken from the curve before the fee. Graduated pool swaps are counted under Lunya DEX.",
-  Fees: "Every fee a Lunya bonding curve charges: the flat creation fee paid when a launch is opened, the trading fee on buys and sells, the anti-snipe surcharge on buys in a launch's first seconds, the graduation fee taken from the raise when a curve graduates into a Lunya DEX pool, and the quote left over when that graduation mints its liquidity. Swap fees on graduated pools are counted under Lunya DEX, not here.",
-  Revenue: "The whole creation fee, the protocol's share of trading fees, the whole anti-snipe surcharge, the graduation fee less the reward paid to whoever triggers the graduation, and the graduation's liquidity remainder.",
-  ProtocolRevenue: "Everything the protocol keeps, which accrues to the factory's fee pot for each quote token.",
-  SupplySideRevenue: "The launch creator's share of trading fees, and the reward paid to whoever triggers a graduation.",
+  Volume: "Pre-bonding curve buys and sells. Graduated pool swaps are counted under Lunya DEX.",
+  Fees: "Creation fees, curve trading fees, anti-snipe surcharge, graduation fees, and leftover quote at graduation. Excludes Lunya DEX swap fees.",
+  Revenue: "Creation fees, the protocol share of curve fees, the full anti-snipe surcharge, graduation fees minus the trigger reward, and leftover quote at graduation.",
+  ProtocolRevenue: "The same as Revenue.",
+  SupplySideRevenue: "Creator share of curve fees, and the graduation trigger reward.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL_CREATION]: "quoteConfig(quote).creationFee, a flat amount in that quote token, paid by the creator at LaunchCreated. 100% to the protocol.",
-    [METRIC.TRADING_FEES]: "curveFeeBps of every bonding-curve buy and sell, taken in the launch's quote token.",
-    [LABEL_SNIPE]: "An extra charge on buys in the first snipeWindow seconds after a launch opens, decaying to zero. Sells and exempt addresses never pay it.",
-    [LABEL_GRADUATION]: "graduationFeeBps of what a curve raised, taken when it graduates.",
-    [LABEL_REMAINDER]: "Quote left over after a graduation mints its liquidity position.",
+    [LABEL_CREATION]: "Flat creation fee paid in the quote token when a launch opens.",
+    [METRIC.TRADING_FEES]: "Curve trading fee on buys and sells.",
+    [LABEL_SNIPE]: "Extra fee on buys in the anti-snipe window.",
+    [LABEL_GRADUATION]: "Share of the raise taken at graduation.",
+    [LABEL_REMAINDER]: "Quote not seeded into the pool at graduation.",
   },
   Revenue: {
-    [LABEL_CREATION]: "The whole creation fee accrues to the factory.",
-    [METRIC.TRADING_FEES]: "The protocol's share of each trading fee, curveFeeProtocolBps of it.",
-    [LABEL_SNIPE]: "The whole surcharge. The creator is exempt from it and receives none of it.",
-    [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
-    [LABEL_REMAINDER]: "The whole remainder accrues to the protocol.",
+    [LABEL_CREATION]: "All of the creation fee.",
+    [METRIC.TRADING_FEES]: "Protocol share of the curve trading fee.",
+    [LABEL_SNIPE]: "All of the anti-snipe surcharge.",
+    [LABEL_GRADUATION]: "Graduation fee minus the trigger reward.",
+    [LABEL_REMAINDER]: "All leftover quote at graduation.",
   },
   ProtocolRevenue: {
-    [LABEL_CREATION]: "The whole creation fee accrues to the factory.",
-    [METRIC.TRADING_FEES]: "The protocol's share of each trading fee, curveFeeProtocolBps of it.",
-    [LABEL_SNIPE]: "The whole surcharge. The creator is exempt from it and receives none of it.",
-    [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
-    [LABEL_REMAINDER]: "The whole remainder accrues to the protocol.",
+    [LABEL_CREATION]: "All of the creation fee.",
+    [METRIC.TRADING_FEES]: "Protocol share of the curve trading fee.",
+    [LABEL_SNIPE]: "All of the anti-snipe surcharge.",
+    [LABEL_GRADUATION]: "Graduation fee minus the trigger reward.",
+    [LABEL_REMAINDER]: "All leftover quote at graduation.",
   },
   SupplySideRevenue: {
-    [METRIC.TRADING_FEES]: "The creator's share of each trading fee.",
-    [LABEL_GRADUATION]: "The graduation reward, capped at the graduation fee, paid to whoever triggers the graduation.",
+    [METRIC.TRADING_FEES]: "Creator share of the curve trading fee.",
+    [LABEL_GRADUATION]: "Reward paid to whoever triggers graduation.",
   },
 };
 
