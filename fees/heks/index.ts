@@ -1,4 +1,3 @@
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -30,8 +29,9 @@ const LAUNCHPADS = [
 //
 // `currency` is the pool's pair asset, never the launched coin: the hook always charges in the pair
 // asset, and the pools' own Uniswap LP fee is zero. Deployments differ in which asset that is —
-// the current one quotes in native ETH, the retired one in WETH — so the currency is taken from the
-// log rather than assumed.
+// the current one quotes in native ETH, the retired one in WETH, and the stock lanes in the
+// tokenised share itself — so the currency is taken from the log rather than assumed. Native ETH
+// arrives as the zero address, which is the key balances already use for the gas token.
 const COLLECTED =
   "event Collected(bytes32 indexed id, address indexed currency, uint256 amount, uint256 creatorShare, uint256 protocolShare, uint256 carryAfter)";
 
@@ -40,19 +40,10 @@ const COLLECTED =
 const TOKEN_CREATED =
   "event TokenCreated(address indexed token, address indexed creator, address indexed numeraire, bytes32 poolId, int24 derivedTick, uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper, int256 feedAnswer, uint256 feedUpdatedAt, uint256 launchFee, uint256 devBuyIn, uint256 devBuyOut, uint256 xKey, uint256 uiMultiplier, string metaURI)";
 
-// Uniswap v4 represents native ETH as the zero address.
-const NATIVE = ADDRESSES.null;
-
 // Labels used in the breakdowns; every one has a breakdownMethodology entry.
-const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
+const SWAP_FEES_TO_PROTOCOL = "Token Swap Fees to Protocol";
 const LAUNCH_FEES = "Launch Fees";
-
-// The current deployment quotes in native ETH, the retired one in WETH, and the stock lanes in the
-// tokenised share itself, so a credit can arrive in any of them.
-const credit = (balances: any, currency: string, amount: any, label: string) =>
-  String(currency).toLowerCase() === NATIVE
-    ? balances.addGasToken(amount, label)
-    : balances.add(currency, amount, label);
+const LAUNCH_FEES_TO_PROTOCOL = "Launch Fees to Protocol";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -69,20 +60,20 @@ const fetch = async (options: FetchOptions) => {
   // rate decays linearly from 80% down to that 1%, which prices out snipers of the opening block;
   // the log carries the resulting amount, so no rate is assumed here.
   collected.forEach((log: any) => {
-    credit(dailyFees, log.currency, log.amount, METRIC.SWAP_FEES);
+    dailyFees.add(log.currency, log.amount, METRIC.SWAP_FEES);
     // The creator's slice. A creator may redirect it to the holders of their own coin at launch;
     // either way it leaves the protocol, so it is supply side rather than holders revenue — heks
     // has no token of its own.
-    credit(dailySupplySideRevenue, log.currency, log.creatorShare, METRIC.CREATOR_FEES);
-    credit(dailyRevenue, log.currency, log.protocolShare, SWAP_FEES_TO_PROTOCOL);
-    credit(dailyProtocolRevenue, log.currency, log.protocolShare, SWAP_FEES_TO_PROTOCOL);
+    dailySupplySideRevenue.add(log.currency, log.creatorShare, METRIC.CREATOR_FEES);
+    dailyRevenue.add(log.currency, log.protocolShare, SWAP_FEES_TO_PROTOCOL);
+    dailyProtocolRevenue.add(log.currency, log.protocolShare, SWAP_FEES_TO_PROTOCOL);
   });
 
   // Creation fee: a flat charge per launch, paid by the creator and kept in full by the protocol.
   launches.forEach((log: any) => {
     dailyFees.addGasToken(log.launchFee, LAUNCH_FEES);
-    dailyRevenue.addGasToken(log.launchFee, LAUNCH_FEES);
-    dailyProtocolRevenue.addGasToken(log.launchFee, LAUNCH_FEES);
+    dailyRevenue.addGasToken(log.launchFee, LAUNCH_FEES_TO_PROTOCOL);
+    dailyProtocolRevenue.addGasToken(log.launchFee, LAUNCH_FEES_TO_PROTOCOL);
   });
 
   return {
@@ -109,11 +100,11 @@ const breakdownMethodology = {
   },
   Revenue: {
     [SWAP_FEES_TO_PROTOCOL]: "The protocol's 30% share of each swap fee.",
-    [LAUNCH_FEES]: "Flat launch fee, kept in full by the protocol.",
+    [LAUNCH_FEES_TO_PROTOCOL]: "Flat launch fee, kept in full by the protocol.",
   },
   ProtocolRevenue: {
     [SWAP_FEES_TO_PROTOCOL]: "The protocol's 30% share of each swap fee.",
-    [LAUNCH_FEES]: "Flat launch fee, kept in full by the protocol.",
+    [LAUNCH_FEES_TO_PROTOCOL]: "Flat launch fee, kept in full by the protocol.",
   },
   SupplySideRevenue: {
     [METRIC.CREATOR_FEES]: "The 70% of each swap fee paid out to the coin's creator, or to the holders of their coin if the creator chose that at launch.",
@@ -122,6 +113,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   chains: [CHAIN.ROBINHOOD],
