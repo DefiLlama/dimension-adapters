@@ -26,6 +26,7 @@ const CHAINS: Record<string, number | string> = {
   [CHAIN.TEMPO]: 4217,
   [CHAIN.ROBINHOOD]: 4663,
   [CHAIN.MANTLE]: 5000,
+  [CHAIN.ARC]: 5042,
   [CHAIN.BASE]: 8453,
   [CHAIN.PLASMA]: 9745,
   [CHAIN.ARBITRUM]: 42161,
