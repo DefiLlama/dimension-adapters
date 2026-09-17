@@ -127,8 +127,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   NotionalVolume:
     "Sum of `amount` from each `optionIssued` event on StochasticOptions: USDC collateral committed by writers when minting a paired (long + short) position. Following the Prodigy/Dopex/Rysk convention of counting raw token amount (no oracle multiplication), this is the unit count of options minted — `1 USDC = 1 option unit` per protocol design.",
-  PremiumVolume:
-    "Sum of USDC paid by option buyers on SFSwapV0Pair AMM pools, direction USDC→tradeToken only (the `amount0In` field of each `Swap` event). The reverse direction (tradeToken→USDC) is a writer unwinding their previously-sold leg and does not count as new premium inflow. Pair addresses are discovered from `PairCreated` events on the factory (cloud-cached, since pair creation is a one-time event per (token, tokenId) tuple).",
+    PremiumVolume:
+    "Sum of USDC paid by option buyers on SFSwapV0Pair AMM pools, direction USDC→tradeToken only (the `amount0In` field of each `Swap` event). The reverse direction (tradeToken→USDC) is a writer unwinding their previously-sold leg and does not count as new premium inflow. Pair addresses are discovered from `PairCreated` events on the factory (one-time event per (token, tokenId) tuple).",
   Fees:
     "Sum of `fee` fields from `OptionExercised` (settlement fee on each exercised leg) and `PositionClosed` (matched-pair close fee). Both are charged at `1 / sf_fee_divisor` of the exercised/closed collateral and paid in USDC.",
   Revenue:
