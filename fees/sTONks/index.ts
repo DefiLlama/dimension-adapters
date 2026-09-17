@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 /**
@@ -35,11 +35,9 @@ const TON_LAUNCHPAD_ROUTER     = "0:fccfdaaeb90c7bb38c01c11df67d48492fe088854893
 const TON_REFERRAL_WALLET      = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
 const TON_CASHBACK_WALLET      = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
 
-const TON_LAUNCHPAD_SENDERS = new Set([
-  TON_LAUNCHPAD_ROUTER,
-  TON_LAUNCHPAD_CONTRACT_A,
-  TON_LAUNCHPAD_CONTRACT_B,
-]);
+const TON_LAUNCHPAD_SENDERS = new Set(
+  [TON_LAUNCHPAD_ROUTER, TON_LAUNCHPAD_CONTRACT_A, TON_LAUNCHPAD_CONTRACT_B].map((a) => a.toLowerCase())
+);
 
 const TON_PAYOUT_WALLETS = [TON_REFERRAL_WALLET, TON_CASHBACK_WALLET];
 const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
@@ -47,7 +45,10 @@ const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
 const TRADING_FEES = "Trading Fees";
 const LAUNCHPAD_FEES = "Launchpad Fees";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const PAGE = 1000;
+// Unauthenticated toncenter allows ~1 request/sec
+const TONCENTER_SLEEP_MS = 1500;
+
 const toBigInt = (v: any): bigint => {
   if (v === null || v === undefined) return 0n;
   if (typeof v === "string") return BigInt(v);
@@ -55,104 +56,78 @@ const toBigInt = (v: any): bigint => {
   return 0n;
 };
 
-/**
- * Fetch all transactions for a wallet within [start, end) using toncenter.com v3 API.
- * Uses offset-based pagination with start_utime/end_utime filters.
- */
-const fetchToncenterTxs = async (wallet: string, start: number, end: number): Promise<any[]> => {
-  const allTxs: any[] = [];
-  let offset = 0;
-  const limit = 1000;
+const normAddr = (addr: string | undefined | null): string => (addr ?? "").toLowerCase();
 
-  while (true) {
+const pageToncenterTxs = async (account: string, start: number, end: number): Promise<any[]> => {
+  const all: any[] = [];
+  const seen = new Set<string>();
+
+  for (let offset = 0; ; offset += PAGE) {
     const url =
-      `https://toncenter.com/api/v3/transactions?account=${wallet}` +
-      `&start_utime=${start}&end_utime=${end}` +
-      `&limit=${limit}&offset=${offset}&sort=desc`;
+      `https://toncenter.com/api/v3/transactions?account=${account}` +
+      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`;
 
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch toncenter transactions for ${wallet}: ${e}`);
+    const data = await fetchURLAutoHandleRateLimit(url, 5);
+    if (!Array.isArray(data?.transactions)) {
+      throw new Error(`Expected a transactions array from toncenter for ${account}`);
     }
 
-    const txs: any[] = data.transactions ?? [];
+    const txs: any[] = data.transactions;
     if (!txs.length) break;
 
-    allTxs.push(...txs);
+    for (const tx of txs) {
+      const now = tx.now ?? tx.utime;
+      const key = tx.hash ?? `${tx.lt}:${now}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (now < start || now >= end) continue;
+      all.push(tx);
+    }
 
-    if (txs.length < limit) break;
-    offset += limit;
-    await sleep(250);
+    if (txs.length < PAGE) break;
+    await sleep(TONCENTER_SLEEP_MS);
   }
 
-  return allTxs;
+  return all;
 };
 
-/**
- * Scan a fee wallet for inflows within [start, end).
- * Classifies each inflow as trading or launchpad based on sender.
- */
 const scanTonWallet = async (
   wallet: string,
   start: number,
   end: number,
-  isLaunchpad: (sender: string | undefined) => boolean = () => false
+  isLaunchpad: (sender: string | undefined) => boolean
 ): Promise<{ tradingFees: bigint; launchpadFees: bigint }> => {
   let tradingFees = 0n;
   let launchpadFees = 0n;
+  const walletNorm = normAddr(wallet);
 
-  const txs = await fetchToncenterTxs(wallet, start, end);
-
-  for (const tx of txs) {
-    // Skip failed transactions
-    if (tx.description?.aborted) continue;
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
 
     const inMsg = tx.in_msg;
-    if (!inMsg) continue;
-
-    // Only count incoming messages TO our wallet
-    const dest = inMsg.destination;
-    if (inMsg.bounced) continue;
-    if (!dest || dest !== wallet) continue;
+    if (!inMsg || inMsg.bounced) continue;
+    if (normAddr(inMsg.destination) !== walletNorm) continue;
 
     const value = toBigInt(inMsg.value);
     if (value === 0n) continue;
 
-    const sender: string | undefined = inMsg.source;
-
-    if (isLaunchpad(sender)) {
-      launchpadFees += value;
-    } else {
-      tradingFees += value;
-    }
+    const sender = inMsg.source ? String(inMsg.source) : undefined;
+    if (isLaunchpad(sender)) launchpadFees += value;
+    else tradingFees += value;
   }
 
   return { tradingFees, launchpadFees };
 };
 
-/**
- * Scan a payout wallet for outflows within [start, end).
- * Outflows = value paid out to users (referrals / cashback).
- */
-const scanTonPayouts = async (
-  wallet: string,
-  start: number,
-  end: number
-): Promise<bigint> => {
+const scanTonPayouts = async (wallet: string, start: number, end: number): Promise<bigint> => {
   let total = 0n;
 
-  const txs = await fetchToncenterTxs(wallet, start, end);
-
-  for (const tx of txs) {
-    if (tx.description?.aborted) continue;
-
-    const outMsgs = tx.out_msgs;
-    if (outMsgs) {
-      for (const msg of outMsgs) {
-        total += toBigInt(msg.value);
-      }
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
+    if (!tx.out_msgs) continue;
+    for (const msg of tx.out_msgs) {
+      if (msg.bounced) continue;
+      total += toBigInt(msg.value);
     }
   }
 
@@ -165,20 +140,18 @@ const fetch = async (options: FetchOptions) => {
 
   let tradingFees = 0n;
   let launchpadFees = 0n;
-
   for (const w of TON_FEE_WALLETS) {
-    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(s ?? ""));
+    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(normAddr(s)));
     tradingFees += r.tradingFees;
     launchpadFees += r.launchpadFees;
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
-
   const totalFees = tradingFees + launchpadFees;
 
   let totalUserPayouts = 0n;
   for (const w of TON_PAYOUT_WALLETS) {
     totalUserPayouts += await scanTonPayouts(w, start, end);
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
 
   const dailyFees = options.createBalances();
@@ -193,8 +166,9 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), "Referral & Cashback Payouts");
 
-  // Revenue = fees - payouts
-  const protocolRevBigInt = totalFees > totalUserPayouts ? totalFees - totalUserPayouts : 0n;
+  // Revenue = fees - payouts; can go negative on days payouts exceed fees, which is real
+  // (referral/cashback payouts settle on their own schedule, not 1:1 with the fees that funded them)
+  const protocolRevBigInt = totalFees - totalUserPayouts;
   const dailyRevenue = options.createBalances();
   dailyRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
 
@@ -244,14 +218,17 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-
+  // unauthenticated toncenter allows ~1 request/sec; hourly runs would multiply
+  // requests 24x/day across 4 wallets and hit that limit
   pullHourly: false,
-
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
   methodology,
   breakdownMethodology,
+  // Net Protocol Revenue can legitimately go negative on days referral/cashback
+  // payouts exceed inbound fees
+  allowNegativeValue: true,
 };
 
 export default adapter;
