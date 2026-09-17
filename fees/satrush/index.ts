@@ -153,11 +153,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   dailyHoldersRevenue.add(USDC_MINT, tokenBuybacks, TOKEN_BUYBACKS);
   dailyHoldersRevenue.add(USDC_MINT, stakingBtcBuybacks, STAKING_BTC_BUYBACKS);
 
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.add(USDC_MINT, protocolFees, PROTOCOL_FEES);
+  dailyRevenue.add(USDC_MINT, tokenBuybacks, TOKEN_BUYBACKS);
+  dailyRevenue.add(USDC_MINT, stakingBtcBuybacks, STAKING_BTC_BUYBACKS);
+
   return {
     dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
-    dailyRevenue: dailyProtocolRevenue,
+    dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
   };
@@ -184,6 +189,9 @@ const breakdownMethodology = {
   Revenue: {
     [PROTOCOL_FEES]:
       "Share of the value deployed by miners that funds protocol operations and treasury.",
+    [TOKEN_BUYBACKS]: "Fees reserved for token buybacks & burn.",
+    [STAKING_BTC_BUYBACKS]:
+      "Fees reserved for BTC buybacks distributed as staking rewards.",
   },
   ProtocolRevenue: {
     [PROTOCOL_FEES]:
@@ -202,7 +210,8 @@ const methodology = {
   Fees: "Fees charged on the value deployed by miners, which fund the outsized rewards pools and the protocol fee.",
   SupplySideRevenue:
     "Share of fees that fills the prize pools, paid out to miners.",
-  Revenue: "Protocol fee retained by the protocol.",
+  Revenue:
+    "Protocol fee retained by the protocol plus the share reserved for token buybacks & burn and for BTC buybacks paid out as staking rewards.",
   ProtocolRevenue:
     "Protocol fee that funds protocol operations and treasury reserves.",
   HoldersRevenue:
