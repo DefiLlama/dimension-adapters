@@ -1,13 +1,21 @@
-import { FetchOptions, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
+// REP369 token contract. Source: https://scan.pulsechain.com/address/0x0EE7adC2BAb46BaD56B91D9641A8cDEd09f82369
 const REP369 = "0x0EE7adC2BAb46BaD56B91D9641A8cDEd09f82369".toLowerCase();
+
+// WPLS (wrapped PLS) used by the REP369 PulseX V2 pair. Source: https://scan.pulsechain.com/address/0xA1077a294dDE1B09bB078844df40758a5D0f9a27
 const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
+
+// REP369/WPLS PulseX V2 pair used by the project. Source: https://scan.pulsechain.com/address/0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5
 const MAIN_PAIR = "0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5".toLowerCase();
 
+// ERC-20 zero address; used here only to identify the token contract's burn transfers.
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+// REP369 fee settings are basis points: 10_000 = 100%.
 const BPS = 10_000n;
 const ZERO = 0n;
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const ABIS = {
   swap:
@@ -36,8 +44,6 @@ type FeeState = {
 
 const asBigInt = (value: any): bigint => BigInt(value ?? 0);
 const argsOf = (log: any) => log?.args ?? log;
-const txHashOf = (log: any) =>
-  String(log?.transactionHash ?? log?.txHash ?? "").toLowerCase();
 
 const position = (log: any) => ({
   block: Number(log?.blockNumber ?? 0),
@@ -50,6 +56,9 @@ const compareLogs = (a: any, b: any) => {
   const pb = position(b);
   return pa.block - pb.block || pa.tx - pb.tx || pa.log - pb.log;
 };
+
+const txHashOf = (log: any) =>
+  String(log?.transactionHash ?? log?.txHash ?? "").toLowerCase();
 
 const recalcTotal = (state: FeeState) => {
   state.total[0] = state.liquidity[0] + state.rewards[0] + state.burn[0];
@@ -75,25 +84,45 @@ const applyFeeUpdate = (
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  if (options.chain !== CHAIN.PULSECHAIN) {
-    throw new Error("REP369 adapter only supports PulseChain");
-  }
-
   const [token0Result, token1Result, startLiquidity, startRewards, startBurn] =
     await Promise.all([
       options.api.call({ target: MAIN_PAIR, abi: ABIS.token0 }),
       options.api.call({ target: MAIN_PAIR, abi: ABIS.token1 }),
       Promise.all([
-        options.fromApi.call({ target: REP369, abi: ABIS.liquidityFees, params: [0] }),
-        options.fromApi.call({ target: REP369, abi: ABIS.liquidityFees, params: [1] }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.liquidityFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.liquidityFees,
+          params: [1],
+        }),
       ]),
       Promise.all([
-        options.fromApi.call({ target: REP369, abi: ABIS.rewardsFees, params: [0] }),
-        options.fromApi.call({ target: REP369, abi: ABIS.rewardsFees, params: [1] }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.rewardsFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.rewardsFees,
+          params: [1],
+        }),
       ]),
       Promise.all([
-        options.fromApi.call({ target: REP369, abi: ABIS.autoBurnFees, params: [0] }),
-        options.fromApi.call({ target: REP369, abi: ABIS.autoBurnFees, params: [1] }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.autoBurnFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.autoBurnFees,
+          params: [1],
+        }),
       ]),
     ]);
 
@@ -154,11 +183,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
   const updates = [
     ...(burnUpdates || []).map((log: any) => ({ ...log, _kind: "burn" as const })),
-    ...(liquidityUpdates || []).map((log: any) => ({ ...log, _kind: "liquidity" as const })),
-    ...(rewardUpdates || []).map((log: any) => ({ ...log, _kind: "rewards" as const })),
+    ...(liquidityUpdates || []).map((log: any) => ({
+      ...log,
+      _kind: "liquidity" as const,
+    })),
+    ...(rewardUpdates || []).map((log: any) => ({
+      ...log,
+      _kind: "rewards" as const,
+    })),
   ].sort(compareLogs);
 
-  // Used only to distinguish user-facing swaps from internal REP369 tax/reward swaps.
   const transfersByTx = new Map<string, any[]>();
   for (const log of transferLogs || []) {
     const tx = txHashOf(log);
@@ -172,7 +206,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -193,36 +226,19 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const quoteIn = asBigInt(repIs0 ? args.amount1In : args.amount0In);
     const quoteOut = asBigInt(repIs0 ? args.amount1Out : args.amount0Out);
 
-    const transfers = transfersByTx.get(txHashOf(swap)) || [];
-    const swapPos = position(swap);
+    const swapPosition = position(swap);
+    const txTransfers = transfersByTx.get(txHashOf(swap)) || [];
 
-    // In a user sell, REP369 is transferred from the user to the pair before
-    // the Pair Swap event. Internal fee/reward sells originate from REP369 itself.
-    const hasUserSellTransfer = transfers.some((log) => {
+    // User-facing buy: REP369 leaves the Pair to a non-contract recipient before Pair Swap.
+    const isBuy = txTransfers.some((log) => {
       const p = position(log);
       const a = argsOf(log);
       const from = String(a.from ?? "").toLowerCase();
       const to = String(a.to ?? "").toLowerCase();
       return (
-        p.block === swapPos.block &&
-        p.tx === swapPos.tx &&
-        p.log < swapPos.log &&
-        to === MAIN_PAIR &&
-        from !== REP369 &&
-        from !== ZERO_ADDRESS
-      );
-    });
-
-    // In a user buy, the Pair transfers REP369 outward before the Pair Swap event.
-    const hasUserBuyTransfer = transfers.some((log) => {
-      const p = position(log);
-      const a = argsOf(log);
-      const from = String(a.from ?? "").toLowerCase();
-      const to = String(a.to ?? "").toLowerCase();
-      return (
-        p.block === swapPos.block &&
-        p.tx === swapPos.tx &&
-        p.log < swapPos.log &&
+        p.block === swapPosition.block &&
+        p.tx === swapPosition.tx &&
+        p.log < swapPosition.log &&
         from === MAIN_PAIR &&
         to !== MAIN_PAIR &&
         to !== REP369 &&
@@ -230,49 +246,75 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       );
     });
 
-    const isBuy = repOut > ZERO && quoteIn > ZERO && hasUserBuyTransfer;
-    const isSell = repIn > ZERO && quoteOut > ZERO && hasUserSellTransfer;
+    // User-facing sell: REP369 enters the Pair from a non-contract address before Pair Swap.
+    const isSell = txTransfers.some((log) => {
+      const p = position(log);
+      const a = argsOf(log);
+      const from = String(a.from ?? "").toLowerCase();
+      const to = String(a.to ?? "").toLowerCase();
+      return (
+        p.block === swapPosition.block &&
+        p.tx === swapPosition.tx &&
+        p.log < swapPosition.log &&
+        to === MAIN_PAIR &&
+        from !== REP369 &&
+        from !== ZERO_ADDRESS
+      );
+    });
 
-    if (!isBuy && !isSell) continue;
+    if ((!isBuy && !isSell) || (isBuy && isSell)) continue;
 
-    // Count the quote leg once per user-facing swap.
+    // Count only the WPLS quote leg once per user trade.
     const quoteVolume = isBuy ? quoteIn : quoteOut;
     if (quoteVolume > ZERO) {
-      dailyVolume.add(quoteToken, quoteVolume.toString());
+      dailyVolume.add(quoteToken, quoteVolume.toString(), "REP369 Trading Volume");
     }
+
+    let contractTax = ZERO;
+    let burnTax = ZERO;
+
+    for (const log of txTransfers) {
+      const p = position(log);
+      if (p.block !== swapPosition.block || p.tx !== swapPosition.tx || p.log >= swapPosition.log) continue;
+
+      const a = argsOf(log);
+      const from = String(a.from ?? "").toLowerCase();
+      const to = String(a.to ?? "").toLowerCase();
+      const value = asBigInt(a.value);
+      if (value <= ZERO) continue;
+
+      if (isBuy && from === MAIN_PAIR) {
+        if (to === REP369) contractTax += value;
+        if (to === ZERO_ADDRESS) burnTax += value;
+      } else if (isSell && to === MAIN_PAIR && from !== REP369) {
+        if (to === REP369) contractTax += value;
+      } else if (isSell && from !== REP369) {
+        if (to === REP369) contractTax += value;
+        if (to === ZERO_ADDRESS) burnTax += value;
+      }
+    }
+
+    // The REP369 contract sends the sell-burn directly to address(0), while the
+    // liquidity + rewards portions are transferred to the token contract itself.
+    const totalTax = contractTax + burnTax;
+    if (totalTax === ZERO) continue;
 
     const side = isBuy ? 0 : 1;
-    const totalFeeBps = state.total[side];
-    if (totalFeeBps === ZERO || totalFeeBps >= BPS) continue;
+    const liquidityBps = state.liquidity[side];
+    const rewardsBps = state.rewards[side];
+    const nonBurnBps = liquidityBps + rewardsBps;
 
-    // REP369 calculates the total fee first, then allocates that fee across
-    // liquidity, rewards and burn components. This mirrors the Solidity logic.
-    const grossRep = isBuy
-      ? repOut
-      : (repIn * BPS + (BPS - totalFeeBps) - 1n) /
-        (BPS - totalFeeBps);
+    let liquidityPart = ZERO;
+    let rewardsPart = ZERO;
 
-    const totalTax = (grossRep * totalFeeBps) / BPS;
-    const liquidityPart =
-      (totalTax * state.liquidity[side]) / totalFeeBps;
-    const rewardsPart =
-      (totalTax * state.rewards[side]) / totalFeeBps;
-    const burnPart =
-      (totalTax * state.burn[side]) / totalFeeBps;
-
-    if (totalTax > ZERO) {
-      dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
+    if (contractTax > ZERO && nonBurnBps > ZERO) {
+      // Allocate the exact contract-received tax between liquidity and rewards.
+      // The remainder is intentionally assigned to rewards to preserve exact totals.
+      liquidityPart = (contractTax * liquidityBps) / nonBurnBps;
+      rewardsPart = contractTax - liquidityPart;
     }
 
-    if (rewardsPart > ZERO) {
-      dailyRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
-      dailyHoldersRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
-    }
-
-    if (burnPart > ZERO) {
-      dailyRevenue.add(REP369, burnPart.toString(), "Token Burns");
-      dailyHoldersRevenue.add(REP369, burnPart.toString(), "Token Burns");
-    }
+    dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
 
     if (liquidityPart > ZERO) {
       dailySupplySideRevenue.add(
@@ -281,6 +323,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         "Auto Liquidity"
       );
     }
+
+    if (rewardsPart > ZERO) {
+      dailyHoldersRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
+      dailyRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
+    }
+
+    if (burnTax > ZERO) {
+      dailyHoldersRevenue.add(REP369, burnTax.toString(), "Token Burns");
+      dailyRevenue.add(REP369, burnTax.toString(), "Token Burns");
+    }
   }
 
   return {
@@ -288,7 +340,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     dailyFees,
     dailyUserFees: dailyFees.clone(),
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -296,15 +348,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 const methodology = {
   Volume:
-    "REP369/WPLS PulseX V2 user-trade volume, counted once per swap using the WPLS quote leg. Internal REP369 fee/reward swaps are excluded using on-chain Transfer ordering.",
-  UserFees:
-    "REP369 transaction taxes paid by traders. Fee components are read from the REP369 contract and fee-update events are applied within each hourly window.",
+    "REP369/WPLS PulseX V2 user-trade volume, counted once per swap using the WPLS quote leg.",
   Fees:
-    "All REP369 transaction tax paid by users, including the liquidity, REP reward and burn allocations.",
+    "All REP369 transaction tax paid by users. The adapter reads fee-component settings from the REP369 contract and applies on-chain fee-update events in chronological order.",
   Revenue:
-    "REP holder rewards and the sell-side burn allocation. There is no separate protocol treasury share in the current REP369 fee configuration.",
+    "REP369 tax allocated to REP holder rewards plus the sell-side burn allocation. Automatic liquidity is treated as supply-side revenue.",
   ProtocolRevenue:
-    "Zero: the current REP369 fee configuration has no separate treasury/protocol share.",
+    "No separate protocol treasury fee is present in the current REP369 fee configuration.",
   HoldersRevenue:
     "REP rewards plus the REP369 sell-side burn allocation.",
   SupplySideRevenue:
@@ -312,42 +362,40 @@ const methodology = {
 };
 
 const breakdownMethodology = {
+  Volume: {
+    "REP369 Trading Volume":
+      "WPLS quote-side volume from user-facing REP369/WPLS PulseX V2 swaps, counted once per swap.",
+  },
   Fees: {
     "REP369 Transaction Tax":
-      "Total REP369 buy/sell tax calculated from the on-chain fee configuration and the gross traded REP369 amount. Buy tax is applied to the pair's gross REP369 output; sell gross amount is reconstructed from the pair's net REP369 input.",
-  },
-  UserFees: {
-    "REP369 Transaction Tax":
-      "Transaction tax paid by REP369 users on buys and sells.",
+      "Exact REP369 tax transfers associated with user-facing swaps on the main REP369/WPLS pair, including the direct sell-side burn transfer.",
   },
   Revenue: {
     "REP Rewards":
-      "The REP369 tax portion allocated to the REP reward mechanism for holders.",
+      "REP369 tax allocated to the REP reward mechanism for holders.",
     "Token Burns":
-      "The REP369 sell-tax burn allocation sent to the burn address by the token contract.",
+      "REP369 sell-tax portion sent to the ERC-20 zero address by the token contract.",
   },
-  ProtocolRevenue: {},
   HoldersRevenue: {
     "REP Rewards":
-      "The REP369 tax portion allocated to holder rewards.",
+      "The REP369 tax component allocated to holder rewards.",
     "Token Burns":
-      "The REP369 sell-tax burn allocation permanently burned by the token contract.",
+      "The REP369 sell-tax component permanently burned by the token contract.",
   },
   SupplySideRevenue: {
     "Auto Liquidity":
-      "The REP369 tax portion allocated to automatic liquidity.",
+      "The REP369 tax component allocated to automatic liquidity.",
   },
 };
 
-export default {
+const adapter: Adapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.PULSECHAIN]: {
-      fetch,
-      start: "2026-01-16",
-    },
-  },
+  fetch,
+  chains: [CHAIN.PULSECHAIN],
+  start: "2026-01-16",
   methodology,
   breakdownMethodology,
 };
+
+export default adapter;
