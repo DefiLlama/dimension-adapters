@@ -17,6 +17,8 @@ const BPS = 10_000n;
 
 const eventLaunchCreated =
   "event LaunchCreated(address indexed launch, address indexed token, address indexed creator, uint8 launchType, address quoteToken, string name, string symbol, string contractURI, bytes launchParams)";
+const eventQuoteApproved =
+  "event QuoteTokenApproved(address indexed quoteToken, bool wrapsNative, uint64 nativeDivisor, uint128 creationFee, uint128 graduationReward)";
 // fee is the whole fee the trade paid, anti-snipe surcharge included
 const eventTrade =
   "event Trade(address indexed trader, bool isBuy, uint256 quoteAmount, uint256 tokenAmount, uint256 fee, uint256 reserve, uint256 sold)";
@@ -30,6 +32,7 @@ const abiConfig =
   "function config() view returns (address factory, address quoteToken, address creator, address creatorFeeRecipient, address positionManager, address liquidityHelper, address locker, uint256 nativeDivisor, bool wrapsNative, uint256 totalSupply, uint128 virtualQuote, uint128 virtualToken, uint128 curveSupply, uint128 lpSupply, uint16 snipeTaxBps, uint32 snipeWindow, uint8 snipeDecay, uint128 graduationReward, uint16 curveFeeBps, uint16 curveFeeProtocolBps, uint16 graduationFeeBps, uint16 poolFeeProtocolBps, uint8 graduationPoolType)";
 const abiIsExempt = "function isExempt(address recipient) view returns (bool)";
 
+const LABEL_CREATION = "Creation Fees";
 const LABEL_SNIPE = "Anti-Snipe Surcharge";
 const LABEL_GRADUATION = "Graduation Fees";
 const LABEL_REMAINDER = "Graduation Liquidity Remainder";
@@ -43,18 +46,35 @@ async function fetch(options: FetchOptions) {
   // Arc is not on the indexer and its public endpoints cap a log query well below a day of blocks.
   const fromBlock = Number(options.fromApi.block);
   const toBlock = Number(options.toApi.block);
+  const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  const result = () => ({ dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue });
-
-  const created = await getEventLogs({ chain, target: LAUNCH_FACTORY, eventAbi: eventLaunchCreated, fromBlock: FROM_BLOCK, toBlock, onlyArgs: true, cacheInCloud: true, maxBlockRange: MAX_BLOCK_RANGE });
-  if (!created.length) return result();
-  const quoteOf: Record<string, string> = {};
-  for (const log of created) quoteOf[String(log.launch).toLowerCase()] = log.quoteToken;
-  const launches = Object.keys(quoteOf);
+  const result = () => ({ dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue });
 
   const parsed = { entireLog: true, parseLog: true, onlyArgs: false };
+  const created = await getEventLogs({ chain, target: LAUNCH_FACTORY, eventAbi: eventLaunchCreated, fromBlock: FROM_BLOCK, toBlock, cacheInCloud: true, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
+  if (!created.length) return result();
+  const quoteOf: Record<string, string> = {};
+  for (const log of created) quoteOf[String(log.args.launch).toLowerCase()] = log.args.quoteToken;
+  const launches = Object.keys(quoteOf);
+
+  // creationFee is factory.quoteConfig(quote).creationFee, last QuoteTokenApproved at or before toBlock.
+  // Source: https://docs.lunya.io/developers/launchpad/fees.md
+  const approvals = await getEventLogs({ chain, target: LAUNCH_FACTORY, eventAbi: eventQuoteApproved, fromBlock: FROM_BLOCK, toBlock, cacheInCloud: true, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
+  const creationFeeOf: Record<string, bigint> = {};
+  for (const log of approvals) creationFeeOf[String(log.args.quoteToken).toLowerCase()] = BigInt(log.args.creationFee);
+  for (const log of created) {
+    if (blockOf(log) < fromBlock) continue;
+    const quote = log.args.quoteToken;
+    const fee = creationFeeOf[String(quote).toLowerCase()];
+    if (fee === undefined) throw new Error(`lunya-launchpad: no QuoteTokenApproved for ${quote}`);
+    if (fee > 0n) {
+      dailyFees.add(quote, fee, LABEL_CREATION);
+      dailyRevenue.add(quote, fee, LABEL_CREATION);
+    }
+  }
+
   const trades = await getEventLogs({ chain, targets: launches, eventAbi: eventTrade, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
   const graduations = await getEventLogs({ chain, targets: launches, eventAbi: eventGraduated, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
   if (!trades.length && !graduations.length) return result();
@@ -76,7 +96,11 @@ async function fetch(options: FetchOptions) {
     const c = cfg[launch];
     const quote = quoteOf[launch];
     const fee = BigInt(log.args.fee);
+    const quoteAmount = BigInt(log.args.quoteAmount);
     const window = BigInt(c.snipeWindow);
+    // Pre-bonding only. Buys: trader paid quoteAmount + fee. Sells: quoteAmount is the reserve taken before the fee.
+    // Source: https://docs.lunya.io/developers/launchpad/events.md
+    dailyVolume.add(quote, log.args.isBuy ? quoteAmount + fee : quoteAmount);
 
     let snipeFee = 0n;
     if (log.args.isBuy && window > 0n && BigInt(c.snipeTaxBps) > 0n && c.openedAt + window > BigInt(startTimestamp)) {
@@ -143,26 +167,30 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Every fee a Lunya bonding curve charges: the trading fee on buys and sells, the anti-snipe surcharge on buys in a launch's first seconds, the graduation fee taken from the raise when a curve graduates into a Lunya DEX pool, and the quote left over when that graduation mints its liquidity. Swap fees on graduated pools are counted under Lunya DEX, not here.",
-  Revenue: "The protocol's share of trading fees, the whole anti-snipe surcharge, the graduation fee less the reward paid to whoever triggers the graduation, and the graduation's liquidity remainder.",
+  Volume: "Bonding-curve buys and sells only, in the launch's quote token. Buys count quoteAmount plus the fee the trader paid. Sells count quoteAmount, the reserve taken from the curve before the fee. Graduated pool swaps are counted under Lunya DEX.",
+  Fees: "Every fee a Lunya bonding curve charges: the flat creation fee paid when a launch is opened, the trading fee on buys and sells, the anti-snipe surcharge on buys in a launch's first seconds, the graduation fee taken from the raise when a curve graduates into a Lunya DEX pool, and the quote left over when that graduation mints its liquidity. Swap fees on graduated pools are counted under Lunya DEX, not here.",
+  Revenue: "The whole creation fee, the protocol's share of trading fees, the whole anti-snipe surcharge, the graduation fee less the reward paid to whoever triggers the graduation, and the graduation's liquidity remainder.",
   ProtocolRevenue: "Everything the protocol keeps, which accrues to the factory's fee pot for each quote token.",
   SupplySideRevenue: "The launch creator's share of trading fees, and the reward paid to whoever triggers a graduation.",
 };
 
 const breakdownMethodology = {
   Fees: {
+    [LABEL_CREATION]: "quoteConfig(quote).creationFee, a flat amount in that quote token, paid by the creator at LaunchCreated. 100% to the protocol.",
     [METRIC.TRADING_FEES]: "curveFeeBps of every bonding-curve buy and sell, taken in the launch's quote token.",
     [LABEL_SNIPE]: "An extra charge on buys in the first snipeWindow seconds after a launch opens, decaying to zero. Sells and exempt addresses never pay it.",
     [LABEL_GRADUATION]: "graduationFeeBps of what a curve raised, taken when it graduates.",
     [LABEL_REMAINDER]: "Quote left over after a graduation mints its liquidity position.",
   },
   Revenue: {
+    [LABEL_CREATION]: "The whole creation fee accrues to the factory.",
     [METRIC.TRADING_FEES]: "The protocol's share of each trading fee, curveFeeProtocolBps of it.",
     [LABEL_SNIPE]: "The whole surcharge. The creator is exempt from it and receives none of it.",
     [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
     [LABEL_REMAINDER]: "The whole remainder accrues to the protocol.",
   },
   ProtocolRevenue: {
+    [LABEL_CREATION]: "The whole creation fee accrues to the factory.",
     [METRIC.TRADING_FEES]: "The protocol's share of each trading fee, curveFeeProtocolBps of it.",
     [LABEL_SNIPE]: "The whole surcharge. The creator is exempt from it and receives none of it.",
     [LABEL_GRADUATION]: "The graduation fee less the reward paid to whoever triggers the graduation.",
