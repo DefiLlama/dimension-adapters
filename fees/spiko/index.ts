@@ -4,6 +4,7 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
+import { getEnv } from "../../helpers/env";
 import { httpPost } from "../../utils/fetchURL";
 
 const ORACLE_PRICE_ABI =
@@ -131,7 +132,6 @@ const STARKNET_TOKENS: Record<string, string> = {
 };
 
 const STELLAR_RPC = "https://soroban-rpc.creit.tech/";
-const STARKNET_RPC = "https://rpc.starknet.lava.build";
 const STARKNET_TOTAL_SUPPLY_SELECTOR =
   "0x01557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836";
 
@@ -198,7 +198,7 @@ async function getStellarSupply(contract: string): Promise<number> {
 }
 
 async function getStarknetSupply(contract: string): Promise<number> {
-  const res = await httpPost(STARKNET_RPC, {
+  const res = await httpPost(getEnv("STARKNET_RPC"), {
     jsonrpc: "2.0",
     id: 1,
     method: "starknet_call",
@@ -222,15 +222,13 @@ async function getSupplies(options: FetchOptions): Promise<Record<string, number
   if (chain === CHAIN.STELLAR || chain === CHAIN.STARKNET) {
     const tokenMap = chain === CHAIN.STELLAR ? STELLAR_TOKENS : STARKNET_TOKENS;
     const read = chain === CHAIN.STELLAR ? getStellarSupply : getStarknetSupply;
-    await Promise.all(
-      Object.entries(tokenMap).map(async ([fund, contract]) => {
-        const supply = await read(contract).catch((e) => {
-          console.log(`Spiko: failed to read ${fund} supply on ${chain}: ${e.message}`);
-          return undefined;
-        });
-        if (supply !== undefined) out[fund] = supply;
-      })
-    );
+    for (const [fund, contract] of Object.entries(tokenMap)) {
+      const supply = await read(contract).catch((e) => {
+        console.log(`Spiko: failed to read ${fund} supply on ${chain}: ${e.message}`);
+        return undefined;
+      });
+      if (supply !== undefined) out[fund] = supply;
+    }
     return out;
   }
 
