@@ -69,13 +69,19 @@ type ClickhouseConfig = {
 const DEFAULT_TIMEOUT = 180_000;
 const DEFAULT_MAX_CONN = 10;
 const DEFAULT_KEEPALIVE_TTL = 180_000;
-let client: ClickHouseClient | null = null;
-let connectionPromise: Promise<ClickHouseClient> | null = null;
+// Chains whose logs live on the v4 ClickHouse deployment; every other chain
+// keeps using CLICKHOUSE_CONFIG so existing adapters are unaffected.
+const CLICKHOUSE_V4_CHAINS = new Set(["robinhood"]);
+const configEnvKeyForChain = (chain?: string) =>
+  chain && CLICKHOUSE_V4_CHAINS.has(chain) ? "CLICKHOUSE_CONFIG_V4" : "CLICKHOUSE_CONFIG";
+
+const clients: Record<string, ClickHouseClient> = {};
+const connectionPromises: Record<string, Promise<ClickHouseClient> | undefined> = {};
 let hooksInstalled = false;
 
-function readConfig(): ClickhouseConfig {
-  const raw = process.env.CLICKHOUSE_CONFIG;
-  if (!raw) throw new Error("Missing env CLICKHOUSE_CONFIG");
+function readConfig(envKey: string): ClickhouseConfig {
+  const raw = process.env[envKey];
+  if (!raw) throw new Error(`Missing env ${envKey}`);
 
   const cfg = JSON.parse(raw) as Partial<ClickhouseConfig>;
 
@@ -87,7 +93,7 @@ function readConfig(): ClickhouseConfig {
     !cfg.password
   ) {
     throw new Error(
-      'CLICKHOUSE_CONFIG must include "host","port","database","username","password".',
+      `${envKey} must include "host","port","database","username","password".`,
     );
   }
 
@@ -101,7 +107,8 @@ function readConfig(): ClickhouseConfig {
 }
 
 function buildUrl(cfg: ClickhouseConfig): string {
-  return `http://${cfg.host}:${cfg.port}`;
+  const host = String(cfg.host).replace(/\/+$/, "");
+  return host.startsWith("http") ? `${host}:${cfg.port}` : `http://${host}:${cfg.port}`;
 }
 
 function installShutdownHooks() {
@@ -130,16 +137,16 @@ function installShutdownHooks() {
   });
 }
 
-export async function connectClickhouse(): Promise<ClickHouseClient> {
-  if (client) return client;
-  if (connectionPromise) return connectionPromise;
+export async function connectClickhouse(envKey = "CLICKHOUSE_CONFIG"): Promise<ClickHouseClient> {
+  if (clients[envKey]) return clients[envKey];
+  if (connectionPromises[envKey]) return connectionPromises[envKey]!;
 
   installShutdownHooks();
 
-  connectionPromise = (async () => {
+  connectionPromises[envKey] = (async () => {
     let _client: ClickHouseClient | null = null;
     try {
-      const cfg = readConfig();
+      const cfg = readConfig(envKey);
       const url = buildUrl(cfg);
 
       _client = createClient({
@@ -154,25 +161,26 @@ export async function connectClickhouse(): Promise<ClickHouseClient> {
       });
 
       await _client.ping();
-      client = _client;
+      clients[envKey] = _client;
       return _client;
     } catch (e) {
-      connectionPromise = null;
-      client = null;
+      connectionPromises[envKey] = undefined;
+      delete clients[envKey];
       try { await _client?.close(); } catch {}
       throw e;
     }
   })();
 
-  return connectionPromise;
+  return connectionPromises[envKey]!;
 }
 
 export async function queryClickhouse<T extends Row>(
   sql: string,
   params?: Record<string, unknown>,
   settings?: Record<string, string | number>,
+  opts?: { chain?: string },
 ): Promise<T[]> {
-  const c = await connectClickhouse();
+  const c = await connectClickhouse(configEnvKeyForChain(opts?.chain));
   const rs = await c.query({
     query: sql,
     query_params: params,
@@ -183,11 +191,11 @@ export async function queryClickhouse<T extends Row>(
 }
 
 export async function disconnectClickhouse() {
-  if (!client) return;
-  try {
-    await client.close();
-  } finally {
-    client = null;
-    connectionPromise = null;
+  const open = Object.keys(clients);
+  for (const envKey of open) {
+    const c = clients[envKey];
+    delete clients[envKey];
+    connectionPromises[envKey] = undefined;
+    try { await c.close(); } catch { }
   }
 }
