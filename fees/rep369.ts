@@ -1,44 +1,29 @@
 import { FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-/**
- * REP369 fees / revenue / volume adapter for PulseChain.
- *
- * REP369 source contract supplied for this listing:
- * - buy fee components: liquidity 200 bps + rewards 100 bps + burn 0 bps
- * - sell fee components: liquidity 400 bps + rewards 400 bps + burn 100 bps
- *
- * The contract owner can update these components. This adapter therefore reads
- * the fee arrays at the start of each fetch window and applies any fee-update
- * events occurring inside that window instead of hard-coding rates forever.
- *
- * Public project / source reference:
- * https://www.reptalianie.com/
- */
-
 const REP369 = "0x0EE7adC2BAb46BaD56B91D9641A8cDEd09f82369".toLowerCase();
+const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
+const MAIN_PAIR = "0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5".toLowerCase();
+
 const ZERO = 0n;
 const BPS = 10_000n;
 
-const EVENTS = {
+const ABIS = {
   swap:
     "event Swap(address indexed sender,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out,address indexed to)",
-  autoBurnUpdated:
-    "event AutoBurnFeesUpdated(uint16 buyFee,uint16 sellFee,uint16 transferFee)",
+  transfer:
+    "event Transfer(address indexed from,address indexed to,uint256 value)",
+  token0: "address:token0",
+  token1: "address:token1",
+  liquidityFees: "uint16:liquidityFees",
+  rewardsFees: "uint16:rewardsFees",
+  autoBurnFees: "uint16:autoBurnFees",
   liquidityUpdated:
     "event LiquidityFeesUpdated(uint16 buyFee,uint16 sellFee,uint16 transferFee)",
   rewardsUpdated:
     "event RewardsFeesUpdated(uint16 buyFee,uint16 sellFee,uint16 transferFee)",
-};
-
-const ABIS = {
-  pairV2: "address:pairV2",
-  token0: "address:token0",
-  token1: "address:token1",
-  totalFees: "uint16:totalFees",
-  liquidityFees: "uint16:liquidityFees",
-  rewardsFees: "uint16:rewardsFees",
-  autoBurnFees: "uint16:autoBurnFees",
+  burnUpdated:
+    "event AutoBurnFeesUpdated(uint16 buyFee,uint16 sellFee,uint16 transferFee)",
 };
 
 type FeeState = {
@@ -49,168 +34,273 @@ type FeeState = {
 };
 
 const asBigInt = (value: any): bigint => BigInt(value ?? 0);
+const argsOf = (log: any) => log?.args ?? log;
+const txHashOf = (log: any) =>
+  String(log?.transactionHash ?? log?.txHash ?? "").toLowerCase();
+const blockOf = (log: any) => Number(log?.blockNumber ?? 0);
+const txIndexOf = (log: any) => Number(log?.transactionIndex ?? 0);
+const logIndexOf = (log: any) => Number(log?.logIndex ?? 0);
 
-const eventPosition = (log: any) => ({
-  block: Number(log.blockNumber ?? 0),
-  tx: Number(log.transactionIndex ?? 0),
-  log: Number(log.logIndex ?? 0),
-});
+const compareLogs = (a: any, b: any) =>
+  blockOf(a) - blockOf(b) ||
+  txIndexOf(a) - txIndexOf(b) ||
+  logIndexOf(a) - logIndexOf(b);
 
-const comparePosition = (a: any, b: any) => {
-  const pa = eventPosition(a);
-  const pb = eventPosition(b);
-  return pa.block - pb.block || pa.tx - pb.tx || pa.log - pb.log;
+const recalcTotal = (state: FeeState) => {
+  state.total[0] =
+    state.liquidity[0] + state.rewards[0] + state.burn[0];
+  state.total[1] =
+    state.liquidity[1] + state.rewards[1] + state.burn[1];
 };
 
-const applyFeeUpdate = (state: FeeState, log: any, kind: "burn" | "liquidity" | "rewards") => {
-  const target = kind === "burn" ? state.burn : kind === "liquidity" ? state.liquidity : state.rewards;
-  const buyFee = asBigInt(log.buyFee);
-  const sellFee = asBigInt(log.sellFee);
-  target[0] = buyFee;
-  target[1] = sellFee;
+const applyFeeUpdate = (
+  state: FeeState,
+  log: any,
+  kind: "burn" | "liquidity" | "rewards"
+) => {
+  const args = argsOf(log);
+  const target =
+    kind === "burn"
+      ? state.burn
+      : kind === "liquidity"
+        ? state.liquidity
+        : state.rewards;
 
-  state.total[0] = state.liquidity[0] + state.rewards[0] + state.burn[0];
-  state.total[1] = state.liquidity[1] + state.rewards[1] + state.burn[1];
+  target[0] = asBigInt(args.buyFee);
+  target[1] = asBigInt(args.sellFee);
+  recalcTotal(state);
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  if (options.chain !== CHAIN.PULSECHAIN) throw new Error("REP369 only supports PulseChain");
-
-  const [pairResult, startTotal, startLiquidity, startRewards, startBurn] = await Promise.all([
-    options.api.call({ target: REP369, abi: ABIS.pairV2 }),
-    options.fromApi.multiCall({
-      abi: ABIS.totalFees,
-      calls: [{ target: REP369, params: [0] }, { target: REP369, params: [1] }],
-    }),
-    options.fromApi.multiCall({
-      abi: ABIS.liquidityFees,
-      calls: [{ target: REP369, params: [0] }, { target: REP369, params: [1] }],
-    }),
-    options.fromApi.multiCall({
-      abi: ABIS.rewardsFees,
-      calls: [{ target: REP369, params: [0] }, { target: REP369, params: [1] }],
-    }),
-    options.fromApi.multiCall({
-      abi: ABIS.autoBurnFees,
-      calls: [{ target: REP369, params: [0] }, { target: REP369, params: [1] }],
-    }),
-  ]);
-
-  const pair = String(pairResult).toLowerCase();
-  if (!pair || pair === "0x0000000000000000000000000000000000000000") {
-    return {};
+  if (options.chain !== CHAIN.PULSECHAIN) {
+    throw new Error("REP369 adapter only supports PulseChain");
   }
 
-  const [token0Result, token1Result] = await Promise.all([
-    options.api.call({ target: pair, abi: ABIS.token0 }),
-    options.api.call({ target: pair, abi: ABIS.token1 }),
-  ]);
+  const [token0Result, token1Result, startLiquidity, startRewards, startBurn] =
+    await Promise.all([
+      options.api.call({ target: MAIN_PAIR, abi: ABIS.token0 }),
+      options.api.call({ target: MAIN_PAIR, abi: ABIS.token1 }),
+      Promise.all([
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.liquidityFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.liquidityFees,
+          params: [1],
+        }),
+      ]),
+      Promise.all([
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.rewardsFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.rewardsFees,
+          params: [1],
+        }),
+      ]),
+      Promise.all([
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.autoBurnFees,
+          params: [0],
+        }),
+        options.fromApi.call({
+          target: REP369,
+          abi: ABIS.autoBurnFees,
+          params: [1],
+        }),
+      ]),
+    ]);
 
   const token0 = String(token0Result).toLowerCase();
   const token1 = String(token1Result).toLowerCase();
 
-  if (![token0, token1].includes(REP369)) throw new Error("REP369 pairV2 is not a REP369 pair");
+  if (
+    ![token0, token1].includes(REP369) ||
+    ![token0, token1].includes(WPLS)
+  ) {
+    throw new Error("REP369 main pair is not REP369/WPLS");
+  }
 
   const repIs0 = token0 === REP369;
   const quoteToken = repIs0 ? token1 : token0;
 
   const state: FeeState = {
-    total: [asBigInt(startTotal[0]), asBigInt(startTotal[1])],
+    total: [ZERO, ZERO],
     liquidity: [asBigInt(startLiquidity[0]), asBigInt(startLiquidity[1])],
     rewards: [asBigInt(startRewards[0]), asBigInt(startRewards[1])],
     burn: [asBigInt(startBurn[0]), asBigInt(startBurn[1])],
   };
+  recalcTotal(state);
 
-  // Keep the state internally consistent in case a future contract version
-  // exposes a totalFees value that includes another component.
-  state.total[0] = state.liquidity[0] + state.rewards[0] + state.burn[0];
-  state.total[1] = state.liquidity[1] + state.rewards[1] + state.burn[1];
-
-  const [swapLogs, burnUpdates, liquidityUpdates, rewardUpdates] = await Promise.all([
-    options.getLogs({ target: pair, eventAbi: EVENTS.swap, entireLog: true, parseLog: true }),
-    options.getLogs({ target: REP369, eventAbi: EVENTS.autoBurnUpdated, entireLog: true, parseLog: true }),
-    options.getLogs({ target: REP369, eventAbi: EVENTS.liquidityUpdated, entireLog: true, parseLog: true }),
-    options.getLogs({ target: REP369, eventAbi: EVENTS.rewardsUpdated, entireLog: true, parseLog: true }),
-  ]);
+  const [swapLogs, transferLogs, burnUpdates, liquidityUpdates, rewardUpdates] =
+    await Promise.all([
+      options.getLogs({
+        target: MAIN_PAIR,
+        eventAbi: ABIS.swap,
+        entireLog: true,
+        parseLog: true,
+      }),
+      options.getLogs({
+        target: REP369,
+        eventAbi: ABIS.transfer,
+        entireLog: true,
+        parseLog: true,
+      }),
+      options.getLogs({
+        target: REP369,
+        eventAbi: ABIS.burnUpdated,
+        entireLog: true,
+        parseLog: true,
+      }),
+      options.getLogs({
+        target: REP369,
+        eventAbi: ABIS.liquidityUpdated,
+        entireLog: true,
+        parseLog: true,
+      }),
+      options.getLogs({
+        target: REP369,
+        eventAbi: ABIS.rewardsUpdated,
+        entireLog: true,
+        parseLog: true,
+      }),
+    ]);
 
   const updates = [
-    ...(burnUpdates || []).map((log: any) => ({ ...log, _kind: "burn" as const })),
-    ...(liquidityUpdates || []).map((log: any) => ({ ...log, _kind: "liquidity" as const })),
-    ...(rewardUpdates || []).map((log: any) => ({ ...log, _kind: "rewards" as const })),
-  ].sort(comparePosition);
+    ...(burnUpdates || []).map((log: any) => ({
+      ...log,
+      _kind: "burn" as const,
+    })),
+    ...(liquidityUpdates || []).map((log: any) => ({
+      ...log,
+      _kind: "liquidity" as const,
+    })),
+    ...(rewardUpdates || []).map((log: any) => ({
+      ...log,
+      _kind: "rewards" as const,
+    })),
+  ].sort(compareLogs);
 
-  const swaps = [...(swapLogs || [])].sort(comparePosition);
-  let updateIndex = 0;
+  // The token contract collects trading tax by transferring REP369 to itself
+  // during the same transaction as the corresponding user-facing swap.
+  // Use those exact on-chain tax transfers rather than reconstructing the tax
+  // from pair amounts, which avoids fee-on-transfer rounding problems.
+  const taxByTx = new Map<string, bigint>();
+
+  for (const log of transferLogs || []) {
+    const args = argsOf(log);
+    const from = String(args.from ?? "").toLowerCase();
+    const to = String(args.to ?? "").toLowerCase();
+    const tx = txHashOf(log);
+
+    if (!tx || to !== REP369 || from === REP369) continue;
+
+    const value = asBigInt(args.value);
+    if (value > ZERO) {
+      taxByTx.set(tx, (taxByTx.get(tx) || ZERO) + value);
+    }
+  }
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const log of swaps) {
-    while (updateIndex < updates.length && comparePosition(updates[updateIndex], log) <= 0) {
-      applyFeeUpdate(state, updates[updateIndex], updates[updateIndex]._kind);
+  let updateIndex = 0;
+
+  for (const swap of [...(swapLogs || [])].sort(compareLogs)) {
+    while (
+      updateIndex < updates.length &&
+      compareLogs(updates[updateIndex], swap) <= 0
+    ) {
+      applyFeeUpdate(
+        state,
+        updates[updateIndex],
+        updates[updateIndex]._kind
+      );
       updateIndex++;
     }
 
-    const repIn = asBigInt(repIs0 ? log.args.amount0In : log.args.amount1In);
-    const repOut = asBigInt(repIs0 ? log.args.amount0Out : log.args.amount1Out);
-    const quoteIn = asBigInt(repIs0 ? log.args.amount1In : log.args.amount0In);
-    const quoteOut = asBigInt(repIs0 ? log.args.amount1Out : log.args.amount0Out);
+    const args = argsOf(swap);
+    const repIn = asBigInt(repIs0 ? args.amount0In : args.amount1In);
+    const repOut = asBigInt(repIs0 ? args.amount0Out : args.amount1Out);
+    const quoteIn = asBigInt(repIs0 ? args.amount1In : args.amount0In);
+    const quoteOut = asBigInt(repIs0 ? args.amount1Out : args.amount0Out);
 
-    // Count volume once per swap using the non-REP369 (quote) leg.
+    // Count quote-side value exactly once per swap.
     const quoteVolume = quoteIn > ZERO ? quoteIn : quoteOut;
     if (quoteVolume > ZERO) {
-      dailyVolume.add(quoteToken, quoteVolume.toString(), "REP369 Trading Volume");
+      dailyVolume.add(
+        quoteToken,
+        quoteVolume.toString(),
+        "REP369 Trading Volume"
+      );
     }
 
-    if (repOut > ZERO && quoteIn > ZERO) {
-      // BUY: PulseX sends gross REP369 to the buyer. The token contract deducts
-      // the configured buy tax from that gross amount.
-      const totalTax = repOut * state.total[0] / BPS;
-      const liquidityTax = repOut * state.liquidity[0] / BPS;
-      const holderTax = repOut * state.rewards[0] / BPS;
-      const burnTax = repOut * state.burn[0] / BPS;
+    const isBuy = repOut > ZERO && quoteIn > ZERO;
+    const isSell = repIn > ZERO && quoteOut > ZERO;
+    if (!isBuy && !isSell) continue;
 
-      if (totalTax > ZERO) dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
-      if (holderTax > ZERO) dailyHoldersRevenue.add(REP369, holderTax.toString(), "REP Rewards");
-      if (liquidityTax > ZERO) dailySupplySideRevenue.add(REP369, liquidityTax.toString(), "Auto Liquidity");
-      if (holderTax > ZERO) dailyRevenue.add(REP369, holderTax.toString(), "REP Rewards");
-      if (burnTax > ZERO) {
-        dailyRevenue.add(REP369, burnTax.toString(), "Token Burns");
-        dailyProtocolRevenue.add(REP369, burnTax.toString(), "Token Burns");
-      }
-    } else if (repIn > ZERO && quoteOut > ZERO) {
-      // SELL: the Pair receives 91% of the gross amount at the initial 9% tax.
-      // More generally, netPairAmount = gross * (1 - totalTax), so recover gross
-      // from the actual REP369 amountIn seen by the Pair.
-      const sellTotalBps = state.total[1];
-      if (sellTotalBps >= BPS) throw new Error("REP369 sell fee is >= 100%");
-      const gross = repIn * BPS / (BPS - sellTotalBps);
-      const liquidityTax = gross * state.liquidity[1] / BPS;
-      const holderTax = gross * state.rewards[1] / BPS;
-      const burnTax = gross * state.burn[1] / BPS;
-      const totalTax = liquidityTax + holderTax + burnTax;
+    const exactTax = taxByTx.get(txHashOf(swap)) || ZERO;
+    if (exactTax === ZERO) continue;
 
-      if (totalTax > ZERO) dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
-      if (holderTax > ZERO) dailyHoldersRevenue.add(REP369, holderTax.toString(), "REP Rewards");
-      if (liquidityTax > ZERO) dailySupplySideRevenue.add(REP369, liquidityTax.toString(), "Auto Liquidity");
-      if (holderTax > ZERO) dailyRevenue.add(REP369, holderTax.toString(), "REP Rewards");
-      if (burnTax > ZERO) {
-        dailyRevenue.add(REP369, burnTax.toString(), "Token Burns");
-        dailyProtocolRevenue.add(REP369, burnTax.toString(), "Token Burns");
-      }
+    const side = isBuy ? 0 : 1;
+    const totalFeeBps = state.total[side];
+    if (totalFeeBps === ZERO) continue;
+
+    const liquidityPart =
+      (exactTax * state.liquidity[side]) / totalFeeBps;
+    const rewardsPart =
+      (exactTax * state.rewards[side]) / totalFeeBps;
+    const burnPart = exactTax - liquidityPart - rewardsPart;
+
+    dailyFees.add(
+      REP369,
+      exactTax.toString(),
+      "REP369 Transaction Tax"
+    );
+
+    if (liquidityPart > ZERO) {
+      dailySupplySideRevenue.add(
+        REP369,
+        liquidityPart.toString(),
+        "Auto Liquidity"
+      );
+    }
+
+    if (rewardsPart > ZERO) {
+      dailyHoldersRevenue.add(
+        REP369,
+        rewardsPart.toString(),
+        "REP Rewards"
+      );
+      dailyRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
+    }
+
+    if (burnPart > ZERO && state.burn[side] > ZERO) {
+      dailyHoldersRevenue.add(
+        REP369,
+        burnPart.toString(),
+        "Token Burns"
+      );
+      dailyRevenue.add(REP369, burnPart.toString(), "Token Burns");
     }
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees: dailyFees.clone(),
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -220,41 +310,39 @@ const methodology = {
   Volume:
     "REP369/WPLS PulseX V2 swap volume, counted once per swap using the non-REP369 (quote) leg.",
   UserFees:
-    "REP369 transaction taxes paid by traders. The adapter reads the fee-component settings from the REP369 contract and applies any fee-update events in the hourly window.",
+    "REP369 transaction taxes paid by traders. Fee components are read from the REP369 contract and fee-update events are applied within each hourly window.",
   Fees:
-    "All REP369 transaction tax paid by users. The initial configuration is 3% on buys and 9% on sells; the adapter follows subsequent on-chain fee updates.",
+    "All REP369 transaction tax paid by users, measured from exact REP369 transfers received by the REP369 contract and tied to the corresponding swap transaction.",
   Revenue:
-    "REP holder reward allocation plus the sell-side burn allocation. Automatic liquidity is classified as supply-side revenue.",
+    "The portion of REP369 transaction tax allocated to REP holder rewards and the sell-side burn allocation. Automatic liquidity is treated as supply-side revenue.",
   ProtocolRevenue:
-    "The sell-side burn allocation. REP369 has no separate protocol treasury fee component in its current fee configuration.",
+    "No separate protocol treasury share is present in the current REP369 fee configuration.",
   HoldersRevenue:
-    "The portion of REP369 transaction tax allocated to REP rewards: initially 1% on buys and 4% on sells, subject to on-chain fee updates.",
+    "REP rewards plus the REP369 sell-side burn allocation.",
   SupplySideRevenue:
-    "The portion of REP369 transaction tax allocated to automatic liquidity: initially 2% on buys and 4% on sells, subject to on-chain fee updates.",
+    "The portion of REP369 transaction tax allocated to automatic liquidity.",
 };
 
 const breakdownMethodology = {
   Fees: {
     "REP369 Transaction Tax":
-      "Total transaction tax paid on REP369 buys and sells, calculated from the on-chain fee-component configuration and the traded REP369 amount.",
+      "Exact REP369 tax transfers received by the REP369 contract in the same transaction as the corresponding main-pair swap.",
   },
   Revenue: {
     "REP Rewards":
       "REP369 tax allocated to the REP reward mechanism for holders.",
     "Token Burns":
-      "REP369 sell-tax component sent directly to the burn address by the token contract.",
+      "REP369 sell-tax portion permanently burned by the token contract.",
   },
   HoldersRevenue: {
     "REP Rewards":
-      "The REP369 tax component allocated to holder rewards. The initial configuration is 1% on buys and 4% on sells.",
+      "The REP369 tax component allocated to holder rewards.",
+    "Token Burns":
+      "The REP369 sell-tax component permanently burned by the token contract.",
   },
   SupplySideRevenue: {
     "Auto Liquidity":
-      "The REP369 tax component allocated to automatic liquidity. The initial configuration is 2% on buys and 4% on sells.",
-  },
-  ProtocolRevenue: {
-    "Token Burns":
-      "The REP369 sell-tax burn component. The initial configuration is 1% of the gross sell amount.",
+      "The REP369 tax component allocated to automatic liquidity.",
   },
 };
 
@@ -264,7 +352,7 @@ export default {
   adapter: {
     [CHAIN.PULSECHAIN]: {
       fetch,
-      start: "2023-05-13",
+      start: "2026-01-16",
     },
   },
   methodology,
