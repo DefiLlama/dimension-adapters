@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains";
-import { uniV3Exports } from "../helpers/uniswap";
+import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
+import { FetchOptions } from "../adapters/types";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -263,6 +264,15 @@ const configs: Record<string, Record<string, any>> = {
   },
   "hybra-v3": {
     [CHAIN.HYPERLIQUID]: { factory: '0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+    [CHAIN.ROBINHOOD]: {
+      factory: '0xCeFc5Da47d766Fb6b48Da92D75d66b3264593d0f', start: '2026-09-07', userFeesRatio: 1,
+      protocolRevenueRatio: 0, dynamicProtocolFees: true,
+      getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+        if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken0 !== protocolFeeRatioToken1)
+          throw new Error('Hybra RH: asymmetric protocol fees require direction-specific accounting')
+        return { _revenueRatio: protocolFeeRatioToken0, _protocolRevenueRatio: protocolFeeRatioToken0 }
+      },
+    },
   },
   "superswap-v3": {
     [CHAIN.OPTIMISM]: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
@@ -513,12 +523,12 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "Zebra distributes 75% swap fees to LPs.",
   },
   "hybra-v3": {
-    Volume: "Total swap volume collected from factory 0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E",
-    Fees: "Users paid 0.02%, 0.25% or 1% per swap.",
-    UserFees: "Users paid 0.02%, 0.25% or 1% per swap.",
-    Revenue: "25% swap fees collected by protocol Treasury.",
-    ProtocolRevenue: "25% swap fees collected by protocol Treasury.",
-    SupplySideRevenue: "75% swap fees distributed to LPs.",
+    Volume: "Total swap volume on Hyperliquid and both Robinhood V3 factories.",
+    Fees: "Swap fees paid by users at each pool's fixed fee tier.",
+    UserFees: "Swap fees paid by users at each pool's fixed fee tier.",
+    Revenue: "25% of swap fees on Hyperliquid; the per-pool protocol share at the window end on Robinhood.",
+    ProtocolRevenue: "The protocol share of swap fees goes to the treasury.",
+    SupplySideRevenue: "Swap fees less the protocol share.",
   },
   "superswap-v3": {
     Fees: "User pays 0.3% fees on each swap.",
@@ -681,6 +691,35 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
+}
+
+// Keep the first RH deployment's history and residual activity after the den15 migration.
+// Factories: https://hybra-foundation.gitbook.io/hybra-foundation/security/contracts
+protocols['hybra-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['hybra-v3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['hybra-v3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['hybra-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['hybra-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['hybra-v3'].SupplySideRevenue },
+}
+protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOptions) => {
+  const config = configs['hybra-v3'][CHAIN.ROBINHOOD]
+  const toBlock = await options.getToBlock()
+  const result = Object.fromEntries(['dailyVolume', 'dailyFees', 'dailyUserFees', 'dailyRevenue', 'dailyProtocolRevenue', 'dailySupplySideRevenue'].map(key => [key, options.createBalances()]))
+  if (toBlock < 56695388) return result
+  const legacyPools = await options.getLogs({
+    target: '0x670cF0c5A3db84Ce518af3d0c8A4B478CDA4a36c', fromBlock: 56695388, toBlock,
+    eventAbi: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    cacheInCloud: true,
+  })
+  const deployments = []
+  if (legacyPools.length) deployments.push({ ...config, factory: undefined, pools: legacyPools.map(log => log.pool) })
+  if (toBlock >= 58245132) deployments.push(config)
+  for (const deployment of deployments) {
+    const values = await getUniV3LogAdapter(deployment)(options)
+    for (const key of Object.keys(result)) if (values[key]) result[key].add(values[key])
+  }
+  return result
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
