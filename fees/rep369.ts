@@ -15,7 +15,7 @@ const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead";
 
 // REP369 fee settings are basis points: 10_000 = 100%.
 const BPS = 10_000n;
-const DEAD_ADDRESS = 0n;
+const ZERO = 0n;
 
 const ABIS = {
   swap:
