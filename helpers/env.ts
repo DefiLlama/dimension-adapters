@@ -35,7 +35,7 @@ const DEFAULTS: any = {
   SONGBIRD_RPC: 'https://songbird-api.flare.network/ext/C/rpc', // archival state, but caps eth_getLogs at 30 blocks; default first entry sgb.ftso.com.au is broken
   SONGBIRD_ARCHIVAL_RPC: 'https://rpc.au.cc/songbird,https://songbird-explorer.flare.network/api/eth-rpc', // for getLogs: rpc.au.cc handles 5000-block ranges uncapped, blockscout proxy as fallback (caps at 1000 logs)
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
-  ARC_RPC: 'https://rpc.mainnet.arc.io',
+  ARC_RPC: 'https://rpc.mainnet.arc.io,https://rpc.drpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io', // rpc.mainnet.arc.io alone rate-limits (429) hard under normal adapter load
   ARC_RPC_CHAIN_ID: '5042',
   ARC_ARCHIVAL_RPC: 'https://explorer.arc.io/api/eth-rpc', // public rpc.mainnet.arc.io rejects large eth_getLogs ranges
   // Arc is not in the SDK Multicall3 deployment map; canonical Multicall3 is deployed there.
