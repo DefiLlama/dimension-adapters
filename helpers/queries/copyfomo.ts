@@ -29,6 +29,8 @@ export const BUNDLER_EMITTERS = [
   "0x80f96cb0d877e8e37edd6e9c3e85c41eef0bc8b6",
   "0xc3439e308478e77296e1e3c623f17f79ec8603dc",
 ];
+// Priced against Dune's prices.day to convert the bundler's native gas spend (ETH on
+// Base/Robinhood, BNB on BNB Chain) to USD.
 const WETH_ETHEREUM = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
 const WBNB_BNB = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c";
 
@@ -138,6 +140,11 @@ WITH ${EVM_WALLETS_CTE},
       AND to_owner = '${TREASURY_SOL}'
       AND token_mint_address IN (${strList(STABLES_SOL)})
   ),
+  -- Unlike evm_out/rh_out, not scoped to identified user wallets: a Solana wallet roster
+  -- costs an unpartitioned full-history scan of solana.transactions (measured 14x the
+  -- credits, 2x the runtime of the rest of this query combined). The treasury has never
+  -- sent a stablecoin out on Solana (checked over the full adapter history), so this is a
+  -- $0 risk today; add the scoped join back if that ever changes.
   sol_out AS (
     SELECT 'solana' AS chain, SUM(amount_usd) AS referral_usd
     FROM tokens_solana.transfers

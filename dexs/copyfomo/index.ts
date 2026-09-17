@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // trades are executed on DEXs / routers that already report this volume
   methodology: {
     Volume:
-      "USD value of the stablecoin leg of every buy and sell executed by a copyfomo user wallet on the same chain (a buy spends a stablecoin and receives a token in one transaction; a sell does the opposite). Wallets are identified on-chain: Solana transactions signed by the copyfomo fee payer, EVM smart accounts created by the LightAccountFactory that have paid the copyfomo treasury. Deposits, withdrawals and cash moves between a user's own wallets have no token leg and are excluded. Cross-chain trades filled by an intent solver (about 7% of trades) are not counted.",
+      "USD value of the stablecoin leg of every buy and sell made by a copyfomo user wallet on the same chain. Deposits, withdrawals and transfers between a user's own wallets are excluded, since they have no matching token leg. Cross-chain trades filled by an intent solver (about 7% of trades) are not counted, so this is a lower bound on copyfomo's own reported volume.",
   },
 };
 

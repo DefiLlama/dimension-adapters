@@ -20,17 +20,21 @@ const prefetch = async (options: FetchOptions) => {
   return queryDuneSql(options, withPartition(FEES_SQL, options));
 };
 
+const TREASURY_INFLOW = "Treasury inflow";
+const REFERRAL_REWARDS = "Referral rewards";
+const BUNDLER_GAS_COST = "Bundler gas cost";
+
 const fetch = async (options: FetchOptions) => {
   const rows: any[] = options.preFetchedResults || [];
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   for (const row of rows) {
     if (DUNE_TO_CHAIN[row.chain] !== options.chain) continue;
-    // gross: everything that reached the treasury (service fee + gas billed to the user)
-    dailyFees.addUSDValue(Number(row.fees_usd) || 0);
-    // what leaves the treasury: referral rewards to users + the gas the bundler paid to the
-    // network for those users' operations (the user's gas leg, passed through to validators)
-    dailySupplySideRevenue.addUSDValue((Number(row.referral_usd) || 0) + (Number(row.gas_usd) || 0));
+    // gross: everything that reached the treasury (service fee + gas billed to the user,
+    // paid together in one transfer and not separable on-chain)
+    dailyFees.addUSDValue(Number(row.fees_usd) || 0, TREASURY_INFLOW);
+    dailySupplySideRevenue.addUSDValue(Number(row.referral_usd) || 0, REFERRAL_REWARDS);
+    dailySupplySideRevenue.addUSDValue(Number(row.gas_usd) || 0, BUNDLER_GAS_COST);
   }
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue);
@@ -44,11 +48,20 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Everything traders pay copyfomo on every copied buy and sell: the service fee (2% of the trade) plus the gas billed back to them. Measured on-chain as every stablecoin transfer into the copyfomo treasury (USDC on Base and Solana, USDT/USDC on BNB Chain, USDG on Robinhood Chain). Fees are collected in a separate transaction from the trade, so the day of collection is used.",
-  UserFees: "Same as Fees: everything is paid by the trader.",
-  SupplySideRevenue: "What leaves the treasury: referral rewards sent back to copyfomo user wallets, plus the gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint (network validators) for those users' operations, priced with the daily WETH / WBNB price.",
-  Revenue: "Fees minus SupplySideRevenue: the service fee plus the margin on gas. Same definition as the 'protocol fees, after gas' figure published on copyfomo.com/data.",
+  Fees: "Everything traders pay copyfomo on every copied buy and sell: a 2% service fee plus the gas copyfomo fronts for them, billed back as one stablecoin transfer to the copyfomo treasury. Counted on the day the fee is collected, which is a separate transaction from the trade itself.",
+  SupplySideRevenue: "Referral rewards paid back to copyfomo users, plus the actual on-chain gas cost copyfomo pays on their behalf.",
+  Revenue: "Fees minus SupplySideRevenue: the service fee plus copyfomo's margin on gas. Matches the 'protocol fees, after gas' figure on copyfomo.com/data.",
   ProtocolRevenue: "All revenue goes to the treasury.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [TREASURY_INFLOW]: "Every stablecoin transfer into the copyfomo treasury. The service fee and the gas billed back to the trader arrive together in one transfer and cannot be split on-chain.",
+  },
+  SupplySideRevenue: {
+    [REFERRAL_REWARDS]: "Stablecoin transfers from the treasury back to identified copyfomo user wallets.",
+    [BUNDLER_GAS_COST]: "Gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint for users' operations, priced with the daily WETH / WBNB price.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -60,6 +73,7 @@ const adapter: SimpleAdapter = {
   start: "2026-08-26",
   isExpensiveAdapter: true,
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
