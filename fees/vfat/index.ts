@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
+import { METRIC } from "../../helpers/metrics";
 const chainConfig: Record<string, { factory: string; start: string; maxBlockRange?: number }> = {
   [CHAIN.BASE]: { factory: '0x71D234A3e1dfC161cc1d081E6496e76627baAc31', start: '2024-03-21' },
   [CHAIN.OPTIMISM]: { factory: '0xB4C31b0f0B76b351395D4aCC94A54dD4e6fbA1E8', start: '2024-03-21' },
@@ -131,8 +132,8 @@ const fetchFees = async (options: FetchOptions) => {
     if (!sickleContractsSet.has(target)) continue;
     const { token, amount } = log.parsedLog.args;
     // FeesLib uses this sentinel for native currency; SDK pricing uses zero.
-    if (token.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') dailyFees.addGasToken(amount);
-    else dailyFees.add(token, amount);
+    if (token.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') dailyFees.addGasToken(amount, METRIC.SERVICE_FEES);
+    else dailyFees.add(token, amount, METRIC.SERVICE_FEES);
   }
 
   return result;
@@ -144,9 +145,16 @@ const methodology = {
   ProtocolRevenue: 'All fees collected by vfat.io.',
 }
 
+const breakdownMethodology = {
+  Fees: { [METRIC.SERVICE_FEES]: 'Fees paid by users for vfat.io Sickle services.' },
+  Revenue: { [METRIC.SERVICE_FEES]: 'Fees paid by users for vfat.io Sickle services, collected by vfat.io.' },
+  ProtocolRevenue: { [METRIC.SERVICE_FEES]: 'Fees paid by users for vfat.io Sickle services, collected by vfat.io.' },
+}
+
 const adapter: SimpleAdapter = {
   fetch: fetchFees,
   methodology,
+  breakdownMethodology,
   version: 2,
   pullHourly: true,
   adapter: chainConfig,
