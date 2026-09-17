@@ -132,6 +132,7 @@ async function feeRecipientsInWindow(options: FetchOptions): Promise<string[]> {
     target: SETTLEMENT,
     eventAbi: feeRecipientUpdatedEvent,
     entireLog: true,
+    skipIndexer: true,
   });
   for (const log of updates) {
     const recipient = argsOf(log).recipient;
@@ -189,22 +190,41 @@ function toOrderUid(value: any): string {
   return "";
 }
 
+async function cowOrdersByUids(uids: string[]): Promise<any[]> {
+  let lastError: unknown;
+  try {
+    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", uids);
+    if (Array.isArray(rows)) return rows;
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
+  try {
+    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", {
+      uids,
+    });
+    if (Array.isArray(rows)) return rows;
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
+  throw lastError;
+}
+
 async function cowPartnersByUid(uids: string[]): Promise<Map<string, CowPartner>> {
   const unique = [...new Set(uids.filter((uid) => uid.length >= 114))];
   const out = new Map<string, CowPartner>();
   for (let i = 0; i < unique.length; i += 128) {
-    const chunk = unique.slice(i, i + 128);
-    let rows: any[] = [];
-    try {
-      rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", chunk);
-    } catch {
-      continue;
-    }
-    if (!Array.isArray(rows)) continue;
+    const rows = await cowOrdersByUids(unique.slice(i, i + 128));
     for (const row of rows) {
       const order = row?.order || row;
-      const uid = toOrderUid(order?.uid);
-      const partner = cowPartnerFromAppData(order?.fullAppData);
+      const uid = toOrderUid(order?.uid || row?.uid);
+      const partner = cowPartnerFromAppData(
+        order?.fullAppData ??
+          row?.fullAppData ??
+          order?.appData ??
+          row?.appData,
+      );
       if (uid && partner) out.set(uid, partner);
     }
   }
@@ -229,6 +249,8 @@ const fetch = async (options: FetchOptions) => {
   const swapLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: swapExecutedEvent,
+    // Custom events are empty in the DefiLlama indexer.
+    skipIndexer: true,
   });
   for (const log of swapLogs) {
     addAmount(dailyVolume, log.sellToken, log.amountIn);
@@ -237,6 +259,7 @@ const fetch = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: feeCollectedEvent,
+    skipIndexer: true,
   });
   for (const log of feeLogs) {
     addRetainedFee(log.token, log.amount, SETTLEMENT_FEE);
@@ -274,6 +297,7 @@ const fetch = async (options: FetchOptions) => {
     target: VELORA_DELTA,
     eventAbi: veloraSettledEvent,
     entireLog: true,
+    skipIndexer: true,
   });
   const veloraFroms = new Set([VELORA_DELTA].map(asAddr));
   for (const log of veloraSettled) {
@@ -324,33 +348,32 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Pennysia-routed volume only (not inner DEX swaps): sell-token input from SwapExecuted on Settlement (SYNC and SODAX opens), CoW Trade.sellAmount when the order's appData partnerFee.recipient is the Settlement fee recipient, Velora Delta OrderSettled.srcAmount when a partner-fee Transfer hits that recipient, and UniswapX Fill output inferred as that fee × 10000 / 50.",
+    "Settlement SwapExecuted (SYNC and SODAX opens) plus CoW, UniswapX, and Velora fills tagged to the Settlement fee recipient.",
   Fees:
-    "Settlement FeeCollected (SYNC surplus capped at 10% of gross, leftover token/ETH sweeps, and gas markup on extra executeSwap msg.value); CoW partner fee on executed buy at the order's partner bps (CIP-75: 75% protocol / 25% CoW); Velora OrderSettled.partnerFee or the matched Transfer; UniswapX fee-output Transfer. No FeeCollected on SODAX intent opens.",
+    "Settlement FeeCollected plus partner fees on tagged CoW, UniswapX, and Velora fills.",
   Revenue:
-    "Pennysia retains 100% of Settlement FeeCollected, UniswapX fee outputs, and Velora partner fees at the Settlement fee recipient. CoW protocol revenue is 75% of the partner fee; CIP-75's 25% is supply-side.",
-  ProtocolRevenue: "All retained amounts go to the Settlement fee recipient, except CoW's 25% service fee.",
-  SupplySideRevenue: "Partner Fees for CoW: CIP-75 service fee (~25% of the partner fee) withheld by CoW Swap on Pennysia-tagged trades. UniswapX and Velora partner fees are paid in full to Pennysia.",
+    "100% of Settlement, UniswapX, and Velora fees. 75% of CoW partner fees (CIP-75).",
+  ProtocolRevenue: "Same as revenue.",
+  SupplySideRevenue: "CoW's 25% CIP-75 share of tagged partner fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [SETTLEMENT_FEE]:
-      "FeeCollected on Settlement: surplus above the quoted output (capped at 10% of gross), leftover token/ETH sweeps, and gas markup (extra ETH on executeSwap msg.value). ETH↔WETH wrap/unwrap leftover is transferred without FeeCollected and is not in this bucket.",
+      "FeeCollected on Settlement (surplus cap 10%, leftover sweeps, gas markup on extra msg.value).",
     [INTENT_FEE]:
-      "CoW: partner bps on executed buy from appData (tagged by Settlement feeRecipient). UniswapX / Velora: matched partner-fee Transfer (or Velora OrderSettled.partnerFee) in the fill transaction.",
+      "CoW partner bps on executed buy; UniswapX/Velora partner-fee Transfer in the fill tx.",
   },
   Revenue: {
-    [SETTLEMENT_FEE]: "Pennysia retains 100% of FeeCollected (surplus, leftover sweeps, and gas markup).",
-    [INTENT_FEE]: "UniswapX / Velora: 100% of the fill-tx partner fee. CoW: 75% after CIP-75.",
+    [SETTLEMENT_FEE]: "100% of FeeCollected.",
+    [INTENT_FEE]: "100% of UniswapX/Velora partner fees; 75% of CoW partner fees.",
   },
   ProtocolRevenue: {
-    [SETTLEMENT_FEE]: "Collected amounts are sent to the Settlement fee recipient.",
-    [INTENT_FEE]: "Matched hard-intent partner fees except CoW's 25% service fee.",
+    [SETTLEMENT_FEE]: "Paid to the Settlement fee recipient.",
+    [INTENT_FEE]: "Hard-intent partner fees except CoW's 25% service fee.",
   },
   SupplySideRevenue: {
-    [COW_PARTNER_FEE]:
-      "Service fee from partner integrations (~25% on average). CIP-75 withholds this share of the CoW partner fee before payout to Pennysia.",
+    [COW_PARTNER_FEE]: "CoW CIP-75 25% withheld before payout to Pennysia.",
   },
 };
 
