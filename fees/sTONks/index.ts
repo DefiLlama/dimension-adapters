@@ -166,8 +166,9 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), "Referral & Cashback Payouts");
 
-  // Revenue = fees - payouts
-  const protocolRevBigInt = totalFees > totalUserPayouts ? totalFees - totalUserPayouts : 0n;
+  // Revenue = fees - payouts; can go negative on days payouts exceed fees, which is real
+  // (referral/cashback payouts settle on their own schedule, not 1:1 with the fees that funded them)
+  const protocolRevBigInt = totalFees - totalUserPayouts;
   const dailyRevenue = options.createBalances();
   dailyRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
 
@@ -217,12 +218,17 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  // unauthenticated toncenter allows ~1 request/sec; hourly runs would multiply
+  // requests 24x/day across 4 wallets and hit that limit
+  pullHourly: false,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
   methodology,
   breakdownMethodology,
+  // Net Protocol Revenue can legitimately go negative on days referral/cashback
+  // payouts exceed inbound fees
+  allowNegativeValue: true,
 };
 
 export default adapter;
