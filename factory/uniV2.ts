@@ -160,6 +160,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.KCC]: {
       factory: '0x79855A03426e15Ad120df77eFA623aF87bd54eF3',
       start: '2021-09-27',
+      allowReadPairs: true,
       fees: 0.003,
       userFeesRatio: 1,
       revenueRatio: 0.12 / 0.3,
