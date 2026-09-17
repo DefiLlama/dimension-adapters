@@ -10,15 +10,11 @@ import { CHAIN } from "../../helpers/chains";
 // Each launched token gets its own BondingCurve contract (unlike Sashimi's single
 // shared engine) - curves are discovered via the factory's TokenCreated event.
 const LAUNCH_FACTORY = "0x0dCad158e98bC24455f9e94F46709d8a5F6D1255";
-// CircleWarp has been live since 2026-07-29 (real deploy block, well before Arc's
-// Sept-16 public mainnet), a much deeper block range than this repo's other Arc
-// launchpads. The public fallback RPCs can't serve the full ~8.5M-block range in one
-// backfill pass yet; cacheInCloud makes this a one-time cost, but the very first
-// backfill may need an RPC with deeper archival depth. Verified end-to-end against a
-// recent, RPC-servable window before shipping.
-const LAUNCH_FACTORY_DEPLOY_BLOCK = 12894706;
+// CircleWarp was live before Arc's 2026-09-16 public mainnet launch; only counting
+// from public launch, so the deploy block below is that boundary, not the real deploy.
+const LAUNCH_FACTORY_DEPLOY_BLOCK = 21068653;
 const WARPDEX_FACTORY = "0x32330C2400a6e0830D56661169eBB6C147E3577a";
-const WARPDEX_FACTORY_DEPLOY_BLOCK = 12894992;
+const WARPDEX_FACTORY_DEPLOY_BLOCK = 21068653;
 
 const TOKEN_CREATED_EVENT =
   "event TokenCreated(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadataURI)";
@@ -175,7 +171,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ARC],
-  start: "2026-07-29",
+  start: "2026-09-16",
   methodology,
   breakdownMethodology,
 };

@@ -7,9 +7,9 @@ import { CHAIN } from "../../helpers/chains";
 // Only pre-graduation curve trading is counted here; post-graduation volume moves to
 // CircleWarp's own WarpDex pools (a Uniswap V2 fork), not yet tracked under any listing.
 const LAUNCH_FACTORY = "0x0dCad158e98bC24455f9e94F46709d8a5F6D1255";
-// Deep range (~8.5M blocks back to 2026-07-29) versus Arc's other launchpads - see the
-// matching constant in fees/circlewarp for the RPC-depth caveat on the first backfill.
-const LAUNCH_FACTORY_DEPLOY_BLOCK = 12894706;
+// CircleWarp was live before Arc's 2026-09-16 public mainnet launch; only counting
+// from public launch, so this is that boundary block, not the real deploy block.
+const LAUNCH_FACTORY_DEPLOY_BLOCK = 21068653;
 
 const TOKEN_CREATED_EVENT =
   "event TokenCreated(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadataURI)";
@@ -45,7 +45,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ARC],
-  start: "2026-07-29",
+  start: "2026-09-16",
   methodology: {
     Volume: "Gross native-USDC value of every buy and sell on CircleWarp bonding curves. Excludes post-graduation trading on CircleWarp's own WarpDex pools, which is not yet tracked under any listing.",
   },
