@@ -1,16 +1,9 @@
 import { CHAIN } from "../helpers/chains";
-import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
-import { fetchBuilderData } from "../helpers/extended-exchange";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 import { getEnv } from "../helpers/env";
 
 // https://www.tread.fi/
-const HL_BUILDER_ADDRESS = "0x999a4b5f268a8fbf33736feff360d462ad248dbf";
-const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
-// 2bps builder fee on Tread-routed Extended volume
-// https://docs.tread.fi/account-creation-and-api-key-connection/connecting-to-exchanges/extended
-const EXTENDED_BUILDER_FEE_RATE = 0.0002;
 const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
 
 interface TreadToolsApiResponse {
@@ -34,8 +27,6 @@ interface TreadToolsApiResponse {
 }
 
 const VOLUME_LABEL = "Tread.fi OMS Fills";
-const FEES_LABEL = "Builder Code Fees";
-const REVENUE_LABEL = "Builder Code Fees To Tread.fi";
 
 const getHeaders = () => {
   const apiKey = getEnv("TREADTOOLS_API_KEY");
@@ -72,7 +63,8 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
   return response;
 };
 
-// Volume from the TreadTools API (Tread.fi OMS fills), no builder fees on these venues.
+// Volume from the TreadTools API (Tread.fi OMS fills). Volume only: builder-code
+// fees/revenue were removed because they did not reflect actual Tread.fi revenue.
 // Accepts multiple keys for chains that aggregate several venues.
 const volumeOnly = (...keys: string[]) => async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -90,87 +82,16 @@ const volumeOnly = (...keys: string[]) => async (options: FetchOptions) => {
     dailyVolume.addCGToken("usd-coin", totalVolume, VOLUME_LABEL);
   }
 
-  return {
-    dailyVolume,
-    dailyFees: 0,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
-  };
-};
-
-const fetchHyperliquid = async (options: FetchOptions) => {
-  // Volume from TreadTools (Tread.fi OMS fills)
-  const dailyVolume = options.createBalances();
-  const treadToolsData = options.preFetchedResults;
-  const hlData = treadToolsData?.data?.hyperliquid;
-  if (hlData && typeof hlData.dailyVolume === "number" && hlData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", hlData.dailyVolume, VOLUME_LABEL);
-  }
-
-  // Fees from builder API (actual builder fee revenue), rewrapped to carry breakdown labels
-  const builder = await fetchBuilderCodeRevenue({
-    options,
-    builder_address: HL_BUILDER_ADDRESS,
-  });
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  dailyFees.addBalances(builder.dailyFees, FEES_LABEL);
-  dailyRevenue.addBalances(builder.dailyRevenue, REVENUE_LABEL);
-  dailyProtocolRevenue.addBalances(builder.dailyProtocolRevenue, REVENUE_LABEL);
-
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
-};
-
-const fetchExtended = async (options: FetchOptions) => {
-  // Volume from TreadTools (Tread.fi OMS fills)
-  const dailyVolume = options.createBalances();
-  const treadToolsData = options.preFetchedResults;
-  const extendedData = treadToolsData?.data?.extended;
-  if (extendedData && typeof extendedData.dailyVolume === "number" && extendedData.dailyVolume > 0) {
-    dailyVolume.addCGToken("usd-coin", extendedData.dailyVolume, VOLUME_LABEL);
-  }
-
-  // Builder fees: 2bps of Tread-routed volume from the Extended builder dashboard
-  const { dailyFees: builderFees } = await fetchBuilderData({
-    options,
-    builderNames: EXTENDED_BUILDER_NAMES,
-    builderFeeRate: EXTENDED_BUILDER_FEE_RATE,
-  });
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  dailyFees.addBalances(builderFees, FEES_LABEL);
-  dailyRevenue.addBalances(builderFees, REVENUE_LABEL);
-  dailyProtocolRevenue.addBalances(builderFees, REVENUE_LABEL);
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-  };
+  return { dailyVolume };
 };
 
 const methodology = {
   Volume: "Notional volume of all orders executed through Tread.fi's OMS across connected venues, self-reported from Tread.fi's own fill records; includes both maker and taker executions. Flow routed to centralized exchanges (Bybit, Binance) is reported off-chain.",
-  Fees: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid builder rewards, Extended at 2bps of routed volume).",
-  Revenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
-  ProtocolRevenue: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
 };
 
 const breakdownMethodology = {
   Volume: {
     [VOLUME_LABEL]: "Notional volume of all orders executed through Tread.fi's OMS across connected venues, self-reported from Tread.fi's own fill records; includes both maker and taker executions.",
-  },
-  Fees: {
-    [FEES_LABEL]: "Builder fees paid by Tread.fi users on venues where Tread attaches a builder code (Hyperliquid, Extended).",
-  },
-  Revenue: {
-    [REVENUE_LABEL]: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
-  },
-  ProtocolRevenue: {
-    [REVENUE_LABEL]: "Builder fees collected by Tread.fi (Hyperliquid and Extended builder programs).",
   },
 };
 
@@ -179,11 +100,12 @@ const adapter: SimpleAdapter = {
   prefetch,
   adapter: {
     [CHAIN.HYPERLIQUID]: {
-      fetch: fetchHyperliquid,
+      fetch: volumeOnly("hyperliquid"),
       start: "2025-10-05",
     },
+    // Extended is a perps exchange on Starknet
     [CHAIN.STARKNET]: {
-      fetch: fetchExtended,
+      fetch: volumeOnly("extended"),
       start: "2025-12-28",
     },
     [CHAIN.PARADEX]: {
