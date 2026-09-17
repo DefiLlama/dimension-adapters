@@ -1,49 +1,33 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// CircleWarp (circlewarp.fun, branded "Warp") - USDC-native bonding-curve launchpad on
-// Arc. There is no published /docs page; a full technical write-up (contracts, event
-// signatures, fee splits) is instead embedded as a markdown string inside the site's own
-// JS bundle (circlewarp.fun/assets/index-*.js, search "ArcPumpFactoryUpgradeable.sol"),
-// clearly meant for third-party integrators/bots. Every address and fee number below is
-// taken from that write-up and then independently re-verified on-chain (see comments per
-// constant) rather than trusted at face value.
+// CircleWarp (circlewarp.fun, "Warp") - USDC-native bonding-curve launchpad on Arc. No
+// published docs page; a full technical write-up (contracts, events, fee splits) is
+// embedded as markdown inside the site's own JS bundle, meant for integrators/bots.
+// Every address and number below was independently re-verified on-chain rather than
+// trusted at face value (see comments per constant).
 //
-// Each launched token gets its OWN BondingCurve contract (unlike Sashimi's single shared
-// CurveEngine) - curves are discovered via the factory's TokenCreated event, same
-// enumeration pattern as fees/solonpad's curve mode.
-const LAUNCH_FACTORY = "0x0dCad158e98bC24455f9e94F46709d8a5F6D1255"; // UUPS proxy, per the embedded doc
-// First block with code at the factory address (eth_getCode binary search) = 2026-07-29,
-// which is also the day of the very first TokenCreated event (10 minutes after deploy) -
-// i.e. CircleWarp has been live since well before Arc's public Sept-16 mainnet launch.
-// NOTE: this is a genuinely deep range (~8.5M blocks, Arc runs sub-second blocks) versus
-// Arc's other launchpad listings in this repo, which all deployed right around the
-// Sept-16 public mainnet launch. The public fallback RPCs (rpc.mainnet/drpc/blockdaemon)
-// cannot serve this whole range in one eth_getLogs call today - blockdaemon returns
-// "pruned history unavailable" for blocks this old regardless of chunk size, and the two
-// others reject/rate-limit a range this wide. `cacheInCloud: true` makes this a one-time
-// cost per day-by-day refill (each day only adds its own small incremental block range to
-// the cache) rather than a repeated cost, matching how this repo's backfill CLI already
-// walks `start` forward one day at a time - but the very first backfill run will need to
-// progress far enough (or use an RPC with real archival depth) before this factory's
-// full curve list resolves. Verified end-to-end against a recent, RPC-servable block
-// window (fee math, event decoding, Fees=Revenue+SupplySideRevenue) before shipping.
+// Each launched token gets its own BondingCurve contract (unlike Sashimi's single
+// shared engine) - curves are discovered via the factory's TokenCreated event.
+const LAUNCH_FACTORY = "0x0dCad158e98bC24455f9e94F46709d8a5F6D1255";
+// CircleWarp has been live since 2026-07-29 (real deploy block, well before Arc's
+// Sept-16 public mainnet), a much deeper block range than this repo's other Arc
+// launchpads. The public fallback RPCs can't serve the full ~8.5M-block range in one
+// backfill pass yet; cacheInCloud makes this a one-time cost, but the very first
+// backfill may need an RPC with deeper archival depth. Verified end-to-end against a
+// recent, RPC-servable window before shipping.
 const LAUNCH_FACTORY_DEPLOY_BLOCK = 12894706;
-const WARPDEX_FACTORY = "0x32330C2400a6e0830D56661169eBB6C147E3577a"; // UUPS proxy, per the embedded doc
-const WARPDEX_FACTORY_DEPLOY_BLOCK = 12894992; // eth_getCode binary search
+const WARPDEX_FACTORY = "0x32330C2400a6e0830D56661169eBB6C147E3577a";
+const WARPDEX_FACTORY_DEPLOY_BLOCK = 12894992;
 
 const TOKEN_CREATED_EVENT =
   "event TokenCreated(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadataURI)";
-// Curve buys/sells are `payable` calls settled in Arc's NATIVE 18-decimal USDC
-// representation (msg.value), not the 6-decimal ERC-20 facade at 0x3600...0000 - the
-// embedded doc is explicit about this decimal seam, and the event field is even named
-// usdcGross accordingly. Booked via addGasToken below, never tagged with the ERC-20
-// address (Arc's dual-decimal-USDC gotcha).
+// Curve buys/sells settle in Arc's native 18-decimal USDC (msg.value), not the
+// 6-decimal ERC-20 facade - booked via addGasToken below.
 const TRADE_EVENT =
   "event Trade(address indexed trader, bool indexed isBuy, uint256 usdcGross, uint256 tokenAmount, uint256 priceX18, uint256 marketCap)";
-// Non-standard PairCreated (adds a `creator` field vs vanilla Uniswap V2), confirmed by
-// independently hashing the doc's signature string with ethers' id() and matching the
-// exact topic0 the doc lists (0xa2d65e38...1bba1) - not just trusting the doc's own claim.
+// Non-standard PairCreated (adds a `creator` field vs vanilla Uniswap V2); topic0
+// independently hashed and confirmed, not just taken from the embedded doc's claim.
 const PAIR_CREATED_EVENT =
   "event PairCreated(address indexed token0, address indexed token1, address pair, address creator, uint256)";
 const SWAP_EVENT =
@@ -51,29 +35,16 @@ const SWAP_EVENT =
 
 const BPS = 10000n;
 
-// Curve mode: flat 1% fee (feeBps=100, immutable per curve at creation), split exactly
-// 50/50 creator/protocol per the embedded doc's pseudocode (fee = amountIn*100/10000;
-// creatorFee = fee/2; protocolFee = fee - creatorFee). Verified on-chain against curve
-// 0x991d5FED8bB384b5F8e427884a7A7b5edD3462B1 (token 0xd68D667f...5eeDe, the doc's own
-// "pre-graduation" test address): a trade that was the first transaction in its block (so
-// no other trade's fee could land in the same before/after comparison), tx
-// 0xe51bd792218aa926a3736aa4700c2a6f1176cb6c2075609c67bb66037e8ee74b, grossed
-// 483266093786587241 wei (0.4832660937865872 USDC) and the curve's accruedCreatorFees()
-// accumulator moved from 17568670255854332774 to 17571086586323265710 wei, a delta of
-// 2416330468933 wei = exactly 0.5% of gross, matching to the wei.
+// Curve mode: flat 1% fee, 50/50 creator/protocol. Verified on a solo-transaction-block
+// trade (gross 0.4832660937865872 USDC): the curve's own accruedCreatorFees()
+// accumulator moved by exactly 0.5% of that gross, to the wei.
 const CURVE_FEE_BPS = 100n;
 
-// Post-graduation: the curve closes and liquidity moves into a WarpDex pool (CircleWarp's
-// own Uniswap V2 fork, address discovered per-token via WarpDex factory's PairCreated).
-// Total swap fee is 1% of the input side, split 0.4% LP (stays in reserves - though the LP
-// token itself is burned to 0x...dEaD at migration, so this permanently compounds into the
-// pool rather than paying out to any current LP holder) / 0.3% creator / 0.3% protocol.
-// Verified on-chain against the WARP/USDC pool (0x507a494fdE26960cB36d50912cab83c71Ecc7ea7):
-// a swap that was the first transaction in its block, tx
-// 0x80cf71c9df3508d33ab9a69f64c5ffad2a94e6239c0f5cf61cfdbf42247f5c41, put in 53568932 raw
-// USDC (53.568932 USDC, token0), and both creatorFee0() and protocolFee0() accumulators
-// moved by exactly 160706 raw units (0.160706 USDC) each - exactly 0.3% of the input, to
-// the unit, for both.
+// Post-graduation: liquidity moves into a WarpDex pool (CircleWarp's own Uniswap V2
+// fork). 1% swap fee, split 40% LP (compounds into reserves - the LP token itself is
+// burned at migration, so this never pays out to a holder) / 30% creator / 30%
+// protocol. Verified the same way: a solo-transaction-block swap moved both
+// creatorFee0() and protocolFee0() by exactly 0.3% of the input each, to the unit.
 const POOL_LP_BPS = 40n;
 const POOL_CREATOR_BPS = 30n;
 const POOL_PROTOCOL_BPS = 30n;

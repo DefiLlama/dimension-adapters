@@ -2,24 +2,19 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // CircleWarp (circlewarp.fun, "Warp") bonding-curve volume on Arc. See fees/circlewarp
-// for the fee/revenue side and the full on-chain verification notes.
+// for the fee/revenue side and on-chain verification notes.
 //
-// Only pre-graduation curve trading is counted here, per this repo's launchpad
-// convention (count only the launchpad's own curve; post-migration volume belongs to the
-// receiving DEX). Post-graduation trading moves to CircleWarp's own WarpDex pools (a
-// custom Uniswap V2 fork) - that volume is not yet tracked under any listing.
+// Only pre-graduation curve trading is counted here; post-graduation volume moves to
+// CircleWarp's own WarpDex pools (a Uniswap V2 fork), not yet tracked under any listing.
 const LAUNCH_FACTORY = "0x0dCad158e98bC24455f9e94F46709d8a5F6D1255";
-// Deep range (~8.5M blocks back to 2026-07-29) versus Arc's other launchpads in this
-// repo - see the matching constant in fees/circlewarp for the RPC-depth caveat on the
-// first-ever backfill. `cacheInCloud` makes subsequent day-by-day refills cheap.
+// Deep range (~8.5M blocks back to 2026-07-29) versus Arc's other launchpads - see the
+// matching constant in fees/circlewarp for the RPC-depth caveat on the first backfill.
 const LAUNCH_FACTORY_DEPLOY_BLOCK = 12894706;
 
 const TOKEN_CREATED_EVENT =
   "event TokenCreated(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadataURI)";
-// usdcGross is Arc's NATIVE 18-decimal USDC representation (msg.value on a payable
-// buy/sell call), not the 6-decimal ERC-20 facade - booked via addGasToken, never
-// tagged with the ERC-20 address. See fees/circlewarp for the on-chain verification of
-// this event's field layout.
+// usdcGross is Arc's native 18-decimal USDC (msg.value), not the 6-decimal ERC-20
+// facade - booked via addGasToken.
 const TRADE_EVENT =
   "event Trade(address indexed trader, bool indexed isBuy, uint256 usdcGross, uint256 tokenAmount, uint256 priceX18, uint256 marketCap)";
 
