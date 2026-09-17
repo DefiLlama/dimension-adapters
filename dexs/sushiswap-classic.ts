@@ -25,6 +25,7 @@ const sushiClassicConfigs: Record<string, SushiClassicConfig> = {
   [CHAIN.CELO]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2021-06-17" },
   [CHAIN.LINEA]: { factory: "0xfbc12984689e5f15626bad03ad60160fe98b303c", start: "2023-10-15" },
   [CHAIN.METIS]: { factory: "0x580ED43F3BBa06555785C81c2957efCCa71f7483", start: "2023-10-15" },
+  [CHAIN.ARC]: { factory: "0x0e867974275cd31c25015c2753c9d75f9f355379", start: "2026-09-15" },
 }
 
 const getUniV2LogAdapterConfig = {

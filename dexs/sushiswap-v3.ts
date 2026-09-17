@@ -25,6 +25,7 @@ const sushiV3Configs: Record<string, { factory: string, start: string }> = {
   [CHAIN.SONIC]: { factory: "0x46b3fdf7b5cde91ac049936bf0bdb12c5d22202e", start: "2024-12-25" },
   [CHAIN.KATANA]: { factory: "0x203e8740894c8955cb8950759876d7e7e45e04c1", start: "2025-05-30" },
   [CHAIN.ROBINHOOD]: { factory: "0xE51960f1B45f1C9FB6D166E6a884F866fC70433B", start: "2026-07-10"},
+  [CHAIN.ARC]: { factory: "0x7282249282902e1f99c2cb0a04230091bd30fe3a", start: "2026-09-15" },
 
   // Deployments left out on purpose, checked 2026-07-28:
   // - no swaps at all in the last 30 days, so nothing to count
