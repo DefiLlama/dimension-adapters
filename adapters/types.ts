@@ -58,6 +58,7 @@ export type FetchOptions = {
 }
 
 export type FetchGetLogsOptions = {
+  maxBlockRange?: number,
   eventAbi?: string,
   topic?: string,
   target?: string,

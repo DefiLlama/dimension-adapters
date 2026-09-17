@@ -6,6 +6,12 @@ const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
   SPACESCAN_API_KEY: 'tkn1qqqhsdmkq3pzrcvt24sgpstsndz2z95qsetg4zchsdmkq3p9wqqqdr2u6a', // free-plan key for api.spacescan.io (Chia block lookups)
   ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
+  BSC_RPC: 'https://bsc.rpc.sentio.xyz', // historical eth_call; public dataseed nodes prune state
+  BSC_ARCHIVAL_RPC: 'https://bsc.rpc.sentio.xyz', // eth_getLogs; the SDK splits ranges over its 10,000-block limit
+  TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
+  TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
+  ETLK_RPC: 'https://node.mainnet.etherlink.com',
+  ETLK_ARCHIVAL_RPC: 'https://node.mainnet.etherlink.com', // the explorer proxy rate-limits hourly fee reads
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc-mainnet.campnetwork.xyz',
@@ -37,7 +43,7 @@ const DEFAULTS: any = {
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   ARC_RPC: 'https://rpc.mainnet.arc.io,https://rpc.drpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io', // rpc.mainnet.arc.io alone rate-limits (429) hard under normal adapter load
   ARC_RPC_CHAIN_ID: '5042',
-  ARC_ARCHIVAL_RPC: 'https://explorer.arc.io/api/eth-rpc', // public rpc.mainnet.arc.io rejects large eth_getLogs ranges
+  ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org', // the explorer proxy challenges requests with HTTP 403
   // Arc is not in the SDK Multicall3 deployment map; canonical Multicall3 is deployed there.
   ARC_RPC_MULTICALL: '0xcA11bde05977b3631167028862bE2a173976CA11',
   ARC_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
