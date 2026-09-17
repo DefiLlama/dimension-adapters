@@ -63,7 +63,7 @@ test('recovery reverses forfeited uncheckpointed interest rather than silently f
 
 const FIRST = managedVaults[0];
 type VaultState = { harvested: bigint; pending: bigint; position?: string };
-async function runVaults(before: VaultState, after: VaultState, logs: any[] = [], from = FIRST.deploymentBlock + 1000, to = FIRST.deploymentBlock + 2000) {
+async function runVaults(before: VaultState, after: VaultState, from = FIRST.deploymentBlock + 10, to = FIRST.deploymentBlock + 20) {
   const snapshots: string[] = [];
   const api = (state: VaultState) => ({ multiCall: async ({ abi, calls }: any) => calls.map((call: any) => {
     if (abi === 'address:position') return state.position ?? FIRST.vault;
@@ -75,9 +75,7 @@ async function runVaults(before: VaultState, after: VaultState, logs: any[] = []
   }) });
   const result = await vaults.fetch!({
     createBalances, getFromBlock: async () => from, getToBlock: async () => to,
-    fromApi: api(before), toApi: api(after), getLogs: async (query: any) => {
-      assert.equal(query.fromBlock, from + 1); return logs;
-    },
+    fromApi: api(before), toApi: api(after), getLogs: async () => { throw new Error('Current V7 vaults must not query legacy fee events'); },
   } as unknown as FetchOptions);
   return { result, snapshots };
 }
@@ -92,7 +90,7 @@ test('harvesting already-accrued LP fees does not create income twice', async ()
 });
 
 test('new vault snapshots cannot import a pre-deployment balance', async () => {
-  const { result } = await runVaults({ harvested: 999n, pending: 999n }, { harvested: 10n, pending: 90n }, [], FIRST.deploymentBlock - 1, FIRST.deploymentBlock + 1);
+  const { result } = await runVaults({ harvested: 999n, pending: 999n }, { harvested: 10n, pending: 90n }, FIRST.deploymentBlock - 1, FIRST.deploymentBlock + 1);
   assert.equal(amount(result.dailyFees as Balances), 100n);
   identity(result);
 });
@@ -105,13 +103,17 @@ test('unbound positions are supported and position migrations read each endpoint
   assert.equal(amount(migrated.result.dailyFees as Balances), 10n);
 });
 
-test('legacy vaults use their emitted split and add no deposit principal', async () => {
-  const { result } = await runVaults({ harvested: 0n, pending: 0n }, { harvested: 0n, pending: 0n }, [
-    { grossFees: 1000n, protocolFees: 50n, buybackFunding: 150n, retainedForShareholders: 800n },
-  ]);
-  assert.equal(amount(result.dailyFees as Balances), 1000n);
-  assert.equal(amount(result.dailyRevenue as Balances), 200n);
-  identity(result);
+test('coverage is exactly the 18 current V7 vaults and starts at their deployment', async () => {
+  assert.equal(managedVaults.length, 18);
+  assert.equal(new Set(managedVaults.map(v => v.vault.toLowerCase())).size, 18);
+  assert.equal(vaults.start, '2026-09-11');
+  assert.equal(Math.min(...managedVaults.map(v => v.deploymentBlock)), 60517277);
+  const { result, snapshots } = await runVaults(
+    { harvested: 1000n, pending: 100n }, { harvested: 2000n, pending: 200n },
+    60517000, 60517276,
+  );
+  assert.equal(amount(result.dailyFees as Balances), 0n);
+  assert.deepEqual(snapshots, []);
 });
 
 test('adjacent windows preserve raw-unit fee and split totals without smoothing', async () => {

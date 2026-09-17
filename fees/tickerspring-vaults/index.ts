@@ -1,11 +1,9 @@
 import { ChainApi } from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { legacyVaults, managedVaults } from './deployments';
+import { managedVaults } from './deployments';
 
-const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
 const SWAP_FEES = 'Vault Liquidity Fees';
-const LEGACY_FEES = 'Legacy Vault Harvests';
 const OPERATIONS = 'Vault Fees To Operations';
 const BUYBACK_RESERVE = 'Vault Fees To Buyback Reserve';
 const DEPOSITORS = 'Vault Fees To Depositors';
@@ -68,27 +66,14 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(current.token, earned - operations - buyback, DEPOSITORS);
   }
 
-  // Legacy USDG vaults emit their exact realized split after converting stock-denominated fees.
-  // Their outstanding stock fees have no equivalent stable per-token lifetime counter; report
-  // the harvest basis explicitly instead of treating price changes on those fees as new income.
-  const logs = await options.getLogs({
-    targets: legacyVaults, fromBlock: fromBlock + 1, toBlock,
-    eventAbi: 'event FeesCollected(uint256 grossFees, uint256 protocolFees, uint256 buybackFunding, uint256 retainedForShareholders)',
-  });
-  for (const log of logs) {
-    dailyFees.add(USDG, log.grossFees, LEGACY_FEES);
-    dailyRevenue.add(USDG, log.protocolFees, OPERATIONS);
-    dailyRevenue.add(USDG, log.buybackFunding, BUYBACK_RESERVE);
-    dailySupplySideRevenue.add(USDG, log.retainedForShareholders, DEPOSITORS);
-  }
   // Buyback reserves are still protocol-controlled funds. Funding is not proof of a buyback,
   // and burns of the pre-existing SPRING treasury allocation are not fee-funded holder income.
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const revenueBreakdown = {
-  [OPERATIONS]: 'The operations share of vault LP fees (10% for managed vaults; emitted amount for legacy vaults).',
-  [BUYBACK_RESERVE]: 'The share reserved for future SPRING buybacks (20% for managed vaults; emitted amount for legacy vaults), not completed buybacks.',
+  [OPERATIONS]: 'The operations share of vault LP fees (10%).',
+  [BUYBACK_RESERVE]: 'The share reserved for future SPRING buybacks (20%), not completed buybacks.',
 };
 
 const adapter: SimpleAdapter = {
@@ -96,12 +81,12 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   doublecounted: true, // Gross LP fees are also included by the underlying Uniswap adapters.
   chains: [CHAIN.ROBINHOOD],
-  start: '2026-09-06', // Earliest included vault: deployment block 56314139.
+  start: '2026-09-11', // First current V7 vault: deployment block 60517277.
   // Reversals of pending LP fees during recovery and raw-token rounding can produce negatives.
   allowNegativeValue: true,
   fetch,
   methodology: {
-    Fees: 'LP fees earned by the listed TickerSpring vaults, measured as harvested plus pending fees; legacy USDG vaults use realized harvests, excluding deposits, withdrawals and stock-price returns.',
+    Fees: 'LP fees earned by the 18 current TickerSpring V7 vaults, measured as harvested plus pending fees, excluding retired deployments, deposits, withdrawals and stock-price returns.',
     Revenue: 'Vault fees allocated to operations and the SPRING buyback reserve, normally 30% of earned LP fees.',
     ProtocolRevenue: 'Operations and unspent buyback allocations retained by the protocol; reserve funding and treasury-token burns are not counted as completed buybacks.',
     SupplySideRevenue: 'LP fees retained for vault depositors, normally 70% of earned LP fees.',
@@ -109,7 +94,6 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [SWAP_FEES]: 'Change in cumulative harvested plus pending LP fees in each underlying token of the managed vaults.',
-      [LEGACY_FEES]: 'Gross USDG liquidity fees realized by the legacy basket and single-asset vaults.',
     },
     Revenue: revenueBreakdown,
     ProtocolRevenue: revenueBreakdown,
