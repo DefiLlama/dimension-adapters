@@ -153,6 +153,20 @@ const configs: Record<string, Record<string, any>> = {
   "mistswap": {
     [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0' },
   },
+  "mojitoswap": {
+    // https://docs.mojitoswap.finance/q-and-a/make-your-own-drinks-on-mojitoswap
+    // https://docs.mojitoswap.finance/q-and-a/faq
+    // 0.30% swap fee: 0.18% LPs, 0.08% MJT buyback-and-burn, 0.04% treasury.
+    [CHAIN.KCC]: {
+      factory: '0x79855A03426e15Ad120df77eFA623aF87bd54eF3',
+      start: '2021-09-27',
+      fees: 0.003,
+      userFeesRatio: 1,
+      revenueRatio: 0.12 / 0.3,
+      protocolRevenueRatio: 0.04 / 0.3,
+      holdersRevenueRatio: 0.08 / 0.3,
+    },
+  },
   "gateswap": {
     [CHAIN.GATE_LAYER]: { factory: '0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2', start: '2025-09-28', },
   },
@@ -1341,12 +1355,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pancakeFactories",
   },
-  // "mojitoswap": { // in uniSubgraph
-  //   endpoints: {
-  //     [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-  //   },
-  //   start: 1634200191,
-  // },
   "neby-dex": {
     endpoints: {
       [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
