@@ -56,7 +56,7 @@ const ALLOWANCE_HOLDER = "0x50c4E75a512F2A14A7b304787Adf79C4531A5909";
 const OPEN_ROUTER = "0x50cFe7c1938dB66A1a6D2e86D36F39FBef3d5c4a";
 
 // repo chain => Dune blockchain name + wrapped-native token address. noErc20 = no decoded erc20 table on Dune
-const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boolean }> = {
+const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boolean; nativeScale?: number }> = {
   [CHAIN.ETHEREUM]: { dune: "ethereum", wrapped: ADDRESSES.ethereum.WETH },
   [CHAIN.OPTIMISM]: { dune: "optimism", wrapped: ADDRESSES.optimism.WETH_1 },
   [CHAIN.BSC]: { dune: "bnb", wrapped: ADDRESSES.bsc.WBNB },
@@ -83,6 +83,10 @@ const chainConfig: Record<string, { dune: string; wrapped: string; noErc20?: boo
   [CHAIN.KATANA]: { dune: "katana", wrapped: ADDRESSES.katana.VB_WETH },
   [CHAIN.PLUME]: { dune: "plume", wrapped: ADDRESSES.plume_mainnet.WPLUME },
   [CHAIN.ROBINHOOD]: { dune: "robinhood", wrapped: ADDRESSES.robinhood.WETH },
+  // Arc's native interface uses 18 decimals while the USDC ERC-20 facade (same
+  // underlying balance) uses 6, so native value must be scaled down before being
+  // priced as that token. https://docs.arc.io/arc/concepts/stablecoin-native-model
+  [CHAIN.ARC]: { dune: "arc", wrapped: ADDRESSES.arc.USDC, nativeScale: 1e12 },
 };
 
 // Native and ERC20 flows, dedupe largest per tx, group by chain + token for DefiLlama pricing
@@ -92,7 +96,7 @@ const buildQuery = (options: FetchOptions): string => {
 
   const native = Object.entries(chainConfig).map(([chain, cfg]) => `
     SELECT '${chain}' AS chain, t.hash AS tx_hash,
-           ${cfg.wrapped} AS token_address, TRY_CAST(t.value AS double) AS amount
+           ${cfg.wrapped} AS token_address, TRY_CAST(t.value AS double)${cfg.nativeScale ? ` / ${cfg.nativeScale}` : ''} AS amount
     FROM ${cfg.dune}.transactions t
     WHERE t.to IN (${ALLOWANCE_HOLDER}, ${OPEN_ROUTER}) AND t.value > UINT256 '0' AND t.success
       AND t.block_time >= from_unixtime(${start}) AND t.block_time < from_unixtime(${end})`).join("\n    UNION ALL");
