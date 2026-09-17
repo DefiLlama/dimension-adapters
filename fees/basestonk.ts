@@ -5,7 +5,7 @@ import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-// BaseStonk - a launchpad on Base and Robinhood Chain where every token opens
+// BaseStonk - a launchpad on Base where every token opens
 // in a Uniswap v4 pool priced in a tokenized stock, ETF, major or stablecoin.
 // A BaseStonk hook on that pool takes a tax on every swap and splits it in the
 // same transaction:
@@ -76,18 +76,6 @@ const chainConfig: Record<string, ChainConfig> = {
         "0x99feb612f130c5e981dbc0a96c436bc06ca0fe9e", // v2
       ],
     },
-  },
-  [CHAIN.ROBINHOOD]: {
-    // launcher deployed block 54058114, 2026-09-04 06:39 UTC
-    start: "2026-09-04",
-    // https://robinhoodchain.blockscout.com/address/0x8366a39CC670B4001A1121B8F6A443A643e40951
-    poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951",
-    knownPairs: [
-      ADDRESSES.robinhood.USDG, // USDG
-      ADDRESSES.robinhood.WETH, // WETH
-    ],
-    // https://robinhoodchain.blockscout.com/address/0xF42bC6ca0D082D3Af51771392CeC847a01A6e044
-    hooks: ["0xf42bc6ca0d082d3af51771392cec847a01a6e044"], // v6
   },
 };
 
