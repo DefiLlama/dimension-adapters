@@ -11,7 +11,9 @@ async function fetch(_options: FetchOptions): Promise<FetchResult> {
 
     const openInterestAtEnd = products.reduce((acc: number, market: any) => {
         const price = +((marketPrices.find((priceEntry: any) => market.id === priceEntry.productId))?.oraclePrice || 0);
-        acc += price * +(market.openInterest || 0);
+        // API openInterest is long + short; halve it to report single-sided OI
+        // (matches PerpProduct.openInterest on the exchange contract)
+        acc += price * +(market.openInterest || 0) / 2;
         return acc;
     }, 0);
 
@@ -21,8 +23,10 @@ async function fetch(_options: FetchOptions): Promise<FetchResult> {
 }
 
 const adapter: SimpleAdapter = {
-    chains: [CHAIN.ROBINHOOD],
+    version: 2,
     fetch,
+    chains: [CHAIN.ROBINHOOD],
+    start: '2026-08-28',
     runAtCurrTime: true,
 };
 
