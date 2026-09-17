@@ -400,9 +400,21 @@ async function getV2PairMetadata(options: FetchOptions) {
         dexProtocolFeeRate: Number(log.dexProtocolFeeRate),
       },
     });
+    // PairCreated names both sides of a pair but not which of them the token launched
+    // against. Setup names the launched token, so the quote is whichever side is left.
+    // Taking it from here rather than matching against a list of known quote assets is
+    // what lets a pair quoted in something new be read at all: an unlisted quote leaves
+    // the pair with none, and the first swap against it takes the whole day down.
+    const meta = pairMeta[pair];
+    if (meta) {
+      const baseToken = log.token.toLowerCase();
+      if (meta.token0.toLowerCase() === baseToken) meta.quoteToken = meta.token1;
+      else if (meta.token1.toLowerCase() === baseToken) meta.quoteToken = meta.token0;
+    }
+
     // Setup is also the token -> pair link, which is what the curve trade volume
     // needs to know which quote asset a token trades against.
-    const quoteToken = pairMeta[pair]?.quoteToken;
+    const quoteToken = meta?.quoteToken;
     if (quoteToken) tokenQuoteMap[log.token.toLowerCase()] = quoteToken;
   });
 
