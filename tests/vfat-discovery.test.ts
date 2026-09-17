@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Balances } from '@defillama/sdk';
 import { FetchGetLogsOptions, FetchOptions } from '../adapters/types';
 import adapter from '../fees/vfat';
+import { nullAddress } from '../helpers/token';
 
 const token = '0x1111111111111111111111111111111111111111';
 const existingSickle = '0x2222222222222222222222222222222222222222';
@@ -27,8 +28,16 @@ for (const config of adapter.chains!) {
     const options = {
       chain,
       createBalances: () => dailyFees,
+      api: { multiCall: async ({ calls, abi, target }: { calls: string[]; abi: string; target: string }) => {
+        assert.equal(chain, 'bsc');
+        assert.equal(target.toLowerCase(), '0x53d9780dbd3831e3a797fd215be4131636cd5fdf');
+        assert.equal(abi, 'function admins(address) view returns (address)');
+        assert.deepEqual(calls, [existingSickle, unrelatedContract, newSickle]);
+        return calls.map(sickle => sickle === unrelatedContract ? nullAddress : token);
+      } },
       getLogs: async (query: FetchGetLogsOptions) => {
         if (query.eventAbi?.startsWith('event Deploy')) {
+          assert.notEqual(chain, 'bsc', 'BSC must not scan deployment history');
           // The runner defaults an omitted fromBlock to the current window.
           const fromBlock = query.fromBlock ?? windowStart;
           return deployments.filter(log => log.blockNumber >= fromBlock);
@@ -44,3 +53,13 @@ for (const config of adapter.chains!) {
     assert.equal(BigInt(dailyFees.getBalances()[`${chain}:${token}`]), 6000000n);
   });
 }
+
+test('BSC: propagates membership RPC failures instead of returning zero fees', async () => {
+  const options = {
+    chain: 'bsc',
+    createBalances: () => new Balances({ chain: 'bsc' }),
+    getLogs: async () => [fee(existingSickle, '1000000')],
+    api: { multiCall: async () => { throw new Error('archive RPC unavailable'); } },
+  } as unknown as FetchOptions;
+  await assert.rejects(adapter.fetch!(options), /archive RPC unavailable/);
+});

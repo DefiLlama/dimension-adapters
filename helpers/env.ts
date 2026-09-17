@@ -6,6 +6,8 @@ const DEFAULTS: any = {
   ANKR_API_KEY: '79258ce7f7ee046decc3b5292a24eb4bf7c910d7e39b691384c7ce0cfb839a01',
   SPACESCAN_API_KEY: 'tkn1qqqhsdmkq3pzrcvt24sgpstsndz2z95qsetg4zchsdmkq3p9wqqqdr2u6a', // free-plan key for api.spacescan.io (Chia block lookups)
   ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
+  BSC_RPC: 'https://bsc.rpc.sentio.xyz', // historical eth_call; public dataseed nodes prune state
+  BSC_ARCHIVAL_RPC: 'https://bsc.rpc.sentio.xyz', // eth_getLogs; the SDK splits ranges over its 10,000-block limit
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc-mainnet.campnetwork.xyz',

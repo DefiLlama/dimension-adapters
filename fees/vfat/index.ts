@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { nullAddress } from "../../helpers/token";
 
 const chainSettings: Record<string, { factory: string; fromBlock: number; chainName: string }> = {
   [CHAIN.BASE]: {
@@ -89,20 +90,20 @@ const chainSettings: Record<string, { factory: string; fromBlock: number; chainN
   },
 };
 
-const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
+const fetchFees = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const dailyFees = createBalances();
   const settings = chainSettings[chain];
 
-  // Fetch Deploy events to get all Sickle contract addresses
-  const deployLogs = await getLogs({
-    target: settings.factory,
-    fromBlock: settings.fromBlock,
-    eventAbi: 'event Deploy(address indexed admin, address sickle)',
-    cacheInCloud: true,
-  });
-
-  const sickleContracts = deployLogs.map((log: any) => log.sickle.toLowerCase());
-  const sickleContractsSet = new Set(sickleContracts);
+  let sickleContracts: string[] = [];
+  if (chain !== CHAIN.BSC) {
+    const deployLogs = await getLogs({
+      target: settings.factory,
+      fromBlock: settings.fromBlock,
+      eventAbi: 'event Deploy(address indexed admin, address sickle)',
+      cacheInCloud: true,
+    });
+    sickleContracts = deployLogs.map((log: any) => log.sickle.toLowerCase());
+  }
 
   const logs = await getLogs({
     entireLog: true,
@@ -117,6 +118,19 @@ const fetchFees = async ({ createBalances, getLogs, chain }: FetchOptions) => {
     noTarget: true,
     eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
   });
+
+  if (chain === CHAIN.BSC) {
+    // BSC's deployment history exceeds public RPC log limits. Check only this
+    // window's emitters against the factory's on-chain membership registry.
+    const emitters: string[] = [...new Set([...logs, ...logs2].map(log => (log.address || log.source).toLowerCase()))];
+    const admins = await api.multiCall({
+      target: settings.factory,
+      abi: 'function admins(address) view returns (address)',
+      calls: emitters,
+    });
+    sickleContracts = emitters.filter((_, i) => admins[i] !== nullAddress);
+  }
+  const sickleContractsSet = new Set(sickleContracts);
 
   logs.forEach((log: any) => {
     let target = (log.address || log.source).toLowerCase();
