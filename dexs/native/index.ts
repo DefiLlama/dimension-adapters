@@ -19,7 +19,6 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const logs = await getLogs({
     noTarget: true,
     eventAbi: RFQ_TRADE_EVENT,
-    skipIndexer: true
   });
 
   logs.forEach((log: any) => {
