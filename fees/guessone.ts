@@ -5,7 +5,9 @@ import type {FetchOptions, SimpleAdapter} from "../adapters/types";
 // https://monadscan.com/address/0x6f6493e3923377f2d0ab100D4863dE713108b480
 export const contracts = {
     guessOne: "0x6f6493e3923377f2d0ab100D4863dE713108b480",
+    // Buyback funding and execution: https://monadscan.com/address/0x0E2980feCae65b07ECc5b59E6e6a1c727147fE94#code
     buybackVault: "0x0E2980feCae65b07ECc5b59E6e6a1c727147fE94",
+    // GONE staking reward distributions: https://monadscan.com/address/0x2e67B195E5148825487B310FfaB94868B9F0587A#code
     staking: "0x2e67B195E5148825487B310FfaB94868B9F0587A",
 } as const;
 
@@ -83,7 +85,9 @@ async function addHolderRevenue(
     const matched = new Set<FullLog>();
     for (const log of funding) {
         const position = logIndex(log);
-        // fundRewards runs before BuybackExecuted; log order also distinguishes batched buybacks.
+        // The vault's nonReentrant executeBuyback funds staking at most once, then emits
+        // BuybackExecuted. Each successful funding must precede its own execution;
+        // reusing one means duplicate funding logs or incomplete source data, so fail.
         const execution = byTransaction
             .get(log.transactionHash.toLowerCase())
             ?.find((item) => logIndex(item) > position);
@@ -112,6 +116,7 @@ export async function fetch(options: FetchOptions) {
     const dailyRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
+    const dailySupplySideRevenue = options.createBalances();
 
     const rounds = await options.getLogs({
         target: contracts.guessOne,
@@ -163,16 +168,17 @@ export async function fetch(options: FetchOptions) {
         // Paid directly to the execution wallet as a gas subsidy; betCost is separate.
         const fee = BigInt(log.fee);
         dailyFees.addGasToken(fee, labels.autoBet);
+        dailySupplySideRevenue.addGasToken(fee, labels.autoBet);
     }
 
     await addHolderRevenue(options, dailyHoldersRevenue);
 
-    // Fees include execution subsidies; omitting Supply-side Revenue does not make them protocol income.
     return {
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
+        dailySupplySideRevenue,
     };
 }
 
@@ -180,17 +186,21 @@ const methodology = {
     Fees: "Actual MON fees accrued to the protocol treasury and sent to the buyback vault at round settlement, plus separately paid auto-bet gas subsidies. Excludes MON allocated back to players and does not count gross stakes as fees.",
     Revenue:
         "MON round settlement fees retained by the treasury and buyback vault; excludes auto-bet execution fees paid to the gas-subsidy wallet.",
+    SupplySideRevenue:
+        "User-paid auto-bet execution fees transferred to the execution wallet as gas subsidies, included in Fees but excluded from Revenue; measures the subsidy paid, not actual transaction gas expenditure.",
     ProtocolRevenue:
         "MON round fees allocated directly to the protocol treasury; excludes gas subsidies, the separate buyback budget and GONE inventory valuations.",
     HoldersRevenue:
         "Successful GONE staking rewards funded by the buyback vault, valued in MON at the matching buyback's actual execution rate (MON spent / GONE bought), then priced in USD by the SDK. Includes pending rewards only when successfully funded; excludes mining allocations, no-staker treasury diversions, other funders and later claims. Execution-price valuation includes trading costs and is not an independent GONE market price.",
 };
 
+// Settlement source: https://monadscan.com/address/0x6f6493e3923377f2d0ab100D4863dE713108b480#code
+// Use emitted amounts, preserving the settlement's rounding and no-winner allocation.
 const roundBreakdown = {
     [labels.treasury]:
-        "Actual MON accrued to the round treasury: 1% of total bets plus 1% of winning-slot bets, with integer rounding.",
+        "Actual MON accrued to the round treasury in ProtocolTreasuryAccrued.amount.",
     [labels.buyback]:
-        "Actual MON sent to the buyback vault: 11% of losing bets when winners exist, otherwise the pot less the 1% treasury charge.",
+        "Actual MON sent to the buyback vault in BuybackFeeDistributed.amount, including the remaining pot when no winning stake exists.",
 };
 
 const adapter: SimpleAdapter = {
@@ -210,6 +220,10 @@ const adapter: SimpleAdapter = {
         },
         Revenue: {
             ...roundBreakdown,
+        },
+        SupplySideRevenue: {
+            [labels.autoBet]:
+                "The fee field of each successful AutoBetExecuted event, paid to the auto-bet execution wallet as a gas subsidy.",
         },
         ProtocolRevenue: {
             [labels.treasury]: roundBreakdown[labels.treasury],
