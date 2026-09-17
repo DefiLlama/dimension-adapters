@@ -11,11 +11,11 @@ const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
 const MAIN_PAIR = "0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5".toLowerCase();
 
 // ERC-20 zero address; used here only to identify the token contract's burn transfers.
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead";
 
 // REP369 fee settings are basis points: 10_000 = 100%.
 const BPS = 10_000n;
-const ZERO = 0n;
+const DEAD_ADDRESS = 0n;
 
 const ABIS = {
   swap:
@@ -210,6 +210,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const dailySupplySideRevenue = options.createBalances();
 
   let updateIndex = 0;
+  const previousSwapByTx = new Map<string, ReturnType<typeof position>>();
 
   for (const swap of [...(swapLogs || [])].sort(compareLogs)) {
     while (
@@ -227,18 +228,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     const quoteOut = asBigInt(repIs0 ? args.amount1Out : args.amount0Out);
 
     const swapPosition = position(swap);
-    const txTransfers = transfersByTx.get(txHashOf(swap)) || [];
+    const transactionHash = txHashOf(swap);
+    const txTransfers = transfersByTx.get(transactionHash) || [];
+    const previousSwap = previousSwapByTx.get(transactionHash);
 
-    // User-facing buy: REP369 leaves the Pair to a non-contract recipient before Pair Swap.
-    const isBuy = txTransfers.some((log) => {
+    // For transactions with multiple pair swaps, only transfers emitted after
+    // the previous swap and before this swap belong to this swap.
+    const inCurrentSwapInterval = (log: any) => {
       const p = position(log);
+      if (
+        p.block !== swapPosition.block ||
+        p.tx !== swapPosition.tx ||
+        p.log >= swapPosition.log
+      ) {
+        return false;
+      }
+      return previousSwap ? p.log > previousSwap.log : true;
+    };
+
+    const intervalTransfers = txTransfers.filter(inCurrentSwapInterval);
+
+    // User-facing buy: REP369 leaves the Pair to a non-contract recipient
+    // before the corresponding Pair Swap event.
+    const isBuy = intervalTransfers.some((log) => {
       const a = argsOf(log);
       const from = String(a.from ?? "").toLowerCase();
       const to = String(a.to ?? "").toLowerCase();
       return (
-        p.block === swapPosition.block &&
-        p.tx === swapPosition.tx &&
-        p.log < swapPosition.log &&
         from === MAIN_PAIR &&
         to !== MAIN_PAIR &&
         to !== REP369 &&
@@ -246,37 +262,38 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       );
     });
 
-    // User-facing sell: REP369 enters the Pair from a non-contract address before Pair Swap.
-    const isSell = txTransfers.some((log) => {
-      const p = position(log);
+    // User-facing sell: REP369 enters the Pair from a non-contract address
+    // before the corresponding Pair Swap event.
+    const isSell = intervalTransfers.some((log) => {
       const a = argsOf(log);
       const from = String(a.from ?? "").toLowerCase();
       const to = String(a.to ?? "").toLowerCase();
       return (
-        p.block === swapPosition.block &&
-        p.tx === swapPosition.tx &&
-        p.log < swapPosition.log &&
         to === MAIN_PAIR &&
         from !== REP369 &&
         from !== ZERO_ADDRESS
       );
     });
 
-    if ((!isBuy && !isSell) || (isBuy && isSell)) continue;
+    if ((!isBuy && !isSell) || (isBuy && isSell)) {
+      previousSwapByTx.set(transactionHash, swapPosition);
+      continue;
+    }
 
     // Count only the WPLS quote leg once per user trade.
     const quoteVolume = isBuy ? quoteIn : quoteOut;
     if (quoteVolume > ZERO) {
-      dailyVolume.add(quoteToken, quoteVolume.toString(), "REP369 Trading Volume");
+      dailyVolume.add(
+        quoteToken,
+        quoteVolume.toString(),
+        "REP369 Trading Volume"
+      );
     }
 
     let contractTax = ZERO;
     let burnTax = ZERO;
 
-    for (const log of txTransfers) {
-      const p = position(log);
-      if (p.block !== swapPosition.block || p.tx !== swapPosition.tx || p.log >= swapPosition.log) continue;
-
+    for (const log of intervalTransfers) {
       const a = argsOf(log);
       const from = String(a.from ?? "").toLowerCase();
       const to = String(a.to ?? "").toLowerCase();
@@ -286,53 +303,63 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       if (isBuy && from === MAIN_PAIR) {
         if (to === REP369) contractTax += value;
         if (to === ZERO_ADDRESS) burnTax += value;
-      } else if (isSell && to === MAIN_PAIR && from !== REP369) {
-        if (to === REP369) contractTax += value;
       } else if (isSell && from !== REP369) {
         if (to === REP369) contractTax += value;
         if (to === ZERO_ADDRESS) burnTax += value;
       }
     }
 
-    // The REP369 contract sends the sell-burn directly to address(0), while the
-    // liquidity + rewards portions are transferred to the token contract itself.
+    // The REP369 contract sends the sell-burn directly to address(0), while
+    // liquidity + rewards portions are transferred to the token contract.
     const totalTax = contractTax + burnTax;
-    if (totalTax === ZERO) continue;
+    if (totalTax !== ZERO) {
+      const side = isBuy ? 0 : 1;
+      const liquidityBps = state.liquidity[side];
+      const rewardsBps = state.rewards[side];
+      const nonBurnBps = liquidityBps + rewardsBps;
 
-    const side = isBuy ? 0 : 1;
-    const liquidityBps = state.liquidity[side];
-    const rewardsBps = state.rewards[side];
-    const nonBurnBps = liquidityBps + rewardsBps;
+      let liquidityPart = ZERO;
+      let rewardsPart = ZERO;
 
-    let liquidityPart = ZERO;
-    let rewardsPart = ZERO;
+      if (contractTax > ZERO && nonBurnBps > ZERO) {
+        // Allocate the exact contract-received tax between liquidity and rewards.
+        // Assigning the remainder to rewards preserves exact accounting.
+        liquidityPart = (contractTax * liquidityBps) / nonBurnBps;
+        rewardsPart = contractTax - liquidityPart;
+      }
 
-    if (contractTax > ZERO && nonBurnBps > ZERO) {
-      // Allocate the exact contract-received tax between liquidity and rewards.
-      // The remainder is intentionally assigned to rewards to preserve exact totals.
-      liquidityPart = (contractTax * liquidityBps) / nonBurnBps;
-      rewardsPart = contractTax - liquidityPart;
+      dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
+
+      if (liquidityPart > ZERO) {
+        dailySupplySideRevenue.add(
+          REP369,
+          liquidityPart.toString(),
+          "Auto Liquidity"
+        );
+      }
+
+      if (rewardsPart > ZERO) {
+        dailyHoldersRevenue.add(
+          REP369,
+          rewardsPart.toString(),
+          "REP Rewards"
+        );
+        dailyRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
+      }
+
+      if (burnTax > ZERO) {
+        dailyHoldersRevenue.add(
+          REP369,
+          burnTax.toString(),
+          "Token Burns"
+        );
+        dailyRevenue.add(REP369, burnTax.toString(), "Token Burns");
+      }
     }
 
-    dailyFees.add(REP369, totalTax.toString(), "REP369 Transaction Tax");
-
-    if (liquidityPart > ZERO) {
-      dailySupplySideRevenue.add(
-        REP369,
-        liquidityPart.toString(),
-        "Auto Liquidity"
-      );
-    }
-
-    if (rewardsPart > ZERO) {
-      dailyHoldersRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
-      dailyRevenue.add(REP369, rewardsPart.toString(), "REP Rewards");
-    }
-
-    if (burnTax > ZERO) {
-      dailyHoldersRevenue.add(REP369, burnTax.toString(), "Token Burns");
-      dailyRevenue.add(REP369, burnTax.toString(), "Token Burns");
-    }
+    // Always advance the transaction's swap boundary, even when this swap was
+    // not a user-facing REP369 trade, so its fee transfers cannot be reused.
+    previousSwapByTx.set(transactionHash, swapPosition);
   }
 
   return {
