@@ -1,153 +1,177 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Balances } from '@defillama/sdk';
+import { Balances, ChainApi } from '@defillama/sdk';
+import { Interface, ZeroAddress } from 'ethers';
 import { FetchOptions } from '../adapters/types';
-import lending from '../fees/tickerspring-lending';
 import vaults from '../fees/tickerspring-vaults';
 import { managedVaults } from '../fees/tickerspring-vaults/deployments';
 
-const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
-const STOCK = '0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35';
-const ZERO = '0x0000000000000000000000000000000000000000';
-const amount = (balance: Balances, token = USDG) => Object.entries(balance.getBalances()).filter(([key]) => key.toLowerCase() === `robinhood:${token.toLowerCase()}`).reduce((sum, [, value]) => sum + BigInt(value), 0n);
-const createBalances = () => new Balances({ chain: 'robinhood' });
-const identity = (result: any, token = USDG) => assert.equal(
-  amount(result.dailyFees, token), amount(result.dailyRevenue, token) + amount(result.dailySupplySideRevenue, token),
-);
+const V3 = managedVaults[0], V4 = managedVaults.find(v => v.manager !== V3.manager)!;
+const FROM = 64000000, TO = FROM + 100;
+const amount = (balance: any, token = V3.token0) => Object.entries((balance as Balances).getBalances())
+  .filter(([key]) => key.toLowerCase() === `robinhood:${token.toLowerCase()}`).reduce((sum, [, value]) => sum + BigInt(value as string), 0n);
+const identity = (result: any, token = V3.token0) => assert.equal(amount(result.dailyFees, token), amount(result.dailyRevenue, token) + amount(result.dailySupplySideRevenue, token));
+const tx = (n = 1) => `0x${n.toString(16).padStart(64, '0')}`;
+const log = (event: string, address: string, args: any, index = 0, blockNumber = FROM + 1, transactionHash = tx()) =>
+  ({ event, address, args, index, blockNumber, transactionHash });
+const mint = (v = V3, id = 1, block = v.deploymentBlock + 1) => v.manager === V3.manager
+  ? log('Transfer', v.manager, { from: ZeroAddress, to: v.position, tokenId: id }, 0, block, tx(0))
+  : log('PositionReceiptCreated', v.manager, { adapter: v.position, id }, 0, block, tx(0));
+const collect = (a = 100n, b = 50n, index = 1, v = V3, id = 1, block = FROM + 1) => log('Collect', v.manager, { tokenId: id, recipient: v.position, amount0: a, amount1: b }, index, block);
+const decrease = (a = 1000n, b = 500n, index = 2, v = V3, id = 1) => log('DecreaseLiquidity', v.manager, { tokenId: id, amount0: a, amount1: b }, index);
+const recovery = (v = V3, block = FROM + 1, hash = tx()) => log('RecoveryOpened', v.vault, {}, 5, block, hash);
 
-type Pending = { interest: bigint; reserve: bigint };
-async function runLending(before: Pending, after: Pending, logs: Pending[] = [], from = 63000000, to = 63001000) {
+function options(logs: any[], from = FROM, to = TO) {
   const queries: any[] = [];
-  const api = (state: Pending, block: number) => ({ call: async ({ abi }: any) => {
-    assert.ok(block >= 62494078, 'must not call undeployed market');
-    if (abi === 'uint256:reserves') return '123456789'; // Existing reserves are NOT fresh revenue.
-    return { interest: state.interest, reserve: 123456789n + state.reserve, debt: 999999999n };
-  } });
-  const result = await lending.fetch!({
-    createBalances, getFromBlock: async () => from, getToBlock: async () => to,
-    fromApi: api(before, from), toApi: api(after, to),
-    getLogs: async (query: any) => { queries.push(query); return logs.map(l => ({ interest: l.interest, reserveAdded: l.reserve })); },
-  } as unknown as FetchOptions);
+  const noState = { call: () => { throw new Error('historical call forbidden'); }, multiCall: () => { throw new Error('historical multicall forbidden'); } };
+  const opts = {
+    chain: 'robinhood', createBalances: () => new Balances({ chain: 'robinhood' }),
+    getFromBlock: async () => from, getToBlock: async () => to,
+    api: noState, fromApi: noState, toApi: noState,
+    getLogs: async (q: any) => {
+      queries.push(q);
+      const event = q.eventAbi.match(/^event (\w+)\(/)[1];
+      const targets = (q.targets ?? [q.target]).map((v: string) => v.toLowerCase());
+      return logs.filter(l => l.event === event && targets.includes(l.address.toLowerCase()) && l.blockNumber >= q.fromBlock && l.blockNumber <= q.toBlock)
+        .filter(l => !q.topics || new Interface([q.eventAbi]).encodeFilterTopics('Transfer', [l.args.from, l.args.to])
+          .every((topic, i) => topic === q.topics[i]));
+    },
+  } as unknown as FetchOptions;
+  return { opts, queries };
+}
+async function run(logs: any[], from = FROM, to = TO, prefetched = false) {
+  const { opts, queries } = options(logs, from, to);
+  if (prefetched) opts.preFetchedResults = await vaults.prefetch!(opts);
+  const result = await vaults.fetch!(opts);
   return { result, queries };
 }
 
-test('idle lending accrues interest without requiring a borrower transaction', async () => {
-  const { result } = await runLending({ interest: 100n, reserve: 10n }, { interest: 250n, reserve: 25n });
-  assert.equal(amount(result.dailyFees as Balances), 150n);
-  assert.equal(amount(result.dailyRevenue as Balances), 15n);
+test('ordinary V3 harvest splits both native tokens 10/20/70 without historical state', async () => {
+  const { result } = await run([mint(), collect()]);
+  assert.equal(amount(result.dailyFees), 100n);
+  assert.equal(amount(result.dailyRevenue), 30n);
+  assert.equal(amount(result.dailySupplySideRevenue), 70n);
+  assert.equal(amount(result.dailyFees, V3.token1), 50n);
+  assert.equal(result.dailyHoldersRevenue, undefined);
+  identity(result); identity(result, V3.token1);
+});
+
+test('V4 receipt discovery uses the same collection accounting', async () => {
+  const { result } = await run([mint(V4), collect(200n, 100n, 1, V4)]);
+  assert.equal(amount(result.dailyFees, V4.token0), 200n);
+  assert.equal(amount(result.dailyRevenue, V4.token0), 60n);
+  identity(result, V4.token0);
+});
+
+test('withdrawal principal is excluded without erasing the preceding harvest', async () => {
+  const { result } = await run([mint(), collect(1000n, 500n, 3), decrease(), collect()]); // deliberately unsorted
+  assert.equal(amount(result.dailyFees), 100n);
+  assert.equal(amount(result.dailyFees, V3.token1), 50n);
   identity(result);
 });
 
-test('lending checkpoints exclude carry-in and count only blocks after the opening snapshot', async () => {
-  const { result, queries } = await runLending({ interest: 100n, reserve: 10n }, { interest: 20n, reserve: 2n }, [{ interest: 150n, reserve: 15n }]);
-  assert.equal(amount(result.dailyFees as Balances), 70n);
-  assert.equal(amount(result.dailyRevenue as Balances), 7n);
-  assert.equal(queries.length, 1); // The v2/v3 API views are not distinct markets.
-  assert.equal(queries[0].fromBlock, 63000001);
+test('multiple harvest/remove cycles in one transaction preserve per-harvest rounding', async () => {
+  const { result } = await run([mint(), collect(9n, 0n), decrease(), collect(1000n, 500n, 3), collect(9n, 0n, 4), decrease(30n, 40n, 5), collect(30n, 40n, 6)]);
+  assert.equal(amount(result.dailyFees), 18n);
+  assert.equal(amount(result.dailyRevenue), 2n); // two floors of 9/5; never floor the aggregate
   identity(result);
 });
 
-test('lending deployment boundary uses zero opening accrual and never reads nonexistent code', async () => {
-  const { result, queries } = await runLending({ interest: 99n, reserve: 99n }, { interest: 20n, reserve: 2n }, [], 62494000, 62495000);
-  assert.equal(amount(result.dailyFees as Balances), 20n);
-  assert.equal(queries[0].fromBlock, 62494078);
-  identity(result);
+test('unrelated NFTs sent to a familiar collection recipient do not become vault fees', async () => {
+  const { result } = await run([mint(), collect(99999n, 99999n, 1, V3, 99)]);
+  assert.equal(amount(result.dailyFees), 0n);
 });
 
-test('recovery reverses forfeited uncheckpointed interest rather than silently flooring it', async () => {
-  const { result } = await runLending({ interest: 100n, reserve: 10n }, { interest: 0n, reserve: 0n });
-  assert.equal(amount(result.dailyFees as Balances), -100n);
-  assert.equal(amount(result.dailySupplySideRevenue as Balances), -90n);
-  identity(result);
+test('receipt IDs are scoped to the manager, including V3/V4 ID collisions', async () => {
+  const { result } = await run([mint(), mint(V4), collect(100n, 0n), collect(200n, 0n, 2, V4)]);
+  assert.equal(amount(result.dailyFees, V3.token0), 100n + (V4.token0 === V3.token0 ? 200n : 0n));
+  identity(result, V4.token0);
 });
 
-const FIRST = managedVaults[0];
-type VaultState = { harvested: bigint; pending: bigint; position?: string };
-async function runVaults(before: VaultState, after: VaultState, from = FIRST.deploymentBlock + 10, to = FIRST.deploymentBlock + 20) {
-  const snapshots: string[] = [];
-  const api = (state: VaultState) => ({ multiCall: async ({ abi, calls }: any) => calls.map((call: any) => {
-    if (abi === 'address:position') return state.position ?? FIRST.vault;
-    if (abi === 'address:token0') return USDG;
-    if (abi === 'address:token1') return STOCK;
-    if (abi.includes('grossFees')) return call.params[0] === 0 ? state.harvested : 0n;
-    if (abi.includes('pendingFees')) { snapshots.push(call.target); return [state.pending, 0n]; }
-    throw new Error(`Unexpected ABI ${abi}`);
-  }) });
-  const result = await vaults.fetch!({
-    createBalances, getFromBlock: async () => from, getToBlock: async () => to,
-    fromApi: api(before), toApi: api(after), getLogs: async () => { throw new Error('Current V7 vaults must not query legacy fee events'); },
-  } as unknown as FetchOptions);
-  return { result, snapshots };
-}
-
-test('harvesting already-accrued LP fees does not create income twice', async () => {
-  const { result } = await runVaults({ harvested: 1000n, pending: 100n }, { harvested: 1100n, pending: 50n });
-  assert.equal(amount(result.dailyFees as Balances), 50n);
-  assert.equal(amount(result.dailyRevenue as Balances), 15n);
-  assert.equal(amount(result.dailySupplySideRevenue as Balances), 35n);
-  assert.equal(result.dailyHoldersRevenue, undefined, 'a buyback reserve is not a completed buyback');
-  identity(result);
+test('recovery transaction and later cross-day principal settlements are excluded', async () => {
+  const { result } = await run([mint(), decrease(), recovery(), collect(1100n, 550n, 6),
+    { ...collect(50000n, 0n, 1, V3, 1, FROM + 2), transactionHash: tx(2) }]);
+  assert.equal(amount(result.dailyFees), 0n);
+  const later = await run([mint(), recovery(V3, FROM - 10, tx(3)), collect(50000n, 0n)]);
+  assert.equal(amount(later.result.dailyFees), 0n);
 });
 
-test('new vault snapshots cannot import a pre-deployment balance', async () => {
-  const { result } = await runVaults({ harvested: 999n, pending: 999n }, { harvested: 10n, pending: 90n }, FIRST.deploymentBlock - 1, FIRST.deploymentBlock + 1);
-  assert.equal(amount(result.dailyFees as Balances), 100n);
-  identity(result);
+test('harvests before recovery in a different transaction of the same block are retained', async () => {
+  const { result } = await run([mint(), collect(), recovery(V3, FROM + 1, tx(2))]);
+  assert.equal(amount(result.dailyFees), 100n);
 });
 
-test('unbound positions are supported and position migrations read each endpoint independently', async () => {
-  const { result } = await runVaults({ harvested: 0n, pending: 999n, position: ZERO }, { harvested: 0n, pending: 20n });
-  assert.equal(amount(result.dailyFees as Balances), 20n);
-  const migrated = await runVaults({ harvested: 100n, pending: 20n, position: USDG }, { harvested: 120n, pending: 10n, position: STOCK });
-  assert.deepEqual(migrated.snapshots, [USDG, STOCK]);
-  assert.equal(amount(migrated.result.dailyFees as Balances), 10n);
+test('missing principal collections and inconsistent amounts fail instead of inflating fees', async () => {
+  await assert.rejects(run([mint(), decrease()]), /uncollected withdrawal principal/);
+  await assert.rejects(run([mint(), decrease(), collect(1001n, 500n, 3)]), /principal collection mismatch/);
 });
 
-test('coverage is exactly the 18 current V7 vaults and starts at their deployment', async () => {
+test('unexpected recipients and missing ordering metadata fail loudly', async () => {
+  const foreign = collect(); foreign.args.recipient = ZeroAddress;
+  await assert.rejects(run([mint(), foreign]), /unexpected collection recipient/);
+  await assert.rejects(run([mint(), { ...collect(), index: undefined }]), /missing log ordering metadata/);
+});
+
+test('new NFTs from rebalances are discovered while old burned receipt history stays attributable', async () => {
+  const { result } = await run([mint(), mint(V3, 2, FROM + 2), collect(), collect(200n, 0n, 1, V3, 2, FROM + 3)]);
+  assert.equal(amount(result.dailyFees), 300n);
+});
+
+test('prefetch and direct fetch agree; hourly boundaries conserve amounts and allocations', async () => {
+  const logs = [mint(), collect(), collect(39n, 0n, 1, V3, 1, FROM + 50)];
+  const all = (await run(logs, FROM, TO, true)).result;
+  const first = (await run(logs, FROM, FROM + 50)).result, second = (await run(logs, FROM + 50, TO)).result;
+  const direct = (await run(logs)).result;
+  for (const field of ['dailyFees', 'dailyRevenue', 'dailySupplySideRevenue']) {
+    assert.equal(amount(all[field]), amount(first[field]) + amount(second[field]));
+    assert.equal(amount(all[field]), amount(direct[field]));
+  }
+});
+
+test('idle periods return zero collected fees and the exact 18-vault deployment boundary is respected', async () => {
   assert.equal(managedVaults.length, 18);
   assert.equal(new Set(managedVaults.map(v => v.vault.toLowerCase())).size, 18);
-  assert.equal(vaults.start, '2026-09-11');
-  assert.equal(Math.min(...managedVaults.map(v => v.deploymentBlock)), 60517277);
-  const { result, snapshots } = await runVaults(
-    { harvested: 1000n, pending: 100n }, { harvested: 2000n, pending: 200n },
-    60517000, 60517276,
-  );
-  assert.equal(amount(result.dailyFees as Balances), 0n);
-  assert.deepEqual(snapshots, []);
+  const before = await run([], V3.deploymentBlock - 10, V3.deploymentBlock - 1);
+  assert.equal(before.queries.length, 0);
+  assert.equal(amount(before.result.dailyFees), 0n);
+  assert.equal(amount((await run([mint()])).result.dailyFees), 0n);
+  const deployed = await run([mint(V3, 1, V3.deploymentBlock), collect(100n, 0n, 1, V3, 1, V3.deploymentBlock)], V3.deploymentBlock - 1, V3.deploymentBlock);
+  assert.equal(amount(deployed.result.dailyFees), 100n);
 });
 
-test('adjacent windows preserve raw-unit fee and split totals without smoothing', async () => {
-  const a = { harvested: 1n, pending: 3n }, b = { harvested: 4n, pending: 5n }, c = { harvested: 9n, pending: 12n };
-  const ab = (await runVaults(a, b)).result, bc = (await runVaults(b, c)).result, ac = (await runVaults(a, c)).result;
-  for (const key of ['dailyFees', 'dailyRevenue', 'dailySupplySideRevenue'])
-    assert.equal(amount(ab[key] as Balances) + amount(bc[key] as Balances), amount(ac[key] as Balances));
+test('invalid block windows fail before any logs or state are read', async () => {
+  const invalid = [null, undefined, NaN, Infinity, -Infinity, 0, -1, 1.5, '64000000', Number.MAX_SAFE_INTEGER + 1];
+  const windows = [...invalid.map(value => [value, TO]), ...invalid.map(value => [FROM, value]), [null, null], [TO, FROM], [FROM, FROM]];
+  for (const [from, to] of windows) {
+    const { opts, queries } = options([], from as number, to as number);
+    opts.getFromBlock = async () => from as number; opts.getToBlock = async () => to as number;
+    await assert.rejects(vaults.fetch!(opts), /invalid block window/);
+    assert.equal(queries.length, 0);
+  }
 });
 
-test('RPC failures propagate instead of publishing false zero fees', async () => {
-  await assert.rejects(vaults.fetch!({ createBalances, getFromBlock: async () => 64000000,
-    getToBlock: async () => 64001000, fromApi: { multiCall: async () => { throw new Error('archive unavailable'); } },
-  } as unknown as FetchOptions), /archive unavailable/);
+test('public log failures propagate rather than producing a false zero', async () => {
+  const { opts } = options([]);
+  opts.getLogs = async () => { throw new Error('public RPC unavailable'); };
+  await assert.rejects(vaults.fetch!(opts), /public RPC unavailable/);
 });
 
-for (const [name, adapter] of [['vaults', vaults], ['lending', lending]] as const) {
-  test(`${name} rejects unresolved or invalid block windows before reading state or logs`, async () => {
-    const validFrom = 64000000, validTo = 64001000;
-    const invalid = [null, undefined, NaN, Infinity, -Infinity, 0, -1, 1.5, '64000000', Number.MAX_SAFE_INTEGER + 1];
-    const windows = [
-      ...invalid.map(value => [value, validTo]),
-      ...invalid.map(value => [validFrom, value]),
-      [null, null], [validTo, validFrom], [validFrom, validFrom],
-    ];
-    for (const [from, to] of windows) {
-      let reads = 0;
-      const unexpectedRead = async () => { reads++; throw new Error('Unexpected state/log read'); };
-      const api = { call: unexpectedRead, multiCall: unexpectedRead };
-      await assert.rejects(adapter.fetch!({
-        createBalances, getFromBlock: async () => from, getToBlock: async () => to,
-        fromApi: api, toApi: api, getLogs: unexpectedRead,
-      } as unknown as FetchOptions), /TickerSpring: invalid block window/,
-      `from=${String(from)}, to=${String(to)}`);
-      assert.equal(reads, 0, 'Invalid windows must fail before querying RPC state or logs');
-    }
-  });
-}
+test('executed migrations discover new positions using only latest immutable metadata', async () => {
+  const next = { ...V3, position: '0x0000000000000000000000000000000000001234', manager: V4.manager };
+  const original = ChainApi.prototype.multiCall;
+  const calls: string[] = [];
+  ChainApi.prototype.multiCall = async function (q: any) {
+    assert.equal(this.block, undefined, 'metadata calls must not be historical');
+    calls.push(q.abi);
+    const values: Record<string, string> = { 'address:manager': next.manager, 'address:vault': V3.vault, 'address:token0': V3.token0, 'address:token1': V3.token1 };
+    return q.calls.map(() => values[q.abi]);
+  };
+  try {
+    const proposed = log('MigrationProposed', V3.control, { digest: tx(10), position: next.position }, 0, FROM - 20, tx(10));
+    const executed = log('MigrationExecuted', V3.control, { digest: tx(10) }, 0, FROM - 10, tx(11));
+    const { result } = await run([mint(), proposed, executed, mint(next, 2, FROM - 5), collect(200n, 0n, 1, next, 2)]);
+    assert.equal(amount(result.dailyFees), 200n);
+    assert.equal(calls.length, 4);
+    await assert.rejects(run([executed]), /missing migration proposal/);
+  } finally { ChainApi.prototype.multiCall = original; }
+});
