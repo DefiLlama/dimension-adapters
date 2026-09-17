@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists"
+import { getDexTokensBlacklisted } from "../helpers/lists"
 import { addOneToken } from "../helpers/prices"
 
 const METRIC = {
@@ -11,8 +11,8 @@ const METRIC = {
 
 // SquadSwap Thanos is SquadSwap's v4, both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together.
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', binPoolManager: '0xd7a5a9df1719ee83a4d10749019caabf137debac', fromBlock: 74380131, start: '2026-01-07', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
-  [CHAIN.BASE]: { clPoolManager: '0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', binPoolManager: '0xd243e0c2fc2a91eace239e0c54023559a47c5f04', fromBlock: 40500004, start: '2026-01-07', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BASE) },
+  [CHAIN.BSC]: { clPoolManager: '0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', binPoolManager: '0xd7a5a9df1719ee83a4d10749019caabf137debac', fromBlock: 74380131, start: '2026-01-07' },
+  [CHAIN.BASE]: { clPoolManager: '0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', binPoolManager: '0xd243e0c2fc2a91eace239e0c54023559a47c5f04', fromBlock: 40500004, start: '2026-01-07' },
 }
 
 const adapter: SimpleAdapter = {
@@ -95,8 +95,10 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, initializeA
   })
 }
 
-async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
-  const { clPoolManager, binPoolManager, fromBlock, blacklistTokens } = config[chain]
+async function fetch(options: FetchOptions) {
+  const { getLogs, createBalances, chain } = options
+  const { clPoolManager, binPoolManager, fromBlock } = config[chain]
+  const blacklistTokens = await getDexTokensBlacklisted(options)
   const dailyVolume = createBalances()
   const swapFees = createBalances()
   const revenue = createBalances()

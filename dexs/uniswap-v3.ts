@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
+import { DUNE_DEX_BLACKLIST_TABLE } from "../helpers/lists";
 import {
   getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
@@ -60,22 +61,28 @@ async function fetchHoldersRevenue(options: FetchOptions) {
 // so SUM per token gives that token's total traded amount; addOneToken later
 // counts one (priceable) side as volume. No token whitelist: DefiLlama pricing
 // (+ <$10k-TVL rule) drops unpriceable tokens, and fetchWashPools drops pools
-// whose flow is too concentrated to be organic.
+// whose flow is too concentrated to be organic. Swaps touching a token in the
+// shared Dune blacklist (DUNE_DEX_BLACKLIST_TABLE, per chain or 'any') are
+// dropped in-query, so scam quote tokens never reach pricing.
 function buildQuery(blockchains: string[], options: FetchOptions): string {
   const inList = blockchains.map((b) => `'${b}'`).join(',');
   return `
-    SELECT blockchain, project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
-    FROM dex.trades
+    SELECT d.blockchain, d.project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
+    FROM dex.trades d
     CROSS JOIN UNNEST(
-      ARRAY[token_bought_address, token_sold_address],
-      ARRAY[token_bought_amount_raw, token_sold_amount_raw]
+      ARRAY[d.token_bought_address, d.token_sold_address],
+      ARRAY[d.token_bought_amount_raw, d.token_sold_amount_raw]
     ) AS t (token, amount)
-    WHERE blockchain IN (${inList})
-      AND project = 'uniswap'
-      AND version = '3'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
-    GROUP BY blockchain, project_contract_address, t.token`;
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = d.token_bought_address AND b0.chain IN ('any', d.blockchain)
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = d.token_sold_address AND b1.chain IN ('any', d.blockchain)
+    WHERE d.blockchain IN (${inList})
+      AND d.project = 'uniswap'
+      AND d.version = '3'
+      AND d.block_time >= from_unixtime(${options.startTimestamp})
+      AND d.block_time < from_unixtime(${options.endTimestamp})
+      AND b0.address IS NULL
+      AND b1.address IS NULL
+    GROUP BY d.blockchain, d.project_contract_address, t.token`;
 }
 
 // Same wash test the v4 adapter runs (see there). v3 is barely exposed - 0.4% of
