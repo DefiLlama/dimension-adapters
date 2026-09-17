@@ -46,6 +46,9 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
+  // The runner's block lookup can return null on RPC failure despite its number type.
+  if (!Number.isSafeInteger(fromBlock) || fromBlock <= 0 || !Number.isSafeInteger(toBlock) || toBlock <= fromBlock)
+    throw new Error('TickerSpring: invalid block window');
   const before = await snapshot(options.fromApi, fromBlock);
   const after = await snapshot(options.toApi, toBlock);
 
@@ -82,11 +85,11 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // Gross LP fees are also included by the underlying Uniswap adapters.
   chains: [CHAIN.ROBINHOOD],
   start: '2026-09-11', // First current V7 vault: deployment block 60517277.
-  // Reversals of pending LP fees during recovery and raw-token rounding can produce negatives.
+  // Pending-fee and allocation rounding can produce raw-token dust negatives; recovery moves pending fees into grossFees.
   allowNegativeValue: true,
   fetch,
   methodology: {
-    Fees: 'LP fees earned by the 18 current TickerSpring V7 vaults, measured as harvested plus pending fees, excluding retired deployments, deposits, withdrawals and stock-price returns.',
+    Fees: 'LP fees earned by the listed TickerSpring V7 vaults, measured as harvested plus pending fees, excluding retired deployments, deposits, withdrawals and stock-price returns.',
     Revenue: 'Vault fees allocated to operations and the SPRING buyback reserve, normally 30% of earned LP fees.',
     ProtocolRevenue: 'Operations and unspent buyback allocations retained by the protocol; reserve funding and treasury-token burns are not counted as completed buybacks.',
     SupplySideRevenue: 'LP fees retained for vault depositors, normally 70% of earned LP fees.',

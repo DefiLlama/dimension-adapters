@@ -128,3 +128,26 @@ test('RPC failures propagate instead of publishing false zero fees', async () =>
     getToBlock: async () => 64001000, fromApi: { multiCall: async () => { throw new Error('archive unavailable'); } },
   } as unknown as FetchOptions), /archive unavailable/);
 });
+
+for (const [name, adapter] of [['vaults', vaults], ['lending', lending]] as const) {
+  test(`${name} rejects unresolved or invalid block windows before reading state or logs`, async () => {
+    const validFrom = 64000000, validTo = 64001000;
+    const invalid = [null, undefined, NaN, Infinity, -Infinity, 0, -1, 1.5, '64000000', Number.MAX_SAFE_INTEGER + 1];
+    const windows = [
+      ...invalid.map(value => [value, validTo]),
+      ...invalid.map(value => [validFrom, value]),
+      [null, null], [validTo, validFrom], [validFrom, validFrom],
+    ];
+    for (const [from, to] of windows) {
+      let reads = 0;
+      const unexpectedRead = async () => { reads++; throw new Error('Unexpected state/log read'); };
+      const api = { call: unexpectedRead, multiCall: unexpectedRead };
+      await assert.rejects(adapter.fetch!({
+        createBalances, getFromBlock: async () => from, getToBlock: async () => to,
+        fromApi: api, toApi: api, getLogs: unexpectedRead,
+      } as unknown as FetchOptions), /TickerSpring: invalid block window/,
+      `from=${String(from)}, to=${String(to)}`);
+      assert.equal(reads, 0, 'Invalid windows must fail before querying RPC state or logs');
+    }
+  });
+}

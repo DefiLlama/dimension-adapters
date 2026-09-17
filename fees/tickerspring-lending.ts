@@ -26,6 +26,9 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
+  // The runner's block lookup can return null on RPC failure despite its number type.
+  if (!Number.isSafeInteger(fromBlock) || fromBlock <= 0 || !Number.isSafeInteger(toBlock) || toBlock <= fromBlock)
+    throw new Error('TickerSpring: invalid block window');
   const before = await pending(options.fromApi, fromBlock);
   const after = await pending(options.toApi, toBlock);
   const logs = toBlock < DEPLOYMENT_BLOCK ? [] : await options.getLogs({
