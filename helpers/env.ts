@@ -64,7 +64,6 @@ const DEFAULTS: any = {
 export const ENV_KEYS = new Set([
   ...BOOL_KEYS,
   ...Object.keys(DEFAULTS),
-  'PANCAKESWAP_OPBNB_SUBGRAPH',
   'INDEXA_DB',
   'DUNE_API_KEYS',
   'DUNE_RESTRICTED_MODE',
