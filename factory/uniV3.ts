@@ -424,6 +424,12 @@ const configs: Record<string, Record<string, any>> = {
   "brownfi-clamm": {
     [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
   },
+  // Synthra V3 (synthra.org): deterministic-deployment factory, same address on both chains.
+  // https://docs.synthra.org/docs/contract-addresses
+  "synthra": {
+    [CHAIN.ARC]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-09-16" },
+    // [CHAIN.ROBINHOOD]: factory '0x6307fc239C7964942c1BfFE51930E55606619c74', deployed 2026-07-14, no pools created so far
+  },
 }
 
 const optionsMap: Record<string, any> = {}
