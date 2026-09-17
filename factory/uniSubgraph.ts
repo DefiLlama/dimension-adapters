@@ -257,20 +257,6 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: "25% of collected fees.",
     },
   },
-  mojitoswap: {
-    graphUrls: {
-      [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-    },
-    feesPercent: {
-      type: "volume",
-      UserFees: 0.3,
-      Fees: 0.3,
-      SupplySideRevenue: 0.18,
-      HoldersRevenue: 0.08,
-      ProtocolRevenue: 0.04,
-      Revenue: 0.12,
-    }
-  },
   pangolin: {
     graphUrls: {
       [CHAIN.AVAX]: sdk.graph.modifyEndpoint('CPXTDcwh6tVP88QvFWW7pdvZJsCN4hSnfMmYeF1sxCLq')
