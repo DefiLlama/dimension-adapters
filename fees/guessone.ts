@@ -1,4 +1,3 @@
-// Copy this file to fees/guessone.ts in DefiLlama/dimension-adapters.
 import type {FetchOptions, SimpleAdapter} from "../adapters/types";
 
 // Native-MON mainnet suite, chain-143-guessone-rush-native-mon-v3.
@@ -90,7 +89,7 @@ async function addHolderRevenue(
         // reusing one means duplicate funding logs or incomplete source data, so fail.
         const execution = byTransaction
             .get(log.transactionHash.toLowerCase())
-            ?.find((item) => logIndex(item) > position);
+            ?.find((item) => logIndex(item) > position && !matched.has(item));
         if (!execution || matched.has(execution))
             throw new Error(
                 "GuessOne staking funding has no unique matching buyback",
