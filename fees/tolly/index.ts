@@ -121,9 +121,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ARC],
-  // TollyPad was live and collecting fees before Arc's 2026-09-16 public mainnet
-  // launch (deploy block 13570649, confirmed on-chain). Start is the day after.
-  start: "2026-08-03",
+  start: "2026-09-16",
   methodology,
   breakdownMethodology,
 };
