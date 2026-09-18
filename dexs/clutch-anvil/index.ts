@@ -39,7 +39,24 @@ import { METRIC } from "../../helpers/metrics";
 // A chain may run several factory generations side by side. Every factory
 // listed here emits the same MarketCreated shape and spawns vaults with the
 // same NFTBought / NFTSold / fee events, so markets are unioned across them.
+// Addresses + start blocks match anvil.clutch.market
+// (`theanvil/frontend/lib/contracts.ts` FACTORY_BY_CHAIN +
+// LEGACY_FACTORIES_BY_CHAIN) so every market the site lists is counted.
 //
+// Per chain (earliest factory is primary so historical MarketCreated scans
+// cover the full life of the product):
+//
+// Ethereum:
+//   - pre-gen-6 V2 0xEA09…66A0 (2026-03-23)
+//   - gen-6        0x7382…7C2a (2026-08-07, V2 deploy path)
+//   - AMMFactoryV3 0xB46C…2B95 (2026-08-17, canonical)
+// Base:
+//   - original V2  0x5ef9…b2Aa (2026-04-01, still the V2 deploy path)
+//   - AMMFactoryV3 0xdE48…A032 (2026-08-17, canonical)
+// ApeChain:
+//   - pre-gen-6 V2 0x87B6…Fc84 (2026-02-15)
+//   - gen-6        0x357D…33EC (2026-08-07, V2 deploy path)
+//   - AMMFactoryV3 0xC06C…3F64 (2026-08-17, canonical)
 // Robinhood Chain:
 //   - gen-6 factory 0x432D…7351 (live 2026-08-05, legacy V2 path, still open)
 //   - AMMFactoryV3 0x8b18…9069 (canonical since 2026-08-17)
@@ -52,6 +69,10 @@ import { METRIC } from "../../helpers/metrics";
 //     TOKEN trading is confined to the game's hooked Uniswap v4 pool; only the
 //     NFT ⇄ token swaps on these vaults are DEX volume here, and the launch
 //     snipe tax itself is booked by fees/stonkbrokers, not this adapter.
+//
+// The pre-factory StonkBrokers collection vault on Robinhood
+// (0xE302…32D2) uses a different event ABI and is booked by
+// fees/stonkbrokers — deliberately not double-counted here.
 type FactoryConfig = { factory: string; fromBlock: number };
 type ChainConfig = { factory: string; fromBlock: number; start: string; extraFactories?: FactoryConfig[] };
 
@@ -60,16 +81,32 @@ const chainsConfig: Record<string, ChainConfig> = {
     factory: "0xEA095646EC6A56EDbFEe84cCcf23eFCec12566A0",
     fromBlock: 24720104,
     start: "2026-03-23",
+    extraFactories: [
+      // Gen-6 (soft staking, 2026-08-07) — still open as the V2 deploy path
+      { factory: "0x7382Ea2Bffc62dfE0ea1ECF9a4EabC86C2567C2a", fromBlock: 25699193 },
+      // AMMFactoryV3 — canonical since 2026-08-17
+      { factory: "0xB46CE1551C9f0a460d9d3A237135C10FccD12B95", fromBlock: 25771278 },
+    ],
   },
   [CHAIN.BASE]: {
     factory: "0x5ef900789a0faa1fDE3e9796441B62b66f0ab2Aa",
     fromBlock: 45593260,
     start: "2026-04-01",
+    extraFactories: [
+      // AMMFactoryV3 — canonical since 2026-08-17
+      { factory: "0xdE481E29F0a7164d2229F23A92283324Df10A032", fromBlock: 50068884 },
+    ],
   },
   [CHAIN.APECHAIN]: {
     factory: "0x87B62309B6fF4FA184C89919351bEbd3AC11Fc84",
     fromBlock: 34900822,
     start: "2026-02-15",
+    extraFactories: [
+      // Gen-6 (soft staking, 2026-08-07) — still open as the V2 deploy path
+      { factory: "0x357D7A2275C5279d8f03a9894A8b44dECB2a33EC", fromBlock: 45617661 },
+      // AMMFactoryV3 — canonical since 2026-08-17
+      { factory: "0xC06CcA08340F61aA5d7EF1e37FfD7168283f3F64", fromBlock: 46549944 },
+    ],
   },
   [CHAIN.ROBINHOOD]: {
     factory: "0x432D20AAe5605b1E94C914283d7155eBc6727351",
@@ -77,9 +114,9 @@ const chainsConfig: Record<string, ChainConfig> = {
     start: "2026-08-05",
     extraFactories: [
       // AMMFactoryV3 — canonical Anvil factory on Robinhood since 2026-08-17
-      { factory: "0x8b186717a20845b514344b17fd5e198aDCab9069", fromBlock: 38344900 },
+      { factory: "0x8b186717a20845b514344b17fd5e198aDCab9069", fromBlock: 38338471 },
       // Civilization AMMFactoryV3 — Nightshades faction markets (2026-09-14)
-      { factory: "0xb6B6F342B11b275d1F1FAA27552fFef2a4F0393b", fromBlock: 62891600 },
+      { factory: "0xb6B6F342B11b275d1F1FAA27552fFef2a4F0393b", fromBlock: 62835662 },
     ],
   },
 };
@@ -232,7 +269,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by the Clutch Anvil factories (on Robinhood Chain: the gen-6 factory, AMMFactoryV3, and the Civilization AMMFactoryV3 that hosts the Nightshades faction markets).",
+  Volume: "Sum of buy totalCost and sell grossPayout from NFTBought + NFTSold events across every AMM vault deployed by every live Clutch Anvil factory on Ethereum, Base, ApeChain, and Robinhood Chain (pre-gen-6 V2 + gen-6 + AMMFactoryV3 on each chain that has them; on Robinhood also the Civilization AMMFactoryV3 that hosts the Nightshades faction markets). Matches the full factory set enumerated by anvil.clutch.market.",
   Fees: "Sum of protocolFee + stakerFee fields from NFTBought + NFTSold events. Protocol fee is burned; staker fee streams to the NFT staking vault as rewards. On Robinhood Chain every swap additionally pays a flat oracle-priced ~$2 ETH fee (RobinhoodSwapFeePaid), every loan create pays ~$2 ETH (LoanEthFeePaid), and every soft-staking activate/upgrade pays ~$1 ETH (ActivationEthFeePaid).",
   Revenue: "Robinhood Chain only: 50% of the flat ETH swap fee to the protocol treasury, plus 100% of loan-creation and soft-staking activation ETH fees to the treasury.",
   ProtocolRevenue: "Robinhood Chain only: 50% of the flat ETH swap fee to the protocol treasury, plus 100% of loan-creation and soft-staking activation ETH fees to the treasury.",
