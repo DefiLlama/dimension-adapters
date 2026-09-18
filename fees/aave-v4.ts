@@ -226,7 +226,7 @@ const breakdownMethodology = {
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: '2026-03-30' },
   [CHAIN.AVAX]: { start: '2026-07-07' },
-  [CHAIN.ARC]: { start: '2026-05-28' },
+  [CHAIN.ARC]: { start: '2026-09-16' },
 }
 
 const adapter: SimpleAdapter = {
