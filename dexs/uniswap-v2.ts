@@ -102,7 +102,7 @@ const chainConfig: Record<string, {
   [CHAIN.ARC]: {
     factory: '0x89e5db8b5aa49aa85ac63f691524311aeb649eba',
     source: 'LOGS',
-    start: '2026-05-28',
+    start: '2026-09-16',
   },
 }
 
