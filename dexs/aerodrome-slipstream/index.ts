@@ -9,38 +9,62 @@ import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
 import { handleBribeToken } from "../aerodrome/utils";
 
-const CONFIG = {
-  factories: [
-    {
-      // Deprecated early Slipstream factory (Apr 2024, 22 pools); superseded within a
-      // week by 0x5e7B. Included so its handful of still-traded pools are covered.
-      address: '0x9592cd9b267748cbFbDe90Ac9f7df3c437A6d51b',
-      fromBlock: 13592962,
-      skipIndexer: true,
-    },
-    {
-      address: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
-      fromBlock: 13843704,
-      skipIndexer: true,
-    },
-    {
-      address: '0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a',
-      fromBlock: 36953918,
-      skipIndexer: false,
-    },
-    {
-      address: '0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef',
-      fromBlock: 44394724,
-      skipIndexer: false,
-    }
-  ],
-  voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
-  gaugeFactories: [
-    '0xd30677bd8dd15132f251cb54cbda552d2a05fb08',
-    '0xB630227a79707D517320b6c0f885806389dFcbB3',
-    '0x385293cae378c813f16f0c1334d774adddf56abb', // Aero Ignition CL gauge factory
-    '0x3e703fd2b6506e2abcce2c8b5633872a7d9b6fbc',
-  ].map(f => f.toLowerCase()),
+type ChainConfig = {
+  factories: Array<{ address: string; fromBlock: number; skipIndexer: boolean }>;
+  voter?: string;
+  gaugeFactories: string[];
+};
+
+const CONFIGS: Record<string, ChainConfig> = {
+  [CHAIN.BASE]: {
+    factories: [
+      {
+        // Deprecated early Slipstream factory (Apr 2024, 22 pools); superseded within a
+        // week by 0x5e7B. Included so its handful of still-traded pools are covered.
+        address: '0x9592cd9b267748cbFbDe90Ac9f7df3c437A6d51b',
+        fromBlock: 13592962,
+        skipIndexer: true,
+      },
+      {
+        address: '0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A',
+        fromBlock: 13843704,
+        skipIndexer: true,
+      },
+      {
+        address: '0xaDe65c38CD4849aDBA595a4323a8C7DdfE89716a',
+        fromBlock: 36953918,
+        skipIndexer: false,
+      },
+      {
+        address: '0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef',
+        fromBlock: 44394724,
+        skipIndexer: false,
+      }
+    ],
+    voter: '0x16613524e02ad97eDfeF371bC883F2F5d6C480A5',
+    gaugeFactories: [
+      '0xd30677bd8dd15132f251cb54cbda552d2a05fb08',
+      '0xB630227a79707D517320b6c0f885806389dFcbB3',
+      '0x385293cae378c813f16f0c1334d774adddf56abb', // Aero Ignition CL gauge factory
+      '0x3e703fd2b6506e2abcce2c8b5633872a7d9b6fbc',
+    ].map(f => f.toLowerCase()),
+  },
+  // Aero Lite - first Aerodrome deployment outside Base, live since Arc's 2026-09-16
+  // public mainnet launch. No Voter/veAERO gauge system is deployed yet: the factory's
+  // voter() and every pool's gauge()/unstakedFee() read back zero on-chain, matching
+  // this being the "Lite" phase ahead of the full Aero launch a few weeks out. So 100%
+  // of swap fees currently accrue to LPs as SupplySideRevenue; once gauges go live,
+  // HoldersRevenue/bribes start flowing with no code change needed here.
+  [CHAIN.ARC]: {
+    factories: [
+      {
+        address: '0xb89Df768aF2CFE637ceB352c587Fe8edAf491d03',
+        fromBlock: 21068653,
+        skipIndexer: true,
+      },
+    ],
+    gaugeFactories: [],
+  },
 }
 
 
@@ -65,17 +89,19 @@ const abis = {
 
 const getGaugeMetadata = async (
   fetchOptions: FetchOptions,
+  config: ChainConfig,
 ): Promise<{ bribeSet: Set<string> }> => {
+  const bribeSet = new Set<string>()
+  if (!config.voter) return { bribeSet }
   const logs = await fetchOptions.getLogs({
-    target: CONFIG.voter,
+    target: config.voter,
     fromBlock: 13843704,
     eventAbi: eventAbis.event_gaugeCreated,
     skipIndexer: true,
     cacheInCloud: true,
   })
-  const bribeSet = new Set<string>()
   for (const log of logs as any[]) {
-    if (!CONFIG.gaugeFactories.includes(String(log[2]).toLowerCase())) continue
+    if (!config.gaugeFactories.includes(String(log[2]).toLowerCase())) continue
     bribeSet.add(String(log[4]).toLowerCase())
   }
   return { bribeSet }
@@ -115,8 +141,9 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyHoldersRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
   const [toBlock, fromBlock] = await Promise.all([getToBlock(), getFromBlock()])
+  const CONFIG = CONFIGS[chain]
 
-  const { bribeSet } = await getGaugeMetadata(fetchOptions)
+  const { bribeSet } = await getGaugeMetadata(fetchOptions, CONFIG)
 
   let rawPools: Array<any> = []
   for (const factory of CONFIG.factories) {
@@ -293,15 +320,18 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
 }
 
 const prefetch: any = async (options: FetchOptions) => {
+  // Dune's dex.trades doesn't index Arc yet (brand-new chain, no wash-trading track
+  // record either), so skip the query there rather than pay for an always-empty result.
+  if (options.chain !== CHAIN.BASE) return { washPools: new Set() }
   return { washPools: await getWashPools(options, { blockchain: 'base', project: 'aerodrome', version: 'slipstream' }) }
 }
 
 const methodology = {
-  Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
+  Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed. Not yet applied on Arc (Aero Lite), whose trades aren\'t indexed on Dune since launch.',
   Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
-  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
-  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue.",
+  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters). Zero on Arc (Aero Lite), which has no Voter/gauge system deployed yet.",
+  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call). Zero on Arc (Aero Lite), which has no Voter/gauge system deployed yet - 100% of fees go to SupplySideRevenue there until it launches.",
+  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue. On Arc (Aero Lite), equal to Fees in full since no gauge exists yet to redirect any share.",
 }
 
 const breakdownMethodology = {
@@ -332,7 +362,11 @@ const adapters: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch: fetch as any,
       start: '2024-05-03',
-    }
+    },
+    [CHAIN.ARC]: {
+      fetch: fetch as any,
+      start: '2026-09-16',
+    },
   }
 }
 export default adapters;
