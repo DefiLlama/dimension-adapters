@@ -15,8 +15,8 @@ async function fetch(options: FetchOptions) {
         .for(markets)
         .process(async (market) => {
             const marketData = await fetchURLAutoHandleRateLimit(`${PHOENIX_TRADE_API_URL}/market/${market}`);
-            // Phoenix docs: "Each contract consists of one long and one short position", so openInterest is long+short
-            openInterestAtEnd.addUSDValue(Number(marketData.market.openInterest.ui) * Number(marketData.market.markPrice.price) / 2);
+            // Phoenix API reports one-sided open interest, so no need to divide by 2
+            openInterestAtEnd.addUSDValue(Number(marketData.market.openInterest.ui) * Number(marketData.market.markPrice.price));
             await sleep(1000);
         });
 
