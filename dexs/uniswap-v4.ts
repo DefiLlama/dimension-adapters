@@ -208,7 +208,7 @@ const Configs: Record<string, IUniswapConfig> = {
     poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
     positionManager: '0x6049c9a0e26405c0985f9e3685c87d0ae917f82b',
     source: 'LOGS',
-    start: '2026-05-28',
+    start: '2026-09-16',
   },
 }
 
