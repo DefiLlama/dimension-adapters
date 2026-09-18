@@ -2,7 +2,8 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { Interface } from 'ethers';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
-import { addOneToken } from '../helpers/prices';
+import { addOneToken, isCoreAsset } from '../helpers/prices';
+import coreAssets from '../helpers/coreAssets.json';
 
 // Historical settlement registry: https://github.com/routerh/route/blob/main/lib/route/activity.ts
 // Keep old emitters for backfills. They are not current approval recommendations.
@@ -18,9 +19,33 @@ const engines = [
   '0x22c1bba36ba220964d029eb4b1ef7c6ed167e32e',
   '0x70656a2b4a401def17c55687c19c536c0fad4db1',
   '0x9990a63ef329ab407956b4fe5a812aba0d81e20c',
+  // Provider settlements activated September 12, 2026. Both emit the final Swapped event.
+  // https://repo.sourcify.dev/4663/0xD49259D75786e7FFba599e400e6bD83bD3758A71
+  '0xd49259d75786e7ffba599e400e6bd83bd3758a71',
+  // https://repo.sourcify.dev/4663/0x90C74e5aB8E383e92c39c524B4eb0767DD9f4bC4
+  '0x90c74e5ab8e383e92c39c524b4eb0767dd9f4bc4',
+  // Premium route engine deployed September 16, 2026; do not count inner pool hops.
+  // https://repo.sourcify.dev/4663/0xe98a7AaB7DcB76497ADBD5080Dc4551888F437b9
+  '0xe98a7aab7dcb76497adbd5080dc4551888f437b9',
 ];
+// Normalize native ETH only when the other side is not already a core asset.
+// Preserve existing USDG/WETH selection; ETH -> unpriced tokens otherwise disappears.
+const nativeEth = '0x0000000000000000000000000000000000000000'; // Native asset sentinel in Route events.
+const weth = coreAssets.robinhood.WETH;
+const pricedToken = (token: string) => token.toLowerCase() === nativeEth ? weth : token;
 // Exact source: https://repo.sourcify.dev/4663/0xBFADcf357545cb185420eAD0fDE1008A289c0154
-const collector = '0xbfadcf357545cb185420ead0fde1008a289c0154';
+const collectors = [
+  '0xbfadcf357545cb185420ead0fde1008a289c0154',
+  // Premium tiered collector, deployed September 16; same Settled ABI.
+  // https://repo.sourcify.dev/4663/0xaB860677550312C4Ec90c17474A2dFB3a483B670
+  '0xab860677550312c4ec90c17474a2dfb3a483b670',
+];
+// The integrated executors above emit OutputFee, not Settled or FeePaid.
+const integratedFeeExecutors = [
+  '0xd49259d75786e7ffba599e400e6bd83bd3758a71',
+  '0x90c74e5ab8e383e92c39c524b4eb0767dd9f4bc4',
+];
+const outputFee = 'event OutputFee(address indexed token,uint256 gross,uint256 feeBps,uint256 feeAmount)';
 export const settled = 'event Settled(address indexed sender,address indexed recipient,address indexed tokenOut,uint256 grossAmountOut,uint256 feeBps,uint256 feeAmount,uint256 amountOut)';
 const swapEvents = [
   'event Swapped(address indexed sender,address indexed recipient,address indexed tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)',
@@ -52,18 +77,23 @@ const fetch = async (options: FetchOptions) => {
       // Wrappers emit the final swap as well as their inner engine. Count only the outer one.
       // The tiered collector is NOT in engines: it emits Settled, so its engine swap counts once.
       if (engines.includes(log.sender.toLowerCase())) continue;
-      addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
+      addOneToken({ balances: dailyVolume, token0: isCoreAsset(options.chain, log.tokenOut) ? log.tokenIn : pricedToken(log.tokenIn), amount0: log.amountIn, token1: pricedToken(log.tokenOut), amount1: log.amountOut });
     }
   }
   const oldFees = await options.getLogs({ targets: engines, eventAbi: feePaid });
-  const currentFees = await options.getLogs({ target: collector, eventAbi: settled });
+  const currentFees = await options.getLogs({ targets: collectors, eventAbi: settled });
+  const integratedFees = await options.getLogs({ targets: integratedFeeExecutors, eventAbi: outputFee });
+  for (const log of integratedFees) {
+    dailyFees.add(pricedToken(log.token), log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(pricedToken(log.token), log.feeAmount, 'Swap Fees To Route');
+  }
   for (const log of oldFees) {
-    dailyFees.add(log.token, log.feeAmount, 'Swap Fees');
-    dailyRevenue.add(log.token, log.feeAmount, 'Swap Fees To Route');
+    dailyFees.add(pricedToken(log.token), log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(pricedToken(log.token), log.feeAmount, 'Swap Fees To Route');
   }
   for (const log of currentFees) {
-    dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
-    dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
+    dailyFees.add(pricedToken(log.tokenOut), log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(pricedToken(log.tokenOut), log.feeAmount, 'Swap Fees To Route');
   }
   // Creator fees belong to Route. Claims and fee conversions are not new income.
   if (options.toTimestamp > creatorManagerDeploymentTimestamp) {
