@@ -10,11 +10,11 @@ export const FACTORY_START_BLOCK = 20883999; // 2026-09-14
 export const REWARDS_FACTORY_START_BLOCK = 21075146; // 2026-09-15
 export const START = "2026-09-14";
 
-// Arc's public RPC endpoints refuse a log query wider than 10,000 blocks ("requested range too
-// large") and answer 429 past ~2 requests/second, so every scan walks fixed windows with a pause
-// between them and backs off on failure. Windows are cached in cloud, so only the first run pays.
-export const LOG_WINDOW = 10_000;
-export const LOG_PAUSE_MS = 1_200;
+// Arc's public RPC endpoints refuse a log query of 10,000 blocks or more ("requested range too
+// large") and answer 429 past ~2 requests/second, so every scan walks 5,000-block windows with a
+// pause between them and backs off on failure. Windows are cached in cloud, so only the first run pays.
+export const LOG_WINDOW = 5_000;
+export const LOG_PAUSE_MS = 800;
 
 export const ABI = {
   tokenLaunched:
