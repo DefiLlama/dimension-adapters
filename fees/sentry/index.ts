@@ -2,6 +2,8 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import request from 'graphql-request';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { collections } from './collections';
+import { Interface } from 'ethers';
+import { nativeRouterFees } from './nativeRouter';
 
 // https://sentry.trading/sentry-guide.md. protocolDayData.feesWETH mixes
 // WETH and stocks; even per-token totals mix currencies on Ink stock routes.
@@ -73,6 +75,8 @@ const events = {
   bundle: 'event BundleFeePaid(address indexed payer,uint256 amount,uint256 timestamp)',
 };
 const lower = (x: string) => x.toLowerCase();
+const eventInterfaces = Object.fromEntries(Object.entries(events).map(([key, abi]) => [key, new Interface([abi])]));
+const eventTopics = Object.fromEntries(Object.entries(eventInterfaces).map(([key, iface]) => [key, iface.getEvent(iface.fragments[0].format())!.topicHash]));
 async function graph(endpoint: string, query: string): Promise<any> {
   for (let attempt = 0; ; attempt++) {
     try { return await request(endpoint, query); }
@@ -116,11 +120,18 @@ const fetch = async (options: FetchOptions) => {
     return base;
   };
   const logs = (targets: string[], eventAbi: string) => targets.length ? getLogs({ targets, eventAbi }) : Promise.resolve([]);
+  const groupedLogs = async (targets: string[], keys: string[]) => {
+    const groups: Record<string, any[]> = Object.fromEntries(keys.map(key => [key, []]));
+    // One OR-topic scan per contract, not one scan for every event signature.
+    const raw = await getLogs({ targets, topics: [keys.map(key => eventTopics[key])], entireLog: true });
+    for (const log of raw) {
+      const key = keys.find(key => eventTopics[key] === log.topics[0])!;
+      groups[key].push(eventInterfaces[key].parseLog(log)!.args);
+    }
+    return groups;
+  };
   // Count allocations once, not subsequent collections/distributions/compounding.
-  const [apps, reflections, compounds, stocks, weths] = await Promise.all([
-    logs(c.hooks, events.app), logs(c.hooks, events.reflection), logs(c.hooks, events.compound),
-    logs(c.hooks, events.stock), logs(c.hooks, events.weth),
-  ]);
+  const { app: apps, reflection: reflections, compound: compounds, stock: stocks, weth: weths } = await groupedLogs(c.hooks, ['app', 'reflection', 'compound', 'stock', 'weth']);
   // Verify hook recipients against the factory registry, including historical
   // windows. This excludes standalone markets without lifetime log scans.
   const poolIds = [...new Set<string>(compounds.map(a => lower(a.poolId)))];
@@ -158,7 +169,7 @@ const fetch = async (options: FetchOptions) => {
       BigInt(a.potCut) + BigInt(a.sinkCut) + (a.reflectionToTreasury ? 0n : reflection));
   }
   // Router fees are additional charges; router volume is never added to pool volume.
-  const [routerFees, referrals] = await Promise.all([logs(c.routers, events.router), logs(c.routers, events.referral)]);
+  const { router: routerFees, referral: referrals } = await groupedLogs(c.routers, ['router', 'referral']);
   const routerTotal = routerFees.reduce((s, a) => s + BigInt(a.feeAmount), 0n);
   const referralTotal = referrals.reduce((s, a) => s + BigInt(a.amount), 0n);
   if (referralTotal > routerTotal) throw new Error('Router referrals exceed fees');
@@ -166,6 +177,9 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.add(c.weth, routerTotal - referralTotal, 'Router Fees To Treasury');
   dailySupplySideRevenue.add(c.weth, referralTotal, 'Referral Fees');
   if (options.chain === 'ink') {
+    const nativeFees = await nativeRouterFees(options, '0x5275de614E06DbA10546171c1e6d2a30A87844b7', c.weth);
+    dailyFees.add(c.weth, nativeFees, 'Router Fees');
+    dailyRevenue.add(c.weth, nativeFees, 'Router Fees To Treasury');
     for (const a of await logs([c.stockRouter], events.inkRouter))
       allocate(c.weth, BigInt(a.creatorCut), 0n, BigInt(a.potCut) + BigInt(a.sinkCut), 0n, 'Router Fees');
   } else {
@@ -198,7 +212,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: 'Creator allocations, launch-token dividends, community reward/growth allocations, liquidity reinvestment and router referrals. Legacy creator LP fees are actual payouts on the collection date; they may have accrued over earlier days. Assets without a DefiLlama price remain native-token balances, not invented USD values.',
   },
   breakdownMethodology: {
-    Fees: { 'Hook Fees': 'AppFeePaid, ReflectionPaid, LpFeeAccrued and FeePaid allocations from launch hooks.', 'Router Fees': 'SwapExecuted/AppFeePaid/WethFeePaid fee allocations from Sentry routers.', 'Collected LP Fees': 'Factory/vault FeesCollected events, excluding migration principal, in both actual currencies. Recognized on collection; accrued but uncollected fees are excluded.', 'Bundle Fees': 'Flat bundle-buy service payments, measured by BundleFeePaid rather than an assumed dollar price.' },
+    Fees: { 'Hook Fees': 'AppFeePaid, ReflectionPaid, LpFeeAccrued and FeePaid allocations from launch hooks.', 'Router Fees': 'Emitted router fees plus the immutable Ink WETH router fee derived from actual buy payments/WETH withdrawals. Nested buys require verified call traces.', 'Collected LP Fees': 'Factory/vault FeesCollected events, excluding migration principal, in both actual currencies. Recognized on collection; accrued but uncollected fees are excluded.', 'Bundle Fees': 'Flat bundle-buy service payments, measured by BundleFeePaid rather than an assumed dollar price.' },
     Revenue: revenue, ProtocolRevenue: revenue,
     SupplySideRevenue: { 'Creator Fees': 'Exact hook/router creator allocations and emitted factory/vault creator payouts. No fixed or current split is applied to historical events.', 'Launch Token Rewards': 'Dividends and community pot/growth-sink allocations for launched-token ecosystems.', 'Liquidity Reinvestment': 'Hook fees earmarked for permanent launch-pool liquidity.', 'Referral Fees': 'Referral payments from router fees.' },
   },
