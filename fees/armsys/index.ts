@@ -5,6 +5,8 @@ import { METRIC } from "../../helpers/metrics";
 
 // ARMSys — a Uniswap v4 dynamic-fee hook (volatility-laddered swap fees) live on
 // Base (ETH/USDC) and Robinhood Chain (tokenized equities NVDA/INTC/SPCX vs USDG).
+// Robinhood Chain is migrating from the v4 hook generation to v5 (2026-09-17); both
+// generations run in parallel, so `hooks`/`pools` list both until the migration completes.
 //
 // Everything is measured from on-chain events, the same way the protocol's own
 // published daily reports do it:
@@ -21,12 +23,12 @@ const T_SWAP = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad711
 const T_HOOKFEE = "0x66b812eed335fdc113a52e231f8ef389f0bd52d9e8710dffab976481aeace5a8";
 
 type PoolCfg = { pid: string; token0: string; token1: string };
-type ChainCfg = { poolManager: string; hook: string; keeper: string; pools: PoolCfg[] };
+type ChainCfg = { poolManager: string; hooks: string[]; keeper: string; pools: PoolCfg[] };
 
 const CONFIG: Record<string, ChainCfg> = {
   [CHAIN.BASE]: {
     poolManager: "0x498581fF718922c3f8e6A244956aF099B2652b2b",
-    hook: "0x7fB4846d3987476577319f112731BB04f45880C8",
+    hooks: ["0x7fB4846d3987476577319f112731BB04f45880C8"],
     keeper: "0x252aeca194843310b83f3426cd4e4a7622aba166",
     pools: [
       { // ETH/USDC, dynamic fee
@@ -38,7 +40,8 @@ const CONFIG: Record<string, ChainCfg> = {
   },
   [CHAIN.ROBINHOOD]: {
     poolManager: "0x8366a39CC670B4001A1121B8F6A443A643e40951",
-    hook: "0x20f8B7ec9cC3Bb5c739deDB15a8b4275F84B00c8",
+    // v4 (live) and v5 (2026-09-17) hook generations run in parallel during the migration.
+    hooks: ["0x20f8B7ec9cC3Bb5c739deDB15a8b4275F84B00c8", "0x73dfD2AeC79C0E8990906628c1718f878F8EC0c8"],
     keeper: "0x4be8dd43025b34c2a1c7ab3a347f8d2109cd5226",
     pools: [
       { // USDG/NVDA
@@ -55,6 +58,11 @@ const CONFIG: Record<string, ChainCfg> = {
         pid: "0xdbd476102c84ca90d501b1330b11e9a6c092ab9a811a7f6a45b1d971872fab13",
         token0: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", // SPCX
         token1: ADDRESSES.robinhood.USDG, // USDG
+      },
+      { // v5 INTC/USDG (ARMSHookV5RWA), listed 2026-09-17
+        pid: "0x4d0e6d81d9634c20ea0fd3f980f67560c06a76f3d530eef9654ecca7381acb53",
+        token0: ADDRESSES.robinhood.USDG, // USDG
+        token1: "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681", // INTC
       },
     ],
   },
@@ -100,7 +108,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const hookLogs = await options.getLogs({
-    target: cfg.hook,
+    targets: cfg.hooks,
     topics: [T_HOOKFEE],
     entireLog: true,
   });
