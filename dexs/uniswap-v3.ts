@@ -326,7 +326,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
   [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
-  [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
+  [CHAIN.ARC]: { blockchain: 'arc', start: '2026-09-16', fetch: fetchFromLogs },
 }
 
 const methodology = {
