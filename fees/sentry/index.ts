@@ -1,16 +1,16 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import request from 'graphql-request';
 import ADDRESSES from '../../helpers/coreAssets.json';
-import { Interface } from 'ethers';
+import { collections } from './collections';
 
 // https://sentry.trading/sentry-guide.md. protocolDayData.feesWETH mixes
 // WETH and stocks; even per-token totals mix currencies on Ink stock routes.
 const prefix = 'https://api.goldsky.com/api/public/project_cmm7vh5xwsa8m01qmdr7w7u62/subgraphs/';
 type Factory = { address: string; block: number; version: number };
-const config: Record<string, { start: string; endpoint: string; weth: string; manager: string; factories: Factory[]; hooks: string[]; routers: string[]; stockRouter: string }> = {
+const config: Record<string, { start: string; endpoint: string; weth: string; vault: string; factories: Factory[]; hooks: string[]; routers: string[]; stockRouter: string; bundleCollector: string }> = {
   robinhood: {
     start: '2026-07-02', endpoint: prefix + 'sentry-robinhood/1.2.0/gn', weth: ADDRESSES.robinhood.WETH,
-    manager: '0x8366a39CC670B4001A1121B8F6A443A643e40951',
+    vault: '0x0F0E601041Ec765B8bAB8c166840E291253F2Df0',
     factories: [
       { address: '0x9e8f6f8214b01Fd4Cf1d73FB1fb7cf9f811036Cb', block: 1431636, version: 3 },
       { address: '0x472286b7d5c1b2a3ce1132ef73d3bccf446c5cc1', block: 12274076, version: 4 },
@@ -35,12 +35,15 @@ const config: Record<string, { start: string; endpoint: string; weth: string; ma
       '0xba67aF9D480329c48474303E51c1Dae1f78ACF2A',
       '0x865B04F7bf58594737dd8f65c071c7a3a9e2E7E6',
       '0x641F05602B3dee5B35bAc08A1269827f2E84445D',
+      // Legacy stock router; SwapExecuted fees are native ETH, not stock units.
+      '0xD070e996819CE52d33cE6AC3B15AD6ea02D77eA0',
     ],
     stockRouter: '0x0c9F2b9CE60cd85284C46af108A09B3925750316',
+    bundleCollector: '0x45ab85ba218a6aa2e9dc488b71f46766297d59da',
   },
   ink: {
     start: '2026-03-13', endpoint: prefix + 'sentry-ink/1.6.0/gn', weth: ADDRESSES.ink.WETH,
-    manager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32',
+    vault: '0x86585D4474C78c1C0fA1f8771682E9aD020787eC',
     factories: [
       { address: '0xDc37e11B68052d1539fa23386eE58Ac444bf5BE1', block: 39943151, version: 3 },
       { address: '0x733733E8eAbB94832847AbF0E0EeD6031c3EB2E4', block: 40126112, version: 3 },
@@ -54,12 +57,10 @@ const config: Record<string, { start: string; endpoint: string; weth: string; ma
     ],
     routers: ['0x29fc1953A12185c10B6eE8697419f13c5cb93afa'],
     stockRouter: '0x1b4D919149912c9781b086C8242729EE317631C8',
+    bundleCollector: '0xfc8e152892a600b1285381f4dbeef17b8195080f',
   },
 };
 const events = {
-  v3Pool: 'event PoolInitialized(address indexed pool,address indexed token)',
-  v4Pool: 'event TokenDeployed(address indexed token,string name,string symbol,address indexed creator,bytes32 indexed poolId)',
-  split: 'event CreatorFeeBpsUpdated(uint256 oldCreatorFeeBps,uint256 newCreatorFeeBps)',
   app: 'event AppFeePaid(address indexed token,address indexed recipient,bool isBuy,uint256 creatorAmount,uint256 treasuryAmount)',
   reflection: 'event ReflectionPaid(address indexed token,address indexed base,uint256 amount)',
   compound: 'event LpFeeAccrued(bytes32 indexed poolId,uint256 amount)',
@@ -69,11 +70,19 @@ const events = {
   stockRouter: 'event AppFeePaid(address indexed token,address indexed asset,address referrer,uint256 referralCut,uint256 treasuryCut)',
   router: 'event SwapExecuted(address indexed sender,address indexed token,bool indexed isBuy,uint256 amountIn,uint256 amountOut,uint256 feeAmount)',
   referral: 'event ReferralPaid(address indexed referrer,address indexed swapper,address indexed token,bool isBuy,uint256 amount)',
-  v3Swap: 'event Swap(address indexed sender,address indexed recipient,int256 amount0,int256 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick)',
-  v4Swap: 'event Swap(bytes32 indexed id,address indexed sender,int128 amount0,int128 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick,uint24 fee)',
+  bundle: 'event BundleFeePaid(address indexed payer,uint256 amount,uint256 timestamp)',
 };
 const lower = (x: string) => x.toLowerCase();
-const abs = (x: bigint) => x < 0n ? -x : x;
+async function graph(endpoint: string, query: string): Promise<any> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await request(endpoint, query); }
+    catch (error: any) {
+      if (error?.response?.status !== 429 || attempt === 2) throw error;
+      // This public index uses a 10-second rate-limit window.
+      await new Promise(resolve => setTimeout(resolve, 11000));
+    }
+  }
+}
 
 const fetch = async (options: FetchOptions) => {
   const c = config[options.chain];
@@ -91,58 +100,58 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(asset, treasury, 'Fees To Treasury');
   };
   // Use the subgraph for immutable token/base metadata, never fee totals.
-  const meta: any = await request(c.endpoint, '{ _meta { block { number } hasIndexingErrors } }');
+  const meta: any = await graph(c.endpoint, '{ _meta { block { number } hasIndexingErrors } }');
   if (meta._meta.hasIndexingErrors || meta._meta.block.number < toBlock) throw new Error('Sentry metadata index is behind the requested window');
   const tokenBase = new Map<string, string>();
   let cursor = '';
   while (true) {
-    const data: any = await request(c.endpoint, `{ tokens(first:1000,orderBy:id,orderDirection:asc,where:{id_gt:"${cursor}"},block:{number:${toBlock}}) { id baseToken } }`);
+    const data: any = await graph(c.endpoint, `{ tokens(first:1000,orderBy:id,orderDirection:asc,where:{id_gt:"${cursor}"},block:{number:${toBlock}}) { id baseToken } }`);
     data.tokens.forEach((t: any) => tokenBase.set(lower(t.id), lower(t.baseToken)));
     if (data.tokens.length < 1000) break;
     cursor = data.tokens[data.tokens.length - 1].id;
-  }
-  // The indexed swap inventory limits RPC reads to pools active in this
-  // window. Fee amounts still come from their onchain events.
-  const activePools = new Set<string>();
-  cursor = '';
-  while (true) {
-    const data: any = await request(c.endpoint, `{ swaps(first:1000,orderBy:id,orderDirection:asc,where:{id_gt:"${cursor}",block_gt:${fromBlock},block_lte:${toBlock}}) { id pool { id } } }`);
-    data.swaps.forEach((s: any) => activePools.add(lower(s.pool.id)));
-    if (data.swaps.length < 1000) break;
-    cursor = data.swaps[data.swaps.length - 1].id;
-  }
-  type Pool = { token: string; base: string; factory: Factory; version: number };
-  const pools = new Map<string, Pool>(), launched = new Set<string>();
-  const splits = new Map<string, any[]>();
-  const endSplits = new Map<string, number>();
-  for (const f of c.factories) {
-    if (toBlock < f.block) continue;
-    const ls = await options.getLogs({ target: f.address, eventAbi: f.version === 3 ? events.v3Pool : events.v4Pool, fromBlock: f.block, cacheInCloud: true });
-    for (const l of ls) {
-      const token = lower(l.token), base = tokenBase.get(token);
-      if (!base) throw new Error(`Missing base metadata for launch ${token}`);
-      pools.set(lower(f.version === 3 ? l.pool : l.poolId), { token, base: lower(base), factory: f, version: f.version });
-      launched.add(token);
-    }
-    // Start from the end-of-window configuration and undo later updates for
-    // each swap. This avoids rescanning all split changes since deployment.
-    splits.set(lower(f.address), (await getLogs({ target: f.address, eventAbi: events.split, entireLog: true })).sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber) || Number(b.index) - Number(a.index)));
   }
   const baseOf = (token: string) => {
     const base = tokenBase.get(lower(token));
     if (!base) throw new Error(`Missing fee currency for ${token}`);
     return base;
   };
-  const valid = (a: any) => launched.has(lower(a.token));
   const logs = (targets: string[], eventAbi: string) => targets.length ? getLogs({ targets, eventAbi }) : Promise.resolve([]);
   // Count allocations once, not subsequent collections/distributions/compounding.
   const [apps, reflections, compounds, stocks, weths] = await Promise.all([
     logs(c.hooks, events.app), logs(c.hooks, events.reflection), logs(c.hooks, events.compound),
     logs(c.hooks, events.stock), logs(c.hooks, events.weth),
   ]);
+  // Verify hook recipients against the factory registry, including historical
+  // windows. This excludes standalone markets without lifetime log scans.
+  const poolIds = [...new Set<string>(compounds.map(a => lower(a.poolId)))];
+  const compoundPools = new Map<string, any>();
+  for (let i = 0; i < poolIds.length; i += 100) {
+    const data: any = await graph(c.endpoint, `{ pools(first:1000,where:{id_in:${JSON.stringify(poolIds.slice(i, i + 100))}},block:{number:${toBlock}}) { id token { id baseToken } } }`);
+    data.pools.forEach((p: any) => compoundPools.set(p.id, p.token));
+  }
+  const tokens: string[] = [...new Set<string>([...apps, ...reflections, ...stocks, ...weths].map(a => lower(a.token)).concat([...compoundPools.values()].map(p => p.id)))];
+  const launched = new Set<string>();
+  const liveFactories = c.factories.filter(f => f.version === 4 && f.block <= toBlock);
+  for (const f of liveFactories) {
+    const info = await options.api.multiCall({
+      target: f.address,
+      abi: 'function launches(address) view returns (address baseToken,address creator,address hook,int24 tickLower,int24 tickUpper)',
+      calls: tokens.map(token => ({ params: [token] })),
+    });
+    info.forEach((p: any, i: number) => {
+      if (p.creator === ADDRESSES.null) return;
+      if (lower(p.baseToken) !== baseOf(tokens[i])) throw new Error('Indexed base asset differs from factory registry');
+      launched.add(tokens[i]);
+    });
+  }
+  const valid = (a: any) => launched.has(lower(a.token));
   for (const a of apps) if (valid(a)) allocate(baseOf(a.token), BigInt(a.creatorAmount), BigInt(a.treasuryAmount));
   for (const a of reflections) if (valid(a)) allocate(a.base, 0n, 0n, BigInt(a.amount));
-  for (const a of compounds) { const p = pools.get(lower(a.poolId)); if (p) allocate(p.base, 0n, 0n, 0n, BigInt(a.amount)); }
+  for (const a of compounds) {
+    const p = compoundPools.get(lower(a.poolId));
+    if (!p) throw new Error(`Missing reinvestment pool ${a.poolId}`);
+    if (launched.has(p.id)) allocate(p.baseToken, 0n, 0n, 0n, BigInt(a.amount));
+  }
   for (const a of [...stocks, ...weths]) if (valid(a)) {
     const reflection = BigInt(a.reflection);
     allocate(a.base ?? c.weth, BigInt(a.creatorCut), a.reflectionToTreasury ? reflection : 0n,
@@ -157,7 +166,7 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.add(c.weth, routerTotal - referralTotal, 'Router Fees To Treasury');
   dailySupplySideRevenue.add(c.weth, referralTotal, 'Referral Fees');
   if (options.chain === 'ink') {
-    for (const a of await logs([c.stockRouter], events.inkRouter)) if (valid(a))
+    for (const a of await logs([c.stockRouter], events.inkRouter))
       allocate(c.weth, BigInt(a.creatorCut), 0n, BigInt(a.potCut) + BigInt(a.sinkCut), 0n, 'Router Fees');
   } else {
     for (const a of await logs([c.stockRouter], events.stockRouter)) {
@@ -167,49 +176,31 @@ const fetch = async (options: FetchOptions) => {
       dailySupplySideRevenue.add(a.asset, referral, 'Referral Fees');
     }
   }
-  // TODO before merge: reconcile historical v3 upgrades, migrated agent
-  // positions and GoPumpMe's 100% creator allocation. A global factory split
-  // alone cannot describe every legacy position.
-  // Preserve the prior base-notional estimate for legacy LP fees. Skimming
-  // hooks set the PoolManager LP fee to zero, so these streams do not overlap.
-  const lpFee = async (p: Pool, a: any, block: number, index: number, fee: bigint) => {
-    const quoteIs0 = lower(p.base) < lower(p.token);
-    const amount = abs(BigInt(quoteIs0 ? a.amount0 : a.amount1)) * fee / 1000000n;
-    const factoryKey = lower(p.factory.address);
-    if (!endSplits.has(factoryKey)) endSplits.set(factoryKey, Number(await options.api.call({ target: p.factory.address, abi: 'uint256:creatorFeeBps' })));
-    let bps = endSplits.get(factoryKey)!;
-    for (const l of splits.get(lower(p.factory.address)) ?? [])
-      if (Number(l.blockNumber) > block || (Number(l.blockNumber) === block && Number(l.index) > index)) bps = Number(l.args.oldCreatorFeeBps);
-    const creator = amount * BigInt(bps) / 10000n;
-    allocate(p.base, creator, amount - creator, 0n, 0n, 'Legacy LP Fees');
-  };
-  const v3 = [...pools].filter(([id, p]) => p.version === 3 && activePools.has(id)).map(([id]) => id);
-  if (v3.length) for (const l of await getLogs({ targets: v3, eventAbi: events.v3Swap, entireLog: true }))
-    await lpFee(pools.get(lower(l.address))!, l.args, Number(l.blockNumber), Number(l.index), 10000n);
-  const v4 = [...pools].filter(([id, p]) => p.version === 4 && activePools.has(id)).map(([id]) => id);
-  const swapTopic = new Interface([events.v4Swap]).getEvent('Swap')!.topicHash;
-  for (let i = 0; i < v4.length; i += 100) {
-    const ls = await getLogs({ target: c.manager, eventAbi: events.v4Swap, topics: [swapTopic, v4.slice(i, i + 100)] as any, entireLog: true });
-    for (const l of ls) if (BigInt(l.args.fee) > 0n) await lpFee(pools.get(lower(l.args.id))!, l.args, Number(l.blockNumber), Number(l.index), BigInt(l.args.fee));
+  for (const row of await collections(options, c.factories, c.vault, baseOf))
+    allocate(row.asset, row.creator, row.gross - row.creator, 0n, 0n, 'Collected LP Fees');
+  // BundleFeeCollector forwards the full native payment to the treasury.
+  for (const a of await logs([c.bundleCollector], events.bundle)) {
+    dailyFees.add(c.weth, a.amount, 'Bundle Fees');
+    dailyRevenue.add(c.weth, a.amount, 'Bundle Fees To Treasury');
   }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
-const revenue = { 'Fees To Treasury': 'Explicit hook treasury allocations and the configured treasury share of estimated legacy LP fees.', 'Router Fees To Treasury': 'Router fees less referrals, in the emitted fee asset.' };
+const revenue = { 'Fees To Treasury': 'Explicit hook treasury allocations and actual collected LP fees less emitted creator payouts.', 'Router Fees To Treasury': 'Router fees less referrals, in the emitted fee asset.', 'Bundle Fees To Treasury': 'Full native payment emitted by BundleFeeCollector and forwarded to treasury.' };
 const adapter: SimpleAdapter = {
   version: 2, pullHourly: true, fetch,
   adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { start: c.start }])),
   doublecounted: true,
   methodology: {
-    Fees: 'Fees allocated by Sentry launch hooks and fee routers in their actual payment assets, plus legacy pool base-notional fee estimates. Deferred skims are recognized when FeePaid is emitted on delivery. Later collection, dividend distribution and compounding are not counted again. Pool fees cover factory-deployed launches only; router app fees also cover third-party tokens traded through Sentry. Downstream treasury reallocations are excluded.',
-    Revenue: 'Explicit hook/router treasury amounts plus the configured treasury portion of legacy LP fee estimates. Community pots and growth-sink allocations are supply-side rewards, not Sentry treasury revenue.',
+    Fees: 'Fees allocated by Sentry launch hooks and fee routers in their actual payment assets, plus actual legacy LP fee collections in both pool currencies and bundle-buy service payments. Deferred skims are recognized when FeePaid is emitted on delivery. Legacy LP fees are recognized on collection because the factory events do not expose per-swap position accrual; uncollected balances are not estimated. Later dividend distribution and compounding are not counted again. Pool fees cover factory-deployed launches only; router app fees also cover third-party tokens traded through Sentry. Downstream treasury reallocations, independent non-launch hooks, direct custodial-wallet skims and third-party domain referrals are outside this contract-event scope.',
+    Revenue: 'Explicit hook/router treasury amounts plus collected LP fees less emitted creator payouts. Community pots and growth-sink allocations are supply-side rewards, not Sentry treasury revenue.',
     ProtocolRevenue: 'Same treasury allocations as Revenue.',
-    SupplySideRevenue: 'Creator allocations, launch-token dividends, community reward/growth allocations, liquidity reinvestment and router referrals. Legacy creator LP fees are estimates, not cash paid that day.',
+    SupplySideRevenue: 'Creator allocations, launch-token dividends, community reward/growth allocations, liquidity reinvestment and router referrals. Legacy creator LP fees are actual payouts on the collection date; they may have accrued over earlier days. Assets without a DefiLlama price remain native-token balances, not invented USD values.',
   },
   breakdownMethodology: {
-    Fees: { 'Hook Fees': 'AppFeePaid, ReflectionPaid, LpFeeAccrued and FeePaid allocations from launch hooks.', 'Router Fees': 'SwapExecuted/AppFeePaid/WethFeePaid fee allocations from Sentry routers.', 'Legacy LP Fees': 'Absolute base-side swap notional times the v3 1% tier or v4 Swap fee in ppm, preserving the prior base-notional estimate.' },
+    Fees: { 'Hook Fees': 'AppFeePaid, ReflectionPaid, LpFeeAccrued and FeePaid allocations from launch hooks.', 'Router Fees': 'SwapExecuted/AppFeePaid/WethFeePaid fee allocations from Sentry routers.', 'Collected LP Fees': 'Factory/vault FeesCollected events, excluding migration principal, in both actual currencies. Recognized on collection; accrued but uncollected fees are excluded.', 'Bundle Fees': 'Flat bundle-buy service payments, measured by BundleFeePaid rather than an assumed dollar price.' },
     Revenue: revenue, ProtocolRevenue: revenue,
-    SupplySideRevenue: { 'Creator Fees': 'Emitted creator payouts plus estimated legacy LP creator allocations using factory split changes.', 'Launch Token Rewards': 'Dividends and community pot/growth-sink allocations for launched-token ecosystems.', 'Liquidity Reinvestment': 'Hook fees earmarked for permanent launch-pool liquidity.', 'Referral Fees': 'Referral payments from router fees.' },
+    SupplySideRevenue: { 'Creator Fees': 'Exact hook/router creator allocations and emitted factory/vault creator payouts. No fixed or current split is applied to historical events.', 'Launch Token Rewards': 'Dividends and community pot/growth-sink allocations for launched-token ecosystems.', 'Liquidity Reinvestment': 'Hook fees earmarked for permanent launch-pool liquidity.', 'Referral Fees': 'Referral payments from router fees.' },
   },
 };
 export default adapter;
