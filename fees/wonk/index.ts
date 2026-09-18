@@ -61,22 +61,27 @@ async function fetch(options: FetchOptions) {
   // Anchored to the share in force when the window opened, read at that block rather than live, so
   // replaying an old window still splits at the rate that applied then.
   const openingShareBps = BigInt(await options.fromApi.call({ target: WONK_HOOK, abi: PROTOCOL_FEE_SHARE_BPS_FUNCTION }))
-  // An update logged inside the window re-points the share from its own block onwards.
+  // An update logged inside the window re-points the share from its own log position onwards. The
+  // setter emits before it stores, so a swap logged earlier in the same block still used the old share.
   const shareUpdateLogs = await options.getLogs({
     target: WONK_HOOK,
     eventAbi: PROTOCOL_FEE_SHARE_UPDATED_EVENT,
     entireLog: true,
   })
-  const shareHistory = [{ block: 0, bps: openingShareBps }].concat(
+  const shareHistory = [{ block: 0, logIndex: 0, bps: openingShareBps }].concat(
     shareUpdateLogs
-      .map((log: any) => ({ block: Number(log.blockNumber), bps: BigInt((log.args ?? log).bps) }))
-      .sort((a: any, b: any) => a.block - b.block)
+      .map((log: any) => ({
+        block: Number(log.blockNumber),
+        logIndex: Number(log.logIndex),
+        bps: BigInt((log.args ?? log).bps),
+      }))
+      .sort((a: any, b: any) => (a.block - b.block) || (a.logIndex - b.logIndex))
   )
-  // the last share set at or before the swap's block
-  const protocolShareAt = (block: number) => {
+  // the last share set at or before the swap's own log position
+  const protocolShareAt = (block: number, logIndex: number) => {
     let bps = shareHistory[0].bps
     for (const entry of shareHistory) {
-      if (entry.block > block) break
+      if (entry.block > block || (entry.block === block && entry.logIndex > logIndex)) break
       bps = entry.bps
     }
     return bps
@@ -126,7 +131,7 @@ async function fetch(options: FetchOptions) {
 
     // split once and give the creator the remainder, so dailyFees stays exactly equal to
     // dailyRevenue + dailySupplySideRevenue
-    const protocolCut = fee * protocolShareAt(Number(log.blockNumber)) / BPS
+    const protocolCut = fee * protocolShareAt(Number(log.blockNumber), Number(log.logIndex)) / BPS
     const creatorCut = fee - protocolCut
 
     const addAmount = (balances: typeof dailyVolume, amount: bigint, label?: string) => {
