@@ -142,8 +142,14 @@ export const fetchBuilderCodeRevenue = async ({
           dailyProtocolRevenue: dailyFees,
         };
       }
-      throw new Error(
-        `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+      throw Object.assign(
+        new Error(
+          `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+        ),
+        // The only error a multi-address builder can survive: HL has no file
+        // for THIS address on that day. Tagged rather than matched on its
+        // message, so the two stay together if either is ever reworded.
+        { builderFillsFileMissing: true },
       );
     }
     throw new Error(`Failed to download builder fee data: ${error.message}`);
@@ -781,6 +787,10 @@ export const exportBuilderAdapter = (
                 market,
               });
             } catch (e) {
+              // Only a missing file is survivable. A timeout, a 5xx, a broken
+              // archive: those are not "this address was idle", and swallowing
+              // them would publish a partial day as if it were whole.
+              if (!(e as any)?.builderFillsFileMissing) throw e;
               firstError = firstError ?? e;
               continue;
             }
