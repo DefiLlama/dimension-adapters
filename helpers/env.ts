@@ -43,7 +43,7 @@ const DEFAULTS: any = {
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   ARC_RPC: 'https://rpc.mainnet.arc.io,https://rpc.drpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io', // rpc.mainnet.arc.io alone rate-limits (429) hard under normal adapter load
   ARC_RPC_CHAIN_ID: '5042',
-  ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org', // the explorer proxy challenges requests with HTTP 403
+  ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io,https://rpc.nodeflare.app/arc/public', // public archive fallbacks; use <=100k-block log ranges
   // Arc is not in the SDK Multicall3 deployment map; canonical Multicall3 is deployed there.
   ARC_RPC_MULTICALL: '0xcA11bde05977b3631167028862bE2a173976CA11',
   ARC_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',

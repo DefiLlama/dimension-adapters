@@ -1,4 +1,4 @@
-// Bonker is a token launchpad on Base and Robinhood Chain. Tokens launched
+// Bonker is a token launchpad on Base, Robinhood Chain, and Arc. Tokens launched
 // through its factory trade in Uniswap v4 pools whose hooks charge two
 // swap-fee streams:
 //   - the Uniswap LP fee, paid to launch-configured reward recipients; and
@@ -19,6 +19,7 @@ type ChainConfig = {
   lpLockers: string[];
   feeLocker: string;
   start: string;
+  maxBlockRange?: number;
 };
 
 const CHAIN_CONFIG: Record<string, ChainConfig> = {
@@ -45,6 +46,17 @@ const CHAIN_CONFIG: Record<string, ChainConfig> = {
     feeLocker: "0x04f034649b72e7f4F167BeE683797C0C35067528",
     start: "2026-09-03",
   },
+  [CHAIN.ARC]: {
+    hooks: [
+      "0xb084C242F382Bdae5dFeDCd96dC10F16603FE8cC", // dynamic-fee hook
+      "0x2F26b317abB8A93CD462D2Eeaf0574835835e8cc", // static-fee hook
+    ],
+    lpLockers: ["0x7Fe433A7E1a89ab598834ac2fB0695041F8DB7Ca"],
+    feeLocker: "0xa6b95c1d3168fcb07738b45803a89b28873963d5",
+    start: "2026-09-16",
+    // Arc's archive RPC caps eth_getLogs at 100,000 blocks.
+    maxBlockRange: 100_000,
+  },
 };
 
 const CLAIM_PROTOCOL_FEES =
@@ -61,6 +73,7 @@ const fetch = async (options: FetchOptions) => {
   const protocolFeeLogs = await options.getLogs({
     targets: config.hooks,
     eventAbi: CLAIM_PROTOCOL_FEES,
+    maxBlockRange: config.maxBlockRange,
   });
 
   for (const log of protocolFeeLogs) {
@@ -71,6 +84,7 @@ const fetch = async (options: FetchOptions) => {
   const rewardLogs = await options.getLogs({
     target: config.feeLocker,
     eventAbi: STORE_TOKENS,
+    maxBlockRange: config.maxBlockRange,
   });
 
   for (const log of rewardLogs) {
