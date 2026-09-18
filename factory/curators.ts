@@ -25,6 +25,9 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0xEB4Af6fA3AFA08B10d593EC8fF87efB03BC04645'],
       },
+      [CHAIN.HYPERLIQUID]: {
+        morphoVaultOwners: ['0x36bb55C8f2fb92317767254bF8eDCef0E2Fe61e1'],
+      },
     },
   },
   "alterscope": {
