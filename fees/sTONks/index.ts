@@ -218,9 +218,7 @@ const breakdownMethodology = {
 // ─── Adapter ─────────────────────────────────────────────────────────────────
 const adapter: SimpleAdapter = {
   version: 2,
-  // unauthenticated toncenter allows ~1 request/sec; hourly runs would multiply
-  // requests 24x/day across 4 wallets and hit that limit
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.TON],
   start: "2024-01-12",
