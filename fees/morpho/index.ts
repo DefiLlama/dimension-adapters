@@ -188,7 +188,7 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     chainId: 5042,
     fromBlock: 1946500,
     blue: "0x34CD04070dD72b14E241112F6d83812Df5Af7fCD",
-    start: "2026-05-28",
+    start: "2026-09-16",
   },
   [CHAIN.MORPH]: {
     // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
