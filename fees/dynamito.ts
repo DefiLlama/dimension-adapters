@@ -19,27 +19,34 @@ const LABEL = {
 
 const fetch = async (options: FetchOptions) => {
   const data = await httpGet(`${API}?start=${options.startTimestamp}&end=${options.endTimestamp}`);
-  const b = data.breakdown || {};
+  // Reject incomplete responses instead of silently recording zeros
+  if (!data || data.error) throw new Error(`Dynamito API error: ${data?.error || "empty response"}`);
+  const b = data.breakdown;
+  const gerekli = ["revenueTradeSol", "revenueBlastSol", "creatorTradeSol", "creatorBlastSol", "meteoraSol"];
+  const gerekliBreakdown = ["swapFeesSol", "antiSnipeFeesSol", "blastOffFeesSol"];
+  if (!b || gerekliBreakdown.some((k) => typeof b[k] !== "number") || gerekli.some((k) => typeof data[k] !== "number")) {
+    throw new Error("Dynamito API response is missing required fee fields");
+  }
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   // Fees paid by traders and graduating tokens
-  dailyFees.addCGToken("solana", Number(b.swapFeesSol || 0), METRIC.SWAP_FEES);
-  dailyFees.addCGToken("solana", Number(b.antiSnipeFeesSol || 0), LABEL.AntiSnipe);
-  dailyFees.addCGToken("solana", Number(b.blastOffFeesSol || 0), LABEL.BlastOff);
+  dailyFees.addCGToken("solana", b.swapFeesSol, METRIC.SWAP_FEES);
+  dailyFees.addCGToken("solana", b.antiSnipeFeesSol, LABEL.AntiSnipe);
+  dailyFees.addCGToken("solana", b.blastOffFeesSol, LABEL.BlastOff);
 
   // Kept by Dynamito
-  dailyRevenue.addCGToken("solana", Number(data.revenueTradeSol || 0), METRIC.SWAP_FEES);
-  dailyRevenue.addCGToken("solana", Number(data.revenueBlastSol || 0), LABEL.BlastOff);
-  dailyProtocolRevenue.addCGToken("solana", Number(data.revenueTradeSol || 0), METRIC.SWAP_FEES);
-  dailyProtocolRevenue.addCGToken("solana", Number(data.revenueBlastSol || 0), LABEL.BlastOff);
+  dailyRevenue.addCGToken("solana", data.revenueTradeSol, METRIC.SWAP_FEES);
+  dailyRevenue.addCGToken("solana", data.revenueBlastSol, LABEL.BlastOff);
+  dailyProtocolRevenue.addCGToken("solana", data.revenueTradeSol, METRIC.SWAP_FEES);
+  dailyProtocolRevenue.addCGToken("solana", data.revenueBlastSol, LABEL.BlastOff);
 
   // Paid out to creators and to the Meteora protocol
-  dailySupplySideRevenue.addCGToken("solana", Number(data.creatorTradeSol || 0), METRIC.CREATOR_FEES);
-  dailySupplySideRevenue.addCGToken("solana", Number(data.creatorBlastSol || 0), LABEL.BlastOff);
-  dailySupplySideRevenue.addCGToken("solana", Number(data.meteoraSol || 0), LABEL.Meteora);
+  dailySupplySideRevenue.addCGToken("solana", data.creatorTradeSol, METRIC.CREATOR_FEES);
+  dailySupplySideRevenue.addCGToken("solana", data.creatorBlastSol, LABEL.BlastOff);
+  dailySupplySideRevenue.addCGToken("solana", data.meteoraSol, LABEL.Meteora);
 
   return {
     dailyFees,
