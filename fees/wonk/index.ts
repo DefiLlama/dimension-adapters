@@ -191,7 +191,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ARC],
   methodology,
   breakdownMethodology,
-  start: "2026-09-16",
+  start: "2026-09-17",
   // these are Uniswap v4 pools, already counted by the uniswap-v4 adapter on Arc
   doublecounted: true,
 }
