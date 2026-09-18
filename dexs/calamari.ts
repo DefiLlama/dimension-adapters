@@ -86,7 +86,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const amount0 = BigInt(log.amount0);
     const amount1 = BigInt(log.amount1);
-    const zeroForOne = amount0 > 0n; // positive = trader gave the pool that token
+    // v4's delta is signed from the swapper's side, not the pool's: negative = they paid it
+    // in, positive = they received it. Verified against a real tx's own Transfer logs.
+    const zeroForOne = amount0 < 0n;
 
     // Price off the native/core-asset side where possible, matching dexs/uniswap-v4.ts.
     const useToken0 = pool.currency0 === ADDRESSES.null || isCoreAsset(chain, pool.currency0) || !isCoreAsset(chain, pool.currency1);
