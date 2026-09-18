@@ -9,7 +9,9 @@ const FACTORY = "0x34f3DA4D04394173DED7b0f430af114a0fF27952"
 // WonkHook: https://explorer.arc.io/address/0x21bdc377265e2A26ba336F24381E67e768253044
 const WONK_HOOK = "0x21bdc377265e2A26ba336F24381E67e768253044"
 
-const FACTORY_DEPLOYED_BLOCK = 21260000
+// the factory's first TokenLaunched
+const FACTORY_DEPLOYED_BLOCK = 21294374
+// the hook denominates every fee share in basis points
 const BPS = 10000n
 // progressBps is base raised towards the graduation threshold; 10000 means the pool has graduated
 const GRADUATED_PROGRESS_BPS = 10000
