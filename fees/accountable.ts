@@ -23,16 +23,24 @@ const config: Record<string, { factories: string[], start: string }> = {
     ],
     start: "2026-01-16",
   },
-  // Base is commented out: Accountable no longer has any active vault on this
-  // chain, so there is nothing left to enumerate here going forward.
-  // [CHAIN.BASE]: {
-  //   factories: [
-  //     "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
-  //     "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
-  //     "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
-  //   ],
-  //   start: "2026-04-20",
-  // },
+  // Base was commented out on the assumption that Accountable had no active vault
+  // left on this chain. That is no longer true: Yieldpoint yUTY (vault
+  // 0x4C18E2bb..., strategy 0xC2e2944d...) is live and OPEN_TERM, holding ~1,000,043
+  // yUTY with a 30000 (3%) performanceFee and a 100% protocolSplit, so it does accrue
+  // protocol revenue. Re-enabled 2026-09-18.
+  // CAVEAT: this currently books ~$0 regardless, because DefiLlama has no price for
+  // yUTY (0xBa515EEd...) -- coins.llama.fi returns an empty object for it, so every
+  // yUTY-denominated amount values to zero. The other three base vaults hold dust
+  // (2 USDC, 58 USDC, 0). The numbers here start being meaningful only once yUTY is
+  // priced; the enumeration is wired up now so that happens with no further change.
+  [CHAIN.BASE]: {
+    factories: [
+      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
+    start: "2026-04-20",
+  },
   [CHAIN.ARBITRUM]: {
     factories: [
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
