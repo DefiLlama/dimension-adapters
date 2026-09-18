@@ -101,9 +101,11 @@ const fetch = async (options: FetchOptions) => {
       const a0 = signed(word(log.data, 0));
       const a1 = signed(word(log.data, 1));
       const feePips = word(log.data, 5);
-      // the fee is charged on the input side — the positive amount
-      if (a0 > 0n) lpFees.add(pool.token0, (a0 * feePips) / 1_000_000n);
-      else if (a1 > 0n) lpFees.add(pool.token1, (a1 * feePips) / 1_000_000n);
+      // v4's delta is signed from the swapper's side, not the pool's: negative = what they
+      // paid in (the input the fee is charged on), positive = what they received. Verified
+      // against a real tx's own Transfer logs on this pool's own chain.
+      if (a0 < 0n) lpFees.add(pool.token0, (-a0 * feePips) / 1_000_000n);
+      else if (a1 < 0n) lpFees.add(pool.token1, (-a1 * feePips) / 1_000_000n);
     }
   }
 
