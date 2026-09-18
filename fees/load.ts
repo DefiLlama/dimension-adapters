@@ -4,7 +4,10 @@ import { CHAIN } from "../helpers/chains";
 
 const USDC = ADDRESSES.arc.USDC;
 const FROM_BLOCK = 21_349_552;
-const CREATE_FEE = 10n ** 18n; // 1 native USDC
+// ADDRESSES.arc.USDC is the 6-decimal ERC-20 facade (0x3600...0000), not Arc's 18-decimal
+// native representation of the same balance - 10n**18n here was booking each 1 USDC create
+// fee as $1 trillion.
+const CREATE_FEE = 10n ** 6n; // 1 USDC (6 decimals)
 const START = "2026-09-17";
 
 const CURVE_FACTORY = "0x2b440C9B4EF76e37b19854BA24C21E86654810AD";
