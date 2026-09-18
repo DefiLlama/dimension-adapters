@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { FEES_SQL, withPartition } from "../helpers/queries/copyfomo";
 
 // copyfomo -- Telegram copy-trading bot (https://www.copyfomo.com, https://x.com/copyfomo).
@@ -17,6 +18,7 @@ const DUNE_TO_CHAIN: Record<string, string> = {
 };
 
 const prefetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
   return queryDuneSql(options, withPartition(FEES_SQL, options));
 };
 
