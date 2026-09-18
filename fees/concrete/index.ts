@@ -38,13 +38,14 @@ const fetch = async (options: FetchOptions) => {
 
 /** Campaigns whose distribution day falls in the window, in their token's units. */
 async function addStakingRewardsCampaigns(options: FetchOptions, balances: ReturnType<FetchOptions['createBalances']>[]) {
-  for (const campaign of STAKING_REWARDS_CAMPAIGNS) {
-    if (campaign.chain !== options.chain) continue;
-    const distributedAt = Math.floor(new Date(`${campaign.distributedOn}T00:00:00Z`).getTime() / 1e3);
-    if (distributedAt <= options.fromTimestamp || distributedAt > options.toTimestamp) continue;
-    const decimals = Number(await options.api.call({ abi: 'uint8:decimals', target: campaign.token }));
-    for (const balance of balances) balance.add(campaign.token, toRawUnits(campaign.amount, decimals), METRIC.STAKING_REWARDS);
-  }
+  const distributedAt = (campaign: { distributedOn: string }) => Math.floor(new Date(`${campaign.distributedOn}T00:00:00Z`).getTime() / 1e3);
+  const due = STAKING_REWARDS_CAMPAIGNS.filter((campaign) =>
+    campaign.chain === options.chain && distributedAt(campaign) > options.fromTimestamp && distributedAt(campaign) <= options.toTimestamp);
+  if (!due.length) return;
+  const decimals: string[] = await options.api.multiCall({ abi: 'uint8:decimals', calls: due.map((campaign) => campaign.token) });
+  due.forEach((campaign, i) => {
+    for (const balance of balances) balance.add(campaign.token, toRawUnits(campaign.amount, Number(decimals[i])), METRIC.STAKING_REWARDS);
+  });
 }
 
 function toRawUnits(amount: string, decimals: number): string {

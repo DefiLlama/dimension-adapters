@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 /** Concrete's public vault registry: the only thing this adapter reads off-chain. */
 export const CONCRETE_API = "https://apy.api.concrete.xyz/v1";
 
-/** Vaults whose all-time peak TVL never exceeded this are test deployments and dust. */
+/** Vaults whose all-time peak TVL never exceeded this are test deployments and dust (Concrete's own reporting cut-off). */
 export const MIN_PEAK_TVL_USD = 1_000;
 
 /** Chains with tracked vaults. `start` is the deployment day of the chain's first tracked vault. */
@@ -115,35 +115,38 @@ export const VAULT_OVERRIDES: Record<string, VaultOverride> = {
 
 /**
  * How an underlying asset converts to the token its vaults' yield is priced in: an on-chain
- * amount-to-amount conversion (`read(api, amount)` returns base raw units for `amount` asset raw
- * units), so no rate scale or decimals are assumed. Bridged tokens have no local source and read
- * their home-chain one at the same instant.
+ * amount-to-amount conversion (`read(api, amounts)` returns base raw units for each of the asset
+ * raw amounts, in one batched call), so no rate scale or decimals are assumed. Bridged tokens have
+ * no local source and read their home-chain one at the same instant.
  */
-export type RateSource = { base: string; chain: string; read: (api: ChainApi, amount: bigint) => Promise<bigint> };
+export type RateSource = { base: string; chain: string; read: (api: ChainApi, amounts: bigint[]) => Promise<bigint[]> };
 
-const convert = (chain: string, base: string, target: string, abi: string): RateSource =>
-  ({ base, chain, read: async (api, amount) => BigInt(await api.call({ target, abi, params: [amount.toString()] })) });
+const convert = (chain: string, base: string, target: string, abi: string): RateSource => ({
+  base, chain,
+  read: async (api, amounts) => (await api.multiCall({ abi, calls: amounts.map((amount) => ({ target, params: [amount.toString()] })) })).map(BigInt),
+});
 const erc4626 = (chain: string, base: string, target: string) =>
   convert(chain, base, target, 'function convertToAssets(uint256 shares) view returns (uint256)');
 
-// Base tokens, on mainnet so every chain prices the same token.
+// Base tokens, on mainnet so every chain prices the same token (canonical mainnet contracts).
 const WETH = 'ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
-const STETH = 'ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84';
+const STETH = 'ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84'; // Lido stETH
 const USDC = 'ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-const USDE = 'ethereum:0x4c9edd5852cd905f086c759e8383e09bff1e68b3';
-const FRXUSD = 'ethereum:0xcacd6fd266af91b8aed52accc382b4e165586e29';
+const USDE = 'ethereum:0x4c9edd5852cd905f086c759e8383e09bff1e68b3'; // Ethena USDe
+const FRXUSD = 'ethereum:0xcacd6fd266af91b8aed52accc382b4e165586e29'; // Frax frxUSD
 
-const WSTETH = '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0';
-const SUSDE = '0x9d39a5de30e57443bff2a8307a4256c8797a3497';
-const SFRXUSD = '0xcf62f905562626cfcdd2261162a51fd02fc9c5b6';
-const WEETH = '0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee';
-const EZETH = '0xbf5495efe5db9ce00f80364c8b423567e58d2110';
-const BERAETH = '0x6fc6545d5cde268d5c7f1e476d444f39c995120d';
-const SYRUP_USDC = '0x80ac24aa929eaf5013f6436cda2a7ba190f5cc0b'; // Maple syrupUSDC pool token
-const THBILL = '0x5fa487bca6158c64046b2813623e20755091da0b'; // Theo thBILL fund token
-const RENZO_RESTAKE_MANAGER = '0x74a09653a083691711cf8215a6ab074bb4e99ef5';
-const KELP_DEPOSIT_POOL = '0x036676389e48133b63a802f8635ad39e752d375d';
-const NATIVE_ETH = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+// Rate sources: the token contracts themselves unless noted (all verified on their chain's explorer).
+const WSTETH = '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'; // Lido wstETH
+const SUSDE = '0x9d39a5de30e57443bff2a8307a4256c8797a3497'; // Ethena sUSDe (ERC-4626)
+const SFRXUSD = '0xcf62f905562626cfcdd2261162a51fd02fc9c5b6'; // Frax sfrxUSD (ERC-4626)
+const WEETH = '0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee'; // ether.fi weETH
+const EZETH = '0xbf5495efe5db9ce00f80364c8b423567e58d2110'; // Renzo ezETH
+const BERAETH = '0x6fc6545d5cde268d5c7f1e476d444f39c995120d'; // Dinero beraETH, Berachain
+const SYRUP_USDC = '0x80ac24aa929eaf5013f6436cda2a7ba190f5cc0b'; // Maple syrupUSDC pool token (ERC-4626); the Arbitrum token is its bridge
+const THBILL = '0x5fa487bca6158c64046b2813623e20755091da0b'; // Theo thBILL fund token (ERC-4626); the Arbitrum and Stable tokens are its bridges
+const RENZO_RESTAKE_MANAGER = '0x74a09653a083691711cf8215a6ab074bb4e99ef5'; // Renzo RestakeManager (calculateTVLs)
+const KELP_DEPOSIT_POOL = '0x036676389e48133b63a802f8635ad39e752d375d'; // KelpDAO LRTDepositPool (getRsETHAmountToMint)
+const NATIVE_ETH = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'; // Kelp's placeholder for native ETH
 
 const wstEth = convert(CHAIN.ETHEREUM, STETH, WSTETH, 'function getStETHByWstETH(uint256 wstETHAmount) view returns (uint256)');
 const weEth = convert(CHAIN.ETHEREUM, WETH, WEETH, 'function getEETHByWeETH(uint256 weETHAmount) view returns (uint256)');
@@ -155,24 +158,25 @@ const thBill = erc4626(CHAIN.ETHEREUM, USDC, THBILL);
 // ezETH has no conversion function: ETH per ezETH is Renzo's total TVL over the ezETH supply.
 const ezEth: RateSource = {
   base: WETH, chain: CHAIN.ETHEREUM,
-  read: async (api, amount) => {
-    const [tvls, supply] = await Promise.all([
-      api.call({ target: RENZO_RESTAKE_MANAGER, abi: 'function calculateTVLs() view returns (uint256[][], uint256[], uint256)' }),
-      api.call({ target: EZETH, abi: 'uint256:totalSupply' }),
-    ]);
-    return (amount * BigInt(tvls[2])) / BigInt(supply);
+  read: async (api, amounts) => {
+    const tvls = await api.call({ target: RENZO_RESTAKE_MANAGER, abi: 'function calculateTVLs() view returns (uint256[][], uint256[], uint256)' });
+    const supply = BigInt(await api.call({ target: EZETH, abi: 'uint256:totalSupply' }));
+    return amounts.map((amount) => (amount * BigInt(tvls[2])) / supply);
   },
 };
 // rsETH exposes the opposite direction (rsETH minted per ETH deposited); invert it.
 const rsEth: RateSource = {
   base: WETH, chain: CHAIN.ETHEREUM,
-  read: async (api, amount) => {
-    const minted = BigInt(await api.call({ target: KELP_DEPOSIT_POOL, abi: 'function getRsETHAmountToMint(address asset, uint256 amount) view returns (uint256)', params: [NATIVE_ETH, amount.toString()] }));
-    return (amount * amount) / minted;
+  read: async (api, amounts) => {
+    const minted: string[] = await api.multiCall({
+      abi: 'function getRsETHAmountToMint(address asset, uint256 amount) view returns (uint256)',
+      calls: amounts.map((amount) => ({ target: KELP_DEPOSIT_POOL, params: [NATIVE_ETH, amount.toString()] })),
+    });
+    return amounts.map((amount, i) => (amount * amount) / BigInt(minted[i]));
   },
 };
 
-/** Keyed by `${chain}:${asset}` (lowercase). Assets not listed here are priced as themselves. */
+/** Keyed by `${chain}:${asset}` (lowercase); the asset addresses are the vaults' `asset()`. Assets not listed here are priced as themselves. */
 export const UNDERLYING_ASSET_CONVERSIONS: Record<string, RateSource> = {
   [`${CHAIN.ETHEREUM}:${WSTETH}`]: wstEth,
   [`${CHAIN.ETHEREUM}:${SUSDE}`]: sUsde,
@@ -191,8 +195,8 @@ export const UNDERLYING_ASSET_CONVERSIONS: Record<string, RateSource> = {
 
 /**
  * Staking rewards campaigns paid to vault depositors by partners, booked on their distribution day
- * at the token's price that day. Amounts are in whole tokens. Source: Concrete's earn-apy
- * configuration (`config/rewards/`).
+ * at the token's price that day. Amounts are in whole tokens; token addresses are the reward
+ * tokens on the chain they were paid on. Source: Concrete's earn-apy configuration (`config/rewards/`).
  */
 export type StakingRewardsCampaign = { name: string; chain: string; token: string; amount: string; distributedOn: string };
 

@@ -23,7 +23,7 @@ const ABI = {
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-/** Blocks read at once; each block is one archive read of every vault that needs it. */
+/** Blocks read at once; each block is a handful of batched archive calls, kept modest for public RPCs. */
 const BLOCK_READ_CONCURRENCY = 5;
 
 export type Vault = VaultDecimals & {
@@ -85,6 +85,9 @@ export async function trackedVaults(options: FetchOptions): Promise<Vault[]> {
     if (!assets[i]) return;
     const asset = lower(assets[i]!);
     const child = stakedIn[i];
+    // A vault with code answers all of these; a gap is an RPC problem, not a vault to skip.
+    const incomplete = decimals[i] === null || assetDecimals[i] === null || (child && (stakedAssets[i] === null || stakedAssetDecimals[i] === null));
+    if (incomplete) throw new Error(`incomplete metadata for vault ${candidate.address} on ${options.chain}`);
     const pricedAsset = child ? lower(stakedAssets[i]!) : asset;
     const rateSource = UNDERLYING_ASSET_CONVERSIONS[`${options.chain}:${pricedAsset}`];
     vaults.push({
@@ -213,18 +216,20 @@ async function valuelessCutoffBlocks(options: FetchOptions, vaults: Vault[]): Pr
  */
 async function stakedVaultConversions(options: FetchOptions, vaults: Vault[], toBlock: number): Promise<Map<string, (amount: bigint) => Promise<bigint>>> {
   const conversions = new Map<string, (amount: bigint) => Promise<bigint>>();
+  const staked = vaults.filter((v) => v.stakedIn);
+  if (!staked.length) return conversions;
   const api = new ChainApi({ chain: options.chain, block: toBlock });
-  for (const vault of vaults) {
-    if (!vault.stakedIn) continue;
-    const underlying = vault.stakedIn;
-    const totalSupply = BigInt(await api.call({ abi: ABI.totalSupply, target: underlying.address }));
-    const totalAssets = await totalAssetsAt(api, underlying.address);
-    const rate = exchangeRate({ block: toBlock, totalSupply, totalAssets, adminSupplyChange: false }, underlying);
+  const underlyings = staked.map((v) => v.stakedIn!.address);
+  const supplies: string[] = await api.multiCall({ abi: ABI.totalSupply, calls: underlyings });
+  const assets = await totalAssetsAt(api, underlyings);
+  staked.forEach((vault, i) => {
+    const underlying = vault.stakedIn!;
+    const rate = exchangeRate({ block: toBlock, totalSupply: BigInt(supplies[i]), totalAssets: assets[i], adminSupplyChange: false }, underlying);
     conversions.set(vault.address, async (shares) => {
       const assets = (shares * rate) / 10n ** BigInt(underlying.decimals);
-      return underlying.rateSource ? convertAt(underlying.rateSource, api, toBlock, assets) : assets;
+      return underlying.rateSource ? (await convertAt(underlying.rateSource, api, toBlock, [assets]))[0] : assets;
     });
-  }
+  });
   return conversions;
 }
 
@@ -239,47 +244,57 @@ async function readBlock(
   events: Map<string, SupplyEvents>,
 ): Promise<{ vault: string; point: RatePoint }[]> {
   const api = new ChainApi({ chain: options.chain, block });
-  const calls = vaults.map((v) => v.address);
-  const supplies: (string | null)[] = await api.multiCall({ abi: ABI.totalSupply, calls, permitFailure: true });
-  const liveAssets: (string | null)[] = await api.multiCall({ abi: ABI.totalAssets, calls, permitFailure: true });
+  const supplies: (string | null)[] = await api.multiCall({ abi: ABI.totalSupply, calls: vaults.map((v) => v.address), permitFailure: true });
+  const present = vaults.filter((vault, i) => {
+    if (supplies[i] !== null) return true;
+    if (isWindowStart) return false; // deployed inside the window
+    throw new Error(`totalSupply of ${vault.address} failed at ${options.chain} block ${block}`);
+  });
+  const assets = await totalAssetsAt(api, present.map((v) => v.address));
 
-  const read = [];
-  for (const [i, vault] of vaults.entries()) {
-    if (supplies[i] === null) {
-      if (isWindowStart) continue; // deployed inside the window
-      throw new Error(`totalSupply of ${vault.address} failed at ${options.chain} block ${block}`);
-    }
+  // Assets are read in the token the yield is priced in: valueless vaults are zero, the others
+  // go through their asset's conversion (batched per source) and the staked vault's conversion.
+  const valued = present.map((vault, i) => {
     const cutoff = cutoffs.get(vault.address);
-    const valueless = cutoff !== undefined && block > cutoff;
-    // Assets are read in the token the yield is priced in.
-    let assets = valueless ? 0n : liveAssets[i] === null ? await totalAssetsAt(api, vault.address) : BigInt(liveAssets[i]!);
-    if (assets > 0n && vault.rateSource) assets = await convertAt(vault.rateSource, api, block, assets);
-    if (assets > 0n && vault.stakedIn) assets = await stakedConversions.get(vault.address)!(assets);
-    read.push({
-      vault: vault.address,
-      point: {
-        block,
-        totalSupply: BigInt(supplies[i]!),
-        totalAssets: assets,
-        adminSupplyChange: events.get(vault.address)!.adminBlocks.has(block),
-      },
-    });
+    return cutoff !== undefined && block > cutoff ? 0n : assets[i];
+  });
+  const bySource = new Map<RateSource, number[]>();
+  present.forEach((vault, i) => {
+    if (vault.rateSource && valued[i] > 0n) bySource.set(vault.rateSource, [...(bySource.get(vault.rateSource) ?? []), i]);
+  });
+  for (const [source, indices] of bySource) {
+    const converted = await convertAt(source, api, block, indices.map((i) => valued[i]));
+    indices.forEach((i, j) => { valued[i] = converted[j]; });
   }
-  return read;
+  for (const [i, vault] of present.entries()) {
+    if (vault.stakedIn && valued[i] > 0n) valued[i] = await stakedConversions.get(vault.address)!(valued[i]);
+  }
+
+  return present.map((vault, i) => ({
+    vault: vault.address,
+    point: {
+      block,
+      totalSupply: BigInt(supplies[vaults.indexOf(vault)]!),
+      totalAssets: valued[i],
+      adminSupplyChange: events.get(vault.address)!.adminBlocks.has(block),
+    },
+  }));
 }
 
 /**
- * The vault's total assets at the api's block. V2's `totalAssets` reverts while its accounting is
- * stale or the vault is paused; `cachedTotalAssets` is the last valuation the vault accepted. V1
- * has neither the revert nor the cache, so a failure there propagates.
+ * The vaults' total assets at the api's block, batched. V2's `totalAssets` reverts while its
+ * accounting is stale or the vault is paused; `cachedTotalAssets` is the last valuation the vault
+ * accepted. V1 has neither the revert nor the cache, so a failure there propagates.
  */
-async function totalAssetsAt(api: ChainApi, vault: string): Promise<bigint> {
-  const live = await api.call({ abi: ABI.totalAssets, target: vault, permitFailure: true });
-  return BigInt(live ?? await api.call({ abi: ABI.cachedTotalAssets, target: vault }));
+async function totalAssetsAt(api: ChainApi, vaults: string[]): Promise<bigint[]> {
+  const live: (string | null)[] = await api.multiCall({ abi: ABI.totalAssets, calls: vaults, permitFailure: true });
+  const stale = vaults.filter((_, i) => live[i] === null);
+  const cached: string[] = await api.multiCall({ abi: ABI.cachedTotalAssets, calls: stale });
+  return vaults.map((vault, i) => BigInt(live[i] ?? cached[stale.indexOf(vault)]));
 }
 
-/** `amount` of the asset in its base token at `block`; a bridged token's source is read on its home chain at the same instant. */
-async function convertAt(source: RateSource, api: ChainApi, block: number, amount: bigint): Promise<bigint> {
+/** `amounts` of the asset in its base token at `block`; a bridged token's source is read on its home chain at the same instant. */
+async function convertAt(source: RateSource, api: ChainApi, block: number, amounts: bigint[]): Promise<bigint[]> {
   let sourceApi = api;
   if (source.chain !== api.chain) {
     const { timestamp } = (await api.provider.getBlock(block))!;
@@ -287,5 +302,5 @@ async function convertAt(source: RateSource, api: ChainApi, block: number, amoun
     if (!homeBlock) throw new Error(`no block for ${source.chain} at ${timestamp}`);
     sourceApi = new ChainApi({ chain: source.chain, block: homeBlock });
   }
-  return source.read(sourceApi, amount);
+  return source.read(sourceApi, amounts);
 }
