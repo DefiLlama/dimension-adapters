@@ -185,7 +185,7 @@ export const UNDERLYING_ASSET_CONVERSIONS: Record<string, RateSource> = {
   [`${CHAIN.ETHEREUM}:${SFRXUSD}`]: sfrxUsd,
   [`${CHAIN.ETHEREUM}:${WEETH}`]: weEth,
   [`${CHAIN.ETHEREUM}:${EZETH}`]: ezEth,
-  [`${CHAIN.ETHEREUM}:0xa1290d69c65a6fe4df752f95823fae25cb99e5a7`]: rsEth,
+  [`${CHAIN.ETHEREUM}:0xa1290d69c65a6fe4df752f95823fae25cb99e5a7`]: rsEth, // KelpDAO rsETH
   [`${CHAIN.ARBITRUM}:0x2416092f143378750bb29b79ed961ab195cceea5`]: ezEth, // bridged ezETH
   [`${CHAIN.ARBITRUM}:0x41ca7586cc1311807b4605fbb748a3b8862b42b5`]: syrupUsdc, // bridged syrupUSDC
   [`${CHAIN.ARBITRUM}:0xfdd22ce6d1f66bc0ec89b20bf16ccb6670f55a5a`]: thBill, // bridged thBILL
