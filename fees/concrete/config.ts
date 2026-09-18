@@ -161,7 +161,8 @@ const ezEth: RateSource = {
   read: async (api, amounts) => {
     const tvls = await api.call({ target: RENZO_RESTAKE_MANAGER, abi: 'function calculateTVLs() view returns (uint256[][], uint256[], uint256)' });
     const supply = BigInt(await api.call({ target: EZETH, abi: 'uint256:totalSupply' }));
-    return amounts.map((amount) => (amount * BigInt(tvls[2])) / supply);
+    // No supply means no valuation; a zero reads as an unvalued point and the segment is skipped.
+    return amounts.map((amount) => (supply === 0n ? 0n : (amount * BigInt(tvls[2])) / supply));
   },
 };
 // rsETH exposes the opposite direction (rsETH minted per ETH deposited); invert it.
@@ -172,7 +173,8 @@ const rsEth: RateSource = {
       abi: 'function getRsETHAmountToMint(address asset, uint256 amount) view returns (uint256)',
       calls: amounts.map((amount) => ({ target: KELP_DEPOSIT_POOL, params: [NATIVE_ETH, amount.toString()] })),
     });
-    return amounts.map((amount, i) => (amount * amount) / BigInt(minted[i]));
+    // A zero quote means no valuation; it reads as an unvalued point and the segment is skipped.
+    return amounts.map((amount, i) => (BigInt(minted[i]) === 0n ? 0n : (amount * amount) / BigInt(minted[i])));
   },
 };
 
