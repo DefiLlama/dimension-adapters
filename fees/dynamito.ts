@@ -67,7 +67,7 @@ const breakdownMethodology = {
     [LABEL.BlastOff]: "50% of the blast-off fee kept by Dynamito.",
   },
   ProtocolRevenue: {
-    [METRIC.SWAP_FEES]: "Same as Revenue: 40% of trade fees kept by Dynamito (half of it funds weekly $TNT buybacks).",
+    [METRIC.SWAP_FEES]: "Same as Revenue: 40% of trade fees kept by Dynamito treasury.",
     [LABEL.BlastOff]: "50% of the blast-off fee kept by Dynamito.",
   },
   SupplySideRevenue: {
@@ -87,7 +87,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Trade fees on every buy/sell of Dynamito tokens (1-3% tier plus the anti-snipe surcharge in the first 5 seconds) and the 3% blast-off fee at graduation.",
     Revenue: "40% of trade fees plus 50% of blast-off fees, kept by Dynamito.",
-    ProtocolRevenue: "Same as Revenue.",
+    ProtocolRevenue: "Same as Revenue: all of it is kept by the Dynamito treasury. No token holder distribution yet; when the $TNT buyback programme starts, its share will be reported as HoldersRevenue.",
     SupplySideRevenue: "40% of trade fees and 50% of blast-off fees paid to creators, plus the 20% of trade fees paid to the Meteora protocol.",
   },
 };
