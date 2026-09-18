@@ -12,6 +12,8 @@ const DEPOSITORS = 'Vault Fees To Depositors';
 const fetch = async (options: FetchOptions) => {
   // Daily-only API: saved on-chain counters at exact UTC boundaries, including pending fees.
   // The service captures recent state with public RPC and durably stores it for historical queries.
+  // At each boundary block, read vault.position(), vault.grossFees(0) and vault.grossFees(1).
+  // Read pendingFees(), token0() and token1() on that position; verify tokens against deployments.ts.
   const data = await fetchURL(`https://api.tickerspring.com/v1/public/fees/tickerspring-vaults?date=${options.dateString}`);
   if (data.version !== 1 || data.chain !== CHAIN.ROBINHOOD || data.date !== options.dateString)
     throw new Error('TickerSpring: unexpected fee response');

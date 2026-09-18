@@ -12,7 +12,7 @@ const snapshot = (timestamp: number): Boundary => ({ timestamp, blockNumber: 620
   blockTimestamp: timestamp - 1, nextBlockTimestamp: timestamp, blockHash: hash(timestamp),
   vaults: managedVaults.map(v => ({ vault: v.vault, position: v.vault, harvested: ['0', '0'], pending: ['0', '0'] })) });
 const day = () => dailyResponse('2026-09-12', snapshot(START + DAY), snapshot(START + 2 * DAY));
-const amount = (balance: any, token = first.token0) => Object.entries((balance as Balances).getBalances())
+const amount = (balance: any, token: string = first.token0) => Object.entries((balance as Balances).getBalances())
   .filter(([key]) => key.toLowerCase() === `robinhood:${token.toLowerCase()}`).reduce((sum, [, value]) => sum + BigInt(value as string), 0n);
 async function run(data: any, dateString = '2026-09-12') {
   const original = axios.get;
