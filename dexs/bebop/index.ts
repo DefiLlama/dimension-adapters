@@ -48,7 +48,7 @@ async function fetch(options: FetchOptions) {
   const { getLogs, createBalances } = options;
   const dailyVolume = createBalances();
   for (const source of swapSources) {
-    if (options.startTimestamp < getStartTimestamp(source.start)) continue;
+    if (options.endTimestamp <= getStartTimestamp(source.start)) continue;
     const logs = await getLogs({ targets: source.targets, eventAbi: source.eventAbi });
     logs.forEach((log: any) => {
       addOneToken({
