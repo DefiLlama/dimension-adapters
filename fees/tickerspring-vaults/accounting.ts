@@ -19,6 +19,11 @@ export type Boundary = {
 const address = /^0x[0-9a-fA-F]{40}$/;
 const uint = /^(0|[1-9][0-9]{0,77})$/;
 const positiveInteger = (n: unknown): n is number => Number.isSafeInteger(n) && Number(n) > 0;
+// Conservative validation tolerance per vault/token/day: one indivisible token unit.
+// This is not a bound on cumulative contract rounding; larger drops require investigation.
+const MAX_NET_FEE_DECREASE = 1n;
+
+/** Parse a supported UTC fee date without accepting normalized invalid calendar dates. */
 export function dayTimestamp(date: unknown): number {
   if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Error("Invalid fee date");
   const ms = Date.parse(`${date}T00:00:00Z`);
@@ -27,7 +32,7 @@ export function dayTimestamp(date: unknown): number {
   return ms / 1000;
 }
 
-// Reconstruct an explicit public schema; never serialize arbitrary database fields.
+/** Validate the complete vault cohort and reconstruct only the public boundary fields. */
 export function validateBoundary(input: unknown, timestamp: number): Boundary {
   const b = input as Boundary | undefined;
   if (!b || !positiveInteger(timestamp) || timestamp % DAY || b.timestamp !== timestamp ||
@@ -57,6 +62,7 @@ export function validateBoundary(input: unknown, timestamp: number): Boundary {
     blockHash: b.blockHash, nextBlockTimestamp: b.nextBlockTimestamp, vaults };
 }
 
+/** Validate consecutive UTC boundaries, including harvested and net fee continuity. */
 export function dailyResponse(date: string, opening: unknown, closing: unknown) {
   const start = dayTimestamp(date);
   const from = validateBoundary(opening, start), to = validateBoundary(closing, start + DAY);
@@ -67,6 +73,12 @@ export function dailyResponse(date: string, opening: unknown, closing: unknown) 
       // Harvest/recovery may move pending fees into the cumulative counter, which never decreases.
       if (BigInt(to.vaults[i]!.harvested[side]) < BigInt(from.vaults[i]!.harvested[side]))
         throw Error("Fee counter decreased");
+      const before = BigInt(from.vaults[i]!.harvested[side]) + BigInt(from.vaults[i]!.pending[side]);
+      const after = BigInt(to.vaults[i]!.harvested[side]) + BigInt(to.vaults[i]!.pending[side]);
+      // Check each vault and token independently; another vault's earnings cannot mask a reset.
+      // Harvesting legitimately reduces pending when the cumulative harvested counter offsets it.
+      if (after < before - MAX_NET_FEE_DECREASE)
+        throw Error(`Net fee counter decreased beyond one raw unit: ${managedVaults[i].vault}, token ${side}`);
     }
   }
   return { version: 1, chain: "robinhood", date, opening: from, closing: to };

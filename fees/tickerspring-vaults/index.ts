@@ -9,6 +9,7 @@ const OPERATIONS = 'Vault Fees To Operations';
 const BUYBACK_RESERVE = 'Vault Fees To Buyback Reserve';
 const DEPOSITORS = 'Vault Fees To Depositors';
 
+/** Convert validated daily native-token earnings into fee and revenue balances. */
 const fetch = async (options: FetchOptions) => {
   // Daily-only API: saved on-chain counters at exact UTC boundaries, including pending fees.
   // The service captures recent state with public RPC and durably stores it for historical queries.
@@ -46,7 +47,8 @@ const adapter: SimpleAdapter = {
   version: 1, // The API only exposes completed UTC days; no hourly aggregation.
   doublecounted: true, // LP fees overlap the underlying Uniswap adapters.
   chains: [CHAIN.ROBINHOOD], start: '2026-09-11', fetch,
-  // Pending-fee/allocation rounding may produce raw-token dust negatives. Recovery moves pending into grossFees.
+  // Net fees may decrease by at most one raw unit per vault/token/day; larger drops throw.
+  // Cumulative allocation floors may also produce raw-unit revenue/supplier negatives.
   allowNegativeValue: true,
   methodology: {
     Fees: 'LP fees earned by the listed TickerSpring V7 vaults during the UTC day, including uncollected fees. Measured as the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Excludes principal, stock-price returns, retired vaults and lending.',

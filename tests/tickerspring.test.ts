@@ -72,6 +72,26 @@ test('pending rounding dust is preserved, not silently clamped or inflated', asy
   const d = day(); d.opening.vaults[0].pending[0] = '10'; d.closing.vaults[0].pending[0] = '9';
   const r = await run(d); assert.equal(amount(r.dailyFees), -1n); identity(r); assert.equal(adapter.allowNegativeValue, true);
 });
+test('pending-counter resets and drops beyond one raw unit reject the entire day', async () => {
+  for (const side of [0, 1] as const) {
+    for (const drop of [2n, 1_000_000_000_000_000_000n]) {
+      const d = day();
+      d.opening.vaults[0].harvested[side] = d.closing.vaults[0].harvested[side] = '100';
+      d.opening.vaults[0].pending[side] = drop.toString();
+      // Large positive earnings elsewhere must not hide the bad vault/token counter.
+      d.closing.vaults[1].pending[side] = (drop * 2n).toString();
+      await assert.rejects(run(d), /Net fee counter decreased beyond one raw unit/);
+    }
+  }
+});
+test('harvest offsets are included before applying the net decrease tolerance', async () => {
+  const d = day();
+  d.opening.vaults[0].pending[0] = '1000000';
+  d.closing.vaults[0].harvested[0] = '999999';
+  const r = await run(d); assert.equal(amount(r.dailyFees), -1n); identity(r);
+  d.closing.vaults[0].harvested[0] = '999998';
+  await assert.rejects(run(d), /Net fee counter decreased beyond one raw unit/);
+});
 test('first-day opening explicitly represents not-yet-deployed vaults', async () => {
   const a = snapshot(START), b = snapshot(START + DAY); a.blockNumber = 60000000;
   for (const row of a.vaults) row.position = null;
