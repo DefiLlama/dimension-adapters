@@ -40,7 +40,9 @@ const fetchDailyCache = async (): Promise<DailyCache> => {
   for (const row of feesRes.data.rows) {
     const date = row[0].slice(0, 10)
     if (!cache[date]) cache[date] = {}
-    cache[date].fees = Number(row[4] ?? 0)
+    // Leave fees undefined on a null OPTION_FEES so the historical guard below
+    // throws rather than publishing a fabricated zero.
+    if (row[4] != null) cache[date].fees = Number(row[4])
   }
   dailyCache = cache
   return dailyCache
