@@ -88,12 +88,18 @@ async function fetch(options: FetchOptions) {
 
   if (pools.length) {
     const feeTokens = await toApi.multiCall({ abi: abiFeeToken, calls: pools });
-    const swapLogs = await getEventLogs({ chain, targets: pools, eventAbi: eventSwap, fromBlock, toBlock, onlyArgs: true, flatten: false, maxBlockRange: MAX_BLOCK_RANGE });
+    // GROUPED HERE, NOT BY THE SDK. With maxBlockRange the sdk splits by block range before it splits by
+    // target, so flatten: false nests range -> pool -> log rather than pool -> log, and an hourly window
+    // (~7,200 blocks) always splits. Take the flat list with each log's address and group it instead.
+    const swapLogs = await getEventLogs({ chain, targets: pools, eventAbi: eventSwap, fromBlock, toBlock, entireLog: true, parseLog: true, onlyArgs: false, maxBlockRange: MAX_BLOCK_RANGE });
+    const logsByPool: Record<string, any[]> = {};
+    for (const log of swapLogs) (logsByPool[String(log.address ?? log.source).toLowerCase()] ??= []).push(log.args);
 
-    swapLogs.forEach((logs: any[], i: number) => {
+    pools.forEach((pool, i) => {
+      const logs = logsByPool[pool] ?? [];
       if (!logs.length) return;
-      const [token0, token1] = pairs[pools[i]];
-      const slot0 = slot0ByPool[pools[i]];
+      const [token0, token1] = pairs[pool];
+      const slot0 = slot0ByPool[pool];
       const feeRate = Number(slot0.fee) / FEE_DENOMINATOR;
       const feeToken = Number(feeTokens[i]);
 
