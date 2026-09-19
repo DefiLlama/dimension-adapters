@@ -23,6 +23,7 @@ const ABI = {
 
 // ERC-20 mints come from and burns go to the zero address; it also stands in for "no address" in multicalls.
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const ZERO_TOPIC = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 /** Blocks read at once; each block is a handful of batched archive calls, kept modest for public RPCs. */
 const BLOCK_READ_CONCURRENCY = 5;
@@ -52,7 +53,7 @@ const lower = (address: string) => address.toLowerCase();
 /** The vaults worth measuring in this window, from Concrete's registry plus their on-chain asset and decimals. */
 export async function trackedVaults(options: FetchOptions): Promise<Vault[]> {
   const { chainId } = CHAIN_CONFIG[options.chain];
-  const registry = await getConfig('concrete/vaults', `${CONCRETE_API}/vault:tvl/all`);
+  const registry = options.preFetchedResults ?? await getConfig('concrete/vaults', `${CONCRETE_API}/vault:tvl/all`);
   const listed: any[] = Object.values(registry[chainId] ?? {});
   const concreteVaults = new Set(listed.map((v) => lower(v.address)));
 
@@ -114,15 +115,25 @@ export async function supplyEvents(options: FetchOptions, vaults: Vault[]): Prom
   );
   const byAddress = new Map(vaults.map((v) => [v.address, v]));
   const eventsOf = (log: any) => events.get(lower(log.address))!;
-  const logsOf = async (targets: string[], eventAbi: string): Promise<any[]> =>
-    targets.length ? options.getLogs({ targets, eventAbi, entireLog: true }) : [];
+  const logsOf = async (targets: string[], eventAbi: string, extraTopics?: (string | null)[]): Promise<any[]> =>
+    targets.length ? options.getLogs({ targets, eventAbi, entireLog: true, extraTopics } as any) : [];
 
-  const transfers = await logsOf(vaults.map((v) => v.address), ABI.transfer);
-  for (const log of transfers) {
+  const addresses = vaults.map((v) => v.address);
+  const v2 = vaults.filter((v) => v.version === 2).map((v) => v.address);
+  // Two topic-filtered scans: mint = from zero, burn = to zero. Wallet-to-wallet transfers
+  // leave share supply alone and are never fetched. eth_getLogs cannot OR across topic slots,
+  // so mint and burn are separate requests.
+  const [mints, burns, mgmtLogs, perfLogs, unbackedLogs, multisigs] = await Promise.all([
+    logsOf(addresses, ABI.transfer, [ZERO_TOPIC]),
+    logsOf(addresses, ABI.transfer, [null, ZERO_TOPIC]),
+    logsOf(v2, ABI.managementFeeAccrued),
+    logsOf(v2, ABI.performanceFeeAccrued),
+    logsOf(v2, ABI.unbackedMint),
+    strategyMultisigs(options, v2),
+  ]);
+
+  const recordSupply = (log: any, isMint: boolean) => {
     const { from, to, value } = log.args;
-    const isMint = lower(from) === ZERO_ADDRESS;
-    const isBurn = lower(to) === ZERO_ADDRESS;
-    if (!isMint && !isBurn) continue; // wallet-to-wallet transfers leave supply alone
     const vault = byAddress.get(lower(log.address))!;
     const block = Number(log.blockNumber);
     eventsOf(log).breakpoints.add(block);
@@ -134,14 +145,14 @@ export async function supplyEvents(options: FetchOptions, vaults: Vault[]): Prom
       // transaction or harvest; the two are not separable on-chain.
       eventsOf(log).feeMints.push({ block, shares: BigInt(value), kind: 'management' });
     }
-  }
+  };
+  for (const log of mints) recordSupply(log, true);
+  for (const log of burns) recordSupply(log, false);
 
-  const v2 = vaults.filter((v) => v.version === 2).map((v) => v.address);
-  const multisigs = await strategyMultisigs(options, v2);
-  for (const log of await logsOf(v2, ABI.managementFeeAccrued)) {
+  for (const log of mgmtLogs) {
     eventsOf(log).feeMints.push({ block: Number(log.blockNumber), shares: BigInt(log.args.shares), kind: 'management' });
   }
-  for (const log of await logsOf(v2, ABI.performanceFeeAccrued)) {
+  for (const log of perfLogs) {
     // A performance fee paid to one of Concrete's own strategy multisigs funnels the gain into the
     // vault that strategy belongs to (a staked vault): it is that vault's growth, not revenue.
     if (multisigs.has(lower(log.args.recipient))) continue;
@@ -149,7 +160,7 @@ export async function supplyEvents(options: FetchOptions, vaults: Vault[]): Prom
   }
   // Bridged V2 vaults announce operator share issuance themselves (a migration target minting
   // the origin's entitlement), so those need no configured admin address.
-  for (const log of await logsOf(v2, ABI.unbackedMint)) {
+  for (const log of unbackedLogs) {
     eventsOf(log).adminBlocks.add(Number(log.blockNumber));
   }
   return events;
