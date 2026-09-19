@@ -26,7 +26,6 @@ const WONK = "0x548df4bf91624d8cec46d606211eb13f7492e27e"
 const WONK_USDC_POOL_ID = "0x86bbf4b57ee899dfa5eb9f948b28f287d0d7987b96a3738abde25e1f53f78e52"
 // canonical Uniswap v4 PoolManager on Arc, shared with the uniswap-v4 adapter
 const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951"
-// native USDC sorts below WONK, so it is currency0 and the pool price is WONK per USDC
 const V4_SWAP_EVENT = "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)"
 const V4_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"
 const EXTSLOAD_ABI = "function extsload(bytes32 slot) view returns (bytes32)"
@@ -54,6 +53,9 @@ type Launch = { token: string, pairToken: string }
 // pool's own swaps so each launch is valued at the rate that stood when it traded, and anchored at
 // the window's opening price for the stretch before the pool's first swap of the window.
 async function getWonkPrices(options: FetchOptions) {
+  // Native USDC sorts below WONK, so it is currency0 and the pool price is WONK per USDC; the
+  // reciprocal is what values a WONK amount. Verified against slot 6 of the pool manager, which
+  // returns the same sqrtPriceX96 and tick as the pool's own Swap event.
   const priceFromSqrt = (sqrtPriceX96: bigint) => {
     const sqrtPrice = Number(sqrtPriceX96) / Q96
     const wonkPerUsdc = sqrtPrice * sqrtPrice
@@ -110,7 +112,7 @@ async function fetch(options: FetchOptions) {
   const wonkPrices = hasWonkBase ? await getWonkPrices(options) : []
   // the last WONK price quoted at or before the swap's block
   const wonkPriceAt = (block: number) => {
-    let price = wonkPrices[0].price
+    let price = 0
     for (const entry of wonkPrices) {
       if (entry.block > block) break
       price = entry.price
