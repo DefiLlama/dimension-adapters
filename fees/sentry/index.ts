@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import request from 'graphql-request';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { collections } from './collections';
-import { Interface } from 'ethers';
 import { nativeRouterFees } from './nativeRouter';
 
 // https://sentry.trading/sentry-guide.md. protocolDayData.feesWETH mixes
@@ -75,8 +74,6 @@ const events = {
   bundle: 'event BundleFeePaid(address indexed payer,uint256 amount,uint256 timestamp)',
 };
 const lower = (x: string) => x.toLowerCase();
-const eventInterfaces = Object.fromEntries(Object.entries(events).map(([key, abi]) => [key, new Interface([abi])]));
-const eventTopics = Object.fromEntries(Object.entries(eventInterfaces).map(([key, iface]) => [key, iface.getEvent(iface.fragments[0].format())!.topicHash]));
 async function graph(endpoint: string, query: string): Promise<any> {
   for (let attempt = 0; ; attempt++) {
     try { return await request(endpoint, query); }
@@ -92,9 +89,7 @@ const fetch = async (options: FetchOptions) => {
   const c = config[options.chain];
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
-  // Ink public RPCs cap log queries at 10,000 blocks; leave room for the
-  // SDK's cache overlap. Robinhood supports wider ranges.
-  const getLogs: FetchOptions['getLogs'] = args => options.getLogs({ fromBlock: fromBlock + 1, toBlock, maxBlockRange: options.chain === 'ink' ? 9900 : undefined, ...args });
+  const getLogs: FetchOptions['getLogs'] = args => options.getLogs({ fromBlock: fromBlock + 1, toBlock, ...args });
   const dailyFees = options.createBalances(), dailyRevenue = options.createBalances(), dailySupplySideRevenue = options.createBalances();
   const allocate = (asset: string, creator: bigint, treasury: bigint, rewards = 0n, reinvest = 0n, label = 'Hook Fees') => {
     dailyFees.add(asset, creator + treasury + rewards + reinvest, label);
@@ -120,14 +115,9 @@ const fetch = async (options: FetchOptions) => {
     return base;
   };
   const logs = (targets: string[], eventAbi: string) => targets.length ? getLogs({ targets, eventAbi }) : Promise.resolve([]);
-  const groupedLogs = async (targets: string[], keys: string[]) => {
-    const groups: Record<string, any[]> = Object.fromEntries(keys.map(key => [key, []]));
-    // One OR-topic scan per contract, not one scan for every event signature.
-    const raw = await getLogs({ targets, topics: [keys.map(key => eventTopics[key])], entireLog: true });
-    for (const log of raw) {
-      const key = keys.find(key => eventTopics[key] === log.topics[0])!;
-      groups[key].push(eventInterfaces[key].parseLog(log)!.args);
-    }
+  const groupedLogs = async (targets: string[], keys: (keyof typeof events)[]) => {
+    const groups: Record<string, any[]> = {};
+    for (const key of keys) groups[key] = targets.length ? await getLogs({ targets, eventAbi: events[key] }) : [];
     return groups;
   };
   // Count allocations once, not subsequent collections/distributions/compounding.
@@ -208,7 +198,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Fees allocated by Sentry launch hooks and fee routers in their actual payment assets, plus actual legacy LP fee collections in both pool currencies and bundle-buy service payments. Deferred skims are recognized when FeePaid is emitted on delivery. Legacy LP fees are recognized on collection because the factory events do not expose per-swap position accrual; uncollected balances are not estimated. Later dividend distribution and compounding are not counted again. Pool fees cover factory-deployed launches only; router app fees also cover third-party tokens traded through Sentry. Downstream treasury reallocations, independent non-launch hooks, direct custodial-wallet skims and third-party domain referrals are outside this contract-event scope.',
     Revenue: 'Explicit hook/router treasury amounts plus collected LP fees less emitted creator payouts. Community pots and growth-sink allocations are supply-side rewards, not Sentry treasury revenue.',
-    ProtocolRevenue: 'Same treasury allocations as Revenue.',
+    ProtocolRevenue: 'Explicit hook/router treasury amounts plus collected LP fees less emitted creator payouts. Community pots and growth-sink allocations are supply-side rewards, not Sentry treasury revenue.',
     SupplySideRevenue: 'Creator allocations, launch-token dividends, community reward/growth allocations, liquidity reinvestment and router referrals. Legacy creator LP fees are actual payouts on the collection date; they may have accrued over earlier days. Assets without a DefiLlama price remain native-token balances, not invented USD values.',
   },
   breakdownMethodology: {

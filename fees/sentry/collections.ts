@@ -18,9 +18,8 @@ const abi = {
   transfer: 'event Transfer(address indexed from,address indexed to,uint256 value)',
 };
 const interfaces = Object.fromEntries(Object.entries(abi).map(([key, event]) => [key, new Interface([event])]));
-const topics = Object.fromEntries(Object.entries(interfaces).map(([key, iface]) => [key, iface.fragments.map(f => iface.getEvent(f.format())!.topicHash)[0]]));
 const lower = (s: string) => s.toLowerCase();
-const parse = (key: string, log: any) => interfaces[key].parseLog(log)!.args;
+const parse = (key: string, log: any) => { try { return interfaces[key].parseLog(log)!.args; } catch { return; } };
 
 // LP fee collection is recognized on receipt. Do not infer accrual from swap
 // notional or use today's creator split for historical positions. The factory's
@@ -28,7 +27,9 @@ const parse = (key: string, log: any) => interfaces[key].parseLog(log)!.args;
 export async function collections(options: FetchOptions, factories: { address: string; block: number; version: number }[], vault: string, baseOf: (token: string) => string) {
   const toBlock = await options.getToBlock(), fromBlock = (await options.getFromBlock()) + 1;
   const owners = new Set([...factories.filter(f => f.block <= toBlock).map(f => lower(f.address)), lower(vault)]);
-  const logs = await options.getLogs({ targets: [...owners], topics: [[topics.v3, topics.v4, topics.vault3, topics.vault4]], fromBlock, toBlock, maxBlockRange: options.chain === 'ink' ? 9900 : undefined, entireLog: true });
+  const logs: any[] = [];
+  for (const eventAbi of [abi.v3, abi.v4, abi.vault3, abi.vault4])
+    logs.push(...await options.getLogs({ targets: [...owners], eventAbi, fromBlock, toBlock, onlyArgs: false }));
   const hashes: string[] = [...new Set<string>(logs.map(l => l.transactionHash))];
   const result: { asset: string; gross: bigint; creator: bigint; tx: string }[] = [];
   const poolTokens = new Map<string, string[]>();
@@ -45,9 +46,9 @@ export async function collections(options: FetchOptions, factories: { address: s
       for (let i = 0; i < receipt.logs.length; i++) {
         const log = receipt.logs[i];
         if (!owners.has(lower(log.address))) continue;
-        const key = grossKeys.find(k => log.topics[0] === topics[k]);
+        const key = grossKeys.find(k => parse(k, log));
         if (key) {
-          const a = parse(key, log);
+          const a = parse(key, log)!;
           if (!a.amount0 && !a.amount1) continue;
           let currencies: string[];
           if (key === 'v4' || key === 'vault4') currencies = [lower(a.token), baseOf(a.token)].sort();
@@ -57,15 +58,14 @@ export async function collections(options: FetchOptions, factories: { address: s
             // be looked up at the end of a historical window.
             const before = receipt.logs.slice(0, i).reverse();
             const npm = before.find(l => {
-              if (l.topics[0] !== topics.npm) return false;
               const c = parse('npm', l);
-              return c.tokenId === a.tokenId && lower(c.recipient) === lower(log.address) && c.amount0 === a.amount0 && c.amount1 === a.amount1;
+              return !!c && c.tokenId === a.tokenId && lower(c.recipient) === lower(log.address) && c.amount0 === a.amount0 && c.amount1 === a.amount1;
             });
             if (!npm) throw new Error(`Missing NFT collection in ${receipt.hash}`);
             const pool = before.find(l => {
-              if (l.index >= npm.index || l.topics[0] !== topics.pool) return false;
+              if (l.index >= npm.index) return false;
               const c = parse('pool', l);
-              return lower(c.owner) === lower(npm.address) && lower(c.recipient) === lower(log.address) && c.amount0 === a.amount0 && c.amount1 === a.amount1;
+              return !!c && lower(c.owner) === lower(npm.address) && lower(c.recipient) === lower(log.address) && c.amount0 === a.amount0 && c.amount1 === a.amount1;
             });
             if (!pool) throw new Error(`Missing pool collection in ${receipt.hash}`);
             if (!poolTokens.has(pool.address)) poolTokens.set(pool.address, await options.api.multiCall({ abi: 'address:token0', calls: [pool.address] }).then(async r => [r[0], await options.api.call({ target: pool.address, abi: 'address:token1' })]));
@@ -74,17 +74,16 @@ export async function collections(options: FetchOptions, factories: { address: s
           add(currencies[0], 'gross', BigInt(a.amount0));
           add(currencies[1], 'gross', BigInt(a.amount1));
         }
-        const creatorKey = creatorKeys.find(k => log.topics[0] === topics[k]);
+        const creatorKey = creatorKeys.find(k => parse(k, log));
         if (creatorKey) {
-          const a = parse(creatorKey, log);
+          const a = parse(creatorKey, log)!;
           let asset = a.currency;
           if (!asset) {
             // Older Ink events call this wethAmount even for another base.
             // The transfer immediately preceding the payout supplies its asset.
             const transfer = receipt.logs.slice(0, i).reverse().find(l => {
-              if (l.topics[0] !== topics.transfer) return false;
               const t = parse('transfer', l);
-              return lower(t.from) === lower(log.address) && lower(t.to) === lower(a.recipient) && t.value === a.amount;
+              return !!t && lower(t.from) === lower(log.address) && lower(t.to) === lower(a.recipient) && t.value === a.amount;
             });
             if (!transfer) throw new Error(`Missing creator payment currency in ${receipt.hash}`);
             asset = transfer.address;

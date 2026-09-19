@@ -1,30 +1,31 @@
 import { FetchOptions } from '../../adapters/types';
 import { getProvider } from '@defillama/sdk';
-import { Interface, zeroPadValue } from 'ethers';
+import { Interface } from 'ethers';
 import { getTransactionsWithRetry } from '../../helpers/getTxReceipts';
 
 // https://sentry.trading/abis/ink/SentryInkRouterV4.json
 // This immutable router emits no fee event. Buys forward their exact ETH fee
 // before wrapping the remaining input; sells unwrap actual WETH proceeds and
 // forward the contract's fee from that settlement (not pool swap notional).
+const depositAbi = 'event Deposit(address indexed dst,uint256 wad)';
+const withdrawalAbi = 'event Withdrawal(address indexed src,uint256 wad)';
 export async function nativeRouterFees(options: FetchOptions, router: string, weth: string) {
   const lower = (s: string) => s.toLowerCase();
-  const wrapped = new Interface(['event Deposit(address indexed dst,uint256 wad)', 'event Withdrawal(address indexed src,uint256 wad)']);
+  const wrapped = new Interface([depositAbi, withdrawalAbi]);
   const routerAbi = new Interface(['function buyExactEthForTokens(address token,uint256 minOut,address recipient) payable returns(uint256)']);
   const buySelector = routerAbi.getFunction('buyExactEthForTokens')!.selector;
   const deposits = new Map<string, bigint[]>();
-  const logs = await options.getLogs({ target: weth, topics: [[wrapped.getEvent('Deposit')!.topicHash, wrapped.getEvent('Withdrawal')!.topicHash], zeroPadValue(router, 32)], fromBlock: (await options.getFromBlock()) + 1, toBlock: await options.getToBlock(), maxBlockRange: 9900, entireLog: true });
-  if (!logs.length) return 0n;
+  const fromBlock = (await options.getFromBlock()) + 1, toBlock = await options.getToBlock();
+  const depositLogs = await options.getLogs({ target: weth, eventAbi: depositAbi, topics: wrapped.encodeFilterTopics('Deposit', [router]) as string[], fromBlock, toBlock, onlyArgs: false });
+  const withdrawalLogs = await options.getLogs({ target: weth, eventAbi: withdrawalAbi, topics: wrapped.encodeFilterTopics('Withdrawal', [router]) as string[], fromBlock, toBlock });
+  if (!depositLogs.length && !withdrawalLogs.length) return 0n;
   const feeBps = BigInt(await options.api.call({ target: router, abi: 'uint256:FEE_BPS' }));
   const treasury = lower(await options.api.call({ target: router, abi: 'address:treasury' }));
   let total = 0n;
-  for (const log of logs) {
-    const event = wrapped.parseLog(log)!;
-    if (event.name === 'Withdrawal') total += BigInt(event.args.wad) * feeBps / 10000n;
-    else {
-      const amounts = deposits.get(log.transactionHash) ?? [];
-      amounts.push(BigInt(event.args.wad)); deposits.set(log.transactionHash, amounts);
-    }
+  for (const log of withdrawalLogs) total += BigInt(log.wad) * feeBps / 10000n;
+  for (const log of depositLogs) {
+    const amounts = deposits.get(log.transactionHash) ?? [];
+    amounts.push(BigInt(log.args.wad)); deposits.set(log.transactionHash, amounts);
   }
   const hashes = [...deposits.keys()];
   for (let i = 0; i < hashes.length; i += 5) {
