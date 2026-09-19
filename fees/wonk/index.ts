@@ -49,9 +49,11 @@ const PROTOCOL_FEE_SHARE_BPS_FUNCTION = "function protocolFeeShareBps() view ret
 
 type Launch = { token: string, pairToken: string }
 
-// USDC per WONK over the window, as (block, price) in ascending order. Built from the WONK/USDC
+// USDC per WONK over the window, as (block, logIndex, price) in log order. Built from the WONK/USDC
 // pool's own swaps so each launch is valued at the rate that stood when it traded, and anchored at
-// the window's opening price for the stretch before the pool's first swap of the window.
+// the window's opening price for the stretch before the pool's first swap of the window. The price
+// a swap sees is the one left by the last WONK/USDC swap logged before it, which is why the
+// position matters: that pool often trades several times per block, moving the rate as it goes.
 async function getWonkPrices(options: FetchOptions) {
   // Native USDC sorts below WONK, so it is currency0 and the pool price is WONK per USDC; the
   // reciprocal is what values a WONK amount. Verified against slot 6 of the pool manager, which
@@ -73,13 +75,14 @@ async function getWonkPrices(options: FetchOptions) {
     entireLog: true,
   })
 
-  return [{ block: 0, price: opening }].concat(
+  return [{ block: 0, logIndex: 0, price: opening }].concat(
     swaps
       .map((log: any) => ({
         block: Number(log.blockNumber),
+        logIndex: Number(log.logIndex),
         price: priceFromSqrt(BigInt((log.args ?? log).sqrtPriceX96)),
       }))
-      .sort((a: any, b: any) => a.block - b.block)
+      .sort((a: any, b: any) => (a.block - b.block) || (a.logIndex - b.logIndex))
   )
 }
 
@@ -110,11 +113,11 @@ async function fetch(options: FetchOptions) {
 
   const hasWonkBase = [...poolIdToLaunch.values()].some(launch => launch.pairToken === WONK)
   const wonkPrices = hasWonkBase ? await getWonkPrices(options) : []
-  // the last WONK price quoted at or before the swap's block
-  const wonkPriceAt = (block: number) => {
+  // the last WONK price quoted at or before the swap's own log position
+  const wonkPriceAt = (block: number, logIndex: number) => {
     let price = 0
     for (const entry of wonkPrices) {
-      if (entry.block > block) break
+      if (entry.block > block || (entry.block === block && entry.logIndex > logIndex)) break
       price = entry.price
     }
     return price
@@ -196,7 +199,7 @@ async function fetch(options: FetchOptions) {
     const protocolCut = fee * protocolShareAt(Number(log.blockNumber), Number(log.logIndex)) / BPS
     const creatorCut = fee - protocolCut
 
-    const wonkPrice = launch.pairToken === WONK ? wonkPriceAt(Number(log.blockNumber)) : 0
+    const wonkPrice = launch.pairToken === WONK ? wonkPriceAt(Number(log.blockNumber), Number(log.logIndex)) : 0
     const addAmount = (balances: typeof dailyVolume, amount: bigint, label?: string) => {
       if (launch.pairToken === NATIVE) balances.addGasToken(amount, label)
       // WONK has no listed price, so it is valued through its own USDC pool and booked in USD
