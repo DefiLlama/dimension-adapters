@@ -8,18 +8,21 @@ const dailyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/da
 const dailyPremiumEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/28546/card/32935?parameters=%5B%5D'
 // Options Volume (24H) - the daily volume card excludes the current (incomplete) day, so today's notional comes from this rolling 24h card
 const volume24hEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/27228/card/31946?parameters=%5B%5D'
+// Lifetime Fees - daily fees broken down by product, of which OPTION_FEES is the options share
+const dailyFeesEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/20068/card/21188?parameters=%5B%5D'
 
 interface DailyCache {
-  [date: string]: { notional?: number, premium?: number }
+  [date: string]: { notional?: number, premium?: number, fees?: number }
 }
 
 let dailyCache: DailyCache | null = null
 
 const fetchDailyCache = async (): Promise<DailyCache> => {
   if (dailyCache) return dailyCache
-  const [volumeRes, premiumRes] = await Promise.all([
+  const [volumeRes, premiumRes, feesRes] = await Promise.all([
     fetchURL(dailyVolumeEndpoint),
     fetchURL(dailyPremiumEndpoint),
+    fetchURL(dailyFeesEndpoint),
   ])
   const cache: DailyCache = {}
   // Notional card row format: [DAY, VOLUME]
@@ -32,6 +35,12 @@ const fetchDailyCache = async (): Promise<DailyCache> => {
     const date = row[0].slice(0, 10)
     if (!cache[date]) cache[date] = {}
     cache[date].premium = Number(row[1])
+  }
+  // Fees card row format: [TRADE_DATE, PERP_FEES, PERP_OPTION_FEES, SPOT_FEES, OPTION_FEES, TOTAL_FEE, CUMULATIVE_FEES]
+  for (const row of feesRes.data.rows) {
+    const date = row[0].slice(0, 10)
+    if (!cache[date]) cache[date] = {}
+    cache[date].fees = Number(row[4] ?? 0)
   }
   dailyCache = cache
   return dailyCache
@@ -52,12 +61,16 @@ const fetch = async (options: FetchOptions) => {
     return {
       dailyNotionalVolume: Number(notional),
       dailyPremiumVolume: premium,
+      dailyFees: entry?.fees,
+      dailyUserFees: entry?.fees,
     }
   }
   if (entry?.notional == null || entry?.premium == null) throw new Error(`Missing Paradex options data for ${dateKey}: notional=${entry?.notional} premium=${entry?.premium}`)
   return {
     dailyNotionalVolume: entry.notional,
     dailyPremiumVolume: entry.premium,
+    dailyFees: entry.fees,
+    dailyUserFees: entry.fees,
   }
 }
 
@@ -69,6 +82,15 @@ const adapter: SimpleAdapter = {
       start: '2026-03-25',
     },
   },
+  methodology: {
+    Fees: "Options trading fees paid by takers and makers on Paradex, taken from the OPTION_FEES breakdown of the public Paradex stats dashboard.",
+    UserFees: "Options trading fees paid by users on Paradex.",
+    NotionalVolume: "Notional value of options contracts traded on Paradex.",
+    PremiumVolume: "Premium paid for options contracts traded on Paradex.",
+  },
+  // Paradex does not publish a supply-side/protocol split of its fees, so - as with
+  // the Paradex perps adapter - dailyRevenue is deliberately not reported.
+  skipBreakdownValidation: true,
 }
 
 export default adapter
