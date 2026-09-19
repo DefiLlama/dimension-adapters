@@ -10,11 +10,10 @@ const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
 // REP369/WPLS PulseX V2 pair used by the project. Source: https://scan.pulsechain.com/address/0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5
 const MAIN_PAIR = "0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5".toLowerCase();
 
-// ERC-20 zero address; used here only to identify the token contract's burn transfers.
+// Zero & dead addresses for identifying burns
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead";
 
-// REP369 fee settings are basis points: 10_000 = 100%.
-const BPS = 10_000n;
 const ZERO = 0n;
 
 const ABIS = {
@@ -24,9 +23,9 @@ const ABIS = {
     "event Transfer(address indexed from,address indexed to,uint256 value)",
   token0: "address:token0",
   token1: "address:token1",
-  liquidityFees: "uint16:liquidityFees",
-  rewardsFees: "uint16:rewardsFees",
-  autoBurnFees: "uint16:autoBurnFees",
+  liquidityFees: "function liquidityFees(uint256) view returns (uint16)",
+  rewardsFees: "function rewardsFees(uint256) view returns (uint16)",
+  autoBurnFees: "function autoBurnFees(uint256) view returns (uint16)",
   liquidityUpdated:
     "event LiquidityFeesUpdated(uint16 buyFee,uint16 sellFee,uint16 transferFee)",
   rewardsUpdated:
@@ -136,9 +135,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
     throw new Error("REP369 main pair is not REP369/WPLS");
   }
 
-  const repIs0 = token0 === REP369;
-  const quoteToken = repIs0 ? token1 : token0;
-
   const state: FeeState = {
     total: [ZERO, ZERO],
     liquidity: [asBigInt(startLiquidity[0]), asBigInt(startLiquidity[1])],
@@ -203,7 +199,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   }
   for (const list of transfersByTx.values()) list.sort(compareLogs);
 
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -220,12 +215,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       applyFeeUpdate(state, updates[updateIndex], updates[updateIndex]._kind);
       updateIndex++;
     }
-
-    const args = argsOf(swap);
-    const repIn = asBigInt(repIs0 ? args.amount0In : args.amount1In);
-    const repOut = asBigInt(repIs0 ? args.amount0Out : args.amount1Out);
-    const quoteIn = asBigInt(repIs0 ? args.amount1In : args.amount0In);
-    const quoteOut = asBigInt(repIs0 ? args.amount1Out : args.amount0Out);
 
     const swapPosition = position(swap);
     const transactionHash = txHashOf(swap);
@@ -258,7 +247,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
         from === MAIN_PAIR &&
         to !== MAIN_PAIR &&
         to !== REP369 &&
-        to !== ZERO_ADDRESS
+        to !== ZERO_ADDRESS &&
+        to !== DEAD_ADDRESS
       );
     });
 
@@ -271,23 +261,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
       return (
         to === MAIN_PAIR &&
         from !== REP369 &&
-        from !== ZERO_ADDRESS
+        from !== ZERO_ADDRESS &&
+        from !== DEAD_ADDRESS
       );
     });
 
     if ((!isBuy && !isSell) || (isBuy && isSell)) {
       previousSwapByTx.set(transactionHash, swapPosition);
       continue;
-    }
-
-    // Count only the WPLS quote leg once per user trade.
-    const quoteVolume = isBuy ? quoteIn : quoteOut;
-    if (quoteVolume > ZERO) {
-      dailyVolume.add(
-        quoteToken,
-        quoteVolume.toString(),
-        "REP369 Trading Volume"
-      );
     }
 
     let contractTax = ZERO;
@@ -302,10 +283,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
       if (isBuy && from === MAIN_PAIR) {
         if (to === REP369) contractTax += value;
-        if (to === ZERO_ADDRESS) burnTax += value;
-      } else if (isSell && from !== REP369) {
-        if (to === REP369) contractTax += value;
-        if (to === ZERO_ADDRESS) burnTax += value;
+        if (to === ZERO_ADDRESS || to === DEAD_ADDRESS) burnTax += value;
+      } else if (isSell) {
+        if (from !== REP369 && to === REP369) {
+          contractTax += value;
+        } else if (from === REP369 && (to === ZERO_ADDRESS || to === DEAD_ADDRESS)) {
+          burnTax += value;
+        }
       }
     }
 
@@ -363,7 +347,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   }
 
   return {
-    dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees.clone(),
     dailyRevenue,
@@ -374,8 +357,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 };
 
 const methodology = {
-  Volume:
-    "REP369/WPLS PulseX V2 user-trade volume, counted once per swap using the WPLS quote leg.",
   Fees:
     "All REP369 transaction tax paid by users. The adapter reads fee-component settings from the REP369 contract and applies on-chain fee-update events in chronological order.",
   Revenue:
@@ -389,10 +370,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    "REP369 Trading Volume":
-      "WPLS quote-side volume from user-facing REP369/WPLS PulseX V2 swaps, counted once per swap.",
-  },
   Fees: {
     "REP369 Transaction Tax":
       "Exact REP369 tax transfers associated with user-facing swaps on the main REP369/WPLS pair, including the direct sell-side burn transfer.",
