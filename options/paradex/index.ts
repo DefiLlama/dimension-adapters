@@ -61,11 +61,13 @@ const fetch = async (options: FetchOptions) => {
     return {
       dailyNotionalVolume: Number(notional),
       dailyPremiumVolume: premium,
-      dailyFees: entry?.fees,
-      dailyUserFees: entry?.fees,
+      // The fees card has no row for the in-progress day until the first options
+      // trade lands, so an absent row genuinely means no fees accrued yet.
+      dailyFees: entry?.fees ?? 0,
+      dailyUserFees: entry?.fees ?? 0,
     }
   }
-  if (entry?.notional == null || entry?.premium == null) throw new Error(`Missing Paradex options data for ${dateKey}: notional=${entry?.notional} premium=${entry?.premium}`)
+  if (entry?.notional == null || entry?.premium == null || entry?.fees == null) throw new Error(`Missing Paradex options data for ${dateKey}: notional=${entry?.notional} premium=${entry?.premium} fees=${entry?.fees}`)
   return {
     dailyNotionalVolume: entry.notional,
     dailyPremiumVolume: entry.premium,
