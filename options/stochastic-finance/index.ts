@@ -63,6 +63,7 @@ const fetch = async (options: FetchOptions) => {
     target: SFSWAPV0_FACTORY,
     eventAbi: PAIR_CREATED_EVENT,
     fromBlock: FACTORY_DISCOVERY_FROM_BLOCK,
+    cacheInCloud: true,
   });
   const pairAddresses: string[] = pairCreatedLogs.map((l: any) => l.pair);
 
@@ -120,19 +121,21 @@ const fetch = async (options: FetchOptions) => {
     dailyNotionalVolume,
     dailyPremiumVolume,
     dailyFees,
-    dailyRevenue: dailyFees.clone(),
+    dailyRevenue: dailyFees,
+    dailyProtocolFees: dailyFees,
   };
 };
 
 const methodology = {
   NotionalVolume:
     "Sum of `amount` from each `optionIssued` event on StochasticOptions: USDC collateral committed by writers when minting a paired (long + short) position. Following the Prodigy/Dopex/Rysk convention of counting raw token amount (no oracle multiplication), this is the unit count of options minted — `1 USDC = 1 option unit` per protocol design.",
-    PremiumVolume:
+  PremiumVolume:
     "Sum of USDC paid by option buyers on SFSwapV0Pair AMM pools, direction USDC→tradeToken only (the `amount0In` field of each `Swap` event). The reverse direction (tradeToken→USDC) is a writer unwinding their previously-sold leg and does not count as new premium inflow. Pair addresses are discovered from `PairCreated` events on the factory (one-time event per (token, tokenId) tuple).",
   Fees:
     "Sum of `fee` fields from `OptionExercised` (settlement fee on each exercised leg) and `PositionClosed` (matched-pair close fee). Both are charged at `1 / sf_fee_divisor` of the exercised/closed collateral and paid in USDC.",
   Revenue:
-    "Equal to Fees: the protocol has no governance token, and every fee is transferred to the on-chain `feeCollector_address` (which the owner can rotate via `setFeeCollector` / `FeeCollectorChanged`).",
+    "Equal to Fees (sum of `OptionExercised` and `PositionClosed` fees): the protocol has no governance token, and every fee is transferred to the on-chain `feeCollector_address` (which the owner can rotate via `setFeeCollector` / `FeeCollectorChanged`).",
+  ProtocolRevenue: "Equal to Fees (sum of `OptionExercised` and `PositionClosed` fees): the protocol has no governance token, and every fee is transferred to the on-chain `feeCollector_address` (which the owner can rotate via `setFeeCollector` / `FeeCollectorChanged`).",
 };
 
 const breakdownMethodology = {
@@ -143,6 +146,12 @@ const breakdownMethodology = {
       "Matched-pair close fee on each leg unwound via `PositionClosed`. Same rate as the exercise fee (so this is not a cheaper substitute for `exercise`) and transferred to `feeCollector_address`.",
   },
   Revenue: {
+    [EXERCISE_FEE_LABEL]:
+      "Exercise settlement fees routed to the on-chain `feeCollector_address`.",
+    [CLOSE_FEE_LABEL]:
+      "Matched-pair close fees routed to the on-chain `feeCollector_address`.",
+  },
+  ProtocolRevenue: {
     [EXERCISE_FEE_LABEL]:
       "Exercise settlement fees routed to the on-chain `feeCollector_address`.",
     [CLOSE_FEE_LABEL]:
