@@ -40,6 +40,7 @@ const config: Record<string, ChainConfig> = {
     start: '2024-05-29',
     id: '2',
     firstDayVolume: 0,
+    invalidSpikes: ['2026-09-18'],
   },
   [CHAIN.BASE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
@@ -137,9 +138,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       start: '2023-06-30',
     },
-    // [CHAIN.ARBITRUM]: {
-    //   start: '2023-10-05',
-    // }, -> bad data
+    [CHAIN.ARBITRUM]: {
+      start: '2023-10-05',
+    },
     [CHAIN.OPTIMISM]: {
       start: '2024-05-29',
     },
