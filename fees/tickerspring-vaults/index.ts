@@ -21,6 +21,8 @@ const fetch = async (options: FetchOptions) => {
   const { opening, closing } = dailyResponse(options.dateString, data.opening, data.closing);
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   managedVaults.forEach((vault, i) => {
     for (const side of [0, 1] as const) {
@@ -34,15 +36,21 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.add(token, earned, SWAP_FEES);
       dailyRevenue.add(token, operations, OPERATIONS);
       dailyRevenue.add(token, buyback, BUYBACK_RESERVE);
+      dailyProtocolRevenue.add(token, operations, OPERATIONS);
+      // Booked when fees accrue into the buyback reserve, not when SPRING is bought or burned.
+      dailyHoldersRevenue.add(token, buyback, BUYBACK_RESERVE);
       dailySupplySideRevenue.add(token, earned - operations - buyback, DEPOSITORS);
     }
   });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
-const revenueBreakdown = {
+const protocolBreakdown = {
   [OPERATIONS]: 'The operations allocation of earned vault LP fees (10%).',
-  [BUYBACK_RESERVE]: 'The allocation reserved for future SPRING buybacks (20%), not completed buybacks.',
 };
+const holdersBreakdown = {
+  [BUYBACK_RESERVE]: 'The allocation reserved for future SPRING buybacks and burns (20%), measured when fees accrue rather than when the buyback executes.',
+};
+const revenueBreakdown = { ...protocolBreakdown, ...holdersBreakdown };
 const adapter: SimpleAdapter = {
   version: 1, // The API only exposes completed UTC days; no hourly aggregation.
   doublecounted: true, // LP fees overlap the underlying Uniswap adapters.
@@ -53,12 +61,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'LP fees earned by the listed TickerSpring V7 vaults during the UTC day, including uncollected fees. Measured as the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Excludes principal, stock-price returns, retired vaults and lending.',
     Revenue: 'Earned vault LP fees allocated to operations (10%) and the SPRING buyback reserve (20%), subject to raw-token rounding.',
-    ProtocolRevenue: 'Operations and buyback-reserve allocations; reserve funding is not a completed buyback.',
+    ProtocolRevenue: 'The operations allocation of earned vault LP fees (10%).',
+    HoldersRevenue: 'The allocation reserved to buy and permanently burn SPRING (20%), measured when vault fees accrue rather than when the buyback executes.',
     SupplySideRevenue: 'Earned LP fees retained for vault depositors after protocol allocations (approximately 70%).',
   },
   breakdownMethodology: {
     Fees: { [SWAP_FEES]: 'Daily change in grossFees plus position.pendingFees, in each underlying token, from the public daily history API. Harvesting moves fees between these counters without counting them twice. Missing observations fail instead of returning zero.' },
-    Revenue: revenueBreakdown, ProtocolRevenue: revenueBreakdown,
+    Revenue: revenueBreakdown, ProtocolRevenue: protocolBreakdown, HoldersRevenue: holdersBreakdown,
     SupplySideRevenue: { [DEPOSITORS]: 'Earned vault LP fees minus the accrued operations and buyback-reserve allocations.' },
   },
 };
