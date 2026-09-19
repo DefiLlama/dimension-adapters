@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { concat, keccak256, toBeHex, zeroPadValue } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -54,7 +55,7 @@ type Launch = { token: string, pairToken: string }
 // the window's opening price for the stretch before the pool's first swap of the window. The price
 // a swap sees is the one left by the last WONK/USDC swap logged before it, which is why the
 // position matters: that pool often trades several times per block, moving the rate as it goes.
-async function getWonkPrices(options: FetchOptions) {
+async function getWonkPrices(options: FetchOptions, beforeWindow: ChainApi) {
   // Native USDC sorts below WONK, so it is currency0 and the pool price is WONK per USDC; the
   // reciprocal is what values a WONK amount. Verified against slot 6 of the pool manager, which
   // returns the same sqrtPriceX96 and tick as the pool's own Swap event.
@@ -65,7 +66,7 @@ async function getWonkPrices(options: FetchOptions) {
   }
 
   const slot = keccak256(concat([WONK_USDC_POOL_ID, zeroPadValue(toBeHex(POOLS_SLOT), 32)]))
-  const openingSlot0 = await options.fromApi.call({ target: POOL_MANAGER, abi: EXTSLOAD_ABI, params: [slot] })
+  const openingSlot0 = await beforeWindow.call({ target: POOL_MANAGER, abi: EXTSLOAD_ABI, params: [slot] })
   const opening = priceFromSqrt(BigInt(openingSlot0) & ((1n << 160n) - 1n))
 
   const swaps = await options.getLogs({
@@ -111,8 +112,13 @@ async function fetch(options: FetchOptions) {
   }
   if (!poolIdToLaunch.size) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue }
 
+  // Both anchors below read state as of the block before the window, because getLogs includes
+  // fromBlock: a read at fromBlock itself already reflects updates logged inside the window, which
+  // would apply them to swaps that ran before them.
+  const beforeWindow = new ChainApi({ chain: options.chain, block: await options.getFromBlock() - 1 })
+
   const hasWonkBase = [...poolIdToLaunch.values()].some(launch => launch.pairToken === WONK)
-  const wonkPrices = hasWonkBase ? await getWonkPrices(options) : []
+  const wonkPrices = hasWonkBase ? await getWonkPrices(options, beforeWindow) : []
   // the last WONK price quoted at or before the swap's own log position
   const wonkPriceAt = (block: number, logIndex: number) => {
     let price = 0
@@ -125,7 +131,7 @@ async function fetch(options: FetchOptions) {
 
   // Anchored to the share in force when the window opened, read at that block rather than live, so
   // replaying an old window still splits at the rate that applied then.
-  const openingShareBps = BigInt(await options.fromApi.call({ target: WONK_HOOK, abi: PROTOCOL_FEE_SHARE_BPS_FUNCTION }))
+  const openingShareBps = BigInt(await beforeWindow.call({ target: WONK_HOOK, abi: PROTOCOL_FEE_SHARE_BPS_FUNCTION }))
   // An update logged inside the window re-points the share from its own log position onwards. The
   // setter emits before it stores, so a swap logged earlier in the same block still used the old share.
   const shareUpdateLogs = await options.getLogs({
