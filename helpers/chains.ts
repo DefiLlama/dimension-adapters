@@ -167,6 +167,7 @@ export enum CHAIN {
   EOS_EVM = "eos_evm",
   ROLLUX = "rollux",
   MODE = "mode",
+  METAL = "metall2",
   PERSISTENCE = "persistence",
   POLKADEX = "polkadex",
   JBC = "jbc",
