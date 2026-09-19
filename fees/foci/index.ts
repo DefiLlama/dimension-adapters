@@ -99,6 +99,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-14",
   methodology,
   breakdownMethodology,
+  doublecounted: true, // uni-v4
 };
 
 export default adapter;
