@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { ChainApi } from "@defillama/sdk";
 import { METRIC } from "../../helpers/metrics";
+
 const chainConfig: Record<string, { factory: string; start: string; maxBlockRange?: number }> = {
   [CHAIN.BASE]: { factory: '0x71D234A3e1dfC161cc1d081E6496e76627baAc31', start: '2024-03-21' },
   [CHAIN.OPTIMISM]: { factory: '0xB4C31b0f0B76b351395D4aCC94A54dD4e6fbA1E8', start: '2024-03-21' },
@@ -45,52 +45,13 @@ const chainConfig: Record<string, { factory: string; start: string; maxBlockRang
   [CHAIN.SCROLL]: { factory: '0x8e5ad312483fb369d8a5e724cb50e5b5b3228865', start: '2024-11-10' },
 };
 
-// Cronos stopped producing blocks for hours on 2026-08-30/31. The SDK's
-// nearest-block lookup rejects those hours. Find the last block at or before
-// each boundary instead; a verified empty block range has no fee events.
-async function getCronosFeeBlocks({ api, fromTimestamp, toTimestamp }: FetchOptions) {
-  const latest = await api.provider.getBlock('latest');
-  if (!latest || latest.timestamp < toTimestamp) throw new Error('Cronos head is behind the fee window');
-  const cache = new Map<number, { number: number; timestamp: number }>([[latest.number, latest]]);
-  async function before(timestamp: number, low: number) {
-    let high = latest!.number;
-    for (let attempts = 0; low < high; attempts++) {
-      if (attempts >= 32) throw new Error('Cronos fee block lookup did not converge');
-      const middle = Math.ceil((low + high) / 2);
-      let block = cache.get(middle);
-      if (!block) {
-        const result = await api.provider.getBlock(middle);
-        if (!result || result.number !== middle) throw new Error('Missing Cronos fee boundary block');
-        block = result;
-        cache.set(middle, block);
-      }
-      if (block.timestamp <= timestamp) low = middle;
-      else high = middle - 1;
-    }
-    return low;
-  }
-  const from = await before(fromTimestamp, 0);
-  const to = await before(toTimestamp, from);
-  return [from, to];
-}
 
 const fetchFees = async (options: FetchOptions) => {
   const { createBalances, getLogs, getFromBlock, getToBlock, chain } = options;
   const dailyFees = createBalances();
   const result = { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-  let previousBlock = await getFromBlock();
-  let toBlock = await getToBlock();
-  if (chain === CHAIN.CRONOS && (!Number.isSafeInteger(previousBlock) || !Number.isSafeInteger(toBlock)))
-    [previousBlock, toBlock] = await getCronosFeeBlocks(options);
-  if (!Number.isSafeInteger(previousBlock) || previousBlock < 0 || !Number.isSafeInteger(toBlock) || toBlock < previousBlock)
-    throw new Error('Missing or invalid fee window blocks');
-  if (previousBlock === toBlock) return result;
-  // The previous window already includes this block: eth_getLogs bounds are inclusive.
-  const fromBlock = previousBlock + 1;
 
   const logs = await getLogs({
-    fromBlock,
-    toBlock,
     maxBlockRange: chainConfig[chain].maxBlockRange,
     entireLog: true,
     parseLog: true,
@@ -99,8 +60,6 @@ const fetchFees = async (options: FetchOptions) => {
   });
 
   const logs2 = await getLogs({
-    fromBlock,
-    toBlock,
     maxBlockRange: chainConfig[chain].maxBlockRange,
     entireLog: true,
     parseLog: true,
@@ -112,13 +71,12 @@ const fetchFees = async (options: FetchOptions) => {
   const emitters: string[] = [...new Set([...logs, ...logs2].map(log => (log.address || log.source).toLowerCase()))];
   // Factory membership is permanent: records are only created on deployment
   // or copied from the immutable previousFactory. Only fee logs need history.
-  const registry = new ChainApi({ chain, block: 'latest' });
-  const admins = await registry.multiCall({
+  const admins = await options.api.multiCall({
     target: chainConfig[chain].factory,
     abi: 'function admins(address) view returns (address)',
     calls: emitters,
   });
-  const sickles = await registry.multiCall({
+  const sickles = await options.api.multiCall({
     target: chainConfig[chain].factory,
     abi: 'function sickles(address) view returns (address)',
     calls: admins,
@@ -141,8 +99,8 @@ const fetchFees = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'All fees paid by users using vfat.io services.',
-  Revenue: 'All fees collected by vfat.io.',
-  ProtocolRevenue: 'All fees collected by vfat.io.',
+  Revenue: 'All servuce fees collected by vfat.io.',
+  ProtocolRevenue: 'All service fees collected by vfat.io.',
 }
 
 const breakdownMethodology = {
