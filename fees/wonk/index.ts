@@ -1,3 +1,4 @@
+import { concat, keccak256, toBeHex, zeroPadValue } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -15,9 +16,23 @@ const FACTORY_DEPLOYED_BLOCK = 21294374
 const BPS = 10000n
 // progressBps is base raised towards the graduation threshold; 10000 means the pool has graduated
 const GRADUATED_PROGRESS_BPS = 10000
-// The registry whitelists only native USDC (18 decimals), so pair tokens are booked with
-// addGasToken; the branch below covers an ERC-20 base being whitelisted later.
+// Native USDC (18 decimals at the EVM level) is booked with addGasToken.
 const NATIVE = "0x0000000000000000000000000000000000000000"
+
+// WONK is the launchpad's own token and the second whitelisted base. It has no listed price, so
+// balances booked in it would be dropped; its launches are valued through the WONK/native-USDC
+// pool instead. Both sides are 18 decimals, so the pool's price needs no decimal scaling.
+const WONK = "0x548df4bf91624d8cec46d606211eb13f7492e27e"
+const WONK_USDC_POOL_ID = "0x86bbf4b57ee899dfa5eb9f948b28f287d0d7987b96a3738abde25e1f53f78e52"
+// canonical Uniswap v4 PoolManager on Arc, shared with the uniswap-v4 adapter
+const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951"
+// native USDC sorts below WONK, so it is currency0 and the pool price is WONK per USDC
+const V4_SWAP_EVENT = "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)"
+const V4_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"
+const EXTSLOAD_ABI = "function extsload(bytes32 slot) view returns (bytes32)"
+// PoolManager.pools lives at storage slot 6; slot0 is the mapping value's first word
+const POOLS_SLOT = 6n
+const Q96 = 2 ** 96
 
 // one per launch; `pairToken` is the base asset the pool quotes in
 const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold, bytes32 poolId, uint256 mainBandTokenId, uint256 tailBandTokenId, string name, string symbol, uint256 totalSupply, uint128 startAmount, uint16 taxBps, uint8 baseDecimals)"
@@ -34,6 +49,37 @@ const PROTOCOL_FEE_SHARE_UPDATED_EVENT = "event ProtocolFeeShareUpdated(uint256 
 const PROTOCOL_FEE_SHARE_BPS_FUNCTION = "function protocolFeeShareBps() view returns (uint16)"
 
 type Launch = { token: string, pairToken: string }
+
+// USDC per WONK over the window, as (block, price) in ascending order. Built from the WONK/USDC
+// pool's own swaps so each launch is valued at the rate that stood when it traded, and anchored at
+// the window's opening price for the stretch before the pool's first swap of the window.
+async function getWonkPrices(options: FetchOptions) {
+  const priceFromSqrt = (sqrtPriceX96: bigint) => {
+    const sqrtPrice = Number(sqrtPriceX96) / Q96
+    const wonkPerUsdc = sqrtPrice * sqrtPrice
+    return wonkPerUsdc > 0 ? 1 / wonkPerUsdc : 0
+  }
+
+  const slot = keccak256(concat([WONK_USDC_POOL_ID, zeroPadValue(toBeHex(POOLS_SLOT), 32)]))
+  const openingSlot0 = await options.fromApi.call({ target: POOL_MANAGER, abi: EXTSLOAD_ABI, params: [slot] })
+  const opening = priceFromSqrt(BigInt(openingSlot0) & ((1n << 160n) - 1n))
+
+  const swaps = await options.getLogs({
+    target: POOL_MANAGER,
+    eventAbi: V4_SWAP_EVENT,
+    topics: [V4_SWAP_TOPIC, WONK_USDC_POOL_ID],
+    entireLog: true,
+  })
+
+  return [{ block: 0, price: opening }].concat(
+    swaps
+      .map((log: any) => ({
+        block: Number(log.blockNumber),
+        price: priceFromSqrt(BigInt((log.args ?? log).sqrtPriceX96)),
+      }))
+      .sort((a: any, b: any) => a.block - b.block)
+  )
+}
 
 // Launches are resolved first so every swap maps back to its pool's pair token. A cut landing in
 // the launched token is converted at that swap's own execution price, so no price feed is needed.
@@ -59,6 +105,18 @@ async function fetch(options: FetchOptions) {
     })
   }
   if (!poolIdToLaunch.size) return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue }
+
+  const hasWonkBase = [...poolIdToLaunch.values()].some(launch => launch.pairToken === WONK)
+  const wonkPrices = hasWonkBase ? await getWonkPrices(options) : []
+  // the last WONK price quoted at or before the swap's block
+  const wonkPriceAt = (block: number) => {
+    let price = wonkPrices[0].price
+    for (const entry of wonkPrices) {
+      if (entry.block > block) break
+      price = entry.price
+    }
+    return price
+  }
 
   // Anchored to the share in force when the window opened, read at that block rather than live, so
   // replaying an old window still splits at the rate that applied then.
@@ -136,8 +194,11 @@ async function fetch(options: FetchOptions) {
     const protocolCut = fee * protocolShareAt(Number(log.blockNumber), Number(log.logIndex)) / BPS
     const creatorCut = fee - protocolCut
 
+    const wonkPrice = launch.pairToken === WONK ? wonkPriceAt(Number(log.blockNumber)) : 0
     const addAmount = (balances: typeof dailyVolume, amount: bigint, label?: string) => {
       if (launch.pairToken === NATIVE) balances.addGasToken(amount, label)
+      // WONK has no listed price, so it is valued through its own USDC pool and booked in USD
+      else if (launch.pairToken === WONK) balances.addUSDValue(Number(amount) / 1e18 * wonkPrice, label)
       else balances.add(launch.pairToken, amount, label)
     }
 
