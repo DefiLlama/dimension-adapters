@@ -119,16 +119,15 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   });
 
   // get protocol fee rate config
-  let protocolFeeRate = 0;
-  try {
-    const protocolFeeInBPS = await sdk.api2.abi.call({
-      chain: CHAIN.ETHEREUM,
-      target: LRTConfig,
-      abi: Abis.protocolFeeInBPS,
-      block: beforeBlock.number,
-    });
-    protocolFeeRate = Number(protocolFeeInBPS) / 1e4;
-  } catch (e: any) {}
+  const protocolFeeInBPS = await sdk.api2.abi.call({
+    chain: CHAIN.ETHEREUM,
+    target: LRTConfig,
+    abi: Abis.protocolFeeInBPS,
+    block: beforeBlock.number,
+  });
+  const protocolFeeRate = Number(protocolFeeInBPS) / 1e4;
+  if (!Number.isFinite(protocolFeeRate) || protocolFeeRate < 0 || protocolFeeRate >= 1)
+    throw new Error(`Invalid Kelp protocol fee: ${protocolFeeInBPS}`);
 
   const totalSupply = await options.api.call({
     target: rsETHMaps[options.chain],
