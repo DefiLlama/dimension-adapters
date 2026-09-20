@@ -439,6 +439,7 @@ const adapter: Adapter = {
           badDebtSiloMapping[CHAIN.ARBITRUM]
         ),
       start: "2025-05-08",
+      deadFrom: "2026-07-02",
     },
     [CHAIN.AVAX]: {
       fetch: (options: FetchOptions) =>
@@ -460,6 +461,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
 };
