@@ -697,10 +697,9 @@ const fetchRobinhood = async (options: FetchOptions) => {
     options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_RELEASED }),
     options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_SHARE_SET }),
   ]);
-  const internStonkPaid = await addTokensReceived({
+  const internStonkPaid: any = await addTokensReceived({
     options,
     tokens: [STONKBROKER],
-    skipIndexer: true,
     fromAdddesses: [INTERNS_COLLECTION],
     target: INTERNS_TREASURY,
   });
