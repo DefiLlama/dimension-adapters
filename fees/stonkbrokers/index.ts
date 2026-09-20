@@ -10,6 +10,14 @@ import { addTokensReceived } from "../../helpers/token";
  * Fee sources:
  * 1. NFT AMM trades + NFT-backed loans (70% StockBooster / 30% ProtocolFeeSink)
  * 2. Broker activation fees in $STONKBROKER (50% burn / 50% protocol)
+ * 2b. Stonk Interns (mint opened 2026-09-19): mint fee = $20 in ETH (25%
+ *    intern Clock In payroll / 75% protocol treasury) plus a $STONKBROKER leg
+ *    (100% treasury, 999 during the 24h opening window, then stepping up), a
+ *    flat $1 ETH promotion fee on every intern pay-share raise (100%
+ *    treasury), and intern activation fees in $STONKBROKER on the same
+ *    50% burn / 50% protocol split. The 9.99% ERC-2981 royalty on secondary
+ *    sales accrues to the payroll wallet and is not yet flushed (Clock In
+ *    3.0 is scheduled at mint + 72h), so it is not booked until it moves.
  * 3. Broker Box gachapon edge (10% of ticket: 5% StockBooster+creator / 5% protocol)
  *    plus Certificate Counter flat $2 fee ($1 StockBooster / $1 treasury)
  * 4. Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3 + V4 and
@@ -44,6 +52,7 @@ import { addTokensReceived } from "../../helpers/token";
  * - Broker Box ticket notional (PullOpened.ticketWei)
  * - Certificate Counter stock purchase (CertificateBought.spendWei)
  * - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
+ * - Stonk Interns mint releases (DormantReleased.ethPaid, the $20 ETH leg)
  * - Anti-snipe launch buys (WallBought.ethIn)
  * - Civilization anti-snipe pad buys (PadBuy.quoteIn, WETH)
  * - Safe Launch / Stonklauncher window buys AND sells on every pad generation
@@ -55,6 +64,18 @@ const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
 const LOAN_VAULT = "0xa7B9AC696B252B79568A5a01b2Fd02177EF23664";
 const ACTIVATION_MANAGER = "0xacD5ae3c060C1137FE2Ee86B0aB2EF697456f664";
 const STONKBROKER = "0xe934e36A439C94017B64a3FecE66AF12099aBF50";
+
+// Stonk Interns (mint opened 2026-09-19, deploy block 66,628,699). The
+// collection splits the ETH leg of every paid release (MINT_ENGINE_BPS =
+// 2500 to the payroll wallet, the rest to the fees treasury) and forwards
+// the STONK leg plus the $1 promotion fee entirely to the treasury. The
+// InternActivationManager burns half of each activation fee and forwards
+// the other half to the same fees treasury.
+const INTERNS_COLLECTION = "0xFc4b0c4F464dC3037cF013934648a8A726d565A5";
+const INTERNS_ACTIVATION = "0x668Ea9E44e0cEb5B203067873e0b9bcdF2214b37";
+// StonkInterns.treasury() — an immutable, so pinned here instead of read.
+const INTERNS_TREASURY = "0xD2671d2Bdc84CF76E97ADb0fD7bb2B54F24CBDe8";
+const INTERNS_MINT_ENGINE_BPS = 2500n;
 
 // Broker Box production machines (deployed 2026-07-31) + certificate counter.
 const GACHA_MACHINES = [
@@ -211,6 +232,14 @@ const ACTIVATED =
   "event Activated(uint256 indexed tokenId, address indexed owner, uint8 tier, uint256 feePaid)";
 const ACTIVATION_UPGRADED =
   "event ActivationUpgraded(uint256 indexed tokenId, address indexed owner, uint8 fromTier, uint8 toTier, uint256 feePaid)";
+
+// Stonk Interns: a paid release flips one dormant intern out of its parent
+// broker's token-bound wallet. ethPaid is the $20 ETH leg; stonkPaid is the
+// $STONKBROKER leg (both forwarded inside the same transaction).
+const INTERN_RELEASED =
+  "event DormantReleased(uint256 indexed internId, uint256 indexed brokerId, address indexed to, address wallet, uint256 ethPaid)";
+const INTERN_SHARE_SET =
+  "event InternShareSet(uint256 indexed internId, uint256 indexed brokerId, uint16 oldBps, uint16 newBps, uint256 ethPaid)";
 const EDGE_SKIMMED =
   "event EdgeSkimmed(uint256 indexed roundId, uint256 creatorWei, uint256 boosterWei, uint256 protocolWei)";
 const PULL_OPENED =
@@ -268,6 +297,12 @@ const LABELS = {
   LOAN_PROTOCOL_TREASURY: "NFT loan fees → ProtocolFeeSink",
   ACTIVATION_BURN: "Activation fees burned (deflationary $STONKBROKER)",
   ACTIVATION_PROTOCOL: "Activation fees → protocol",
+  INTERNS_MINT: "Stonk Interns mint fees (ETH leg + $STONKBROKER leg + $1 promotion fee)",
+  INTERNS_MINT_PAYROLL: "Stonk Interns mint ETH → intern Clock In payroll (25%)",
+  INTERNS_MINT_TREASURY: "Stonk Interns mint fees → protocol treasury (75% of the ETH leg, 100% of the STONK leg and the promotion fee)",
+  INTERNS_ACTIVATION: "Stonk Interns activation fees in $STONKBROKER",
+  INTERNS_ACTIVATION_BURN: "Stonk Interns activation fees burned (50%)",
+  INTERNS_ACTIVATION_PROTOCOL: "Stonk Interns activation fees → protocol treasury (50%)",
   GACHA_FEES: "Broker Box gachapon edge (10% of ticket)",
   GACHA_STOCK_DIVIDENDS: "Broker Box edge → StockBooster / creator",
   GACHA_PROTOCOL: "Broker Box edge → protocol accrual",
@@ -427,17 +462,20 @@ const fetchRobinhood = async (options: FetchOptions) => {
     options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED,}),
   ]);
 
-  const [activatedLogs, upgradedLogs, counterLogs] = await Promise.all([
-    options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED,}),
-    options.getLogs({
-      target: ACTIVATION_MANAGER,
-      eventAbi: ACTIVATION_UPGRADED,
-    }),
-    options.getLogs({
-      target: CERTIFICATE_COUNTER,
-      eventAbi: CERTIFICATE_BOUGHT,
-    }),
-  ]);
+  const [activatedLogs, upgradedLogs, counterLogs, internActivatedLogs, internUpgradedLogs] =
+    await Promise.all([
+      options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED,}),
+      options.getLogs({
+        target: ACTIVATION_MANAGER,
+        eventAbi: ACTIVATION_UPGRADED,
+      }),
+      options.getLogs({
+        target: CERTIFICATE_COUNTER,
+        eventAbi: CERTIFICATE_BOUGHT,
+      }),
+      options.getLogs({ target: INTERNS_ACTIVATION, eventAbi: ACTIVATED }),
+      options.getLogs({ target: INTERNS_ACTIVATION, eventAbi: ACTIVATION_UPGRADED }),
+    ]);
 
   const [launchBuyLogs, civBuyLogs, civTaxLogs] = await Promise.all([
     options.getLogs({
@@ -648,6 +686,69 @@ const fetchRobinhood = async (options: FetchOptions) => {
       LABELS.ACTIVATION_PROTOCOL,
     );
     dailyRevenue.addToken(STONKBROKER, fee, LABELS.ACTIVATION_FEES);
+  }
+
+  // ── Stonk Interns (mint opened 2026-09-19) ───────────────────────────────
+  // A paid release moves one dormant intern out of its parent broker's
+  // token-bound wallet. The ETH leg splits 25% payroll / 75% treasury; the
+  // $STONKBROKER leg and the $1 promotion fee are 100% treasury. Activation
+  // fees mirror the broker activation split (50% burned / 50% treasury).
+  const [internReleasedLogs, internShareLogs] = await Promise.all([
+    options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_RELEASED }),
+    options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_SHARE_SET }),
+  ]);
+  const internStonkPaid: any = await addTokensReceived({
+    options,
+    tokens: [STONKBROKER],
+    fromAdddesses: [INTERNS_COLLECTION],
+    target: INTERNS_TREASURY,
+  });
+  const internMintEth = internReleasedLogs.reduce(
+    (sum: bigint, log: any) => sum + BigInt(log.ethPaid),
+    0n,
+  );
+  if (internMintEth > 0n) {
+    const toPayroll = (internMintEth * INTERNS_MINT_ENGINE_BPS) / 10_000n;
+    const toTreasury = internMintEth - toPayroll;
+    dailyVolume.addGasToken(internMintEth, LABELS.INTERNS_MINT);
+    dailyFees.addGasToken(internMintEth, LABELS.INTERNS_MINT);
+    if (toPayroll > 0n) {
+      dailySupplySideRevenue.addGasToken(toPayroll, LABELS.INTERNS_MINT_PAYROLL);
+    }
+    if (toTreasury > 0n) {
+      dailyProtocolRevenue.addGasToken(toTreasury, LABELS.INTERNS_MINT_TREASURY);
+      dailyRevenue.addGasToken(toTreasury, LABELS.INTERNS_MINT_TREASURY);
+    }
+  }
+  if (internStonkPaid[STONKBROKER] > 0n) {
+    dailyFees.addToken(STONKBROKER, internStonkPaid[STONKBROKER], LABELS.INTERNS_MINT);
+    dailyProtocolRevenue.addToken(
+      STONKBROKER,
+      internStonkPaid[STONKBROKER],
+      LABELS.INTERNS_MINT_TREASURY,
+    );
+    dailyRevenue.addToken(
+      STONKBROKER,
+      internStonkPaid[STONKBROKER],
+      LABELS.INTERNS_MINT_TREASURY,
+    );
+  }
+  for (const log of internShareLogs) {
+    const fee = BigInt(log.ethPaid);
+    if (fee <= 0n) continue;
+    dailyFees.addGasToken(fee, LABELS.INTERNS_MINT);
+    dailyProtocolRevenue.addGasToken(fee, LABELS.INTERNS_MINT_TREASURY);
+    dailyRevenue.addGasToken(fee, LABELS.INTERNS_MINT_TREASURY);
+  }
+  for (const log of [...internActivatedLogs, ...internUpgradedLogs]) {
+    const fee = BigInt(log.feePaid);
+    if (fee <= 0n) continue;
+    const burned = (fee * ACTIVATION_BURN_BPS) / 10_000n;
+    const protocol = (fee * ACTIVATION_PROTOCOL_BPS) / 10_000n;
+    dailyFees.addToken(STONKBROKER, fee, LABELS.INTERNS_ACTIVATION);
+    dailyHoldersRevenue.addToken(STONKBROKER, burned, LABELS.INTERNS_ACTIVATION_BURN);
+    dailyProtocolRevenue.addToken(STONKBROKER, protocol, LABELS.INTERNS_ACTIVATION_PROTOCOL);
+    dailyRevenue.addToken(STONKBROKER, fee, LABELS.INTERNS_ACTIVATION);
   }
 
   // ── Broker Box gachapon volume + fees ────────────────────────────────────
@@ -1172,6 +1273,8 @@ const adapter: SimpleAdapter = {
         "Broker Box PullOpened.ticketWei + SoldBack/SoldBackUsdg payouts + Certificate Counter spendWei.",
       [LABELS.LAUNCH_TAX]:
         "Anti-snipe one-off launch buys (WallBought.ethIn).",
+      [LABELS.INTERNS_MINT]:
+        "Stonk Interns paid mint releases (DormantReleased.ethPaid, the oracle-priced $20 ETH leg of each intern minted out of its parent broker's token-bound wallet).",
       [LABELS.CIV_TAX]:
         "Civilization anti-snipe pad curve buys on the Nightshades faction launches (PadBuy.quoteIn, tax-inclusive, WETH).",
       [LABELS.CIV_POOL_SWAPS]:
@@ -1185,6 +1288,10 @@ const adapter: SimpleAdapter = {
       [LABELS.AMM_FEES]: "ETH trade fees on buyRandomNFT / buySpecificNFT / sellNFT.",
       [LABELS.LOAN_FEES]: "Upfront ETH borrow fees on NFT-backed loans.",
       [LABELS.ACTIVATION_FEES]: "One-time / upgrade $STONKBROKER activation fees.",
+      [LABELS.INTERNS_MINT]:
+        "Stonk Interns mint fees: the $20 ETH leg of every paid release (DormantReleased.ethPaid), the $STONKBROKER mint leg (STONKBROKER transfers from the collection to the protocol treasury), and the flat $1 ETH promotion fee on every intern pay-share raise (InternShareSet.ethPaid).",
+      [LABELS.INTERNS_ACTIVATION]:
+        "One-time / upgrade $STONKBROKER activation fees on Stonk Interns (InternActivationManager Activated / ActivationUpgraded feePaid).",
       [LABELS.GACHA_FEES]: "10% house edge skimmed from every settled Broker Box ticket.",
       [LABELS.GACHA_SELLBACK]:
         "5% sell-back spread retained in the machine bankroll (implied from SoldBack / SoldBackUsdg payouts at 95% of mark).",
@@ -1221,6 +1328,10 @@ const adapter: SimpleAdapter = {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
       [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
       [LABELS.ACTIVATION_FEES]: "Full $STONKBROKER activation fee (burn + protocol).",
+      [LABELS.INTERNS_MINT_TREASURY]:
+        "Stonk Interns protocol share: 75% of the $20 ETH mint leg, 100% of the $STONKBROKER mint leg, and the $1 pay-share promotion fee (the 25% payroll leg is supply side).",
+      [LABELS.INTERNS_ACTIVATION]:
+        "Full $STONKBROKER intern activation fee (burned half + protocol half).",
       [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
       [LABELS.GACHA_SELLBACK]:
         "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
@@ -1241,6 +1352,10 @@ const adapter: SimpleAdapter = {
       [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
       [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
       [LABELS.ACTIVATION_PROTOCOL]: "Protocol share of $STONKBROKER activation fees.",
+      [LABELS.INTERNS_MINT_TREASURY]:
+        "Stonk Interns protocol share: 75% of the $20 ETH mint leg, 100% of the $STONKBROKER mint leg, and the $1 pay-share promotion fee.",
+      [LABELS.INTERNS_ACTIVATION_PROTOCOL]:
+        "Half of Stonk Interns activation fees in $STONKBROKER → protocol treasury.",
       [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
       [LABELS.GACHA_SELLBACK]:
         "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
@@ -1257,6 +1372,8 @@ const adapter: SimpleAdapter = {
     },
     HoldersRevenue: {
       [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
+      [LABELS.INTERNS_ACTIVATION_BURN]:
+        "Burned half of Stonk Interns activation fees in $STONKBROKER (deflationary).",
       [LABELS.SMARTLP_BUYBACK]:
         "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
     },
@@ -1286,6 +1403,8 @@ const adapter: SimpleAdapter = {
       [LABELS.CIV_NFT_ROYALTY_POT]:
         "75% of flushed Nightshades NFT royalties → game vault as free quote, deployed into the surviving faction's protocol-owned locked pool at the next boostSurvivor.",
       [LABELS.CIV_NFT_ROYALTY_TEAM]: "25% of flushed Nightshades NFT royalties → game team wallet.",
+      [LABELS.INTERNS_MINT_PAYROLL]:
+        "25% of the Stonk Interns mint ETH leg → the intern Clock In payroll wallet (funds the first intern Clock In rounds).",
       [LABELS.SAFE_TAX_CREATOR]: "16.5% of the Safe Launch / Stonklauncher snipe tax → launch creator.",
       [LABELS.SAFE_TAX_BOOSTER]:
         "17% of the Safe Launch / Stonklauncher snipe tax punched through the Clock In Card: ~0.5% of tax to the referrer, the rest to StockBooster Clock In dividends.",
