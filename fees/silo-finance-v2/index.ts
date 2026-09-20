@@ -29,7 +29,7 @@ type SubgraphMapping = {
   [s: Chain]: string;
 };
 
-type SubgraphFeeQueryResponse = {
+type SubgraphQueryResponse = {
   feeTimeseries_collection: {
     id: string;
     timestamp: string;
@@ -40,9 +40,6 @@ type SubgraphFeeQueryResponse = {
       id: string;
     };
   }[];
-};
-
-type SubgraphTokenQueryResponse = {
   tokens: {
     id: string;
     symbol: string;
@@ -189,7 +186,7 @@ async function fetch(
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const feeQuery = `{
+  const query = `{
       feeTimeseries_collection(where: {timestamp_gte: ${options.startTimestamp}, timestamp_lt: ${options.endTimestamp}}, first: 1000) {
         id
         timestamp
@@ -200,20 +197,14 @@ async function fetch(
           id
         }
       }
-    }`;
-
-  const tokenQuery = `{
-    tokens(where: {type: "Asset"}, first: 1000) {
-      id
-      symbol
-      decimals
-    }
+      tokens(where: {type: "Asset"}, first: 1000) {
+        id
+        symbol
+        decimals
+      }
   }`;
 
-  const [{ feeTimeseries_collection }, { tokens }] = await Promise.all([
-    request<SubgraphFeeQueryResponse>(subgraphURL, feeQuery),
-    request<SubgraphTokenQueryResponse>(subgraphURL, tokenQuery),
-  ]);
+  const { feeTimeseries_collection, tokens } = await request<SubgraphQueryResponse>(subgraphURL, query);
 
   const dataWithoutBadDebtSilos = feeTimeseries_collection.filter(
     (item) =>
@@ -461,7 +452,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
-  pullHourly: true,
+  pullHourly: false,
   methodology,
   breakdownMethodology,
 };
