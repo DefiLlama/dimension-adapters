@@ -32,6 +32,7 @@ const adapter: SimpleAdapter = {
   // Paradex does not publish a supply-side/protocol split of its fees, so - as with
   // the Paradex perps adapter - dailyRevenue is deliberately not reported.
   skipBreakdownValidation: true,
+  doublecounted: true, // paradex
 }
 
 export default adapter
