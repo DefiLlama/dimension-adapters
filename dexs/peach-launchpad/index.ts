@@ -4,9 +4,10 @@ import { getPeachAmounts, launchpadStart } from '../../helpers/peach';
 
 export const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  // The API reconciles these rows to total volume. Hook trades are already
+  // included in legacy bonding rows; do not add volume_breakdown again.
   for (const row of await getPeachAmounts(options, 'launchpad')) {
-    // Graduated pools settle on the receiving DEX and belong to its volume listing.
-    if (row.source === 'bonding') dailyVolume.addUSDValue(Number(row.volume_usd));
+    dailyVolume.addUSDValue(Number(row.volume_usd));
   }
   return { dailyVolume };
 };
@@ -14,11 +15,13 @@ export const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // Hook pool trades are also counted by Uniswap v4.
+  doublecounted: true,
   chains: [CHAIN.ARC],
   start: launchpadStart,
   fetch,
   methodology: {
-    Volume: 'Value of user trades on Peach bonding curves. Excludes swaps on graduated pools, which are tracked as separate DEX volume, plus buybacks, liquidity operations and trades without a USD price.',
+    Volume: 'Value of user trades in Peach bonding curves and corresponding hooks.',
   },
 };
 
