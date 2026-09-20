@@ -22,7 +22,7 @@ const chainConfig: Record<string, { factory: string; start: string; maxBlockRang
   [CHAIN.LISK]: { factory: '0x233D9067677dCf1a161954D45B4C965B9d567168', start: '2025-06-13' },
   // Start the new chains one day before their first fee: the hourly runner
   // checks eligibility against the start of a full 24-hour window.
-  [CHAIN.CRONOS]: { factory: '0x53d9780dbd3831e3a797fd215be4131636cd5fdf', start: '2025-09-18' },
+ // [CHAIN.CRONOS]: { factory: '0x53d9780dbd3831e3a797fd215be4131636cd5fdf', start: '2025-09-18' },
   [CHAIN.MONAD]: { factory: '0x233d9067677dcf1a161954d45b4c965b9d567168', start: '2025-11-24' },
   [CHAIN.PULSECHAIN]: { factory: '0x06b559fef135ed5c9133478a2af502d8d44d59b5', start: '2025-09-04' },
   [CHAIN.WC]: { factory: '0x233d9067677dcf1a161954d45b4c965b9d567168', start: '2025-10-06' },
