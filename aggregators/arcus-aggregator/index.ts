@@ -9,14 +9,42 @@ const chainConfig: Record<string, { start: string; swapShell: string }> = {
   },
 };
 
-//https://robinhoodchain.blockscout.com/tx/0x8d7b27b6ca8a4327287518271fcb1e915f1a65e17c5585bcec33a962b09af579?tab=logs
-const SWAP_EXECUTED =
+const SWAP_EXECUTED_V2_BLOCK = 64677027;
+
+const SWAP_EXECUTED_V1 =
   "event SwapExecuted(address indexed taker, address indexed tokenIn, address indexed tokenOut, uint256 minAmountOut, uint256 amountIn, uint256 quotedAmountIn, uint256 quotedAmountOut, uint256 amountOut, uint256 tokenInBenchmarkPrice, uint256 tokenOutBenchmarkPrice, address router, bytes32 routeTag, bool success, string reason)";
+const SWAP_EXECUTED_V2 =
+  "event SwapExecuted(address indexed taker, address indexed tokenIn, address indexed tokenOut, uint256 minAmountOut, uint256 amountIn, uint256 quotedAmountIn, uint256 quotedAmountOut, uint256 amountOut, uint256 tokenInBenchmarkPrice, uint256 tokenOutBenchmarkPrice, address router, bytes32 routeTag, string apiKeyId, bool success, string reason)";
+
+const getSwapExecutedLogs = async (options: FetchOptions, swapShell: string) => {
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  const requests: Promise<any[]>[] = [];
+
+  if (fromBlock < SWAP_EXECUTED_V2_BLOCK) {
+    requests.push(options.getLogs({
+      target: swapShell,
+      eventAbi: SWAP_EXECUTED_V1,
+      fromBlock,
+      toBlock: Math.min(toBlock, SWAP_EXECUTED_V2_BLOCK - 1),
+    }));
+  }
+  if (toBlock >= SWAP_EXECUTED_V2_BLOCK) {
+    requests.push(options.getLogs({
+      target: swapShell,
+      eventAbi: SWAP_EXECUTED_V2,
+      fromBlock: Math.max(fromBlock, SWAP_EXECUTED_V2_BLOCK),
+      toBlock,
+    }));
+  }
+
+  return (await Promise.all(requests)).flat();
+};
 
 const fetch = async (options: FetchOptions) => {
   const { swapShell } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
-  const logs = await options.getLogs({ target: swapShell, eventAbi: SWAP_EXECUTED });
+  const logs = await getSwapExecutedLogs(options, swapShell);
 
   logs.forEach((log) => {
     if (!log.success) return;
