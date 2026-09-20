@@ -154,8 +154,10 @@ const scanTonPayouts = async (
   for (const tx of txs) {
     if (tx.description?.aborted) continue;
 
-    const outMsgs = tx.out_msgs;
-    if (outMsgs) {
+for (const msg of outMsgs) {
+  if (msg.bounced) continue;
+  total += toBigInt(msg.value);
+}
       for (const msg of outMsgs) {
         total += toBigInt(msg.value);
       }
