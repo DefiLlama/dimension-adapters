@@ -54,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
               END
             ) AS buyback
         FROM solana.assets.transfers
-        WHERE mint = ADDRESSES.solana.USDC
+        WHERE mint = '${ADDRESSES.solana.USDC}'
             AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
             AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
             AND (

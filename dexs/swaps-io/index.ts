@@ -73,6 +73,7 @@ function get_fetch_for_network(chain: Chain) {
 
 export default {
   version: 2,
+  deadFrom: "2025-11-18",
   adapter: {
     ...Object.fromEntries(
       Object.keys(SUPPORTED_CHAIN_MAPPING).map(chain => [

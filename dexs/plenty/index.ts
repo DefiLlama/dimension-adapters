@@ -19,6 +19,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.TEZOS],
   start: '2023-01-01',
+  deadFrom: "2025-01-20"
 };
 
 export default adapter

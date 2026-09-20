@@ -22,6 +22,7 @@ const adapter: any = {
     [CHAIN.TON]: {
       fetch,
       start: '2024-10-24',
+      deadFrom: '2026-10-31',
     },
   },
 };
