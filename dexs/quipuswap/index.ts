@@ -42,6 +42,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.TEZOS],
+  deadFrom: "2024-07-22",
 };
 
 export default adapter;

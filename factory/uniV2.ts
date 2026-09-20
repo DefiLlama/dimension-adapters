@@ -1246,6 +1246,8 @@ const deadFromMap: Record<string, string> = {
   "beamswap": "2025-08-12",
   "wagyuswap": "2026-03-16",
   "zircon-gamma": '2023-03-26',
+  "velocimeter-v2": "2026-05-17",
+  "astroswap": "2023-08-06",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1394,6 +1396,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     endpoints: {
       [CHAIN.SONIC]: "https://subgraph.satsuma-prod.com/f6a8c4889b7b/clober/cpmm-v2-subgraph-sonic-mainnet/api",
     },
+    deadFrom: "2025-12-07"
   },
   "stellaswap-v3": {
     endpoints: {
@@ -1488,6 +1491,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "fathomSwapFactories",
     start: 1682640000,
+    deadFrom: "2026-08-05"
   },
   "fwx-dex": {
     endpoints: {
@@ -1540,6 +1544,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     endpoints: {
       [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
     },
+    deadFrom: "2026-04-20",
   },
   // "katana": {
   //   endpoints: {

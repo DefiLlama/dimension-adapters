@@ -36,6 +36,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: {
       fetch,
       start: "2026-06-17",
+      deadFrom: "2026-07-22"
     },
   },
 };

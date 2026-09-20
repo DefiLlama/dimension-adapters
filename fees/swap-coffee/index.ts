@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import {httpGet} from "../../utils/fetchURL";
 
 function normalizeAddress(address: string): string {
-    return address == "native" ? [ADDRESSES.ton.TON_3]: address
+    return address == "native" ? ADDRESSES.ton.TON_3: address
 }
 
 const fetch: FetchV2 = async ({startTimestamp, endTimestamp, createBalances}) => {

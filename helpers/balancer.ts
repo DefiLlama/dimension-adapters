@@ -104,6 +104,7 @@ export function getGraphExport(graphEndpoint: string, { revenueRatio = 0 }: { re
 type BalancerFeesChainConfig = {
   vault: string;
   start: string;
+  deadFrom?: string;
   revenueRatio?: number;
   protocolRevenueRatio?: number;
   holderRevenueRatio?: number;
@@ -128,6 +129,7 @@ function balancerFeesExports(config: IJSON<BalancerFeesChainConfig>, overrides?:
         holderRevenueRatio: chainConfig.holderRevenueRatio,
       }),
       start: chainConfig.start,
+      deadFrom: chainConfig.deadFrom,
     }
   })
   return {
@@ -208,7 +210,7 @@ const balancerEntries: Record<string, any> = {
     [CHAIN.ABSTRACT]: { vault: '0x48cD08ad2065e0cD2dcD56434e393D55A59a4F64' },
   },
   "wavelength-dao": {
-    [CHAIN.VELAS]: { vault: '0xa4a48dfcae6490afe9c779bf0f324b48683e488c', revenueRatio: 0.4, holderRevenueRatio: 0.3, protocolRevenueRatio: 0.1, start: '2022-10-20' },
+    [CHAIN.VELAS]: { vault: '0xa4a48dfcae6490afe9c779bf0f324b48683e488c', revenueRatio: 0.4, holderRevenueRatio: 0.3, protocolRevenueRatio: 0.1, start: '2022-10-20', deadFrom: '2024-06-25' },
   },
   'berachain-hub': {
     [CHAIN.BERACHAIN]: { vault: '0x4Be03f781C497A489E3cB0287833452cA9B9E80B', revenueRatio: 0.5, start: '2025-12-01' },

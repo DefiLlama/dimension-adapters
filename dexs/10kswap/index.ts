@@ -24,6 +24,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.STARKNET],
   start: '2022-09-19',
+  deadFrom: '2025-09-02',
 };
 
 export default adapter;

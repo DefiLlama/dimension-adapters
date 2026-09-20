@@ -23,6 +23,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ZILLIQA],
   runAtCurrTime: true,
   start: '2023-01-07',
+  deadFrom: "2026-02-08"
 };
 
 export default adapter;
