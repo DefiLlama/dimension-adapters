@@ -53,7 +53,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Marketplace protocol fee (2% of every secondary sale) plus creator royalties on those sales plus the platform's mint fee (8% of every mint), per UTC day.",
   Revenue: "The marketplace protocol fee and the mint fee — the parts kept by Stargaze.",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "Same as Revenue (marketplace fee + mint fee).",
   SupplySideRevenue: "Creator royalties paid on secondary sales.",
 };
 
@@ -64,11 +64,15 @@ const breakdownMethodology = {
     "Mint fee": "8% platform fee on mints (mints.network_fee_amount).",
   },
   Revenue: {
-    "Marketplace fee": "Kept by the protocol.",
-    "Mint fee": "Kept by the protocol.",
+    "Marketplace fee": "2% protocol fee on secondary sales.",
+    "Mint fee": "8% platform fee on mints.",
+  },
+  ProtocolRevenue: {
+    "Marketplace fee": "2% protocol fee on secondary sales.",
+    "Mint fee": "8% platform fee on mints.",
   },
   SupplySideRevenue: {
-    "Creator royalties": "Paid to creators.",
+    "Creator royalties": "Royalties paid to collection creators on secondary sales.",
   },
 };
 
