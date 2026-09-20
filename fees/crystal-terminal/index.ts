@@ -30,7 +30,7 @@ const adapter: Adapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
-  start: "2025-11-24",
+  start: "2026-09-19",
   methodology: {
     Fees: "Taker fees paid by users on every orderbook and AMM trade, in the market's quote asset.",
     UserFees: "Same as Fees.",

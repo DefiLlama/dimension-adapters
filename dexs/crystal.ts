@@ -36,7 +36,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
-  start: "2025-11-24",
+  start: "2026-09-19",
   methodology: "Sum of quote-asset volume from every orderbook and AMM trade, plus native-asset volume from launchpad bonding-curve trades.",
 }
 

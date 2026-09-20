@@ -29,7 +29,7 @@ const adapter: Adapter = {
   version: 2,
   fetch,
   chains: [CHAIN.MONAD],
-  start: "2025-11-24",
+  start: "2026-09-19",
   methodology: {
     Fees: "Launchpad bonding-curve fees paid by users on every buy/sell (in native token).",
     UserFees: "Same as Fees.",
