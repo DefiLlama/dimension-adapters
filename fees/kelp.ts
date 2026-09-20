@@ -41,9 +41,9 @@ const breakdownMethodology = {
 };
 
 const LRTOracle = "0x349A73444b1a310BAe67ef67973022020d70020d";
-const LRTConfig = "0x947Cb49334e6571ccBFEF1f1f1178d8469D65ec7";
 const EigenRewardDistributor = "0x9bb6d4b928645eda8f9c019495695ba98969eff1";
 const EigenToken = ADDRESSES.ethereum.EIGEN;
+const RSETH_PROTOCOL_FEE_RATE = 0.035;
 
 const rsETHMaps: any = {
   [CHAIN.ETHEREUM]: "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
@@ -57,7 +57,6 @@ const rsETHMaps: any = {
 };
 
 const Abis = {
-  protocolFeeInBPS: "uint256:protocolFeeInBPS",
   rsETHPrice: "uint256:rsETHPrice",
   totalSupply: "uint256:totalSupply",
   feeInBPS: "uint256:feeInBPS",
@@ -118,17 +117,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     block: afterBlock.number,
   });
 
-  // get protocol fee rate config
-  const protocolFeeInBPS = await sdk.api2.abi.call({
-    chain: CHAIN.ETHEREUM,
-    target: LRTConfig,
-    abi: Abis.protocolFeeInBPS,
-    block: beforeBlock.number,
-  });
-  const protocolFeeRate = Number(protocolFeeInBPS) / 1e4;
-  if (!Number.isFinite(protocolFeeRate) || protocolFeeRate < 0 || protocolFeeRate >= 1)
-    throw new Error(`Invalid Kelp protocol fee: ${protocolFeeInBPS}`);
-
   const totalSupply = await options.api.call({
     target: rsETHMaps[options.chain],
     abi: Abis.totalSupply,
@@ -136,8 +124,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   const priceGrowth = Number(rsETHPriceAfter) - Number(rsETHPriceBefore);
   const totalFees =
-    (Number(totalSupply) * priceGrowth) / (1 - protocolFeeRate) / 1e18;
-  const protocolRevenue = totalFees * protocolFeeRate;
+    (Number(totalSupply) * priceGrowth) / (1 - RSETH_PROTOCOL_FEE_RATE) / 1e18;
+  const protocolRevenue = totalFees * RSETH_PROTOCOL_FEE_RATE;
   const supplySideRevenue = totalFees - protocolRevenue;
 
   dailyFees.addGasToken(totalFees, 'ETH Staking Rewards');
