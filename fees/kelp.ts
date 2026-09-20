@@ -44,6 +44,7 @@ const LRTOracle = "0x349A73444b1a310BAe67ef67973022020d70020d";
 const EigenRewardDistributor = "0x9bb6d4b928645eda8f9c019495695ba98969eff1";
 const EigenToken = ADDRESSES.ethereum.EIGEN;
 const RSETH_PROTOCOL_FEE_RATE = 0.035;
+const rsETHPriceCache = new Map<string, Promise<[number, number]>>();
 
 const rsETHMaps: any = {
   [CHAIN.ETHEREUM]: "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
@@ -88,6 +89,31 @@ function hgETHNoPerfFeesOverlaps(fromTs: number, toTs: number) {
   return fromTs < HGETH_NO_PERF_FEES_END_EXCL && toTs > HGETH_NO_PERF_FEES_START;
 }
 
+function getRsETHPrices(beforeBlock: number, afterBlock: number) {
+  const cacheKey = `${beforeBlock}-${afterBlock}`;
+  if (!rsETHPriceCache.has(cacheKey)) {
+    rsETHPriceCache.set(cacheKey, (async () => {
+      const [rsETHPriceBefore, rsETHPriceAfter] = await Promise.all([
+        sdk.api2.abi.call({
+          chain: CHAIN.ETHEREUM,
+          target: LRTOracle,
+          abi: Abis.rsETHPrice,
+          block: beforeBlock,
+        }),
+        sdk.api2.abi.call({
+          chain: CHAIN.ETHEREUM,
+          target: LRTOracle,
+          abi: Abis.rsETHPrice,
+          block: afterBlock,
+        }),
+      ]);
+
+      return [Number(rsETHPriceBefore), Number(rsETHPriceAfter)];
+    })());
+  }
+  return rsETHPriceCache.get(cacheKey)!;
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -103,26 +129,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     options.toTimestamp
   );
 
-  // get rsETH prices on Ethereum
-  const rsETHPriceBefore = await sdk.api2.abi.call({
-    chain: CHAIN.ETHEREUM,
-    target: LRTOracle,
-    abi: Abis.rsETHPrice,
-    block: beforeBlock.number,
-  });
-  const rsETHPriceAfter = await sdk.api2.abi.call({
-    chain: CHAIN.ETHEREUM,
-    target: LRTOracle,
-    abi: Abis.rsETHPrice,
-    block: afterBlock.number,
-  });
+  const [rsETHPriceBefore, rsETHPriceAfter] = await getRsETHPrices(beforeBlock.number, afterBlock.number);
 
   const totalSupply = await options.api.call({
     target: rsETHMaps[options.chain],
     abi: Abis.totalSupply,
   });
 
-  const priceGrowth = Number(rsETHPriceAfter) - Number(rsETHPriceBefore);
+  const priceGrowth = rsETHPriceAfter - rsETHPriceBefore;
   const totalFees =
     (Number(totalSupply) * priceGrowth) / (1 - RSETH_PROTOCOL_FEE_RATE) / 1e18;
   const protocolRevenue = totalFees * RSETH_PROTOCOL_FEE_RATE;
@@ -278,19 +292,19 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true,
+  pullHourly: false,
   methodology,
   breakdownMethodology,
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2023-12-11" },
     [CHAIN.ARBITRUM]: { start: "2024-02-07" },
-    [CHAIN.BLAST]: { start: "2024-03-20" },
-    [CHAIN.SCROLL]: { start: "2024-03-26" },
-    [CHAIN.OPTIMISM]: { start: "2024-04-06" },
+    [CHAIN.BLAST]: { start: "2024-03-20", deadFrom: "2026-06-16" },
+    [CHAIN.SCROLL]: { start: "2024-03-26", deadFrom: "2026-06-16" },
+    [CHAIN.OPTIMISM]: { start: "2024-04-06", deadFrom: "2026-06-16" },
     [CHAIN.BASE]: { start: "2024-04-06" },
     [CHAIN.LINEA]: { start: "2024-04-16" },
-    [CHAIN.ERA]: { start: "2024-05-16" },
+    [CHAIN.ERA]: { start: "2024-05-16", deadFrom: "2026-06-16" },
   },
 };
 
