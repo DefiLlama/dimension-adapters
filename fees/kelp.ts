@@ -8,8 +8,8 @@ import * as sdk from "@defillama/sdk";
 const methodology = {
   Fees: "Sum of total staking rewards from rsETH (ETH staking rewards + EIGEN rewards), agETH management fees, and hgETH management/performance fees.",
   SupplySideRevenue: "All staking rewards are distributed to stakers (rsETH holders) after protocol fees are deducted.",
-  Revenue: "Protocol fees from rsETH (3.5% of staking rewards), agETH management fees (2%), hgETH management fees (1.5%), and hgETH performance fees (20% of positive rate delta).",
-  ProtocolRevenue: "Protocol fees from rsETH (3.5% of staking rewards), agETH management fees (2%), hgETH management fees (1.5%), and hgETH performance fees (20% of positive rate delta).",
+  Revenue: "Protocol fees from rsETH (on-chain protocol fee on staking rewards), agETH management fees (2%), hgETH management fees (1.5%), and hgETH performance fees (20% of positive rate delta).",
+  ProtocolRevenue: "Protocol fees from rsETH (on-chain protocol fee on staking rewards), agETH management fees (2%), hgETH management fees (1.5%), and hgETH performance fees (20% of positive rate delta).",
 };
 
 const breakdownMethodology = {
@@ -25,14 +25,14 @@ const breakdownMethodology = {
     'EIGEN Token Rewards': 'EIGEN token rewards distributed to rsETH holders after protocol fees.',
   },
   Revenue: {
-    'ETH Staking Rewards': 'Protocol fees (3.5%) from ETH staking rewards.',
+    'ETH Staking Rewards': 'Protocol share of ETH staking rewards at the on-chain protocol fee rate.',
     'EIGEN Token Rewards': 'Protocol fees from EIGEN token rewards.',
     'agETH Management Fees': 'Management fees (2%) collected from agETH vault.',
     'hgETH Management Fees': 'Management fees (1.5%) collected from hgETH vault.',
     'hgETH Performance Fees': 'Performance fees (20%) from positive rate delta in hgETH vault.',
   },
   ProtocolRevenue: {
-    'ETH Staking Rewards': 'Protocol fees (3.5%) from ETH staking rewards.',
+    'ETH Staking Rewards': 'Protocol share of ETH staking rewards at the on-chain protocol fee rate.',
     'EIGEN Token Rewards': 'Protocol fees from EIGEN token rewards.',
     'agETH Management Fees': 'Management fees (2%) collected from agETH vault.',
     'hgETH Management Fees': 'Management fees (1.5%) collected from hgETH vault.',
@@ -41,9 +41,16 @@ const breakdownMethodology = {
 };
 
 const LRTOracle = "0x349A73444b1a310BAe67ef67973022020d70020d";
-const LRTConfig = "0x947Cb49334e6571ccBFEF1f1f1178d8469D65ec7";
+const LRTConfig = "0x947Cb49334e6571ccBFEF1f1f1178d8469D65ec7"; // https://kerneldao.gitbook.io/kernel/getting-started/kelp/smart-contracts
 const EigenRewardDistributor = "0x9bb6d4b928645eda8f9c019495695ba98969eff1";
 const EigenToken = ADDRESSES.ethereum.EIGEN;
+const rsETHWindowCache = new Map<string, Promise<{
+  beforeBlock: number;
+  afterBlock: number;
+  rsETHPriceBefore: number;
+  rsETHPriceAfter: number;
+  protocolFeeRate: number;
+}>>();
 
 const rsETHMaps: any = {
   [CHAIN.ETHEREUM]: "0xA1290d69c65A6Fe4DF752f95823fae25cB99e5A7",
@@ -57,7 +64,7 @@ const rsETHMaps: any = {
 };
 
 const Abis = {
-  protocolFeeInBPS: "uint256:protocolFeeInBPS",
+  protocolFeeInBPS: "uint256:protocolFeeInBPS", // governance-set, capped at 1500 bps
   rsETHPrice: "uint256:rsETHPrice",
   totalSupply: "uint256:totalSupply",
   feeInBPS: "uint256:feeInBPS",
@@ -89,53 +96,67 @@ function hgETHNoPerfFeesOverlaps(fromTs: number, toTs: number) {
   return fromTs < HGETH_NO_PERF_FEES_END_EXCL && toTs > HGETH_NO_PERF_FEES_START;
 }
 
+function getRsETHWindow(fromTimestamp: number, toTimestamp: number) {
+  const cacheKey = `${fromTimestamp}-${toTimestamp}`;
+  if (!rsETHWindowCache.has(cacheKey)) {
+    rsETHWindowCache.set(cacheKey, (async () => {
+      const [beforeBlock, afterBlock] = await Promise.all([
+        sdk.util.blocks.getBlock(CHAIN.ETHEREUM, fromTimestamp),
+        sdk.util.blocks.getBlock(CHAIN.ETHEREUM, toTimestamp),
+      ]);
+
+      const [rsETHPriceBefore, rsETHPriceAfter, protocolFeeInBPS] = await Promise.all([
+        sdk.api2.abi.call({
+          chain: CHAIN.ETHEREUM,
+          target: LRTOracle,
+          abi: Abis.rsETHPrice,
+          block: beforeBlock.number,
+        }),
+        sdk.api2.abi.call({
+          chain: CHAIN.ETHEREUM,
+          target: LRTOracle,
+          abi: Abis.rsETHPrice,
+          block: afterBlock.number,
+        }),
+        sdk.api2.abi.call({
+          chain: CHAIN.ETHEREUM,
+          target: LRTConfig,
+          abi: Abis.protocolFeeInBPS,
+          block: beforeBlock.number,
+        }),
+      ]);
+
+      return {
+        beforeBlock: beforeBlock.number,
+        afterBlock: afterBlock.number,
+        rsETHPriceBefore: Number(rsETHPriceBefore),
+        rsETHPriceAfter: Number(rsETHPriceAfter),
+        protocolFeeRate: Number(protocolFeeInBPS) / 1e4,
+      };
+    })());
+  }
+  return rsETHWindowCache.get(cacheKey)!;
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // get corresponding block on ethereum chain
-  const beforeBlock = await sdk.util.blocks.getBlock(
-    CHAIN.ETHEREUM,
-    options.fromTimestamp
-  );
-  const afterBlock = await sdk.util.blocks.getBlock(
-    CHAIN.ETHEREUM,
-    options.toTimestamp
-  );
-
-  // get rsETH prices on Ethereum
-  const rsETHPriceBefore = await sdk.api2.abi.call({
-    chain: CHAIN.ETHEREUM,
-    target: LRTOracle,
-    abi: Abis.rsETHPrice,
-    block: beforeBlock.number,
-  });
-  const rsETHPriceAfter = await sdk.api2.abi.call({
-    chain: CHAIN.ETHEREUM,
-    target: LRTOracle,
-    abi: Abis.rsETHPrice,
-    block: afterBlock.number,
-  });
-
-  // get protocol fee rate config
-  let protocolFeeRate = 0;
-  try {
-    const protocolFeeInBPS = await sdk.api2.abi.call({
-      chain: CHAIN.ETHEREUM,
-      target: LRTConfig,
-      abi: Abis.protocolFeeInBPS,
-      block: beforeBlock.number,
-    });
-    protocolFeeRate = Number(protocolFeeInBPS) / 1e4;
-  } catch (e: any) {}
+  const {
+    beforeBlock,
+    afterBlock,
+    rsETHPriceBefore,
+    rsETHPriceAfter,
+    protocolFeeRate,
+  } = await getRsETHWindow(options.fromTimestamp, options.toTimestamp);
 
   const totalSupply = await options.api.call({
     target: rsETHMaps[options.chain],
     abi: Abis.totalSupply,
   });
 
-  const priceGrowth = Number(rsETHPriceAfter) - Number(rsETHPriceBefore);
+  const priceGrowth = rsETHPriceAfter - rsETHPriceBefore;
   const totalFees =
     (Number(totalSupply) * priceGrowth) / (1 - protocolFeeRate) / 1e18;
   const protocolRevenue = totalFees * protocolFeeRate;
@@ -237,14 +258,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
                 target: HGETH,
                 abi: Abis.convertToAssets,
                 params: ["1000000000000000000"], // 1e18
-                block: beforeBlock.number,
+                block: beforeBlock,
               }),
               sdk.api2.abi.call({
                 chain: CHAIN.ETHEREUM,
                 target: HGETH,
                 abi: Abis.convertToAssets,
                 params: ["1000000000000000000"], // 1e18
-                block: afterBlock.number,
+                block: afterBlock,
               }),
             ]);
 
