@@ -59,6 +59,10 @@ const fetch = async ({ dateString, createBalances }: FetchOptions) => {
     );
 
   const response: any = await data
+  if (!response?.result?.rows) {
+    data = undefined // do not cache a failed response for the next day
+    throw new Error(`volo-vault: sentio returned no rows: ${JSON.stringify(response).slice(0, 300)}`)
+  }
 
   for (const row of response.result.rows) {
     if (row.day.split("T")[0] === dateString && COIN_MAP[row.coin_symbol]) {
