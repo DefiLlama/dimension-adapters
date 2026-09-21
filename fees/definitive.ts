@@ -42,6 +42,8 @@ const CHAIN_TO_DUNE_MAPPING: Record<string, string> = {
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.BSC]: 'bnb',
   [CHAIN.ROBINHOOD]: 'robinhood',
+  [CHAIN.INK]: 'ink',
+  [CHAIN.ARC]: 'arc',
 };
 
 const chainConfig = {
@@ -53,6 +55,8 @@ const chainConfig = {
   [CHAIN.OPTIMISM]: { start: '2022-01-01' },
   [CHAIN.BSC]: { start: '2022-01-01' },
   [CHAIN.ROBINHOOD]: { start: '2026-07-11' },
+  [CHAIN.INK]: { start: '2026-09-08' },
+  [CHAIN.ARC]: { start: '2026-09-15' },
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
