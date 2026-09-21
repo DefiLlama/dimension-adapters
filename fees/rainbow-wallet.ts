@@ -42,6 +42,7 @@ const chainConfig: ChainConfig = {
   [CHAIN.XDAI]: { router: rainbowRouter, duneChain: 'gnosis', start: '2026-03-01' },
   [CHAIN.ABSTRACT]: { router: rainbowRouter, duneChain: 'abstract', start: '2026-03-01' },
   [CHAIN.ERA]: { router: rainbowRouter, duneChain: 'zksync', start: '2026-07-17' },
+  [CHAIN.ARC]: { router: rainbowRouter, duneChain: 'arc', start: '2026-09-15' },
 }
 
 const getRouterValues = (config: ChainConfig) => Object.entries(config)
