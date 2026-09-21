@@ -53,8 +53,8 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyVolume = options.createBalances();
-  dailyVolume.addBalances(treasuryIn, LABELS.CRATE_SALES);
-  dailyVolume.addBalances(potIn, LABELS.CRATE_SALES);
+  dailyVolume.addBalances(treasuryIn);
+  dailyVolume.addBalances(potIn);
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(treasuryIn, LABELS.CRATE_SALES);
@@ -81,7 +81,7 @@ const methodology = {
   Volume: "Gross USDG crate spend (crate price + network fee on every open), no netting.",
   Fees: "Crate spend net of instant-sell buyback payouts (Orderbook trades signed by the Treasury). Can be negative on heavy-buyback days.",
   Revenue: "Treasury share of each open (crate price minus Pot contribution, plus network fee) minus buyback payouts. Gross of off-chain card fulfillment (every crate delivers a physical graded card).",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "Treasury share of each open (crate price minus Pot contribution, plus network fee) minus buyback payouts.",
   SupplySideRevenue: "The Pot contribution of each open: a fixed bps of the crate price funding the community jackpot paid back to players.",
 };
 
@@ -98,18 +98,17 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [LABELS.POT_CONTRIBUTIONS]: "Pot contributions funding the community jackpot paid back to players.",
   },
-  Volume: {
-    [LABELS.CRATE_SALES]: "Gross USDG crate spend on every open.",
-  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-09-04",
+  start: "2026-09-03",
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, //buybacks can exceed sales
 };
 
 export default adapter;
