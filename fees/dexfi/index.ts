@@ -48,6 +48,11 @@ const CONFIG: Record<
     nativeToken: ADDRESSES.robinhood.WETH,
     start: "2026-07-07",
   },
+  arc: {
+    treasury: "0x88161a8dbbded3f49b5ec8a14fdab2abc7bb7813",
+    nativeToken: ADDRESSES.arc.USDC,
+    start: "2026-09-21",
+  },
 };
 
 const TREASURY_SHARE_DIVIDER = 1000000000000000000;
