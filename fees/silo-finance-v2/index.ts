@@ -159,7 +159,7 @@ const badDebtSiloMapping: BadDebtSiloMapping = {
 };
 
 const getFeeSumWithFilter = (
-  feeData: SubgraphFeeQueryResponse["feeTimeseries_collection"],
+  feeData: SubgraphQueryResponse["feeTimeseries_collection"],
   asset: string,
   origins?: string[]
 ) => {
@@ -422,16 +422,15 @@ const adapter: Adapter = {
         ),
       start: "2025-06-02",
     },
-    [CHAIN.ARBITRUM]: {
-      fetch: (options: FetchOptions) =>
-        fetch(
-          options,
-          subgraphMapping[CHAIN.ARBITRUM],
-          badDebtSiloMapping[CHAIN.ARBITRUM]
-        ),
-      start: "2025-05-08",
-      deadFrom: "2026-07-02",
-    },
+    // [CHAIN.ARBITRUM]: {
+    //   fetch: (options: FetchOptions) =>
+    //     fetch(
+    //       options,
+    //       subgraphMapping[CHAIN.ARBITRUM],
+    //       badDebtSiloMapping[CHAIN.ARBITRUM]
+    //     ),
+    //   start: "2025-05-08",
+    // },
     [CHAIN.AVAX]: {
       fetch: (options: FetchOptions) =>
         fetch(
