@@ -48,7 +48,7 @@ const GRADUATION_FEES = "Graduation Fees";
 // One deployment per chain. `factories` lists every factory ever used on that chain —
 // older ones stay listed because the curves they created are still live and still
 // charge fees. `start` is the deploy block of the first factory on that chain.
-const CONFIG: Record<string, { factories: string[]; fromBlock: number }> = {
+const CONFIG: Record<string, { factories: string[]; fromBlock: number; start: string }> = {
   [CHAIN.ROBINHOOD]: {
     factories: [
       "0x5ab106E62BA24EB4D28D88FaD5430F0942206cDA",
@@ -56,10 +56,11 @@ const CONFIG: Record<string, { factories: string[]; fromBlock: number }> = {
       "0x32dEF68702844285E2A2086245a23A64eAdEdF42",
     ],
     fromBlock: 68088553,
+    start: "2026-09-18",
   },
-  [CHAIN.BASE]: { factories: ["0xeDAf3D78d68a40b4580Af9aa0ed1E9E63b32c0F6"], fromBlock: 51521370 },
-  [CHAIN.BSC]: { factories: ["0xeDAf3D78d68a40b4580Af9aa0ed1E9E63b32c0F6"], fromBlock: 122822195 },
-  [CHAIN.ARC]: { factories: ["0x542B7c6f2a79315768b1B089214d84150bBB7f1b"], fromBlock: 21690478 },
+  [CHAIN.BASE]: { factories: ["0xeDAf3D78d68a40b4580Af9aa0ed1E9E63b32c0F6"], fromBlock: 51521370, start: "2026-09-18" },
+  [CHAIN.BSC]: { factories: ["0xeDAf3D78d68a40b4580Af9aa0ed1E9E63b32c0F6"], fromBlock: 122822195, start: "2026-09-18" },
+  [CHAIN.ARC]: { factories: ["0x542B7c6f2a79315768b1B089214d84150bBB7f1b"], fromBlock: 21690478, start: "2026-09-18" },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -71,27 +72,26 @@ const fetch = async (options: FetchOptions) => {
   if (!cfg) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
   // Every curve ever created on this chain, across all factory versions.
-  const allLaunchLogs = (
-    await Promise.all(
-      cfg.factories.map((target) =>
-        options.getLogs({ target, eventAbi: LAUNCHED_EVENT, fromBlock: cfg.fromBlock })
-      )
-    )
-  ).flat();
+  const allLaunchLogs = await options.getLogs({
+    targets: cfg.factories,
+    eventAbi: LAUNCHED_EVENT,
+    fromBlock: cfg.fromBlock,
+    cacheInCloud: true,
+  });
   const curves: string[] = allLaunchLogs.map((log: any) => log.curve);
 
   // Launch fees: charged per launch in this window and forwarded straight to the
   // platform address by the factory, so they are 100% protocol revenue.
   // Re-read from the contract rather than hardcoded — it differs per chain
   // (0.0005 ETH / 0.002 BNB / 0.25 USDC) and is set at deploy time.
-  const todayLaunchesPerFactory = await Promise.all(
-    cfg.factories.map((target) => options.getLogs({ target, eventAbi: LAUNCHED_EVENT }))
-  );
-  const launchFees = await Promise.all(
-    cfg.factories.map((target) => options.api.call({ target, abi: LAUNCH_FEE_ABI }))
-  );
-  cfg.factories.forEach((_, i) => {
-    const count = BigInt(todayLaunchesPerFactory[i].length);
+  const todayLaunchesPerFactory = await options.getLogs({
+    targets: cfg.factories,
+    eventAbi: LAUNCHED_EVENT,
+    flatten: false,
+  });
+  const launchFees = await options.api.multiCall({ abi: LAUNCH_FEE_ABI, calls: cfg.factories });
+  todayLaunchesPerFactory.forEach((log: any, i: number) => {
+    const count = BigInt(log.length);
     if (!count) return;
     const amount = BigInt(launchFees[i]) * count;
     dailyFees.addGasToken(amount, LAUNCH_FEES);
@@ -164,7 +164,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "1% base fee on every bonding-curve buy and sell, plus the creator's optional tax, plus the anti-snipe tax charged in the first 3 seconds of a launch, plus a flat launch fee per token (read live from each chain's factory), plus 2% of the raise taken when a curve graduates to Uniswap v4.",
   Revenue: "The protocol's share of the base curve fee (10% normally, 30% once a chain is past its first 100 launches), half of the anti-snipe tax, all launch fees, and the full 2% graduation fee.",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "The protocol's share of the base curve fee (10% normally, 30% once a chain is past its first 100 launches), half of the anti-snipe tax, all launch fees, and the full 2% graduation fee.",
   SupplySideRevenue: "The launch creator's share of the base curve fee (90% for the first 100 launches on a chain, 70% after), their full optional creator tax, and half of the anti-snipe tax charged on their token.",
 };
 
@@ -187,10 +187,10 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.ROBINHOOD, CHAIN.BASE, CHAIN.BSC, CHAIN.ARC],
-  start: "2026-09-18",
+  adapter: CONFIG,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
