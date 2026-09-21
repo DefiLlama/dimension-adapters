@@ -1,4 +1,4 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
@@ -48,6 +48,11 @@ const CONFIG: Record<
     nativeToken: ADDRESSES.robinhood.WETH,
     start: "2026-07-07",
   },
+  arc: {
+    treasury: "0x88161a8dbbded3f49b5ec8a14fdab2abc7bb7813",
+    nativeToken: ADDRESSES.arc.USDC,
+    start: "2026-09-21",
+  },
 };
 
 const TREASURY_SHARE_DIVIDER = 1000000000000000000;
@@ -75,8 +80,14 @@ const fetch = async (options: FetchOptions) => {
   });
 
   const dailyFees = rawFees.clone(1, METRIC.SWAP_FEES);
-  const dailyHoldersRevenue = dailyFees.clone(holdersShare, METRIC.STAKING_REWARDS);
-  const dailyProtocolRevenue = dailyFees.clone(1 - holdersShare, METRIC.PROTOCOL_FEES);
+  const dailyHoldersRevenue = dailyFees.clone(
+    holdersShare,
+    METRIC.STAKING_REWARDS
+  );
+  const dailyProtocolRevenue = dailyFees.clone(
+    1 - holdersShare,
+    METRIC.PROTOCOL_FEES
+  );
 
   return {
     dailyFees,
@@ -88,7 +99,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Harvest fees comes to treasury contracts on each chain",
-  Revenue: "All collected fees are protocol revenue (no separate liquidity provider supply-side)",
+  Revenue:
+    "All collected fees are protocol revenue (no separate liquidity provider supply-side)",
   HoldersRevenue:
     "Share of revenue distributed to gDEX token stakers, determined at runtime via receiversPercent()",
   ProtocolRevenue: "Share of revenue retained by the protocol treasury",
@@ -102,7 +114,8 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "Wrapped native token swap fees sent to the treasury",
   },
   HoldersRevenue: {
-    [METRIC.STAKING_REWARDS]: "Treasury share distributed to gDEX token stakers",
+    [METRIC.STAKING_REWARDS]:
+      "Treasury share distributed to gDEX token stakers",
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_FEES]:
