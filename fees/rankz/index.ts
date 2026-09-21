@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Rankz (rankz.fun): physical graded-card gacha on Robinhood Chain.
 // Users buy crate opens in USDG through the VendingMachine, which splits
@@ -13,7 +14,7 @@ import { addTokensReceived } from "../../helpers/token";
 // Collector Crypt), Fees/Revenue are net of buyback payouts and can be
 // negative on heavy-buyback days; gross crate spend is reported as volume.
 
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 const TREASURY = "0x5FA3Bc34AC395f6922f6E478Ab7b033B14845eeB";
 const POT_VAULT = "0xde4404b82B02578F6459e8BebE9299F3276cc14f";
 const VENDING_MACHINE = "0xBabBf19E398Ea52E47CF7Fc9893439b70fbd4357";
