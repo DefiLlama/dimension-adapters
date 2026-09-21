@@ -47,7 +47,9 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(token, parts.total, `${source} Trading Fees`);
     dailyRevenue.add(token, parts.platform, `${source} Fees To Genius`);
     dailySupplySideRevenue.add(token, parts.creator + (toFoundation ? 0n : parts.destination), `${source} Fees To Creators`);
-    dailyRevenue.add(token, toFoundation ? parts.destination : 0n, `${source} Fees To Foundation`);
+    // The creator-selected destination allocation is separate from Genius's
+    // platform cut, even when routed to the shared Foundation vault.
+    dailySupplySideRevenue.add(token, toFoundation ? parts.destination : 0n, `${source} Fees To Foundation`);
     // These are buybacks of individual launched meme tokens, not a Genius
     // governance/value-accrual token. Classify their accrued funding as supply side.
     dailySupplySideRevenue.add(token, parts.buyback, `${source} Fees For Meme Buybacks`);
@@ -140,8 +142,6 @@ const fetch = async (options: FetchOptions) => {
 const revenueBreakdown = {
   'Curve Fees To Genius': 'The platform share of bonding-curve fees under each launch’s immutable fee policy.',
   'Hook Fees To Genius': 'The platform share of accrued Genius hook fees; meme-denominated fees are valued at the originating swap’s execution price.',
-  'Curve Fees To Foundation': 'Destination share of curve fees belonging to the protocol’s shared Genius Foundation treasury when selected by the creator.',
-  'Hook Fees To Foundation': 'Destination share of hook fees belonging to the protocol’s shared Genius Foundation treasury when selected by the creator.',
   'Token Creation Fees To Genius': 'Token creation fees retained by Genius, using the historical factory fee and intraperiod LaunchFeeUpdated events.',
   'Alpha Promotion Fees To Genius': 'Actual paidWei in AlphaPromoted events; free grants contribute zero.',
 };
@@ -154,9 +154,9 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: 'Token creation, bonding-curve trading (including any launch-window surcharge), Genius hook trading and paid Alpha promotion fees. Fees accrue at launch/trade/promotion; settlements are excluded. Meme-denominated hook fees use the same swap’s quote/meme execution-price ratio, rounded down to quote base units.',
-    Revenue: 'Creation and Alpha promotion fees, the platform share of trading fees, and destination fees belonging to the Genius Foundation treasury. Creator and launched-meme buyback allocations are excluded.',
+    Revenue: 'The Genius platform share of trading fees under each launch’s immutable policy, plus separately labeled creation and Alpha promotion fees. The creator-selected destination allocation (Foundation or creator), creator share and launched-meme buyback allocations are excluded.',
     ProtocolRevenue: 'The same protocol-retained portion as Revenue. Genius.fun has no protocol token receiving these fees.',
-    SupplySideRevenue: 'Creator allocations and accrued funding for buybacks of individual launched meme tokens, calculated from immutable per-launch policies with contract integer rounding.',
+    SupplySideRevenue: 'Creator-selected destination allocations (Foundation or creator), creator shares and accrued funding for buybacks of individual launched meme tokens, calculated from immutable per-launch policies with contract integer rounding.',
   },
   breakdownMethodology: {
     Fees: {
@@ -168,6 +168,8 @@ const adapter: SimpleAdapter = {
     Revenue: revenueBreakdown,
     ProtocolRevenue: revenueBreakdown,
     SupplySideRevenue: {
+      'Curve Fees To Foundation': 'Creator-selected destination allocation from curve fees routed to the shared Foundation vault; excluded from Genius platform revenue.',
+      'Hook Fees To Foundation': 'Creator-selected destination allocation from hook fees routed to the shared Foundation vault; excluded from Genius platform revenue.',
       'Curve Fees To Creators': 'Creator share, any destination share selected for the creator, and separate creator tax on curve trades.',
       'Curve Fees For Meme Buybacks': 'Accrued curve-fee allocation reserved to buy back and burn that launch’s meme token.',
       'Hook Fees To Creators': 'Creator share, any destination share selected for the creator, and separate creator tax on hook trades.',

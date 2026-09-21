@@ -1,3 +1,5 @@
+// Run manually: node --test -r ts-node/register tests/genius-fun.test.ts
+// The upstream adapter smoke workflow does not run Node's test suite.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Balances, ChainApi } from '@defillama/sdk';
@@ -83,7 +85,7 @@ test('large curve sets use scoped event scans and reject other factories’ even
   assert.equal(calls.find(call => call.eventAbi === events.buy).maxBlockRange, 9000);
 });
 
-test('fees accrue once with historical creation pricing, snipe included, and Foundation retained', async t => {
+test('fees accrue once with historical creation pricing, snipe included, and Foundation excluded from revenue', async t => {
   const historicBlocks: (string | number | undefined)[] = [];
   t.mock.method(ChainApi.prototype, 'call', async function (this: ChainApi) { historicBlocks.push(this.block); return '2000'; });
   t.mock.method(ChainApi.prototype, 'multiCall', async ({ abi, calls }: any) => calls.map(() => abi.includes('foundationFeePolicy') ? policy : true));
@@ -96,11 +98,38 @@ test('fees accrue once with historical creation pricing, snipe included, and Fou
   const result: any = await fees.fetch!(options);
   assert.deepEqual(historicBlocks, [122266999]);
   assert.equal(amount(result.dailyFees), 12100n);
-  assert.equal(amount(result.dailyRevenue), 9575n); // 2000 creation + 75% of 10100 trading
-  assert.equal(amount(result.dailySupplySideRevenue), 2525n);
+  assert.equal(amount(result.dailyRevenue), 4525n); // 2000 creation + 25% of 10100 trading
+  assert.equal(amount(result.dailySupplySideRevenue), 7575n);
   assert.equal(amount(result.dailyFees), amount(result.dailyRevenue) + amount(result.dailySupplySideRevenue));
   assert.notEqual(result.dailyRevenue, result.dailyProtocolRevenue);
   assert.ok(!calls.some(call => /SnipeTaxCharged|FeesSwept|Credited|Claimed/.test(call.eventAbi)));
+});
+
+test('ordinary curve and hook trades report the full fee and only the platform revenue for either destination', async t => {
+  for (const source of ['curve', 'hook']) {
+    for (const toFoundation of [true, false]) {
+      await t.test(`${source}, Foundation destination: ${toFoundation}`, async subtest => {
+        subtest.mock.method(ChainApi.prototype, 'multiCall', async ({ abi, calls }: any) => calls.map(() => {
+          if (abi.startsWith('function launches')) return { registered: true, memecoinIsCurrency0: true, memecoin: meme, quoteToken: nativeToken };
+          if (abi.includes('poolFoundationFeePolicy')) return [policy, toFoundation];
+          if (abi.includes('foundationFeePolicy')) return policy;
+          return toFoundation;
+        }));
+        const logs = source === 'curve' ? {
+          [events.launch]: [row(122266900, 0, { curve, pairToken: nativeToken })],
+          [events.buy]: [row(122267002, 1, { quoteIn: '100000000000000000000', fee: '2000000000000000000', tax: '0' }, curve)],
+        } : {
+          [events.hookFee]: [row(122267002, 1, { poolId, currency: nativeToken, feeAmount: '2000000000000000000', taxAmount: '0' }, hook)],
+        };
+        const result: any = await fees.fetch!(optionsFor(logs).options);
+        assert.equal(amount(result.dailyFees), 2000000000000000000n);
+        assert.equal(amount(result.dailyRevenue), 500000000000000000n);
+        assert.equal(amount(result.dailyProtocolRevenue), 500000000000000000n);
+        assert.equal(amount(result.dailySupplySideRevenue), 1500000000000000000n);
+        assert.equal(amount(result.dailyFees), amount(result.dailyRevenue) + amount(result.dailySupplySideRevenue));
+      });
+    }
+  }
 });
 
 test('multiple meme-fee swaps in one transaction keep their own execution price', async t => {
