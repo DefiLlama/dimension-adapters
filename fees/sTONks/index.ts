@@ -50,11 +50,11 @@ const TON_LAUNCHPAD_SENDERS = new Set(
 );
 
 // ─── EVM addresses ───────────────────────────────────────────────────────────
-const EVM_FEE_WALLETS = [
-  "0xeed3b4867b27a876c5bd8ce22aff210486b7b433",
-  "0x2f521187c6cc1d9db701d784de5b2f5046f32a1d",
-  "0xd3561fa0fa1a4f3e2a008134ea01cc805d323304",
+const EVM_TRADING_FEE_WALLETS = [
+  "0xeed3b4867b27a876c5bd8ce22aff210486b7b433", // Bot + Terminal
+  "0x2f521187c6cc1d9db701d784de5b2f5046f32a1d", // Secondary
 ];
+const EVM_LAUNCHPAD_FEE_WALLET = "0xd3561fa0fa1a4f3e2a008134ea01cc805d323304";
 const EVM_REFERRAL_WALLET = "0x552a41f0d9e74897f8d087d4c6e729abfc6c9bf1";
 
 // ─── Solana address ──────────────────────────────────────────────────────────
@@ -65,6 +65,8 @@ const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
 
 const TRADING_FEES = "Trading Fees";
 const LAUNCHPAD_FEES = "Launchpad Fees";
+const REFERRAL_PAYOUTS = "Referral & Cashback Payouts";
+const NET_PROTOCOL_REVENUE = "Net Protocol Revenue";
 
 const PAGE = 1000;
 // Unauthenticated toncenter allows ~1 request/sec
@@ -185,16 +187,16 @@ const fetchTON = async (options: FetchOptions) => {
 
   // Supply side: referral + cashback payouts to users
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), "Referral & Cashback Payouts");
+  dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), REFERRAL_PAYOUTS);
 
   // Revenue = fees - payouts; can go negative on days payouts exceed fees, which is real
   // (referral/cashback payouts settle on their own schedule, not 1:1 with the fees that funded them)
   const protocolRevBigInt = totalFees - totalUserPayouts;
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
+  dailyRevenue.addGasToken(protocolRevBigInt.toString(), NET_PROTOCOL_REVENUE);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
+  dailyProtocolRevenue.addGasToken(protocolRevBigInt.toString(), NET_PROTOCOL_REVENUE);
 
   return {
     dailyVolume,
@@ -207,38 +209,55 @@ const fetchTON = async (options: FetchOptions) => {
 
 // ─── EVM fetch (ETH / BSC) ───────────────────────────────────────────────────
 const fetchEVM = async (options: FetchOptions) => {
-  const dailyFees = await getETHReceived({
+  const tradingFees = await getETHReceived({
     options,
-    targets: EVM_FEE_WALLETS,
+    targets: EVM_TRADING_FEE_WALLETS,
+  });
+  const launchpadFees = await getETHReceived({
+    options,
+    targets: [EVM_LAUNCHPAD_FEE_WALLET],
   });
 
-  const dailySupplySideRevenue = await getETHReceived({
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(tradingFees, TRADING_FEES);
+  dailyFees.addBalances(launchpadFees, LAUNCHPAD_FEES);
+
+  const referralPayouts = await getETHReceived({
     options,
     targets: [EVM_REFERRAL_WALLET],
   });
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(referralPayouts, REFERRAL_PAYOUTS);
+
+  const dailyRevenue = dailyFees.clone(1, NET_PROTOCOL_REVENUE);
+  dailyRevenue.subtract(dailySupplySideRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyFees,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
 // ─── Solana fetch ────────────────────────────────────────────────────────────
 const fetchSolana = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  await getSolanaReceived({ options, balances: dailyFees, target: SOL_FEE_WALLET });
+  const received = options.createBalances();
+  await getSolanaReceived({ options, balances: received, target: SOL_FEE_WALLET });
 
-  const dailyVolume = options.createBalances();
-  dailyVolume.addBalances(dailyFees);
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(received, TRADING_FEES);
+
+  const dailyVolume = received.clone();
   dailyVolume.resizeBy(100);
+
+  const dailyRevenue = dailyFees.clone(1, NET_PROTOCOL_REVENUE);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
@@ -262,14 +281,14 @@ const breakdownMethodology = {
       "Variable fees from sTONks.pump Launchpad routed to fee wallets.",
   },
   SupplySideRevenue: {
-    "Referral & Cashback Payouts":
+    [REFERRAL_PAYOUTS]:
       "Outflows from referral and cashback wallets to users.",
   },
   Revenue: {
-    "Net Protocol Revenue": "Total fees minus referral and cashback payouts.",
+    [NET_PROTOCOL_REVENUE]: "Total fees minus referral and cashback payouts.",
   },
   ProtocolRevenue: {
-    "Net Protocol Revenue": "Total fees minus user payouts, retained by the protocol.",
+    [NET_PROTOCOL_REVENUE]: "Total fees minus user payouts, retained by the protocol.",
   },
 };
 
