@@ -151,7 +151,7 @@ const adapter: SimpleAdapter = {
     Revenue:
       "The platform's share: 0.30% of a trade where the trader has a referrer bound on chain and 0.50% where they do not, plus all launch fees, all snipe tax and the graduation dust.",
     ProtocolRevenue:
-      "Same as Revenue. There is no protocol token, so nothing is distributed to holders.",
+      "Same as Revenue (0.30% of a trade where the trader has a referrer bound on chain and 0.50% where they do not, plus all launch fees, all snipe tax and the graduation dust). There is no protocol token, so nothing is distributed to holders.",
     SupplySideRevenue:
       "0.50% of every trade to the token's creator and 0.20% to the trader's referrer, both claimable from the FeeManager.",
   },
