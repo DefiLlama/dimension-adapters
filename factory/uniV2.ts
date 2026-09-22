@@ -10,6 +10,10 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "bdex-v2": {
+    // stock uniV2 fork on BOT Chain, feeTo unset => 0.3% swap fee, 100% to LPs
+    [CHAIN.BOT_CHAIN]: { factory: '0x117115f3B72C8d1989178089A67D0C26f8EE0AA3', start: '2026-06-02', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "ebisus-bay-dex": {
     [CHAIN.CRONOS]: {
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
@@ -859,6 +863,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "bdex-v2": {
+    Volume: "Swap volume from all BDEX V2 pools deployed via the V2 factory on BOT Chain.",
+    Fees: "Users pay a 0.3% fee on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "No protocol fee is taken (factory feeTo is unset), all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "ebisus-bay-dex": {
     Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes NFT trades.",
     Fees: "Swap fees paid by users"
