@@ -153,6 +153,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BSC],
+  doublecounted: true, // pcs
   start,
   fetch,
   methodology: {
