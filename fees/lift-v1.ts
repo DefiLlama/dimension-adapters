@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // LIFT (https://lift.fun) v1: every launch mints a fixed-supply token into one
 // single-sided Uniswap V3 1% position that is locked forever. The position's
@@ -14,7 +15,7 @@ const GENERATIONS = [
 
 // launch() requires msg.value == launchFeeWei; the fee is paid in Arc's native USDC,
 // whose native view has 18 decimals while the ERC-20 has 6
-const USDC = "0x3600000000000000000000000000000000000000";
+const USDC = ADDRESSES.arc.USDC;
 const NATIVE_TO_ERC20_USDC = 10n ** 12n;
 
 const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed creator, address indexed pool, address quote, uint256 positionId, uint160 sqrtPriceX96, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 initialBuyE6, string name, string symbol, string metadataURI)";
@@ -34,24 +35,33 @@ const isBefore = (a: any, b: any) =>
   (Number(a.blockNumber) === Number(b.blockNumber) && Number(a.logIndex ?? a.index) < Number(b.logIndex ?? b.index));
 
 // fee of every launch in the window: launchFeeWei at the window start, replayed through the
-// window's LaunchFeeUpdated logs (a factory deployed inside the window emits one from its constructor)
-async function getLaunchFees(options: FetchOptions, factory: string): Promise<bigint> {
-  const launches = await options.getLogs({ target: factory, eventAbi: TOKEN_LAUNCHED_EVENT, onlyArgs: false });
-  if (!launches.length) return 0n;
+// window's LaunchFeeUpdated logs (a factory deployed inside the window emits one from its constructor).
+// flatten: false keeps each factory's logs in targets order; onlyArgs would drop block order.
+async function getLaunchFees(options: FetchOptions, factories: string[]): Promise<bigint[]> {
+  const [launchBatches, updateBatches, openingFees] = await Promise.all([
+    options.getLogs({ targets: factories, eventAbi: TOKEN_LAUNCHED_EVENT, onlyArgs: false, flatten: false }),
+    options.getLogs({ targets: factories, eventAbi: LAUNCH_FEE_UPDATED_EVENT, onlyArgs: false, flatten: false }),
+    options.fromApi.multiCall({ abi: "uint256:launchFeeWei", calls: factories, permitFailure: true }),
+  ]);
 
-  const updates = (await options.getLogs({ target: factory, eventAbi: LAUNCH_FEE_UPDATED_EVENT, onlyArgs: false })).sort((a: any, b: any) => (isBefore(a, b) ? -1 : 1));
-  const openingFee = await options.fromApi.call({ target: factory, abi: "uint256:launchFeeWei", permitFailure: true });
+  return factories.map((factory, i) => {
+    const launches = launchBatches[i] ?? [];
+    if (!launches.length) return 0n;
 
-  let total = 0n;
-  for (const launch of launches) {
-    let fee = openingFee === null || openingFee === undefined ? undefined : BigInt(openingFee);
-    for (const update of updates) {
-      if (isBefore(update, launch)) fee = BigInt(update.args.launchFeeWei);
+    const updates = [...(updateBatches[i] ?? [])].sort((a: any, b: any) => (isBefore(a, b) ? -1 : 1));
+    const openingFee = openingFees[i];
+
+    let total = 0n;
+    for (const launch of launches) {
+      let fee = openingFee === null || openingFee === undefined ? undefined : BigInt(openingFee);
+      for (const update of updates) {
+        if (isBefore(update, launch)) fee = BigInt(update.args.launchFeeWei);
+      }
+      if (fee === undefined) throw new Error(`no launch fee in force for launch at block ${launch.blockNumber} on ${factory}`);
+      total += fee;
     }
-    if (fee === undefined) throw new Error(`no launch fee in force for launch at block ${launch.blockNumber} on ${factory}`);
-    total += fee;
-  }
-  return total / NATIVE_TO_ERC20_USDC;
+    return total / NATIVE_TO_ERC20_USDC;
+  });
 }
 
 async function fetch(options: FetchOptions) {
@@ -59,36 +69,49 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const { factory, feeLocker } of GENERATIONS) {
-    // quoteToCreator + quoteToTreasury is the whole collected fee in the quote asset: the token-side
-    // fee is sold into the pool before the split, or (first-generation locker) burned and reported as
-    // baseBurned, an unpriced launched token that is not counted
-    const harvests = await options.getLogs({ target: feeLocker, eventAbi: FEES_HARVESTED_EVENT });
-    if (harvests.length) {
-      const positionIds = [...new Set(harvests.map((log: any) => log.positionId.toString()))];
-      const positions = await options.api.multiCall({ target: feeLocker, abi: GET_POSITION_ABI, calls: positionIds });
-      const quoteOf: Record<string, string> = {};
-      positionIds.forEach((id, i) => { quoteOf[id] = positions[i].quote; });
+  const factories = GENERATIONS.map((generation) => generation.factory);
+  const feeLockers = GENERATIONS.map((generation) => generation.feeLocker);
 
-      for (const log of harvests) {
-        const quote = quoteOf[log.positionId.toString()];
-        dailyFees.add(quote, log.quoteToCreator, METRIC.SWAP_FEES);
-        dailyFees.add(quote, log.quoteToTreasury, METRIC.SWAP_FEES);
-        dailySupplySideRevenue.add(quote, log.quoteToCreator, LABELS.SwapFeesToCreators);
-        dailyRevenue.add(quote, log.quoteToTreasury, LABELS.SwapFeesToTreasury);
-      }
+  // quoteToCreator + quoteToTreasury is the whole collected fee in the quote asset: the token-side
+  // fee is sold into the pool before the split, or (first-generation locker) burned and reported as
+  // baseBurned, an unpriced launched token that is not counted
+  const [harvestBatches, launchFees] = await Promise.all([
+    options.getLogs({ targets: feeLockers, eventAbi: FEES_HARVESTED_EVENT, flatten: false }),
+    getLaunchFees(options, factories),
+  ]);
+
+  const positionCalls: { target: string; params: [string] }[] = [];
+  harvestBatches.forEach((harvests: any[], i: number) => {
+    for (const id of new Set((harvests ?? []).map((log: any) => log.positionId.toString()))) {
+      positionCalls.push({ target: feeLockers[i], params: [id] });
     }
+  });
+  const positions = positionCalls.length
+    ? await options.api.multiCall({ abi: GET_POSITION_ABI, calls: positionCalls })
+    : [];
+  const quoteOf: Record<string, string> = {};
+  positionCalls.forEach((call, i) => { quoteOf[`${call.target}:${call.params[0]}`] = positions[i].quote; });
 
-    const launchFees = await getLaunchFees(options, factory);
-    dailyFees.add(USDC, launchFees, LABELS.LaunchFees);
-    dailyRevenue.add(USDC, launchFees, LABELS.LaunchFeesToTreasury);
-  }
+  harvestBatches.forEach((harvests: any[], i: number) => {
+    for (const log of harvests ?? []) {
+      const quote = quoteOf[`${feeLockers[i]}:${log.positionId.toString()}`];
+      dailyFees.add(quote, log.quoteToCreator, METRIC.SWAP_FEES);
+      dailyFees.add(quote, log.quoteToTreasury, METRIC.SWAP_FEES);
+      dailySupplySideRevenue.add(quote, log.quoteToCreator, LABELS.SwapFeesToCreators);
+      dailyRevenue.add(quote, log.quoteToTreasury, LABELS.SwapFeesToTreasury);
+    }
+  });
+
+  launchFees.forEach((fee) => {
+    dailyFees.add(USDC, fee, LABELS.LaunchFees);
+    dailyRevenue.add(USDC, fee, LABELS.LaunchFeesToTreasury);
+  });
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
+    dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue: 0,
   };

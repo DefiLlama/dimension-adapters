@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // LIFT (https://lift.fun) v2: every launch mints a fixed-supply token into one
 // single-sided Uniswap V4 position that is locked forever, in a pool whose LP fee
@@ -13,7 +14,7 @@ const LAUNCH_HOOK = "0xca55CDde6578F6f8113dd339520E13418Abc2acC";
 
 // launch() requires msg.value == launchFeeWei; the fee is paid in Arc's native USDC,
 // whose native view has 18 decimals while the ERC-20 has 6
-const USDC = "0x3600000000000000000000000000000000000000";
+const USDC = ADDRESSES.arc.USDC;
 const NATIVE_TO_ERC20_USDC = 10n ** 12n;
 const BPS = 10_000n;
 const BASE_TO_CREATOR = 0; // LaunchHook.BaseDestination.Creator
@@ -122,9 +123,9 @@ async function fetch(options: FetchOptions) {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
+    dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue: 0,
   };
