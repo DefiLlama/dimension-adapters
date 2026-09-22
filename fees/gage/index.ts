@@ -12,6 +12,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import U from "./universe.json";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const REPAID = 3;
 const isReceipt = (token: string) => U.excludedTokens.includes(token.toLowerCase());
@@ -36,66 +37,71 @@ const LABEL = {
   EARN_FEE: "Earn performance fee",
 };
 
+const addFloorFee = (balances: { fees: any; revenue: any; holders: any }, amount: any, label: string) => {
+  balances.fees.add(ADDRESSES.robinhood.USDG, amount, label);
+  balances.revenue.add(ADDRESSES.robinhood.USDG, amount, label);
+  balances.holders.add(ADDRESSES.robinhood.USDG, amount, label);
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const usdg = U.usdg;
-  const logs = (target: string, eventAbi: string) => options.getLogs({ target, eventAbi });
+  const usdg = ADDRESSES.robinhood.USDG;
+  const floor = { fees: dailyFees, revenue: dailyRevenue, holders: dailyHoldersRevenue };
 
-  for (const vault of U.vaults) {
-    for (const log of await logs(vault.address, EVENTS.funded)) {
-      dailyFees.add(usdg, log.fee, LABEL.DEAL_FEE);
-      dailyRevenue.add(usdg, log.fee, LABEL.DEAL_FEE);
-      dailyHoldersRevenue.add(usdg, log.fee, LABEL.DEAL_FEE);
-    }
-    const reclaimed = await logs(vault.address, EVENTS.reclaimed);
-    if (reclaimed.length) {
-      // Cap and price are fixed at funding, so the end-of-window read is the same as the reclaim-block read.
-      const deals = await options.toApi.multiCall({ target: vault.address, abi: DEAL_ABI, calls: reclaimed.map((log: any) => log.dealId.toString()) });
-      for (const d of deals) {
-        if (isReceipt(d.token)) continue; // The engine's loan reports its own cost.
-        const cost = BigInt(d.cap) - BigInt(d.price);
-        if (cost > 0n) { dailyFees.add(usdg, cost, LABEL.LOAN_COST); dailySupplySideRevenue.add(usdg, cost, LABEL.LOAN_COST); }
-      }
+  const vaults = U.vaults.map((vault) => vault.address);
+  const engines = U.engines.map((engine) => engine.engine);
+  const cashouts = U.engines.map((engine) => engine.cashoutRouter).filter(Boolean);
+  const earnVaults = U.earn.map((strategy) => strategy.vault);
+
+  for (const log of await options.getLogs({ targets: vaults, eventAbi: EVENTS.funded })) {
+    addFloorFee(floor, log.fee, LABEL.DEAL_FEE);
+  }
+  // flatten: false keeps each vault's logs in targets order so getDeal hits the vault that emitted Reclaimed.
+  const reclaimedByVault: any[][] = await options.getLogs({ targets: vaults, eventAbi: EVENTS.reclaimed, flatten: false });
+  const dealCalls = reclaimedByVault.flatMap((logs, i) => logs.map((log) => ({ target: vaults[i], params: log.dealId.toString() })));
+  if (dealCalls.length) {
+    // Cap and price are fixed at funding, so the end-of-window read is the same as the reclaim-block read.
+    const deals = await options.toApi.multiCall({ abi: DEAL_ABI, calls: dealCalls });
+    for (const d of deals) {
+      if (isReceipt(d.token)) continue; // The engine's loan reports its own cost.
+      const cost = BigInt(d.cap) - BigInt(d.price);
+      if (cost > 0n) { dailyFees.add(usdg, cost, LABEL.LOAN_COST); dailySupplySideRevenue.add(usdg, cost, LABEL.LOAN_COST); }
     }
   }
 
-  for (const engine of U.engines) {
-    for (const log of await logs(engine.engine, EVENTS.activated)) {
-      dailyFees.add(usdg, log.fee, LABEL.DEAL_FEE);
-      dailyRevenue.add(usdg, log.fee, LABEL.DEAL_FEE);
-      dailyHoldersRevenue.add(usdg, log.fee, LABEL.DEAL_FEE);
+  for (const log of await options.getLogs({ targets: engines, eventAbi: EVENTS.activated })) {
+    addFloorFee(floor, log.fee, LABEL.DEAL_FEE);
+  }
+  for (const log of [
+    ...(await options.getLogs({ targets: engines, eventAbi: EVENTS.rightSold })),
+    ...(await options.getLogs({ targets: engines, eventAbi: EVENTS.lenderSold })),
+  ]) {
+    addFloorFee(floor, log.fee, LABEL.TRADE_FEE);
+  }
+  const closedByEngine: any[][] = await options.getLogs({ targets: engines, eventAbi: EVENTS.closed, flatten: false });
+  const loanCalls = closedByEngine.flatMap((logs, i) =>
+    logs.filter((log) => Number(log.state) === REPAID).map((log) => ({ target: engines[i], params: log.id.toString() })),
+  );
+  if (loanCalls.length) {
+    const loans = await options.toApi.multiCall({ abi: LOAN_ABI, calls: loanCalls });
+    for (const l of loans) {
+      const cost = BigInt(l.cap) - BigInt(l.principal);
+      if (cost > 0n) { dailyFees.add(usdg, cost, LABEL.LOAN_COST); dailySupplySideRevenue.add(usdg, cost, LABEL.LOAN_COST); }
     }
-    for (const log of [...(await logs(engine.engine, EVENTS.rightSold)), ...(await logs(engine.engine, EVENTS.lenderSold))]) {
-      dailyFees.add(usdg, log.fee, LABEL.TRADE_FEE);
-      dailyRevenue.add(usdg, log.fee, LABEL.TRADE_FEE);
-      dailyHoldersRevenue.add(usdg, log.fee, LABEL.TRADE_FEE);
-    }
-    const repaid = (await logs(engine.engine, EVENTS.closed)).filter((log: any) => Number(log.state) === REPAID);
-    if (repaid.length) {
-      const loans = await options.toApi.multiCall({ target: engine.engine, abi: LOAN_ABI, calls: repaid.map((log: any) => log.id.toString()) });
-      for (const l of loans) {
-        const cost = BigInt(l.cap) - BigInt(l.principal);
-        if (cost > 0n) { dailyFees.add(usdg, cost, LABEL.LOAN_COST); dailySupplySideRevenue.add(usdg, cost, LABEL.LOAN_COST); }
-      }
-    }
-    if (engine.cashoutRouter) {
-      for (const log of await logs(engine.cashoutRouter, EVENTS.cashedOut)) {
-        dailyFees.add(usdg, log.platformFee, LABEL.TRADE_FEE);
-        dailyRevenue.add(usdg, log.platformFee, LABEL.TRADE_FEE);
-        dailyHoldersRevenue.add(usdg, log.platformFee, LABEL.TRADE_FEE);
-      }
+  }
+  if (cashouts.length) {
+    for (const log of await options.getLogs({ targets: cashouts, eventAbi: EVENTS.cashedOut })) {
+      addFloorFee(floor, log.platformFee, LABEL.TRADE_FEE);
     }
   }
 
-  for (const strategy of U.earn) {
-    for (const log of await logs(strategy.vault, EVENTS.profitReported)) {
-      dailyRevenue.add(usdg, log.fee, LABEL.EARN_FEE);
-      dailyProtocolRevenue.add(usdg, log.fee, LABEL.EARN_FEE);
-    }
+  for (const log of await options.getLogs({ targets: earnVaults, eventAbi: EVENTS.profitReported })) {
+    dailyRevenue.add(usdg, log.fee, LABEL.EARN_FEE);
+    dailyProtocolRevenue.add(usdg, log.fee, LABEL.EARN_FEE);
   }
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
@@ -105,6 +111,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ROBINHOOD],
+  pullHourly: true,
   start: U.start,
   methodology: {
     Fees: "Everything borrowers and traders pay on gage: the deal or origination fee taken when a loan funds, trade fees on sold reclaim rights and lender units, the cash-out platform fee, and the borrower's fixed cost paid to lenders at repayment (repayment cap minus principal). Fixed-cost loans have no interest accrual: the cost is booked when the loan is repaid.",
@@ -123,6 +130,16 @@ const adapter: SimpleAdapter = {
       [LABEL.DEAL_FEE]: "Routed to the GAGE floor through DealFeeRouter.",
       [LABEL.TRADE_FEE]: "Routed to the GAGE floor through DealFeeRouter.",
       [LABEL.EARN_FEE]: "feeBps of a settled loan's return; the protocol share goes to the deal fee router, the rest to the curator.",
+    },
+    HoldersRevenue: {
+      [LABEL.DEAL_FEE]: "Deal and origination fees buy GAGE for the permanent GAGE-only floor bands of the GAGE/sGAGE pool.",
+      [LABEL.TRADE_FEE]: "Trade and cash-out fees buy GAGE for the permanent GAGE-only floor bands of the GAGE/sGAGE pool.",
+    },
+    ProtocolRevenue: {
+      [LABEL.EARN_FEE]: "The Earn performance fee, covering both the protocol share sent to the deal fee router and the curator share.",
+    },
+    SupplySideRevenue: {
+      [LABEL.LOAN_COST]: "Repayment cap minus funded principal, paid to the lender when the borrower reclaims, before the Earn performance fee.",
     },
   },
 };
