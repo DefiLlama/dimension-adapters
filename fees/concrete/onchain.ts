@@ -65,13 +65,14 @@ export async function trackedVaults(options: FetchOptions): Promise<Vault[]> {
   const addresses = candidates.map((v) => v.address);
 
   // A vault deployed after the window has no code yet: `permitFailure` leaves it out.
-  const assets: (string | null)[] = await options.api.multiCall({ abi: ABI.asset, calls: addresses, permitFailure: true });
-  const decimals: (string | null)[] = await options.api.multiCall({ abi: ABI.decimals, calls: addresses, permitFailure: true });
-  const assetDecimals: (string | null)[] = await options.api.multiCall({ abi: ABI.decimals, calls: assets.map((a) => a ?? ZERO_ADDRESS), permitFailure: true });
+  // Missing addresses stay out of the multicall; the zero address is not a token and the SDK logs it as a bad target.
+  const assets = await callPresent(options.api, ABI.asset, addresses);
+  const decimals = await callPresent(options.api, ABI.decimals, addresses);
+  const assetDecimals = await callPresent(options.api, ABI.decimals, assets);
   // A staked vault's asset is another Concrete vault; that one's own asset decides the priced token.
   const stakedIn = assets.map((a) => (a && concreteVaults.has(lower(a)) ? lower(a) : null));
-  const stakedAssets: (string | null)[] = await options.api.multiCall({ abi: ABI.asset, calls: stakedIn.map((a) => a ?? ZERO_ADDRESS), permitFailure: true });
-  const stakedAssetDecimals: (string | null)[] = await options.api.multiCall({ abi: ABI.decimals, calls: stakedAssets.map((a) => a ?? ZERO_ADDRESS), permitFailure: true });
+  const stakedAssets = await callPresent(options.api, ABI.asset, stakedIn);
+  const stakedAssetDecimals = await callPresent(options.api, ABI.decimals, stakedAssets);
 
   const v1 = candidates.filter((v) => v.version === 1).map((v) => v.address);
   // The recipient can be rotated; accept whoever was configured at either end of the window.
@@ -201,7 +202,7 @@ export async function readRatePoints(
   const { errors } = await PromisePool.withConcurrency(BLOCK_READ_CONCURRENCY)
     .for([...wanted])
     .process(async ([block, blockVaults]) => {
-      for (const { vault, point } of await readBlock(options, block, blockVaults, block === fromBlock, cutoffs, stakedConversions, events)) {
+      for (const { vault, point } of await readBlock(options, block, blockVaults, cutoffs, stakedConversions, events)) {
         points.get(vault)!.push(point);
       }
     });
@@ -245,23 +246,33 @@ async function stakedVaultConversions(options: FetchOptions, vaults: Vault[], to
   return conversions;
 }
 
+/** `calls` lined up with `addresses`; a null address is left null and never sent. */
+async function callPresent(api: { multiCall: ChainApi['multiCall'] }, abi: string, addresses: (string | null)[]): Promise<(string | null)[]> {
+  const out: (string | null)[] = addresses.map(() => null);
+  const present = addresses.flatMap((address, i) => (address && address !== ZERO_ADDRESS ? [{ address, i }] : []));
+  if (!present.length) return out;
+  const values: (string | null)[] = await api.multiCall({ abi, calls: present.map((p) => p.address), permitFailure: true });
+  present.forEach((p, j) => { out[p.i] = values[j]; });
+  return out;
+}
+
 /** Vault state at the end of `block` for every vault that has a point there. */
 async function readBlock(
   options: FetchOptions,
   block: number,
   vaults: Vault[],
-  isWindowStart: boolean,
   cutoffs: Map<string, number>,
   stakedConversions: Map<string, (amount: bigint) => Promise<bigint>>,
   events: Map<string, SupplyEvents>,
 ): Promise<{ vault: string; point: RatePoint }[]> {
   const api = new ChainApi({ chain: options.chain, block });
   const supplies: (string | null)[] = await api.multiCall({ abi: ABI.totalSupply, calls: vaults.map((v) => v.address), permitFailure: true });
-  const present = vaults.filter((vault, i) => {
-    if (supplies[i] !== null) return true;
-    if (isWindowStart) return false; // deployed inside the window
-    throw new Error(`totalSupply of ${vault.address} failed at ${options.chain} block ${block}`);
-  });
+  const missing = vaults.filter((_, i) => supplies[i] === null);
+  for (const vault of missing) {
+    const bytecode = await api.provider.getCode(vault.address, block);
+    if (bytecode && bytecode.length > 2) throw new Error(`totalSupply of ${vault.address} failed at ${options.chain} block ${block}`);
+  }
+  const present = vaults.filter((_, i) => supplies[i] !== null);
   const assets = await totalAssetsAt(api, present.map((v) => v.address));
 
   // Assets are read in the token the yield is priced in: valueless vaults are zero, the others

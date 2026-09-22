@@ -38,6 +38,11 @@ const abis = {
   getConfig: "function getConfig(address pair) external view returns (tuple(uint256 kB, uint256 kQ, uint64 lambda, uint32 fee, uint32 feeSplit, uint32 compress, uint32 sSell, uint32 sBuy, uint32 fixS, uint32 disThreshold, uint32 sBound, uint32 pythWeight, uint32 gamma))"
 };
 
+// excluded from volume and fees
+const blacklistedPools = new Set([
+  '0xb236e833c5b7a5b99d8099699d7e2baf36c2dd86', // spy/usdg -> heavy wash trading
+])
+
 export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (options: FetchOptions) => {
   const { factory, pairConfig } = chainConfig[options.chain];
   const { createBalances, getLogs, chain, api } = options
@@ -49,6 +54,7 @@ export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (o
   const fees: any = {}
   const protocolFees: any = {}
   pairs.forEach((pair: string, i: number) => {
+    if (blacklistedPools.has(pair.toLowerCase())) return
     pairObject[pair] = [token0s[i], token1s[i]]
     fees[pair] = 0
     protocolFees[pair] = 0
