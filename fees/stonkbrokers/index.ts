@@ -1,95 +1,22 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
-import { addTokensReceived } from "../../helpers/token";
+import { addProtocolCut, STONKBROKER, UNI_V4_POOL_MANAGER, UNI_V4_SWAP, UNI_V4_SWAP_TOPIC0, ZERO } from "./helpers";
 
 /**
- * StonkBrokers — Anvil NFTFi + Broker Box + Safety Deposit Box on Robinhood,
- * plus the Relay swap-desk fee rail on Base.
+ * StonkBrokers Safety Deposit Box — liquidity lockers on Robinhood Chain.
  *
  * Fee sources:
- * 1. NFT AMM trades + NFT-backed loans (70% StockBooster / 30% ProtocolFeeSink)
- * 2. Broker activation fees in $STONKBROKER (50% burn / 50% protocol)
- * 2b. Stonk Interns (mint opened 2026-09-19): mint fee = $20 in ETH (25%
- *    intern Clock In payroll / 75% protocol treasury) plus a $STONKBROKER leg
- *    (100% treasury, 999 during the 24h opening window, then stepping up), a
- *    flat $1 ETH promotion fee on every intern pay-share raise (100%
- *    treasury), and intern activation fees in $STONKBROKER on the same
- *    50% burn / 50% protocol split. The 9.99% ERC-2981 royalty on secondary
- *    sales accrues to the payroll wallet and is not yet flushed (Clock In
- *    3.0 is scheduled at mint + 72h), so it is not booked until it moves.
- * 3. Broker Box gachapon edge (10% of ticket: 5% StockBooster+creator / 5% protocol)
- *    plus Certificate Counter flat $2 fee ($1 StockBooster / $1 treasury)
- * 4. Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3 + V4 and
- *    up. DEX v2 + CL lockers) → SafetyDepositClockInV3 (90% brokers / 10%
- *    protocol wallet)
- * 5. Swap-desk 1% Relay app fee: Base USDC forwarded from the fee wallet
- *    (claimed from Relay, then bridged to StockBooster as ETH)
- * 6. Anti-snipe fair-launch tooling: time-decay snipe tax on launch-curve
- *    buys (starts at 99% and falls 1%/minute over a 99-minute window), split
- *    90% StockBooster / 10% launch dev, pushed live per trade. First
- *    production launch: Card Wall ($WALL), 2026-08-14 — raise bonded into
- *    permanently locked LP, so the tax is the only extractable fee leg.
- *    Second instance: the Civilization anti-snipe pad (Nightshades faction
- *    launches, 2026-09-14) — same decay curve, WETH-quoted, tax split by the
- *    game hook 50% boost pot / 10% faction pool / 13.33% StockBooster /
- *    13.33% protocol / 13.34% creator, read exactly from PadTaxCollected.
- * 7. Safe Launch / Stonklauncher pads (public go-live 2026-08-17, V2 live
- *    2026-08-21/22, r2/"v3" pad generation 2026-08-23): every window buy/sell
- *    pays the decaying snipe tax, split 16.5% launch creator / 16.5% protocol
- *    accrual / 50% locked-LP reserve (or ICO Bonus kickstarter on degen modes)
- *    / 17% StockBooster via the Clock In Card (~0.5% of tax to the referrer).
- *    Covers the V1 ETH pad, all V1 quoted lanes, all V2 lanes, and all r2
- *    lanes. Quoted-lane amounts are denominated in the lane's quote token
- *    (STONK / USDG / WETH / tokenized stocks), not native ETH.
- * 8. Stonk Launcher bonding-curve factory (closed; residual trading): 1%
- *    trade fee on StonkCurvePool, waterfall 33/33/33 creator / protocol /
- *    StonkBrokers (Directed Clock In + jackpot pot).
- * 9. Token vesting locker (StonkVestingLocker): 0.01% (1 bps) deposit fee.
+ * 1. Locker protocol cuts (Uniswap V3 + V4 and up. DEX v2 + CL lockers) →
+ *    SafetyDepositClockInV3 (90% brokers / 10% protocol wallet), plus the
+ *    lock owners' 80% share of LP fees claimed through the locked positions.
+ * 2. Token vesting locker (StonkVestingLocker): 0.01% (1 bps) deposit fee,
+ *    routed to the same SafetyDepositClockInV3.
+ * 3. Protocol-owned Uniswap v4 STONK/ETH liquidity: the forever-escrowed
+ *    position (#175704) whose sole irrevocable fee recipient is the treasury.
  *
- * Volume (protocol volume chart — same dailyVolume feeds the dexs/stonkbrokers listing):
- * - NFT AMM notional (ethFeePaid ÷ fee bps)
- * - Broker Box ticket notional (PullOpened.ticketWei)
- * - Certificate Counter stock purchase (CertificateBought.spendWei)
- * - Broker Box sell-backs (SoldBack ethOut + SoldBackUsdg usdgOut)
- * - Stonk Interns mint releases (DormantReleased.ethPaid, the $20 ETH leg)
- * - Anti-snipe launch buys (WallBought.ethIn)
- * - Civilization anti-snipe pad buys (PadBuy.quoteIn, WETH)
- * - Safe Launch / Stonklauncher window buys AND sells on every pad generation
- *   (buy = tax-inclusive quote in; sell = net quote out + tax)
- * - StonkCurvePool Trade.quoteAmount (bonding-curve launcher)
+ * The other StonkBrokers products (Anvil NFTFi, Broker Box, Safe Launch,
+ * Nightshades, Smart LP) are listed separately under stonkbrokers-*.
  */
-
-const AMM_VAULT = "0xE302733accF4800146E55fC45B46b4E4fFC032D2";
-const LOAN_VAULT = "0xa7B9AC696B252B79568A5a01b2Fd02177EF23664";
-const ACTIVATION_MANAGER = "0xacD5ae3c060C1137FE2Ee86B0aB2EF697456f664";
-const STONKBROKER = "0xe934e36A439C94017B64a3FecE66AF12099aBF50";
-
-// Stonk Interns (mint opened 2026-09-19, deploy block 66,628,699). The
-// collection splits the ETH leg of every paid release (MINT_ENGINE_BPS =
-// 2500 to the payroll wallet, the rest to the fees treasury) and forwards
-// the STONK leg plus the $1 promotion fee entirely to the treasury. The
-// InternActivationManager burns half of each activation fee and forwards
-// the other half to the same fees treasury.
-const INTERNS_COLLECTION = "0xFc4b0c4F464dC3037cF013934648a8A726d565A5";
-const INTERNS_ACTIVATION = "0x668Ea9E44e0cEb5B203067873e0b9bcdF2214b37";
-// StonkInterns.treasury() — an immutable, so pinned here instead of read.
-const INTERNS_TREASURY = "0xD2671d2Bdc84CF76E97ADb0fD7bb2B54F24CBDe8";
-const INTERNS_MINT_ENGINE_BPS = 2500n;
-
-// Broker Box production machines (deployed 2026-07-31) + certificate counter.
-const GACHA_MACHINES = [
-  "0x8F1836209C42d4F6B6caA782c055eE13F8aC95b0", // GME
-  "0xF9bc0777C087Af0fe7214dE8A5360bE6a71D0D44", // AAPL
-  "0x2829b754784352dd2BeFfa5Eb26d5B499315b715", // AMZN
-  "0xc5e3E9C2a835Ec9319Fd8C1d516fD4323c5758A0", // NVDA
-  "0xFF20b4b8E08beAA4064E3ca4CC5a2E40AcaC072f", // GOOGL
-  "0xfC253E0062eEf614E20E0726e5f6FF7559c35402", // MSFT
-  "0x9d2c3355502be065975ad47EF5A902f02c772504", // SLV
-  "0xf58979D35C3F0Ff6A6F7EDd909fE8a95a2894609", // SPCX
-  "0x5B1282B6Ad40b3DC294404A2b33FF7657B66c33c", // USO
-];
-const CERTIFICATE_COUNTER = "0x2599882AaF5C14834562eE59ca7a3D1FFCC229D7";
 
 // Safety Deposit Box lockers → fee router. Uniswap V3/V4 pair live 2026-07-25;
 // up. DEX (up33) v2 + Slipstream-CL lockers live 2026-08-11 (same protocol-fee
@@ -100,156 +27,23 @@ const LOCKER_UP_V2 = "0x21797736C25851A6102D196afbA78F978f589017";
 const LOCKER_UP_CL = "0xc1AfA59e2aBC1C868C51a1F799a7578EaCfEa076";
 // Fee sink (not read on-chain here): SafetyDepositClockInV3
 // 0x55642A3F10F1Af5145D3d59021B1D6b03BB8692c — splits locker cuts 90/10.
-
-// Relay swap-desk 1% app fee accrues off-chain, is claimed as Base USDC to the
-// treasury fee wallet, then forwarded via Relay to StockBooster as ETH.
-const RELAY_FEE_WALLET = "0xb668382cF44038a3E8140E789060F6A809787CDa";
-const BASE_USDC = ADDRESSES.base.USDC;
-
-// Anti-snipe fair-launch instances (WallFairLaunch-style time-decay snipe-tax
-// curves). Each launch is a standalone one-off contract; append new instances
-// here as they go live. boosterFeeBps = 9000 on-chain (90% StockBooster /
-// 10% launch dev), read from the deployed instance.
-const ANTI_SNIPE_LAUNCHES = [
-  "0xEa371F8122630d05352Cf15b608402DB2069bdd6", // Card Wall ($WALL), 2026-08-14
-];
-const LAUNCH_BOOSTER_BPS = 9000n;
-
-// Civilization anti-snipe pad (Nightshades faction launch, 2026-09-14). One
-// singleton pad hosts all four faction curves (launch ids 1–4: Ghosts,
-// Watchers, Knights, Zombies) — same 99% → 0 time-decay snipe tax over a
-// 99-minute buys-only window, quoted in WETH. Every buy emits PadBuy (gross
-// quoteIn → volume) AND PadTaxCollected with the exact wei split the hook
-// applied: 50% next-night boost pot (funds the survivor buy) / 10% the
-// faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury /
-// 13.34% game creator. Legs are read from the event, never re-derived.
-const CIV_ANTI_SNIPE_PADS = [
-  "0xca389585c4940B107D49AF4A37aD259c5fb69081", // Nightshades (Meebco), 2026-09-14
-];
-
-// Civilization post-bond game pools. Each faction bonds into a Uniswap v4
-// pool hooked by FactionGameHook; the ONLY liquidity provider is the
-// FactionLiquidityVault (beforeAddLiquidity reverts for anyone else), so the
-// pool's 1% LP fee (GAME_LP_FEE) accrues 100% to the protocol-owned game
-// position. Pool ids are discovered from the vault's FactionRegistered events
-// (never hardcoded — new factions register themselves). After every night the
-// hook re-opens trading behind a decaying snipe tax and emits SnipeTaxCollected
-// with the exact wei split (50% next-night boost / 10% faction LP / 13.33%
-// StockBooster / 13.33% protocol treasury / 13.34% game creator).
-const CIV_FACTION_VAULT = "0xfff716727d7E80E29eab5D3498b7F28431e65C58";
-const CIV_GAME_HOOK = "0x065388FA59505ceF471529FFa08d7EcfaB1fAACc";
-// Immutable ERC-2981 receiver for the four Nightshades NFT collections (10%
-// royalty on every secondary sale). Anyone may flush it: 75% of the balance
-// goes to the game vault as free quote (deployed into the surviving faction's
-// locked pool at the next boostSurvivor), 25% to the team wallet.
-const CIV_ROYALTY_SPLITTER = "0x0296b9fb0cE78E2F6C95fdDE8A4427aAAA325D87";
-const CIV_FACTION_VAULT_START = 62553793;
-
-// Safe Launch / Stonklauncher pads. quote=null → native ETH (legacy ETH pad);
-// otherwise amounts in SafeBuy/SafeSell are the lane's quote token (field
-// names stay ethIn/ethOut on-chain). ClockInCard punches ride the tax split
-// — do NOT also read card events (double-count).
-const ROBINHOOD_WETH = ADDRESSES.robinhood.WETH;
-const QUOTE = {
-  WETH: ROBINHOOD_WETH,
-  STONK: "0xe934e36A439C94017B64a3FecE66AF12099aBF50",
-  USDG: ADDRESSES.robinhood.USDG,
-  GME: "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
-  NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
-  AAPL: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
-  SPCX: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
-  USO: "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
-} as const;
-
-type SafePad = { addr: string; quote: string | null; gen: "v1-eth" | "v1-quoted" | "v2" | "r2" };
-
-const SAFE_LAUNCH_PADS: SafePad[] = [
-  // V1 ETH pad (native ETH amounts)
-  { addr: "0xEcA5726dae1e53365c37fFc02369d947A91d71f9", quote: null, gen: "v1-eth" },
-  // V1 quoted lanes (StonkSafeLaunchpadQuoted)
-  { addr: "0x77103B69f680BCd3df75F7D7ed3a67030130736a", quote: QUOTE.STONK, gen: "v1-quoted" },
-  { addr: "0xa70A17f5522Bb0c701380Df1b0897b4BE5161564", quote: QUOTE.USDG, gen: "v1-quoted" },
-  { addr: "0xbAb114C56d12d26e901D0f14B4583Cc0a02537b4", quote: QUOTE.GME, gen: "v1-quoted" },
-  { addr: "0x2e512f316751589eB521B7c55Ee9E824ABb80B8E", quote: QUOTE.NVDA, gen: "v1-quoted" },
-  { addr: "0xFDEb6d19354ed2eB905bfB9899086A5270302eF3", quote: QUOTE.AAPL, gen: "v1-quoted" },
-  { addr: "0xcCfe8A38D0C1ba104E362eDCf85DAda11de2Ae62", quote: QUOTE.SPCX, gen: "v1-quoted" },
-  { addr: "0xd31228e555d0759ed627E3249Ab6F7C286b9B8af", quote: QUOTE.USO, gen: "v1-quoted" },
-  { addr: "0xABEa69101B2a19347A34339F24cAD8b9523E9c29", quote: QUOTE.WETH, gen: "v1-quoted" },
-  // V2 lanes (StonkSafeLaunchpadV2, opened 2026-08-21/22)
-  { addr: "0xFCd61B25BbF3AbD6cf0070D6328E351cc30EEC9f", quote: QUOTE.WETH, gen: "v2" },
-  { addr: "0x8f6782c5Aa37804d08a9b7bf3984Ff3245Fd6cD4", quote: QUOTE.STONK, gen: "v2" },
-  { addr: "0xd4F20033586977A2511f4A2DB4aF7C79a340D70a", quote: QUOTE.USDG, gen: "v2" },
-  { addr: "0x4B9Dcd6CCFAeF0f6D23065Dd78E79d5E20ec8cFD", quote: QUOTE.GME, gen: "v2" },
-  { addr: "0xEe96d955d5634813374ecE4C74F2C0ff71B1F9fB", quote: QUOTE.NVDA, gen: "v2" },
-  { addr: "0xB0453A81Cbf963903409FFF18AD92941e1c7a864", quote: QUOTE.AAPL, gen: "v2" },
-  { addr: "0x0c3b4EDED41696eFF0ed70841f132B519d81c947", quote: QUOTE.SPCX, gen: "v2" },
-  { addr: "0xDb3C81C841ff88db6cDFbDDB0eE049D162A6053B", quote: QUOTE.USO, gen: "v2" },
-  // r2 / "v3" pad generation (abort() C-01 patch, BYO path, 2026-08-23)
-  { addr: "0x5BCEefBa6fDf437A7388aDC5c9056c827baca3B3", quote: QUOTE.WETH, gen: "r2" },
-  { addr: "0x406fd0B957bb8cF1dd57C78540D009578e971131", quote: QUOTE.STONK, gen: "r2" },
-  { addr: "0xF0A06Ac7BBb0cc3049B68c257c3ee27CcEA40eeA", quote: QUOTE.USDG, gen: "r2" },
-  { addr: "0x5b21F8a5Ef81586627B4725844aD447325d0992B", quote: QUOTE.GME, gen: "r2" },
-  { addr: "0xDf03953DCA8dB733345278A0c5fd2E81fa2A9B54", quote: QUOTE.NVDA, gen: "r2" },
-  { addr: "0xc522DfaE0D1a140257702392B665183a6De7657f", quote: QUOTE.AAPL, gen: "r2" },
-  { addr: "0xd82da1D8ef59959b170b59147283Ab1F2F1Ca86A", quote: QUOTE.SPCX, gen: "r2" },
-  { addr: "0x644b19512052A1b6d38d7B16C6c3Fb1d3F7270D2", quote: QUOTE.USO, gen: "r2" },
-];
-const SAFE_PAD_TARGETS = SAFE_LAUNCH_PADS.map((p) => p.addr);
-// Production tax split, applied by the go-live `setFeeSplit(1650, 1650, 5000)`
-// and snapshotted into every launch: creator / protocol / locked-LP reserve,
-// remainder (1700) punches through the Clock In Card → ~0.5% of tax to the
-// referrer, the rest to StockBooster Clock In dividends.
-const SAFE_CREATOR_BPS = 1650n;
-const SAFE_PROTOCOL_BPS = 1650n;
-const SAFE_LP_BPS = 5000n;
-
-// Bonding-curve Stonk Launcher factory (closed; residual curve trading).
-const LAUNCHER_FACTORY = "0x80a77001456bc986083678F9a112B1EC2Aa07281";
-const LAUNCHER_FACTORY_START = 34_876_725;
-const LAUNCHER_CREATOR_BPS = 3333n;
-const LAUNCHER_STONK_BPS = 3333n;
-// protocol = 10000 - 3333 - 3333 = 3334
+const LOCKER_PROTOCOL_BPS = 1000n; // SafetyDepositClockInV3 PROTOCOL_BPS
+const LOCKER_BROKER_BPS = 9000n;
 
 // Token vesting locker — 1 bps deposit fee → SafetyDepositClockInV3.
 const VESTING_LOCKER = "0x2b4aD79DA7BD3bF340bBd2aD2039b149214e9Aa9";
 
-// Smart LP (Volatility Farming) — immutable concentrated-liquidity vaults on
-// canonical Uniswap V3 pools (live 2026-09-08). The on-chain registry is the
-// single discovery surface for the fleet (~165 vaults). Every fee collection
-// emits FeesCollected on the vault: fees0/fees1 = gross pool fees collected,
-// skim0/skim1 = the 10% performance fee, which splits 50% StockBooster
-// (Clock In dividends) / 50% $STONKBROKER buybacks. The remaining 90%
-// auto-compounds back into the vault position for depositors.
-const SMART_LP_REGISTRY = "0xE8749183Fbf6A657EB58B3a4D3E4B9Cc09560146";
+// Uniswap v4 protocol-owned liquidity: the canonical STONK/ETH 1% pool's
+// dominant position (#175704) sits in an ownerless forever-escrow whose sole
+// irrevocable fee recipient is the treasury. Principal is locked forever as
+// market depth; the fee stream is protocol revenue. Fees are computed from
+// the PoolManager's Swap events on that pool, attributed by the escrow
+// position's share of the active liquidity carried in each Swap log (the
+// position is full-range, so it is always in range).
+const UNI_V4_POSM = "0x58daec3116aae6D93017bAAea7749052E8a04fA7";
+const POL_V4_POOL_ID = "0xd33c8fd38b06e989cdbd4dffdefab71c4bdd415b24964c8d69e38ff35b068f92";
+const POL_V4_POSITION_ID = 175704;
 
-const NFT_SOLD =
-  "event NFTSold(address indexed seller, uint256 indexed tokenId, uint256 tokensOut, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
-const NFT_BOUGHT =
-  "event NFTBought(address indexed buyer, uint256 indexed tokenId, uint256 tokensIn, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare, bool isSpecific)";
-const LOAN_CREATED =
-  "event LoanCreated(address indexed borrower, uint256 indexed loanId, uint256 indexed tokenId, uint256 principal, uint256 duration, uint256 ethFeePaid, uint256 boosterShare, uint256 protocolShare)";
-const ACTIVATED =
-  "event Activated(uint256 indexed tokenId, address indexed owner, uint8 tier, uint256 feePaid)";
-const ACTIVATION_UPGRADED =
-  "event ActivationUpgraded(uint256 indexed tokenId, address indexed owner, uint8 fromTier, uint8 toTier, uint256 feePaid)";
-
-// Stonk Interns: a paid release flips one dormant intern out of its parent
-// broker's token-bound wallet. ethPaid is the $20 ETH leg; stonkPaid is the
-// $STONKBROKER leg (both forwarded inside the same transaction).
-const INTERN_RELEASED =
-  "event DormantReleased(uint256 indexed internId, uint256 indexed brokerId, address indexed to, address wallet, uint256 ethPaid)";
-const INTERN_SHARE_SET =
-  "event InternShareSet(uint256 indexed internId, uint256 indexed brokerId, uint16 oldBps, uint16 newBps, uint256 ethPaid)";
-const EDGE_SKIMMED =
-  "event EdgeSkimmed(uint256 indexed roundId, uint256 creatorWei, uint256 boosterWei, uint256 protocolWei)";
-const PULL_OPENED =
-  "event PullOpened(uint256 indexed roundId, address indexed player, uint8 tier, bool wantCertificate, uint256 ticketWei, uint256 requestId, uint256 stockReserved)";
-const SOLD_BACK =
-  "event SoldBack(address indexed seller, uint256 stockAmount, uint256 ethOut)";
-const SOLD_BACK_USDG =
-  "event SoldBackUsdg(address indexed seller, uint256 stockAmount, uint256 usdgOut)";
-const CERTIFICATE_BOUGHT =
-  "event CertificateBought(uint256 indexed tokenId, address indexed buyer, address indexed recipient, address stockToken, uint256 stockAmount, uint256 spendWei, uint256 feeWei, address wallet)";
 const LOCK_FEES_COLLECTED =
   "event LockFeesCollected(uint256 indexed lockTokenId, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
 // liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
@@ -260,117 +54,17 @@ const LOCK_LIQUIDITY_DECREASED =
 // lockPositions lookup is needed for these.
 const LOCK_TOKENS_PAID =
   "event LockTokensPaid(uint256 indexed lockTokenId, address indexed token, uint256 userAmount, uint256 protocolAmount)";
-const WALL_BOUGHT =
-  "event WallBought(address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
-const PAD_BUY =
-  "event PadBuy(uint256 indexed launchId, address indexed buyer, uint256 quoteIn, uint256 taxPaid, uint256 netIn, uint256 tokensOut)";
-const PAD_TAX_COLLECTED =
-  "event PadTaxCollected(uint256 indexed launchId, uint256 tax, uint256 boost, uint256 lp, uint256 booster, uint256 protocol, uint256 creator)";
-const FACTION_REGISTERED =
-  "event FactionRegistered(bytes32 indexed factionId, address indexed token, bytes32 indexed poolId, address anvilFactory, uint256 anvilMarketId, address nftCollection)";
-const SNIPE_TAX_COLLECTED =
-  "event SnipeTaxCollected(bytes32 indexed poolId, uint256 taxWeth, uint16 taxBps, uint256 boostAmount, uint256 lpAmount, uint256 boosterAmount, uint256 protocolAmount, uint256 creatorAmount)";
-const ROYALTY_FLUSHED = "event Flushed(address indexed token, uint256 toPot, uint256 toTeam)";
-const SAFE_BUY =
-  "event SafeBuy(uint256 indexed id, address indexed buyer, uint256 ethIn, uint256 taxPaid, uint256 taxBps, uint256 tokensOut, uint256 mcapUsd8)";
-const SAFE_SELL =
-  "event SafeSell(uint256 indexed id, address indexed seller, uint256 tokensIn, uint256 taxPaid, uint256 taxBps, uint256 ethOut, uint256 mcapUsd8)";
-const TOKEN_LAUNCHED =
-  "event TokenLaunched(address indexed creator, address indexed memeToken, address indexed pool, string name, string symbol, string metadataURI, bytes32 imageHash)";
-const CURVE_TRADE =
-  "event Trade(address indexed trader, bool indexed isBuy, uint256 quoteAmount, uint256 tokenAmount, uint256 feeAmount, uint256 newRealQuote, uint256 newSold)";
 const POSITION_LOCKED =
   "event PositionLocked(address indexed token, uint256 indexed lockTokenId, address indexed owner, address vault, uint64 startUnlock, uint64 finishUnlock, uint256 initialAmount, uint256 feeAmount)";
-const SMART_LP_FEES_COLLECTED =
-  "event FeesCollected(uint256 fees0, uint256 fees1, uint256 skim0, uint256 skim1)";
-
-/** USDG on Robinhood Chain — sell-back rail payout token. */
-const ROBINHOOD_USDG = ADDRESSES.robinhood.USDG;
 
 const LABELS = {
-  AMM_FEES: "NFT AMM trade fees",
-  LOAN_FEES: "NFT loan fees",
-  ACTIVATION_FEES: "Broker activation fees ($STONKBROKER)",
-  AMM_STOCK_DIVIDENDS: "NFT AMM fees → StockBooster dividends to activated brokers",
-  LOAN_STOCK_DIVIDENDS: "NFT loan fees → StockBooster dividends to activated brokers",
-  AMM_PROTOCOL_TREASURY: "NFT AMM fees → ProtocolFeeSink",
-  LOAN_PROTOCOL_TREASURY: "NFT loan fees → ProtocolFeeSink",
-  ACTIVATION_BURN: "Activation fees burned (deflationary $STONKBROKER)",
-  ACTIVATION_PROTOCOL: "Activation fees → protocol",
-  INTERNS_MINT: "Stonk Interns mint fees (ETH leg + $STONKBROKER leg + $1 promotion fee)",
-  INTERNS_MINT_PAYROLL: "Stonk Interns mint ETH → intern Clock In payroll (25%)",
-  INTERNS_MINT_TREASURY: "Stonk Interns mint fees → protocol treasury (75% of the ETH leg, 100% of the STONK leg and the promotion fee)",
-  INTERNS_ACTIVATION: "Stonk Interns activation fees in $STONKBROKER",
-  INTERNS_ACTIVATION_BURN: "Stonk Interns activation fees burned (50%)",
-  INTERNS_ACTIVATION_PROTOCOL: "Stonk Interns activation fees → protocol treasury (50%)",
-  GACHA_FEES: "Broker Box gachapon edge (10% of ticket)",
-  GACHA_STOCK_DIVIDENDS: "Broker Box edge → StockBooster / creator",
-  GACHA_PROTOCOL: "Broker Box edge → protocol accrual",
-  GACHA_SELLBACK: "Broker Box 5% sell-back spread (retained in bankroll)",
-  COUNTER_FEES: "Certificate Counter flat $2 fee",
-  COUNTER_STOCK_DIVIDENDS: "Certificate Counter fee → StockBooster",
-  COUNTER_PROTOCOL: "Certificate Counter fee → treasury",
   LOCKER_FEES: "Safety Deposit Box liquidity-locker protocol fees",
   LOCKER_STOCK_DIVIDENDS: "Locker fees → SafetyDepositClockIn brokers (90%)",
   LOCKER_PROTOCOL: "Locker fees → protocol wallet (10%)",
   LOCKER_LP_FEES: "Locked-LP trading fees claimed by lock owners (80% creator share)",
   POL_V4_FEES: "Uniswap v4 POL fee income (forever-locked STONK/ETH position → treasury)",
-  SWAP_DESK_FEES: "Swap-desk Relay app fees (1%)",
-  LAUNCH_TAX: "Anti-snipe launch tax (time-decay snipe tax on curve buys)",
-  LAUNCH_TAX_DIVIDENDS: "Anti-snipe launch tax → StockBooster dividends (90%)",
-  LAUNCH_TAX_DEV: "Anti-snipe launch tax → launch dev (10%)",
-  CIV_TAX: "Civilization anti-snipe pad snipe tax (Nightshades faction launches, time-decay tax on curve buys)",
-  CIV_REOPEN_TAX: "Civilization sunrise reopen snipe tax (daily time-decay tax on hooked v4 pool trades after each night)",
-  CIV_TAX_PROTOCOL: "Civilization snipe tax → protocol treasury (13.33%)",
-  CIV_TAX_BOOST: "Civilization snipe tax → next-night boost pot (50%)",
-  CIV_TAX_LP: "Civilization snipe tax → faction's own locked pool (10%)",
-  CIV_TAX_BOOSTER: "Civilization snipe tax → StockBooster dividends (13.33%)",
-  CIV_TAX_CREATOR: "Civilization snipe tax → game creator (13.34%)",
-  CIV_POOL_SWAPS: "Civilization faction pool swaps (Nightshades hooked Uniswap v4 pools)",
-  CIV_POOL_LP_FEES: "Civilization faction pool 1% LP fee (100% protocol-owned game liquidity)",
-  CIV_NFT_ROYALTY_POT: "Nightshades NFT royalty (10% of secondary sales) → game vault as survivor pool liquidity (75%)",
-  CIV_NFT_ROYALTY_TEAM: "Nightshades NFT royalty (10% of secondary sales) → team wallet (25%)",
-  SAFE_TAX: "Safe Launch / Stonklauncher snipe tax (time-decay tax on window trades)",
-  SAFE_TAX_PROTOCOL: "Safe Launch tax → protocol accrual (16.5%)",
-  SAFE_TAX_CREATOR: "Safe Launch tax → launch creator (16.5%)",
-  SAFE_TAX_BOOSTER: "Safe Launch tax → StockBooster + Clock In Card referrers (17%)",
-  SAFE_TAX_LP: "Safe Launch tax → permanently locked LP reserve / ICO Bonus (50%)",
-  CURVE_FEES: "Stonk Launcher bonding-curve trade fees (1%)",
-  CURVE_PROTOCOL: "Bonding-curve fees → protocol (33.34%)",
-  CURVE_CREATOR: "Bonding-curve fees → creator (33.33%)",
-  CURVE_STONK: "Bonding-curve fees → StonkBrokers Directed Clock In / pot (33.33%)",
   VESTING_FEES: "Token vesting locker deposit fees (0.01%)",
-  SMARTLP_FEES: "Smart LP vault pool fees (Volatility Farming)",
-  SMARTLP_COMPOUND: "Smart LP fees auto-compounded to vault depositors (90%)",
-  SMARTLP_DIVIDENDS: "Smart LP performance fee → StockBooster Clock In dividends (5%)",
-  SMARTLP_BUYBACK: "Smart LP performance fee → $STONKBROKER buybacks (5%)",
 };
-
-// Uniswap v4 protocol-owned liquidity: the canonical STONK/ETH 1% pool's
-// dominant position (#175704) sits in an ownerless forever-escrow whose sole
-// irrevocable fee recipient is the treasury. Principal is locked forever as
-// market depth; the fee stream is protocol revenue. Fees are computed from
-// the PoolManager's Swap events on that pool, attributed by the escrow
-// position's share of the active liquidity carried in each Swap log (the
-// position is full-range, so it is always in range).
-const UNI_V4_POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
-const UNI_V4_POSM = "0x58daec3116aae6D93017bAAea7749052E8a04fA7";
-const POL_V4_POOL_ID =
-  "0xd33c8fd38b06e989cdbd4dffdefab71c4bdd415b24964c8d69e38ff35b068f92";
-const POL_V4_POSITION_ID = 175704;
-const UNI_V4_SWAP =
-  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
-const UNI_V4_SWAP_TOPIC0 =
-  "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-
-const RANDOM_FEE_BPS = 1000n;
-const SPECIFIC_FEE_BPS = 1500n;
-const ACTIVATION_BURN_BPS = 5000n;
-const ACTIVATION_PROTOCOL_BPS = 5000n;
-const LOCKER_PROTOCOL_BPS = 1000n; // SafetyDepositClockInV3 PROTOCOL_BPS
-const LOCKER_BROKER_BPS = 9000n;
-
-const ZERO = ADDRESSES.null;
 
 type LockerKind = "v3" | "v4" | "upv2" | "upcl";
 
@@ -384,6 +78,13 @@ const LOCK_POSITIONS_ABI: Record<LockerKind, string> = {
   // CLLock: positionTokenId, lockTokenId, token0, token1, tickSpacing, ...
   upcl: "function lockPositions(uint256) view returns (uint256 positionTokenId, uint256 lockTokenId, address token0, address token1, int24 tickSpacing, uint128 initialLiquidity, uint128 withdrawnLiquidity, uint64 startUnlock, uint64 finishUnlock, uint8 feeMode, bool closed, address gauge)",
 };
+
+const LOCKER_META: { addr: string; kind: LockerKind }[] = [
+  { addr: LOCKER_V3, kind: "v3" },
+  { addr: LOCKER_V4, kind: "v4" },
+  { addr: LOCKER_UP_V2, kind: "upv2" },
+  { addr: LOCKER_UP_CL, kind: "upcl" },
+];
 
 /** Resolve token0/token1 (or currency0/currency1) for a lock, caching per id. */
 async function resolveLockTokens(
@@ -405,196 +106,52 @@ async function resolveLockTokens(
     if (!row) return;
     const t0 = kind === "v4" ? (row.currency0 || row[0]) : (row.token0 || row[2]);
     const t1 = kind === "v4" ? (row.currency1 || row[1]) : (row.token1 || row[3]);
-    cache.set(`${locker}:${missing[i]}`, [
-      (t0 || ZERO).toLowerCase(),
-      (t1 || ZERO).toLowerCase(),
-    ]);
+    cache.set(`${locker}:${missing[i]}`, [(t0 || ZERO).toLowerCase(), (t1 || ZERO).toLowerCase()]);
   });
 }
 
-function addProtocolCut(
-  balances: ReturnType<FetchOptions["createBalances"]>,
-  token: string,
-  amount: bigint,
-  label: string,
-) {
-  if (amount <= 0n) return;
-  if (!token || token === ZERO) balances.addGasToken(amount, label);
-  else balances.addToken(token, amount, label);
-}
-
-/** Add a Safe Launch quote amount: native ETH when quote is null, else the quote token. */
-function addSafeQuote(
-  balances: ReturnType<FetchOptions["createBalances"]>,
-  quote: string | null,
-  amount: bigint,
-  label?: string,
-) {
-  if (amount <= 0n) return;
-  if (!quote) {
-    if (label) balances.addGasToken(amount, label);
-    else balances.addGasToken(amount);
-  } else if (label) {
-    balances.addToken(quote, amount, label);
-  } else {
-    balances.addToken(quote, amount);
-  }
-}
-
-const LOCKER_META: { addr: string; kind: LockerKind }[] = [
-  { addr: LOCKER_V3, kind: "v3" },
-  { addr: LOCKER_V4, kind: "v4" },
-  { addr: LOCKER_UP_V2, kind: "upv2" },
-  { addr: LOCKER_UP_CL, kind: "upcl" },
-];
-
-const fetchRobinhood = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
 
-  const [soldLogs, boughtLogs, loansLogs] = await Promise.all([
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_SOLD,}),
-    options.getLogs({ target: AMM_VAULT, eventAbi: NFT_BOUGHT,}),
-    options.getLogs({ target: LOAN_VAULT, eventAbi: LOAN_CREATED,}),
-  ]);
-
-  const [activatedLogs, upgradedLogs, counterLogs, internActivatedLogs, internUpgradedLogs] =
-    await Promise.all([
-      options.getLogs({ target: ACTIVATION_MANAGER, eventAbi: ACTIVATED,}),
-      options.getLogs({
-        target: ACTIVATION_MANAGER,
-        eventAbi: ACTIVATION_UPGRADED,
-      }),
-      options.getLogs({
-        target: CERTIFICATE_COUNTER,
-        eventAbi: CERTIFICATE_BOUGHT,
-      }),
-      options.getLogs({ target: INTERNS_ACTIVATION, eventAbi: ACTIVATED }),
-      options.getLogs({ target: INTERNS_ACTIVATION, eventAbi: ACTIVATION_UPGRADED }),
-    ]);
-
-  const [launchBuyLogs, civBuyLogs, civTaxLogs] = await Promise.all([
-    options.getLogs({
-      targets: ANTI_SNIPE_LAUNCHES,
-      eventAbi: WALL_BOUGHT,
+  // Robinhood is not in addTokensReceived's log-fallback chain map, so locker
+  // cuts are read from the fee events + a lockPositions lookup. Fetched one
+  // locker at a time: getLogs defaults to onlyArgs, so multi-target results
+  // carry no log.address to attribute the emitting locker with.
+  const lockerLogBatches = await Promise.all(
+    LOCKER_META.flatMap(({ addr, kind }) => {
+      const batches = [
+        options.getLogs({ target: addr, eventAbi: LOCK_FEES_COLLECTED }).then((logs) => ({ addr, kind, logs })),
+      ];
+      // LockLiquidityDecreased exists on the position-NFT lockers (V3, V4,
+      // up. CL); the up. v2 locker withdraws LP tokens instead (not evented
+      // per pair token, so its withdraw cut is not visible here).
+      if (kind !== "upv2") {
+        batches.push(
+          options.getLogs({ target: addr, eventAbi: LOCK_LIQUIDITY_DECREASED }).then((logs) => ({ addr, kind, logs })),
+        );
+      }
+      return batches;
     }),
-    options.getLogs({
-      targets: CIV_ANTI_SNIPE_PADS,
-      eventAbi: PAD_BUY,
-    }),
-    options.getLogs({
-      targets: CIV_ANTI_SNIPE_PADS,
-      eventAbi: PAD_TAX_COLLECTED,
-    }),
-  ]);
-
-  // Civilization post-bond game pools: discover every faction's hooked v4
-  // pool id from the vault's registration events (full history, cached), then
-  // read the PoolManager Swap tape for those pools plus the hook's reopen
-  // snipe tax. entireLog keeps transactionHash so a buy's tax can be re-added
-  // to the net-of-tax Swap delta (see the volume section below).
-  const factionRegistered = await options.getLogs({
-    target: CIV_FACTION_VAULT,
-    fromBlock: CIV_FACTION_VAULT_START,
-    eventAbi: FACTION_REGISTERED,
-    cacheInCloud: true,
-  });
-  const civPoolIds = [
-    ...new Set(
-      factionRegistered
-        .map((l: any) => String(l.poolId || "").toLowerCase())
-        .filter((id: string) => /^0x[0-9a-f]{64}$/.test(id)),
-    ),
-  ];
-  // One Swap query per pool id (topic1 filter) — the indexer path takes a
-  // single topic1 string, so an OR-array of pool ids is not portable.
-  const [civPoolSwapLogsByPool, civReopenTaxLogs, civRoyaltyFlushLogs] = await Promise.all([
-    Promise.all(
-      civPoolIds.map((poolId) =>
-        options.getLogs({
-          target: UNI_V4_POOL_MANAGER,
-          topics: [UNI_V4_SWAP_TOPIC0, poolId],
-          eventAbi: UNI_V4_SWAP,
-          entireLog: true,
-        }),
-      ),
-    ),
-    options.getLogs({
-      target: CIV_GAME_HOOK,
-      eventAbi: SNIPE_TAX_COLLECTED,
-      entireLog: true,
-    }),
-    options.getLogs({
-      target: CIV_ROYALTY_SPLITTER,
-      eventAbi: ROYALTY_FLUSHED,
-    }),
-  ]);
-  const civPoolSwapLogs: any[] = civPoolSwapLogsByPool.flat();
-
-  const [safeBuyLogsByPad, safeSellLogsByPad] = await Promise.all([
-    options.getLogs({
-      targets: SAFE_PAD_TARGETS,
-      eventAbi: SAFE_BUY,
-      flatten: false,
-    }),
-    options.getLogs({
-      targets: SAFE_PAD_TARGETS,
-      eventAbi: SAFE_SELL,
-      flatten: false,
-    }),
-  ]);
-
-  // Bonding-curve launcher pools (closed factory — residual trading).
-  const launched = await options.getLogs({
-    target: LAUNCHER_FACTORY,
-    fromBlock: LAUNCHER_FACTORY_START,
-    eventAbi: TOKEN_LAUNCHED,
-    cacheInCloud: true,
-  });
-  const curvePools = [
-    ...new Set(
-      launched
-        .map((l: any) => String(l.pool || "").toLowerCase())
-        .filter((a: string) => /^0x[0-9a-f]{40}$/.test(a)),
-    ),
-  ];
-  const curveTradeLogs =
-    curvePools.length > 0
-      ? await options.getLogs({ targets: curvePools, eventAbi: CURVE_TRADE })
-      : [];
-
-  const vestingLockedLogs = await options.getLogs({
-    target: VESTING_LOCKER,
-    eventAbi: POSITION_LOCKED,
-  });
-
-  // Smart LP vault fleet — registry-enumerated (the registry is the only
-  // discovery surface). flatten:false so each vault's logs attribute to its
-  // own token0/token1 pair.
-  const smartLpVaults: string[] =
-    (await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY }));
-  const smartLpFeeLogsByVault: any[][] = smartLpVaults.length
-    ? await options.getLogs({
-        targets: smartLpVaults,
-        eventAbi: SMART_LP_FEES_COLLECTED,
-        flatten: false,
-      })
-    : [];
+  );
+  // Gauge-staking payout cuts on the up. lockers carry the token in the event.
+  const lockerTokensPaidLogs = await Promise.all(
+    [LOCKER_UP_V2, LOCKER_UP_CL].map((addr) => options.getLogs({ target: addr, eventAbi: LOCK_TOKENS_PAID })),
+  );
+  const vestingLockedLogs = await options.getLogs({ target: VESTING_LOCKER, eventAbi: POSITION_LOCKED });
 
   // v4 POL: read the escrow position's live liquidity (full-range, so it is
   // always in range), then the pool's Swap tape. Each Swap log carries the
   // pool's active liquidity during that swap — the escrow's fee share of a
   // swap is posLiquidity / swapLiquidity, capped at 1.
   const polV4Liquidity = BigInt(
-    (await options.api.call({
+    await options.api.call({
       abi: "function getPositionLiquidity(uint256) view returns (uint128)",
       target: UNI_V4_POSM,
       params: [POL_V4_POSITION_ID],
-    })),
+    }),
   );
   const polV4SwapLogs =
     polV4Liquidity > 0n
@@ -604,457 +161,6 @@ const fetchRobinhood = async (options: FetchOptions) => {
           topics: [UNI_V4_SWAP_TOPIC0, POL_V4_POOL_ID],
         })
       : [];
-
-  const [edgeLogs, pullLogs, soldBackLogs, soldBackUsdgLogs] = await Promise.all([
-    options.getLogs({
-      targets: GACHA_MACHINES,
-      eventAbi: EDGE_SKIMMED,
-    }),
-    options.getLogs({
-      targets: GACHA_MACHINES,
-      eventAbi: PULL_OPENED,
-    }),
-    options.getLogs({
-      targets: GACHA_MACHINES,
-      eventAbi: SOLD_BACK,
-    }),
-    options.getLogs({
-      targets: GACHA_MACHINES,
-      eventAbi: SOLD_BACK_USDG,
-    }),
-  ]);
-
-  // Robinhood is not in addTokensReceived's log-fallback chain map, so locker
-  // cuts are read from the fee events + a lockPositions lookup. Fetched one
-  // locker at a time: getLogs defaults to onlyArgs, so multi-target results
-  // carry no log.address to attribute the emitting locker with.
-  const lockerLogBatches = await Promise.all(
-    LOCKER_META.flatMap(({ addr, kind }) => {
-      const batches = [
-        options.getLogs({ target: addr, eventAbi: LOCK_FEES_COLLECTED })
-          .then((logs) => ({ addr, kind, logs })),
-      ];
-      // LockLiquidityDecreased exists on the position-NFT lockers (V3, V4,
-      // up. CL); the up. v2 locker withdraws LP tokens instead (not evented
-      // per pair token, so its withdraw cut is not visible here).
-      if (kind !== "upv2") {
-        batches.push(
-          options.getLogs({ target: addr, eventAbi: LOCK_LIQUIDITY_DECREASED })
-            .then((logs) => ({ addr, kind, logs })),
-        );
-      }
-      return batches;
-    }),
-  );
-  // Gauge-staking payout cuts on the up. lockers carry the token in the event.
-  const lockerTokensPaidLogs = await Promise.all(
-    [LOCKER_UP_V2, LOCKER_UP_CL].map((addr) =>
-      options.getLogs({ target: addr, eventAbi: LOCK_TOKENS_PAID }),
-    ),
-  );
-
-  // ── NFT AMM + loans ──────────────────────────────────────────────────────
-  for (const log of [...soldLogs, ...boughtLogs]) {
-    const bps = log.isSpecific ? SPECIFIC_FEE_BPS : RANDOM_FEE_BPS;
-    dailyVolume.addGasToken((log.ethFeePaid * 10_000n) / bps);
-
-    dailyFees.addGasToken(log.ethFeePaid, LABELS.AMM_FEES);
-    dailySupplySideRevenue.addGasToken(log.boosterShare, LABELS.AMM_STOCK_DIVIDENDS);
-    dailyProtocolRevenue.addGasToken(log.protocolShare, LABELS.AMM_PROTOCOL_TREASURY);
-    dailyRevenue.addGasToken(log.protocolShare, LABELS.AMM_PROTOCOL_TREASURY);
-  }
-
-  for (const log of loansLogs) {
-    dailyFees.addGasToken(log.ethFeePaid, LABELS.LOAN_FEES);
-    dailySupplySideRevenue.addGasToken(log.boosterShare, LABELS.LOAN_STOCK_DIVIDENDS);
-    dailyProtocolRevenue.addGasToken(log.protocolShare, LABELS.LOAN_PROTOCOL_TREASURY);
-    dailyRevenue.addGasToken(log.protocolShare, LABELS.LOAN_PROTOCOL_TREASURY);
-  }
-
-  // ── Activation fees ──────────────────────────────────────────────────────
-  for (const log of [...activatedLogs, ...upgradedLogs]) {
-    const fee = BigInt(log.feePaid);
-    dailyFees.addToken(STONKBROKER, fee, LABELS.ACTIVATION_FEES);
-    dailyHoldersRevenue.addToken(
-      STONKBROKER,
-      (fee * ACTIVATION_BURN_BPS) / 10_000n,
-      LABELS.ACTIVATION_BURN,
-    );
-    dailyProtocolRevenue.addToken(
-      STONKBROKER,
-      (fee * ACTIVATION_PROTOCOL_BPS) / 10_000n,
-      LABELS.ACTIVATION_PROTOCOL,
-    );
-    dailyRevenue.addToken(STONKBROKER, fee, LABELS.ACTIVATION_FEES);
-  }
-
-  // ── Stonk Interns (mint opened 2026-09-19) ───────────────────────────────
-  // A paid release moves one dormant intern out of its parent broker's
-  // token-bound wallet. The ETH leg splits 25% payroll / 75% treasury; the
-  // $STONKBROKER leg and the $1 promotion fee are 100% treasury. Activation
-  // fees mirror the broker activation split (50% burned / 50% treasury).
-  const [internReleasedLogs, internShareLogs] = await Promise.all([
-    options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_RELEASED }),
-    options.getLogs({ target: INTERNS_COLLECTION, eventAbi: INTERN_SHARE_SET }),
-  ]);
-  const internStonkPaid: any = await addTokensReceived({
-    options,
-    tokens: [STONKBROKER],
-    fromAdddesses: [INTERNS_COLLECTION],
-    target: INTERNS_TREASURY,
-  });
-  const internMintEth = internReleasedLogs.reduce(
-    (sum: bigint, log: any) => sum + BigInt(log.ethPaid),
-    0n,
-  );
-  if (internMintEth > 0n) {
-    const toPayroll = (internMintEth * INTERNS_MINT_ENGINE_BPS) / 10_000n;
-    const toTreasury = internMintEth - toPayroll;
-    dailyVolume.addGasToken(internMintEth, LABELS.INTERNS_MINT);
-    dailyFees.addGasToken(internMintEth, LABELS.INTERNS_MINT);
-    if (toPayroll > 0n) {
-      dailySupplySideRevenue.addGasToken(toPayroll, LABELS.INTERNS_MINT_PAYROLL);
-    }
-    if (toTreasury > 0n) {
-      dailyProtocolRevenue.addGasToken(toTreasury, LABELS.INTERNS_MINT_TREASURY);
-      dailyRevenue.addGasToken(toTreasury, LABELS.INTERNS_MINT_TREASURY);
-    }
-  }
-  if (internStonkPaid[STONKBROKER] > 0n) {
-    dailyFees.addToken(STONKBROKER, internStonkPaid[STONKBROKER], LABELS.INTERNS_MINT);
-    dailyProtocolRevenue.addToken(
-      STONKBROKER,
-      internStonkPaid[STONKBROKER],
-      LABELS.INTERNS_MINT_TREASURY,
-    );
-    dailyRevenue.addToken(
-      STONKBROKER,
-      internStonkPaid[STONKBROKER],
-      LABELS.INTERNS_MINT_TREASURY,
-    );
-  }
-  for (const log of internShareLogs) {
-    const fee = BigInt(log.ethPaid);
-    if (fee <= 0n) continue;
-    dailyFees.addGasToken(fee, LABELS.INTERNS_MINT);
-    dailyProtocolRevenue.addGasToken(fee, LABELS.INTERNS_MINT_TREASURY);
-    dailyRevenue.addGasToken(fee, LABELS.INTERNS_MINT_TREASURY);
-  }
-  for (const log of [...internActivatedLogs, ...internUpgradedLogs]) {
-    const fee = BigInt(log.feePaid);
-    if (fee <= 0n) continue;
-    const burned = (fee * ACTIVATION_BURN_BPS) / 10_000n;
-    const protocol = (fee * ACTIVATION_PROTOCOL_BPS) / 10_000n;
-    dailyFees.addToken(STONKBROKER, fee, LABELS.INTERNS_ACTIVATION);
-    dailyHoldersRevenue.addToken(STONKBROKER, burned, LABELS.INTERNS_ACTIVATION_BURN);
-    dailyProtocolRevenue.addToken(STONKBROKER, protocol, LABELS.INTERNS_ACTIVATION_PROTOCOL);
-    dailyRevenue.addToken(STONKBROKER, fee, LABELS.INTERNS_ACTIVATION);
-  }
-
-  // ── Broker Box gachapon volume + fees ────────────────────────────────────
-  // Volume: ticket notional at open + sell-back payouts + counter stock buys.
-  // Fees: EdgeSkimmed (10% of settled ticket) + Certificate Counter $2 fee.
-  // Official machines set creator = StockBooster, so creatorWei + boosterWei
-  // both fund Clock In stock drops. protocolWei accrues for the treasury.
-  for (const log of pullLogs) {
-    const ticket = BigInt(log.ticketWei);
-    if (ticket > 0n) dailyVolume.addGasToken(ticket);
-  }
-  // Sell-back pays 95% of the mark; the 5% spread stays in the machine bankroll
-  // (reclaimable by treasury on official machines). Implied from payout: spread =
-  // ethOut × 5/95. No separate fee event exists on-chain.
-  for (const log of soldBackLogs) {
-    const ethOut = BigInt(log.ethOut);
-    if (ethOut <= 0n) continue;
-    dailyVolume.addGasToken(ethOut);
-    const spread = (ethOut * 5n) / 95n;
-    if (spread > 0n) {
-      dailyFees.addGasToken(spread, LABELS.GACHA_SELLBACK);
-      dailyProtocolRevenue.addGasToken(spread, LABELS.GACHA_SELLBACK);
-      dailyRevenue.addGasToken(spread, LABELS.GACHA_SELLBACK);
-    }
-  }
-  for (const log of soldBackUsdgLogs) {
-    const usdgOut = BigInt(log.usdgOut);
-    if (usdgOut <= 0n) continue;
-    dailyVolume.addToken(ROBINHOOD_USDG, usdgOut);
-    const spread = (usdgOut * 5n) / 95n;
-    if (spread > 0n) {
-      dailyFees.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
-      dailyProtocolRevenue.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
-      dailyRevenue.addToken(ROBINHOOD_USDG, spread, LABELS.GACHA_SELLBACK);
-    }
-  }
-
-  for (const log of edgeLogs) {
-    const creator = BigInt(log.creatorWei);
-    const booster = BigInt(log.boosterWei);
-    const protocol = BigInt(log.protocolWei);
-    const total = creator + booster + protocol;
-    if (total <= 0n) continue;
-    dailyFees.addGasToken(total, LABELS.GACHA_FEES);
-    dailySupplySideRevenue.addGasToken(creator + booster, LABELS.GACHA_STOCK_DIVIDENDS);
-    dailyProtocolRevenue.addGasToken(protocol, LABELS.GACHA_PROTOCOL);
-    dailyRevenue.addGasToken(protocol, LABELS.GACHA_PROTOCOL);
-  }
-
-  for (const log of counterLogs) {
-    const spend = BigInt(log.spendWei);
-    const fee = BigInt(log.feeWei);
-    if (spend > 0n) dailyVolume.addGasToken(spend);
-    if (fee <= 0n) continue;
-    const half = fee / 2n;
-    const rest = fee - half; // remainder to treasury on odd wei
-    dailyFees.addGasToken(fee, LABELS.COUNTER_FEES);
-    dailySupplySideRevenue.addGasToken(half, LABELS.COUNTER_STOCK_DIVIDENDS);
-    dailyProtocolRevenue.addGasToken(rest, LABELS.COUNTER_PROTOCOL);
-    dailyRevenue.addGasToken(rest, LABELS.COUNTER_PROTOCOL);
-  }
-
-  // ── Anti-snipe fair-launch tax (one-off launches, e.g. $WALL) ────────────
-  // Time-decay snipe tax on launch-curve buys (99% at the bell, −1%/minute).
-  // Pushed live per trade: 90% StockBooster (Clock In dividends to activated
-  // brokers) / 10% launch dev. The net raise bonds into permanently locked LP
-  // at graduation, so the tax is the only fee leg that leaves the curve.
-  for (const log of launchBuyLogs) {
-    const ethIn = BigInt(log.ethIn);
-    const tax = BigInt(log.taxPaid);
-    if (ethIn > 0n) dailyVolume.addGasToken(ethIn);
-    if (tax <= 0n) continue;
-    const toBooster = (tax * LAUNCH_BOOSTER_BPS) / 10_000n;
-    dailyFees.addGasToken(tax, LABELS.LAUNCH_TAX);
-    dailySupplySideRevenue.addGasToken(toBooster, LABELS.LAUNCH_TAX_DIVIDENDS);
-    // The 10% dev leg pays the launching team, not the protocol — counted in
-    // fees, excluded from revenue/protocolRevenue.
-    dailySupplySideRevenue.addGasToken(tax - toBooster, LABELS.LAUNCH_TAX_DEV);
-  }
-
-  // ── Civilization anti-snipe pad (Nightshades faction launches) ───────────
-  // Same 99% → 0 time-decay snipe tax over a 99-minute buys-only window, but
-  // quoted in WETH and split by the game hook: 50% next-night boost pot / 10%
-  // the faction's own locked pool / 13.33% StockBooster / 13.33% protocol /
-  // 13.34% game creator. PadBuy.quoteIn is the tax-inclusive notional; the fee
-  // legs come straight off PadTaxCollected (exact wei, no re-derivation).
-  // The net raise bonds into the hooked v4 pool under the game vault, so the
-  // tax is again the only leg that leaves the curve.
-  for (const log of civBuyLogs) {
-    const quoteIn = BigInt(log.quoteIn);
-    if (quoteIn > 0n) dailyVolume.add(ROBINHOOD_WETH, quoteIn);
-  }
-  for (const log of civTaxLogs) {
-    const tax = BigInt(log.tax);
-    if (tax <= 0n) continue;
-    const toProtocol = BigInt(log.protocol);
-    dailyFees.add(ROBINHOOD_WETH, tax, LABELS.CIV_TAX);
-    dailyRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
-    dailyProtocolRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.boost), LABELS.CIV_TAX_BOOST);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.lp), LABELS.CIV_TAX_LP);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.booster), LABELS.CIV_TAX_BOOSTER);
-    // The creator leg pays the game team, not the protocol — counted in fees,
-    // excluded from revenue/protocolRevenue (same treatment as the WALL dev leg).
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(log.creator), LABELS.CIV_TAX_CREATOR);
-  }
-
-  // ── Civilization faction pools (post-bond, hooked Uniswap v4) ───────────
-  // After the pad bonds, every faction trades in its own hooked v4 pool that
-  // ONLY the game vault may LP (FactionGameHook.beforeAddLiquidity reverts for
-  // any other sender), so 100% of the pool's 1% LP fee accrues to protocol-
-  // owned game liquidity. Pool ids come from the vault's FactionRegistered
-  // events, so new factions are picked up with no adapter change.
-  //
-  // Volume = WETH-side notional of every user swap (the vault's own night
-  // operations — damage sells / survivor buys, sender == vault — are internal
-  // rebalances and excluded). During the daily sunrise reopen the hook levies
-  // a decaying snipe tax: on BUYS it is removed via beforeSwapDelta, so the
-  // Swap event carries the net-of-tax WETH — the matching SnipeTaxCollected
-  // adds it back to reach the gross the user paid; on SELLS the event already
-  // carries the gross WETH out (the hook skims the tax off the output).
-  // The hook distributes + emits the tax in afterSwap for BOTH directions, so
-  // SnipeTaxCollected always follows its Swap in the same tx: each swap
-  // consumes the first not-yet-claimed tax log after it (same tx + pool), and
-  // only WETH-input swaps gross up — a taxed sell in the same tx never leaks
-  // into a buy's notional.
-  //
-  // The v4 LP fee is charged on the input currency. WETH-input fees are
-  // booked as-is; faction-token-input fees are valued in WETH at the swap's
-  // own execution price (|amountWeth| / net token input, i.e. |amountToken|
-  // less the fee that never reached the curve), since faction tokens have no
-  // oracle price feed.
-  const civTokenByPool = new Map<string, string>();
-  for (const l of factionRegistered) {
-    const id = String(l.poolId || "").toLowerCase();
-    const token = String(l.token || "").toLowerCase();
-    if (id && token) civTokenByPool.set(id, token);
-  }
-  const civLogIndex = (log: any): number => Number(log.logIndex ?? log.index ?? log.log_index ?? 0);
-  const civReopenTaxByTxPool = new Map<string, { logIndex: number; taxWeth: bigint }[]>();
-  for (const log of civReopenTaxLogs) {
-    const args = log.args ?? log.parsedLog?.args ?? log;
-    const taxWeth = BigInt(args.taxWeth ?? 0);
-    if (taxWeth <= 0n) continue;
-    const key = `${String(log.transactionHash).toLowerCase()}:${String(args.poolId).toLowerCase()}`;
-    const list = civReopenTaxByTxPool.get(key) ?? [];
-    list.push({ logIndex: civLogIndex(log), taxWeth });
-    civReopenTaxByTxPool.set(key, list);
-    const toProtocol = BigInt(args.protocolAmount ?? 0);
-    dailyFees.add(ROBINHOOD_WETH, taxWeth, LABELS.CIV_REOPEN_TAX);
-    dailyRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
-    dailyProtocolRevenue.add(ROBINHOOD_WETH, toProtocol, LABELS.CIV_TAX_PROTOCOL);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.boostAmount ?? 0), LABELS.CIV_TAX_BOOST);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.lpAmount ?? 0), LABELS.CIV_TAX_LP);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.boosterAmount ?? 0), LABELS.CIV_TAX_BOOSTER);
-    dailySupplySideRevenue.add(ROBINHOOD_WETH, BigInt(args.creatorAmount ?? 0), LABELS.CIV_TAX_CREATOR);
-  }
-  // Nightshades NFT royalties. The splitter is the ERC-2981 receiver for all
-  // four faction collections; a permissionless flush wraps any native ETH to
-  // WETH first, so `token` is always a real ERC-20 (WETH for ETH sales, the
-  // sale currency otherwise). Neither leg is protocol revenue: 75% seeds the
-  // surviving faction's locked pool, 25% pays the game team.
-  for (const log of civRoyaltyFlushLogs) {
-    const token = String(log.token || "").toLowerCase();
-    if (!/^0x[0-9a-f]{40}$/.test(token)) continue;
-    const toPot = BigInt(log.toPot ?? 0);
-    const toTeam = BigInt(log.toTeam ?? 0);
-    if (toPot + toTeam <= 0n) continue;
-    dailyFees.add(token, toPot, LABELS.CIV_NFT_ROYALTY_POT);
-    dailyFees.add(token, toTeam, LABELS.CIV_NFT_ROYALTY_TEAM);
-    dailySupplySideRevenue.add(token, toPot, LABELS.CIV_NFT_ROYALTY_POT);
-    dailySupplySideRevenue.add(token, toTeam, LABELS.CIV_NFT_ROYALTY_TEAM);
-  }
-  for (const list of civReopenTaxByTxPool.values()) list.sort((a, b) => a.logIndex - b.logIndex);
-  const civVaultLower = CIV_FACTION_VAULT.toLowerCase();
-  const civWethLower = ROBINHOOD_WETH.toLowerCase();
-  // Ascending logIndex so swaps inside one tx claim their tax logs in order.
-  civPoolSwapLogs.sort((a, b) => civLogIndex(a) - civLogIndex(b));
-  for (const log of civPoolSwapLogs) {
-    const args = log.args ?? log.parsedLog?.args ?? log;
-    const poolId = String(args.id ?? "").toLowerCase();
-    const sender = String(args.sender ?? "").toLowerCase();
-    if (sender === civVaultLower) continue; // vault night ops, not user flow
-    const token = civTokenByPool.get(poolId);
-    if (!token) continue;
-    // v4 sorts currencies by address; WETH is currency0 iff it is the lower.
-    const wethIs0 = civWethLower < token;
-    const amount0 = BigInt(args.amount0);
-    const amount1 = BigInt(args.amount1);
-    const amountWeth = wethIs0 ? amount0 : amount1;
-    const amountToken = wethIs0 ? amount1 : amount0;
-    const absWeth = amountWeth < 0n ? -amountWeth : amountWeth;
-    const absToken = amountToken < 0n ? -amountToken : amountToken;
-    if (absWeth <= 0n) continue;
-    const wethIsInput = amountWeth < 0n;
-
-    // Claim this swap's reopen tax log (the first unclaimed one emitted after
-    // it in the same tx + pool) regardless of direction, so a taxed sell can
-    // never hand its tax to a later buy in the same tx.
-    let reopenTax = 0n;
-    const taxKey = `${String(log.transactionHash).toLowerCase()}:${poolId}`;
-    const taxList = civReopenTaxByTxPool.get(taxKey);
-    if (taxList?.length) {
-      const swapIdx = civLogIndex(log);
-      const at = taxList.findIndex((t) => t.logIndex > swapIdx);
-      if (at >= 0) reopenTax = taxList.splice(at, 1)[0].taxWeth;
-    }
-    // Buy during a reopen window: the hook stripped the tax pre-swap, so add
-    // it back to reach the gross the user paid. Sells already carry gross out.
-    const grossWeth = wethIsInput ? absWeth + reopenTax : absWeth;
-    dailyVolume.add(ROBINHOOD_WETH, grossWeth, LABELS.CIV_POOL_SWAPS);
-
-    const feePpm = BigInt(args.fee ?? 0);
-    if (feePpm <= 0n) continue;
-    const inputAmount = wethIsInput ? absWeth : absToken;
-    const feeAmount = (inputAmount * feePpm) / 1_000_000n;
-    if (feeAmount <= 0n) continue;
-    // Token-input fee is valued at the curve's execution price: the WETH out
-    // was bought with the NET token input (gross minus the fee kept by LPs).
-    const netTokenInput = absToken - feeAmount;
-    const feeWeth = wethIsInput
-      ? feeAmount
-      : netTokenInput > 0n
-        ? (feeAmount * absWeth) / netTokenInput
-        : 0n;
-    if (feeWeth <= 0n) continue;
-    dailyFees.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
-    dailyRevenue.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
-    dailyProtocolRevenue.add(ROBINHOOD_WETH, feeWeth, LABELS.CIV_POOL_LP_FEES);
-  }
-
-  // ── Safe Launch / Stonklauncher pads (V1 ETH + quoted + V2 + r2) ────────
-  // Window buys AND sells pay the same decaying tax.
-  // Volume (mirrors HoodMint ethGross discipline):
-  //   buy  → quoteIn / ethIn (tax-inclusive gross)
-  //   sell → quoteOut/ethOut + taxPaid (gross quote leaving the curve)
-  // Field names differ by generation (ethIn on V1, quoteIn on V2) but are
-  // positional twins — read both. Process buys/sells separately so a decoder
-  // that zeroes missing fields cannot collapse sell volume to 0 via ethIn=0.
-  // Fee split per launch snapshot: 16.5% creator / 16.5% protocol / 50%
-  // locked-LP (or ICO Bonus on degen) / 17% Clock In Card. Protocol leg =
-  // revenue; LP/ICO = supply-side. LpFeeBonded re-settles already-counted tax.
-  for (let i = 0; i < SAFE_LAUNCH_PADS.length; i++) {
-    const quote = SAFE_LAUNCH_PADS[i].quote;
-    for (const log of safeBuyLogsByPad[i] ?? []) {
-      const tax = BigInt(log.taxPaid ?? 0);
-      const gross = BigInt(log.ethIn ?? log.quoteIn ?? 0);
-      if (gross > 0n) addSafeQuote(dailyVolume, quote, gross);
-      if (tax <= 0n) continue;
-      const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
-      const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
-      const toLp = (tax * SAFE_LP_BPS) / 10_000n;
-      const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
-      addSafeQuote(dailyFees, quote, tax, LABELS.SAFE_TAX);
-      addSafeQuote(dailyRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailyProtocolRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailySupplySideRevenue, quote, toCreator, LABELS.SAFE_TAX_CREATOR);
-      addSafeQuote(dailySupplySideRevenue, quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
-      addSafeQuote(dailySupplySideRevenue, quote, toLp, LABELS.SAFE_TAX_LP);
-    }
-    for (const log of safeSellLogsByPad[i] ?? []) {
-      const tax = BigInt(log.taxPaid ?? 0);
-      const netOut = BigInt(log.ethOut ?? log.quoteOut ?? 0);
-      const gross = netOut + tax;
-      if (gross > 0n) addSafeQuote(dailyVolume, quote, gross);
-      if (tax <= 0n) continue;
-      const toCreator = (tax * SAFE_CREATOR_BPS) / 10_000n;
-      const toProtocol = (tax * SAFE_PROTOCOL_BPS) / 10_000n;
-      const toLp = (tax * SAFE_LP_BPS) / 10_000n;
-      const toBoosterAndRef = tax - toCreator - toProtocol - toLp;
-      addSafeQuote(dailyFees, quote, tax, LABELS.SAFE_TAX);
-      addSafeQuote(dailyRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailyProtocolRevenue, quote, toProtocol, LABELS.SAFE_TAX_PROTOCOL);
-      addSafeQuote(dailySupplySideRevenue, quote, toCreator, LABELS.SAFE_TAX_CREATOR);
-      addSafeQuote(dailySupplySideRevenue, quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
-      addSafeQuote(dailySupplySideRevenue, quote, toLp, LABELS.SAFE_TAX_LP);
-    }
-  }
-
-  // ── Bonding-curve Stonk Launcher (closed factory, residual trades) ───────
-  // Trade.feeAmount is the full 1% fee; waterfall 3333/3334/3333
-  // creator / protocol / StonkBrokers. Quote on production launches is ETH.
-  for (const log of curveTradeLogs) {
-    const quoteAmt = BigInt(log.quoteAmount);
-    const fee = BigInt(log.feeAmount);
-    if (quoteAmt > 0n) dailyVolume.addGasToken(quoteAmt);
-    if (fee <= 0n) continue;
-    const toCreator = (fee * LAUNCHER_CREATOR_BPS) / 10_000n;
-    const toStonk = (fee * LAUNCHER_STONK_BPS) / 10_000n;
-    const toProtocol = fee - toCreator - toStonk;
-    dailyFees.addGasToken(fee, LABELS.CURVE_FEES);
-    dailyRevenue.addGasToken(toProtocol, LABELS.CURVE_PROTOCOL);
-    dailyProtocolRevenue.addGasToken(toProtocol, LABELS.CURVE_PROTOCOL);
-    dailySupplySideRevenue.addGasToken(toCreator, LABELS.CURVE_CREATOR);
-    dailySupplySideRevenue.addGasToken(toStonk, LABELS.CURVE_STONK);
-  }
-
-  // ── Token vesting locker deposit fees (1 bps) ───────────────────────────
-  for (const log of vestingLockedLogs) {
-    const fee = BigInt(log.feeAmount);
-    if (fee <= 0n) continue;
-    const token = String(log.token || ZERO).toLowerCase();
-    addProtocolCut(dailyFees, token, fee, LABELS.VESTING_FEES);
-    addProtocolCut(dailyRevenue, token, fee, LABELS.VESTING_FEES);
-    addProtocolCut(dailyProtocolRevenue, token, fee, LABELS.VESTING_FEES);
-  }
 
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
   // Attribute 90/10 to match SafetyDepositClockInV3's hardwired split.
@@ -1134,6 +240,16 @@ const fetchRobinhood = async (options: FetchOptions) => {
     }
   }
 
+  // ── Token vesting locker deposit fees (1 bps) ───────────────────────────
+  for (const log of vestingLockedLogs) {
+    const fee = BigInt(log.feeAmount);
+    if (fee <= 0n) continue;
+    const token = String(log.token || ZERO).toLowerCase();
+    addProtocolCut(dailyFees, token, fee, LABELS.VESTING_FEES);
+    addProtocolCut(dailyRevenue, token, fee, LABELS.VESTING_FEES);
+    addProtocolCut(dailyProtocolRevenue, token, fee, LABELS.VESTING_FEES);
+  }
+
   // ── Uniswap v4 protocol-owned liquidity fees ─────────────────────────────
   // The forever-escrowed STONK/ETH position earns LP fees on every swap in
   // the canonical v4 pool; the treasury is the escrow's sole irrevocable fee
@@ -1144,8 +260,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
     for (const log of polV4SwapLogs) {
       const swapLiquidity = BigInt(log.liquidity);
       if (swapLiquidity <= 0n) continue;
-      const posShareLiq =
-        polV4Liquidity > swapLiquidity ? swapLiquidity : polV4Liquidity;
+      const posShareLiq = polV4Liquidity > swapLiquidity ? swapLiquidity : polV4Liquidity;
       const amount0 = BigInt(log.amount0);
       const amount1 = BigInt(log.amount1);
       const inputIsEth = amount0 < 0n;
@@ -1161,262 +276,50 @@ const fetchRobinhood = async (options: FetchOptions) => {
     }
   }
 
-  // ── Smart LP vaults (Volatility Farming) ─────────────────────────────────
-  // FeesCollected(fees0, fees1, skim0, skim1): fees = gross pool fees pulled
-  // from the vault's Uniswap V3 position, skim = the 10% performance fee
-  // (perfFeeBps) taken out of them. The remaining 90% auto-compounds back
-  // into the position for depositors; the skim splits 50% StockBooster
-  // (Clock In dividends — supply-side, matching every other booster leg
-  // here) / 50% $STONKBROKER buybacks (holders revenue).
-  {
-    const activeIdx: number[] = [];
-    smartLpFeeLogsByVault.forEach((logs, i) => {
-      if (logs?.length) activeIdx.push(i);
-    });
-    if (activeIdx.length) {
-      const [token0s, token1s] = await Promise.all([
-        options.api.multiCall({
-          abi: "address:token0",
-          calls: activeIdx.map((i) => smartLpVaults[i]),
-        }),
-        options.api.multiCall({
-          abi: "address:token1",
-          calls: activeIdx.map((i) => smartLpVaults[i]),
-        }),
-      ]);
-      activeIdx.forEach((vaultIdx, j) => {
-        const pair: [string, string] = [token0s[j], token1s[j]];
-        for (const log of smartLpFeeLogsByVault[vaultIdx]) {
-          const legs: [string, bigint, bigint][] = [
-            [pair[0], BigInt(log.fees0), BigInt(log.skim0)],
-            [pair[1], BigInt(log.fees1), BigInt(log.skim1)],
-          ];
-          for (const [token, fees, skim] of legs) {
-            if (fees <= 0n) continue;
-            const buyback = skim / 2n;
-            const dividends = skim - buyback;
-            dailyFees.addToken(token, fees, LABELS.SMARTLP_FEES);
-            dailySupplySideRevenue.addToken(token, fees - skim, LABELS.SMARTLP_COMPOUND);
-            if (dividends > 0n)
-              dailySupplySideRevenue.addToken(token, dividends, LABELS.SMARTLP_DIVIDENDS);
-            if (buyback > 0n) {
-              dailyHoldersRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
-              dailyRevenue.addToken(token, buyback, LABELS.SMARTLP_BUYBACK);
-            }
-          }
-        }
-      });
-    }
-  }
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-    dailyHoldersRevenue,
-  };
-};
-
-/** Base: Relay swap-desk 1% app fee, measured as Base USDC leaving the fee wallet
- *  on its way to StockBooster via Relay (the wallet's only USDC outflows). */
-const fetchBase = async (options: FetchOptions) => {
-  const swapDeskFees = await addTokensReceived({options, fromAddressFilter: RELAY_FEE_WALLET, tokens: [BASE_USDC]});
-  
-  const dailyFees = swapDeskFees.clone(1, LABELS.SWAP_DESK_FEES);
-
-  return {
-    dailyFees,
-    // Entire desk fee is forwarded to StockBooster as a Clock In bonus top-up —
-    // supply-side only (mirrors how NFTFi booster share is attributed).
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
-  };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.ROBINHOOD]: {
-      fetch: fetchRobinhood,
-      start: "2026-07-17",
-    },
-    [CHAIN.BASE]: {
-      fetch: fetchBase,
-      start: "2026-07-17",
-    },
-  },
+  fetch,
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-07-17",
   doublecounted: true,
   methodology: {
-    Volume:
-      "Trading notional across every StonkBrokers / Stonklauncher surface: NFT AMM fills (ethFeePaid ÷ fee bps) + Broker Box tickets + Certificate Counter spend + Broker Box sell-backs + anti-snipe WallBought.ethIn + Civilization anti-snipe pad PadBuy.quoteIn (WETH, Nightshades faction launches) + post-bond Civilization faction pool swaps (WETH-side notional of every user swap in the four hooked Uniswap v4 faction pools; reopen-window buys grossed up by the same-tx SnipeTaxCollected; the vault's own night rebalances excluded) + Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
     Fees:
-      "ETH fees on NFT AMM trades + NFT-backed loans; $STONKBROKER broker activation/upgrade fees; Broker Box gachapon 10% edge + 5% sell-back spread + Certificate Counter $2 fee; Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers); the Relay swap-desk 1% app fee (Base USDC forwarded to StockBooster); the anti-snipe fair-launch snipe tax (time-decay tax on launch-curve buys, 90% StockBooster / 10% launch dev); the Civilization anti-snipe pad snipe tax on Nightshades faction curve buys (PadTaxCollected — 50% next-night boost pot / 10% faction pool / 13.33% StockBooster / 13.33% protocol / 13.34% game creator, WETH); the Civilization sunrise reopen snipe tax levied by the game hook on hooked v4 pool trades after each night (SnipeTaxCollected, same five-way split); the 1% LP fee on every user swap in the hooked Civilization faction pools (100% protocol-owned game liquidity — the vault is the pools' only permitted LP); Nightshades faction NFT royalties (ERC-2981 10% of secondary sales) as flushed from the immutable FactionRoyaltySplitter (75% game vault survivor liquidity / 25% team); Safe Launch / Stonklauncher snipe tax on window buys and sells across all pad generations (16.5% creator / 16.5% protocol / 50% locked-LP or ICO Bonus / 17% StockBooster + Clock In Card referrers); StonkCurvePool 1% trade fees (33/33/33 waterfall); StonkVestingLocker 0.01% deposit fees; Smart LP (Volatility Farming) vault pool fees — gross Uniswap V3 fees collected by every registry-listed vault (FeesCollected); LP trading fees claimed through the Safety Deposit Box locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
+      "Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers) from LockFeesCollected / LockLiquidityDecreased / LockTokensPaid; LP trading fees claimed through the locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); StonkVestingLocker 0.01% deposit fees; and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
     Revenue:
-      "Protocol-retained share: 30% of NFTFi ETH fees, protocol share of activation fees, Broker Box protocol accrual (5% of ticket) + sell-back spread + counter treasury half, 10% of locker fees, the 16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax, the 13.33% protocol treasury leg of the Civilization pad + sunrise reopen snipe taxes, the 1% LP fee accruing to the protocol-owned Civilization faction pool liquidity, 33.34% of bonding-curve trade fees, vesting-locker deposit fees, the $STONKBROKER-buyback half of the Smart LP 10% performance fee, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
+      "10% of locker protocol cuts, vesting-locker deposit fees, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
     ProtocolRevenue:
-      "30% of NFTFi ETH fees → ProtocolFeeSink; protocol share of $STONKBROKER activation fees; Broker Box protocol accrual + sell-back bankroll spread + counter treasury half; 10% of locker fees → protocol wallet; 16.5% of the Safe Launch / Stonklauncher snipe tax → protocol accrual; 13.33% of the Civilization pad + sunrise reopen snipe taxes → protocol treasury; the Civilization faction pools' 1% LP fee → the vault's protocol-owned game liquidity position (compounds into game LP, not distributed); 33.34% of bonding-curve trade fees; vesting-locker deposit fees; and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
-    HoldersRevenue:
-      "Half of the $STONKBROKER activation/upgrade fees burned, plus the $STONKBROKER-buyback half of the Smart LP 10% performance fee.",
+      "10% of locker protocol cuts → protocol wallet; vesting-locker deposit fees → SafetyDepositClockInV3; protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
     SupplySideRevenue:
-      "70% of NFTFi ETH fees → StockBooster stock dividends; Broker Box creator+booster edge (5% of ticket on official machines) + counter StockBooster half; 90% of locker fees → SafetyDepositClockIn broker claims; Relay swap-desk 1% app fees forwarded to StockBooster; 90% of the anti-snipe launch tax → StockBooster dividends to activated brokers; 10% of the anti-snipe launch tax → launch dev; Civilization pad + sunrise reopen tax legs to the next-night boost pot (50%), the faction's own locked pool (10%), StockBooster (13.33%) and the game creator (13.34%); Safe Launch / Stonklauncher tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%); Smart LP vault fees auto-compounded to depositors (90%) plus the StockBooster Clock In dividend half of the 10% performance fee; and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the Safety Deposit Box lockers.",
+      "90% of locker protocol cuts → SafetyDepositClockIn broker claims, and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the lockers.",
   },
   breakdownMethodology: {
-    Volume: {
-      [LABELS.AMM_FEES]:
-        "NFT AMM trade notional implied from ethFeePaid ÷ fee bps (10% random / 15% specific).",
-      [LABELS.GACHA_FEES]:
-        "Broker Box PullOpened.ticketWei + SoldBack/SoldBackUsdg payouts + Certificate Counter spendWei.",
-      [LABELS.LAUNCH_TAX]:
-        "Anti-snipe one-off launch buys (WallBought.ethIn).",
-      [LABELS.INTERNS_MINT]:
-        "Stonk Interns paid mint releases (DormantReleased.ethPaid, the oracle-priced $20 ETH leg of each intern minted out of its parent broker's token-bound wallet).",
-      [LABELS.CIV_TAX]:
-        "Civilization anti-snipe pad curve buys on the Nightshades faction launches (PadBuy.quoteIn, tax-inclusive, WETH).",
-      [LABELS.CIV_POOL_SWAPS]:
-        "WETH-side notional of user swaps in the hooked Uniswap v4 Civilization faction pools (pool ids from FactionLiquidityVault.FactionRegistered). Reopen-window buys are grossed up by the same-tx SnipeTaxCollected.taxWeth (the hook strips the tax before the swap); sells already carry gross WETH out. Swaps with sender == the game vault (night damage sells / survivor buys) are internal rebalances and excluded.",
-      [LABELS.SAFE_TAX]:
-        "Safe Launch / Stonklauncher window buy+sell notional on every pad (V1 ETH + V1 quoted + V2 + r2). Buys = tax-inclusive quote in; sells = net quote out + tax.",
-      [LABELS.CURVE_FEES]:
-        "StonkCurvePool Trade.quoteAmount (bonding-curve launcher residual volume).",
-    },
     Fees: {
-      [LABELS.AMM_FEES]: "ETH trade fees on buyRandomNFT / buySpecificNFT / sellNFT.",
-      [LABELS.LOAN_FEES]: "Upfront ETH borrow fees on NFT-backed loans.",
-      [LABELS.ACTIVATION_FEES]: "One-time / upgrade $STONKBROKER activation fees.",
-      [LABELS.INTERNS_MINT]:
-        "Stonk Interns mint fees: the $20 ETH leg of every paid release (DormantReleased.ethPaid), the $STONKBROKER mint leg (STONKBROKER transfers from the collection to the protocol treasury), and the flat $1 ETH promotion fee on every intern pay-share raise (InternShareSet.ethPaid).",
-      [LABELS.INTERNS_ACTIVATION]:
-        "One-time / upgrade $STONKBROKER activation fees on Stonk Interns (InternActivationManager Activated / ActivationUpgraded feePaid).",
-      [LABELS.GACHA_FEES]: "10% house edge skimmed from every settled Broker Box ticket.",
-      [LABELS.GACHA_SELLBACK]:
-        "5% sell-back spread retained in the machine bankroll (implied from SoldBack / SoldBackUsdg payouts at 95% of mark).",
-      [LABELS.COUNTER_FEES]: "Flat $2 Certificate Counter fee per OTC deed mint.",
       [LABELS.LOCKER_FEES]:
         "Protocol cut on Safety Deposit Box locks (Uniswap V3/V4 + up. DEX v2/CL lockers) from LockFeesCollected / LockLiquidityDecreased / LockTokensPaid (20% of LP fee collects / 1% withdraw; upfront 0.5% not evented).",
-      [LABELS.SWAP_DESK_FEES]:
-        "1% Relay app fee on the crypto swap desk, measured as Base USDC Transfer outflows from the fee wallet toward StockBooster.",
-      [LABELS.LAUNCH_TAX]:
-        "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
-      [LABELS.CIV_TAX]:
-        "Time-decay snipe tax on Civilization anti-snipe pad curve buys (Nightshades faction launches; 99% at the bell falling to 0 over a 99-minute buys-only window; PadTaxCollected.tax, WETH). Split by the game hook per trade: 50% next-night boost pot / 10% the faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",
-      [LABELS.CIV_REOPEN_TAX]:
-        "Daily sunrise reopen snipe tax levied by FactionGameHook on hooked v4 faction pool buys and sells after each night (SnipeTaxCollected.taxWeth; decays from 99% to 0 over the 60-minute sunrise window). Same five-way split as the pad tax: 50% next-night boost / 10% faction pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",
-      [LABELS.CIV_POOL_LP_FEES]:
-        "1% Uniswap v4 LP fee on every user swap in the hooked Civilization faction pools (Swap.fee ppm × input amount). The game vault is the only LP the hook permits, so 100% accrues to protocol-owned game liquidity. WETH-input fees booked as-is; faction-token-input fees valued in WETH at the swap's own execution price.",
-      [LABELS.CIV_NFT_ROYALTY_POT]:
-        "Nightshades faction NFT royalties (ERC-2981, 10% of every secondary sale) as they are flushed out of the immutable FactionRoyaltySplitter (Flushed.toPot + toTeam; native ETH is wrapped to WETH before the split). Counted at flush time, not at sale time. 75% → game vault as free quote deployed into the surviving faction's locked pool.",
-      [LABELS.CIV_NFT_ROYALTY_TEAM]: "25% team leg of the flushed Nightshades NFT royalties.",
-      [LABELS.SAFE_TAX]:
-        "Time-decay snipe tax on Safe Launch / Stonklauncher window buys AND sells (SafeBuy/SafeSell taxPaid) across the V1 ETH pad, V1 quoted lanes, V2 lanes, and r2 pads. Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve or ICO Bonus / 17% StockBooster + Clock In Card referrers, snapshotted per launch. Quoted-lane amounts are in the quote token.",
-      [LABELS.CURVE_FEES]:
-        "1% trade fee on StonkCurvePool (bonding-curve Stonk Launcher factory), waterfall 33.33% creator / 33.34% protocol / 33.33% StonkBrokers.",
-      [LABELS.VESTING_FEES]:
-        "0.01% (1 bps) StonkVestingLocker deposit fee (PositionLocked.feeAmount), routed to SafetyDepositClockInV3.",
-      [LABELS.SMARTLP_FEES]:
-        "Gross Uniswap V3 pool fees collected by every registry-listed Smart LP vault (SmartLpVault FeesCollected fees0/fees1).",
       [LABELS.LOCKER_LP_FEES]:
         "LP trading fees earned by positions locked in the Safety Deposit Box and claimed by lock owners — the 80% userAmount share of LockFeesCollected plus gauge-staking rewards (LockTokensPaid userAmount). Withdrawal principal (LockLiquidityDecreased) is excluded.",
+      [LABELS.VESTING_FEES]:
+        "0.01% (1 bps) StonkVestingLocker deposit fee (PositionLocked.feeAmount), routed to SafetyDepositClockInV3.",
       [LABELS.POL_V4_FEES]:
         "LP fee income of the protocol-owned Uniswap v4 STONK/ETH position (forever-escrowed, treasury is the sole irrevocable fee recipient). Computed from PoolManager Swap events on the canonical pool: input-amount × swap fee (ppm), attributed by the position's share of the active liquidity carried in each Swap log (the position is full range, so it is always in range).",
     },
     Revenue: {
-      [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
-      [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
-      [LABELS.ACTIVATION_FEES]: "Full $STONKBROKER activation fee (burn + protocol).",
-      [LABELS.INTERNS_MINT_TREASURY]:
-        "Stonk Interns protocol share: 75% of the $20 ETH mint leg, 100% of the $STONKBROKER mint leg, and the $1 pay-share promotion fee (the 25% payroll leg is supply side).",
-      [LABELS.INTERNS_ACTIVATION]:
-        "Full $STONKBROKER intern activation fee (burned half + protocol half).",
-      [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
-      [LABELS.GACHA_SELLBACK]:
-        "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
-      [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
-      [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
-      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad + sunrise reopen snipe taxes (Nightshades).",
-      [LABELS.CIV_POOL_LP_FEES]:
-        "1% LP fee on Civilization faction pool swaps accruing to the vault's protocol-owned game liquidity position (compounds into game LP; not distributed to holders).",
-      [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
-      [LABELS.SMARTLP_BUYBACK]:
-        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
-      [LABELS.POL_V4_FEES]:
-        "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
+      [LABELS.POL_V4_FEES]: "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     ProtocolRevenue: {
-      [LABELS.AMM_PROTOCOL_TREASURY]: "30% of ETH AMM fees retained by ProtocolFeeSink.",
-      [LABELS.LOAN_PROTOCOL_TREASURY]: "30% of ETH loan fees retained by ProtocolFeeSink.",
-      [LABELS.ACTIVATION_PROTOCOL]: "Protocol share of $STONKBROKER activation fees.",
-      [LABELS.INTERNS_MINT_TREASURY]:
-        "Stonk Interns protocol share: 75% of the $20 ETH mint leg, 100% of the $STONKBROKER mint leg, and the $1 pay-share promotion fee.",
-      [LABELS.INTERNS_ACTIVATION_PROTOCOL]:
-        "Half of Stonk Interns activation fees in $STONKBROKER → protocol treasury.",
-      [LABELS.GACHA_PROTOCOL]: "5% of Broker Box ticket accruing as protocol revenue.",
-      [LABELS.GACHA_SELLBACK]:
-        "5% sell-back spread retained in machine bankroll (treasury-reclaimable on official machines).",
-      [LABELS.COUNTER_PROTOCOL]: "Half of the Certificate Counter $2 fee → treasury.",
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
-      [LABELS.SAFE_TAX_PROTOCOL]: "16.5% protocol leg of the Safe Launch / Stonklauncher snipe tax.",
-      [LABELS.CIV_TAX_PROTOCOL]: "13.33% protocol treasury leg of the Civilization anti-snipe pad + sunrise reopen snipe taxes (Nightshades).",
-      [LABELS.CIV_POOL_LP_FEES]:
-        "1% LP fee on Civilization faction pool swaps accruing to the vault's protocol-owned game liquidity position (compounds into game LP; not distributed to holders).",
-      [LABELS.CURVE_PROTOCOL]: "33.34% of bonding-curve trade fees → protocol.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
-      [LABELS.POL_V4_FEES]:
-        "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
-    },
-    HoldersRevenue: {
-      [LABELS.ACTIVATION_BURN]: "Burned share of $STONKBROKER activation fees (deflationary).",
-      [LABELS.INTERNS_ACTIVATION_BURN]:
-        "Burned half of Stonk Interns activation fees in $STONKBROKER (deflationary).",
-      [LABELS.SMARTLP_BUYBACK]:
-        "Half of the Smart LP 10% performance fee → $STONKBROKER buybacks.",
+      [LABELS.POL_V4_FEES]: "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     SupplySideRevenue: {
-      [LABELS.AMM_STOCK_DIVIDENDS]:
-        "70% of ETH AMM fees → StockBooster stock-token dividend drops to activated brokers.",
-      [LABELS.LOAN_STOCK_DIVIDENDS]:
-        "70% of ETH loan fees → StockBooster stock-token dividend drops to activated brokers.",
-      [LABELS.GACHA_STOCK_DIVIDENDS]:
-        "Broker Box creator + StockBooster edge (5% of ticket on official machines) → Clock In.",
-      [LABELS.COUNTER_STOCK_DIVIDENDS]: "Half of the Certificate Counter $2 fee → StockBooster.",
       [LABELS.LOCKER_STOCK_DIVIDENDS]:
         "90% of locker protocol fees → SafetyDepositClockIn broker claim rounds / StockBooster ETH flush.",
-      [LABELS.SWAP_DESK_FEES]:
-        "Relay swap-desk 1% app fee forwarded to StockBooster as a Clock In bonus top-up.",
-      [LABELS.LAUNCH_TAX_DIVIDENDS]:
-        "90% of the anti-snipe launch snipe tax → StockBooster → Clock In stock dividends to activated brokers.",
-      [LABELS.LAUNCH_TAX_DEV]:
-        "10% of the anti-snipe launch snipe tax → launch dev.",
-      [LABELS.CIV_TAX_BOOST]:
-        "50% of the Civilization pad + sunrise reopen snipe taxes → the next night's boost pot (buys the surviving faction after each night; escrowed in the game vault).",
-      [LABELS.CIV_TAX_LP]:
-        "10% of the Civilization pad + sunrise reopen snipe taxes → the paying faction's own protocol-owned locked pool.",
-      [LABELS.CIV_TAX_BOOSTER]:
-        "13.33% of the Civilization pad + sunrise reopen snipe taxes → StockBooster → Clock In dividends to activated brokers.",
-      [LABELS.CIV_TAX_CREATOR]: "13.34% of the Civilization pad + sunrise reopen snipe taxes → game creator (Meebco).",
-      [LABELS.CIV_NFT_ROYALTY_POT]:
-        "75% of flushed Nightshades NFT royalties → game vault as free quote, deployed into the surviving faction's protocol-owned locked pool at the next boostSurvivor.",
-      [LABELS.CIV_NFT_ROYALTY_TEAM]: "25% of flushed Nightshades NFT royalties → game team wallet.",
-      [LABELS.INTERNS_MINT_PAYROLL]:
-        "25% of the Stonk Interns mint ETH leg → the intern Clock In payroll wallet (funds the first intern Clock In rounds).",
-      [LABELS.SAFE_TAX_CREATOR]: "16.5% of the Safe Launch / Stonklauncher snipe tax → launch creator.",
-      [LABELS.SAFE_TAX_BOOSTER]:
-        "17% of the Safe Launch / Stonklauncher snipe tax punched through the Clock In Card: ~0.5% of tax to the referrer, the rest to StockBooster Clock In dividends.",
-      [LABELS.SAFE_TAX_LP]:
-        "50% of the Safe Launch / Stonklauncher snipe tax escrowed as the launch's LP reserve (joins the raise at bond into permanently locked liquidity) or streamed to the ICO Bonus kickstarter on degen modes.",
-      [LABELS.CURVE_CREATOR]: "33.33% of bonding-curve trade fees → launch creator.",
-      [LABELS.CURVE_STONK]:
-        "33.33% of bonding-curve trade fees → StonkBrokers Directed Clock In engine / jackpot pot.",
-      [LABELS.SMARTLP_COMPOUND]:
-        "90% of Smart LP vault pool fees auto-compounded back into the vault's position for depositors.",
-      [LABELS.SMARTLP_DIVIDENDS]:
-        "Half of the Smart LP 10% performance fee → StockBooster Clock In dividends to activated brokers.",
       [LABELS.LOCKER_LP_FEES]:
         "Lock owners' 80% share of LP trading fees + gauge rewards claimed through Safety Deposit Box locked positions.",
     },
