@@ -29,6 +29,31 @@ export const BUNDLER_EMITTERS = [
   "0x80f96cb0d877e8e37edd6e9c3e85c41eef0bc8b6",
   "0xc3439e308478e77296e1e3c623f17f79ec8603dc",
 ];
+// $COPY, the copyfomo token, launched 2026-09-02 on the Pons launchpad on Robinhood Chain
+// (https://www.ponsfamily.com/launchpad/0x63Ee90921EAC3c3F87961C17556BB3eBDF2490A9). It trades in
+// one Uniswap v4 pool, COPY/COIN, whose Pons hook takes 3% of every swap: a 1% hook fee (70% to
+// the creator, 30% to Pons) plus a 2% creator tax -- 2.7% of the volume goes to the creator
+// (hook launch config, read on-chain: hookFeeBps 100, protocolFeeShareBps 3000, creatorTaxBps 200).
+// The hook accrues the fees, Pons sweeps them into COIN and credits its fee escrow, from which
+// copyfomo claims them later (claims are batched, so they are NOT what is counted here).
+export const COPY_TOKEN = "0x63ee90921eac3c3f87961c17556bb3ebdf2490a9";
+export const COIN_ROBINHOOD = "0x6330d8c3178a418788df01a47479c0ce7ccf450b"; // 18 decimals
+export const PONS_FEE_ESCROW = "0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e";
+export const COPY_CREATOR_FEE_RATE = 0.027;
+// Uniswap v4 PoolManager on Robinhood Chain, its Swap event and the COPY/COIN pool id
+// (currency0 = COIN, currency1 = COPY; amount0 of the Swap event is the COIN leg).
+export const UNIV4_POOL_MANAGER_ROBINHOOD = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
+export const UNIV4_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+export const COPY_POOL_ID = "0xd1426746cf744acf047a783d8246489f1e82afa9a98d70be6b3fe8eb8da5a651";
+// copyfomo creator wallets: the launch (dev) wallet, then, since 2026-09-14, the buyback smart
+// account that claims the creator fees, buys $COPY with part of them and burns it.
+export const COPY_CREATOR_WALLETS = [
+  "0xe2e8f4eea9dcba0ba83a35d8598e3451fc22c66b",
+  "0xe9d4523c74e502a4de21c6be197aa536d52d9e6e",
+];
+// First day of the buyback & burn programme (https://www.copyfomo.com/data). The dev wallet also
+// bought $COPY at launch (2026-09-02): that is the initial position, not a buyback.
+export const BUYBACK_SINCE = "2026-09-11";
 // Priced against Dune's prices.day to convert the bundler's native gas spend (ETH on
 // Base/Robinhood, BNB on BNB Chain) to USD.
 const WETH_ETHEREUM = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
@@ -67,6 +92,7 @@ const strList = (arr: string[]) => arr.map((a) => `'${a}'`).join(", ");
 const TRES_EVM = hexList([TREASURY_EVM]);
 const STABLES_BASE_BNB = hexList([...STABLES_EVM.base, ...STABLES_EVM.bnb]);
 const EMITTERS = hexList(BUNDLER_EMITTERS);
+const CREATOR_WALLETS = hexList(COPY_CREATOR_WALLETS);
 
 // Wallet sets. Cheap by construction: only addresses that sent a stablecoin to the
 // treasury up to the end of the requested window are considered (no future data), then
@@ -98,6 +124,8 @@ const EVM_WALLETS_CTE = `
  * the bundler paid for user operations over the same window (subtracted by the adapter).
  * Referral: stablecoin transfers FROM the treasury back to copyfomo wallets
  * (referral rewards paid to referrers) -- the supply-side share.
+ * Creator: $COPY creator fees accrued on every swap of the COPY/COIN pool (robinhood only),
+ * and the buyback & burn funded by them (holders' share).
  */
 export const FEES_SQL = `
 WITH ${EVM_WALLETS_CTE},
@@ -179,9 +207,62 @@ WITH ${EVM_WALLETS_CTE},
   ),
   referral AS (
     SELECT * FROM evm_out UNION ALL SELECT * FROM rh_out UNION ALL SELECT * FROM sol_out
+  ),
+  -- $COPY creator fees (Robinhood Chain): 2.7% of the COIN leg of every swap of the COPY/COIN
+  -- pool (raw PoolManager Swap logs, the hook itself is not decoded on Dune), valued at the hourly
+  -- COIN price (daily price as fallback), on the day of the trade. Buyback & burn: what the
+  -- copyfomo creator wallets pay (COIN or USDG) in a transaction where they receive $COPY from
+  -- the pool; the $COPY bought is burned (see https://www.copyfomo.com/data).
+  tok_px AS (
+    SELECT timestamp AS hour, price FROM prices.hour
+    WHERE blockchain = 'robinhood' AND contract_address = ${COIN_ROBINHOOD} AND PRICE_RANGE
+  ),
+  tok_px_day AS (
+    SELECT cast(timestamp AS date) AS day, price FROM prices.day
+    WHERE blockchain = 'robinhood' AND contract_address = ${COIN_ROBINHOOD} AND PRICE_RANGE
+  ),
+  tok_mv AS (
+    SELECT t.block_time, t.evt_tx_hash AS tx_hash, t.contract_address AS token, t."from", t."to",
+      CAST(t.value AS DOUBLE) AS value,
+      COALESCE(p.price, d.price) AS coin_price
+    FROM (SELECT evt_block_time AS block_time, * FROM erc20_robinhood.evt_Transfer) t
+    LEFT JOIN tok_px p ON p.hour = date_trunc('hour', t.block_time)
+    LEFT JOIN tok_px_day d ON d.day = cast(t.block_time AS date)
+    WHERE TIME_RANGE
+      AND t.contract_address IN (${COIN_ROBINHOOD}, ${USDG_ROBINHOOD}, ${COPY_TOKEN})
+      AND (t."from" IN (${CREATOR_WALLETS}) OR t."to" IN (${CREATOR_WALLETS}))
+  ),
+  tok_swaps AS (
+    SELECT block_time, abs(cast(varbinary_to_int256(varbinary_substring(data, 1, 32)) AS double)) / 1e18 AS coin
+    FROM robinhood.logs
+    WHERE PARTITION_RANGE AND TIME_RANGE
+      AND contract_address = ${UNIV4_POOL_MANAGER_ROBINHOOD}
+      AND topic0 = ${UNIV4_SWAP_TOPIC}
+      AND topic1 = ${COPY_POOL_ID}
+  ),
+  tok_creator AS (
+    SELECT SUM(s.coin * COALESCE(p.price, d.price)) * ${COPY_CREATOR_FEE_RATE} AS creator_usd
+    FROM tok_swaps s
+    LEFT JOIN tok_px p ON p.hour = date_trunc('hour', s.block_time)
+    LEFT JOIN tok_px_day d ON d.day = cast(s.block_time AS date)
+  ),
+  tok_buys AS (
+    SELECT DISTINCT tx_hash FROM tok_mv
+    WHERE token = ${COPY_TOKEN} AND "to" IN (${CREATOR_WALLETS})
+      AND "from" NOT IN (${CREATOR_WALLETS}, ${PONS_FEE_ESCROW})
+      AND block_time >= TIMESTAMP '${BUYBACK_SINCE}'
+  ),
+  tok_bb AS (
+    SELECT SUM(CASE WHEN m.token = ${USDG_ROBINHOOD} THEN m.value / 1e6 ELSE m.value / 1e18 * m.coin_price END) AS buyback_usd
+    FROM tok_mv m JOIN tok_buys b ON b.tx_hash = m.tx_hash
+    WHERE m.token IN (${COIN_ROBINHOOD}, ${USDG_ROBINHOOD}) AND m."from" IN (${CREATOR_WALLETS}) AND m."to" NOT IN (${CREATOR_WALLETS})
+  ),
+  tok AS (
+    SELECT 'robinhood' AS chain, c.creator_usd, b.buyback_usd FROM tok_creator c CROSS JOIN tok_bb b
   )
-SELECT f.chain, COALESCE(f.fees_usd, 0) AS fees_usd, COALESCE(r.referral_usd, 0) AS referral_usd, COALESCE(g.gas_usd, 0) AS gas_usd
-FROM fees f LEFT JOIN referral r ON r.chain = f.chain LEFT JOIN gas g ON g.chain = f.chain
+SELECT f.chain, COALESCE(f.fees_usd, 0) AS fees_usd, COALESCE(r.referral_usd, 0) AS referral_usd, COALESCE(g.gas_usd, 0) AS gas_usd,
+  COALESCE(k.creator_usd, 0) AS creator_usd, COALESCE(k.buyback_usd, 0) AS buyback_usd
+FROM fees f LEFT JOIN referral r ON r.chain = f.chain LEFT JOIN gas g ON g.chain = f.chain LEFT JOIN tok k ON k.chain = f.chain
 `;
 
 /**
