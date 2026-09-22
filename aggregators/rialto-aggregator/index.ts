@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
 const RIALTO_ROUTER = '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD';
 
@@ -24,7 +25,7 @@ async function fetch(options: FetchOptions) {
   });
 
   for (const log of swapExecutedLogs) {
-    dailyVolume.add(log.sellToken, log.sellAmount);
+    await addOneToken({ balances: dailyVolume, token0: log.sellToken, amount0: log.sellAmount, token1: log.buyToken, amount1: log.buyAmount });
   }
 
   for (const log of feeChargedLogs) {
@@ -60,7 +61,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+ // pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-06-12",
