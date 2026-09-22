@@ -55,7 +55,6 @@ const LABELS = {
   CIV_TAX_LP: "Civilization snipe tax → faction's own locked pool (10%)",
   CIV_TAX_BOOSTER: "Civilization snipe tax → StockBooster dividends (13.33%)",
   CIV_TAX_CREATOR: "Civilization snipe tax → game creator (13.34%)",
-  CIV_POOL_SWAPS: "Civilization faction pool swaps (Nightshades hooked Uniswap v4 pools)",
   CIV_POOL_LP_FEES: "Civilization faction pool 1% LP fee (100% protocol-owned game liquidity)",
   CIV_NFT_ROYALTY_POT: "Nightshades NFT royalty (10% of secondary sales) → game vault as survivor pool liquidity (75%)",
   CIV_NFT_ROYALTY_TEAM: "Nightshades NFT royalty (10% of secondary sales) → team wallet (25%)",
@@ -230,7 +229,7 @@ const fetch = async (options: FetchOptions) => {
     // Buy during a reopen window: the hook stripped the tax pre-swap, so add
     // it back to reach the gross the user paid. Sells already carry gross out.
     const grossWeth = wethIsInput ? absWeth + reopenTax : absWeth;
-    dailyVolume.add(ROBINHOOD_WETH, grossWeth, LABELS.CIV_POOL_SWAPS);
+    dailyVolume.add(ROBINHOOD_WETH, grossWeth);
 
     const feePpm = BigInt(args.fee ?? 0);
     if (feePpm <= 0n) continue;
@@ -270,12 +269,6 @@ const adapter: SimpleAdapter = {
       "Pad + sunrise reopen tax legs to the next-night boost pot (50%), the faction's own locked pool (10%), StockBooster (13.33%) and the game creator (13.34%), plus both legs of the flushed NFT royalties.",
   },
   breakdownMethodology: {
-    Volume: {
-      [LABELS.CIV_TAX]:
-        "Civilization anti-snipe pad curve buys on the Nightshades faction launches (PadBuy.quoteIn, tax-inclusive, WETH).",
-      [LABELS.CIV_POOL_SWAPS]:
-        "WETH-side notional of user swaps in the hooked Uniswap v4 Civilization faction pools (pool ids from FactionLiquidityVault.FactionRegistered). Reopen-window buys are grossed up by the same-tx SnipeTaxCollected.taxWeth (the hook strips the tax before the swap); sells already carry gross WETH out. Swaps with sender == the game vault (night damage sells / survivor buys) are internal rebalances and excluded.",
-    },
     Fees: {
       [LABELS.CIV_TAX]:
         "Time-decay snipe tax on Civilization anti-snipe pad curve buys (Nightshades faction launches; 99% at the bell falling to 0 over a 99-minute buys-only window; PadTaxCollected.tax, WETH). Split by the game hook per trade: 50% next-night boost pot / 10% the faction's own locked pool / 13.33% StockBooster / 13.33% protocol treasury / 13.34% game creator.",

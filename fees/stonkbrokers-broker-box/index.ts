@@ -143,9 +143,6 @@ const adapter: SimpleAdapter = {
       "Broker Box creator + booster edge (5% of ticket on official machines) → StockBooster Clock In stock drops, plus the StockBooster half of the Certificate Counter fee.",
   },
   breakdownMethodology: {
-    Volume: {
-      [LABELS.GACHA_FEES]: "Broker Box PullOpened.ticketWei + SoldBack/SoldBackUsdg payouts + Certificate Counter spendWei.",
-    },
     Fees: {
       [LABELS.GACHA_FEES]: "10% house edge skimmed from every settled Broker Box ticket.",
       [LABELS.GACHA_SELLBACK]:

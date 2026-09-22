@@ -154,7 +154,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
   if (internMintEth > 0n) {
     const toPayroll = (internMintEth * INTERNS_MINT_ENGINE_BPS) / 10_000n;
     const toTreasury = internMintEth - toPayroll;
-    dailyVolume.addGasToken(internMintEth, LABELS.INTERNS_MINT);
+    dailyVolume.addGasToken(internMintEth);
     dailyFees.addGasToken(internMintEth, LABELS.INTERNS_MINT);
     if (toPayroll > 0n) dailySupplySideRevenue.addGasToken(toPayroll, LABELS.INTERNS_MINT_PAYROLL);
     if (toTreasury > 0n) {

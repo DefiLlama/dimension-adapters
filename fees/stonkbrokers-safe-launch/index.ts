@@ -251,12 +251,6 @@ const adapter: SimpleAdapter = {
       "Safe Launch tax legs to the launch creator (16.5%), StockBooster + Clock In Card referrers (17%), and the permanently locked LP reserve / ICO Bonus (50%); 90% of the anti-snipe launch tax → StockBooster dividends and 10% → launch dev; bonding-curve creator (33.33%) + StonkBrokers Directed Clock In / pot (33.33%).",
   },
   breakdownMethodology: {
-    Volume: {
-      [LABELS.LAUNCH_TAX]: "Anti-snipe one-off launch buys (WallBought.ethIn).",
-      [LABELS.SAFE_TAX]:
-        "Safe Launch / Stonklauncher window buy+sell notional on every pad (V1 ETH + V1 quoted + V2 + r2). Buys = tax-inclusive quote in; sells = net quote out + tax.",
-      [LABELS.CURVE_FEES]: "StonkCurvePool Trade.quoteAmount (bonding-curve launcher residual volume).",
-    },
     Fees: {
       [LABELS.LAUNCH_TAX]:
         "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
