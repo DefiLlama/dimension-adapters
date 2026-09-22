@@ -859,7 +859,6 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const optionsMap: Record<string, any> = {
-  "bdex-v2": { pullHourly: true },
   // replaced with pullHourly
   // "dyorswap": { runAsV1: true },
 }
