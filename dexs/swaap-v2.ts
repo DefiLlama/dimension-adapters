@@ -40,7 +40,7 @@ const config: Record<string, ChainConfig> = {
     start: '2024-05-29',
     id: '2',
     firstDayVolume: 0,
-    invalidSpikes: ['2026-09-18'],
+    invalidSpikes: ['2026-09-18', '2026-09-21'],
   },
   [CHAIN.BASE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
