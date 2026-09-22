@@ -1,7 +1,7 @@
 import { CHAIN } from "../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 
-const CRYSTAL = "0x4De0D89d8DE993cD8a71a836BBD4fbB57436bfc3"
+const CRYSTAL = "0x508254c838B2e936B0631440c5C6E3AB3a4a98BD"
 const abi = {
   weth: 'function weth() view returns (address)',
   allMarketsLength: 'function allMarketsLength() view returns (uint256)',
