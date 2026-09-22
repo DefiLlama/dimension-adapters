@@ -233,7 +233,7 @@ WITH ${EVM_WALLETS_CTE},
       AND (t."from" IN (${CREATOR_WALLETS}) OR t."to" IN (${CREATOR_WALLETS}))
   ),
   tok_swaps AS (
-    SELECT block_time, abs(cast(varbinary_to_int256(varbinary_substring(data, 1, 32)) AS double)) / 1e18 AS coin
+    SELECT tx_hash, block_time, abs(cast(varbinary_to_int256(varbinary_substring(data, 1, 32)) AS double)) / 1e18 AS coin
     FROM robinhood.logs
     WHERE PARTITION_RANGE AND TIME_RANGE
       AND contract_address = ${UNIV4_POOL_MANAGER_ROBINHOOD}
@@ -246,11 +246,15 @@ WITH ${EVM_WALLETS_CTE},
     LEFT JOIN tok_px p ON p.hour = date_trunc('hour', s.block_time)
     LEFT JOIN tok_px_day d ON d.day = cast(s.block_time AS date)
   ),
+  -- a buy = a transaction that swapped on the COPY/COIN pool AND delivered $COPY to a creator
+  -- wallet (an OTC or airdropped $COPY receipt is not a buyback)
   tok_buys AS (
-    SELECT DISTINCT tx_hash FROM tok_mv
-    WHERE token = ${COPY_TOKEN} AND "to" IN (${CREATOR_WALLETS})
-      AND "from" NOT IN (${CREATOR_WALLETS}, ${PONS_FEE_ESCROW})
-      AND block_time >= TIMESTAMP '${BUYBACK_SINCE}'
+    SELECT DISTINCT m.tx_hash
+    FROM tok_mv m
+    JOIN tok_swaps s ON s.tx_hash = m.tx_hash
+    WHERE m.token = ${COPY_TOKEN} AND m."to" IN (${CREATOR_WALLETS})
+      AND m."from" NOT IN (${CREATOR_WALLETS}, ${PONS_FEE_ESCROW})
+      AND m.block_time >= TIMESTAMP '${BUYBACK_SINCE}'
   ),
   tok_bb AS (
     SELECT SUM(CASE WHEN m.token = ${USDG_ROBINHOOD} THEN m.value / 1e6 ELSE m.value / 1e18 * m.coin_price END) AS buyback_usd

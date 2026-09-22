@@ -86,7 +86,20 @@ const breakdownMethodology = {
     [BUNDLER_GAS_COST]: "Gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint for users' operations, priced with the daily WETH / WBNB price.",
   },
   HoldersRevenue: {
-    [BUYBACK_AND_BURN]: "COIN and USDG sent by the copyfomo creator wallets in every transaction where they receive $COPY from the pool (since 2026-09-11, when the buyback programme started); the $COPY is burned in the same or the next transaction.",
+    [BUYBACK_AND_BURN]: "COIN and USDG sent by the copyfomo creator wallets in every transaction that swaps on the COPY/COIN pool and delivers $COPY to them (since 2026-09-11, when the buyback programme started); the $COPY is burned in the same or the next transaction.",
+  },
+  Revenue: {
+    [TREASURY_INFLOW]: "Same as the Fees component: gross service fees before the supply-side deductions.",
+    [COPY_CREATOR_FEES]: "Same as the Fees component: creator fees have no supply-side share.",
+    [REFERRAL_REWARDS]: "Same as the SupplySideRevenue component, subtracted from gross fees.",
+    [BUNDLER_GAS_COST]: "Same as the SupplySideRevenue component, subtracted from gross fees.",
+  },
+  ProtocolRevenue: {
+    [TREASURY_INFLOW]: "Same as the Revenue component.",
+    [COPY_CREATOR_FEES]: "Same as the Revenue component.",
+    [REFERRAL_REWARDS]: "Same as the Revenue component.",
+    [BUNDLER_GAS_COST]: "Same as the Revenue component.",
+    [BUYBACK_AND_BURN]: "Same as the HoldersRevenue component, subtracted from Revenue.",
   },
 };
 
