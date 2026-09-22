@@ -341,7 +341,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   methodology,
   adapter: chainConfig,
   prefetch,
