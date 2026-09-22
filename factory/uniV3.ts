@@ -447,9 +447,7 @@ const configs: Record<string, Record<string, any>> = {
   },
 }
 
-const optionsMap: Record<string, any> = {
-  "bdex-v3": { pullHourly: true },
-}
+const optionsMap: Record<string, any> = {}
 
 const methodologyMap: Record<string, any> = {
   "bdex-v3": {
