@@ -59,31 +59,19 @@ export async function period(options: FetchOptions) {
 
 export async function getCurveTrades(options: FetchOptions) {
   const range = await period(options);
-  let launches: EventLog[] = [];
-  for (const deployment of deployments) {
-    if (deployment.fromBlock > range.toBlock || range.fromBlock > range.toBlock) continue;
-    launches = launches.concat(await options.getLogs({
-      target: deployment.factory, eventAbi: events.launch,
-      fromBlock: deployment.fromBlock, toBlock: range.toBlock,
-      entireLog: true, parseLog: true, cacheInCloud: true, maxBlockRange: 9_000,
-    }));
-  }
+  const live = deployments.filter(deployment => deployment.fromBlock <= range.toBlock && range.fromBlock <= range.toBlock);
+  const launches: EventLog[] = live.length ? await options.getLogs({
+    targets: live.map(deployment => deployment.factory),
+    eventAbi: events.launch,
+    fromBlock: Math.min(...live.map(deployment => deployment.fromBlock)),
+    toBlock: range.toBlock,
+    entireLog: true, parseLog: true, cacheInCloud: true,
+  }) : [];
   const byCurve = new Map(launches.map(log => [lower(log.args.curve), log]));
   const targets = [...byCurve.keys()];
-  // The repository's many-target exception avoids one RPC query per curve on
-  // large deployments. These custom event signatures remain factory-allowlisted.
   const readTrades = async (eventAbi: string) => {
     if (!targets.length) return [] as EventLog[];
-    let logs: EventLog[] = [];
-    if (targets.length < 100) {
-      logs = logs.concat(await options.getLogs({ targets, eventAbi, ...range, maxBlockRange: 9_000, entireLog: true, parseLog: true }));
-    } else {
-      // The indexer caps no-target queries at 10,000 blocks. Use 9,000 to
-      // leave room for the SDK's cache padding under BSC RPC limits as well.
-      for (let fromBlock = range.fromBlock; fromBlock <= range.toBlock; fromBlock += 9_000) {
-        logs = logs.concat(await options.getLogs({ noTarget: true, maxBlockRange: 9_000, eventAbi, fromBlock, toBlock: Math.min(fromBlock + 8_999, range.toBlock), entireLog: true, parseLog: true }));
-      }
-    }
+    const logs: EventLog[] = await options.getLogs({ targets, eventAbi, ...range, entireLog: true, parseLog: true });
     return logs.filter(log => byCurve.has(lower(log.address)));
   };
   const buys = await readTrades(events.buy);
@@ -92,12 +80,9 @@ export async function getCurveTrades(options: FetchOptions) {
 }
 
 export async function getCurvePolicies(options: FetchOptions, curves: string[]) {
-  // These two fields are immutable per launch. Latest-state reads therefore
-  // also work for historical windows and need no archive state for each curve.
-  const api = new ChainApi({ chain: options.chain });
   // Keep encoded multicall requests below public BSC providers' payload limits.
-  const policies: FeePolicy[] = await api.multiCall({ ...multicallOptions, abi: `function foundationFeePolicy() view returns (${policyTuple})`, calls: curves });
-  const destinations: boolean[] = await api.multiCall({ ...multicallOptions, abi: 'bool:toFoundation', calls: curves });
+  const policies: FeePolicy[] = await options.api.multiCall({ ...multicallOptions, abi: `function foundationFeePolicy() view returns (${policyTuple})`, calls: curves });
+  const destinations: boolean[] = await options.api.multiCall({ ...multicallOptions, abi: 'bool:toFoundation', calls: curves });
   return new Map(curves.map((curve, index) => [lower(curve), { policy: policies[index], toFoundation: destinations[index] }]));
 }
 

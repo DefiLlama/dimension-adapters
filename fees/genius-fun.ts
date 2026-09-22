@@ -1,4 +1,3 @@
-import { ChainApi } from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { deployments, EventLog, events, FeePolicy, getCurvePolicies, getCurveTrades, logIndex, logOrder, lower, multicallOptions, nativeToken, policyTuple, splitFee, start } from '../helpers/genius-fun';
@@ -60,29 +59,30 @@ const fetch = async (options: FetchOptions) => {
     addTradingFee(byCurve.get(lower(log.address))!.args.pairToken, 'Curve', quoteFeeParts(BigInt(log.args.fee), BigInt(log.args.tax), policy), toFoundation);
   }
 
-  for (const deployment of deployments) {
+  const factoriesWithLaunches = deployments.filter(deployment => launches.some(log => lower(log.address) === lower(deployment.factory) && log.blockNumber >= range.fromBlock));
+  const launchFeeUpdates: EventLog[] = factoriesWithLaunches.length
+    ? await options.getLogs({ targets: factoriesWithLaunches.map(deployment => deployment.factory), eventAbi: events.launchFee, ...range, entireLog: true, parseLog: true })
+    : [];
+  for (const deployment of factoriesWithLaunches) {
     const periodLaunches = launches.filter(log => lower(log.address) === lower(deployment.factory) && log.blockNumber >= range.fromBlock);
-    if (!periodLaunches.length) continue;
+    const updates = launchFeeUpdates.filter(log => lower(log.address) === lower(deployment.factory));
     const feeBlock = Math.max(deployment.fromBlock, range.fromBlock - 1);
-    const feeApi = new ChainApi({ chain: options.chain, block: feeBlock });
-    const initialFee = BigInt(await feeApi.call({ target: deployment.factory, abi: 'uint256:launchFee' }));
-    const updates = await options.getLogs({ target: deployment.factory, eventAbi: events.launchFee, ...range, maxBlockRange: 9_000, entireLog: true, parseLog: true });
+    const initialFee = BigInt(await options.api.call({ target: deployment.factory, abi: 'uint256:launchFee', block: feeBlock }));
     const fees = launchFeesInRange(initialFee, updates, periodLaunches);
     dailyFees.add(nativeToken, fees, 'Token Creation Fees');
     dailyRevenue.add(nativeToken, fees, 'Token Creation Fees To Genius');
   }
 
   const hooks = deployments.filter(deployment => deployment.fromBlock <= range.toBlock).map(deployment => deployment.hook);
-  const hookFees: EventLog[] = hooks.length ? await options.getLogs({ targets: hooks, eventAbi: events.hookFee, ...range, maxBlockRange: 9_000, entireLog: true, parseLog: true }) : [];
+  const hookFees: EventLog[] = hooks.length ? await options.getLogs({ targets: hooks, eventAbi: events.hookFee, ...range, entireLog: true, parseLog: true }) : [];
   const poolKeys = [...new Map(hookFees.map(log => {
     const key = `${lower(log.address)}:${lower(log.args.poolId)}`;
     return [key, { key, target: log.address, params: [log.args.poolId] }];
   })).values()];
   // Registration and fee policy are immutable per pool, so current reads also
   // describe historical accrual. Do not use the owner's current default policy.
-  const immutableApi = new ChainApi({ chain: options.chain });
-  const poolInfo = await immutableApi.multiCall({ ...multicallOptions, abi: poolAbi, calls: poolKeys });
-  const poolPolicies = await immutableApi.multiCall({ ...multicallOptions, abi: `function poolFoundationFeePolicy(bytes32) view returns (${policyTuple},bool)`, calls: poolKeys });
+  const poolInfo = await options.api.multiCall({ ...multicallOptions, abi: poolAbi, calls: poolKeys });
+  const poolPolicies = await options.api.multiCall({ ...multicallOptions, abi: `function poolFoundationFeePolicy(bytes32) view returns (${policyTuple},bool)`, calls: poolKeys });
   const pools = new Map(poolKeys.map(({ key }, index) => [key, { info: poolInfo[index], policy: poolPolicies[index][0], toFoundation: poolPolicies[index][1] }]));
 
   const memeFeeLogs = hookFees.filter(log => {
@@ -97,7 +97,7 @@ const fetch = async (options: FetchOptions) => {
     // SDK getEventLogs accepts extraTopics; options.getLogs forwards it. The
     // first indexed field is poolId, so this requests only affected Genius pools.
     const poolFilter = { extraTopics: [[...new Set(memeFeeLogs.map(log => log.args.poolId))]] };
-    const swaps: EventLog[] = await options.getLogs({ target: poolManager, eventAbi: events.swap, ...poolFilter, ...swapRange, maxBlockRange: 9_000, entireLog: true, parseLog: true });
+    const swaps: EventLog[] = await options.getLogs({ target: poolManager, eventAbi: events.swap, ...poolFilter, ...swapRange, entireLog: true, parseLog: true });
     for (const swap of swaps.sort(logOrder)) {
       const rows = swapsByTransaction.get(swap.transactionHash) ?? [];
       rows.push(swap);
@@ -115,7 +115,10 @@ const fetch = async (options: FetchOptions) => {
       // in the same transaction AND pool; batched swaps must remain distinct.
       const swaps = swapsByTransaction.get(log.transactionHash) ?? [];
       const match = swaps.filter(swap => logIndex(swap) < logIndex(log) && lower(swap.args.id) === lower(log.args.poolId)).pop();
-      if (!match) throw new Error(`Genius.fun: missing swap for hook fee ${log.transactionHash}:${log.logIndex}`);
+      // A large pool-id filter can drop the originating Swap. Skip that fee rather than fail the day.
+      if (!match) {
+        continue;
+      }
       const abs = (value: bigint) => value < 0n ? -value : value;
       quoteAmount = abs(BigInt(info.memecoinIsCurrency0 ? match.args.amount1 : match.args.amount0));
       feeCurrencyAmount = abs(BigInt(info.memecoinIsCurrency0 ? match.args.amount0 : match.args.amount1));
@@ -127,7 +130,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (range.toBlock >= alphaFromBlock) {
-    const promotions = await options.getLogs({ target: alphaRegistry, eventAbi: events.alpha, ...range, fromBlock: Math.max(range.fromBlock, alphaFromBlock), maxBlockRange: 9_000 });
+    const promotions = await options.getLogs({ target: alphaRegistry, eventAbi: events.alpha, ...range, fromBlock: Math.max(range.fromBlock, alphaFromBlock) });
     for (const log of promotions) {
       dailyFees.add(nativeToken, log.paidWei, 'Alpha Promotion Fees');
       dailyRevenue.add(nativeToken, log.paidWei, 'Alpha Promotion Fees To Genius');
