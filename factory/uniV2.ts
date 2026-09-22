@@ -10,6 +10,11 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "bdex-v2": {
+    // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
+    // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
+    [CHAIN.BOT_CHAIN]: { factory: '0x117115f3B72C8d1989178089A67D0C26f8EE0AA3', start: '2026-06-02', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "ebisus-bay-dex": {
     [CHAIN.CRONOS]: {
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
@@ -859,6 +864,13 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "bdex-v2": {
+    Volume: "Swap volume from all BDEX V2 pools deployed via the V2 factory on BOT Chain.",
+    Fees: "Users pay a 0.3% fee on every swap.",
+    Revenue: "No protocol fee is taken (factory feeTo is unset), all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "ebisus-bay-dex": {
     Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes NFT trades.",
     Fees: "Swap fees paid by users"
@@ -1773,6 +1785,14 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   feesProtocols[name] = adapter
+}
+
+protocols['bdex-v2'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['bdex-v2'].Fees },
+  UserFees: { 'Trading fees': 'Equals total swap fees paid by users.' },
+  Revenue: { 'Protocol fees': methodologyMap['bdex-v2'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v2'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v2'].SupplySideRevenue },
 }
 
 // RH has no referral program: Pair._update0/_update1 send MAX_REFERRAL_FEE to the treasury in dibs.
