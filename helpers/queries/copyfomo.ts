@@ -54,6 +54,18 @@ export const COPY_CREATOR_WALLETS = [
 // First day of the buyback & burn programme (https://www.copyfomo.com/data). The dev wallet also
 // bought $COPY at launch (2026-09-02): that is the initial position, not a buyback.
 export const BUYBACK_SINCE = "2026-09-11";
+// ERC20Burnable.burn emits Transfer(wallet, 0x0); 0xdead is checked too.
+export const BURN_ADDRESSES = ["0x0000000000000000000000000000000000000000", "0x000000000000000000000000000000000000dead"];
+// The programme started with three manual buys from the launch wallet on 2026-09-11
+// (10.853M $COPY for 8.287 COIN + 2,500 USDG), burned the next day in one transaction:
+// 0xb0a4b14227d82bc043ef53f2814384ce8869599372d863a5b7c8e300d83b85d6 (10.852M $COPY, 2026-09-12 09:48 UTC).
+// The burn is not in the buying transaction, so these three are listed explicitly. Every buy since
+// the buyback account took over (2026-09-14) burns in the same transaction and needs no listing.
+export const MANUAL_BUYBACKS_BURNED_LATER = [
+  "0x6749cd8fe2e462ed7adc56071979a9d22b0df096b8d82f71f202bf54628fcfce",
+  "0xc80d6731c03ae6592ea2fb3e1aa2a630b5d1b57525be2c1700c9e5b0e0de9173",
+  "0xa7250917ea6ef9eeab9d6a3eef4f66a10a26388251df80e194670634576abf2d",
+];
 // Priced against Dune's prices.day to convert the bundler's native gas spend (ETH on
 // Base/Robinhood, BNB on BNB Chain) to USD.
 const WETH_ETHEREUM = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
@@ -93,6 +105,8 @@ const TRES_EVM = hexList([TREASURY_EVM]);
 const STABLES_BASE_BNB = hexList([...STABLES_EVM.base, ...STABLES_EVM.bnb]);
 const EMITTERS = hexList(BUNDLER_EMITTERS);
 const CREATOR_WALLETS = hexList(COPY_CREATOR_WALLETS);
+const BURN_ADDRS = hexList(BURN_ADDRESSES);
+const MANUAL_BUYBACK_TXS = hexList(MANUAL_BUYBACKS_BURNED_LATER);
 
 // Wallet sets. Cheap by construction: only addresses that sent a stablecoin to the
 // treasury up to the end of the requested window are considered (no future data), then
@@ -212,7 +226,7 @@ WITH ${EVM_WALLETS_CTE},
   -- pool (raw PoolManager Swap logs, the hook itself is not decoded on Dune), valued at the hourly
   -- COIN price (daily price as fallback), on the day of the trade. Buyback & burn: what the
   -- copyfomo creator wallets pay (COIN or USDG) in a transaction where they receive $COPY from
-  -- the pool; the $COPY bought is burned (see https://www.copyfomo.com/data).
+  -- the pool and burn $COPY in the same transaction (see https://www.copyfomo.com/data).
   tok_px AS (
     SELECT timestamp AS hour, price FROM prices.hour
     WHERE blockchain = 'robinhood' AND contract_address = ${COIN_ROBINHOOD} AND PRICE_RANGE
@@ -246,12 +260,22 @@ WITH ${EVM_WALLETS_CTE},
     LEFT JOIN tok_px p ON p.hour = date_trunc('hour', s.block_time)
     LEFT JOIN tok_px_day d ON d.day = cast(s.block_time AS date)
   ),
-  -- a buy = a transaction that swapped on the COPY/COIN pool AND delivered $COPY to a creator
-  -- wallet (an OTC or airdropped $COPY receipt is not a buyback)
+  -- a buyback = one transaction that (1) swapped on the COPY/COIN pool, (2) delivered $COPY to a
+  -- creator wallet and (3) burned $COPY from that wallet. The buyback account buys and burns in
+  -- the same ERC-4337 user operation, so a buy without a burn in the same transaction (an OTC or
+  -- airdropped receipt, a buy kept in the wallet) is not a buyback, except the three listed manual
+  -- buys whose burn came the next day (see MANUAL_BUYBACKS_BURNED_LATER).
+  tok_burn_tx AS (
+    SELECT DISTINCT tx_hash FROM tok_mv
+    WHERE token = ${COPY_TOKEN} AND "from" IN (${CREATOR_WALLETS}) AND "to" IN (${BURN_ADDRS})
+    UNION ALL
+    SELECT tx_hash FROM tok_mv WHERE tx_hash IN (${MANUAL_BUYBACK_TXS})
+  ),
   tok_buys AS (
     SELECT DISTINCT m.tx_hash
     FROM tok_mv m
     JOIN tok_swaps s ON s.tx_hash = m.tx_hash
+    JOIN tok_burn_tx b ON b.tx_hash = m.tx_hash
     WHERE m.token = ${COPY_TOKEN} AND m."to" IN (${CREATOR_WALLETS})
       AND m."from" NOT IN (${CREATOR_WALLETS}, ${PONS_FEE_ESCROW})
       AND m.block_time >= TIMESTAMP '${BUYBACK_SINCE}'

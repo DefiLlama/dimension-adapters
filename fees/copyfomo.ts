@@ -52,8 +52,12 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(dailyUserFees);
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue);
-  const dailyProtocolRevenue = dailyRevenue.clone();
+  let dailyProtocolRevenue = dailyRevenue.clone();
   dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+  // buybacks are paid out of fees accrued on earlier days (claims are batched, buys are dripped),
+  // so on a day where the buyback exceeds the day's revenue the protocol share is floored at 0:
+  // Revenue = ProtocolRevenue + HoldersRevenue is an attribution rule, not a per-day equality
+  if ((await dailyProtocolRevenue.getUSDValue()) < 0) dailyProtocolRevenue = options.createBalances();
   return {
     dailyFees,
     dailyUserFees,
@@ -69,8 +73,8 @@ const methodology = {
   UserFees: "The part paid by copyfomo users: service fee plus gas billed back. Excludes the $COPY creator fees, which are paid by $COPY traders.",
   SupplySideRevenue: "Referral rewards paid back to copyfomo users, plus the actual on-chain gas cost copyfomo pays on their behalf.",
   Revenue: "Fees minus SupplySideRevenue: the service fee plus copyfomo's margin on gas (the 'protocol fees, after gas' figure on copyfomo.com/data) plus the $COPY creator fees (the 'token fees' figure on the same page).",
-  HoldersRevenue: "Buyback & burn of $COPY, funded by the creator fees: what the copyfomo creator wallets pay (COIN or USDG) in every transaction where they buy $COPY from the pool; the $COPY bought is burned. Counted on the day of the buy, which follows the trades that generated the fees. A holder cashback leg (USDG distributed to $COPY holders) is planned and will be added when it goes live.",
-  ProtocolRevenue: "Revenue minus HoldersRevenue: service revenue and the creator fees kept by copyfomo.",
+  HoldersRevenue: "Buyback & burn of $COPY, funded by the creator fees: what the copyfomo creator wallets pay (COIN or USDG) in every transaction where they buy $COPY from the pool and burn $COPY in the same transaction (the buyback account buys and burns in one user operation). Counted on the day of the buy, which follows the trades that generated the fees. A holder cashback leg (USDG distributed to $COPY holders) is planned and will be added when it goes live.",
+  ProtocolRevenue: "Revenue minus HoldersRevenue: service revenue and the creator fees kept by copyfomo. Floored at 0 on a day where the buyback exceeds the day's revenue (buybacks are funded by fees accrued on earlier days).",
 };
 
 const breakdownMethodology = {
@@ -86,7 +90,7 @@ const breakdownMethodology = {
     [BUNDLER_GAS_COST]: "Gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint for users' operations, priced with the daily WETH / WBNB price.",
   },
   HoldersRevenue: {
-    [BUYBACK_AND_BURN]: "COIN and USDG sent by the copyfomo creator wallets in every transaction that swaps on the COPY/COIN pool and delivers $COPY to them (since 2026-09-11, when the buyback programme started); the $COPY is burned in the same or the next transaction.",
+    [BUYBACK_AND_BURN]: "COIN and USDG sent by the copyfomo creator wallets in every transaction that swaps on the COPY/COIN pool, delivers $COPY to them and burns $COPY from them (Transfer to the zero address) in that same transaction, since 2026-09-11 when the buyback programme started. The three manual buys of 2026-09-11, burned the next day in one transaction (hash in the query helper), are listed explicitly.",
   },
   Revenue: {
     [TREASURY_INFLOW]: "Same as the Fees component: gross service fees before the supply-side deductions.",
