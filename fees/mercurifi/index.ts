@@ -144,6 +144,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ARC],
+  doublecounted: true, // uniswap v4
   // Mainnet deployment, block 22060881.
   start: "2026-09-21",
   methodology: {
