@@ -4,6 +4,9 @@ import fetchURL from "../../utils/fetchURL";
 
 const API_BASE_URL = "https://api.templedigitalgroup.com/api/exchange";
 const SETTLED_VOLUME_URL = `${API_BASE_URL}/settled_volume`;
+const FEE_CHANGE_TIMESTAMP = Date.parse("2026-09-21T00:00:00Z") / 1000;
+const PREVIOUS_MAKER_FEE_BPS = 0.5;
+const PREVIOUS_TAKER_FEE_BPS = 1;
 const MAKER_FEE_BPS = 1.25;
 const TAKER_FEE_BPS = 2.5;
 const BPS = 10000;
@@ -35,9 +38,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   )
     throw new Error("Temple settled volume response malformed or mismatched");
 
+  const makerFeeBps = requestStartTimestamp < FEE_CHANGE_TIMESTAMP
+    ? PREVIOUS_MAKER_FEE_BPS : MAKER_FEE_BPS;
+  const takerFeeBps = requestStartTimestamp < FEE_CHANGE_TIMESTAMP
+    ? PREVIOUS_TAKER_FEE_BPS : TAKER_FEE_BPS;
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(dailyVolume * MAKER_FEE_BPS / BPS, "Maker Fees");
-  dailyFees.addUSDValue(dailyVolume * TAKER_FEE_BPS / BPS, "Taker Fees");
+  dailyFees.addUSDValue(dailyVolume * makerFeeBps / BPS, "Maker Fees");
+  dailyFees.addUSDValue(dailyVolume * takerFeeBps / BPS, "Taker Fees");
 
   return {
     dailyVolume,
@@ -51,7 +58,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 const methodology = {
   Volume:
     "Settled spot orderbook volume across Temple markets quoted in the USD-pegged USDA and USDCx assets. Temple aggregates current and legacy markets for the requested half-open time window.",
-  Fees: "Trading fees charged by the Temple orderbook: 1.25 bps maker + 2.5 bps taker = 3.75 bps applied to settled volume.",
+  Fees: "Trading fees charged by the Temple orderbook: 0.5 bps maker + 1 bp taker before 2026-09-21; 1.25 bps maker + 2.5 bps taker from 2026-09-21. Rates are applied to settled volume.",
   Revenue: "All trading fees are retained by the protocol.",
   ProtocolRevenue: "All trading fees are retained by the protocol.",
   SupplySideRevenue: "Zero. No trading-fee share is paid to liquidity providers or market makers.",
@@ -59,16 +66,16 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Maker Fees": "1.25 bps maker fee applied to settled volume.",
-    "Taker Fees": "2.5 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps before 2026-09-21; 1.25 bps from 2026-09-21, applied to settled volume.",
+    "Taker Fees": "1 bp before 2026-09-21; 2.5 bps from 2026-09-21, applied to settled volume.",
   },
   Revenue: {
-    "Maker Fees": "1.25 bps maker fee applied to settled volume.",
-    "Taker Fees": "2.5 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps before 2026-09-21; 1.25 bps from 2026-09-21, applied to settled volume.",
+    "Taker Fees": "1 bp before 2026-09-21; 2.5 bps from 2026-09-21, applied to settled volume.",
   },
   ProtocolRevenue: {
-    "Maker Fees": "1.25 bps maker fee applied to settled volume.",
-    "Taker Fees": "2.5 bps taker fee applied to settled volume.",
+    "Maker Fees": "0.5 bps before 2026-09-21; 1.25 bps from 2026-09-21, applied to settled volume.",
+    "Taker Fees": "1 bp before 2026-09-21; 2.5 bps from 2026-09-21, applied to settled volume.",
   },
 };
 
