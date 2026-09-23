@@ -115,6 +115,13 @@ const configs: Record<string, Config> = {
       [CHAIN.INK]: { comptroller: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7', start: '2026-03-17' },
     },
   },
+  'wing-finance': {
+    chains: {
+      [CHAIN.ETHEREUM]: { comptroller: '0x2F9fa63066cfA2d727F57ddf1991557bA86F12c9', start: '2021-01-20' },
+      [CHAIN.BSC]: { comptroller: '0x49620e9bfd117c7b05b4732980b05b7afee60a69', start: '2021-03-01' },
+    },
+    options: { useExchangeRate: true },
+  },
 };
 
 
