@@ -1,13 +1,14 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
+import { getPositionedLogArgs } from '../helpers/logs'
 
 // Denaria (https://denaria.finance) trades on GMX V2 (Arbitrum One) through per-user
 // smart accounts; see dexs/denaria-gmx.ts for the attribution model.
 //
 // Account discovery: the Denaria app sets its referral code (DENARIA) on every order,
-// and GMX ReferralStorage emits SetTraderReferralCode(account, code) the first time an
-// account trades with that code. The accounts carrying the DENARIA code are the
-// Denaria user set (the staging environment uses a different code).
+// and GMX ReferralStorage emits SetTraderReferralCode(account, code) whenever an
+// account's code changes. The accounts whose latest code is DENARIA are the Denaria
+// user set (the staging environment uses a different code).
 //
 // Open interest: notional (sizeInUsd) of those accounts' open GMX V2 positions, read
 // from the GMX Reader at the end of the window. Each position is counted once, matching
@@ -35,19 +36,26 @@ function usd30(amount: bigint): number {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  // Small, append-only list (one event per account), safe to cache.
-  const codeLogs = await options.getLogs({
+  const toBlock = await options.getToBlock()
+  // Small, append-only list (one event per account and code change), safe to cache.
+  const codeLogs = await getPositionedLogArgs(options, {
     target: REFERRAL_STORAGE,
     eventAbi: SET_TRADER_REFERRAL_CODE_ABI,
     fromBlock: DENARIA_CODE_REGISTERED_BLOCK,
-    toBlock: Number(options.toApi.block),
+    toBlock,
     cacheInCloud: true,
   })
-  const accounts = [...new Set(
-    codeLogs
-      .filter((log: any) => String(log.code).toLowerCase() === DENARIA_REFERRAL_CODE)
-      .map((log: any) => String(log.account).toLowerCase()),
-  )]
+  // A later order from another interface can replace the account's code, so replay the
+  // events in order and keep only the accounts whose latest code at the window end is
+  // DENARIA.
+  codeLogs.sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
+  const latestCodeByAccount = new Map<string, string>()
+  for (const log of codeLogs) {
+    latestCodeByAccount.set(String(log.account).toLowerCase(), String(log.code).toLowerCase())
+  }
+  const accounts = [...latestCodeByAccount.entries()]
+    .filter(([, code]) => code === DENARIA_REFERRAL_CODE)
+    .map(([account]) => account)
 
   let longOpenInterest = 0n
   let shortOpenInterest = 0n
