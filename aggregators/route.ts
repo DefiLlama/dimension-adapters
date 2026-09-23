@@ -103,8 +103,10 @@ const fetch = async (options: FetchOptions) => {
   let lpFundingEth = 0n;
   const addBuyback = (amount: string | bigint) => { buybackEth += BigInt(amount); };
   const fromBlock = await options.getFromBlock();
+  // SDK log ranges are inclusive; adjacent hourly pulls share their boundary block.
+  const toBlock = (await options.getToBlock()) - 1;
   for (const eventAbi of swapEvents) {
-    const logs = await options.getLogs({ targets: engines, eventAbi, onlyArgs: false });
+    const logs = await options.getLogs({ toBlock, targets: engines, eventAbi, onlyArgs: false });
     for (const entry of logs) {
       const log = entry.args;
       // Wrappers emit the final swap as well as their inner engine. Count only the outer one.
@@ -120,9 +122,9 @@ const fetch = async (options: FetchOptions) => {
       }
     }
   }
-  const oldFees = await options.getLogs({ targets: engines, eventAbi: feePaid });
-  const currentFees = await options.getLogs({ targets: collectors, eventAbi: settled });
-  const integratedFees = await options.getLogs({ targets: integratedFeeExecutors, eventAbi: outputFee });
+  const oldFees = await options.getLogs({ toBlock, targets: engines, eventAbi: feePaid });
+  const currentFees = await options.getLogs({ toBlock, targets: collectors, eventAbi: settled });
+  const integratedFees = await options.getLogs({ toBlock, targets: integratedFeeExecutors, eventAbi: outputFee });
   for (const log of integratedFees) {
     dailyFees.add(log.token, log.feeAmount, 'Swap Fees');
     dailyRevenue.add(log.token, log.feeAmount, 'Swap Fees To Route');
@@ -138,26 +140,26 @@ const fetch = async (options: FetchOptions) => {
   // Count only ROUTE's creator share, not Pons protocol fees or unrelated pools.
   // Covers dev wallet, first manager, September 11 manager and Ramp recipient alike.
   // Do not also count escrow credits/claims or converted swap-fee deposits as income.
-  const creatorFees = await options.getLogs({ target: creatorHook, eventAbi: poolFeesSwept, topics: creatorTopics });
-  const curveFees = await options.getLogs({ target: routeCurve, eventAbi: curveFeesSwept });
-  const rescuedCurveFees = await options.getLogs({ target: routeCurve, eventAbi: curveFeesRescued });
+  const creatorFees = await options.getLogs({ toBlock, target: creatorHook, eventAbi: poolFeesSwept, topics: creatorTopics });
+  const curveFees = await options.getLogs({ toBlock, target: routeCurve, eventAbi: curveFeesSwept });
+  const rescuedCurveFees = await options.getLogs({ toBlock, target: routeCurve, eventAbi: curveFeesRescued });
   for (const log of [...creatorFees, ...curveFees, ...rescuedCurveFees]) {
     dailyFees.addGasToken(log.creatorAmount.toString(), METRIC.CREATOR_FEES);
     dailyRevenue.addGasToken(log.creatorAmount.toString(), 'Creator Fees To Route');
   }
 
   if (fromBlock <= lastDevBuybackBlock) {
-    const purchases = await options.getLogs({ target: poolManager, eventAbi: poolSwap, topics: poolSwapTopics, onlyArgs: false });
+    const purchases = await options.getLogs({ toBlock, target: poolManager, eventAbi: poolSwap, topics: poolSwapTopics, onlyArgs: false });
     for (const log of purchases) {
       if (!earlyPoolBuybacks.has(log.transactionHash)) continue;
       if (BigInt(log.args.amount0) >= 0n || BigInt(log.args.amount1) <= 0n) throw new Error('Unexpected historical buyback direction');
       addBuyback(-BigInt(log.args.amount0));
     }
   }
-  const firstExecutions = await options.getLogs({ target: firstManager, eventAbi: firstExecuted });
+  const firstExecutions = await options.getLogs({ toBlock, target: firstManager, eventAbi: firstExecuted });
   for (const log of firstExecutions) addBuyback(log.boughtWith.toString());
-  const executions = await options.getLogs({ target: creatorManager, eventAbi: executed });
-  const rampExecutions = await options.getLogs({ target: rampManager, eventAbi: rampExecuted });
+  const executions = await options.getLogs({ toBlock, target: creatorManager, eventAbi: executed });
+  const rampExecutions = await options.getLogs({ toBlock, target: rampManager, eventAbi: rampExecuted });
   for (const log of [...executions, ...rampExecutions]) {
     addBuyback(log.buybackEth.toString());
     // Full ETH allocation in a successful cycle, including the paired-asset budget.

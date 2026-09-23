@@ -23,12 +23,12 @@ class Balances {
 const value = (b: Balances, token: string, label: string) => b.values[`${token}:${label}`] ?? 0n;
 async function run(rows: any[], fromBlock = 0, toBlock = Infinity) {
   return adapter.fetch!({
-    chain: 'robinhood', getFromBlock: async () => fromBlock,
+    chain: 'robinhood', getFromBlock: async () => fromBlock, getToBlock: async () => toBlock,
     createBalances: () => new Balances(),
-    getLogs: async ({ target, targets, eventAbi, topics, onlyArgs = true }: any) => {
+    getLogs: async ({ target, targets, eventAbi, topics, onlyArgs = true, fromBlock: logFrom = fromBlock, toBlock: logTo = toBlock }: any) => {
       const iface = new Interface([eventAbi]);
       const event = iface.fragments[0] as any;
-      return rows.filter(l => Number(l.blockNumber) >= fromBlock && Number(l.blockNumber) < toBlock &&
+      return rows.filter(l => Number(l.blockNumber) >= logFrom && Number(l.blockNumber) <= logTo &&
         (targets ?? [target]).includes(l.address.toLowerCase()) && l.topics[0] === event.topicHash &&
         (!topics || topics.every((t: string | null, i: number) => t === null || t === l.topics[i])))
         .map(l => { const args = iface.decodeEventLog(event, l.data, l.topics); return onlyArgs ? args : { ...l, args }; });
@@ -87,8 +87,11 @@ test('new wrapper volume is counted once and the inner executor is excluded', as
 
 test('adjacent windows include a boundary event only once', async () => {
   const block = Number(fixtures[3].blockNumber);
-  const before = await run([fixtures[3]], block - 1, block);
+  const before = await run([fixtures[3]], block - 2, block - 1);
+  // Production hourly windows share this endpoint; the adapter must exclude it.
+  const sharedBefore = await run([fixtures[3]], block - 1, block);
   const after = await run([fixtures[3]], block, block + 1);
   assert.equal(value(before.dailyHoldersRevenue, native, 'Token Buy Back'), 0n);
+  assert.equal(value(sharedBefore.dailyHoldersRevenue, native, 'Token Buy Back'), 0n);
   assert.equal(value(after.dailyHoldersRevenue, native, 'Token Buy Back'), 19369721762768720n);
 });
