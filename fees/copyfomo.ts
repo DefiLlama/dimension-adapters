@@ -54,10 +54,7 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.subtract(dailySupplySideRevenue);
   let dailyProtocolRevenue = dailyRevenue.clone();
   dailyProtocolRevenue.subtract(dailyHoldersRevenue);
-  // buybacks are paid out of fees accrued on earlier days (claims are batched, buys are dripped),
-  // so on a day where the buyback exceeds the day's revenue the protocol share is floored at 0:
-  // Revenue = ProtocolRevenue + HoldersRevenue is an attribution rule, not a per-day equality
-  if ((await dailyProtocolRevenue.getUSDValue()) < 0) dailyProtocolRevenue = options.createBalances();
+
   return {
     dailyFees,
     dailyUserFees,
@@ -74,7 +71,7 @@ const methodology = {
   SupplySideRevenue: "Referral rewards paid back to copyfomo users, plus the actual on-chain gas cost copyfomo pays on their behalf.",
   Revenue: "Fees minus SupplySideRevenue: the service fee plus copyfomo's margin on gas (the 'protocol fees, after gas' figure on copyfomo.com/data) plus the $COPY creator fees (the 'token fees' figure on the same page).",
   HoldersRevenue: "Buyback & burn of $COPY, funded by the creator fees: what the copyfomo creator wallets pay (COIN or USDG) in every transaction where they buy $COPY from the pool and burn $COPY in the same transaction (the buyback account buys and burns in one user operation). Counted on the day of the buy, which follows the trades that generated the fees. A holder cashback leg (USDG distributed to $COPY holders) is planned and will be added when it goes live.",
-  ProtocolRevenue: "Revenue minus HoldersRevenue: service revenue and the creator fees kept by copyfomo. Floored at 0 on a day where the buyback exceeds the day's revenue (buybacks are funded by fees accrued on earlier days).",
+  ProtocolRevenue: "Revenue minus HoldersRevenue: service revenue and the creator fees kept by copyfomo.",
 };
 
 const breakdownMethodology = {
@@ -117,6 +114,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // buybacks can exceed revenue on some days due to cumulative accrual
 };
 
 export default adapter;
