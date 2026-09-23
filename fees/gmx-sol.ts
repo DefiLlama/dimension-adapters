@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
 
   for (const record of res.feesRecordDailies) {
+    // squid fee fields are USD with 20 decimals
     const totalFees = (Number(record.tradeFees) + Number(record.swapFees)) / 1e20
     dailyFees.addUSDValue(record.tradeFees / 1e20, METRIC.TRADING_FEES)
     dailyFees.addUSDValue(record.swapFees / 1e20, METRIC.SWAP_FEES)
@@ -80,7 +81,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "25% of the swap fees go to the protocol since 16 January 2026, 70% before.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol share of fees kept by the treasury: 25% since 16 January 2026, 34% from 16 March 2025 to 15 January 2026, 70% before, and 70% minus the GT buyback on 14-15 March 2025.",
+    [METRIC.PROTOCOL_FEES]: "Protocol share of fees kept by the treasury: 70% before 14 March 2025, 70% minus the actual GT buyback on 14-15 March 2025, 34% from 16 March 2025 to 15 January 2026, and 25% since 16 January 2026.",
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "Daily GT buyback funded by the treasury: 36% of fees from 16 March 2025 to 15 January 2026, the actual capped amounts on the 14-15 March 2025 launch days, and 0 outside that period.",
@@ -94,7 +95,7 @@ const breakdownMethodology = {
 const methodology = {
   Fees: "Opening/closing fees for perpetual positions, swap fees, liquidation fees, and borrowing fees",
   Revenue: "25% of all collected fees since 16 January 2026, 70% before.",
-  ProtocolRevenue: "Share of fees kept by the treasury after the GT buyback: 25% since 16 January 2026, 34% from 16 March 2025 to 15 January 2026, 70% before.",
+  ProtocolRevenue: "Share of fees kept by the treasury after the GT buyback: 70% before 14 March 2025, 70% minus the actual GT buyback on 14-15 March 2025, 34% from 16 March 2025 to 15 January 2026, and 25% since 16 January 2026.",
   HoldersRevenue: "Daily GT buyback funded by the treasury: 36% of fees from 16 March 2025 to 15 January 2026 (actual amounts on the 14-15 March 2025 launch days), 0 before and since 16 January 2026. GT is GMTrade's own token, not GMX.",
   SupplySideRevenue: "75% of the fees go to liquidity providers since 16 January 2026, 30% before.",
 }
