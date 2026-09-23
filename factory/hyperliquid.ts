@@ -887,6 +887,18 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Quote from Hyperliquid trades.",
     },
     breakdownFees: true,
+  },
+  "watchcrypto": {
+    // WatchCrypto builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xd11825808d42cf05845308f7c7b295e912a28398/20260914.csv.lz4
+    addresses: ["0xd11825808d42cf05845308f7c7b295e912a28398"],
+    start: "2026-09-11",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through WatchCrypto's trading terminal.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through WatchCrypto; excludes Hyperliquid exchange trading fees.",
+      Revenue: "Builder code fees collected by WatchCrypto from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by WatchCrypto from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
   }
 };
 
