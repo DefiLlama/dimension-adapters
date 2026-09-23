@@ -1,12 +1,15 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const BSC_VAULTS = [
-  "0xC45f0c6a22dd5bA2fa75b803bBabc67CC212838c",
-  "0xBC96E51AE3A3D0A32091396339a0c2B68DF97e2A",
-  "0xf3400439439c911952E9949B6A522Ed78504A253",
-];
 const BSC_ASSET = "0x55d398326f99059fF775485246999027B3197955"; // Binance-Peg USDT
+const BSC_VAULTS = [
+  {
+    address: "0xf3400439439c911952E9949B6A522Ed78504A253",
+    asset: BSC_ASSET,
+    start: "2026-08-03",
+  },
+];
+const BSC_START = "2026-08-03";
 const PPS_SCALE = 10n ** 18n;
 const BPS_SCALE = 10_000n;
 
@@ -21,6 +24,7 @@ const ABIS = {
 const METRICS = {
   VAULT_YIELD: "Vault Yield",
   YIELD_TO_DEPOSITORS: "Vault Yield To Depositors",
+  MANAGEMENT_FEES_TO_PROTOCOL: "Management Fees To Protocol",
   PERFORMANCE_FEES_TO_PROTOCOL: "Performance Fees To Protocol",
 };
 
@@ -47,16 +51,25 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const vaults = BSC_VAULTS.filter(
+    (vault) => options.dateString >= vault.start,
+  );
+  const vaultAddresses = vaults.map((vault) => vault.address);
+
+  if (vaults.length === 0) {
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  }
 
   const [ppsAfter, feeConfigsBefore, feeConfigsAfter, crystallizedBefore, crystallizedAfter] = await Promise.all([
-    options.toApi.multiCall({ abi: ABIS.netPricePerShare, calls: BSC_VAULTS }),
-    options.fromApi.multiCall({ abi: ABIS.feeConfig, calls: BSC_VAULTS }),
-    options.toApi.multiCall({ abi: ABIS.feeConfig, calls: BSC_VAULTS }),
-    options.fromApi.multiCall({ abi: ABIS.totalCrystallizedFeeShares, calls: BSC_VAULTS }),
-    options.toApi.multiCall({ abi: ABIS.totalCrystallizedFeeShares, calls: BSC_VAULTS }),
+    options.toApi.multiCall({ abi: ABIS.netPricePerShare, calls: vaultAddresses }),
+    options.fromApi.multiCall({ abi: ABIS.feeConfig, calls: vaultAddresses }),
+    options.toApi.multiCall({ abi: ABIS.feeConfig, calls: vaultAddresses }),
+    options.fromApi.multiCall({ abi: ABIS.totalCrystallizedFeeShares, calls: vaultAddresses }),
+    options.toApi.multiCall({ abi: ABIS.totalCrystallizedFeeShares, calls: vaultAddresses }),
   ]);
 
-  for (let i = 0; i < BSC_VAULTS.length; i++) {
+  for (let i = 0; i < vaults.length; i++) {
+    const vault = vaults[i];
     const endPps = BigInt(ppsAfter[i]);
     const startFeeConfig = parseFeeConfig(feeConfigsBefore[i]);
     const feeConfig = parseFeeConfig(feeConfigsAfter[i]);
@@ -66,41 +79,41 @@ const fetch = async (options: FetchOptions) => {
       endFees.managementShares < startFees.managementShares
       || endFees.performanceShares < startFees.performanceShares
     ) {
-      throw new Error(`MoneyFi V2 cumulative fee shares decreased for ${BSC_VAULTS[i]}`);
+      throw new Error(`MoneyFi V2 cumulative fee shares decreased for ${vault.address}`);
     }
-    if (
-      startFeeConfig.managementFeeBps !== feeConfig.managementFeeBps
-      || startFeeConfig.performanceFeeBps !== feeConfig.performanceFeeBps
-    ) {
-      throw new Error(`MoneyFi V2 fee config changed during the reporting period for ${BSC_VAULTS[i]}`);
-    }
-    if (feeConfig.managementFeeBps !== 0n) {
-      throw new Error(`MoneyFi V2 gross-yield inference does not support management fees for ${BSC_VAULTS[i]}`);
-    }
-    if (feeConfig.performanceFeeBps === 0n) {
-      throw new Error(`MoneyFi V2 performance fee is zero for ${BSC_VAULTS[i]}`);
-    }
-
     const managementShares = endFees.managementShares - startFees.managementShares;
-    if (managementShares !== 0n) {
-      throw new Error(`MoneyFi V2 crystallized management fee shares for ${BSC_VAULTS[i]}`);
+    const performanceShares = endFees.performanceShares - startFees.performanceShares;
+    if (
+      performanceShares !== 0n
+      && startFeeConfig.performanceFeeBps !== feeConfig.performanceFeeBps
+    ) {
+      throw new Error(`MoneyFi V2 performance fee changed during the reporting period for ${vault.address}`);
+    }
+    if (performanceShares !== 0n && feeConfig.performanceFeeBps === 0n) {
+      throw new Error(`MoneyFi V2 performance fee is zero for ${vault.address}`);
     }
 
     // Newly crystallized performance-fee shares represent the protocol's fee
     // on realized yield above the Vault high-water mark. Grossing that fee up
     // by the configured rate is flow-independent: deposits and redemptions do
     // not need to be time-weighted.
-    const performanceRevenue =
-      (endFees.performanceShares - startFees.performanceShares) * endPps / PPS_SCALE;
-    const grossYield = performanceRevenue * BPS_SCALE / feeConfig.performanceFeeBps;
-    const depositorYield = grossYield - performanceRevenue;
+    const managementRevenue = managementShares * endPps / PPS_SCALE;
+    const performanceRevenue = performanceShares * endPps / PPS_SCALE;
+    const grossPerformanceYield = performanceRevenue === 0n
+      ? 0n
+      : performanceRevenue * BPS_SCALE / feeConfig.performanceFeeBps;
+    const grossYield = grossPerformanceYield + managementRevenue;
+    const depositorYield = grossPerformanceYield - performanceRevenue;
 
-    if (grossYield !== 0n) dailyFees.add(BSC_ASSET, grossYield, METRICS.VAULT_YIELD);
+    if (grossYield !== 0n) dailyFees.add(vault.asset, grossYield, METRICS.VAULT_YIELD);
     if (depositorYield !== 0n) {
-      dailySupplySideRevenue.add(BSC_ASSET, depositorYield, METRICS.YIELD_TO_DEPOSITORS);
+      dailySupplySideRevenue.add(vault.asset, depositorYield, METRICS.YIELD_TO_DEPOSITORS);
     }
     if (performanceRevenue !== 0n) {
-      dailyRevenue.add(BSC_ASSET, performanceRevenue, METRICS.PERFORMANCE_FEES_TO_PROTOCOL);
+      dailyRevenue.add(vault.asset, performanceRevenue, METRICS.PERFORMANCE_FEES_TO_PROTOCOL);
+    }
+    if (managementRevenue !== 0n) {
+      dailyRevenue.add(vault.asset, managementRevenue, METRICS.MANAGEMENT_FEES_TO_PROTOCOL);
     }
   }
 
@@ -121,24 +134,26 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.BSC]: {
       fetch,
-      start: "2026-09-21",
+      start: BSC_START,
     },
   },
   methodology: {
-    Fees: "Gross realized Vault yield above the high-water mark, inferred by grossing up newly crystallized performance fees at each Vault's on-chain fee rate.",
-    Revenue: "Performance fee shares crystallized by MoneyFi, valued at the period-end net share price.",
-    ProtocolRevenue: "Crystallized performance fees allocated to MoneyFi.",
-    SupplySideRevenue: "The remainder of crystallized gross yield allocated to Vault depositors after MoneyFi's performance fee.",
+    Fees: "Gross realized Vault yield above the high-water mark plus crystallized management fees. Yield is inferred by grossing up newly crystallized performance fees at each Vault's on-chain fee rate.",
+    Revenue: "Management and performance fee shares crystallized by MoneyFi, valued at the period-end net share price.",
+    ProtocolRevenue: "Crystallized management and performance fees allocated to MoneyFi.",
+    SupplySideRevenue: "The remainder of crystallized gross performance yield allocated to Vault depositors after MoneyFi's performance fee.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRICS.VAULT_YIELD]: "Realized yield above the high-water mark implied by the crystallized performance fee and configured fee rate.",
+      [METRICS.VAULT_YIELD]: "Realized yield above the high-water mark implied by crystallized performance fees, plus crystallized management fees.",
     },
     Revenue: {
       [METRICS.PERFORMANCE_FEES_TO_PROTOCOL]: "New cumulative performance fee shares valued at the period-end net share price.",
+      [METRICS.MANAGEMENT_FEES_TO_PROTOCOL]: "New cumulative management fee shares valued at the period-end net share price.",
     },
     ProtocolRevenue: {
       [METRICS.PERFORMANCE_FEES_TO_PROTOCOL]: "Crystallized performance fees allocated to MoneyFi.",
+      [METRICS.MANAGEMENT_FEES_TO_PROTOCOL]: "Crystallized management fees allocated to MoneyFi.",
     },
     SupplySideRevenue: {
       [METRICS.YIELD_TO_DEPOSITORS]: "Crystallized gross yield remaining for depositors after the performance fee.",
