@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Interface } from 'ethers';
-import adapter, { settled } from '../route';
+import adapter, { settled, fetchRouteAccounting } from '../route';
 import fixtures from './fixtures.json';
 
 // Raw logs in fixtures.json are independently inspectable on Robinhood Blockscout
@@ -21,8 +21,8 @@ class Balances {
   clone() { const b = new Balances(); b.values = { ...this.values }; return b; }
 }
 const value = (b: Balances, token: string, label: string) => b.values[`${token}:${label}`] ?? 0n;
-async function run(rows: any[], fromBlock = 0, toBlock = Infinity) {
-  return adapter.fetch!({
+async function run(rows: any[], fromBlock = 0, toBlock = Infinity, fetch = adapter.fetch!) {
+  return fetch({
     chain: 'robinhood', getFromBlock: async () => fromBlock, getToBlock: async () => toBlock,
     createBalances: () => new Balances(),
     getLogs: async ({ target, targets, eventAbi, topics, onlyArgs = true, fromBlock: logFrom = fromBlock, toBlock: logTo = toBlock }: any) => {
@@ -54,9 +54,23 @@ test('current fee emitters reconcile actual fees once, including Premium native 
 test('Ramp reads the indexed Executed ABI and separates full LP funding from dedicated buys', async () => {
   const out = await run([fixtures[3]]);
   assert.equal(value(out.dailyHoldersRevenue, native, 'Token Buy Back'), 19369721762768720n);
-  assert.equal(value(out.dailyHoldersRevenue, native, 'Liquidity Funding'), 19369721762768720n);
-  assert.equal(value(out.dailyProtocolRevenue, native, 'Liquidity Funding'), -19369721762768720n);
+  assert.equal(value(out.dailyHoldersRevenue, native, 'Liquidity Funding'), 0n);
+  assert.equal(Object.values(out.dailyHoldersRevenue.values).reduce((sum: bigint, n: any) => sum + n, 0n), 19369721762768720n);
+  assert.equal(out.dailyCapitalAllocation, undefined);
+  const accounting = await run([fixtures[3]], 0, Infinity, fetchRouteAccounting);
+  assert.equal(value(accounting.dailyCapitalAllocation, native, 'Liquidity Funding'), 19369721762768720n);
+  assert.equal(value(out.dailyProtocolRevenue, native, 'Liquidity Funding'), 0n);
   assert.equal(value(out.dailyRevenue, native, 'Creator Fees To Route'), 0n);
+  assert.equal(value(out.dailyProtocolRevenue, native, 'Token Buy Back'), -19369721762768720n);
+});
+
+test('legacy LP budgets are capital allocation and never holder income or revenue deductions', async () => {
+  const abi = 'event Executed(uint256 indexed sequence,uint256 revenue,uint256 buybackEth,uint256 lpBudget,uint256 vaultEth,uint256 buybackTokens,uint256 positionId,uint128 liquidityAdded)';
+  const cycle = eventLog('0xda5790345fd25878e5186ebd98823814188acfbe', abi, [1, 100, 35, 30, 35, 123, 1, 100]);
+  const out = await run([cycle], 0, Infinity, fetchRouteAccounting);
+  assert.deepEqual(out.dailyHoldersRevenue.values, { [`${native}:Token Buy Back`]: 35n });
+  assert.deepEqual(out.dailyProtocolRevenue.values, { [`${native}:Token Buy Back`]: -35n });
+  assert.deepEqual(out.dailyCapitalAllocation.values, { [`${native}:Liquidity Funding`]: 30n });
 });
 
 test('creator accounting isolates the ROUTE pool and does not recount escrow credits', async () => {

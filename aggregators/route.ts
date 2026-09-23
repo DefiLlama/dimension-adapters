@@ -94,7 +94,8 @@ const poolManager = '0x8366a39cc670b4001a1121b8f6a443a643e40951';
 const poolSwap = 'event Swap(bytes32 indexed id,address indexed sender,int128 amount0,int128 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick,uint24 fee)';
 const poolSwapTopics = new Interface([poolSwap]).encodeFilterTopics('Swap', [routePool]) as string[];
 
-const fetch = async (options: FetchOptions) => {
+// Capital allocation is retained separately; it is not a supported DefiLlama income metric.
+export const fetchRouteAccounting = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -167,26 +168,31 @@ const fetch = async (options: FetchOptions) => {
     lpFundingEth += BigInt(log.lpBudget);
   }
   dailyHoldersRevenue.addGasToken(buybackEth.toString(), METRIC.TOKEN_BUY_BACK);
-  dailyHoldersRevenue.addGasToken(lpFundingEth.toString(), liquidityFunding);
+  const dailyCapitalAllocation = options.createBalances();
+  dailyCapitalAllocation.addGasToken(lpFundingEth.toString(), liquidityFunding);
   const dailyProtocolRevenue = dailyRevenue.clone();
   dailyProtocolRevenue.addGasToken((-buybackEth).toString(), METRIC.TOKEN_BUY_BACK);
-  dailyProtocolRevenue.addGasToken((-lpFundingEth).toString(), liquidityFunding);
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue: 0 };
+
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue: 0, dailyCapitalAllocation };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true, // Hourly slices are summed into UTC daily totals; chart granularity is a dashboard setting.
   chains: [CHAIN.ROBINHOOD],
-  fetch,
+  fetch: async (options) => {
+    // Only export supported income/volume dimensions; LP funding is not holder income.
+    const { dailyCapitalAllocation, ...incomeAndVolume } = await fetchRouteAccounting(options);
+    return incomeAndVolume;
+  },
   start: '2026-09-05',
-  allowNegativeValue: true, // Buybacks and LP funding can use revenue collected in an earlier period.
+  allowNegativeValue: true, // Buybacks can use revenue collected in an earlier period.
   methodology: {
     Volume: 'Completed swaps through the tracked Route contracts, counted once per trade, including integrations and treasury trades but excluding quotes and individual pool hops.',
     Fees: 'Actual Route swap fees and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, private transfers and cross-chain fees.',
     Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending.',
-    ProtocolRevenue: 'Tracked revenue less Buybacks + LP funding; these capital allocations may use revenue collected on earlier days.',
-    HoldersRevenue: 'Buybacks + LP funding: actual ETH swap input for early creator-revenue-funded dev-wallet purchases and completed automated buybacks, plus the full ETH liquidity budget assigned by completed cycles; this is capital allocation, not a distribution to token holders.',
+    ProtocolRevenue: 'Tracked revenue less revenue-funded ROUTE buybacks, which may spend receipts from earlier days; LP funding is a separate capital allocation, not a revenue deduction.',
+    HoldersRevenue: 'Actual ETH input for early creator-revenue-funded dev-wallet purchases and completed automated ROUTE buybacks; excludes all LP budgets and purchases made for liquidity.',
     SupplySideRevenue: 'None of the tracked fee receipts are paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
   },
   breakdownMethodology: {
@@ -202,11 +208,9 @@ const adapter: SimpleAdapter = {
       'Swap Fees To Route': 'Swap fees collected by Route, before the separate deduction for completed buybacks.',
       'Creator Fees To Route': 'ROUTE creator fees credited to Route, before the separate deduction for completed buybacks.',
       [METRIC.TOKEN_BUY_BACK]: 'ETH spent buying ROUTE, deducted from protocol revenue when the purchase completes; spending earlier receipts can make this period\'s net amount negative.',
-      [liquidityFunding]: 'Full liquidity budget allocated in completed cycles, deducted once; subsequent use of carried balances is not another allocation.',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all three automated managers; excludes the launch purchase, gas, and ROUTE bought within the separately counted LP budget.',
-      [liquidityFunding]: 'Full ETH lpBudget in successful cycles, including funding for both assets and carry-forward balances, not exact deposited value: 30% in the September 11 manager and the September 18 Ramp manager. Original LP positions belong to the treasury Safe; Ramp shares belong to the approved LP wallet 0x09Efc01e903033D6642d20a8C5cF6Bee210cFBF8. Dedicated buybacks changed from 65% in the first manager to 35% on September 11 and 30% on September 18; all amounts are read from events, never inferred from these rates.',
+      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all three automated managers; excludes the launch purchase, gas, and ROUTE bought within the separate capital-allocation budget.',
     },
   },
 };
