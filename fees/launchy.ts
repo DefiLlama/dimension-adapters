@@ -11,6 +11,7 @@ type StarknetEvent = {
   data: string[];
 };
 
+// Public mainnet deployments; addresses and emitted events can be checked on Starkscan.
 const CORE = "0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b";
 const STRK = "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const ZEC = "0x5ce53b9b68fb8e9ecab9283a96d97948914733fd6ed8d9a53a276a419497841";
@@ -40,12 +41,16 @@ const SELECTORS = {
   routerSwap: "0x9d63164e1c7ea99a5df7cbd52fc2e71e34339a33d733772ae169129074ca5e",
 };
 const Q128 = 1n << 128n;
-const V1_FEE = 1020847100762815390390123822295304634n; // 0.3%
-const V3_FEE = Q128 / 100n; // 1%
+// On-chain Ekubo pool keys: original 0.3% / tick spacing 5982;
+// guarded V3/V4 1% / tick spacing 20000. The guard addresses distinguish
+// Launchy pools from unrelated Ekubo pools with the same fee tier.
+const V1_FEE = 1020847100762815390390123822295304634n; // 0.3% in Q128
+const V3_FEE = Q128 / 100n; // 1% in Q128
 const normalize = (value: string) => `0x${BigInt(value).toString(16)}`;
 const same = (a: string, b: string) => BigInt(a) === BigInt(b);
 const ceilDiv = (a: bigint, b: bigint) => (a + b - 1n) / b;
 
+/** Calls Starknet RPC, retrying on a second public endpoint if the first fails. */
 async function rpcCall(method: string, params: unknown[]) {
   const payload = { jsonrpc: "2.0", id: 1, method, params };
   const endpoints = [getEnv("STARKNET_RPC"), "https://starknet-rpc.publicnode.com"];
@@ -61,6 +66,7 @@ async function rpcCall(method: string, params: unknown[]) {
 }
 
 const blockTimestamps = new Map<number, number>();
+/** Returns a cached timestamp for one finalized Starknet block. */
 async function blockTimestamp(height: number) {
   if (!blockTimestamps.has(height)) {
     const block = await rpcCall("starknet_getBlockWithTxHashes", [{ block_number: height }]);
@@ -69,8 +75,8 @@ async function blockTimestamp(height: number) {
   return blockTimestamps.get(height)!;
 }
 
-// Starknet has no timestamp-to-block RPC, and DefiLlama's generic block helper
-// does not support this chain. Find the first block at or after a UTC boundary.
+/** Finds the first block at or after a UTC boundary by binary search.
+ * Starknet has no timestamp-to-block RPC and DefiLlama's helper excludes it. */
 async function blockAtOrAfter(timestamp: number, low = 0) {
   let high = Number(await rpcCall("starknet_blockNumber", [])) + 1;
   while (low < high) {
@@ -81,6 +87,7 @@ async function blockAtOrAfter(timestamp: number, low = 0) {
   return low;
 }
 
+/** Paginates events from one address, or all addresses if none is supplied. */
 async function getEvents(fromBlock: number, toBlock: number, keys: string[][], address?: string) {
   const events: StarknetEvent[] = [];
   for (let from = fromBlock; from <= toBlock; from += 5000) {
@@ -108,6 +115,7 @@ function quoteAsset(token0: string, token1: string) {
   throw new Error("Launchy pool has no supported quote asset");
 }
 
+/** Converts a launch-token fee to the pool's quote asset at the swap's rate. */
 function quoteEquivalent(tokenIn: string, tokenOut: string, inputFee: bigint,
   inputAmount: bigint, outputAmount: bigint, quote: string) {
   if (same(tokenIn, quote)) return inputFee;
@@ -117,7 +125,8 @@ function quoteEquivalent(tokenIn: string, tokenOut: string, inputFee: bigint,
   return inputFee * outputAmount / (inputAmount - inputFee);
 }
 
-const fetch = async (options: FetchOptions) => {
+/** Reports Ekubo pool fees separately because Ekubo already counts the swaps. */
+export const fetchPoolFees = async (options: FetchOptions) => {
   const fromBlock = await blockAtOrAfter(options.fromTimestamp);
   const toBlock = await blockAtOrAfter(options.toTimestamp, fromBlock) - 1;
   const dailyFees = options.createBalances();
@@ -125,11 +134,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [swaps, creations, routerSwaps] = await Promise.all([
-    getEvents(fromBlock, toBlock, [[SELECTORS.swapped]], CORE),
-    getEvents(fromBlock, toBlock, [[SELECTORS.created]]),
-    getEvents(fromBlock, toBlock, [[SELECTORS.routerSwap]], OLD_ROUTER),
-  ]);
+  const swaps = await getEvents(fromBlock, toBlock, [[SELECTORS.swapped]], CORE);
 
   for (const event of swaps) {
     const d = event.data;
@@ -156,6 +161,8 @@ const fetch = async (options: FetchOptions) => {
     // from the on-chain input delta; tick-crossing dust may differ by a few units.
     const feeIn = ceilDiv(amountIn * BigInt(d[3]), Q128);
     const fee = quoteEquivalent(tokenIn, tokenOut, feeIn, amountIn, amountOut, quote);
+    // Positions distributes guarded-pool fees: 30% Launchy, 50% creator,
+    // 20% Ekubo. The original pool has no Launchy LP share.
     const protocol = guarded ? fee * 30n / 100n : 0n;
     const ekubo = fee * 20n / 100n;
     const creator = fee - protocol - ekubo;
@@ -165,6 +172,25 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(quote, creator.toString(), METRIC.CREATOR_FEES);
     dailySupplySideRevenue.add(quote, ekubo.toString(), "Ekubo Fee Share");
   }
+
+  return { dailyFees, dailyUserFees, dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+};
+
+const fetch = async (options: FetchOptions) => {
+  const fromBlock = await blockAtOrAfter(options.fromTimestamp);
+  const toBlock = await blockAtOrAfter(options.toTimestamp, fromBlock) - 1;
+  const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  const [creationsByFactory, routerSwaps] = await Promise.all([
+    Promise.all([...FACTORIES].map((factory) =>
+      getEvents(fromBlock, toBlock, [[SELECTORS.created]], factory))),
+    getEvents(fromBlock, toBlock, [[SELECTORS.routerSwap]], OLD_ROUTER),
+  ]);
+  const creations = creationsByFactory.flat();
 
   for (const event of routerSwaps) {
     const d = event.data;
@@ -185,14 +211,13 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(quote, creator.toString(), "Router Creator Share");
   }
 
-  const created = creations.filter((event) => FACTORIES.has(normalize(event.from_address)));
-  if (created.length) {
+  if (creations.length) {
     const transfers = await getEvents(fromBlock, toBlock,
       [[SELECTORS.transfer], [], TREASURIES], STRK);
-    const createdTransactions = new Set(created.map((event) => event.transaction_hash));
+    const createdTransactions = new Set(creations.map((event) => event.transaction_hash));
     const creationPayments = transfers.filter((event) =>
       createdTransactions.has(event.transaction_hash) && event.keys.length >= 3);
-    if (creationPayments.length !== created.length)
+    if (creationPayments.length !== creations.length)
       throw new Error("Launchy creation-fee transfer count does not match token creations");
     for (const event of creationPayments) {
       const amount = BigInt(event.data[0]) + (BigInt(event.data[1]) << 128n);
@@ -207,37 +232,30 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Token creation fees paid in STRK plus swap fees generated in Launchy-created Ekubo pools and the original Launchy router.",
-  UserFees: "The same token creation and swap fees, paid by token creators and traders.",
-  Revenue: "Creation fees plus Launchy's 30% share of guarded-pool fees and its original router fee share.",
+  Fees: "Token creation fees paid in STRK and extra trading fees charged by the original Launchy router.",
+  Revenue: "Creation fees plus Launchy's original router fee share. Launchy-created Ekubo pool fees are reported separately under Launchy Pools.",
   ProtocolRevenue: "All Launchy revenue is directed to the platform treasury.",
-  SupplySideRevenue: "Swap fees attributable to token creators and Ekubo, plus creator fees from the original router.",
+  SupplySideRevenue: "Creator fees from the original Launchy router.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Ekubo pool swap fees estimated from on-chain swap input deltas and each pool's fee rate.",
     "Launchy Router Fees": "Extra trading fees emitted by the original Launchy router.",
     "Token Creation Fees": "STRK transfers to Launchy treasuries in token-creation transactions.",
   },
   UserFees: {
-    [METRIC.SWAP_FEES]: "Trading fees paid to Launchy-created Ekubo pools.",
     "Launchy Router Fees": "Extra fees paid to the original Launchy router.",
     "Token Creation Fees": "Fees paid when a Launchy token is created.",
   },
   Revenue: {
-    "Launchy LP Fee Share": "30% of guarded-pool swap fees allocated to Launchy.",
     "Launchy Router Share": "Platform portion emitted by the original Launchy router.",
     "Token Creation Fees": "Creation fees transferred to Launchy treasuries.",
   },
   ProtocolRevenue: {
-    "Launchy LP Fee Share": "30% of guarded-pool swap fees allocated to Launchy.",
     "Launchy Router Share": "Platform portion emitted by the original Launchy router.",
     "Token Creation Fees": "Creation fees transferred to Launchy treasuries.",
   },
   SupplySideRevenue: {
-    [METRIC.CREATOR_FEES]: "Creator portion of pool swap fees.",
-    "Ekubo Fee Share": "Ekubo's 20% share of fees collected by Positions.",
     "Router Creator Share": "Creator portion emitted by the original Launchy router.",
   },
 };
@@ -250,7 +268,6 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
-  doublecounted: true, // Ekubo also reports the underlying pool swap fees.
 };
 
 export default adapter;
