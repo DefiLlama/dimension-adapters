@@ -18,3 +18,15 @@ For example, [the first creator-fee claim](https://robinhoodchain.blockscout.com
 Creator fees are counted once when distributed from the curve/pool. Claims do not add revenue again. Subsequent revenue-funded purchases enter the buyback series when executed, without claiming they occurred on the same day as the revenue receipt.
 
 LP funding is excluded from holder revenue and is not deducted from protocol revenue. `fetchRouteAccounting` retains a separate `dailyCapitalAllocation` balance with a `Liquidity Funding` breakdown: the full emitted `lpBudget` from successful September 11 and Ramp manager cycles, including both assets and carry-forward balances, not exact deposited value. It excludes dedicated buybacks and does not recount later spending of those balances. The default adapter fetch omits this balance because DefiLlama has no supported capital-allocation dimension. Publishing it or a combined "Buybacks + LP funding" chart requires separate maintainer-supported dashboard/schema work; it must not be relabeled as holder income.
+
+## RPC rate limits during validation
+
+The SDK expands multi-address log queries into parallel requests, while the CLI tests two hourly slices concurrently. For public Robinhood endpoints, reduce SDK concurrency before running the existing test (PowerShell):
+
+```powershell
+$env:ROBINHOOD_RPC_GET_LOGS_CONCURRENCY_LIMIT = '1'
+$env:ROBINHOOD_RPC_MAX_PARALLEL = '1'
+npm test -- aggregators route
+```
+
+These are runner settings, not adapter accounting changes. HTTP 429 indicates provider throttling; HTTP 403 indicates denied access. Lower concurrency cannot guarantee public-provider availability. If errors persist, configure `ROBINHOOD_RPC` and `ROBINHOOD_ARCHIVAL_RPC` with an authorized endpoint through the runner's secret environment. Do not commit credential URLs. Failed log requests must still fail the run rather than publish incomplete or zero totals.
