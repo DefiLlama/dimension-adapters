@@ -47,7 +47,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
 
   const target = EXCHANGE[options.chain];
   const [feeLogs, buyLogs, sellLogs] = await Promise.all([
@@ -74,9 +73,8 @@ const fetch = async (options: FetchOptions) => {
     const toTreasury = BigInt(log.toTreasury);
     addQuote(dailyFees, quote, toDesk + toEngine + toTreasury, LABELS.DESK_FEES);
     addQuote(dailySupplySideRevenue, quote, toDesk, LABELS.DESK_SHARE);
-    addQuote(dailyHoldersRevenue, quote, toEngine, LABELS.INTERN_DIVIDENDS);
+    addQuote(dailySupplySideRevenue, quote, toEngine, LABELS.INTERN_DIVIDENDS);
     addQuote(dailyProtocolRevenue, quote, toTreasury, LABELS.TREASURY);
-    addQuote(dailyRevenue, quote, toEngine, LABELS.INTERN_DIVIDENDS);
     addQuote(dailyRevenue, quote, toTreasury, LABELS.TREASURY);
   }
 
@@ -91,7 +89,7 @@ const fetch = async (options: FetchOptions) => {
     addQuote(dailyVolume, quote, BigInt(log.received) + BigInt(log.protocolFee));
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -103,27 +101,23 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Curve notional of every NFT fill on the Anvil 2 way desks: Buy.paid net of the protocol fee plus Sell.received grossed up by it, in each desk's quote token.",
     Fees: "The 9.99% fee charged in the quote token on every desk fill (InternExchange FeeRouted toDesk + toEngine + toTreasury).",
-    Revenue: "The 25% Stonk Interns Clock In engine share plus the 9% treasury share of the fee.",
+    Revenue: "The 9% treasury share of the fee.",
     ProtocolRevenue: "The 9% treasury share of the fee.",
-    HoldersRevenue: "The 25% share routed to the Stonk Interns Clock In engine, distributed as dividends to activated intern holders.",
-    SupplySideRevenue: "The 66% share paid to the desk whose staked liquidity filled the trade.",
+    SupplySideRevenue: "The 66% share paid to the desk whose staked liquidity filled the trade plus the 25% share routed to the Stonk Interns Clock In engine as dividends to activated intern NFT holders.",
   },
   breakdownMethodology: {
     Fees: {
       [LABELS.DESK_FEES]: "9.99% of every buy and sell on an Anvil 2 way desk, paid in the desk's quote token.",
     },
     Revenue: {
-      [LABELS.INTERN_DIVIDENDS]: "25% of desk fees ? Stonk Interns Clock In engine.",
-      [LABELS.TREASURY]: "9% of desk fees ? treasury.",
+      [LABELS.TREASURY]: "9% of desk fees to treasury.",
     },
     ProtocolRevenue: {
-      [LABELS.TREASURY]: "9% of desk fees ? treasury.",
-    },
-    HoldersRevenue: {
-      [LABELS.INTERN_DIVIDENDS]: "25% of desk fees ? Stonk Interns Clock In engine dividends to activated intern holders.",
+      [LABELS.TREASURY]: "9% of desk fees to treasury.",
     },
     SupplySideRevenue: {
-      [LABELS.DESK_SHARE]: "66% of desk fees ? the desk (staked liquidity) that filled the trade.",
+      [LABELS.DESK_SHARE]: "66% of desk fees to the desk (staked liquidity) that filled the trade.",
+      [LABELS.INTERN_DIVIDENDS]: "25% of desk fees to the Stonk Interns Clock In engine, distributed as dividends to activated intern NFT holders.",
     },
   },
 };
