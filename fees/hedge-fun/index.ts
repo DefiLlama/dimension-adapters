@@ -47,25 +47,34 @@ export async function fetch(options: FetchOptions) {
     });
   }
 
-  const taxes = (await logs('taxed', HOOK)).filter(e => !e.args.inToken);
-  const sweeps = (await logs('swept', HOOK)).filter(e => BigInt(e.args.tokenBurned) === 0n);
+  const taxes = await logs('taxed', HOOK);
+  const sweeps = await logs('swept', HOOK);
   const poolIds = [...new Set([...taxes, ...sweeps].map(e => e.args.id as string))];
   if (poolIds.length) {
     const stocks = await options.api.multiCall({ target: HOOK, abi: 'function stockOf(bytes32) view returns (address)', calls: poolIds });
+    const tokens = await options.api.multiCall({ target: HOOK, abi: 'function tokenOf(bytes32) view returns (address)', calls: poolIds });
     const rates = await options.api.multiCall({ target: HOOK, abi: ABI.rates, calls: poolIds });
     // accrued() returns zero for an as-yet unregistered pool; the hook itself
     // must exist before an opening snapshot can be queried.
     const opening = previousBlock >= DEPLOYMENT_BLOCK
       ? await options.fromApi.multiCall({ target: HOOK, abi: ABI.accrued, calls: poolIds })
-      : poolIds.map(() => ({ inStock: '0' }));
+      : poolIds.map(() => ({ inStock: '0', inToken: '0' }));
     const closing = await options.api.multiCall({ target: HOOK, abi: ABI.accrued, calls: poolIds });
-    const pools = new Map(poolIds.map((id, i) => [id, { stock: stocks[i], rates: rates[i], accrued: BigInt(opening[i].inStock), closing: BigInt(closing[i].inStock) }]));
+    const pools = new Map(poolIds.map((id, i) => [id, { stock: stocks[i], token: tokens[i], rates: rates[i], accrued: BigInt(opening[i].inStock), closing: BigInt(closing[i].inStock), accruedToken: BigInt(opening[i].inToken), closingToken: BigInt(closing[i].inToken) }]));
 
     for (const event of [...taxes, ...sweeps].sort(byPosition)) {
       const pool = pools.get(event.args.id)!;
       if (event.kind === 'taxed') {
         // Includes exact-output BUY taxes paid in stock, not just sells.
         const tax = BigInt(event.args.tax);
+        if (event.args.inToken) {
+          // Raw charged tokens only: never manufacture a stock/USD value from
+          // this launch's own pool price. SDK pricing may not cover the token.
+          pool.accruedToken += tax;
+          dailyFees.add(pool.token, tax, 'Token-denominated swap fees');
+          dailySupplySideRevenue.add(pool.token, tax, 'Swap fees to launched-token burns and sweep callers');
+          continue;
+        }
         const protocolCut = (amount: bigint) => {
           const net = amount - amount * BigInt(pool.rates.sweepTipBps) / BPS;
           return net * BigInt(pool.rates.protocolBps) / BPS;
@@ -78,6 +87,17 @@ export async function fetch(options: FetchOptions) {
         dailyRevenue.add(pool.stock, protocol, 'Trading fees to protocol');
         dailySupplySideRevenue.add(pool.stock, tax - protocol, 'Trading fees to creators, strategies and sweep callers');
         continue;
+      }
+      const tokenBurned = BigInt(event.args.tokenBurned);
+      if (tokenBurned > 0n) {
+        const gross = pool.accruedToken;
+        const tip = gross * BigInt(pool.rates.sweepTipBps) / BPS;
+        if (gross <= 0n || tokenBurned !== gross - tip
+          || BigInt(event.args.stockToProtocol) !== 0n || BigInt(event.args.stockToCreator) !== 0n
+          || BigInt(event.args.stockToTreasury) !== 0n)
+          throw new Error(`Hedge Fun: inconsistent token sweep for ${event.args.id}`);
+        pool.accruedToken = 0n;
+        continue; // Burn and tip settle fees already recorded at the swap.
       }
       const gross = pool.accrued;
       const tip = gross * BigInt(pool.rates.sweepTipBps) / BPS;
@@ -93,8 +113,10 @@ export async function fetch(options: FetchOptions) {
       // Allocation, payment and later claims do not generate new fees.
       // Failed caller payments become strategy credits; both are supply side.
     }
-    for (const [id, pool] of pools)
+    for (const [id, pool] of pools) {
       if (pool.accrued !== pool.closing) throw new Error(`Hedge Fun: incomplete stock-tax history for ${id}`);
+      if (pool.accruedToken !== pool.closingToken) throw new Error(`Hedge Fun: incomplete token-tax history for ${id}`);
+    }
   }
 
   const launches = await logs('launched', FACTORY);
@@ -132,23 +154,26 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
   start: '2026-09-22',
-  // Hook operates on Uniswap V4; underlying pool trading fees are excluded.
+  // Hook operates on Uniswap V4. Verified Factory enforces lpFee == 0;
+  // external V3 routing fees are not Hedge Fun receipts.
   doublecounted: true,
   fetch,
   methodology: {
-    Fees: 'Stock-denominated hook trading fees when charged, including caller incentives, plus launch fees at issuance. Excludes launched-token-denominated burn taxes without reliable historical prices, strategy profits and buybacks, underlying Uniswap fees, and Pons/$HEDGE taxes.',
+    Fees: 'All stock- and launched-token-denominated swap charges, including opening-period charges and caller incentives, plus launch fees. Token charges are recorded in raw units and contribute to USD totals only when DefiLlama pricing supports them; missing prices leave USD coverage incomplete. Excludes strategy profits and buybacks, external Uniswap routing fees, and Pons/$HEDGE taxes.',
     Revenue: 'The designated protocol share of stock trading fees as they accrue, plus launch fees; excludes creator royalties and launched-token strategy allocations.',
     ProtocolRevenue: 'The same designated protocol allocations as Revenue, including earned but unswept or unclaimed amounts.',
-    SupplySideRevenue: 'Stock trading fees less the designated protocol share, allocated to creators, launched-token strategies and sweep callers. Failed caller payments are redirected to strategy credits.',
+    SupplySideRevenue: 'Stock trading fees less the protocol share go to creators, strategies and sweep callers; all launched-token charges go to token burns and sweep callers, with no platform revenue. Token amounts require DefiLlama price coverage for USD inclusion.',
   },
   breakdownMethodology: {
     Fees: {
       'Stock-denominated trading fees': 'Stock-denominated hook fees from Taxed events, including sells and stock-paid exact-output buys; no fee-on-transfer taxes or underlying Uniswap LP fees.',
+      'Token-denominated swap fees': 'Actual token charges emitted by the hook at each swap, including elevated opening rates. Recorded in the launched token without self-pool price conversion; unpriced amounts are not a zero-fee assertion.',
       'Launch fees': 'Fees paid for successful launches, with same-block DefaultsSet changes replayed in log order. Includes native, USDG and stock payments; None charges nothing.',
     },
     Revenue: protocolBreakdown,
     ProtocolRevenue: protocolBreakdown,
     SupplySideRevenue: {
+      'Swap fees to launched-token burns and sweep callers': 'All token-denominated swap charges accrue to launched-token burns and caller incentives. Neither is revenue of Hedge Fun or its own token holders; subsequent sweeps do not add fees.',
       'Trading fees to creators, strategies and sweep callers': 'Stock fees less the designated protocol allocation, classified by contract role (including protocol-controlled creators). Includes creator royalties, launched-token strategy funding and sweep incentives, combined to preserve exact rounding across trades.',
     },
   },
