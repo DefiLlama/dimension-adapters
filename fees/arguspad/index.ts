@@ -10,12 +10,13 @@ import { METRIC } from "../../helpers/metrics";
 //   ArgusV4TaxHook          charges the buy/sell tax on each swap        -> TaxTaken, SnipeTaxApplied
 //   ArgusV4HookedLocker     harvests the locked position's LP fees       -> Forwarded
 //   ArgusV4HookedSplitter   splits the pot between treasury/creator/...  -> Netted, PrincipalParked
+// Portal 8 is a different generation with none of those events - see PORTAL_8 below.
 
 // Every Portal ArgusPad has launched a Uniswap v4 tax token from, in generation order P3..P7.
 // Enumerated from the deployer's complete CREATE history rather than from logs, so this is the
 // whole set; two further hooked Portals exist and have never carried a launch, and the retired
 // Uniswap v3 line (three Portals, 59 launches between them) predates this fee machinery and emits
-// none of these events.
+// none of these events. Portal 8 is the one Portal after P7 in that history (below).
 const PORTALS = [
   "0xb021be536808f551b31789422fd28a6c9c6e97da", // P7, 139675 launches
   "0xa5628a11c412596e1f63b75a2c0284f843c549d6", // P6, 323
@@ -35,6 +36,26 @@ const LAUNCH_ABI: Record<string, string> = {
   "0xa36c443a797771df82533b8b4a86f0affd970862": "function launches(address) view returns (address creator, int24 tickStart, bool tokenIsToken0, address locker, address hook, address splitter, uint16 buyTaxBps, uint16 sellTaxBps, uint256 positionId, int24 tickBond)",
   "0x7a17ab0106c46c0be30623f3eb7f299cc0058338": "function launches(address) view returns (address creator, int24 tickStart, bool tokenIsToken0, address locker, address hook, address splitter, uint16 buyTaxBps, uint16 sellTaxBps, uint256 positionId)",
 };
+
+// Portal 8 (ArgusV5Portal), live since block 22251798 and where every new launch goes. It shares
+// nothing with P3..P7 but the PoolManager: launches(token) is a different 7-field record, and its
+// per-launch contracts emit none of the events below. The fee is ONE event, taken entirely in the
+// launch's quote asset - the pool is a dynamic-fee pool overridden to zero on every swap, so there
+// is no LP fee and no fee in the launched token, and the 1% the pool used to keep is charged by
+// the hook instead:
+//   ArgusV5TaxHook          buy/sell tax + 1% base, and the opening surcharge -> QuoteFeeTaken
+//   ArgusV5RewardedToken    accrues the holders' share on the token itself     -> QuoteAccrued
+//   ArgusV5PayoutEscrow     receives the rest and splits it                    (payouts not read)
+// Portal 8's treasury is a different address from P3..P7's (a Safe); nothing here reads either.
+// Identity rests on the registry: an emitter counts only if Portal 8's own launches(token) names
+// it as that launch's hook. Portal 8 was created by the same deployer EOA, at nonce 747, as every
+// earlier Portal.
+const PORTAL_8 = "0xeed7559b8a6abf64427dc41cb5cc6400109c5d93";
+const PORTAL_8_LAUNCH_ABI = "function launches(address token) view returns (address hook, address escrow, address locker, uint256 positionId, int24 tickStart, int24 tickBond, bool tokenIsToken0)";
+const QUOTE_FEE_TAKEN = "event QuoteFeeTaken(uint256 bucketFee, uint256 surcharge, bool exactInput, bool isBuy)";
+const QUOTE_ACCRUED = "event QuoteAccrued(uint256 quoteAmount, uint256 reclassifiedRaw)";
+// The 1% base the hook adds to each leg's tax (ArgusV5TaxHook.BASE_FEE_BPS, a constant).
+const PORTAL_8_BASE_FEE_BPS = 100n;
 
 const TAX_TAKEN = "event TaxTaken(address indexed currency, uint256 amount, bool exactInput, bool zeroForOne)";
 const SNIPE_TAX_APPLIED = "event SnipeTaxApplied(uint256 snipeBps, uint256 secondsElapsed, uint256 amount)";
@@ -62,16 +83,22 @@ const CREATOR_BPS = "uint256:creatorBps";
 const BURN_BPS = "uint256:burnBps";
 const DIVIDEND_BPS = "uint256:dividendBps";
 const LIQUIDITY_BPS = "uint256:liquidityBps";
+// Portal 8 only: the escrow's fifth bucket, and the hook's own getters.
+const LOCK_BPS = "uint256:lockBps";
+const BUY_TAX_BPS = "uint256:buyTaxBps";
+const SELL_TAX_BPS = "uint256:sellTaxBps";
 
 const BPS = 10000n;
 
 const SWAP_TAX = "Swap Tax";
+const BASE_SWAP_FEE = METRIC.SWAP_FEES;
 const SNIPE_TAX = "Snipe Tax";
 const TAX_TO_TREASURY = "Swap Fees to Treasury";
 const FEES_TO_CREATORS = METRIC.CREATOR_FEES;
 const FEES_TO_HOLDERS = "Launched Token Holder Dividends";
 const FEES_TO_LOCKED_LIQUIDITY = "Fees Compounded Into Locked Liquidity";
 const FEES_TO_LAUNCHED_TOKEN_BURN = "Launched Token Buy and Burn";
+const FEES_TO_LAUNCHED_TOKEN_LOCK = "Launched Token Buy and Lock";
 
 type Tally = Record<string, bigint>;
 const bump = (t: Tally, asset: string, amount: bigint) => { t[asset] = (t[asset] ?? 0n) + amount };
@@ -187,6 +214,71 @@ async function getTopology(options: FetchOptions, emitters: string[]): Promise<T
   return topology;
 }
 
+type Portal8Launch = {
+  token: string,
+  quote: string,
+  buyTaxBps: bigint,
+  sellTaxBps: bigint,
+  treasuryBps: bigint,
+  // bps of what is left after treasuryBps; sum to 10000 on every launch measured
+  creatorBps: bigint,
+  burnBps: bigint,
+  dividendBps: bigint,
+  liquidityBps: bigint,
+  lockBps: bigint,
+}
+
+// Portal 8's hooks that emitted a fee in this window, keyed by hook, plus the same launches keyed by
+// launched token (QuoteAccrued is emitted by the token). The same authentication as P3..P7: the
+// hook's portal() and token() are claims, and the hook counts only if Portal 8's launches(token)
+// names that exact address as the launch's hook.
+async function getPortal8Topology(options: FetchOptions, emitters: string[]) {
+  const hooks = new Map<string, Portal8Launch>();
+  const tokens = new Map<string, Portal8Launch>();
+  if (!emitters.length) return { hooks, tokens };
+
+  const claimedPortal = await options.api.multiCall({ abi: PORTAL_OF, calls: emitters, permitFailure: true });
+  const candidates = emitters.filter((_, i) => claimedPortal[i] && lower(claimedPortal[i]) === PORTAL_8);
+  if (!candidates.length) return { hooks, tokens };
+
+  const claimedToken = await options.api.multiCall({ abi: TOKEN_OF, calls: candidates, permitFailure: true });
+  const claimed = candidates.map((hook, i) => ({ hook, token: claimedToken[i] ? lower(claimedToken[i]) : null }))
+    .filter((c): c is { hook: string, token: string } => c.token !== null);
+  if (!claimed.length) return { hooks, tokens };
+
+  const records = await options.api.multiCall({ abi: PORTAL_8_LAUNCH_ABI, target: PORTAL_8, calls: claimed.map(c => c.token), permitFailure: true });
+  const registered = claimed
+    .map((c, i) => ({ ...c, escrow: records[i] ? lower(records[i].escrow) : ZERO }))
+    .filter((c, i) => records[i] && lower(records[i].hook) === c.hook && c.escrow !== ZERO);
+  if (!registered.length) return { hooks, tokens };
+
+  const hookList = registered.map(r => r.hook);
+  const escrowList = registered.map(r => r.escrow);
+  const [quote, buyTaxBps, sellTaxBps] = await Promise.all(
+    [QUOTE_ASSET_OF, BUY_TAX_BPS, SELL_TAX_BPS].map(abi => options.api.multiCall({ abi, calls: hookList, permitFailure: true })));
+  const [treasuryBps, creatorBps, burnBps, dividendBps, liquidityBps, lockBps] = await Promise.all(
+    [TREASURY_BPS, CREATOR_BPS, BURN_BPS, DIVIDEND_BPS, LIQUIDITY_BPS, LOCK_BPS].map(abi => options.api.multiCall({ abi, calls: escrowList, permitFailure: true })));
+
+  registered.forEach((r, i) => {
+    if (quote[i] == null || buyTaxBps[i] == null || sellTaxBps[i] == null || treasuryBps[i] == null) return;
+    const launch: Portal8Launch = {
+      token: r.token,
+      quote: lower(quote[i]),
+      buyTaxBps: BigInt(buyTaxBps[i]),
+      sellTaxBps: BigInt(sellTaxBps[i]),
+      treasuryBps: BigInt(treasuryBps[i]),
+      creatorBps: BigInt(creatorBps[i] ?? 0),
+      burnBps: BigInt(burnBps[i] ?? 0),
+      dividendBps: BigInt(dividendBps[i] ?? 0),
+      liquidityBps: BigInt(liquidityBps[i] ?? 0),
+      lockBps: BigInt(lockBps[i] ?? 0),
+    };
+    hooks.set(r.hook, launch);
+    tokens.set(r.token, launch);
+  });
+  return { hooks, tokens };
+}
+
 // One hook, locker and splitter per launch, far too many to pass as targets. noTarget plus the
 // event, then keep a log only when its emitter is in the Portal registry.
 const getFeeLogs = (options: FetchOptions, eventAbi: string) => options.getLogs({
@@ -225,6 +317,9 @@ const fetch = async (options: FetchOptions) => {
   const toBurnAccrued: Tally = {};
   const toDividendsAccrued: Tally = {};
   const toLiquidityAccrued: Tally = {};
+  // Portal 8 only: its 1% base fee and its fifth, buy-and-lock, bucket.
+  const baseSwapFees: Tally = {};
+  const toLockAccrued: Tally = {};
 
   // Fees charged in the launched token itself, keyed by that token rather than by a quote asset.
   // They are split exactly like the quote side - the splitter holds and divides both - so they get
@@ -315,30 +410,82 @@ const fetch = async (options: FetchOptions) => {
     accrue(splitter, splitter.quote, -residue);
   }
 
-  for (const asset of new Set([...Object.keys(swapTax), ...Object.keys(lpFees), ...Object.keys(snipeTax)])) {
+  // PORTAL 8. Every fee is in the launch's quote asset, so there is no launched-token leg, no
+  // self-tax (the executors that trade the pool on the launch's behalf are exempt by sender) and no
+  // principal to net out. What a swap pays is bucketFee plus surcharge:
+  //   bucketFee  = the leg's tax plus the 1% base, charged together. The holders' share of it is
+  //                accrued on the token (QuoteAccrued) and whatever no eligible holder could take
+  //                (reclassifiedRaw, quote units) goes straight to the treasury; the escrow receives
+  //                bucketFee - reclassified and gives treasuryBps of that to the treasury, the rest
+  //                to its five buckets.
+  //   surcharge  = the opening anti-snipe surcharge, paid straight to the treasury.
+  // Measured to block 22391750: sum(bucketFee) equals each escrow's totalReceived() and the quote
+  // it received from the PoolManager, to the raw unit, on all 8 launches; surcharge and
+  // reclassifiedRaw were 0 on every event.
+  const [quoteFeeLogs, quoteAccruedLogs] = await Promise.all([getFeeLogs(options, QUOTE_FEE_TAKEN), getFeeLogs(options, QUOTE_ACCRUED)]);
+  const portal8 = await getPortal8Topology(options, [...new Set(quoteFeeLogs.map(emitter))]);
+  type Portal8Tally = { launch: Portal8Launch, bucketFee: bigint, surcharge: bigint, reclassified: bigint };
+  const portal8Fees = new Map<string, Portal8Tally>();
+  for (const log of quoteFeeLogs) {
+    const launch = portal8.hooks.get(emitter(log));
+    if (!launch) continue;
+    const bucketFee = BigInt(log.args.bucketFee);
+    const surcharge = BigInt(log.args.surcharge);
+    const t = portal8Fees.get(launch.token) ?? { launch, bucketFee: 0n, surcharge: 0n, reclassified: 0n };
+    t.bucketFee += bucketFee;
+    t.surcharge += surcharge;
+    portal8Fees.set(launch.token, t);
+    // bucketFee prices the leg's tax and the 1% base as one rate (tax + 100 bps); the base is its
+    // proportional part and the tax takes the rounding.
+    const legBps = log.args.isBuy ? launch.buyTaxBps : launch.sellTaxBps;
+    const base = (bucketFee * PORTAL_8_BASE_FEE_BPS) / (legBps + PORTAL_8_BASE_FEE_BPS);
+    bump(swapTax, launch.quote, bucketFee - base);
+    bump(baseSwapFees, launch.quote, base);
+    bump(snipeTax, launch.quote, surcharge);
+  }
+  for (const log of quoteAccruedLogs) {
+    const t = portal8Fees.get(emitter(log));
+    if (t) t.reclassified += BigInt(log.args.reclassifiedRaw);
+  }
+  for (const { launch, bucketFee, reclassified } of portal8Fees.values()) {
+    const toEscrow = bucketFee - reclassified;
+    const treasury = (toEscrow * launch.treasuryBps) / BPS;
+    const supply = toEscrow - treasury;
+    bump(toTreasuryAccrued, launch.quote, treasury + reclassified);
+    bump(toBurnAccrued, launch.quote, (supply * launch.burnBps) / BPS);
+    bump(toDividendsAccrued, launch.quote, (supply * launch.dividendBps) / BPS);
+    bump(toLiquidityAccrued, launch.quote, (supply * launch.liquidityBps) / BPS);
+    bump(toLockAccrued, launch.quote, (supply * launch.lockBps) / BPS);
+  }
+
+  for (const asset of new Set([...Object.keys(swapTax), ...Object.keys(lpFees), ...Object.keys(snipeTax), ...Object.keys(baseSwapFees)])) {
     const userTax = (swapTax[asset] ?? 0n) - (selfTax[asset] ?? 0n);
     const lp = (lpFees[asset] ?? 0n) - (principalResidue[asset] ?? 0n);
+    const base = baseSwapFees[asset] ?? 0n;
     const snipe = snipeTax[asset] ?? 0n;
-    const fees = userTax + lp + snipe;
+    const fees = userTax + lp + base + snipe;
     if (fees <= 0n) continue;
 
     dailyFees.add(asset, userTax, SWAP_TAX);
     dailyFees.add(asset, lp, METRIC.LP_FEES);
+    dailyFees.add(asset, base, BASE_SWAP_FEE);
     dailyFees.add(asset, snipe, SNIPE_TAX);
 
     // SPLIT. Every weight is read per launch from that launch's own splitter, which is configured
     // once at creation and never amended, and is accrued as each fee is counted - so an hourly pull
     // and a daily pull of the same blocks give the same answer, and a launch that ever ships
-    // different weights is handled without a code change. treasuryBps is 1000 on every launch
-    // measured; creatorBps + burnBps + dividendBps + liquidityBps is 10000 on every launch
-    // measured, being the split of what is left. The creator takes the remainder rather than its
-    // own floor-divided share, so fees = revenue + supply-side revenue exactly.
+    // different weights is handled without a code change. treasuryBps is 1000 on every P3..P7
+    // launch measured and 3000 on every Portal 8 launch; the remaining weights (four on P3..P7,
+    // five on Portal 8 with the lock bucket) sum to 10000 on every launch measured, being the split
+    // of what is left. The creator takes the remainder rather than its own floor-divided share, so
+    // fees = revenue + supply-side revenue exactly.
     const treasuryCut = snipe + (toTreasuryAccrued[asset] ?? 0n);
     const supply = fees - treasuryCut;
     const burnCut = toBurnAccrued[asset] ?? 0n;
     const dividendCut = toDividendsAccrued[asset] ?? 0n;
     const liquidityCut = toLiquidityAccrued[asset] ?? 0n;
-    const creatorCut = supply - burnCut - dividendCut - liquidityCut;
+    const lockCut = toLockAccrued[asset] ?? 0n;
+    const creatorCut = supply - burnCut - dividendCut - liquidityCut - lockCut;
 
     dailyRevenue.add(asset, treasuryCut, TAX_TO_TREASURY);
     dailyProtocolRevenue.add(asset, treasuryCut, TAX_TO_TREASURY);
@@ -346,6 +493,7 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(asset, dividendCut, FEES_TO_HOLDERS);
     dailySupplySideRevenue.add(asset, liquidityCut, FEES_TO_LOCKED_LIQUIDITY);
     dailySupplySideRevenue.add(asset, burnCut, FEES_TO_LAUNCHED_TOKEN_BURN);
+    dailySupplySideRevenue.add(asset, lockCut, FEES_TO_LAUNCHED_TOKEN_LOCK);
   }
 
   // The part of every fee charged in the launched token itself. It is added in that token's own raw
@@ -382,29 +530,31 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The tax ArgusPad's per-launch hook charges on every buy and sell, the trading fees the permanently locked launch position earns, and the extra tax charged on buys in a launch's first seconds. Counted in the asset the fee is charged in, at the moment it is charged, so the protocol's later sale of the launched tokens it was paid is not counted a second time. Fees charged in the launched token itself are reported in that token's own units and are priced only if DefiLlama has a price for it; it has none for these tokens today, because a launched token's only market is the pool ArgusPad seeded, and pricing it there overstates by about 40% against what ArgusPad's own sales of them actually realise.",
-  Revenue: "The share of fees reaching the ArgusPad treasury, 10% of every launch's fee at the rate each launch fixes at creation, plus the whole of the early-buy snipe tax, which is paid straight to the treasury.",
-  ProtocolRevenue: "The share of fees reaching the ArgusPad treasury, 10% of every launch's fee at the rate each launch fixes at creation, plus the whole of the early-buy snipe tax, which is paid straight to the treasury.",
-  SupplySideRevenue: "The roughly 90% of fees that leaves the protocol, divided at the weights each launch fixed at creation: the token creator's share, the dividends paid to holders of that launched token, the share added back into the launch's permanently locked liquidity, and the share used to buy and burn the launched token.",
+  Fees: "The tax ArgusPad's per-launch hook charges on every buy and sell, the trading fee each launch's pool charges (on Portals 3-7 the 1% pool fee earned by the permanently locked launch position; on Portal 8 a 1% base fee the hook charges in the quote asset in its place), and the extra tax charged on buys in a launch's first seconds. Counted in the asset the fee is charged in, at the moment it is charged, so the protocol's later sale of the launched tokens it was paid is not counted a second time. Fees charged in the launched token itself (Portals 3-7 only; Portal 8 takes every fee in the quote asset) are reported in that token's own units and are priced only if DefiLlama has a price for it; it has none for these tokens today, because a launched token's only market is the pool ArgusPad seeded, and pricing it there overstates by about 40% against what ArgusPad's own sales of them actually realise.",
+  Revenue: "The share of fees reaching the ArgusPad treasury at the rate each launch fixes at creation - 10% of every fee on Portals 3-7 and 30% on Portal 8 - plus the whole of the early-buy snipe tax, which is paid straight to the treasury.",
+  ProtocolRevenue: "The share of fees reaching the ArgusPad treasury at the rate each launch fixes at creation - 10% of every fee on Portals 3-7 and 30% on Portal 8 - plus the whole of the early-buy snipe tax, which is paid straight to the treasury.",
+  SupplySideRevenue: "The rest of the fees, which leave the protocol divided at the weights each launch fixed at creation: the token creator's share, the dividends paid to holders of that launched token, the share added back into the launch's permanently locked liquidity, the share used to buy and burn the launched token, and on Portal 8 the share used to buy the launched token and lock it permanently.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [SWAP_TAX]: "The launch's own buy and sell tax, 1-10% chosen per launch, taken by its hook on each swap and read from that swap's TaxTaken. Net of the tax the splitter pays itself when it sells launched tokens through the launch's own pool, which is not paid by any user. These fees are also inside Uniswap's fee reporting for Arc.",
-    [METRIC.LP_FEES]: "The 1% Uniswap v4 pool fee earned by the launch's permanently locked position, read as what the locker forwarded to the splitter, net of the position principal that comes back through the same call. These fees are also inside Uniswap's fee reporting for Arc.",
-    [SNIPE_TAX]: "An extra, time-decaying tax on buys in the seconds after a launch opens, charged by the same hook and paid directly to the treasury.",
+    [SWAP_TAX]: "The launch's own buy and sell tax, chosen per launch (1-10%), taken by its hook on each swap: on Portals 3-7 read from that swap's TaxTaken, net of the tax the splitter pays itself when it sells launched tokens through the launch's own pool, which is not paid by any user; on Portal 8 the tax part of QuoteFeeTaken's bucketFee. The hook charges it outside the pool fee, so it is not inside Uniswap's fee reporting for Arc.",
+    [METRIC.LP_FEES]: "Portals 3-7: the 1% Uniswap v4 pool fee earned by the launch's permanently locked position, read as what the locker forwarded to the splitter, net of the position principal that comes back through the same call. These fees are also inside Uniswap's fee reporting for Arc.",
+    [BASE_SWAP_FEE]: "Portal 8: the 1% base fee the hook adds to every buy and sell and takes in the quote asset. Portal 8 pools are dynamic-fee pools whose pool fee is set to zero on every swap, so this replaces the LP fee and goes to the same split; it is not inside Uniswap's fee reporting for Arc. It is the base's proportional part of QuoteFeeTaken's bucketFee, which prices tax and base as one rate.",
+    [SNIPE_TAX]: "An extra, time-decaying tax on buys in the seconds after a launch opens, charged by the same hook and paid directly to the treasury (Portal 8: QuoteFeeTaken's surcharge).",
   },
   Revenue: {
-    [TAX_TO_TREASURY]: "treasuryBps of each launch's accrued fee, read from that launch's own splitter (1000 everywhere today), plus the whole snipe tax, which the hook pays straight to the treasury without passing through a splitter.",
+    [TAX_TO_TREASURY]: "treasuryBps of each launch's accrued fee, read from that launch's own splitter or escrow (1000 on every Portal 3-7 launch, 3000 on every Portal 8 launch), plus the whole snipe tax, which the hook pays straight to the treasury without passing through a splitter, plus on Portal 8 any holders' share accrued while no holder was eligible, which the hook also pays straight to the treasury.",
   },
   ProtocolRevenue: {
-    [TAX_TO_TREASURY]: "treasuryBps of each launch's accrued fee, read from that launch's own splitter (1000 everywhere today), plus the whole snipe tax, which the hook pays straight to the treasury without passing through a splitter.",
+    [TAX_TO_TREASURY]: "treasuryBps of each launch's accrued fee, read from that launch's own splitter or escrow (1000 on every Portal 3-7 launch, 3000 on every Portal 8 launch), plus the whole snipe tax, which the hook pays straight to the treasury without passing through a splitter, plus on Portal 8 any holders' share accrued while no holder was eligible, which the hook also pays straight to the treasury.",
   },
   SupplySideRevenue: {
     [FEES_TO_CREATORS]: "The token creator's share, at that launch's configured creatorBps, credited to the creator to claim. Takes the remainder of the supply side, so fees equal revenue plus supply-side revenue exactly.",
     [FEES_TO_HOLDERS]: "Dividends paid out to holders of the launched token, at that launch's configured dividendBps. These are not ARGUS holders, so they are a supply-side cost rather than holders revenue.",
     [FEES_TO_LOCKED_LIQUIDITY]: "The share added straight back into the launch's permanently locked position instead of being paid to anyone, at that launch's configured liquidityBps.",
     [FEES_TO_LAUNCHED_TOKEN_BURN]: "The share used to buy and burn the launched token, at that launch's configured burnBps. It buys the launched token, not ARGUS, so it is a cost carried by that launch's supply side rather than a protocol buyback or a payment to holders.",
+    [FEES_TO_LAUNCHED_TOKEN_LOCK]: "Portal 8: the share used to buy the launched token and lock it permanently in the line's lock vault, at that launch's configured lockBps. Like the burn it buys the launched token, not ARGUS, so it is supply side.",
   },
 };
 
@@ -415,10 +565,12 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ARC],
   methodology,
   breakdownMethodology,
-  // Every ArgusPad pool is a plain Uniswap v4 pool on Arc carrying a static 1% fee that
+  // Every Portal 3-7 pool is a plain Uniswap v4 pool on Arc carrying a static 1% fee that
   // dexs/uniswap-v4.ts reads straight off the Swap event, and Arc is in its Configs map. Measured
   // over 24h to block 21516182: ArgusPad pools are 326722 of the 640639 Uniswap v4 swaps on Arc
-  // and $208k of its $447k fee figure.
+  // and $208k of its $447k fee figure. Portal 8 pools report fee 0 on every Swap (119 of 119 to
+  // block 22391750), so its fees are not inside that figure; they are a fraction of a percent of
+  // the total today, which does not change the flag.
   doublecounted: true,
   // P3's only launch, block 19674581, 2026-09-07 18:46:13 UTC, and the first fee charged on it 33
   // seconds later at block 19674645. The first launch on the retired Uniswap v3 line is older
