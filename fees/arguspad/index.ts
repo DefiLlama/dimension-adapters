@@ -228,8 +228,11 @@ const fetch = async (options: FetchOptions) => {
 
   // Fees charged in the launched token itself, keyed by that token rather than by a quote asset.
   // They are split exactly like the quote side - the splitter holds and divides both - so they get
-  // their own copies of the same tallies rather than being mixed into the quote-asset ones.
-  const launchedTokenFees: Tally = {};
+  // their own copies of the same tallies rather than being mixed into the quote-asset ones. The swap
+  // tax and the locked position's LP fee are kept apart so each is booked under its own label, the
+  // same way the quote side books them.
+  const launchedTokenTax: Tally = {};
+  const launchedTokenLpFees: Tally = {};
   const launchedToTreasury: Tally = {};
   const launchedToBurn: Tally = {};
   const launchedToDividends: Tally = {};
@@ -257,7 +260,7 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(log.args.amount);
     // Tax lands on the unspecified leg: quote on some swaps, launched token on others. The
     // launched-token leg is kept apart, in its own units - see the methodology.
-    if (currency === hook.token) { bump(launchedTokenFees, currency, amount); accrueLaunched(hook, currency, amount); continue; }
+    if (currency === hook.token) { bump(launchedTokenTax, currency, amount); accrueLaunched(hook, currency, amount); continue; }
     bump(swapTax, currency, amount);
     accrue(hook, currency, amount);
   }
@@ -280,7 +283,7 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(log.args.amount);
     // Forwarded rather than FeesCollected: addLiquidity harvests the position and forwards
     // without emitting FeesCollected, which undercounts the quote leg by about 1.5%.
-    if (currency === locker.token) { bump(launchedTokenFees, currency, amount); accrueLaunched(locker, currency, amount); continue; }
+    if (currency === locker.token) { bump(launchedTokenLpFees, currency, amount); accrueLaunched(locker, currency, amount); continue; }
     bump(lpFees, currency, amount);
     accrue(locker, currency, amount);
   }
@@ -349,10 +352,14 @@ const fetch = async (options: FetchOptions) => {
   // units, so DefiLlama's price feed decides what it is worth rather than this adapter deciding,
   // and it is split at the same configured weights as the quote side so that fees still equal
   // revenue plus supply-side revenue whatever price is found. Measured 2026-09-20: DefiLlama prices
-  // none of these tokens (0 of 5 sampled, against 2 of 2 for the quote assets), so today every one
-  // of these lines contributes exactly nothing - see the methodology for what to check before that
-  // stops being true.
-  for (const [token, fees] of Object.entries(launchedTokenFees)) {
+  // none of these tokens (0 of 5 sampled, against 2 of 2 for the quote assets). Re-measured
+  // 2026-09-23 against the 40 launched tokens with the most fees: one (TEN) has a price, first seen
+  // that day, so these lines are now almost - not exactly - nothing. See the methodology for what to
+  // check as that grows.
+  for (const token of new Set([...Object.keys(launchedTokenTax), ...Object.keys(launchedTokenLpFees)])) {
+    const tax = launchedTokenTax[token] ?? 0n;
+    const lp = launchedTokenLpFees[token] ?? 0n;
+    const fees = tax + lp;
     if (fees <= 0n) continue;
     const treasuryCut = launchedToTreasury[token] ?? 0n;
     const supply = fees - treasuryCut;
@@ -361,7 +368,8 @@ const fetch = async (options: FetchOptions) => {
     const liquidityCut = launchedToLiquidity[token] ?? 0n;
     const creatorCut = supply - burnCut - dividendCut - liquidityCut;
 
-    dailyFees.add(token, fees, SWAP_TAX);
+    dailyFees.add(token, tax, SWAP_TAX);
+    dailyFees.add(token, lp, METRIC.LP_FEES);
     dailyRevenue.add(token, treasuryCut, TAX_TO_TREASURY);
     dailyProtocolRevenue.add(token, treasuryCut, TAX_TO_TREASURY);
     dailySupplySideRevenue.add(token, creatorCut, FEES_TO_CREATORS);
