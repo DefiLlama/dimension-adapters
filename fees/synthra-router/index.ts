@@ -30,9 +30,19 @@ async function fetch(options: FetchOptions) {
     throw new Error(`Synthra router fee data for ${options.dateString} is not final: ${data.incompleteRequests} trade(s) still lack conclusive fee evidence`)
   }
 
+  const { relayAppFeesUsd, lifiIntegratorFeesUsd } = data.breakdown
+  const parts = [relayAppFeesUsd, lifiIntegratorFeesUsd, data.dailyFeesUsd]
+  if (parts.some((v) => typeof v !== 'number' || !Number.isFinite(v) || v < 0)) {
+    throw new Error(`Synthra router fee data for ${options.dateString} has invalid amounts`)
+  }
+  // The reported total must be exactly the sum of its providers (tolerance: float rounding).
+  if (Math.abs(relayAppFeesUsd + lifiIntegratorFeesUsd - data.dailyFeesUsd) > 1e-6) {
+    throw new Error(`Synthra router fee breakdown for ${options.dateString} does not add up to the reported total`)
+  }
+
   const dailyFees = options.createBalances()
-  dailyFees.addUSDValue(data.breakdown.relayAppFeesUsd, RELAY_APP_FEES)
-  dailyFees.addUSDValue(data.breakdown.lifiIntegratorFeesUsd, LIFI_INTEGRATOR_FEES)
+  dailyFees.addUSDValue(relayAppFeesUsd, RELAY_APP_FEES)
+  dailyFees.addUSDValue(lifiIntegratorFeesUsd, LIFI_INTEGRATOR_FEES)
 
   // Application / integrator fees are paid by users and kept entirely by Synthra.
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }

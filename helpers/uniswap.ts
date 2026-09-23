@@ -321,7 +321,7 @@ const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, ad
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, skipPoolFilter = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
@@ -386,9 +386,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
-    const filteredPairs = skipPoolFilter
-      ? Object.fromEntries(Object.keys(pairsToFilter).map((pool) => [pool, 0]))
-      : await filterPools({ api, pairs: pairsToFilter, createBalances })
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const revenue = createBalances()
@@ -547,9 +545,6 @@ type UniV3Config = {
   dynamicProtocolFees?: boolean,
   // read each Algebra pool's community fee and pass it to getRevenueRatio
   algebraCommunityFee?: boolean,
-  // Count every canonical factory pool without querying its end-of-window balances first. For
-  // chains whose RPC cannot serve historical multicalls, and so drained pools keep the swaps they had.
-  skipPoolFilter?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };

@@ -22,10 +22,6 @@ type ChainConfig = {
   // positions locked at graduation are minted by the original V3 NonfungiblePositionManager
   lockerPositionManager: string
   lockerFactory: string
-  // The Robinhood Chain RPC cannot serve the historical balance multicalls of the generic pool
-  // filter, and drained launch pools must keep the swaps they had. Every pool comes from the
-  // canonical factory, so nothing unknown is counted.
-  skipPoolFilter?: boolean
 }
 
 const CONFIG: Record<string, ChainConfig> = {
@@ -37,7 +33,6 @@ const CONFIG: Record<string, ChainConfig> = {
     lpLocker: '0xf32257816D64651F7e7b43529607Eb2ede294EE3',
     lockerPositionManager: '0x2743b771659fD9CE13970d7367e7e84AF6a31049',
     lockerFactory: '0x6307fc239C7964942c1BfFE51930E55606619c74',
-    skipPoolFilter: true,
   },
   [CHAIN.ARC]: {
     start: '2026-07-30',
@@ -54,9 +49,6 @@ const TRADE_EVENT =
   'event Trade(address indexed token, address indexed trader, bool isBuy, uint256 usdcAmount, uint256 tokenAmount, uint256 fee, uint128 virtualUsdc, uint128 virtualTokens, uint128 realTokenReserves, uint128 realUsdcReserves)'
 const FEE_SPLIT_EVENT =
   'event FeeSplit(address indexed token, uint256 toProtocol, uint256 toCreator, uint256 toBuybackPot, uint128 buybackPot)'
-const BUYBACK_EXECUTED_EVENT =
-  'event BuybackExecuted(address indexed token, uint256 usdcSpent, uint256 tokensBurned, uint128 remainingPot, uint128 totalTokensBurned)'
-const LEFTOVER_POT_SETTLED_EVENT = 'event LeftoverPotSettled(address indexed token, uint256 toProtocol, uint256 toCreator)'
 const SWAP_EVENT =
   'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
@@ -68,12 +60,10 @@ const LABEL = {
   v3Protocol: 'V3 protocol fees',
   lockedProtocol: 'Locked launch LP fees to protocol',
   launchProtocol: 'Launch curve fees to protocol',
-  leftoverProtocol: 'Leftover launch pot to protocol',
   v3Lp: 'V3 LP fees',
   lockedCreator: 'Locked launch LP fees to creators',
   launchCreator: 'Launch fees to creators',
-  leftoverCreator: 'Leftover launch pot to creator',
-  launchBuyback: METRIC.TOKEN_BUY_BACK,
+  launchBuybackPot: 'Launch fees to launched-token buyback',
 } as const
 
 type LockedPool = {
@@ -109,8 +99,11 @@ async function lockedPools({ api }: FetchOptions, config: ChainConfig): Promise<
     abi: 'function getPool(address, address, uint24) view returns (address)',
     calls: positions.map((p: any) => ({ params: [p.token0, p.token1, p.fee] })),
   })
+  // Only positions the LaunchPad registered at graduation (`exists`) are locked launch positions;
+  // an NFT anyone transfers to the locker is not, and is ignored.
   return positions
     .map((p: any, i: number) => ({
+      registered: Boolean(locks[i].exists),
       pool: String(pools[i]).toLowerCase(),
       token0: p.token0,
       token1: p.token1,
@@ -120,7 +113,7 @@ async function lockedPools({ api }: FetchOptions, config: ChainConfig): Promise<
       liquidity: BigInt(p.liquidity),
       creatorShare: Number(locks[i].creatorFeeShareBps) / 1e4,
     }))
-    .filter((l: LockedPool) => l.liquidity > 0n)
+    .filter((l: LockedPool & { registered: boolean }) => l.registered && l.liquidity > 0n)
 }
 
 // Pools are discovered from the PoolCreated log cache that the Synthra TVL adapter keeps per
@@ -139,7 +132,6 @@ export async function fetch(options: FetchOptions) {
   const dailyUserFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
   const locked = await lockedPools(options, config)
@@ -154,7 +146,6 @@ export async function fetch(options: FetchOptions) {
       revenueRatio: PROTOCOL_SHARE_OF_POOL_FEE,
       protocolRevenueRatio: PROTOCOL_SHARE_OF_POOL_FEE,
       blacklistPools: lockedAddresses,
-      skipPoolFilter: config.skipPoolFilter,
     })(options)
     dailyVolume.addBalances(v3.dailyVolume, LABEL.v3Volume)
     dailyFees.addBalances(v3.dailyFees, LABEL.v3Fees)
@@ -197,11 +188,9 @@ export async function fetch(options: FetchOptions) {
     })
   }
 
-  const [trades, feeSplits, buybacks, leftoverSettlements] = await Promise.all([
+  const [trades, feeSplits] = await Promise.all([
     options.getLogs({ targets: config.launchpads, eventAbi: TRADE_EVENT }),
     options.getLogs({ targets: config.launchpads, eventAbi: FEE_SPLIT_EVENT }),
-    options.getLogs({ targets: config.launchpads, eventAbi: BUYBACK_EXECUTED_EVENT }),
-    options.getLogs({ targets: config.launchpads, eventAbi: LEFTOVER_POT_SETTLED_EVENT }),
   ])
 
   trades.forEach((trade: any) => {
@@ -209,34 +198,29 @@ export async function fetch(options: FetchOptions) {
     dailyFees.add(config.quote, trade.fee, LABEL.launchFees)
     dailyUserFees.add(config.quote, trade.fee, LABEL.launchFees)
   })
+  // Every Trade fee is split in the same transaction by FeeSplit, exactly:
+  // fee = toProtocol + toCreator + toBuybackPot (LaunchPad._accrueFees). All three are booked there,
+  // so fees and their split always land in the same window. The buyback pot only ever buys and
+  // burns the launched token itself, which benefits that token's holders: supply-side revenue, not
+  // Synthra revenue. A pot still unspent at graduation is paid to the creator and the protocol; it
+  // is not re-booked, so protocol revenue from that rare remainder is understated, never counted twice.
   feeSplits.forEach((split: any) => {
     dailyRevenue.add(config.quote, split.toProtocol, LABEL.launchProtocol)
     dailyProtocolRevenue.add(config.quote, split.toProtocol, LABEL.launchProtocol)
     dailySupplySideRevenue.add(config.quote, split.toCreator, LABEL.launchCreator)
-  })
-  // The buyback pot has no final beneficiary when FeeSplit fires. It is recognized only when it is
-  // actually spent on a launched-token buyback or divided at graduation.
-  buybacks.forEach((buyback: any) => {
-    dailyRevenue.add(config.quote, buyback.usdcSpent, LABEL.launchBuyback)
-    dailyHoldersRevenue.add(config.quote, buyback.usdcSpent, LABEL.launchBuyback)
-  })
-  leftoverSettlements.forEach((settlement: any) => {
-    dailyRevenue.add(config.quote, settlement.toProtocol, LABEL.leftoverProtocol)
-    dailyProtocolRevenue.add(config.quote, settlement.toProtocol, LABEL.leftoverProtocol)
-    dailySupplySideRevenue.add(config.quote, settlement.toCreator, LABEL.leftoverCreator)
+    dailySupplySideRevenue.add(config.quote, split.toBuybackPot, LABEL.launchBuybackPot)
   })
 
-  return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+  return { dailyVolume, dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
 }
 
 export const methodology = {
   Volume: 'Swap volume across all pools of the Synthra V3 and V3.1 factories plus the gross quote-asset notional of Synthra Launch bonding-curve buys and sells.',
   Fees: 'All fees paid by traders in Synthra pools (each pool fee tier) and on Synthra Launch curves (the exact Trade fee).',
   UserFees: 'Same as Fees: all reported trading fees are paid directly by users.',
-  Revenue: 'Pool protocol fees, the protocol share of fees earned by launch positions locked at graduation, Launch protocol shares, and executed launched-token buybacks.',
-  ProtocolRevenue: 'One third of every pool fee, the protocol share of fees earned by locked launch positions, exact Launch toProtocol shares and any leftover pot sent to the protocol at graduation.',
-  HoldersRevenue: 'Quote asset actually spent on launched-token buybacks. Pending buyback pots are not recognized before execution.',
-  SupplySideRevenue: 'Pool LP fees of every position except the protocol share of locked launch positions, creator shares of locked launch positions, exact Launch creator shares and leftover pot sent to creators at graduation.',
+  Revenue: 'Pool protocol fees, the protocol share of fees earned by launch positions locked at graduation, and the exact Launch protocol share.',
+  ProtocolRevenue: 'Same as Revenue: all of it accrues to the Synthra treasury.',
+  SupplySideRevenue: 'Pool LP fees except the protocol share of locked launch positions, creator shares of locked launch positions and of Launch fees, and the Launch fee share that funds buybacks of the launched token.',
 }
 
 export const breakdownMethodology = {
@@ -255,24 +239,18 @@ export const breakdownMethodology = {
   Revenue: {
     [LABEL.v3Protocol]: 'One third of every pool fee, sent to the Synthra fee recipient (feeProtocol = 3).',
     [LABEL.lockedProtocol]: 'Protocol share of the LP fees earned by launch positions locked at graduation.',
-    [LABEL.launchProtocol]: 'Exact Launch fee share sent to the protocol.',
-    [LABEL.leftoverProtocol]: 'Protocol share of a buyback pot remaining at graduation.',
-    [LABEL.launchBuyback]: 'Quote asset actually spent buying and burning a launched token.',
+    [LABEL.launchProtocol]: 'Exact FeeSplit share of each Launch fee sent to the protocol.',
   },
   ProtocolRevenue: {
     [LABEL.v3Protocol]: 'One third of every pool fee, sent to the Synthra fee recipient (feeProtocol = 3).',
     [LABEL.lockedProtocol]: 'Protocol share of the LP fees earned by launch positions locked at graduation.',
-    [LABEL.launchProtocol]: 'Exact Launch fee share sent to the protocol.',
-    [LABEL.leftoverProtocol]: 'Protocol share of a buyback pot remaining at graduation.',
-  },
-  HoldersRevenue: {
-    [LABEL.launchBuyback]: 'Quote asset actually spent buying and burning a launched token.',
+    [LABEL.launchProtocol]: 'Exact FeeSplit share of each Launch fee sent to the protocol.',
   },
   SupplySideRevenue: {
     [LABEL.v3Lp]: 'Two thirds of pool fees accruing to liquidity providers, excluding locked launch positions.',
     [LABEL.lockedCreator]: 'Creator share of the LP fees earned by launch positions locked at graduation.',
-    [LABEL.launchCreator]: 'Exact Launch fee share sent to the token creator.',
-    [LABEL.leftoverCreator]: 'Creator share of a buyback pot remaining at graduation.',
+    [LABEL.launchCreator]: 'Exact FeeSplit share of each Launch fee sent to the token creator.',
+    [LABEL.launchBuybackPot]: 'Exact FeeSplit share of each Launch fee added to the pot that buys and burns the launched token.',
   },
 }
 
