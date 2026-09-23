@@ -1,5 +1,3 @@
-import * as sdk from "@defillama/sdk";
-import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -58,9 +56,7 @@ const PRINCIPAL_PARKED = "event PrincipalParked(uint256 quoteUsdc6, uint256 toke
 // implementation and are reached through the clone.
 const PORTAL_OF = "address:portal";
 const TOKEN_OF = "address:token";
-const SPLITTER_OF = "address:splitter";
 const QUOTE_ASSET_OF = "address:quoteAsset";
-const SELL_TAX_BPS = "uint256:sellTaxBps";
 const TREASURY_BPS = "uint256:treasuryBps";
 const CREATOR_BPS = "uint256:creatorBps";
 const BURN_BPS = "uint256:burnBps";
@@ -104,31 +100,8 @@ type Topology = {
   splitters: Map<string, Launch>,
 }
 
-/* -------------------------------------------------------------------------- */
-/*                            the launches in the window                       */
-/* -------------------------------------------------------------------------- */
-
-// This is read with eth_call, not by scanning the Portals' launch announcements, because on Arc
-// those are two very different budgets. Measured against DefiLlama's own pool on 2026-09-20:
-//
-//   host                            eth_getLogs history      max span   eth_getLogs rate
-//   rpc.mainnet.arc.io              full, to genesis            10000   429s above ~3/s
-//   rpc.drpc.mainnet.arc.io         full, to genesis              101   ok
-//   rpc.arc-scan.org                last ~387k blocks (~2.2d)   20000+  ok, unmetered
-//   rpc.blockdaemon.mainnet.arc.io  last ~387k blocks (~2.2d)   20000+  ok
-//
-// The first launch is 2.2M blocks back, which is outside two of those hosts' log retention
-// entirely and above a third's range cap, so a full launch-history scan can only be served by one
-// host, at ten thousand blocks a request. Worse, the SDK tries every host for each request and
-// lists that one host more than once, so a single logical request hits it two or three times and
-// rate limits itself: measured, a straight walk of this range completed 1 request in 15 and would
-// have taken about 16 minutes.
-//
-// eth_call has none of those limits - three of the four hosts answer Multicall3 batches of 300
-// reads in well under a second, and none of them rate limited eth_call at eight-way concurrency.
-// And the whole launch history is not needed: only the launches that charged a fee in this window
-// are, which is about 240 an hour against 140,022 ever made. So the window's own logs name the
-// contracts, and the contracts are then asked who they are.
+// Only the launches that emitted a fee in this window. Their contracts name themselves; the Portal's
+// launches(token) is what confirms the hook, locker and splitter.
 async function getTopology(options: FetchOptions, emitters: string[]): Promise<Topology> {
   const topology: Topology = { hooks: new Map(), lockers: new Map(), splitters: new Map() };
   if (!emitters.length) return topology;
@@ -214,128 +187,15 @@ async function getTopology(options: FetchOptions, emitters: string[]): Promise<T
   return topology;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              the window's fee logs                          */
-/* -------------------------------------------------------------------------- */
-
-const iface = new Interface([TAX_TAKEN, SNIPE_TAX_APPLIED, FORWARDED, NETTED, PRINCIPAL_PARKED]);
-const topic0 = (abi: string) => iface.getEvent(abi.slice(abi.indexOf(" ") + 1, abi.indexOf("(")))!.topicHash;
-const T = {
-  taxTaken: topic0(TAX_TAKEN),
-  snipeTax: topic0(SNIPE_TAX_APPLIED),
-  forwarded: topic0(FORWARDED),
-  netted: topic0(NETTED),
-  principalParked: topic0(PRINCIPAL_PARKED),
-};
-const FEE_TOPICS = [T.taxTaken, T.snipeTax, T.forwarded, T.netted, T.principalParked];
-
-// Arc's endpoints cap eth_getLogs at 10000 blocks (rpc.mainnet.arc.io), 101 blocks (drpc) or
-// 20000+ (arc-scan, blockdaemon - but those two keep only about 2.2 days of logs), and they refuse
-// a request that would exceed a cap rather than truncating it, so a response that comes back is
-// always complete. The window is walked here rather than by the SDK because the SDK halves a
-// failing range but stops at 1001 blocks and rethrows, and because it treats every error alike: a
-// 429 means "wait", and halving the range in response to one only makes the next request fail
-// sooner. This loop retries the same span first, narrows only on a repeat failure, and widens
-// again once the range is clearly not the problem.
-const MAX_SPAN = 10000;   // the widest range rpc.mainnet.arc.io will serve
-// The floor is deliberately well above rpc.drpc.mainnet.arc.io's 101-block cap. Narrowing past
-// that point does not fix anything: it just reaches the one width drpc will answer, and the walk
-// silently switches onto 101-block requests - a 24h window becomes 1700 requests instead of 18.
-// 512 is also far below the ~5000 blocks this event density needs to stay inside the 20000-result
-// cap, so a range that genuinely is too big still has room to shrink.
-const MIN_SPAN = 512;
-const WIDEN_BELOW = 5000; // widen again only while clear of the 20000-result cap
-// A rate limit is waited out, patiently. rpc.mainnet.arc.io is the only host holding logs older
-// than about two days, and the SDK's own failover lands on it two or three times inside a single
-// logical request, so a window that far back rate limits itself no matter how this loop is paced.
-// Roughly a minute of total patience per chunk is the difference between that window completing
-// slowly and not completing at all.
-const RATE_PAUSES = [500, 1000, 2000, 4000, 8000, 15000, 30000];
-const OTHER_PAUSES = [400, 1500]; // anything else gets two quick goes
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// The SDK reports a failed getLogs as every host's error at once, and the hosts disagree about why.
-// Narrowing is the right answer to only one of the reasons:
-//   "range too large" / "too many results"  - a real range problem, narrow
-//   429                                     - a pacing problem; narrowing makes it worse, because
-//                                             it means more requests against the same budget
-//   "pruned history unavailable"            - that host will never serve this range at any width
-//   drpc's "ranges over 10000 blocks are not supported on free plan" - which it returns for ANY
-//                                             range above 101 blocks, so its text is not evidence
-//                                             about the range at all
-// So the window is only narrowed when at least one host reports a size problem AND no host reports
-// a rate limit; anything else is waited out.
-const isRangeError = (e: any) => {
-  const hosts = Array.isArray(e?.errors) ? e.errors : [];
-  const texts: string[] = hosts.length
-    ? hosts.map((h: any) => `${h?.host ?? ""} ${h?.error ?? ""}`.toLowerCase())
-    : [String(e?.message ?? e).toLowerCase()];
-  let sizeComplaint = false;
-  for (const text of texts) {
-    if (/429|rate limit/.test(text)) return false;
-    // drpc's message names a range it does not actually enforce, so it is not read as one
-    if (text.includes("drpc")) continue;
-    if (/too large|too many|range|limit exceeded|exceed/.test(text)) sizeComplaint = true;
-  }
-  return sizeComplaint;
-};
-
-// One topic-filtered pass for every fee event at once. There is no address filter because there is
-// no small address set to filter on: the emitters are the 140022 tax hooks, 140022 splitters and
-// 140081 lockers, one set per launch. Per AGENTS.md, "hundreds of targets is the sanctioned
-// exception to targets: fetching all logs by topic0 and filtering client-side is more efficient
-// there". One request per chunk for all five events rather than five is what keeps this inside the
-// budget of the one endpoint that can serve a range this endpoint pool struggles with.
-async function scanWindow(options: FetchOptions) {
-  const fromBlock = await options.getFromBlock();
-  const toBlock = await options.getToBlock();
-
-  const logs: any[] = [];
-  let cursor = fromBlock;
-  let span = MAX_SPAN;
-  while (cursor <= toBlock) {
-    const end = Math.min(cursor + span - 1, toBlock);
-    let chunk: any[] | undefined;
-    let lastError: any;
-    let pauses = RATE_PAUSES;
-    for (let attempt = 0; ; attempt++) {
-      if (attempt) await sleep(pauses[Math.min(attempt - 1, pauses.length - 1)]);
-      try {
-        chunk = await options.getLogs({
-          noTarget: true,
-          topics: [FEE_TOPICS] as any,
-          entireLog: true,
-          fromBlock: cursor,
-          toBlock: end,
-          // per-window event data, never asked for twice - not worth writing to the log cache
-          skipCache: true,
-        } as any);
-        break;
-      } catch (e) {
-        lastError = e;
-        if (isRangeError(e)) break;   // narrow instead of waiting
-        pauses = OTHER_PAUSES;
-        if (attempt >= RATE_PAUSES.length) break;
-      }
-    }
-    if (!chunk) {
-      // A range the pool refuses even at MIN_SPAN, after every retry, is a real failure and is
-      // rethrown - a broken endpoint must never be recorded as a zero-fee window.
-      if (span <= MIN_SPAN) throw lastError;
-      span = Math.max(MIN_SPAN, Math.floor(span / 2));
-      continue;
-    }
-    logs.push(...chunk);
-    cursor = end + 1;
-    if (chunk.length < WIDEN_BELOW && span < MAX_SPAN) span = Math.min(MAX_SPAN, span * 2);
-  }
-  return logs;
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                   fetch                                     */
-/* -------------------------------------------------------------------------- */
+// One hook, locker and splitter per launch, far too many to pass as targets. noTarget plus the
+// event, then keep a log only when its emitter is in the Portal registry.
+const getFeeLogs = (options: FetchOptions, eventAbi: string) => options.getLogs({
+  noTarget: true,
+  eventAbi,
+  onlyArgs: false,
+  entireLog: true,
+  parseLog: true,
+});
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -343,29 +203,14 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const t0 = Date.now();
-  const windowLogs = await scanWindow(options);
-  sdk.log(`[arguspad] window scan: ${windowLogs.length} logs in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-  // Bucketed on topic0 and decoded once. args is attached rather than replacing the log, because
-  // the emitter and the transaction hash both decide how a log is read.
-  const byTopic: Record<string, any[]> = {};
-  for (const t of FEE_TOPICS) byTopic[t] = [];
-  for (const log of windowLogs) {
-    const bucket = byTopic[log.topics[0]];
-    if (!bucket) continue;
-    log.args = iface.parseLog({ topics: log.topics, data: log.data })!.args;
-    bucket.push(log);
-  }
-  const taxTakenLogs = byTopic[T.taxTaken];
-  const snipeLogs = byTopic[T.snipeTax];
-  const forwardedLogs = byTopic[T.forwarded];
-  const nettedLogs = byTopic[T.netted];
-  const principalParkedLogs = byTopic[T.principalParked];
+  const taxTakenLogs = await getFeeLogs(options, TAX_TAKEN);
+  const snipeLogs = await getFeeLogs(options, SNIPE_TAX_APPLIED);
+  const forwardedLogs = await getFeeLogs(options, FORWARDED);
+  const nettedLogs = await getFeeLogs(options, NETTED);
+  const principalParkedLogs = await getFeeLogs(options, PRINCIPAL_PARKED);
 
-  const emitters = [...new Set(windowLogs.map(emitter))];
-  const t1 = Date.now();
+  const emitters = [...new Set([...taxTakenLogs, ...snipeLogs, ...forwardedLogs, ...nettedLogs, ...principalParkedLogs].map(emitter))];
   const topology = await getTopology(options, emitters);
-  sdk.log(`[arguspad] topology: ${emitters.length} emitters -> ${topology.hooks.size} launches in ${((Date.now() - t1) / 1000).toFixed(1)}s`);
 
   const swapTax: Tally = {};
   const selfTax: Tally = {};
