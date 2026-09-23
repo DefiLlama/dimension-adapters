@@ -1,4 +1,5 @@
-// Frozen, receipt-verified Pons-router purchases by Route dev wallet before automated buybacks.
+// Frozen, receipt-verified Pons-router purchases funded by ROUTE creator revenue.
+// Fee-credit/claim reconciliation and attribution limits: ./README.md.
 // Each transaction is independently inspectable at https://robinhoodchain.blockscout.com/tx/<hash>.
 // Launch purchase 0xd0d0a88231c0e48d59f804e9ab5d082a5e758e9993ba1c624753798e59634ace is excluded.
 // Amounts come from on-chain Swap logs, not this registry; three Route-executor buys are read separately.

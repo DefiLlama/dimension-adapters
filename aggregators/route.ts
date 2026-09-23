@@ -180,13 +180,13 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   fetch,
   start: '2026-09-05',
-  allowNegativeValue: true, // Buybacks and LP funding can use earlier revenue or dev-wallet funds.
+  allowNegativeValue: true, // Buybacks and LP funding can use revenue collected in an earlier period.
   methodology: {
     Volume: 'Completed swaps through the tracked Route contracts, counted once per trade, including integrations and treasury trades but excluding quotes and individual pool hops.',
     Fees: 'Actual Route swap fees and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, private transfers and cross-chain fees.',
     Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending.',
-    ProtocolRevenue: 'Tracked revenue less Buybacks + LP funding; these capital allocations may use revenue from earlier days or dev-wallet funds.',
-    HoldersRevenue: 'Buybacks + LP funding: actual ETH swap input for verified early dev-wallet purchases and completed automated buybacks, plus the full ETH liquidity budget assigned by completed cycles; this is capital allocation, not a distribution to token holders.',
+    ProtocolRevenue: 'Tracked revenue less Buybacks + LP funding; these capital allocations may use revenue collected on earlier days.',
+    HoldersRevenue: 'Buybacks + LP funding: actual ETH swap input for early creator-revenue-funded dev-wallet purchases and completed automated buybacks, plus the full ETH liquidity budget assigned by completed cycles; this is capital allocation, not a distribution to token holders.',
     SupplySideRevenue: 'None of the tracked fee receipts are paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
   },
   breakdownMethodology: {
@@ -205,7 +205,7 @@ const adapter: SimpleAdapter = {
       [liquidityFunding]: 'Full liquidity budget allocated in completed cycles, deducted once; subsequent use of carried balances is not another allocation.',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 verified post-launch dev-wallet buys and completed buys from all three automated managers; excludes the launch purchase, gas, and ROUTE bought within the separately counted LP budget.',
+      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all three automated managers; excludes the launch purchase, gas, and ROUTE bought within the separately counted LP budget.',
       [liquidityFunding]: 'Full ETH lpBudget in successful cycles, including funding for both assets and carry-forward balances, not exact deposited value: 30% in the September 11 manager and the September 18 Ramp manager. Original LP positions belong to the treasury Safe; Ramp shares belong to the approved LP wallet 0x09Efc01e903033D6642d20a8C5cF6Bee210cFBF8. Dedicated buybacks changed from 65% in the first manager to 35% on September 11 and 30% on September 18; all amounts are read from events, never inferred from these rates.',
     },
   },
