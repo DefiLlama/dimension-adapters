@@ -48,7 +48,6 @@ const EVENT_LOG_1_ABI = 'event EventLog1(address msgSender, string eventName, st
 const UI_FEES = 'UI Fees'
 const AFFILIATE_REWARDS = 'Affiliate Rewards'
 const SERVICE_FEES = 'Service Fees'
-const VOLUME_LABEL = 'Perpetual Trading Volume'
 
 type KeyValue = { key?: string; value?: any; 0?: string; 1?: any }
 
@@ -98,7 +97,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     if (isDenariaOrder || (isDenariaReferral && isKeeperOrder)) {
       // Notional of the executed increase/decrease, liquidations included.
-      dailyVolume.addUSDValue(usd30(uint(uints, 'tradeSizeUsd')), VOLUME_LABEL)
+      dailyVolume.addUSDValue(usd30(uint(uints, 'tradeSizeUsd')))
     }
 
     if (isDenariaOrder) {
@@ -145,16 +144,13 @@ const methodology = {
   Volume: 'Notional USD size of every GMX V2 position increase or decrease on a Denaria position, from the PositionFeesCollected event: orders placed through Denaria (identified by the Denaria uiFeeReceiver) plus liquidations and ADL executed by GMX keepers on positions carrying the DENARIA referral code. Same basis as GMX V2 marginVolumeUsd; this volume is also counted by GMX V2 Perps.',
   Fees: 'Fees collected by Denaria: the GMX UI fee charged on Denaria orders, the affiliate reward earned by the DENARIA referral code on GMX position fees, and the flat per-operation service fee paid to the Denaria fee wallet. GMX position, borrowing and funding fees are not Denaria fees and are counted under GMX V2 Perps.',
   UserFees: 'Fees paid directly by Denaria users to Denaria: the GMX UI fee and the flat service fee. Affiliate rewards are excluded because they are a rebate out of the fee the trader pays to GMX.',
-  Revenue: 'All Denaria fees are revenue.',
-  ProtocolRevenue: 'All revenue accrues to the Denaria fee wallets.',
+  Revenue: 'All Denaria fees (GMX UI fees, affiliate rewards, service fees) are revenue.',
+  ProtocolRevenue: 'All revenue (GMX UI fees, affiliate rewards, service fees) accrues to the Denaria fee wallets.',
   SupplySideRevenue: 'None: Denaria has no liquidity providers of its own on GMX.',
   HoldersRevenue: 'None: Denaria has no token.',
 }
 
 const breakdownMethodology = {
-  Volume: {
-    [VOLUME_LABEL]: 'Executed position size of Denaria-originated GMX V2 orders, including keeper liquidations and ADL of Denaria positions.',
-  },
   Fees: {
     [UI_FEES]: 'GMX uiFee (uiFeeFactor x trade size) paid by Denaria traders to the Denaria uiFeeReceiver.',
     [AFFILIATE_REWARDS]: 'Affiliate share of GMX position fees paid to the owner of the DENARIA referral code.',
