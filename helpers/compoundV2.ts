@@ -90,10 +90,12 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
     const rateGrowth = Number(marketExchangeRatesAfter[i]) - Number(marketExchangeRatesBefore[i])
     if (rateGrowth > 0) {
       const mantissa = 18 + underlyingDecimal - 8
-      const interestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
-      const revenueAccumulated = interestAccumulated * reserveFactor / 1e18
+      const supplyInterestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
+      const rf = Number(reserveFactor) / 1e18
+      const grossInterestAccumulated = rf < 1 ? supplyInterestAccumulated / (1 - rf) : supplyInterestAccumulated
+      const revenueAccumulated = grossInterestAccumulated * rf
       
-      dailyFees!.add(underlying, interestAccumulated, METRIC.BORROW_INTEREST);
+      dailyFees!.add(underlying, grossInterestAccumulated, METRIC.BORROW_INTEREST);
       dailyRevenue!.add(underlying, revenueAccumulated, METRIC.BORROW_INTEREST);
     }
   }
