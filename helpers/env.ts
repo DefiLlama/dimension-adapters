@@ -47,21 +47,7 @@ const DEFAULTS: any = {
   // drpc therefore leads, and is also the fastest of the three at the latest block.
   ARC_RPC: 'https://rpc.drpc.mainnet.arc.io,https://rpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io',
   ARC_RPC_CHAIN_ID: '5042',
-  // Measured 2026-09-20. eth_getLogs history: rpc.mainnet.arc.io and rpc.drpc.mainnet.arc.io serve
-  // to genesis; rpc.arc-scan.org and rpc.blockdaemon.mainnet.arc.io keep only the last ~387k blocks
-  // (~2.2 days) and answer anything older with "pruned history unavailable". Block range per call:
-  // arc-scan/blockdaemon 20000+, rpc.mainnet.arc.io 10000, drpc 101. So the only endpoint that can
-  // serve a wide historical log scan is rpc.mainnet.arc.io, and it is also the only one that rate
-  // limits, so it is deliberately NOT listed here: the SDK tries the archival list first and then
-  // the main list, so a host named in both is hit two or three times for one logical request and
-  // rate limits itself. The two unmetered wide-range hosts go first, and rpc.mainnet.arc.io is
-  // reached through ARC_RPC when a scan needs history they no longer hold.
-  ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io',
-  // rpc.mainnet.arc.io serves eth_getLogs at about 3 requests a second and 429s above it (measured:
-  // 12/12 succeed at a 0.25s gap, 6/12 back to back), while eth_call on the same host is not rate
-  // limited in the same way. The SDK's default of 25 parallel getLogs guarantees a 429 storm, and
-  // its range-halving reads a 429 as "too many results" and shrinks the window instead of waiting.
-  ARC_RPC_GET_LOGS_CONCURRENCY_LIMIT: '4',
+  ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io,https://rpc.nodeflare.app/arc/public', // public archive fallbacks; use <=100k-block log ranges
   // Arc is not in the SDK Multicall3 deployment map; canonical Multicall3 is deployed there.
   ARC_RPC_MULTICALL: '0xcA11bde05977b3631167028862bE2a173976CA11',
   ARC_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',

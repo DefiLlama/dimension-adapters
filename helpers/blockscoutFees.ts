@@ -5,7 +5,7 @@ import { getEnv } from './env';
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
-  [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://stats-celo-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
+  [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://celo.blockscout.com/stats-service', burnRatio: 0 }, // legacy totalfees returns null; old k8s-prod-2 stats host is gone
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', allStatsApi: 'https://stats.explorer.mainnet.aurora.dev', CGToken: 'ethereum' },
   [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai', allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01', burnRatio: 0 },
   [CHAIN.CANTO]: { explorer: 'https://explorer.plexnode.wtf', CGToken: 'canto', },
@@ -15,7 +15,7 @@ export const chainConfigMap: any = {
   [CHAIN.FLOW]: { explorer: 'https://evm.flow.com', CGToken: 'flow', allStatsApi: 'https://evm.flow.com:8080' },
   [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://stats-immutable-mainnet.k8s.blockscout.com' },
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
-  [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://stats-etherlink-mainnet.k8s-prod-1.blockscout.com' },
+  [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://explorer.etherlink.com/stats-service' },
   [CHAIN.REDSTONE]: { explorer: 'https://explorer.redstone.xyz', CGToken: 'ethereum', allStatsApi: 'https://stats-redstone.k8s.blockscout.com' },
   [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer', deadFrom: '2026-07-28' }, // ShimmerEVM sunset: explorer redirects to explorer.shimmer.network, RPCs stopped; last fees 2026-07-27
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
@@ -111,7 +111,7 @@ export const chainConfigMap: any = {
   [CHAIN.BITGERT]: { CGToken: 'bitrise-token', explorer: 'https://brisescan.com/' },
   [CHAIN.PROM]: { CGToken: 'prometeus', explorer: 'https://promscan.io/' },
   [CHAIN.UNIT0]: { CGToken: 'unit0', explorer: 'https://explorer.unit0.dev/' },
-  [CHAIN.GRX]: { CGToken: 'grx-chain', explorer: 'https://grxscan.io/' },
+  [CHAIN.GRX]: { CGToken: 'grx-chain', explorer: 'https://grxscan.io/', allStatsApi: 'https://stats.grxscan.io' }, // legacy totalfees returns null
   [CHAIN.ZILLIQA]: { CGToken: 'zilliqa', explorer: 'https://zilliqa.blockscout.com/' },
   [CHAIN.TOMOCHAIN]: { CGToken: 'tomochain', explorer: 'https://viction.blockscout.com/' },
   [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
@@ -122,7 +122,7 @@ export const chainConfigMap: any = {
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
-  [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/' },
+  [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/', allStatsApi: 'https://stats-api-explorer.rollux.com' }, // legacy totalfees returns null
   [CHAIN.TAC]: { CGToken: 'tac', explorer: 'https://explorer.tac.build/' },
   [CHAIN.ENDURANCE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
   [CHAIN.SWAN]: { CGToken: 'ethereum', explorer: 'https://mainnet-explorer.swanchain.io/' },
@@ -245,8 +245,16 @@ export function blockscoutFeeAdapter2(chain: string) {
             // newer blockscout deployments return result: null from the legacy totalfees endpoint;
             // fall back to the stats service daily txnsFee series (values are in the native coin)
             const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`, requestConfig)
-            const row = chart?.find((c: any) => c.date === dateString)
-            if (row) feesWei = Number(row.value) * 1e18
+            const rowIndex = chart?.findIndex((c: any) => c.date === dateString) ?? -1
+            const row = rowIndex >= 0 ? chart[rowIndex] : undefined
+            if (row) {
+              // the stats service writes a 0 placeholder for days its indexer has not processed yet;
+              // a chain that paid fees in the previous week does not go to exactly 0 - throw so the refill heals it
+              const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some((c: any) => Number(c.value) > 0)
+              if (Number(row.value) === 0 && recentNonZero)
+                throw new Error(`${chain}: stats service has not computed fees for ${dateString} yet`)
+              feesWei = Number(row.value) * 1e18
+            }
           }
           if (feesWei === undefined || feesWei === null) {
             console.log(chain, ' Error fetching fees', fees)

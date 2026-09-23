@@ -22,7 +22,7 @@
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import CoreAssets from "../../helpers/coreAssets.json";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 
 // AGNT launch-fee platform beneficiary (32% of the 1.095% Doppler terminal pool fee).
@@ -55,7 +55,7 @@ const RELAY_CLAIM_CONTRACT = "0xf70da97812cb96acdf810712aa562db8dfa3dbef"; // Re
 // simply never sent WETH to the wallet, so the fromAdddesses filter is exact per chain.
 const CHAIN_CONFIG: Record<string, { weth: string; initializers: string[] }> = {
   [CHAIN.BASE]: {
-    weth: CoreAssets.base.WETH,
+    weth: ADDRESSES.base.WETH,
     initializers: [
       "0xd59ce43e53d69f190e15d9822fb4540dccc91178", // DecayMulticurveInitializer (current)
       "0xbdf938149ac6a781f94faa0ed45e6a0e984c6544", // DopplerHookInitializer (legacy)
@@ -140,7 +140,7 @@ const fetch = async (options: FetchOptions) => {
     const tradingFees = await addTokensReceived({
       options,
       targets: TRADING_FEE_WALLETS,
-      tokens: [CoreAssets.base.WETH, CoreAssets.base.USDC],
+      tokens: [ADDRESSES.base.WETH, ADDRESSES.base.USDC],
       fromAdddesses: [RELAY_SETTLEMENT, RELAY_CLAIM_CONTRACT],
     });
     dailyFees.addBalances(tradingFees, "Trading Fees");

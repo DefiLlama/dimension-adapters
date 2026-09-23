@@ -34,7 +34,7 @@ const CHAIN_CONFIG: Record<string, any> = {
     },
 }
 
-const ADDRESSES = {
+const config = {
     feeRedeemer: "0xD1057B6C6736bf4f5B4a850Cff02054F1f38e581",
     rewardsDistributor: "0xD69e57336377460707d579CB24f9Ba0aEDf88003",
     tokemakToken: ADDRESSES.ethereum.TOKE
@@ -124,9 +124,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         await addTokensReceived({
             options,
             balances: dailyHoldersRevenue,
-            target: ADDRESSES.rewardsDistributor,
-            fromAddressFilter: ADDRESSES.feeRedeemer,
-            token: ADDRESSES.tokemakToken
+            target: config.rewardsDistributor,
+            fromAddressFilter: config.feeRedeemer,
+            token: config.tokemakToken
         });
         dailyProtocolRevenue.subtract(dailyHoldersRevenue);
     }

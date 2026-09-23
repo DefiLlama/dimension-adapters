@@ -9,6 +9,11 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "bdex-v3": {
+    // stock uniV3 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
+    // fee tiers 500/3000/10000; slot0().feeProtocol = 0 on every pool (https://scan.botchain.ai/address/0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419, checked 2026-09-22) => 100% of swap fees to LPs
+    [CHAIN.BOT_CHAIN]: { factory: '0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419', start: '2026-02-26', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "xflows": {
     [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
   },
@@ -445,6 +450,13 @@ const configs: Record<string, Record<string, any>> = {
 const optionsMap: Record<string, any> = {}
 
 const methodologyMap: Record<string, any> = {
+  "bdex-v3": {
+    Volume: "Swap volume from all BDEX V3 pools deployed via the V3 factory on BOT Chain.",
+    Fees: "Users pay each pool's configured fee tier (0.05%, 0.3% or 1%) on every swap.",
+    Revenue: "No protocol fee is taken (feeProtocol is 0 on every pool), all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "betterswap-v3": {
     Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
     Fees: "Users pay each pool's configured fee tier on every swap.",
@@ -691,6 +703,14 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
+}
+
+protocols['bdex-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['bdex-v3'].Fees },
+  UserFees: { 'Trading fees': 'Equals total swap fees paid by users.' },
+  Revenue: { 'Protocol fees': methodologyMap['bdex-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v3'].SupplySideRevenue },
 }
 
 // Keep the first RH deployment's history and residual activity after the den15 migration.

@@ -53,20 +53,21 @@ const chainConfig:any = {
         identifier: 'metis',
         start: '2024-03-04',
     },
-    [CHAIN.MANTA]: {
-        name: 'Manta',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-manta/prod/gn',
-        chainId: 169,
-        identifier: 'manta',
-        start: '2023-12-01',
-    },
-    [CHAIN.MODE]: {
-        name: 'Mode',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-mode/prod/gn',
-        chainId: 34443,
-        identifier: 'mode',
-        start: '2024-03-24',
-    },
+    // ormilabs removed the manta and mode subgraphs ("subgraph name/version error") - 2026-09
+    // [CHAIN.MANTA]: {
+    //     name: 'Manta',
+    //     subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-manta/prod/gn',
+    //     chainId: 169,
+    //     identifier: 'manta',
+    //     start: '2023-12-01',
+    // },
+    // [CHAIN.MODE]: {
+    //     name: 'Mode',
+    //     subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-mode/prod/gn',
+    //     chainId: 34443,
+    //     identifier: 'mode',
+    //     start: '2024-03-24',
+    // },
     // [CHAIN.CELO]: {
     //     name: 'Celo',
     //     subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/BPaFHyfVrhv3pdjGodpQcWggAg1Bcrvc9SFc2t2BXeho',

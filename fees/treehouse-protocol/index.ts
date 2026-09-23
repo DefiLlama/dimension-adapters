@@ -13,7 +13,7 @@ const EVENT_ABI = {
 const BUY_BACK_ADDRESS = '0xcbcc15e2f566fdb46e93d925efcbf0ccc5378d3b';
 const BUY_BACK_TOKEN = '0x77146784315ba81904d654466968e3a7c196d1f3';
 
-const ADDRESSES: any = {
+const config: any = {
     [CHAIN.ETHEREUM]: {
         accounting: "0xb7Ce3cb5Bc5c00cd2f9B39d9b0580f5355535709",
         token: "0xD11c452fc99cF405034ee446803b6F6c1F6d5ED8", //tEth
@@ -42,7 +42,7 @@ const ADDRESSES: any = {
 };
 
 async function fetch(options: FetchOptions) {
-    const { accounting, token, redemption, fastlaneRedemption, stakedToken } = ADDRESSES[options.chain]
+    const { accounting, token, redemption, fastlaneRedemption, stakedToken } = config[options.chain]
     const dailySupplySideRevenue = options.createBalances();
     const dailyProtocolRevenue = options.createBalances();
 
@@ -60,7 +60,7 @@ async function fetch(options: FetchOptions) {
     standardRedemptionLogs.forEach(log => dailySupplySideRevenue.add(token, log.fee, METRIC.MINT_REDEEM_FEES));
 
     fastlaneRedemptionLogs
-      .filter(log => !ADDRESSES[options.chain].excludeWallets.includes(String(log.user).toLowerCase()))
+      .filter(log => !config[options.chain].excludeWallets.includes(String(log.user).toLowerCase()))
       .forEach(log => dailyProtocolRevenue.add(stakedToken, log.fee, METRIC.MINT_REDEEM_FEES));
 
     const dailyFees = dailySupplySideRevenue.clone();
