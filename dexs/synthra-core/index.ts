@@ -209,6 +209,7 @@ export async function fetch(options: FetchOptions) {
     dailyRevenue.add(config.quote, split.toProtocol, LABEL.launchProtocol)
     dailyProtocolRevenue.add(config.quote, split.toProtocol, LABEL.launchProtocol)
     dailySupplySideRevenue.add(config.quote, split.toCreator, LABEL.launchCreator)
+    // Buys and burns the launched token, not a Synthra token: supply side (same as fees/tolly).
     dailySupplySideRevenue.add(config.quote, split.toBuybackPot, LABEL.launchBuybackPot)
   })
 
