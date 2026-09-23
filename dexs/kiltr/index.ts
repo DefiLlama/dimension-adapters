@@ -4,11 +4,11 @@
 // Revenue split: protocol share (read live from Kiltr /api/fees, v2 pools) vs LP share = 1 - protocol share.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { httpGet, httpPost } from "../../utils/fetchURL";
 
 const SUBGRAPH = "https://api.goldsky.com/api/public/project_cmu8ptbvnb5gu01q12yzbaauu/subgraphs/kiltr/1.0.1/gn";
 const KILTR_API = "https://kiltr.net/api";
-const ROBINHOOD_CHAIN = CHAIN.ROBINHOOD;
 
 const QUERY = (from: number, to: number) => `{
   poolSnapshots(first: 1000, where: { period: "day", timestamp_gte: ${from}, timestamp_lt: ${to} }) {
@@ -33,28 +33,46 @@ export async function computeDaily(snapshots: any[], priceOf: (token: string) =>
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp, createBalances } = options;
   const data = (await httpPost(SUBGRAPH, { query: QUERY(startTimestamp, endTimestamp) })).data;
-  const feesApi = await httpGet(`${KILTR_API}/fees`).catch(() => ({}));
-  const share = { "2": feesApi?.v2?.protocolSwapFeeSharePct ?? 0, "3": feesApi?.v3?.protocolSwapFeeSharePct ?? 0 };
+  const feesApi = await httpGet(`${KILTR_API}/fees`);
+  const share: Record<string, number> = { "2": feesApi?.v2?.protocolSwapFeeSharePct ?? 0, "3": feesApi?.v3?.protocolSwapFeeSharePct ?? 0 };
   const dailyVolume = createBalances(), dailyFees = createBalances(), dailyRevenue = createBalances(), dailySupplySideRevenue = createBalances();
   for (const s of data.poolSnapshots) {
     s.tokens.forEach((t: string, i: number) => {
       dailyVolume.add(t, BigInt(s.volumeByToken[i]) / 2n);
       const fee = BigInt(s.feesByToken[i]);
       const rev = (fee * BigInt(Math.round((share[String(s.pool.version)] ?? 0) * 100))) / 10000n;
-      dailyFees.add(t, fee); dailyRevenue.add(t, rev); dailySupplySideRevenue.add(t, fee - rev);
+      dailyFees.add(t, fee, METRIC.SWAP_FEES);
+      dailyRevenue.add(t, rev, METRIC.PROTOCOL_FEES);
+      dailySupplySideRevenue.add(t, fee - rev, METRIC.LP_FEES);
     });
   }
-  return { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: { [ROBINHOOD_CHAIN]: { fetch, start: "2026-09-19" } },
+  adapter: { [CHAIN.ROBINHOOD]: { fetch, start: "2026-09-19" } },
+  pullHourly: true,
   methodology: {
     Volume: "Sum of swap amounts through Kiltr pools (subgraph daily snapshots; each swap counted once).",
     Fees: "Pool swap fees paid by traders (pool-level swapFee × amount in).",
     Revenue: "Protocol share of swap fees (ProtocolFeesCollector / ProtocolFeeController percentage read live from kiltr.net/api/fees).",
+    ProtocolRevenue: "Protocol share of swap fees, using the v2 or v3 percentage from kiltr.net/api/fees.",
     SupplySideRevenue: "Swap fees remaining with liquidity providers (Fees − Revenue).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: "Pool swap fees paid by traders, taken in the token sent into the pool.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees, using the v2 or v3 percentage from kiltr.net/api/fees.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees, using the v2 or v3 percentage from kiltr.net/api/fees.",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]: "Swap fees left with liquidity providers after the protocol share.",
+    },
   },
 };
 export default adapter;
