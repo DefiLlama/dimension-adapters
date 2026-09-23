@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { isCoreAsset } from "../../helpers/prices";
-import ADDRESSES from "../../helpers/coreAssets.json";
+import { addOneToken } from "../../helpers/prices";
 
 // Meow: DEX aggregator on Robinhood Chain (chain id 4663), https://meow.exchange
 // Every settled swap emits `Swapped` once on the router that executed it, and
@@ -14,7 +13,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 // up to that block, retired ones included, so a new router never needs an
 // adapter change. Verified source: https://repo.sourcify.dev/4663/0x7b592Bf516cE94AE28e24e34d709Cb95fE596005
 const REGISTRY = "0x7b592Bf516cE94AE28e24e34d709Cb95fE596005";
-const REGISTRY_FROM_BLOCK = 70680538; // registry deployment block, 2026-09-23
+const REGISTRY_DEPLOYED_TIMESTAMP = 1790183334;
 // Routers deployed before the registry existed. The registry constructor was
 // seeded with the same list; deployment blocks 33693446 through 69162998.
 const SEED_ROUTERS = [
@@ -33,20 +32,11 @@ const EVENT_FEE_COLLECTED =
 
 // Native ETH is reported as the zero address on the swap side; fees are always
 // taken in the ERC20 the route settles in (WETH for native output).
-const NATIVE = ADDRESSES.null;
 const SWAP_FEES = "Swap Fees";
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
 
-type Balances = ReturnType<FetchOptions["createBalances"]>;
-
-function addToken(balances: Balances, token: string, amount: any, label?: string) {
-  if (token.toLowerCase() === NATIVE) balances.addGasToken(amount, label);
-  else balances.add(token, amount, label);
-}
-
 async function routersAt(options: FetchOptions): Promise<string[]> {
-  const toBlock = await options.getToBlock();
-  if (toBlock < REGISTRY_FROM_BLOCK) return SEED_ROUTERS;
+  if (options.toTimestamp < REGISTRY_DEPLOYED_TIMESTAMP) return SEED_ROUTERS;
   return options.api.call({ target: REGISTRY, abi: ABI_ROUTERS });
 }
 
@@ -64,8 +54,7 @@ async function fetch(options: FetchOptions) {
     // One entry per swap. Prefer the side that is a core asset so a trade
     // against a freshly launched token is still valued: amountIn is what the
     // trader paid; amountOut is what the recipient received after the fee.
-    if (isCoreAsset(chain, log.tokenIn)) addToken(dailyVolume, log.tokenIn, log.amountIn);
-    else addToken(dailyVolume, log.tokenOut, log.amountOut);
+    await addOneToken({chain, balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut});
   }
 
   const fees = await getLogs({ targets, eventAbi: EVENT_FEE_COLLECTED });
