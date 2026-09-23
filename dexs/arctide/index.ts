@@ -21,7 +21,10 @@ const toUsdc = (wei: bigint): bigint => wei / 10n ** 12n;
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({ target: ROUTER, eventAbi: SWAP_EXECUTED });
-  for (const log of logs) dailyVolume.add(USDC, toUsdc(BigInt(log.grossNative)));
+  // Sum in 18-decimal wei first and convert once, so no per-trade remainder is lost.
+  let grossNative = 0n;
+  for (const log of logs) grossNative += BigInt(log.grossNative);
+  dailyVolume.add(USDC, toUsdc(grossNative));
   return { dailyVolume };
 };
 

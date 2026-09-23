@@ -10,6 +10,7 @@
 // in the launch factory carry no fee, so they contribute nothing here.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const ROUTER = "0xA161f98765b396D126D25C0FF7546F9FCeA9B082";
 const USDC = "0x3600000000000000000000000000000000000000"; // 6-decimal ERC-20 view of native USDC
@@ -28,29 +29,50 @@ const ARCTIDE_PROTOCOL_RECIPIENTS = new Set<string>([
 // Share of Arctide revenue committed to buying back and burning $TIDE (announced 16 Sep 2026).
 const HOLDERS_SHARE = 0.7;
 
-const toUsdc = (wei: bigint): bigint => wei / 10n ** 12n; // native 18 decimals -> USDC 6 decimals
+const TREASURY_FEE = "Treasury Fee";
+
+// Native USDC has 18 decimals on Arc; the ERC-20 view has 6. Totals are summed in wei first and
+// converted once, so no per-trade remainder is lost.
+const toUsdc = (wei: bigint): bigint => wei / 10n ** 12n;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  let lpNative = 0n;
+  let creatorProtocolNative = 0n;
+  let arctideProtocolNative = 0n;
+  let treasuryNative = 0n;
+
   const logs = await options.getLogs({ target: ROUTER, eventAbi: SWAP_EXECUTED });
   for (const log of logs) {
-    const lp = BigInt(log.lpFeeNative);
     const protocol = BigInt(log.protocolFeeNative);
-    const treasury = BigInt(log.treasuryFeeNative);
-
-    dailyFees.add(USDC, toUsdc(lp + protocol + treasury));
-    dailySupplySideRevenue.add(USDC, toUsdc(lp));
-    dailyRevenue.add(USDC, toUsdc(treasury));
+    lpNative += BigInt(log.lpFeeNative);
+    treasuryNative += BigInt(log.treasuryFeeNative);
 
     const recipient = String(log.protocolRecipient).toLowerCase();
     const arctideOwned =
       recipient === String(log.treasuryRecipient).toLowerCase() || ARCTIDE_PROTOCOL_RECIPIENTS.has(recipient);
-    if (arctideOwned) dailyRevenue.add(USDC, toUsdc(protocol));
-    else dailySupplySideRevenue.add(USDC, toUsdc(protocol));
+    if (arctideOwned) arctideProtocolNative += protocol;
+    else creatorProtocolNative += protocol;
   }
+
+  const lpUsdc = toUsdc(lpNative);
+  const creatorUsdc = toUsdc(creatorProtocolNative);
+  const arctideUsdc = toUsdc(arctideProtocolNative);
+  const treasuryUsdc = toUsdc(treasuryNative);
+
+  dailyFees.add(USDC, lpUsdc, METRIC.LP_FEES);
+  dailyFees.add(USDC, creatorUsdc, METRIC.CREATOR_FEES);
+  dailyFees.add(USDC, arctideUsdc, METRIC.PROTOCOL_FEES);
+  dailyFees.add(USDC, treasuryUsdc, TREASURY_FEE);
+
+  dailySupplySideRevenue.add(USDC, lpUsdc, METRIC.LP_FEES);
+  dailySupplySideRevenue.add(USDC, creatorUsdc, METRIC.CREATOR_FEES);
+
+  dailyRevenue.add(USDC, arctideUsdc, METRIC.PROTOCOL_FEES);
+  dailyRevenue.add(USDC, treasuryUsdc, TREASURY_FEE);
 
   const dailyHoldersRevenue = dailyRevenue.clone(HOLDERS_SHARE);
   const dailyProtocolRevenue = dailyRevenue.clone(1 - HOLDERS_SHARE);
@@ -65,19 +87,53 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: "All swap fees paid by traders on Arctide pools, in USDC: the pool's LP fee, its protocol fee (set by the token creator) and Arctide's fixed 0.25% treasury fee, read from the Router's SwapExecuted events.",
+  UserFees: "Same as Fees; every fee is paid by the trader.",
+  Revenue: "Arctide's 0.25% treasury fee on every swap, plus the protocol fees of the pools whose protocol recipient is Arctide itself (the $TIDE and $DUCK pools).",
+  ProtocolRevenue: "30% of Revenue, retained by Arctide.",
+  HoldersRevenue: "70% of Revenue, used to buy back and burn $TIDE.",
+  SupplySideRevenue: "LP fees credited to liquidity providers, plus protocol fees paid to token creators' chosen addresses.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.LP_FEES]: "Per-pool LP fee, set by the token creator, credited to liquidity providers in USDC on every swap.",
+    [METRIC.CREATOR_FEES]: "Per-pool protocol fee paid to the token creator's chosen address (pools not owned by Arctide).",
+    [METRIC.PROTOCOL_FEES]: "Per-pool protocol fee on the pools whose recipient is Arctide itself ($TIDE, $DUCK).",
+    [TREASURY_FEE]: "Fixed 0.25% of every swap, paid to Arctide's treasury.",
+  },
+  UserFees: {
+    [METRIC.LP_FEES]: "LP fee paid by the trader.",
+    [METRIC.CREATOR_FEES]: "Creator protocol fee paid by the trader.",
+    [METRIC.PROTOCOL_FEES]: "Arctide protocol fee paid by the trader.",
+    [TREASURY_FEE]: "Treasury fee paid by the trader.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "Protocol fees of the Arctide-owned pools ($TIDE, $DUCK).",
+    [TREASURY_FEE]: "Fixed 0.25% treasury fee.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "30% of the Arctide-owned pools' protocol fees, retained by Arctide.",
+    [TREASURY_FEE]: "30% of the treasury fee, retained by Arctide.",
+  },
+  HoldersRevenue: {
+    [METRIC.PROTOCOL_FEES]: "70% of the Arctide-owned pools' protocol fees, used to buy back and burn $TIDE.",
+    [TREASURY_FEE]: "70% of the treasury fee, used to buy back and burn $TIDE.",
+  },
+  SupplySideRevenue: {
+    [METRIC.LP_FEES]: "LP fees credited to liquidity providers.",
+    [METRIC.CREATOR_FEES]: "Protocol fees paid to token creators' chosen addresses.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ARC],
   start: "2026-09-16",
-  methodology: {
-    Fees: "All swap fees paid by traders on Arctide pools, in USDC: the pool's LP fee, its protocol fee (set by the token creator) and Arctide's fixed 0.25% treasury fee, read from the Router's SwapExecuted events.",
-    UserFees: "Same as Fees; every fee is paid by the trader.",
-    Revenue: "Arctide's 0.25% treasury fee on every swap, plus protocol fees on pools whose protocol recipient is Arctide itself (the $TIDE pool).",
-    ProtocolRevenue: "30% of Revenue, retained by Arctide.",
-    HoldersRevenue: "70% of Revenue, used to buy back and burn $TIDE.",
-    SupplySideRevenue: "LP fees credited to liquidity providers, plus protocol fees paid to token creators' chosen addresses.",
-  },
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
