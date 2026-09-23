@@ -30,6 +30,17 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "synthra-perps": {
+    addresses: ["0x20a32b077906feb43d5ecac7ef1425a48e25b4cc"],
+    start: "2026-07-22",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades executed through Synthra.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades executed through Synthra.",
+      Revenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
+      ProtocolRevenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "alphapilot": {
     // AlphaPilot builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1/20260908.csv.lz4
     addresses: ["0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1"],
