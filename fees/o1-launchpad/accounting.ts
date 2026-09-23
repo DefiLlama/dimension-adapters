@@ -5,11 +5,22 @@ import { compareLogs, Log, lower } from "./events";
 // Uniswap v4 TickMath uses symmetric bounds of +/-887272, derived from
 // log base 1.0001 of 2^128. The protocol's RWA pricing helper uses the same bounds.
 // https://github.com/Uniswap/v4-core/blob/e50237c43811bd9b526eff40f26772152a42daba/src/libraries/TickMath.sol#L18-L23
-// https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/rwaTicks.ts#L5-L6
 const MAX_TICK = 887272;
 
 type Quote = { registered: boolean; decimals: number; tick: number; supply?: bigint; creationFee: bigint; revision?: bigint };
-type Pool = { quote: string; creator: string; market: Market; log: Log };
+/**
+ * Pool state needed for fee attribution. `quote`, `market` and `log` are present only for
+ * pools launched inside the window; pools resolved from the opening-block `poolConfig`
+ * snapshot carry just the creator, and their market is derived from the trade fee currency.
+ */
+type Pool = { quote?: string; creator: string; market?: Market; log?: Log };
+/** Opening-block state for one suite, read point-in-time instead of replayed from genesis. */
+export type Baseline = {
+  pools: Map<string, { creator: string; treasury?: string }>;
+  quotes: Map<string, { registered: boolean; decimals: number; tick: number; creationFee: bigint }>;
+  supply?: bigint;
+  nativeFee: bigint;
+};
 type Credit = { recipient: string; currency: string; amount: bigint; componentId?: string; poolId?: string };
 export type Fee = {
   market: Market;
@@ -37,8 +48,40 @@ const componentNames = new Map(["CREATOR", "REFERRER", "PLATFORM"].map(name => [
 const requireThat = (condition: unknown, message: string): void => {
   if (!condition) throw new Error(`o1 Launchpad: ${message}`);
 };
+/**
+ * Categorised counts of skipped events for the suite currently being accounted.
+ * Reported as one summary line per suite rather than one line per event, so a window
+ * with thousands of incomplete records stays readable. `accountSuite` runs one suite at a
+ * time within a fetch, clearing this on entry and draining it on exit.
+ */
+const skipCounts = new Map<string, number>();
 /** Incomplete RPC/log sets are skipped so one missing event cannot fail the day. */
-const skip = (_message: string): void => {};
+const skip = (message: string): void => {
+  // Collapse addresses, hashes, log indices and ids so the 30 call sites map onto a
+  // bounded category set; one window must never produce more than a handful of categories.
+  const category = message.replace(/0x[0-9a-fA-F]+/g, "").replace(/:?\d+/g, "").replace(/\s+/g, " ").trim();
+  skipCounts.set(category, (skipCounts.get(category) ?? 0) + 1);
+};
+/**
+ * Classify a fee currency into its market.
+ * Standard and RWA routes are fixed by the suite; dual routes follow the quote catalogue.
+ * The hook enforces that a trade's fee currency is the pool quote (LaunchHook `UnexpectedFeeCurrency`),
+ * so the fee currency is a sound stand-in for the pool quote on every suite carrying that guard.
+ */
+const marketOf = (suite: Suite, crypto: Set<string>, currency: string): Market =>
+  suite.route === "standard" || (suite.route === "dual" && crypto.has(currency)) ? "Crypto" : "Stocks";
+/** Emit the accumulated skip categories for one suite and reset the counters. */
+function reportSkipped(suite: Suite): void {
+  if (!skipCounts.size) return;
+  let total = 0;
+  const parts: string[] = [];
+  for (const [category, count] of skipCounts) {
+    total += count;
+    parts.push(`${category} x${count}`);
+  }
+  skipCounts.clear();
+  console.log(`o1 Launchpad: skipped ${total} events in suite ${suite.hook} (${parts.join("; ")})`);
+}
 
 /**
  * Recover the stock reference price using the tick and supply captured together.
@@ -49,8 +92,7 @@ const skip = (_message: string): void => {};
  */
 function pricePerRawUnit(quote?: Quote): number | undefined {
   if (!quote?.registered || !quote.supply) return undefined;
-  // Operator's $4,000 opening-cap convention, also used by the historical analytics:
-  // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/analytics/dune/sql/02_trade_facts.sql#L795
+  // Operator's $4,000 opening-cap convention, also used by the historical analytics.
   // Dividing quotePriceUSD by 10^quoteDecimals cancels the decimals factor in that formula.
   const price = 4000 / (Math.pow(1.0001, quote.tick) * Number(quote.supply));
   requireThat(Number.isFinite(price) && price > 0, "invalid factory tick price");
@@ -105,8 +147,7 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
         referrerAmount += c.amount;
       } else {
         // Deployed suites attribute PLATFORM and additional protocol-owned FIXED components
-        // to protocol revenue, independently of whether their destination wallets coincide:
-        // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/docs/LAUNCHPAD_V4_MINIMAL_PLATFORM_INTEGRATION.md#fee-flow-and-accounting
+        // to protocol revenue, independently of whether their destination wallets coincide.
         protocolAmount += c.amount;
       }
     }
@@ -154,18 +195,27 @@ function splitCredits(suite: Suite, trade: Log, pool: Pool, treasury: string | u
  * @param toBlock Last included block; later logs are ignored.
  * Incomplete event sets are skipped and logged so a missing RPC log cannot fail the run.
  */
-export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], fromBlock: number, toBlock: number): Fee[] {
+export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], fromBlock: number, toBlock: number, baseline: Baseline): Fee[] {
+  skipCounts.clear();
   const pools = new Map<string, Pool>();
   const treasuries = new Map<string, string>();
   const quotes = new Map<string, Quote>();
+  // Seed the opening-block snapshot, then let in-window events move it forward. This is
+  // equivalent to replaying from the suite's first block without reading any earlier block.
+  for (const [id, state] of baseline.pools) {
+    pools.set(id, { creator: state.creator });
+    if (state.treasury) treasuries.set(id, state.treasury);
+  }
+  for (const [token, state] of baseline.quotes)
+    quotes.set(token, { ...state, supply: baseline.supply });
   const pending = new Map<string, { credits: Credit[]; components: Credit[] }>();
-  const launches = new Map<string, { pool: Pool; expected: bigint; currency: string; stockPrice?: number }[]>();
+  const launches = new Map<string, { pool: Pool; log: Log; expected: bigint; currency: string; stockPrice?: number }[]>();
   const payments = new Map<string, Log[]>();
   const launchBuys = new Map<string, Log>();
   const fees: Fee[] = [];
   const seen = new Set<string>();
-  let supply: bigint | undefined;
-  let nativeFee = 0n;
+  let supply: bigint | undefined = baseline.supply;
+  let nativeFee = baseline.nativeFee;
   const crypto = new Set(cryptoQuotes);
 
   for (const log of logs.sort(compareLogs)) {
@@ -256,7 +306,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
           skip(`unknown launch quote ${quote}`);
           break;
         }
-        const market = suite.route === "standard" || (suite.route === "dual" && crypto.has(quote)) ? "Crypto" : "Stocks";
+        const market = marketOf(suite, crypto, quote);
         const pool: Pool = { quote, creator: lower(a.creator), market, log };
         pools.set(id, pool);
         if (inWindow) {
@@ -267,7 +317,7 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
             break;
           }
           const group = launches.get(log.transactionHash) ?? [];
-          group.push({ pool, expected, currency,
+          group.push({ pool, log, expected, currency,
             stockPrice: market === "Stocks" && currency === quote ? pricePerRawUnit(registered) : undefined });
           launches.set(log.transactionHash, group);
         }
@@ -309,7 +359,10 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       }
       case "trade": {
         if (!inWindow) break;
-        const id = lower(a.poolId), pool = pools.get(id);
+        const id = lower(a.poolId);
+        // Minimal suites attribute by component id and never read the pool creator or
+        // treasury, so a pool first seen in this window needs no opening-block lookup.
+        const pool = pools.get(id) ?? (suite.minimal ? { creator: ZERO } as Pool : undefined);
         const group = pending.get(log.transactionHash) ?? { credits: [], components: [] };
         pending.delete(log.transactionHash);
         if (!pool) {
@@ -325,13 +378,19 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
         const currency = lower(a.feeCurrency);
         // Preserve the existing quote-denominated metric. Legacy launch-token fees have
         // no reliable historical USD price; never mistake their raw units for quote units.
-        if (currency !== pool.quote) {
-          if (!(!suite.minimal && suite.launchFee === "none"))
-            skip(`unexpected non-quote fee ${identity}`);
+        // Suites predating the hook's `UnexpectedFeeCurrency` guard are the only ones that can
+        // emit them; for a pool launched before this window the quote catalogue identifies them.
+        const legacySuite = !suite.minimal && suite.launchFee === "none";
+        const quoteFee = pool.quote !== undefined
+          ? currency === pool.quote
+          : !legacySuite || crypto.has(currency);
+        if (!quoteFee) {
+          if (!legacySuite) skip(`unexpected non-quote fee ${identity}`);
           break;
         }
-        fees.push({ ...split, currency, market: pool.market, launch: false, log,
-          stockPrice: pool.market === "Stocks" ? pricePerRawUnit(quotes.get(currency)) : undefined });
+        const market = pool.market ?? marketOf(suite, crypto, currency);
+        fees.push({ ...split, currency, market, launch: false, log,
+          stockPrice: market === "Stocks" ? pricePerRawUnit(quotes.get(currency)) : undefined });
         break;
       }
     }
@@ -343,14 +402,14 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
     const used = new Set<Log>();
     // Atomic creation ends with a pool-specific marker after its payment. Assign those
     // first so a later ordinary launch cannot consume the atomic launch's payment.
-    const ordered = [...launchesInTx].sort((a, b) => Number(launchBuys.has(lower(b.pool.log.args.poolId)))
-      - Number(launchBuys.has(lower(a.pool.log.args.poolId))));
+    const ordered = [...launchesInTx].sort((a, b) => Number(launchBuys.has(lower(b.log.args.poolId)))
+      - Number(launchBuys.has(lower(a.log.args.poolId))));
     for (const entry of ordered) {
-      const { pool, expected, currency } = entry;
-      const id = lower(pool.log.args.poolId), atomicEnd = launchBuys.get(id);
+      const { pool, log: launchLog, expected, currency } = entry;
+      const id = lower(launchLog.args.poolId), atomicEnd = launchBuys.get(id);
       if (atomicEnd) {
         if (!(atomicEnd.transactionHash === tx && lower(atomicEnd.args.originalCreator) === pool.creator
-          && compareLogs(pool.log, atomicEnd) < 0)) {
+          && compareLogs(launchLog, atomicEnd) < 0)) {
           skip(`invalid LaunchBuyExecuted ${id}`);
           continue;
         }
@@ -359,17 +418,17 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
       const matching = paid.filter(p => !used.has(p) && lower(p.args.payer) === pool.creator
         && (p.kind === "nativeLaunchFee" ? ZERO : lower(p.args.currency)) === currency
         && amount(p.args.amount) === expected
-        && (atomicEnd ? compareLogs(pool.log, p) < 0 && compareLogs(p, atomicEnd) < 0
-          : compareLogs(p, pool.log) < 0
-            && !launchesInTx.some(other => compareLogs(p, other.pool.log) < 0 && compareLogs(other.pool.log, pool.log) < 0)));
+        && (atomicEnd ? compareLogs(launchLog, p) < 0 && compareLogs(p, atomicEnd) < 0
+          : compareLogs(p, launchLog) < 0
+            && !launchesInTx.some(other => compareLogs(p, other.log) < 0 && compareLogs(other.log, launchLog) < 0)));
       if (expected === 0n ? matching.length !== 0 : matching.length !== 1) {
-        skip(`missing or ambiguous launch fee ${tx}:${pool.log.logIndex}`);
+        skip(`missing or ambiguous launch fee ${tx}:${launchLog.logIndex}`);
         continue;
       }
       if (expected === 0n) continue;
       const payment = matching[0];
       used.add(payment);
-      fees.push({ market: pool.market, currency, fees: expected, revenue: expected, creator: 0n, referrer: 0n,
+      fees.push({ market: pool.market ?? marketOf(suite, crypto, currency), currency, fees: expected, revenue: expected, creator: 0n, referrer: 0n,
         launch: true, log: payment, stockPrice: entry.stockPrice });
     }
     if (used.size !== paid.length) skip(`unassigned launch payment ${tx}`);
@@ -377,5 +436,6 @@ export function accountSuite(suite: Suite, cryptoQuotes: string[], logs: Log[], 
   }
   if (payments.size) skip(`launch payments without Launched in ${suite.factory}`);
   if (launchBuys.size) skip(`LaunchBuyExecuted without Launched in ${suite.factory}`);
+  reportSkipped(suite);
   return fees;
 }

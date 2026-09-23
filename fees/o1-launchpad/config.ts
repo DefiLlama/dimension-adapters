@@ -13,9 +13,16 @@ export type Suite = {
   launchFee: "none" | "quote" | "native";
 };
 
-// Immutable deployment history, including the Base pre-atomic suite omitted by the app registry:
-// https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/analytics/dune/sql/01_launches.sql
-export const chainConfig: Record<string, { start: string; suites: Suite[]; cryptoQuotes: string[] }> = {
+// Immutable deployment history, including the Base pre-atomic suite omitted by the app registry.
+/**
+ * Largest block span to request in one `eth_getLogs`, per chain. Providers cap this differently
+ * and an over-large request is reduced by the SDK only after a failure, a path that has been
+ * observed returning a truncated set without raising. Keeping every request inside the known
+ * cap avoids that path entirely. Measured against production endpoints on 2026-09-23.
+ */
+export const DEFAULT_MAX_BLOCK_RANGE = 5000;
+
+export const chainConfig: Record<string, { start: string; suites: Suite[]; cryptoQuotes: string[]; maxBlockRange?: number }> = {
   [CHAIN.BASE]: {
     start: "2026-07-01",
     suites: [
@@ -56,8 +63,7 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
         firstBlock: 50505676, minimal: true, route: "dual", launchFee: "native",
       },
     ],
-    // Standard-route quotes, including the September 2026 Base crypto-major registrations:
-    // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/quotes.ts
+    // Standard-route quotes, including the September 2026 Base crypto-major registrations.
     cryptoQuotes: [
       ZERO,
       ADDRESSES.base.USDC, // USDC
@@ -105,16 +111,78 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
         firstBlock: 48880218, minimal: true, route: "dual", launchFee: "native",
       },
     ],
-    // Robinhood Standard-route quotes:
-    // https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/quotes.ts
+    // Robinhood Standard-route quotes.
     cryptoQuotes: [ZERO, ADDRESSES.robinhood.USDG], // ETH, USDG
   },
-  [CHAIN.MONAD]: {
-    // The new Minimal V4 suite was deployed on September 5, 2026 (UTC).
-    // Addresses and earliest deployment block (including constructor configuration events):
-    // https://github.com/o1exchange/o1-launch/blob/d85fda18291e05f26fe0556e8ca99d8341106d7b/docs/MONAD_DEPLOYMENT_TRACKER.md
-    start: "2026-09-05",
+  [CHAIN.BSC]: {
+    // Single Minimal V4 deployment serving both Standard and RWA creation routes.
+    start: "2026-09-16",
     suites: [
+      { // bsc-mainnet-launchpad-v4-minimal
+        factory: "0xee3e862efde6dcd6df5648af0e2731b9d1df4605",
+        hook: "0xf0117680ce319b8af64580002052eca29cc62acc",
+        escrow: "0x1d8c991a9019df7d72adcd8dea6f12d600c9d02f",
+        firstBlock: 122026636, minimal: true, route: "dual", launchFee: "native",
+      },
+    ],
+    // Registered Standard-route quotes, confirmed against the factory's quoteConfig.
+    cryptoQuotes: [
+      ZERO, // Native BNB
+      ADDRESSES.bsc.USDC, // USDC
+    ],
+  },
+  [CHAIN.ARC]: {
+    // Standard creation route only; the chain's gas asset is USDC, and the factory registers
+    // it as an ERC20 quote rather than the zero address.
+    start: "2026-09-11",
+    suites: [
+      { // arc-mainnet-launchpad-v4-minimal
+        factory: "0xee3e862efde6dcd6df5648af0e2731b9d1df4605",
+        hook: "0x20eead6db6b3d0a4491e9073119dd0ebff166acc",
+        escrow: "0x1d8c991a9019df7d72adcd8dea6f12d600c9d02f",
+        firstBlock: 20147782, minimal: true, route: "standard", launchFee: "native",
+      },
+    ],
+    cryptoQuotes: [
+      ADDRESSES.arc.USDC, // USDC, the chain's gas asset
+      ADDRESSES.arc.cirBTC, // cirBTC
+    ],
+  },
+  [CHAIN.XLAYER]: {
+    start: "2026-09-17",
+    suites: [
+      { // xlayer-mainnet-launchpad-v4-minimal
+        factory: "0x17d9218f0ad1baa187cdfa50677ff3196bbf9c36",
+        hook: "0x5cd79b9c231cca5d26f2494d3466cb7495df2acc",
+        escrow: "0x30f53e4fd6581fced90a910159fb075dd502636b",
+        firstBlock: 70827259, minimal: true, route: "dual", launchFee: "native",
+      },
+    ],
+    // X Layer carries several USDC deployments; only this one is registered by the factory,
+    // so it is pinned here rather than taken from the shared asset list.
+    cryptoQuotes: [
+      ZERO, // Native OKB
+      "0xb6ceceab302e2e4948951ee7843fc24e92933061", // USDC
+      "0xe7b000003a45145decf8a28fc755ad5ec5ea025a", // xETH
+    ],
+  },
+  [CHAIN.MONAD]: {
+    // This endpoint family rejects spans above 1,000 blocks with HTTP 413, even when the
+    // request carries a topic filter, so Monad needs a smaller span than the other chains.
+    maxBlockRange: 1000,
+    // Two retained deployments: the managed-standard suite from August 7, 2026 (UTC) and the
+    // Minimal V4 suite from September 5, 2026 (UTC). Both are covered by the o1 Dune package.
+    // Addresses and earliest deployment blocks (including constructor configuration events).
+    start: "2026-08-07",
+    suites: [
+      { // monad-mainnet-timestamp-v1; version managed-standard-v3, retired for creation but
+        // still holding historical pools. Its factory family is RWA while its only supported
+        // creation route is Standard, so swap fees stay Crypto and launch fees are native.
+        factory: "0x54668d06c538c44fa08558283497a1b6685af596",
+        hook: "0xf281561d2f667f9277d3b4d8553effee81206acc",
+        escrow: "0xd1f7fac02b2a6af030cf7e9b23b7e9b7ffe31595",
+        firstBlock: 94019515, minimal: false, route: "standard", launchFee: "native",
+      },
       { // monad-mainnet-launchpad-v4-minimal; Standard crypto route only.
         factory: "0x99c09a90feed8d5e57a19a8c1f103ae29ba5b5b7",
         hook: "0x8aea397f75d046feaf43d2897548f3a18fd92acc",
@@ -123,7 +191,6 @@ export const chainConfig: Record<string, { start: string; suites: Suite[]; crypt
       },
     ],
     // Registered Standard-route quotes; WMON is routing infrastructure, not a launch quote.
-    // https://github.com/o1exchange/o1-launch/blob/d85fda18291e05f26fe0556e8ca99d8341106d7b/shared/quotes.ts
     cryptoQuotes: [
       ZERO, // Native MON
       ADDRESSES.monad.USDC, // USDC

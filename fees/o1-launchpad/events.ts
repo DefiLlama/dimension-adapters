@@ -1,6 +1,4 @@
-// Historical and minimal-V4 ABI snapshots:
-// https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/historicalAbis.ts
-// https://github.com/o1exchange/o1-launch/blob/756a75cef544369ac57f0092898a64300b168ab9/shared/generated.ts
+// Historical and minimal-V4 ABI snapshots.
 export const events = {
   launch: "event Launched(address indexed token, bytes32 indexed poolId, address indexed creator, address quote, uint256 supply, int24 tickSpacing)",
   trade: "event Trade(bytes32 indexed poolId, address indexed executor, address indexed referrer, address feeCurrency, uint256 totalFee, bytes32 comment)",
