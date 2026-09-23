@@ -31,6 +31,9 @@ const superxConfig: BuilderConfig = {
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
   "synthra-perps": {
+    // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
+    // factory 0x6307fc239C7964942c1BfFE51930E55606619c74 on Robinhood Chain and Arc, and it is the
+    // builder that app.synthra.org attaches to every Hyperliquid order (approveBuilderFee, 10 bps).
     addresses: ["0x20a32b077906feb43d5ecac7ef1425a48e25b4cc"],
     start: "2026-07-22",
     methodology: {
