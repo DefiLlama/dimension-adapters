@@ -19,14 +19,19 @@ import { CHAIN } from "../../helpers/chains";
 //    makes, in the same words. 60 pools, about 4% of the volume that touches Ellipse
 //    at all, and five dollars of it in the last day.
 //
-//  - The cirBTC/USDC pool, and this one is expensive to leave out. Ellipse opened it
-//    and provides its liquidity, it is on the protocol's own pools page, and it is
-//    busy: measured over 24 hours, 18,535 swaps, one every 4.7 seconds, 5.6M dollars
-//    on the USDC side - more than everything below put together, several times over.
-//    It is out because both of its tokens are Circle's, not Ellipse's, and opening a
-//    pool for someone else's pair is the same claim the launchpad launches make. If
-//    this project's volume is to be believed, the rule has to hold where it costs
-//    something, not only where it is free.
+//  - The cirBTC/USDC pool. Ellipse's site lists it, marked as curated and attributed
+//    to Circle, and it is by a distance the busiest thing on this chain that Ellipse
+//    displays at all: measured over 24 hours, 18,535 swaps, one every 4.7 seconds,
+//    5.6M dollars on the USDC side, more than everything below put together several
+//    times over. None of it is Ellipse's. Both tokens are Circle's, Ellipse did not
+//    open the pool and has no liquidity in it - listing a pool is not owning it, and
+//    the volume belongs to the DEX it trades on.
+//
+// Where Ellipse does supply liquidity, it comes from one treasury address, and today
+// that address is in the bCRCL/USDC pools alone. The older markets below are empty
+// now but traded while they were funded, and the volume they did is still Ellipse's:
+// they are markets for tokens it issues. The test is the pool's pair, not who happens
+// to be lending it depth this week.
 //
 // The one pool that genuinely sits between the two is ELLIPSE/bCRCL, which the
 // protocol's own indexer labels a launch market and which is the largest single pool
