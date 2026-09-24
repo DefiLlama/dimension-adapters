@@ -102,7 +102,7 @@ const fetch = async (options: FetchOptions) => {
   // cache a fake quiet day; throwing would abort Promise.all and blank every
   // other chain. null is not stored, so siblings can still publish.
   const skipUnfinished = () => {
-    console.error(`dodo: ${chain} looks unfinished for ${options.dateString} against a 7 day median of ${Math.round(median)}; skipping this chain so other chains can still publish`)
+    console.error(`dodo: ${chain} reports no volume for ${options.dateString} against a 7 day median of ${Math.round(median)}; skipping it so it cannot create a zero day on its own`)
     return { dailyVolume: null as any }
   }
 
@@ -117,7 +117,7 @@ const fetch = async (options: FetchOptions) => {
   if (!Number.isFinite(dailyVolume))
     throw new Error(`dodo: ${chain} is missing from the volume object for ${options.dateString}`)
 
-  if (dailyVolume === 0 && median > 10000) return skipUnfinished()
+  if (dailyVolume === 0) return skipUnfinished()
 
   return { dailyVolume }
 }
