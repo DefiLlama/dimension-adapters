@@ -468,6 +468,7 @@ async function _runAdapter({
     // Validate against the beginning of the requested window. Hourly adapters
     // must be allowed to run their first hour on the configured start date.
     const windowStartTimestamp = cleanCurrentDayTimestamp - WINDOW_SECONDS
+    const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
     let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
@@ -476,7 +477,7 @@ async function _runAdapter({
     // if (_start === undefined) return;
 
     // Only check deadFrom if it's explicitly set (not undefined)
-    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < windowStartTimestamp) {
+    if (_end !== undefined && typeof _end === 'number' && _end > 0 && _end < cleanPreviousDayTimestamp) {
       validStart[chain] = {
         canRun: false,
         startTimestamp: _start as number,
