@@ -36,6 +36,16 @@ const prefetch = async (options: FetchOptions): Promise<DailyFeeRow[]> => {
   );
   const rows: DailyFeeRow[] = res?.data;
   if (!Array.isArray(rows)) throw new Error("Unexpected fees API response");
+  for (const row of rows) {
+    if (
+      !row ||
+      typeof row.date !== "string" ||
+      (row.chainId !== null && typeof row.chainId !== "number") ||
+      typeof row.feesUsd !== "string" ||
+      !Number.isFinite(Number(row.feesUsd))
+    )
+      throw new Error(`Malformed fees API row: ${JSON.stringify(row)}`);
+  }
   return rows;
 };
 
@@ -64,6 +74,12 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    "Swap app fees": "100 bps fee applied to swap volume routed through Relay.",
+  },
+  Revenue: {
+    "Swap app fees": "100 bps fee applied to swap volume routed through Relay.",
+  },
+  ProtocolRevenue: {
     "Swap app fees": "100 bps fee applied to swap volume routed through Relay.",
   },
 };
