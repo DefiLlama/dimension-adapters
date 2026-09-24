@@ -110,8 +110,8 @@ const byVault = Object.fromEntries(ASSETS.map((a) => [a.vault, a]));
 
 const sameEverywhere = (dailyFees: any) => ({
   dailyFees,
-  dailyRevenue: dailyFees.clone(),
-  dailyProtocolRevenue: dailyFees.clone(),
+  dailyRevenue: dailyFees,
+  dailyProtocolRevenue: dailyFees,
   dailySupplySideRevenue: 0,
 });
 
@@ -119,24 +119,24 @@ const sameEverywhere = (dailyFees: any) => ({
 const fetchArc = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const origin = (asset: (typeof ASSETS)[number]) => `${asset.originChain}:${asset.originToken}`;
+  const controllers = ASSETS.map((asset) => asset.controller);
 
-  await Promise.all(
-    ASSETS.map(async (asset) => {
-      const [minted, redeemed] = await Promise.all([
-        options.getLogs({ target: asset.controller, eventAbi: MINTED_EVENT }),
-        options.getLogs({ target: asset.controller, eventAbi: REDEMPTION_EVENT }),
-      ]);
-      for (const log of minted)
-        dailyFees.add(origin(asset), log.fee, { skipChain: true, label: BRIDGE_FEES });
-      for (const log of redeemed)
-        dailyFees.add(origin(asset), log.gross - log.net, { skipChain: true, label: BRIDGE_FEES });
-    })
-  );
+  // flatten: false keeps one log list per controller, in the same order as ASSETS,
+  // because neither event names the asset the fee was taken in.
+  const [mintedByController, redeemedByController, fast] = await Promise.all([
+    options.getLogs({ targets: controllers, eventAbi: MINTED_EVENT, flatten: false }),
+    options.getLogs({ targets: controllers, eventAbi: REDEMPTION_EVENT, flatten: false }),
+    options.getLogs({ target: FAST_ROUTER[CHAIN.ARC], eventAbi: FAST_REDEMPTION_EVENT }),
+  ]);
 
-  const fast = await options.getLogs({
-    target: FAST_ROUTER[CHAIN.ARC],
-    eventAbi: FAST_REDEMPTION_EVENT,
+  ASSETS.forEach((asset, i) => {
+    const token = origin(asset);
+    for (const log of mintedByController[i])
+      dailyFees.add(token, log.fee, { skipChain: true, label: BRIDGE_FEES });
+    for (const log of redeemedByController[i])
+      dailyFees.add(token, BigInt(log.gross) - BigInt(log.net), { skipChain: true, label: BRIDGE_FEES });
   });
+
   for (const log of fast) {
     const asset = byController[log.controller.toLowerCase()];
     if (!asset) continue; // a controller this router does not serve cannot reach here
@@ -166,8 +166,8 @@ const fetchOrigin = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "What users pay to cross the bridge. The asset's controller on Arc charges the same rate in both directions - on the way in it mints the fee to the protocol and the rest to the user, on the way out it burns the gross and re-mints the fee - and an optional fast-lane router charges its own cut on top for skipping the queue, on the origin chain when depositing and on Arc when redeeming. Anything charged on Arc is taken in the claim token (bCRCL, bGLD, bUSDT, bBTCB), which is a 1:1 claim on the asset held in custody and is therefore valued as that origin asset; a fast-lane deposit is charged on the origin chain instead, before the asset becomes a claim, so it is taken in the origin token directly. Either way the fee is denominated in the same four origin assets.",
-  Revenue: "All of it. The fee goes to the protocol's treasury with nothing paid out of it.",
-  ProtocolRevenue: "Same as Revenue.",
+  Revenue: "All the bridge fees and the fast-lane fees go to the protocol's treasury with nothing paid out of it.",
+  ProtocolRevenue: "All the bridge fees and the fast-lane fees go to the protocol's treasury with nothing paid out of it.",
   SupplySideRevenue: "None. The bridge has no liquidity providers - claim tokens are backed by custody reserves, not by a pool, so there is no supplier to pay.",
 };
 
@@ -188,6 +188,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology,
   breakdownMethodology,
   adapter: {
