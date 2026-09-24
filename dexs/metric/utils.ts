@@ -56,36 +56,62 @@ export const getMetricFactoriesAdapter = (chainConfig: MetricFactoriesChainConfi
       (factory) => !factory.end || options.fromTimestamp < dateToTimestamp(factory.end),
     );
 
+    // Factories that share a PoolCreated ABI are one getLogs: every factory address
+    // in `targets`, scanned from the earliest of their deployment blocks. Swap ABIs
+    // differ per generation, so pools are grouped by the emitting factory and each
+    // generation is one Swap getLogs over that generation's pools.
+    const createdGroups = new Map<string, { eventAbi: string; factories: (MetricFactory & { events: MetricEvents })[] }>();
     for (const factory of factories) {
       const events = factory.events ?? LEGACY_EVENTS;
+      const key = `${events.poolField}\0${events.poolCreatedEvent}`;
+      const resolved = { ...factory, events };
+      const group = createdGroups.get(key);
+      if (group) group.factories.push(resolved);
+      else createdGroups.set(key, { eventAbi: events.poolCreatedEvent, factories: [resolved] });
+    }
 
-      const poolCreatedLogs = await options.getLogs({
-        target: factory.address,
-        eventAbi: events.poolCreatedEvent,
-        fromBlock: factory.fromBlock,
+    for (const { eventAbi, factories: group } of createdGroups.values()) {
+      const createdLogs = await options.getLogs({
+        targets: group.map((factory) => factory.address),
+        eventAbi,
+        fromBlock: Math.min(...group.map((factory) => factory.fromBlock)),
         cacheInCloud: true,
+        onlyArgs: false,
       });
 
-      const pools = poolCreatedLogs.map((log) => ({
-        address: log[events.poolField].toLowerCase(),
-        token0: log.token0.toLowerCase(),
-        token1: log.token1.toLowerCase(),
-      }));
-      if (!pools.length) continue;
+      const eventsByFactory = new Map(group.map((factory) => [factory.address.toLowerCase(), factory.events]));
+      const poolsBySwap = new Map<string, { events: MetricEvents; pools: { address: string; token0: string; token1: string }[] }>();
+      for (const log of createdLogs) {
+        const emitter = String(log.address || log.source || "").toLowerCase();
+        const events = eventsByFactory.get(emitter);
+        if (!events) throw new Error(`Metric PoolCreated log from unknown factory ${emitter}`);
+        const args = log.args;
+        if (!args?.[events.poolField]) throw new Error(`Metric PoolCreated log from ${emitter} is missing decoded args`);
+        const pool = {
+          address: String(args[events.poolField]).toLowerCase(),
+          token0: String(args.token0).toLowerCase(),
+          token1: String(args.token1).toLowerCase(),
+        };
+        const bucket = poolsBySwap.get(events.swapEvent);
+        if (bucket) bucket.pools.push(pool);
+        else poolsBySwap.set(events.swapEvent, { events, pools: [pool] });
+      }
 
-      const swapLogs = await options.getLogs({
-        targets: pools.map((pool) => pool.address),
-        eventAbi: events.swapEvent,
-        flatten: false,
-      });
+      for (const { events, pools } of poolsBySwap.values()) {
+        const swapLogs = await options.getLogs({
+          targets: pools.map((pool) => pool.address),
+          eventAbi: events.swapEvent,
+          flatten: false,
+        });
 
-      swapLogs.forEach((logs: any[], index: number) => {
-        const { token0, token1 } = pools[index];
-        for (const log of logs) {
-          const { amount0, amount1 } = events.swapAmounts(log);
-          addOneToken({ balances: dailyVolume, token0, amount0, token1, amount1 });
-        }
-      });
+        swapLogs.forEach((logs: any[], index: number) => {
+          const { token0, token1 } = pools[index];
+          for (const log of logs) {
+            const { amount0, amount1 } = events.swapAmounts(log);
+            addOneToken({ balances: dailyVolume, token0, amount0, token1, amount1 });
+          }
+        });
+      }
     }
 
     return { dailyVolume };
