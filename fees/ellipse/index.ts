@@ -46,6 +46,13 @@ const LAUNCHPAD_BY_HOOK: Record<string, string> = Object.fromEntries(
 // fee at the moment the trader actually pays it, which is what a daily fee series
 // wants; the later settlement happens whenever someone bothers to trigger it, so its
 // timing carries no information. `openingWindow` selects which split applies (below).
+//
+// THE RATE IS NOT ASSUMED. It is 1% at regime, but an anti-sniper launch charges far
+// more on buys during its opening window, on a curve that decays over the first
+// blocks - 95%, then 70%, 40% and 10% - before settling at the same 1%; sells in that
+// window pay the regime rate. The event carries both the amount and the rate that
+// produced it, and this adapter reads the amount, so the curve needs no reproducing
+// here and a change to it cannot silently put this adapter wrong.
 const FEE_WITHHELD_TOPIC = "0x7a32b29b5f762302ed32575acc509f82e36488f8f6b3a9e14bdd0150e31d3100";
 const FEE_WITHHELD_DATA_TYPES = ["uint256", "uint24", "bool"];
 
@@ -196,15 +203,15 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "1% fee on every trade in a V5 or V6 launch pool, taken by that launch's hook inside the swap itself and read from the hook's own event - in either the launched token or its quote asset, whichever side the trader paid in. Both generations are read: V6 only took over new launches, it did not stop V5's existing pools from trading. V1-V4 legacy launches (pre-hook, plain Uniswap v3 with a per-launch lock contract) are not covered.",
-  Revenue: "Protocol's share of each fee: 50% under the default split, 30% when the launch opted into Holder Rewards, and 10% on fees taken during a launch's opening window, which has its own fixed split. All three are set by the contract and not adjustable after launch.",
+  Fees: "The fee a V5 or V6 launch pool charges on each trade, taken by that launch's hook inside the swap itself and read from the hook's own event, so the rate is never assumed here. It is 1% at regime; an anti-sniper launch charges more on buys during its opening window, on a curve that decays over the first blocks - 95%, then 70%, 40% and 10% - before settling at the same 1%, while sells in that window pay the regime rate. The fee is taken in either the launched token or its quote asset, whichever side the trader paid in. Both generations are read: V6 only took over new launches, it did not stop V5's existing pools from trading. V1-V4 legacy launches (pre-hook, plain Uniswap v3 with a per-launch lock contract) are not covered.",
+  Revenue: "The protocol's share of each fee, which is a split of the fee and not a rate on the trade: it keeps 50% under the default split, 30% when the launch opted into Holder Rewards, and 10% of any fee taken during a launch's opening window, which has its own fixed split. All three are set by the contract and not adjustable after launch.",
   ProtocolRevenue: "Same as Revenue.",
   SupplySideRevenue: "Everything not kept by the protocol: the creator's share, the remainder streamed to the launched token's own holders via the Reward Vault on Holder-Rewards launches, and - on fees taken during the opening window - the 80% earmarked to the launch's Treasury Reserve, which buys the launched token back to burn it.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LAUNCH_POOL_FEES]: "Fee withheld by a V5 or V6 launch hook on each trade in that launch's Uniswap v4 pool, in whichever currency (launched token or quote asset) the trader paid in.",
+    [LAUNCH_POOL_FEES]: "Fee withheld by a V5 or V6 launch hook on each trade in that launch's Uniswap v4 pool - 1% at regime, and up to 95% on buys in the first blocks of an anti-sniper launch's opening window - in whichever currency (launched token or quote asset) the trader paid in.",
   },
   Revenue: {
     [FEES_TO_PROTOCOL]: "Protocol's share of each fee: 50% by default, 30% on Holder-Rewards launches, 10% during a launch's opening window.",
