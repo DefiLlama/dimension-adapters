@@ -158,11 +158,11 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
   },
   // Sei deferred: not in Morpho API, and getLogs is disabled for sei (runAdapter problematicChains).
   // blue 0xc9cDAc20FCeAAF616f7EB0bb6Cd2c69dcfa9094c, block 166036723.
-  [CHAIN.ETHERLINK]: {
-    fromBlock: 21047448,
-    blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
-    start: "2025-07-14",
-  },
+  // [CHAIN.ETHERLINK]: {
+  //   fromBlock: 21047448,
+  //   blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
+  //   start: "2025-07-14",
+  // },
   [CHAIN.TEMPO]: {
     chainId: 4217,
     blue: "0x10EE9AAC980A180dd4DcFc96C746d60B0EA88f97",
