@@ -5,11 +5,11 @@ import ADDRESSES from '../helpers/coreAssets.json';
 // Current production Manager and deployment block on X Layer.
 // Explorer: https://www.okx.com/web3/explorer/xlayer/address/0x96b51c57e5346d0c0198899243cf851d1e23c309
 const MANAGER = "0x96b51c57e5346d0c0198899243cf851d1e23c309";
-const FROM_BLOCK = 68_373_506;
 const ZERO = ADDRESSES.null;
 
-const TOKEN_CREATED =
-  "event TokenCreated(address indexed token,address indexed creator,address indexed quote,uint256 graduation,string metadataURI,address vault,address tracker,uint16 templateId)";
+// Manager token registry. Only creator and quote are named; the struct is 16 static words.
+const TOKENS_ABI =
+  "function tokens(address) view returns (address creator, uint256, uint256, uint256, uint256, address quote, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256)";
 const TRADE =
   "event Trade(address indexed token,address indexed trader,bool isBuy,uint256 grossQuoteAmount,uint256 netQuoteAmount,uint256 curveQuoteAmount,uint256 tokenAmount,uint256 platformFee,uint256 taxFee,uint128 collected)";
 
@@ -25,16 +25,13 @@ function addQuote(balance: any, quote: string, amount: bigint, label: string) {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const launches = await options.getLogs({
-    target: MANAGER,
-    eventAbi: TOKEN_CREATED,
-    fromBlock: FROM_BLOCK,
-    cacheInCloud: true,
-  });
-  const quoteByToken = new Map(
-    launches.map((log: any) => [log.token.toLowerCase(), log.quote.toLowerCase()]),
-  );
   const trades = await options.getLogs({ target: MANAGER, eventAbi: TRADE });
+
+  // Quote per token comes from the Manager's token registry, not from TokenCreated history:
+  // the indexer's bulk log responses for the full deployment range drop entries.
+  const tokens = [...new Set(trades.map((t: any) => t.token.toLowerCase()))];
+  const infos = await options.api.multiCall({ target: MANAGER, abi: TOKENS_ABI, calls: tokens });
+  const quoteByToken = new Map(tokens.map((token, i) => [token, infos[i].quote.toLowerCase()]));
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();

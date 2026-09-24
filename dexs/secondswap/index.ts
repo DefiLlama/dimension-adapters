@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions } from "../../adapters/types";
@@ -9,15 +10,15 @@ const chainConfig = {
 	[CHAIN.ETHEREUM]: {
 		contract: '0xd22a74f34d8b5b85a813b4b6953e4b8951b2d0a5',
 		start: '2025-02-26',
-		feeTokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+		feeTokenAddress: ADDRESSES.ethereum.USDT,
 	},
 	[CHAIN.AVAX]: {
 		contract: '0xEbDcdC0D90bd074a7dDDc450b2308b71cB29714F',
 		start: '2025-04-08',
-		feeTokenAddress: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7',
+		feeTokenAddress: ADDRESSES.avax.USDt,
 	},
 	// [CHAIN.SOLANA]: {
-	// 	contract: '0x0000000000000000000000000000000000000000',
+	// 	contract: ADDRESSES.null,
 	// 	start: '2025-02-27'
 	// },
 }

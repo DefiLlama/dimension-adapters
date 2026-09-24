@@ -33,9 +33,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 	return {
 		dailyVolume,
-		openInterestAtEnd: openInterest ? openInterest.totalRatio : 0,
-		longOpenInterestAtEnd: openInterest ? openInterest.longTotal : 0,
-		shortOpenInterestAtEnd: openInterest ? openInterest.shortTotal : 0,
+		// totalRatio is Sigma(long + short) — it matches Avantis' own totalOi exactly. Pool venue
+		// with no single-sided field, so report the average of the two sides.
+		openInterestAtEnd: openInterest ? openInterest.totalRatio / 2 : 0,
+		longOpenInterestAtEnd: openInterest ? openInterest.longTotal / 2 : 0,
+		shortOpenInterestAtEnd: openInterest ? openInterest.shortTotal / 2 : 0,
 	};
 };
 

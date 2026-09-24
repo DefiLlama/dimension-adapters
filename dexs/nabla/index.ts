@@ -85,10 +85,10 @@ const config = {
                 "0x12243c1cdb211813776d58DdBC1B59237b447919", // WMON
             ],
             assets: [
-                "0xEE8c0E9f1BFFb4Eb878d8f15f368A02a35481242", // WETH
-                "0x754704Bc059F8C67012fEd69BC8A327a5aafb603", // USDC
-                "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c", // WBTC
-                "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A", // WMON
+                ADDRESSES.monad.WETH, // WETH
+                ADDRESSES.monad.USDC, // USDC
+                ADDRESSES.bsc.WBTC, // WBTC
+                ADDRESSES.monad.WMON, // WMON
             ],
         },
     },

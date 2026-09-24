@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 
 const V2_ROUTER = '0x27b9c20f64920eb7fbf64491423a54df9594188c';
 const V1_ROUTER = '0x3999d2c5207c06bbc5cf8a6bea52966cabb76d41';
-const WETH = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+const WETH = ADDRESSES.ethereum.WETH;
 const UNIBOT_TOKEN = '0xf819d9cb1c2a819fd991781a822de3ca8607c3c9';
 
 const fetch: any = async (options: FetchOptions) => {

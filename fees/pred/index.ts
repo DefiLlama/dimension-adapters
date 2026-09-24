@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
 const FEE_CONTRACT = "0x3Aa5A591f79Ae2A9790B7335fab875Bb0625A5bc";
-const USDC = "0x833589fCD6eDb6E08f4c7c32D4f71b54bdA02913";
+const USDC = ADDRESSES.base.USDC;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -5,7 +6,7 @@ import { FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 
 const PLATFORM_WALLET = "7c8XjugvjW5pMKkrV5myZfoWrQ1QHjwWC3RYZWUToJRk";
-const QUOTE_MINT_DEFAULT = "So11111111111111111111111111111111111111112";
+const QUOTE_MINT_DEFAULT = ADDRESSES.solana.SOL;
 
 const metrics = {
   TradingFees: METRIC.TRADING_FEES,

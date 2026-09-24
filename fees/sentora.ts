@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { ABI } from "../helpers/curators/configs"
@@ -14,8 +15,8 @@ const SENTORA_EULER_PERF_RATE = 0.10
 // Sentora charges 10% performance on the EtherFi supervised-loan (leveraged weETH) strategies.
 const SENTORA_SUPERVISED_PERF_RATE = 0.10
 
-const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-const WEETH = '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee'
+const WETH = ADDRESSES.ethereum.WETH
+const WEETH = ADDRESSES.ethereum.WEETH
 
 const ONE_SHARE = String(1e18)
 const FEE_BASE_4 = 1e4

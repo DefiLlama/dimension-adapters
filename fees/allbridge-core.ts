@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 
@@ -38,34 +39,34 @@ type ChainConfig = {
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 19512388; CctpV2Bridge 2025-04-14, OftBridge 2025-07-07, XReserveBridge 2026-04-08
-    cctpV1: { bridge: "0xC51397b75B783E31469bFaADE79913F3f82210d6", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
-    cctpV2: { bridge: "0x7972d6907739593C00e6284c53C83dB3ECd15c33", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+    cctpV1: { bridge: "0xC51397b75B783E31469bFaADE79913F3f82210d6", token: ADDRESSES.ethereum.USDC },
+    cctpV2: { bridge: "0x7972d6907739593C00e6284c53C83dB3ECd15c33", token: ADDRESSES.ethereum.USDC },
     oft: { bridge: "0xeC455fFC19811e573eb5700a1bDff6ee1C47AB7B" },
-    xReserve: { bridge: "0x44F9E60cB5543777492101BF424271c5F252cF15", token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" },
+    xReserve: { bridge: "0x44F9E60cB5543777492101BF424271c5F252cF15", token: ADDRESSES.ethereum.USDC },
   },
   [CHAIN.ARBITRUM]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 194098736; CctpV2Bridge 2025-05-02, OftBridge 2025-07-07
-    cctpV1: { bridge: "0x23e1aEC13c92158643cF2aA17E155D27A792ccdb", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
-    cctpV2: { bridge: "0x7ED5343dFC95dc3eBe5B6de64F5B5423A888Ca18", token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" },
+    cctpV1: { bridge: "0x23e1aEC13c92158643cF2aA17E155D27A792ccdb", token: ADDRESSES.arbitrum.USDC_CIRCLE },
+    cctpV2: { bridge: "0x7ED5343dFC95dc3eBe5B6de64F5B5423A888Ca18", token: ADDRESSES.arbitrum.USDC_CIRCLE },
     oft: { bridge: "0xB074e73e637E778BE6411c3732bD58D44194FDEa" },
   },
   [CHAIN.AVAX]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 43359916; CctpV2Bridge 2025-04-14
-    cctpV1: { bridge: "0x65dE05Fccce36Ce7FdDd668Ef4348D9e933B57Ff", token: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
-    cctpV2: { bridge: "0x5FBf8d23fa705A0bADb6f398fDcdC28FCCB521c0", token: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E" },
+    cctpV1: { bridge: "0x65dE05Fccce36Ce7FdDd668Ef4348D9e933B57Ff", token: ADDRESSES.avax.USDC },
+    cctpV2: { bridge: "0x5FBf8d23fa705A0bADb6f398fDcdC28FCCB521c0", token: ADDRESSES.avax.USDC },
   },
   [CHAIN.BASE]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 12295119; CctpV2Bridge deployed at block 28919906 (2025-04-14)
-    cctpV1: { bridge: "0x1eFE2C85989D97fEBbD0743cdd79B9F0826314f6", token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
-    cctpV2: { bridge: "0x214D972b8c869cfcE50D55B595adC7eF336D7FAd", token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+    cctpV1: { bridge: "0x1eFE2C85989D97fEBbD0743cdd79B9F0826314f6", token: ADDRESSES.base.USDC },
+    cctpV2: { bridge: "0x214D972b8c869cfcE50D55B595adC7eF336D7FAd", token: ADDRESSES.base.USDC },
   },
   [CHAIN.POLYGON]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 55066880
-    cctpV1: { bridge: "0x710282BfeB554Ed0A34dFaD061C7c343221AC82C", token: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359" },
+    cctpV1: { bridge: "0x710282BfeB554Ed0A34dFaD061C7c343221AC82C", token: ADDRESSES.polygon.USDC_CIRCLE },
   },
   [CHAIN.OPTIMISM]: {
     start: "2024-03-25", // CctpBridge (v1) deployed at block 117890737
-    cctpV1: { bridge: "0x08391edF36f41f05d27A1e0fD7a29448417C1CD0", token: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85" },
+    cctpV1: { bridge: "0x08391edF36f41f05d27A1e0fD7a29448417C1CD0", token: ADDRESSES.optimism.USDC_CIRCLE },
   },
   [CHAIN.UNICHAIN]: {
     start: "2025-09-04", // OftBridge deployed at block 26240639

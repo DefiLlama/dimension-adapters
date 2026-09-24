@@ -49,7 +49,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "All Denaria Perp volume on Linea, computed from ExecutedTrade notional in virtual USD across PerpPair deployments.",
+  Volume: "All volume of Denaria's own vAMM perp engine on Linea, computed from ExecutedTrade notional in virtual USD across PerpPair deployments. Sunset on 2026-09-03: Denaria trading moved to GMX V2 on Arbitrum, tracked by the separate denaria-gmx adapter.",
   Fees: "Denaria Perp trading fees (fees + slippage) derived from ExecutedTrade, summed across PerpPair deployments.",
   Revenue: "All the fees are revenue.",
   ProtocolRevenue: "All the revenue goes to the protocol.",
@@ -61,6 +61,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.LINEA],
   fetch,
   start: "2025-12-15",
+  // Denaria's own vAMM engine on Linea was sunset when trading moved to GMX V2 on
+  // Arbitrum (2026-09-03); last trade 2026-02-26. GMX activity lives in dexs/denaria-gmx.ts.
+  deadFrom: "2026-09-03",
   methodology,
 };
 

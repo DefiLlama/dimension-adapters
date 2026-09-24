@@ -7,6 +7,7 @@ type ChainConfig = {
   chain: string;
   chainId: number;
   start: string;
+  deadFrom?: string;
 };
 
 type RouteScanRow = [string, string];
@@ -15,7 +16,7 @@ const BASE_URL = "https://cdn.routescan.io/api/evm/all/aggregations";
 
 const routescanStatsChains: Record<string, ChainConfig> = {
   avalanche: { chain: CHAIN.AVAX, chainId: 43114, start: "2020-09-27" },
-  dfk: { chain: CHAIN.DFK, chainId: 53935, start: "2022-03-16" },
+  dfk: { chain: CHAIN.DFK, chainId: 53935, start: "2022-03-16", deadFrom: "2026-08-28" },
   dexalot: { chain: CHAIN.DEXALOT, chainId: 432204, start: "2022-12-04" },
   step: { chain: CHAIN.STEP, chainId: 1234, start: "2022-08-12" },
   numbers: { chain: CHAIN.NUMBERS, chainId: 10507, start: "2022-10-12" },
@@ -83,6 +84,7 @@ export const routescanStatsExports = Object.entries(routescanStatsChains).map(([
   chain: config.chain,
   protocolType: ProtocolType.CHAIN,
   start: config.start,
+  deadFrom: config.deadFrom,
   getUsers: getRoutescanUsers(config),
   getNewUsers: getRoutescanNewUsers(config),
 }));

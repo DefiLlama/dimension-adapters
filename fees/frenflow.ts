@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
@@ -44,17 +45,17 @@ const BUILDER_PAYOUT = "0x58715321c2c6a216d1259f368c34f987a4a26b64";
 
 // USDC.e (bridged) on Polygon — settlement currency for FeeCollector
 // and one of the tokens Polymarket uses for builder payouts.
-const USDC_E_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const USDC_E_POLYGON = ADDRESSES.polygon.USDC;
 
 // pUSD on Polygon — Polymarket's V2 collateral (1:1 USDC.e wrapper).
 // First builder payout (tx 0x4e0e7e42…, block 86195685, 2026-04-30)
 // was denominated in pUSD, so it is the primary builder-fee token.
-const PUSD_POLYGON = "0xc011a7E12a19f7B1f670d46F03B03f3342E82DFB";
+const PUSD_POLYGON = ADDRESSES.polygon.PUSD;
 
 // USDC native (Circle) on Polygon — Polymarket has not used it for
 // builder payouts yet, but watching it covers the case where they
 // switch settlement currency without notice.
-const USDC_NATIVE_POLYGON = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
+const USDC_NATIVE_POLYGON = ADDRESSES.polygon.USDC_CIRCLE;
 
 // Sanctioned senders for Polymarket builder-fee distributions. We only
 // credit Builder Fees from `Transfer` events whose `from` address is in

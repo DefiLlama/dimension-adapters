@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPolymarketVolume } from "../../helpers/polymarket";
@@ -20,7 +21,7 @@ const CROSS_MATCHING_ADAPTER_LEGACY_V2 = "0x7B39c530C3F2Ea4056f1a3bBa777F82bBDFB
 const NEG_RISK_CTF_EXCHANGE_LEGACY_V3 = "0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0";
 const CROSS_MATCHING_ADAPTER_LEGACY_V3 = "0xC574A05e622A769e6aB14293070cDF6cADB55F98";
 
-const USDC = "0x833589fCD6eDb6E08f4c7c32D4f71b54bdA02913";
+const USDC = ADDRESSES.base.USDC;
 
 const fetch = async (options: FetchOptions) => {
   const { dailyVolume, dailyNotionalVolume } = await getPolymarketVolume({

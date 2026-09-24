@@ -1,6 +1,7 @@
 import { CHAIN } from "../helpers/chains";
-import { uniV3Exports } from "../helpers/uniswap";
+import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
+import { FetchOptions } from "../adapters/types";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -8,6 +9,11 @@ const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexe
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
 
 const configs: Record<string, Record<string, any>> = {
+  "bdex-v3": {
+    // stock uniV3 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
+    // fee tiers 500/3000/10000; slot0().feeProtocol = 0 on every pool (https://scan.botchain.ai/address/0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419, checked 2026-09-22) => 100% of swap fees to LPs
+    [CHAIN.BOT_CHAIN]: { factory: '0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419', start: '2026-02-26', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "xflows": {
     [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
   },
@@ -231,7 +237,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.XRPL_EVM]: { factory: '0x678100B9095848FCD4AE6C79A7D29c11815D07fe', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "prism-dex": {
-    [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09' },
+    [CHAIN.MEGAETH]: { factory: '0x1adb8f973373505bb206e0e5d87af8fb1f5514ef', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, start: '2026-02-09', deadFrom: '2026-09-09' },
   },
   "parity-dex-cl": {
     [CHAIN.MONAD]: { factory: '0x2A6CE23C5017aF1b07B9c4E4014442aDE18Bd404', start: '2026-02-11' },
@@ -263,6 +269,15 @@ const configs: Record<string, Record<string, any>> = {
   },
   "hybra-v3": {
     [CHAIN.HYPERLIQUID]: { factory: '0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+    [CHAIN.ROBINHOOD]: {
+      factory: '0xCeFc5Da47d766Fb6b48Da92D75d66b3264593d0f', start: '2026-09-07', userFeesRatio: 1,
+      protocolRevenueRatio: 0, dynamicProtocolFees: true,
+      getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+        if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken0 !== protocolFeeRatioToken1)
+          throw new Error('Hybra RH: asymmetric protocol fees require direction-specific accounting')
+        return { _revenueRatio: protocolFeeRatioToken0, _protocolRevenueRatio: protocolFeeRatioToken0 }
+      },
+    },
   },
   "superswap-v3": {
     [CHAIN.OPTIMISM]: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
@@ -418,20 +433,30 @@ const configs: Record<string, Record<string, any>> = {
   'sheriff-v3': { 
     [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
   },
-  'giga-dex-cl': {
-    [CHAIN.ROBINHOOD]: { factory: '0xEce6eCd61177336ea6Fb9b17937AC439D85EE20B', start: "2026-07-15", swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 }
-  },
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
   "brownfi-clamm": {
     [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
   },
+  // Synthra V3 (synthra.org): deterministic-deployment factory, same address on both chains.
+  // https://docs.synthra.org/docs/contract-addresses
+  "synthra": {
+    [CHAIN.ARC]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-09-16" },
+    // [CHAIN.ROBINHOOD]: factory '0x6307fc239C7964942c1BfFE51930E55606619c74', deployed 2026-07-14, no pools created so far
+  },
 }
 
 const optionsMap: Record<string, any> = {}
 
 const methodologyMap: Record<string, any> = {
+  "bdex-v3": {
+    Volume: "Swap volume from all BDEX V3 pools deployed via the V3 factory on BOT Chain.",
+    Fees: "Users pay each pool's configured fee tier (0.05%, 0.3% or 1%) on every swap.",
+    Revenue: "No protocol fee is taken (feeProtocol is 0 on every pool), all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
   "betterswap-v3": {
     Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
     Fees: "Users pay each pool's configured fee tier on every swap.",
@@ -510,12 +535,12 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "Zebra distributes 75% swap fees to LPs.",
   },
   "hybra-v3": {
-    Volume: "Total swap volume collected from factory 0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E",
-    Fees: "Users paid 0.02%, 0.25% or 1% per swap.",
-    UserFees: "Users paid 0.02%, 0.25% or 1% per swap.",
-    Revenue: "25% swap fees collected by protocol Treasury.",
-    ProtocolRevenue: "25% swap fees collected by protocol Treasury.",
-    SupplySideRevenue: "75% swap fees distributed to LPs.",
+    Volume: "Total swap volume on Hyperliquid and both Robinhood V3 factories.",
+    Fees: "Swap fees paid by users at each pool's fixed fee tier.",
+    UserFees: "Swap fees paid by users at each pool's fixed fee tier.",
+    Revenue: "25% of swap fees on Hyperliquid; the per-pool protocol share at the window end on Robinhood.",
+    ProtocolRevenue: "The protocol share of swap fees goes to the treasury.",
+    SupplySideRevenue: "Swap fees less the protocol share.",
   },
   "superswap-v3": {
     Fees: "User pays 0.3% fees on each swap.",
@@ -678,6 +703,43 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
+}
+
+protocols['bdex-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['bdex-v3'].Fees },
+  UserFees: { 'Trading fees': 'Equals total swap fees paid by users.' },
+  Revenue: { 'Protocol fees': methodologyMap['bdex-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v3'].SupplySideRevenue },
+}
+
+// Keep the first RH deployment's history and residual activity after the den15 migration.
+// Factories: https://hybra-foundation.gitbook.io/hybra-foundation/security/contracts
+protocols['hybra-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['hybra-v3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['hybra-v3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['hybra-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['hybra-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['hybra-v3'].SupplySideRevenue },
+}
+protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOptions) => {
+  const config = configs['hybra-v3'][CHAIN.ROBINHOOD]
+  const toBlock = await options.getToBlock()
+  const result = Object.fromEntries(['dailyVolume', 'dailyFees', 'dailyUserFees', 'dailyRevenue', 'dailyProtocolRevenue', 'dailySupplySideRevenue'].map(key => [key, options.createBalances()]))
+  if (toBlock < 56695388) return result
+  const legacyPools = await options.getLogs({
+    target: '0x670cF0c5A3db84Ce518af3d0c8A4B478CDA4a36c', fromBlock: 56695388, toBlock,
+    eventAbi: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    cacheInCloud: true,
+  })
+  const deployments = []
+  if (legacyPools.length) deployments.push({ ...config, factory: undefined, pools: legacyPools.map(log => log.pool) })
+  if (toBlock >= 58245132) deployments.push(config)
+  for (const deployment of deployments) {
+    const values = await getUniV3LogAdapter(deployment)(options)
+    for (const key of Object.keys(result)) if (values[key]) result[key].add(values[key])
+  }
+  return result
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

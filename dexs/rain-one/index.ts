@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -56,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
   
   // bug fix missing log
   poolTokenMap['0x1cd385293d30d2b77ba9fa777ef1470b5312dae9'] = {
-    token: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
+    token: ADDRESSES.arbitrum.USDT,
     decimals: 6,
   }
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -32,7 +33,7 @@ const DEX_LAUNCHPADS = [
 // USDT0 ERC-20 (6 decimals) — on Stable this is the same asset as the native
 // gas balance; v2 pools quote against it.
 // https://stablescan.xyz/address/0x779Ded0c9e1022225f8E0630b35a9b54bE713736
-const USDT0 = "0x779Ded0c9e1022225f8E0630b35a9b54bE713736";
+const USDT0 = ADDRESSES.xlayer.USDT0;
 
 // Basis-point denominator matching the contracts' fee math.
 const BPS = 10_000n;

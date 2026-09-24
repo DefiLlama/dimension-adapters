@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -21,7 +22,7 @@ const QUOTE_COINGECKO_ID: Record<string, string> = {
   AVAX: "avalanche-2",
 };
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 interface PairMeta {
   quoteSymbol: string;

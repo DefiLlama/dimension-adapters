@@ -3,7 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // BasedBid core diamond per EVM chain. The bonding curve lives in its TradeFacet.
 const chainConfig: Record<string, { CORE_CONTRACT: string; start: string }> = {

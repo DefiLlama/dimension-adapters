@@ -43,7 +43,7 @@ const SOLANA_START = '2025-08-06';
 const SOLANA_PROGRAM = '9fhQBbumKEFuXtMBDw8AaQyAjCorLGJQiS3skWZdQyQD';
 const TRANSACT_SOL = '0xd995828fdd34fc77';  // anchor discriminator
 const TRANSACT_SPL = '0x9a42f4cc4ee1a397';
-const WSOL = 'So11111111111111111111111111111111111111112';
+const WSOL = ADDRESSES.solana.SOL;
 // ExtData was minified here, moving fee from byte 529 to 497.
 const SOLANA_MINIFY = '2025-09-01 01:00:00';
 

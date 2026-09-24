@@ -1,12 +1,13 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import * as sdk from "@defillama/sdk";
 
 const USTB: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x43415eB6ff9DB7E26A15b704e7A3eDCe97d31C4e",
-  [CHAIN.PLUME]: "0xe4fa682f94610ccd170680cc3b045d77d9e528a8",
+  [CHAIN.PLUME]: ADDRESSES.plume_mainnet.USTB,
 };
-const USTB_CHAINLINK_ORACLE = "0xE4fA682f94610cCd170680cc3B045d77D9E528a8";
+const USTB_CHAINLINK_ORACLE = ADDRESSES.plume_mainnet.USTB;
 const PRICING_ABI =
   "function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
 

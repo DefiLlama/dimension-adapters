@@ -389,6 +389,10 @@ async function getTokenLists(options: GetTokenListsOptions): Promise<Array<strin
     const items = data.tokens ? data.tokens : data;
     for (const item of items) {
       if (item.chainId === options.chainId) {
+        // token lists are remote data - drop malformed addresses (e.g. coingecko's
+        // BSC list shipped a 39-hex-char address) instead of letting one bad entry
+        // break every consumer downstream
+        if (!/^0x[0-9a-fA-F]{40}$/.test(String(item.address))) continue;
         tokens.add(formatAddress(item.address));
       }
     }

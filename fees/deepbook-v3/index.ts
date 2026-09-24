@@ -56,8 +56,8 @@ const fetch = async (options: FetchOptions) => {
     pool AS (
       SELECT
         pool_id,
-        CASE WHEN quote_type = '0x2::sui::sui' THEN 'SUI' WHEN ${stableQuote} THEN 'STABLE' ELSE 'UNKNOWN' END AS quote_kind,
-        CASE WHEN quote_type = '0x2::sui::sui' THEN 9 ELSE 6 END AS qdec
+        CASE WHEN quote_type = ADDRESSES.sui.SUI THEN 'SUI' WHEN ${stableQuote} THEN 'STABLE' ELSE 'UNKNOWN' END AS quote_kind,
+        CASE WHEN quote_type = ADDRESSES.sui.SUI THEN 9 ELSE 6 END AS qdec
       FROM (
         SELECT
           json_extract_scalar(event_json, '$.pool_id') AS pool_id,

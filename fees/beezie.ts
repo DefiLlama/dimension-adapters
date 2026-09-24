@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
@@ -41,7 +42,7 @@ const config: Record<
     bidRouter: "0x80d7C04B738eF379971a6b73f25B1A71ea1c820D",
     version: "v2",
     start: "2026-01-06",
-    paymentTokens: ["0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"], // USDC
+    paymentTokens: [ADDRESSES.base.USDC], // USDC
   },
   // Flow's RPCs cap eth_getLogs at 10k blocks, so the initial factory scan is
   // ~6,200 sequential calls — cacheInCloud makes that a one-time cost.
@@ -51,7 +52,7 @@ const config: Record<
     bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
     version: "v1",
     start: "2024-11-01",
-    paymentTokens: ["0xd3bF53DAC106A0290B0483EcBC89d40FcC961f3e"], // PYUSD
+    paymentTokens: [ADDRESSES.flow.WFLOW], // PYUSD
   },
 };
 
@@ -201,7 +202,7 @@ const fetchBidRouterVolume = async (
 // entirely the 6% swap fee below. Counting plays as revenue would overstate it
 // by roughly 25x.
 
-const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const SOLANA_USDC = ADDRESSES.solana.USDC;
 
 // 600 bps buyback fee, configured identically on every claw machine
 // (Machine.fee_bps / fee_wallets). Charged when a player swaps a won card back.

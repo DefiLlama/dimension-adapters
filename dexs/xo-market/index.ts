@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -15,7 +16,7 @@ const CURRENT_EXCHANGE_FROM_BLOCK = 8984354;
 
 // Both collaterals are $1 USDC stables, but with different decimals
 const COLLATERAL_DECIMALS: Record<string, number> = {
-  "0xcf65732699b4efc2bc7b87fb6d75f3aaa6cfc867": 18, // legacy XO USDC
+  [ADDRESSES.xo.USDC]: 18, // legacy XO USDC
   "0x80c12230ce677e6f304027a14780edd2a829ab0c": 6, // current XO USDC
 };
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
@@ -17,7 +18,7 @@ const SUPPLY_SIDE_RATE = 1 - PERFORMANCE_FEE_RATE // 92%
 
 const chainConfig: Record<string, config> = {
   [CHAIN.ETHEREUM]: {
-    token: '0x8236a87084f8B84306f72007F36F2618A5634494',
+    token: ADDRESSES.ethereum.LBTC,
     start: '2024-05-18',
   },
 }

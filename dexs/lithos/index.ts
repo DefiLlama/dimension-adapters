@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // dexs/lithos/index.ts
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { CHAIN } from "../../helpers/chains";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const VOLATILE_FEE = 0.0025; // 25 bps
 const STABLE_FEE = 0.0005;   // 5 bps
 const PROTOCOL_FEE_SHARE = 0.12; // 12% to treasury

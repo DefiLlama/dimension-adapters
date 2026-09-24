@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // Bounce - Leveraged Tokens on HyperEVM
 //
 // Fee accounting:
@@ -32,13 +33,13 @@ const fetch = async (options: FetchOptions) => {
       targets: lts,
       eventAbi: 'event SendFeesToTreasury(uint256 amount)',
     }),
-    feeHandler !== '0x0000000000000000000000000000000000000000'
+    feeHandler !== ADDRESSES.null
       ? options.getLogs({
           target: feeHandler,
           eventAbi: 'event HandleFees(address indexed sender, uint256 amount)',
         })
       : Promise.resolve([]),
-    referrals !== '0x0000000000000000000000000000000000000000'
+    referrals !== ADDRESSES.null
       ? options.getLogs({
           target: referrals,
           eventAbi: 'event DonateRebate(address indexed sender, address indexed to, uint256 feeAmount, uint256 referrerRebate, uint256 refereeRebate)',

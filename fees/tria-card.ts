@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
@@ -11,7 +12,7 @@ const SOURCE_ADDRESSES = [
   '0xa7F0804632966D94292fe0deb8F2a93f202e2527', //tria core sale
   '0x123ae52505570Ba1300aA4519722f5963aeDE10e', //tria card booking
 ];
-const USDC = '0x0b2c639c533813f4aa9d7837caf62653d097ff85';
+const USDC = ADDRESSES.optimism.USDC_CIRCLE;
 
 const fetch = async (options: FetchOptions) => {
   const received = await addTokensReceived({

@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { httpPost } from "../../utils/fetchURL";
 
 // PennysiaSettlement on Ethereum Mainnet
 // https://etherscan.io/address/0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E
@@ -8,11 +9,11 @@ const SETTLEMENT = "0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E";
 // Default NEXT_PUBLIC_INTENT_FEE_BPS. Used only to invert UniswapX fee outputs
 // back to quoted output volume (fee = output * bps / 10000).
 const INTENT_FEE_BPS = 50n;
+// CoW CIP-75 withholds 25% of partner fees before the weekly payout.
+const COW_RETAINED_BPS = 75n;
 
 const COW_SETTLEMENT = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41";
-const COW_VAULT_RELAYER = "0xC92E8bdf79f0507f65a392b0ab4667716BFE0110";
 const VELORA_DELTA = "0x0000000000bbF5c5Fd284e657F01Bd000933C96D";
-// UniswapX reactors on Ethereum (UNISWAPX_V2 quotes settle on V2; include Exclusive + V3)
 const UNISWAPX_REACTORS = [
   "0x00000011F84B9aa48e5f8aA8B9897600006289Be", // V2 Dutch
   "0x6000da47483062A0D734Ba3dc7576Ce6A0B645C4", // Exclusive Dutch
@@ -36,6 +37,7 @@ const veloraSettledEvent =
 
 const SETTLEMENT_FEE = "Settlement Fees";
 const INTENT_FEE = "Intent Fees";
+const COW_PARTNER_FEE = "Partner Fees for CoW";
 
 const NATIVE = new Set([
   ADDRESSES.null.toLowerCase(),
@@ -49,6 +51,8 @@ type PartnerTransfer = {
   value: any;
   used: boolean;
 };
+
+type CowPartner = { recipient: string; bps: bigint };
 
 function addAmount(balances: any, token: string, amount: any, label?: string) {
   if (!token || amount == null) return;
@@ -97,6 +101,7 @@ function takePartnerFee(
   tx: string,
   tokens?: Set<string>,
   froms?: Set<string>,
+  strictFroms = false,
 ): PartnerTransfer | undefined {
   const unused = transfers.filter((t) => !t.used && t.tx === tx);
   const match = (pool: PartnerTransfer[]) => {
@@ -107,6 +112,7 @@ function takePartnerFee(
   if (froms) {
     const strict = match(unused.filter((t) => froms.has(t.from)));
     if (strict) return strict;
+    if (strictFroms) return undefined;
   }
   return match(unused);
 }
@@ -126,6 +132,7 @@ async function feeRecipientsInWindow(options: FetchOptions): Promise<string[]> {
     target: SETTLEMENT,
     eventAbi: feeRecipientUpdatedEvent,
     entireLog: true,
+    skipIndexer: true,
   });
   for (const log of updates) {
     const recipient = argsOf(log).recipient;
@@ -151,6 +158,79 @@ async function loadPartnerTransfers(
   return all;
 }
 
+function cowPartnerFromAppData(fullAppData: any): CowPartner | undefined {
+  let doc = fullAppData;
+  if (typeof fullAppData === "string") {
+    try {
+      doc = JSON.parse(fullAppData);
+    } catch {
+      return;
+    }
+  }
+  const raw = doc?.metadata?.partnerFee;
+  const items = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  for (const item of items) {
+    const recipient = asAddr(
+      item?.recipient || item?.volume?.recipient || item?.surplus?.recipient,
+    );
+    const bps = BigInt(
+      item?.bps ??
+        item?.volumeBps ??
+        item?.volume_bps ??
+        item?.volume?.volumeBps ??
+        0,
+    );
+    if (recipient && recipient !== "0x" && bps > 0n) return { recipient, bps };
+  }
+}
+
+function toOrderUid(value: any): string {
+  const raw = String(value || "").toLowerCase();
+  if (raw.startsWith("0x")) return raw;
+  return "";
+}
+
+async function cowOrdersByUids(uids: string[]): Promise<any[]> {
+  let lastError: unknown;
+  try {
+    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", uids);
+    if (Array.isArray(rows)) return rows;
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
+  try {
+    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", {
+      uids,
+    });
+    if (Array.isArray(rows)) return rows;
+    lastError = new Error("Unexpected CoW orders response");
+  } catch (error) {
+    lastError = error;
+  }
+  throw lastError;
+}
+
+async function cowPartnersByUid(uids: string[]): Promise<Map<string, CowPartner>> {
+  const unique = [...new Set(uids.filter((uid) => uid.length >= 114))];
+  const out = new Map<string, CowPartner>();
+  for (let i = 0; i < unique.length; i += 128) {
+    const rows = await cowOrdersByUids(unique.slice(i, i + 128));
+    for (const row of rows) {
+      const order = row?.order || row;
+      const uid = toOrderUid(order?.uid || row?.uid);
+      const partner = cowPartnerFromAppData(
+        order?.fullAppData ??
+          row?.fullAppData ??
+          order?.appData ??
+          row?.appData,
+      );
+      if (uid && partner) out.set(uid, partner);
+    }
+  }
+  return out;
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -164,9 +244,13 @@ const fetch = async (options: FetchOptions) => {
     addAmount(dailyProtocolRevenue, token, amount, label);
   };
 
+  const recipients = new Set(await feeRecipientsInWindow(options));
+
   const swapLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: swapExecutedEvent,
+    // Custom events are empty in the DefiLlama indexer.
+    skipIndexer: true,
   });
   for (const log of swapLogs) {
     addAmount(dailyVolume, log.sellToken, log.amountIn);
@@ -175,45 +259,45 @@ const fetch = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({
     target: SETTLEMENT,
     eventAbi: feeCollectedEvent,
+    skipIndexer: true,
   });
   for (const log of feeLogs) {
     addRetainedFee(log.token, log.amount, SETTLEMENT_FEE);
   }
 
-  // Incoming ERC-20 to the active Settlement fee recipient(s) tags CoW /
-  // UniswapX / Velora hard intents (partnerAddress + partnerFeeBps).
-  // extraTopics[1] is Transfer `to`, so this is not a full-chain scan.
-  const partnerTransfers = await loadPartnerTransfers(
-    options,
-    await feeRecipientsInWindow(options),
-  );
+  // Incoming ERC-20 to the active Settlement fee recipient tags UniswapX /
+  // Velora fills (partner fee is paid in the fill transaction).
+  const partnerTransfers = await loadPartnerTransfers(options, [...recipients]);
 
-  const cowTrades = await options.getLogs({
+  const cowTradeLogs = await options.getLogs({
     target: COW_SETTLEMENT,
     eventAbi: cowTradeEvent,
     entireLog: true,
   });
-  const cowFroms = new Set([COW_SETTLEMENT, COW_VAULT_RELAYER].map(asAddr));
-  for (const log of cowTrades) {
+  const cowPartners = await cowPartnersByUid(
+    cowTradeLogs.map((log) => toOrderUid(argsOf(log).orderUid)),
+  );
+  for (const log of cowTradeLogs) {
     const a = argsOf(log);
-    const fee = takePartnerFee(
-      partnerTransfers,
-      txHash(log),
-      new Set([asAddr(a.buyToken), asAddr(a.sellToken)]),
-      cowFroms,
-    );
-    if (!fee) continue;
+    const partner = cowPartners.get(toOrderUid(a.orderUid));
+    if (!partner || !recipients.has(partner.recipient)) continue;
     addAmount(dailyVolume, a.sellToken, a.sellAmount);
-    // Receipts at the Settlement fee recipient are already Pennysia's share.
-    // CIP-75's 25% CoW service fee is withheld before payout and never
-    // appears in these logs.
-    addRetainedFee(fee.token, fee.value, INTENT_FEE);
+    const gross = BigInt(a.buyAmount) * partner.bps / 10000n;
+    const retained = gross * COW_RETAINED_BPS / 100n;
+    const cowShare = gross - retained;
+    addAmount(dailyFees, a.buyToken, gross, INTENT_FEE);
+    addAmount(dailyRevenue, a.buyToken, retained, INTENT_FEE);
+    addAmount(dailyProtocolRevenue, a.buyToken, retained, INTENT_FEE);
+    if (cowShare > 0n) {
+      addAmount(dailySupplySideRevenue, a.buyToken, cowShare, COW_PARTNER_FEE);
+    }
   }
 
   const veloraSettled = await options.getLogs({
     target: VELORA_DELTA,
     eventAbi: veloraSettledEvent,
     entireLog: true,
+    skipIndexer: true,
   });
   const veloraFroms = new Set([VELORA_DELTA].map(asAddr));
   for (const log of veloraSettled) {
@@ -246,6 +330,7 @@ const fetch = async (options: FetchOptions) => {
       txHash(log),
       undefined,
       new Set([asAddr(log.address), asAddr(a.filler)]),
+      true,
     );
     if (!fee) continue;
     addRetainedFee(fee.token, fee.value, INTENT_FEE);
@@ -263,29 +348,32 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Pennysia-routed volume only (not inner DEX swaps): sell-token input from SwapExecuted on Settlement, plus each hard-intent fill that has a matching fee-output Transfer to the Settlement fee recipient (CoW Trade.sellAmount, Velora Delta OrderSettled.srcAmount, UniswapX Fill output inferred as that fee × 10000 / 50).",
+    "Settlement SwapExecuted (SYNC and SODAX opens) plus CoW, UniswapX, and Velora fills tagged to the Settlement fee recipient.",
   Fees:
-    "Settlement FeeCollected (SYNC surplus capped at 10% of gross, leftover token/ETH sweeps, and gas markup on extra executeSwap msg.value) and the matched hard-intent partner-fee Transfer (Velora uses OrderSettled.partnerFee when present). No FeeCollected on SODAX intent opens. Hard intents have no Settlement gas markup.",
+    "Settlement FeeCollected plus partner fees on tagged CoW, UniswapX, and Velora fills.",
   Revenue:
-    "Pennysia retains 100% of Settlement FeeCollected and of hard-intent partner-fee receipts at the Settlement fee recipient. UniswapX fee outputs and Velora Delta partner fees are paid in full to that address. CoW CIP-75's 25% service fee is withheld before payout, so it is not in these logs and is not counted as supply-side here.",
-  ProtocolRevenue: "All retained amounts go to the Settlement fee recipient.",
-  SupplySideRevenue: "None on these logs. CoW's off-chain service fee does not arrive at the Settlement fee recipient.",
+    "100% of Settlement, UniswapX, and Velora fees. 75% of CoW partner fees (CIP-75).",
+  ProtocolRevenue: "Same as revenue.",
+  SupplySideRevenue: "CoW's 25% CIP-75 share of tagged partner fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [SETTLEMENT_FEE]:
-      "FeeCollected on Settlement: surplus above the quoted output (capped at 10% of gross), leftover token/ETH sweeps, and gas markup (extra ETH on executeSwap msg.value). ETH↔WETH wrap/unwrap leftover is transferred without FeeCollected and is not in this bucket.",
+      "FeeCollected on Settlement (surplus cap 10%, leftover sweeps, gas markup on extra msg.value).",
     [INTENT_FEE]:
-      "Matched partner-fee Transfer (or Velora OrderSettled.partnerFee) to the active Settlement feeRecipient() on CoW, UniswapX, and Velora Delta fills.",
+      "CoW partner bps on executed buy; UniswapX/Velora partner-fee Transfer in the fill tx.",
   },
   Revenue: {
-    [SETTLEMENT_FEE]: "Pennysia retains 100% of FeeCollected (surplus, leftover sweeps, and gas markup).",
-    [INTENT_FEE]: "Pennysia retains 100% of partner-fee receipts at the Settlement fee recipient.",
+    [SETTLEMENT_FEE]: "100% of FeeCollected.",
+    [INTENT_FEE]: "100% of UniswapX/Velora partner fees; 75% of CoW partner fees.",
   },
   ProtocolRevenue: {
-    [SETTLEMENT_FEE]: "Collected amounts are sent to the Settlement fee recipient.",
-    [INTENT_FEE]: "Matched hard-intent partner fees are sent to the Settlement fee recipient.",
+    [SETTLEMENT_FEE]: "Paid to the Settlement fee recipient.",
+    [INTENT_FEE]: "Hard-intent partner fees except CoW's 25% service fee.",
+  },
+  SupplySideRevenue: {
+    [COW_PARTNER_FEE]: "CoW CIP-75 25% withheld before payout to Pennysia.",
   },
 };
 

@@ -87,20 +87,20 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BERACHAIN]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736"
+    usdtAddress: ADDRESSES.xlayer.USDT0
   }, 
   [CHAIN.PLASMA]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
   },
   [CHAIN.HYPERLIQUID]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
     airdropFunders: ["0xeea6F790F18563E91b18DF00B89d9f79b2E6761F"],
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
   },
   [CHAIN.MONAD]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"
+    usdtAddress: ADDRESSES.flare.USDT0
   },
   [CHAIN.XLAYER]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",

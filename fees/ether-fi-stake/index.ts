@@ -104,7 +104,7 @@ const getWithdrawalFees = async (options: FetchOptions) => {
 
 const getMiscStakingRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
-    target: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", //eETH as WETH
+    target: ADDRESSES.ethereum.EETH, //eETH as WETH
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });

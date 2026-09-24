@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
@@ -24,7 +25,7 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       COALESCE(SUM(raw_amount / 1e6), 0) AS insurance_in
     FROM solana.assets.transfers
-    WHERE mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' -- USDC mint: https://explorer.solana.com/address/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+    WHERE mint = ADDRESSES.solana.USDC -- USDC mint: https://explorer.solana.com/address/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
       AND token_acc_to = '266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9'   -- Insurance fund: https://explorer.solana.com/address/266CZZpRb1PFDGQf4bNE5ASPVxAUkon6tv6BvRYpP7x9
       AND token_acc_from = 'BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt' -- Fee vault: https://explorer.solana.com/address/BFm4z6Z2H84GrpcKkydmE1qZVidwuj2sP3N3wTNZemJt
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
@@ -91,6 +92,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   pullHourly: true,
+  deadFrom: '2026-07-24',
 };
 
 export default adapter;

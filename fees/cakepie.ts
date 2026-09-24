@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -32,7 +33,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
       eventAbi: event_paid_stream,
     })).map((e: any) => {
       // check if it is cake address
-      if (e.token === '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82') {
+      if (e.token === ADDRESSES.bsc.CAKE) {
         dailyFees.add(e._token, e._feeAmount, METRIC.STAKING_REWARDS);
       }
     })

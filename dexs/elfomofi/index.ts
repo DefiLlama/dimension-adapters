@@ -161,6 +161,10 @@ const adapter: SimpleAdapter = {
         fetch,
         start: "2026-03-15",
       },
+      [CHAIN.ROBINHOOD]: {
+        fetch,
+        start: "2026-09-05",
+      },
     },
   };
 

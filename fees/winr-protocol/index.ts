@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -8,7 +9,7 @@ import { CHAIN } from "../../helpers/chains";
 // WINRBankroll - https://arbiscan.io/address/0x5eD22F7693fea5A0B45dB31771aa94E941b6df8a
 const BANKROLL = '0x5eD22F7693fea5A0B45dB31771aa94E941b6df8a';
 // WINR token, 18 decimals - https://arbiscan.io/token/0xD77B108d4f6cefaa0Cae9506A934e825BEccA46E
-const WINR = '0xD77B108d4f6cefaa0Cae9506A934e825BEccA46E';
+const WINR = ADDRESSES.winr.WINR;
 
 // Escrow-only entry points on the bankroll: the house banking a win, and the
 // bankroll covering a player win.

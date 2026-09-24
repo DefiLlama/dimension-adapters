@@ -19,7 +19,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.LIGHTLINK_PHOENIX]: {
       fetch: graphs(CHAIN.LIGHTLINK_PHOENIX),
-      start: '2023-10-13'
+      start: '2023-10-13',
+      deadFrom: "2026-02-06"
     },
   },
 };

@@ -10,13 +10,14 @@ const fetch = async (options: FetchOptions) => {
     `${API}?from=${options.startOfDay}&to=${options.endTimestamp + DAY}&format=open_interest&chainId=14&dex=SparkDEX`
   );
 
-  const item = res.data.find((stat: any) => stat.timestamp === options.endTimestamp);
-  if (!item) throw new Error(`No SparkDEX OI data for ${options.endTimestamp}`);
+  const item = res.data.find((stat: any) => stat.timestamp === options.startOfDay + DAY);
+  if (!item) throw new Error(`No SparkDEX OI data for ${options.dateString}`);
 
   return {
-    openInterestAtEnd: item.openInterest,
-    longOpenInterestAtEnd: item.longOpenInterest,
-    shortOpenInterestAtEnd: item.shortOpenInterest,
+    // openInterest is long + short; pool venue with no single-sided field, so average them
+    openInterestAtEnd: item.openInterest / 2,
+    longOpenInterestAtEnd: item.longOpenInterest / 2,
+    shortOpenInterestAtEnd: item.shortOpenInterest / 2,
   };
 };
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -11,7 +12,7 @@ type ChainConfig = {
 // Start dates conservatively precede the first indexed swaps so no events are omitted.
 const SHARED_ROUTER = "0x2C5F372746330465C3f4084CE6C6aBce22a48B4d";
 // HojswapRouterV2 uses address(0) as the native gas-token sentinel.
-const NATIVE_TOKEN = "0x0000000000000000000000000000000000000000";
+const NATIVE_TOKEN = ADDRESSES.null;
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { contract: SHARED_ROUTER, start: "2026-07-16" },

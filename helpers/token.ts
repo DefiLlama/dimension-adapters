@@ -131,6 +131,11 @@ type AddTokensReceivedParams = {
  */
 export async function addTokensReceived(params: AddTokensReceivedParams) {
 
+  // The indexer path reads `tokens`, so the singular `token` has to be widened
+  // before it rather than in the log fallback below: without this the filter is
+  // absent and every transfer into the target is counted at its own price.
+  if (!params.tokens && params.token) params.tokens = [params.token]
+
   if (!params.skipIndexer) {
     for (let i = 0; i < 2; i++) {
       // retry 2 times if failed
@@ -163,7 +168,6 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
     }
   }
 
-  if (!tokens && token) tokens = [token]
 
 
   if (targets?.length) {

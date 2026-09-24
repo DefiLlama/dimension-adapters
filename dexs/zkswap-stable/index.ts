@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -5,9 +6,9 @@ const pools = [
   {
     address: '0x15309aaf4fedf346e5204331027b4ef7b75b1dd7',
     tokens: [
-      '0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4',
-      '0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4',
-      '0x493257fD37EDB34451f62EDf8D2a0C418852bA4C',
+      ADDRESSES.era.USDC_CIRCLE,
+      ADDRESSES.era.USDC,
+      ADDRESSES.era.USDT,
     ],
     fee: 0.0001, // 0.01%
   },

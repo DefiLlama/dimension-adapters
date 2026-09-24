@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -13,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   const feesReceived = await getSolanaReceived({ 
     options, 
     target: 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX',
-    mints: ['EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v']
+    mints: [ADDRESSES.solana.USDC]
   })
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -60,13 +61,16 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Trading fees paid by users while using fomo app.",
+    [METRIC.TRADING_FEES]:
+      "USDC trading fees on native Solana swaps plus trading fees on cross-chain trades via Relay. Fees that occur on Relay (EVM chains) are counted on Solana, where user balances are held.",
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: "Trading fees paid by users while using fomo app.",
+    [METRIC.TRADING_FEES]:
+      "FOMO's share of trading fees: USDC collected on Solana plus Relay platform fees. Relay (EVM) fees are counted on Solana.",
   },
   SupplySideRevenue: {
-    "Referral fees": "A portion of the trading fees goes to referrers.",
+    "Referral fees":
+      "Referral share of Relay trading fees, paid to referrers. These fees occur on Relay (EVM chains) and are counted on Solana.",
   },
 }
 
@@ -78,10 +82,14 @@ const adapter: SimpleAdapter = {
   start: '2025-01-28',
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Trading fees paid by users while using fomo app.",
-    Revenue: "All fees are collected by fomo app.",
-    ProtocolRevenue: "All fees are collected by fomo app.",
-    SupplySideRevenue: "The portion of the trading fees that goes to referrers"
+    Fees:
+      "Trading fees paid by FOMO users on native Solana swaps and on cross-chain trades via Relay. Fees that occur on Relay (EVM chains) are counted on Solana, where user balances are held.",
+    Revenue:
+      "FOMO's share of trading fees: USDC collected on Solana plus Relay platform fees. Referral fees are excluded. Relay (EVM) fees are counted on Solana.",
+    ProtocolRevenue:
+      "FOMO keeps its share of trading fees in the treasury. Relay (EVM) fees are counted on Solana.",
+    SupplySideRevenue:
+      "Referral share of Relay trading fees, paid to referrers. These fees occur on Relay (EVM chains) and are counted on Solana.",
   },
   breakdownMethodology
 };

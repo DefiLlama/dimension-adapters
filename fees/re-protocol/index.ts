@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Chain, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { METRIC } from "../../helpers/metrics"
@@ -12,14 +13,14 @@ interface chainContractsInterface {
 
 const contracts: Record<Chain,chainContractsInterface>  = {
     [CHAIN.ETHEREUM]: {
-        reUsd: "0x5086bf358635B81D8C47C66d1C8b9E567Db70c72",
+        reUsd: ADDRESSES.ethereum.reUSD,
         reUsdPriceCalculator: "0xd1D104a7515989ac82F1AFDa15a23650411b05B8",
         reUsde: "0xdDC0f880ff6e4e22E4B74632fBb43Ce4DF6cCC5a",
         reUsdePriceCalculator: "0x1262A408DE54DB9ae3Fb3BB0e429C319fbEE9915",
         feeVault: "0x2DF87810fCF9b8e6a42adC5923Bc2EE0ca0467CA"
     },
     [CHAIN.AVAX]: {
-        reUsd: "0x180aF87b47Bf272B2df59dccf2D76a6eaFa625Bf",
+        reUsd: ADDRESSES.avax.reUSD,
         reUsdPriceCalculator: "0xdC481e538125a8542D3eC262d40415328f1b16C0",
         feeVault: "0xa7087c87028E8ecE44d867d8b822a3Ed21eD4ef7"
     },

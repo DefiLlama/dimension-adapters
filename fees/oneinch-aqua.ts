@@ -95,6 +95,7 @@ const chainConfig: Record<
   [CHAIN.ERA]: { start: "2026-07-19", routerDeployBlock: 71209109 },
   [CHAIN.BSC]: { start: "2026-07-21", routerDeployBlock: 110591523 },
   [CHAIN.ROBINHOOD]: { start: "2026-07-21", routerDeployBlock: 12461295 },
+  [CHAIN.ARC]: { start: "2026-09-02", routerDeployBlock: 18825813 },
 };
 
 const LABEL_LP = "Aqua LP Swap Fees";

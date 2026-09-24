@@ -3,7 +3,7 @@ import { RouteScanFeeConfig, routescanFeeAdapter } from "../helpers/routescanFee
 import { createFactoryExports } from "./registry";
 
 const routescanFeeChains: Record<string, RouteScanFeeConfig> = {
-  dfk: { chain: CHAIN.DFK, chainId: 53935, CGToken: "defi-kingdoms", start: "2022-03-16" },
+  dfk: { chain: CHAIN.DFK, chainId: 53935, CGToken: "defi-kingdoms", start: "2022-03-16", deadFrom: "2026-08-28" }, 
   dexalot: { chain: CHAIN.DEXALOT, chainId: 432204, CGToken: "dexalot", start: "2022-12-04" },
   step: { chain: CHAIN.STEP, chainId: 1234, CGToken: "step-app-fitfi", start: "2022-08-12" },
   nibiru: { chain: CHAIN.NIBIRU, chainId: 6900, CGToken: "nibiru", start: "2025-02-11" },

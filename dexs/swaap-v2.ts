@@ -7,6 +7,7 @@ interface ChainConfig {
   start: string;
   id: string;
   firstDayVolume: number;
+  invalidSpikes?: string[];
 }
 
 const config: Record<string, ChainConfig> = {
@@ -39,12 +40,14 @@ const config: Record<string, ChainConfig> = {
     start: '2024-05-29',
     id: '2',
     firstDayVolume: 0,
+    invalidSpikes: ['2026-09-18', '2026-09-21'],
   },
   [CHAIN.BASE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
     start: '2024-05-14',
     id: '2',
     firstDayVolume: 0,
+    invalidSpikes: ['2026-09-11', '2026-09-15'],
   },
   [CHAIN.MODE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mode/1.0.1/gn",
@@ -84,6 +87,11 @@ interface Data {
 }
 
 const getVolume = async (options: FetchOptions) => {
+  if (config[options.chain].invalidSpikes?.includes(options.dateString)) {
+    return {
+      dailyVolume: 0,
+    };
+  }
   // A swaapSnapshot accumulates through the day its id names, so a day's volume is its own
   // snapshot minus the previous day's. Reading the next day's snapshot shifted the series one
   // day forward and, in production, read that snapshot while it was still filling up.
@@ -130,9 +138,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.POLYGON]: {
       start: '2023-06-30',
     },
-    // [CHAIN.ARBITRUM]: {
-    //   start: '2023-10-05',
-    // }, -> bad data
+    [CHAIN.ARBITRUM]: {
+      start: '2023-10-05',
+    },
     [CHAIN.OPTIMISM]: {
       start: '2024-05-29',
     },

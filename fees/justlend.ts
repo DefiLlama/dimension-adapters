@@ -3,8 +3,9 @@ import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { BigNumberish } from "ethers";
-import { fromHex, toHex } from "tron-format-address";
 import { httpGet } from "../utils/fetchURL";
+
+const { tronToEvmAddress, evmToTronAddress } = sdk.util;
 
 interface IContext {
   currentTimestamp: number;
@@ -139,7 +140,7 @@ const getLogs = async (address: string, min_block_timestamp: number, max_block_t
       'limit=200',
     ];
     if (fingerprint) params.push(`fingerprint=${fingerprint}`);
-    const url = `${endpoint}/v1/contracts/${fromHex(address)}/events?${params.join('&')}`;
+    const url = `${endpoint}/v1/contracts/${evmToTronAddress(address)}/events?${params.join('&')}`;
     const res = await httpGet(url);
     const events = res.data ?? [];
     logs = logs.concat(events);
@@ -168,7 +169,7 @@ const getDailyProtocolFees = async ({
 
   const raw_data: IAccrueInterestLog[] = logs.map((e: any) => {
     const x = e;
-    const address = toHex(x.contract_address);
+    const address = tronToEvmAddress(x.contract_address);
     return {
       market: address,
       cashPrior: x.result.cashPrior,

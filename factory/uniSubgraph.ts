@@ -96,6 +96,7 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 85,
     },
     start: "2024-03-19",
+    deadFrom: "2026-09-11",
   },
   // "retro": {
   //   graphUrls: {
@@ -188,7 +189,9 @@ const configs: Record<string, SubgraphConfig> = {
       [CHAIN.SHIDO]: "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet",
     },
     start: "2024-09-18",
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    // subgraph was redeployed with snake_case fields (2026-09)
+    totalVolume: { factory: "factories", field: "total_volume_usd" },
+    totalFees: { factory: "factories", field: "total_fees_usd" },
     feesPercent: {
       type: "fees",
       ProtocolRevenue: 0,
@@ -253,20 +256,6 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: "25% of collected fees (10% buyback-and-burn + 10% staking rewards before 2026-05-18).",
       Revenue: "25% of collected fees.",
     },
-  },
-  mojitoswap: {
-    graphUrls: {
-      [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-    },
-    feesPercent: {
-      type: "volume",
-      UserFees: 0.3,
-      Fees: 0.3,
-      SupplySideRevenue: 0.18,
-      HoldersRevenue: 0.08,
-      ProtocolRevenue: 0.04,
-      Revenue: 0.12,
-    }
   },
   pangolin: {
     graphUrls: {

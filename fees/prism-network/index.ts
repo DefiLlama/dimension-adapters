@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -6,7 +7,7 @@ import { CHAIN } from "../../helpers/chains";
 // between the protocol and the operator whose machine served it. Unused deposit
 // is refunded in the same transaction and is not a fee.
 const ESCROW = "0x62C042265991bEa17B07229322A01850974626dA";
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 
 // `charged` is what the renter paid for the time consumed, and it is exactly
 // `fee + providerPaid`, so the three metrics come from one event with no

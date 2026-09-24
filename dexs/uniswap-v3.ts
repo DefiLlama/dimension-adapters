@@ -248,6 +248,7 @@ const factoryConfig: Record<string, string> ={
   // dex.trades has all but stopped carrying uni-v3 rows for these two, so they read the pools directly
   [CHAIN.SCROLL]: "0x70C62C8b8e801124A4Aa81ce07b637A3e83cb919",
   [CHAIN.BLAST]: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd",
+  [CHAIN.ARC]: "0xf0db7b58379503491d857db50ac9ece64c653918",
 }
 
 async function fetchFromLogs(options: FetchOptions) {
@@ -322,9 +323,11 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+  [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
   [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
+  [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
 }
 
 const methodology = {

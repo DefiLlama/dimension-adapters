@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -16,7 +17,7 @@ import { METRIC } from "../helpers/metrics";
 //   43%   launch platform beneficiaries (Bankr/Doppler & interface)
 const UNIV4_POOL_MANAGER = '0x498581ff718922c3f8e6a244956af099b2652b2b';
 const AEON_WETH_POOL_ID = '0x4a9b9e13975d26f4e3e17c655593bb82145dd4452aedafb826d856b817c9cfd4';
-const WETH = '0x4200000000000000000000000000000000000006';
+const WETH = ADDRESSES.optimism.WETH_1;
 
 const MULTICURVE_INITIALIZER = '0xD59cE43E53D69F190E15d9822Fb4540dCcc91178';
 // Aeon-controlled beneficiaries over the pool's lifetime — shares are summed,

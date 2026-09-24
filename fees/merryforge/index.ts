@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -5,7 +6,7 @@ import { METRIC } from "../../helpers/metrics";
 // --- Robinhood mainnet (4663) — sync with packages/config/src/addresses.ts ---
 const LAUNCH_FACTORY = "0x3b5e8FE8d61B00b35e021275c96F754424b1B9A8";
 const FEE_VAULT = "0x8963d65670838ac4b728A049416BDEc89d6cC776";
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 
 const FEE_ACCRUED =
   "event FeeAccrued(address indexed quoteToken, address indexed launchToken, address indexed payer, address trader, address creator, address referrer, bytes8 referralCode, uint256 receivedAmount, uint256 protocolCredited, uint256 referralCredited, uint256 referralPaid, uint256 safetyCredited, uint256 creatorCredited)";

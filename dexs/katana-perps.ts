@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 
 const OLD_EXCHANGE_CONTRACT = '0x835Ba5b1B202773A94Daaa07168b26B22584637a';
 const NEW_EXCHANGE_CONTRACT = '0x62230CeA619F734cc215bB8074bbF07bE4Eb633e';
 const UPGRADE_TIMESTAMP = 1777300239; // Apr-27-2026 02:30:39 PM UTC
-const QUOTE_TOKEN = '0x203A662b0BD271A6ed5a60EdFbd04bFce608FD36';
+const QUOTE_TOKEN = ADDRESSES.katana.VB_USDC;
 // Event quantities are in pips (8 decimals), USDC is 6 decimals
 const PIP_DECIMALS_ADJUSTMENT = 1e2;
 

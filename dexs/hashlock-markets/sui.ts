@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { queryEvents } from "../../helpers/sui";
 import { buildHashlockLegIndex, isSourceLeg, SUI_PACKAGE, SUI_MODULE } from "./shared";
@@ -32,7 +33,7 @@ function isRefunded(e: any): e is HTLCRefundedEvent {
 }
 
 function normalizeCoinType(t: string): string {
-  // Sui coin types are fully-qualified strings, e.g. "0x2::sui::SUI" or
+  // Sui coin types are fully-qualified strings, e.g. ADDRESSES.sui.SUI or
   // "0x...::usdc::USDC". The DefiLlama price feed expects either a coingecko
   // id or a chain-prefixed token. We pass through; the helper resolves it
   // against the sui price source. Strip any leading 0x normalization here.

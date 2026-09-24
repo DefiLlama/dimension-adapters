@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPolymarketVolume } from "../../helpers/polymarket";
@@ -11,7 +12,7 @@ const EXCHANGE_CONTRACT_ADDRESSES = [
 // The exchange collateral (assetId 0) is USDW (0xb7bD080Df56FA76ce6CA4fA737d47815f7F8e746),
 // a $1 receipt token 1:1 with USDC that shares USDC's 6 decimals. USDW is not priced by
 // DefiLlama, so we value the collateral-side fills with the priced USDC feed.
-const USDC = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+const USDC = ADDRESSES.monad.USDC;
 
 const fetch = async (options: FetchOptions) => {
   const { dailyVolume, dailyNotionalVolume } = await getPolymarketVolume({

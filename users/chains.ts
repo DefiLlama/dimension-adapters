@@ -110,6 +110,11 @@ const alliumChainMap: Record<string, string> = {
     tempo: CHAIN.TEMPO,
     stable: CHAIN.STABLE,
     x_layer: CHAIN.XLAYER,
+    zora: CHAIN.ZORA,
+    flynet: CHAIN.FLYNET,
+    educhain: CHAIN.EDU_CHAIN,
+    bob: CHAIN.BOB,
+    apechain: CHAIN.APECHAIN,
 }
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
@@ -188,12 +193,6 @@ export default [
     //     getUsers: coinmetricsData("bsv"),
     //     id: "bsv"
     // },
-    {
-        name: "stellar",
-        chain: CHAIN.STELLAR,
-        getUsers: coinmetricsData("xlm"),
-        id: "stellar"
-    },
     {
         name: "xrpl",
         chain: CHAIN.RIPPLE,

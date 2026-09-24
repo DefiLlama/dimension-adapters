@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
@@ -11,8 +12,8 @@ const GACHA_OUTLAW = "0xd7119f7251AFD521847Ae6BcA51a56c3F24971e3";
 const GACHA_ULTRA = "0xebB285B5cd4610D0f6dc538379A7027F02274ca2";
 const GACHA_CONTRACTS = [GACHA_STARTER, GACHA_GREAT, GACHA_ADVENTURE, GACHA_PREMIUM, GACHA_OUTLAW, GACHA_ULTRA];
 
-const USDM = "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7";
-const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+const USDM = ADDRESSES.megaeth.USDm;
+const USDC = ADDRESSES.base.USDC;
 const PAYMENT_WALLET = "0x61fccfC0279B09c387608efF56Fd9187e61D2874";
 const TREASURY = "0x7Fc8d4b747dAc14b68bEe79d93C7130257c98a62";
 // settles credit-card payments to the payment wallet on Base — sole sender since the leg began

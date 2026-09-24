@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -5,7 +6,7 @@ import { queryDuneSql } from "../../helpers/dune";
 const markets = [
   {
     // navSOL
-    // mintMain: "So11111111111111111111111111111111111111112",
+    // mintMain: ADDRESSES.solana.SOL,
     revEscrowGroup: "BCYzijbWwmqRnsTWjGhHbneST2emQY36WcRAkbkhsQMt",
     revEscrowTenant: "B8jccpiKZjapgfw1ay6EH3pPnxqTmimsm2KsTZ9LSmjf",
     cashEscrow: "5hh9VjbkG3P2MqSiEtpUnCdboUwBrW4NKki5F6ntpyFC",

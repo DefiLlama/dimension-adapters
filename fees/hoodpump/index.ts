@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -7,7 +8,7 @@ import { METRIC } from "../../helpers/metrics";
 const LAUNCHPAD = "0x778F7b2d844B7C366b386d8Ce62110ceA301C777";
 // Canonical WETH used as token0 in every HoodPump pool on Robinhood Chain.
 // https://robinhoodchain.blockscout.com/address/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+const WETH = ADDRESSES.robinhood.WETH;
 // First block queried for logs from the deployed Launchpad.
 const LAUNCHPAD_DEPLOYMENT_BLOCK = 6990219;
 

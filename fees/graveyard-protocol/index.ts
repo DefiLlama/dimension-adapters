@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // Graveyard Protocol - Solana ATA Rent Reclamation Service
 // Users can reclaim SOL rent from closed Associated Token Accounts (ATAs)
 // Protocol charges 10% service fee on reclaimed rent, 100% goes to treasury
@@ -13,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   const feesCollected = await getSolanaReceived({
     options,
     target: FEE_COLLECTOR_WALLET,
-    mints: ["So11111111111111111111111111111111111111112"],
+    mints: [ADDRESSES.solana.SOL],
   });
   
   const dailyFees = options.createBalances();

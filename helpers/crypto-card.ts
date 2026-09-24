@@ -1,47 +1,47 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { addTokensReceived } from "./token";
-import coreAssets from "./coreAssets.json";
+import ADDRESSES from "./coreAssets.json";
 import { formatAddress } from "../utils/utils";
 
 const DefaultPaymentTokens: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
-    coreAssets.ethereum.USDC,
-    coreAssets.ethereum.USDT,
+    ADDRESSES.ethereum.USDC,
+    ADDRESSES.ethereum.USDT,
   ],
   [CHAIN.POLYGON]: [
-    coreAssets.polygon.USDC,
-    coreAssets.polygon.USDC_CIRCLE,
-    coreAssets.polygon.USDT,
+    ADDRESSES.polygon.USDC,
+    ADDRESSES.polygon.USDC_CIRCLE,
+    ADDRESSES.polygon.USDT,
   ],
   [CHAIN.BASE]: [
-    coreAssets.base.USDC,
-    coreAssets.base.USDT,
+    ADDRESSES.base.USDC,
+    ADDRESSES.base.USDT,
   ],
   [CHAIN.ARBITRUM]: [
-    coreAssets.arbitrum.USDC,
-    coreAssets.arbitrum.USDC_CIRCLE,
-    coreAssets.arbitrum.USDT,
+    ADDRESSES.arbitrum.USDC,
+    ADDRESSES.arbitrum.USDC_CIRCLE,
+    ADDRESSES.arbitrum.USDT,
   ],
   [CHAIN.OPTIMISM]: [
-    coreAssets.optimism.USDC,
-    coreAssets.optimism.USDC_CIRCLE,
-    coreAssets.arbitrum.USDT,
+    ADDRESSES.optimism.USDC,
+    ADDRESSES.optimism.USDC_CIRCLE,
+    ADDRESSES.arbitrum.USDT,
   ],
   [CHAIN.AVAX]: [
-    coreAssets.avax.USDC,
-    coreAssets.avax.USDt,
+    ADDRESSES.avax.USDC,
+    ADDRESSES.avax.USDt,
   ],
   [CHAIN.XDAI]: [
-    coreAssets.xdai.USDC,
-    coreAssets.xdai.EURe,
+    ADDRESSES.xdai.USDC,
+    '0x420ca0f9b9b604ce0fd9c18ef134c705e5fa3430',
   ],
   [CHAIN.ERA]: [
-    coreAssets.era.USDC,
+    ADDRESSES.era.USDC,
   ],
   [CHAIN.BSC]: [
-    coreAssets.bsc.USDC,
-    coreAssets.bsc.USDT,
+    ADDRESSES.bsc.USDC,
+    ADDRESSES.bsc.USDT,
   ],
 }
 
@@ -134,7 +134,7 @@ const cryptoCardProtocols: Record<string, SimpleAdapter> = {
       paymentRecipients: ['0x476756C3d75A05757E3e8abaD6736EA6AB14675f'],
       paymentTokens: [
         ...DefaultPaymentTokens[CHAIN.ARBITRUM],
-        '0xfa5ed56a203466cbbc2430a43c66b9d8723528e7',
+        ADDRESSES.arbitrum.EURA,
         '0x0c06ccf38114ddfc35e07427b9424adcca9f44f8',
       ]
     },

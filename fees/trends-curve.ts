@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -15,7 +16,7 @@ const metrics = {
     ReferralFees: "Referral Fees",
 }
 
-const quoteMint = "So11111111111111111111111111111111111111112";
+const quoteMint = ADDRESSES.solana.SOL;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const query = `SELECT

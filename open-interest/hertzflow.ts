@@ -66,9 +66,10 @@ const fetch = async (options: FetchOptions) => {
   })
 
   return {
-    openInterestAtEnd: usd30(longOpenInterest + shortOpenInterest),
-    longOpenInterestAtEnd: usd30(longOpenInterest),
-    shortOpenInterestAtEnd: usd30(shortOpenInterest),
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: usd30((longOpenInterest + shortOpenInterest) / 2n),
+    longOpenInterestAtEnd: usd30(longOpenInterest / 2n),
+    shortOpenInterestAtEnd: usd30(shortOpenInterest / 2n),
   }
 }
 

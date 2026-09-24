@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -18,7 +19,7 @@ const RewardAddedEvent =
 
 const LIQUIDLAUNCH_ADDRESS = "0xDEC3540f5BA6f2aa3764583A9c29501FeB020030";
 const STAKING_CONTRACT_ADDRESS = "0x27a9760F866DCdc655eD117c85D5592f8b4CDD1B";
-const HYPE_ADDRESS = "0x5555555555555555555555555555555555555555";
+const HYPE_ADDRESS = ADDRESSES.hyperliquid.WHYPE;
 const FEES_CLAIMED_CUTOFF = "2026-02-23"; //1% fee on buys and sells is duplicated with the fee claim event after the cutoff
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {

@@ -30,6 +30,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.MONAD],
   start: "2025-11-25",
+  deadFrom: "2026-04-30",
 };
 
 export default adapter;

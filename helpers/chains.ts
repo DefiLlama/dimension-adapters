@@ -17,6 +17,7 @@ export enum CHAIN {
   ASSETCHAIN = "assetchain",
   AVAX = "avax",
   BLAST = "blast",
+  BULK = "bulk",
   BAHAMUT = "ftn",
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",
@@ -166,6 +167,7 @@ export enum CHAIN {
   EOS_EVM = "eos_evm",
   ROLLUX = "rollux",
   MODE = "mode",
+  METAL = "metall2",
   PERSISTENCE = "persistence",
   POLKADEX = "polkadex",
   JBC = "jbc",
@@ -402,4 +404,7 @@ export enum CHAIN {
   XO = "xo",
   BOT_CHAIN = "bot",
   NATIVE_CORE = "native_core",
+  STRATO = "strato",
+  ARC = "arc",
+  REDBELLY = "rbn",
 }

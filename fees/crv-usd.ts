@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -19,7 +20,7 @@ const config: Record<string, ChainConfig> = {
                                        // send 10% to treasury
                                        // https://etherscan.io/tx/0xd38160744c06ae16d6edde5c444294e7e16db9a4d9f0631dc8599076c12685fd
     daoFeeCollector: '0xa2Bcd1a4Efbd04B63cd03f5aFf2561106EBCCe00',
-    crvusd: '0xf939E0A03FB07F59A73314E73794Be0E57ac1b4E',
+    crvusd: ADDRESSES.ethereum.CRVUSD,
   },
 };
 

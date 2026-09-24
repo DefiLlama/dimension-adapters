@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -115,7 +116,7 @@ const getVolumeFeesAndRevenue = async (
   const fees = await api.multiCall({
     abi: abis.fees, target: CONFIG.PoolFactory, calls: rawPools.map(i => ({ params: [i.pool, i.stable] }))
   })
-  const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
+  const ZERO_ADDR = ADDRESSES.null
   const gaugeForPool = rawPools.map((p: any) => poolToGauge.get(String(p.pool).toLowerCase()) ?? ZERO_ADDR)
   const [stakedBalances, totalSupplies] = await Promise.all([
     api.multiCall({

@@ -59,6 +59,10 @@ const adapter: SimpleAdapter = {
       fetch: fetchEvm,
       start: '2025-11-13',
     },
+    [CHAIN.ROBINHOOD]: {
+      fetch: fetchEvm,
+      start: '2026-09-10',
+    },
   },
   dependencies: [Dependencies.DUNE],
   methodology,

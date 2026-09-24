@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -106,7 +107,7 @@ const chainDetails = {
 const getQuaiBurnDetails = async (options: FetchOptions, dailyHoldersRevenue: Balances) => {
   const { fromApi, api } = options;
   const quaiBurnAddress = "0x0050AF0000000000000000000000000000000000";
-  const tokens = ["0x0000000000000000000000000000000000000000",]; // Quai Native
+  const tokens = [ADDRESSES.null,]; // Quai Native
 
   await api.sumTokens({ tokens, owner: quaiBurnAddress })
   await fromApi.sumTokens({ tokens, owner: quaiBurnAddress })

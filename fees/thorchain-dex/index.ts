@@ -161,27 +161,32 @@ const fetch: any = async (options: FetchOptions) => {
 
   // THORChain governance carve-outs from swap fees (RUNE block-reward emissions are ~0 and excluded). Fixed
   // protocol constants; activation dates: 5% burn + 5% dev from 2024-09-16, 10% TCY from 2025-05-01, 5%
-  // marketing from 2025-11-04.
-  const burnPct = dateStr >= '2024-09-16' ? 0.05 : 0;
+  // marketing from 2025-11-04, 20% protocol-owned liquidity from 2026-09-01 (mimir POLRESERVESYSTEMINCOMEBPS),
+  // and the burn cut 5% -> 1% on 2026-09-12 (mimir SYSTEMINCOMEBURNRATEBPS). Verified against the daily split
+  // in raynalytics earnings-distribution, which matches these shares to <0.1pp.
+  const burnPct = dateStr >= '2026-09-12' ? 0.01 : dateStr >= '2024-09-16' ? 0.05 : 0;
   const devPct = dateStr >= '2024-09-16' ? 0.05 : 0;
   const tcyPct = dateStr >= '2025-05-01' ? 0.10 : 0;
   const marketingPct = dateStr >= '2025-11-04' ? 0.05 : 0;
+  const polPct = dateStr >= '2026-09-01' ? 0.20 : 0;
 
   const burn = swapFees * burnPct;
   const dev = swapFees * devPct;
   const tcy = swapFees * tcyPct;
   const marketing = swapFees * marketingPct;
+  const pol = swapFees * polPct;
 
   // The rest is split between nodes (RUNE bonders) and LPs by the Incentive Pendulum ratio. node + LP + every
   // carve-out sum to swap fees exactly, so the identity Fees = Revenue + SupplySideRevenue holds.
-  const nodePool = swapFees * (1 - burnPct - devPct - tcyPct - marketingPct);
+  const nodePool = swapFees * (1 - burnPct - devPct - tcyPct - marketingPct - polPct);
   const nodeRevenue = nodePool * nodeShareRatio;
   const lpRevenue = nodePool - nodeRevenue;
 
   // Emit each component under its own label so the breakdown is itemized in the UI.
   // Only the RUNE burn accrues to every RUNE holder -> holders. The node-bonder (security) share, the LP
   // share, affiliate (integrator) fees, TCY rewards and the gas reimbursed to nodes all pay suppliers ->
-  // supply. The protocol-kept outbound remainder, slashing and the developer/marketing funds -> protocol.
+  // supply. The protocol-kept outbound remainder, slashing, the developer/marketing funds and the
+  // protocol-owned liquidity carve-out -> protocol.
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(swapFees, 'Swap Fees');
   dailyFees.addUSDValue(outboundFee, 'Outbound Fees');
@@ -216,6 +221,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyProtocolRevenue.addUSDValue(slashingFee, 'Slashing Fees');
   dailyProtocolRevenue.addUSDValue(dev, 'Developer Fund');
   dailyProtocolRevenue.addUSDValue(marketing, 'Marketing Fund');
+  dailyProtocolRevenue.addUSDValue(pol, 'Protocol Owned Liquidity');
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addUSDValue(burn, 'RUNE Burn');
@@ -223,6 +229,7 @@ const fetch: any = async (options: FetchOptions) => {
   dailyRevenue.addUSDValue(slashingFee, 'Slashing Fees');
   dailyRevenue.addUSDValue(dev, 'Developer Fund');
   dailyRevenue.addUSDValue(marketing, 'Marketing Fund');
+  dailyRevenue.addUSDValue(pol, 'Protocol Owned Liquidity');
 
   return {
     dailyFees,
@@ -237,9 +244,9 @@ const fetch: any = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Slip-based liquidity (swap) fees paid by users on each chain's THORChain pools, gross outbound fees and slashing fees paid into the Reserve, and affiliate fees charged by interfaces/wallets (affiliate fees are attributed to the THORChain native chain). RUNE block-reward emissions and the native tx fee (counted in the THORChain chain fees adapter) are excluded.",
   UserFees: "All swap, outbound and affiliate fees paid by users when swapping through THORChain (slashing is paid by nodes, not users).",
-  Revenue: "The 5% of swap fees burned as RUNE (value to all RUNE holders) plus protocol-kept income (outbound fees net of the gas reimbursed to nodes, slashing fees, developer fund and marketing fund). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
-  ProtocolRevenue: "Income kept by the protocol: outbound fees net of the gas reimbursed to nodes, slashing fees paid into the Reserve, plus the 5% developer fund and 5% marketing fund taken from swap fees.",
-  HoldersRevenue: "Value to RUNE holders: the 5% of swap fees burned as RUNE (permanently removed from supply), the only component that accrues to every RUNE holder.",
+  Revenue: "The share of swap fees burned as RUNE (1% since 2026-09-12, 5% before) - value to all RUNE holders - plus protocol-kept income (outbound fees net of the gas reimbursed to nodes, slashing fees, developer fund, marketing fund and the 20% directed into protocol-owned liquidity). The node-bonder share of swap fees is treated as a security cost and the LP, affiliate and TCY shares as supplier payments, so none of those count as revenue.",
+  ProtocolRevenue: "Income kept by the protocol: outbound fees net of the gas reimbursed to nodes, slashing fees paid into the Reserve, plus the 5% developer fund, 5% marketing fund and 20% protocol-owned liquidity taken from swap fees.",
+  HoldersRevenue: "Value to RUNE holders: the share of swap fees burned as RUNE (1% since 2026-09-12, 5% before), permanently removed from supply - the only component that accrues to every RUNE holder.",
   SupplySideRevenue: "Value paid to suppliers: the node-operator (RUNE bonder) share of swap fees set by the Incentive Pendulum (a security cost), the liquidity-provider share of swap fees (LP side of the Incentive Pendulum), affiliate fees passed through to integrators, the 10% of swap fees paid to TCY stakers, and the outbound gas costs reimbursed from the Reserve to nodes.",
 };
 
@@ -260,20 +267,22 @@ const breakdownMethodology = {
     'Affiliate Fees': "Fees charged by the interface or wallet that built the swap (attributed to the THORChain native chain).",
   },
   Revenue: {
-    'RUNE Burn': "5% of swap fees burned, permanently removing RUNE from supply (since 2024-09-16).",
+    'RUNE Burn': "Share of swap fees burned, permanently removing RUNE from supply (5% from 2024-09-16, 1% from 2026-09-12).",
     'Outbound Fees': outboundNetNote,
     'Slashing Fees': slashingNote,
     'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
+    'Protocol Owned Liquidity': "20% of swap fees the Reserve directs into protocol-owned liquidity (since 2026-09-01).",
   },
   ProtocolRevenue: {
     'Outbound Fees': outboundNetNote,
     'Slashing Fees': slashingNote,
     'Developer Fund': "5% of swap fees allocated to the developer fund (since 2024-09-16).",
     'Marketing Fund': "5% of swap fees allocated to the marketing fund (since 2025-11-04).",
+    'Protocol Owned Liquidity': "20% of swap fees the Reserve directs into protocol-owned liquidity (since 2026-09-01).",
   },
   HoldersRevenue: {
-    'RUNE Burn': "5% of swap fees burned, permanently removing RUNE from supply and accruing value to RUNE holders (since 2024-09-16).",
+    'RUNE Burn': "Share of swap fees burned, permanently removing RUNE from supply and accruing value to RUNE holders (5% from 2024-09-16, 1% from 2026-09-12).",
   },
   SupplySideRevenue: {
     'Swap Fees To RUNE Bonders': "Node operators' (RUNE bonders') share of swap fees, set network-wide by the Incentive Pendulum - a security cost paid to the nodes that bond RUNE to secure the network.",

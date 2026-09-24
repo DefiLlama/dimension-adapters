@@ -41,7 +41,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2021-08-31', },
     [CHAIN.AVAX]: { start: '2021-12-22', },
-    [CHAIN.BOTANIX]: { start: '2025-05-30', },
+    // GMX sunset Botanix on 2026-08-01 and the chain itself shut down, the botanix squid endpoint now 404s
+    [CHAIN.BOTANIX]: { start: '2025-05-30', deadFrom: '2026-08-01', },
     [CHAIN.MEGAETH]: { start: '2026-04-08', },
   }
 }

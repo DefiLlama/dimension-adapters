@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -72,8 +73,8 @@ const chainConfig: Record<string, ChainCfg> = {
       "0xe9234C7706a7b15A20947fCBd8390c808c523646", // SubscriptionVault4337 v2 (Jul 2026)
     ],
     tokens: [
-      "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT (6 dec)
-      "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359", // USDC native (6 dec)
+      ADDRESSES.polygon.USDT, // USDT (6 dec)
+      ADDRESSES.polygon.USDC_CIRCLE, // USDC native (6 dec)
     ],
     start: "2026-06-10", // conservative lower bound: v1 vault deployed mid-June 2026
   },
@@ -83,7 +84,7 @@ const chainConfig: Record<string, ChainCfg> = {
       "0x6Ed0049DD3F8d6eb24f81fc1ad9978D50cd1D7d8", // SubscriptionVault4337 v2 (Jul 2026)
     ],
     tokens: [
-      "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC (6 dec)
+      ADDRESSES.base.USDC, // USDC (6 dec)
       "0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42", // EURC (6 dec)
     ],
     start: "2026-07-05", // v1 vault deployment day on Base
@@ -94,8 +95,8 @@ const chainConfig: Record<string, ChainCfg> = {
       "0x1dd00Dfb68773d2043e24A0Ebb6EAdC2e6Ab1953", // SubscriptionVault4337 v2 (Jul 2026)
     ],
     tokens: [
-      "0xaf88d065e77c8cc2239327c5edb3a432268e5831", // USDC native (6 dec)
-      "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", // USDT (6 dec)
+      ADDRESSES.arbitrum.USDC_CIRCLE, // USDC native (6 dec)
+      ADDRESSES.arbitrum.USDT, // USDT (6 dec)
     ],
     start: "2026-07-06", // v1 vault deployment day on Arbitrum
   },
@@ -105,8 +106,8 @@ const chainConfig: Record<string, ChainCfg> = {
       "0x1dd00Dfb68773d2043e24A0Ebb6EAdC2e6Ab1953", // SubscriptionVault4337 v2 (Jul 2026)
     ],
     tokens: [
-      "0x0b2c639c533813f4aa9d7837caf62653d097ff85", // USDC native (6 dec)
-      "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58", // USDT (6 dec)
+      ADDRESSES.optimism.USDC_CIRCLE, // USDC native (6 dec)
+      ADDRESSES.optimism.USDT, // USDT (6 dec)
     ],
     start: "2026-07-06", // v1 vault deployment day on Optimism
   },
@@ -126,9 +127,9 @@ const chainConfig: Record<string, ChainCfg> = {
       "0x72ddc27e44FD5F8dCfb494317241c4e60575eEd3", // SubscriptionVault v1
     ],
     tokens: [
-      "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e", // USDC native (6 dec)
-      "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7", // USDT (6 dec)
-      "0xc891eb4cbdeff6e073e859e987815ed1505c2acd", // EURC native (6 dec)
+      ADDRESSES.avax.USDC, // USDC native (6 dec)
+      ADDRESSES.avax.USDt, // USDT (6 dec)
+      ADDRESSES.avax.EURC, // EURC native (6 dec)
     ],
     start: "2026-07-13", // day both chains were integrated
   },
@@ -142,7 +143,7 @@ const chainConfig: Record<string, ChainCfg> = {
       // allowlist is deliberate: the "USDC" commonly seen on BNB is Binance-Peg
       // bridged, which AxiumPass does not offer at checkout and therefore does
       // not count.
-      "0x55d398326f99059ff775485246999027b3197955", // USDT (18 dec)
+      ADDRESSES.bsc.USDT, // USDT (18 dec)
     ],
     start: "2026-07-13",
   },

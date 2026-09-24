@@ -240,7 +240,7 @@ const breakdownMethodology = {
 }
 
 const AaveNonBuybackTransferAddresses = [
-  '0x0000000000000000000000000000000000000000',
+  ADDRESSES.null,
   '0x4da27a545c0c5b758a6ba100e3a049001de870f5', // stkAAVE
   '0xdef1fa4cefe67365ba046a7c630d6b885298e210', // deployer
   '0x25f2226b597e8f9514b3f68f00f494cf4f286491', // ecosystem reserve

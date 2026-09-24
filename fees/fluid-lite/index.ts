@@ -4,7 +4,7 @@ import BigNumber from 'bignumber.js';
 import ADDRESSES from '../../helpers/coreAssets.json'
 
 const iETHv2_VAULT = "0xA0D3707c569ff8C87FA923d3823eC5D81c98Be78";
-const stETHAddress = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+const stETHAddress = ADDRESSES.ethereum.STETH;
 const EventLogCollectRevenue = 'event LogCollectRevenue(uint256 amount, address indexed to)';
 
 const USDLiteVAULT = '0x273DA948ACa9261043fbdb2a857BC255ECC29012';

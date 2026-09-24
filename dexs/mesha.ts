@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // Mesha settles every position on Robinhood Chain as a USDG transfer against its pool, so
 // volume and fees are read from event logs only — no project API is involved.
 const POOL = "0x55d29b1c13943196bcc044360D197dFccbD9506d";
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"; // 6 decimals, 1:1 USD stablecoin
+const USDG = ADDRESSES.robinhood.USDG; // 6 decimals, 1:1 USD stablecoin
 
 const TRANSFER_ABI = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";

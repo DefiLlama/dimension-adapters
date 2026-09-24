@@ -5,6 +5,8 @@ import { METRIC } from "../../helpers/metrics";
 
 // ARMSys — a Uniswap v4 dynamic-fee hook (volatility-laddered swap fees) live on
 // Base (ETH/USDC) and Robinhood Chain (tokenized equities NVDA/INTC/SPCX vs USDG).
+// Robinhood Chain is migrating from the v4 hook generation to v5 (2026-09-17); both
+// generations run in parallel, so `hooks`/`pools` list both until the migration completes.
 //
 // Everything is measured from on-chain events, the same way the protocol's own
 // published daily reports do it:
@@ -21,40 +23,46 @@ const T_SWAP = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad711
 const T_HOOKFEE = "0x66b812eed335fdc113a52e231f8ef389f0bd52d9e8710dffab976481aeace5a8";
 
 type PoolCfg = { pid: string; token0: string; token1: string };
-type ChainCfg = { poolManager: string; hook: string; keeper: string; pools: PoolCfg[] };
+type ChainCfg = { poolManager: string; hooks: string[]; keeper: string; pools: PoolCfg[] };
 
 const CONFIG: Record<string, ChainCfg> = {
   [CHAIN.BASE]: {
     poolManager: "0x498581fF718922c3f8e6A244956aF099B2652b2b",
-    hook: "0x7fB4846d3987476577319f112731BB04f45880C8",
+    hooks: ["0x7fB4846d3987476577319f112731BB04f45880C8"],
     keeper: "0x252aeca194843310b83f3426cd4e4a7622aba166",
     pools: [
       { // ETH/USDC, dynamic fee
         pid: "0x088b6b69cbcaf84dae02a28dc7b62912ec105b6970d1ab7b985e4e50b6088ccd",
         token0: ADDRESSES.null, // native ETH is currency0 in v4
-        token1: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC
+        token1: ADDRESSES.base.USDC, // USDC
       },
     ],
   },
   [CHAIN.ROBINHOOD]: {
     poolManager: "0x8366a39CC670B4001A1121B8F6A443A643e40951",
-    hook: "0x20f8B7ec9cC3Bb5c739deDB15a8b4275F84B00c8",
+    // v4 (live) and v5 (2026-09-17) hook generations run in parallel during the migration.
+    hooks: ["0x20f8B7ec9cC3Bb5c739deDB15a8b4275F84B00c8", "0x73dfD2AeC79C0E8990906628c1718f878F8EC0c8"],
     keeper: "0x4be8dd43025b34c2a1c7ab3a347f8d2109cd5226",
     pools: [
       { // USDG/NVDA
         pid: "0x53e74184f024eb01ceb7bbde68866bff3cc3ddf378c78745eb52bdd9ad7bcd91",
-        token0: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token0: ADDRESSES.robinhood.USDG, // USDG
         token1: "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec", // NVDA
       },
       { // USDG/INTC
         pid: "0x0703d548618b02c35d53acc889c1edb792aabccde3217004cd7dabb604fad3bd",
-        token0: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token0: ADDRESSES.robinhood.USDG, // USDG
         token1: "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681", // INTC
       },
       { // SPCX/USDG — note the inverted order: SPCX sorts below USDG
         pid: "0xdbd476102c84ca90d501b1330b11e9a6c092ab9a811a7f6a45b1d971872fab13",
         token0: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", // SPCX
-        token1: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+        token1: ADDRESSES.robinhood.USDG, // USDG
+      },
+      { // v5 INTC/USDG (ARMSHookV5RWA), listed 2026-09-17
+        pid: "0x4d0e6d81d9634c20ea0fd3f980f67560c06a76f3d530eef9654ecca7381acb53",
+        token0: ADDRESSES.robinhood.USDG, // USDG
+        token1: "0xc72b96e0e48ecd4dc75e1e45396e26300bc39681", // INTC
       },
     ],
   },
@@ -93,14 +101,16 @@ const fetch = async (options: FetchOptions) => {
       const a0 = signed(word(log.data, 0));
       const a1 = signed(word(log.data, 1));
       const feePips = word(log.data, 5);
-      // the fee is charged on the input side — the positive amount
-      if (a0 > 0n) lpFees.add(pool.token0, (a0 * feePips) / 1_000_000n);
-      else if (a1 > 0n) lpFees.add(pool.token1, (a1 * feePips) / 1_000_000n);
+      // v4's delta is signed from the swapper's side, not the pool's: negative = what they
+      // paid in (the input the fee is charged on), positive = what they received. Verified
+      // against a real tx's own Transfer logs on this pool's own chain.
+      if (a0 < 0n) lpFees.add(pool.token0, (-a0 * feePips) / 1_000_000n);
+      else if (a1 < 0n) lpFees.add(pool.token1, (-a1 * feePips) / 1_000_000n);
     }
   }
 
   const hookLogs = await options.getLogs({
-    target: cfg.hook,
+    targets: cfg.hooks,
     topics: [T_HOOKFEE],
     entireLog: true,
   });
@@ -109,7 +119,7 @@ const fetch = async (options: FetchOptions) => {
     if (keeperTx.has(tx)) continue; // the keeper paying the hook is not revenue
     const currency = "0x" + log.data.slice(2 + 24, 2 + 64);
     const amount = word(log.data, 1);
-    hookFees.add(currency === "0x0000000000000000000000000000000000000000" ? ADDRESSES.null : currency, amount);
+    hookFees.add(currency === ADDRESSES.null ? ADDRESSES.null : currency, amount);
   }
 
   const dailyFees = options.createBalances();

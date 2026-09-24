@@ -111,6 +111,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     runAtCurrTime: true,
+    deadFrom: "2026-02-23"
 };
 
 export default adapter;

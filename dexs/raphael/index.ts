@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { cache } from "@defillama/sdk"
 import { CHAIN } from "../../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
@@ -12,7 +13,7 @@ const getFeeAbi = 'function getFee(address pool, bool _stable) view returns (uin
 // Raphael Exchange - Aerodrome/Velodrome-v2 (Solidly ve(3,3)) fork on Robinhood Chain
 const RAPH_FACTORY = '0x1A6745F84099Fa7E84D1f3B34c23482865194bd1'
 const RAPH_VOTER = '0x81024323a84Ae2DCaCee4E1d4087Cc2fb424fb27'
-const ZERO = '0x0000000000000000000000000000000000000000'
+const ZERO = ADDRESSES.null
 
 type GaugeCreatedSrc = { voter: string; fromBlock: number; abi: string; bribeField: string }
 type ChainCfg = {

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import type { FetchOptions, } from "../adapters/types";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -18,7 +19,7 @@ const chainConfigs: Record<string, any> = {
       '0x654e16a0b161b150F5d1C8a5ba6E7A7B7760703A', // alETH
     ],
     customAssets: {
-      [formatAddress('0x248a431116c6f6FCD5Fe1097d16d0597E24100f5')]: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      [formatAddress('0x248a431116c6f6FCD5Fe1097d16d0597E24100f5')]: ADDRESSES.arbitrum.USDC_CIRCLE,
     },
     start: '2023-07-03',
   },
@@ -28,7 +29,7 @@ const chainConfigs: Record<string, any> = {
       '0xe04Bb5B4de60FA2fBa69a93adE13A8B3B569d5B4', // alETH
     ],
     customAssets: {
-      [formatAddress('0x0A86aDbF58424EE2e304b395aF0697E850730eCD')]: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+      [formatAddress('0x0A86aDbF58424EE2e304b395aF0697E850730eCD')]: ADDRESSES.optimism.DAI,
     },
     start: '2022-09-17',
   },

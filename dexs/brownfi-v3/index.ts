@@ -38,6 +38,11 @@ const abis = {
   getConfig: "function getConfig(address pair) external view returns (tuple(uint256 kB, uint256 kQ, uint64 lambda, uint32 fee, uint32 feeSplit, uint32 compress, uint32 sSell, uint32 sBuy, uint32 fixS, uint32 disThreshold, uint32 sBound, uint32 pythWeight, uint32 gamma))"
 };
 
+// excluded from volume and fees
+const blacklistedPools = new Set([
+  '0xb236e833c5b7a5b99d8099699d7e2baf36c2dd86', // spy/usdg -> heavy wash trading
+])
+
 export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (options: FetchOptions) => {
   const { factory, pairConfig } = chainConfig[options.chain];
   const { createBalances, getLogs, chain, api } = options
@@ -49,6 +54,7 @@ export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (o
   const fees: any = {}
   const protocolFees: any = {}
   pairs.forEach((pair: string, i: number) => {
+    if (blacklistedPools.has(pair.toLowerCase())) return
     pairObject[pair] = [token0s[i], token1s[i]]
     fees[pair] = 0
     protocolFees[pair] = 0
@@ -86,10 +92,14 @@ export const getBrownFiV3Fetch = (chainConfig: BrownFiV3ChainConfig) => async (o
     const [token0, token1] = pairObject[pair]
     const feeRate = fee / (1 + fee)
     logs.forEach((log: any) => {
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0In, amount1: log.amount1In })
-      addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(log.amount0In) * feeRate, amount1: Number(log.amount1In) * feeRate })
-      addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(log.amount0In) * feeRate * protocolFee, amount1: Number(log.amount1In) * feeRate * protocolFee })
-      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(log.amount0In) * feeRate * (1 - protocolFee), amount1: Number(log.amount1In) * feeRate * (1 - protocolFee) })
+      // addOneToken prices a swap through the pair's core asset, so both the input and the
+      // output side have to be offered or swaps whose input is the non-core token are dropped
+      for (const [amount0, amount1] of [[log.amount0In, log.amount1In], [log.amount0Out, log.amount1Out]]) {
+        addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+        addOneToken({ chain, balances: feesRaw, token0, token1, amount0: Number(amount0) * feeRate, amount1: Number(amount1) * feeRate })
+        addOneToken({ chain, balances: revenue, token0, token1, amount0: Number(amount0) * feeRate * protocolFee, amount1: Number(amount1) * feeRate * protocolFee })
+        addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: Number(amount0) * feeRate * (1 - protocolFee), amount1: Number(amount1) * feeRate * (1 - protocolFee) })
+      }
     })
   })
 

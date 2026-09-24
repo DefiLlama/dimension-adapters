@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -8,7 +9,7 @@ const pools = [
     symbol: 'KLAY-AKLAY',
     poolType: 'BASE_POOL',
     coins: [
-      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      ADDRESSES.GAS_TOKEN_2,
       '0x74BA03198FEd2b15a51AF242b9c63Faf3C8f4D34'
     ],
   },
@@ -17,7 +18,7 @@ const pools = [
     symbol: 'KLAY-KSD',
     poolType: 'CRYPTO_POOL',
     coins: [
-      '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      ADDRESSES.GAS_TOKEN_2,
       '0x4Fa62F1f404188CE860c8f0041d6Ac3765a72E67'
     ],
   },
@@ -57,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
       const tokensBought = log.tokensBought
       const fee = log.fee
       let token = pool.coins[boughtId]
-      if (token.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') token = KLAY
+      if (token.toLowerCase() === ADDRESSES.GAS_TOKEN_2) token = KLAY
       dailyVolume.add(token, tokensBought)
     }
   }

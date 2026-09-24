@@ -34,9 +34,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2,
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
   };
 };
 
@@ -46,6 +47,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   // Earliest date the OpenInterest table has data for (BTC/SOL/ETH).
   start: '2023-12-29',
+  deadFrom: '2026-09-02'
 };
 
 export default adapter;

@@ -137,7 +137,7 @@ async function addMayhemFees(options: FetchOptions, dailyFees: any, dailyRevenue
 //   return dateMap[dateString]
 // }
 
-const PUMP_TOKEN_MINT = 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn'
+const PUMP_TOKEN_MINT = ADDRESSES.solana.PUMP
 const PUMP_TOKEN_DECIMALS = 6;
 const BURN_WALLETS = ['99mRw3EzdJZWEUjgp1nrU4WeHsukUBjbh7gYE7pm4F3c', '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM']
 

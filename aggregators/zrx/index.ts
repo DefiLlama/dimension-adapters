@@ -31,6 +31,7 @@ const CHAINS: TChain = {
   [CHAIN.ABSTRACT]: 2741,
   [CHAIN.TEMPO]: 4217,
   [CHAIN.ROBINHOOD]: 4663,
+  [CHAIN.ARC]: 5042,
 };
 
 const inflatedVolume: Record<string, Array<string>> = {

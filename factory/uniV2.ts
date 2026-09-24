@@ -1,8 +1,8 @@
 import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../helpers/chains";
-import { uniV2Exports } from "../helpers/uniswap";
+import { getUniV2LogAdapter, uniV2Exports } from "../helpers/uniswap";
 import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
-import { SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 
 const velodromeSwapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
@@ -10,6 +10,21 @@ const echodexSwapEvent = 'event Swap(address indexed sender, uint amount0In, uin
 const zealousSwapEvent = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to, bool isDiscountEligible)'
 
 const configs: Record<string, Record<string, any>> = {
+  "bdex-v2": {
+    // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
+    // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
+    [CHAIN.BOT_CHAIN]: { factory: '0x117115f3B72C8d1989178089A67D0C26f8EE0AA3', start: '2026-06-02', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
+  "ebisus-bay-dex": {
+    [CHAIN.CRONOS]: {
+      factory: '0x5f1d751f447236f486f4268b883782897a902379',
+      start: '2024-03-27',
+    },
+    [CHAIN.CRONOS_ZKEVM]: {
+      factory: '0x1A695B3aC30D41F9A1D856A27DD0D9DdaaCe750d',
+      start: '2024-08-13',
+    },
+  },
   "katana": {
     [CHAIN.RONIN]: { factory: '0xb255d6a720bb7c39fee173ce22113397119cb930', userFeesRatio: 1, revenueRatio: 0.0005 / 0.003, protocolRevenueRatio: 0.0005 / 0.003 },
   },
@@ -22,6 +37,10 @@ const configs: Record<string, Record<string, any>> = {
   },
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
+  },
+  "heliswap": {
+    // uniV2 fork on Hedera, replaces dead GraphQL backend
+    [CHAIN.HEDERA]: { factory: '0x0000000000000000000000000000000000134224', start: '2022-10-05' },
   },
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
@@ -138,6 +157,21 @@ const configs: Record<string, Record<string, any>> = {
   },
   "mistswap": {
     [CHAIN.SMARTBCH]: { factory: '0x6008247F53395E7be698249770aa1D2bfE265Ca0' },
+  },
+  "mojitoswap": {
+    // https://docs.mojitoswap.finance/q-and-a/make-your-own-drinks-on-mojitoswap
+    // https://docs.mojitoswap.finance/q-and-a/faq
+    // 0.30% swap fee: 0.18% LPs, 0.08% MJT buyback-and-burn, 0.04% treasury.
+    [CHAIN.KCC]: {
+      factory: '0x79855A03426e15Ad120df77eFA623aF87bd54eF3',
+      start: '2021-09-27',
+      allowReadPairs: true,
+      fees: 0.003,
+      userFeesRatio: 1,
+      revenueRatio: 0.12 / 0.3,
+      protocolRevenueRatio: 0.04 / 0.3,
+      holdersRevenueRatio: 0.08 / 0.3,
+    },
   },
   "gateswap": {
     [CHAIN.GATE_LAYER]: { factory: '0xaD8d59f3e026c02Aed0DAdFB46Ceca127030DFa2', start: '2025-09-28', },
@@ -446,6 +480,7 @@ const configs: Record<string, Record<string, any>> = {
   },
   "hybra-v2": {
     [CHAIN.HYPERLIQUID]: { factory: '0x9c7397c9C5ecC400992843408D3A283fE9108009', start: '2025-05-22', fees: 0.0025, stableFees: 0.0002, userFeesRatio: 1, revenueRatio: 0.12, protocolRevenueRatio: 0.12 },
+    [CHAIN.ROBINHOOD]: { factory: '0x76c1D39C33b773ABe8fBDD6253f4D09B735b2e7b', start: '2026-09-07', userFeesRatio: 1 },
   },
   "superswap-v2": {
     [CHAIN.OPTIMISM]: { factory: '0x22505cb4d5d10b2c848a9d75c57ea72a66066d8c', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
@@ -829,6 +864,17 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "bdex-v2": {
+    Volume: "Swap volume from all BDEX V2 pools deployed via the V2 factory on BOT Chain.",
+    Fees: "Users pay a 0.3% fee on every swap.",
+    Revenue: "No protocol fee is taken (factory feeTo is unset), all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
+  "ebisus-bay-dex": {
+    Volume: "Trading volume on the Cronos Ebisus Bay DEX, measured from one token side of each pool swap using the shared Uniswap V2 liquidity filters; excludes NFT trades.",
+    Fees: "Swap fees paid by users"
+  },
   "zyberswap-v2": {
     UserFees: "User pays 0.25% fees on each swap.",
     Fees: "A 0.25% of each swap is collected as trading fees",
@@ -881,12 +927,12 @@ const methodologyMap: Record<string, any> = {
     HoldersRevenue: '0.1%  swap fees goes to LOVE and gXOXO token stakers',
   },
   "hybra-v2": {
-    Volume: 'Total swap volume collected from factory 0x9c7397c9C5ecC400992843408D3A283fE9108009',
-    Fees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
-    UserFees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs.',
-    Revenue: '12% swap fees collected by protocol Treasury.',
-    ProtocolRevenue: '12% swap fees collected by protocol Treasury.',
-    SupplySideRevenue: '88% swap fees distributed to LPs.',
+    Volume: 'Total swap volume on Hyperliquid and Robinhood.',
+    Fees: 'Users paid 0.25% per swap for volatile pairs and 0.02% for stable pairs on Hyperliquid; Robinhood uses the factory rates at the end of each window.',
+    UserFees: 'Swap fees paid by users.',
+    Revenue: '12% of swap fees on Hyperliquid; the factory referral share goes to the treasury on Robinhood.',
+    ProtocolRevenue: 'The protocol share of swap fees goes to the treasury.',
+    SupplySideRevenue: 'Swap fees less the protocol share.',
   },
   "superswap-v2": {
     Fees: "User pays 0.3% fees on each swap.",
@@ -1212,6 +1258,8 @@ const deadFromMap: Record<string, string> = {
   "beamswap": "2025-08-12",
   "wagyuswap": "2026-03-16",
   "zircon-gamma": '2023-03-26',
+  "velocimeter-v2": "2026-05-17",
+  "astroswap": "2023-08-06",
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1323,12 +1371,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pancakeFactories",
   },
-  // "mojitoswap": { // in uniSubgraph
-  //   endpoints: {
-  //     [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-  //   },
-  //   start: 1634200191,
-  // },
   "neby-dex": {
     endpoints: {
       [CHAIN.SAPPHIRE]: "https://graph.api.neby.exchange/dex",
@@ -1366,6 +1408,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     endpoints: {
       [CHAIN.SONIC]: "https://subgraph.satsuma-prod.com/f6a8c4889b7b/clober/cpmm-v2-subgraph-sonic-mainnet/api",
     },
+    deadFrom: "2025-12-07"
   },
   "stellaswap-v3": {
     endpoints: {
@@ -1460,6 +1503,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "fathomSwapFactories",
     start: 1682640000,
+    deadFrom: "2026-08-05"
   },
   "fwx-dex": {
     endpoints: {
@@ -1512,6 +1556,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     endpoints: {
       [CHAIN.TOMBCHAIN]: "https://graph-node.lif3.com/subgraphs/name/lifeswap",
     },
+    deadFrom: "2026-04-20",
   },
   // "katana": {
   //   endpoints: {
@@ -1740,6 +1785,35 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (feesMethodologyMap[name]) adapter.methodology = feesMethodologyMap[name]
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
   feesProtocols[name] = adapter
+}
+
+protocols['bdex-v2'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['bdex-v2'].Fees },
+  UserFees: { 'Trading fees': 'Equals total swap fees paid by users.' },
+  Revenue: { 'Protocol fees': methodologyMap['bdex-v2'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v2'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v2'].SupplySideRevenue },
+}
+
+// RH has no referral program: Pair._update0/_update1 send MAX_REFERRAL_FEE to the treasury in dibs.
+// Factory: https://robinhoodchain.blockscout.com/address/0x76c1D39C33b773ABe8fBDD6253f4D09B735b2e7b
+protocols['hybra-v2'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['hybra-v2'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['hybra-v2'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['hybra-v2'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['hybra-v2'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['hybra-v2'].SupplySideRevenue },
+}
+protocols['hybra-v2'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOptions) => {
+  const config = configs['hybra-v2'][CHAIN.ROBINHOOD]
+  const volatileFee = await options.api.call({ target: config.factory, abi: 'uint256:volatileFee' })
+  const stableFee = await options.api.call({ target: config.factory, abi: 'uint256:stableFee' })
+  const referralFee = await options.api.call({ target: config.factory, abi: 'uint256:MAX_REFERRAL_FEE' })
+  const revenueRatio = Number(referralFee) / 10000
+  return getUniV2LogAdapter({
+    ...config, fees: Number(volatileFee) / 10000, stableFees: Number(stableFee) / 10000,
+    revenueRatio, protocolRevenueRatio: revenueRatio,
+  })(options)
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

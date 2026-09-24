@@ -7,10 +7,10 @@ const chainConfig: Record<string, { endpoint: string; start: string }> = {
     endpoint: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
     start: '2023-02-27',
   },
-  [CHAIN.CRONOS_ZKEVM]: {
-    endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
-    start: '2024-08-15',
-  },
+  // [CHAIN.CRONOS_ZKEVM]: {
+  //   endpoint: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn",
+  //   start: '2024-08-15',
+  // },
 };
 const toUSD = (value: string | bigint) => Number(BigInt(value) / 10n ** 24n) / 1e6;
 
@@ -47,9 +47,10 @@ const fetch = async (options: FetchOptions) => {
   const oi = dailyData.tradingStats[0];
 
   const dailyVolume = toUSD(BigInt(volume.margin) + BigInt(volume.liquidation));
-  const longOpenInterestAtEnd = toUSD(oi.longOpenInterest);
-  const shortOpenInterestAtEnd = toUSD(oi.shortOpenInterest);
-  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+  // pool venue with no single-sided field: average the two sides instead of summing them
+  const openInterestAtEnd = (toUSD(oi.longOpenInterest) + toUSD(oi.shortOpenInterest)) / 2;
+  const longOpenInterestAtEnd = toUSD(oi.longOpenInterest) / 2;
+  const shortOpenInterestAtEnd = toUSD(oi.shortOpenInterest) / 2;
 
   return {
     dailyVolume,

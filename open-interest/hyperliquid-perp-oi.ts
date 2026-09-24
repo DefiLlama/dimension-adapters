@@ -17,7 +17,8 @@ const fetch = async (options: FetchOptions) => {
 
     for (const item of oi_data.chart_data) {
       if (item.time === full_date_string) {
-        openInterestAtEnd += item.open_interest;
+        // same double-sided convention as the API, halved to stay continuous with the indexer branch
+        openInterestAtEnd += item.open_interest / 2;
       }
     }
 

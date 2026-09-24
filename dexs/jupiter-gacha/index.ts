@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -5,8 +6,14 @@ import { queryAllium } from "../../helpers/allium";
 // Jupiter Gacha settles through Collector Crypt's shared wallet; jupiter-* memos
 // isolate Jupiter activity. https://solscan.io/account/GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3
 const GACHA_ADDRESS = "GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3";
+// Phygitals settles Jupiter pack purchases through its own wallet, using the same jupiter-
+// memo convention. Two differences from Collector Crypt: the memo carries no :action suffix,
+// and the buyback leg is not memo-tagged, so only the purchase side is attributable to
+// Jupiter. It therefore contributes volume and nothing else.
+// https://solscan.io/account/62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS
+const PHYGITALS_ADDRESS = "62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS";
 // Canonical USDC mint on Solana.
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDC_MINT = ADDRESSES.solana.USDC;
 // Listed Jupiter Gacha pack prices; future/non-standard prices remain visible
 // under Other Gacha Pack Sales. https://jup.ag/gacha
 const GACHA_TIERS = new Set([25, 50, 100, 250, 1000, 2500]);
@@ -28,6 +35,7 @@ const fetch = async (options: FetchOptions) => {
         AND (
           to_address = '${GACHA_ADDRESS}'
           OR from_address = '${GACHA_ADDRESS}'
+          OR to_address = '${PHYGITALS_ADDRESS}'
         )
         AND ${timeRange}
     ),
@@ -62,6 +70,12 @@ const fetch = async (options: FetchOptions) => {
         AND to_address = '${GACHA_ADDRESS}'
       GROUP BY amount
     ),
+    phygitals_sales AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS total
+      FROM events
+      WHERE to_address = '${PHYGITALS_ADDRESS}'
+    ),
     buybacks AS (
       SELECT
         COALESCE(SUM(amount), 0) AS total
@@ -80,6 +94,12 @@ const fetch = async (options: FetchOptions) => {
       NULL AS amount,
       total
     FROM buybacks
+    UNION ALL
+    SELECT
+      'phygitals' AS action,
+      NULL AS amount,
+      total
+    FROM phygitals_sales
   `;
 
   const rows = await queryAllium(query);
@@ -97,6 +117,10 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addUSDValue(total, label);
     } else if (row.action === "buyback") {
       dailyFees.addUSDValue(-total, "Pack Buyback Spends");
+    } else if (row.action === "phygitals") {
+      // Volume only: the Phygitals buyback leg carries no jupiter- memo, so there is
+      // nothing to net these sales against.
+      dailyVolume.addUSDValue(total);
     }
   }
 
@@ -112,7 +136,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Gross USDC spent on Jupiter Gacha packs.",
+  Volume: "Gross USDC spent on Jupiter Gacha packs, across Collector Crypt and Phygitals.",
   Fees: "Jupiter Gacha pack sales minus card buyback payouts.",
   Revenue: "Jupiter doesn't retain any revenue, all the revenue belongs to Collector Crypt.",
   UserFees: "Net amount paid by users after card buybacks.",
