@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -104,7 +103,7 @@ type Withheld = {
 // Only the pools that actually paid a regime fee in this window get looked up: an
 // opening-window fee splits the same way whatever the launch chose, so it needs no
 // lookup at all, and most windows touch one pool or none.
-async function getRewardHoldersByPool(chain: string, withheld: Withheld[]) {
+async function getRewardHoldersByPool(options: FetchOptions, withheld: Withheld[]) {
   const wanted = new Map<string, Set<string>>();
   for (const w of withheld) {
     if (w.openingWindow || !w.launchpad) continue;
@@ -115,10 +114,9 @@ async function getRewardHoldersByPool(chain: string, withheld: Withheld[]) {
   const rewardHolders = new Map<string, boolean>();
   if (!wanted.size) return rewardHolders;
 
-  const api = new ChainApi({ chain });
   for (const [launchpad, poolIds] of wanted) {
     const ids = [...poolIds];
-    const records = await api.multiCall({
+    const records = await options.api.multiCall({
       abi: LAUNCH_RECORD_ABI,
       target: launchpad,
       calls: ids.map((params) => ({ params })),
@@ -160,7 +158,7 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  const rewardHoldersByPool = await getRewardHoldersByPool(options.chain, withheld);
+  const rewardHoldersByPool = await getRewardHoldersByPool(options, withheld);
 
   for (const { poolId, currency, amount, openingWindow } of withheld) {
     // A native-quoted pool would use the zero address as its v4 currency (18-decimal,
