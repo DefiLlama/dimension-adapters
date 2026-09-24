@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../../helpers/hyperliquid";
 import fetchURL from "../../utils/fetchURL";
 
-// Builder code of every free (house-mode) Floatout DEX. It is also Floatout's platform treasury, so 100% of its fees are Floatout revenue. https://floatout.xyz
+// Builder code of every free (house-mode) Floatout DEX, owned by Floatout, so 100% of its fees are Floatout revenue. https://floatout.xyz
 const HOUSE_BUILDER = "0x8e31dfb0fb06b92a4b623c17e139fc9119484fc8";
 // Pilot DEX BuilderLedger proxy, deployed by the retired pilot key 0x48c59a630dc50bf0d4b1635bf708078a95a9fb78
 // in tx 0xbae8978dfe0830f74b621b44358669b19f53334642a3cf5cb70f37f0b9c21246 on HyperEVM. That key is retired, so this never changes.
