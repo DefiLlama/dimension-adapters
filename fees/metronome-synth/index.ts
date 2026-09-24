@@ -3,13 +3,13 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
-const TREASURY = {
+const TREASURY: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33",
   [CHAIN.BASE]:     "0xe01df4ac1e1e57266900e62c37f12c986495a618",
   [CHAIN.OPTIMISM]: "0xE01Df4ac1E1e57266900E62C37F12C986495A618",
 };
 
-const SYNTHS = {
+const SYNTHS: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
     "0x8b4F8aD3801B4015Dea6DA1D36f063Cbf4e231c7",
     "0xab5eB14c09D416F0aC63661E57EDB7AEcDb9BEfA",
@@ -188,6 +188,7 @@ const BLACKLISTED_TXS: Record<string, Set<string>> = {
     // 2025-07-31: c0ffeebabe.eth returned ~900 msETH to the Metronome treasury after
     // it was recovered from the Curve exploit. This is a recovery transfer, not interest revenue.
     "0x7c4ba39dad59ad91f9f0102de833fbc5a8f40122d796e73022ec57c6d29e439f".toLowerCase(),
+    "0x6ffef3d8c4849dd8cadf83c4b88548cfa679efb01647166a9d0368b6f06d4866"
   ]),
 };
 
