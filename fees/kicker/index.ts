@@ -10,8 +10,8 @@ import { METRIC } from "../../helpers/metrics";
  * and the creator tax of every launched coin is collected onto the pot's floor. Pot shares redeem pro rata.
  *
  * Fee sources, all denominated in the pot's core asset:
- * 1. Creator tax collected from launched coins onto the floor (Collect.coreIn): it raises NAV per share of every
- *    pot shareholder (K holder), so it is holders revenue.
+ * 1. Creator tax collected from launched coins onto the floor (Collect.coreIn): it raises NAV per share of the pot's
+ *    depositors (K is a redeemable vault share, not a governance token), so it is supply side.
  * 2. With launch terms (v0.5+), the tax is first split (TaxSplit.Split): a launcher share, a buyback share that
  *    buys and burns the launched coin (both supply side), a 10% platform share, and the rest onto the floor (already in Collect).
  * 3. A 0.5% fee on every pot deposit (Fees: creator / referrer = supply side, platform = protocol).
@@ -28,7 +28,7 @@ const LAUNCH_TERMS_V6 = "event LaunchTerms(address indexed token, address indexe
 const SPLIT = "event Split(uint256 total, uint256 toLauncher, uint256 toPlatform, uint256 toBurn, uint256 toPot)";
 
 const NULL = "0x0000000000000000000000000000000000000000";
-const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share" };
+const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share", LAUNCHER: "Launcher Share Of Creator Tax", BURN: "Launched Coin Buyback And Burn" };
 
 const FACTORIES: { target: string; fromBlock: number }[] = [
     { target: "0x8cedef3db74173bf392cf5e8bafbee6d826fb29b", fromBlock: 61964437 },
@@ -70,14 +70,13 @@ async function fetch(options: FetchOptions) {
   const add = (b: ReturnType<FetchOptions["createBalances"]>, core: string, amt: any, label: string) =>
     core === NULL ? b.addGasToken(amt, label) : b.add(core, amt, label);
 
-  // 1. creator tax that reached a floor: paid by swappers of launched coins, accrues to pot shareholders
+  // 1. creator tax that reached a floor: paid by swappers of launched coins, accrues to pot depositors
   const collects = await options.getLogs({ targets, eventAbi: COLLECT, flatten: false });
   collects.forEach((logs: any[], i: number) => {
     const core = coreOf[targets[i].toLowerCase()];
     for (const l of logs) {
       add(dailyFees, core, l.coreIn, METRIC.CREATOR_FEES);
-      add(dailyRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
-      add(dailyHoldersRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
+      add(dailySupplySideRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
     }
   });
 
@@ -107,8 +106,8 @@ async function fetch(options: FetchOptions) {
       splitLogs.forEach((logs: any[], i: number) => {
         const core = splits[i].core;
         for (const l of logs) {
-          add(dailyFees, core, l.toLauncher, METRIC.CREATOR_FEES); add(dailyFees, core, l.toBurn, METRIC.CREATOR_FEES); add(dailyFees, core, l.toPlatform, LABEL.TERMS);
-          add(dailySupplySideRevenue, core, l.toLauncher, METRIC.CREATOR_FEES); add(dailySupplySideRevenue, core, l.toBurn, METRIC.CREATOR_FEES);
+          add(dailyFees, core, l.toLauncher, LABEL.LAUNCHER); add(dailyFees, core, l.toBurn, LABEL.BURN); add(dailyFees, core, l.toPlatform, LABEL.TERMS);
+          add(dailySupplySideRevenue, core, l.toLauncher, LABEL.LAUNCHER); add(dailySupplySideRevenue, core, l.toBurn, LABEL.BURN);
           add(dailyRevenue, core, l.toPlatform, LABEL.TERMS); add(dailyProtocolRevenue, core, l.toPlatform, LABEL.TERMS);
         }
       });
@@ -126,19 +125,20 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Creator tax on swaps of coins launched through Kicker pots (floor, launcher, buyback and platform parts) plus the 0.5% fee on pot deposits, in the pot's core asset.",
     UserFees: "Same as Fees: every part is paid by users.",
-    Revenue: "Creator tax collected onto pot floors plus the platform shares (10% of taxes on coins launched with terms and the platform part of deposit fees).",
+    Revenue: "The platform shares: 10% of taxes on coins launched with terms and the platform part of deposit fees. Creator tax onto pot floors is not revenue.",
     ProtocolRevenue: "The platform shares, received by KickerBuyer. KickerBuyer later spends them on KICKER buybacks and burns; that spend is not counted again.",
-    HoldersRevenue: "Creator tax collected onto pot floors, in the pot's core asset. It raises the redeemable NAV of every pot share (K).",
-    SupplySideRevenue: "Launcher and buyback shares of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
+    HoldersRevenue: "None. Pot shares (K) are redeemable vault shares, not a governance or value-accrual token.",
+    SupplySideRevenue: "Creator tax collected onto pot floors (accrues to pot depositors), launcher and buyback shares of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.CREATOR_FEES]: "Creator tax on swaps of launched coins: floor, launcher and buyback parts.",
+      [METRIC.CREATOR_FEES]: "Creator tax on swaps of launched coins collected onto pot floors.",
+      [LABEL.LAUNCHER]: "Launcher's share of the tax on coins launched with terms.",
+      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin.",
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms.",
       [LABEL.DEPOSIT]: "0.5% fee on pot deposits (pot creator, referrer, platform).",
     },
     Revenue: {
-      [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors.",
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms.",
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee.",
     },
@@ -146,11 +146,10 @@ const adapter: SimpleAdapter = {
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms, received by KickerBuyer.",
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee, received by KickerBuyer.",
     },
-    HoldersRevenue: {
-      [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors, accruing to pot shareholders.",
-    },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: "Launcher share and launched-coin buyback share of taxes on coins launched with terms.",
+      [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors, accruing to pot depositors.",
+      [LABEL.LAUNCHER]: "Launcher's share of the tax on coins launched with terms.",
+      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin.",
       [LABEL.DEPOSIT]: "Pot creator and referrer parts of the 0.5% deposit fee.",
     },
   },
