@@ -19,14 +19,20 @@ interface ChainConfig {
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.OPTIMISM]: {
+    // Official Auditor contract on Optimism (https://optimistic.etherscan.io/address/0xaEb62e6F27BC103702E7BC879AE98bceA56f027E)
+    // Deployed at block 78,310,663 (~2023-03-04); also listed in DefiLlama TVL adapter (projects/exactly/index.js)
     auditor: "0xaEb62e6F27BC103702E7BC879AE98bceA56f027E",
     start: "2023-03-04",
   },
   [CHAIN.BASE]: {
+    // Official Auditor contract on Base (https://basescan.org/address/0x0Aeb0BCB919858C0a4dceC3EeD879985034A597c)
+    // Deployed at block 38,135,747 (2025-11-13T19:07:21Z); also listed in DefiLlama TVL adapter (projects/exactly/index.js)
     auditor: "0x0Aeb0BCB919858C0a4dceC3EeD879985034A597c",
     start: "2025-11-14",
   },
   [CHAIN.ETHEREUM]: {
+    // Official Auditor contract on Ethereum Mainnet (https://etherscan.io/address/0x310A2694521f75C7B2b64b5937C16CE65C3EFE01)
+    // Deployed at block 15,868,410 (~2022-11-01); also listed in DefiLlama TVL adapter (projects/exactly/index.js)
     auditor: "0x310A2694521f75C7B2b64b5937C16CE65C3EFE01",
     start: "2022-11-01",
   },
