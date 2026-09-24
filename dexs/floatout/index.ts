@@ -29,13 +29,11 @@ const getActivatedLedgers = async (options: FetchOptions) => {
   const calls = Array.from({ length: nonce }, (_, i) => getCreateAddress({ from: ACTIVATION_DEPLOYER, nonce: i }).toLowerCase());
   const usdcTokens = await options.api.multiCall({ abi: "function usdcCoreToken() view returns (uint64)", calls, permitFailure: true });
   const minDelays = await options.api.multiCall({ abi: "function getMinDelay() view returns (uint256)", calls, permitFailure: true });
-  // A failed call must be a TimelockController or a nonce that created no contract, never an RPC error on a ledger
-  // (that would silently drop its fees).
-  for (const [i, target] of calls.entries()) {
-    if (usdcTokens[i] !== null || minDelays[i] !== null) continue;
-    const code = await options.api.provider.getCode(target, await options.getToBlock());
-    if (code !== "0x") throw new Error(`floatout: unclassified contract ${target} from the activation deployer`);
-  }
+  // Ledgers and timelocks both implement ERC165, a nonce that created no contract does not. Every contract must be a ledger
+  // or a timelock, so a failed ledger call can never silently drop a ledger's fees.
+  const erc165 = await options.api.multiCall({ abi: "function supportsInterface(bytes4) view returns (bool)", calls: calls.map((target) => ({ target, params: ["0x01ffc9a7"] })), permitFailure: true });
+  const unclassified = calls.filter((_, i) => erc165[i] !== null && usdcTokens[i] === null && minDelays[i] === null);
+  if (unclassified.length) throw new Error(`floatout: unclassified contracts from the activation deployer: ${unclassified.join(", ")}`);
   return [PILOT_LEDGER, ...calls.filter((_, i) => usdcTokens[i] !== null)];
 };
 
