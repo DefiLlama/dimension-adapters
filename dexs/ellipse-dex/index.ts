@@ -57,6 +57,11 @@ const CRCL_ON_ORIGIN = "robinhood:0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5";
 // rate would be wrong for them and there is no need to guess one.
 const SWAP_V4 =
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
+// The pool id is the event's first indexed field, so each pool is asked for by id
+// rather than reading every v4 swap on the chain and throwing most of them away.
+// There are a lot to throw away: the busiest pool on Arc that is not Ellipse's did
+// 18,535 swaps in a single day while this was being written.
+const SWAP_V4_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 // v3 pools are their own contract and their fee is fixed at creation, so it is held
 // here beside the address.
 const SWAP_V3 =
@@ -125,11 +130,17 @@ const adapterFetch = async (options: FetchOptions) => {
     if (fee > 0n) dailyFees.add(pool.token, fee, { ...opts, label: SWAP_FEES });
   };
 
-  const byId: Record<string, (typeof V4_POOLS)[number]> = {};
-  for (const pool of V4_POOLS) byId[pool.id.toLowerCase()] = pool;
-
   const [v4Logs, v3Logs] = await Promise.all([
-    options.getLogs({ target: POOL_MANAGER, eventAbi: SWAP_V4 }),
+    Promise.all(
+      V4_POOLS.map(async (pool) => ({
+        pool,
+        logs: await options.getLogs({
+          target: POOL_MANAGER,
+          eventAbi: SWAP_V4,
+          topics: [SWAP_V4_TOPIC, pool.id],
+        }),
+      }))
+    ),
     Promise.all(
       V3_POOLS.map(async (pool) => ({
         pool,
@@ -138,12 +149,14 @@ const adapterFetch = async (options: FetchOptions) => {
     ),
   ]);
 
-  for (const log of v4Logs) {
-    const pool = byId[String(log.id).toLowerCase()];
-    if (!pool) continue; // every other v4 pool on Arc, which is not ours to count
-    const amount = abs(BigInt(pool.amount0 ? log.amount0 : log.amount1));
-    record(pool, amount, (amount * BigInt(log.fee)) / FEE_SCALE);
-  }
+  for (const { pool, logs } of v4Logs)
+    for (const log of logs) {
+      // The filter above already did this; kept so a mistyped id fails loudly on the
+      // pool it was meant for instead of quietly counting another protocol's swaps.
+      if (String(log.id).toLowerCase() !== pool.id.toLowerCase()) continue;
+      const amount = abs(BigInt(pool.amount0 ? log.amount0 : log.amount1));
+      record(pool, amount, (amount * BigInt(log.fee)) / FEE_SCALE);
+    }
 
   for (const { pool, logs } of v3Logs)
     for (const log of logs) {
@@ -170,6 +183,11 @@ const adapter: SimpleAdapter = {
   fetch: adapterFetch,
   chains: [CHAIN.ARC],
   start: "2026-09-06",
+  // These are Uniswap pools - the v3 ones from Arc's own v3 factory, the v4 ones on
+  // its canonical PoolManager - so the same swaps are already in the generic Uniswap
+  // adapters. This listing says whose markets they are; it must not add their volume
+  // to the chain's total a second time.
+  doublecounted: true,
   methodology: {
     Volume: "Swap volume in Ellipse's own markets on Arc: the Uniswap pools it opened for the assets it bridges (bCRCL, bGLD, bBTCB, bUSDT) and the market for its own token. Each swap is counted once, on whichever side has a price - USDC everywhere except the ELLIPSE market, which is counted on its bCRCL side and valued as the CRCL held in custody behind it. Launchpad launches are not counted: those pools are opened for other people's tokens on Uniswap's shared PoolManager, so their volume belongs to that DEX.",
     Fees: "The fee each swap paid to the pool. Two of these pools run Ellipse's market-hours hook and charge 1%, 2% or 3% depending on whether the underlying market is open or shut; for those the rate is read from the swap itself rather than assumed, and the rest are fixed at creation.",
