@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 /**
  * Kicker: redeemable floor pots on Robinhood Chain.
@@ -27,7 +28,7 @@ const LAUNCH_TERMS_V5 = "event LaunchTerms(address indexed token, address indexe
 const LAUNCH_TERMS_V6 = "event LaunchTerms(address indexed token, address indexed launcher, address split, uint16 creatorBps, uint16 burnBps, address burnTarget)";
 const SPLIT = "event Split(uint256 total, uint256 toLauncher, uint256 toPlatform, uint256 toBurn, uint256 toPot)";
 
-const NULL = "0x0000000000000000000000000000000000000000";
+const NULL = ADDRESSES.null;
 const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share", LAUNCHER: "Launcher Share Of Creator Tax", BURN: "Launched Coin Buyback And Burn" };
 
 const FACTORIES: { target: string; fromBlock: number }[] = [
@@ -46,12 +47,13 @@ const FACTORIES: { target: string; fromBlock: number }[] = [
 ];
 
 async function pots(options: FetchOptions): Promise<{ pot: string; core: string }[]> {
-  const out: { pot: string; core: string }[] = [];
-  for (const f of FACTORIES) {
-    const logs = await options.getLogs({ target: f.target, eventAbi: CREATED, fromBlock: f.fromBlock, cacheInCloud: true });
-    for (const l of logs) out.push({ pot: l.kicker, core: l.core });
-  }
-  return out;
+  const logs = await options.getLogs({
+    targets: FACTORIES.map((f) => f.target),
+    eventAbi: CREATED,
+    fromBlock: Math.min(...FACTORIES.map((f) => f.fromBlock)),
+    cacheInCloud: true,
+  });
+  return logs.map((l: any) => ({ pot: l.kicker, core: l.core }));
 }
 
 async function fetch(options: FetchOptions) {
@@ -122,6 +124,7 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ROBINHOOD]: { fetch, start: "2026-09-13" },
   },
+  pullHourly: true,
   methodology: {
     Fees: "Creator tax on swaps of coins launched through Kicker pots (floor, launcher, buyback and platform parts) plus the 0.5% fee on pot deposits, in the pot's core asset.",
     UserFees: "Same as Fees: every part is paid by users.",
