@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addProtocolCut, STONKBROKER, UNI_V4_POOL_MANAGER, UNI_V4_SWAP, UNI_V4_SWAP_TOPIC0, ZERO } from "./helpers";
+import { addProtocolCut, ZERO } from "./helpers";
+
 
 /**
  * StonkBrokers Safety Deposit Box — liquidity lockers on Robinhood Chain.
@@ -11,8 +12,6 @@ import { addProtocolCut, STONKBROKER, UNI_V4_POOL_MANAGER, UNI_V4_SWAP, UNI_V4_S
  *    lock owners' 80% share of LP fees claimed through the locked positions.
  * 2. Token vesting locker (StonkVestingLocker): 0.01% (1 bps) deposit fee,
  *    routed to the same SafetyDepositClockInV3.
- * 3. Protocol-owned Uniswap v4 STONK/ETH liquidity: the forever-escrowed
- *    position (#175704) whose sole irrevocable fee recipient is the treasury.
  *
  * The other StonkBrokers products (Anvil NFTFi, Broker Box, Safe Launch,
  * Nightshades, Smart LP) are listed separately under stonkbrokers-*.
@@ -33,17 +32,6 @@ const LOCKER_BROKER_BPS = 9000n;
 // Token vesting locker — 1 bps deposit fee → SafetyDepositClockInV3.
 const VESTING_LOCKER = "0x2b4aD79DA7BD3bF340bBd2aD2039b149214e9Aa9";
 
-// Uniswap v4 protocol-owned liquidity: the canonical STONK/ETH 1% pool's
-// dominant position (#175704) sits in an ownerless forever-escrow whose sole
-// irrevocable fee recipient is the treasury. Principal is locked forever as
-// market depth; the fee stream is protocol revenue. Fees are computed from
-// the PoolManager's Swap events on that pool, attributed by the escrow
-// position's share of the active liquidity carried in each Swap log (the
-// position is full-range, so it is always in range).
-const UNI_V4_POSM = "0x58daec3116aae6D93017bAAea7749052E8a04fA7";
-const POL_V4_POOL_ID = "0xd33c8fd38b06e989cdbd4dffdefab71c4bdd415b24964c8d69e38ff35b068f92";
-const POL_V4_POSITION_ID = 175704;
-
 const LOCK_FEES_COLLECTED =
   "event LockFeesCollected(uint256 indexed lockTokenId, uint256 userAmount0, uint256 userAmount1, uint256 protocolAmount0, uint256 protocolAmount1)";
 // liquidity is uint128 on-chain — wrong width → wrong topic0 and silent misses.
@@ -62,7 +50,6 @@ const LABELS = {
   LOCKER_STOCK_DIVIDENDS: "Locker fees → SafetyDepositClockIn brokers (90%)",
   LOCKER_PROTOCOL: "Locker fees → protocol wallet (10%)",
   LOCKER_LP_FEES: "Locked-LP trading fees claimed by lock owners (80% creator share)",
-  POL_V4_FEES: "Uniswap v4 POL fee income (forever-locked STONK/ETH position → treasury)",
   VESTING_FEES: "Token vesting locker deposit fees (0.01%)",
 };
 
@@ -141,26 +128,6 @@ const fetch = async (options: FetchOptions) => {
     [LOCKER_UP_V2, LOCKER_UP_CL].map((addr) => options.getLogs({ target: addr, eventAbi: LOCK_TOKENS_PAID })),
   );
   const vestingLockedLogs = await options.getLogs({ target: VESTING_LOCKER, eventAbi: POSITION_LOCKED });
-
-  // v4 POL: read the escrow position's live liquidity (full-range, so it is
-  // always in range), then the pool's Swap tape. Each Swap log carries the
-  // pool's active liquidity during that swap — the escrow's fee share of a
-  // swap is posLiquidity / swapLiquidity, capped at 1.
-  const polV4Liquidity = BigInt(
-    await options.api.call({
-      abi: "function getPositionLiquidity(uint256) view returns (uint128)",
-      target: UNI_V4_POSM,
-      params: [POL_V4_POSITION_ID],
-    }),
-  );
-  const polV4SwapLogs =
-    polV4Liquidity > 0n
-      ? await options.getLogs({
-          target: UNI_V4_POOL_MANAGER,
-          eventAbi: UNI_V4_SWAP,
-          topics: [UNI_V4_SWAP_TOPIC0, POL_V4_POOL_ID],
-        })
-      : [];
 
   // ── Liquidity locker protocol cuts ───────────────────────────────────────
   // Attribute 90/10 to match SafetyDepositClockInV3's hardwired split.
@@ -250,32 +217,6 @@ const fetch = async (options: FetchOptions) => {
     addProtocolCut(dailyProtocolRevenue, token, fee, LABELS.VESTING_FEES);
   }
 
-  // ── Uniswap v4 protocol-owned liquidity fees ─────────────────────────────
-  // The forever-escrowed STONK/ETH position earns LP fees on every swap in
-  // the canonical v4 pool; the treasury is the escrow's sole irrevocable fee
-  // recipient. v4 Swap deltas are user-perspective (negative = input token);
-  // the LP fee is charged on the input amount at the event's fee (ppm).
-  // currency0 on this pool is native ETH, currency1 is $STONKBROKER.
-  if (polV4Liquidity > 0n) {
-    for (const log of polV4SwapLogs) {
-      const swapLiquidity = BigInt(log.liquidity);
-      if (swapLiquidity <= 0n) continue;
-      const posShareLiq = polV4Liquidity > swapLiquidity ? swapLiquidity : polV4Liquidity;
-      const amount0 = BigInt(log.amount0);
-      const amount1 = BigInt(log.amount1);
-      const inputIsEth = amount0 < 0n;
-      const inputAmount = inputIsEth ? -amount0 : -amount1;
-      if (inputAmount <= 0n) continue;
-      const feeAmount = (inputAmount * BigInt(log.fee)) / 1_000_000n;
-      const escrowFee = (feeAmount * posShareLiq) / swapLiquidity;
-      if (escrowFee <= 0n) continue;
-      const token = inputIsEth ? ZERO : STONKBROKER;
-      addProtocolCut(dailyFees, token, escrowFee, LABELS.POL_V4_FEES);
-      addProtocolCut(dailyProtocolRevenue, token, escrowFee, LABELS.POL_V4_FEES);
-      addProtocolCut(dailyRevenue, token, escrowFee, LABELS.POL_V4_FEES);
-    }
-  }
-
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
 
@@ -288,11 +229,11 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Fees:
-      "Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers) from LockFeesCollected / LockLiquidityDecreased / LockTokensPaid; LP trading fees claimed through the locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); StonkVestingLocker 0.01% deposit fees; and the protocol-owned Uniswap v4 STONK/ETH liquidity's LP fee income (the forever-escrowed dominant position, attributed per swap by its share of active liquidity).",
+      "Safety Deposit Box liquidity-locker protocol cuts (Uniswap V3/V4 + up. DEX v2/CL lockers) from LockFeesCollected / LockLiquidityDecreased / LockTokensPaid; LP trading fees claimed through the locked positions (the lock owner's 80% share of LockFeesCollected plus gauge rewards from LockTokensPaid); and StonkVestingLocker 0.01% deposit fees.",
     Revenue:
-      "10% of locker protocol cuts, vesting-locker deposit fees, and the protocol-owned Uniswap v4 STONK/ETH position's LP fee income (treasury is the escrow's sole irrevocable fee recipient).",
+      "10% of locker protocol cuts and vesting-locker deposit fees.",
     ProtocolRevenue:
-      "10% of locker protocol cuts → protocol wallet; vesting-locker deposit fees → SafetyDepositClockInV3; protocol-owned Uniswap v4 STONK/ETH position's LP fee income → treasury.",
+      "10% of locker protocol cuts → protocol wallet; vesting-locker deposit fees → SafetyDepositClockInV3.",
     SupplySideRevenue:
       "90% of locker protocol cuts → SafetyDepositClockIn broker claims, and the lock owners' 80% share of locked-LP trading fees + gauge rewards claimed through the lockers.",
   },
@@ -304,18 +245,14 @@ const adapter: SimpleAdapter = {
         "LP trading fees earned by positions locked in the Safety Deposit Box and claimed by lock owners — the 80% userAmount share of LockFeesCollected plus gauge-staking rewards (LockTokensPaid userAmount). Withdrawal principal (LockLiquidityDecreased) is excluded.",
       [LABELS.VESTING_FEES]:
         "0.01% (1 bps) StonkVestingLocker deposit fee (PositionLocked.feeAmount), routed to SafetyDepositClockInV3.",
-      [LABELS.POL_V4_FEES]:
-        "LP fee income of the protocol-owned Uniswap v4 STONK/ETH position (forever-escrowed, treasury is the sole irrevocable fee recipient). Computed from PoolManager Swap events on the canonical pool: input-amount × swap fee (ppm), attributed by the position's share of the active liquidity carried in each Swap log (the position is full range, so it is always in range).",
     },
     Revenue: {
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
-      [LABELS.POL_V4_FEES]: "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     ProtocolRevenue: {
       [LABELS.LOCKER_PROTOCOL]: "10% of locker protocol fees → protocol wallet.",
       [LABELS.VESTING_FEES]: "StonkVestingLocker deposit fees → SafetyDepositClockInV3.",
-      [LABELS.POL_V4_FEES]: "Protocol-owned Uniswap v4 STONK/ETH LP fee income → treasury (escrow's sole irrevocable fee recipient).",
     },
     SupplySideRevenue: {
       [LABELS.LOCKER_STOCK_DIVIDENDS]:
