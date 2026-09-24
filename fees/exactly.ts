@@ -80,8 +80,8 @@ const fetch = async (options: FetchOptions) => {
 
   // 2. Multi-call underlying assets and dynamic treasury fee rates
   const [underlyings, treasuryFeeRates, debtBefore, debtAfter] = await Promise.all([
-    options.api.multiCall({ abi: "address:asset", calls: markets }),
-    options.api.multiCall({ abi: "uint256:treasuryFeeRate", calls: markets }),
+    options.toApi.multiCall({ abi: "address:asset", calls: markets }),
+    options.toApi.multiCall({ abi: "uint256:treasuryFeeRate", calls: markets }),
     options.fromApi.multiCall({
       abi: "function totalFloatingBorrowAssets() view returns (uint256)",
       calls: markets,
