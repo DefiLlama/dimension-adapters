@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    Volume: 'Same-chain swap volume executed through LI.FI for integrator "hyperdex": the input amount of every LiFiGenericSwapCompleted log carrying that integrator, whitelisted tokens only.',
+    Volume: 'Same-chain swap volume executed through LI.FI for integrator "hyperdex": the input amount of every LiFiGenericSwapCompleted log carrying that integrator. On chains with a DefiLlama token list (Ethereum, Base, Arbitrum) only whitelisted, non-blacklisted tokens count, as in aggregators/lifi; Robinhood Chain and Arc have no list yet, so every hyperdex swap there counts.',
   },
 }
 
