@@ -3,19 +3,20 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 /**
- * Kicker — redeemable floor pots on Robinhood Chain.
+ * Kicker: redeemable floor pots on Robinhood Chain.
  *
  * A pot is a vault with erc-20 shares (K) holding one core asset (native ETH or a tokenized stock such as GLD/NVDA).
  * Coins are launched through the pot on Pons
  * and the creator tax of every launched coin is collected onto the pot's floor. Pot shares redeem pro rata.
  *
  * Fee sources, all denominated in the pot's core asset:
- * 1. Creator tax collected from launched coins (Collect.coreIn) — lands on the floor, owned by pot shareholders (supply side).
+ * 1. Creator tax collected from launched coins onto the floor (Collect.coreIn): it raises NAV per share of every
+ *    pot shareholder (K holder), so it is holders revenue.
  * 2. With launch terms (v0.5+), the tax is first split (TaxSplit.Split): a launcher share, a buyback share that
  *    buys and burns the launched coin (both supply side), a 10% platform share, and the rest onto the floor (already in Collect).
  * 3. A 0.5% fee on every pot deposit (Fees: creator / referrer = supply side, platform = protocol).
- * The platform shares go to KickerBuyer, which converts them to GLD and buys and burns KICKER: the GLD spent on that
- * buy (Burned.gldIn) is holders revenue. Buybacks are batched by the keeper, so holders revenue lags fees.
+ * The platform shares are received by KickerBuyer and are protocol revenue. KickerBuyer later spends them on KICKER
+ * buybacks; that spend is not counted again.
  * Pons is listed separately; the launchpad's own fees are not counted here.
  */
 
@@ -25,10 +26,6 @@ const FEES = "event Fees(address indexed creator, address indexed ref, address i
 const LAUNCH_TERMS_V5 = "event LaunchTerms(address indexed token, address indexed launcher, address split, uint16 creatorBps, uint16 burnBps)";
 const LAUNCH_TERMS_V6 = "event LaunchTerms(address indexed token, address indexed launcher, address split, uint16 creatorBps, uint16 burnBps, address burnTarget)";
 const SPLIT = "event Split(uint256 total, uint256 toLauncher, uint256 toPlatform, uint256 toBurn, uint256 toPot)";
-
-const BURNED = "event Burned(address indexed caller, uint256 gldIn, uint256 kickerBurned)";
-const BUYERS = ["0x587aaB8A10d9fc0dBc21A05C09F70628e2929bAC", "0x0c596ECdf51722d46A55EB5AA48654EE7b07B44E"];
-const GLD = "0xc9a981fee1f9dec688bb123ccdecc63d0debfc4e";
 
 const NULL = "0x0000000000000000000000000000000000000000";
 const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share" };
@@ -73,13 +70,14 @@ async function fetch(options: FetchOptions) {
   const add = (b: ReturnType<FetchOptions["createBalances"]>, core: string, amt: any, label: string) =>
     core === NULL ? b.addGasToken(amt, label) : b.add(core, amt, label);
 
-  // 1. creator tax that reached a floor: paid by swappers of launched coins, owned by pot shareholders
+  // 1. creator tax that reached a floor: paid by swappers of launched coins, accrues to pot shareholders
   const collects = await options.getLogs({ targets, eventAbi: COLLECT, flatten: false });
   collects.forEach((logs: any[], i: number) => {
     const core = coreOf[targets[i].toLowerCase()];
     for (const l of logs) {
       add(dailyFees, core, l.coreIn, METRIC.CREATOR_FEES);
-      add(dailySupplySideRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
+      add(dailyRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
+      add(dailyHoldersRevenue, core, l.coreIn, METRIC.CREATOR_FEES);
     }
   });
 
@@ -115,10 +113,6 @@ async function fetch(options: FetchOptions) {
         }
       });
     }
-
-    // 4. KICKER buyback: GLD spent by KickerBuyer on the buy that is then burned
-    const burns = await options.getLogs({ targets: BUYERS, eventAbi: BURNED });
-    for (const l of burns) dailyHoldersRevenue.add(GLD, l.gldIn, METRIC.TOKEN_BUY_BACK);
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
@@ -132,10 +126,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Creator tax on swaps of coins launched through Kicker pots (floor, launcher, buyback and platform parts) plus the 0.5% fee on pot deposits, in the pot's core asset.",
     UserFees: "Same as Fees: every part is paid by users.",
-    Revenue: "The platform's 10% of taxes on coins launched with terms plus the platform part of deposit fees. Creator tax onto the floor is not revenue.",
-    ProtocolRevenue: "The platform shares above as they are received. They are converted to GLD and spent on KICKER buybacks in batches, so protocol and holders revenue do not foot day by day.",
-    HoldersRevenue: "GLD spent by KickerBuyer buying KICKER that is then burned, recognized on the buyback transaction. Pot floor accrual and burns of launched coins are not counted here.",
-    SupplySideRevenue: "Creator tax credited to pot floors (owned by pot shareholders), launcher and buyback shares of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
+    Revenue: "Creator tax collected onto pot floors plus the platform shares (10% of taxes on coins launched with terms and the platform part of deposit fees).",
+    ProtocolRevenue: "The platform shares, received by KickerBuyer. KickerBuyer later spends them on KICKER buybacks and burns; that spend is not counted again.",
+    HoldersRevenue: "Creator tax collected onto pot floors, in the pot's core asset. It raises the redeemable NAV of every pot share (K).",
+    SupplySideRevenue: "Launcher and buyback shares of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
   },
   breakdownMethodology: {
     Fees: {
@@ -144,6 +138,7 @@ const adapter: SimpleAdapter = {
       [LABEL.DEPOSIT]: "0.5% fee on pot deposits (pot creator, referrer, platform).",
     },
     Revenue: {
+      [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors.",
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms.",
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee.",
     },
@@ -152,10 +147,10 @@ const adapter: SimpleAdapter = {
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee, received by KickerBuyer.",
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: "GLD spent buying KICKER that is then burned.",
+      [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors, accruing to pot shareholders.",
     },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: "Creator tax credited to pot floors, launcher share and launched-coin buyback share.",
+      [METRIC.CREATOR_FEES]: "Launcher share and launched-coin buyback share of taxes on coins launched with terms.",
       [LABEL.DEPOSIT]: "Pot creator and referrer parts of the 0.5% deposit fee.",
     },
   },
