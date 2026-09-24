@@ -13,8 +13,9 @@ import ADDRESSES from "../../helpers/coreAssets.json";
  * Fee sources, all denominated in the pot's core asset:
  * 1. Creator tax collected from launched coins onto the floor (Collect.coreIn): it raises NAV per share of the pot's
  *    depositors (K is a redeemable vault share, not a governance token), so it is supply side.
- * 2. With launch terms (v0.5+), the tax is first split (TaxSplit.Split): a launcher share, a buyback share that
- *    buys and burns the launched coin (both supply side), a 10% platform share, and the rest onto the floor (already in Collect).
+ * 2. With launch terms (v0.5+), the tax is first split (TaxSplit.Split): a launcher share (supply side), a buyback share that
+ *    buys and burns a coin, a 10% platform share, and the rest onto the floor (already in Collect). The buyback share buys the
+ *    launched coin by default (supply side); since v0.6 a launch can set burnTarget to KICKER, and then it is holders revenue.
  * 3. A 0.5% fee on every pot deposit (Fees: creator / referrer = supply side, platform = protocol).
  * The platform shares are received by KickerBuyer and are protocol revenue. KickerBuyer later spends them on KICKER
  * buybacks; that spend is not counted again.
@@ -29,7 +30,8 @@ const LAUNCH_TERMS_V6 = "event LaunchTerms(address indexed token, address indexe
 const SPLIT = "event Split(uint256 total, uint256 toLauncher, uint256 toPlatform, uint256 toBurn, uint256 toPot)";
 
 const NULL = ADDRESSES.null;
-const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share", LAUNCHER: "Launcher Share Of Creator Tax", BURN: "Launched Coin Buyback And Burn" };
+const KICKER = "0x8a4b4202dcb9d5519cfe20829d526e06f5f3e32a";
+const LABEL = { DEPOSIT: "Deposit Fees", TERMS: "Launch Terms Platform Share", LAUNCHER: "Launcher Share Of Creator Tax", BURN: "Coin Buyback And Burn" };
 
 const FACTORIES: { target: string; fromBlock: number }[] = [
     { target: "0x8cedef3db74173bf392cf5e8bafbee6d826fb29b", fromBlock: 61964437 },
@@ -95,21 +97,24 @@ async function fetch(options: FetchOptions) {
 
   // 2. launch terms: the parts of the tax that never reach the floor (the floor part is already counted in Collect)
   {
-    const splits: { split: string; core: string }[] = [];
+    const splits: { split: string; core: string; toKicker: boolean }[] = [];
     for (const abi of [LAUNCH_TERMS_V5, LAUNCH_TERMS_V6]) {
       const terms = await options.getLogs({ targets, eventAbi: abi, flatten: false, fromBlock: 65202900, cacheInCloud: true });
       terms.forEach((logs: any[], i: number) => {
         const core = coreOf[targets[i].toLowerCase()];
-        for (const l of logs) splits.push({ split: l.split, core });
+        for (const l of logs) splits.push({ split: l.split, core, toKicker: String(l.burnTarget ?? NULL).toLowerCase() === KICKER });
       });
     }
     if (splits.length) {
       const splitLogs = await options.getLogs({ targets: splits.map((s) => s.split), eventAbi: SPLIT, flatten: false });
       splitLogs.forEach((logs: any[], i: number) => {
-        const core = splits[i].core;
+        const { core, toKicker } = splits[i];
         for (const l of logs) {
-          add(dailyFees, core, l.toLauncher, LABEL.LAUNCHER); add(dailyFees, core, l.toBurn, LABEL.BURN); add(dailyFees, core, l.toPlatform, LABEL.TERMS);
-          add(dailySupplySideRevenue, core, l.toLauncher, LABEL.LAUNCHER); add(dailySupplySideRevenue, core, l.toBurn, LABEL.BURN);
+          add(dailyFees, core, l.toLauncher, LABEL.LAUNCHER); add(dailyFees, core, l.toPlatform, LABEL.TERMS);
+          add(dailySupplySideRevenue, core, l.toLauncher, LABEL.LAUNCHER);
+          // the buyback share: KICKER as the target is a buyback of the protocol's token, any other target a buyback of that coin
+          if (toKicker) { add(dailyFees, core, l.toBurn, METRIC.TOKEN_BUY_BACK); add(dailyRevenue, core, l.toBurn, METRIC.TOKEN_BUY_BACK); add(dailyHoldersRevenue, core, l.toBurn, METRIC.TOKEN_BUY_BACK); }
+          else { add(dailyFees, core, l.toBurn, LABEL.BURN); add(dailySupplySideRevenue, core, l.toBurn, LABEL.BURN); }
           add(dailyRevenue, core, l.toPlatform, LABEL.TERMS); add(dailyProtocolRevenue, core, l.toPlatform, LABEL.TERMS);
         }
       });
@@ -128,20 +133,22 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Creator tax on swaps of coins launched through Kicker pots (floor, launcher, buyback and platform parts) plus the 0.5% fee on pot deposits, in the pot's core asset.",
     UserFees: "Same as Fees: every part is paid by users.",
-    Revenue: "The platform shares: 10% of taxes on coins launched with terms and the platform part of deposit fees. Creator tax onto pot floors is not revenue.",
+    Revenue: "The platform shares (10% of taxes on coins launched with terms and the platform part of deposit fees) plus the buyback share of taxes on coins launched with KICKER as their burn target. Creator tax onto pot floors is not revenue.",
     ProtocolRevenue: "The platform shares, received by KickerBuyer. KickerBuyer later spends them on KICKER buybacks and burns; that spend is not counted again.",
-    HoldersRevenue: "None. Pot shares (K) are redeemable vault shares, not a governance or value-accrual token.",
-    SupplySideRevenue: "Creator tax collected onto pot floors (accrues to pot depositors), launcher and buyback shares of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
+    HoldersRevenue: "The buyback share of taxes on coins launched with KICKER as their burn target: it buys KICKER and burns it. Pot shares (K) are redeemable vault shares, not a governance or value-accrual token, so floor accrual is not holders revenue.",
+    SupplySideRevenue: "Creator tax collected onto pot floors (accrues to pot depositors), launcher shares and buyback shares with any target but KICKER of taxes on coins launched with terms, and pot creator / referrer parts of deposit fees.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.CREATOR_FEES]: "Creator tax on swaps of launched coins collected onto pot floors.",
       [LABEL.LAUNCHER]: "Launcher's share of the tax on coins launched with terms.",
-      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin.",
+      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin (or another coin of its pair other than KICKER).",
+      [METRIC.TOKEN_BUY_BACK]: "Share of the tax on coins launched with KICKER as their burn target: buys and burns KICKER.",
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms.",
       [LABEL.DEPOSIT]: "0.5% fee on pot deposits (pot creator, referrer, platform).",
     },
     Revenue: {
+      [METRIC.TOKEN_BUY_BACK]: "Share of the tax on coins launched with KICKER as their burn target.",
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms.",
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee.",
     },
@@ -149,10 +156,13 @@ const adapter: SimpleAdapter = {
       [LABEL.TERMS]: "Platform's 10% of the tax on coins launched with terms, received by KickerBuyer.",
       [LABEL.DEPOSIT]: "Platform part of the 0.5% deposit fee, received by KickerBuyer.",
     },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "Share of the tax on coins launched with KICKER as their burn target: KICKER bought and burned.",
+    },
     SupplySideRevenue: {
       [METRIC.CREATOR_FEES]: "Creator tax collected onto pot floors, accruing to pot depositors.",
       [LABEL.LAUNCHER]: "Launcher's share of the tax on coins launched with terms.",
-      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin.",
+      [LABEL.BURN]: "Share of the tax on coins launched with terms that buys and burns the launched coin (or another coin of its pair other than KICKER).",
       [LABEL.DEPOSIT]: "Pot creator and referrer parts of the 0.5% deposit fee.",
     },
   },
