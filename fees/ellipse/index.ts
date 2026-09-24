@@ -1,4 +1,3 @@
-import { AbiCoder } from "ethers";
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -37,15 +36,13 @@ const LAUNCHPAD_BY_HOOK: Record<string, string> = Object.fromEntries(
   GENERATIONS.map((g) => [g.hook, g.launchpad])
 );
 
-// The fee event, emitted by the hook:
-//   Trattenuto(bytes32 indexed poolId, address indexed currency, uint256 amount,
-//              uint24 rate, bool openingWindow)
-// It fires on EVERY swap that pays a launch fee. The hook withholds the fee inside
-// beforeSwap as an ERC-6909 credit against the PoolManager and settles it to the
-// recipients later, in a separate permissionless call. This event is therefore the
-// fee at the moment the trader actually pays it, which is what a daily fee series
-// wants; the later settlement happens whenever someone bothers to trigger it, so its
-// timing carries no information. `openingWindow` selects which split applies (below).
+// The fee event, emitted by the hook. Signature Trattenuto(bytes32,address,uint256,uint24,bool);
+// poolId and currency are indexed. It fires on EVERY swap that pays a launch fee. The
+// hook withholds the fee inside beforeSwap as an ERC-6909 credit against the PoolManager
+// and settles it to the recipients later, in a separate permissionless call. This event
+// is therefore the fee at the moment the trader actually pays it, which is what a daily
+// fee series wants; the later settlement happens whenever someone bothers to trigger it,
+// so its timing carries no information. `openingWindow` selects which split applies (below).
 //
 // THE RATE IS NOT ASSUMED. It is 1% at regime, but an anti-sniper launch charges far
 // more on buys during its opening window, on a curve that decays over the first
@@ -53,10 +50,8 @@ const LAUNCHPAD_BY_HOOK: Record<string, string> = Object.fromEntries(
 // window pay the regime rate. The event carries both the amount and the rate that
 // produced it, and this adapter reads the amount, so the curve needs no reproducing
 // here and a change to it cannot silently put this adapter wrong.
-const FEE_WITHHELD_TOPIC = "0x7a32b29b5f762302ed32575acc509f82e36488f8f6b3a9e14bdd0150e31d3100";
-const FEE_WITHHELD_DATA_TYPES = ["uint256", "uint24", "bool"];
-
-const abiCoder = AbiCoder.defaultAbiCoder();
+const FEE_WITHHELD =
+  "event Trattenuto(bytes32 indexed poolId, address indexed currency, uint256 amount, uint24 rate, bool openingWindow)";
 
 // The launch record, read from the launchpad's public `lanci` mapping, keyed by the
 // same v4 pool id the fee event carries. Only `rewardHolders` is needed: the on-chain
@@ -146,20 +141,21 @@ const fetch = async (options: FetchOptions) => {
 
   const logs = await options.getLogs({
     targets: LAUNCH_HOOKS,
-    topic: FEE_WITHHELD_TOPIC,
-    entireLog: true,
+    eventAbi: FEE_WITHHELD,
+    onlyArgs: false,
     flatten: true,
   });
 
   const withheld: Withheld[] = [];
   for (const log of logs) {
-    const [amount, , openingWindow] = abiCoder.decode(FEE_WITHHELD_DATA_TYPES, log.data);
-    if (amount === 0n) continue;
+    const { poolId, currency, amount, openingWindow } = log.args;
+    const fee = BigInt(amount);
+    if (fee === 0n) continue;
     withheld.push({
       launchpad: LAUNCHPAD_BY_HOOK[log.address.toLowerCase()],
-      poolId: log.topics[1],
-      currency: "0x" + log.topics[2].slice(26),
-      amount,
+      poolId,
+      currency,
+      amount: fee,
       openingWindow,
     });
   }
@@ -205,7 +201,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "The fee a V5 or V6 launch pool charges on each trade, taken by that launch's hook inside the swap itself and read from the hook's own event, so the rate is never assumed here. It is 1% at regime; an anti-sniper launch charges more on buys during its opening window, on a curve that decays over the first blocks - 95%, then 70%, 40% and 10% - before settling at the same 1%, while sells in that window pay the regime rate. The fee is taken in either the launched token or its quote asset, whichever side the trader paid in. Both generations are read: V6 only took over new launches, it did not stop V5's existing pools from trading. V1-V4 legacy launches (pre-hook, plain Uniswap v3 with a per-launch lock contract) are not covered.",
   Revenue: "The protocol's share of each fee, which is a split of the fee and not a rate on the trade: it keeps 50% under the default split, 30% when the launch opted into Holder Rewards, and 10% of any fee taken during a launch's opening window, which has its own fixed split. All three are set by the contract and not adjustable after launch.",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "The protocol's share of each fee, which is a split of the fee and not a rate on the trade: it keeps 50% under the default split, 30% when the launch opted into Holder Rewards, and 10% of any fee taken during a launch's opening window, which has its own fixed split. All three are set by the contract and not adjustable after launch.",
   SupplySideRevenue: "Everything not kept by the protocol: the creator's share, the remainder streamed to the launched token's own holders via the Reward Vault on Holder-Rewards launches, and - on fees taken during the opening window - the 80% earmarked to the launch's Treasury Reserve, which buys the launched token back to burn it.",
 };
 
