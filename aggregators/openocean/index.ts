@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 
-const URL = "https://open-api.openocean.finance/v3";
+const URL = "https://open-api.de1.exchange/v3";
 const CHAINS: Record<string, string> = {
   [CHAIN.ETHEREUM]: "2022-01-01",
   [CHAIN.BSC]: "2022-01-01",
