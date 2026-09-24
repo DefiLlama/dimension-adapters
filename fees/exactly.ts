@@ -61,6 +61,31 @@ const getLogArg = (log: any, name: string): bigint => {
   return val !== undefined ? BigInt(val) : 0n;
 };
 
+/**
+ * Reconstructs Exactly's FixedLib.distributeEarnings logic:
+ * - backupSupplied = borrowed - min(borrowed, supplied)
+ * - backupEarnings = earnings * (borrowAmount - min(backupSupplied, borrowAmount)) / borrowAmount
+ * - unassignedEarnings = earnings - backupEarnings
+ * In collectFreeLunch: when treasuryFeeRate != 0, all backupEarnings go to treasury;
+ * otherwise backupEarnings go to earningsAccumulator (lenders).
+ */
+const distributeEarnings = (
+  borrowed: bigint,
+  supplied: bigint,
+  earnings: bigint,
+  borrowAmount: bigint
+): { unassignedEarnings: bigint; backupEarnings: bigint } => {
+  if (borrowAmount === 0n || earnings === 0n) {
+    return { unassignedEarnings: earnings, backupEarnings: 0n };
+  }
+  const minBorrowSupplied = borrowed < supplied ? borrowed : supplied;
+  const backupSup = borrowed - minBorrowSupplied;
+  const minCover = backupSup < borrowAmount ? backupSup : borrowAmount;
+  const backupEarnings = (earnings * (borrowAmount - minCover)) / borrowAmount;
+  const unassignedEarnings = earnings - backupEarnings;
+  return { unassignedEarnings, backupEarnings };
+};
+
 const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   const dailyFees = options.createBalances();
@@ -117,6 +142,42 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ targets: markets, eventAbi: LIQUIDATE_EVENT, onlyArgs: false }),
   ]);
 
+  const marketFeeRates: Record<string, bigint> = {};
+  markets.forEach((m, idx) => {
+    marketFeeRates[m] = BigInt(treasuryFeeRates[idx] ?? 0);
+  });
+
+  // Query pool balances (borrowed, supplied) for maturities with fixed borrow/withdraw activity
+  const poolKeySet = new Set<string>();
+  const poolKeys: { market: string; maturity: string }[] = [];
+
+  for (const log of [...borrowAtMaturityLogs, ...withdrawAtMaturityLogs]) {
+    const market = getLogMarket(log);
+    const maturity = String(getLogArg(log, "maturity"));
+    const key = `${market}:${maturity}`;
+    if (!poolKeySet.has(key)) {
+      poolKeySet.add(key);
+      poolKeys.push({ market, maturity });
+    }
+  }
+
+  const poolBalances: Record<string, { borrowed: bigint; supplied: bigint }> = {};
+  if (poolKeys.length > 0) {
+    const poolRes = await options.toApi.multiCall({
+      abi: "function fixedPoolBalance(uint256) view returns (uint256 borrowed, uint256 supplied)",
+      calls: poolKeys.map((p) => ({ target: p.market, params: [p.maturity] })),
+      permitFailure: true,
+    });
+    for (let i = 0; i < poolKeys.length; i++) {
+      const p = poolKeys[i];
+      const res = poolRes[i];
+      poolBalances[`${p.market}:${p.maturity}`] = {
+        borrowed: res ? BigInt(res.borrowed ?? res[0] ?? 0) : 0n,
+        supplied: res ? BigInt(res.supplied ?? res[1] ?? 0) : 0n,
+      };
+    }
+  }
+
   // Aggregate logs by market address
   const borrowsByMarket: Record<string, bigint> = {};
   for (const log of borrowLogs) {
@@ -130,11 +191,44 @@ const fetch = async (options: FetchOptions) => {
     repaysByMarket[market] = (repaysByMarket[market] ?? 0n) + getLogArg(log, "assets");
   }
 
-  const fixedBorrowInterestByMarket: Record<string, bigint> = {};
+  // Fixed borrow fee accumulation per market reconstructing FixedLib.distributeEarnings
+  const fixedBorrowFeesByMarket: Record<
+    string,
+    { grossFee: bigint; protocolCut: bigint; supplyCut: bigint }
+  > = {};
   for (const log of borrowAtMaturityLogs) {
     const market = getLogMarket(log);
-    fixedBorrowInterestByMarket[market] =
-      (fixedBorrowInterestByMarket[market] ?? 0n) + getLogArg(log, "fee");
+    const fee = getLogArg(log, "fee");
+    const assets = getLogArg(log, "assets");
+    const maturity = String(getLogArg(log, "maturity"));
+    const feeRate = marketFeeRates[market] ?? 0n;
+
+    if (fee > 0n) {
+      const rateBasedCut = (fee * feeRate) / WAD;
+      const earnings = fee - rateBasedCut;
+      const pool = poolBalances[`${market}:${maturity}`] ?? { borrowed: 0n, supplied: 0n };
+      const { backupEarnings } = distributeEarnings(
+        pool.borrowed,
+        pool.supplied,
+        earnings,
+        assets
+      );
+
+      // In collectFreeLunch: when treasuryFeeRate != 0, backupEarnings goes to treasury; otherwise to lenders
+      const protocolCut = feeRate !== 0n ? rateBasedCut + backupEarnings : 0n;
+      const supplyCut = fee - protocolCut;
+
+      const current = fixedBorrowFeesByMarket[market] ?? {
+        grossFee: 0n,
+        protocolCut: 0n,
+        supplyCut: 0n,
+      };
+      fixedBorrowFeesByMarket[market] = {
+        grossFee: current.grossFee + fee,
+        protocolCut: current.protocolCut + protocolCut,
+        supplyCut: current.supplyCut + supplyCut,
+      };
+    }
   }
 
   const latePenaltiesByMarket: Record<string, bigint> = {};
@@ -148,14 +242,43 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  const earlyWithdrawalFeesByMarket: Record<string, bigint> = {};
+  // Early withdrawal fee accumulation reconstructing FixedLib.distributeEarnings
+  const earlyWithdrawalFeesByMarket: Record<
+    string,
+    { grossFee: bigint; protocolCut: bigint; supplyCut: bigint }
+  > = {};
   for (const log of withdrawAtMaturityLogs) {
     const market = getLogMarket(log);
     const positionAssets = getLogArg(log, "positionAssets");
     const assets = getLogArg(log, "assets");
+    const maturity = String(getLogArg(log, "maturity"));
+    const feeRate = marketFeeRates[market] ?? 0n;
+
     if (positionAssets > assets) {
-      earlyWithdrawalFeesByMarket[market] =
-        (earlyWithdrawalFeesByMarket[market] ?? 0n) + (positionAssets - assets);
+      const fee = positionAssets - assets;
+      const rateBasedCut = (fee * feeRate) / WAD;
+      const earnings = fee - rateBasedCut;
+      const pool = poolBalances[`${market}:${maturity}`] ?? { borrowed: 0n, supplied: 0n };
+      const { backupEarnings } = distributeEarnings(
+        pool.borrowed,
+        pool.supplied,
+        earnings,
+        assets
+      );
+
+      const protocolCut = feeRate !== 0n ? rateBasedCut + backupEarnings : 0n;
+      const supplyCut = fee - protocolCut;
+
+      const current = earlyWithdrawalFeesByMarket[market] ?? {
+        grossFee: 0n,
+        protocolCut: 0n,
+        supplyCut: 0n,
+      };
+      earlyWithdrawalFeesByMarket[market] = {
+        grossFee: current.grossFee + fee,
+        protocolCut: current.protocolCut + protocolCut,
+        supplyCut: current.supplyCut + supplyCut,
+      };
     }
   }
 
@@ -192,15 +315,12 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // B. Fixed-Term Borrow Interest (Upfront Fee)
-    const fixedBorrowInterest = fixedBorrowInterestByMarket[market] ?? 0n;
-    if (fixedBorrowInterest > 0n) {
-      const protocolCut = (fixedBorrowInterest * feeRate) / WAD;
-      const supplyCut = fixedBorrowInterest - protocolCut;
-
-      dailyFees.add(token, fixedBorrowInterest, METRIC.BORROW_INTEREST);
-      dailyRevenue.add(token, protocolCut, "Borrow Interest To Treasury");
-      dailyProtocolRevenue.add(token, protocolCut, "Borrow Interest To Treasury");
-      dailySupplySideRevenue.add(token, supplyCut, "Borrow Interest To Lenders");
+    const fixedFees = fixedBorrowFeesByMarket[market];
+    if (fixedFees && fixedFees.grossFee > 0n) {
+      dailyFees.add(token, fixedFees.grossFee, METRIC.BORROW_INTEREST);
+      dailyRevenue.add(token, fixedFees.protocolCut, "Borrow Interest To Treasury");
+      dailyProtocolRevenue.add(token, fixedFees.protocolCut, "Borrow Interest To Treasury");
+      dailySupplySideRevenue.add(token, fixedFees.supplyCut, "Borrow Interest To Lenders");
     }
 
     // C. Late Repayment Penalty on Fixed Borrows (accrues 100% to pool lenders)
@@ -211,15 +331,12 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // D. Early Withdrawal Penalty on Fixed Deposits
-    const earlyWithdrawalFees = earlyWithdrawalFeesByMarket[market] ?? 0n;
-    if (earlyWithdrawalFees > 0n) {
-      const protocolCut = (earlyWithdrawalFees * feeRate) / WAD;
-      const supplyCut = earlyWithdrawalFees - protocolCut;
-
-      dailyFees.add(token, earlyWithdrawalFees, METRIC.DEPOSIT_WITHDRAW_FEES);
-      dailyRevenue.add(token, protocolCut, "Deposit/Withdraw Fees To Treasury");
-      dailyProtocolRevenue.add(token, protocolCut, "Deposit/Withdraw Fees To Treasury");
-      dailySupplySideRevenue.add(token, supplyCut, "Deposit/Withdraw Fees To Lenders");
+    const earlyFees = earlyWithdrawalFeesByMarket[market];
+    if (earlyFees && earlyFees.grossFee > 0n) {
+      dailyFees.add(token, earlyFees.grossFee, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyRevenue.add(token, earlyFees.protocolCut, "Deposit/Withdraw Fees To Treasury");
+      dailyProtocolRevenue.add(token, earlyFees.protocolCut, "Deposit/Withdraw Fees To Treasury");
+      dailySupplySideRevenue.add(token, earlyFees.supplyCut, "Deposit/Withdraw Fees To Lenders");
     }
 
     // E. Liquidation Incentives/Penalties Paid to Pool Lenders (accrues 100% to pool lenders)
