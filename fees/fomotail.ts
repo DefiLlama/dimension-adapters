@@ -1,6 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 /**
  * Fomotail — copytrade bot on Robinhood Chain (chainId 4663).
@@ -16,25 +18,24 @@ import { addTokensReceived } from "../helpers/token";
  * 0.8% / 2% split. USDG (Global Dollar) is a $1 stablecoin.
  */
 
-const USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 const TREASURY = "0x444d74c47987fb7ae8efb9e9ecf25721fa55fc57";
 
-const fetch = async (options: FetchOptions) => {
-  // Revenue = USDG received by the treasury during the day.
-  const dailyRevenue = await addTokensReceived({ options, target: TREASURY, tokens: [USDG] });
+const FEES_TO_TREASURY = "Performance Fees To Treasury";
+const FEES_TO_TRADERS = "Performance Fees To Copied Traders";
 
-  // Derive total fees and the trader share from the fixed split: the treasury's 0.8% is 40% of the
-  // 2% fee, so totalFees = revenue x 2.5 and supplySide (trader 1.2%) = revenue x 1.5.
-  const raw = BigInt(dailyRevenue.getBalances()[`${CHAIN.ROBINHOOD}:${USDG}`] ?? "0");
-  const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  dailyFees.add(USDG, (raw * 5n) / 2n);
-  dailySupplySideRevenue.add(USDG, (raw * 3n) / 2n);
+const fetch = async (options: FetchOptions) => {
+  // Revenue = USDG received by the treasury. Its 0.8% is 40% of the 2% fee, so fees = revenue × 2.5
+  // and the trader share = revenue × 1.5.
+  const treasury = await addTokensReceived({ options, target: TREASURY, tokens: [USDG] });
+  const dailyRevenue = treasury.clone(1, FEES_TO_TREASURY);
+  const dailyFees = treasury.clone(2.5, METRIC.PERFORMANCE_FEES);
+  const dailySupplySideRevenue = treasury.clone(1.5, FEES_TO_TRADERS);
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
   };
 };
@@ -42,13 +43,30 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "2% performance fee on the realised profit of each copied position, charged only on profitable closes.",
   Revenue: "The 0.8% of realised profit kept by the protocol, measured directly as USDG transfers into the treasury.",
-  ProtocolRevenue: "All protocol revenue accrues to the treasury (identical to Revenue).",
+  ProtocolRevenue: "The 0.8% of realised profit kept by the protocol, measured directly as USDG transfers into the treasury.",
   SupplySideRevenue: "The 1.2% of realised profit paid to the copied trader (leader), derived from the fixed fee split.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.PERFORMANCE_FEES]: "2% of realised profit on each profitable copied close. Losing positions pay nothing.",
+  },
+  Revenue: {
+    [FEES_TO_TREASURY]: "0.8% of realised profit, measured as USDG transferred into the protocol treasury.",
+  },
+  ProtocolRevenue: {
+    [FEES_TO_TREASURY]: "The full protocol share is kept by the treasury. Fomotail has no token, so none is distributed to holders.",
+  },
+  SupplySideRevenue: {
+    [FEES_TO_TRADERS]: "1.2% of realised profit paid to the copied trader, derived from the fixed 0.8% / 2% split.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
+  breakdownMethodology,
   adapter: {
     [CHAIN.ROBINHOOD]: {
       fetch,
