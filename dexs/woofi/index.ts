@@ -55,16 +55,30 @@ const fetchApiVolume = async (options: FetchOptions) => {
 
   const startOfDayUTC = getTimestampAtStartOfDayUTC(options.toTimestamp);
 
-  const result = response?.data?.find((item) => item.timestamp === startOfDayUTC.toString());
+  const rows = response?.data ?? [];
+  const result = rows.find((item) => item.timestamp === startOfDayUTC.toString());
 
-  // a row carrying zero is a real quiet day and several chains have had those
-  // for months. a missing row means the api has nothing for that day, so throw
-  // rather than publish a zero that is not one.
+  // a missing row means the api has nothing for that day, so throw rather than
+  // publish a zero that is not one. a row carrying zero is only a real quiet day
+  // on a chain that has been quiet all week: several have been for months, while
+  // a chain that traded yesterday reads zero because the api has not finished the
+  // day, and storing that caches a quiet day that never happened.
   if (!result) throw new Error(`woofi: no stat row for ${apiNetworks[options.chain]} at ${startOfDayUTC}`);
 
-  return {
-    dailyVolume: Number(result.volume_usd) / 1e18,
+  const dailyVolume = Number(result.volume_usd) / 1e18;
+
+  if (!dailyVolume) {
+    const trailing = rows
+      .filter((item: any) => Number(item.timestamp) < startOfDayUTC && Number(item.timestamp) >= startOfDayUTC - 7 * 86400)
+      .map((item: any) => Number(item.volume_usd) / 1e18)
+      .filter((value: number) => Number.isFinite(value))
+      .sort((a: number, b: number) => a - b);
+    const median = trailing.length ? trailing[Math.floor(trailing.length / 2)] : 0;
+    if (median > 10000)
+      throw new Error(`woofi: ${apiNetworks[options.chain]} reports 0 for ${options.dateString} against a 7 day median of ${Math.round(median)}, refusing a day the api has not finished`);
   }
+
+  return { dailyVolume }
 }
 
 const volume = Object.keys(apiNetworks).reduce(
