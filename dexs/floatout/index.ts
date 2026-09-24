@@ -45,6 +45,8 @@ const fetch = async (options: FetchOptions) => {
   const share = await fetchURL(`${PLATFORM_SHARE_API}/${date}`);
   if (share.date !== date || !/^\d+(\.\d+)?$/.test(share.platformShareUsdc) || !Array.isArray(share.builders))
     throw new Error(`floatout: malformed platform share response for ${date}`);
+  const platformShareUsdc = Number(share.platformShareUsdc);
+  if (!Number.isFinite(platformShareUsdc)) throw new Error(`floatout: malformed platform share response for ${date}`);
   const unknown = share.builders.filter((b: string) => !ledgers.includes(String(b).toLowerCase()));
   if (unknown.length) throw new Error(`floatout: platform share builders not discovered on chain: ${unknown.join(", ")}`);
 
@@ -61,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addBalances(activatedFees, ACTIVATED_FEES);
 
   const platformShare = options.createBalances();
-  platformShare.addCGToken("usd-coin", Number(share.platformShareUsdc));
+  platformShare.addCGToken("usd-coin", platformShareUsdc);
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(freeFees, FREE_TO_FLOATOUT);
@@ -102,9 +104,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1, // Hyperliquid builder fills and Floatout's platform share are both daily aggregates
   doublecounted: true, // builder code volume is already counted in Hyperliquid
-  adapter: {
-    [CHAIN.HYPERLIQUID]: { fetch, start: "2026-08-28" },
-  },
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: "2026-08-28",
   methodology,
   breakdownMethodology,
 };
