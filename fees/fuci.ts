@@ -2,11 +2,12 @@
 // FuciAgentFactory: every agent created on-chain pays its fee (1 USDC) to the Fuci treasury and emits AgentCreated.
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // FuciAgentFactory on Arc mainnet, verified source: https://explorer.arc.io/address/0x77fa3ae9604539fee8f199adc02f12f318c2bfbc?tab=contract
 const FACTORY = "0x77fa3ae9604539fee8f199adc02f12f318c2bfbc"; // FuciAgentFactory on Arc, deployed at block 22474356
 // USDC on Arc (ERC-20 interface of the native USDC, 6 decimals): https://docs.arc.io
-const USDC = "0x3600000000000000000000000000000000000000";
+const USDC = ADDRESSES.arc.USDC;
 
 // Emitted once per agent; feePaid is the USDC (6 decimals) sent to the treasury in the same call.
 const AGENT_CREATED = "event AgentCreated(uint256 indexed agentId, address indexed owner, uint256 feePaid, string name, string agentURI)";
