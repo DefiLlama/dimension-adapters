@@ -305,7 +305,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
-  pullHourly: true,
+  //pullHourly: true,
 };
 
 export default adapter;
