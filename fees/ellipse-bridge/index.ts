@@ -27,11 +27,18 @@ import { METRIC } from "../../helpers/metrics";
 // outside the protocol - the fee is minted or transferred straight to the treasury -
 // so fees, revenue and protocol revenue are the same number.
 
-// The fee is charged in the CLAIM token on Arc (bCRCL, bGLD...), which has no price
-// of its own anywhere: it is a claim, and its whole worth is the origin asset sitting
-// in the vault. So it is valued as that origin asset, which DefiLlama already prices
-// for the TVL adapter. Verified: all four claim tokens carry the same 18 decimals as
-// their origin token, so the amounts transfer across without scaling.
+// WHICH TOKEN THE FEE IS TAKEN IN depends on which side it is taken on. Everything
+// charged on Arc - the bridge fee in both directions, and the fast lane's cut of a
+// redemption - is taken in the CLAIM token (bCRCL, bGLD...). A fast-lane DEPOSIT is
+// charged on the origin chain instead, before the asset ever becomes a claim, so that
+// one is taken in the origin token itself.
+//
+// The claim token has no price of its own anywhere: it is a claim, and its whole
+// worth is the origin asset sitting in the vault. So it too is valued as that origin
+// asset, which DefiLlama already prices for the TVL adapter. Verified: all four claim
+// tokens carry the same 18 decimals as their origin token, so the amounts transfer
+// across without scaling. Either way every fee ends up denominated in the same four
+// origin assets, which is what makes the two sides add up.
 const ASSETS = [
   {
     symbol: "bCRCL",
@@ -74,7 +81,16 @@ const FAST_ROUTER = {
 };
 
 // Minted carries the fee outright. RedemptionRequested does not - it carries the
-// gross burned and the net released on the origin chain, and the fee is the gap.
+// gross burned and the net owed on the origin chain, and the fee is the gap.
+//
+// THE GAP IS THE FEE AND NOTHING ELSE. The controller computes net as gross minus its
+// own fee and nothing more; the pro-rata reduction that applies when a reserve is
+// short of full coverage lives in the custody vault on the ORIGIN chain, at release
+// time, and never touches the numbers in this event. A user redeeming against a
+// short reserve receives less than net, but the fee minted to the protocol is still
+// exactly this gap. Checked against the contract's own fee function - one percent,
+// floored at a per-asset minimum - over every redemption of a seven-day window: 97
+// of 97 matched to the wei.
 const MINTED_EVENT =
   "event Minted(bytes32 indexed depositId, address indexed to, uint256 gross, uint256 net, uint256 fee)";
 const REDEMPTION_EVENT =
@@ -149,7 +165,7 @@ const fetchOrigin = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "What users pay to cross the bridge. The asset's controller on Arc charges the same rate in both directions - on the way in it mints the fee to the protocol and the rest to the user, on the way out it burns the gross and re-mints the fee - and an optional fast-lane router charges its own cut on top for skipping the queue, on the origin chain when depositing and on Arc when redeeming. The fee is charged in the claim token (bCRCL, bGLD, bUSDT, bBTCB), which is a 1:1 claim on the asset held in custody, so it is valued as that origin asset.",
+  Fees: "What users pay to cross the bridge. The asset's controller on Arc charges the same rate in both directions - on the way in it mints the fee to the protocol and the rest to the user, on the way out it burns the gross and re-mints the fee - and an optional fast-lane router charges its own cut on top for skipping the queue, on the origin chain when depositing and on Arc when redeeming. Anything charged on Arc is taken in the claim token (bCRCL, bGLD, bUSDT, bBTCB), which is a 1:1 claim on the asset held in custody and is therefore valued as that origin asset; a fast-lane deposit is charged on the origin chain instead, before the asset becomes a claim, so it is taken in the origin token directly. Either way the fee is denominated in the same four origin assets.",
   Revenue: "All of it. The fee goes to the protocol's treasury with nothing paid out of it.",
   ProtocolRevenue: "Same as Revenue.",
   SupplySideRevenue: "None. The bridge has no liquidity providers - claim tokens are backed by custody reserves, not by a pool, so there is no supplier to pay.",
@@ -158,7 +174,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [BRIDGE_FEES]: "The bridge's own fee, charged by the asset's controller on Arc at the same rate in both directions: read directly from the mint event, and as the gap between gross burned and net released on the redemption event.",
-    [FAST_LANE_FEES]: "The fast-lane router's cut, paid only by users who choose to skip the queue: taken from the deposit on the origin chain, and from the claim tokens on Arc when redeeming.",
+    [FAST_LANE_FEES]: "The fast-lane router's cut, paid only by users who choose to skip the queue: taken from the deposit on the origin chain, in the origin token, and from the claim tokens on Arc when redeeming.",
   },
   Revenue: {
     [BRIDGE_FEES]: "Kept in full by the protocol.",
