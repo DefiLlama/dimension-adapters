@@ -31,8 +31,12 @@ async function getCoinSupply(coin: string): Promise<{
     decimals: number;
     supply: number;
 }> {
-    const info = await aptos.getCoinInfo({ coinType: coin })
-    const supply = info.supply ?? await aptos.getCoinSupply({ coinType: coin })
+    // getCoinSupply resolves the full supply (legacy CoinInfo + paired fungible asset); the
+    // CoinInfo.supply field alone undercounts coins that migrated to the FA standard (e.g. USDY)
+    const [info, supply] = await Promise.all([
+        aptos.getCoinInfo({ coinType: coin }),
+        aptos.getCoinSupply({ coinType: coin }),
+    ])
     return {
         decimals: info.decimals,
         supply: Number(supply),
