@@ -465,6 +465,9 @@ async function _runAdapter({
   }
 
   async function setChainValidStart(chain: string) {
+    // Validate against the beginning of the requested window. Hourly adapters
+    // must be allowed to run their first hour on the configured start date.
+    const windowStartTimestamp = cleanCurrentDayTimestamp - WINDOW_SECONDS
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
@@ -485,7 +488,7 @@ async function _runAdapter({
 
     if (typeof _start === 'number') {
       validStart[chain] = {
-        canRun: _start <= cleanPreviousDayTimestamp,
+        canRun: _start <= windowStartTimestamp,
         startTimestamp: _start
       }
       return;
@@ -506,7 +509,7 @@ async function _runAdapter({
       return defaultStart
     })
     validStart[chain] = {
-      canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
+      canRun: typeof start === 'number' && start <= windowStartTimestamp,
       startTimestamp: start
     }
   }
