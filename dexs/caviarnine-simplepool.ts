@@ -20,7 +20,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.RADIXDLT]: {
       fetch,
-      runAtCurrTime: true
+      runAtCurrTime: true,
+      deadFrom: '2026-08-30'
     },
   },
 };

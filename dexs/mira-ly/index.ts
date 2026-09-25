@@ -33,6 +33,7 @@ const adapters: SimpleAdapter = {
   fetch,
   chains: [CHAIN.FUEL],
   start: '2024-10-16',
+  deadFrom: '2026-05-31'
 }
 
 export default adapters

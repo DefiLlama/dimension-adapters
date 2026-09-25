@@ -24,5 +24,6 @@ const adapter: SimpleAdapter = {
         }
     }, {}),
     version: 2,
+    deadFrom: '2025-01-28'
 };
 export default adapter;

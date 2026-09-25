@@ -21,6 +21,7 @@ const adapter: any = {
       start: '2024-10-24',
     },
   },
+  deadFrom: '2025-08-12'
 };
 
 export default adapter;

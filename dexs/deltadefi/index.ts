@@ -16,6 +16,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.CARDANO],
   start: "2026-01-26",
+  deadFrom: "2026-07-15"
 };
 
 export default adapter;

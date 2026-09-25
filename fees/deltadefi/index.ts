@@ -23,6 +23,7 @@ const adapter: Adapter = {
     Fees: "DeltaDeFi Spot Orderbook order execution fee.",
     Revenue: "Same as Fees.",
   },
+  deadFrom: "2026-07-15"
 };
 
 export default adapter;

@@ -55,6 +55,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.MOVE],
   start: '2025-03-03',
   runAtCurrTime: true,
+  deadFrom: '2025-12-16'
 };
 
 export default adapter;
