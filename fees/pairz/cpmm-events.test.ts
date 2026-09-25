@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { cpmmEvents, CPMM_PROGRAM, decodeCpmmSwap } from './cpmm-events';
+const bytes=Buffer.alloc(170);
+createHash('sha256').update('event:SwapEvent').digest().copy(bytes,0,0,8);
+bytes.fill(1,8,40);bytes.fill(2,89,121);bytes.fill(3,121,153);
+bytes.writeBigUInt64LE(9007199254740993n,153);bytes.writeBigUInt64LE(20n,161);bytes[169]=1;
+const payload='Program data: '+bytes.toString('base64');
+const invoke=(p=CPMM_PROGRAM,d=1)=>`Program ${p} invoke [${d}]`;
+const success=(p=CPMM_PROGRAM)=>`Program ${p} success`;
+const instruction='Program log: Instruction: SwapBaseInput';
+assert.equal(decodeCpmmSwap(bytes,7)?.tradeFee,'9007199254740993');
+assert.equal(decodeCpmmSwap(bytes,7)?.creatorFeeOnInput,true);
+assert.equal(cpmmEvents([invoke(),instruction,payload,success()]).length,1);
+assert.equal(cpmmEvents([invoke('other'),payload,success('other')]).length,0);
+assert.equal(cpmmEvents([invoke('parent'),invoke(CPMM_PROGRAM,2),instruction,payload,`Program ${CPMM_PROGRAM} failed: test`,success('parent')]).length,0);
+assert.equal(cpmmEvents([invoke('parent'),invoke(CPMM_PROGRAM,2),instruction,payload,success(),`Program parent failed: test`]).length,0);
+for(const logs of [[invoke(),instruction,success()],[invoke(),instruction,payload],[invoke(),payload,success()],[invoke(),instruction,payload,success('other')],['Log truncated'],[invoke(CPMM_PROGRAM,2),success()]])assert.throws(()=>cpmmEvents(logs));
+assert.throws(()=>decodeCpmmSwap(bytes.subarray(0,89),0));
+const bad=Buffer.from(bytes);bad[169]=2;assert.throws(()=>decodeCpmmSwap(bad,0));
+console.log('PASS CPMM binary layout, exact integers, emitter attribution, failed-CPI rollback, missing-event/truncated-log/version rejection.');
+// Real public transactions from Dune; intentionally not attributed to Pairz.
+const samples=require('./fixtures/cpmm-public-samples.json');
+const actual=samples.rows.map((tx:any)=>{assert.equal(tx.success,true);const e=cpmmEvents(tx.log_messages);assert.equal(e.length,1);return e[0];});
+assert.deepEqual(actual.map((e:any)=>e.tradeFee),['145247443902','246','2398']);
+assert.equal(actual[0].inputTransferFee,'3057840924243');
+assert.ok(actual.every((e:any)=>e.creatorFee==='0'));
+console.log('PASS three captured mainnet CPMM logs; unrelated activity remains excluded from Pairz totals.');
