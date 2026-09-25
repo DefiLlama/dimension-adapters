@@ -22,10 +22,9 @@ const fetchOpenInterest = async (options: FetchOptions) => {
   const marketInfos = res.marketInfos || [];
   const longOI = marketInfos.reduce((acc: number, m: any) => acc + Number(m.longOpenInterestUsd), 0);
   const shortOI = marketInfos.reduce((acc: number, m: any) => acc + Number(m.shortOpenInterestUsd), 0);
-  // Pool venue with no single-sided field: long and short face the pool independently
-  // (per-market L/S spans 0.59-2.47), so report the average of the two sides to stay on the
-  // one-sided convention rather than their sum.
-  return (longOI + shortOI) / 2
+  // Pool venue: every position is its own contract against the pool (longs and shorts are not
+  // matched against each other), so long + short counts each open position exactly once.
+  return longOI + shortOI
 }
 
 const fetch = async (options: FetchOptions) => {

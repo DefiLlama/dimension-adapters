@@ -12,7 +12,7 @@ import { getETHReceived, getSolanaReceived } from "../../helpers/token";
  *   - Terminal (stonkslabs.com):        1% per swap  → https://stonkslabs.com/
  *   - sTONks.pump Launchpad:         variable fee    → https://stonkslabs.com/
  *
- * Chains: TON, Ethereum, BSC, Solana
+ * Chains: TON, Ethereum, BSC, Robinhood, ARC and Solana
  *
  * Website:  https://stonks.dog/
  * App:      https://stonkslabs.com/
@@ -37,13 +37,13 @@ import { getETHReceived, getSolanaReceived } from "../../helpers/token";
  */
 
 // ─── TON addresses (raw format) ─────────────────────────────────────────────
-const TON_MAIN_FEE_WALLET      = "0:ef7ba08b55b69a5d04dde78808f972bc891eb74ac69281ca1167d6f2b9215d6a";
-const TON_SECONDARY_FEE        = "0:ec8f3e700f215dca0bf7ee7ae651191f0fa7818f863e78d66fa29acc9b1f486e";
+const TON_MAIN_FEE_WALLET = "0:ef7ba08b55b69a5d04dde78808f972bc891eb74ac69281ca1167d6f2b9215d6a";
+const TON_SECONDARY_FEE = "0:ec8f3e700f215dca0bf7ee7ae651191f0fa7818f863e78d66fa29acc9b1f486e";
 const TON_LAUNCHPAD_CONTRACT_A = "0:783e31dc981459aa84762984a03e8d75c320435c00ac5b66b3db64b3bb371c71";
 const TON_LAUNCHPAD_CONTRACT_B = "0:450b2f5ceb85d13f7032eff5882e20533789faec667112ddcb1c8ec1e2446624";
-const TON_LAUNCHPAD_ROUTER     = "0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815";
-const TON_REFERRAL_WALLET      = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
-const TON_CASHBACK_WALLET      = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
+const TON_LAUNCHPAD_ROUTER = "0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815";
+const TON_REFERRAL_WALLET = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
+const TON_CASHBACK_WALLET = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
 
 const TON_LAUNCHPAD_SENDERS = new Set(
   [TON_LAUNCHPAD_ROUTER, TON_LAUNCHPAD_CONTRACT_A, TON_LAUNCHPAD_CONTRACT_B].map((a) => a.toLowerCase())
@@ -265,7 +265,7 @@ const fetchSolana = async (options: FetchOptions) => {
 const methodology = {
   Volume:
     "Trading volume reverse-calculated from the 1% fee on @stonks_sniper_bot and sTONks Terminal " +
-    "across TON, Ethereum, BSC and Solana. sTONks.pump Launchpad volume excluded (variable fee).",
+    "across TON, Ethereum, BSC, Robinhood and ARC and Solana. sTONks.pump Launchpad volume excluded (variable fee).",
   Fees:
     "All inflows to fee wallets: 1% from Bot + Terminal, variable from sTONks.pump Launchpad.",
   Revenue: "Total fees minus referral and cashback payouts.",
@@ -296,10 +296,12 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.TON]:      { fetch: fetchTON,    start: "2024-01-12" },
-    [CHAIN.ETHEREUM]: { fetch: fetchEVM,    start: "2024-01-12" },
-    [CHAIN.BSC]:      { fetch: fetchEVM,    start: "2024-01-12" },
-    [CHAIN.SOLANA]:   { fetch: fetchSolana, start: "2024-01-12" },
+    [CHAIN.TON]: { fetch: fetchTON, start: "2024-01-12" },
+    [CHAIN.ETHEREUM]: { fetch: fetchEVM, start: "2024-01-12" },
+    [CHAIN.BSC]: { fetch: fetchEVM, start: "2024-01-12" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2024-01-12" },
+    [CHAIN.ROBINHOOD]: { fetch: fetchEVM, start: "2026-07-18" },
+    [CHAIN.ARC]: { fetch: fetchEVM, start: "2026-09-16" },
   },
   methodology,
   breakdownMethodology,

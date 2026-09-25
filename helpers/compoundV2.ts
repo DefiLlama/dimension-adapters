@@ -54,6 +54,20 @@ export async function getFees(market: string, { createBalances, api, getLogs, }:
   return { dailyFees, dailyRevenue }
 }
 
+/**
+ * Calculates daily borrow fees and protocol revenue for Compound V2 pools
+ * using exchange rate progression across the time window.
+ *
+ * In Compound V2, borrow interest increases exchangeRateStored for pool
+ * suppliers after deducting the protocol reserve factor. This helper measures
+ * the underlying asset growth across blocks and reconstructs the gross
+ * borrow interest (dailyFees) and protocol reserve cut (dailyRevenue).
+ *
+ * @param market - The Comptroller contract address
+ * @param options - FetchOptions providing block range APIs and balance builders
+ * @param extra - Optional parameters including custom balances, ABIs, and market blacklists
+ * @returns Object containing dailyFees and dailyRevenue Balances
+ */
 export async function getFeesUseExchangeRates(market: string, { createBalances, api, fromApi, toApi, }: FetchOptions, {
   dailyFees,
   dailyRevenue,
@@ -90,10 +104,14 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
     const rateGrowth = Number(marketExchangeRatesAfter[i]) - Number(marketExchangeRatesBefore[i])
     if (rateGrowth > 0) {
       const mantissa = 18 + underlyingDecimal - 8
-      const interestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
-      const revenueAccumulated = interestAccumulated * reserveFactor / 1e18
+      const supplyInterestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
+      // Reconstruct gross borrow interest from supply-side growth and active reserve factor.
+      // Assumes reserve factor is constant across the window (governance updates are rare).
+      const rf = Number(reserveFactor) / 1e18
+      const grossInterestAccumulated = rf < 1 ? supplyInterestAccumulated / (1 - rf) : supplyInterestAccumulated
+      const revenueAccumulated = grossInterestAccumulated * rf
       
-      dailyFees!.add(underlying, interestAccumulated, METRIC.BORROW_INTEREST);
+      dailyFees!.add(underlying, grossInterestAccumulated, METRIC.BORROW_INTEREST);
       dailyRevenue!.add(underlying, revenueAccumulated, METRIC.BORROW_INTEREST);
     }
   }
