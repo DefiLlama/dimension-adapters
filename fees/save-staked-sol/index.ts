@@ -1,9 +1,8 @@
-import axios from "axios";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
-import { getEnv } from "../../helpers/env";
 import { METRIC } from "../../helpers/metrics";
+import { decodeStakePool, getAccountBuffer } from "../../helpers/solana";
 
 // SPL stake pool SAVEY1fVMBeRVo9V9rgEz8ENTvHreftd3QgpAKBDFV4 (saveSOL), verified on-chain 2026-09-05:
 //   epoch fee 0%, SOL/stake deposit fee 0%, SOL/stake withdrawal fee 0.1%.
@@ -22,18 +21,12 @@ const STAKE_FEE_SHARE = 0;
 // overstate the fee slightly (the rate grows with staking yield, roughly 7% a year). The amounts
 // involved are sub-dollar per withdrawal, so the error is immaterial.
 async function getSaveSolExchangeRate(): Promise<number> {
-  const res = await axios.post(getEnv("SOLANA_RPC"), {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "getAccountInfo",
-    params: [STAKE_POOL, { encoding: "base64" }],
-  });
-  const data = Buffer.from(res.data.result.value.data[0], "base64");
+  const data = await getAccountBuffer({ account: STAKE_POOL });
+  if (!data) throw new Error(`save-staked-sol: stake pool account ${STAKE_POOL} not found`);
   // StakePool layout: total_lamports u64 at offset 258, pool_token_supply u64 at offset 266
-  const totalLamports = Number(data.readBigUInt64LE(258));
-  const poolTokenSupply = Number(data.readBigUInt64LE(266));
-  if (!poolTokenSupply) return 1;
-  return totalLamports / poolTokenSupply;
+  const { totalLamports, poolTokenSupply } = decodeStakePool(data);
+  if (!Number(poolTokenSupply)) return 1;
+  return Number(totalLamports) / Number(poolTokenSupply);
 }
 
 const fetch = async (options: FetchOptions) => {

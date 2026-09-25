@@ -3,6 +3,7 @@ import { CHAIN } from "./chains";
 import * as sdk from "@defillama/sdk"
 import { httpGet, httpPost } from "../utils/fetchURL";
 import { getEnv } from "./env";
+import { getTonBlock } from "./ton";
 const retry = require("async-retry")
 
 const blacklistedChains: string[] = [
@@ -108,11 +109,6 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
   // https://explorer.kava.io
   //return sdk.api.util.lookupBlock(timestamp, { chain }).then(blockData => blockData.block)
 
-}
-
-async function getTonBlock(unixTS: number) {
-  const data = await httpGet(`https://toncenter.com/api/v2/lookupBlock?workchain=-1&shard=-1&unixtime=${unixTS}`)
-  return data.result.seqno
 }
 
 async function getAsterBlock(unixTS: number) {

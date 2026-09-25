@@ -1,17 +1,9 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import fetchURL from "../../utils/fetchURL";
-import { sleep } from "../../utils/utils";
+import { pageToncenterTxs, toBigInt } from "../../helpers/ton";
 
 const DTRADE_FEE_WALLET = "0:93C1B918FA90EAC774C9BBEFF0E49742B4BFAC15D49E289A43351782C59A650C";
-
-const toBigInt = (v: any): bigint => {
-  if (v === null || v === undefined) return 0n;
-  if (typeof v === "string") return BigInt(v);
-  if (typeof v === "number") return BigInt(Math.trunc(v));
-  return 0n;
-};
 
 const getInboundComment = (inMsg: any): string => {
   const decoded = inMsg?.message_content?.decoded;
@@ -23,53 +15,25 @@ const getInboundComment = (inMsg: any): string => {
 const fetchFeeInflows = async (start: number, end: number): Promise<bigint> => {
   let feeNanoton = 0n;
 
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-  let offset = 0;
-  const seen = new Set<string>();
+  let txs: any[];
+  try {
+    // deduped by hash and restricted to [start, end) by the helper
+    txs = await pageToncenterTxs({ account: DTRADE_FEE_WALLET, startTimestamp: start, endTimestamp: end });
+  } catch (e) {
+    throw new Error(`DTrade: failed to fetch fee wallet transactions: ${e}`);
+  }
 
-  while (true) {
-    const url =
-      `https://toncenter.com/api/v3/transactions?account=${DTRADE_FEE_WALLET}&start_utime=${start}&end_utime=${end}&limit=1000&offset=${offset}&sort=desc` +
-      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
+  for (const tx of txs) {
+    if (!tx?.description?.action?.success) continue;
 
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`DTrade: failed to fetch fee wallet transactions: ${e}`);
-    }
+    const inMsg = tx.in_msg;
+    if (!inMsg || inMsg.destination?.toLowerCase() !== DTRADE_FEE_WALLET.toLowerCase()) continue;
+    if (inMsg.bounced) continue;
 
-    const txs: any[] = data.transactions;
-    if (!txs?.length) break;
+    const comment = getInboundComment(inMsg).toLowerCase();
+    if (!comment.includes("dtrade")) continue;
 
-    for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.now}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      if (!tx?.description?.action?.success) continue;
-
-      const inMsg = tx.in_msg;
-      if (!inMsg || inMsg.destination?.toLowerCase() !== DTRADE_FEE_WALLET.toLowerCase()) continue;
-      if (inMsg.bounced) continue;
-
-      const comment = getInboundComment(inMsg).toLowerCase();
-      if (!comment.includes("dtrade")) continue;
-
-      feeNanoton += toBigInt(inMsg.value);
-    }
-
-    if (txs.length < 1000) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-    offset += 1000;
-
-    await sleep(1000);
+    feeNanoton += toBigInt(inMsg.value);
   }
 
   return feeNanoton;
