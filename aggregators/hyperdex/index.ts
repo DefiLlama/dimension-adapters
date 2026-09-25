@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
@@ -43,13 +43,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
   // count volume only from whitelisted tokens (same filter as the LI.FI adapters)
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
-  const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-  if (whitelistedTokens.length > 0) {
-    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
-      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
-      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
-    )
-  } else if (blacklistedTokens.length > 0) {
+  if (blacklistedTokens.length > 0) {
     logs = logs.filter(log => !blacklistedTokens.includes(formatAddress(log.fromAssetId)) && !blacklistedTokens.includes(formatAddress(log.toAssetId)))
   }
 
