@@ -127,8 +127,29 @@ export const fetchBuilderCodeRevenue = async ({
     });
   } catch (error: any) {
     if (error.response?.status === 403) {
-      throw new Error(
-        `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+      // HL publishes no file for a day on which a builder had no fills, and
+      // answers 403 for it, the same status as "not written yet". Tell them
+      // apart by age: a day closed more than 48h ago that still has no file is
+      // an empty day. Without this, a builder listed under several addresses
+      // (one per period) fails every day, since one of them is always idle.
+      // A more recent 403 still throws, so the day is retried later.
+      const closedForSeconds = Math.floor(Date.now() / 1000) - (startTimestamp + 86400);
+      if (closedForSeconds > 2 * 86400) {
+        return {
+          dailyVolume,
+          dailyFees,
+          dailyRevenue: dailyFees,
+          dailyProtocolRevenue: dailyFees,
+        };
+      }
+      throw Object.assign(
+        new Error(
+          `Builder fee data is not available for ${dateStr}. Data may not exist for this date or may still be processing.`,
+        ),
+        // The only error a multi-address builder can survive: HL has no file
+        // for THIS address on that day. Tagged rather than matched on its
+        // message, so the two stay together if either is ever reworded.
+        { builderFillsFileMissing: true },
       );
     }
     throw new Error(`Failed to download builder fee data: ${error.message}`);
@@ -748,17 +769,39 @@ export const exportBuilderAdapter = (
           const dailyRevenue = options.createBalances();
           const dailyProtocolRevenue = options.createBalances();
 
+          // A builder listed under several addresses has one code per period,
+          // so every day is a day where the others were idle: HL publishes no
+          // builder_fills file for them and answers 403. On the file path that
+          // is not an error for the DAY, as long as one address answered, so a
+          // failure is only fatal when they all fail. A single-address builder
+          // keeps failing on its own error, unchanged.
+          let answered = 0;
+          let firstError: unknown;
+
           for (const address of builderAddresses) {
-            const result = await fetchBuilderCodeRevenue({
-              options,
-              builder_address: address,
-              market,
-            });
+            let result;
+            try {
+              result = await fetchBuilderCodeRevenue({
+                options,
+                builder_address: address,
+                market,
+              });
+            } catch (e) {
+              // Only a missing file is survivable. A timeout, a 5xx, a broken
+              // archive: those are not "this address was idle", and swallowing
+              // them would publish a partial day as if it were whole.
+              if (!(e as any)?.builderFillsFileMissing) throw e;
+              firstError = firstError ?? e;
+              continue;
+            }
+            answered++;
             dailyVolume.addBalances(result.dailyVolume);
             dailyFees.addBalances(result.dailyFees, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
             dailyRevenue.addBalances(result.dailyRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
             dailyProtocolRevenue.addBalances(result.dailyProtocolRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
           }
+
+          if (!answered && firstError) throw firstError;
 
           return {
             dailyVolume,
