@@ -221,7 +221,7 @@ export const methodology = {
   Fees: 'All fees paid by traders in Synthra pools (each pool fee tier) and on Synthra Launch curves (the exact Trade fee).',
   UserFees: 'Same as Fees: all reported trading fees are paid directly by users.',
   Revenue: 'Pool protocol fees, the protocol share of fees earned by launch positions locked at graduation, and the exact Launch protocol share.',
-  ProtocolRevenue: 'Same as Revenue: all of it accrues to the Synthra treasury.',
+  ProtocolRevenue: 'Same as Revenue (Protocol share of fees earned by launch positions locked at graduation and Launch protocol share): all of it accrues to the Synthra treasury.',
   SupplySideRevenue: 'Pool LP fees except the protocol share of locked launch positions, creator shares of locked launch positions and of Launch fees, and the Launch fee share that funds buybacks of the launched token.',
 }
 
