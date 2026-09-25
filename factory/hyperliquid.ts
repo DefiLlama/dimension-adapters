@@ -30,6 +30,18 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "floatout": {
+    // Floatout house builder code, used by every free Floatout DEX. 100% of its fees go to Floatout. https://floatout.xyz
+    addresses: ["0x8e31dfb0fb06b92a4b623c17e139fc9119484fc8"],
+    start: "2026-08-28",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades placed through free Floatout DEXes, counted from Floatout's house builder code.",
+      Fees: "Builder code fees paid by traders on free Floatout DEXes, on top of Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by Floatout on free DEXes.",
+      ProtocolRevenue: "Builder code fees collected by Floatout on free DEXes.",
+    },
+    breakdownFees: true,
+  },
   "alphapilot": {
     // AlphaPilot builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1/20260908.csv.lz4
     addresses: ["0xbe8d82c64d33fbb3324ddd7ba6c3efda1a0776a1"],
