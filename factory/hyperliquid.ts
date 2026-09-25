@@ -42,6 +42,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Revenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
       ProtocolRevenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
     },
+    breakdownFees: true,
   },
   "floatout": {
     // Floatout house builder code, used by every free Floatout DEX. 100% of its fees go to Floatout. https://floatout.xyz
