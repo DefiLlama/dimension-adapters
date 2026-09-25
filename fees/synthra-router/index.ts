@@ -58,7 +58,7 @@ const adapter: SimpleAdapter = {
     Fees: 'Application fees paid on successful Synthra router trades: Relay paidAppFees and LI.FI integrator fees.',
     UserFees: 'Same as Fees: router application fees are paid by users.',
     Revenue: 'All router application fees are collected by Synthra.',
-    ProtocolRevenue: 'Same as Revenue; the fees accrue to the Synthra fee recipient.',
+    ProtocolRevenue: 'All router application fees are collected by the Synthra fee recipient.',
   },
   breakdownMethodology: {
     Fees: {
