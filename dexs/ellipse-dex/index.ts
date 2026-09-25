@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Ellipse's own markets on Arc - the RWA pools it opened for the assets it bridges,
 // and the market for its own token. Ellipse runs these on Uniswap rather than on an
@@ -47,7 +48,7 @@ const POOL_MANAGER = "0x8366a39cc670b4001a1121b8f6a443a643e40951";
 // bCRCL has no price of its own anywhere - it is a 1:1 claim, and its worth is the
 // CRCL held in custody on Robinhood Chain, which DefiLlama already prices and already
 // counts for this protocol's TVL. So the bCRCL side is valued as that CRCL.
-const USDC = "0x3600000000000000000000000000000000000000";
+const USDC = ADDRESSES.arc.USDC;
 const CRCL_ON_ORIGIN = "robinhood:0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5";
 
 // Uniswap v4 puts every pool's swaps on one shared PoolManager and names the pool by
@@ -119,7 +120,7 @@ const abs = (n: bigint) => (n < 0n ? -n : n);
 
 const SWAP_FEES = "Swap Fees";
 
-const adapterFetch = async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
@@ -141,12 +142,13 @@ const adapterFetch = async (options: FetchOptions) => {
         }),
       }))
     ),
-    Promise.all(
-      V3_POOLS.map(async (pool) => ({
-        pool,
-        logs: await options.getLogs({ target: pool.address, eventAbi: SWAP_V3 }),
-      }))
-    ),
+    // v3 pools are their own contracts, so one call covers every pool. flatten
+    // keeps each pool's logs in the same order as V3_POOLS.
+    options.getLogs({
+      targets: V3_POOLS.map((pool) => pool.address),
+      eventAbi: SWAP_V3,
+      flatten: false,
+    }),
   ]);
 
   for (const { pool, logs } of v4Logs)
@@ -158,21 +160,22 @@ const adapterFetch = async (options: FetchOptions) => {
       record(pool, amount, (amount * BigInt(log.fee)) / FEE_SCALE);
     }
 
-  for (const { pool, logs } of v3Logs)
-    for (const log of logs) {
+  V3_POOLS.forEach((pool, i) => {
+    for (const log of v3Logs[i]) {
       const amount = abs(BigInt(pool.amount0 ? log.amount0 : log.amount1));
       record(pool, amount, (amount * BigInt(pool.fee)) / FEE_SCALE);
     }
+  });
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
+    dailyUserFees: dailyFees,
     // The pool fee is the liquidity providers'. Ellipse charges its own 0.5% on swaps
     // routed through its interface, but that is taken by Uniswap's router inside the
     // same transaction and leaves no event of its own, so it is not counted here
     // rather than estimated.
-    dailySupplySideRevenue: dailyFees.clone(),
+    dailySupplySideRevenue: dailyFees,
     dailyRevenue: 0,
     dailyProtocolRevenue: 0,
   };
@@ -180,7 +183,7 @@ const adapterFetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  fetch: adapterFetch,
+  fetch,
   chains: [CHAIN.ARC],
   start: "2026-09-06",
   // These are Uniswap pools - the v3 ones from Arc's own v3 factory, the v4 ones on
@@ -188,13 +191,14 @@ const adapter: SimpleAdapter = {
   // adapters. This listing says whose markets they are; it must not add their volume
   // to the chain's total a second time.
   doublecounted: true,
+  pullHourly: true,
   methodology: {
     Volume: "Swap volume in Ellipse's own markets on Arc: the Uniswap pools it opened for the assets it bridges (bCRCL, bGLD, bBTCB, bUSDT) and the market for its own token. Each swap is counted once, on whichever side has a price - USDC everywhere except the ELLIPSE market, which is counted on its bCRCL side and valued as the CRCL held in custody behind it. Launchpad launches are not counted: those pools are opened for other people's tokens on Uniswap's shared PoolManager, so their volume belongs to that DEX.",
     Fees: "The fee each swap paid to the pool. Two of these pools run Ellipse's market-hours hook and charge 1%, 2% or 3% depending on whether the underlying market is open or shut; for those the rate is read from the swap itself rather than assumed, and the rest are fixed at creation.",
     UserFees: "Same as Fees: what the trader paid on each swap.",
     SupplySideRevenue: "All of it. The pool fee goes to the liquidity providers.",
     Revenue: "None here. Ellipse does charge 0.5% on swaps routed through its own interface, but Uniswap's router takes it inside the same transaction and emits no event for it, so it is left out rather than estimated.",
-    ProtocolRevenue: "Same as Revenue.",
+    ProtocolRevenue: "None here. Ellipse does charge 0.5% on swaps routed through its own interface, but Uniswap's router takes it inside the same transaction and emits no event for it, so it is left out rather than estimated.",
   },
   breakdownMethodology: {
     Fees: { [SWAP_FEES]: "Fee paid to the pool on each swap." },
