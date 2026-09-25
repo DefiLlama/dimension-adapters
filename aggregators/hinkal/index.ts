@@ -9,7 +9,7 @@ const chainConfig: Record<string, { id: number; start: string; deadFrom?: string
   [CHAIN.BASE]: { id: 8453, start: "2025-12-13" },
   [CHAIN.ARBITRUM]: { id: 42161, start: "2025-12-13" },
   [CHAIN.POLYGON]: { id: 137, start: "2025-12-13" },
-  [CHAIN.OPTIMISM]: { id: 10, start: "2025-12-13", deadFrom: "2026-01-24" },
+  [CHAIN.OPTIMISM]: { id: 10, start: "2025-12-13", deadFrom: "2026-01-23" },
   [CHAIN.BSC]: { id: 56, start: "2025-12-13" },
   [CHAIN.SOLANA]: { id: 501, start: "2026-02-14" },
   [CHAIN.TRON]: { id: 728126428, start: "2026-03-25" },
