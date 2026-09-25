@@ -2,12 +2,20 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
+// Arc stack: https://github.com/Strikt-Crypto/Load/blob/main/packages/contracts/deployments/5042.json
+// Native gas USDC is 18 decimals; ADDRESSES.arc.USDC (0x3600…0000) is the 6-decimal ERC-20 facade.
+// LoadArcQuote.NATIVE_TO_ERC20 = 1e12.
 const USDC = ADDRESSES.arc.USDC;
-const FROM_BLOCK = 21_349_552;
-// ADDRESSES.arc.USDC is the 6-decimal ERC-20 facade (0x3600...0000), not Arc's 18-decimal
-// native representation of the same balance - 10n**18n here was booking each 1 USDC create
-// fee as $1 trillion.
-const CREATE_FEE = 10n ** 6n; // 1 USDC (6 decimals)
+const NATIVE_TO_ERC20 = 10n ** 12n;
+// V3 router sells emit BondingSwapFeePaid in 6-dec ERC-20 units; buys / bonding / V4 emit 18-dec native.
+const NATIVE_UNIT_FLOOR = 10n ** 9n;
+const FROM_BLOCK = 21_349_552; // current factory stack deploy
+const CREATE_FEE_USDC6 = 10n ** 6n; // 1 USDC after 18→6 conversion (creationFee / launchFeeWei = 1 ether)
+const CURVE_PROTOCOL_SHARE = 20n; // LoadCurveFactory.PROTOCOL_FEE_BPS (of 1% TRADE_FEE_BPS)
+const CURVE_SHARE_DENOM = 100n;
+const ROUTER_FEE_BPS = 25n; // LoadGraduatedSwapFees.FEE_BPS = 0.25%
+const BPS_DENOM = 10_000n;
+const ROUTER_VOLUME_MULT = BPS_DENOM / ROUTER_FEE_BPS; // 400
 const START = "2026-09-17";
 
 const CURVE_FACTORY = "0x2b440C9B4EF76e37b19854BA24C21E86654810AD";
@@ -35,6 +43,13 @@ function nonzero(addr?: string) {
   return Boolean(addr && addr.toLowerCase() !== ZERO);
 }
 
+/** Book against ADDRESSES.arc.USDC (6 decimals). */
+function toUsdc6(raw: any): bigint {
+  const amount = BigInt(raw || 0);
+  if (amount >= NATIVE_UNIT_FLOOR) return amount / NATIVE_TO_ERC20;
+  return amount;
+}
+
 export type LoadDimensions = {
   dailyVolume: ReturnType<FetchOptions["createBalances"]>;
   dailyFees: ReturnType<FetchOptions["createBalances"]>;
@@ -50,11 +65,14 @@ function addPlatformFee(
     "dailyFees" | "dailyRevenue" | "dailyProtocolRevenue" | "dailySupplySideRevenue"
   >,
 ) {
-  d.dailyFees.add(USDC, log.feeTotal, "Router Fees");
-  d.dailyRevenue.add(USDC, log.toPlatform, "Router Fees To Protocol");
-  d.dailyProtocolRevenue.add(USDC, log.toPlatform, "Router Fees To Protocol");
-  if (log.toReferrer && BigInt(log.toReferrer) !== 0n) {
-    d.dailySupplySideRevenue.add(USDC, log.toReferrer, "Referral Fees");
+  const feeTotal = toUsdc6(log.feeTotal);
+  const toPlatform = toUsdc6(log.toPlatform);
+  const toReferrer = toUsdc6(log.toReferrer);
+  d.dailyFees.add(USDC, feeTotal, "Router Fees");
+  d.dailyRevenue.add(USDC, toPlatform, "Router Fees To Protocol");
+  d.dailyProtocolRevenue.add(USDC, toPlatform, "Router Fees To Protocol");
+  if (toReferrer !== 0n) {
+    d.dailySupplySideRevenue.add(USDC, toReferrer, "Referral Fees");
   }
 }
 
@@ -114,10 +132,12 @@ export async function collectLoadDimensions(
       }),
     ]);
 
+  // Launch referrer 5% is paid in native USDC with no event, so the full 1 USDC
+  // create fee is booked as protocol revenue (Fees = Revenue + SupplySide still holds).
   for (const _log of dailyCreates.flat()) {
-    dailyFees.add(USDC, CREATE_FEE, "Launch Fees");
-    dailyRevenue.add(USDC, CREATE_FEE, "Launch Fees");
-    dailyProtocolRevenue.add(USDC, CREATE_FEE, "Launch Fees");
+    dailyFees.add(USDC, CREATE_FEE_USDC6, "Launch Fees");
+    dailyRevenue.add(USDC, CREATE_FEE_USDC6, "Launch Fees");
+    dailyProtocolRevenue.add(USDC, CREATE_FEE_USDC6, "Launch Fees");
   }
 
   const curves = historicalCreates
@@ -131,10 +151,12 @@ export async function collectLoadDimensions(
       eventAbi: TRADE,
     });
     for (const log of trades) {
-      dailyVolume.add(USDC, log.usdcAmount);
-      dailyFees.add(USDC, log.fee, "Bonding Curve Fees");
-      const protocol = (BigInt(log.fee) * 20n) / 100n;
-      const creator = BigInt(log.fee) - protocol;
+      const usdcAmount = toUsdc6(log.usdcAmount);
+      const fee = toUsdc6(log.fee);
+      dailyVolume.add(USDC, usdcAmount);
+      dailyFees.add(USDC, fee, "Bonding Curve Fees");
+      const protocol = (fee * CURVE_PROTOCOL_SHARE) / CURVE_SHARE_DENOM;
+      const creator = fee - protocol;
       dailyRevenue.add(USDC, protocol, "Bonding Curve Fees To Protocol");
       dailyProtocolRevenue.add(USDC, protocol, "Bonding Curve Fees To Protocol");
       dailySupplySideRevenue.add(USDC, creator, "Creator Fees");
@@ -149,13 +171,13 @@ export async function collectLoadDimensions(
 
   // Instant + graduated V3 via Load router: 0.25% fee ⇒ notional = fee * 400
   for (const log of v3DexFees) {
-    dailyVolume.add(USDC, BigInt(log.feeTotal) * 400n);
+    dailyVolume.add(USDC, toUsdc6(log.feeTotal) * ROUTER_VOLUME_MULT);
     addPlatformFee(log, d);
   }
 
   // Instant + graduated V4: volume from GraduatedSwap; fee split from BondingSwapFeePaid
   for (const log of graduatedSwaps) {
-    dailyVolume.add(USDC, log.usdcAmount);
+    dailyVolume.add(USDC, toUsdc6(log.usdcAmount));
   }
   for (const log of v4DexFees) {
     addPlatformFee(log, d);
@@ -177,7 +199,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "1 USDC create fee, 1% bonding-curve trade fee, and 0.25% Load router fee on Instant/graduated swaps.",
   Revenue:
-    "Protocol share: all create fees plus 20% of the 1% curve fee (0.20% of curve volume) plus Load router platform fees.",
+    "Protocol share: all create fees plus 20% of the 1% curve fee (0.20% of curve volume) plus Load router platform fees. The 5% launch-referrer cut of the create fee is included here because it is not emitted on-chain.",
   ProtocolRevenue: "Same as Revenue — treasury / platform wallets.",
   SupplySideRevenue:
     "80% of the 1% curve fee to creators, plus trader-referral share of the 0.25% router fee.",
@@ -185,22 +207,22 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    "Launch Fees": "1 native USDC paid on each TokenCreated.",
-    "Bonding Curve Fees": "1% fee on bonding-curve Trade.usdcAmount.",
+    "Launch Fees": "1 native USDC paid on each TokenCreated, booked as 6-decimal Arc USDC.",
+    "Bonding Curve Fees": "1% fee on bonding-curve Trade.usdcAmount (native 18-dec → 6-dec USDC).",
     "Router Fees": "0.25% Load router fee (BondingSwapFeePaid.feeTotal).",
   },
   Revenue: {
-    "Launch Fees": "Create fee kept by the protocol.",
-    "Bonding Curve Fees To Protocol": "20% of the 1% curve fee.",
+    "Launch Fees": "Create fee kept by the protocol (includes undetectable 5% launch-referrer payouts).",
+    "Bonding Curve Fees To Protocol": "20% of the 1% curve fee (PROTOCOL_FEE_BPS).",
     "Router Fees To Protocol": "BondingSwapFeePaid.toPlatform.",
   },
   ProtocolRevenue: {
-    "Launch Fees": "Create fee kept by the protocol.",
-    "Bonding Curve Fees To Protocol": "20% of the 1% curve fee.",
+    "Launch Fees": "Create fee kept by the protocol (includes undetectable 5% launch-referrer payouts).",
+    "Bonding Curve Fees To Protocol": "20% of the 1% curve fee (PROTOCOL_FEE_BPS).",
     "Router Fees To Protocol": "BondingSwapFeePaid.toPlatform.",
   },
   SupplySideRevenue: {
-    "Creator Fees": "80% of the 1% curve fee paid to token creators.",
+    "Creator Fees": "80% of the 1% curve fee paid to token creators (CREATOR_FEE_BPS).",
     "Referral Fees": "Trader-referral share of the 0.25% router fee.",
   },
 };

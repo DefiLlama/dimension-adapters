@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-17",
   methodology: {
     Volume:
-      "Bonding-curve USDC notional from Trade events, Instant/graduated V3 Load-router notional (0.25% fee × 400), and GraduatedSwap USDC on the V4 Load router. Uniswap pool volume that never hits a Load router is excluded.",
+      "Bonding-curve USDC notional from Trade events, Instant/graduated V3 Load-router notional (0.25% fee × 400), and GraduatedSwap USDC on the V4 Load router. Native 18-dec amounts are converted to 6-dec Arc USDC. Uniswap pool volume that never hits a Load router is excluded.",
   },
 };
 
