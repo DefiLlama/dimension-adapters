@@ -30,6 +30,20 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "synthra-perps": {
+    // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
+    // factory 0x6307fc239C7964942c1BfFE51930E55606619c74 on Robinhood Chain and Arc, and it is the
+    // builder that app.synthra.org attaches to every Hyperliquid order (approveBuilderFee, 10 bps).
+    addresses: ["0x20a32b077906feb43d5ecac7ef1425a48e25b4cc"],
+    start: "2026-07-22",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades executed through Synthra.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades executed through Synthra.",
+      Revenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
+      ProtocolRevenue: "Hyperliquid builder code fees collected by Synthra from perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "floatout": {
     // Floatout house builder code, used by every free Floatout DEX. 100% of its fees go to Floatout. https://floatout.xyz
     addresses: ["0x8e31dfb0fb06b92a4b623c17e139fc9119484fc8"],
