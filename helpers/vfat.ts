@@ -4,8 +4,8 @@ import fetchURL from "../utils/fetchURL";
 
 // vfat daily user metrics per chain and UTC day, rebuilt from indexed Sickle deploys and actions.
 // A user is a Sickle owner wallet (the admin set once at Sickle deploy).
-// The API is fail-closed: 503 for a day after `last_complete_day` or with a data gap,
-// 404 for a day before the chain's `first_day`, and null for a metric not yet available.
+// A day before the chain's `first_day` is a 404 and a metric not yet available is null;
+// both throw here rather than being stored as 0.
 const API = "https://info-api.vf.at/daily-users";
 
 // First day both Sickle action sources are indexed; active users read null before it.
@@ -55,7 +55,8 @@ export const vfatChainConfig: Record<string, { chainId: number; firstDay: string
 export async function fetchVfatDailyUsers(options: FetchOptions, metric: "active_users" | "new_users"): Promise<number> {
   const { chainId } = vfatChainConfig[options.chain];
   const date = options.dateString;
-  // fetchURL throws on the API's 404/503 responses, so an incomplete day is never stored.
+  // The API also serves the running total of the current UTC day; only a finished day is final.
+  if (options.endTimestamp > Date.now() / 1000) throw new Error(`vfat: ${date} has not ended yet`);
   const res = await fetchURL(`${API}?chainId=${chainId}&startDate=${date}&endDate=${date}`);
   if (res?.chain_id !== chainId) throw new Error(`vfat: unexpected chain ${res?.chain_id} for ${chainId} on ${date}`);
 
