@@ -7,13 +7,12 @@ import { formatAddress } from "../../utils/utils";
 
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
-const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 const NATIVE = nullAddress
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   if (LIFI_API_CHAINS.includes(options.chain as CHAIN)) {
-    // exclude jumper integrators to match the on-chain path (this adapter counts LI.FI ex-Jumper)
-    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], integrators, 'same-chain');
+    // count all integrators, including Jumper
+    const dailyVolume = await fetchVolumeFromLIFIAPI(options.chain, options.startTimestamp, options.endTimestamp, [], [], 'same-chain');
     return {
       dailyVolume: dailyVolume
     };
@@ -38,15 +37,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   }
 
   logs.forEach((log: any) => {
-    if (!integrators.includes(log.integrator)) {
-      // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
-      // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
-      // ERC20 out instead — that amount is measured from the diamond's balance.
-      if (formatAddress(log.fromAssetId) === NATIVE) {
-        dailyVolume.add(log.toAssetId, log.toAmount);
-      } else {
-        dailyVolume.add(log.fromAssetId, log.fromAmount);
-      }
+    // count all integrators, including Jumper
+    // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
+    // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
+    // ERC20 out instead — that amount is measured from the diamond's balance.
+    if (formatAddress(log.fromAssetId) === NATIVE) {
+      dailyVolume.add(log.toAssetId, log.toAmount);
+    } else {
+      dailyVolume.add(log.fromAssetId, log.fromAmount);
     }
   });
 
