@@ -40,7 +40,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Token trading and launching fees paid by users.",
     Revenue: "All fees are revenue.",
-  }
+  },
+  deadFrom: '2026-08-31',
 }
 
 export default adapter

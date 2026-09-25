@@ -75,7 +75,7 @@ const fetch: any = async (options: FetchOptions) => {
       prices as (
         select price, minute
         from prices.usd
-        where contract_address = FROM_BASE58(ADDRESSES.solana.SOL)
+        where contract_address = FROM_BASE58('${ADDRESSES.solana.SOL}')
         and minute >= from_unixtime(${options.startTimestamp})
         and minute < from_unixtime(${options.endTimestamp})
       ),

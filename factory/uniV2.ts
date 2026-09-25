@@ -1384,6 +1384,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pyeFactories",
     start: 1660893036,
+    deadFrom: '2023-05-30'
   },
   "savmswap": {
     endpoints: {
@@ -1472,6 +1473,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pancakeFactories",
     start: 1662940800,
+    deadFrom: '2025-08-20'
   },
   "cytoswap": {
     endpoints: {
@@ -1512,6 +1514,7 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     factoriesName: "pancakeDayDatas",
     start: 1717632000,
+    deadFrom: '2025-05-05'
   },
   "fx-swap": {
     endpoints: {

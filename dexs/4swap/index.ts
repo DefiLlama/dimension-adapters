@@ -23,6 +23,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.MIXIN]: {
       fetch,
       runAtCurrTime: true,
+      deadFrom: '2026-08-15'
     },
   }
 };
