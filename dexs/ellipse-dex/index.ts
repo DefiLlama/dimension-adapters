@@ -115,6 +115,39 @@ const V3_POOLS: (Pool & { address: string; fee: number })[] = [
   { pair: "bBTCB/USDC 0.3%", address: "0x7C7B96B200c1C518a615cbF3e956254b3a51F1A4", token: USDC, amount0: true, fee: 3000 },
 ];
 
+// THE INTERFACE FEE, which until now this adapter could only describe and not
+// count. Ellipse charges 0.5% on swaps routed through its own front end, on top of
+// whatever the pool charges. Uniswap's router hands it over inside the swap
+// transaction - PAY_PORTION on a v4 or mixed route, sweepTokenWithFee on a v3 one -
+// and an ERC-20 transfer says nothing about what it was, so on the treasury address
+// it arrived mixed in with the launchpad's share, the bridge's fees and everything
+// else. It was real money that nobody could measure, including its owner.
+//
+// Since 2026-09-25 it is paid to a contract instead, whose only purpose is to be a
+// place where nothing else lands. It cannot keep anything - its treasury is immutable
+// and there is no function to change it - it has no owner, no pause and no escape
+// hatch, and `riscuoti` can be called by anyone. When it is emptied it emits how much
+// actually ARRIVED at the treasury, measured as the treasury's balance difference
+// rather than the amount sent, so a token that skims transfers cannot inflate it.
+// Source verified on Sourcify; first collection in block 22701489.
+const FEE_COLLECTOR = "0x52e76de82f8997d8daa0044158aa32fbbd09339d";
+const COLLECTED_EVENT =
+  "event Riscosso(address indexed moneta, address indexed a, uint256 quanto)";
+
+// DATED WHEN COLLECTED, NOT WHEN PAID. The event can only be emitted when someone
+// calls, and nobody calls inside a swap. A keeper empties the contract hourly, so the
+// gap is invisible on a daily total; if it ever stopped, these figures would arrive in
+// lumps rather than go missing, because the money is in the contract either way.
+//
+// AND IT IS BROADER THAN THE VOLUME ABOVE. The 0.5% is charged on every swap routed
+// through Ellipse's front end, including swaps in pools this adapter deliberately does
+// not count - third-party launches, and pairs of tokens Ellipse does not issue. So
+// revenue here is not 0.5% of the volume reported above, and should not be read as a
+// rate on it. Counting only the part attributable to the listed pools would mean
+// guessing which swap went where, and a measured number with a stated scope is worth
+// more than an attributed one that cannot be checked.
+const INTERFACE_FEES = "Interface Fees";
+
 const FEE_SCALE = 1_000_000n;
 const abs = (n: bigint) => (n < 0n ? -n : n);
 
@@ -123,12 +156,21 @@ const SWAP_FEES = "Swap Fees";
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  /* Tenute separate da `dailyFees` di proposito: la commissione della pool e'
+     degli LP e quella dell'interfaccia e' del protocollo, e sommarle in un solo
+     oggetto le renderebbe indistinguibili nel momento stesso in cui servono
+     distinte. `dailyFees` e' la somma delle due, come deve essere. */
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const record = (pool: Pool, amount: bigint, fee: bigint) => {
     if (amount <= 0n) return;
     const opts = pool.crossChain ? { skipChain: true } : {};
     dailyVolume.add(pool.token, amount, opts);
-    if (fee > 0n) dailyFees.add(pool.token, fee, { ...opts, label: SWAP_FEES });
+    if (fee > 0n) {
+      dailyFees.add(pool.token, fee, { ...opts, label: SWAP_FEES });
+      dailySupplySideRevenue.add(pool.token, fee, { ...opts, label: SWAP_FEES });
+    }
   };
 
   const [v4Logs, v3Logs] = await Promise.all([
@@ -167,17 +209,30 @@ const fetch = async (options: FetchOptions) => {
     }
   });
 
+  // The interface fee, read from the collector's own event rather than inferred from
+  // a balance somewhere. A currency of zero would be the chain's native token.
+  const collected = await options.getLogs({ target: FEE_COLLECTOR, eventAbi: COLLECTED_EVENT });
+  for (const log of collected) {
+    const currency = String(log.moneta);
+    const amount = BigInt(log.quanto);
+    if (amount <= 0n) continue;
+    if (currency.toLowerCase() === ADDRESSES.null) {
+      dailyFees.addGasToken(amount, INTERFACE_FEES);
+      dailyRevenue.addGasToken(amount, INTERFACE_FEES);
+    } else {
+      dailyFees.add(currency, amount, { label: INTERFACE_FEES });
+      dailyRevenue.add(currency, amount, { label: INTERFACE_FEES });
+    }
+  }
+
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    // The pool fee is the liquidity providers'. Ellipse charges its own 0.5% on swaps
-    // routed through its interface, but that is taken by Uniswap's router inside the
-    // same transaction and leaves no event of its own, so it is not counted here
-    // rather than estimated.
-    dailySupplySideRevenue: dailyFees,
-    dailyRevenue: 0,
-    dailyProtocolRevenue: 0,
+    // The pool fee is the liquidity providers'; the interface fee is the protocol's.
+    dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -194,15 +249,20 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Volume: "Swap volume in Ellipse's own markets on Arc: the Uniswap pools it opened for the assets it bridges (bCRCL, bGLD, bBTCB, bUSDT) and the market for its own token. Each swap is counted once, on whichever side has a price - USDC everywhere except the ELLIPSE market, which is counted on its bCRCL side and valued as the CRCL held in custody behind it. Launchpad launches are not counted: those pools are opened for other people's tokens on Uniswap's shared PoolManager, so their volume belongs to that DEX.",
-    Fees: "The fee each swap paid to the pool. Two of these pools run Ellipse's market-hours hook and charge 1%, 2% or 3% depending on whether the underlying market is open or shut; for those the rate is read from the swap itself rather than assumed, and the rest are fixed at creation.",
+    Fees: "Two things the trader pays. The pool fee on each swap - two of these pools run Ellipse's market-hours hook and charge 1%, 2% or 3% depending on whether the underlying market is open or shut, so for those the rate is read from the swap itself rather than assumed, and the rest are fixed at creation. Plus Ellipse's own 0.5% on swaps routed through its front end, read from the event its fee collector emits when it is emptied, which reports what actually reached the treasury rather than what was sent.",
     UserFees: "Same as Fees: what the trader paid on each swap.",
-    SupplySideRevenue: "All of it. The pool fee goes to the liquidity providers.",
-    Revenue: "None here. Ellipse does charge 0.5% on swaps routed through its own interface, but Uniswap's router takes it inside the same transaction and emits no event for it, so it is left out rather than estimated.",
-    ProtocolRevenue: "None here. Ellipse does charge 0.5% on swaps routed through its own interface, but Uniswap's router takes it inside the same transaction and emits no event for it, so it is left out rather than estimated.",
+    SupplySideRevenue: "The pool fee, which goes to the liquidity providers.",
+    Revenue: "Ellipse's 0.5% interface fee, kept in full. It is charged on every swap routed through its front end, which is a wider set than the pools whose volume is reported here, so it is not 0.5% of that volume and should not be read as a rate on it. It is dated when the collector is emptied rather than when each swap paid it; a keeper does that hourly.",
+    ProtocolRevenue: "Ellipse's 0.5% interface fee, kept in full. It is charged on every swap routed through its front end, which is a wider set than the pools whose volume is reported here, so it is not 0.5% of that volume and should not be read as a rate on it. It is dated when the collector is emptied rather than when each swap paid it; a keeper does that hourly.",
   },
   breakdownMethodology: {
-    Fees: { [SWAP_FEES]: "Fee paid to the pool on each swap." },
+    Fees: {
+      [SWAP_FEES]: "Fee paid to the pool on each swap.",
+      [INTERFACE_FEES]: "Ellipse's 0.5% on swaps routed through its front end, read from its fee collector's event.",
+    },
     SupplySideRevenue: { [SWAP_FEES]: "The pool fee, which goes to the liquidity providers." },
+    Revenue: { [INTERFACE_FEES]: "Ellipse's 0.5% on swaps routed through its front end, kept in full." },
+    ProtocolRevenue: { [INTERFACE_FEES]: "Ellipse's 0.5% on swaps routed through its front end, kept in full." },
   },
 };
 
