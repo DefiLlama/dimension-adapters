@@ -1,8 +1,8 @@
-import { Adapter, FetchOptions } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addGasTokensReceived, getSolanaReceived } from "../../helpers/token";
-import fetchURL from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
+import { getETHReceived, getSolanaReceived } from "../../helpers/token";
 
 /**
  * sTONks — Multi-chain Launchpad, Trading Bot & Terminal
@@ -12,7 +12,7 @@ import { sleep } from "../../utils/utils";
  *   - Terminal (stonkslabs.com):        1% per swap  → https://stonkslabs.com/
  *   - sTONks.pump Launchpad:         variable fee    → https://stonkslabs.com/
  *
- * Chains: TON, Ethereum, BSC, Solana, Robinhood, Arc
+ * Chains: TON, Ethereum, BSC, Robinhood, ARC and Solana
  *
  * Website:  https://stonks.dog/
  * App:      https://stonkslabs.com/
@@ -25,8 +25,8 @@ import { sleep } from "../../utils/utils";
  * Launchpad fee router (raw):    0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815
  * Referral payout wallet (raw):  0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148
  * Cashback payout wallet (raw):  0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a
- *
- * ─── EVM fee wallets (same address on ETH, BSC, Robinhood, Arc) ─────────────
+ * 
+ * ─── EVM fee wallets (same on ETH + BSC) ────────────────────────────────────
  * Bot + Terminal fee:            0xeed3b4867b27a876c5bd8ce22aff210486b7b433
  * Secondary fee:                 0x2f521187c6cc1d9db701d784de5b2f5046f32a1d
  * Launchpad fee:                 0xd3561fa0fa1a4f3e2a008134ea01cc805d323304
@@ -37,38 +37,41 @@ import { sleep } from "../../utils/utils";
  */
 
 // ─── TON addresses (raw format) ─────────────────────────────────────────────
-const TON_MAIN_FEE_WALLET      = "0:ef7ba08b55b69a5d04dde78808f972bc891eb74ac69281ca1167d6f2b9215d6a";
-const TON_SECONDARY_FEE        = "0:ec8f3e700f215dca0bf7ee7ae651191f0fa7818f863e78d66fa29acc9b1f486e";
+const TON_MAIN_FEE_WALLET = "0:ef7ba08b55b69a5d04dde78808f972bc891eb74ac69281ca1167d6f2b9215d6a";
+const TON_SECONDARY_FEE = "0:ec8f3e700f215dca0bf7ee7ae651191f0fa7818f863e78d66fa29acc9b1f486e";
 const TON_LAUNCHPAD_CONTRACT_A = "0:783e31dc981459aa84762984a03e8d75c320435c00ac5b66b3db64b3bb371c71";
 const TON_LAUNCHPAD_CONTRACT_B = "0:450b2f5ceb85d13f7032eff5882e20533789faec667112ddcb1c8ec1e2446624";
-const TON_LAUNCHPAD_ROUTER     = "0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815";
-const TON_REFERRAL_WALLET      = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
-const TON_CASHBACK_WALLET      = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
+const TON_LAUNCHPAD_ROUTER = "0:fccfdaaeb90c7bb38c01c11df67d48492fe0888548936d50290753c0084c1815";
+const TON_REFERRAL_WALLET = "0:1112e0d15466733671cf60bff3824b01d34b1b5bde48283937e04d18712d0148";
+const TON_CASHBACK_WALLET = "0:040d2139ba482c511e727447588b093ec3b017e1e43b844b33eacf72615b7f1a";
 
-const TON_LAUNCHPAD_SENDERS = new Set([
-  TON_LAUNCHPAD_ROUTER,
-  TON_LAUNCHPAD_CONTRACT_A,
-  TON_LAUNCHPAD_CONTRACT_B,
-]);
+const TON_LAUNCHPAD_SENDERS = new Set(
+  [TON_LAUNCHPAD_ROUTER, TON_LAUNCHPAD_CONTRACT_A, TON_LAUNCHPAD_CONTRACT_B].map((a) => a.toLowerCase())
+);
 
-const TON_PAYOUT_WALLETS = [TON_REFERRAL_WALLET, TON_CASHBACK_WALLET];
-const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
-
-// ─── EVM addresses (same on ETH, BSC, Robinhood, Arc) ────────────────────────
-const EVM_FEE_WALLETS = [
-  "0xeed3b4867b27a876c5bd8ce22aff210486b7b433",
-  "0x2f521187c6cc1d9db701d784de5b2f5046f32a1d",
-  "0xd3561fa0fa1a4f3e2a008134ea01cc805d323304",
+// ─── EVM addresses ───────────────────────────────────────────────────────────
+const EVM_TRADING_FEE_WALLETS = [
+  "0xeed3b4867b27a876c5bd8ce22aff210486b7b433", // Bot + Terminal
+  "0x2f521187c6cc1d9db701d784de5b2f5046f32a1d", // Secondary
 ];
+const EVM_LAUNCHPAD_FEE_WALLET = "0xd3561fa0fa1a4f3e2a008134ea01cc805d323304";
 const EVM_REFERRAL_WALLET = "0x552a41f0d9e74897f8d087d4c6e729abfc6c9bf1";
 
 // ─── Solana address ──────────────────────────────────────────────────────────
 const SOL_FEE_WALLET = "jf18AWK78fEEhk7N3aMr1A9JtesgraGxuJzjUrNJfee";
 
+const TON_PAYOUT_WALLETS = [TON_REFERRAL_WALLET, TON_CASHBACK_WALLET];
+const TON_FEE_WALLETS = [TON_MAIN_FEE_WALLET, TON_SECONDARY_FEE];
+
 const TRADING_FEES = "Trading Fees";
 const LAUNCHPAD_FEES = "Launchpad Fees";
+const REFERRAL_PAYOUTS = "Referral & Cashback Payouts";
+const NET_PROTOCOL_REVENUE = "Net Protocol Revenue";
 
-// ─── TON helpers ─────────────────────────────────────────────────────────────
+const PAGE = 1000;
+// Unauthenticated toncenter allows ~1 request/sec
+const TONCENTER_SLEEP_MS = 1500;
+
 const toBigInt = (v: any): bigint => {
   if (v === null || v === undefined) return 0n;
   if (typeof v === "string") return BigInt(v);
@@ -76,166 +79,124 @@ const toBigInt = (v: any): bigint => {
   return 0n;
 };
 
+const normAddr = (addr: string | undefined | null): string => (addr ?? "").toLowerCase();
+
+const pageToncenterTxs = async (account: string, start: number, end: number): Promise<any[]> => {
+  const all: any[] = [];
+  const seen = new Set<string>();
+
+  for (let offset = 0; ; offset += PAGE) {
+    const url =
+      `https://toncenter.com/api/v3/transactions?account=${account}` +
+      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`;
+
+    const data = await fetchURLAutoHandleRateLimit(url, 5);
+    if (!Array.isArray(data?.transactions)) {
+      throw new Error(`Expected a transactions array from toncenter for ${account}`);
+    }
+
+    const txs: any[] = data.transactions;
+    if (!txs.length) break;
+
+    for (const tx of txs) {
+      const now = tx.now ?? tx.utime;
+      const key = tx.hash ?? `${tx.lt}:${now}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (now < start || now >= end) continue;
+      all.push(tx);
+    }
+
+    if (txs.length < PAGE) break;
+    await sleep(TONCENTER_SLEEP_MS);
+  }
+
+  return all;
+};
+
 const scanTonWallet = async (
   wallet: string,
   start: number,
   end: number,
-  isLaunchpad: (sender: string | undefined) => boolean = () => false
+  isLaunchpad: (sender: string | undefined) => boolean
 ): Promise<{ tradingFees: bigint; launchpadFees: bigint }> => {
   let tradingFees = 0n;
   let launchpadFees = 0n;
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-  const seen = new Set<string>();
+  const walletNorm = normAddr(wallet);
 
-  while (true) {
-    const url =
-      `https://tonapi.io/v2/blockchain/accounts/${wallet}/transactions?limit=1000&sort_order=desc` +
-      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
 
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch TON transactions for ${wallet}: ${e}`);
-    }
+    const inMsg = tx.in_msg;
+    if (!inMsg || inMsg.bounced) continue;
+    if (normAddr(inMsg.destination) !== walletNorm) continue;
 
-    const txs: any[] = data.transactions;
-    if (!txs || !txs.length) break;
+    const value = toBigInt(inMsg.value);
+    if (value === 0n) continue;
 
-    let reachedBeforeStart = false;
-
-    for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      if (tx.utime < start) { reachedBeforeStart = true; break; }
-      if (tx.utime >= end) continue;
-      if (!tx.success) continue;
-
-      const inMsg = tx.in_msg;
-      if (!inMsg || inMsg.destination?.address !== wallet) continue;
-
-      const value = toBigInt(inMsg.value);
-      if (value === 0n) continue;
-
-      const sender: string | undefined = inMsg.source?.address;
-      if (isLaunchpad(sender)) {
-        launchpadFees += value;
-      } else {
-        tradingFees += value;
-      }
-    }
-
-    if (reachedBeforeStart) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-    await sleep(120);
+    const sender = inMsg.source ? String(inMsg.source) : undefined;
+    if (isLaunchpad(sender)) launchpadFees += value;
+    else tradingFees += value;
   }
 
   return { tradingFees, launchpadFees };
 };
 
-const scanTonPayouts = async (
-  wallet: string,
-  start: number,
-  end: number
-): Promise<bigint> => {
+const scanTonPayouts = async (wallet: string, start: number, end: number): Promise<bigint> => {
   let total = 0n;
-  let before_lt: string | undefined;
-  let before_hash: string | undefined;
-  const seen = new Set<string>();
 
-  while (true) {
-    const url =
-      `https://tonapi.io/v2/blockchain/accounts/${wallet}/transactions?limit=1000&sort_order=desc` +
-      (before_lt && before_hash ? `&before_lt=${before_lt}&before_hash=${before_hash}` : "");
-
-    let data: any;
-    try {
-      data = await fetchURL(url);
-    } catch (e) {
-      throw new Error(`Failed to fetch TON payout transactions for ${wallet}: ${e}`);
+  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+    if (tx.description?.action?.success === false) continue;
+    if (!tx.out_msgs) continue;
+    for (const msg of tx.out_msgs) {
+      if (msg.bounced) continue;
+      total += toBigInt(msg.value);
     }
-
-    const txs: any[] = data.transactions;
-    if (!txs || !txs.length) break;
-
-    let reachedBeforeStart = false;
-
-    for (const tx of txs) {
-      const key = tx.hash ?? `${tx.lt}:${tx.utime}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      if (tx.utime < start) { reachedBeforeStart = true; break; }
-      if (tx.utime >= end) continue;
-      if (!tx.success) continue;
-
-      if (tx.out_msgs) {
-        for (const msg of tx.out_msgs) {
-          if (msg.bounced) continue;
-          total += toBigInt(msg.value);
-        }
-      }
-    }
-
-    if (reachedBeforeStart) break;
-
-    const lastTx = txs[txs.length - 1];
-    if (lastTx?.lt == null || lastTx?.hash == null) break;
-
-    before_lt = String(lastTx.lt);
-    before_hash = String(lastTx.hash);
-    await sleep(120);
   }
 
   return total;
 };
 
-// ─── TON fetch ───────────────────────────────────────────────────────────────
+// ─── Fetch ───────────────────────────────────────────────────────────────────
 const fetchTON = async (options: FetchOptions) => {
   const { startTimestamp: start, endTimestamp: end } = options;
 
   let tradingFees = 0n;
   let launchpadFees = 0n;
-
   for (const w of TON_FEE_WALLETS) {
-    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(s ?? ""));
+    const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(normAddr(s)));
     tradingFees += r.tradingFees;
     launchpadFees += r.launchpadFees;
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
-
   const totalFees = tradingFees + launchpadFees;
 
   let totalUserPayouts = 0n;
   for (const w of TON_PAYOUT_WALLETS) {
     totalUserPayouts += await scanTonPayouts(w, start, end);
-    await sleep(500);
+    await sleep(TONCENTER_SLEEP_MS);
   }
 
   const dailyFees = options.createBalances();
   dailyFees.addGasToken(tradingFees.toString(), TRADING_FEES);
   dailyFees.addGasToken(launchpadFees.toString(), LAUNCHPAD_FEES);
 
+  // Volume: only Bot + Terminal (1% fee); launchpad excluded (variable fee)
   const dailyVolume = options.createBalances();
   dailyVolume.addGasToken((tradingFees * 100n).toString());
 
+  // Supply side: referral + cashback payouts to users
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), "Referral & Cashback Payouts");
+  dailySupplySideRevenue.addGasToken(totalUserPayouts.toString(), REFERRAL_PAYOUTS);
 
-  const protocolRevBigInt = totalFees > totalUserPayouts ? totalFees - totalUserPayouts : 0n;
+  // Revenue = fees - payouts; can go negative on days payouts exceed fees, which is real
+  // (referral/cashback payouts settle on their own schedule, not 1:1 with the fees that funded them)
+  const protocolRevBigInt = totalFees - totalUserPayouts;
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
+  dailyRevenue.addGasToken(protocolRevBigInt.toString(), NET_PROTOCOL_REVENUE);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addGasToken(protocolRevBigInt.toString(), "Net Protocol Revenue");
+  dailyProtocolRevenue.addGasToken(protocolRevBigInt.toString(), NET_PROTOCOL_REVENUE);
 
   return {
     dailyVolume,
@@ -246,40 +207,57 @@ const fetchTON = async (options: FetchOptions) => {
   };
 };
 
-// ─── EVM fetch (ETH, BSC, Robinhood, Arc) ────────────────────────────────────
+// ─── EVM fetch (ETH / BSC) ───────────────────────────────────────────────────
 const fetchEVM = async (options: FetchOptions) => {
-  const dailyFees = await addGasTokensReceived({
+  const tradingFees = await getETHReceived({
     options,
-    multisigs: EVM_FEE_WALLETS,
+    targets: EVM_TRADING_FEE_WALLETS,
+  });
+  const launchpadFees = await getETHReceived({
+    options,
+    targets: [EVM_LAUNCHPAD_FEE_WALLET],
   });
 
-  const dailySupplySideRevenue = await addGasTokensReceived({
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(tradingFees, TRADING_FEES);
+  dailyFees.addBalances(launchpadFees, LAUNCHPAD_FEES);
+
+  const referralPayouts = await getETHReceived({
     options,
-    multisigs: [EVM_REFERRAL_WALLET],
+    targets: [EVM_REFERRAL_WALLET],
   });
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addBalances(referralPayouts, REFERRAL_PAYOUTS);
+
+  const dailyRevenue = dailyFees.clone(1, NET_PROTOCOL_REVENUE);
+  dailyRevenue.subtract(dailySupplySideRevenue);
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyFees,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
 // ─── Solana fetch ────────────────────────────────────────────────────────────
 const fetchSolana = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  await getSolanaReceived({ options, balances: dailyFees, target: SOL_FEE_WALLET });
+  const received = options.createBalances();
+  await getSolanaReceived({ options, balances: received, target: SOL_FEE_WALLET });
 
-  const dailyVolume = options.createBalances();
-  dailyVolume.addBalances(dailyFees);
+  const dailyFees = options.createBalances();
+  dailyFees.addBalances(received, TRADING_FEES);
+
+  const dailyVolume = received.clone();
   dailyVolume.resizeBy(100);
+
+  const dailyRevenue = dailyFees.clone(1, NET_PROTOCOL_REVENUE);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
@@ -287,7 +265,7 @@ const fetchSolana = async (options: FetchOptions) => {
 const methodology = {
   Volume:
     "Trading volume reverse-calculated from the 1% fee on @stonks_sniper_bot and sTONks Terminal " +
-    "across TON, Ethereum, BSC, Solana, Robinhood and Arc. sTONks.pump Launchpad volume excluded (variable fee).",
+    "across TON, Ethereum, BSC, Robinhood and ARC and Solana. sTONks.pump Launchpad volume excluded (variable fee).",
   Fees:
     "All inflows to fee wallets: 1% from Bot + Terminal, variable from sTONks.pump Launchpad.",
   Revenue: "Total fees minus referral and cashback payouts.",
@@ -303,30 +281,33 @@ const breakdownMethodology = {
       "Variable fees from sTONks.pump Launchpad routed to fee wallets.",
   },
   SupplySideRevenue: {
-    "Referral & Cashback Payouts":
+    [REFERRAL_PAYOUTS]:
       "Outflows from referral and cashback wallets to users.",
   },
   Revenue: {
-    "Net Protocol Revenue": "Total fees minus referral and cashback payouts.",
+    [NET_PROTOCOL_REVENUE]: "Total fees minus referral and cashback payouts.",
   },
   ProtocolRevenue: {
-    "Net Protocol Revenue": "Total fees minus user payouts, retained by the protocol.",
+    [NET_PROTOCOL_REVENUE]: "Total fees minus user payouts, retained by the protocol.",
   },
 };
 
 // ─── Adapter ─────────────────────────────────────────────────────────────────
-const adapter: Adapter = {
+const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.TON]:       { fetch: fetchTON,    start: "2024-01-12" },
-    [CHAIN.ETHEREUM]:  { fetch: fetchEVM,    start: "2024-01-12" },
-    [CHAIN.BSC]:       { fetch: fetchEVM,    start: "2024-01-12" },
-    [CHAIN.SOLANA]:    { fetch: fetchSolana, start: "2024-01-12" },
-    [CHAIN.ROBINHOOD]: { fetch: fetchEVM,    start: "2024-01-12" },
-    [CHAIN.ARC]:       { fetch: fetchEVM,    start: "2024-01-12" },
+    [CHAIN.TON]: { fetch: fetchTON, start: "2024-01-12" },
+    [CHAIN.ETHEREUM]: { fetch: fetchEVM, start: "2024-01-12" },
+    [CHAIN.BSC]: { fetch: fetchEVM, start: "2024-01-12" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2024-01-12" },
+    [CHAIN.ROBINHOOD]: { fetch: fetchEVM, start: "2026-07-18" },
+    [CHAIN.ARC]: { fetch: fetchEVM, start: "2026-09-16" },
   },
   methodology,
   breakdownMethodology,
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  pullHourly: true,
 };
 
 export default adapter;
