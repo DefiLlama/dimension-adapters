@@ -4,11 +4,9 @@ import { queryDuneSql } from "../../helpers/dune";
 
 const fetch = async (options: FetchOptions) => {
 
-  // One-sided OI: (oi_long + oi_short) / 2.
-  // Ostium is a bilateral OTC venue: every trade has a counterparty (another trader
-  // or the Liquidity Pool Vault), and there is no single-sided field to read. Long and
-  // short are independent here (per-pair L/S spans 0.03-8.0), so the average of the two
-  // sides is the one-sided figure, matching how the other pool venues are reported.
+  // OI = oi_long + oi_short. Ostium is a pool venue: every trader position has the Liquidity
+  // Pool Vault on the other side, so long + short counts each open position once (the subgraph's
+  // open trades sum to longOI/shortOI), matching how the other pool venues are reported.
   // This replaces an earlier max(long, short) * 2 estimate of total two-legged exposure.
   const volumeRes = await queryDuneSql(options, `
     WITH orders AS (
@@ -53,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
       SELECT
         (
           sum(IF(is_buy, open_interest, 0)) + sum(IF(NOT is_buy, open_interest, 0))
-        ) / 2 AS open_interest
+        ) AS open_interest
       FROM latest_oi_per_side
     )
     SELECT 

@@ -406,4 +406,5 @@ export enum CHAIN {
   NATIVE_CORE = "native_core",
   STRATO = "strato",
   ARC = "arc",
+  REDBELLY = "rbn",
 }

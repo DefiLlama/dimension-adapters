@@ -129,11 +129,13 @@ function installShutdownHooks() {
   process.once("beforeExit", () => {
     void cleanup();
   });
-  process.once("uncaughtException", () => {
-    void cleanup().then(() => process.exit(1));
+  process.once("uncaughtException", (error, origin) => {
+    console.error(`[Indexer] Uncaught exception (${origin}); closing connections and exiting:`, error.stack ?? error.message);
+    void cleanup().then(() => process.exit(0));
   });
-  process.once("unhandledRejection", () => {
-    void cleanup().then(() => process.exit(1));
+  process.once("unhandledRejection", (reason) => {
+    console.error("[Indexer] Unhandled rejection; closing connections and exiting:", reason instanceof Error ? reason.stack ?? reason.message : reason);
+    void cleanup().then(() => process.exit(0));
   });
 }
 

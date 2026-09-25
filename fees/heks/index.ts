@@ -5,21 +5,23 @@ import { METRIC } from "../../helpers/metrics";
 // heks is a coin launchpad on Robinhood Chain. A launch opens a Uniswap v4 pool with a single-sided
 // position and a hook; trading happens in that pool, and the hook skims the protocol's fee.
 //
-// Two deployments have been live. Coin creation moved to the current one on 2026-09-15, but the
-// retired one's pools still trade and still charge, so both are read here.
+// Three deployments have been live. Coin creation moved to the current one on 2026-09-23, but the
+// earlier ones' pools still trade and still charge, so all three are read here.
 //
 // Every address below is the vault that custodies a deployment's positions and books its fees.
-// https://robinhoodchain.blockscout.com/address/0x89c0983D9B01F6CAe4FEcbb6b5D6296b44536400
+// https://robinhoodchain.blockscout.com/address/0xb7Ab4c5e3d133cfbE4fCd627728849B8E6F0dbF0
 const VAULTS = [
-  "0x89c0983d9b01f6cae4fecbb6b5d6296b44536400", // current
-  "0x3025685be0c6fa2ce7ec3ed6cdbdaf2e6309638f", // retired for new coins on 2026-09-15, still trading
+  "0xb7ab4c5e3d133cfbe4fcd627728849b8e6f0dbf0", // current (V2.1), since 2026-09-23
+  "0x89c0983d9b01f6cae4fecbb6b5d6296b44536400", // V2: new coins moved to V2.1 on 2026-09-23, still trading
+  "0x3025685be0c6fa2ce7ec3ed6cdbdaf2e6309638f", // V1: retired for new coins on 2026-09-15, still trading
 ];
 
 // The launchpads that mint coins and charge the flat creation fee.
-// https://robinhoodchain.blockscout.com/address/0x62cA64f87E051a2E190d17caA98E4a08f4a597dc
+// https://robinhoodchain.blockscout.com/address/0x3AAB7D1317565d768b92A07b4417B128F470Da68
 const LAUNCHPADS = [
-  "0x62ca64f87e051a2e190d17caa98e4a08f4a597dc", // current
-  "0x0647b0f4bfdec1f64ffad55edcf24504269058de", // retired for new coins on 2026-09-15
+  "0x3aab7d1317565d768b92a07b4417b128f470da68", // current (V2.1)
+  "0x62ca64f87e051a2e190d17caa98e4a08f4a597dc", // V2
+  "0x0647b0f4bfdec1f64ffad55edcf24504269058de", // V1
 ];
 
 // One event per fee credit, emitted by the vault. It carries the gross amount and the split in the
@@ -29,8 +31,8 @@ const LAUNCHPADS = [
 //
 // `currency` is the pool's pair asset, never the launched coin: the hook always charges in the pair
 // asset, and the pools' own Uniswap LP fee is zero. Deployments differ in which asset that is —
-// the current one quotes in native ETH, the retired one in WETH, and the stock lanes in the
-// tokenised share itself — so the currency is taken from the log rather than assumed. Native ETH
+// V2.1 and V2 quote in native ETH, V1 in WETH, and the stock lanes in the tokenised share
+// itself — so the currency is taken from the log rather than assumed. Native ETH
 // arrives as the zero address, which is the key balances already use for the gas token.
 const COLLECTED =
   "event Collected(bytes32 indexed id, address indexed currency, uint256 amount, uint256 creatorShare, uint256 protocolShare, uint256 carryAfter)";

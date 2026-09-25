@@ -20,8 +20,13 @@ async function fetch({ startOfDay }: FetchOptions) {
     }
   }
 
-  yesterday: perpPools {
-    snap (where: { timestamp: ${yesterday}}) {
+  previous: perpPools {
+    snap (
+      first: 1,
+      where: { timestamp_lte: ${yesterday} },
+      orderBy: timestamp,
+      orderDirection: desc
+    ) {
       totalTrade
       totalFees
     }
@@ -34,17 +39,16 @@ async function fetch({ startOfDay }: FetchOptions) {
     return { dailyVolume: 0, dailyFees: 0, }
   }
 
-  const volToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
-  const volYesterday = (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
-    ? 0
-    : res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
-  const feesToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
-  const feesYesterday = (!res.yesterday.length || res.yesterday[0].snap.length !== 1)
-    ? 0
-    : res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
+  const sumField = (pools: any[], field: 'totalTrade' | 'totalFees') =>
+    pools.reduce((total, pool) => total + (pool.snap[0] ? Number(pool.snap[0][field]) : 0), 0)
 
-  const dailyVolume = volToday - volYesterday
-  const dailyFees = feesToday - feesYesterday
+  const volToday = sumField(res.today, 'totalTrade')
+  const volPrevious = sumField(res.previous, 'totalTrade')
+  const feesToday = sumField(res.today, 'totalFees')
+  const feesPrevious = sumField(res.previous, 'totalFees')
+
+  const dailyVolume = volToday - volPrevious
+  const dailyFees = feesToday - feesPrevious
 
   return { dailyVolume, dailyFees, }
 
