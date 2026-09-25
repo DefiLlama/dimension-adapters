@@ -4,6 +4,7 @@ import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
 import { addOneToken } from '../../helpers/prices'
 import { getUniV3LogAdapter } from '../../helpers/uniswap'
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 // Synthra (synthra.org): Uniswap V3-style AMM, Synthra Launch bonding curves and an LP locker for
 // graduated launches, deployed on Robinhood Chain and Arc.
@@ -27,7 +28,7 @@ type ChainConfig = {
 const CONFIG: Record<string, ChainConfig> = {
   [CHAIN.ROBINHOOD]: {
     start: '2026-07-14',
-    quote: '0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73', // WETH
+    quote: ADDRESSES.robinhood.WETH,
     factories: ['0x6307fc239C7964942c1BfFE51930E55606619c74', '0x8f419898da502d3f49ef379775507210de2bfe3a'],
     launchpads: ['0xFc645480c1F40c03DeaBD9fD54E6BC42d0b3863E', '0x3D26D96BC9d1C3FcAE0D156E830c723051364847'],
     lpLocker: '0xf32257816D64651F7e7b43529607Eb2ede294EE3',
@@ -36,7 +37,7 @@ const CONFIG: Record<string, ChainConfig> = {
   },
   [CHAIN.ARC]: {
     start: '2026-07-30',
-    quote: '0x3600000000000000000000000000000000000000', // USDC
+    quote: ADDRESSES.arc.USDC,
     factories: ['0x6307fc239C7964942c1BfFE51930E55606619c74', '0x84169f9adf4f5f0e483bfc350498a85b1d7ec638'],
     launchpads: ['0x18D33De5eefB2F91B09385f35f6a1317659cc1F9'],
     lpLocker: '0xCE8E6ec91d39b5a0b36920DA5d69f82C253e05f2',
