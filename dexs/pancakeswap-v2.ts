@@ -442,6 +442,7 @@ const adapterObj: SimpleAdapter = {
   }, {} as BaseAdapter),
   methodology,
   breakdownMethodology,
+  isExpensiveAdapter: true,
 }
 
 export default adapterObj;

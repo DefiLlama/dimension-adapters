@@ -47,7 +47,7 @@ const fetchVolume: FetchV2 = async (options) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   adapter: {
