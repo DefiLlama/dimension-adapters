@@ -22,17 +22,36 @@
  *
  * Fees are counted in the token they arrive in (USDC, USDT, EURC), as incoming
  * transfers to the receiver, which is the fee exactly as collected.
+ *
+ * Only transfers that the SwapVM execution path itself originates are counted. The
+ * fee is moved by the `FeeProtocol` instruction, which is applied to the swap's input
+ * inside the same call that executes the position, so the paying address is the
+ * execution contract rather than the end user. Restricting `from` to that set means a
+ * third party cannot inflate the number by simply sending a token to the receiver.
+ * The set is verified against the first real fee payment and pinned then.
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 
 const FEE_RECEIVER = "0x4C96dA02d7120BFb81594d0e924B237e0c74660d";
+
+// The only contracts that can move a position fee. Positions are held by the public
+// Aqua liquidity registry and a swap against them executes through it and the venue
+// router, so every genuine fee transfer originates from one of these.
+const FEE_SENDERS = [
+  "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a", // Aqua registry (account + order book)
+  "0x111111338c5091e8440b67b168bae16a668ac0de", // venue router
+];
 
 const TRANSFER_EVENT =
   "event Transfer (address indexed from, address indexed to, uint256 amount)";
 
 // The fee rail was armed here. Adapters must not claim fees before they were charged.
 const ARMED = "2026-09-25";
+
+const topic = (address: string) =>
+  "0x" + address.slice(2).toLowerCase().padStart(64, "0");
 
 // The tokens a position can be denominated in, per chain. Reading transfers against a
 // known token set keeps the query targetable, rather than scanning every Transfer in a
@@ -67,18 +86,30 @@ const chainConfig = Object.fromEntries(
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const tokens = TOKENS[options.chain];
+  const toTopic = topic(FEE_RECEIVER);
 
   for (const token of tokens) {
-    const logs = await options.getLogs({
-      target: token,
-      eventAbi: TRANSFER_EVENT,
-      // Only transfers addressed to the fee receiver.
-      topics: [null, null, "0x" + FEE_RECEIVER.slice(2).toLowerCase().padStart(64, "0")],
-    });
-    logs.forEach((log: any) => dailyFees.add(token, log.amount));
+    for (const sender of FEE_SENDERS) {
+      // A fee transfer to the receiver, sent by the execution path. Filtering both
+      // sides is what keeps a stray deposit to the receiver out of the number.
+      const logs = await options.getLogs({
+        target: token,
+        eventAbi: TRANSFER_EVENT,
+        topics: [null, topic(sender), toTopic],
+      });
+      logs.forEach((log: any) =>
+        dailyFees.add(token, log.amount, METRIC.TRADING_FEES),
+      );
+    }
   }
 
-  return { dailyFees };
+  // TRDEFI keeps the whole fee. There is no supplier or holder share, so the collected
+  // amount is reported as revenue in full.
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
+  };
 }
 
 const adapter: SimpleAdapter = {
@@ -89,6 +120,15 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees:
       "0.05% of the amount traded, collected by TRDEFI on positions created through its venue. The fee is embedded in the maker's signed order and paid to the receiver address when the position trades, so it is counted as the incoming token transfers it actually is. The fee rail has been in force since 2026-09-25; positions created before that carry no fee and are immutable.",
+    Revenue:
+      "The entire collected fee. TRDEFI retains 100% of it, with no share paid to suppliers or holders.",
+    ProtocolRevenue: "The entire collected fee, retained by TRDEFI.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]:
+        "0.05% protocol fee charged on the amount traded when a position created through TRDEFI trades.",
+    },
   },
 };
 
