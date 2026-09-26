@@ -47,6 +47,12 @@ const FEE_SENDERS = [
 const TRANSFER_EVENT =
   "event Transfer (address indexed from, address indexed to, uint256 amount)";
 
+// topic0 must be pinned. Leaving it null lets the indexer decode any log whose
+// topic1/topic2 happen to line up (an Approval(owner, spender, value) reads as a
+// Transfer) into an `amount` this adapter would count as a fee.
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
 // The fee rail was armed here. Adapters must not claim fees before they were charged.
 const ARMED = "2026-09-25";
 
@@ -95,7 +101,7 @@ async function fetch(options: FetchOptions) {
       const logs = await options.getLogs({
         target: token,
         eventAbi: TRANSFER_EVENT,
-        topics: [null, topic(sender), toTopic],
+        topics: [TRANSFER_TOPIC, topic(sender), toTopic],
       });
       logs.forEach((log: any) =>
         dailyFees.add(token, log.amount, METRIC.TRADING_FEES),
