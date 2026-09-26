@@ -1,6 +1,7 @@
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 // Raydium Burn & Earn. Every StonkFun launch locks its liquidity here.
 const LOCK_PROGRAM = "LockrWmn6K5twhz3y9w1dQERbmgSaRkfnTeTKbpofwE";
@@ -27,6 +28,8 @@ type Row = { mint: string; raw_amount: string; kind: string };
 // second key goes to the creator (50/50), a rewards wallet (15/85) or the flywheel (90/10)
 // depending on launch type, so to_owner alone picks out the protocol's share of all three.
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   const rows = (await queryDuneSql(
     options,
     `
