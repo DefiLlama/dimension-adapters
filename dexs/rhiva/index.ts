@@ -16,7 +16,9 @@ async function fetch({
     },
   };
 
-  const { volume } = await httpPost(RHIVA_ENDPOINT, filter);
+  const { volume } = await httpPost(RHIVA_ENDPOINT, filter, {
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+  });
   const dailyVolume = createBalances();
   dailyVolume.addUSDValue(volume);
 

@@ -16,14 +16,23 @@ const fetch = async ({
   fromTimestamp,
   toTimestamp,
 }: FetchOptions) => {
-  const amounts: Metrics = await postURL(RHIVA_ENDPOINT, {
-    filter: {
-      endTime: new Date(toTimestamp * 1000).toISOString(),
-      startTime: new Date(fromTimestamp * 1000).toISOString(),
+  const amounts: Metrics = await postURL(
+    RHIVA_ENDPOINT,
+    {
+      filter: {
+        endTime: new Date(toTimestamp * 1000).toISOString(),
+        startTime: new Date(fromTimestamp * 1000).toISOString(),
+      },
     },
-  });
-  console.log(amounts)
- 
+    3,
+    {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
   const dailyFees = createBalances();
   const dailyUserFees = createBalances();
   const dailyProtocolRevenue = createBalances();
