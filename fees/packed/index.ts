@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { getTransactionsWithRetry } from "../../helpers/getTxReceipts";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Packed (packd.cc) is a coin launchpad on Robinhood Chain and Ethereum.
@@ -291,6 +292,17 @@ async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConf
     const tx = String(l.transactionHash).toLowerCase();
     receipts.set(tx, [...(receipts.get(tx) ?? []), BigInt(l.args.value)]);
   }
+  // Only a transaction a buyback wallet sent itself is a buyback. A swap's output can be sent to any
+  // address, so a third party can buy $PACKD for one of the wallets; that ETH is not Packed's and is
+  // not counted. Inside a transaction the wallet sent, every swap in this pool is the wallet's own.
+  const wallets = new Set(buyback.wallets.map((w) => w.toLowerCase()));
+  const hashes = [...receipts.keys()];
+  const txs = await getTransactionsWithRetry(options.chain, hashes);
+  hashes.forEach((hash, i) => {
+    const from = txs[i]?.from?.toLowerCase();
+    if (!from || !wallets.has(from)) receipts.delete(hash);
+  });
+  if (!receipts.size) return;
   const swaps = await options.getLogs({
     target: buyback.poolManager,
     eventAbi: POOL_SWAP,
