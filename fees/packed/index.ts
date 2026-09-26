@@ -285,7 +285,15 @@ async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConf
     onlyArgs: false,
   })))).flat();
   if (!received.length) return;
-  const buyTxs = new Set(received.map((l: any) => String(l.transactionHash).toLowerCase()));
+  // Each $PACKD receipt, by transaction. Every receipt is paired with one swap, so another swap in
+  // the same transaction is never counted. The pool's hook keeps a cut of the $PACKD a swap pays out
+  // (4% on the first team-wallet buy, tx 0xc4f698beb195...), so a receipt is at most the swap's
+  // amount1 rather than equal to it.
+  const receipts = new Map<string, bigint[]>();
+  for (const l of received) {
+    const tx = String(l.transactionHash).toLowerCase();
+    receipts.set(tx, [...(receipts.get(tx) ?? []), BigInt(l.args.value)]);
+  }
   const swaps = await options.getLogs({
     target: buyback.poolManager,
     eventAbi: POOL_SWAP,
@@ -293,7 +301,15 @@ async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConf
     onlyArgs: false,
   });
   for (const s of swaps) {
-    if (!buyTxs.has(String(s.transactionHash).toLowerCase())) continue;
+    const pending = receipts.get(String(s.transactionHash).toLowerCase());
+    // amount0 < 0: ETH paid in; amount1 > 0: $PACKD paid out to the swapper.
+    const out = BigInt(s.args.amount1);
+    if (!pending?.length || out <= 0n || BigInt(s.args.amount0) >= 0n) continue;
+    // The largest receipt this swap's payout covers.
+    let at = -1;
+    pending.forEach((v, i) => { if (v <= out && (at < 0 || v > pending[at])) at = i; });
+    if (at < 0) continue;
+    pending.splice(at, 1);
     add(b.dailyHoldersRevenue, NULL, -BigInt(s.args.amount0), METRIC.TOKEN_BUY_BACK);
   }
 }
