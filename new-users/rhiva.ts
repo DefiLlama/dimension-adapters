@@ -18,9 +18,7 @@ const fetch = async ({ toTimestamp, fromTimestamp }: FetchOptions) => {
     },
   };
 
-  const userMetric = await postURL(`${RHIVA_ENDPOINT}/users`, filter, 3, {
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-  });
+  const userMetric = await postURL(`${RHIVA_ENDPOINT}/users`, filter, 3);
 
   const { users } = userMetric as UserMetric;
 

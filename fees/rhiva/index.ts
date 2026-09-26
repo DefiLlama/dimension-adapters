@@ -25,12 +25,6 @@ const fetch = async ({
       },
     },
     3,
-    {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    },
   );
 
   const dailyFees = createBalances();

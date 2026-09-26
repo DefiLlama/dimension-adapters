@@ -1,6 +1,6 @@
 import type { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
+import { postURL } from "../../utils/fetchURL";
 
 const RHIVA_ENDPOINT = "https://api.rhiva.fun/metrics/dex";
 
@@ -16,9 +16,7 @@ async function fetch({
     },
   };
 
-  const { volume } = await httpPost(RHIVA_ENDPOINT, filter, {
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-  });
+  const { volume } = await postURL(RHIVA_ENDPOINT, filter, 3);
   const dailyVolume = createBalances();
   dailyVolume.addUSDValue(volume);
 
