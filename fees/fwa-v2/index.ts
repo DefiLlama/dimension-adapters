@@ -71,7 +71,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   });
   const feeByRequest = new Map<string, bigint>();
   requested.forEach((log: any) => feeByRequest.set(String(log.requestId), BigInt(log.acquisitionFee)));
-  allocated.forEach((log: any) => dailyVolume.addGasToken(feeByRequest.get(String(log.requestId)) ?? 0n));
+  allocated.forEach((log: any) => {
+    const fee = feeByRequest.get(String(log.requestId));
+    if (fee === undefined) throw new Error(`FWA V2: no AcquisitionRequested log for request ${log.requestId}`);
+    dailyVolume.addGasToken(fee);
+  });
 
   // Quick-sell payouts to purchasers are netted out of acquisition fees and depositor earnings
   const quickSellPayouts = sum(bidAccepted, 'payout') + sum(bidAcceptedAsTokens, 'ethPayout');
@@ -161,9 +165,9 @@ const breakdownMethodology = {
     [METRICS.SettlementFees]: "Settlement fees kept by the protocol.",
     [METRICS.RetainedSettlements]: "Retained penalties kept by the protocol.",
     [METRICS.EarlyCrownExitFees]: "Early crown exit fees kept by the protocol.",
-    [METRICS.BuybackRewardsToDepositors]: "Deducted when a buyback pays FWA to depositors.",
-    [METRICS.BuybackRewardsToPurchasers]: "Deducted when a buyback pays FWA to purchasers.",
-    [METRICS.BuybackCallerIncentive]: "Deducted when a buyback pays its caller.",
+    [METRICS.BuybackRewardsToDepositors]: "Part of the protocol's cut paid out as FWA to depositors, moved to supply side when the buyback executes.",
+    [METRICS.BuybackRewardsToPurchasers]: "Part of the protocol's cut paid out as FWA to purchasers, moved to supply side when the buyback executes.",
+    [METRICS.BuybackCallerIncentive]: "Part of the protocol's cut paid to the buyback caller, moved to supply side when the buyback executes.",
   },
   SupplySideRevenue: {
     [METRICS.AcquisitionFees]: "Acquisition fees paid to NFT depositors.",
