@@ -35,47 +35,6 @@ const BPS = 10_000n;
 const CREATOR_SHARE_BPS = 7_500n; // creatorShareBps() on every factory, curve and pool below
 const LAUNCH_FEE = 400_000_000_000_000n; // 0.0004 ETH, launchFee() on every factory that has one
 
-// ── Robinhood Chain ─────────────────────────────────────────────────────────────────────────────
-// https://robinhoodchain.blockscout.com/address/0x3Ff274CF9A4B4a3ec6c524C8915B3ad2eD336ade
-// Every PackedCurveFactory that has launched a coin for the public. Older ones stay listed because
-// their coins still trade. `launchFee` is the fee each one charges; the first set charged none.
-const RH_FROM_BLOCK = 54_340_000; // before the first launch (block 54350011, 2026-09-04)
-const RH_FACTORIES: { factory: string; launchFee: bigint }[] = [
-  { factory: "0x3ff274cf9a4b4a3ec6c524c8915b3ad2ed336ade", launchFee: LAUNCH_FEE }, // current, with seat deposits
-  { factory: "0xa5fb8e98aedb2ab59a61971a6956399df8059511", launchFee: LAUNCH_FEE }, // current, taxed pools
-  { factory: "0x87c82a09d280b23537bdc9e4674ce6102b865514", launchFee: LAUNCH_FEE }, // current, reward coins
-  { factory: "0x0fb1ea54e75c0de09978a71976ac4e6eb0638d69", launchFee: LAUNCH_FEE }, // reward coins, first version
-  { factory: "0x25a6163adc23018bfae0f14177ff3a868d0adc93", launchFee: LAUNCH_FEE },
-  { factory: "0x723e5f3db8336ced81c615711e79527ea69f1b8f", launchFee: LAUNCH_FEE },
-  { factory: "0x831403902451c1349c3d041636836a8a49cd39cb", launchFee: LAUNCH_FEE },
-  { factory: "0x465f4190baf203591c9d355778400e482dd467c0", launchFee: LAUNCH_FEE },
-  { factory: "0x86a37f0adea97f5f2db030b78fc28cc28b63e452", launchFee: LAUNCH_FEE },
-  { factory: "0x7b71fd14b89b7f0aaee9697723c2641a1e0c932b", launchFee: 0n }, // first set: no launchFee(), launches sent no value
-];
-// The hooks of the taxed and reward factories (factory.hook()), which charge the creator tax on
-// every swap in a graduated coin's pool. The other factories' hooks only gate pool creation.
-const RH_TAX_HOOKS = [
-  "0x106b176f14fc793e37178b8afdea3bbd13eba044", // taxed factory
-  "0x50844d4553e252ca779b736e34db1e6743ec6044", // reward factory
-  "0xa9362f54b41bd75a9c3f5dfc295aad79ddabe044", // reward factory, first version
-];
-
-// ── Ethereum ────────────────────────────────────────────────────────────────────────────────────
-// https://etherscan.io/address/0x378708937B65CBeC6c5f1Cf5205960B12c9EB6AB
-const ETH_FROM_BLOCK = 26_047_465; // the first set's deployment, 2026-09-24
-const ETH_FACTORIES = [
-  "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", // current: PackedPoolDepositFactory (packs from deposits)
-  "0x75f2f001e66a721ab83990911a3ce33e2da8dfa2",
-  "0xf154ab716d00d2c37576c7c4eabc99d30b80dbba",
-  "0xa765219db324daffd9c67e6d4913623c8adcb4dc", // first set: tax taken by its hook, pool fee is 1% only
-];
-const ETH_FIRST_SET = "0xa765219db324daffd9c67e6d4913623c8adcb4dc";
-// The first set's hook, which took the creator tax and the launch-block charge itself.
-const ETH_FIRST_SET_HOOK = "0x0b89dc37a77255ceea712bbba2969f367a3920cc";
-const ETH_DEPOSIT_FACTORY = "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab";
-// The pool's base LP fee in hundredths of a basis point (1%); the creator tax is added on top of it.
-const POOL_BASE_FEE = 10_000n;
-
 // ── Events ──────────────────────────────────────────────────────────────────────────────────────
 // `curve` is the coin's PackedCurve on Robinhood Chain and its PackedPool on Ethereum.
 const LAUNCHED = "event Launched(address indexed token, address indexed curve, address indexed creator, string name, string symbol, uint256 creatorTaxBps)";
@@ -91,6 +50,99 @@ const FEES_COLLECTED_V2 = "event FeesCollected(uint256 quoteFees, uint256 tokenF
 const TAXED = "event Taxed(bytes32 indexed id, address indexed creator, address currency, uint256 amount)";
 const SNIPE_TAXED = "event SnipeTaxed(bytes32 indexed id, address indexed sender, address currency, uint256 amount)";
 const PACK_LAUNCHED = "event PackLaunched(address indexed token, bytes32 indexed packId, uint256 seatsBought, uint256 seatsSkipped, uint256 bids, uint256 bidsToProtocol)";
+// Buybacks of $PACKD: the token's transfers and the Uniswap v4 PoolManager's swaps. The topics are
+// set explicitly so both queries are filtered at the node (sender and recipient, pool id).
+const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const POOL_SWAP = "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
+const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+const asTopic = (address: string) => "0x000000000000000000000000" + address.slice(2).toLowerCase();
+
+// ── Chains ──────────────────────────────────────────────────────────────────────────────────────
+type ChainConfig = {
+  start: string;
+  // At or before the first Launched event of any factory below.
+  fromBlock: number;
+  // Every factory that has launched a coin for the public, with the launch fee it charges. Older
+  // factories stay listed because their coins still trade.
+  factories: { factory: string; launchFee: bigint }[];
+  // Hooks that charge the creator tax on pool swaps themselves and emit Taxed for it.
+  taxHooks: string[];
+  // Hooks that take the launch-block charge themselves and emit SnipeTaxed for it.
+  snipeHooks: string[];
+  // The factory that launches packs from deposits and emits PackLaunched, where there is one.
+  packFactory?: string;
+  // Coins trade on a PackedCurve (Buy/Sell events) before they reach a pool.
+  curveTrades: boolean;
+  // Pools whose LP fee is 1% plus the creator tax and whose FeesCollected carries a `premium`.
+  taxInPoolFee: boolean;
+  // Packed's own token, bought back on the open market by the fee wallet, where there is one.
+  buyback?: { token: string; wallet: string; poolManager: string; poolId: string };
+};
+
+const chainConfig: Record<string, ChainConfig> = {
+  // https://robinhoodchain.blockscout.com/address/0x3Ff274CF9A4B4a3ec6c524C8915B3ad2eD336ade
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-09-04", // first launch, block 54350011
+    fromBlock: 54_340_000,
+    factories: [
+      { factory: "0x3ff274cf9a4b4a3ec6c524c8915b3ad2ed336ade", launchFee: LAUNCH_FEE }, // current, with seat deposits
+      { factory: "0xa5fb8e98aedb2ab59a61971a6956399df8059511", launchFee: LAUNCH_FEE }, // current, taxed pools
+      { factory: "0x87c82a09d280b23537bdc9e4674ce6102b865514", launchFee: LAUNCH_FEE }, // current, reward coins
+      { factory: "0x0fb1ea54e75c0de09978a71976ac4e6eb0638d69", launchFee: LAUNCH_FEE }, // reward coins, first version
+      { factory: "0x25a6163adc23018bfae0f14177ff3a868d0adc93", launchFee: LAUNCH_FEE },
+      { factory: "0x723e5f3db8336ced81c615711e79527ea69f1b8f", launchFee: LAUNCH_FEE },
+      { factory: "0x831403902451c1349c3d041636836a8a49cd39cb", launchFee: LAUNCH_FEE },
+      { factory: "0x465f4190baf203591c9d355778400e482dd467c0", launchFee: LAUNCH_FEE },
+      { factory: "0x86a37f0adea97f5f2db030b78fc28cc28b63e452", launchFee: LAUNCH_FEE },
+      { factory: "0x7b71fd14b89b7f0aaee9697723c2641a1e0c932b", launchFee: 0n }, // first set: no launchFee(), launches sent no value
+    ],
+    // The hooks of the taxed and reward factories (factory.hook()). The other factories' hooks
+    // only gate pool creation.
+    taxHooks: [
+      "0x106b176f14fc793e37178b8afdea3bbd13eba044", // taxed factory
+      "0x50844d4553e252ca779b736e34db1e6743ec6044", // reward factory
+      "0xa9362f54b41bd75a9c3f5dfc295aad79ddabe044", // reward factory, first version
+    ],
+    snipeHooks: [],
+    curveTrades: true,
+    taxInPoolFee: false,
+    // Packed buys back $PACKD with its fee income and burns it. Every buy so far is a swap of ETH
+    // for $PACKD sent from the fee wallet through the Universal Router into the ETH/$PACKD pool, with
+    // the fee wallet as recipient (first one: tx 0xf06b6c6c8a5935a87f610dc805ee33a32c6ed50fff0e7f564b491f96ed090b95).
+    // The burns are plain transfers from the fee wallet to 0x...dEaD
+    // (tx 0x382b9c93b0a5513ec0ab7dd29a654fcf60d0ae19cba50a4faea371a67bb1911d).
+    buyback: {
+      // https://robinhoodchain.blockscout.com/token/0x853E1A36876Cc4538BE636B78E7b2BD0aABC0dEd
+      token: "0x853e1a36876cc4538be636b78e7b2bd0aabc0ded", // $PACKD
+      wallet: "0x71bb2cc5be1599aacd36080321f1b781a46fd1d9", // protocolFeeRecipient() of every factory above
+      poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951", // Uniswap v4 PoolManager on Robinhood Chain
+      poolId: "0xf40adb78665275f2cdd62e06fc29d0a892c359790017612d198086ac6cd392ef", // ETH/$PACKD, from the Swap logs of the buys
+    },
+  },
+  // https://etherscan.io/address/0x378708937B65CBeC6c5f1Cf5205960B12c9EB6AB
+  [CHAIN.ETHEREUM]: {
+    start: "2026-09-24", // first launch, block 26047618
+    fromBlock: 26_047_465, // the first set's deployment
+    factories: [
+      { factory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", launchFee: LAUNCH_FEE }, // current: PackedPoolDepositFactory (packs from deposits)
+      { factory: "0x75f2f001e66a721ab83990911a3ce33e2da8dfa2", launchFee: LAUNCH_FEE },
+      { factory: "0xf154ab716d00d2c37576c7c4eabc99d30b80dbba", launchFee: LAUNCH_FEE },
+      { factory: "0xa765219db324daffd9c67e6d4913623c8adcb4dc", launchFee: LAUNCH_FEE }, // first set: tax taken by its hook, pool fee is 1% only
+    ],
+    // The first set's hook, which took the creator tax and the launch-block charge itself,
+    // outside the pool fee.
+    taxHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
+    snipeHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
+    packFactory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab",
+    curveTrades: false,
+    taxInPoolFee: true,
+  },
+};
+
+// The pool's base LP fee in hundredths of a basis point (1%); on Ethereum the creator tax is added
+// on top of it.
+const POOL_BASE_FEE = 10_000n;
 
 // ── Labels ──────────────────────────────────────────────────────────────────────────────────────
 const LAUNCH_FEES = "Launch Fees";
@@ -107,33 +159,40 @@ const PACK_BIDS_TO_PROTOCOL = "Pack Seat Bids to Protocol";
 const PACK_BIDS_TO_LAUNCHERS = "Pack Seat Bids to Launchers";
 
 type Balances = ReturnType<FetchOptions["createBalances"]>;
+
+/** Adds an amount under a label, as native ETH when the token is the zero address. Skips zero. */
 const add = (b: Balances, token: string, amount: bigint, label: string) => {
   if (amount <= 0n) return;
   if (!token || token.toLowerCase() === NULL) b.addGasToken(amount, label);
   else b.add(token, amount, label);
 };
-// The creator's part of a fee, rounded down as the contracts round it; the rest is Packed's.
+
+/** The creator's part of a fee, rounded down as the contracts round it; the rest is Packed's. */
 const creatorPart = (fee: bigint) => (fee * CREATOR_SHARE_BPS) / BPS;
 
+/** The balances this adapter fills, and the result object built from them. */
 function balances(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
     result: () => ({
       dailyFees,
       dailyUserFees: dailyFees,
       dailyRevenue,
       dailyProtocolRevenue: dailyRevenue,
       dailySupplySideRevenue,
+      dailyHoldersRevenue,
     }),
   };
 }
 
-// Every coin a set of factories has launched, from their Launched events since deployment.
+/** Every coin a set of factories has launched, from their Launched events since `fromBlock`. */
 async function launches(options: FetchOptions, factories: string[], fromBlock: number) {
   const logs = await options.getLogs({ targets: factories, eventAbi: LAUNCHED, fromBlock, flatten: false, cacheInCloud: true });
   const coins: { factory: string; token: string; curve: string; taxBps: bigint }[] = [];
@@ -144,9 +203,11 @@ async function launches(options: FetchOptions, factories: string[], fromBlock: n
   return coins;
 }
 
-// The quote asset of each curve or pool. It is immutable, so it is read at the latest block: the
-// public Robinhood RPC does not serve historical state. The first Robinhood set predates
-// `quoteToken` and only ever traded against ETH, so a failed read is ETH.
+/**
+ * The quote asset of each curve or pool. It is immutable, so it is read at the latest block: the
+ * public Robinhood RPC does not serve historical state. The first Robinhood set predates
+ * `quoteToken` and only ever traded against ETH, so a failed read is ETH.
+ */
 async function quoteTokens(options: FetchOptions, contracts: string[]): Promise<string[]> {
   if (!contracts.length) return [];
   const latest = new sdk.ChainApi({ chain: options.chain });
@@ -154,7 +215,7 @@ async function quoteTokens(options: FetchOptions, contracts: string[]): Promise<
   return quotes.map((q: any) => (q ? String(q).toLowerCase() : NULL));
 }
 
-// Launch fees: a flat fee in ETH per launch, paid to Packed inside the launch transaction.
+/** Launch fees: a flat fee in ETH per launch in the window, paid to Packed inside the launch transaction. */
 async function addLaunchFees(options: FetchOptions, factories: { factory: string; launchFee: bigint }[], b: ReturnType<typeof balances>) {
   const logs = await options.getLogs({ targets: factories.map((f) => f.factory), eventAbi: LAUNCHED, flatten: false });
   logs.forEach((factoryLogs: any[], i: number) => {
@@ -164,8 +225,7 @@ async function addLaunchFees(options: FetchOptions, factories: { factory: string
   });
 }
 
-// Creator tax charged by a hook on pool swaps: all of it is the creator's (or, for a reward coin,
-// its holders').
+/** Creator tax charged by a hook on pool swaps: all of it is the creator's (or, for a reward coin, its holders'). */
 async function addHookTaxes(options: FetchOptions, hooks: string[], b: ReturnType<typeof balances>) {
   const taxed = await options.getLogs({ targets: hooks, eventAbi: TAXED });
   for (const l of taxed) {
@@ -174,28 +234,95 @@ async function addHookTaxes(options: FetchOptions, hooks: string[], b: ReturnTyp
   }
 }
 
-const fetchRobinhood = async (options: FetchOptions) => {
+/** The launch-block charge taken by a hook itself (Ethereum's first set), all of it the creator's. */
+async function addHookSnipeCharges(options: FetchOptions, hooks: string[], b: ReturnType<typeof balances>) {
+  const sniped = await options.getLogs({ targets: hooks, eventAbi: SNIPE_TAXED });
+  for (const l of sniped) {
+    add(b.dailyFees, String(l.currency), BigInt(l.amount), SNIPE_SURCHARGE);
+    add(b.dailySupplySideRevenue, String(l.currency), BigInt(l.amount), SNIPE_SURCHARGE);
+  }
+}
+
+/**
+ * Packs launched from deposits: every bought seat's bid, half to Packed and half to the launcher,
+ * split by the factory in the launch itself.
+ */
+async function addPackBids(options: FetchOptions, packFactory: string, b: ReturnType<typeof balances>) {
+  const packs = await options.getLogs({ target: packFactory, eventAbi: PACK_LAUNCHED });
+  for (const l of packs) {
+    const bids = BigInt(l.bids);
+    const toProtocol = BigInt(l.bidsToProtocol);
+    add(b.dailyFees, NULL, bids, PACK_BIDS);
+    add(b.dailyRevenue, NULL, toProtocol, PACK_BIDS_TO_PROTOCOL);
+    add(b.dailySupplySideRevenue, NULL, bids - toProtocol, PACK_BIDS_TO_LAUNCHERS);
+  }
+}
+
+/**
+ * $PACKD bought back by the fee wallet, valued at the ETH it paid. A buy is a transfer of $PACKD
+ * from the PoolManager to the fee wallet; the ETH is the ETH side of the ETH/$PACKD swap in the same
+ * transaction (ETH is currency0, and a negative amount0 is what the buyer paid in). The token has
+ * no DefiLlama price, so the ETH paid is what can be valued.
+ *
+ * Counted at the buy rather than at the burn: the first burn (6,688,772 $PACKD on 2026-09-22) also
+ * included $PACKD sent to the fee wallet as a plain transfer from another wallet, which the chain
+ * does not show as bought with fees. A transfer into the fee wallet without a swap in this pool in
+ * the same transaction is not a buy the chain can price, and is left out.
+ *
+ * The ETH spent came out of fees already counted as Revenue, so this overlaps Revenue rather than
+ * adding to it.
+ */
+async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConfig["buyback"]>, b: ReturnType<typeof balances>) {
+  const received = await options.getLogs({
+    target: buyback.token,
+    eventAbi: TRANSFER,
+    topics: [TRANSFER_TOPIC, asTopic(buyback.poolManager), asTopic(buyback.wallet)],
+    onlyArgs: false,
+  });
+  if (!received.length) return;
+  const buyTxs = new Set(received.map((l: any) => String(l.transactionHash).toLowerCase()));
+  const swaps = await options.getLogs({
+    target: buyback.poolManager,
+    eventAbi: POOL_SWAP,
+    topics: [SWAP_TOPIC, buyback.poolId],
+    onlyArgs: false,
+  });
+  for (const s of swaps) {
+    if (!buyTxs.has(String(s.transactionHash).toLowerCase())) continue;
+    add(b.dailyHoldersRevenue, NULL, -BigInt(s.args.amount0), METRIC.TOKEN_BUY_BACK);
+  }
+}
+
+/** Fees, revenue, supply-side and holders revenue of Packed on `options.chain` in the window. */
+const fetch = async (options: FetchOptions) => {
+  const config = chainConfig[options.chain];
   const b = balances(options);
-  const coins = await launches(options, RH_FACTORIES.map((f) => f.factory), RH_FROM_BLOCK);
-  const curves = coins.map((c) => c.curve);
+  const coins = await launches(options, config.factories.map((f) => f.factory), config.fromBlock);
+  const contracts = coins.map((c) => c.curve);
 
-  await addLaunchFees(options, RH_FACTORIES, b);
-  await addHookTaxes(options, RH_TAX_HOOKS, b);
-  if (!curves.length) return b.result();
+  await addLaunchFees(options, config.factories, b);
+  await addHookTaxes(options, config.taxHooks, b);
+  if (config.snipeHooks.length) await addHookSnipeCharges(options, config.snipeHooks, b);
+  if (config.packFactory) await addPackBids(options, config.packFactory, b);
+  if (config.buyback) await addBuybacks(options, config.buyback, b);
+  if (!contracts.length) return b.result();
 
-  const [buys, sells, collected] = await Promise.all([
-    options.getLogs({ targets: curves, eventAbi: BUY, flatten: false }),
-    options.getLogs({ targets: curves, eventAbi: SELL, flatten: false }),
-    options.getLogs({ targets: curves, eventAbi: FEES_COLLECTED, flatten: false }),
+  // Only the events a chain's contracts emit are requested; the rest stay empty per contract.
+  const none = contracts.map((): any[] => []);
+  const [buys, sells, collected, collectedWithPremium] = await Promise.all([
+    config.curveTrades ? options.getLogs({ targets: contracts, eventAbi: BUY, flatten: false }) : none,
+    config.curveTrades ? options.getLogs({ targets: contracts, eventAbi: SELL, flatten: false }) : none,
+    options.getLogs({ targets: contracts, eventAbi: FEES_COLLECTED, flatten: false }),
+    config.taxInPoolFee ? options.getLogs({ targets: contracts, eventAbi: FEES_COLLECTED_V2, flatten: false }) : none,
   ]);
-  const active = curves.filter((_, i) => buys[i].length || sells[i].length || collected[i].length);
+  const active = contracts.filter((_, i) => buys[i].length || sells[i].length || collected[i].length || collectedWithPremium[i].length);
   const quotes = await quoteTokens(options, active);
   const quoteOf: Record<string, string> = {};
   active.forEach((c, i) => (quoteOf[c] = quotes[i]));
 
-  curves.forEach((curve, i) => {
-    const quote = quoteOf[curve];
-    // Curve trades: the 1% fee split 75/25, and the creator's tax on top.
+  coins.forEach((coin, i) => {
+    const quote = quoteOf[coin.curve];
+    // Curve trades (Robinhood Chain): the 1% fee split 75/25, and the creator's tax on top.
     for (const l of [...buys[i], ...sells[i]]) {
       const fee = BigInt(l.fee);
       const tax = BigInt(l.tax);
@@ -206,59 +333,9 @@ const fetchRobinhood = async (options: FetchOptions) => {
       add(b.dailySupplySideRevenue, quote, toCreator, CURVE_FEES_TO_CREATORS);
       add(b.dailySupplySideRevenue, quote, tax, CREATOR_TAX);
     }
-    // After graduation: the pool's 1% LP fee, in both currencies, split 75/25 when collected.
+    // The pool fee is the 1% alone, in both currencies, split 75/25 when collected: Robinhood pools
+    // after graduation, and the first Ethereum set (its tax is read from the hook above).
     for (const l of collected[i]) {
-      for (const [token, amount] of [[quote, BigInt(l.quoteFees)], [coins[i].token, BigInt(l.tokenFees)]] as [string, bigint][]) {
-        const toCreator = creatorPart(amount);
-        add(b.dailyFees, token, amount, METRIC.SWAP_FEES);
-        add(b.dailyRevenue, token, amount - toCreator, SWAP_FEES_TO_PROTOCOL);
-        add(b.dailySupplySideRevenue, token, toCreator, SWAP_FEES_TO_CREATORS);
-      }
-    }
-  });
-
-  return b.result();
-};
-
-const fetchEthereum = async (options: FetchOptions) => {
-  const b = balances(options);
-  const coins = await launches(options, ETH_FACTORIES, ETH_FROM_BLOCK);
-  const pools = coins.map((c) => c.curve);
-
-  await addLaunchFees(options, ETH_FACTORIES.map((factory) => ({ factory, launchFee: LAUNCH_FEE })), b);
-  // The first set's hook took the creator tax and the launch-block charge outside the pool fee.
-  await addHookTaxes(options, [ETH_FIRST_SET_HOOK], b);
-  const sniped = await options.getLogs({ target: ETH_FIRST_SET_HOOK, eventAbi: SNIPE_TAXED });
-  for (const l of sniped) {
-    add(b.dailyFees, String(l.currency), BigInt(l.amount), SNIPE_SURCHARGE);
-    add(b.dailySupplySideRevenue, String(l.currency), BigInt(l.amount), SNIPE_SURCHARGE);
-  }
-
-  // Packs launched from deposits: every bought seat's bid, half to Packed and half to the launcher,
-  // split by the factory in the launch itself.
-  const packs = await options.getLogs({ target: ETH_DEPOSIT_FACTORY, eventAbi: PACK_LAUNCHED });
-  for (const l of packs) {
-    const bids = BigInt(l.bids);
-    const toProtocol = BigInt(l.bidsToProtocol);
-    add(b.dailyFees, NULL, bids, PACK_BIDS);
-    add(b.dailyRevenue, NULL, toProtocol, PACK_BIDS_TO_PROTOCOL);
-    add(b.dailySupplySideRevenue, NULL, bids - toProtocol, PACK_BIDS_TO_LAUNCHERS);
-  }
-
-  if (!pools.length) return b.result();
-  const [collectedV1, collectedV2] = await Promise.all([
-    options.getLogs({ targets: pools, eventAbi: FEES_COLLECTED, flatten: false }),
-    options.getLogs({ targets: pools, eventAbi: FEES_COLLECTED_V2, flatten: false }),
-  ]);
-  const active = pools.filter((_, i) => collectedV1[i].length || collectedV2[i].length);
-  const quotes = await quoteTokens(options, active);
-  const quoteOf: Record<string, string> = {};
-  active.forEach((p, i) => (quoteOf[p] = quotes[i]));
-
-  coins.forEach((coin, i) => {
-    const quote = quoteOf[coin.curve];
-    // First set: the pool fee is the 1% alone, split 75/25 (its tax is read from the hook above).
-    for (const l of collectedV1[i]) {
       for (const [token, amount] of [[quote, BigInt(l.quoteFees)], [coin.token, BigInt(l.tokenFees)]] as [string, bigint][]) {
         const toCreator = creatorPart(amount);
         add(b.dailyFees, token, amount, METRIC.SWAP_FEES);
@@ -266,13 +343,13 @@ const fetchEthereum = async (options: FetchOptions) => {
         add(b.dailySupplySideRevenue, token, toCreator, SWAP_FEES_TO_CREATORS);
       }
     }
-    // Later sets: the LP fee is 1% + the creator tax, and on a hooked pool buys in the launch block
-    // pay a surcharge on top. PackedPool.collectFees gives the surcharge to the creator side, and of
-    // the rest takes `base = fees * 1% / (1% + tax)` as the 1%, split 75/25, and the remainder as
-    // the creator's tax. The same integer arithmetic is repeated here, so the protocol's share
-    // matches the Owed events to the wei.
+    // Later Ethereum sets: the LP fee is 1% + the creator tax, and on a hooked pool buys in the
+    // launch block pay a surcharge on top. PackedPool.collectFees gives the surcharge to the creator
+    // side, and of the rest takes `base = fees * 1% / (1% + tax)` as the 1%, split 75/25, and the
+    // remainder as the creator's tax. The same integer arithmetic is repeated here, so the
+    // protocol's share matches the Owed events to the wei.
     const restingFee = POOL_BASE_FEE + coin.taxBps * 100n;
-    for (const l of collectedV2[i]) {
+    for (const l of collectedWithPremium[i]) {
       const premium = BigInt(l.premium);
       add(b.dailyFees, quote, premium, SNIPE_SURCHARGE);
       add(b.dailySupplySideRevenue, quote, premium, SNIPE_SURCHARGE);
@@ -292,23 +369,15 @@ const fetchEthereum = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Everything users pay through Packed: the flat 0.0004 ETH launch fee, the 1% fee on every trade on a Packed bonding curve (Robinhood Chain), the 1% LP fee of every Packed coin's Uniswap v4 pool (after graduation on Robinhood Chain, from launch on Ethereum), the creator tax a coin's creator sets at launch (0-5%, on curve trades and pool swaps), the anti-snipe charges of a coin's first seconds or first block, and the bids paid for seats in packs launched from deposits on Ethereum. Pool fees are counted when they are collected from the position.",
-  UserFees: "All of the fees above are paid by users: launch fees and bids by creators and pack members, the rest by traders.",
+  Fees: "Everything users pay through Packed: the flat 0.0004 ETH launch fee, the 1% fee on every trade on a Packed bonding curve (Robinhood Chain), the 1% LP fee of every Packed coin's Uniswap v4 pool (after graduation on Robinhood Chain, from launch on Ethereum), the creator tax a coin's creator sets at launch (0-5%, on curve trades and pool swaps), the anti-snipe charges of a coin's first seconds or first block, and the bids paid for seats in packs launched from deposits on Ethereum. All of it is paid by users: launch fees and bids by creators and pack members, the rest by traders. Pool fees are counted when they are collected from the position.",
   Revenue: "Packed's share: the launch fee in full, 25% of the 1% curve fee, 25% of the 1% pool fee, and half of every seat bid.",
   ProtocolRevenue: "Same as Revenue; all of it is paid to Packed's fee wallet.",
   SupplySideRevenue: "The creator's 75% of the 1% curve and pool fees, the whole creator tax and anti-snipe charges, and the launcher's half of seat bids. For a reward coin the creator's share goes to the coin's holders instead.",
+  HoldersRevenue: "ETH the fee wallet spends buying back $PACKD, Packed's own token, on the open market on Robinhood Chain; the coins bought are burned. It is paid out of fees already counted as Revenue, so it overlaps Revenue rather than adding to it.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LAUNCH_FEES]: "Flat 0.0004 ETH paid by the creator for each coin launched.",
-    [CURVE_FEES]: "1% of the quote side of every buy and sell on a Packed bonding curve on Robinhood Chain.",
-    [METRIC.SWAP_FEES]: "The 1% LP fee of a Packed coin's Uniswap v4 pool, in both currencies, counted when collectFees takes it out of the position.",
-    [CREATOR_TAX]: "The creator's own tax (0-5%, fixed at launch) on curve trades and pool swaps, including the decaying anti-snipe tax of a Robinhood curve's first seconds.",
-    [SNIPE_SURCHARGE]: "The surcharge on buys in an Ethereum coin's launch block, other than the launch's own buys.",
-    [PACK_BIDS]: "Bids paid by pack members for their seats in packs launched from deposits on Ethereum.",
-  },
-  UserFees: {
     [LAUNCH_FEES]: "Flat 0.0004 ETH paid by the creator for each coin launched.",
     [CURVE_FEES]: "1% of the quote side of every buy and sell on a Packed bonding curve on Robinhood Chain.",
     [METRIC.SWAP_FEES]: "The 1% LP fee of a Packed coin's Uniswap v4 pool, in both currencies, counted when collectFees takes it out of the position.",
@@ -335,15 +404,16 @@ const breakdownMethodology = {
     [SNIPE_SURCHARGE]: "The Ethereum launch-block surcharge, paid to the creator.",
     [PACK_BIDS_TO_LAUNCHERS]: "The launcher's half of every seat bid.",
   },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "ETH spent by the fee wallet swapping for $PACKD in the ETH/$PACKD Uniswap v4 pool, on the day of each buy. The coins bought are burned.",
+  },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.ROBINHOOD]: { fetch: fetchRobinhood, start: "2026-09-04" }, // first launch, block 54350011
-    [CHAIN.ETHEREUM]: { fetch: fetchEthereum, start: "2026-09-24" }, // first launch, block 26047618
-  },
+  fetch,
+  adapter: chainConfig, // start dates are read from chainConfig per chain
   // The pool part is Uniswap v4 LP fee: Packed's pools charge their fee as an ordinary LP fee (1%,
   // plus the creator tax on Ethereum) that accrues to the one position Packed holds, and the
   // uniswap-v4 adapter counts that fee from the Swap events on both chains. The curve fees and
