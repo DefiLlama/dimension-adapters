@@ -7,19 +7,15 @@ const FWA = "0xB276F62DB0ce8CA2Ca5bc522695bE604521eAc1c";
 const SPLITTER = "0x1C175b9F0e8C73eD3e677e1cBb1B5A2DD4373Bfe";
 const BUYBACK = "0xabc98D86eA62919399c4211251890308Ce37A6BF";
 // FWA V2 (FWAV2, verified source): deployed 2026-09-10, acquisitions enabled 2026-09-16. Runs next
-// to V1 with its own pool. Its fee payout goes to the owner wallet, with a protocolFeeToTokenBps
-// slice (10000 = all of it since deploy) sent to a dedicated FWA buyback
+// to V1 with its own pool. payoutFees() sends a protocolFeeToTokenBps slice of the accrued protocol
+// fees (all of it since deploy) to a dedicated FWA buyback reserve and the rest to the owner wallet
 const FWA_V2 = "0x958C41181182e76F221331b2755b77D9e1426A98";
-const FWA_V2_DEPLOY_BLOCK = 25944609;
-// protocolFeeToTokenBps has no getter; every change emits ConfigSet with this key
-// (FWAV2ConfigKeys.PROTOCOL_FEE_TO_TOKEN_BPS), and it defaults to 0 until set
-const PROTOCOL_FEE_TO_TOKEN_BPS_KEY = '23';
 // V2 rewards module: pays the caller that submitted a pull for someone else (a "builder")
 // builderRewardBps (15%) of the protocol fee on that pull and on its final settlement
 const FWA_V2_REWARDS = "0xA54b44C7a894AA19C49734A753D01f9B8C5f6516";
-// FWAV2Buyback (verified on Blockscout): each buyback() pays the caller callerRewardBps of the ETH
-// and splits the FWA bought into depositor rewards, purchaser epoch rewards and a burn
-// (routeDepositorBps / routePurchaserBps / routeBurnBps, 20% / 60% / 20% since deploy)
+// FWAV2Buyback (verified on Blockscout): a separate, permissionless buyback() tx spends the reserve,
+// pays its caller an ETH incentive and splits the FWA bought into depositor rewards, purchaser epoch
+// rewards and a burn (20% / 60% / 20% since deploy). FWAV2 is the reserve's only funder so far
 const FWA_V2_BUYBACK = "0xaba91665cdf921F0f6B33A099337336B324c9793";
 const BPS = 10_000n;
 
@@ -39,6 +35,7 @@ const METRICS = {
   BuybackRewardsToPurchasers: 'FWA Rewards To Purchasers',
   BuybackCallerIncentive: 'Buyback Caller Incentive',
   TokenBuyBackAndBurn: 'Token Buy Back And Burn',
+  FeePayoutsToTeam: 'Fee Payouts To Team',
 };
 
 const ABIS = {
@@ -55,7 +52,8 @@ const ABIS = {
   Bought: "event Bought(address indexed caller, address indexed recipient, uint256 indexed buybackNumber, uint256 ethSpent, uint256 amountBought, uint256 callerReward)",
   // V2 only
   EarlyCrownExitFee: "event EarlyCrownExitFee(uint256 indexed listingId, address indexed depositor, uint256 grossBacking, uint256 fee)",
-  ConfigSet: "event ConfigSet(uint256 indexed key, uint256 value)",
+  FeesPaidOut: "event FeesPaidOut(address indexed to, uint256 amount)",
+  BuybackExecuted: "event Bought(address indexed caller, uint256 ethSpent, uint256 tokensBought, uint256 callerReward, uint256 depositorTokens, uint256 purchaserTokens, uint256 burnedTokens)",
   // Rewards module events. The source names the last field `slice`, renamed here (the topic hash only
   // depends on the types) because `slice` clashes with the Array method on decoded log args
   AcquisitionTokenAccrued: "event AcquisitionTokenAccrued(address indexed caller, uint256 indexed requestId, uint256 builderSlice)",
@@ -82,7 +80,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     [ownerFees, ownerFeesV2], [earnings, earningsV2], [topListingFunded, topListingFundedV2],
     [bidAccepted, bidAcceptedV2], [bidAcceptedAsTokens, bidAcceptedAsTokensV2], [allocated, allocatedV2],
     nftKept, nftRelisted, feesToToken, bought,
-    crownExitsV2, builderAcquisitionRewardsV2, builderSettlementRewardsV2,
+    crownExitsV2, builderAcquisitionRewardsV2, builderSettlementRewardsV2, teamPayoutsV2, buybacksV2,
   ] = await Promise.all([
     bothVersions(ABIS.OwnerFeesAccrued),
     bothVersions(ABIS.EarningsAccrued),
@@ -97,6 +95,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     options.getLogs({ target: FWA_V2, eventAbi: ABIS.EarlyCrownExitFee }),
     options.getLogs({ target: FWA_V2_REWARDS, eventAbi: ABIS.AcquisitionTokenAccrued }),
     options.getLogs({ target: FWA_V2_REWARDS, eventAbi: ABIS.SettlementBuilderRewardAccrued }),
+    options.getLogs({ target: FWA_V2, eventAbi: ABIS.FeesPaidOut }),
+    options.getLogs({ target: FWA_V2_BUYBACK, eventAbi: ABIS.BuybackExecuted }),
   ]);
 
   // Pull volume: the escrowed acquisition price of each pull, counted when the VRF settlement
@@ -248,102 +248,96 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     [retainedV2, METRICS.RetainedSettlements],
     [{ fee: crownExitFeesV2, builderShare: 0n }, METRICS.EarlyCrownExitFees],
   ];
-  // Where the net cut goes, booked when it accrues with the settings at the window's end block:
-  // payoutFees() sends protocolFeeToTokenBps of it to the buyback reserve and the rest to the team
-  // wallet; each buyback() pays its caller callerRewardBps of the ETH and spends the rest on FWA,
-  // routed to depositor rewards, purchaser epoch rewards and a burn. Only the burn reaches FWA
-  // holders: the depositor and purchaser shares are rewards to protocol users (supply side)
-  const netProtocolFeesV2 = protocolFeesV2.reduce((sum, [{ fee, builderShare }]) => sum + fee - builderShare, 0n);
-  if (netProtocolFeesV2 > 0n) {
-    const [configLogs, callerRewardBps, routeDepositorBps, routePurchaserBps] = await Promise.all([
-      options.getLogs({ target: FWA_V2, eventAbi: ABIS.ConfigSet, fromBlock: FWA_V2_DEPLOY_BLOCK, cacheInCloud: true, onlyArgs: false }),
-      options.api.call({ target: FWA_V2_BUYBACK, abi: 'uint256:callerRewardBps' }),
-      options.api.call({ target: FWA_V2_BUYBACK, abi: 'uint256:routeDepositorBps' }),
-      options.api.call({ target: FWA_V2_BUYBACK, abi: 'uint256:routePurchaserBps' }),
-    ]);
-    const feeToBuybackUpdates = configLogs
-      .filter((log: any) => String(log.args.key) === PROTOCOL_FEE_TO_TOKEN_BPS_KEY)
-      .sort((a: any, b: any) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
-    const feeToBuybackBps = feeToBuybackUpdates.length ? BigInt(feeToBuybackUpdates[feeToBuybackUpdates.length - 1].args.value) : 0n;
-    if (feeToBuybackBps > BPS) throw new Error(`FWA V2: unexpected protocolFeeToTokenBps ${feeToBuybackBps}`);
+  // The net cut is revenue when it accrues: it sits in the contract until payoutFees() and then in the
+  // buyback reserve, both protocol-controlled
+  protocolFeesV2.forEach(([{ fee, builderShare }, label]) => {
+    dailyFees.addGasToken(fee, label);
+    dailySupplySideRevenue.addGasToken(builderShare, METRICS.BuilderRewards);
+    dailyRevenue.addGasToken(fee - builderShare, label);
+  });
 
-    protocolFeesV2.forEach(([{ fee, builderShare }, label]) => {
-      dailyFees.addGasToken(fee, label);
-      dailySupplySideRevenue.addGasToken(builderShare, METRICS.BuilderRewards);
-
-      const netFee = fee - builderShare;
-      const toBuyback = netFee * feeToBuybackBps / BPS;
-      const toTeam = netFee - toBuyback;
-      const callerReward = toBuyback * BigInt(callerRewardBps) / BPS;
-      const spentOnFWA = toBuyback - callerReward;
-      const toDepositors = spentOnFWA * BigInt(routeDepositorBps) / BPS;
-      const toPurchasers = spentOnFWA * BigInt(routePurchaserBps) / BPS;
-      const burned = spentOnFWA - toDepositors - toPurchasers;
-
-      dailyRevenue.addGasToken(toTeam + burned, label);
-      dailyProtocolRevenue.addGasToken(toTeam, label);
-      dailyHoldersRevenue.addGasToken(burned, METRICS.TokenBuyBackAndBurn);
-      dailySupplySideRevenue.addGasToken(toDepositors, METRICS.BuybackRewardsToDepositors);
-      dailySupplySideRevenue.addGasToken(toPurchasers, METRICS.BuybackRewardsToPurchasers);
-      dailySupplySideRevenue.addGasToken(callerReward, METRICS.BuybackCallerIncentive);
+  // Where the cut goes, booked only from executed transfers, in the window they happen:
+  // payoutFees() sends the owner slice to the team wallet (FeesPaidOut) and the rest to the buyback
+  // reserve; each buyback() tx pays its caller an ETH incentive and swaps the rest for FWA, split into
+  // depositor rewards, purchaser epoch rewards and a burn. Only the burn reaches FWA holders. The
+  // rewards and incentive go to protocol users, so they move from revenue to supply side when paid
+  teamPayoutsV2.forEach((log: any) => { dailyProtocolRevenue.addGasToken(log.amount, METRICS.FeePayoutsToTeam); });
+  buybacksV2.forEach((log: any) => {
+    const ethSpent = BigInt(log.ethSpent);
+    const tokensBought = BigInt(log.tokensBought);
+    const toDepositors = ethSpent * BigInt(log.depositorTokens) / tokensBought;
+    const toPurchasers = ethSpent * BigInt(log.purchaserTokens) / tokensBought;
+    const burned = ethSpent - toDepositors - toPurchasers;
+    const rewards: [bigint, string][] = [
+      [toDepositors, METRICS.BuybackRewardsToDepositors],
+      [toPurchasers, METRICS.BuybackRewardsToPurchasers],
+      [BigInt(log.callerReward), METRICS.BuybackCallerIncentive],
+    ];
+    rewards.forEach(([amount, label]) => {
+      dailyRevenue.addGasToken(-amount, label);
+      dailySupplySideRevenue.addGasToken(amount, label);
     });
-  }
+    dailyHoldersRevenue.addGasToken(burned, METRICS.TokenBuyBackAndBurn);
+  });
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Volume: "Gross ETH paid by purchasers for acquisitions (pulls) on FWA V1 and V2, net of refunded, expired, or slippage-cancelled requests.",
-  Fees: "Net Acquisition fees paid by NFT purchasers, plus settlement fees and retained penalties taken from listing backings, plus V2 early crown exit fees.",
-  Revenue: "Protocol's cut of acquisition and settlement fees: on V1 the team share plus any fees diverted to FWA-token buybacks, on V2 the part paid to the team plus the burned share of the FWA bought back with it.",
-  ProtocolRevenue: "Team share of the protocol's fee cut: on V1 per the Splitter contract's live split, on V2 the part of the cut paid to the team wallet (none so far, V2 sends its whole cut to its FWA buyback).",
-  HoldersRevenue: "FWA-token buybacks funded from V1 protocol fees, the burned share of V2's fee-funded FWA buybacks, plus retroactive scheduled buybacks funded from previously earned team fees.",
-  SupplySideRevenue: "Share of net acquisition fees distributed to NFT depositors (equal split across active listings plus the top-listing pot), the snapshot soulbound-NFT holders' share of V1 protocol fees via the Splitter, and on V2 builder rewards, the FWA bought back for depositor and purchaser rewards, and the buyback caller incentive.",
+  Volume: "ETH paid by purchasers for pulls on FWA V1 and V2, excluding refunded requests.",
+  Fees: "Acquisition fees paid by purchasers (net of quick-sell payouts), plus settlement fees, retained penalties and early crown exit fees taken from listing backings.",
+  Revenue: "Protocol's cut of fees kept by the team or spent on FWA buybacks, minus the V2 buyback rewards and caller incentive when they are paid out.",
+  ProtocolRevenue: "Protocol's cut of fees paid to the team.",
+  HoldersRevenue: "FWA bought back with protocol fees (on V2 only the part actually burned, when the buyback executes), plus V1's scheduled retroactive buybacks.",
+  SupplySideRevenue: "Acquisition fees paid to NFT depositors, the V1 snapshot NFT holders' share, V2 builder rewards, and the FWA rewards and caller incentive paid from V2 buybacks.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRICS.AcquisitionFees]: "The total ETH paid by purchasers to acquire a random NFT from the pool, net of refunded requests and of quick-sell payouts to purchasers who accept the depositor's standing bid (a configurable share of the listing backing paid in ETH or spent on FWA for the purchaser; on V2 90% in ETH and 92.5% in FWA).",
-    [METRICS.SettlementFees]: "1% of the listing backing, charged when a settlement returns the backing to the depositor (purchaser keeps or relists the NFT). V2 FWAIR launch listings are exempt.",
-    [METRICS.RetainedSettlements]: "The part of the listing backing kept back from the purchaser's payout when they accept the depositor's standing bid instead of keeping the NFT.",
-    [METRICS.EarlyCrownExitFees]: "V2 only: 1% of the backing, charged when the top-backed listing is withdrawn or reduced within 12 hours of taking the top spot.",
+    [METRICS.AcquisitionFees]: "ETH paid by purchasers for pulls, net of refunds and of the ETH or FWA paid out to purchasers who sell the NFT back to the depositor.",
+    [METRICS.SettlementFees]: "1% of the listing backing when the purchaser keeps or relists the NFT (V2 FWAIR launch listings are exempt).",
+    [METRICS.RetainedSettlements]: "Part of the listing backing kept when a purchaser sells the NFT back to the depositor.",
+    [METRICS.EarlyCrownExitFees]: "V2: 1% of the backing when the top listing is withdrawn or reduced within 12 hours.",
   },
   Revenue: {
-    [METRICS.AcquisitionFees]: "Protocol cut (1%) of acquisition fees (V2: net of builder rewards, the part paid to the team plus the burned share of the FWA bought back with the rest).",
-    [METRICS.SettlementFees]: "Settlement fees accrue entirely to the protocol (V2: net of builder rewards, the part paid to the team plus the burned share of the FWA bought back with the rest).",
-    [METRICS.RetainedSettlements]: "Retained settlement penalties accrue to the protocol (V2: net of builder rewards, the part paid to the team plus the burned share of the FWA bought back with the rest).",
-    [METRICS.EarlyCrownExitFees]: "V2 early crown exit fees: the part paid to the team plus the burned share of the FWA bought back with the rest.",
-    [METRICS.TokenBuyBack]: "V1 protocol fees diverted to FWA-token buybacks.",
+    [METRICS.AcquisitionFees]: "Protocol's 1% cut of acquisition fees that it keeps.",
+    [METRICS.SettlementFees]: "Settlement fees the protocol keeps.",
+    [METRICS.RetainedSettlements]: "Retained penalties the protocol keeps.",
+    [METRICS.EarlyCrownExitFees]: "Early crown exit fees the protocol keeps.",
+    [METRICS.TokenBuyBack]: "V1 protocol fees sent to FWA buybacks.",
+    [METRICS.BuybackRewardsToDepositors]: "V2: deducted when a buyback pays FWA rewards to active depositors.",
+    [METRICS.BuybackRewardsToPurchasers]: "V2: deducted when a buyback pays FWA rewards to purchasers.",
+    [METRICS.BuybackCallerIncentive]: "V2: deducted when a buyback pays its caller incentive.",
   },
   SupplySideRevenue: {
-    [METRICS.AcquisitionFees]: "Share of net acquisition fees distributed to NFT depositors, split equally across active listings.",
-    [METRICS.TopListingReward]: "Share of acquisition fees accruing to the depositor of the top-backed listing.",
-    [METRICS.AcquisitionToNFTHolders]: "Snapshot soulbound-NFT holders' share (via the Splitter) of the protocol's cut of acquisition fees.",
-    [METRICS.SettlementToNFTHolders]: "Snapshot soulbound-NFT holders' share (via the Splitter) of settlement fees.",
-    [METRICS.RetainedToNFTHolders]: "Snapshot soulbound-NFT holders' share (via the Splitter) of retained settlement penalties.",
-    [METRICS.RetainedSettlements]: "Settlement discount redistributed among active NFT depositors.",
-    [METRICS.BuilderRewards]: "V2 only: share of the protocol fee (15%) on pulls, and on their final settlement, paid to the third-party caller that submitted the pull for the purchaser.",
-    [METRICS.BuybackRewardsToDepositors]: "V2 only: FWA bought back with protocol fees and paid to active depositors by square-root backing weight (currently 20% of each buyback).",
-    [METRICS.BuybackRewardsToPurchasers]: "V2 only: FWA bought back with protocol fees and added to the current epoch's purchaser reward pot (currently 60% of each buyback).",
-    [METRICS.BuybackCallerIncentive]: "V2 only: ETH paid to whoever executes a buyback (currently 0.5% of the ETH it uses).",
+    [METRICS.AcquisitionFees]: "Acquisition fees paid to NFT depositors, split equally across active listings.",
+    [METRICS.TopListingReward]: "Share of acquisition fees paid to the top-backed listing.",
+    [METRICS.AcquisitionToNFTHolders]: "V1 snapshot NFT holders' share of the protocol's acquisition cut.",
+    [METRICS.SettlementToNFTHolders]: "V1 snapshot NFT holders' share of settlement fees.",
+    [METRICS.RetainedToNFTHolders]: "V1 snapshot NFT holders' share of retained penalties.",
+    [METRICS.RetainedSettlements]: "Retained penalties shared among active depositors instead of the protocol.",
+    [METRICS.BuilderRewards]: "V2: 15% of protocol fees paid to third parties that submit pulls for purchasers.",
+    [METRICS.BuybackRewardsToDepositors]: "V2: FWA from buybacks paid to active depositors (currently 20% of each buyback).",
+    [METRICS.BuybackRewardsToPurchasers]: "V2: FWA from buybacks paid to purchasers (currently 60% of each buyback).",
+    [METRICS.BuybackCallerIncentive]: "V2: ETH paid to whoever runs a buyback (currently 0.5%).",
   },
   ProtocolRevenue: {
-    [METRICS.AcquisitionFees]: "Protocol cut (1%) of acquisition fees (V2: the part paid to the team wallet, none so far).",
-    [METRICS.SettlementFees]: "Settlement fees accrue entirely to the protocol (V2: the part paid to the team wallet, none so far).",
-    [METRICS.RetainedSettlements]: "Retained settlement penalties accrue to the protocol (V2: the part paid to the team wallet, none so far).",
-    [METRICS.EarlyCrownExitFees]: "V2 early crown exit fees paid to the team wallet (none so far).",
+    [METRICS.AcquisitionFees]: "V1: team share of the protocol's acquisition cut.",
+    [METRICS.SettlementFees]: "V1: team share of settlement fees.",
+    [METRICS.RetainedSettlements]: "V1: team share of retained penalties.",
+    [METRICS.FeePayoutsToTeam]: "V2: protocol fees paid out to the team wallet (none so far, the whole cut goes to buybacks).",
   },
   HoldersRevenue: {
-    [METRICS.TokenBuyBack]: "V1 protocol fees diverted to FWA-token buybacks.",
-    [METRICS.TokenBuyBackAndBurn]: "V2 only: FWA bought back with protocol fees and burned (currently 20% of each buyback).",
-    [METRICS.RetroactiveBuybacks]: "Scheduled FWA-token buybacks (327 ETH in 1 ETH slices every 2 hours) funded from previously earned team fees.",
+    [METRICS.TokenBuyBack]: "V1 protocol fees sent to FWA buybacks.",
+    [METRICS.TokenBuyBackAndBurn]: "V2: FWA bought back with protocol fees and burned, booked when the buyback executes (currently 20% of each buyback).",
+    [METRICS.RetroactiveBuybacks]: "Scheduled FWA buybacks (327 ETH in 1 ETH slices every 2 hours) funded from previously earned team fees.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  allowNegativeValue: true, // quick-sell payouts and refunds can exceed same-window pull spend
+  allowNegativeValue: true, // quick-sell payouts can exceed same-window pull spend, and V2 buyback rewards paid in a window can exceed the cut it accrued
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2026-07-20',
