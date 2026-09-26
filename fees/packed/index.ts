@@ -187,14 +187,13 @@ function balances(options: FetchOptions) {
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
-    result: () => ({
-      dailyFees,
-      dailyUserFees: dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailySupplySideRevenue,
-      dailyHoldersRevenue,
-    }),
+    // Buybacks are paid out of Packed's own share, so they move from protocol revenue to holders
+    // revenue; on a buyback day protocol revenue can go negative (fees/AGENTS.md, accrual basis).
+    result: () => {
+      const dailyProtocolRevenue = dailyRevenue.clone();
+      dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+      return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+    },
   };
 }
 
@@ -392,9 +391,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything users pay through Packed: the flat 0.0004 ETH launch fee, the 1% fee on every trade on a Packed bonding curve (Robinhood Chain), the 1% LP fee of every Packed coin's Uniswap v4 pool (after graduation on Robinhood Chain, from launch on Ethereum), the creator tax a coin's creator sets at launch (0-5%, on curve trades and pool swaps), the anti-snipe charges of a coin's first seconds or first block, and the bids paid for seats in packs launched from deposits on Ethereum. All of it is paid by users: launch fees and bids by creators and pack members, the rest by traders. Pool fees are counted when they are collected from the position.",
   Revenue: "Packed's share: the launch fee in full, 25% of the 1% curve fee, 25% of the 1% pool fee, and half of every seat bid.",
-  ProtocolRevenue: "Same as Revenue; all of it is paid to Packed's fee wallet.",
+  ProtocolRevenue: "Revenue minus the ETH spent buying back $PACKD, which is moved to HoldersRevenue. Negative on days when a buyback spends more than that day's revenue.",
   SupplySideRevenue: "The creator's 75% of the 1% curve and pool fees, the whole creator tax and anti-snipe charges, and the launcher's half of seat bids. For a reward coin the creator's share goes to the coin's holders instead.",
-  HoldersRevenue: "ETH Packed spends buying back $PACKD, its own token, on the open market on Robinhood Chain, from the fee wallet and the team wallet; the coins bought are burned. It overlaps Revenue rather than adding to it.",
+  HoldersRevenue: "ETH Packed spends buying back $PACKD, its own token, on the open market on Robinhood Chain, from the fee wallet and the team wallet; the coins bought are burned. It is part of Revenue, moved out of ProtocolRevenue.",
 };
 
 const breakdownMethodology = {
@@ -417,6 +416,7 @@ const breakdownMethodology = {
     [CURVE_FEES_TO_PROTOCOL]: "Packed's 25% of the 1% curve fee.",
     [SWAP_FEES_TO_PROTOCOL]: "Packed's 25% of the 1% pool fee.",
     [PACK_BIDS_TO_PROTOCOL]: "Half of every seat bid, paid to Packed by the factory inside the launch.",
+    [METRIC.TOKEN_BUY_BACK]: "Same as the HoldersRevenue component, subtracted from protocol revenue.",
   },
   SupplySideRevenue: {
     [CURVE_FEES_TO_CREATORS]: "The creator's 75% of the 1% curve fee (the coin's holders' for a reward coin).",
@@ -440,6 +440,7 @@ const adapter: SimpleAdapter = {
   // uniswap-v4 adapter counts that fee from the Swap events on both chains. The curve fees and
   // launch fees are not counted anywhere else, but the flag is set for the whole adapter.
   doublecounted: true,
+  allowNegativeValue: true, // protocol revenue goes negative on days a buyback exceeds that day's revenue
   methodology,
   breakdownMethodology,
 };
