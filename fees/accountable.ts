@@ -67,6 +67,22 @@ const config: Record<string, { factories: string[], start: string }> = {
     ],
     start: "2026-04-21",
   },
+  [CHAIN.BSC]: {
+    factories: [
+      "0xd51FaCdE443729A8302A8138f3e050e831Db413D",
+      "0x6E659cD796aAB41419C70def7748Fff37Bf3967a",
+      "0xdBdbb4F6B80CA00B2a8B1f929C1957eCecd1BAaB",
+    ],
+    start: "2026-09-23",
+  },
+  [CHAIN.PHAROS]: {
+    factories: [
+      "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
+      "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
+      "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
+    start: "2026-09-15",
+  },
 };
 
 // aHYPER Looping Vault (vault 0x23b148d8f389C5821739381f1FF87bB7e1162566) is
