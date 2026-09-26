@@ -5,6 +5,8 @@ import { fetchVfatDailyUsers } from "../helpers/vfat";
 // `chainId` is the chain's id in the vfat daily-users API scope.
 // `start` is the later of 2024-11-01, the first day owner activity is indexed,
 // and the chain's first Sickle deploy.
+// A wallet active on several chains is one user: chain_global (API chainId 0, owners
+// deduplicated across all chains) supplies the protocol total, the chains the breakdown.
 const chainConfig: Record<string, { chainId: number; start: string }> = {
   [CHAIN.ETHEREUM]: { chainId: 1, start: "2024-11-01" },
   [CHAIN.OPTIMISM]: { chainId: 10, start: "2024-11-01" },
@@ -42,6 +44,7 @@ const chainConfig: Record<string, { chainId: number; start: string }> = {
   [CHAIN.BERACHAIN]: { chainId: 80094, start: "2025-02-20" },
   [CHAIN.SCROLL]: { chainId: 534352, start: "2024-11-01" },
   [CHAIN.KATANA]: { chainId: 747474, start: "2025-07-10" },
+  [CHAIN.CHAIN_GLOBAL]: { chainId: 0, start: "2024-11-01" },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -53,7 +56,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   ActiveUsers:
-    "Sickle owner wallets with at least one executed vfat Sickle action on the chain during the UTC day. Includes owners whose only actions that day were automation they configured and pay for (compound, rebalance, harvest, exit); skipped or failed keeper attempts are not counted. Counted per chain, so a wallet active on several chains is counted once on each.",
+    "Sickle owner wallets with at least one executed vfat Sickle action on the chain during the UTC day. Includes owners whose only actions that day were automation they configured and pay for (compound, rebalance, harvest, exit); skipped or failed keeper attempts are not counted. A wallet active on several chains counts once in the total and once in each chain's breakdown.",
 };
 
 const adapter: SimpleAdapter = {

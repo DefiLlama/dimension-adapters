@@ -29,10 +29,11 @@ function isVfatDailyUsersRow(value: unknown): value is VfatDailyUsersRow {
  * Fetches one vfat daily user count for a chain and a finished UTC day.
  *
  * @param options - `options.dateString` (YYYY-MM-DD) names the UTC day.
- * @param chainId - EVM chain id of the chain in the API scope.
+ * @param chainId - EVM chain id of the chain in the API scope, or 0 for all chains with each owner
+ *   counted once.
  * @param metric - `active_users`: owners with at least one executed Sickle action that day,
  *   including automation-only owners. `new_users`: owners whose first Sickle deploy on the chain
- *   was that day.
+ *   (any chain for 0) was that day.
  * @returns The non-negative integer count for that chain and day.
  * @throws If the UTC day has not ended yet, the request fails (for example a day before the
  *   chain's first deploy), the response is for another chain, the day's row is missing or
