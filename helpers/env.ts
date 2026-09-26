@@ -61,7 +61,7 @@ const DEFAULTS: any = {
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)
   APTOS_RPC: 'https://aptos-mainnet.pontem.network',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
-  NEAR_RPC: "https://free.rpc.fastnear.com,https://near.lava.build,https://rpc.mainnet.near.org",
+  NEAR_RPC: "https://free.rpc.fastnear.com,https://rpc.mainnet.near.org", // near.lava.build answers 410 (discontinued)
   STARKNET_RPC: "https://api.zan.top/public/starknet-mainnet",
   VIRTUS_BACKEND_BASE: 'https://back.virtus-protocol.com/api',
   BLOCKFROST_PROJECT_ID: 'mai'+'nnetBfkdsCOvb4BS'+'VA6pb1D43ptQ7t3cLt06',

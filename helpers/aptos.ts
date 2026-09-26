@@ -1,111 +1,45 @@
-import axios from "axios";
-import { httpGet, httpPost } from "../utils/fetchURL";
-import { GraphQLClient } from "graphql-request";
-import { getEnv } from "./env";
+// Aptos helpers on top of `sdk.chains.aptos`. Every call honours `APTOS_RPC` (comma separated
+// fallbacks), retries transient failures and falls back to the archival node when the primary
+// answers 410 (pruned). Timestamp -> version lookups are a REST binary search over block heights
+// instead of the aptoslabs indexer GraphQL API.
+import * as sdk from "@defillama/sdk";
+import "./env"; // copies the repo's default endpoints (APTOS_RPC, ...) into process.env for the sdk
 
-// export const APTOS_RPC = 'https://aptos-mainnet.pontem.network';
-export const APTOS_RPC = getEnv('APTOS_RPC');
+const aptos = sdk.chains.aptos
 
-// Number of decimals for the APT token.
-const APT_DECIMALS = 8;
-
-// Number to multiply and APT value to get the amount in Octas.
-const APT_TO_OCTAS_MUTLIPLIER = Math.pow(10, APT_DECIMALS);
+export const APTOS_RPC = aptos.getEndpoint()
 
 // Takes an amount in Octas as input and returns the same amount in APT.
-const octasToApt = (octas: number | bigint) => {
-    if (typeof octas === "number") {
-        return octas / APT_TO_OCTAS_MUTLIPLIER;
-    } else {
-        return Number(octas) / APT_TO_OCTAS_MUTLIPLIER;
-    }
+const octasToApt = (octas: number | bigint) => aptos.octasToApt(octas)
+
+// Given a timestamp, returns the last transaction version at or before it.
+const getVersionFromTimestamp = async (timestamp: Date, minBlock = 0): Promise<number> => {
+    return aptos.getVersionAtTimestamp({ timestamp: Math.floor(timestamp.getTime() / 1000), minBlock })
 }
 
-const graphQLClient = new GraphQLClient("https://api.mainnet.aptoslabs.com/v1/graphql");
-
-// Query to get the latest block.
-const latestBlockQuery = `query LatestBlock {
-  block_metadata_transactions(order_by: {version: desc}, limit: 1) {
-    block_height
-  }
-}`;
-
-// Query to get a block.
-const blockQuery = `query Block($block: bigint) {
-  block_metadata_transactions(limit: 1, where: {block_height: {_eq: $block}}) {
-    timestamp
-    version
-  }
-}`;
-
-// Query to get a block range.
-const blockRangeQuery = `query Block($firstBlock: bigint, $limit: Int) {
-  block_metadata_transactions(limit: $limit, where: {block_height: {_gte: $firstBlock}}, order_by: {block_height: asc}) {
-    timestamp
-    version
-  }
-}`;
-
-// Given a timestamp, returns the transaction version that is closest to that timestamp.
-const getVersionFromTimestamp = async (timestamp: Date, minBlock = 0) => {
-    let left = minBlock;
-    let right = await graphQLClient.request(latestBlockQuery).then(r => Number(r.block_metadata_transactions[0].block_height));
-    let middle;
-    while (left + 100 < right) {
-        middle = Math.round((left + right) / 2);
-        const middleBlock = await graphQLClient.request(blockQuery, { block: middle }).then(r => r.block_metadata_transactions[0]);
-        const middleBlockDate = new Date(middleBlock.timestamp);
-        if (middleBlockDate.getTime() === timestamp.getTime()) {
-            return Number(middleBlock.version);
-        }
-        if (timestamp.getTime() < middleBlockDate.getTime()) {
-            right = middle;
-        } else {
-            left = middle + 1;
-        }
-    }
-    const blocks: { timestamp: string, version: string }[] = await graphQLClient.request(
-        blockRangeQuery,
-        { firstBlock: left, limit: right - left }
-    ).then(r => r.block_metadata_transactions);
-    const mappedBlocks = blocks.map((e) => ({
-        version: Number(e.version),
-        delta: Math.abs(timestamp.getTime() - new Date(e.timestamp).getTime())
-    }));
-    mappedBlocks.sort((a, b) => a.delta - b.delta);
-    return mappedBlocks[0].version;
-}
-
-const getResources = async (account: string): Promise<any[]> => {
-    const data: any = []
-    let lastData: any;
-    let cursor
-    do {
-        let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
-        if (cursor) url += '&start=' + cursor
-        const res = await httpGet(url, undefined, { withMetadata: true })
-        lastData = res.data
-        data.push(...lastData)
-        cursor = res.headers['x-aptos-cursor']
-    } while (lastData.length === 9999)
-    return data
+// Every resource of `account` (`{ type, data }[]`), following `x-aptos-cursor` pagination.
+const getResources = async (account: string, ledgerVersion?: number | string): Promise<any[]> => {
+    return aptos.getResources({ account, ledgerVersion })
 }
 
 async function view<T extends any[]>(functionStr: string, type_arguments: string[] = [], args: (string | boolean | number)[] = [], ledgerVersion?: bigint | number): Promise<T> {
-    let path = `https://fullnode.mainnet.aptoslabs.com/v1/view`
-    if (ledgerVersion !== undefined) path += `?ledger_version=${ledgerVersion.toString()}`
-    return (await httpPost(path, { "function": functionStr, "type_arguments": type_arguments, arguments: args })) as T
+    return aptos.view<T>({ function: functionStr, typeArguments: type_arguments, args, ledgerVersion: ledgerVersion === undefined ? undefined : ledgerVersion.toString() })
 }
 
-// return UI value - total supply of given token
+// return raw supply (in base units) and decimals of the given coin type
 async function getCoinSupply(coin: string): Promise<{
     decimals: number;
     supply: number;
 }> {
-    const { data: { decimals, supply } } = await httpGet(`${APTOS_RPC}/v1/accounts/${coin.split('::')[0]}/resource/0x1::coin::CoinInfo<${coin}>`)
+    // getCoinSupply resolves the full supply (legacy CoinInfo + paired fungible asset); the
+    // CoinInfo.supply field alone undercounts coins that migrated to the FA standard (e.g. USDY)
+    const [info, supply] = await Promise.all([
+        aptos.getCoinInfo({ coinType: coin }),
+        aptos.getCoinSupply({ coinType: coin }),
+    ])
     return {
-        decimals: Number(decimals),
-        supply: Number(supply.vec[0].integer.vec[0].value),
+        decimals: info.decimals,
+        supply: Number(supply),
     }
 }
 

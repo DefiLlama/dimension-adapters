@@ -1,8 +1,6 @@
 {
-  "name": "adapters",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "dim",
+  "version": "4.2.0",
   "scripts": {
     "test": "ts-node --transpile-only cli/testAdapter.ts",
     "build": "ts-node --transpile-only cli/buildModules.ts",
@@ -13,16 +11,6 @@
     "use-string-timestamp": "node helpers/readableStartTimestamp.js",
     "interactive": "node cli/interactive.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/DefiLlama/adapters.git"
-  },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/DefiLlama/adapters/issues"
-  },
-  "homepage": "https://github.com/DefiLlama/adapters#readme",
   "dependencies": {
     "@clickhouse/client": "^1.15.0",
     "@defillama/sdk": "5.0.236",

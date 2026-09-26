@@ -1,9 +1,7 @@
 import { Dependencies, FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
-import { httpPost } from "../../utils/fetchURL";
-import { encodeBase58 } from "ethers";
-import { getEnv } from "../../helpers/env";
+import { extractPubkey, getMultipleAccounts } from "../../helpers/solana";
 import { getConfig } from "../../helpers/cache";
 import { Balances } from "@defillama/sdk";
 
@@ -17,26 +15,14 @@ const METRIC = {
     VaultManagementFees: 'Vaults Vault Management Fees',
 }
 
-// convert base64 to bytes and extract pubkey
-function extractPubkey(base64Data: string, offset: number): string {
-    const buffer = Buffer.from(base64Data, 'base64');
-    const pubkeyBytes = new Uint8Array(buffer.slice(offset, offset + 32));
-    return encodeBase58(pubkeyBytes);
-}
-
 // Get owners of token accounts
 async function getTokenAccountOwners(tokenAccounts: string[]): Promise<string[]> {
     if (tokenAccounts.length === 0) return [];
 
-    const response = await httpPost(getEnv("SOLANA_RPC"), {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getMultipleAccounts",
-        params: [tokenAccounts, { encoding: "base64" }]
-    });
+    const accounts = await getMultipleAccounts({ accounts: tokenAccounts, encoding: "base64" });
 
     const owners: string[] = [];
-    for (const account of response.result.value) {
+    for (const account of accounts) {
         if (!account) continue;
         // Owner is at offset 32
         const owner = extractPubkey(account.data[0], 32);
@@ -109,15 +95,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
     // Get market treasury accounts
     const marketIds = marketsResponse.data.map((m: any) => m.id);
-    const marketResponse = await httpPost(getEnv("SOLANA_RPC"), {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getMultipleAccounts",
-        params: [marketIds, { encoding: "base64" }]
-    });
+    const marketAccounts = await getMultipleAccounts({ accounts: marketIds, encoding: "base64" });
     const marketTreasuryAccounts: string[] = [];
-    for (let i = 0; i < marketResponse.result.value.length; i++) {
-        const account = marketResponse.result.value[i];
+    for (const account of marketAccounts) {
         if (!account) continue;
         const treasury = extractPubkey(account.data[0], MARKET_TREASURY_OFFSET);
         marketTreasuryAccounts.push(treasury);
@@ -125,15 +105,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
     // get vault treasury accounts
     const vaultIds = vaultsResponse.data.map((v: any) => v.id);
-    const rpcResponse = await httpPost(getEnv("SOLANA_RPC"), {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getMultipleAccounts",
-        params: [vaultIds, { encoding: "base64" }]
-    });
+    const vaultAccounts = await getMultipleAccounts({ accounts: vaultIds, encoding: "base64" });
     const vaultTreasuryAccounts: string[] = [];
-    for (let i = 0; i < rpcResponse.result.value.length; i++) {
-        const account = rpcResponse.result.value[i];
+    for (const account of vaultAccounts) {
         if (!account) continue;
         const treasury = extractPubkey(account.data[0], VAULT_TREASURY_OFFSET);
         vaultTreasuryAccounts.push(treasury);
