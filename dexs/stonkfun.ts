@@ -1,5 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 
 // Receives the platform fee of every StonkFun launch on Raydium LaunchLab. Other platform configs
@@ -9,6 +10,8 @@ const PLATFORM_FEE_WALLET = "AvVCE7Ue49iZjYzkkHz6ZhVyvY6NLHw67vB8eQaffVPz";
 type Row = { quote_mint: string; volume: string };
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   const rows = (await queryDuneSql(
     options,
     `
