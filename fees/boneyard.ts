@@ -236,6 +236,7 @@ const fetch = async (options: FetchOptions) => {
   }
   if (roundingRemainder > 0n) {
     dailyRevenue.addGasToken(roundingRemainder, MINT_ROUNDING_REMAINDER);
+    dailyProtocolRevenue.addGasToken(roundingRemainder, MINT_ROUNDING_REMAINDER);
   }
 
   return result;
@@ -272,6 +273,7 @@ const breakdownMethodology = {
     [PROJECT_SHARE]: "The project portion of hook-bound mint revenue, taken from Hook.ProjectShareAdded.",
     [PROTOCOL_OWNED_LIQUIDITY_BOOTSTRAP]: "Pre-LP mint share retained by Boneyard and later committed to its canonical protocol-owned liquidity position.",
     [BOOTSTRAP_BUYBACK_RECLASSIFICATION]: "Negative protocol-revenue reclassification when seedLiquidity diverts an already-booked bootstrap remainder into the Hook's BONE buyback reserve.",
+    [MINT_ROUNDING_REMAINDER]: "Native wei retained by Boneyard from Solidity's independent integer floors for Charge and the hook share.",
   },
   HoldersRevenue: {
     [BONE_BUYBACK]: "Post-LP mint funding for BONE market buybacks and burns, read from Hook.BuybackAccrualAdded and excluding seed-time bootstrap diversion.",
