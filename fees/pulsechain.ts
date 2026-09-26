@@ -24,12 +24,11 @@ const fetch = async (options: FetchOptions) => {
     while (blockNumber > 0 && Number((await getBlock(blockNumber - 1)).timestamp) >= timestamp) blockNumber--;
     return blockNumber;
   };
-  const dayStart = Date.parse(`${options.dateString}T00:00:00Z`) / 1000;
-  const startBlock = await firstBlockAtOrAfter(fromBlock, dayStart);
-  const endBlock = await firstBlockAtOrAfter(toBlock, dayStart + 86400) - 1;
+  const startBlock = await firstBlockAtOrAfter(fromBlock, options.fromTimestamp);
+  const endBlock = await firstBlockAtOrAfter(toBlock, options.toTimestamp) - 1;
   if (startBlock > endBlock) throw new Error(`PulseChain: no blocks for ${options.dateString}`);
-  const dayBlocks = Array.from({ length: endBlock - startBlock + 1 }, (_, index) => startBlock + index);
-  const { results, errors } = await PromisePool.withConcurrency(25).for(dayBlocks).process(async (blockNumber) => {
+  const periodBlocks = Array.from({ length: endBlock - startBlock + 1 }, (_, index) => startBlock + index);
+  const { results, errors } = await PromisePool.withConcurrency(25).for(periodBlocks).process(async (blockNumber) => {
     const block = await getBlock(blockNumber);
     return BigInt(block.baseFeePerGas.toString()) * BigInt(block.gasUsed.toString());
   });
