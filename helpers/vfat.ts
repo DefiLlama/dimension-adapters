@@ -7,22 +7,20 @@ import fetchURL from "../utils/fetchURL";
 // both throw here rather than being stored as 0.
 const API = "https://info-api.vf.at/daily-users";
 
-type VfatDailyUsersMetric = "active_users" | "new_users";
+type VfatDailyUsersMetric = "active_users" | "first_time_users";
 
 type VfatDailyUsersRow = {
   date: string;
   day_ended: boolean;
-  active_users: number | null;
-  new_users: number | null;
+  active_users?: number | null;
+  first_time_users?: number | null;
 };
 
 function isVfatDailyUsersRow(value: unknown): value is VfatDailyUsersRow {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
-  return typeof row.date === "string" &&
-    typeof row.day_ended === "boolean" &&
-    (typeof row.active_users === "number" || row.active_users === null) &&
-    (typeof row.new_users === "number" || row.new_users === null);
+  // Each metric is checked where it is read, so a row serves the metrics it carries.
+  return typeof row.date === "string" && typeof row.day_ended === "boolean";
 }
 
 /**
@@ -32,8 +30,8 @@ function isVfatDailyUsersRow(value: unknown): value is VfatDailyUsersRow {
  * @param chainId - EVM chain id of the chain in the API scope, or 0 for all chains with each owner
  *   counted once.
  * @param metric - `active_users`: owners with at least one executed Sickle action that day,
- *   including automation-only owners. `new_users`: owners whose first Sickle deploy on the chain
- *   (any chain for 0) was that day.
+ *   including automation-only owners. `first_time_users`: owners whose first Sickle deploy on any
+ *   chain was on this chain that day (for 0, on any chain), so the chains sum to the total.
  * @returns The non-negative integer count for that chain and day.
  * @throws If the UTC day has not ended yet, the request fails (for example a day before the
  *   chain's first deploy), the response is for another chain, the day's row is missing or
