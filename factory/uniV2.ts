@@ -1649,15 +1649,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalFeesField: "totalFeeUSD",
     start: '2025-11-22',
   },
-  "cypher-v4": {
-    endpoints: {
-      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('8knsFRJjoEtsRECVSdxhfbvidipCMdBjXx1hQmMRujHx'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    totalFeesField: "totalFeesUSD",
-    start: '2025-11-22',
-  },
   "kura-v2": {
     endpoints: {
       [CHAIN.SEI]: "https://api.goldsky.com/api/public/project_cm9ghm7cnxuaa01x5g6pfchp7/subgraphs/sei/2/gn",
