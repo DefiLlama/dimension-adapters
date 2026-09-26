@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -215,8 +214,7 @@ async function launches(options: FetchOptions, factories: string[], fromBlock: n
  */
 async function quoteTokens(options: FetchOptions, contracts: string[]): Promise<string[]> {
   if (!contracts.length) return [];
-  const latest = new sdk.ChainApi({ chain: options.chain });
-  const quotes = await latest.multiCall({ abi: "address:quoteToken", calls: contracts, permitFailure: true });
+  const quotes = await options.api.multiCall({ abi: "address:quoteToken", calls: contracts, permitFailure: true });
   return quotes.map((q: any) => (q ? String(q).toLowerCase() : NULL));
 }
 
