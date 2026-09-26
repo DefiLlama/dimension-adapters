@@ -1,6 +1,6 @@
-import { ChainApi } from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import ADDRESSES from '../helpers/coreAssets.json'
 
 // TickerSpring Limit Orders: Uniswap v4 hooks that hold resting orders as band liquidity and settle
 // crossed bands inside the filling swap. https://tickerspring.com/docs#contracts
@@ -11,7 +11,7 @@ const HOOKS = [
   '0xa31729621a2280C0Ff9Aaff5B3F357cFF1bEC040', // current: 10-tick bands, 95% automatic completion
 ];
 // Every market pairs a token with USDG: markets open against MarketProfile.quote (USDG).
-const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
+const USDG = ADDRESSES.robinhood.USDG;
 
 const COMMISSION = 'Limit Order Commission';
 const LP_FEES = 'Limit Order LP Fees';
@@ -47,20 +47,17 @@ const fetch = async (options: FetchOptions) => {
   ]);
   if (!events.length) return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 
-  // Owner, band and pool fields never change once an order exists, so latest state equals the state
-  // at the event. Robinhood Chain's public RPC does not serve historical state.
-  const api = new ChainApi({ chain: options.chain });
-  const orders = await api.multiCall({ abi: ABI.getOrder, calls: events.map(({ hook, log }) => ({ target: hook, params: [log.id] })) });
+  const orders = await options.api.multiCall({ abi: ABI.getOrder, calls: events.map(({ hook, log }) => ({ target: hook, params: [log.id] })) });
   const bucketKeys = [...new Set(events.map((e, i) => `${e.hook}:${orders[i].bucket}`))];
-  const buckets = await api.multiCall({ abi: ABI.getBucket, calls: bucketKeys.map(k => ({ target: k.split(':')[0], params: [k.split(':')[1]] })) });
+  const buckets = await options.api.multiCall({ abi: ABI.getBucket, calls: bucketKeys.map(k => ({ target: k.split(':')[0], params: [k.split(':')[1]] })) });
   const bucketOf = Object.fromEntries(bucketKeys.map((k, i) => [k, buckets[i]]));
   const poolKeys = [...new Set(bucketKeys.map(k => `${k.split(':')[0]}:${bucketOf[k].pool}`))];
-  const pools = await api.multiCall({ abi: ABI.getPoolConfig, calls: poolKeys.map(k => ({ target: k.split(':')[0], params: [k.split(':')[1]] })) });
+  const pools = await options.api.multiCall({ abi: ABI.getPoolConfig, calls: poolKeys.map(k => ({ target: k.split(':')[0], params: [k.split(':')[1]] })) });
   const poolOf = Object.fromEntries(poolKeys.map((k, i) => [k, pools[i].key]));
 
   events.forEach(({ hook, log, corrected }, i) => {
     const order = orders[i];
-    if (order.owner === '0x0000000000000000000000000000000000000000') throw new Error(`TickerSpring: unknown order ${hook}:${log.id}`);
+    if (order.owner === ADDRESSES.null) throw new Error(`TickerSpring: unknown order ${hook}:${log.id}`);
     const band = bucketOf[`${hook}:${order.bucket}`];
     const key = poolOf[`${hook}:${band.pool}`];
     const usdgIs0 = key.currency0.toLowerCase() === USDG.toLowerCase();
@@ -107,8 +104,8 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: 'Commission paid by limit-order makers (2.5% of converted proceeds and of the LP fees their orders earn) plus the Uniswap v4 LP fees earned by resting order liquidity, booked when an order is settled or partially filled at creation. Amounts in other tokens are valued on the USDG side at the order band\'s own execution price.',
-    Revenue: 'All commission, paid to the TickerSpring treasury.',
-    ProtocolRevenue: 'All commission, paid to the TickerSpring treasury.',
+    Revenue: 'All commission (2.5% of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
+    ProtocolRevenue: 'All commission (2.5% of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
     SupplySideRevenue: 'LP fees earned by order liquidity, net of commission, credited to order makers.',
   },
   breakdownMethodology: {
