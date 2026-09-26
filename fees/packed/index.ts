@@ -77,7 +77,7 @@ type ChainConfig = {
   // Pools whose LP fee is 1% plus the creator tax and whose FeesCollected carries a `premium`.
   taxInPoolFee: boolean;
   // Packed's own token, bought back on the open market by the fee wallet, where there is one.
-  buyback?: { token: string; wallet: string; poolManager: string; poolId: string };
+  buyback?: { token: string; wallets: string[]; poolManager: string; poolId: string };
 };
 
 const chainConfig: Record<string, ChainConfig> = {
@@ -107,15 +107,21 @@ const chainConfig: Record<string, ChainConfig> = {
     snipeHooks: [],
     curveTrades: true,
     taxInPoolFee: false,
-    // Packed buys back $PACKD with its fee income and burns it. Every buy so far is a swap of ETH
-    // for $PACKD sent from the fee wallet through the Universal Router into the ETH/$PACKD pool, with
-    // the fee wallet as recipient (first one: tx 0xf06b6c6c8a5935a87f610dc805ee33a32c6ed50fff0e7f564b491f96ed090b95).
+    // Packed buys back $PACKD and burns it. Every buy so far is a swap of ETH for $PACKD in the
+    // ETH/$PACKD pool, made by one of two wallets: the fee wallet itself (first one: tx
+    // 0xf06b6c6c8a5935a87f610dc805ee33a32c6ed50fff0e7f564b491f96ed090b95), and the team wallet that
+    // launched $PACKD, which hands every $PACKD it buys to the fee wallet for the burn (25 buys,
+    // 0.3774 ETH, 6,483,665 $PACKD bought and 6,626,140 passed on; it has never sold). Its launch
+    // allocation went straight into a 12-month lock and is not a buy, so it is not counted.
     // The burns are plain transfers from the fee wallet to 0x...dEaD
     // (tx 0x382b9c93b0a5513ec0ab7dd29a654fcf60d0ae19cba50a4faea371a67bb1911d).
     buyback: {
       // https://robinhoodchain.blockscout.com/token/0x853E1A36876Cc4538BE636B78E7b2BD0aABC0dEd
       token: "0x853e1a36876cc4538be636b78e7b2bd0aabc0ded", // $PACKD
-      wallet: "0x71bb2cc5be1599aacd36080321f1b781a46fd1d9", // protocolFeeRecipient() of every factory above
+      wallets: [
+        "0x71bb2cc5be1599aacd36080321f1b781a46fd1d9", // fee wallet: protocolFeeRecipient() of every factory above
+        "0x88888ac5967484dd6e03d0b89e9a8abac6a88888", // team wallet, creator of $PACKD
+      ],
       poolManager: "0x8366a39cc670b4001a1121b8f6a443a643e40951", // Uniswap v4 PoolManager on Robinhood Chain
       poolId: "0xf40adb78665275f2cdd62e06fc29d0a892c359790017612d198086ac6cd392ef", // ETH/$PACKD, from the Swap logs of the buys
     },
@@ -259,26 +265,25 @@ async function addPackBids(options: FetchOptions, packFactory: string, b: Return
 }
 
 /**
- * $PACKD bought back by the fee wallet, valued at the ETH it paid. A buy is a transfer of $PACKD
- * from the PoolManager to the fee wallet; the ETH is the ETH side of the ETH/$PACKD swap in the same
- * transaction (ETH is currency0, and a negative amount0 is what the buyer paid in). The token has
- * no DefiLlama price, so the ETH paid is what can be valued.
+ * $PACKD bought back by the buyback wallets, valued at the ETH they paid. A buy is a transfer of
+ * $PACKD from the PoolManager to one of the wallets; the ETH is the ETH side of the ETH/$PACKD swap
+ * in the same transaction (ETH is currency0, and a negative amount0 is what the buyer paid in). The
+ * token has no DefiLlama price, so the ETH paid is what can be valued.
  *
- * Counted at the buy rather than at the burn: the first burn (6,688,772 $PACKD on 2026-09-22) also
- * included $PACKD sent to the fee wallet as a plain transfer from another wallet, which the chain
- * does not show as bought with fees. A transfer into the fee wallet without a swap in this pool in
- * the same transaction is not a buy the chain can price, and is left out.
+ * Counted at the buy rather than at the burn: the burn is a transfer of coins already counted, and
+ * $PACKD has no price to value it by. A transfer into a wallet without a swap in this pool in the
+ * same transaction (for example the team wallet handing its buys to the fee wallet) is not a buy,
+ * and is left out, so nothing is counted twice.
  *
- * The ETH spent came out of fees already counted as Revenue, so this overlaps Revenue rather than
- * adding to it.
+ * This overlaps Revenue rather than adding to it: the ETH spent is Packed's income.
  */
 async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConfig["buyback"]>, b: ReturnType<typeof balances>) {
-  const received = await options.getLogs({
+  const received = (await Promise.all(buyback.wallets.map((wallet) => options.getLogs({
     target: buyback.token,
     eventAbi: TRANSFER,
-    topics: [TRANSFER_TOPIC, asTopic(buyback.poolManager), asTopic(buyback.wallet)],
+    topics: [TRANSFER_TOPIC, asTopic(buyback.poolManager), asTopic(wallet)],
     onlyArgs: false,
-  });
+  })))).flat();
   if (!received.length) return;
   const buyTxs = new Set(received.map((l: any) => String(l.transactionHash).toLowerCase()));
   const swaps = await options.getLogs({
@@ -373,7 +378,7 @@ const methodology = {
   Revenue: "Packed's share: the launch fee in full, 25% of the 1% curve fee, 25% of the 1% pool fee, and half of every seat bid.",
   ProtocolRevenue: "Same as Revenue; all of it is paid to Packed's fee wallet.",
   SupplySideRevenue: "The creator's 75% of the 1% curve and pool fees, the whole creator tax and anti-snipe charges, and the launcher's half of seat bids. For a reward coin the creator's share goes to the coin's holders instead.",
-  HoldersRevenue: "ETH the fee wallet spends buying back $PACKD, Packed's own token, on the open market on Robinhood Chain; the coins bought are burned. It is paid out of fees already counted as Revenue, so it overlaps Revenue rather than adding to it.",
+  HoldersRevenue: "ETH Packed spends buying back $PACKD, its own token, on the open market on Robinhood Chain, from the fee wallet and the team wallet; the coins bought are burned. It overlaps Revenue rather than adding to it.",
 };
 
 const breakdownMethodology = {
@@ -405,7 +410,7 @@ const breakdownMethodology = {
     [PACK_BIDS_TO_LAUNCHERS]: "The launcher's half of every seat bid.",
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "ETH spent by the fee wallet swapping for $PACKD in the ETH/$PACKD Uniswap v4 pool, on the day of each buy. The coins bought are burned.",
+    [METRIC.TOKEN_BUY_BACK]: "ETH spent by the fee wallet and the team wallet swapping for $PACKD in the ETH/$PACKD Uniswap v4 pool, on the day of each buy. The coins bought are burned.",
   },
 };
 
