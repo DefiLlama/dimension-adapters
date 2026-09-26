@@ -1,3 +1,5 @@
+import { getProvider } from "@defillama/sdk";
+import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -26,12 +28,45 @@ async function getBurnDays(): Promise<BurnDay[]> {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const days = await getBurnDays();
-  const day = days.find((item) => item.date === options.dateString);
-  if (!day) throw new Error(`PulseChain: no PLS burn data for ${options.dateString}`);
-
   const dailyFees = options.createBalances();
-  dailyFees.addGasToken(day.estimatedDayBurn * 1e18, METRIC.TRANSACTION_BASE_FEES);
+  if (options.dateString < "2026-09-04") {
+    const days = await getBurnDays();
+    const day = days.find((item) => item.date === options.dateString);
+    if (!day) throw new Error(`PulseChain: no PLS burn data for ${options.dateString}`);
+    dailyFees.addGasToken(day.estimatedDayBurn * 1e18, METRIC.TRANSACTION_BASE_FEES);
+    return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  }
+
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  if (fromBlock == null || toBlock == null || fromBlock > toBlock)
+    throw new Error(`PulseChain: invalid block range for ${options.dateString}`);
+
+  const provider = getProvider(CHAIN.PULSECHAIN);
+  const getBlock = async (blockNumber: number) => {
+    const block = await provider.getBlock(blockNumber);
+    const baseFeePerGas = block?.baseFeePerGas;
+    if (!block || baseFeePerGas == null) throw new Error(`PulseChain: missing base fee in block ${blockNumber}`);
+    return { timestamp: block.timestamp, baseFeePerGas, gasUsed: block.gasUsed };
+  };
+  const firstBlockAtOrAfter = async (estimatedBlock: number, timestamp: number) => {
+    let blockNumber = estimatedBlock;
+    while (Number((await getBlock(blockNumber)).timestamp) < timestamp) blockNumber++;
+    while (blockNumber > 0 && Number((await getBlock(blockNumber - 1)).timestamp) >= timestamp) blockNumber--;
+    return blockNumber;
+  };
+  const dayStart = Date.parse(`${options.dateString}T00:00:00Z`) / 1000;
+  const startBlock = await firstBlockAtOrAfter(fromBlock, dayStart);
+  const endBlock = await firstBlockAtOrAfter(toBlock, dayStart + 86400) - 1;
+  if (startBlock > endBlock) throw new Error(`PulseChain: no blocks for ${options.dateString}`);
+  const dayBlocks = Array.from({ length: endBlock - startBlock + 1 }, (_, index) => startBlock + index);
+  const { results, errors } = await PromisePool.withConcurrency(25).for(dayBlocks).process(async (blockNumber) => {
+    const block = await getBlock(blockNumber);
+    return BigInt(block.baseFeePerGas.toString()) * BigInt(block.gasUsed.toString());
+  });
+  if (errors.length) throw errors[0];
+
+  dailyFees.addGasToken(results.reduce((sum, fee) => sum + fee, 0n), METRIC.TRANSACTION_BASE_FEES);
 
   return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
 }
@@ -49,7 +84,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned (pulsechainstats sampled daily burn).',
+      [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned.',
     },
     Revenue: {
       [METRIC.TRANSACTION_BASE_FEES]: 'Estimated PLS base fees burned.',
