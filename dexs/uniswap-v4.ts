@@ -81,6 +81,7 @@ interface IPool {
 }
 
 const SwapEvent = 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)';
+const InitializeEvent = 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, uint24 fee, int24 tickSpacing, address hooks, uint160 sqrtPriceX96, int24 tick)';
 const FunctionPoolKeys = 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)';
 
 const Configs: Record<string, IUniswapConfig> = {
@@ -372,11 +373,12 @@ async function fetch(options: FetchOptions) {
 
       const pools: { [key: string]: IPool | null } = {}
       for (const event of events) {
-        if (skipPools.has(String(event.id).toLowerCase())) {
+        const poolId = String(event.id).toLowerCase()
+        if (skipPools.has(poolId)) {
           // ignore blacklist pools
           continue;
         }
-        pools[event.id] = null
+        pools[poolId] = null
       }
 
       // query pools info
@@ -409,6 +411,30 @@ async function fetch(options: FetchOptions) {
         }
       }
 
+      const missingPoolIds = new Set(poolIds.filter(poolId => !pools[poolId]))
+      if (missingPoolIds.size) {
+        // Custom position managers do not populate Uniswap's poolKeys mapping, so resolve
+        // those pools from the canonical PoolManager's cached Initialize history.
+        const initializeLogs = await options.getLogs({
+          target: config.poolManager,
+          eventAbi: InitializeEvent,
+          fromBlock: 0,
+          cacheInCloud: true,
+        })
+        for (const log of initializeLogs) {
+          const poolId = String(log.id).toLowerCase()
+          if (!missingPoolIds.has(poolId)) continue
+          pools[poolId] = {
+            poolId,
+            poolKey: getPoolKey(poolId),
+            currency0: String(log.currency0),
+            currency1: String(log.currency1),
+          }
+          missingPoolIds.delete(poolId)
+          if (!missingPoolIds.size) break
+        }
+      }
+
       const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
       // flagged pools whose sides are all established (core or CG-listed) are
@@ -421,7 +447,7 @@ async function fetch(options: FetchOptions) {
         if (flaggedTokens.length) establishedTokens = await getEstablishedTokens(options.chain, flaggedTokens)
       }
       for (const event of events) {
-        const poolId = String(event.id)
+        const poolId = String(event.id).toLowerCase()
         if (pools[poolId] as IPool) {
           const { currency0, currency1 } = pools[poolId] as IPool
           if (blacklistTokens.has(formatAddress(currency0)) || blacklistTokens.has(formatAddress(currency1))) {
