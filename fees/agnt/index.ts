@@ -104,6 +104,25 @@ const NATIVE = ADDRESSES.null;
 const NFT_MINT_CONTROLLER = "0xfAD3335ba59c8e4438C2be47147080EF5809bF7e"; // AGNTMintController (4663)
 const PROCEEDS_WITHDRAWN_ABI = "event ProceedsWithdrawn(address indexed to, uint256 amount)";
 
+// AGNTS activation — Robinhood only. Holders "activate" an AGNTS NFT (give it an agent soul
+// and an ERC-6551 wallet) by paying an ETH fee (100% to the protocol treasury) plus a fixed
+// $AGNTS cost, of which burnBps (50% today) is burned and the rest goes to the treasury.
+// The Activated event carries both amounts exactly.
+const ACTIVATION_ENGINE = "0x6F2d62C31F85941537F1EF6F1d68dDc28d1EDfCB"; // AGNTSActivation (4663)
+const AGNTS_TOKEN = "0x2c7A596448F329e3Ad35181BE4Be19D941a682B9"; // $AGNTS (4663)
+const ACTIVATED_ABI = "event Activated(uint256 indexed tokenId, address indexed owner, uint8 tier, uint256 share, uint256 agntsPaid, uint256 ethPaid, address account)";
+
+// AGNTS NFT swaps — Robinhood only. Trade an AGNTS NFT for one of the same tier from the
+// protocol vault: a random pack (commit/reveal) or an exact pick ("snipe"). The ETH fee goes
+// 100% to the protocol (holder-fee and treasury recipients are both the treasury). The swap
+// events do not carry the fee, so it is read from the engine at the swap's own block:
+// the tiered engine charges randomFee(tier)/exactFee(tier); the original flat engine (retired
+// 2026-09-25) charged randomFeeWei()/exactFeeWei() for every tier.
+const SWAP_ENGINE_TIERED = "0x35Ac0862c4D95AD8303eEFcd81021c718AF11F42";
+const SWAP_ENGINE_FLAT = "0xa2adb76fbcfbea79f2d1228fdcc2e4c8e9817767";
+const SWAP_COMMITTED_ABI = "event SwapCommitted(uint256 indexed id, address indexed owner, uint8 tier, uint64 revealBlock, uint256 tokenIdIn)";
+const SNIPED_ABI = "event Sniped(address indexed owner, uint256 tokenIdIn, uint256 tokenIdOut, uint8 tier)";
+
 const fetch = async (options: FetchOptions) => {
   const cfg = CHAIN_CONFIG[options.chain];
   const dailyFees = options.createBalances();
@@ -187,11 +206,49 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  const dailyHoldersRevenue = options.createBalances();
+  if (options.chain === CHAIN.ROBINHOOD) {
+    // Activation: ETH fee (all protocol) + $AGNTS cost (burnBps burned, rest to the treasury).
+    const activations = await options.getLogs({ target: ACTIVATION_ENGINE, eventAbi: ACTIVATED_ABI });
+    if (activations.length) {
+      const burnBps = BigInt(await options.api.call({ target: ACTIVATION_ENGINE, abi: "uint16:burnBps" }));
+      for (const a of activations) {
+        const agnts = BigInt(a.agntsPaid);
+        const burned = (agnts * burnBps) / 10000n;
+        dailyFees.add(cfg.weth, a.ethPaid, "Activation Fees");
+        dailyRevenue.add(cfg.weth, a.ethPaid, "Activation Fees to Protocol");
+        dailyFees.add(AGNTS_TOKEN, agnts, "Activation $AGNTS");
+        dailyRevenue.add(AGNTS_TOKEN, agnts - burned, "Activation $AGNTS to Protocol");
+        dailyHoldersRevenue.add(AGNTS_TOKEN, burned, "Activation $AGNTS Burned");
+      }
+    }
+
+    // Swaps: fee read at each swap's block (fees move with the NFT floor).
+    const swapLogs = (await Promise.all([
+      options.getLogs({ targets: [SWAP_ENGINE_TIERED, SWAP_ENGINE_FLAT], eventAbi: SWAP_COMMITTED_ABI, onlyArgs: false }).then((l: any[]) => l.map((x) => ({ x, exact: false }))),
+      options.getLogs({ targets: [SWAP_ENGINE_TIERED, SWAP_ENGINE_FLAT], eventAbi: SNIPED_ABI, onlyArgs: false }).then((l: any[]) => l.map((x) => ({ x, exact: true }))),
+    ])).flat();
+    for (const { x, exact } of swapLogs) {
+      const engine = String(x.address ?? x.target ?? "").toLowerCase();
+      const tier = Number(x.args?.tier ?? x.tier);
+      const block = Number(x.blockNumber);
+      const fee = engine === SWAP_ENGINE_TIERED.toLowerCase()
+        ? await options.api.call({ target: SWAP_ENGINE_TIERED, abi: exact ? "function exactFee(uint8) view returns (uint256)" : "function randomFee(uint8) view returns (uint256)", params: [tier], block })
+        : await options.api.call({ target: SWAP_ENGINE_FLAT, abi: exact ? "uint256:exactFeeWei" : "uint256:randomFeeWei", block });
+      dailyFees.add(cfg.weth, fee, "NFT Swap Fees");
+      dailyRevenue.add(cfg.weth, fee, "NFT Swap Fees to Protocol");
+    }
+  }
+
+  // Revenue = protocol revenue + the burned $AGNTS (holders revenue); protocol revenue excludes the burn.
+  const dailyProtocolRevenue = dailyRevenue.clone();
+  dailyRevenue.addBalances(dailyHoldersRevenue);
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -202,9 +259,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE, CHAIN.ROBINHOOD],
   start: "2026-07-15",
   methodology: {
-    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH on Base; WETH plus RWA numeraires — tokenized stocks like AAPL that a Robinhood launch pairs against, e.g. $BEER — on Robinhood, priced by DefiLlama; the unpriced launched-token leg is excluded, a conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet; plus (3) fees from PonsV2 launches on Robinhood Chain, read from each token's AgntFeeWedge Split events (native-ETH leg = total user-paid fee); plus (4) native-ETH paid by buyers to mint AGNT's own AGNTS PFP collection on Robinhood Chain.",
-    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint) plus AGNT's ~2/7 (28.57%) protocol cut of PonsV2 launch fees on Robinhood (the `toAgnt` leg of each AgntFeeWedge Split; the remaining 5/7 is forwarded to each token's own engine) plus 100% of AGNTS NFT mint proceeds on Robinhood (a first-party collection, so there is no creator split).",
-    ProtocolRevenue: "Same as Revenue — all AGNT launchpad fees accrue to the platform treasury.",
+    Fees: "Total fees paid by users on AGNT: (1) the 1.095% Doppler V4 terminal pool fee on tokens launched via the launchpad on Base + Robinhood Chain, derived from the observed on-chain platform fee share (WETH on Base; WETH plus RWA numeraires — tokenized stocks like AAPL that a Robinhood launch pairs against, e.g. $BEER — on Robinhood, priced by DefiLlama; the unpriced launched-token leg is excluded, a conservative lower bound); plus (2) the 0.40% platform fee on in-app swaps (Base), measured as WETH + USDC paid by Relay to AGNT's app-fee recipient wallet; plus (3) fees from PonsV2 launches on Robinhood Chain, read from each token's AgntFeeWedge Split events (native-ETH leg = total user-paid fee); plus (4) native-ETH paid by buyers to mint AGNT's own AGNTS PFP collection on Robinhood Chain; plus (5) AGNTS activation fees on Robinhood Chain (ETH fee + $AGNTS cost, from the Activated event); plus (6) AGNTS NFT swap fees on Robinhood Chain (random packs and exact picks; the fee is read from the swap engine at each swap's block).",
+    Revenue: "Fees kept by AGNT: the 32% platform share of launchpad pool fees (WETH released by the Doppler initializers on Base + Robinhood, to 0x5bF5805e…C5f0) plus 100% of the 0.40% swap fee (WETH + USDC paid by Relay on Base to the app-fee recipient wallets — 0x585b6854…0598 pre-repoint and 0x5bF5805e…C5f0 post-repoint) plus AGNT's ~2/7 (28.57%) protocol cut of PonsV2 launch fees on Robinhood (the `toAgnt` leg of each AgntFeeWedge Split; the remaining 5/7 is forwarded to each token's own engine) plus 100% of AGNTS NFT mint proceeds on Robinhood (a first-party collection, so there is no creator split) plus 100% of AGNTS activation ETH fees and swap fees, and the full $AGNTS activation cost (the treasury share plus the burned share).",
+    ProtocolRevenue: "Revenue kept by the AGNT treasury: everything in Revenue except the burned share of the $AGNTS activation cost.",
+    HoldersRevenue: "The share of each AGNTS activation's $AGNTS cost that is burned (burnBps, 50% today).",
     SupplySideRevenue: "The 68% of launchpad pool fees paid to third-party token creators (63%) and the Doppler protocol (~5%), estimated from the observed platform WETH share.",
   },
   breakdownMethodology: {
@@ -213,18 +271,31 @@ const adapter: SimpleAdapter = {
       "Trading Fees": "0.40% swap fee (Base), WETH + USDC paid by Relay to the app-fee recipient wallet.",
       "Pons Launchpad Fees": "PonsV2 launch fees on Robinhood Chain (native-ETH leg), the `total` of each token's AgntFeeWedge Split event.",
       "NFT Mint Fees": "Native ETH paid by buyers minting AGNT's own AGNTS PFP collection on Robinhood Chain, measured as proceeds withdrawn from the mint controller.",
+      "Activation Fees": "ETH fee paid to activate an AGNTS NFT (Robinhood), from the Activated event.",
+      "Activation $AGNTS": "$AGNTS paid to activate an AGNTS NFT (Robinhood), from the Activated event.",
+      "NFT Swap Fees": "ETH fee for AGNTS NFT swaps (random packs and exact picks) on Robinhood, read from the swap engine at each swap's block.",
     },
     Revenue: {
       "Launchpad Fees to Protocol": "32% platform share, WETH released to the fee wallet on Base + Robinhood",
       "Trading Fees to Protocol": "100% of the 0.40% swap fee, WETH + USDC paid by Relay to the app-fee recipient (Base)",
       "Pons Fees to Protocol": "AGNT's ~2/7 (28.57%) cut of PonsV2 launch fees, the `toAgnt` leg of each AgntFeeWedge Split (Robinhood).",
       "NFT Mint Fees to Protocol": "100% of AGNTS NFT mint proceeds (Robinhood) — a first-party collection, so AGNT keeps all of it.",
+      "Activation Fees to Protocol": "100% of the AGNTS activation ETH fee (Robinhood).",
+      "Activation $AGNTS to Protocol": "The non-burned share of the $AGNTS activation cost, sent to the treasury (Robinhood).",
+      "Activation $AGNTS Burned": "The burned share of the $AGNTS activation cost (Robinhood).",
+      "NFT Swap Fees to Protocol": "100% of AGNTS NFT swap fees (Robinhood).",
     },
     ProtocolRevenue: {
       "Launchpad Fees to Protocol": "32% platform share, WETH released to the fee wallet on Base + Robinhood",
       "Trading Fees to Protocol": "100% of the 0.40% swap fee, WETH + USDC paid by Relay to the app-fee recipient (Base)",
       "Pons Fees to Protocol": "AGNT's ~2/7 (28.57%) cut of PonsV2 launch fees, the `toAgnt` leg of each AgntFeeWedge Split (Robinhood).",
       "NFT Mint Fees to Protocol": "100% of AGNTS NFT mint proceeds (Robinhood) — a first-party collection, so AGNT keeps all of it.",
+      "Activation Fees to Protocol": "100% of the AGNTS activation ETH fee (Robinhood).",
+      "Activation $AGNTS to Protocol": "The non-burned share of the $AGNTS activation cost, sent to the treasury (Robinhood).",
+      "NFT Swap Fees to Protocol": "100% of AGNTS NFT swap fees (Robinhood).",
+    },
+    HoldersRevenue: {
+      "Activation $AGNTS Burned": "The burned share of the $AGNTS activation cost (Robinhood).",
     },
     SupplySideRevenue: {
       "Launchpad Fees to Creators": "63% of launchpad pool fees paid to third-party token creators",
