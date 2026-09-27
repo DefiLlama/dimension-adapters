@@ -25,6 +25,7 @@ const fromReferralTopics = transfer.encodeFilterTopics("Transfer", [REFERRAL_WAL
 
 const LABELS = {
   assessmentFees: "Assessment Fees",
+  netAssessmentFees: "Net Assessment Fees",
   referrals: "Referral & Affiliate Commissions",
   traderPayouts: "Trader Payouts",
 };
@@ -62,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(USDC, assessmentFees.toString(), LABELS.assessmentFees);
   dailySupplySideRevenue.add(USDC, referrals.toString(), LABELS.referrals);
   dailySupplySideRevenue.add(USDC, traderPayouts.toString(), LABELS.traderPayouts);
-  dailyRevenue.add(USDC, (assessmentFees - traderPayouts - referrals).toString(), LABELS.assessmentFees);
+  dailyRevenue.add(USDC, (assessmentFees - traderPayouts - referrals).toString(), LABELS.netAssessmentFees);
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
@@ -83,7 +84,7 @@ const adapter: SimpleAdapter = {
       [LABELS.assessmentFees]: "All USDC received by Hypernova's assessment treasury, except transfers from its own reserves, vault and contracts.",
     },
     Revenue: {
-      [LABELS.assessmentFees]: "Assessment fees minus trader payouts and referral and affiliate commissions.",
+      [LABELS.netAssessmentFees]: "Assessment fees minus trader payouts and referral and affiliate commissions.",
     },
     SupplySideRevenue: {
       [LABELS.referrals]: "USDC paid to affiliates from Hypernova's referral wallet.",
