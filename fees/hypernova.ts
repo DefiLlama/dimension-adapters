@@ -13,7 +13,6 @@ const INTERNAL_WALLETS: Record<string, string> = {
   "0x43c5f0a81d538a527dbf35d27faa583ac7fada07": "cold payout reserve",
   [PAYOUT_VAULT]: "operational payout vault",
   "0x429d8f223acb622e5e748f6a7bdf1235b2334fcb": "TradingAccounts contract",
-  "0xb39e80f9ee5c554d7ce6169878b803090ba0947c": "TradingAccounts contract",
   "0x88ee7cb41813639cac63f2f3209502d75388a44c": "payout reserve",
   [TREASURY]: "assessment treasury",
 };
@@ -26,8 +25,8 @@ const fromReferralTopics = transfer.encodeFilterTopics("Transfer", [REFERRAL_WAL
 
 const LABELS = {
   assessmentFees: "Assessment Fees",
-  profitSplit: "Trader Profit Split",
   referrals: "Referral & Affiliate Commissions",
+  traderPayouts: "Trader Payouts",
 };
 
 type TransferArgs = { from?: unknown; to?: unknown; value?: unknown };
@@ -38,7 +37,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const fromBlock = (await options.getFromBlock()) + 1;
   const toBlock = await options.getToBlock();
-  let assessmentFees = 0n, profitSplit = 0n, referrals = 0n;
+  let assessmentFees = 0n, traderPayouts = 0n, referrals = 0n;
 
   if (fromBlock <= toBlock) {
     const treasuryLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: toTreasuryTopics, fromBlock, toBlock });
@@ -47,10 +46,10 @@ const fetch = async (options: FetchOptions) => {
       if (INTERNAL_WALLETS[from.toLowerCase()] === undefined) assessmentFees += value;
     }
 
-    const payoutLogs: { protocolAmount?: unknown }[] = await options.getLogs({ target: PAYOUT_VAULT, eventAbi: PAYOUT_EVENT, fromBlock, toBlock });
-    for (const { protocolAmount } of payoutLogs) {
-      if (typeof protocolAmount !== "bigint") throw new Error("Hypernova fees: malformed PayoutProcessed log");
-      profitSplit += protocolAmount;
+    const payoutLogs: { traderAmount?: unknown }[] = await options.getLogs({ target: PAYOUT_VAULT, eventAbi: PAYOUT_EVENT, fromBlock, toBlock });
+    for (const { traderAmount } of payoutLogs) {
+      if (typeof traderAmount !== "bigint") throw new Error("Hypernova fees: malformed PayoutProcessed log");
+      traderPayouts += traderAmount;
     }
 
     const referralLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: fromReferralTopics, fromBlock, toBlock });
@@ -61,10 +60,9 @@ const fetch = async (options: FetchOptions) => {
   }
 
   dailyFees.add(USDC, assessmentFees.toString(), LABELS.assessmentFees);
-  dailyFees.add(USDC, profitSplit.toString(), LABELS.profitSplit);
   dailySupplySideRevenue.add(USDC, referrals.toString(), LABELS.referrals);
-  dailyRevenue.add(USDC, (assessmentFees - referrals).toString(), LABELS.assessmentFees);
-  dailyRevenue.add(USDC, profitSplit.toString(), LABELS.profitSplit);
+  dailySupplySideRevenue.add(USDC, traderPayouts.toString(), LABELS.traderPayouts);
+  dailyRevenue.add(USDC, (assessmentFees - traderPayouts - referrals).toString(), LABELS.assessmentFees);
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 };
 
@@ -76,21 +74,20 @@ const adapter: SimpleAdapter = {
   start: "2026-03-25",
   allowNegativeValue: true,
   methodology: {
-    Fees: "Assessment fees paid in USDC, plus Hypernova's share of trader profits kept on each payout.",
-    Revenue: "Assessment fees and Hypernova's profit share, minus referral and affiliate commissions.",
-    SupplySideRevenue: "Referral and affiliate commissions paid out in USDC.",
+    Fees: "Assessment fees paid in USDC.",
+    Revenue: "Assessment fees minus trader payouts and referral and affiliate commissions.",
+    SupplySideRevenue: "Trader payouts and referral and affiliate commissions paid out in USDC.",
   },
   breakdownMethodology: {
     Fees: {
       [LABELS.assessmentFees]: "All USDC received by Hypernova's assessment treasury, except transfers from its own reserves, vault and contracts.",
-      [LABELS.profitSplit]: "Hypernova's share of trader profits, kept in the payout vault on each payout.",
     },
     Revenue: {
-      [LABELS.assessmentFees]: "Assessment fees minus referral and affiliate commissions.",
-      [LABELS.profitSplit]: "Hypernova's share of trader profits, kept in the payout vault on each payout.",
+      [LABELS.assessmentFees]: "Assessment fees minus trader payouts and referral and affiliate commissions.",
     },
     SupplySideRevenue: {
       [LABELS.referrals]: "USDC paid to affiliates from Hypernova's referral wallet.",
+      [LABELS.traderPayouts]: "Profits paid to traders from the payout vault.",
     },
   },
 };
