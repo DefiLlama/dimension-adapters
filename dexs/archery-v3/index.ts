@@ -4,6 +4,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { addOneToken } from "../../helpers/prices";
+import { getTransactionsWithRetry } from "../../helpers/getTxReceipts";
 
 // Archery mainnet deployment on Arc. Source: CLFactory deployment tx
 // https://explorer.arc.io/tx/0xdc8c3afb16ba528119a53fe7149cf988754e7ae6762f88dc213ee7d5071a9bbb (block 22447744)
@@ -133,10 +134,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const feeByBlockPool = await getSwapFees(chain, swapsByBlock);
 
   const discounts = await getDiscounts(options);
-  const originOf = async (log: any): Promise<string> => {
-    const tx = await sdk.getProvider(chain).getTransaction(log.transactionHash);
-    return String(tx?.from ?? "").toLowerCase();
-  };
+  const txOriginByHash = new Map<string, string>();
+  if (discounts.size) {
+    const txHashes = [...new Set(swapLogsByPool.flat().map((log) => String(log.transactionHash).toLowerCase()))];
+    const txs = await getTransactionsWithRetry(chain, txHashes);
+    txHashes.forEach((hash, i) => {
+      const from = txs[i]?.from;
+      if (from) txOriginByHash.set(hash, from.toLowerCase());
+    });
+  }
 
   const poolFeeTotals: Record<string, { fee0: BigNumber; fee1: BigNumber }> = {};
   for (let index = 0; index < swapLogsByPool.length; index++) {
@@ -152,7 +158,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
       let feePips = feeByBlockPool.get(`${blockOf(log)}:${pool}`);
       if (feePips === undefined) throw new Error(`Missing swap fee for ${pool} at block ${blockOf(log)}`);
       if (discounts.size) {
-        const discount = discounts.get(await originOf(log)) ?? 0;
+        const discount = discounts.get(txOriginByHash.get(String(log.transactionHash).toLowerCase()) ?? "") ?? 0;
         // DynamicSwapFeeModule: discount = mulDivRoundingUp(totalFee, discount, 1e6)
         if (discount) feePips -= Math.ceil((feePips * discount) / CL_FEE_DENOMINATOR);
       }
