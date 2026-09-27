@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
@@ -17,7 +18,7 @@ const lpLockers = [
 ];
 
 const BURNER_WALLETS = ["0xda4bcee76b29efec9697fcf663601c2042043968", "0x5795d227dcc305afe212bef18e81b111def7c324"];
-const PONS_TOKEN = "0x39dBED3a2bd333467115dE45665cC57F813C4571";
+const PONS_TOKEN = ADDRESSES.robinhood.PONS;
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
 //https://docs.ponsfamily.com/#fees

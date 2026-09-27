@@ -1,8 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { METRIC } from '../../helpers/metrics'
-import { fetchURLAutoHandleRateLimit } from '../../utils/fetchURL'
-import { sleep } from '../../utils/utils'
+import { pageToncenterMessages } from '../../helpers/ton'
 
 // Every treasury Hipo has run. v1 served from launch until v2 replaced it on 2024-03-19; both are
 // queried for every window rather than switched on a hardcoded date, so the cutover needs no
@@ -37,8 +36,6 @@ const BURNERS = [
 ]
 
 const PAGE = 256
-// Above fetchURLAutoHandleRateLimit's default of 3, which spends its attempts over ten seconds.
-const RETRIES = 5
 
 // The treasury reports every loan repayment as a log: an external-out message whose body carries
 // the round's reward already split into its destinations. Reading the split from the log is what
@@ -270,27 +267,17 @@ async function logs<T>(
   parse: (body: string) => T | null,
 ): Promise<T[]> {
   const found: T[] = []
-  for (let offset = 0; ; offset += PAGE) {
-    const url =
-      `https://toncenter.com/api/v3/messages?source=${source}&direction=out` +
-      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`
-    const data = await fetchURLAutoHandleRateLimit(url, RETRIES)
-    // A body without a messages array is a failure wearing a 200. Reading it as an empty page
-    // would store the day as zero, which is the one outcome worth crashing to avoid.
-    if (!Array.isArray(data?.messages)) {
-      throw new Error('Expected a messages array from toncenter for ' + source)
-    }
-    const messages: any[] = data.messages
-    for (const message of messages) {
-      // logs are external-out, which the API reports with no destination
-      if (message.destination !== null && message.destination !== undefined) continue
-      const body = message.message_content?.body
-      if (!body) continue
-      const parsed = parse(body)
-      if (parsed !== null) found.push(parsed)
-    }
-    if (messages.length < PAGE) break
-    await sleep(1500)
+  // The helper walks every page, paces requests to toncenter's unauthenticated rate and throws
+  // when a body has no messages array (a failure wearing a 200, which read as an empty page would
+  // store the day as zero).
+  const messages = await pageToncenterMessages({ source, direction: 'out', startTimestamp: start, endTimestamp: end, limit: PAGE })
+  for (const message of messages) {
+    // logs are external-out, which the API reports with no destination
+    if (message.destination !== null && message.destination !== undefined) continue
+    const body = message.message_content?.body
+    if (!body) continue
+    const parsed = parse(body)
+    if (parsed !== null) found.push(parsed)
   }
   return found
 }

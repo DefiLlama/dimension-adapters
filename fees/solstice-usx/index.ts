@@ -1,8 +1,7 @@
-import axios from "axios";
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getEnv } from "../../helpers/env";
 import { METRIC } from "../../helpers/metrics";
+import { getSignaturesForAddress, getTransaction } from "../../helpers/solana";
 
 // Pyth's Hermes endpoint started requiring an API key and now answers 401, which took the previous
 // version of this adapter down with it. It priced yield as the daily change in the eUSX redemption
@@ -24,30 +23,16 @@ const FEES_YIELD_LABEL = METRIC.ASSETS_YIELDS;
 const SUPPLY_SIDE_YIELD_LABEL = 'eUSX Yield To Holders';
 
 // Every signature in the window is fetched, so one transient failure would otherwise take the whole
-// day down with it. The error is still raised once the attempts are spent rather than turned into a
-// missing distribution.
-const rpc = async (method: string, params: any[]) => {
-    let lastError: any;
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            const { data } = await axios.post(getEnv('SOLANA_RPC'), { jsonrpc: "2.0", id: 1, method, params });
-            if (data.error) throw new Error(`solstice: solana rpc ${method} failed: ${JSON.stringify(data.error)}`);
-            return data.result;
-        } catch (e) {
-            lastError = e;
-            await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-        }
-    }
-    throw lastError;
-};
-
+// day down with it; the sdk transport retries before raising the error rather than turning it into
+// a missing distribution.
+//
 // The yield account is only touched by these distributions, a couple of transactions a day, so
 // walking its signatures back to the start of the day is cheap.
 const signaturesInWindow = async (fromTimestamp: number, toTimestamp: number) => {
     const signatures: string[] = [];
     let before: string | undefined;
     while (true) {
-        const page = await rpc("getSignaturesForAddress", [YIELD_PROGRAM, before ? { limit: 1000, before } : { limit: 1000 }]);
+        const page = await getSignaturesForAddress({ address: YIELD_PROGRAM, limit: 1000, before });
         if (!page?.length) break;
         for (const entry of page) {
             if (entry.blockTime >= fromTimestamp && entry.blockTime < toTimestamp && !entry.err) signatures.push(entry.signature);
@@ -80,7 +65,7 @@ const yieldProgramEvents = (logs: string[]) => {
 };
 
 const yieldFromTransaction = async (signature: string) => {
-    const tx = await rpc("getTransaction", [signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
+    const tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
     // No transaction, or one without metadata, means the node could not serve the logs, not that
     // nothing was distributed; treating either as zero would quietly understate the day.
     if (!tx?.meta?.logMessages)

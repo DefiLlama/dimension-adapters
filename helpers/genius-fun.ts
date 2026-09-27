@@ -1,3 +1,4 @@
+import ADDRESSES from './coreAssets.json'
 import { ChainApi } from '@defillama/sdk';
 import { FetchOptions } from '../adapters/types';
 
@@ -11,7 +12,7 @@ export const deployments = [
 ];
 
 export const start = '2026-09-16';
-export const nativeToken = '0x0000000000000000000000000000000000000000';
+export const nativeToken = ADDRESSES.null;
 export const policyTuple = '(uint16 destinationBps,uint16 platformBps,uint16 creatorBps,uint16 buybackBps,address foundationVault)';
 // SDK forwards this supported option to abi.multiCall; its ChainApi type omits
 // the field. Fifty calls stay below public BSC providers' encoded payload cap.

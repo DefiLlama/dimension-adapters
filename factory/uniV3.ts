@@ -262,7 +262,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.FLARE]: { factory: '0xb06df504137c3f393f0f089ebcad5ae7db592c6f', start: "2025-07-01", userFeesRatio: 1, revenueRatio: 0 },
   },
   "koi-finance-cl": {
-    [CHAIN.ERA]: { factory: '0x488A92576DA475f7429BC9dec9247045156144D3', start: 1679529600, userFeesRatio: 1 },
+    [CHAIN.ERA]: { factory: '0x488A92576DA475f7429BC9dec9247045156144D3', start: '2023-03-23', userFeesRatio: 1 },
   },
   "zebra-v2": {
     [CHAIN.SCROLL]: { factory: '0x96a7F53f7636c93735bf85dE416A4Ace94B56Bd9', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
@@ -328,9 +328,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: '0x41ba59415eC75AC4242dd157F2a7A282F1e75652', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.13, protocolRevenueRatio: 0.13 },
   },
   "swapsicle-v2": {
-    [CHAIN.MANTLE]: { factory: '0xC848bc597903B4200b9427a3d7F61e3FF0553913', isAlgebraV3: true, start: 1697155200, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
-    [CHAIN.TELOS]: { factory: '0xA09BAbf9A48003ae9b9333966a8Bda94d820D0d9', isAlgebraV3: true, start: 1698105600, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
-    [CHAIN.TAIKO]: { factory: '0xBa90FC740a95A6997306255853959Bb284cb748a', isAlgebraV3: true, start: 1724943360, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+    [CHAIN.MANTLE]: { factory: '0xC848bc597903B4200b9427a3d7F61e3FF0553913', isAlgebraV3: true, start: '2023-10-13', poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+    [CHAIN.TELOS]: { factory: '0xA09BAbf9A48003ae9b9333966a8Bda94d820D0d9', isAlgebraV3: true, start: '2023-10-24', poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
+    [CHAIN.TAIKO]: { factory: '0xBa90FC740a95A6997306255853959Bb284cb748a', isAlgebraV3: true, start: '2024-08-29', poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.455, protocolRevenueRatio: 0.13, holdersRevenueRatio: 0.325 },
   },
   "fenix-finance-v3": {
     [CHAIN.BLAST]: { factory: '0x7a44CD060afC1B6F4c80A2B9b37f4473E74E25Df', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },

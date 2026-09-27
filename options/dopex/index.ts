@@ -14,7 +14,7 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ARBITRUM]: {
     graphUrl:
       "https://api.0xgraph.xyz/api/public/e2146f32-5728-4755-b1d1-84d17708c119/subgraphs/clamm-arbitrum/prod/gn",
-    start: 1699794000,
+    start: '2023-11-12',
   },
   [CHAIN.SONIC]: {
     markets: [
@@ -46,11 +46,11 @@ const chainConfig: Record<string, ChainConfig> = {
         putAsset: SONIC_USDC_E,
       },
     ],
-    start: 1735383288,
+    start: '2024-12-28',
   },
-  // [CHAIN.BASE]:   { graphUrl: ".../subgraphs/clamm-base/prod/gn",   start: 1714733688 },
-  // [CHAIN.BLAST]:  { graphUrl: ".../subgraphs/clamm-blast/prod/gn",  start: 1714733688 },
-  // [CHAIN.MANTLE]: { graphUrl: ".../subgraphs/clamm-mantle/prod/gn", start: 1706957688 },
+  // [CHAIN.BASE]:   { graphUrl: ".../subgraphs/clamm-base/prod/gn",   start: '2024-05-03' },
+  // [CHAIN.BLAST]:  { graphUrl: ".../subgraphs/clamm-blast/prod/gn",  start: '2024-05-03' },
+  // [CHAIN.MANTLE]: { graphUrl: ".../subgraphs/clamm-mantle/prod/gn", start: '2024-02-03' },
 };
 
 const fetch = async (options: FetchOptions) => {

@@ -1,9 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { httpPost } from "../../utils/fetchURL";
-import { getEnv } from "../../helpers/env";
-import { encodeBase58 } from "ethers";
+import { extractPubkey, getProgramAccounts } from "../../helpers/solana";
 
 // Rifts Protocol - SPL Token-2022 Wrapping Protocol with Transfer Fees
 // Tracks wrap/unwrap fees and Token-2022 transfer fees collected across all Rifts
@@ -17,19 +15,6 @@ const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 
 // Base58 validation regex for Solana addresses
 const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]+$/;
-
-/**
- * Extracts a Solana public key from base64-encoded account data at the specified offset.
- * 
- * @param base64Data - Base64-encoded account data containing the public key
- * @param offset - Byte offset where the 32-byte public key starts
- * @returns Base58-encoded Solana public key address
- */
-function extractPubkey(base64Data: string, offset: number): string {
-  const buffer = Buffer.from(base64Data, 'base64');
-  const pubkeyBytes = new Uint8Array(buffer.slice(offset, offset + 32));
-  return encodeBase58(pubkeyBytes);
-}
 
 /**
  * Validates if a string is a valid Base58-encoded Solana address.
@@ -63,22 +48,13 @@ async function discoverVaultAddresses(): Promise<string[]> {
 
   for (const programId of [V2_PROGRAM, V1_PROGRAM]) {
     try {
-      const rpcUrl = getEnv("SOLANA_RPC");
-      const response = await httpPost(rpcUrl, {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getProgramAccounts",
-        params: [
-          programId,
-          {
-            encoding: "base64",
-            dataSlice: { offset: FEES_VAULT_OFFSET, length: 64 },
-            filters: [{ dataSize: 782 }]
-          }
-        ]
+      const accounts = await getProgramAccounts({
+        programId,
+        encoding: "base64",
+        dataSlice: { offset: FEES_VAULT_OFFSET, length: 64 },
+        filters: [{ dataSize: 782 }],
       });
 
-      const accounts = response?.result || [];
       for (const acc of accounts) {
         const data = acc.account.data[0];
         if (Buffer.from(data, 'base64').length < 64) continue;
@@ -89,11 +65,9 @@ async function discoverVaultAddresses(): Promise<string[]> {
       }
     } catch (error: any) {
       // Log error with context but continue to next programId
-      const rpcUrl = getEnv("SOLANA_RPC");
       console.error(
-        `Failed to discover vault addresses for program ${programId} via RPC ${rpcUrl}:`,
+        `Failed to discover vault addresses for program ${programId}:`,
         error?.message || error?.toString() || error,
-        error?.response ? `Response: ${JSON.stringify(error.response)}` : ''
       );
     }
   }

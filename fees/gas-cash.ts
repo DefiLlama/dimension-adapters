@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -42,7 +43,7 @@ const BUYBACKS = "0x18eD3E25Fb4786EA60021E2e9A2Da0A52602f503";
 // $GAS (Gas721.paymentToken()). No DefiLlama price yet, so $GAS amounts value at $0 until it is listed.
 const GAS = "0x28dA843C0223990Fb57701319B30804b89eFF111";
 // USO Stock Token (Gas721.repairToken()), the pool's other side and what the prize pool pays out.
-const USO = "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344";
+const USO = ADDRESSES.robinhood.USO;
 
 // Until this block the buyback share of a car sale (80%, Gas721.buybackBps() = 8000) was burned (sent to the zero
 // address). From it on, the same share goes to the buybacks wallet. Upgrade tx:

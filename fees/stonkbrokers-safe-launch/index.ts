@@ -47,10 +47,10 @@ const QUOTE = {
   STONK: STONKBROKER,
   USDG: ADDRESSES.robinhood.USDG,
   GME: "0x1b0E319c6A659F002271B69dB8A7df2F911c153E",
-  NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
-  AAPL: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
-  SPCX: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
-  USO: "0xa30FA36Db767ad9eD3f7a60fC79526fB4d56D344",
+  NVDA: ADDRESSES.robinhood.NVDA,
+  AAPL: ADDRESSES.robinhood.AAPL,
+  SPCX: ADDRESSES.robinhood.SPCX,
+  USO: ADDRESSES.robinhood.USO,
 } as const;
 
 type SafePad = { addr: string; quote: string | null; gen: "v1-eth" | "v1-quoted" | "v2" | "r2" };

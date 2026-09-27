@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // ARK Launch (https://ark-ai.xyz): token launchpad on Arc. Each launch seeds a 1% Uniswap V3 USDC pool whose LP
 // position is locked in a FeeLocker. The locker's distribute() converts collected pool fees to USDC and emits
 // FeesDistributed (75% creator / 25% protocol); creator-configured token taxes emit TaxDistributed (100% creator);
@@ -7,7 +8,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const USDC = "0x3600000000000000000000000000000000000000"; // Arc native USDC ERC-20 interface, 6 decimals
+const USDC = ADDRESSES.arc.USDC; // Arc native USDC ERC-20 interface, 6 decimals
 
 const FACTORIES = [
   "0x3d0B83e115205EDf37e48A8EB6d92e2C7492A00C", // gen1

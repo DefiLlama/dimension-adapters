@@ -1,8 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
-import { sleep } from "../../utils/utils";
 import { getETHReceived, getSolanaReceived } from "../../helpers/token";
+import { normAddr, pageToncenterTxs, toBigInt } from "../../helpers/ton";
 
 /**
  * sTONks — Multi-chain Launchpad, Trading Bot & Terminal
@@ -68,52 +67,7 @@ const LAUNCHPAD_FEES = "Launchpad Fees";
 const REFERRAL_PAYOUTS = "Referral & Cashback Payouts";
 const NET_PROTOCOL_REVENUE = "Net Protocol Revenue";
 
-const PAGE = 1000;
-// Unauthenticated toncenter allows ~1 request/sec
-const TONCENTER_SLEEP_MS = 1500;
-
-const toBigInt = (v: any): bigint => {
-  if (v === null || v === undefined) return 0n;
-  if (typeof v === "string") return BigInt(v);
-  if (typeof v === "number") return BigInt(Math.trunc(v));
-  return 0n;
-};
-
-const normAddr = (addr: string | undefined | null): string => (addr ?? "").toLowerCase();
-
-const pageToncenterTxs = async (account: string, start: number, end: number): Promise<any[]> => {
-  const all: any[] = [];
-  const seen = new Set<string>();
-
-  for (let offset = 0; ; offset += PAGE) {
-    const url =
-      `https://toncenter.com/api/v3/transactions?account=${account}` +
-      `&start_utime=${start}&end_utime=${end}&limit=${PAGE}&offset=${offset}&sort=desc`;
-
-    const data = await fetchURLAutoHandleRateLimit(url, 5);
-    if (!Array.isArray(data?.transactions)) {
-      throw new Error(`Expected a transactions array from toncenter for ${account}`);
-    }
-
-    const txs: any[] = data.transactions;
-    if (!txs.length) break;
-
-    for (const tx of txs) {
-      const now = tx.now ?? tx.utime;
-      const key = tx.hash ?? `${tx.lt}:${now}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (now < start || now >= end) continue;
-      all.push(tx);
-    }
-
-    if (txs.length < PAGE) break;
-    await sleep(TONCENTER_SLEEP_MS);
-  }
-
-  return all;
-};
-
+// Unauthenticated toncenter allows ~1 request/sec; the ton helper paces every request.
 const scanTonWallet = async (
   wallet: string,
   start: number,
@@ -124,7 +78,7 @@ const scanTonWallet = async (
   let launchpadFees = 0n;
   const walletNorm = normAddr(wallet);
 
-  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+  for (const tx of await pageToncenterTxs({ account: wallet, startTimestamp: start, endTimestamp: end })) {
     if (tx.description?.action?.success === false) continue;
 
     const inMsg = tx.in_msg;
@@ -145,7 +99,7 @@ const scanTonWallet = async (
 const scanTonPayouts = async (wallet: string, start: number, end: number): Promise<bigint> => {
   let total = 0n;
 
-  for (const tx of await pageToncenterTxs(wallet, start, end)) {
+  for (const tx of await pageToncenterTxs({ account: wallet, startTimestamp: start, endTimestamp: end })) {
     if (tx.description?.action?.success === false) continue;
     if (!tx.out_msgs) continue;
     for (const msg of tx.out_msgs) {
@@ -167,14 +121,12 @@ const fetchTON = async (options: FetchOptions) => {
     const r = await scanTonWallet(w, start, end, (s) => TON_LAUNCHPAD_SENDERS.has(normAddr(s)));
     tradingFees += r.tradingFees;
     launchpadFees += r.launchpadFees;
-    await sleep(TONCENTER_SLEEP_MS);
   }
   const totalFees = tradingFees + launchpadFees;
 
   let totalUserPayouts = 0n;
   for (const w of TON_PAYOUT_WALLETS) {
     totalUserPayouts += await scanTonPayouts(w, start, end);
-    await sleep(TONCENTER_SLEEP_MS);
   }
 
   const dailyFees = options.createBalances();

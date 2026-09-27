@@ -60,7 +60,15 @@ const fetch = async (options: FetchOptions) => {
 
   await Promise.all(
     markets.map(async (market) => {
-      const config = await nearView(market, "get_configuration");
+      let config: any;
+      try {
+        config = await nearView(market, "get_configuration");
+      } catch (e: any) {
+        // the registry also lists non-market deployments (proxy-gov-*, pyth-lazer, ...) that do
+        // not implement get_configuration; anything else is a real failure
+        if (/MethodNotFound|MethodResolveError/.test(e?.message ?? "")) return;
+        throw e;
+      }
       const yieldWeights = config?.yield_weights;
       const decimals = config?.price_oracle_configuration?.borrow_asset_decimals;
       if (!yieldWeights || decimals === undefined) return;

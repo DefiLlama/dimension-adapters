@@ -57,7 +57,7 @@ for (const chain in chains) {
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch,
-      start: 1706946000,
+      start: '2024-02-03',
     };
   };
 };

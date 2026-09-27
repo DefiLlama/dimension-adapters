@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -16,7 +17,7 @@ const HOOK = "0xe5e702641ea86f4ae6cc3cdaed2b886f976be044";
 // SHROOM/MU, fee 0, tickSpacing 200, hooked. Created at block 52657452.
 const POOL_ID = "0xbacecf788d2279f65da62d7bf69f4de28580a88bec56847c8d2ba6fbdd73f6eb";
 // https://robinhoodchain.blockscout.com/token/0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD
-const MU = "0xff080c8ce2e5feadaca0da81314ae59d232d4afd";
+const MU = ADDRESSES.robinhood.MU;
 const poolFeesSweptAbi =
   "event PoolFeesSwept(bytes32 indexed poolId, uint256 protocolAmount, uint256 buybackAmount, uint256 creatorAmount, uint256 tokensLocked)";
 const POOL_FEES_SWEPT_TOPIC = "0x2f3c43579b9064b6f28edcf41608f3815792d274a56afe024359703cb4ea9b30";

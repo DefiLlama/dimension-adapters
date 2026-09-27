@@ -1,8 +1,9 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const BSC_ASSET = "0x55d398326f99059fF775485246999027B3197955"; // Binance-Peg USDT
+const BSC_ASSET = ADDRESSES.bsc.USDT; // Binance-Peg USDT
 const BSC_VAULTS = [
   {
     // Source: MoneyFi V2 Controller VaultRegistered event on BSC.

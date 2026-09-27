@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // Orchard — fees & revenue adapter.
 //
 // Orchard is a plot game on Robinhood Chain (chainId 4663), played in AAPL (Apple stock
@@ -50,7 +51,7 @@ import { getPositionedLogArgs } from "../../helpers/logs";
 const ORCHARD_V1 = "0xEbB8b167c0992cFdc497A995a8Cf7167acAA0A1A";
 const ORCHARD_V2 = "0x86510b3df745C67a993A66CB08720Ed158d44549";
 const ORCHARD_V2_DEPLOY_BLOCK = 53786732;
-const AAPL = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9";
+const AAPL = ADDRESSES.robinhood.AAPL;
 
 const BPS = 10000n;
 const STAKERS_BPS = 1000n; // Orchard.STAKERS_BPS, a contract constant in both versions: 10% of the rake

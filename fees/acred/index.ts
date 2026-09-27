@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getTokenSupply } from "../../helpers/solana";
 import * as sdk from "@defillama/sdk";
-import fetchURL from "../../utils/fetchURL";
 
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
@@ -51,7 +50,6 @@ const tokenDecimals = 6;
 const REDSTONE_ORACLE_DECIMALS = 8;
 const MANAGEMENT_FEE = 0.5 / 100;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
-const APTOS_API_BASE_URL = 'https://api.mainnet.aptoslabs.com'
 
 async function prefetch(options: FetchOptions) {
     const apiFrom = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.fromTimestamp })
@@ -93,8 +91,9 @@ async function fetch(options: FetchOptions) {
         totalSupplyAfterDecimals = totalSupply
     }
     else if (options.chain === CHAIN.APTOS) {
-        const apiResponse = await fetchURL(`${APTOS_API_BASE_URL}/v1/accounts/${tokenAddress}/resource/0x1::fungible_asset::ConcurrentSupply`)
-        totalSupplyAfterDecimals = Number(apiResponse.data.current.value) / (10 ** tokenDecimals);
+        const supply = await sdk.chains.aptos.getResource({ account: tokenAddress, type: '0x1::fungible_asset::ConcurrentSupply' })
+        if (!supply) throw new Error(`acred: no ConcurrentSupply resource at ${tokenAddress}`)
+        totalSupplyAfterDecimals = Number(supply.current.value) / (10 ** tokenDecimals);
     }
     else {
         const totalSupply = await options.api.call({
