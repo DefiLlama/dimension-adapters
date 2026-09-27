@@ -75,12 +75,25 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addUSDValue(protocolNet, TRADING_FEES_TO_PROTOCOL);
   dailyProtocolRevenue.addUSDValue(protocolNet, TRADING_FEES_TO_PROTOCOL);
 
+  // Open interest = the feed's top-level `openInterest`: a LIVE snapshot of the
+  // notional of every open position (Σ |quantity| × mark price, main + copy), in USD.
+  // The feed carries only the CURRENT value, not a per-day OI series, so record it as
+  // openInterestAtEnd ONLY for a recent run — never back-stamp today's number onto the
+  // historical backfill dates, which would draw a false flat OI line across all history.
+  // DefiLlama then builds a real OI series one day forward from here. Invalid/absent OI
+  // is dropped (undefined), not forced to 0, so a feed hiccup never records "no OI".
+  const RECENT_WINDOW_S = 2 * 24 * 60 * 60;
+  const oi = Number(data.openInterest);
+  const isRecent = Math.floor(Date.now() / 1000) - options.toTimestamp < RECENT_WINDOW_S;
+  const openInterestAtEnd = Number.isFinite(oi) && oi >= 0 && isRecent ? oi : undefined;
+
   return {
     dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue,
+    openInterestAtEnd,
   };
 };
 
@@ -98,6 +111,9 @@ const methodology = {
   SupplySideRevenue: "Referral rebates — trading commission paid back out to referrers.",
   Revenue: "Trading commission retained by the protocol after referral rebates (fees − rebates).",
   ProtocolRevenue: "Trading commission retained by the Jetbit protocol treasury (fees − referral rebates).",
+  OpenInterest:
+    "Live notional of all open positions (Σ |quantity| × mark price across open main "
+    + "and copy-trade positions), in USD, from Jetbit's public feed.",
 };
 
 const breakdownMethodology = {
