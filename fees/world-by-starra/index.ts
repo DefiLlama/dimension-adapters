@@ -47,19 +47,26 @@ async function solanaSwapFees(options: FetchOptions): Promise<string> {
 
 // KyberSwap's router is public and the fee recipient is chosen by the caller, so a Fee event paying our wallet is only
 // counted when the same router call also emits ClientData tagged with our KyberSwap client id ("Source":"worldbystarra"),
-// which the World by Starra frontend sends on every route request. Both events come from the same swap call.
+// which the World by Starra frontend sends on every route request. ClientData is the last event the router emits in a swap
+// call (Fee comes before it), so each Fee belongs to the first ClientData after it in the same transaction. Sample:
+// https://etherscan.io/tx/0xa19d610dd4c536e133149903acfd1d3c9644d061788f48334b63b5bcf1aa4dc6#eventlog (Fee 285, ClientData 289)
 const KYBER_CLIENT_DATA_EVENT = "event ClientData(bytes clientData)";
 const KYBER_SOURCE = '"Source":"worldbystarra"';
 
 async function starraFeeEvents(options: FetchOptions) {
   const fees = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
   const clientData = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_CLIENT_DATA_EVENT, onlyArgs: false });
-  const ours = new Set<string>();
+  const callsByTx = new Map<string, { logIndex: number; ours: boolean }[]>();
   for (const log of clientData) {
     const hex = String(log.args.clientData).replace(/^0x/, "");
-    if (Buffer.from(hex, "hex").toString("utf8").includes(KYBER_SOURCE)) ours.add(log.transactionHash.toLowerCase());
+    const tx = log.transactionHash.toLowerCase();
+    if (!callsByTx.has(tx)) callsByTx.set(tx, []);
+    callsByTx.get(tx)!.push({ logIndex: Number(log.logIndex), ours: Buffer.from(hex, "hex").toString("utf8").includes(KYBER_SOURCE) });
   }
-  return fees.filter((log: any) => ours.has(log.transactionHash.toLowerCase())).map((log: any) => log.args);
+  return fees.filter((log: any) => {
+    const calls = (callsByTx.get(log.transactionHash.toLowerCase()) ?? []).sort((a, b) => a.logIndex - b.logIndex);
+    return calls.find((c) => c.logIndex > Number(log.logIndex))?.ours === true; // the swap call this Fee belongs to
+  }).map((log: any) => log.args);
 }
 
 const chainConfig: Record<string, { start: string }> = {
