@@ -219,30 +219,68 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue.add(cfg.weth, a.ethPaid, "Activation Fees to Protocol");
         dailyFees.add(AGNTS_TOKEN, agnts, "Activation $AGNTS");
         dailyRevenue.add(AGNTS_TOKEN, agnts - burned, "Activation $AGNTS to Protocol");
+        dailyRevenue.add(AGNTS_TOKEN, burned, "Activation $AGNTS Burned");
         dailyHoldersRevenue.add(AGNTS_TOKEN, burned, "Activation $AGNTS Burned");
       }
     }
 
-    // Swaps: fee read at each swap's block (fees move with the NFT floor).
+    // Swaps: fee read at each swap's block (fees move with the NFT floor). Dedupe
+    // identical lookups and batch per block via multiCall instead of one RPC per swap.
     const swapLogs = (await Promise.all([
       options.getLogs({ targets: [SWAP_ENGINE_TIERED, SWAP_ENGINE_FLAT], eventAbi: SWAP_COMMITTED_ABI, onlyArgs: false }).then((l: any[]) => l.map((x) => ({ x, exact: false }))),
       options.getLogs({ targets: [SWAP_ENGINE_TIERED, SWAP_ENGINE_FLAT], eventAbi: SNIPED_ABI, onlyArgs: false }).then((l: any[]) => l.map((x) => ({ x, exact: true }))),
     ])).flat();
-    for (const { x, exact } of swapLogs) {
-      const engine = String(x.address ?? x.target ?? "").toLowerCase();
-      const tier = Number(x.args?.tier ?? x.tier);
-      const block = Number(x.blockNumber);
-      const fee = engine === SWAP_ENGINE_TIERED.toLowerCase()
-        ? await options.api.call({ target: SWAP_ENGINE_TIERED, abi: exact ? "function exactFee(uint8) view returns (uint256)" : "function randomFee(uint8) view returns (uint256)", params: [tier], block })
-        : await options.api.call({ target: SWAP_ENGINE_FLAT, abi: exact ? "uint256:exactFeeWei" : "uint256:randomFeeWei", block });
-      dailyFees.add(cfg.weth, fee, "NFT Swap Fees");
-      dailyRevenue.add(cfg.weth, fee, "NFT Swap Fees to Protocol");
+    if (swapLogs.length) {
+      type SwapFeeLookup = { block: number; tiered: boolean; exact: boolean; tier: number };
+      const swapFeeKey = (s: SwapFeeLookup) =>
+        s.tiered ? `${s.block}:t:${s.exact ? "e" : "r"}:${s.tier}` : `${s.block}:f:${s.exact ? "e" : "r"}`;
+      const entries = swapLogs.map(({ x, exact }) => {
+        const tiered = String(x.address ?? x.target ?? "").toLowerCase() === SWAP_ENGINE_TIERED.toLowerCase();
+        const lookup: SwapFeeLookup = { block: Number(x.blockNumber), tiered, exact, tier: Number(x.args?.tier ?? x.tier) };
+        return { lookup, key: swapFeeKey(lookup) };
+      });
+      const fees = new Map<string, bigint>();
+      const seen = new Set<string>();
+      const byBlock = new Map<number, SwapFeeLookup[]>();
+      for (const { lookup } of entries) {
+        const key = swapFeeKey(lookup);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const list = byBlock.get(lookup.block) ?? [];
+        list.push(lookup);
+        byBlock.set(lookup.block, list);
+      }
+      for (const [block, lookups] of byBlock) {
+        const tieredExact = lookups.filter((s) => s.tiered && s.exact);
+        const tieredRandom = lookups.filter((s) => s.tiered && !s.exact);
+        const flatExact = lookups.some((s) => !s.tiered && s.exact);
+        const flatRandom = lookups.some((s) => !s.tiered && !s.exact);
+        const [exactAmounts, randomAmounts, flatExactFee, flatRandomFee] = await Promise.all([
+          tieredExact.length
+            ? options.api.multiCall({ target: SWAP_ENGINE_TIERED, abi: "function exactFee(uint8) view returns (uint256)", calls: tieredExact.map((s) => ({ params: [s.tier] })), block })
+            : [],
+          tieredRandom.length
+            ? options.api.multiCall({ target: SWAP_ENGINE_TIERED, abi: "function randomFee(uint8) view returns (uint256)", calls: tieredRandom.map((s) => ({ params: [s.tier] })), block })
+            : [],
+          flatExact ? options.api.call({ target: SWAP_ENGINE_FLAT, abi: "uint256:exactFeeWei", block }) : null,
+          flatRandom ? options.api.call({ target: SWAP_ENGINE_FLAT, abi: "uint256:randomFeeWei", block }) : null,
+        ]);
+        for (let i = 0; i < tieredExact.length; i++) fees.set(swapFeeKey(tieredExact[i]), BigInt(exactAmounts[i]));
+        for (let i = 0; i < tieredRandom.length; i++) fees.set(swapFeeKey(tieredRandom[i]), BigInt(randomAmounts[i]));
+        if (flatExact) fees.set(swapFeeKey({ block, tiered: false, exact: true, tier: 0 }), BigInt(flatExactFee!));
+        if (flatRandom) fees.set(swapFeeKey({ block, tiered: false, exact: false, tier: 0 }), BigInt(flatRandomFee!));
+      }
+      for (const { key } of entries) {
+        const fee = fees.get(key)!;
+        dailyFees.add(cfg.weth, fee, "NFT Swap Fees");
+        dailyRevenue.add(cfg.weth, fee, "NFT Swap Fees to Protocol");
+      }
     }
   }
 
-  // Revenue = protocol revenue + the burned $AGNTS (holders revenue); protocol revenue excludes the burn.
+  // Burn is already inside dailyRevenue. Protocol revenue is that total minus the burn.
   const dailyProtocolRevenue = dailyRevenue.clone();
-  dailyRevenue.addBalances(dailyHoldersRevenue);
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue);
   return {
     dailyFees,
     dailyRevenue,
