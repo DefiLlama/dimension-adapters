@@ -24,6 +24,7 @@ const orderbooks: Record<string, Orderbooks> = {
     ],
     v4: [
       { address: "0x550878091b2b1506069f61ae59e3a5484bca9166", start: '2024-09-23' },
+      { address: "0x59401C9302E79Eb8AC6aea659B8B3ae475715e86", start: '2025-06-03' },
     ],
     v5: [
       { address: "0x8df8075e4077dabf1e95f49059e4c1eea33094ab", start: '2025-09-07' },
@@ -41,8 +42,10 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0x80DE00e3cA96AE0569426A1bb1Ae22CD4181dE6F", start: '2024-08-20' },
       { address: "0x7A44459893F99b9d9a92d488eb5d16E4090f0545", start: '2024-08-11' },
       { address: "0x881cf4c0764e733d9c387f3858ee87cca04affe0", start: '2025-08-18' },
+      { address: "0x7692BA8446Bb8B3140A2c02df073080BeD0a7F8E", start: '2025-07-02' },
     ],
     v5: [
+      { address: "0x498Ff70C5f67e63e53b74551DE31387cf2813986", start: '2026-01-22' },
       { address: "0x52ceb8ebef648744ffdde89f7bc9c3ac35944775", start: '2025-10-10' },
     ],
     v6: [
