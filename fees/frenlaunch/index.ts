@@ -147,9 +147,15 @@ async function fetch(options: FetchOptions) {
     // Each payout happens inside a swap: the PoolManager's Swap just before it in the same
     // transaction names the pool.
     const swaps = pools.length ? await options.getLogs({ target: poolManager, topics: [SWAP_TOPIC, pools as any], entireLog: true }) : [];
+    const swapsByTx = new Map<string, any[]>();
+    for (const s of swaps) {
+      const tx = s.transactionHash.toLowerCase();
+      if (!swapsByTx.has(tx)) swapsByTx.set(tx, []);
+      swapsByTx.get(tx)!.push(s);
+    }
     const poolOf = (log: any) => {
       let best: any;
-      for (const s of swaps) if (s.transactionHash.toLowerCase() === log.transactionHash.toLowerCase() && Number(s.logIndex) < Number(log.logIndex) && (!best || Number(s.logIndex) > Number(best.logIndex))) best = s;
+      for (const s of swapsByTx.get(log.transactionHash.toLowerCase()) ?? []) if (Number(s.logIndex) < Number(log.logIndex) && (!best || Number(s.logIndex) > Number(best.logIndex))) best = s;
       return best?.topics[1].toLowerCase();
     };
     // A collect that releases a beneficiary seat held by the Safe itself also moves module -> Safe;
