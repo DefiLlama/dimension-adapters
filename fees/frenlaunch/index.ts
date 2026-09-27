@@ -9,6 +9,7 @@
 // revenue, and the gross fee is ten times them.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
+import { Interface } from "ethers";
 import { METRIC } from "../../helpers/metrics";
 const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string; claimer: string; poolManager: string } }> = {
   "robinhood": {
@@ -38,6 +39,7 @@ const SELL = "event Sell(address indexed seller, uint256 tokensIn, uint256 ethOu
 const CURVE_FEES = "event FeesAccrued(address indexed creator, uint256 creatorCut, address indexed platform, uint256 platformCut)";
 const HOOK_FEES = "event FeeAccrued(bytes32 indexed poolId, address indexed creator, uint256 creatorCut, uint256 platformCut, address indexed currencyIn)";
 const LAUNCH_FEE = "function launchFee() view returns (uint256)";
+const IS_OFFICIAL_CURVE = "function isOfficialCurve(address curve) view returns (bool)";
 // Topics, not ABIs: the Doppler rail filters on indexed addresses. Transfer(address,address,uint256)
 // and the Rehype module's Release(bytes32,address,uint256,uint256).
 
@@ -73,33 +75,44 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances(), dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances(), dailySupplySideRevenue = options.createBalances();
 
-  // Every curve the factory ever made: the only contracts whose Buy/Sell/FeesAccrued count.
-  const launched = await options.getLogs({ target: d.factory, eventAbi: TOKEN_LAUNCHED, fromBlock: d.fromBlock, cacheInCloud: true });
-  const curves = new Set<string>(launched.map((l: any) => l.curve.toLowerCase()));
-  const ours = (log: any) => curves.has(log.address.toLowerCase());
+  // One log query per source and window (Arc's public RPCs rate-limit hard): the factory's
+  // launches, and every Buy/Sell/FeesAccrued on the chain, kept only when the emitter is one of
+  // the factory's curves (LaunchFactory.isOfficialCurve, read at the head: a curve stays
+  // official). Asking the factory beats replaying every TokenLaunched since deploy, which pruned
+  // RPCs refuse ("pruned history unavailable" on Arc).
+  const iface = new Interface([TOKEN_LAUNCHED, POOL_LAUNCHED, BUY, SELL, CURVE_FEES]);
+  const topic = (name: string) => iface.getEvent(name)!.topicHash;
 
-  // Launch fees: launches in the window × the factory's fee (a timelocked setting, read live).
-  // Both rails pay it: curve launches (TokenLaunched) and pool launches (PoolLaunched, a pool
-  // from block one whose trades are the hook fees below; a factory without the rail emits none).
-  const launchedToday = await options.getLogs({ target: d.factory, eventAbi: TOKEN_LAUNCHED });
-  const poolLaunchedToday = await options.getLogs({ target: d.factory, eventAbi: POOL_LAUNCHED });
-  // Read at the head, not at the window's block: Robinhood Chain's RPCs keep a few thousand
-  // blocks of state ("historical state … is not available" past that), and the fee is a
-  // timelocked setting that has not changed since launch. No launches, no call.
-  const launches = BigInt(launchedToday.length + poolLaunchedToday.length);
+  // Launch fees: launches in the window × the factory's fee. Both rails pay it: curve launches
+  // (TokenLaunched) and pool launches (PoolLaunched, a pool from block one whose trades are the
+  // hook fees below; a factory without the rail emits none). The fee is read at the head, not at
+  // the window's block: Robinhood Chain's RPCs keep a few thousand blocks of state ("historical
+  // state … is not available" past that), and it is a timelocked setting that has not changed
+  // since launch. No launches, no call.
+  const factoryLogs = await options.getLogs({ target: d.factory, topics: [[topic("TokenLaunched"), topic("PoolLaunched")] as any], entireLog: true });
+  const launches = BigInt(factoryLogs.length);
   const launchFee = launches ? BigInt(await sdk.api2.abi.call({ chain: options.chain, target: d.factory, abi: LAUNCH_FEE })) : 0n;
   dailyFees.addGasToken(launchFee * launches, L.LAUNCH);
   dailyRevenue.addGasToken(launchFee * launches, L.LAUNCH_P);
 
   // Curve trades, in the native asset.
-  const logsOf = async (eventAbi: string) => (await options.getLogs({ noTarget: true, eventAbi, entireLog: true, parseLog: true })).filter(ours);
-  for (const log of await logsOf(BUY)) dailyVolume.addGasToken(BigInt(log.args.ethIn));
-  for (const log of await logsOf(SELL)) dailyVolume.addGasToken(BigInt(log.args.ethOut) + BigInt(log.args.fee));
-  for (const log of await logsOf(CURVE_FEES)) {
-    const creatorCut = BigInt(log.args.creatorCut), platformCut = BigInt(log.args.platformCut);
-    dailyFees.addGasToken(creatorCut + platformCut, L.CURVE);
-    dailyRevenue.addGasToken(platformCut, L.CURVE_P);
-    dailySupplySideRevenue.addGasToken(creatorCut, L.CURVE_C);
+  const curveLogs = await options.getLogs({ noTarget: true, topics: [[topic("Buy"), topic("Sell"), topic("FeesAccrued")] as any], entireLog: true });
+  const emitters = [...new Set<string>(curveLogs.map((l: any) => l.address.toLowerCase()))];
+  const official = emitters.length
+    ? await sdk.api2.abi.multiCall({ chain: options.chain, target: d.factory, abi: IS_OFFICIAL_CURVE, calls: emitters.map((a) => ({ params: [a] })), permitFailure: true })
+    : [];
+  const curves = new Set(emitters.filter((_, i) => official[i] === true));
+  for (const log of curveLogs) {
+    if (!curves.has(log.address.toLowerCase())) continue;
+    const e = iface.parseLog({ topics: log.topics, data: log.data })!;
+    if (e.name === "Buy") dailyVolume.addGasToken(BigInt(e.args.ethIn));
+    if (e.name === "Sell") dailyVolume.addGasToken(BigInt(e.args.ethOut) + BigInt(e.args.fee));
+    if (e.name === "FeesAccrued") {
+      const creatorCut = BigInt(e.args.creatorCut), platformCut = BigInt(e.args.platformCut);
+      dailyFees.addGasToken(creatorCut + platformCut, L.CURVE);
+      dailyRevenue.addGasToken(platformCut, L.CURVE_P);
+      dailySupplySideRevenue.addGasToken(creatorCut, L.CURVE_C);
+    }
   }
 
   // Graduated pools: the hook takes the fee in the swap's input currency (the native asset on
