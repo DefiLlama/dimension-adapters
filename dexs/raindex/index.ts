@@ -14,6 +14,7 @@ const floats: Record<string, string> = {
   [CHAIN.FLARE]: "0x2F665EcE3345bF09197DAd22A50dFB623BD310A7",
   [CHAIN.LINEA]: "0x83e4c7732e715b5E7310796A4A2a21d89f3FB59A",
   [CHAIN.POLYGON]: "0xb92aD1A33930aB64e0A7DC1AcD9EDDf9d4F8bc91",
+  [CHAIN.ROBINHOOD]: "0x2F665EcE3345bF09197DAd22A50dFB623BD310A7",
 }
 
 const orderbooks: Record<string, Orderbooks> = {
@@ -90,13 +91,14 @@ const orderbooks: Record<string, Orderbooks> = {
     v5: [],
     v6: []
   },
-  // not supported?
-  // matchain: {
-  //   v3: [],
-  //   v4: [
-  //     { address: "0x40312EDAB8Fe65091354172ad79e9459f21094E2", start: '2024-09-02' },
-  //   ]
-  // },
+  [CHAIN.MATCHAIN]: {
+    v3: [],
+    v4: [
+      { address: "0x40312EDAB8Fe65091354172ad79e9459f21094E2", start: '2024-09-02' },
+    ],
+    v5: [],
+    v6: []
+  },
   [CHAIN.POLYGON]: {
     v3: [
       { address: "0xde5abe2837bc042397d80e37fb7b2c850a8d5a6c", start: '2024-01-22' },
@@ -118,6 +120,14 @@ const orderbooks: Record<string, Orderbooks> = {
       { address: "0x8a3c8e610d827093f7437e0c45efa648563c0dda", start: '2025-09-22' },
     ],
     v6: []
+  },
+  [CHAIN.ROBINHOOD]: {
+    v3: [],
+    v4: [],
+    v5: [],
+    v6: [
+      { address: "0x37FC0EFec37D19f8A221aa4F8F7600C9ba2AcD20", start: '2026-09-10' },
+    ]
   },
 } as const
 
