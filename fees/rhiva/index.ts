@@ -28,36 +28,50 @@ const fetch = async ({
   );
 
   const dailyFees = createBalances();
-  const dailyUserFees = createBalances();
+  const dailySupplySideRevenue = createBalances();
+  const dailyRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
 
-  dailyFees.addUSDValue(amounts.userFees);
-  dailyFees.addUSDValue(amounts.protocolFees);
-  dailyUserFees.addUSDValue(amounts.userFees);
-  dailyProtocolRevenue.addUSDValue(amounts.protocolFees);
+  dailyFees.addUSDValue(amounts.protocolFees + amounts.userFees, "Swap Fees");
+  dailySupplySideRevenue.addUSDValue(amounts.userFees, "Referral Fees To Referrers");
+  dailyRevenue.addUSDValue(amounts.protocolFees, "Swap Fees To Protocol");
+  dailyProtocolRevenue.addUSDValue(amounts.protocolFees, "Swap Fees To Protocol");
 
   return {
     dailyFees,
-    dailyUserFees,
+    dailySupplySideRevenue,
+    dailyRevenue,
     dailyProtocolRevenue,
-    dailyRevenue: dailyFees,
   };
 };
 
+const breakdownMethodology = {
+  Fees: {
+    "Swap Fees": "Portion of Rhiva fees retained by the protocol from liquidity provision activity.",
+  },
+  SupplySideRevenue: {
+    "Referral Fees To Referrers": "Referral fee share paid to users who invite new participants.",
+  },
+  Revenue: {
+    "Swap Fees To Protocol": "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+  },
+  ProtocolRevenue: {
+    "Swap Fees To Protocol": "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+  },
+};
+
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-09-11",
-    },
-  },
-  runAtCurrTime: true,
+  version: 2,
+  chains: [CHAIN.SOLANA],
+  start: "2026-09-11",
+  fetch,
+  pullHourly: true,
   methodology: {
-    UserFees: "Users paid fees to referrals",
-    Fees: "Staking rewards from Solana validators.",
-    Revenue: "Swap Fees collected by Rhiva.",
-    ProtocolRevenue: "~90% revenue is collected by Rhiva.",
+    Fees: "Total fees from Rhiva liquidity provision activity, including referral and protocol shares.",
+    SupplySideRevenue: "Referral fees paid to users who invite new participants.",
+    Revenue: "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+    ProtocolRevenue: "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
   },
+  breakdownMethodology,
 };
 export default adapter;

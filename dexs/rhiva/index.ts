@@ -1,4 +1,4 @@
-import type { FetchOptions } from "../../adapters/types";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { postURL } from "../../utils/fetchURL";
 
@@ -23,12 +23,15 @@ async function fetch({
   return { dailyVolume };
 }
 
-export default {
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-09-11",
-      runAtCurrTime: true,
-    },
-  },
-};
+const adapter: SimpleAdapter = {
+  version: 2,
+  chains: [CHAIN.SOLANA],
+  start: "2026-09-11",
+  fetch,
+  pullHourly: true,
+  methodology: {
+    Volume: "Volume traded on Rhiva DEX",
+  }
+}
+
+export default adapter;

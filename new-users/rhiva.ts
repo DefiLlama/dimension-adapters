@@ -1,6 +1,5 @@
 import {
   type FetchOptions,
-  ProtocolType,
   type SimpleAdapter,
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -32,7 +31,6 @@ const adapter: SimpleAdapter = {
   version: 1,
   start: "2026-09-11",
   chains: [CHAIN.SOLANA],
-  protocolType: ProtocolType.CHAIN,
 };
 
 export default adapter;
