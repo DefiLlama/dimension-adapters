@@ -34,6 +34,7 @@ const adapters: SimpleAdapter = {
       fetch: fetchFees,
       start: '2023-11-05',
       runAtCurrTime: true,
+      deadFrom: '2026-08-31'
     }
   }
 }

@@ -50,7 +50,8 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "Fees are distributed to Haiku.",
   },
   fetch,
-  adapter: HaikuChainConfig
+  adapter: HaikuChainConfig,
+  deadFrom: '2026-09-21',
 };
 
 export default adapter;

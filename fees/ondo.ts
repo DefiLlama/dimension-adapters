@@ -218,9 +218,9 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2023-10-25',
     },
-    [CHAIN.APTOS]: {
-      fetch: fetch,
-    },
+    // [CHAIN.APTOS]: {
+    //   fetch: fetch,
+    // },
     [CHAIN.ARBITRUM]: {
       fetch: fetch,
       start: '2024-08-08',

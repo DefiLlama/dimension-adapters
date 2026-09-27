@@ -33,6 +33,8 @@ export const chainMap: ChainMapping = {
   [CHAIN.UNICHAIN]: 'unichain',
   [CHAIN.MODE]: 'mode',
   [CHAIN.XLAYER]: 'x_layer',
+  [CHAIN.XDC]: 'xdc_network',
+  [CHAIN.FANTOM]: 'fantom',
 };
 
 
