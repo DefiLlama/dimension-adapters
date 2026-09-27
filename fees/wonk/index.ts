@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -17,7 +18,7 @@ const BPS = 10000n
 const GRADUATED_PROGRESS_BPS = 10000
 // The registry whitelists only native USDC (18 decimals), so pair tokens are booked with
 // addGasToken; the branch below covers an ERC-20 base being whitelisted later.
-const NATIVE = "0x0000000000000000000000000000000000000000"
+const NATIVE = ADDRESSES.null
 
 // one per launch; `pairToken` is the base asset the pool quotes in
 const TOKEN_LAUNCHED_EVENT = "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold, bytes32 poolId, uint256 mainBandTokenId, uint256 tailBandTokenId, string name, string symbol, uint256 totalSupply, uint128 startAmount, uint16 taxBps, uint8 baseDecimals)"

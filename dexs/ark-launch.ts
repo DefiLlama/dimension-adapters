@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // ARK Launch (https://ark-ai.xyz): token launchpad on Arc. Each launch seeds one 1% Uniswap V3 USDC pool (LP locked),
 // so volume = the USDC leg of every Swap on those pools. Pools are enumerated from TokenLaunched on both factory
 // generations. Gen2 pools live on the official Uniswap V3 factory already tracked by dexs/uniswap-v3 on Arc, hence
@@ -5,7 +6,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const USDC = "0x3600000000000000000000000000000000000000"; // Arc native USDC ERC-20 interface, 6 decimals
+const USDC = ADDRESSES.arc.USDC; // Arc native USDC ERC-20 interface, 6 decimals
 
 const FACTORIES = [
   { address: "0x3d0B83e115205EDf37e48A8EB6d92e2C7492A00C", fromBlock: 21117455 }, // gen1, own V3 fork

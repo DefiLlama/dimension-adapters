@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { id, zeroPadValue } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -8,7 +9,7 @@ const FACTORY = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e";
 const TOKEN = "0x3f9108a3bECa998C14c6dda822a7e8EaEb88E20D";
 const CURVE = "0x84EeF7357E41716180f001387505665FE251d091";
 const HOOK = "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044";
-const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
+const NVDA = ADDRESSES.robinhood.NVDA;
 const POOL_ID = "0xc5c73a17f81e15c4d9b076601476bbf751e0ab51a6eb7262da1b58e2913723be";
 const LAUNCH_BLOCK = 60794876;
 

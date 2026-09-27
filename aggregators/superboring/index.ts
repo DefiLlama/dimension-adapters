@@ -149,9 +149,9 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch: fetchDailyVolume,
   adapter: {
-    [CHAIN.BASE]: { start: 1720080031 },
-    [CHAIN.OPTIMISM]: { start: 1723454131 },
-    [CHAIN.ARBITRUM]: { start: 1750045591 },
+    [CHAIN.BASE]: { start: '2024-07-04' },
+    [CHAIN.OPTIMISM]: { start: '2024-08-12' },
+    [CHAIN.ARBITRUM]: { start: '2025-06-16' },
   },
   methodology: 'Volume represents the USD value of SuperTokens DCAed through SuperBoring Torexes during each day',
 }

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -90,7 +91,7 @@ const fetchFees = async (options: FetchOptions) => {
     if (!sickleContractsSet.has(target)) continue;
     const { token, amount } = log.parsedLog.args;
     // FeesLib uses this sentinel for native currency; SDK pricing uses zero.
-    if (token.toLowerCase() === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') dailyFees.addGasToken(amount, METRIC.SERVICE_FEES);
+    if (token.toLowerCase() === ADDRESSES.GAS_TOKEN_2) dailyFees.addGasToken(amount, METRIC.SERVICE_FEES);
     else dailyFees.add(token, amount, METRIC.SERVICE_FEES);
   }
 

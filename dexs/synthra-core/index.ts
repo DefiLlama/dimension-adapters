@@ -115,7 +115,7 @@ async function lockedPools({ api }: FetchOptions, config: ChainConfig): Promise<
       creatorShare: Number(locks[i].creatorFeeShareBps) / 1e4,
     }))
     .filter((l: LockedPool & { registered: boolean }) =>
-      l.registered && l.liquidity > 0n && /^0x[0-9a-f]{40}$/.test(l.pool) && l.pool !== '0x0000000000000000000000000000000000000000')
+      l.registered && l.liquidity > 0n && /^0x[0-9a-f]{40}$/.test(l.pool) && l.pool !== ADDRESSES.null)
 }
 
 // Pools are discovered from the PoolCreated log cache that the Synthra TVL adapter keeps per

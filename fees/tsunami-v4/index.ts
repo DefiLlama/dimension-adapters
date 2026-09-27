@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -35,7 +36,7 @@ const INITIALIZE_EVENT =
 const SWAP_FEE_ACCRUED_V2 = "event SwapFeeAccrued(address indexed currency, address indexed curve, uint256 amount)";
 const SWAP_FEE_ACCRUED_V1 = "event SwapFeeAccrued(address indexed currency, uint256 amount)";
 
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 type HookConfig = { address: string; hasCurveIndex: boolean; creatorBps: number };
 

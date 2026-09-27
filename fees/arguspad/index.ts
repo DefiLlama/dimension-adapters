@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -105,7 +106,7 @@ const bump = (t: Tally, asset: string, amount: bigint) => { t[asset] = (t[asset]
 const lower = (value: any) => String(value).toLowerCase();
 const emitter = (log: any) => lower(log.address);
 const txEmitter = (log: any) => `${lower(log.transactionHash)}:${emitter(log)}`;
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 type Launch = {
   token: string,

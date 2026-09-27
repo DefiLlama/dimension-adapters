@@ -47,7 +47,7 @@ const CONFIG: Record<string, ChainCfg> = {
       { // USDG/NVDA
         pid: "0x53e74184f024eb01ceb7bbde68866bff3cc3ddf378c78745eb52bdd9ad7bcd91",
         token0: ADDRESSES.robinhood.USDG, // USDG
-        token1: "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec", // NVDA
+        token1: ADDRESSES.robinhood.NVDA, // NVDA
       },
       { // USDG/INTC
         pid: "0x0703d548618b02c35d53acc889c1edb792aabccde3217004cd7dabb604fad3bd",
@@ -56,7 +56,7 @@ const CONFIG: Record<string, ChainCfg> = {
       },
       { // SPCX/USDG — note the inverted order: SPCX sorts below USDG
         pid: "0xdbd476102c84ca90d501b1330b11e9a6c092ab9a811a7f6a45b1d971872fab13",
-        token0: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", // SPCX
+        token0: ADDRESSES.robinhood.SPCX, // SPCX
         token1: ADDRESSES.robinhood.USDG, // USDG
       },
       { // v5 INTC/USDG (ARMSHookV5RWA), listed 2026-09-17

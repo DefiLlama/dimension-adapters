@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // SolStocker — fees & revenue adapter (Robinhood Chain).
 //
 // SolStocker (https://solstocker.fun) is an RWA launchpad. On Robinhood Chain

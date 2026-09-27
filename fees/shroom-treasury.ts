@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Interface, ZeroAddress } from "ethers";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -19,7 +20,7 @@ const TREASURY = [
 // are shared infrastructure. Only transfers into the confirmed treasury count.
 // https://robinhoodchain.blockscout.com/address/0xEa4036B0FccDB5F90421D5b9c35E05758e40Ce18
 const DISTRIBUTOR = "0xea4036b0fccdb5f90421d5b9c35e05758e40ce18";
-const MU = "0xff080c8ce2e5feadaca0da81314ae59d232d4afd";
+const MU = ADDRESSES.robinhood.MU;
 
 const LP_REVENUE = "LP Fees To Treasury";
 const DIVIDENDS = "MU Dividends";

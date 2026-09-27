@@ -1,3 +1,4 @@
+import ADDRESSES from '../coreAssets.json'
 // copyfomo (https://www.copyfomo.com) -- Telegram copy-trading bot.
 //
 // Every user gets one ERC-4337 smart account (Alchemy LightAccount v1.1.0, deployed
@@ -55,7 +56,7 @@ export const COPY_CREATOR_WALLETS = [
 // bought $COPY at launch (2026-09-02): that is the initial position, not a buyback.
 export const BUYBACK_SINCE = "2026-09-11";
 // ERC20Burnable.burn emits Transfer(wallet, 0x0); 0xdead is checked too.
-export const BURN_ADDRESSES = ["0x0000000000000000000000000000000000000000", "0x000000000000000000000000000000000000dead"];
+export const BURN_ADDRESSES = [ADDRESSES.null, "0x000000000000000000000000000000000000dead"];
 // The programme started with three manual buys from the launch wallet on 2026-09-11
 // (10.853M $COPY for 8.287 COIN + 2,500 USDG), burned the next day in one transaction:
 // 0xb0a4b14227d82bc043ef53f2814384ce8869599372d863a5b7c8e300d83b85d6 (10.852M $COPY, 2026-09-12 09:48 UTC).
@@ -68,21 +69,21 @@ export const MANUAL_BUYBACKS_BURNED_LATER = [
 ];
 // Priced against Dune's prices.day to convert the bundler's native gas spend (ETH on
 // Base/Robinhood, BNB on BNB Chain) to USD.
-const WETH_ETHEREUM = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-const WBNB_BNB = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c";
+const WETH_ETHEREUM = ADDRESSES.ethereum.WETH;
+const WBNB_BNB = ADDRESSES.bsc.WBNB;
 
 // Stablecoins users trade with (the "cash" leg of every trade).
 export const STABLES_EVM: Record<string, string[]> = {
-  base: ["0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"], // USDC
-  bnb: ["0x55d398326f99059ff775485246999027b3197955", "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d"], // USDT, USDC
+  base: [ADDRESSES.base.USDC], // USDC
+  bnb: [ADDRESSES.bsc.USDT, ADDRESSES.bsc.USDC], // USDT, USDC
 };
 // Robinhood chain: USDG (Global Dollar), 6 decimals, not covered by tokens.transfers.
-export const USDG_ROBINHOOD = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+export const USDG_ROBINHOOD = ADDRESSES.robinhood.USDG;
 export const STABLES_SOL = [
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-  "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
+  ADDRESSES.solana.USDC, // USDC
+  ADDRESSES.solana.USDT, // USDT
 ];
-export const WSOL = "So11111111111111111111111111111111111111112";
+export const WSOL = ADDRESSES.solana.SOL;
 
 // Dune partitions tokens.transfers / solana.* by block_date: TIME_RANGE (block_time) alone
 // does not prune partitions, so every query also carries a block_date bound. The adapter

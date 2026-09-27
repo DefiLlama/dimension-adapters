@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultFees } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -5,13 +6,13 @@ import { CHAIN } from "../helpers/chains";
 const REP369 = "0x0EE7adC2BAb46BaD56B91D9641A8cDEd09f82369".toLowerCase();
 
 // WPLS (wrapped PLS) used by the REP369 PulseX V2 pair. Source: https://scan.pulsechain.com/address/0xA1077a294dDE1B09bB078844df40758a5D0f9a27
-const WPLS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
+const WPLS = ADDRESSES.pulse.WPLS.toLowerCase();
 
 // REP369/WPLS PulseX V2 pair used by the project. Source: https://scan.pulsechain.com/address/0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5
 const MAIN_PAIR = "0x240e7A47fE5F91806c6D6056Fe4f62622303E1A5".toLowerCase();
 
 // Zero & dead addresses for identifying burns
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead";
 
 const ZERO = 0n;

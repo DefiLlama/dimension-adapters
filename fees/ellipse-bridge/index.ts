@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -59,14 +60,14 @@ const ASSETS = [
     controller: "0x6f553f6f26261d2568cd7c1deb46ba95742e0de7", // Arc, from block 20722758
     vault: "0x2f8dd161539ff04ff63f2c1303e671732450a7e0",      // BSC
     originChain: CHAIN.BSC,
-    originToken: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c",
+    originToken: ADDRESSES.bsc.BTCB,
   },
   {
     symbol: "bUSDT",
     controller: "0x83e176b67eb66924686879b4dd10add4113baf02", // Arc, from block 20147950
     vault: "0x402c61c3620d915c5cc4160dd059a5f199c96d23",      // BSC
     originChain: CHAIN.BSC,
-    originToken: "0x55d398326f99059fF775485246999027B3197955",
+    originToken: ADDRESSES.bsc.USDT,
   },
 ];
 

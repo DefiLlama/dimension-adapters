@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { ChainApi } from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 
@@ -129,24 +130,24 @@ const erc4626 = (chain: string, base: string, target: string) =>
   convert(chain, base, target, 'function convertToAssets(uint256 shares) view returns (uint256)');
 
 // Base tokens, on mainnet so every chain prices the same token (canonical mainnet contracts).
-const WETH = 'ethereum:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
-const STETH = 'ethereum:0xae7ab96520de3a18e5e111b5eaab095312d7fe84'; // Lido stETH
-const USDC = 'ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-const USDE = 'ethereum:0x4c9edd5852cd905f086c759e8383e09bff1e68b3'; // Ethena USDe
+const WETH = 'ethereum:' + ADDRESSES.ethereum.WETH;
+const STETH = 'ethereum:' + ADDRESSES.ethereum.STETH; // Lido stETH
+const USDC = 'ethereum:' + ADDRESSES.ethereum.USDC;
+const USDE = 'ethereum:' + ADDRESSES.ethereum.USDe; // Ethena USDe
 const FRXUSD = 'ethereum:0xcacd6fd266af91b8aed52accc382b4e165586e29'; // Frax frxUSD
 
 // Rate sources: the token contracts themselves unless noted (all verified on their chain's explorer).
-const WSTETH = '0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0'; // Lido wstETH
-const SUSDE = '0x9d39a5de30e57443bff2a8307a4256c8797a3497'; // Ethena sUSDe (ERC-4626)
+const WSTETH = ADDRESSES.ethereum.WSTETH; // Lido wstETH
+const SUSDE = ADDRESSES.ethereum.sUSDe; // Ethena sUSDe (ERC-4626)
 const SFRXUSD = '0xcf62f905562626cfcdd2261162a51fd02fc9c5b6'; // Frax sfrxUSD (ERC-4626)
-const WEETH = '0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee'; // ether.fi weETH
-const EZETH = '0xbf5495efe5db9ce00f80364c8b423567e58d2110'; // Renzo ezETH
+const WEETH = ADDRESSES.ethereum.WEETH; // ether.fi weETH
+const EZETH = ADDRESSES.linea.rzETH; // Renzo ezETH
 const BERAETH = '0x6fc6545d5cde268d5c7f1e476d444f39c995120d'; // Dinero beraETH, Berachain
 const SYRUP_USDC = '0x80ac24aa929eaf5013f6436cda2a7ba190f5cc0b'; // Maple syrupUSDC pool token (ERC-4626); the Arbitrum token is its bridge
 const THBILL = '0x5fa487bca6158c64046b2813623e20755091da0b'; // Theo thBILL fund token (ERC-4626); the Arbitrum and Stable tokens are its bridges
 const RENZO_RESTAKE_MANAGER = '0x74a09653a083691711cf8215a6ab074bb4e99ef5'; // Renzo RestakeManager (calculateTVLs)
 const KELP_DEPOSIT_POOL = '0x036676389e48133b63a802f8635ad39e752d375d'; // KelpDAO LRTDepositPool (getRsETHAmountToMint)
-const NATIVE_ETH = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'; // Kelp's placeholder for native ETH
+const NATIVE_ETH = ADDRESSES.GAS_TOKEN_2; // Kelp's placeholder for native ETH
 
 const wstEth = convert(CHAIN.ETHEREUM, STETH, WSTETH, 'function getStETHByWstETH(uint256 wstETHAmount) view returns (uint256)');
 const weEth = convert(CHAIN.ETHEREUM, WETH, WEETH, 'function getEETHByWeETH(uint256 weETHAmount) view returns (uint256)');
@@ -204,13 +205,13 @@ export type StakingRewardsCampaign = { name: string; chain: string; token: strin
 
 export const STAKING_REWARDS_CAMPAIGNS: StakingRewardsCampaign[] = [
   { name: 'Beraborrow POLLEN', chain: CHAIN.BERACHAIN, token: '0xc99e948e9d183848a6c4f5e6c1d225f02f171d79', amount: '409607.63', distributedOn: '2025-05-06' },
-  { name: 'Berachain WBERA', chain: CHAIN.BERACHAIN, token: '0x6969696969696969696969696969696969696969', amount: '1364059.29', distributedOn: '2025-05-06' },
+  { name: 'Berachain WBERA', chain: CHAIN.BERACHAIN, token: ADDRESSES.berachain.WBERA, amount: '1364059.29', distributedOn: '2025-05-06' },
   // Vested linearly 2025-04-25..2025-05-25 and claimed on the Movement network; booked at the vest end.
   { name: 'Movement MOVE', chain: CHAIN.ETHEREUM, token: '0x3073f7aaa4db83f95e9fff17424f71d4751a3073', amount: '1198326.93111388', distributedOn: '2025-05-25' },
   { name: 'Movement MOVE (boosted)', chain: CHAIN.ETHEREUM, token: '0x3073f7aaa4db83f95e9fff17424f71d4751a3073', amount: '4888252.50026939', distributedOn: '2025-05-25' },
-  { name: 'Corn CORN', chain: CHAIN.ETHEREUM, token: '0x44f49ff0da2498bcb1d3dc7c0f999578f67fd8c6', amount: '4200000', distributedOn: '2025-05-30' },
-  { name: 'USD.ai Arbitrum grant 1', chain: CHAIN.ARBITRUM, token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', amount: '250000', distributedOn: '2025-10-01' },
-  { name: 'USD.ai Arbitrum grant 2', chain: CHAIN.ARBITRUM, token: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', amount: '250000', distributedOn: '2025-10-22' },
-  { name: 'Stable USDT0', chain: CHAIN.STABLE, token: '0x779ded0c9e1022225f8e0630b35a9b54be713736', amount: '208318.893384', distributedOn: '2026-01-29' },
-  { name: 'Katana KAT', chain: CHAIN.KATANA, token: '0x7f1f4b4b29f5058fa32cc7a97141b8d7e5abdc2d', amount: '178889.442203316333044002', distributedOn: '2026-03-18' },
+  { name: 'Corn CORN', chain: CHAIN.ETHEREUM, token: ADDRESSES.corn.CORN, amount: '4200000', distributedOn: '2025-05-30' },
+  { name: 'USD.ai Arbitrum grant 1', chain: CHAIN.ARBITRUM, token: ADDRESSES.arbitrum.USDC_CIRCLE, amount: '250000', distributedOn: '2025-10-01' },
+  { name: 'USD.ai Arbitrum grant 2', chain: CHAIN.ARBITRUM, token: ADDRESSES.arbitrum.USDC_CIRCLE, amount: '250000', distributedOn: '2025-10-22' },
+  { name: 'Stable USDT0', chain: CHAIN.STABLE, token: ADDRESSES.xlayer.USDT0, amount: '208318.893384', distributedOn: '2026-01-29' },
+  { name: 'Katana KAT', chain: CHAIN.KATANA, token: ADDRESSES.katana.KAT, amount: '178889.442203316333044002', distributedOn: '2026-03-18' },
 ];

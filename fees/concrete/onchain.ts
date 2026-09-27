@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { ChainApi } from "@defillama/sdk";
 import PromisePool from "@supercharge/promise-pool";
 import { FetchOptions } from "../../adapters/types";
@@ -22,7 +23,7 @@ const ABI = {
 };
 
 // ERC-20 mints come from and burns go to the zero address; it also stands in for "no address" in multicalls.
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const ZERO_ADDRESS = ADDRESSES.null;
 const ZERO_TOPIC = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 /** Blocks read at once; each block is a handful of batched archive calls, kept modest for public RPCs. */
