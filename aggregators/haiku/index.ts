@@ -86,6 +86,7 @@ const adapter: SimpleAdapter = {
 	chains: Object.keys(HaikuChainConfig),
 	isExpensiveAdapter: true,
 	dependencies: [Dependencies.DUNE],
+  deadFrom: '2026-09-21',
 };
 
 export default adapter;

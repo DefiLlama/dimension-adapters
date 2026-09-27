@@ -2,8 +2,8 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-const PROPR_API = "https://api.propr.xyz";
-const REVENUE_HISTORY_DAYS = 1000;
+const PROPR_API = "https://www.propr.xyz/gateway";
+const REVENUE_HISTORY_DAYS = 365;
 const PAYOUTS = "0x6E810d5c33a4355cE1b4107F5722787bFD7AcF24";
 const PAYOUT_EVENT = "event PayoutEvent(uint8 indexed reason, bytes12 indexed payoutId, bytes12 indexed userId, bytes12 accountId, address token, uint256 amount, address from, address to, address signer)";
 const TRADER_PAYOUT_SENDER = "0xffbe8e30b2a91dfaff70170aa3388bda565137e6";

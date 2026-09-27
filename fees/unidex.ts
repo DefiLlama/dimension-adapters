@@ -96,6 +96,7 @@ const adapter: Adapter = {
       start: '2023-11-16',
     },
   },
+  deadFrom: '2024-09-20'
 };
 
 export default adapter;

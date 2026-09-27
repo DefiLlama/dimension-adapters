@@ -114,6 +114,7 @@ const adapter: Adapter = {
       [RENEWAL]: "Cost paid to renew .robin names, in ETH or USDG or ROBIN.",
     },
   },
+  deadFrom: '2026-09-10'
 };
 
 export default adapter;

@@ -50,8 +50,8 @@ const addBabylonFees = async (options: FetchOptions, dailyFees: sdk.Balances, da
       GROUP BY transaction_hash, event_index
     )
     SELECT
-      SUM(TRY_TO_NUMBER(REPLACE(reward, ADDRESSES.babylon.BABY, ''))) AS rewards,
-      SUM(TRY_TO_NUMBER(REPLACE(fee, ADDRESSES.babylon.BABY, ''))) AS fees
+      SUM(TRY_TO_NUMBER(REPLACE(reward, '${ADDRESSES.babylon.BABY}', ''))) AS rewards,
+      SUM(TRY_TO_NUMBER(REPLACE(fee, '${ADDRESSES.babylon.BABY}', ''))) AS fees
     FROM events
     WHERE reward_type = 'distribute_reward'
       AND action_type IN ('BABYStaking', 'CoStaking')
@@ -101,7 +101,7 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  pullHourly: true,
+  //pullHourly: true,
   adapter: chainConfig,
   methodology: {
     Fees: "Gross yield earned by b14g Core products and Babylon rewards distributed to b14g.",

@@ -248,6 +248,7 @@ const adapter: Adapter = {
   },
   methodology,
   breakdownMethodology,
+  deadFrom: '2026-03-23'
 }
 
 export default adapter;
