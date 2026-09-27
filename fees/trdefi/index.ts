@@ -83,7 +83,11 @@ const TOKENS: Record<string, string[]> = {
     "0x3c499c542cef5e3811e1192ce70dc0c03d5c3359", // USDC
     "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT
   ],
-};
+  [CHAIN.ARC]: [
+    "0x3600000000000000000000000000000000000000", // USDC (Arc's native gas asset, ERC-20 interface)
+    "0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1", // EURC
+  ],
+  };
 
 const chainConfig = Object.fromEntries(
   Object.keys(TOKENS).map((chain) => [chain, { start: ARMED }]),
