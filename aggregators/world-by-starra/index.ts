@@ -2,8 +2,8 @@
 // Ethereum Ondo Global Markets tokens via KyberSwap. Every swap pays a flat 0.05% fee in USDC to the World by Starra fee
 // wallet (rate enforced in the frontend: https://docs.starra.world), so volume is measured from those fees:
 //  - Ethereum: the KyberSwap MetaAggregationRouterV2 `Fee` event carries the full trade amount (`totalAmount`, in USDC) and
-//    the fee recipients; we count events where our fee wallet is a recipient.
-//  - Solana: USDC fees received by the fee wallet inside successful Jupiter swaps, divided by the 0.05% fee rate.
+//    the fee recipients; we count events paying our fee wallet in swaps tagged with our KyberSwap client id.
+//  - Solana: USDC platform fees paid to the fee wallet inside Jupiter swap instructions, divided by the 0.05% fee rate.
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -21,36 +21,47 @@ const SOLANA_FEE_ACCOUNT = "Fo3xWmUPCUnbih1J2MHtbh98imSDNYsaGLV4fHngAtBv"; // US
 const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JUPITER_PROGRAM = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"; // Jupiter v6 aggregator program (platform fee is paid by its CPI)
 
-// USDC that reached the fee wallet inside a successful Jupiter swap. Plain transfers (dust, address poisoning, deposits)
-// never invoke Jupiter, so they are excluded. Throws if Allium has not indexed the whole window yet, so lag is never stored as 0.
+// Jupiter's platform fee: USDC paid to the fee wallet by a transfer executed inside a Jupiter swap instruction
+// (outer_program_id = Jupiter). Plain transfers (dust, address poisoning, deposits), including ones bundled into the same
+// transaction as a swap, have a different outer program and are excluded.
+// Throws unless the transfers table is already indexed past the end of the window, so ingestion lag is never stored as 0.
 async function solanaSwapFees(options: FetchOptions): Promise<string> {
   const start = options.startTimestamp, end = options.endTimestamp;
   const rows = await queryAllium(`
-    WITH swap_txs AS (
-      SELECT DISTINCT txn_id
-      FROM solana.raw.instructions
-      WHERE program_id = '${JUPITER_PROGRAM}'
-        AND block_timestamp >= TO_TIMESTAMP_NTZ(${start})
-        AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
-    ),
-    fees AS (
-      SELECT SUM(tr.raw_amount) AS amount
-      FROM solana.assets.transfers tr
-      JOIN swap_txs s ON s.txn_id = tr.txn_id
-      WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${start})
-        AND tr.block_timestamp < TO_TIMESTAMP_NTZ(${end})
-        AND tr.to_address IN ('${SOLANA_FEE_WALLET}', '${SOLANA_FEE_ACCOUNT}')
-        AND tr.from_address NOT IN ('${SOLANA_FEE_WALLET}', '${SOLANA_FEE_ACCOUNT}')
-        AND tr.mint = '${SOLANA_USDC}'
-    )
     SELECT
-      (SELECT amount FROM fees) AS amount,
-      (SELECT MAX(block_timestamp) FROM solana.raw.transactions
-        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${end - 600}) AND block_timestamp < TO_TIMESTAMP_NTZ(${end})) AS indexed_to
+      (SELECT SUM(raw_amount)
+        FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${start})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
+          AND outer_program_id = '${JUPITER_PROGRAM}'
+          AND to_address IN ('${SOLANA_FEE_WALLET}', '${SOLANA_FEE_ACCOUNT}')
+          AND from_address NOT IN ('${SOLANA_FEE_WALLET}', '${SOLANA_FEE_ACCOUNT}')
+          AND mint = '${SOLANA_USDC}') AS amount,
+      (SELECT MIN(block_timestamp)
+        FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${end})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${end + 900})) AS indexed_past_end
   `);
   if (!rows?.length) throw new Error("world-by-starra: empty Allium response");
-  if (!rows[0].indexed_to) throw new Error("world-by-starra: Allium has not indexed Solana up to the end of the window yet");
+  if (!rows[0].indexed_past_end) throw new Error("world-by-starra: Allium transfers are not indexed through the end of the window yet");
   return String(rows[0].amount ?? 0); // null sum = no swaps in a fully indexed window
+}
+
+// KyberSwap's router is public and the fee recipient is chosen by the caller, so a Fee event paying our wallet is only
+// counted when the same router call also emits ClientData tagged with our KyberSwap client id ("Source":"worldbystarra"),
+// which the World by Starra frontend sends on every route request. Both events come from the same swap call.
+const KYBER_CLIENT_DATA_EVENT = "event ClientData(bytes clientData)";
+const KYBER_SOURCE = '"Source":"worldbystarra"';
+
+async function starraFeeEvents(options: FetchOptions) {
+  const fees = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
+  const clientData = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_CLIENT_DATA_EVENT, onlyArgs: false });
+  const ours = new Set<string>();
+  for (const log of clientData) {
+    const hex = String(log.args.clientData).replace(/^0x/, "");
+    if (Buffer.from(hex, "hex").toString("utf8").includes(KYBER_SOURCE)) ours.add(log.transactionHash.toLowerCase());
+  }
+  return fees.filter((log: any) => ours.has(log.transactionHash.toLowerCase())).map((log: any) => log.args);
 }
 
 const chainConfig: Record<string, { start: string }> = {
@@ -61,8 +72,7 @@ const chainConfig: Record<string, { start: string }> = {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   if (options.chain === CHAIN.ETHEREUM) {
-    const logs = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT });
-    for (const log of logs) {
+    for (const log of await starraFeeEvents(options)) {
       if (log.recipients.some((r: string) => r.toLowerCase() === ETH_FEE_RECEIVER)) dailyVolume.add(log.token, log.totalAmount);
     }
   } else {
@@ -81,7 +91,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   doublecounted: true, // swaps are executed through Jupiter / KyberSwap, which are tracked as aggregators themselves
   methodology: {
-    Volume: "Value of swaps made through World by Starra. Ethereum: USDC trade amount from KyberSwap router Fee events that pay the World by Starra fee wallet. Solana: USDC fees received by the fee wallet inside Jupiter swaps, divided by the 0.05% fee rate.",
+    Volume: "Value of swaps made through World by Starra. Ethereum: USDC trade amount from KyberSwap router Fee events that pay the World by Starra fee wallet in swaps made through the World by Starra app. Solana: USDC platform fees paid to the fee wallet inside Jupiter swaps, divided by the 0.05% fee rate.",
   },
 };
 
