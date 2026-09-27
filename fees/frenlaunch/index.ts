@@ -11,6 +11,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { Interface } from "ethers";
 import { METRIC } from "../../helpers/metrics";
+import { getTransactions } from "../../helpers/getTxReceipts";
 const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string; claimer: string; poolManager: string } }> = {
   "robinhood": {
     "factory": "0x2c40C69d5E1AA1D0d7Ee20De7d439BF683804F8B",
@@ -78,28 +79,37 @@ async function fetch(options: FetchOptions) {
   // One log query per source and window (Arc's public RPCs rate-limit hard): the factory's
   // launches, and every Buy/Sell/FeesAccrued on the chain, kept only when the emitter is one of
   // the factory's curves (LaunchFactory.isOfficialCurve, read at the head: a curve stays
-  // official). Asking the factory beats replaying every TokenLaunched since deploy, which pruned
-  // RPCs refuse ("pruned history unavailable" on Arc).
+  // official; a failed read fails the window rather than dropping trades). Asking the factory
+  // beats replaying every TokenLaunched since deploy, which pruned RPCs refuse ("pruned history
+  // unavailable" on Arc).
   const iface = new Interface([TOKEN_LAUNCHED, POOL_LAUNCHED, BUY, SELL, CURVE_FEES]);
   const topic = (name: string) => iface.getEvent(name)!.topicHash;
 
-  // Launch fees: launches in the window × the factory's fee. Both rails pay it: curve launches
-  // (TokenLaunched) and pool launches (PoolLaunched, a pool from block one whose trades are the
-  // hook fees below; a factory without the rail emits none). The fee is read at the head, not at
-  // the window's block: Robinhood Chain's RPCs keep a few thousand blocks of state ("historical
-  // state … is not available" past that), and it is a timelocked setting that has not changed
-  // since launch. No launches, no call.
+  // Launch fees: launches in the window, each paying the factory's fee. Both rails pay it: curve
+  // launches (TokenLaunched) and pool launches (PoolLaunched, a pool from block one whose trades
+  // are the hook fees below; a factory without the rail emits none). launch() requires
+  // msg.value == launchFee, so a launch sent straight to the factory paid exactly its
+  // transaction's value: the fee in effect then, with no historical state needed (Robinhood
+  // Chain's RPCs keep only a few thousand blocks of it). A launch sent through another contract
+  // falls back to the fee read at the head (a timelocked setting, unchanged since launch).
   const factoryLogs = await options.getLogs({ target: d.factory, topics: [[topic("TokenLaunched"), topic("PoolLaunched")] as any], entireLog: true });
-  const launches = BigInt(factoryLogs.length);
-  const launchFee = launches ? BigInt(await sdk.api2.abi.call({ chain: options.chain, target: d.factory, abi: LAUNCH_FEE })) : 0n;
-  dailyFees.addGasToken(launchFee * launches, L.LAUNCH);
-  dailyRevenue.addGasToken(launchFee * launches, L.LAUNCH_P);
+  if (factoryLogs.length) {
+    const txs = await getTransactions(options.chain, factoryLogs.map((l: any) => l.transactionHash));
+    let headFee: bigint | undefined;
+    for (const tx of txs) {
+      let fee: bigint;
+      if (tx && tx.to?.toLowerCase() === d.factory.toLowerCase()) fee = BigInt(tx.value);
+      else fee = headFee ??= BigInt(await sdk.api2.abi.call({ chain: options.chain, target: d.factory, abi: LAUNCH_FEE }));
+      dailyFees.addGasToken(fee, L.LAUNCH);
+      dailyRevenue.addGasToken(fee, L.LAUNCH_P);
+    }
+  }
 
   // Curve trades, in the native asset.
   const curveLogs = await options.getLogs({ noTarget: true, topics: [[topic("Buy"), topic("Sell"), topic("FeesAccrued")] as any], entireLog: true });
   const emitters = [...new Set<string>(curveLogs.map((l: any) => l.address.toLowerCase()))];
   const official = emitters.length
-    ? await sdk.api2.abi.multiCall({ chain: options.chain, target: d.factory, abi: IS_OFFICIAL_CURVE, calls: emitters.map((a) => ({ params: [a] })), permitFailure: true })
+    ? await sdk.api2.abi.multiCall({ chain: options.chain, target: d.factory, abi: IS_OFFICIAL_CURVE, calls: emitters.map((a) => ({ params: [a] })) })
     : [];
   const curves = new Set(emitters.filter((_, i) => official[i] === true));
   for (const log of curveLogs) {
