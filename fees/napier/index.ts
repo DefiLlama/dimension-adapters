@@ -90,6 +90,7 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.AVAX]: { start: "2025-03-12" },
   [CHAIN.HYPERLIQUID]: { start: "2025-05-23" },
   [CHAIN.PLUME]: { start: "2025-05-28" },
+  [CHAIN.ROBINHOOD]: { start: "2026-09-15" },
 };
 
 const adapter: SimpleAdapter = {
