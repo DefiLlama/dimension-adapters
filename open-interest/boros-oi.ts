@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import fetchUrl from "../utils/fetchURL";
 import { queryDuneSql } from '../helpers/dune';
 
-const BOROS_API = "https://api.boros.finance/core/v1/markets";
+const BOROS_API = "https://api-boros.pendle.finance/apis/v1/markets";
 
 async function fetch(options: FetchOptions) {
   let openInterestAtEnd = 0;
@@ -137,7 +137,15 @@ async function fetch(options: FetchOptions) {
     const today = new Date(options.fromTimestamp * 1000).toISOString().split('T')[0];
     openInterestAtEnd = queryResults.find((entry: any) => entry.day === today)?.open_interest ?? 0;
   } else {
-    const borosTradeData = (await fetchUrl(BOROS_API)).results;
+    const borosTradeData = [];
+    let resumeToken: string | undefined;
+    do {
+      const url = `${BOROS_API}?isMatured=false&limit=200${resumeToken ? `&resumeToken=${encodeURIComponent(resumeToken)}` : ''}`;
+      const page = await fetchUrl(url);
+      if (!Array.isArray(page.results)) throw new Error('Boros markets API returned no results');
+      borosTradeData.push(...page.results);
+      resumeToken = page.resumeToken;
+    } while (resumeToken);
     openInterestAtEnd = borosTradeData.reduce((acc: number, market: any) => {
         const markPrice = market.tokenId === 3 ? 1 : (market?.data?.assetMarkPrice ?? 0);
         acc += (markPrice * (market?.data?.notionalOI ?? 0));
