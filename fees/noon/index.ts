@@ -54,20 +54,11 @@ const fetch = async (options: FetchOptions) => {
     const grossYield = (netYield * 5n) / 4n;
     const protocolRevenue = grossYield - netYield;
 
-    if (options.chain === CHAIN.ETHEREUM) {
-      dailySupplySideRevenue.add(USN_ETHEREUM, netYield, METRIC.ASSETS_YIELDS);
-      dailyRevenue.add(USN_ETHEREUM, protocolRevenue, METRIC.PERFORMANCE_FEES);
-      dailyFees.add(USN_ETHEREUM, netYield, METRIC.ASSETS_YIELDS);
-      dailyFees.add(USN_ETHEREUM, protocolRevenue, METRIC.PERFORMANCE_FEES);
-    } else {
-      const netYieldUsd = Number(netYield) / 1e18;
-      const protocolRevenueUsd = Number(protocolRevenue) / 1e18;
-
-      dailySupplySideRevenue.addUSDValue(netYieldUsd, METRIC.ASSETS_YIELDS);
-      dailyRevenue.addUSDValue(protocolRevenueUsd, METRIC.PERFORMANCE_FEES);
-      dailyFees.addUSDValue(netYieldUsd, METRIC.ASSETS_YIELDS);
-      dailyFees.addUSDValue(protocolRevenueUsd, METRIC.PERFORMANCE_FEES);
-    }
+    const token = options.chain === CHAIN.ETHEREUM ? USN_ETHEREUM : `ethereum:${USN_ETHEREUM}`;
+    dailySupplySideRevenue.add(token, netYield, METRIC.ASSETS_YIELDS);
+    dailyRevenue.add(token, protocolRevenue, METRIC.PERFORMANCE_FEES);
+    dailyFees.add(token, netYield, METRIC.ASSETS_YIELDS);
+    dailyFees.add(token, protocolRevenue, METRIC.PERFORMANCE_FEES);
   }
 
   return {
