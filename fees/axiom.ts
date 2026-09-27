@@ -101,6 +101,7 @@ async function fetchSolana(options: FetchOptions) {
   const formattedFeeWallets = formatAddresses(solanaConfig.feeWallets);
   const formattedReferralPayoutExcludedAccounts = formatAddresses(REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS);
   const formattedCashbackPayoutExcludedAccounts = formatAddresses(CASHBACK_PAYOUT_EXCLUDED_ACCOUNTS);
+  const formattedCashbackWallets = formatAddresses(solanaConfig.cashbackWallets);
   const cashbackWalletFilter = containsAnyAccount(solanaConfig.cashbackWallets);
 
   const query = `WITH
@@ -149,7 +150,8 @@ async function fetchSolana(options: FetchOptions) {
         id,
         account_keys,
         pre_balances,
-        post_balances
+        post_balances,
+        fee
       FROM solana.transactions
       WHERE TIME_RANGE
         AND success = true
@@ -164,13 +166,23 @@ async function fetchSolana(options: FetchOptions) {
       WHERE post_balances[i] > pre_balances[i]
         AND account_keys[i] NOT IN (${formattedReferralPayoutExcludedAccounts})
     ),
+    -- Per transaction, a payout is SOL that leaves the cashback wallets (net of the transaction fee they pay)
+    -- and reaches a non-Axiom account. Rent returned to users when these wallets close token accounts is
+    -- not paid by the cashback wallets, so it is not a payout (nor a fee).
     cashback_payouts AS (
-      SELECT
-        COALESCE(SUM(post_balances[i] - pre_balances[i]), 0) AS payout_lamports
-      FROM cashback_payout_txs
-      CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
-      WHERE post_balances[i] > pre_balances[i]
-        AND account_keys[i] NOT IN (${formattedCashbackPayoutExcludedAccounts})
+      SELECT COALESCE(SUM(GREATEST(LEAST(cashback_out, recipient_gain), 0)), 0) AS payout_lamports
+      FROM (
+        SELECT
+          id,
+          SUM(CASE WHEN account_keys[i] IN (${formattedCashbackWallets}) AND pre_balances[i] > post_balances[i]
+                   THEN pre_balances[i] - post_balances[i] ELSE 0 END)
+            - MAX(CASE WHEN account_keys[1] IN (${formattedCashbackWallets}) THEN fee ELSE 0 END) AS cashback_out,
+          SUM(CASE WHEN post_balances[i] > pre_balances[i] AND account_keys[i] NOT IN (${formattedCashbackPayoutExcludedAccounts})
+                   THEN post_balances[i] - pre_balances[i] ELSE 0 END) AS recipient_gain
+        FROM cashback_payout_txs
+        CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
+        GROUP BY id
+      )
     )
     SELECT
       (SELECT SUM(fee) FROM botTrades) AS fee,
@@ -182,11 +194,17 @@ async function fetchSolana(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Referral vaults are paid inside the swap, outside the fee wallets, so referral claims add to fees.
+  // The cashback wallets are refilled from the fee wallets, so cashback is already inside the fee-wallet
+  // inflow: it is deducted from revenue and not added to fees again (as on BNB Chain and Robinhood Chain).
   dailyFees.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES);
   dailyFees.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.TRADING_FEES);
-  dailyFees.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.TRADING_FEES);
+
+  const dailyCashback = options.createBalances();
+  dailyCashback.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports);
 
   dailyRevenue.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.subtract(dailyCashback, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
@@ -305,7 +323,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, //claims may happen at later date
   fetch,
   methodology: {
-    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral and cashback payouts users later claim back. On Robinhood Chain it is the native ETH the trade contracts pay into Axiom's fee distributor.",
+    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral payouts users later claim from referral vaults (funded inside the swap). Cashback is paid from the fee wallets, so it is already included. On BNB Chain and Robinhood Chain it is the native token the trade contracts pay into Axiom's fee distributor.",
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
     SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB and ETH cashback/referral payouts sent out from the BNB Chain and Robinhood Chain fee receivers.',
