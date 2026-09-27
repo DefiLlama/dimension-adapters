@@ -34,6 +34,12 @@ export const ALLIUM_CHAIN_MAP: Record<string, string> = {
   [CHAIN.MANTA]: 'manta_pacific',
   [CHAIN.HYPERLIQUID]: 'hyperevm',
   [CHAIN.XLAYER]: 'x_layer',
+  [CHAIN.XDC]: 'xdc_network',
+  [CHAIN.FANTOM]: 'fantom',
+  [CHAIN.HEDERA]: 'hedera',
+  [CHAIN.SANKO]: 'sanko',
+  [CHAIN.KATANA]: 'katana',
+  [CHAIN.FLYNET]: 'flynet',
 }
 
 export function getAlliumChain(chain: string): string {

@@ -260,6 +260,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   pullHourly: true,
+  allowNegativeValue: true,
 };
 
 export default adapter;

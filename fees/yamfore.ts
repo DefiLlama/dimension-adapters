@@ -23,4 +23,5 @@ export default {
         "Fees collected from loan creation fees, interest accured is not yet calculated.",
     },
   },
+  deadFrom: '2025-08-25'
 };

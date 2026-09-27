@@ -100,10 +100,10 @@ const adapter: Adapter = {
       fetch,
       start: '2023-10-05',
     },
-    [CHAIN.CRONOS_ZKEVM]: {
-      fetch,
-      start: '2024-08-15',
-    },
+    // [CHAIN.CRONOS_ZKEVM]: {
+    //   fetch,
+    //   start: '2024-08-15',
+    // },
   },
 };
 

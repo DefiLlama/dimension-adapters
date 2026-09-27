@@ -12,7 +12,7 @@ const FEE_WALLET = "9qX97Bd8dvHAknHVjCxz4uEJcPSE3NGjjgniMVdDBu6d";
 const fetch = async (options: FetchOptions) => {
   const query = `
   SELECT
-    ADDRESSES.solana.SOL AS token,
+    '${ADDRESSES.solana.SOL}' AS token,
     COALESCE(SUM(balance_change), 0) AS total_fees
   FROM solana.account_activity
   WHERE address = '${FEE_WALLET}'
