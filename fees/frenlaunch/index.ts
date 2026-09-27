@@ -9,7 +9,7 @@
 // revenue, and the gross fee is ten times them.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
-import { Interface } from "ethers";
+import { AbiCoder, Interface } from "ethers";
 import { METRIC } from "../../helpers/metrics";
 import { getTransactions } from "../../helpers/getTxReceipts";
 const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string; claimer: string; poolManager: string } }> = {
@@ -89,17 +89,19 @@ async function fetch(options: FetchOptions) {
   // launches (TokenLaunched) and pool launches (PoolLaunched, a pool from block one whose trades
   // are the hook fees below; a factory without the rail emits none). launch() requires
   // msg.value == launchFee, so a launch sent straight to the factory paid exactly its
-  // transaction's value: the fee in effect then, with no historical state needed (Robinhood
-  // Chain's RPCs keep only a few thousand blocks of it). A launch sent through another contract
-  // falls back to the fee read at the head (a timelocked setting, unchanged since launch).
+  // transaction's value, with no historical state needed (Robinhood Chain's RPCs keep only a few
+  // thousand blocks of it). A launch sent through another contract reads launchFee at its own
+  // block; if no RPC has that state, or the transaction cannot be fetched, the window fails and
+  // is retried rather than guessed.
   const factoryLogs = await options.getLogs({ target: d.factory, topics: [[topic("TokenLaunched"), topic("PoolLaunched")] as any], entireLog: true });
   if (factoryLogs.length) {
     const txs = await getTransactions(options.chain, factoryLogs.map((l: any) => l.transactionHash));
-    let headFee: bigint | undefined;
-    for (const tx of txs) {
-      let fee: bigint;
-      if (tx && tx.to?.toLowerCase() === d.factory.toLowerCase()) fee = BigInt(tx.value);
-      else fee = headFee ??= BigInt(await sdk.api2.abi.call({ chain: options.chain, target: d.factory, abi: LAUNCH_FEE }));
+    for (let i = 0; i < factoryLogs.length; i++) {
+      const tx = txs[i], log = factoryLogs[i];
+      if (!tx) throw new Error(`frenlaunch: launch transaction ${log.transactionHash} not found`);
+      const fee = tx.to?.toLowerCase() === d.factory.toLowerCase()
+        ? BigInt(tx.value)
+        : BigInt(await sdk.api2.abi.call({ chain: options.chain, target: d.factory, abi: LAUNCH_FEE, block: Number(log.blockNumber) }));
       dailyFees.addGasToken(fee, L.LAUNCH);
       dailyRevenue.addGasToken(fee, L.LAUNCH_P);
     }
@@ -146,16 +148,14 @@ async function fetch(options: FetchOptions) {
     const platformSeat = new Set<string>();
     if (pools.length) {
       for (const l of await options.getLogs({ target: module, topics: [BENEFICIARIES_TOPIC, pools as any], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true })) {
-        const words = (l.data.slice(2).match(/.{64}/g) || []) as string[];
-        const n = Number(BigInt("0x" + words[1]));
-        for (let i = 0; i < n; i++) {
-          const holder = "0x" + words[2 + 2 * i].slice(24), shares = BigInt("0x" + words[3 + 2 * i]);
-          if (shares === REFERRER_SEAT_SHARES && platform.has(holder.toLowerCase())) platformSeat.add(l.topics[1].toLowerCase());
-        }
+        const [rows] = AbiCoder.defaultAbiCoder().decode(["tuple(address beneficiary, uint96 shares)[]"], l.data);
+        for (const [holder, shares] of rows)
+          if (BigInt(shares) === REFERRER_SEAT_SHARES && platform.has(String(holder).toLowerCase())) platformSeat.add(l.topics[1].toLowerCase());
       }
     }
     // Each payout happens inside a swap: the PoolManager's Swap just before it in the same
-    // transaction names the pool.
+    // transaction names the pool. A payout with no such swap keeps the referrer share on the
+    // supply side, the conservative reading of revenue.
     const swaps = pools.length ? await options.getLogs({ target: poolManager, topics: [SWAP_TOPIC, pools as any], entireLog: true }) : [];
     const swapsByTx = new Map<string, any[]>();
     for (const s of swaps) {
