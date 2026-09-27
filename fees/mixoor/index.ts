@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import {
   Dependencies,
   FetchOptions,
@@ -12,7 +11,7 @@ const FEE_WALLET = "9qX97Bd8dvHAknHVjCxz4uEJcPSE3NGjjgniMVdDBu6d";
 const fetch = async (options: FetchOptions) => {
   const query = `
   SELECT
-    ADDRESSES.solana.SOL AS token,
+    'So11111111111111111111111111111111111111112' AS token,
     COALESCE(SUM(balance_change), 0) AS total_fees
   FROM solana.account_activity
   WHERE address = '${FEE_WALLET}'
