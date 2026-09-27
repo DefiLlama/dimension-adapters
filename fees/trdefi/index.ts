@@ -23,12 +23,14 @@
  * Fees are counted in the token they arrive in (USDC, USDT, EURC), as incoming
  * transfers to the receiver, which is the fee exactly as collected.
  *
- * Only transfers that the SwapVM execution path itself originates are counted. The
- * fee is moved by the `FeeProtocol` instruction, which is applied to the swap's input
- * inside the same call that executes the position, so the paying address is the
- * execution contract rather than the end user. Restricting `from` to that set means a
- * third party cannot inflate the number by simply sending a token to the receiver.
- * The set is verified against the first real fee payment and pinned then.
+ * Only transfers that the swap execution path itself originates are counted. The fee
+ * is moved by the Aqua registry, which pulls it from the maker's Aqua balance to the
+ * receiver inside the venue router's swap call. An ERC-20 Transfer records the token
+ * owner, so that transfer's `from` is the MAKER, not the registry — a plain `from`
+ * allowlist cannot express this. Instead each candidate transfer to the receiver is
+ * correlated with the Aqua `Pulled` event of the same transaction (app = router, same
+ * token, same maker). A third party sending a token to the receiver emits no such
+ * pull, so it is not counted.
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -36,28 +38,34 @@ import { METRIC } from "../../helpers/metrics";
 
 const FEE_RECEIVER = "0x4C96dA02d7120BFb81594d0e924B237e0c74660d";
 
-// The only contracts that can move a position fee. Positions are held by the public
-// Aqua liquidity registry and a swap against them executes through it and the venue
-// router, so every genuine fee transfer originates from one of these.
-const FEE_SENDERS = [
-  "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a", // Aqua registry (account + order book)
-  "0x111111338c5091e8440b67b168bae16a668ac0de", // venue router
-];
+// Positions live in the public Aqua liquidity registry and a swap against them
+// executes through the venue router. The fee is an Aqua `pull`, so a genuine fee
+// transfer is one that has a matching `Pulled` event from the registry in the same
+// transaction, with the router as the app.
+const AQUA_REGISTRY = "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a";
+const ROUTER = "0x111111338c5091e8440b67b168bae16a668ac0de";
 
 const TRANSFER_EVENT =
   "event Transfer (address indexed from, address indexed to, uint256 amount)";
+const PULLED_EVENT =
+  "event Pulled (address maker, address app, bytes32 strategyHash, address token, uint256 amount)";
 
 // topic0 must be pinned. Leaving it null lets the indexer decode any log whose
 // topic1/topic2 happen to line up (an Approval(owner, spender, value) reads as a
 // Transfer) into an `amount` this adapter would count as a fee.
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const PULLED_TOPIC =
+  "0x3ad61047071575417c75e3311e5d46ff042e292b5dd8769ff18b4b254098ca7a";
 
 // The fee rail was armed here. Adapters must not claim fees before they were charged.
 const ARMED = "2026-09-25";
 
 const topic = (address: string) =>
   "0x" + address.slice(2).toLowerCase().padStart(64, "0");
+const lower = (v: any) => String(v).toLowerCase();
+const txHashOf = (log: any) =>
+  lower(log.transactionHash ?? log.transaction_hash ?? log.txHash ?? "");
 
 // The tokens a position can be denominated in, per chain. Reading transfers against a
 // known token set keeps the query targetable, rather than scanning every Transfer in a
@@ -96,20 +104,53 @@ const chainConfig = Object.fromEntries(
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const tokens = TOKENS[options.chain];
-  const toTopic = topic(FEE_RECEIVER);
+  if (!tokens) return { dailyFees };
 
+  // 1) Candidate legs: token transfers addressed to the fee receiver.
+  const toTopic = topic(FEE_RECEIVER);
+  const candidates: { token: string; from: string; amount: bigint; tx: string }[] = [];
   for (const token of tokens) {
-    for (const sender of FEE_SENDERS) {
-      // A fee transfer to the receiver, sent by the execution path. Filtering both
-      // sides is what keeps a stray deposit to the receiver out of the number.
-      const logs = await options.getLogs({
-        target: token,
-        eventAbi: TRANSFER_EVENT,
-        topics: [TRANSFER_TOPIC, topic(sender), toTopic],
+    const logs = await options.getLogs({
+      target: token,
+      eventAbi: TRANSFER_EVENT,
+      topics: [TRANSFER_TOPIC, null, toTopic],
+      entireLog: true,
+      parseLog: true,
+    });
+    for (const log of logs) {
+      const a = log.args ?? log;
+      candidates.push({
+        token,
+        from: lower(a.from),
+        amount: a.amount,
+        tx: txHashOf(log),
       });
-      logs.forEach((log: any) =>
-        dailyFees.add(token, log.amount, METRIC.TRADING_FEES),
-      );
+    }
+  }
+  if (!candidates.length) {
+    return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  }
+
+  // 2) A genuine fee leg is the Aqua registry pulling tokenIn from the maker to the
+  // receiver inside the router. Keep only candidates with a matching `Pulled`
+  // (same tx, same token, same maker; app = router). This is what excludes a plain
+  // donation to the receiver, which has no matching pull.
+  const pulls = await options.getLogs({
+    target: AQUA_REGISTRY,
+    eventAbi: PULLED_EVENT,
+    topics: [PULLED_TOPIC],
+    entireLog: true,
+    parseLog: true,
+  });
+  const genuine = new Set<string>();
+  for (const log of pulls) {
+    const a = log.args ?? log;
+    if (lower(a.app) !== ROUTER) continue;
+    genuine.add(`${txHashOf(log)}|${lower(a.token)}|${lower(a.maker)}`);
+  }
+  for (const c of candidates) {
+    if (genuine.has(`${c.tx}|${c.token}|${c.from}`)) {
+      dailyFees.add(c.token, c.amount, METRIC.TRADING_FEES);
     }
   }
 
