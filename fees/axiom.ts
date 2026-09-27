@@ -80,7 +80,6 @@ const chainConfig = {
 } as const;
 
 const formatAddresses = (addresses: readonly string[]) => addresses.map((address) => `'${address}'`).join(', ');
-const containsAnyAccount = (addresses: readonly string[]) => addresses.map((address) => `CONTAINS(account_keys, '${address}')`).join(' OR ');
 
 async function fetchSolana(options: FetchOptions) {
   const solanaConfig = chainConfig[CHAIN.SOLANA];
@@ -102,7 +101,6 @@ async function fetchSolana(options: FetchOptions) {
   const formattedReferralPayoutExcludedAccounts = formatAddresses(REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS);
   const formattedCashbackPayoutExcludedAccounts = formatAddresses(CASHBACK_PAYOUT_EXCLUDED_ACCOUNTS);
   const formattedCashbackWallets = formatAddresses(solanaConfig.cashbackWallets);
-  const cashbackWalletFilter = containsAnyAccount(solanaConfig.cashbackWallets);
 
   const query = `WITH
     allFeePayments AS (
@@ -145,19 +143,6 @@ async function fetchSolana(options: FetchOptions) {
         AND success = true
         AND CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
     ),
-    cashback_payout_txs AS (
-      SELECT
-        id,
-        account_keys,
-        pre_balances,
-        post_balances,
-        fee
-      FROM solana.transactions
-      WHERE TIME_RANGE
-        AND success = true
-        AND (${cashbackWalletFilter})
-        AND NOT CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
-    ),
     referral_payouts AS (
       SELECT
         COALESCE(SUM(post_balances[i] - pre_balances[i]), 0) AS payout_lamports
@@ -166,23 +151,17 @@ async function fetchSolana(options: FetchOptions) {
       WHERE post_balances[i] > pre_balances[i]
         AND account_keys[i] NOT IN (${formattedReferralPayoutExcludedAccounts})
     ),
-    -- Per transaction, a payout is SOL that leaves the cashback wallets (net of the transaction fee they pay)
-    -- and reaches a non-Axiom account. Rent returned to users when these wallets close token accounts is
-    -- not paid by the cashback wallets, so it is not a payout (nor a fee).
+    -- Cashback is counted per transfer: SOL the cashback wallets send to non-Axiom accounts in system-program
+    -- transfers (the decoded table holds successful calls only). Rent returned to users when these wallets
+    -- close token accounts is not a transfer from them, so it is not counted; it is not a fee.
     cashback_payouts AS (
-      SELECT COALESCE(SUM(GREATEST(LEAST(cashback_out, recipient_gain), 0)), 0) AS payout_lamports
-      FROM (
-        SELECT
-          id,
-          SUM(CASE WHEN account_keys[i] IN (${formattedCashbackWallets}) AND pre_balances[i] > post_balances[i]
-                   THEN pre_balances[i] - post_balances[i] ELSE 0 END)
-            - MAX(CASE WHEN account_keys[1] IN (${formattedCashbackWallets}) THEN fee ELSE 0 END) AS cashback_out,
-          SUM(CASE WHEN post_balances[i] > pre_balances[i] AND account_keys[i] NOT IN (${formattedCashbackPayoutExcludedAccounts})
-                   THEN post_balances[i] - pre_balances[i] ELSE 0 END) AS recipient_gain
-        FROM cashback_payout_txs
-        CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
-        GROUP BY id
-      )
+      SELECT
+        COALESCE(SUM(CAST(lamports AS BIGINT)), 0) AS payout_lamports
+      FROM system_program_solana.system_program_call_Transfer
+      WHERE call_block_time >= from_unixtime(${options.startTimestamp})
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND account_from IN (${formattedCashbackWallets})
+        AND account_to NOT IN (${formattedCashbackPayoutExcludedAccounts})
     )
     SELECT
       (SELECT SUM(fee) FROM botTrades) AS fee,
