@@ -1,12 +1,14 @@
 // World by Starra (https://starra.world): DEX aggregator for tokenized US stocks. Solana xStocks are routed via Jupiter,
 // Ethereum Ondo Global Markets tokens via KyberSwap. Every swap pays a flat 0.05% fee in USDC to the World by Starra fee
-// wallet (rate enforced in the frontend: https://docs.starra.world), so volume is measured from those fees:
+// wallet (https://docs.starra.world). There are no LPs, referrers or token holders to share with, so 100% of fees is
+// protocol revenue. Volume is measured from those fees:
 //  - Ethereum: the KyberSwap MetaAggregationRouterV2 `Fee` event carries the full trade amount (`totalAmount`, in USDC) and
 //    the fee recipients; we count events paying our fee wallet in swaps tagged with our KyberSwap client id.
 //  - Solana: USDC platform fees paid to the fee wallet inside Jupiter swap instructions, divided by the 0.05% fee rate.
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { METRIC } from "../../helpers/metrics";
 
 const FEE_RATE = 0.0005; // 0.05% platform fee on every swap
 
@@ -20,6 +22,8 @@ const SOLANA_FEE_WALLET = "2o4SXwGJZDtkcUK8FHdxiJnSSeZng64zptkg8GbdzffM";
 const SOLANA_FEE_ACCOUNT = "Fo3xWmUPCUnbih1J2MHtbh98imSDNYsaGLV4fHngAtBv"; // USDC associated token account of the fee wallet
 const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JUPITER_PROGRAM = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"; // Jupiter v6 aggregator program (platform fee is paid by its CPI)
+
+const FEES_TO_PROTOCOL = "Trading Fees To Protocol";
 
 // Jupiter's platform fee: USDC paid to the fee wallet by a transfer executed inside a Jupiter swap instruction
 // (outer_program_id = Jupiter). Plain transfers (dust, address poisoning, deposits), including ones bundled into the same
@@ -78,20 +82,29 @@ const chainConfig: Record<string, { start: string }> = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
   if (options.chain === CHAIN.ETHEREUM) {
     for (const log of await starraFeeEvents(options)) {
-      if (log.recipients.some((r: string) => r.toLowerCase() === ETH_FEE_RECEIVER)) dailyVolume.add(log.token, log.totalAmount);
+      const i = log.recipients.findIndex((r: string) => r.toLowerCase() === ETH_FEE_RECEIVER);
+      if (i === -1) continue;
+      dailyVolume.add(log.token, log.totalAmount);
+      // With isBps, `amounts` holds each recipient's fee rate in bps (5 = 0.05%), not a token amount.
+      const fee = log.isBps ? (BigInt(log.totalAmount) * BigInt(log.amounts[i])) / 10000n : BigInt(log.amounts[i]);
+      dailyFees.add(log.token, fee, METRIC.TRADING_FEES);
     }
   } else {
-    const fees = BigInt(await solanaSwapFees(options));
-    dailyVolume.add(SOLANA_USDC, (fees * 10000n) / BigInt(FEE_RATE * 10000)); // fee / 0.05%
+    const fees = await solanaSwapFees(options);
+    dailyFees.add(SOLANA_USDC, fees, METRIC.TRADING_FEES);
+    dailyVolume.add(SOLANA_USDC, (BigInt(fees) * 10000n) / BigInt(FEE_RATE * 10000)); // fee / 0.05%
   }
-  return { dailyVolume };
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(dailyFees.clone(1, FEES_TO_PROTOCOL));
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
@@ -99,6 +112,16 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // swaps are executed through Jupiter / KyberSwap, which are tracked as aggregators themselves
   methodology: {
     Volume: "Value of swaps made through World by Starra. Ethereum: USDC trade amount from KyberSwap router Fee events that pay the World by Starra fee wallet in swaps made through the World by Starra app. Solana: USDC platform fees paid to the fee wallet inside Jupiter swaps, divided by the 0.05% fee rate.",
+    Fees: "0.05% fee that users pay on every swap made through World by Starra, settled in USDC.",
+    UserFees: "Users pay the 0.05% swap fee.",
+    Revenue: "All swap fees go to the protocol.",
+    ProtocolRevenue: "All swap fees go to the protocol treasury.",
+  },
+  breakdownMethodology: {
+    Fees: { [METRIC.TRADING_FEES]: "0.05% fee on each swap routed through World by Starra, paid in USDC." },
+    UserFees: { [METRIC.TRADING_FEES]: "0.05% fee on each swap routed through World by Starra, paid in USDC." },
+    Revenue: { [FEES_TO_PROTOCOL]: "All swap fees are kept by the protocol." },
+    ProtocolRevenue: { [FEES_TO_PROTOCOL]: "All swap fees are kept by the protocol treasury." },
   },
 };
 
