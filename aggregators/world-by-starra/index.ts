@@ -9,6 +9,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const FEE_RATE = 0.0005; // 0.05% platform fee on every swap
 
@@ -20,7 +21,7 @@ const KYBER_FEE_EVENT = "event Fee(address token, uint256 totalAmount, uint256 t
 // Solana fee wallet, sample swap: https://solscan.io/tx/5LwqChkhPpPBadz5fwZHyVVw2pJbX2Z6ErqAi3jybG9W9CsAGWbr37FVs1KwC8B531AtLEVQfHsNMrVXeApNhQhH
 const SOLANA_FEE_WALLET = "2o4SXwGJZDtkcUK8FHdxiJnSSeZng64zptkg8GbdzffM";
 const SOLANA_FEE_ACCOUNT = "Fo3xWmUPCUnbih1J2MHtbh98imSDNYsaGLV4fHngAtBv"; // USDC associated token account of the fee wallet
-const SOLANA_USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const SOLANA_USDC = ADDRESSES.solana.USDC;
 const JUPITER_PROGRAM = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"; // Jupiter v6 aggregator program (platform fee is paid by its CPI)
 
 const FEES_TO_PROTOCOL = "Trading Fees To Protocol";
