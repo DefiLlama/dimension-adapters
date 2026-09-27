@@ -37,6 +37,18 @@ const VOLUME_LABEL = "Tread.fi Market-Making Fills";
 const FEES_LABEL = "Builder Code Fees";
 const REVENUE_LABEL = "Builder Code Fees To Tread.fi";
 
+// TreadTools API needs time to finalize daily fill buckets after UTC midnight.
+const DATA_DELAY_HOURS = 8;
+
+const assertDataAvailable = (options: FetchOptions) => {
+  const delayCutoff = Date.now() - DATA_DELAY_HOURS * 60 * 60 * 1000;
+  if (options.toTimestamp * 1000 > delayCutoff) {
+    throw new Error(
+      `End timestamp is less than ${DATA_DELAY_HOURS} hours ago, skipping due to TreadTools API indexing delay`,
+    );
+  }
+};
+
 const getHeaders = () => {
   const apiKey = getEnv("TREADTOOLS_API_KEY");
   if (!apiKey) {
@@ -48,6 +60,7 @@ const getHeaders = () => {
 };
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
+  assertDataAvailable(options);
   const url = `${TREADTOOLS_API_URL}?timestamp=${options.startOfDay}`;
   const response: TreadToolsApiResponse = await httpGet(url, {
     headers: getHeaders(),
@@ -99,6 +112,7 @@ const volumeOnly = (...keys: string[]) => async (options: FetchOptions) => {
 };
 
 const fetchHyperliquid = async (options: FetchOptions) => {
+  assertDataAvailable(options);
   // Volume from TreadTools (Tread.fi market-making fills)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
@@ -123,6 +137,7 @@ const fetchHyperliquid = async (options: FetchOptions) => {
 };
 
 const fetchExtended = async (options: FetchOptions) => {
+  assertDataAvailable(options);
   // Volume from TreadTools (Tread.fi market-making fills)
   const dailyVolume = options.createBalances();
   const treadToolsData = options.preFetchedResults;
