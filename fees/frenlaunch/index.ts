@@ -10,7 +10,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { METRIC } from "../../helpers/metrics";
-const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string } }> = {
+const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string; claimer: string; poolManager: string } }> = {
   "robinhood": {
     "factory": "0x2c40C69d5E1AA1D0d7Ee20De7d439BF683804F8B",
     "hook": "0xD4ECfA747B1FB2C9195dBa71A3F8033Cf70E6088",
@@ -18,7 +18,9 @@ const deployments: Record<string, { factory: string; hook: string; fromBlock: nu
     "start": "2026-08-30",
     "doppler": {
       "module": "0xe2AEbc987592593b667ec29178D0A83929Db78b6",
-      "safe": "0x0dB4b112Efdb79Ab566Dd4D9c44E950AEd89B08e"
+      "safe": "0x0dB4b112Efdb79Ab566Dd4D9c44E950AEd89B08e",
+      "claimer": "0xb1721068CF4a0ECd41f41701d6EA59546c3843e2",
+      "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951"
     }
   },
   "arc": {
@@ -45,6 +47,15 @@ const LAUNCH_FEE = "function launchFee() view returns (uint256)";
 const DOPPLER_SPLIT = { creator: 6000n, referrer: 1000n, liquidity: 1132n, doppler: 868n };
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const RELEASE_TOPIC = "0x951cb665214ddfa483febb22b592b0c67f38eac40f7be33f6fcbbe63289276d1";
+// The Rehype module's IntegratorSet(bytes32 indexed poolId, address indexed old, address indexed new),
+// its per-pool beneficiary list (poolId indexed; data: (address beneficiary, uint96 shares)[]), and
+// the v4 PoolManager's Swap (poolId indexed), which ties each payout to its pool.
+const INTEGRATOR_SET_TOPIC = "0x3206bab1589699b18a3896cde833d2558d37b6def086f4368ff5f26e7a92cff2";
+const BENEFICIARIES_TOPIC = "0x0c90f8fcadd900399eb6c30bc91ec4531380b92bc2c4c364675528b1d30601e2";
+const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+// The referrer seat's share of the beneficiary pot (9.5/70 of 1e18); its holder is the creator's
+// referrer, or the platform (fee claimer or Safe) when a launch names none.
+const REFERRER_SEAT_SHARES = 135714285714285714n;
 const pad = (a: string) => "0x" + a.slice(2).toLowerCase().padStart(64, "0");
 
 const L = {
@@ -54,6 +65,7 @@ const L = {
   DOPPLER: "Doppler Pool Swap Fees", DOPPLER_P: "Doppler Pool Swap Fees to Protocol",
   DOPPLER_C: "Doppler Pool Swap Fees to Creators", DOPPLER_R: "Doppler Pool Swap Fees to Referrers",
   DOPPLER_LP: "Doppler Pool Swap Fees to Liquidity", DOPPLER_D: "Doppler Pool Swap Fees to Doppler",
+  DOPPLER_RP: "Doppler Pool Swap Fees to Protocol (Referrer Seat)",
 };
 
 async function fetch(options: FetchOptions) {
@@ -100,11 +112,36 @@ async function fetch(options: FetchOptions) {
   }
 
   // Doppler rail: the integrator payouts, module -> Safe, in whichever pool currency the fee was
-  // taken in (WETH on sells, the launched token on buys). A collect that releases a beneficiary
-  // seat held by the Safe itself also moves module -> Safe; those transactions are not the
-  // integrator's and are left out (every platform seat is the fee claimer's since 2026-09-14).
+  // taken in (WETH on sells, the launched token on buys).
   if (d.doppler) {
-    const { module, safe } = d.doppler;
+    const { module, safe, claimer, poolManager } = d.doppler;
+    const platform = new Set([safe.toLowerCase(), claimer.toLowerCase()]);
+    // Our pools (the Safe is their integrator), and those whose referrer seat the platform holds
+    // (launches with no referrer): that seat's 10% is protocol revenue, not supply side.
+    const pools: string[] = (await options.getLogs({ target: module, topics: [INTEGRATOR_SET_TOPIC, null as any, null as any, pad(safe)], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true }))
+      .map((l: any) => l.topics[1].toLowerCase());
+    const platformSeat = new Set<string>();
+    if (pools.length) {
+      for (const l of await options.getLogs({ target: module, topics: [BENEFICIARIES_TOPIC, pools as any], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true })) {
+        const words = (l.data.slice(2).match(/.{64}/g) || []) as string[];
+        const n = Number(BigInt("0x" + words[1]));
+        for (let i = 0; i < n; i++) {
+          const holder = "0x" + words[2 + 2 * i].slice(24), shares = BigInt("0x" + words[3 + 2 * i]);
+          if (shares === REFERRER_SEAT_SHARES && platform.has(holder.toLowerCase())) platformSeat.add(l.topics[1].toLowerCase());
+        }
+      }
+    }
+    // Each payout happens inside a swap: the PoolManager's Swap just before it in the same
+    // transaction names the pool.
+    const swaps = pools.length ? await options.getLogs({ target: poolManager, topics: [SWAP_TOPIC, pools as any], entireLog: true }) : [];
+    const poolOf = (log: any) => {
+      let best: any;
+      for (const s of swaps) if (s.transactionHash.toLowerCase() === log.transactionHash.toLowerCase() && Number(s.logIndex) < Number(log.logIndex) && (!best || Number(s.logIndex) > Number(best.logIndex))) best = s;
+      return best?.topics[1].toLowerCase();
+    };
+    // A collect that releases a beneficiary seat held by the Safe itself also moves module -> Safe;
+    // those transactions are not the integrator's and are left out (the seat is counted at trade time;
+    // every platform seat is the fee claimer's since 2026-09-14).
     const seatTxs = new Set((await options.getLogs({ target: module, topics: [RELEASE_TOPIC, null as any, pad(safe)], entireLog: true }))
       .map((l: any) => l.transactionHash.toLowerCase()));
     const payouts = await options.getLogs({ noTarget: true, topics: [TRANSFER_TOPIC, pad(module), pad(safe)], entireLog: true });
@@ -115,7 +152,8 @@ async function fetch(options: FetchOptions) {
       dailyRevenue.add(token, paid, L.DOPPLER_P);
       const share = (k: keyof typeof DOPPLER_SPLIT) => (paid * DOPPLER_SPLIT[k]) / 1000n;
       dailySupplySideRevenue.add(token, share("creator"), L.DOPPLER_C);
-      dailySupplySideRevenue.add(token, share("referrer"), L.DOPPLER_R);
+      if (platformSeat.has(poolOf(log))) dailyRevenue.add(token, share("referrer"), L.DOPPLER_RP);
+      else dailySupplySideRevenue.add(token, share("referrer"), L.DOPPLER_R);
       dailySupplySideRevenue.add(token, share("liquidity"), L.DOPPLER_LP);
       dailySupplySideRevenue.add(token, share("doppler"), L.DOPPLER_D);
     }
@@ -127,14 +165,14 @@ async function fetch(options: FetchOptions) {
 const methodology = {
   Volume: "Trades on frenlaunch bonding curves. Swaps in Uniswap v4 pools (graduated curve pools and Doppler pools) are excluded (they are Uniswap v4 volume).",
   Fees: "Launch fees, the 1% fee on curve trades, the 1% hook fee on swaps in graduated pools (all from the contracts' fee-accrual events), and the swap fee on frenlaunch's Doppler pools (ten times the platform's 10% integrator payout).",
-  Revenue: "All launch fees, the platform's 25% of curve and graduated-pool trading fees, and the platform's 10% integrator share of Doppler pool swap fees.",
+  Revenue: "All launch fees, the platform's 25% of curve and graduated-pool trading fees, the platform's 10% integrator share of Doppler pool swap fees, and the 10% referrer seat on Doppler pools launched without a referrer (the platform holds that seat).",
   ProtocolRevenue: "Same as revenue: there is no token and no holder distribution.",
-  SupplySideRevenue: "Curve and graduated pools: the creator's 75% of trading fees. Doppler pools: creator 60%, creator's referrer 10%, re-invested liquidity 11.32%, Doppler 8.68% of the swap fee.",
+  SupplySideRevenue: "Curve and graduated pools: the creator's 75% of trading fees. Doppler pools: creator 60%, creator's referrer 10% (when the launch has one), re-invested liquidity 11.32%, Doppler 8.68% of the swap fee.",
 };
 const breakdownMethodology = {
   Fees: { [L.LAUNCH]: "The factory's launch fee, charged once per token launched.", [L.CURVE]: "1% of every buy and sell on a bonding curve.", [L.POOL]: "1% of every swap in a graduated pool, taken by the fee hook in the input currency.", [L.DOPPLER]: "The Rehype swap fee on frenlaunch's Doppler pools (1%, higher in a launch's first minutes), ten times the integrator payout." },
-  Revenue: { [L.LAUNCH_P]: "All launch fees.", [L.CURVE_P]: "The platform's cut in each curve FeesAccrued event.", [L.POOL_P]: "The platform's cut in each hook FeeAccrued event.", [L.DOPPLER_P]: "The 10% integrator share the Rehype module pays the platform Safe on every trade." },
-  SupplySideRevenue: { [L.CURVE_C]: "The creator's cut in each curve FeesAccrued event.", [L.POOL_C]: "The creator's cut in each hook FeeAccrued event.", [L.DOPPLER_C]: "The creator's 60% of the Doppler pool fee.", [L.DOPPLER_R]: "The 10% seat of the creator's referrer (held by the platform when a launch names none; collected separately and not counted as revenue here).", [L.DOPPLER_LP]: "11.32% of the fee re-invested as pool liquidity by the Rehype module.", [L.DOPPLER_D]: "Doppler's 8.68% (its 5% protocol cut plus its 5% beneficiary seat)." },
+  Revenue: { [L.LAUNCH_P]: "All launch fees.", [L.CURVE_P]: "The platform's cut in each curve FeesAccrued event.", [L.POOL_P]: "The platform's cut in each hook FeeAccrued event.", [L.DOPPLER_P]: "The 10% integrator share the Rehype module pays the platform Safe on every trade.", [L.DOPPLER_RP]: "The 10% referrer seat of Doppler pools launched without a referrer, which the platform holds (read from each pool's beneficiary list)." },
+  SupplySideRevenue: { [L.CURVE_C]: "The creator's cut in each curve FeesAccrued event.", [L.POOL_C]: "The creator's cut in each hook FeeAccrued event.", [L.DOPPLER_C]: "The creator's 60% of the Doppler pool fee.", [L.DOPPLER_R]: "The 10% seat of the creator's referrer, on pools launched with one.", [L.DOPPLER_LP]: "11.32% of the fee re-invested as pool liquidity by the Rehype module.", [L.DOPPLER_D]: "Doppler's 8.68% (its 5% protocol cut plus its 5% beneficiary seat)." },
 };
 
 const adapter: SimpleAdapter = {
