@@ -19,10 +19,10 @@
 //   - Graduated pools. Every swap pays the pool's fee tier (read from PoolOpened), measured on the
 //     quote-asset leg so it is always in a priced asset: on the input when the quote asset goes
 //     in, and at the swap's own price, quoteOut * fee / (1 - fee), when the coin goes in. The
-//     locked position earns its share of the pool's active liquidity (its liquidity, from
-//     MemeCoinListed, over the Swap event's), split like the trading fee: `protocolShareBps` to the
-//     protocol when CoinListingManager.collectFees sweeps it, the rest to the creator. Anything
-//     left is earned by third-party LPs. The factory's protocol fee switch stays off: its owner,
+//     locked position (the listing manager's, found from the pool's Mint events) earns its share
+//     of the liquidity the swap trades against, range by range (see `lockedShareOf`), split like
+//     the trading fee: `protocolShareBps` to the protocol when CoinListingManager.collectFees
+//     sweeps it, the rest to the creator. Anything left is earned by third-party LPs. The factory's protocol fee switch stays off: its owner,
 //     the CoinListingManager, has no way to turn it on. Swap volume is not counted.
 //   - Front-page bids. Each bid in USDG is split on the spot (BidSettled): 20% to the $OUTBID
 //     buyback vault and 5% to the treasury, which is protocol revenue. The other 75% buys the
@@ -71,8 +71,9 @@ const SELL = "event Sell(address indexed by, uint256 amount, uint256 liquidity, 
 const FEES_CHARGED = "event FeesCharged(address indexed by, uint256 fee, uint256 tax)";
 const REVENUE_RECEIVED = "event RevenueReceived(address indexed source, address indexed asset, uint256 amount)";
 const POOL_OPENED = "event PoolOpened(address indexed coin, address indexed pool, address quote, uint24 fee, uint160 sqrtPriceX96)";
-const MEMECOIN_LISTED =
-  "event MemeCoinListed(address indexed memecoin, address indexed pool, address quote, uint128 liquidity, uint256 quoteIn, uint256 coinIn)";
+const MINT =
+  "event Mint(address sender, address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)";
+const BURN = "event Burn(address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)";
 const SWAP = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 const BID_SETTLED =
   "event BidSettled(address indexed token, address indexed asset, uint256 burnSpent, uint256 coinsBurned, uint256 toBuyback, uint256 toTreasury)";
@@ -92,6 +93,56 @@ const LABELS = {
   swapToCreators: "Token Swap Fees To Creators",
   swapToLPs: "Token Swap Fees To LPs",
 };
+
+type Position = { lower: number; upper: number; liquidity: bigint };
+
+/**
+ * The locked position's share of one swap's fee. A swap pays its fee on the input as the price
+ * moves through ranges of constant liquidity, and each range's fee is shared among the positions
+ * active in it, so the share is the locked position's liquidity over the range's, weighted by the
+ * input traded there. The Swap event gives the end price; walking back from it, the output
+ * amount, which carries no fee, fixes where the swap started and how much traded in each range.
+ * `others` is every position but the locked one. Ratios only, so floating point is enough.
+ */
+function lockedShareOf(swap: any, others: Position[], locked: bigint): number {
+  const lockedL = Number(locked);
+  // Only the locked full-range position: it earns the whole fee.
+  if (!others.length) return 1;
+  const sqrtAt = (tick: number) => Math.pow(1.0001, tick / 2);
+  const liquidityAt = (sqrtPrice: number) =>
+    others.reduce((sum, p) => (sqrtAt(p.lower) <= sqrtPrice && sqrtPrice < sqrtAt(p.upper) ? sum + Number(p.liquidity) : sum), lockedL);
+  const bounds = Array.from(new Set(others.flatMap((p) => [sqrtAt(p.lower), sqrtAt(p.upper)]))).sort((a, b) => a - b);
+  const zeroForOne = BigInt(swap.amount0) > 0n;
+  let remaining = Math.abs(Number(zeroForOne ? swap.amount1 : swap.amount0));
+  let current = Number(swap.sqrtPriceX96) / 2 ** 96;
+  let input = 0;
+  let lockedInput = 0;
+  // Token0 in: the price fell, so walk up; token1 in: it rose, so walk down.
+  for (let step = 0; step <= bounds.length && remaining > 0; step++) {
+    if (zeroForOne) {
+      const next = bounds.find((bound) => bound > current) ?? Infinity;
+      const L = liquidityAt(Number.isFinite(next) ? (current + next) / 2 : current * (1 + 1e-9));
+      const capacity = L * (next - current); // token1 this range can pay out
+      const end = capacity >= remaining ? current + remaining / L : next;
+      const traded = L * (1 / current - 1 / end); // token0 in, before the fee
+      input += traded;
+      lockedInput += (traded * lockedL) / L;
+      remaining = capacity >= remaining ? 0 : remaining - capacity;
+      current = end;
+    } else {
+      const next = [...bounds].reverse().find((bound) => bound < current) ?? 0;
+      const L = liquidityAt(next > 0 ? (current + next) / 2 : current * (1 - 1e-9));
+      const capacity = next > 0 ? L * (1 / next - 1 / current) : Infinity; // token0 this range can pay out
+      const end = capacity >= remaining ? 1 / (1 / current + remaining / L) : next;
+      const traded = L * (current - end); // token1 in, before the fee
+      input += traded;
+      lockedInput += (traded * lockedL) / L;
+      remaining = capacity >= remaining ? 0 : remaining - capacity;
+      current = end;
+    }
+  }
+  return input > 0 ? lockedInput / input : lockedL / liquidityAt(Number(swap.sqrtPriceX96) / 2 ** 96);
+}
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -135,36 +186,62 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  // Graduated pools: the fee tier from PoolOpened, the locked position's liquidity from
-  // MemeCoinListed. Both are emitted once per pool, in the graduation transaction.
+  // Graduated pools, with the fee tier each was opened at.
   const opened = await options.getLogs({ target: LISTING_MANAGER, eventAbi: POOL_OPENED, fromBlock: DEPLOY_BLOCK, cacheInCloud: true });
-  const listed = await options.getLogs({ target: LISTING_MANAGER, eventAbi: MEMECOIN_LISTED, fromBlock: DEPLOY_BLOCK, cacheInCloud: true });
-  const lockedOf = new Map(listed.map((log: any) => [log.pool.toLowerCase(), BigInt(log.liquidity)]));
   if (opened.length) {
-    const swaps = await options.getLogs({ targets: opened.map((log: any) => log.pool), eventAbi: SWAP, flatten: false });
-    opened.forEach((pool: any, i: number) => {
-      const feePips = BigInt(pool.fee);
-      const locked = lockedOf.get(pool.pool.toLowerCase());
-      if (locked === undefined) throw new Error(`No MemeCoinListed for outbidfun pool ${pool.pool}`);
-      const shareBps = shareOf.get(pool.coin.toLowerCase());
-      if (shareBps === undefined) throw new Error(`Pool ${pool.pool} is for ${pool.coin}, which the factory did not launch`);
-      const quoteIsToken0 = pool.quote.toLowerCase() < pool.coin.toLowerCase();
-      for (const swap of swaps[i]) {
-        // Positive is what the pool received, negative what it paid out.
-        const quoteDelta = BigInt(quoteIsToken0 ? swap.amount0 : swap.amount1);
-        const fee = quoteDelta > 0n
-          ? (quoteDelta * feePips) / FEE_DENOMINATOR
-          : (-quoteDelta * feePips) / (FEE_DENOMINATOR - feePips);
-        // The locked position is full range, so it is always in the active liquidity.
-        const active = BigInt(swap.liquidity);
-        const toLocked = locked >= active ? fee : (fee * locked) / active;
-        const toProtocol = (toLocked * shareBps) / BPS;
-        dailyFees.add(pool.quote, fee, LABELS.swapFees);
-        dailyRevenue.add(pool.quote, toProtocol, LABELS.swapToProtocol);
-        dailySupplySideRevenue.add(pool.quote, toLocked - toProtocol, LABELS.swapToCreators);
-        dailySupplySideRevenue.add(pool.quote, fee - toLocked, LABELS.swapToLPs);
-      }
-    });
+    const pools = opened.map((log: any) => log.pool);
+    const swaps = await options.getLogs({ targets: pools, eventAbi: SWAP, onlyArgs: false, flatten: false });
+    if (swaps.some((logs: any[]) => logs.length)) {
+      // Every position's liquidity at each swap, replayed from the pools' whole Mint/Burn history:
+      // few events, changing slowly, like a pool list.
+      const mints = await options.getLogs({ targets: pools, eventAbi: MINT, fromBlock: DEPLOY_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const burns = await options.getLogs({ targets: pools, eventAbi: BURN, fromBlock: DEPLOY_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const positioned = (log: any, kind: string) => {
+        const blockNumber = Number(log.blockNumber);
+        const logIndex = Number(log.logIndex);
+        if (!log.args || !Number.isFinite(blockNumber) || !Number.isFinite(logIndex)) throw new Error("outbidfun: log without args or position");
+        return { kind, blockNumber, logIndex, ...log.args };
+      };
+      opened.forEach((pool: any, i: number) => {
+        const feePips = BigInt(pool.fee);
+        const shareBps = shareOf.get(pool.coin.toLowerCase());
+        if (shareBps === undefined) throw new Error(`Pool ${pool.pool} is for ${pool.coin}, which the factory did not launch`);
+        const quoteIsToken0 = pool.quote.toLowerCase() < pool.coin.toLowerCase();
+        const events = [
+          ...mints[i].map((log: any) => positioned(log, "mint")),
+          ...burns[i].map((log: any) => positioned(log, "burn")),
+          ...swaps[i].map((log: any) => positioned(log, "swap")),
+        ].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex);
+        const positions = new Map<string, Position>();
+        let lockedKey = "";
+        for (const event of events) {
+          if (event.kind !== "swap") {
+            const key = `${event.owner.toLowerCase()}:${event.tickLower}:${event.tickUpper}`;
+            const position = positions.get(key) ?? { lower: Number(event.tickLower), upper: Number(event.tickUpper), liquidity: 0n };
+            position.liquidity += event.kind === "mint" ? BigInt(event.amount) : -BigInt(event.amount);
+            positions.set(key, position);
+            // The listing manager's graduation position: never burned, and the only one it owns.
+            if (event.owner.toLowerCase() === LISTING_MANAGER.toLowerCase()) lockedKey = key;
+            continue;
+          }
+          const locked = positions.get(lockedKey)?.liquidity ?? 0n;
+          if (locked === 0n) throw new Error(`outbidfun pool ${pool.pool} swapped before its graduation position was minted`);
+          const others = [...positions].filter(([key, p]) => key !== lockedKey && p.liquidity > 0n).map(([, p]) => p);
+          // Positive is what the pool received, negative what it paid out.
+          const quoteDelta = BigInt(quoteIsToken0 ? event.amount0 : event.amount1);
+          const fee = quoteDelta > 0n
+            ? (quoteDelta * feePips) / FEE_DENOMINATOR
+            : (-quoteDelta * feePips) / (FEE_DENOMINATOR - feePips);
+          const share = lockedShareOf(event, others, locked);
+          const toLocked = share >= 1 ? fee : (fee * BigInt(Math.round(share * 1e9))) / 1_000_000_000n;
+          const toProtocol = (toLocked * shareBps) / BPS;
+          dailyFees.add(pool.quote, fee, LABELS.swapFees);
+          dailyRevenue.add(pool.quote, toProtocol, LABELS.swapToProtocol);
+          dailySupplySideRevenue.add(pool.quote, toLocked - toProtocol, LABELS.swapToCreators);
+          dailySupplySideRevenue.add(pool.quote, fee - toLocked, LABELS.swapToLPs);
+        }
+      });
+    }
   }
 
   const received = await options.getLogs({ target: REVENUE_ROUTER, eventAbi: REVENUE_RECEIVED });
