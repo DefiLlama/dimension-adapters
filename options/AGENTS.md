@@ -23,7 +23,7 @@ These guidelines apply to all adapters in the `options/` directory.
 
 ## Open Interest
 
-Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined. Notional and premium volume are the options metrics.
+Options notional open interest is exported separately through `open-interest/` adapters, not as daily volume. It counts each outstanding contract once in USD underlying notional; do not confuse it with premium, collateral, or a risk-adjusted exposure. Notional and premium volume remain the options metrics in this directory.
 
 ## Data Sources
 
