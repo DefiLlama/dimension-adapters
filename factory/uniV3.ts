@@ -454,11 +454,11 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ROBINHOOD]: {
       factory: '0x221A6239E40709792b0d4bdc140fA36158CD41C7', start: '2026-09-26', userFeesRatio: 1, dynamicProtocolFees: true,
       getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
-        if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined)
-          throw new Error('goo-exchange: missing protocol fee ratio')
-        // both sides are set in one call and have always been equal; the helper does not expose swap direction, so if they ever differ use their mean
-        const revenueRatio = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
-        return { _revenueRatio: revenueRatio, _protocolRevenueRatio: revenueRatio / 2, _holdersRevenueRatio: revenueRatio / 2 }
+        // Both sides are set in one call and have always been equal. The helper applies one ratio to every swap in a pool
+        // and doesn't expose swap direction, so a failed read (undefined) or unequal sides fail rather than guess.
+        if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken0 !== protocolFeeRatioToken1)
+          throw new Error('goo-exchange: missing or asymmetric protocol fee ratio')
+        return { _revenueRatio: protocolFeeRatioToken0, _protocolRevenueRatio: protocolFeeRatioToken0 / 2, _holdersRevenueRatio: protocolFeeRatioToken0 / 2 }
       },
     },
   },

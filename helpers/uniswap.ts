@@ -419,7 +419,9 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       })
 
       slot0Results.forEach((slot0: any, i: number) => {
-        const feeProtocol = Number(slot0?.feeProtocol ?? 0)
+        // a failed read leaves the ratio undefined, so getRevenueRatio can reject it instead of seeing feeProtocol = 0
+        if (!slot0) return
+        const feeProtocol = Number(slot0.feeProtocol)
         const token0Denominator = feeProtocol & 0x0f
         const token1Denominator = (feeProtocol >> 4) & 0x0f
 
