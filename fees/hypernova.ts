@@ -36,35 +36,31 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const fromBlock = (await options.getFromBlock()) + 1;
-  const toBlock = await options.getToBlock();
   let assessmentFees = 0n, traderPayouts = 0n, referrals = 0n;
 
-  if (fromBlock <= toBlock) {
-    const treasuryLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: toTreasuryTopics, fromBlock, toBlock });
-    for (const { from, value } of treasuryLogs) {
-      if (typeof from !== "string" || typeof value !== "bigint") throw new Error("Hypernova fees: malformed treasury Transfer log");
-      if (INTERNAL_WALLETS[from.toLowerCase()] === undefined) assessmentFees += value;
-    }
+  const treasuryLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: toTreasuryTopics });
+  for (const { from, value } of treasuryLogs) {
+    if (typeof from !== "string" || typeof value !== "bigint") throw new Error("Hypernova fees: malformed treasury Transfer log");
+    if (INTERNAL_WALLETS[from.toLowerCase()] === undefined) assessmentFees += value;
+  }
 
-    const payoutLogs: { traderAmount?: unknown }[] = await options.getLogs({ target: PAYOUT_VAULT, eventAbi: PAYOUT_EVENT, fromBlock, toBlock });
-    for (const { traderAmount } of payoutLogs) {
-      if (typeof traderAmount !== "bigint") throw new Error("Hypernova fees: malformed PayoutProcessed log");
-      traderPayouts += traderAmount;
-    }
+  const payoutLogs: { traderAmount?: unknown }[] = await options.getLogs({ target: PAYOUT_VAULT, eventAbi: PAYOUT_EVENT });
+  for (const { traderAmount } of payoutLogs) {
+    if (typeof traderAmount !== "bigint") throw new Error("Hypernova fees: malformed PayoutProcessed log");
+    traderPayouts += traderAmount;
+  }
 
-    const referralLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: fromReferralTopics, fromBlock, toBlock });
-    for (const { to, value } of referralLogs) {
-      if (typeof to !== "string" || typeof value !== "bigint") throw new Error("Hypernova fees: malformed referral Transfer log");
-      if (INTERNAL_WALLETS[to.toLowerCase()] === undefined) referrals += value;
-    }
+  const referralLogs: TransferArgs[] = await options.getLogs({ target: USDC, eventAbi: TRANSFER_EVENT, topics: fromReferralTopics });
+  for (const { to, value } of referralLogs) {
+    if (typeof to !== "string" || typeof value !== "bigint") throw new Error("Hypernova fees: malformed referral Transfer log");
+    if (INTERNAL_WALLETS[to.toLowerCase()] === undefined) referrals += value;
   }
 
   dailyFees.add(USDC, assessmentFees.toString(), LABELS.assessmentFees);
   dailySupplySideRevenue.add(USDC, referrals.toString(), LABELS.referrals);
   dailySupplySideRevenue.add(USDC, traderPayouts.toString(), LABELS.traderPayouts);
   dailyRevenue.add(USDC, (assessmentFees - traderPayouts - referrals).toString(), LABELS.netAssessmentFees);
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -77,6 +73,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Assessment fees paid in USDC.",
     Revenue: "Assessment fees minus trader payouts and referral and affiliate commissions.",
+    ProtocolRevenue: "Assessment fees minus trader payouts and referral and affiliate commissions.",
     SupplySideRevenue: "Trader payouts and referral and affiliate commissions paid out in USDC.",
   },
   breakdownMethodology: {
@@ -84,6 +81,9 @@ const adapter: SimpleAdapter = {
       [LABELS.assessmentFees]: "All USDC received by Hypernova's assessment treasury, except transfers from its own reserves, vault and contracts.",
     },
     Revenue: {
+      [LABELS.netAssessmentFees]: "Assessment fees minus trader payouts and referral and affiliate commissions.",
+    },
+    ProtocolRevenue: {
       [LABELS.netAssessmentFees]: "Assessment fees minus trader payouts and referral and affiliate commissions.",
     },
     SupplySideRevenue: {
