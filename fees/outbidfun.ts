@@ -81,6 +81,18 @@ const ETHER = "0x0000000000000000000000000000000000000000";
 const BPS = 10_000n;
 // Uniswap V3 fee tiers are in hundredths of a basis point.
 const FEE_DENOMINATOR = 1_000_000n;
+// Uniswap V3's price at tick i is 1.0001^i, so the square root price at a tick is 1.0001^(i/2).
+// https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol
+const TICK_BASE = 1.0001;
+// Swap events carry the square root price as a Q64.96 fixed-point number (`sqrtPriceX96`).
+// https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/pool/IUniswapV3PoolState.sol
+const Q96 = 2 ** 96;
+// A relative nudge off the current price, to read which liquidity is active just past it when the
+// walk has no further tick boundary to take a midpoint with. Far smaller than one tick (1e-4).
+const BOUNDARY_EPSILON = 1e-9;
+// The locked position's share is a ratio in floating point; it is applied to the fee, a bigint,
+// in billionths, well past the precision a fee amount needs.
+const SHARE_PRECISION = 1_000_000_000n;
 
 const MEMECOIN_DEPLOYED = "event MemeCoinDeployed(address indexed creator, address indexed memecoin, address indexed quoteAsset)";
 const BUY = "event Buy(address indexed by, uint256 amount, uint256 liquidity, uint256 newSupply, uint256 timestamp)";
@@ -125,20 +137,20 @@ function lockedShareOf(swap: any, others: Position[], locked: bigint): number {
   const lockedL = Number(locked);
   // Only the locked full-range position: it earns the whole fee.
   if (!others.length) return 1;
-  const sqrtAt = (tick: number) => Math.pow(1.0001, tick / 2);
+  const sqrtAt = (tick: number) => Math.pow(TICK_BASE, tick / 2);
   const liquidityAt = (sqrtPrice: number) =>
     others.reduce((sum, p) => (sqrtAt(p.lower) <= sqrtPrice && sqrtPrice < sqrtAt(p.upper) ? sum + Number(p.liquidity) : sum), lockedL);
   const bounds = Array.from(new Set(others.flatMap((p) => [sqrtAt(p.lower), sqrtAt(p.upper)]))).sort((a, b) => a - b);
   const zeroForOne = BigInt(swap.amount0) > 0n;
   let remaining = Math.abs(Number(zeroForOne ? swap.amount1 : swap.amount0));
-  let current = Number(swap.sqrtPriceX96) / 2 ** 96;
+  let current = Number(swap.sqrtPriceX96) / Q96;
   let input = 0;
   let lockedInput = 0;
   // Token0 in: the price fell, so walk up; token1 in: it rose, so walk down.
   for (let step = 0; step <= bounds.length && remaining > 0; step++) {
     if (zeroForOne) {
       const next = bounds.find((bound) => bound > current) ?? Infinity;
-      const L = liquidityAt(Number.isFinite(next) ? (current + next) / 2 : current * (1 + 1e-9));
+      const L = liquidityAt(Number.isFinite(next) ? (current + next) / 2 : current * (1 + BOUNDARY_EPSILON));
       const capacity = L * (next - current); // token1 this range can pay out
       const end = capacity >= remaining ? current + remaining / L : next;
       const traded = L * (1 / current - 1 / end); // token0 in, before the fee
@@ -148,7 +160,7 @@ function lockedShareOf(swap: any, others: Position[], locked: bigint): number {
       current = end;
     } else {
       const next = [...bounds].reverse().find((bound) => bound < current) ?? 0;
-      const L = liquidityAt(next > 0 ? (current + next) / 2 : current * (1 - 1e-9));
+      const L = liquidityAt(next > 0 ? (current + next) / 2 : current * (1 - BOUNDARY_EPSILON));
       const capacity = next > 0 ? L * (1 / next - 1 / current) : Infinity; // token0 this range can pay out
       const end = capacity >= remaining ? 1 / (1 / current + remaining / L) : next;
       const traded = L * (current - end); // token1 in, before the fee
@@ -158,7 +170,7 @@ function lockedShareOf(swap: any, others: Position[], locked: bigint): number {
       current = end;
     }
   }
-  return input > 0 ? lockedInput / input : lockedL / liquidityAt(Number(swap.sqrtPriceX96) / 2 ** 96);
+  return input > 0 ? lockedInput / input : lockedL / liquidityAt(Number(swap.sqrtPriceX96) / Q96);
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -262,7 +274,7 @@ const fetch = async (options: FetchOptions) => {
             ? (quoteDelta * feePips) / FEE_DENOMINATOR
             : (-quoteDelta * feePips) / (FEE_DENOMINATOR - feePips);
           const share = lockedShareOf(event, others, locked);
-          const toLocked = share >= 1 ? fee : (fee * BigInt(Math.round(share * 1e9))) / 1_000_000_000n;
+          const toLocked = share >= 1 ? fee : (fee * BigInt(Math.round(share * Number(SHARE_PRECISION)))) / SHARE_PRECISION;
           const toProtocol = (toLocked * shareBps) / BPS;
           dailyFees.add(pool.quote, fee, LABELS.swapFees);
           dailyRevenue.add(pool.quote, toProtocol, LABELS.swapToProtocol);
