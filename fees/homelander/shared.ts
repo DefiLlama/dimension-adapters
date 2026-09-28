@@ -62,7 +62,7 @@ export interface ChainSettings {
   pools: [string, string, string][];
 }
 
-export const CONFIG: Record<string, ChainSettings> = {
+export const chainConfig: Record<string, ChainSettings> = {
   [CHAIN.BASE]: {
     start: "2026-03-26",
     swapEvent: "extended",
@@ -328,10 +328,12 @@ export const CONFIG: Record<string, ChainSettings> = {
 };
 
 /** `adapter` for a SimpleAdapter: the chains it runs on and when each starts. */
-export const chainConfig = (chains: string[]): Record<string, { start: string }> =>
-  Object.fromEntries(chains.map((chain) => [chain, { start: CONFIG[chain].start }]));
+/** The chains whose pools this adapter reads swaps from. */
+export const poolChainConfig: Record<string, ChainSettings> = Object.fromEntries(
+  Object.entries(chainConfig).filter(([, settings]) => settings.pools.length > 0),
+);
 
-export const chainsWithPools = Object.keys(CONFIG).filter((chain) => CONFIG[chain].pools.length > 0);
+
 
 const swapClassicAbi =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)";
@@ -344,7 +346,7 @@ const SHARE_DENOMINATOR = 10000n;
 
 /** The protocol's weight for a capture, as it stood in the block it happened. */
 export function protocolShareBps(chain: string, distributor: string, block: number): bigint {
-  const entry = CONFIG[chain]?.distributors?.find((d) => d.address === distributor.toLowerCase());
+  const entry = chainConfig[chain]?.distributors?.find((d) => d.address === distributor.toLowerCase());
   let bps = 0n;
   for (const [from, value] of entry?.shares ?? []) {
     if (from > block) break;
@@ -377,7 +379,7 @@ export interface SwapTotals {
  * round trips as somebody's volume.
  */
 export async function collectSwaps(options: FetchOptions): Promise<SwapTotals> {
-  const settings = CONFIG[options.chain];
+  const settings = chainConfig[options.chain];
   const volume: Record<string, bigint> = {};
   const fees: Record<string, bigint> = {};
   if (!settings?.pools.length) return { volume, fees };
@@ -393,19 +395,18 @@ export async function collectSwaps(options: FetchOptions): Promise<SwapTotals> {
 
   /**
    * The rates a classic-shape pool states beside its swaps, keyed by pool and
-   * transaction and ordered by log index.
-   *
-   * They are read in one request for the whole chain rather than one per pool.
-   * Only a plugin-bearing pool emits this event, so the answer is small, and
-   * asking each pool separately would double the requests a day costs for
-   * nothing.
+   * transaction and ordered by log index. Only the configured pools are asked,
+   * never the chain at large.
    */
   const stated: Record<string, { logIndex: number; rate: bigint }[]> = {};
   if (!extended) {
-    const pools = new Set(settings.pools.map(([pool]) => pool));
-    for (const log of await options.getLogs({ noTarget: true, eventAbi: swapFeeAbi, ...logOptions })) {
+    const feeLogs = await options.getLogs({
+      targets: settings.pools.map(([pool]) => pool),
+      eventAbi: swapFeeAbi,
+      ...logOptions,
+    });
+    for (const log of feeLogs) {
       const pool = String(log.address).toLowerCase();
-      if (!pools.has(pool)) continue;
       (stated[`${pool}|${log.transactionHash}`] ??= []).push({
         logIndex: Number(log.logIndex),
         rate: big(log.args.overrideFee) + big(log.args.pluginFee),

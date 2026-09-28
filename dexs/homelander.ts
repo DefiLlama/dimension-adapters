@@ -1,5 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
-import { chainConfig, chainsWithPools, collectSwaps } from "../fees/homelander/shared";
+import { collectSwaps, poolChainConfig } from "../fees/homelander/shared";
 
 // Volume traded in the pools the Homelander plugin runs in, where the plugin
 // sets the fee on every swap and closes the price gap a swap opens inside the
@@ -22,7 +22,7 @@ const adapter: SimpleAdapter = {
   fetch,
   pullHourly: true,
   doublecounted: true,
-  adapter: chainConfig(chainsWithPools),
+  adapter: poolChainConfig,
   methodology: {
     Volume: "Swap volume of the pools the Homelander plugin runs in, measured on the pool's first token, excluding the plugin's own arbitrage legs. The pools are listed in the adapter rather than discovered on each run, so a pool opened later is counted once it is added to that list.",
   },

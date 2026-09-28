@@ -1,6 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
-import { chainConfig, collectSwaps, CONFIG, protocolShareBps, shareOf } from "./shared";
+import { chainConfig, collectSwaps, protocolShareBps, shareOf } from "./shared";
 
 // Homelander is MEV-X's yield maximization layer for AMMs: a plugin that runs
 // inside the pool. It sets the pool's fee on every swap, and when a swap moves
@@ -48,7 +48,7 @@ const LABEL = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const settings = CONFIG[options.chain];
+  const settings = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -140,7 +140,7 @@ const adapter: SimpleAdapter = {
   fetch,
   pullHourly: true,
   doublecounted: true,
-  adapter: chainConfig(Object.keys(CONFIG)),
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
 };
