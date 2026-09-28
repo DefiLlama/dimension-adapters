@@ -42,6 +42,13 @@ const DEFAULTS: any = {
   // songbird-api.flare.network, rpc.au.cc and thirdweb now answer "missing trie node" even 100 blocks back, tatum gates eth_call behind a paid plan, sgb.ftso.com.au times out
   SONGBIRD_RPC: 'https://songbird-explorer.flare.network/api/eth-rpc,https://songbird-api.flare.network/ext/C/rpc',
   SONGBIRD_ARCHIVAL_RPC: 'https://rpc.au.cc/songbird,https://songbird-explorer.flare.network/api/eth-rpc', // for getLogs: rpc.au.cc handles 5000-block ranges uncapped, blockscout proxy as fallback (caps at 1000 logs)
+  // thirdweb is the only public flare node with historical state in the sdk list: flare-api and rpc.au.cc answer "missing trie node",
+  // drpc keeps a few blocks, tatum gates eth_call behind a paid plan. The explorer eth-rpc proxy has state too but is left out on
+  // purpose: it silently truncates eth_getLogs at 1000 logs, and every _RPC entry is also a getLogs fallback
+  FLARE_RPC: 'https://flare.rpc.thirdweb.com',
+  FLARE_ARCHIVAL_RPC: 'https://rpc.au.cc/flare', // for getLogs, keeps log load off thirdweb: uncapped 5000-block ranges but recent blocks only ("not found" ~3 months back, the sdk then falls back); thirdweb caps at 1000 blocks, flare-api at 30
+  FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
+  FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
