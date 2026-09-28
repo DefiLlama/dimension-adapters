@@ -53,10 +53,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  // Returned empty on purpose rather than omitted: the plugin sets the pool's
-  // fee but takes no share of it, so nothing here is paid to the protocol by a
-  // user. A reported zero says that; a missing dimension only says that nobody
-  // measured it.
+  // What the traders themselves paid. It is the swap fee and nothing else: the
+  // captured arbitrage is taken from the price gap a swap opens, so nobody is
+  // charged for it. None of this reaches the protocol either, which is why the
+  // revenue below comes only from the capture.
   const dailyUserFees = options.createBalances();
 
   const add = (bag: any, token: string, amount: bigint, label: string) => {
@@ -71,6 +71,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const { fees } = await collectSwaps(options);
   for (const [token, amount] of Object.entries(fees)) {
     add(dailyFees, token, amount, METRIC.SWAP_FEES);
+    add(dailyUserFees, token, amount, METRIC.SWAP_FEES);
     add(dailySupplySideRevenue, token, amount, METRIC.SWAP_FEES);
   }
 
@@ -117,6 +118,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Fees: "Two things, and they are different money. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap; the plugin takes no share of that fee, so nothing of it is charged to the user on the protocol's behalf. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
+  UserFees: "The swap fee the traders paid, and only that. The captured arbitrage is taken from the price gap a swap opens rather than charged to anyone, and the plugin keeps no part of the fee it sets.",
   Revenue: "The protocol's share of the captured arbitrage, taken from the distributor's own share config as it stood at the block of each capture. Nothing of the swap fee is the protocol's, and the captures donated straight to liquidity providers leave it nothing either.",
   ProtocolRevenue: "Same as Revenue. There is no token, so nothing is distributed to holders.",
   SupplySideRevenue: "The swap fee in full, which the pool's liquidity providers and its AMM earn, plus the part of every capture that the share config pays to the pool's beneficiaries.",
@@ -127,6 +129,7 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "The fee traders paid on the pools the plugin runs in, at the rate the plugin set.",
     [METRIC.MEV_REWARDS]: "Arbitrage captured by the plugin when a swap moves the pool away from the wider market, closed out in the same transaction.",
   },
+  UserFees: { [METRIC.SWAP_FEES]: "The fee traders paid on the pools the plugin runs in, at the rate the plugin set." },
   Revenue: { [LABEL.toProtocol]: "The protocol's weight in the distributor's share config, applied to each capture." },
   ProtocolRevenue: { [LABEL.toProtocol]: "The protocol's weight in the distributor's share config, applied to each capture." },
   SupplySideRevenue: {
