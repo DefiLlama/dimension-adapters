@@ -1,4 +1,4 @@
-import { Row } from "@clickhouse/client";
+import { Row } from "../helpers/indexer";
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryClickhouse } from "../helpers/indexer";

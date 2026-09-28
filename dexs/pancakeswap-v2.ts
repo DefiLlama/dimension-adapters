@@ -5,7 +5,7 @@ import * as sdk from "@defillama/sdk";
 import { queryAllium } from "../helpers/allium";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
-import { Row } from "@clickhouse/client";
+import { Row } from "../helpers/indexer";
 
 const METRIC = {
   SWAP_FEES: 'Token Swap Fees',
@@ -149,8 +149,8 @@ const hexListSql = (arr: string[], expectedHexChars: number): string =>
 // SELECT pulls the pair address out of it.
 //
 // Address lists are inlined as literals (not Array(String) query params)
-// because @clickhouse/client serializes Array params into a single HTTP form
-// field which Poco caps at ~64KB; a few thousand entries blow past that. The
+// because the SQL client serializes Array params into a single HTTP query
+// parameter which Poco caps at ~64KB; a few thousand entries blow past that. The
 // whitelist (~2K+ tokens on BSC) is wrapped in a WITH clause so it materializes
 // once for both topic1/topic2 IN-checks. The 256KB max_query_size default is
 // lifted at the call site (via clickhouse_settings HTTP param), NOT via an
@@ -189,8 +189,8 @@ const buildSwapAggSql = (
   chainId: number,
   shortAddresses: string[],
   addresses: string[],
-  fromTs: number,
-  toTs: number,
+  fromBlock: number,
+  toBlock: number,
 ): string => `
   SELECT
     address AS pair,
@@ -202,8 +202,8 @@ const buildSwapAggSql = (
     AND short_topic0 = '${SWAP_SHORT_TOPIC0}'
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
-    AND timestamp >= toDateTime(${fromTs})
-    AND timestamp <  toDateTime(${toTs})
+    AND block_number >= ${fromBlock}
+    AND block_number <  ${toBlock}
   GROUP BY address
 `;
 
@@ -258,8 +258,8 @@ async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
       Number(options.api.chainId),
       shortAddresses,
       pairAddresses,
-      options.fromTimestamp,
-      options.toTimestamp,
+      Number(options.fromApi.block),
+      Number(options.toApi.block),
     ),
     undefined,
     chSettings,

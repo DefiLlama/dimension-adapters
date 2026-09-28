@@ -3,7 +3,7 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
-import { Row } from "@clickhouse/client";
+import { Row } from "../helpers/indexer";
 
 type Source = 'LOGS' | 'CLICKHOUSE';
 
@@ -178,8 +178,8 @@ const buildSwapAggSql = (
   chainId: number,
   shortAddresses: string[],
   addresses: string[],
-  fromTs: number,
-  toTs: number,
+  fromBlock: number,
+  toBlock: number,
 ): string => `
   SELECT
     address AS pair,
@@ -191,8 +191,8 @@ const buildSwapAggSql = (
     AND short_topic0 = '${SWAP_SHORT_TOPIC0}'
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
-    AND timestamp >= toDateTime(${fromTs})
-    AND timestamp <  toDateTime(${toTs})
+    AND block_number >= ${fromBlock}
+    AND block_number <  ${toBlock}
   GROUP BY address
 `;
 
@@ -242,7 +242,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
 
   // Step 2: aggregate per-pair Swap event amount-out for the day
   const swapRows = await queryClickhouse<SwapAggRow>(
-    buildSwapAggSql(chainId, shortAddresses, pairAddresses, options.fromTimestamp, options.toTimestamp),
+    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(options.fromApi.block), Number(options.toApi.block)),
     undefined,
     chSettings,
   );
