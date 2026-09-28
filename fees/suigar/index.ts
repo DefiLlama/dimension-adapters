@@ -43,7 +43,8 @@ function normalizeCoinType(raw: string): string {
 }
 
 interface GameEvent {
-  coin_type?: { name: string };
+  // Allium has served the TypeName both as `{ name }` and as a bare string
+  coin_type?: { name: string } | string;
   stake_amount?: string;
   outcome_amount?: string;
 }
@@ -64,8 +65,10 @@ const fetch = async (options: FetchOptions) => {
   `);
 
   for (const { parsed_json: ev } of rows) {
-    if (ev.stake_amount === undefined || ev.outcome_amount === undefined || !ev.coin_type) continue;
-    const coinType = normalizeCoinType(ev.coin_type.name);
+    if (ev.stake_amount === undefined || ev.outcome_amount === undefined) continue;
+    const rawCoinType = typeof ev.coin_type === "string" ? ev.coin_type : ev.coin_type?.name;
+    if (!rawCoinType) continue;
+    const coinType = normalizeCoinType(rawCoinType);
     const stake = Number(ev.stake_amount);
     const outcome = Number(ev.outcome_amount);
 

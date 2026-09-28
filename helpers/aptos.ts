@@ -33,12 +33,17 @@ async function getCoinSupply(coin: string): Promise<{
 }> {
     // getCoinSupply resolves the full supply (legacy CoinInfo + paired fungible asset); the
     // CoinInfo.supply field alone undercounts coins that migrated to the FA standard (e.g. USDY)
-    const [info, supply] = await Promise.all([
-        aptos.getCoinInfo({ coinType: coin }),
-        aptos.getCoinSupply({ coinType: coin }),
-    ])
+    const supply = await aptos.getCoinSupply({ coinType: coin })
+    let decimals: number
+    try {
+        decimals = (await aptos.getCoinInfo({ coinType: coin })).decimals
+    } catch (e) {
+        // some nodes answer 404 for the CoinInfo resource path; the view function is served everywhere
+        const [viewDecimals] = await aptos.view<[number | string]>({ function: '0x1::coin::decimals', typeArguments: [coin] })
+        decimals = Number(viewDecimals)
+    }
     return {
-        decimals: info.decimals,
+        decimals,
         supply: Number(supply),
     }
 }

@@ -167,6 +167,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
+    } else if (reserveFactor >= 1) {
+      // 100% reserve factor is used to deprecate/freeze reserves (e.g. superlend's insolvent reserves).
+      // The borrow index keeps growing on bad debt that will never be repaid and the treasury aTokens
+      // minted against it are unbacked, so any interest here is phantom. Skip it entirely.
+      continue
     } else {
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)

@@ -60,6 +60,7 @@ const DEFAULTS: any = {
   ARC_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   ARC_MULTICALL_CHUNK_SIZE: '50',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
+  STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
   RONIN_RPC: 'https://ronin.gateway.tenderly.co,https://gateway.tenderly.co/public/ronin',
   RSK_RPC: 'https://rootstock.blockscout.com/api/eth-rpc', // the rsk hosts in providers.json have no eth_getLogs, this blockscout proxy does
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
