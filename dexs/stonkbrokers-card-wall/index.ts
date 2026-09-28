@@ -17,15 +17,15 @@ import { ROBINHOOD_USDG, ROBINHOOD_WETH } from "../../fees/stonkbrokers/helpers"
  *     paid out of the till in $WALL (Payout);
  *   - a pull that cannot be served is refunded in kind (PullRefunded).
  *
- * Volume = pull payments net of refunds + buyback payouts, the same shape as
- * the other card gacha listings (pack purchases + buybacks). The till keeps
- * the whole ticket and the house margin settles off chain in card inventory,
- * so there is no on-chain fee split to book.
+ * Volume = pull payments net of refunds only. Buyback payouts (Payout) are
+ * house settlements, not user trading volume. The till keeps the whole ticket
+ * and the house margin settles off chain in card inventory, so there is no
+ * on-chain fee split to book.
  *
  * $WALL has no DefiLlama price feed, so $WALL legs are valued with the till's
  * own signed USD quotes: every $WALL pull states its USD price, and the
  * window's volume-weighted $WALL/USD rate from those pulls prices the $WALL
- * refunds and buyback payouts of the same window. USDG / ETH / WETH legs are
+ * refunds of the same window. USDG / ETH / WETH legs are
  * booked in kind and priced by DefiLlama.
  *
  * The till is not source-verified on Blockscout; the event signatures below
@@ -50,16 +50,13 @@ const ASSET_WALL = 0;
 const PULL_REQUESTED =
   "event PullRequested(uint256 indexed pullId, address indexed player, bytes32 indexed sku, uint8 asset, uint256 amount, uint256 usdCents, bytes32 commit)";
 const PULL_REFUNDED = "event PullRefunded(uint256 indexed pullId, uint8 asset, uint256 amount)";
-// Buyback settlement: the house pays the winner in $WALL for the card.
-const PAYOUT = "event Payout(uint256 indexed pullId, address indexed to, uint256 amount, bytes32 ref)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const [pullLogs, refundLogs, payoutLogs] = await Promise.all([
+  const [pullLogs, refundLogs] = await Promise.all([
     options.getLogs({ target: ALLEY_TILL, eventAbi: PULL_REQUESTED }),
     options.getLogs({ target: ALLEY_TILL, eventAbi: PULL_REFUNDED }),
-    options.getLogs({ target: ALLEY_TILL, eventAbi: PAYOUT }),
   ]);
 
   // Volume-weighted $WALL/USD rate from this window's $WALL pulls (each pull
@@ -91,11 +88,9 @@ const fetch = async (options: FetchOptions) => {
     else dailyVolume.addToken(token, amount);
   };
 
-  // Pull payments, net of the in-kind refunds of pulls the house could not
-  // serve, plus the $WALL buyback payouts to winners who sold the card back.
+  // Pull payments, net of the in-kind refunds of pulls the house could not serve.
   for (const log of pullLogs) addAsset(Number(log.asset), BigInt(log.amount));
   for (const log of refundLogs) addAsset(Number(log.asset), -BigInt(log.amount));
-  for (const log of payoutLogs) addWallUsd(BigInt(log.amount));
 
   return { dailyVolume };
 };
@@ -108,7 +103,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-25",
   methodology: {
     Volume:
-      "Card Wall gacha pull payments into the AlleyTill (PullRequested amount in $WALL / USDG / ETH / WETH), net of in-kind refunds (PullRefunded), plus $WALL buyback payouts to winners who sell their card back to the house (Payout). $WALL legs are valued with the till's own signed USD quotes (the window's volume-weighted $WALL/USD rate from PullRequested.usdCents); USDG / ETH / WETH legs are priced by DefiLlama.",
+      "Card Wall gacha pull payments into the AlleyTill (PullRequested amount in $WALL / USDG / ETH / WETH), net of in-kind refunds (PullRefunded). Buyback payouts (Payout) are excluded. $WALL legs are valued with the till's own signed USD quotes (the window's volume-weighted $WALL/USD rate from PullRequested.usdCents); USDG / ETH / WETH legs are priced by DefiLlama.",
   },
 };
 
