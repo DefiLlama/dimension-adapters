@@ -229,7 +229,12 @@ const fetch = async (options: FetchOptions) => {
       opened.forEach((pool: any, i: number) => {
         const feePips = BigInt(pool.fee);
         const shareBps = shareOf.get(pool.coin.toLowerCase());
-        if (shareBps === undefined) throw new Error(`Pool ${pool.pool} is for ${pool.coin}, which the factory did not launch`);
+        // A coin neither factory launched earns the protocol nothing here, so its pool is skipped
+        // rather than failing the whole hour's curve, launch and bid figures with it.
+        if (shareBps === undefined) {
+          console.warn(`outbidfun: skipping pool ${pool.pool}: its coin ${pool.coin} was not launched by a configured factory`);
+          return;
+        }
         const quoteIsToken0 = pool.quote.toLowerCase() < pool.coin.toLowerCase();
         const events = [
           ...mints[i].map((log: any) => positioned(log, "mint")),
