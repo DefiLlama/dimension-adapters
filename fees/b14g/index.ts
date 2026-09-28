@@ -101,7 +101,7 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  //pullHourly: true,
+  pullHourly: true,
   adapter: chainConfig,
   methodology: {
     Fees: "Gross yield earned by b14g Core products and Babylon rewards distributed to b14g.",
