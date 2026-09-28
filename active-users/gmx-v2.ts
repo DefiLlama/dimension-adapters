@@ -21,12 +21,14 @@
 // (Express) actions, which GMX's relay routers pay in the wrapped native token to the relay fee
 // address set in the DataStore (RELAY_FEE_ADDRESS; e.g. Arbitrum tx
 // 0x08ea4242aec49fff02efdf73f26ef44e2476a9b0bbfb9b64967fb6958d94c191). A transfer counts only when
-// its sender holds GMX's CONTROLLER role, so a stray transfer to that address is not gas. Gas of
+// its sender held GMX's CONTROLLER role, which a router needs to act, so a stray transfer to that
+// address is not gas. Gas of
 // transactions users send themselves is not included: most GMX actions are executed by keepers or
 // relayers, so the execution and relay fees are what users pay.
 //
 // Version 1: unique users per day cannot be added up from hourly counts.
 
+import { ChainApi } from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -129,18 +131,26 @@ const fetch = async (options: FetchOptions) => {
       target: wnt,
       eventAbi: TRANSFER_ABI,
       topics: [TRANSFER_TOPIC, null as any, padAddress(relayFeeAddress)],
+      onlyArgs: false,
     })
-    // Only transfers from GMX's own relay routers are relay fees. Routers are replaced over time, so a
-    // sender counts when it holds GMX's CONTROLLER role at the start or the end of the day.
-    const senders = [...new Set(relayFeeLogs.map((log: any) => String(log.from).toLowerCase()))]
-    if (senders.length) {
+    // Only transfers from GMX's own relay routers are relay fees. A router can only act while it holds GMX's
+    // CONTROLLER role, and routers are replaced over time, so a sender counts when it held that role at the
+    // block of its first or its last transfer of the day.
+    const blocksBySender: Record<string, number[]> = {}
+    relayFeeLogs.forEach((log: any) => (blocksBySender[String(log.args.from).toLowerCase()] ??= []).push(Number(log.blockNumber)))
+    if (relayFeeLogs.length) {
       const roleStore = await options.api.call({ target: dataStore, abi: 'function roleStore() view returns (address)' })
-      const hasRole = { target: roleStore, abi: 'function hasRole(address account, bytes32 roleKey) view returns (bool)', calls: senders.map((sender) => ({ params: [sender, CONTROLLER_ROLE] })) }
-      const [controllerAtStart, controllerAtEnd] = await Promise.all([options.fromApi.multiCall(hasRole), options.api.multiCall(hasRole)])
-      const routers = new Set(senders.filter((_, i) => controllerAtStart[i] || controllerAtEnd[i]))
+      const heldRole = (sender: string, block: number): Promise<boolean> => new ChainApi({ chain: options.chain, block })
+        .call({ target: roleStore, abi: 'function hasRole(address account, bytes32 roleKey) view returns (bool)', params: [sender, CONTROLLER_ROLE] })
+      const routers = new Set<string>()
+      await Promise.all(Object.entries(blocksBySender).map(async ([sender, blocks]) => {
+        const first = blocks.reduce((a, b) => Math.min(a, b))
+        const last = blocks.reduce((a, b) => Math.max(a, b))
+        if ((await heldRole(sender, first)) || (last !== first && (await heldRole(sender, last)))) routers.add(sender)
+      }))
       gasPaid += relayFeeLogs
-        .filter((log: any) => routers.has(String(log.from).toLowerCase()))
-        .reduce((sum: bigint, log: any) => sum + BigInt(log.value.toString()), 0n)
+        .filter((log: any) => routers.has(String(log.args.from).toLowerCase()))
+        .reduce((sum: bigint, log: any) => sum + BigInt(log.args.value.toString()), 0n)
     }
   }
 
