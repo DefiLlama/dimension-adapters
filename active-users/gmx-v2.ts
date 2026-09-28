@@ -135,19 +135,31 @@ const fetch = async (options: FetchOptions) => {
     })
     // Only transfers from GMX's own relay routers are relay fees. A router can only act while it holds GMX's
     // CONTROLLER role, and routers are replaced over time, so a sender counts when it held that role at the
-    // block of its first or its last transfer of the day.
+    // start or end of the day, or else at the block of its first or last transfer of the day (a role granted
+    // and revoked within the day). The first check is one call per end for all senders; the second only runs
+    // for the remaining senders, one block at a time.
     const blocksBySender: Record<string, number[]> = {}
     relayFeeLogs.forEach((log: any) => (blocksBySender[String(log.args.from).toLowerCase()] ??= []).push(Number(log.blockNumber)))
-    if (relayFeeLogs.length) {
+    const senders = Object.keys(blocksBySender)
+    if (senders.length) {
       const roleStore = await options.api.call({ target: dataStore, abi: 'function roleStore() view returns (address)' })
-      const heldRole = (sender: string, block: number): Promise<boolean> => new ChainApi({ chain: options.chain, block })
-        .call({ target: roleStore, abi: 'function hasRole(address account, bytes32 roleKey) view returns (bool)', params: [sender, CONTROLLER_ROLE] })
-      const routers = new Set<string>()
-      await Promise.all(Object.entries(blocksBySender).map(async ([sender, blocks]) => {
-        const first = blocks.reduce((a, b) => Math.min(a, b))
-        const last = blocks.reduce((a, b) => Math.max(a, b))
-        if ((await heldRole(sender, first)) || (last !== first && (await heldRole(sender, last)))) routers.add(sender)
-      }))
+      const hasRole = (api: ChainApi, accounts: string[]): Promise<boolean[]> => api.multiCall({
+        target: roleStore,
+        abi: 'function hasRole(address account, bytes32 roleKey) view returns (bool)',
+        calls: accounts.map((account) => ({ params: [account, CONTROLLER_ROLE] })),
+      })
+      const [atStart, atEnd] = await Promise.all([hasRole(options.fromApi, senders), hasRole(options.api, senders)])
+      const routers = new Set(senders.filter((_, i) => atStart[i] || atEnd[i]))
+      const sendersByBlock: Record<number, string[]> = {}
+      senders.filter((sender) => !routers.has(sender)).forEach((sender) => {
+        const blocks = blocksBySender[sender]
+        new Set([blocks.reduce((a, b) => Math.min(a, b)), blocks.reduce((a, b) => Math.max(a, b))])
+          .forEach((block) => (sendersByBlock[block] ??= []).push(sender))
+      })
+      for (const [block, accounts] of Object.entries(sendersByBlock)) {
+        const held = await hasRole(new ChainApi({ chain: options.chain, block: Number(block) }), accounts)
+        accounts.forEach((account, i) => { if (held[i]) routers.add(account) })
+      }
       gasPaid += relayFeeLogs
         .filter((log: any) => routers.has(String(log.args.from).toLowerCase()))
         .reduce((sum: bigint, log: any) => sum + BigInt(log.args.value.toString()), 0n)
