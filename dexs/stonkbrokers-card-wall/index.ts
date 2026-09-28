@@ -83,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
     if (amount === 0n) return;
     if (asset === ASSET_WALL) return addWallUsd(amount);
     const token = ASSET_TOKENS[asset];
-    if (token === undefined) return; // unknown asset enum on a newer till build
+    if (token === undefined) throw new Error(`Unknown asset enum ${asset} on a newer till build`);
     if (token === null) dailyVolume.addGasToken(amount);
     else dailyVolume.addToken(token, amount);
   };
