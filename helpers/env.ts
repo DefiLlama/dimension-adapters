@@ -26,7 +26,7 @@ const DEFAULTS: any = {
   HARMONY_RPC: 'https://explorer.harmony.one/api/eth-rpc',
   SMARTBCH_RPC: 'https://smartscout.cash//api/eth-rpc',
   HYPERLIQUID_RPC: 'https://rpc.purroofgroup.com',
-  FUSE_RPC: 'https://explorer.fuse.io/api/eth-rpc',
+  FUSE_RPC: 'https://explorer-node.fuse.io',
   SWELLCHAIN_ARCHIVAL_RPC: 'https://explorer.swellnetwork.io/api/eth-rpc',
   PULSECHAIN_ARCHIVAL_RPC: 'https://api.scan.pulsechain.com/api/eth-rpc',
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
