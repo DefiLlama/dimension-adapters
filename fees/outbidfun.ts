@@ -55,8 +55,11 @@ const LISTING_MANAGER = "0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4";
 // RevenueRouter, the listing manager's `treasury()`, where the launch fee is paid:
 // https://robinhoodchain.blockscout.com/address/0xeEc171B409788644acBf1c50B825Cc6d9682D9b7
 const REVENUE_ROUTER = "0xeEc171B409788644acBf1c50B825Cc6d9682D9b7";
-// OutbidMarket: the first (frozen since 28 September 2026, its board moved to the second) and the
-// current one. Both have history.
+// OutbidMarket, both with history (listed in DEPLOYMENTS.md above):
+// - the first, frozen since 28 September 2026, its board moved to the second:
+//   https://robinhoodchain.blockscout.com/address/0x1Eaca99186F58A258B08fd7A25524A20c31def63
+// - the current one:
+//   https://robinhoodchain.blockscout.com/address/0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A
 const OUTBID_MARKETS = ["0x1Eaca99186F58A258B08fd7A25524A20c31def63", "0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A"];
 // How RevenueRouter's RevenueReceived names native ETH.
 const ETHER = "0x0000000000000000000000000000000000000000";
@@ -260,7 +263,6 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
@@ -273,7 +275,6 @@ const methodology = {
     "The reserve-asset leg of every bonding-curve buy and sell, fees included. Swaps in graduated coins' Uniswap V3 pools are not counted.",
   Fees:
     "Bonding-curve trading fees (1%, plus the snipe tax on buys in the first seconds after launch), creators' own taxes on curve trades, swap fees in graduated coins' Uniswap V3 pools, the ETH launch fee, and the 25% of every front-page bid paid to the protocol. A reward coin's transfer fee, a token tax paid in the launched coin, is not counted.",
-  UserFees: "All fees are paid by users: traders, launchers and bidders.",
   Revenue:
     "The protocol's share of trading fees and of the swap fees earned by locked graduation liquidity (each coin's immutable protocolShareBps, 30% at launch), launch fees, and the buyback and treasury shares of bids.",
   ProtocolRevenue:
@@ -284,13 +285,6 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.tradingFees]: "The 1% trading fee on the reserve-asset leg of every curve buy and sell, plus any snipe tax (FeesCharged.fee).",
-    [LABELS.creatorTax]: "The creator's own tax on every curve trade, up to 10%, fixed at launch (FeesCharged.tax).",
-    [LABELS.swapFees]: "The fee tier of a graduated coin's Uniswap V3 pool (1%) on every swap, measured on the quote-asset leg.",
-    [LABELS.launchFees]: "The ETH fee paid to launch a coin, forwarded by the factory to the RevenueRouter.",
-    [LABELS.bidFees]: "The buyback (20%) and treasury (5%) shares of every front-page bid, in USDG (BidSettled).",
-  },
-  UserFees: {
     [LABELS.tradingFees]: "The 1% trading fee on the reserve-asset leg of every curve buy and sell, plus any snipe tax (FeesCharged.fee).",
     [LABELS.creatorTax]: "The creator's own tax on every curve trade, up to 10%, fixed at launch (FeesCharged.tax).",
     [LABELS.swapFees]: "The fee tier of a graduated coin's Uniswap V3 pool (1%) on every swap, measured on the quote-asset leg.",
