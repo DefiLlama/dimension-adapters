@@ -20,9 +20,10 @@
 // fee each keeper keeps for executing a request (KeeperExecutionFee) plus the relay fee of gasless
 // (Express) actions, which GMX's relay routers pay in the wrapped native token to the relay fee
 // address set in the DataStore (RELAY_FEE_ADDRESS; e.g. Arbitrum tx
-// 0x08ea4242aec49fff02efdf73f26ef44e2476a9b0bbfb9b64967fb6958d94c191). Gas of transactions users send
-// themselves is not included: most GMX actions are executed by keepers or relayers, so the execution
-// and relay fees are what users pay.
+// 0x08ea4242aec49fff02efdf73f26ef44e2476a9b0bbfb9b64967fb6958d94c191). A transfer counts only when
+// its sender holds GMX's CONTROLLER role, so a stray transfer to that address is not gas. Gas of
+// transactions users send themselves is not included: most GMX actions are executed by keepers or
+// relayers, so the execution and relay fees are what users pay.
 //
 // Version 1: unique users per day cannot be added up from hourly counts.
 
@@ -34,7 +35,8 @@ import { CHAIN } from "../helpers/chains";
 // counting starts on 2023-09-28, the first day every executed order carries the account.
 // MegaETH: contracts deployed 2026-01-15, first user activity 2026-01-27.
 // Botanix is left out, as in fees/gmx-v2: GMX sunset it on 2026-08-01 and the chain itself shut down.
-const config: Record<string, { eventEmitter: string; dataStore: string; start: string }> = {
+// Addresses: https://docs.gmx.io/docs/api/contracts/addresses
+const chainConfig: Record<string, { eventEmitter: string; dataStore: string; start: string }> = {
   [CHAIN.ARBITRUM]: {
     eventEmitter: '0xC8ee91A54287DB53897056e12D9819156D3822Fb',
     dataStore: '0xFD70de6b91282D8017aA4E741e9Ae325CAb992d8',
@@ -53,6 +55,8 @@ const config: Record<string, { eventEmitter: string; dataStore: string; start: s
 }
 
 const EVENT_DATA = 'tuple(tuple(tuple(string key, address value)[] items, tuple(string key, address[] value)[] arrayItems) addressItems, tuple(tuple(string key, uint256 value)[] items, tuple(string key, uint256[] value)[] arrayItems) uintItems, tuple(tuple(string key, int256 value)[] items, tuple(string key, int256[] value)[] arrayItems) intItems, tuple(tuple(string key, bool value)[] items, tuple(string key, bool[] value)[] arrayItems) boolItems, tuple(tuple(string key, bytes32 value)[] items, tuple(string key, bytes32[] value)[] arrayItems) bytes32Items, tuple(tuple(string key, bytes value)[] items, tuple(string key, bytes[] value)[] arrayItems) bytesItems, tuple(tuple(string key, string value)[] items, tuple(string key, string[] value)[] arrayItems) stringItems) eventData'
+// Each *_TOPIC is topics[0] of its event: keccak256 of the signature in the matching *_ABI below
+// (EventLog1 and EventLog2 as declared in GMX's EventEmitter.sol, and the ERC-20 Transfer event).
 const EVENT_LOG_1_TOPIC = '0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160'
 const EVENT_LOG_2_TOPIC = '0x468a25a7ba624ceea6e540ad6f49171b52495b648417ae91bca21676d8a24dc5'
 const EVENT_LOG_1_ABI = `event EventLog1(address msgSender, string eventName, string indexed eventNameHash, bytes32 indexed topic1, ${EVENT_DATA})`
@@ -62,6 +66,7 @@ const TRANSFER_ABI = 'event Transfer(address indexed from, address indexed to, u
 
 const eventNameTopic = (name: string) => ethers.keccak256(ethers.toUtf8Bytes(name))
 const dataStoreKey = (name: string) => ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['string'], [name]))
+const CONTROLLER_ROLE = dataStoreKey('CONTROLLER') // RoleStore keys use the same encoding (Role.sol)
 const padAddress = (address: string) => '0x' + address.slice(2).toLowerCase().padStart(64, '0')
 const topicToAddress = (topic: string) => '0x' + topic.slice(26).toLowerCase()
 
@@ -81,7 +86,7 @@ const addressItem = (log: any, key: string): string | undefined => {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { eventEmitter, dataStore } = config[options.chain]
+  const { eventEmitter, dataStore } = chainConfig[options.chain]
   const getEventLog = (topic: string, eventAbi: string) => (name: string) => options.getLogs({
     targets: [eventEmitter],
     topics: [topic, eventNameTopic(name)],
@@ -125,24 +130,35 @@ const fetch = async (options: FetchOptions) => {
       eventAbi: TRANSFER_ABI,
       topics: [TRANSFER_TOPIC, null as any, padAddress(relayFeeAddress)],
     })
-    gasPaid += relayFeeLogs.reduce((sum: bigint, log: any) => sum + BigInt(log.value.toString()), 0n)
+    // Only transfers from GMX's own relay routers are relay fees. Routers are replaced over time, so a
+    // sender counts when it holds GMX's CONTROLLER role at the start or the end of the day.
+    const senders = [...new Set(relayFeeLogs.map((log: any) => String(log.from).toLowerCase()))]
+    if (senders.length) {
+      const roleStore = await options.api.call({ target: dataStore, abi: 'function roleStore() view returns (address)' })
+      const hasRole = { target: roleStore, abi: 'function hasRole(address account, bytes32 roleKey) view returns (bool)', calls: senders.map((sender) => ({ params: [sender, CONTROLLER_ROLE] })) }
+      const [controllerAtStart, controllerAtEnd] = await Promise.all([options.fromApi.multiCall(hasRole), options.api.multiCall(hasRole)])
+      const routers = new Set(senders.filter((_, i) => controllerAtStart[i] || controllerAtEnd[i]))
+      gasPaid += relayFeeLogs
+        .filter((log: any) => routers.has(String(log.from).toLowerCase()))
+        .reduce((sum: bigint, log: any) => sum + BigInt(log.value.toString()), 0n)
+    }
   }
 
   return {
     dailyActiveUsers: users.size,
     dailyTransactionsCount: transactions.size,
-    dailyGasUsed: Number(gasPaid) / 1e18,
+    dailyGasUsed: Number(gasPaid) / 1e18, // wei to ETH or AVAX, both 18 decimals
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { start }])),
+  adapter: chainConfig,
   methodology: {
     ActiveUsers: "Unique wallets per day that traded (an order of theirs was executed: market, limit, take-profit, stop-loss, swap, or a liquidation or auto-deleveraging of their position) or requested a GM liquidity deposit, withdrawal or shift, the same activity GMX counts as a user on its stats page. Read from the account on EventLog2 OrderExecuted, DepositCreated, WithdrawalCreated and ShiftCreated, and from the event data of liquidity requests still emitted as EventLog1 until October 2023; liquidity requests without an execution fee are GLV vaults moving their own liquidity or the internal steps of an executed shift, and are left out.",
-    Transactions: "Transactions in which those orders were executed or those liquidity requests were made.",
-    GasUsed: "Network fees users paid after refunds, in the chain's native token: execution fees kept by keepers (KeeperExecutionFee) plus relay fees for gasless Express actions (wrapped native token sent to the relay fee address). Gas of transactions users send themselves is not included.",
+    TransactionsCount: "Transactions in which those orders were executed or those liquidity requests were made.",
+    GasUsed: "Network fees users paid after refunds, in the chain's native token: execution fees kept by keepers (KeeperExecutionFee) plus relay fees for gasless Express actions (wrapped native token sent to the relay fee address by GMX's relay routers, which hold its CONTROLLER role). Gas of transactions users send themselves is not included.",
   },
 }
 
