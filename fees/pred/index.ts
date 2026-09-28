@@ -1,93 +1,78 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
+import BigNumber from "bignumber.js";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
 
-const FEE_CONTRACT = "0x3Aa5A591f79Ae2A9790B7335fab875Bb0625A5bc";
-const USDC = ADDRESSES.base.USDC;
+// Same current and historical deployments tracked by dexs/pred/index.ts.
+// Both exchanges and cross-matching adapters emit OrderFilled for fills they execute.
+const EXCHANGES = [
+  "0x03C6c6fbdc0c719Dc878fCe24deBaBC31B2B4a27", // CTF exchange
+  "0x90B036c618196634200F0323c420C50CdBBCf07C", // Neg-risk exchange
+  "0xd3460060A8363C24babC411a11444d5d985342EF", // Cross-matching adapter
+  "0x3d6726aF35Ae695E056e6e2ebDB5c813b7d8B6CC", // Legacy neg-risk exchange
+  "0x74AD4708928628c20608F10751EaFBE391197b0F", // Legacy cross-matching adapter
+  "0xcc9D4EA7c86f2d6d67a44BC5e7A8932699ddDDa1", // Legacy neg-risk exchange v2
+  "0x7B39c530C3F2Ea4056f1a3bBa777F82bBDFB047A", // Legacy cross-matching adapter v2
+  "0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0", // Legacy neg-risk exchange v3
+  "0xC574A05e622A769e6aB14293070cDF6cADB55F98", // Legacy cross-matching adapter v3
+];
 
-const FEE_EVENT_ABI = 'event FeesCharged(address indexed payer, address indexed token, uint256 amount, uint256 pricePerShare)';
+const ORDER_FILLED_ABI = 'event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)';
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const fills = await options.getLogs({
+    targets: EXCHANGES,
+    eventAbi: ORDER_FILLED_ABI,
+  });
 
-  // 1) Capture direct USDC transfers to the fee collector (fast indexer path)
-  try {
-    const usdcReceived = await addTokensReceived({
-      options,
-      target: FEE_CONTRACT,
-      token: USDC,
-    });
-    // addTokensReceived returns a Balances object — merge into dailyFees
-    dailyFees.addBalances(usdcReceived as any);
-  } catch (e) {
-    // fallback: continue and rely on event parsing below
-    console.error('Pred: failed to read USDC transfers via indexer', (e as any)?.message);
-  }
+  // Count the fee once at execution. Transfers, FeeCharged and subsequent vault
+  // receipts describe the same fee and must not be added separately.
+  // Example: logs 185–189 record one 1.12-share fee at $0.36, worth $0.4032:
+  // https://basescan.org/tx/0xa94f0ea322e01818822d1e2d2e23fecbcdd1bb3805d5bdf7330c71d985b7ee21#eventlog
+  for (const fill of fills) {
+    const fee = new BigNumber(fill.fee.toString());
+    if (fee.isZero()) continue;
 
-  // 2) Parse protocol fee events emitted by the fee contract. When token is USDC
-  // treat `amount` as USD (1:1). For other tokens, if `pricePerShare` is emitted
-  // use it to convert token amount -> USD: usd = amount * pricePerShare / 1e18.
-  // If pricePerShare is not present, keep the raw token amount (will be priced later).
-  let feeEvents: any[] = [];
-  try {
-    feeEvents = await options.getLogs({
-      target: FEE_CONTRACT,
-      eventAbi: FEE_EVENT_ABI,
-    });
-  } catch (e) {
-    // Not fatal — some deployments may not emit this exact event signature.
-  }
-
-  for (const ev of feeEvents) {
-    const args = ev.args ?? ev;
-    const token = (args.token ?? args[1] ?? ev.token ?? ev.address)?.toLowerCase();
-    const amountRaw = args.amount ?? args[2] ?? ev.amount ?? ev.data ?? 0;
-    const pricePerShare = args.pricePerShare ?? args[3] ?? null;
-
-    // Normalize numeric value
-    const amount = Number(amountRaw || 0);
-
-    if (!token) continue;
-
-    if (token === USDC.toLowerCase()) {
-      // USDC: amount is in USDC smallest units (6 decimals). Add as USD value.
-      dailyFees.addUSDValue(amount / 1e6, 'Trading Fees');
-    } else if (pricePerShare) {
-      // pricePerShare expected to be 1e18-scaled multiplier converting token->USDC
-      const pps = Number(pricePerShare);
-      const usd = (amount * pps) / 1e18;
-      dailyFees.addUSDValue(usd, 'Trading Fees');
+    // Asset ID 0 is USDC. Fees are denominated in the asset received by
+    // the order maker (takerAssetId). USDC and outcome shares use 6 decimals.
+    let feeUsd: BigNumber;
+    if (fill.takerAssetId.toString() === '0') {
+      feeUsd = fee.dividedBy(1e6);
+    } else if (fill.makerAssetId.toString() === '0') {
+      const shares = new BigNumber(fill.takerAmountFilled.toString());
+      if (!shares.isFinite() || shares.lte(0)) throw new Error('Pred: nonzero fee on a fill with no shares');
+      // USDC paid / gross shares received gives USD per share (e.g. 0.36).
+      // Keep raw amounts precise until the final USD conversion.
+      feeUsd = fee.multipliedBy(fill.makerAmountFilled.toString()).dividedBy(shares).dividedBy(1e6);
     } else {
-      // unknown token without pricePerShare: record token amount (deferred pricing)
-      dailyFees.add(token, amount, 'Trading Fees');
+      throw new Error('Pred: cannot price a fee without a USDC side');
     }
+    if (!feeUsd.isFinite() || feeUsd.isNegative()) throw new Error('Pred: invalid fee value');
+    dailyFees.addUSDValue(feeUsd.toNumber(), 'Trading Fees');
   }
-
-  const dailyRevenue = dailyFees.clone ? dailyFees.clone(1, 'Trading Fees') : dailyFees;
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees.clone(),
+    dailyProtocolRevenue: dailyFees.clone(),
   };
 };
 
 const methodology = {
-  Fees: "Trading fees paid by users on Pred prediction-market trades on Base.",
+  Fees: "Trading fees paid by users on Pred prediction-market trades on Base, valued at execution prices; excludes later transfers and redemptions of collected fees.",
   Revenue: "All recorded on-chain trade fees accrue to the protocol for the current deployment.",
   ProtocolRevenue: "All recorded on-chain trade fees accrue to the protocol for the current deployment.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Trading Fees": "Trade fees charged by Pred on each order fill on the Base exchange contracts.",
+    "Trading Fees": "Fees recorded once per order fill on Pred exchanges and cross-matching adapters; USDC is valued at $1 and outcome-token fees at the fill price.",
   },
   Revenue: {
-    "Trading Fees": "Trade fees charged by Pred on each order fill on the Base exchange contracts.",
+    "Trading Fees": "Fees recorded once per order fill on Pred exchanges and cross-matching adapters; USDC is valued at $1 and outcome-token fees at the fill price.",
   },
   ProtocolRevenue: {
-    "Trading Fees": "Trade fees charged by Pred on each order fill on the Base exchange contracts.",
+    "Trading Fees": "Fees recorded once per order fill on Pred exchanges and cross-matching adapters; USDC is valued at $1 and outcome-token fees at the fill price.",
   },
 };
 
