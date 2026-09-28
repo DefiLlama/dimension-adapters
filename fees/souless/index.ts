@@ -4,8 +4,11 @@ import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics';
 
 const USDC = ADDRESSES.arc.USDC;
+// https://explorer.arc.io/address/0xf4A46363CAC72e839823B96EE7832B6CBE683D0E
 const LAUNCH_FEE_VAULT = '0xf4A46363CAC72e839823B96EE7832B6CBE683D0E';
+// https://explorer.arc.io/address/0x56cb8D3549cdD2E67E79d9Df3229F3A52C82Df03
 const OPENING_FEE_VAULT = '0x56cb8D3549cdD2E67E79d9Df3229F3A52C82Df03';
+// https://explorer.arc.io/address/0x0C8C98B7976E114fea895e827182B5dA0b3B9dcc
 const FEE_DISPATCHER = '0x0C8C98B7976E114fea895e827182B5dA0b3B9dcc';
 
 const LAUNCH_FEE = 'Launch Fees';
