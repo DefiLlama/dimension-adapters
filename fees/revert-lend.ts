@@ -26,20 +26,66 @@ import { METRIC } from "../helpers/metrics";
  *     protocolRevenue     = grossBorrowInterest > supplyInterest ? grossBorrowInterest - supplyInterest : 0n
  *   The protocol portion is retained in vault reserves via reserveFactorX32 (InterestRateModel.sol#L75).
  * - Liquidations (V3Vault.sol#L797-L807, _calculateLiquidation#L1176-L1216):
- *     Liquidate event parameters: value (collateral asset value), cost (debt repaid by liquidator).
- *     Liquidation penalty = (value > cost) ? (value - cost) : 0n.
- *     The penalty represents the liquidation bonus paid by the liquidated borrower directly to the liquidator.
+ *     Liquidate event parameters: value (position full collateral value), cost (debt repaid by liquidator),
+ *     reserve (bad debt covered by vault reserves).
+ *     The liquidator receives collateral worth `liquidationValue` (from _calculateLiquidation) and pays `cost`.
+ *     Liquidation bonus = liquidationValue > cost ? liquidationValue - cost : 0n.
+ *     Protocol reserves used to cover bad debt (`reserve`) are excluded from liquidator fees.
  * - Revenue Attribution (GAAP Invariant: dailyFees == dailySupplySideRevenue + dailyRevenue):
- *     dailyFees: supplyInterest (BORROW_INTEREST) + protocolRevenue (PROTOCOL_FEES) + liquidationPenalty (LIQUIDATION_FEES)
+ *     dailyFees: supplyInterest (BORROW_INTEREST) + protocolRevenue (Borrow Interest To Reserves) + liquidationPenalty (LIQUIDATION_FEES)
  *     dailySupplySideRevenue: supplyInterest (BORROW_INTEREST) + liquidationPenalty (LIQUIDATION_FEES)
- *     dailyRevenue: protocolRevenue (PROTOCOL_FEES)
+ *     dailyRevenue: protocolRevenue (Borrow Interest To Reserves)
  *     dailyProtocolRevenue: dailyRevenue
  *     dailyHoldersRevenue: 0 (Revert Lend has no staked token dividend distribution; reserves remain in vault).
  */
 
-// Q96 fixed-point constant used across Uniswap V3 and Revert Lend (2^96)
-// Reference: V3Vault.sol#L120-L122, V3Vault.sol#L1389
+// Q-format fixed-point constants used in Revert Lend (V3Vault.sol)
+const Q32 = 2n ** 32n;
 const Q96 = 2n ** 96n;
+const MIN_LIQUIDATION_PENALTY_X32 = (Q32 * 2n) / 100n; // 2% (V3Vault.sol#L36)
+const MAX_LIQUIDATION_PENALTY_X32 = (Q32 * 10n) / 100n; // 10% (V3Vault.sol#L37)
+const DEFAULT_COLLATERAL_FACTOR_X32 = (Q32 * 80n) / 100n; // ~80% average collateral factor across accepted assets
+
+const BORROW_INTEREST_TO_RESERVES = "Borrow Interest To Reserves";
+
+/**
+ * Calculates liquidationValue according to V3Vault.sol#_calculateLiquidation (lines 1176-1216).
+ *
+ * In V3Vault.sol:
+ * - Liquidate event emits:
+ *     value: state.fullValue (entire position collateral value, NOT what liquidator receives)
+ *     cost: state.liquidatorCost (debt repaid by liquidator in asset units)
+ *     reserve: state.reserveCost (bad debt absorbed by vault reserves)
+ * - The liquidator receives collateral worth liquidationValue and pays liquidatorCost.
+ * - If fullValue >= maxPenaltyValue:
+ *     liquidationValue scales linearly between debt * 1.02 and debt * 1.10 based on
+ *     penaltyFractionX96, or caps at maxPenaltyValue.
+ * - If fullValue < maxPenaltyValue:
+ *     liquidationValue = fullValue; liquidatorCost = fullValue - penalty (or 0).
+ *
+ * Liquidator net bonus = liquidationValue > cost ? liquidationValue - cost : 0n.
+ * Reserve (bad debt covered by protocol reserves) is not included in liquidator fees.
+ */
+function calculateLiquidationValue(debt: bigint, fullValue: bigint, collateralValue: bigint): bigint {
+  const maxPenaltyValue = (debt * (Q32 + MAX_LIQUIDATION_PENALTY_X32)) / Q32;
+
+  if (fullValue >= maxPenaltyValue) {
+    if (collateralValue !== 0n && fullValue > maxPenaltyValue) {
+      const startLiquidationValue = (debt * fullValue) / collateralValue;
+      if (startLiquidationValue > maxPenaltyValue && fullValue <= startLiquidationValue) {
+        const penaltyFractionX96 =
+          Q96 - ((fullValue - maxPenaltyValue) * Q96) / (startLiquidationValue - maxPenaltyValue);
+        const penaltyX32 =
+          MIN_LIQUIDATION_PENALTY_X32 +
+          ((MAX_LIQUIDATION_PENALTY_X32 - MIN_LIQUIDATION_PENALTY_X32) * penaltyFractionX96) / Q96;
+        return (debt * (Q32 + penaltyX32)) / Q32;
+      }
+    }
+    return maxPenaltyValue;
+  }
+
+  return fullValue;
+}
 
 // Deployed V3Vault contracts across chains
 // Reference: https://github.com/revert-finance/vault-graph/blob/main/networks.json
@@ -63,6 +109,8 @@ const TOTAL_SUPPLY_ABI = 'uint256:totalSupply';
 const ASSET_ABI = 'address:asset';
 const LIQUIDATE_EVENT_ABI =
   'event Liquidate(uint256 indexed tokenId, address liquidator, address owner, uint256 value, uint256 cost, uint256 amount0, uint256 amount1, uint256 reserve, uint256 missing)';
+const LOAN_INFO_ABI =
+  'function loanInfo(uint256 tokenId) view returns (uint256 debt, uint256 fullValue, uint256 collateralValue, uint256 liquidationCost, uint256 liquidationValue)';
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -111,18 +159,20 @@ const fetch = async (options: FetchOptions) => {
     const fromLendRate = BigInt(fromInfo.lendExchangeRateX96 ?? fromInfo[5] ?? 0);
 
     // Gross borrow interest owed by borrowers: (debtSharesTotal * Delta_debtExchangeRateX96) / Q96
+    // Uses start-of-window shares (fromDebtShares) representing active borrowed principal
     let grossBorrowInterest = 0n;
     if (toDebtRate > fromDebtRate && fromDebtRate > 0n) {
       const debtRateDelta = toDebtRate - fromDebtRate;
-      const debtShares = BigInt(toDebtShares[i] || 0);
+      const debtShares = BigInt(fromDebtShares[i] ?? toDebtShares[i] ?? 0);
       grossBorrowInterest = (debtShares * debtRateDelta) / Q96;
     }
 
     // Supply interest earned by lenders/depositors: (totalSupply * Delta_lendExchangeRateX96) / Q96
+    // Uses start-of-window shares (fromTotalSupplies) representing deposited capital
     let supplyInterest = 0n;
     if (toLendRate > fromLendRate && fromLendRate > 0n) {
       const lendRateDelta = toLendRate - fromLendRate;
-      const supplyShares = BigInt(toTotalSupplies[i] || 0);
+      const supplyShares = BigInt(fromTotalSupplies[i] ?? toTotalSupplies[i] ?? 0);
       supplyInterest = (supplyShares * lendRateDelta) / Q96;
     }
 
@@ -139,22 +189,63 @@ const fetch = async (options: FetchOptions) => {
 
     // 1:1 Breakdown Parity: protocolInterestRevenue split into dailyFees and dailyRevenue
     if (protocolInterestRevenue > 0n) {
-      dailyFees.add(asset, protocolInterestRevenue, METRIC.PROTOCOL_FEES);
-      dailyRevenue.add(asset, protocolInterestRevenue, METRIC.PROTOCOL_FEES);
+      dailyFees.add(asset, protocolInterestRevenue, BORROW_INTEREST_TO_RESERVES);
+      dailyRevenue.add(asset, protocolInterestRevenue, BORROW_INTEREST_TO_RESERVES);
     }
 
     // 4. Query on-chain liquidation events during the period
-    // In V3Vault.sol#L797, value is total position value seized, cost is debt repaid by liquidator.
-    // Penalty = value - cost is the liquidation bonus earned by the liquidator.
+    // In V3Vault.sol#L797, value is total position value, cost is debt repaid by liquidator,
+    // and reserve is bad debt covered by vault reserves.
+    // Liquidator receives liquidationValue (V3Vault.sol#_calculateLiquidation) and pays cost.
+    // Liquidator bonus = liquidationValue - cost (excluding reserve).
     const liquidationLogs = await options.getLogs({
       target: vault,
       eventAbi: LIQUIDATE_EVENT_ABI,
     });
 
     for (const log of liquidationLogs) {
-      const value = BigInt(log.value || 0);
+      const fullValue = BigInt(log.value || 0);
       const cost = BigInt(log.cost || 0);
-      const liquidationPenalty = value > cost ? value - cost : 0n;
+      const reserve = BigInt(log.reserve || 0);
+      const tokenId = log.tokenId;
+      const blockNumber = log.blockNumber;
+
+      // Total debt repaid or covered = liquidatorCost + reserveCost
+      const debt = cost + reserve;
+      if (debt === 0n) continue;
+
+      let liquidationValue = 0n;
+      let liquidationCost = cost;
+
+      // 1. Attempt exact historical contract call at blockNumber - 1 if available
+      if (tokenId !== undefined && blockNumber !== undefined && blockNumber > 0) {
+        try {
+          const info = await options.api.call({
+            target: vault,
+            abi: LOAN_INFO_ABI,
+            params: [tokenId],
+            block: blockNumber - 1,
+          });
+          if (info && info.liquidationValue) {
+            liquidationValue = BigInt(info.liquidationValue);
+            liquidationCost = BigInt(info.liquidationCost);
+          }
+        } catch {
+          // If archive call fails, fall back to pure contract math
+        }
+      }
+
+      // 2. Mathematical calculation matching V3Vault.sol#_calculateLiquidation
+      if (liquidationValue === 0n) {
+        const collateralValue = (fullValue * DEFAULT_COLLATERAL_FACTOR_X32) / Q32;
+        const effectiveCollateralValue =
+          collateralValue > 0n && collateralValue <= debt ? collateralValue : debt;
+        liquidationValue = calculateLiquidationValue(debt, fullValue, effectiveCollateralValue);
+        liquidationCost = cost;
+      }
+
+      const liquidationPenalty =
+        liquidationValue > liquidationCost ? liquidationValue - liquidationCost : 0n;
 
       if (liquidationPenalty > 0n) {
         dailyFees.add(asset, liquidationPenalty, METRIC.LIQUIDATION_FEES);
@@ -184,14 +275,14 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: "Interest accrued by borrowers that is distributed to lenders via share price appreciation.",
-    [METRIC.PROTOCOL_FEES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
+    [BORROW_INTEREST_TO_RESERVES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
     [METRIC.LIQUIDATION_FEES]: "Liquidation bonuses paid by liquidated borrowers.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
+    [BORROW_INTEREST_TO_RESERVES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
+    [BORROW_INTEREST_TO_RESERVES]: "Protocol reserve factor portion of borrow interest retained by the vault reserves.",
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: "Interest earned by depositors/lenders via lend exchange rate appreciation.",
@@ -209,7 +300,7 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.ARBITRUM]: {
       fetch,
-      start: '2024-08-08',
+      start: '2024-08-07',
     },
     [CHAIN.BASE]: {
       fetch,
