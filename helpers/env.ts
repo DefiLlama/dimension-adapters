@@ -38,7 +38,9 @@ const DEFAULTS: any = {
   BITKUB_RPC_GET_LOGS_CONCURRENCY_LIMIT: '3',
   XDC_RPC: 'https://rpc.xdc.network,https://rpc.ankr.com/xdc', // xinfin.network endpoints 403, rpc.xdc.org stale ~2 months, xdcrpc.com load-balances onto stale/rate-limited backends
   XDC_ARCHIVAL_RPC: 'https://rpc.xdc.network', // archival + answers eth_getLogs over 5000 blocks
-  SONGBIRD_RPC: 'https://songbird-api.flare.network/ext/C/rpc', // archival state, but caps eth_getLogs at 30 blocks; default first entry sgb.ftso.com.au is broken
+  // blockscout proxy first: it is the only public endpoint still serving historical state (eth_call at a past block).
+  // songbird-api.flare.network, rpc.au.cc and thirdweb now answer "missing trie node" even 100 blocks back, tatum gates eth_call behind a paid plan, sgb.ftso.com.au times out
+  SONGBIRD_RPC: 'https://songbird-explorer.flare.network/api/eth-rpc,https://songbird-api.flare.network/ext/C/rpc',
   SONGBIRD_ARCHIVAL_RPC: 'https://rpc.au.cc/songbird,https://songbird-explorer.flare.network/api/eth-rpc', // for getLogs: rpc.au.cc handles 5000-block ranges uncapped, blockscout proxy as fallback (caps at 1000 logs)
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
