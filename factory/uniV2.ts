@@ -629,7 +629,7 @@ const configs: Record<string, Record<string, any>> = {
   },
   "enosys-v2": {
     [CHAIN.FLARE]: { factory: '0x28b70f6Ed97429E40FE9a9CD3EB8E86BCBA11dd4', start: '2023-09-05', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
-    [CHAIN.SONGBIRD]: { factory: '0x7a39408809441814469A8Fb3F5CFea1aA2774fB6', start: '2021-11-19', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    //[CHAIN.SONGBIRD]: { factory: '0x7a39408809441814469A8Fb3F5CFea1aA2774fB6', start: '2021-11-19', userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
   "fenix-finance": {
     [CHAIN.BLAST]: { factory: '0xa19c51d91891d3df7c13ed22a2f89d328a82950f', fees: 0.001, stableFees: 0.0003, userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
