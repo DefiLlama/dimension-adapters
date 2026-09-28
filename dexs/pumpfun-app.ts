@@ -5,8 +5,8 @@ import { queryDuneSql } from "../helpers/dune";
 
 // Pump.fun app (interface listing). Solana: pump.fun bonding-curve + PumpSwap trades in
 // transactions invoking the app program (the web app never touches it). EVM: the app trades EVM
-// tokens from the user's Solana balance through Relay; those requests are attributed by their
-// Solana wallet having used the app program in the trailing 30 days.
+// tokens from the user's Solana balance through Relay; a request is attributed when its Solana
+// wallet used the app program before it, within the previous 30 days.
 const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 const RELAY_SOLANA_ID = 792703809 // Relay's chain id for Solana
 const SOLANA_NATIVE = '11111111111111111111111111111111' // Relay's token address for native SOL
@@ -45,16 +45,16 @@ const prefetch = async (options: FetchOptions) => {
           AND TIME_RANGE
     ),
     app_wallets AS (
-        SELECT DISTINCT tx_signer AS wallet
+        SELECT tx_signer AS wallet, MIN(block_time) AS first_use
         FROM solana.instruction_calls
         WHERE executing_account = '${APP_PROGRAM}'
           AND tx_success
           AND block_time >= from_unixtime(${start}) - INTERVAL '30' DAY
           AND block_time < from_unixtime(${end})
+        GROUP BY 1
     ),
     solana_leg AS (
-        SELECT ${RELAY_SOLANA_ID} AS chain_id, SUM(tr.amount_usd) AS volume,
-            to_unixtime(MAX(tr.block_time)) AS last_time, 0 AS unpriced
+        SELECT ${RELAY_SOLANA_ID} AS chain_id, SUM(tr.amount_usd) AS volume, 0 AS unpriced
         FROM dex_solana.trades tr
         JOIN app_tx a ON tr.tx_id = a.tx_id
         WHERE tr.project IN ('pumpdotfun', 'pumpswap')
@@ -95,7 +95,7 @@ const prefetch = async (options: FetchOptions) => {
             CASE WHEN r.solana_token IN ('${SOLANA_NATIVE}', '${ADDRESSES.solana.SOL}') THEN r.amount / 1e9 * p.price
                  ELSE r.amount / 1e6 END AS volume_usd
         FROM relay_requests r
-        JOIN app_wallets w ON r.wallet = w.wallet
+        JOIN app_wallets w ON r.wallet = w.wallet AND w.first_use <= r.created_at
         LEFT JOIN sol_price p ON p.hour = date_trunc('hour', r.created_at)
         WHERE r.chain_id IN (${evmChainIds})
           AND r.solana_token IN ('${SOLANA_NATIVE}', '${ADDRESSES.solana.SOL}', '${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.USDT}')
@@ -103,21 +103,37 @@ const prefetch = async (options: FetchOptions) => {
             r.solana_token IN ('${ADDRESSES.solana.USDC}', '${ADDRESSES.solana.USDT}')
             AND (r.evm_token IN (${EVM_STABLES}) OR (r.chain_id = 5042 AND r.evm_token = '${ADDRESSES.null}'))
           )
+    ),
+    -- source freshness from all rows in the last hour of the window, independent of app activity
+    freshness AS (
+        SELECT
+            (SELECT to_unixtime(MAX(block_time)) FROM dex_solana.trades
+             WHERE project IN ('pumpdotfun', 'pumpswap')
+               AND block_month = date_trunc('month', from_unixtime(${end}) - INTERVAL '1' HOUR)
+               AND block_time >= from_unixtime(${end}) - INTERVAL '1' HOUR
+               AND block_time < from_unixtime(${end})) AS solana_last,
+            (SELECT to_unixtime(MAX(created_at)) FROM relay.request
+             WHERE date = date(from_unixtime(${end}) - INTERVAL '1' HOUR)
+               AND created_at >= from_unixtime(${end}) - INTERVAL '1' HOUR
+               AND created_at < from_unixtime(${end})) AS relay_last
+    ),
+    legs AS (
+        SELECT chain_id, volume, unpriced FROM solana_leg
+        UNION ALL
+        SELECT chain_id, SUM(volume_usd) AS volume, COUNT_IF(volume_usd IS NULL) AS unpriced
+        FROM relay_swaps
+        GROUP BY 1
     )
-    SELECT chain_id, volume, last_time, unpriced FROM solana_leg
-    UNION ALL
-    SELECT chain_id, SUM(volume_usd) AS volume, to_unixtime(MAX(created_at)) AS last_time, COUNT_IF(volume_usd IS NULL) AS unpriced
-    FROM relay_swaps
-    GROUP BY 1
+    SELECT l.chain_id, l.volume, l.unpriced, f.solana_last, f.relay_last
+    FROM legs l
+    CROSS JOIN freshness f
   `)
 
-  // throw until every source is indexed through the window
-  const solanaRow = rows.find((r: any) => Number(r.chain_id) === RELAY_SOLANA_ID)
-  const relayLast = Math.max(0, ...rows.filter((r: any) => Number(r.chain_id) !== RELAY_SOLANA_ID).map((r: any) => Number(r.last_time)))
-  const lastSeen = { 'pump.fun app trades': Number(solanaRow?.last_time ?? 0), 'relay.request': relayLast }
-  for (const [source, last] of Object.entries(lastSeen)) {
+  // solana_leg always returns one row, so rows[0] carries the freshness columns
+  const { solana_last, relay_last } = rows[0]
+  for (const [source, last] of Object.entries({ 'dex_solana.trades': Number(solana_last ?? 0), 'relay.request': Number(relay_last ?? 0) })) {
     if (last < end - MAX_INDEX_GAP)
-      throw new Error(`pumpfun-app: ${source} indexed only up to ${new Date(last * 1000).toISOString()}, window ends ${new Date(end * 1000).toISOString()}`)
+      throw new Error(`pumpfun-app: ${source} not indexed through ${new Date(end * 1000).toISOString()} (last row ${last ? new Date(last * 1000).toISOString() : 'none in the final hour'})`)
   }
   const unpriced = rows.reduce((sum: number, r: any) => sum + Number(r.unpriced), 0)
   if (unpriced > 0) throw new Error(`pumpfun-app: ${unpriced} Relay swaps without a SOL price`)
@@ -128,7 +144,6 @@ const prefetch = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions) => {
   const { relayChainId } = chainConfig[options.chain]
   const row = options.preFetchedResults.find((r: any) => Number(r.chain_id) === relayChainId)
-  if (relayChainId === RELAY_SOLANA_ID && row?.volume == null) throw new Error('pumpfun-app: no Solana app volume')
   return { dailyVolume: row?.volume ?? 0 }
 }
 
