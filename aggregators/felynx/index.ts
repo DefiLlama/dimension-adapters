@@ -3,10 +3,14 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 // Felynx (https://felynx.xyz), a DEX aggregator on Flare that splits and hops swaps across SparkDEX, Enosys, BlazeSwap
-// and Sceptre. FelynxRouter is ownerless and verified on the Flare explorer; every swap emits Swapped.
+// and Sceptre. FelynxRouter is ownerless and verified on the Flare explorer; every swap emits Swapped. v2 (28 Sep 2026)
+// is the same verified code as v1 with a higher fee cap; both are read.
 // amountIn is the full input and includes the Felynx fee; the fee is taken in the input token and sent to the treasury.
 // A swap paid in native FLR is recorded with tokenIn = WFLR.
-const ROUTER = "0xF4b35163F9d63800e708e262cE10dF67eFCf3073";
+const ROUTERS = [
+  "0xF4b35163F9d63800e708e262cE10dF67eFCf3073", // FelynxRouter v1
+  "0x06dC3Dc709fB3C593Fd38782237Ed36225d1Df31", // FelynxRouter v2
+];
 
 const swappedEvent =
   "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, address recipient, address ref)";
@@ -16,7 +20,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  const logs = await options.getLogs({ target: ROUTER, eventAbi: swappedEvent });
+  const logs = await options.getLogs({ targets: ROUTERS, eventAbi: swappedEvent });
 
   for (const log of logs) {
     dailyVolume.add(log.tokenIn, log.amountIn);
@@ -28,8 +32,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Volume is the input amount of every swap, from the Swapped events emitted by the FelynxRouter contract.",
-  Fees: "Fees are tracked from the fee field in Swapped events, denominated in the input token. A swap is free unless its route beats the best single DEX by at least 0.1%; the fee is then a share of that improvement, capped at 0.15% (0.05% between stablecoins).",
+  Volume: "Volume is the input amount of every swap, from the Swapped events emitted by the FelynxRouter contracts (v1 and v2).",
+  Fees: "Fees are tracked from the fee field in Swapped events, denominated in the input token. A swap is free unless its route beats the best single DEX by at least 0.1%, counted after gas; the fee is then at most 0.5% (0.05% between stablecoins; 0.15% on router v1).",
   Revenue: "All swap fees go to the Felynx treasury.",
   ProtocolRevenue: "All swap fees go to the Felynx treasury.",
 };
