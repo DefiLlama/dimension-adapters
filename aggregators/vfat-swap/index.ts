@@ -351,7 +351,10 @@ const fetch = async (options: FetchOptions) => {
       targets: legacyRouters,
       eventAbi: LEGACY_MULTI_SWAP_EVENT,
     });
-    for (const log of legacyLogs) addVolume(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut);
+    for (const log of legacyLogs) {
+      if (log.sender.toLowerCase() === FEE_COLLECTOR) continue;
+      addVolume(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut);
+    }
   }
 
   for (const log of logs) {
