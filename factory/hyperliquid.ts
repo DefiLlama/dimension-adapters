@@ -1,8 +1,8 @@
-import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type HyperliquidMarket } from "../helpers/hyperliquid";
+import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type BuilderAddressConfig, type HyperliquidMarket } from "../helpers/hyperliquid";
 import { createFactoryExports } from "./registry";
 
 interface BuilderConfig {
-  addresses: string[];
+  addresses: BuilderAddressConfig[];
   start?: string;
   deadFrom?: string;
   methodology?: any;
@@ -126,8 +126,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
   },
   "hypersight": {
-    addresses: ["0xc9200c6d0e876d5f63c76618f2c57e5d6a080927"],
-    start: "2026-07-01",
+    // The builder code moved to a dedicated wallet on 2026-06-30.
+    addresses: [
+      { address: "0x9bdf1a9a2e8b5353d19b2e4978e32d9873da1552", end: "2026-06-30" },
+      { address: "0xc9200c6d0e876d5f63c76618f2c57e5d6a080927", start: "2026-07-01" },
+    ],
+    start: "2026-06-01",
     methodology: {
       Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Liquary (formerly Hypersight).",
       Fees: "Builder code fees paid by users on trades executed through Liquary (0.05% on perps and on HIP-4 prediction-market closes).",
