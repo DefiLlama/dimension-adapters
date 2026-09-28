@@ -28,9 +28,9 @@
  * receiver inside the venue router's swap call. An ERC-20 Transfer records the token
  * owner, so that transfer's `from` is the MAKER, not the registry — a plain `from`
  * allowlist cannot express this. Instead each candidate transfer to the receiver is
- * correlated with the Aqua `Pulled` event of the same transaction (app = router, same
- * token, same maker). A third party sending a token to the receiver emits no such
- * pull, so it is not counted.
+ * correlated 1:1 with an Aqua `Pulled` event (app = router, same tx, token, maker
+ * and amount). Each pull is consumed, so it cannot count a second transfer. A third
+ * party sending a token to the receiver emits no such pull, so it is not counted.
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -108,7 +108,7 @@ async function fetch(options: FetchOptions) {
 
   // 1) Candidate legs: token transfers addressed to the fee receiver.
   const toTopic = topic(FEE_RECEIVER);
-  const candidates: { token: string; from: string; amount: bigint; tx: string }[] = [];
+  const candidates: { token: string; from: string; amount: bigint; tx: string; index: number }[] = [];
   for (const token of tokens) {
     const logs = await options.getLogs({
       target: token,
@@ -120,10 +120,11 @@ async function fetch(options: FetchOptions) {
     for (const log of logs) {
       const a = log.args ?? log;
       candidates.push({
-        token,
+        token: lower(token),
         from: lower(a.from),
-        amount: a.amount,
+        amount: BigInt(a.amount),
         tx: txHashOf(log),
+        index: Number(log.logIndex ?? log.log_index ?? 0),
       });
     }
   }
@@ -131,10 +132,10 @@ async function fetch(options: FetchOptions) {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
   }
 
-  // 2) A genuine fee leg is the Aqua registry pulling tokenIn from the maker to the
-  // receiver inside the router. Keep only candidates with a matching `Pulled`
-  // (same tx, same token, same maker; app = router). This is what excludes a plain
-  // donation to the receiver, which has no matching pull.
+  // 2) A genuine fee leg is one Aqua `Pulled` (app = router) matched to exactly one
+  // transfer to the receiver. Match on tx, token, maker and amount, in log order, and
+  // consume the pull. A Set of tx|token|maker would let one pull count every transfer
+  // in that transaction. A donation has no matching pull, so it still drops out.
   const pulls = await options.getLogs({
     target: AQUA_REGISTRY,
     eventAbi: PULLED_EVENT,
@@ -142,16 +143,27 @@ async function fetch(options: FetchOptions) {
     entireLog: true,
     parseLog: true,
   });
-  const genuine = new Set<string>();
+  const available: { tx: string; token: string; maker: string; amount: bigint; index: number }[] = [];
   for (const log of pulls) {
     const a = log.args ?? log;
     if (lower(a.app) !== ROUTER) continue;
-    genuine.add(`${txHashOf(log)}|${lower(a.token)}|${lower(a.maker)}`);
+    available.push({
+      tx: txHashOf(log),
+      token: lower(a.token),
+      maker: lower(a.maker),
+      amount: BigInt(a.amount),
+      index: Number(log.logIndex ?? log.log_index ?? 0),
+    });
   }
+  available.sort((x, y) => x.index - y.index);
+  candidates.sort((x, y) => x.index - y.index);
   for (const c of candidates) {
-    if (genuine.has(`${c.tx}|${c.token}|${c.from}`)) {
-      dailyFees.add(c.token, c.amount, METRIC.TRADING_FEES);
-    }
+    const i = available.findIndex(
+      (p) => p.tx === c.tx && p.token === c.token && p.maker === c.from && p.amount === c.amount,
+    );
+    if (i < 0) continue;
+    available.splice(i, 1);
+    dailyFees.add(c.token, c.amount, METRIC.TRADING_FEES);
   }
 
   // TRDEFI keeps the whole fee. There is no supplier or holder share, so the collected
