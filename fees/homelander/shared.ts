@@ -328,11 +328,6 @@ export const chainConfig: Record<string, ChainSettings> = {
 };
 
 /** `adapter` for a SimpleAdapter: the chains it runs on and when each starts. */
-/** The chains whose pools this adapter reads swaps from. */
-export const poolChainConfig: Record<string, ChainSettings> = Object.fromEntries(
-  Object.entries(chainConfig).filter(([, settings]) => settings.pools.length > 0),
-);
-
 
 
 const swapClassicAbi =
