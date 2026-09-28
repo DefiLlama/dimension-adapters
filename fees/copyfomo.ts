@@ -28,6 +28,7 @@ const TREASURY_INFLOW = "Treasury inflow";
 const COPY_CREATOR_FEES = "$COPY creator fees";
 const REFERRAL_REWARDS = "Referral rewards";
 const BUNDLER_GAS_COST = "Bundler gas cost";
+const SOLANA_FEE_PAYER_COST = "Solana fee payer cost";
 const BUYBACK_AND_BURN = "Buyback & burn";
 
 const fetch = async (options: FetchOptions) => {
@@ -45,7 +46,8 @@ const fetch = async (options: FetchOptions) => {
     // swap, accrued for copyfomo and claimed later from the launchpad's fee escrow
     dailyFees.addUSDValue(Number(row.creator_usd) || 0, COPY_CREATOR_FEES);
     dailySupplySideRevenue.addUSDValue(Number(row.referral_usd) || 0, REFERRAL_REWARDS);
-    dailySupplySideRevenue.addUSDValue(Number(row.gas_usd) || 0, BUNDLER_GAS_COST);
+    // EVM: gas of the bundler wallets; Solana: SOL spent by the fee payer (fees and rent)
+    dailySupplySideRevenue.addUSDValue(Number(row.gas_usd) || 0, row.chain === "solana" ? SOLANA_FEE_PAYER_COST : BUNDLER_GAS_COST);
     // part of the creator fees is spent buying $COPY that is burned: holders' share
     dailyHoldersRevenue.addUSDValue(Number(row.buyback_usd) || 0, BUYBACK_AND_BURN);
   }
@@ -68,8 +70,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything traders pay copyfomo on every copied buy and sell (a 2% service fee plus the gas copyfomo fronts for them, billed back as one stablecoin transfer to the copyfomo treasury, counted on the day the fee is collected), plus the creator fees of the copyfomo token $COPY: the Pons launchpad hook takes 3% of every swap of the COPY/COIN pool on Robinhood Chain, of which 2.7% goes to the creator (1% hook fee, 70% to the creator, plus a 2% creator tax). Counted on the day of the trade, valued at the hourly COIN price. The fees are swept into COIN by Pons and claimed by copyfomo in batches later; the claims are not what is counted.",
   UserFees: "The part paid by copyfomo users: service fee plus gas billed back. Excludes the $COPY creator fees, which are paid by $COPY traders.",
-  SupplySideRevenue: "Referral rewards paid back to copyfomo users, plus the actual on-chain gas cost copyfomo pays on their behalf.",
-  Revenue: "Fees minus SupplySideRevenue: the service fee plus copyfomo's margin on gas (the 'protocol fees, after gas' figure on copyfomo.com/data) plus the $COPY creator fees (the 'token fees' figure on the same page).",
+  SupplySideRevenue: "Referral rewards paid to copyfomo referrers, plus the actual on-chain cost copyfomo pays on users' behalf: the EVM bundler gas and the SOL spent by the Solana fee payer (transaction fees and token-account rent).",
+  Revenue: "Fees minus SupplySideRevenue: the service fee plus copyfomo's margin on gas (the 'protocol fees, after gas' figure on copyfomo.com/data, before referral rewards) plus the $COPY creator fees (the 'token fees' figure on the same page).",
   HoldersRevenue: "Buyback & burn of $COPY, funded by the creator fees: what the copyfomo creator wallets pay (COIN or USDG) in every transaction where they buy $COPY from the pool and burn $COPY in the same transaction (the buyback account buys and burns in one user operation). Counted on the day of the buy, which follows the trades that generated the fees. A holder cashback leg (USDG distributed to $COPY holders) is planned and will be added when it goes live.",
   ProtocolRevenue: "Revenue minus HoldersRevenue: service revenue and the creator fees kept by copyfomo.",
 };
@@ -83,8 +85,9 @@ const breakdownMethodology = {
     [TREASURY_INFLOW]: "Same as the Fees component: everything copyfomo users pay.",
   },
   SupplySideRevenue: {
-    [REFERRAL_REWARDS]: "Stablecoin transfers from the treasury back to identified copyfomo user wallets.",
+    [REFERRAL_REWARDS]: "USDC sent by the copyfomo referral payout wallet on Base to referrers (its top-ups from the treasury are internal and excluded), plus any stablecoin sent by the treasury back to identified copyfomo user wallets.",
     [BUNDLER_GAS_COST]: "Gas the copyfomo bundler wallets paid to the ERC-4337 EntryPoint for users' operations, priced with the daily WETH / WBNB price.",
+    [SOLANA_FEE_PAYER_COST]: "SOL spent by the copyfomo Solana fee payer, which signs every copyfomo Solana transaction: signature fees and the rent of the token accounts it creates, net of rent returned on close (its balance change in its own transactions, excluding its top-ups co-signed by the Solana treasury), priced with the daily SOL price.",
   },
   HoldersRevenue: {
     [BUYBACK_AND_BURN]: "COIN and USDG sent by the copyfomo creator wallets in every transaction that swaps on the COPY/COIN pool, delivers $COPY to them and burns $COPY from them (Transfer to the zero address) in that same transaction, since 2026-09-11 when the buyback programme started. The three manual buys of 2026-09-11, burned the next day in one transaction (hash in the query helper), are listed explicitly.",
@@ -94,12 +97,14 @@ const breakdownMethodology = {
     [COPY_CREATOR_FEES]: "Same as the Fees component: creator fees have no supply-side share.",
     [REFERRAL_REWARDS]: "Same as the SupplySideRevenue component, subtracted from gross fees.",
     [BUNDLER_GAS_COST]: "Same as the SupplySideRevenue component, subtracted from gross fees.",
+    [SOLANA_FEE_PAYER_COST]: "Same as the SupplySideRevenue component, subtracted from gross fees.",
   },
   ProtocolRevenue: {
     [TREASURY_INFLOW]: "Same as the Revenue component.",
     [COPY_CREATOR_FEES]: "Same as the Revenue component.",
     [REFERRAL_REWARDS]: "Same as the Revenue component.",
     [BUNDLER_GAS_COST]: "Same as the Revenue component.",
+    [SOLANA_FEE_PAYER_COST]: "Same as the Revenue component.",
     [BUYBACK_AND_BURN]: "Same as the HoldersRevenue component, subtracted from Revenue.",
   },
 };
