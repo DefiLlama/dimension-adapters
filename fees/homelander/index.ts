@@ -1,7 +1,6 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { collectSwaps, protocolShareBps, shareOf } from "./shared";
+import { chainConfig, collectSwaps, CONFIG, protocolShareBps, shareOf } from "./shared";
 
 // Homelander is MEV-X's yield maximization layer for AMMs: a plugin that runs
 // inside the pool. It sets the pool's fee on every swap, and when a swap moves
@@ -11,8 +10,8 @@ import { collectSwaps, protocolShareBps, shareOf } from "./shared";
 //
 // Two things are counted here, and they are different money:
 //
-//   * the fee the trader paid on a swap, set by the plugin and earned by the
-//     pool, of which the plugin takes nothing, and
+//   * the fee the trader paid, set by the plugin and earned by the pool, of
+//     which the plugin takes nothing, and
 //   * the arbitrage the plugin realised, which nobody paid as a rate and which
 //     is split between the pool's beneficiaries and the protocol.
 //
@@ -22,75 +21,22 @@ import { collectSwaps, protocolShareBps, shareOf } from "./shared";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-// Where a deployment settles its captures. The distributor states the whole of
-// a capture in one event, including a payout made in the chain's native
-// currency, which moves no ERC-20 and would be invisible to a reading based on
-// transfers.
-const DISTRIBUTORS: Record<string, { addresses: string[]; fromBlock: number }> = {
-  [CHAIN.FLARE]: {
-    addresses: ["0x3cf6f6201be435c0527cab7ac6724c56616e0982"],
-    fromBlock: 56_928_287,
-  },
-  [CHAIN.BASE]: {
-    addresses: [
-      "0x53c67db91f47923d26b0b85a345e484e32a6232f",
-      "0x10470434b3855016695cf18d456dae86b83e9239",
-      "0xd97d8624ee0be7b6e9b667a455a9d143df559cf3",
-      "0x55434f43bfb04839d53a2ca017e40614eb954b80",
-      // wired to a live plugin, nothing settled through them yet
-      "0x68422147999c2d22b374adc4becdf48fea9fe9cf",
-      "0xc4f7a22dd6964aeb23de87bf7ab313538d16b2c2",
-    ],
-    fromBlock: 42_314_036,
-  },
-  [CHAIN.POLYGON]: {
-    addresses: [
-      "0xd4e31c8708d59dac665858dcc542329c15ed79a3",
-      "0xd5a24b95db6a80322ea1cb6d457ecc0d129ec73b",
-    ],
-    fromBlock: 85_606_804,
-  },
-  [CHAIN.SONEIUM]: {
-    addresses: ["0xab2ee1b9fce05a30e945d46477b96e9adcbb6766"],
-    fromBlock: 22_852_414,
-  },
-  [CHAIN.SOMNIA]: {
-    addresses: ["0xab2ee1b9fce05a30e945d46477b96e9adcbb6766"],
-    fromBlock: 307_452_276,
-  },
-  [CHAIN.ROBINHOOD]: {
-    addresses: [
-      "0xedc0e156afd811c81cf58ac08cb1f986786d3a37",
-      "0xd478c8a11803ae872f8394440d66cec556fdaddd",
-    ],
-    fromBlock: 69_800_000,
-  },
-};
+// The distributor states the whole of a capture in one event, including a
+// payout made in the chain's native currency, which moves no ERC-20 and would
+// be invisible to a reading based on transfers. Its sibling
+// ProfitDistributedZero, emitted when distributeProfit is called on an empty
+// balance, carries amount = 0 under its own signature and is never read.
+const profitDistributedAbi =
+  "event ProfitDistributed(address plugin, bytes32 indexed configId, address token, address swapRecipient, uint256 amount)";
 
 // The plugins that pay the pool's liquidity providers inside the swap, through
 // the pool manager's own Donate, and never route that leg to a distributor.
-// Only `donatedToLps` is read from them: `sentToDistributor` is the leg the
-// distributor reports itself, and adding both would count it twice.
+// Only `donatedToLps` is read: `sentToDistributor` is the leg the distributor
+// reports itself, and adding both would count it twice.
 //
 // The event comes in two shapes. One indexes `profitToken` and the other does
 // not, which leaves the topic unchanged and the data layout different, so each
 // is read with its own ABI rather than one guessed to fit both.
-const DONATING_PLUGINS: Record<string, { plain: string[]; indexedToken: string[] }> = {
-  [CHAIN.BASE]: {
-    plain: [
-      "0xfad27bc5ef16a0a2aa3049953c25a48e8858b0c0",
-      "0x1e549354366c480cc298919e014fb95ec0a370c0",
-    ],
-    indexedToken: [],
-  },
-  [CHAIN.ROBINHOOD]: {
-    plain: ["0xa258ae996e8c887f5cbe1e0616d864eaa60c70c0"],
-    indexedToken: ["0x7da09e3884e3041ad483053552ecc58e9b0b7454"],
-  },
-};
-
-const profitDistributedAbi =
-  "event ProfitDistributed(address plugin, bytes32 indexed configId, address token, address swapRecipient, uint256 amount)";
 const profitSharedAbi =
   "event ProfitShared(bytes32 indexed poolId, address profitToken, uint256 donatedToLps, uint256 sentToDistributor)";
 const profitSharedIndexedAbi =
@@ -102,6 +48,7 @@ const LABEL = {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const settings = CONFIG[options.chain];
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -129,10 +76,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // 2. the arbitrage settled through a distributor, split by the share config
   //    that was in force when it happened
-  const distributors = DISTRIBUTORS[options.chain];
-  if (distributors) {
+  const distributors = settings?.distributors ?? [];
+  if (distributors.length) {
     const logs = await options.getLogs({
-      targets: distributors.addresses,
+      targets: distributors.map((d) => d.address),
       eventAbi: profitDistributedAbi,
       entireLog: true,
       parseLog: true,
@@ -140,8 +87,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     for (const log of logs) {
       const amount = BigInt(log.args.amount.toString());
       const token = String(log.args.token);
-      const bps = protocolShareBps(options.chain, String(log.address), Number(log.blockNumber));
-      const ours = shareOf(amount, bps);
+      const ours = shareOf(amount, protocolShareBps(options.chain, String(log.address), Number(log.blockNumber)));
       add(dailyFees, token, amount, METRIC.MEV_REWARDS);
       add(dailyRevenue, token, ours, LABEL.toProtocol);
       add(dailyProtocolRevenue, token, ours, LABEL.toProtocol);
@@ -151,11 +97,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // 3. the arbitrage donated to the pool's liquidity providers directly, which
   //    no distributor sees and of which the protocol keeps nothing
-  const plugins = DONATING_PLUGINS[options.chain];
+  const plugins = settings?.donatingPlugins;
   if (plugins) {
     for (const [eventAbi, targets] of [
-      [profitSharedAbi, plugins.plain],
-      [profitSharedIndexedAbi, plugins.indexedToken],
+      [profitSharedAbi, plugins.plain ?? []],
+      [profitSharedIndexedAbi, plugins.indexedToken ?? []],
     ] as [string, string[]][]) {
       if (!targets.length) continue;
       for (const log of await options.getLogs({ targets, eventAbi })) {
@@ -170,8 +116,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Two things, and they are different money. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
-  UserFees: "Zero. The plugin sets the pool's fee but takes no share of it, and the swapper whose trade opens a price gap pays nothing for the capture that closes it.",
+  Fees: "Two things, and they are different money. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap; the plugin takes no share of that fee, so nothing of it is charged to the user on the protocol's behalf. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
   Revenue: "The protocol's share of the captured arbitrage, taken from the distributor's own share config as it stood at the block of each capture. Nothing of the swap fee is the protocol's, and the captures donated straight to liquidity providers leave it nothing either.",
   ProtocolRevenue: "Same as Revenue. There is no token, so nothing is distributed to holders.",
   SupplySideRevenue: "The swap fee in full, which the pool's liquidity providers and its AMM earn, plus the part of every capture that the share config pays to the pool's beneficiaries.",
@@ -192,17 +137,12 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  pullHourly: true,
+  doublecounted: true,
+  adapter: chainConfig(Object.keys(CONFIG)),
   methodology,
   breakdownMethodology,
-  doublecounted: true,
-  adapter: {
-    [CHAIN.FLARE]: { fetch, start: "2026-03-26" },
-    [CHAIN.BASE]: { fetch, start: "2026-03-26" },
-    [CHAIN.SONEIUM]: { fetch, start: "2026-05-25" },
-    [CHAIN.SOMNIA]: { fetch, start: "2026-05-25" },
-    [CHAIN.POLYGON]: { fetch, start: "2026-06-10" },
-    [CHAIN.ROBINHOOD]: { fetch, start: "2026-09-22" },
-  },
 };
 
 export default adapter;

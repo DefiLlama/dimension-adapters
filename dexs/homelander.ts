@@ -1,6 +1,5 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
-import { CHAIN } from "../helpers/chains";
-import { collectSwaps } from "../fees/homelander/shared";
+import { chainConfig, chainsWithPools, collectSwaps } from "../fees/homelander/shared";
 
 // Volume traded in the pools the Homelander plugin runs in, where the plugin
 // sets the fee on every swap and closes the price gap a swap opens inside the
@@ -20,16 +19,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  fetch,
+  pullHourly: true,
   doublecounted: true,
+  adapter: chainConfig(chainsWithPools),
   methodology: {
-    Volume: "Swap volume of the pools the Homelander plugin runs in, measured on the pool's first token, excluding the plugin's own arbitrage legs. Pools are discovered from each plugin factory's own PluginCreated announcement, so a pool opened later is counted without a code change.",
-  },
-  adapter: {
-    [CHAIN.BASE]: { fetch, start: "2026-03-26" },
-    [CHAIN.FLARE]: { fetch, start: "2026-03-26" },
-    [CHAIN.SONEIUM]: { fetch, start: "2026-05-25" },
-    [CHAIN.SOMNIA]: { fetch, start: "2026-05-25" },
-    [CHAIN.POLYGON]: { fetch, start: "2026-06-10" },
+    Volume: "Swap volume of the pools the Homelander plugin runs in, measured on the pool's first token, excluding the plugin's own arbitrage legs. The pools are listed in the adapter rather than discovered on each run, so a pool opened later is counted once it is added to that list.",
   },
 };
 
