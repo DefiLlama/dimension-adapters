@@ -43,15 +43,29 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-// Robinhood Chain mainnet deployment, 27 September 2026. Source and addresses:
+// Robinhood Chain mainnet deployments. Source and addresses:
 // https://github.com/outbidfun/outbidfun-contracts/blob/main/DEPLOYMENTS.md
-// CoinFactory: https://robinhoodchain.blockscout.com/address/0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0
-const FACTORY = "0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0";
-// The block of the deployment's first transaction; nothing here emits before it.
+// Two launchpads, both live. The first (27 September 2026) keeps its coins trading on their
+// curves and graduating into its own Uniswap V3; the second (28 September 2026), on a
+// constant-product curve, takes every new launch and has a Uniswap V3 of its own. Each factory
+// launches coins and each listing manager opens its factory's coins' pools; `fromBlock` is the
+// block each contract was deployed in, and nothing emits before it.
+// CoinFactory (first): https://robinhoodchain.blockscout.com/address/0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0
+// CoinFactory (second): https://robinhoodchain.blockscout.com/address/0xDD0e33a1d5452275E563020F58fC989f26B74CF6
+const FACTORIES = [
+  { address: "0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0", fromBlock: 73821560 },
+  { address: "0xDD0e33a1d5452275E563020F58fC989f26B74CF6", fromBlock: 74842311 },
+];
+// The block of the first deployment's first transaction; nothing here emits before it.
 const DEPLOY_BLOCK = 73821560;
-// CoinListingManager, which opens every graduated coin's pool and owns the V3 factory:
-// https://robinhoodchain.blockscout.com/address/0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4
-const LISTING_MANAGER = "0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4";
+// CoinListingManager (first): https://robinhoodchain.blockscout.com/address/0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4
+// CoinListingManager (second): https://robinhoodchain.blockscout.com/address/0xE15E852e3D16939719001D04f5e4d930C1F0DF26
+const LISTING_MANAGERS = [
+  { address: "0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4", fromBlock: 73821560 },
+  { address: "0xE15E852e3D16939719001D04f5e4d930C1F0DF26", fromBlock: 74842206 },
+];
+const isListingManager = (owner: string) => LISTING_MANAGERS.some((manager) => manager.address.toLowerCase() === owner.toLowerCase());
+const isFactory = (source: string) => FACTORIES.some((factory) => factory.address.toLowerCase() === source.toLowerCase());
 // RevenueRouter, the listing manager's `treasury()`, where the launch fee is paid:
 // https://robinhoodchain.blockscout.com/address/0xeEc171B409788644acBf1c50B825Cc6d9682D9b7
 const REVENUE_ROUTER = "0xeEc171B409788644acBf1c50B825Cc6d9682D9b7";
@@ -153,12 +167,13 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const launches = await options.getLogs({
-    target: FACTORY,
-    eventAbi: MEMECOIN_DEPLOYED,
-    fromBlock: DEPLOY_BLOCK,
-    cacheInCloud: true,
-  });
+  const launches = (
+    await Promise.all(
+      FACTORIES.map(({ address, fromBlock }) =>
+        options.getLogs({ target: address, eventAbi: MEMECOIN_DEPLOYED, fromBlock, cacheInCloud: true })
+      )
+    )
+  ).flat();
   const coins: string[] = launches.map((launch: any) => launch.memecoin);
   // Immutable on each coin, so it is read at the latest block rather than the window's: the
   // chain's public RPC keeps no historical state.
@@ -189,8 +204,14 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  // Graduated pools, with the fee tier each was opened at.
-  const opened = await options.getLogs({ target: LISTING_MANAGER, eventAbi: POOL_OPENED, fromBlock: DEPLOY_BLOCK, cacheInCloud: true });
+  // Graduated pools, with the fee tier each was opened at, from both listing managers.
+  const opened = (
+    await Promise.all(
+      LISTING_MANAGERS.map(({ address, fromBlock }) =>
+        options.getLogs({ target: address, eventAbi: POOL_OPENED, fromBlock, cacheInCloud: true })
+      )
+    )
+  ).flat();
   if (opened.length) {
     const pools = opened.map((log: any) => log.pool);
     const swaps = await options.getLogs({ targets: pools, eventAbi: SWAP, onlyArgs: false, flatten: false });
@@ -224,7 +245,7 @@ const fetch = async (options: FetchOptions) => {
             position.liquidity += event.kind === "mint" ? BigInt(event.amount) : -BigInt(event.amount);
             positions.set(key, position);
             // The listing manager's graduation position: never burned, and the only one it owns.
-            if (event.owner.toLowerCase() === LISTING_MANAGER.toLowerCase()) lockedKey = key;
+            if (isListingManager(event.owner)) lockedKey = key;
             continue;
           }
           const locked = positions.get(lockedKey)?.liquidity ?? 0n;
@@ -249,7 +270,7 @@ const fetch = async (options: FetchOptions) => {
 
   const received = await options.getLogs({ target: REVENUE_ROUTER, eventAbi: REVENUE_RECEIVED });
   for (const log of received) {
-    if (log.source.toLowerCase() !== FACTORY.toLowerCase() || log.asset !== ETHER) continue;
+    if (!isFactory(log.source) || log.asset !== ETHER) continue;
     dailyFees.addGasToken(log.amount, LABELS.launchFees);
     dailyRevenue.addGasToken(log.amount, LABELS.launchToProtocol);
   }
@@ -318,7 +339,7 @@ const adapter: Adapter = {
   breakdownMethodology,
   chains: [CHAIN.ROBINHOOD],
   fetch,
-  start: "2026-09-27", // CoinFactory deployment (block 73821560)
+  start: "2026-09-27", // the first CoinFactory's deployment (block 73821560)
 };
 
 export default adapter;
