@@ -24,10 +24,9 @@ const fetch: any = async (options: FetchOptions) => {
   const query = `
     WITH bnb_received AS (
       SELECT
-        COALESCE(SUM(CASE WHEN l.contract_address != 0x2b6e6e4def77583229299cf386438a227e683b28 
-          THEN CAST(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) AS DOUBLE)
-          ELSE 0 END), 0) AS revenue,
-        COALESCE(SUM(CAST(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) AS DOUBLE)), 0) AS fees
+        COALESCE(CAST(SUM(CASE WHEN l.contract_address != 0x2b6e6e4def77583229299cf386438a227e683b28 
+          THEN bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) END) AS varchar), '0') AS revenue,
+        COALESCE(CAST(SUM(bytearray_to_uint256(bytearray_substring(l.data, 1, 32))) AS varchar), '0') AS fees
       FROM bnb.logs l
       WHERE l.topic0 = 0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d
       AND l.contract_address IN (
@@ -58,10 +57,9 @@ const fetch: any = async (options: FetchOptions) => {
     token_received AS (
       SELECT
         l.contract_address AS token,
-        COALESCE(SUM(CASE WHEN l.topic2 != 0x0000000000000000000000002b6e6e4def77583229299cf386438a227e683b28 
-          THEN CAST(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) AS DOUBLE)
-          ELSE 0 END), 0) AS revenue,
-        COALESCE(SUM(CAST(bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) AS DOUBLE)), 0) AS fees
+        COALESCE(CAST(SUM(CASE WHEN l.topic2 != 0x0000000000000000000000002b6e6e4def77583229299cf386438a227e683b28 
+          THEN bytearray_to_uint256(bytearray_substring(l.data, 1, 32)) END) AS varchar), '0') AS revenue,
+        COALESCE(CAST(SUM(bytearray_to_uint256(bytearray_substring(l.data, 1, 32))) AS varchar), '0') AS fees
       FROM bnb.logs l
       WHERE l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
       AND l.topic1 IN (
@@ -110,7 +108,7 @@ const fetch: any = async (options: FetchOptions) => {
     }
   }
 
-  return { dailyFees, dailyRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 };
   
 //   const result = await queryDuneSql(options, query)
@@ -163,12 +161,16 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens.',
     Revenue: 'Fees collected by four.meme protocol.',
+    ProtocolRevenue: 'Fees retained by the four.meme protocol after rev-share distributions, the same as revenue.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "USD value of all BNB and token fees collected from token launches and trades, including rev-share distributions",
     },
     Revenue: {
+      [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+    },
+    ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
     },
   },
