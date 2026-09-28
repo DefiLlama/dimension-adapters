@@ -44,48 +44,8 @@ const Q32 = 2n ** 32n;
 const Q96 = 2n ** 96n;
 const MIN_LIQUIDATION_PENALTY_X32 = (Q32 * 2n) / 100n; // 2% (V3Vault.sol#L36)
 const MAX_LIQUIDATION_PENALTY_X32 = (Q32 * 10n) / 100n; // 10% (V3Vault.sol#L37)
-const DEFAULT_COLLATERAL_FACTOR_X32 = (Q32 * 80n) / 100n; // ~80% average collateral factor across accepted assets
 
 const BORROW_INTEREST_TO_RESERVES = "Borrow Interest To Reserves";
-
-/**
- * Calculates liquidationValue according to V3Vault.sol#_calculateLiquidation (lines 1176-1216).
- *
- * In V3Vault.sol:
- * - Liquidate event emits:
- *     value: state.fullValue (entire position collateral value, NOT what liquidator receives)
- *     cost: state.liquidatorCost (debt repaid by liquidator in asset units)
- *     reserve: state.reserveCost (bad debt absorbed by vault reserves)
- * - The liquidator receives collateral worth liquidationValue and pays liquidatorCost.
- * - If fullValue >= maxPenaltyValue:
- *     liquidationValue scales linearly between debt * 1.02 and debt * 1.10 based on
- *     penaltyFractionX96, or caps at maxPenaltyValue.
- * - If fullValue < maxPenaltyValue:
- *     liquidationValue = fullValue; liquidatorCost = fullValue - penalty (or 0).
- *
- * Liquidator net bonus = liquidationValue > cost ? liquidationValue - cost : 0n.
- * Reserve (bad debt covered by protocol reserves) is not included in liquidator fees.
- */
-function calculateLiquidationValue(debt: bigint, fullValue: bigint, collateralValue: bigint): bigint {
-  const maxPenaltyValue = (debt * (Q32 + MAX_LIQUIDATION_PENALTY_X32)) / Q32;
-
-  if (fullValue >= maxPenaltyValue) {
-    if (collateralValue !== 0n && fullValue > maxPenaltyValue) {
-      const startLiquidationValue = (debt * fullValue) / collateralValue;
-      if (startLiquidationValue > maxPenaltyValue && fullValue <= startLiquidationValue) {
-        const penaltyFractionX96 =
-          Q96 - ((fullValue - maxPenaltyValue) * Q96) / (startLiquidationValue - maxPenaltyValue);
-        const penaltyX32 =
-          MIN_LIQUIDATION_PENALTY_X32 +
-          ((MAX_LIQUIDATION_PENALTY_X32 - MIN_LIQUIDATION_PENALTY_X32) * penaltyFractionX96) / Q96;
-        return (debt * (Q32 + penaltyX32)) / Q32;
-      }
-    }
-    return maxPenaltyValue;
-  }
-
-  return fullValue;
-}
 
 // Deployed V3Vault contracts across chains
 // Reference: https://github.com/revert-finance/vault-graph/blob/main/networks.json
@@ -159,20 +119,26 @@ const fetch = async (options: FetchOptions) => {
     const fromLendRate = BigInt(fromInfo.lendExchangeRateX96 ?? fromInfo[5] ?? 0);
 
     // Gross borrow interest owed by borrowers: (debtSharesTotal * Delta_debtExchangeRateX96) / Q96
-    // Uses start-of-window shares (fromDebtShares) representing active borrowed principal
+    // Time-weighted average shares across the reporting window accounts for borrows and repayments
     let grossBorrowInterest = 0n;
     if (toDebtRate > fromDebtRate && fromDebtRate > 0n) {
       const debtRateDelta = toDebtRate - fromDebtRate;
-      const debtShares = BigInt(fromDebtShares[i] ?? toDebtShares[i] ?? 0);
+      const fromDebt = BigInt(fromDebtShares[i] ?? 0);
+      const toDebt = BigInt(toDebtShares[i] ?? 0);
+      const debtShares =
+        fromDebt > 0n && toDebt > 0n ? (fromDebt + toDebt) / 2n : fromDebt || toDebt;
       grossBorrowInterest = (debtShares * debtRateDelta) / Q96;
     }
 
     // Supply interest earned by lenders/depositors: (totalSupply * Delta_lendExchangeRateX96) / Q96
-    // Uses start-of-window shares (fromTotalSupplies) representing deposited capital
+    // Time-weighted average supply shares across the reporting window accounts for deposits and withdrawals
     let supplyInterest = 0n;
     if (toLendRate > fromLendRate && fromLendRate > 0n) {
       const lendRateDelta = toLendRate - fromLendRate;
-      const supplyShares = BigInt(fromTotalSupplies[i] ?? toTotalSupplies[i] ?? 0);
+      const fromSupply = BigInt(fromTotalSupplies[i] ?? 0);
+      const toSupply = BigInt(toTotalSupplies[i] ?? 0);
+      const supplyShares =
+        fromSupply > 0n && toSupply > 0n ? (fromSupply + toSupply) / 2n : fromSupply || toSupply;
       supplyInterest = (supplyShares * lendRateDelta) / Q96;
     }
 
@@ -198,26 +164,29 @@ const fetch = async (options: FetchOptions) => {
     // and reserve is bad debt covered by vault reserves.
     // Liquidator receives liquidationValue (V3Vault.sol#_calculateLiquidation) and pays cost.
     // Liquidator bonus = liquidationValue - cost (excluding reserve).
+    // onlyArgs: false preserves full log object including blockNumber.
     const liquidationLogs = await options.getLogs({
       target: vault,
       eventAbi: LIQUIDATE_EVENT_ABI,
+      onlyArgs: false,
     });
 
     for (const log of liquidationLogs) {
-      const fullValue = BigInt(log.value || 0);
-      const cost = BigInt(log.cost || 0);
-      const reserve = BigInt(log.reserve || 0);
-      const tokenId = log.tokenId;
-      const blockNumber = log.blockNumber;
+      const args = (log as any).args || log;
+      const fullValue = BigInt(args.value || 0);
+      const cost = BigInt(args.cost || 0);
+      const reserve = BigInt(args.reserve || 0);
+      const tokenId = args.tokenId;
+      const blockNumber = (log as any).blockNumber ?? (log as any).block;
 
       // Total debt repaid or covered = liquidatorCost + reserveCost
       const debt = cost + reserve;
       if (debt === 0n) continue;
 
-      let liquidationValue = 0n;
+      let liquidationValue: bigint | null = null;
       let liquidationCost = cost;
 
-      // 1. Attempt exact historical contract call at blockNumber - 1 if available
+      // 1. Attempt exact historical contract call at blockNumber - 1 to obtain actual position liquidationValue
       if (tokenId !== undefined && blockNumber !== undefined && blockNumber > 0) {
         try {
           const info = await options.api.call({
@@ -231,25 +200,31 @@ const fetch = async (options: FetchOptions) => {
             liquidationCost = BigInt(info.liquidationCost);
           }
         } catch {
-          // If archive call fails, fall back to pure contract math
+          // If archive call fails, continue to contract-derived branch
         }
       }
 
-      // 2. Mathematical calculation matching V3Vault.sol#_calculateLiquidation
-      if (liquidationValue === 0n) {
-        const collateralValue = (fullValue * DEFAULT_COLLATERAL_FACTOR_X32) / Q32;
-        const effectiveCollateralValue =
-          collateralValue > 0n && collateralValue <= debt ? collateralValue : debt;
-        liquidationValue = calculateLiquidationValue(debt, fullValue, effectiveCollateralValue);
-        liquidationCost = cost;
+      // 2. Undercollateralized / bad-debt liquidations (V3Vault.sol#L1203-L1215)
+      // When reserveCost > 0 or fullValue < maxPenaltyValue, the contract sets liquidationValue = fullValue
+      // without needing collateral factor estimation.
+      if (liquidationValue === null) {
+        const maxPenaltyValue = (debt * (Q32 + MAX_LIQUIDATION_PENALTY_X32)) / Q32;
+        if (reserve > 0n || fullValue < maxPenaltyValue) {
+          liquidationValue = fullValue;
+          liquidationCost = cost;
+        }
+        // Note: For standard liquidations where fullValue >= maxPenaltyValue and loanInfo is unavailable,
+        // we mark the event unresolved rather than estimating collateral value with a hardcoded factor.
       }
 
-      const liquidationPenalty =
-        liquidationValue > liquidationCost ? liquidationValue - liquidationCost : 0n;
+      if (liquidationValue !== null) {
+        const liquidationPenalty =
+          liquidationValue > liquidationCost ? liquidationValue - liquidationCost : 0n;
 
-      if (liquidationPenalty > 0n) {
-        dailyFees.add(asset, liquidationPenalty, METRIC.LIQUIDATION_FEES);
-        dailySupplySideRevenue.add(asset, liquidationPenalty, METRIC.LIQUIDATION_FEES);
+        if (liquidationPenalty > 0n) {
+          dailyFees.add(asset, liquidationPenalty, METRIC.LIQUIDATION_FEES);
+          dailySupplySideRevenue.add(asset, liquidationPenalty, METRIC.LIQUIDATION_FEES);
+        }
       }
     }
   }
