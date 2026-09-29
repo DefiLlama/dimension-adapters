@@ -336,7 +336,11 @@ const swapExtendedAbi =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)";
 const swapFeeAbi = "event SwapFee(address indexed sender, uint24 overrideFee, uint24 pluginFee)";
 
+// The fee fields of the Swap and SwapFee events are millionths: an Algebra
+// pool states its rate in hundredths of a basis point, so 3000 is 0.3%.
 const FEE_DENOMINATOR = 1000000n;
+// SHARE_DENOMINATOR on the distributor, whose share config weights the
+// recipients of a capture out of 10,000.
 const SHARE_DENOMINATOR = 10000n;
 
 /** The protocol's weight for a capture, as it stood in the block it happened. */

@@ -117,8 +117,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-  Fees: "Two things, and they are different money. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap; the plugin takes no share of that fee, so nothing of it is charged to the user on the protocol's behalf. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
-  UserFees: "The swap fee the traders paid, and only that. The captured arbitrage is taken from the price gap a swap opens rather than charged to anyone, and the plugin keeps no part of the fee it sets.",
+  Fees: "Two things, and they are different money, and only the first of them is paid by anyone: it is reported as the user fee as well. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap; the plugin takes no share of that fee, so nothing of it is charged to the user on the protocol's behalf. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
   Revenue: "The protocol's share of the captured arbitrage, taken from the distributor's own share config as it stood at the block of each capture. Nothing of the swap fee is the protocol's, and the captures donated straight to liquidity providers leave it nothing either.",
   ProtocolRevenue: "Same as Revenue. There is no token, so nothing is distributed to holders.",
   SupplySideRevenue: "The swap fee in full, which the pool's liquidity providers and its AMM earn, plus the part of every capture that the share config pays to the pool's beneficiaries.",
@@ -129,7 +128,6 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "The fee traders paid on the pools the plugin runs in, at the rate the plugin set.",
     [METRIC.MEV_REWARDS]: "Arbitrage captured by the plugin when a swap moves the pool away from the wider market, closed out in the same transaction.",
   },
-  UserFees: { [METRIC.SWAP_FEES]: "The fee traders paid on the pools the plugin runs in, at the rate the plugin set." },
   Revenue: { [LABEL.toProtocol]: "The protocol's weight in the distributor's share config, applied to each capture." },
   ProtocolRevenue: { [LABEL.toProtocol]: "The protocol's weight in the distributor's share config, applied to each capture." },
   SupplySideRevenue: {
