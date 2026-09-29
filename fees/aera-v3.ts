@@ -23,6 +23,19 @@ const config: any = {
       fromBlock: 30834356,
     },
   },
+  // same multi-depositor factories the TVL adapter (projects/aera-v3) reads
+  [CHAIN.MORPH]: {
+    multiDepositorVaultFactory: {
+      address: '0xA735FaF51AE8BD0637b8468828dC83E2C24A8E60',
+      fromBlock: 24054994,
+    },
+  },
+  [CHAIN.ARBITRUM]: {
+    multiDepositorVaultFactory: {
+      address: '0xd1883062629157Ff6Eae51ca355aCA4f52d2BD4E',
+      fromBlock: 378204768,
+    },
+  },
 };
 
 const abis = {
@@ -68,12 +81,12 @@ const fetch = async (options: FetchOptions) => {
         fromBlock: chainConfig.multiDepositorVaultFactory.fromBlock,
         cacheInCloud: true,
       }),
-      getLogs({
+      chainConfig.singleDepositorVaultFactory ? getLogs({
         target: chainConfig.singleDepositorVaultFactory.address,
         eventAbi: abis.singleDepositorVaultCreated,
         fromBlock: chainConfig.singleDepositorVaultFactory.fromBlock,
         cacheInCloud: true,
-      }),
+      }) : [],
     ]
   );
 
@@ -236,6 +249,8 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-05-28' },
     [CHAIN.BASE]: { start: '2025-05-28' },
+    [CHAIN.MORPH]: { start: '2026-06-26' },
+    [CHAIN.ARBITRUM]: { start: '2025-09-13' },
   },
   allowNegativeValue: true,
   methodology,
