@@ -70,7 +70,7 @@ async function fetch(options: FetchOptions) {
             dailySupplySideRevenue.addUSDValue(fee * 0.5, 'Taker Rebates');
             dailyRevenue.addUSDValue(fee * 0.25, 'Protocol Revenue');
         }
-        else {
+        else if (options.dateString < '2026-09-25') {
             // Fee = 0.06 × C × p × (1 - p), effective from 2026-07-01
             const takerTheta = 0.06;
             const makerRebateTheta = 0.0125;
@@ -81,6 +81,12 @@ async function fetch(options: FetchOptions) {
             dailySupplySideRevenue.addUSDValue(makerRebate, 'Maker Rebates');
             dailyRevenue.addUSDValue(protocolRevenue, 'Protocol Revenue');
         }
+        else {
+          const takerTheta = 0.0695;
+          fee = Math.round(takerTheta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
+          dailyFees.addUSDValue(fee, 'Taker Fees');
+        }
+
     }
 
     const volumeInUsd = await dailyVolume.getUSDValue();
