@@ -34,6 +34,7 @@
  */
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 
 const FEE_RECEIVER = "0x4C96dA02d7120BFb81594d0e924B237e0c74660d";
@@ -71,31 +72,14 @@ const txHashOf = (log: any) =>
 // known token set keeps the query targetable, rather than scanning every Transfer in a
 // block.
 const TOKENS: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: [
-    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", // USDC
-    "0xdac17f958d2ee523a2206206994597c13d831ec7", // USDT
-  ],
-  [CHAIN.BASE]: [
-    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC
-    "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2", // USDT
-  ],
-  [CHAIN.ARBITRUM]: [
-    "0xaf88d065e77c8cc2239327c5edb3a432268e5831", // USDC
-    "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9", // USDT
-  ],
-  [CHAIN.OPTIMISM]: [
-    "0x0b2c639c533813f4aa9d7837caf62653d097ff85", // USDC
-    "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58", // USDT
-  ],
-  [CHAIN.POLYGON]: [
-    "0x3c499c542cef5e3811e1192ce70dc0c03d5c3359", // USDC
-    "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT
-  ],
-  [CHAIN.ARC]: [
-    "0x3600000000000000000000000000000000000000", // USDC (Arc's native gas asset, ERC-20 interface)
-    "0xbef5f6d51cb62b58e6a8f77868681825c6fe21c1", // EURC
-  ],
-  };
+  [CHAIN.ETHEREUM]: [ADDRESSES.ethereum.USDC, ADDRESSES.ethereum.USDT],
+  [CHAIN.BASE]: [ADDRESSES.base.USDC, ADDRESSES.base.USDT],
+  [CHAIN.ARBITRUM]: [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.arbitrum.USDT],
+  [CHAIN.OPTIMISM]: [ADDRESSES.optimism.USDC_CIRCLE, ADDRESSES.optimism.USDT],
+  [CHAIN.POLYGON]: [ADDRESSES.polygon.USDC_CIRCLE, ADDRESSES.polygon.USDT],
+  // Arc USDC is the chain's native gas asset exposed as an ERC-20.
+  [CHAIN.ARC]: [ADDRESSES.arc.USDC, ADDRESSES.arc.EURC],
+};
 
 const chainConfig = Object.fromEntries(
   Object.keys(TOKENS).map((chain) => [chain, { start: ARMED }]),
@@ -109,24 +93,22 @@ async function fetch(options: FetchOptions) {
   // 1) Candidate legs: token transfers addressed to the fee receiver.
   const toTopic = topic(FEE_RECEIVER);
   const candidates: { token: string; from: string; amount: bigint; tx: string; index: number }[] = [];
-  for (const token of tokens) {
-    const logs = await options.getLogs({
-      target: token,
-      eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null, toTopic],
-      entireLog: true,
-      parseLog: true,
+  const transferLogs = await options.getLogs({
+    targets: tokens,
+    eventAbi: TRANSFER_EVENT,
+    topics: [TRANSFER_TOPIC, null, toTopic],
+    entireLog: true,
+    parseLog: true,
+  });
+  for (const log of transferLogs) {
+    const args = log.args
+    candidates.push({
+      token: lower(log.address),
+      from: lower(args.from),
+      amount: BigInt(args.amount),
+      tx: txHashOf(log),
+      index: Number(log.logIndex ?? log.log_index ?? 0),
     });
-    for (const log of logs) {
-      const a = log.args ?? log;
-      candidates.push({
-        token: lower(token),
-        from: lower(a.from),
-        amount: BigInt(a.amount),
-        tx: txHashOf(log),
-        index: Number(log.logIndex ?? log.log_index ?? 0),
-      });
-    }
   }
   if (!candidates.length) {
     return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
@@ -145,13 +127,13 @@ async function fetch(options: FetchOptions) {
   });
   const available: { tx: string; token: string; maker: string; amount: bigint; index: number }[] = [];
   for (const log of pulls) {
-    const a = log.args ?? log;
-    if (lower(a.app) !== ROUTER) continue;
+    const args = log.args;
+    if (lower(args.app) !== ROUTER) continue;
     available.push({
       tx: txHashOf(log),
-      token: lower(a.token),
-      maker: lower(a.maker),
-      amount: BigInt(a.amount),
+      token: lower(args.token),
+      maker: lower(args.maker),
+      amount: BigInt(args.amount),
       index: Number(log.logIndex ?? log.log_index ?? 0),
     });
   }
@@ -184,13 +166,21 @@ const adapter: SimpleAdapter = {
     Fees:
       "0.05% of the amount traded, collected by TRDEFI on positions created through its venue. The fee is embedded in the maker's signed order and paid to the receiver address when the position trades, so it is counted as the incoming token transfers it actually is. The fee rail has been in force since 2026-09-25; positions created before that carry no fee and are immutable.",
     Revenue:
-      "The entire collected fee. TRDEFI retains 100% of it, with no share paid to suppliers or holders.",
-    ProtocolRevenue: "The entire collected fee, retained by TRDEFI.",
+      "The entire collected trading fee. TRDEFI retains 100% of it, with no share paid to suppliers or holders.",
+    ProtocolRevenue: "The entire collected trading fee, retained by TRDEFI.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]:
         "0.05% protocol fee charged on the amount traded when a position created through TRDEFI trades.",
+    },
+    Revenue: {
+      [METRIC.TRADING_FEES]:
+        "0.05% protocol fee charged on the amount traded when a position created through TRDEFI trades.",
+    },
+    ProtocolRevenue: {
+      [METRIC.TRADING_FEES]:
+        "0.05% protocol fee charged on the amount traded when a position created through TRDEFI trades, retained by TRDEFI.",
     },
   },
 };
