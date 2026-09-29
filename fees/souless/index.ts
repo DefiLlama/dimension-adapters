@@ -79,10 +79,11 @@ const fetch = async (options: FetchOptions) => {
         params: [token, epochId],
       })),
     });
-    const stakingShareByEpoch = new Map(
-      epochKeys.map(([key], index) => {
+    const stakingShareByEpoch = new Map<string, bigint>(
+      epochKeys.map(([key], index): [string, bigint] => {
         const epoch: any = epochs[index];
-        return [key, BigInt(epoch.stakingShareOfCommunityBps ?? epoch[8])];
+        const stakingShareBps = epoch.stakingShareOfCommunityBps ?? epoch[8];
+        return [key, BigInt(stakingShareBps.toString())];
       }),
     );
 
