@@ -71,6 +71,7 @@ const CASHOUT_CATEGORY = '02';
 const LABEL_PACK_SALES = 'Pack Sales';
 const LABEL_SELLBACKS = 'Card Sellback Payouts To Players';
 const LABEL_REFERRALS = 'Referral Commissions To Referrers';
+const LABEL_PROTOCOL_REVENUE = 'Pack Revenue To Treasury';
 
 const getSolanaFlows = async (options: FetchOptions) => {
   const timeRange = (alias: string) =>
@@ -182,15 +183,16 @@ const fetch = async (options: FetchOptions) => {
 
   // Referral commissions are paid out of fees; revenue is what the protocol keeps after them
   dailySupplySideRevenue.add(usdc, totalReferral, LABEL_REFERRALS);
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtractToken(usdc, totalReferral, LABEL_REFERRALS);
+  const revenue = dailyFees.clone();
+  revenue.subtract(dailySupplySideRevenue);
+  const dailyRevenue = revenue.clone(1, LABEL_PROTOCOL_REVENUE);
 
   return {
     dailyVolume,
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
@@ -209,8 +211,7 @@ const feeBreakdown = {
 };
 
 const revenueBreakdown = {
-  ...feeBreakdown,
-  [LABEL_REFERRALS]: "USDC paid to referrers as commission, subtracted from what the protocol keeps.",
+  [LABEL_PROTOCOL_REVENUE]: "Pack and battle spend minus sellback payouts and referral commissions: what Shiny keeps in treasury.",
 };
 
 const adapter: SimpleAdapter = {
