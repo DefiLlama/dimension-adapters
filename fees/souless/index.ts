@@ -96,9 +96,17 @@ const fetch = async (options: FetchOptions) => {
     }
 
     for (const fee of campaignFees) {
-      dailySupplySideRevenue.add(USDC, fee.partnerAmount, TO_PARTNERS);
-      dailyRevenue.add(USDC, fee.protocolAmount, TO_PROTOCOL);
-      dailyProtocolRevenue.add(USDC, fee.protocolAmount, TO_PROTOCOL);
+      const totalAmount = BigInt(fee.totalAmount);
+      const partnerAmount = BigInt(fee.partnerAmount);
+      const protocolAmount = BigInt(fee.protocolAmount);
+      if (partnerAmount + protocolAmount !== totalAmount) {
+        throw new Error(
+          `Souless launch-partner allocation mismatch: total=${totalAmount} partners=${partnerAmount} protocol=${protocolAmount}`,
+        );
+      }
+      dailySupplySideRevenue.add(USDC, partnerAmount, TO_PARTNERS);
+      dailyRevenue.add(USDC, protocolAmount, TO_PROTOCOL);
+      dailyProtocolRevenue.add(USDC, protocolAmount, TO_PROTOCOL);
     }
   }
 
