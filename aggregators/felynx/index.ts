@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { isCoreAsset } from "../../helpers/prices";
+import { addOneToken } from "../../helpers/prices";
 
 // Felynx (https://felynx.xyz), a DEX aggregator on Flare that splits and hops swaps across SparkDEX, Enosys, BlazeSwap
 // and Sceptre. FelynxRouter is ownerless and verified on the Flare explorer; every swap emits Swapped. v2 (28 Sep 2026)
@@ -12,12 +12,6 @@ const ROUTERS = [
   "0xF4b35163F9d63800e708e262cE10dF67eFCf3073", // FelynxRouter v1
   "0x06dC3Dc709fB3C593Fd38782237Ed36225d1Df31", // FelynxRouter v2
 ];
-
-// Volume is valued on the swap's input unless only its output is a well-priced asset: a swap paid in a long-tail
-// Flare token with no price feed (eQNT, TALLY, ...) is then valued by what it bought (FXRP, WFLR, USD₮0...), instead of
-// counting as zero. FXRP (FAsset XRP) is added to the chain's core assets for this.
-const FXRP = "0xad552a648c74d49e10027ab8a618a3ad4901c5be";
-const wellPriced = (token: string) => isCoreAsset(CHAIN.FLARE, token) || token.toLowerCase() === FXRP;
 
 const swappedEvent =
   "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee, address recipient, address ref)";
@@ -30,8 +24,7 @@ const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({ targets: ROUTERS, eventAbi: swappedEvent });
 
   for (const log of logs) {
-    if (!wellPriced(log.tokenIn) && wellPriced(log.tokenOut)) dailyVolume.add(log.tokenOut, log.amountOut);
-    else dailyVolume.add(log.tokenIn, log.amountIn);
+    addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
     dailyFees.add(log.tokenIn, log.fee, METRIC.SWAP_FEES);
     dailyRevenue.add(log.tokenIn, log.fee, "Swap fees to protocol");
   }
