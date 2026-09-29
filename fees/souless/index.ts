@@ -13,7 +13,9 @@ const FEE_DISPATCHER = '0x0C8C98B7976E114fea895e827182B5dA0b3B9dcc';
 // https://explorer.arc.io/address/0x7F78bA801587E143c0D79b230ff1Dc903A53Fc5f
 const COMMUNITY_REWARDS_DISTRIBUTOR = '0x7F78bA801587E143c0D79b230ff1Dc903A53Fc5f';
 
-// Souless fee/community policies use basis points with 10,000 = 100%.\n// Source: CommunityRewardsDistributor policy fields and FeeDispatcher distribution math.\nconst BPS_DENOMINATOR = 10_000n;
+// Souless fee/community policies use basis points with 10,000 = 100%.
+// Source: CommunityRewardsDistributor policy fields and FeeDispatcher distribution math.
+const BPS_DENOMINATOR = 10_000n;
 const LAUNCH_FEE = 'Launch Fees';
 const OPENING_FEE = 'Guarded Opening Fees';
 const LP_FEE = METRIC.LP_FEES;
@@ -54,11 +56,13 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(USDC, fee.amount, TO_PROTOCOL);
     dailyProtocolRevenue.add(USDC, fee.amount, TO_PROTOCOL);
   }
+  let dispatcherCommunityTotal = 0n;
   for (const fee of lpFees) {
     dailyFees.add(USDC, fee.totalAmount, LP_FEE);
     dailyRevenue.add(USDC, fee.protocolAmount, TO_PROTOCOL);
     dailyProtocolRevenue.add(USDC, fee.protocolAmount, TO_PROTOCOL);
     dailySupplySideRevenue.add(USDC, fee.creatorAmount, TO_CREATORS);
+    dispatcherCommunityTotal += BigInt(fee.communityAmount);
     // Community fees are split below from EpochFeesCredited so the historical
     // Staking/InfoFi policy is visible without double-counting communityAmount.
     dailySupplySideRevenue.add(USDC, fee.launchPartnerAmount, TO_PARTNERS);
