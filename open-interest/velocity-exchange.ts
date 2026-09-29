@@ -42,7 +42,7 @@ const fetch = async (_options: FetchOptions) => {
   }
 
   return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
+    openInterestAtEnd: (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2,
     longOpenInterestAtEnd,
     shortOpenInterestAtEnd,
   };
@@ -55,7 +55,7 @@ const adapter: SimpleAdapter = {
   runAtCurrTime: true,
   fetch,
   methodology: {
-    OpenInterest: "Current long and short perpetual positions in base units, each valued at its market's mark price; spot markets are excluded.",
+    OpenInterest: "One-sided open interest: half the sum of current long and short perp positions in base units, each valued at its market's mark price; spot markets are excluded.",
   },
 };
 
