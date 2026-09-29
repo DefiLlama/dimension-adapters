@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 
 // PancakeSwap X (PCSX): RFQ / Dutch-order intents filled by professional market makers
 // from their own inventory, so fills do not route through any tracked AMM.
@@ -33,40 +32,61 @@ const REACTORS: Record<string, string[]> = {
 
 const FILL_EVENT = "event Fill(bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)";
 const FILL_DATA_EVENT = "event FillData(bytes32 indexed orderHash, address indexed inputToken, uint256 inputAmount, (address token, uint256 amount, address recipient)[] outputs)";
+const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-const toTopicAddress = (topic: string) => ("0x" + topic.slice(26)).toLowerCase();
+const toAddressTopic = (address: string) => "0x" + address.slice(2).toLowerCase().padStart(64, "0");
+
+type Transfer = { token: string; from: string; value: bigint; logIndex: number; used: boolean };
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
-  const fillData = await options.getLogs({ targets: MULTI_REACTOR_ROUTERS[options.chain], eventAbi: FILL_DATA_EVENT, skipIndexer: true });
+  const fillData = await options.getLogs({ targets: MULTI_REACTOR_ROUTERS[options.chain], eventAbi: FILL_DATA_EVENT });
   fillData.forEach((log: any) => dailyVolume.add(log.inputToken, log.inputAmount));
 
   // Standalone reactor fills carry no amounts: the swapper's input is pulled via Permit2
-  // straight to the filler in the same tx, so read that Transfer from the receipt.
-  const fills = await options.getLogs({ targets: REACTORS[options.chain], eventAbi: FILL_EVENT, entireLog: true, parseLog: true, skipIndexer: true });
-  const fillsByTx: Record<string, { filler: string; swapper: string }[]> = {};
-  fills.forEach((log: any) => {
-    const tx = log.transactionHash.toLowerCase();
-    const { filler, swapper } = log.parsedLog.args;
-    (fillsByTx[tx] ??= []).push({ filler: filler.toLowerCase(), swapper: swapper.toLowerCase() });
-  });
+  // straight to the filler, so pair each Fill with that Transfer from the same tx.
+  const fills = await options.getLogs({ targets: REACTORS[options.chain], eventAbi: FILL_EVENT, entireLog: true, parseLog: true });
+  if (!fills.length) return { dailyVolume };
 
-  const txHashes = Object.keys(fillsByTx);
-  const receipts = await getTxReceiptsWithRetry(options.chain, txHashes);
-  if (receipts.some((r) => !r)) throw new Error(`${options.chain}: missing receipts for PancakeSwap X fills`);
-  receipts.forEach((receipt, i) => {
-    if (!receipt) return;
-    // A tx can batch several orders; each (swapper, filler) input transfer is counted once
-    const pending = fillsByTx[txHashes[i]].map((f) => `${f.swapper}-${f.filler}`);
-    receipt.logs.forEach((log) => {
-      if (log.topics[0] !== TRANSFER_TOPIC || log.topics.length !== 3) return;
-      const idx = pending.indexOf(`${toTopicAddress(log.topics[1])}-${toTopicAddress(log.topics[2])}`);
-      if (idx === -1) return;
-      pending.splice(idx, 1);
-      dailyVolume.add(log.address, BigInt(log.data));
+  const fillers = [...new Set(fills.map((log: any) => log.parsedLog.args.filler.toLowerCase()))];
+  const fillTxs = new Set(fills.map((log: any) => log.transactionHash.toLowerCase()));
+
+  const transfersByTx: Record<string, Transfer[]> = {};
+  for (const filler of fillers) {
+    const transfers = await options.getLogs({
+      noTarget: true,
+      eventAbi: TRANSFER_EVENT,
+      topics: [TRANSFER_TOPIC, null as any, toAddressTopic(filler)],
+      entireLog: true,
+      parseLog: true,
     });
+    transfers.forEach((log: any) => {
+      const tx = log.transactionHash.toLowerCase();
+      // ERC-721 Transfer shares the topic but indexes tokenId, so it fails to parse
+      if (!fillTxs.has(tx) || !log.parsedLog) return;
+      (transfersByTx[tx] ??= []).push({
+        token: log.address,
+        from: log.parsedLog.args.from.toLowerCase(),
+        value: log.parsedLog.args.value,
+        logIndex: Number(log.logIndex),
+        used: false,
+      });
+    });
+  }
+
+  // Reactors pull every order's input before emitting its Fill, and in the same order,
+  // so each Fill takes the earliest unused swapper -> filler transfer that precedes it.
+  Object.values(transfersByTx).forEach((transfers) => transfers.sort((a, b) => a.logIndex - b.logIndex));
+  [...fills].sort((a: any, b: any) => Number(a.logIndex) - Number(b.logIndex)).forEach((log: any) => {
+    const swapper = log.parsedLog.args.swapper.toLowerCase();
+    const input = transfersByTx[log.transactionHash.toLowerCase()]?.find(
+      (t) => !t.used && t.from === swapper && t.logIndex < Number(log.logIndex),
+    );
+    if (!input) return;
+    input.used = true;
+    dailyVolume.add(input.token, input.value);
   });
 
   return { dailyVolume };
