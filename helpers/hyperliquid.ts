@@ -773,9 +773,7 @@ export const exportBuilderAdapter = (
           const dailyRevenue = options.createBalances();
           const dailyProtocolRevenue = options.createBalances();
 
-          const dayStr = new Date(options.startOfDay * 1000)
-            .toISOString()
-            .slice(0, 10);
+          const dayStr = options.dateString;
 
           for (const entry of builderAddresses) {
             const address = builderAddressActiveOn(entry, dayStr);
