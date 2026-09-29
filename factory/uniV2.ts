@@ -49,6 +49,10 @@ const configs: Record<string, Record<string, any>> = {
     // stock uniV2 fork with feeTo enabled at deploy => 1/6 of the 0.3% swap fee to protocol
     [CHAIN.RISE]: { factory: '0xd479E71C45aEB1E846A7B549c346D62fE77B39bA', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
+  "piperx-v2": {
+    // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09
+    [CHAIN.STORY]: { factory: '0x6D3e2f58954bf4E1d0C4bA26a85a1b49b2e244C6', start: '2025-02-12', fees: 0.003, userFeesRatio: 1 },
+  },
   "flowswap-v2": {
     [CHAIN.FLOW]: { factory: '0x681D1bFE03522e0727730Ba02a05CD3C0a08fa30' },
   },

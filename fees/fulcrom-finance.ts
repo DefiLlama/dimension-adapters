@@ -36,11 +36,15 @@ const fetch = async (options: FetchOptions) => {
 
   const graphRes = await request(endpoint, graphQuery);
 
+  // the stats subgraph only writes a daily feeStat row on days with activity (verified on
+  // cronos_zkevm: rows exist for the current day but not every past day), so a missing row is zero
+  const feeStat = graphRes.feeStat ?? { mint: 0, burn: 0, marginAndLiquidation: 0, swap: 0 }
+
   const dailyFees = options.createBalances()
-  dailyFees.addUSDValue(graphRes.feeStat?.mint / 1e30, METRIC.MINT_REDEEM_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.burn / 1e30, METRIC.MINT_REDEEM_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.marginAndLiquidation / 1e30, METRIC.LIQUIDATION_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.swap / 1e30, METRIC.SWAP_FEES)
+  dailyFees.addUSDValue(Number(feeStat.mint) / 1e30, METRIC.MINT_REDEEM_FEES)
+  dailyFees.addUSDValue(Number(feeStat.burn) / 1e30, METRIC.MINT_REDEEM_FEES)
+  dailyFees.addUSDValue(Number(feeStat.marginAndLiquidation) / 1e30, METRIC.LIQUIDATION_FEES)
+  dailyFees.addUSDValue(Number(feeStat.swap) / 1e30, METRIC.SWAP_FEES)
 
   return {
     dailyFees,

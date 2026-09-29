@@ -260,6 +260,8 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   pullHourly: true,
+  // net revenue = fees - referral/cashback payouts, which settle on their own schedule and can
+  // exceed the day's fees
   allowNegativeValue: true,
 };
 

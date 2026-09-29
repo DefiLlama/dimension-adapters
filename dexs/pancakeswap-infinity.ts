@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists"
+import { getDexTokensBlacklisted } from "../helpers/lists"
 import { addOneToken } from "../helpers/prices"
 
 const METRIC = {
@@ -15,7 +15,7 @@ const METRIC = {
 // https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
 // Both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together as part of Infinity.
 const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 47214308, start: '2025-03-06', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
+  [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 47214308, start: '2025-03-06' },
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 30544106, start: '2025-05-23' },
 }
 const adapter: SimpleAdapter = {
@@ -112,8 +112,10 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBloc
   })
 }
 
-async function fetch({ getLogs, createBalances, chain, fromApi, toApi }: FetchOptions) {
-  const { clPoolManager, binPoolManager, fromBlock, blacklistTokens } = config[chain]
+async function fetch(options: FetchOptions) {
+  const { getLogs, createBalances, chain, fromApi, toApi } = options
+  const { clPoolManager, binPoolManager, fromBlock } = config[chain]
+  const blacklistTokens = await getDexTokensBlacklisted(options)
   const getFromBlock = Number(fromApi.block)
   const getToBlock = Number(toApi.block)
   const dailyVolume = createBalances()

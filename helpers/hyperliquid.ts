@@ -729,8 +729,33 @@ export const exportHIP3DeployerAdapter = (
   return adapter;
 };
 
+/**
+ * A builder address, optionally with the period it carried the code for.
+ * A plain string means "always", which is every existing builder.
+ *
+ * A builder that moved its code from one wallet to another has one address
+ * per period, and HL publishes a builder_fills file only for the address that
+ * was active: asking for the other one answers 403, the same status as a file
+ * that is not written yet. The periods are the configuration's to know, so an
+ * address is simply not queried outside its own. Both bounds are inclusive
+ * and written as YYYY-MM-DD, like `start`.
+ */
+export type BuilderAddressConfig =
+  | string
+  | { address: string; start?: string; end?: string };
+
+const builderAddressActiveOn = (
+  entry: BuilderAddressConfig,
+  dayStr: string,
+): string | undefined => {
+  if (typeof entry === "string") return entry;
+  if (entry.start && dayStr < entry.start) return undefined;
+  if (entry.end && dayStr > entry.end) return undefined;
+  return entry.address;
+};
+
 export const exportBuilderAdapter = (
-  builderAddresses: Array<string>,
+  builderAddresses: Array<BuilderAddressConfig>,
   props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean, market?: HyperliquidMarket },
 ) => {
   const extraFields = props.extraReturnFields || {};
@@ -748,7 +773,12 @@ export const exportBuilderAdapter = (
           const dailyRevenue = options.createBalances();
           const dailyProtocolRevenue = options.createBalances();
 
-          for (const address of builderAddresses) {
+          const dayStr = options.dateString;
+
+          for (const entry of builderAddresses) {
+            const address = builderAddressActiveOn(entry, dayStr);
+            if (!address) continue;
+
             const result = await fetchBuilderCodeRevenue({
               options,
               builder_address: address,

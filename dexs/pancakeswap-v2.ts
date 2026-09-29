@@ -4,7 +4,7 @@ import { getUniV2LogAdapter } from "../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
 import { queryAllium } from "../helpers/allium";
 import { queryClickhouse } from "../helpers/indexer";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { Row } from "@clickhouse/client";
 
 const METRIC = {
@@ -370,7 +370,8 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({
       factory: logConfig.factory,
       eventAbi: ABIS.SWAP_EVENT,
-      pairCreatedAbi: ABIS.POOL_CREATE
+      pairCreatedAbi: ABIS.POOL_CREATE,
+      blacklistTokens: await getDexTokensBlacklisted(options),
     });
     const logStats = await adapter(options);
     const fees = calculateFeesBalances(logStats.dailyVolume);

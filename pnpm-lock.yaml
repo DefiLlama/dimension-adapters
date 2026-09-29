@@ -57,12 +57,18 @@ importers:
       '@types/node':
         specifier: ^18.7.23
         version: 18.19.130
+      fuzzy:
+        specifier: ^0.1.3
+        version: 0.1.3
       glob:
         specifier: ^10.3.10
         version: 10.4.5
       inquirer:
         specifier: ^8.0.0
         version: 8.2.7(@types/node@18.19.130)
+      inquirer-autocomplete-prompt:
+        specifier: ^2.0.1
+        version: 2.0.1(inquirer@8.2.7(@types/node@18.19.130))
       inquirer-fuzzy-path:
         specifier: ^2.3.0
         version: 2.3.0
@@ -1094,6 +1100,12 @@ packages:
     peerDependencies:
       inquirer: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
 
+  inquirer-autocomplete-prompt@2.0.1:
+    resolution: {integrity: sha512-jUHrH0btO7j5r8DTQgANf2CBkTZChoVySD8zF/wp5fZCOLIuUbleXhf4ZY5jNBOc1owA3gdfWtfZuppfYBhcUg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      inquirer: ^8.0.0
+
   inquirer-fuzzy-path@2.3.0:
     resolution: {integrity: sha512-zfHC/97GSkxKKM7IctZM22x1sVi+FYBh9oaHTmI7Er/GKFpNykUgtviTmqqpiFQs5yJoSowxbT0PHy6N+H+QRg==}
     engines: {node: '>=8.0'}
@@ -1281,6 +1293,9 @@ packages:
 
   pgpass@1.0.5:
     resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
+
+  picocolors@1.1.1:
+    resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
   postgres-array@2.0.0:
     resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
@@ -3023,6 +3038,15 @@ snapshots:
       run-async: 2.4.1
       rxjs: 6.6.7
 
+  inquirer-autocomplete-prompt@2.0.1(inquirer@8.2.7(@types/node@18.19.130)):
+    dependencies:
+      ansi-escapes: 4.3.2
+      figures: 3.2.0
+      inquirer: 8.2.7(@types/node@18.19.130)
+      picocolors: 1.1.1
+      run-async: 2.4.1
+      rxjs: 7.8.2
+
   inquirer-fuzzy-path@2.3.0:
     dependencies:
       ansi-styles: 3.2.1
@@ -3238,6 +3262,8 @@ snapshots:
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
+
+  picocolors@1.1.1: {}
 
   postgres-array@2.0.0: {}
 

@@ -17,8 +17,12 @@ import ADDRESSES from '../coreAssets.json'
 export const TREASURY_EVM = "0xe26fbe48ba4f9ad167e66106070fc6966dd913e0";
 // Treasury receiving service fees on Solana (USDC).
 export const TREASURY_SOL = "PRYvrMW7TBLGydidijJviy2oC3nQHP2zAWBbeqVSNAb";
-// Solana fee payer: signs and pays every copyfomo Solana transaction.
+// Solana fee payer: signs and pays every copyfomo Solana transaction, and advances the rent
+// of the token accounts the routes create.
 export const FEE_PAYER_SOL = "4pF8Qxdu2pDjWdx1tzGn7or3dbyVn1DQpqZKJx7ALGzH";
+// Referral payout wallet (Base): referral rewards are paid from here, in USDC, to the referrer's
+// copyfomo wallet. The treasury tops it up; those top-ups are internal and not counted.
+export const REFERRAL_PAYOUT_WALLET = "0x91e1719a72dd6fd4421ae9d82f644c29389651a6";
 // Alchemy LightAccountFactory v1.1.0 (public, same address on every EVM chain).
 export const LIGHT_ACCOUNT_FACTORY = "0x00004ec70002a32400f8ae005a26081065620d20";
 // ERC-4337 EntryPoint v0.6 and the copyfomo bundler wallets that pay the gas of every user
@@ -103,6 +107,7 @@ const hexList = (arr: string[]) => arr.join(", ");
 const strList = (arr: string[]) => arr.map((a) => `'${a}'`).join(", ");
 
 const TRES_EVM = hexList([TREASURY_EVM]);
+const REF_PAYOUT = hexList([REFERRAL_PAYOUT_WALLET]);
 const STABLES_BASE_BNB = hexList([...STABLES_EVM.base, ...STABLES_EVM.bnb]);
 const EMITTERS = hexList(BUNDLER_EMITTERS);
 const CREATOR_WALLETS = hexList(COPY_CREATOR_WALLETS);
@@ -137,8 +142,10 @@ const EVM_WALLETS_CTE = `
 /**
  * Fees: every stablecoin transfer INTO the treasury, per chain, for TIME_RANGE, and the gas
  * the bundler paid for user operations over the same window (subtracted by the adapter).
- * Referral: stablecoin transfers FROM the treasury back to copyfomo wallets
- * (referral rewards paid to referrers) -- the supply-side share.
+ * Referral: referral rewards paid to referrers -- USDC sent by the referral payout wallet
+ * (Base), plus any stablecoin sent by the treasury back to copyfomo wallets.
+ * Solana fee payer: the SOL the fee payer spends on copyfomo's Solana transactions
+ * (signature fees and rent advances), subtracted like the EVM bundler gas.
  * Creator: $COPY creator fees accrued on every swap of the COPY/COIN pool (robinhood only),
  * and the buyback & burn funded by them (holders' share).
  */
@@ -162,6 +169,16 @@ WITH ${EVM_WALLETS_CTE},
       AND t."from" IN (${TRES_EVM})
       AND t.contract_address IN (${STABLES_BASE_BNB})
     GROUP BY 1
+    UNION ALL
+    -- referral payout wallet: real USDC only (the wallet also receives address-poisoning
+    -- look-alike tokens), never back to the treasury
+    SELECT 'base' AS chain, SUM(amount_usd) AS referral_usd
+    FROM tokens.transfers
+    WHERE PARTITION_RANGE AND TIME_RANGE
+      AND blockchain = 'base'
+      AND "from" IN (${REF_PAYOUT})
+      AND "to" NOT IN (${TRES_EVM})
+      AND contract_address IN (${hexList(STABLES_EVM.base)})
   ),
   rh AS (
     SELECT evt_block_time AS block_time, "from", "to", value / 1e6 AS usd
@@ -195,8 +212,9 @@ WITH ${EVM_WALLETS_CTE},
       AND from_owner = '${TREASURY_SOL}'
       AND token_mint_address IN (${strList(STABLES_SOL)})
   ),
-  -- Gas paid by the bundler wallets for user operations (handleOps on the EntryPoint),
-  -- priced with the daily WETH / WBNB price. This is the cost copyfomo.com/data subtracts.
+  -- Gas paid by the bundler wallets for user operations (handleOps on the EntryPoint), and SOL
+  -- spent by the Solana fee payer, priced with the daily WETH / WBNB / SOL price. This is the
+  -- cost copyfomo.com/data subtracts.
   gas_native AS (
     SELECT 'base' AS chain, 'eth' AS sym, SUM(CAST(gas_used AS DOUBLE) * CAST(gas_price AS DOUBLE)) / 1e18 AS native
     FROM base.transactions WHERE PARTITION_RANGE AND TIME_RANGE AND "from" IN (${EMITTERS}) AND "to" = ${ENTRYPOINT}
@@ -206,6 +224,15 @@ WITH ${EVM_WALLETS_CTE},
     UNION ALL
     SELECT 'bnb', 'bnb', SUM(CAST(gas_used AS DOUBLE) * CAST(gas_price AS DOUBLE)) / 1e18
     FROM bnb.transactions WHERE PARTITION_RANGE AND TIME_RANGE AND "from" IN (${EMITTERS}) AND "to" = ${ENTRYPOINT}
+    UNION ALL
+    -- Solana has no bundler: the fee payer signs every copyfomo transaction and pays its fees and
+    -- the rent of the token accounts it creates (net of rent returned when accounts are closed).
+    -- Its SOL balance change in its own transactions is that cost. Transactions co-signed by the
+    -- Solana treasury are its top-ups (USDC swapped into SOL for the fee payer) and are excluded.
+    SELECT 'solana', 'sol', SUM(CAST(pre_balances[1] AS DOUBLE) - CAST(post_balances[1] AS DOUBLE)) / 1e9
+    FROM solana.transactions WHERE PARTITION_RANGE AND TIME_RANGE
+      AND signer = '${FEE_PAYER_SOL}'
+      AND COALESCE(element_at(account_keys, 2), '') <> '${TREASURY_SOL}'
   ),
   px AS (
     SELECT 'eth' AS sym, max_by(price, timestamp) AS price FROM prices.day
@@ -213,6 +240,9 @@ WITH ${EVM_WALLETS_CTE},
     UNION ALL
     SELECT 'bnb', max_by(price, timestamp) FROM prices.day
     WHERE blockchain = 'bnb' AND contract_address = ${WBNB_BNB} AND PRICE_RANGE
+    UNION ALL
+    SELECT 'sol', max_by(price, timestamp) FROM prices.day
+    WHERE blockchain = 'solana' AND contract_address = from_base58('${WSOL}') AND PRICE_RANGE
   ),
   gas AS (
     SELECT g.chain, SUM(g.native * p.price) AS gas_usd FROM gas_native g JOIN px p ON p.sym = g.sym GROUP BY 1
@@ -220,8 +250,11 @@ WITH ${EVM_WALLETS_CTE},
   fees AS (
     SELECT * FROM evm_in UNION ALL SELECT * FROM rh_in UNION ALL SELECT * FROM sol_in
   ),
+  -- one row per chain: base has two referral sources (treasury and payout wallet)
   referral AS (
-    SELECT * FROM evm_out UNION ALL SELECT * FROM rh_out UNION ALL SELECT * FROM sol_out
+    SELECT chain, SUM(referral_usd) AS referral_usd
+    FROM (SELECT * FROM evm_out UNION ALL SELECT * FROM rh_out UNION ALL SELECT * FROM sol_out)
+    GROUP BY 1
   ),
   -- $COPY creator fees (Robinhood Chain): 2.7% of the COIN leg of every swap of the COPY/COIN
   -- pool (raw PoolManager Swap logs, the hook itself is not decoded on Dune), valued at the hourly

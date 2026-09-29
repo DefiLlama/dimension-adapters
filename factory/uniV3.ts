@@ -24,6 +24,10 @@ const configs: Record<string, Record<string, any>> = {
     // stock uniV3 fork, every pool initialized with feeProtocol = 68 => 25% of swap fees to protocol
     [CHAIN.RISE]: { factory: '0xbF30bD8567628Dc4E120b7536d051EaFaA3fD0fa', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
   },
+  "piperx-v3": {
+    // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09
+    [CHAIN.STORY]: { factory: '0xb8c21e89983B5EcCD841846eA294c4c8a89718f1', start: '2025-02-12' },
+  },
   "mintswap": {
     [CHAIN.MINT]: { factory: '0x1f88BB455E02646224A0a65f3eb4B2FCb4fb8e49' },
   },

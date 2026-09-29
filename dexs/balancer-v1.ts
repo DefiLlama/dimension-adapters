@@ -39,9 +39,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const allLogs = await getLogs({ eventAbi: abi.LOG_SWAP, noTarget: true, entireLog: true, parseLog: true })
   const swaps = allLogs
-    .filter((log: any) => pools.has(log.source.toLowerCase()))
+    .filter((log: any) => pools.has((log.address ?? log.source).toLowerCase()))
     .map((log: any) => ({
-      pool: log.source.toLowerCase(),
+      pool: (log.address ?? log.source).toLowerCase(),
       tx: log.transactionHash.toLowerCase(),
       tokenIn: log.parsedLog.args.tokenIn.toLowerCase(),
       tokenOut: log.parsedLog.args.tokenOut.toLowerCase(),
@@ -91,8 +91,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
+  Volume: "Value of swaps in Balancer V1 pools, counted on the side that is WETH, DAI, USDC, USDT, WBTC or BAL; swaps between two other tokens and wash trades are not counted",
   UserFees: "Trading fees paid by users, set per pool by the pool creator (0.0001% to 10%)",
-  Fees: "All swap fees collected from trades across Balancer V1 pools",
+  Fees: "Swap fees paid by traders on the counted swaps, at each pool's own swap fee",
   Revenue: "Balancer V1 takes no protocol fee, so protocol revenue is zero",
   ProtocolRevenue: "Balancer V1 takes no protocol fee, so protocol revenue is zero",
   SupplySideRevenue: "All swap fees are distributed to pool liquidity providers",
@@ -103,7 +104,7 @@ const breakdownMethodology = {
     [LABELS.SwapFees]: "Swap fees paid by users on each trade",
   },
   Fees: {
-    [LABELS.SwapFees]: "All swap fees collected from trades across Balancer V1 pools",
+    [LABELS.SwapFees]: "Swap fees paid by traders on the counted swaps, at each pool's own swap fee",
   },
   SupplySideRevenue: {
     [LABELS.SwapFeesToLPs]: "100% of swap fees are distributed to pool liquidity providers",

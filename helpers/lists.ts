@@ -1,6 +1,8 @@
+import { FetchOptions } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
+import { duneBlockchain, queryDune } from "./dune";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
@@ -128,6 +130,47 @@ export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain]
     ? DefaultDexTokensBlacklisted[chain].map((item) => formatAddress(item))
     : [];
+}
+
+// Shared scam/fake-token list maintained on Dune, applied on top of
+// DefaultDexTokensBlacklisted. Add new offenders there, not here:
+// https://dune.com/data/dune.zteam.dataset_dex_blacklist
+// Columns: address (varbinary, joins directly on dex.trades token columns),
+// chain (varchar Dune blockchain slug, or 'any' for every chain). For an
+// in-query filter see dexs/uniswap-v3.ts; for a client-side list use
+// getDexTokensBlacklisted below.
+export const DUNE_DEX_BLACKLIST_TABLE = 'dune.zteam.dataset_dex_blacklist';
+
+let duneDexBlacklist: Promise<Record<string, Set<string>>> | undefined;
+
+// One Dune call per process; the dataset is a few thousand rows. A failure
+// throws (and clears the cache so the next call retries) - reporting unfiltered
+// would republish scam volume as real.
+function fetchDuneDexBlacklist(options: FetchOptions): Promise<Record<string, Set<string>>> {
+  if (!duneDexBlacklist) {
+    duneDexBlacklist = queryDune('3996608', { fullQuery: `SELECT chain, address FROM ${DUNE_DEX_BLACKLIST_TABLE}` }, options, { extraUIDKey: 'dex-blacklist' })
+      .then((rows: any[]) => {
+        const byChain: Record<string, Set<string>> = {};
+        for (const row of rows) {
+          if (!row.address || !row.chain) continue;
+          (byChain[String(row.chain).toLowerCase()] ??= new Set()).add(formatAddress(row.address));
+        }
+        return byChain;
+      })
+      .catch((e) => { duneDexBlacklist = undefined; throw e; });
+  }
+  return duneDexBlacklist;
+}
+
+// DefaultDexTokensBlacklisted for the chain + the Dune dataset's 'any' rows and
+// the chain's own rows. Lowercased. Use this in adapters instead of
+// getDefaultDexTokensBlacklisted whenever a Dune dependency is acceptable.
+export async function getDexTokensBlacklisted(options: FetchOptions): Promise<Array<string>> {
+  const byChain = await fetchDuneDexBlacklist(options);
+  const tokens = new Set(getDefaultDexTokensBlacklisted(options.chain));
+  for (const token of byChain['any'] ?? []) tokens.add(token);
+  for (const token of byChain[duneBlockchain(options.chain)] ?? []) tokens.add(token);
+  return [...tokens];
 }
 
 export function getAllDexTokensBlacklisted(): Array<string> {

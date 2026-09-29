@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { addOneToken } from "../../helpers/prices";
 
 // Felynx (https://felynx.xyz), a DEX aggregator on Flare that splits and hops swaps across SparkDEX, Enosys, BlazeSwap
 // and Sceptre. FelynxRouter is ownerless and verified on the Flare explorer; every swap emits Swapped. v2 (28 Sep 2026)
@@ -23,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({ targets: ROUTERS, eventAbi: swappedEvent });
 
   for (const log of logs) {
-    dailyVolume.add(log.tokenIn, log.amountIn);
+    addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
     dailyFees.add(log.tokenIn, log.fee, METRIC.SWAP_FEES);
     dailyRevenue.add(log.tokenIn, log.fee, "Swap fees to protocol");
   }
@@ -32,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Volume is the input amount of every swap, from the Swapped events emitted by the FelynxRouter contracts (v1 and v2).",
+  Volume: "Volume is the input amount of every swap, from the Swapped events emitted by the FelynxRouter contracts (v1 and v2). A swap paid in a token without a reliable price is valued by its output when the output is a core asset (WFLR, USDT0, FXRP, sFLR...).",
   Fees: "Fees are tracked from the fee field in Swapped events, denominated in the input token. A swap is free unless its route beats the best single DEX by at least 0.1%, counted after gas; the fee is then at most 0.5% (0.05% between stablecoins; 0.15% on router v1).",
   Revenue: "All swap fees go to the Felynx treasury.",
   ProtocolRevenue: "All swap fees go to the Felynx treasury.",
