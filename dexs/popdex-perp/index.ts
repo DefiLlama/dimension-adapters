@@ -66,7 +66,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.MORPH_TACHYON],
-  start: '2026-09-25',
+  start: '2026-09-30',
   // Rebates and the MegaPop contribution accrue on their own rules and can
   // exceed trading fees collected in the same window, so revenue is negative.
   allowNegativeValue: true,

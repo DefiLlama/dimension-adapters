@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.MORPH_TACHYON],
-  start: '2026-09-25',
+  start: '2026-09-30',
   methodology: {
     LiquidationVolume: 'Notional of positions liquidated in the window (size times fill price, in USDT). Does not include margin seized into the insurance fund.',
   },
