@@ -13,7 +13,7 @@ const FEE_DISPATCHER = '0x0C8C98B7976E114fea895e827182B5dA0b3B9dcc';
 // https://explorer.arc.io/address/0x7F78bA801587E143c0D79b230ff1Dc903A53Fc5f
 const COMMUNITY_REWARDS_DISTRIBUTOR = '0x7F78bA801587E143c0D79b230ff1Dc903A53Fc5f';
 
-const BPS_DENOMINATOR = 10_000n;
+// Souless fee/community policies use basis points with 10,000 = 100%.\n// Source: CommunityRewardsDistributor policy fields and FeeDispatcher distribution math.\nconst BPS_DENOMINATOR = 10_000n;
 const LAUNCH_FEE = 'Launch Fees';
 const OPENING_FEE = 'Guarded Opening Fees';
 const LP_FEE = METRIC.LP_FEES;
@@ -65,6 +65,12 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(USDC, fee.referrerAmount, TO_REFERRERS);
   }
 
+  if (!communityFees.length && dispatcherCommunityTotal !== 0n) {
+    throw new Error(
+      `Souless community fee mismatch: dispatcher=${dispatcherCommunityTotal} distributor=0`,
+    );
+  }
+
   if (communityFees.length) {
     const uniqueEpochs = new Map<string, { token: string; epochId: any }>();
     for (const fee of communityFees) {
@@ -82,10 +88,19 @@ const fetch = async (options: FetchOptions) => {
     const stakingShareByEpoch = new Map<string, bigint>(
       epochKeys.map(([key], index): [string, bigint] => {
         const epoch: any = epochs[index];
-        const stakingShareBps = epoch.stakingShareOfCommunityBps ?? epoch[8];
-        return [key, BigInt(stakingShareBps.toString())];
+        return [key, BigInt(epoch.stakingShareOfCommunityBps.toString())];
       }),
     );
+
+    const distributorCommunityTotal = communityFees.reduce(
+      (total: bigint, fee: any) => total + BigInt(fee.amount),
+      0n,
+    );
+    if (distributorCommunityTotal !== dispatcherCommunityTotal) {
+      throw new Error(
+        `Souless community fee mismatch: dispatcher=${dispatcherCommunityTotal} distributor=${distributorCommunityTotal}`,
+      );
+    }
 
     for (const fee of communityFees) {
       const key = `${fee.token.toLowerCase()}:${fee.epochId.toString()}`;
