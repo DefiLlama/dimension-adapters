@@ -24,6 +24,9 @@ const methodology = {
 interface IBoringVault {
   vault: string;
   accountant: string;
+  // newer accountants emit ExchangeRateUpdated(uint256 newRate) with no old rate, so their
+  // yield is read from the exchange rate at the start and end of the window instead
+  newRateOnly?: boolean;
 }
 
 const BoringVaults: { [key: string]: Array<IBoringVault> } = {
@@ -101,9 +104,12 @@ const BoringVaults: { [key: string]: Array<IBoringVault> } = {
   [CHAIN.INK]: [
     { vault: "0x63D124cF1afC22F0CCEa376168200508d2A0868E", accountant: "0x8C9C454C51eCc717eA03eC03B904565f405DEAF7" }, // Sentora Advanced Yields USD
     { vault: "0x9761DDF8e79930b334f1Be1BD93aBE3695061CcA", accountant: "0x427a3c091F09fa6212d177060bb7456Abf538b22" }, // Advanced Strategies USDC
-    { vault: "0xcaae49fb7f74cCFBE8A05E6104b01c097a78789f", accountant: "0x0C4dF79d9e35E5C4876BC1aE4663E834312DDc67" }, // Balanced Yield USDC
-    { vault: "0xDbD87325D7b1189Dcc9255c4926076fF4a96A271", accountant: "0x9c2477D4Ea17d3cCC45e6b1087c94d14926F54C9" }, // Boosted Yield USDC
+    { vault: "0xcaae49fb7f74cCFBE8A05E6104b01c097a78789f", accountant: "0x0C4dF79d9e35E5C4876BC1aE4663E834312DDc67", newRateOnly: true }, // Balanced Yield USDC
+    { vault: "0xDbD87325D7b1189Dcc9255c4926076fF4a96A271", accountant: "0x9c2477D4Ea17d3cCC45e6b1087c94d14926F54C9", newRateOnly: true }, // Boosted Yield USDC
     { vault: "0x7Dee0120739b7ec048B469939EFB178ADbbB19B2", accountant: "0x4Bb6C416a00561ad6657110b76552c42d55Ff1d6" }, // Advanced Strategies BTC
+  ],
+  [CHAIN.MONAD]: [
+    { vault: "0x1C8a336051D2024E318A229d01F9F6CF96efD316", accountant: "0x98A45D90E81849a5743241d3ff765F9Fd788206a", newRateOnly: true }, // MetaMask Money Account
   ],
   [CHAIN.ARBITRUM]: [
     { vault: "0x86B5780b606940Eb59A062aA85a07959518c0161", accountant: "0x05A1552c5e18F5A0BB9571b5F2D6a4765ebdA32b" }, // Staked ETHFI
@@ -194,60 +200,78 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       const accountant = accountants[i]
       const vaultRateBase = Number(10 ** Number(decimals))
 
-      // get vaults rate updated events
-      const lendingPoolContract: Interface = new Interface([
-        BoringVaultAbis.exchangeRateUpdated,
-      ])
-      const events: Array<ExchangeRateUpdatedEvent> = (await options.getLogs({
-        eventAbi: BoringVaultAbis.exchangeRateUpdated,
-        entireLog: true,
-        target: accountant,
-      }))
-        .map(log => {
-          const decodeLog: any = lendingPoolContract.parseLog(log)
+      if (vault.newRateOnly) {
+        const [stateFrom, stateTo] = await Promise.all([
+          options.fromApi.call({ target: accountant, abi: BoringVaultAbis.accountantState[version] }),
+          options.toApi.call({ target: accountant, abi: BoringVaultAbis.accountantState[version] }),
+        ])
+        const rateFrom = readAccountantState(stateFrom, version).exchangeRate
+        const { exchangeRate: rateTo, performanceFeeRate } = readAccountantState(stateTo, version)
+        const growthRate = rateTo > rateFrom ? rateTo - rateFrom : 0
 
-          const event: any = {
-            blockNumber: Number(log.blockNumber),
-            oldRate: decodeLog.args[0],
-            newRate: decodeLog.args[1],
-          }
-
-          return event
-        })
-
-      for (const event of events) {
-        // newRate - oldRate
-        const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
-
-        // don't need to make calls if there isn't rate growth
         if (growthRate > 0) {
-
-          // supply/state at the event block
-          const totalSupplyAtUpdated = await sdk.api2.abi.call({
-            chain: options.chain,
-            abi: BoringVaultAbis.totalSupply,
-            target: vault.vault,
-            block: event.blockNumber,
-          })
-          const stateAtUpdated = await sdk.api2.abi.call({
-            chain: options.chain,
-            abi: BoringVaultAbis.accountantState[version],
-            target: accountant,
-            block: event.blockNumber,
-          })
-
-          const { exchangeRate, performanceFeeRate } = readAccountantState(stateAtUpdated, version)
-
-          // rate is always greater than or equal 1
-          const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
-
-          const supplySideYield = Number(totalSupplyAtUpdated) * growthRate / vaultRateBase
+          const supplySideYield = Number(totalSupply) * growthRate / vaultRateBase
           const totalYield = supplySideYield / (1 - performanceFeeRate)
-          const protocolFee = totalYield - supplySideYield
-
           dailyFees.add(token, totalYield)
           dailySupplySideRevenue.add(token, supplySideYield)
-          dailyProtocolRevenue.add(token, protocolFee)
+          dailyProtocolRevenue.add(token, totalYield - supplySideYield)
+        }
+      } else {
+        // get vaults rate updated events
+        const lendingPoolContract: Interface = new Interface([
+          BoringVaultAbis.exchangeRateUpdated,
+        ])
+        const events: Array<ExchangeRateUpdatedEvent> = (await options.getLogs({
+          eventAbi: BoringVaultAbis.exchangeRateUpdated,
+          entireLog: true,
+          target: accountant,
+        }))
+          .map(log => {
+            const decodeLog: any = lendingPoolContract.parseLog(log)
+
+            const event: any = {
+              blockNumber: Number(log.blockNumber),
+              oldRate: decodeLog.args[0],
+              newRate: decodeLog.args[1],
+            }
+
+            return event
+          })
+
+        for (const event of events) {
+          // newRate - oldRate
+          const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
+
+          // don't need to make calls if there isn't rate growth
+          if (growthRate > 0) {
+
+            // supply/state at the event block
+            const totalSupplyAtUpdated = await sdk.api2.abi.call({
+              chain: options.chain,
+              abi: BoringVaultAbis.totalSupply,
+              target: vault.vault,
+              block: event.blockNumber,
+            })
+            const stateAtUpdated = await sdk.api2.abi.call({
+              chain: options.chain,
+              abi: BoringVaultAbis.accountantState[version],
+              target: accountant,
+              block: event.blockNumber,
+            })
+
+            const { exchangeRate, performanceFeeRate } = readAccountantState(stateAtUpdated, version)
+
+            // rate is always greater than or equal 1
+            const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
+
+            const supplySideYield = Number(totalSupplyAtUpdated) * growthRate / vaultRateBase
+            const totalYield = supplySideYield / (1 - performanceFeeRate)
+            const protocolFee = totalYield - supplySideYield
+
+            dailyFees.add(token, totalYield)
+            dailySupplySideRevenue.add(token, supplySideYield)
+            dailyProtocolRevenue.add(token, protocolFee)
+          }
         }
       }
 
@@ -313,6 +337,9 @@ const adapter: Adapter = {
     },
     [CHAIN.BOB]: {
       start: '2025-02-12'
+    },
+    [CHAIN.MONAD]: {
+      start: '2026-05-27'
     },
   },
   doublecounted: true,
