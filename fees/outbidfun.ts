@@ -24,6 +24,11 @@
 //     the trading fee: `protocolShareBps` to the protocol when CoinListingManager.collectFees
 //     sweeps it, the rest to the creator. Anything left is earned by third-party LPs. The factory's protocol fee switch stays off: its owner,
 //     the CoinListingManager, has no way to turn it on. Swap volume is not counted.
+//   - The trade router. Since 29 September 2026 every trade sent from outbidfun.lol, on a curve or
+//     in any pool the site routes through, goes through the platform's trade router, which pays a
+//     0.05% fee (owner-set, capped at 0.25% in the contract) to the RevenueRouter in the same
+//     transaction and logs it as FeeCharged(payer, token, amount). It is all protocol revenue.
+//     The trade itself is counted where it happens: a curve trade above, a pool swap not at all.
 //   - Front-page bids. Each bid in USDG is split on the spot (BidSettled): 20% to the $OUTBID
 //     buyback vault and 5% to the treasury, which is protocol revenue. The other 75% buys the
 //     bid-on coin and burns it. That purchase is a trade on the coin's curve (its volume and its
@@ -76,6 +81,9 @@ const REVENUE_ROUTER = "0xeEc171B409788644acBf1c50B825Cc6d9682D9b7";
 // - the current one:
 //   https://robinhoodchain.blockscout.com/address/0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A
 const OUTBID_MARKETS = ["0x1Eaca99186F58A258B08fd7A25524A20c31def63", "0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A"];
+// The trade router, which takes the site's trading fee (SwapExecutor.sol in the contracts repo above):
+// https://robinhoodchain.blockscout.com/address/0x5cFE31511A01161136171309881a6820E6a647f7
+const TRADE_ROUTER = "0x5cFE31511A01161136171309881a6820E6a647f7";
 // How RevenueRouter's RevenueReceived names native ETH.
 const ETHER = "0x0000000000000000000000000000000000000000";
 // Coin fee shares are in basis points.
@@ -105,6 +113,7 @@ const MINT =
   "event Mint(address sender, address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)";
 const BURN = "event Burn(address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)";
 const SWAP = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
+const FEE_CHARGED = "event FeeCharged(address indexed payer, address indexed token, uint256 amount)";
 const BID_SETTLED =
   "event BidSettled(address indexed token, address indexed asset, uint256 burnSpent, uint256 coinsBurned, uint256 toBuyback, uint256 toTreasury)";
 
@@ -113,10 +122,12 @@ const LABELS = {
   creatorTax: "Creator Tax",
   launchFees: "Token Launch Fees",
   bidFees: "Front Page Bid Fees",
+  routerFees: "Trade Router Fees",
   swapFees: METRIC.SWAP_FEES,
   tradingToProtocol: "Trading Fees To Protocol",
   launchToProtocol: "Token Launch Fees To Protocol",
   bidsToProtocol: "Front Page Bid Fees To Protocol",
+  routerToProtocol: "Trade Router Fees To Protocol",
   swapToProtocol: "Token Swap Fees To Protocol",
   tradingToCreators: "Trading Fees To Creators",
   taxToCreators: "Creator Tax To Creators",
@@ -295,6 +306,12 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(log.asset, toProtocol, LABELS.bidsToProtocol);
   }
 
+  const routerFees = await options.getLogs({ target: TRADE_ROUTER, eventAbi: FEE_CHARGED });
+  for (const log of routerFees) {
+    dailyFees.add(log.token, log.amount, LABELS.routerFees);
+    dailyRevenue.add(log.token, log.amount, LABELS.routerToProtocol);
+  }
+
   return {
     dailyFees,
     dailyRevenue,
@@ -308,9 +325,9 @@ const methodology = {
   Volume:
     "The reserve-asset leg of every bonding-curve buy and sell, fees included. Swaps in graduated coins' Uniswap V3 pools are not counted.",
   Fees:
-    "Bonding-curve trading fees (1%, plus the snipe tax on buys in the first seconds after launch), creators' own taxes on curve trades, swap fees in graduated coins' Uniswap V3 pools, the ETH launch fee, and the 25% of every front-page bid paid to the protocol. A reward coin's transfer fee, a token tax paid in the launched coin, is not counted.",
+    "Bonding-curve trading fees (1%, plus the snipe tax on buys in the first seconds after launch), creators' own taxes on curve trades, swap fees in graduated coins' Uniswap V3 pools, the ETH launch fee, the trade router's 0.05% fee on every trade sent from the site, and the 25% of every front-page bid paid to the protocol. A reward coin's transfer fee, a token tax paid in the launched coin, is not counted.",
   Revenue:
-    "The protocol's share of trading fees and of the swap fees earned by locked graduation liquidity (each coin's immutable protocolShareBps, 30% at launch), launch fees, and the buyback and treasury shares of bids.",
+    "The protocol's share of trading fees and of the swap fees earned by locked graduation liquidity (each coin's immutable protocolShareBps, 30% at launch), launch fees, the trade router's fee, and the buyback and treasury shares of bids.",
   ProtocolRevenue:
     "All revenue. It is split between the $OUTBID buyback vault and operations; $OUTBID has not launched, so none of it has reached token holders yet.",
   SupplySideRevenue:
@@ -324,18 +341,21 @@ const breakdownMethodology = {
     [LABELS.swapFees]: "The fee tier of a graduated coin's Uniswap V3 pool (1%) on every swap, measured on the quote-asset leg.",
     [LABELS.launchFees]: "The ETH fee paid to launch a coin, forwarded by the factory to the RevenueRouter.",
     [LABELS.bidFees]: "The buyback (20%) and treasury (5%) shares of every front-page bid, in USDG (BidSettled).",
+    [LABELS.routerFees]: "The trade router's fee (0.05%) on every trade sent from outbidfun.lol, in what the trade paid or bought (FeeCharged).",
   },
   Revenue: {
     [LABELS.tradingToProtocol]: "The protocol's share of the trading fee: each coin's immutable protocolShareBps (30% at launch).",
     [LABELS.swapToProtocol]: "The protocol's share (protocolShareBps, 30% at launch) of the swap fees the coin's locked graduation position earns.",
     [LABELS.launchToProtocol]: "The whole launch fee.",
     [LABELS.bidsToProtocol]: "The buyback and treasury shares of every bid.",
+    [LABELS.routerToProtocol]: "The whole trade router fee, paid to the RevenueRouter.",
   },
   ProtocolRevenue: {
     [LABELS.tradingToProtocol]: "The protocol's share of the trading fee: each coin's immutable protocolShareBps (30% at launch).",
     [LABELS.swapToProtocol]: "The protocol's share (protocolShareBps, 30% at launch) of the swap fees the coin's locked graduation position earns.",
     [LABELS.launchToProtocol]: "The whole launch fee.",
     [LABELS.bidsToProtocol]: "The buyback and treasury shares of every bid.",
+    [LABELS.routerToProtocol]: "The whole trade router fee, paid to the RevenueRouter.",
   },
   SupplySideRevenue: {
     [LABELS.tradingToCreators]: "The creator's share of the trading fee (70% at launch), claimable from the FeeEscrow or paid to a reward coin's holders.",
