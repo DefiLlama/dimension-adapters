@@ -7,16 +7,12 @@ import { PEDDLES, POOL_REGISTERED, PeddlesPool } from "../helpers/peddles";
 // The pools sit on the canonical Uniswap v4 PoolManager and their positions are minted through
 // Uniswap's PositionManager, so dexs/uniswap-v4 can count the same swaps: hence doublecounted.
 //
-// Pools are identified by the hook's own PoolRegistered event, never by their quote token. Swaps
-// are read from the PoolManager with topic1 OR'd across the registered pool ids, so the rest of
-// the chain's v4 traffic is not pulled in.
+// Pools are identified by the hook's own PoolRegistered event, never by their quote token. All
+// PoolManager swaps are pulled from the indexer and filtered to the registered pool ids client
+// side (the indexer does not support an OR list in topic1).
 
 const SWAP =
   "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
-const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"; // v4 Swap topic0
-
-// Pool ids per getLogs call. One launch is one pool, so the list only grows.
-const POOL_IDS_PER_CALL = 500;
 
 const fetch = async (options: FetchOptions) => {
   const deployment = PEDDLES[options.chain];
@@ -39,19 +35,12 @@ const fetch = async (options: FetchOptions) => {
   }
   if (!pools.size) return { dailyVolume };
 
-  const ids = [...pools.keys()];
-  for (let i = 0; i < ids.length; i += POOL_IDS_PER_CALL) {
-    const swaps = await options.getLogs({
-      target: deployment.poolManager,
-      eventAbi: SWAP,
-      topics: [SWAP_TOPIC, ids.slice(i, i + POOL_IDS_PER_CALL)] as any,
-    });
-    for (const log of swaps) {
-      const pool = pools.get(String(log.id).toLowerCase());
-      if (!pool) continue;
-      const amount = BigInt(pool.quoteIsCurrency0 ? log.amount0 : log.amount1);
-      dailyVolume.add(pool.quote, amount < 0n ? -amount : amount);
-    }
+  const swaps = await options.getLogs({ target: deployment.poolManager, eventAbi: SWAP });
+  for (const log of swaps) {
+    const pool = pools.get(String(log.id).toLowerCase());
+    if (!pool) continue;
+    const amount = BigInt(pool.quoteIsCurrency0 ? log.amount0 : log.amount1);
+    dailyVolume.add(pool.quote, amount < 0n ? -amount : amount);
   }
 
   return { dailyVolume };

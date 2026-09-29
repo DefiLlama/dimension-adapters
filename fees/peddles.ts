@@ -94,7 +94,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything users pay: the fee charged on each swap of a launched token, the higher fee charged in the first minutes after a launch, the fee to create a launch, and the fee the Peddles Terminal and trade bot add to a swap.",
   Revenue: "The protocol's share of each swap fee and of the opening fee, plus all launch fees and all Terminal and trade bot fees.",
-  ProtocolRevenue: "All revenue goes to the protocol. There is no buyback or token holder distribution on Base.",
+  ProtocolRevenue: "The protocol's share of each swap fee and of the opening fee, plus all launch fees and all Terminal and trade bot fees.",
   SupplySideRevenue: "The share of each swap fee paid to the token's creator and to the token's own holders, and the part of the opening fee returned to the pool as liquidity.",
 };
 
