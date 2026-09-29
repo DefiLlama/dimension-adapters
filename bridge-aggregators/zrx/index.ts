@@ -35,8 +35,8 @@ const CHAINS: Record<string, number | string> = {
   [CHAIN.LINEA]: 59144,
   [CHAIN.BERACHAIN]: 80094,
   [CHAIN.SCROLL]: 534352,
-  // trades originating on non-EVM chains are not collected yet, enable once they are
-  // [CHAIN.SOLANA]: "solana",
+  [CHAIN.SOLANA]: "solana",
+  // trades originating on Tron are not collected yet, enable once they are
   // [CHAIN.TRON]: "tron",
 };
 
