@@ -2,7 +2,6 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 import { FetchOptions } from "../adapters/types";
-import { METRIC } from "../helpers/metrics";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -446,22 +445,6 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ARC]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-09-16" },
     // [CHAIN.ROBINHOOD]: factory '0x6307fc239C7964942c1BfFE51930E55606619c74', deployed 2026-07-14, no pools created so far
   },
-  // goo exchange (https://goo.exchange/docs/): stock uniV3 pools, CREATE2'd by a separate pool deployer; PoolCreated is emitted by the factory.
-  // Every pool has had slot0().feeProtocol = 68 since launch (1/4 of the swap fee on both sides). The owner can retune it per pool
-  // (0 or 1/4-1/10), so it is read from each pool. The protocol fee is split 50/50: half to a fee jar that auctions it for GOO and
-  // burns the GOO, half to a development fund.
-  "goo-exchange": {
-    [CHAIN.ROBINHOOD]: {
-      factory: '0x221A6239E40709792b0d4bdc140fA36158CD41C7', start: '2026-09-26', userFeesRatio: 1, dynamicProtocolFees: true,
-      getRevenueRatio: ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
-        // Both sides are set in one call and have always been equal. The helper applies one ratio to every swap in a pool
-        // and doesn't expose swap direction, so a failed read (undefined) or unequal sides fail rather than guess.
-        if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken0 !== protocolFeeRatioToken1)
-          throw new Error('goo-exchange: missing or asymmetric protocol fee ratio')
-        return { _revenueRatio: protocolFeeRatioToken0, _protocolRevenueRatio: protocolFeeRatioToken0 / 2, _holdersRevenueRatio: protocolFeeRatioToken0 / 2 }
-      },
-    },
-  },
 }
 
 const optionsMap: Record<string, any> = {}
@@ -654,15 +637,6 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "All user fees are distributed among LPs.",
     HoldersRevenue: "Holders have no revenue.",
   },
-  "goo-exchange": {
-    Volume: "Total swap volume on goo exchange pools.",
-    Fees: "Swap fees paid by users at each pool's fee tier.",
-    UserFees: "Swap fees paid by users at each pool's fee tier.",
-    Revenue: "The protocol fee: each pool's share of the swap fee, read from the pool (1/4 on every pool since launch).",
-    ProtocolRevenue: "Half of the protocol fee, paid to the development fund.",
-    HoldersRevenue: "Half of the protocol fee, sent to a fee jar that auctions it for GOO and burns the GOO.",
-    SupplySideRevenue: "Swap fees less the protocol fee, earned by liquidity providers.",
-  },
 }
 
 const startMap: Record<string, string | number> = {
@@ -766,47 +740,6 @@ protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOpti
     for (const key of Object.keys(result)) if (values[key]) result[key].add(values[key])
   }
   return result
-}
-
-// The helper labels both halves of the protocol fee 'Protocol fees'; relabel every dimension by destination so the
-// breakdown shows the burn / development fund split. Missing or zero dimensions become empty balances.
-const GOO_BURN_LABEL = 'Swap Fees To GOO Buyback And Burn'
-const GOO_DEV_FUND_LABEL = 'Swap Fees To Development Fund'
-const GOO_LP_LABEL = 'Swap Fees To LPs'
-const gooExchangeFetch = getUniV3LogAdapter(configs['goo-exchange'][CHAIN.ROBINHOOD])
-protocols['goo-exchange'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOptions) => {
-  const result = await gooExchangeFetch(options)
-  const relabel = (balances: any, label: string) => {
-    const relabelled = options.createBalances()
-    if (balances && typeof balances === 'object') relabelled.add(balances, { label })
-    return relabelled
-  }
-  const dailyFees = relabel(result.dailyFees, METRIC.SWAP_FEES)
-  const dailyHoldersRevenue = relabel(result.dailyHoldersRevenue, GOO_BURN_LABEL)
-  const dailyProtocolRevenue = relabel(result.dailyProtocolRevenue, GOO_DEV_FUND_LABEL)
-  const dailyRevenue = options.createBalances()
-  dailyRevenue.addBalances(dailyHoldersRevenue)
-  dailyRevenue.addBalances(dailyProtocolRevenue)
-  return {
-    dailyVolume: result.dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees.clone(1),
-    dailySupplySideRevenue: relabel(result.dailySupplySideRevenue, GOO_LP_LABEL),
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-  }
-}
-protocols['goo-exchange'].breakdownMethodology = {
-  Fees: { [METRIC.SWAP_FEES]: methodologyMap['goo-exchange'].Fees },
-  UserFees: { [METRIC.SWAP_FEES]: methodologyMap['goo-exchange'].UserFees },
-  Revenue: {
-    [GOO_BURN_LABEL]: 'Half of the protocol fee, sent to a fee jar that auctions it for GOO and burns the GOO.',
-    [GOO_DEV_FUND_LABEL]: 'Half of the protocol fee, paid to the development fund.',
-  },
-  ProtocolRevenue: { [GOO_DEV_FUND_LABEL]: methodologyMap['goo-exchange'].ProtocolRevenue },
-  HoldersRevenue: { [GOO_BURN_LABEL]: methodologyMap['goo-exchange'].HoldersRevenue },
-  SupplySideRevenue: { [GOO_LP_LABEL]: methodologyMap['goo-exchange'].SupplySideRevenue },
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
