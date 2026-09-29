@@ -38,7 +38,6 @@
 // Post-graduation swaps are the pool's volume, not the launchpad's.
 //
 // Not counted: a reward coin's transfer fee, which is a token tax paid in the launched coin.
-import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -56,14 +55,16 @@ const FACTORIES = [
   { address: "0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0", fromBlock: 73821560 },
   { address: "0xDD0e33a1d5452275E563020F58fC989f26B74CF6", fromBlock: 74842311 },
 ];
-// The block of the first deployment's first transaction; nothing here emits before it.
-const DEPLOY_BLOCK = 73821560;
 // CoinListingManager (first): https://robinhoodchain.blockscout.com/address/0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4
 // CoinListingManager (second): https://robinhoodchain.blockscout.com/address/0xE15E852e3D16939719001D04f5e4d930C1F0DF26
 const LISTING_MANAGERS = [
   { address: "0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4", fromBlock: 73821560 },
   { address: "0xE15E852e3D16939719001D04f5e4d930C1F0DF26", fromBlock: 74842206 },
 ];
+const MIN_FROM_BLOCK = Math.min(
+  ...FACTORIES.map(({ fromBlock }) => fromBlock),
+  ...LISTING_MANAGERS.map(({ fromBlock }) => fromBlock),
+);
 const isListingManager = (owner: string) => LISTING_MANAGERS.some((manager) => manager.address.toLowerCase() === owner.toLowerCase());
 const isFactory = (source: string) => FACTORIES.some((factory) => factory.address.toLowerCase() === source.toLowerCase());
 // RevenueRouter, the listing manager's `treasury()`, where the launch fee is paid:
@@ -179,18 +180,14 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const launches = (
-    await Promise.all(
-      FACTORIES.map(({ address, fromBlock }) =>
-        options.getLogs({ target: address, eventAbi: MEMECOIN_DEPLOYED, fromBlock, cacheInCloud: true })
-      )
-    )
-  ).flat();
+  const launches = await options.getLogs({
+    targets: FACTORIES.map(({ address }) => address),
+    eventAbi: MEMECOIN_DEPLOYED,
+    fromBlock: MIN_FROM_BLOCK,
+    cacheInCloud: true,
+  });
   const coins: string[] = launches.map((launch: any) => launch.memecoin);
-  // Immutable on each coin, so it is read at the latest block rather than the window's: the
-  // chain's public RPC keeps no historical state.
-  const latestApi = new sdk.ChainApi({ chain: options.chain });
-  const shares: string[] = coins.length ? await latestApi.multiCall({ abi: "uint16:protocolShareBps", calls: coins }) : [];
+  const shares: string[] = coins.length ? await options.api.multiCall({ abi: "uint16:protocolShareBps", calls: coins }) : [];
   const shareOf = new Map(coins.map((coin, i) => [coin.toLowerCase(), BigInt(shares[i])]));
 
   if (coins.length) {
@@ -217,21 +214,20 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Graduated pools, with the fee tier each was opened at, from both listing managers.
-  const opened = (
-    await Promise.all(
-      LISTING_MANAGERS.map(({ address, fromBlock }) =>
-        options.getLogs({ target: address, eventAbi: POOL_OPENED, fromBlock, cacheInCloud: true })
-      )
-    )
-  ).flat();
+  const opened = await options.getLogs({
+    targets: LISTING_MANAGERS.map(({ address }) => address),
+    eventAbi: POOL_OPENED,
+    fromBlock: MIN_FROM_BLOCK,
+    cacheInCloud: true,
+  });
   if (opened.length) {
     const pools = opened.map((log: any) => log.pool);
     const swaps = await options.getLogs({ targets: pools, eventAbi: SWAP, onlyArgs: false, flatten: false });
     if (swaps.some((logs: any[]) => logs.length)) {
       // Every position's liquidity at each swap, replayed from the pools' whole Mint/Burn history:
       // few events, changing slowly, like a pool list.
-      const mints = await options.getLogs({ targets: pools, eventAbi: MINT, fromBlock: DEPLOY_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
-      const burns = await options.getLogs({ targets: pools, eventAbi: BURN, fromBlock: DEPLOY_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const mints = await options.getLogs({ targets: pools, eventAbi: MINT, fromBlock: MIN_FROM_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const burns = await options.getLogs({ targets: pools, eventAbi: BURN, fromBlock: MIN_FROM_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
       const positioned = (log: any, kind: string) => {
         const blockNumber = Number(log.blockNumber);
         const logIndex = Number(log.logIndex);
