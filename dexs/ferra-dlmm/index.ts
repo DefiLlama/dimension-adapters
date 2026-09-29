@@ -2,9 +2,20 @@ import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const statsUrl = (path: string, from: number, to: number) =>
+    `https://stats.ferra.ag/api/stats/dlmm/${path}?from_timestamp=${from}&to_timestamp=${to}`;
+
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = (await fetchURL(`https://stats.ferra.ag/api/stats/dlmm/volume?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`)).data.volume;
-    const feeStats = (await fetchURL(`https://stats.ferra.ag/api/stats/dlmm/fees?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`)).data;
+    // The stats api lags the chain and answers a window it has not indexed yet with volume 0
+    // (or a partial figure) instead of an error. Only trust a window once the indexer has
+    // recorded volume after it ends.
+    const now = Math.floor(Date.now() / 1000);
+    const volumeAfterWindow = (await fetchURL(statsUrl('volume', options.endTimestamp, now))).data.volume;
+    if (!(Number(volumeAfterWindow) > 0))
+        throw new Error(`Ferra stats api has not indexed past ${new Date(options.endTimestamp * 1000).toISOString()} yet`);
+
+    const dailyVolume = (await fetchURL(statsUrl('volume', options.startTimestamp, options.endTimestamp))).data.volume;
+    const feeStats = (await fetchURL(statsUrl('fees', options.startTimestamp, options.endTimestamp))).data;
 
     return {
         dailyVolume: dailyVolume,
