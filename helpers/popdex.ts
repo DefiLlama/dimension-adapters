@@ -22,6 +22,14 @@ const METRIC_KEYS = [
 
 type PerpsMetrics = Record<typeof METRIC_KEYS[number], number>
 
+type PopdexTicker = {
+  category: string
+  symbol: unknown
+  openInterest: unknown
+  markPrice: unknown
+  updatedTime: unknown
+}
+
 function parseAmount(raw: unknown, field: string): number {
   if (typeof raw !== 'string' || raw.trim() === '') {
     throw new Error(`popdex: ${field} is not a numeric string: ${JSON.stringify(raw)}`)
@@ -48,6 +56,9 @@ export function perpsWindowMs(options: { startTimestamp: number, endTimestamp: n
   return { startTime: startSec * 1000, endTime: endSec * 1000 }
 }
 
+/** Fetches validated USD perpetual metrics for a half-open range of Unix milliseconds.
+ * Throws when the response is missing, malformed, for a different range, or violates
+ * the fee-accounting and non-negative source-metric invariants. */
 export async function fetchPerpsMetrics(startTimeMs: number, endTimeMs: number): Promise<PerpsMetrics> {
   const url = `${API_BASE}/perps-metrics?startTime=${startTimeMs}&endTime=${endTimeMs}`
   const res = await httpGet(url)
@@ -72,10 +83,13 @@ export async function fetchPerpsMetrics(startTimeMs: number, endTimeMs: number):
   return m
 }
 
+/** Returns the current one-sided futures open interest in USD.
+ * Throws when pagination is incomplete or any futures ticker has an invalid,
+ * duplicate, or stale symbol, quantity, mark price, or update timestamp. */
 export async function fetchOpenInterestUsd(): Promise<number> {
   const limit = 100
   let cursor = '0'
-  const rows: any[] = []
+  const rows: PopdexTicker[] = []
   let total: number | undefined
 
   // The cap bounds the walk. Exiting because the cap was hit, rather than
@@ -88,7 +102,22 @@ export async function fetchOpenInterestUsd(): Promise<number> {
     if (!Array.isArray(res?.data)) {
       throw new Error(`popdex tickers: data is not an array: ${JSON.stringify(res?.data)}`)
     }
-    const data: any[] = res.data
+    const data: PopdexTicker[] = res.data.map((row: unknown, index: number) => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        throw new Error(`popdex tickers: row ${rows.length + index} is not an object`)
+      }
+      const ticker = row as Record<string, unknown>
+      if (typeof ticker.category !== 'string' || ticker.category.trim() === '') {
+        throw new Error(`popdex tickers: row ${rows.length + index} has invalid category`)
+      }
+      return {
+        category: ticker.category,
+        symbol: ticker.symbol,
+        openInterest: ticker.openInterest,
+        markPrice: ticker.markPrice,
+        updatedTime: ticker.updatedTime,
+      }
+    })
     if (res?.total !== undefined && res?.total !== null && res?.total !== '') total = Number(res.total)
     rows.push(...data)
     if (data.length === 0 || data.length < limit) {
