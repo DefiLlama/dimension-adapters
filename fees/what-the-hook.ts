@@ -69,7 +69,7 @@ const HOOK = "0xc52fc52698479e42f0da9a8a75296ec3871454c0";
 // are one currency for the purpose of splitting a transaction's total.
 const NATIVE = ADDRESSES.null;
 // https://robinhoodchain.blockscout.com/token/0x0Bd7d308F8e1639fAB988DF18A8011f41EacAd73
-const WETH = ADDRESSES.robinhood.WETH;
+const WETH = ADDRESSES.robinhood.WETH.toLowerCase(); // compared against lowercased log currencies in family()
 // https://robinhoodchain.blockscout.com/token/0xb8Fa8010833463Aac5595b55B9045479239EfF79
 const WTH = "0xb8fa8010833463aac5595b55b9045479239eff79";
 const family = (currency: string) => (currency === NATIVE || currency === WETH ? "eth" : currency);
