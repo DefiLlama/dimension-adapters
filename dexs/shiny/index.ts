@@ -141,8 +141,8 @@ const fetch = async (options: FetchOptions) => {
   const usdc = isSolana ? ADDRESSES.solana.USDC : configs[options.chain].USDC;
   const { totalSpend, totalSellback } = isSolana ? await getSolanaFlows(options) : await getEvmFlows(options);
 
-  // Volume = pack purchases + sellback payouts
-  dailyVolume.add(usdc, totalSpend + totalSellback);
+  // Volume is pack purchases only. Sellback payouts are refunds, not trading volume.
+  dailyVolume.add(usdc, totalSpend);
 
   // Fees = pack spend net of sellback payouts (what the protocol keeps)
   dailyFees.add(usdc, totalSpend, LABEL_PACK_SALES);
@@ -158,10 +158,10 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "USDC players spend on gacha packs and pack battles, plus USDC paid to players who sell pulled cards back to Shiny.",
+    "USDC players spend on gacha packs and pack battles. Card sellbacks paid to players are excluded.",
   Fees: "Pack and battle spend minus sellback payouts to players. Referral commissions are not deducted.",
   Revenue: "Same as Fees: Shiny keeps pack spend net of sellback payouts and shares none of it with liquidity providers or other suppliers.",
-  ProtocolRevenue: "All revenue goes to the Shiny treasury.",
+  ProtocolRevenue: "All revenue (pack spend net of sellback payouts) goes to the Shiny treasury.",
 };
 
 const feeBreakdown = {
@@ -171,7 +171,7 @@ const feeBreakdown = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true,
   fetch,
   adapter: configs,
   dependencies: [Dependencies.ALLIUM],
