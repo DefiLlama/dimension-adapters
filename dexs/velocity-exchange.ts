@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
 const API_URL = "https://data.velocity.exchange/stats/markets/volume";
+const HOUR_SECONDS = 60 * 60;
 
 interface MarketVolume {
   marketType: string;
@@ -17,8 +18,8 @@ interface VolumeResponse {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const startTimestamp = options.startTimestamp + 1;
-  const { endTimestamp } = options;
+  const startTimestamp = Math.floor((options.startTimestamp + 1) / HOUR_SECONDS) * HOUR_SECONDS;
+  const endTimestamp = Math.floor(options.endTimestamp / HOUR_SECONDS) * HOUR_SECONDS;
   const response: VolumeResponse = await fetchURL(`${API_URL}?startTs=${startTimestamp}&endTs=${endTimestamp}`);
 
   if (!response.success || response.startTs !== startTimestamp || response.endTs !== endTimestamp || !Array.isArray(response.markets)) {
@@ -46,7 +47,7 @@ const adapter: SimpleAdapter = {
   start: "2026-07-06",
   fetch,
   methodology: {
-    Volume: "Perpetual market quote volume (USDT) from Velocity's timestamped markets API; spot markets are excluded.",
+    Volume: "Perpetual market quote volume (USDT) from Velocity's markets API over completed hourly boundaries; spot markets are excluded.",
   },
 };
 
