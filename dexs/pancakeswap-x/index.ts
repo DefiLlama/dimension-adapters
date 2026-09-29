@@ -50,7 +50,7 @@ const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 
 const toAddressTopic = (address: string) => "0x" + address.slice(2).toLowerCase().padStart(64, "0");
 
-type Transfer = { token: string; from: string; value: bigint; logIndex: number; used: boolean };
+type Transfer = { token: string; from: string; to: string; value: bigint; logIndex: number; used: boolean };
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -86,6 +86,7 @@ const fetch = async (options: FetchOptions) => {
       (transfersByTx[tx] ??= []).push({
         token: log.address,
         from: log.parsedLog.args.from.toLowerCase(),
+        to: filler,
         value: log.parsedLog.args.value,
         logIndex: Number(log.logIndex),
         used: false,
@@ -98,8 +99,9 @@ const fetch = async (options: FetchOptions) => {
   Object.values(transfersByTx).forEach((transfers) => transfers.sort((a, b) => a.logIndex - b.logIndex));
   [...fills].sort((a: any, b: any) => Number(a.logIndex) - Number(b.logIndex)).forEach((log: any) => {
     const swapper = log.parsedLog.args.swapper.toLowerCase();
+    const filler = log.parsedLog.args.filler.toLowerCase();
     const input = transfersByTx[log.transactionHash.toLowerCase()]?.find(
-      (t) => !t.used && t.from === swapper && t.logIndex < Number(log.logIndex),
+      (t) => !t.used && t.from === swapper && t.to === filler && t.logIndex < Number(log.logIndex),
     );
     if (!input) return;
     input.used = true;
