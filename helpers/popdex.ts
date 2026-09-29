@@ -10,9 +10,13 @@ import { httpGet } from '../utils/fetchURL'
 // Public mainnet REST endpoint supplied by PopDEX.
 const API_BASE = 'https://api.popdex.ai/api/v1/public'
 const EPS = 0.0001 // absolute USD; 1e-6 false-fails once daily fees exceed ~1e8
+// The API documents 100 as the maximum ticker page size:
+// https://popdex.xyz/docs/api/common/market/Get-Tickers
+const TICKER_PAGE_LIMIT = 100
+const MAX_TICKER_PAGES = 1000 // safety bound of 100k markets, far above the current market count
 // Tickers are documented as real-time data; fail rather than store a stale snapshot.
 // https://popdex.xyz/docs/api/common/market/Get-Tickers
-const OI_MAX_AGE_MS = 60 * 60 * 1000
+const OI_MAX_AGE_MS = 60 * 60 * 1000 // allow low-activity markets to lag while rejecting stuck snapshots
 const OI_FUTURE_TOLERANCE_MS = 1000 // tolerate only sub-second clock skew between the API host and runner
 
 const METRIC_KEYS = [
@@ -87,7 +91,6 @@ export async function fetchPerpsMetrics(startTimeMs: number, endTimeMs: number):
  * Throws when pagination is incomplete or any futures ticker has an invalid,
  * duplicate, or stale symbol, quantity, mark price, or update timestamp. */
 export async function fetchOpenInterestUsd(): Promise<number> {
-  const limit = 100
   let cursor = '0'
   const rows: PopdexTicker[] = []
   let total: number | undefined
@@ -95,8 +98,8 @@ export async function fetchOpenInterestUsd(): Promise<number> {
   // The cap bounds the walk. Exiting because the cap was hit, rather than
   // because a short page arrived, means the sum is partial and must not be stored.
   let finished = false
-  for (let page = 0; page < 1000; page++) {
-    const url = `${API_BASE}/market/tickers?category=Futures&limit=${limit}&cursor=${cursor}`
+  for (let page = 0; page < MAX_TICKER_PAGES; page++) {
+    const url = `${API_BASE}/market/tickers?category=Futures&limit=${TICKER_PAGE_LIMIT}&cursor=${cursor}`
     const res = await httpGet(url)
     if (String(res?.code) !== '200') throw new Error(`popdex tickers: code ${res?.code} msg ${res?.msg}`)
     if (!Array.isArray(res?.data)) {
@@ -120,7 +123,7 @@ export async function fetchOpenInterestUsd(): Promise<number> {
     })
     if (res?.total !== undefined && res?.total !== null && res?.total !== '') total = Number(res.total)
     rows.push(...data)
-    if (data.length === 0 || data.length < limit) {
+    if (data.length === 0 || data.length < TICKER_PAGE_LIMIT) {
       finished = true
       break
     }
@@ -137,7 +140,9 @@ export async function fetchOpenInterestUsd(): Promise<number> {
   let futuresRows = 0
   const symbols = new Set<string>()
   for (const row of rows) {
-    if (String(row.category).toLowerCase() !== 'futures') continue
+    if (row.category.toLowerCase() !== 'futures') {
+      throw new Error(`popdex tickers: Futures request returned category ${row.category}`)
+    }
     futuresRows++
     if (typeof row.symbol !== 'string' || row.symbol.trim() === '') {
       throw new Error(`popdex tickers: futures row has invalid symbol ${JSON.stringify(row.symbol)}`)
@@ -152,11 +157,16 @@ export async function fetchOpenInterestUsd(): Promise<number> {
       throw new Error(`popdex tickers: ${symbol} has invalid updatedTime ${row.updatedTime}`)
     }
     if (oi === 0) continue
-    const mark = Number(row.markPrice)
-    if (!Number.isFinite(mark) || mark <= 0) {
+    const mark = parseAmount(row.markPrice, `markPrice for ${symbol}`)
+    if (mark <= 0) {
       throw new Error(`popdex tickers: ${symbol} openInterest ${oi} has markPrice ${row.markPrice}`)
     }
-    usd += oi * mark
+    const notional = oi * mark
+    const nextUsd = usd + notional
+    if (!Number.isFinite(notional) || !Number.isFinite(nextUsd)) {
+      throw new Error(`popdex tickers: non-finite USD open interest for ${symbol}`)
+    }
+    usd = nextUsd
   }
   if (futuresRows === 0) throw new Error('popdex tickers: snapshot contains no futures rows')
   return usd
