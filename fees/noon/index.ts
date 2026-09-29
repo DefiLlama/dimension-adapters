@@ -17,32 +17,28 @@ const USN_ETHEREUM = "0xdA67B4284609d2d48e5d10cfAc411572727dc1eD";
 // Official Beethoven/Balancer-style rate provider returning sUSN:USN exchange rate (18 decimals)
 const SUSN_RATE_PROVIDER = "0x3A89f87EA1D5B9fd0FEde73b5098678190D2EEaa";
 
+async function getRateAt(timestamp: number): Promise<bigint> {
+  const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp });
+  await api.getBlock();
+  const rate = await api.call({ abi: "uint256:getRate", target: SUSN_RATE_PROVIDER });
+  return BigInt(rate);
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // sUSN rate provider is deployed on Ethereum; use options.toApi / fromApi directly when querying Ethereum,
-  // or instantiate dedicated ChainApi instances for Ethereum when fetching secondary L2 supplies
-  const toApiEth = options.chain === CHAIN.ETHEREUM
-    ? options.toApi
-    : new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.toTimestamp });
-  const fromApiEth = options.chain === CHAIN.ETHEREUM
-    ? options.fromApi
-    : new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.fromTimestamp });
-
-  const [rateToday, rateYesterday, totalSupply] = await Promise.all([
-    toApiEth.call({ abi: "uint256:getRate", target: SUSN_RATE_PROVIDER }),
-    fromApiEth.call({ abi: "uint256:getRate", target: SUSN_RATE_PROVIDER }),
-    options.toApi.call({ abi: "uint256:totalSupply", target: SUSN[options.chain] }),
+  const [rateTodayBn, rateYesterdayBn, totalSupply] = await Promise.all([
+    getRateAt(options.toTimestamp),
+    getRateAt(options.fromTimestamp),
+    options.api.call({ abi: "uint256:totalSupply", target: SUSN[options.chain] }),
   ]);
 
-  const rateTodayBn = BigInt(rateToday);
-  const rateYesterdayBn = BigInt(rateYesterday);
   const totalSupplyBn = BigInt(totalSupply);
+  const rateDelta = rateTodayBn - rateYesterdayBn;
 
-  if (rateTodayBn > rateYesterdayBn) {
-    const rateDelta = rateTodayBn - rateYesterdayBn;
+  if (rateDelta !== 0n) {
     // Protocol return distribution (docs.noon.capital/noon-the-details/return-distribution):
     // - 80% of net returns accrue to sUSN depositors via exchange rate appreciation (Supply-Side Revenue)
     // - 20% protocol performance fee is retained: 10% Insurance Fund + 10% Operations Fund (Protocol Revenue)
@@ -54,11 +50,14 @@ const fetch = async (options: FetchOptions) => {
     const grossYield = (netYield * 5n) / 4n;
     const protocolRevenue = grossYield - netYield;
 
-    const token = options.chain === CHAIN.ETHEREUM ? USN_ETHEREUM : `ethereum:${USN_ETHEREUM}`;
-    dailySupplySideRevenue.add(token, netYield, METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(token, protocolRevenue, METRIC.PERFORMANCE_FEES);
-    dailyFees.add(token, netYield, METRIC.ASSETS_YIELDS);
-    dailyFees.add(token, protocolRevenue, METRIC.PERFORMANCE_FEES);
+    // USN is USD-pegged (token: USN_ETHEREUM); addUSDValue works on all chains where ethereum: pricing does not
+    const netYieldUsd = Number(netYield) / 1e18;
+    const protocolRevenueUsd = Number(protocolRevenue) / 1e18;
+
+    dailySupplySideRevenue.addUSDValue(netYieldUsd, METRIC.ASSETS_YIELDS);
+    dailyRevenue.addUSDValue(protocolRevenueUsd, METRIC.PERFORMANCE_FEES);
+    dailyFees.addUSDValue(netYieldUsd, METRIC.ASSETS_YIELDS);
+    dailyFees.addUSDValue(protocolRevenueUsd, METRIC.PERFORMANCE_FEES);
   }
 
   return {
@@ -98,6 +97,8 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  allowNegativeValue: true, // strategy losses flow through sUSN exchange-rate depreciation
   methodology,
   breakdownMethodology,
   adapter: {
