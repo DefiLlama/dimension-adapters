@@ -48,7 +48,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.SOLANA],
+  // Orders are matched and positions are held off-chain; Solana only settles
+  // deposits and withdrawals (confirmed by the Pacifica team), so the venue is
+  // keyed as off_chain rather than Solana.
+  chains: [CHAIN.OFF_CHAIN],
   start: '2025-06-09',
 }
 

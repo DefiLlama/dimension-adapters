@@ -100,7 +100,9 @@ const protocols = {
   'sunx': normalizedVolumeAdapter('sunx', CHAIN.TRON, '2026-01-20'),
   'apex-omni': normalizedVolumeAdapter('apex-omni', CHAIN.ETHEREUM, '2026-01-20'),
   'grvt': normalizedVolumeAdapter('grvt', CHAIN.GRVT, '2026-01-20'),
-  'pacifica': normalizedVolumeAdapter('pacifica', CHAIN.SOLANA, '2026-01-20', 2),
+  // Pacifica matches off-chain and only settles deposits/withdrawals on Solana,
+  // so it is keyed as off_chain like its dexs/fees/open-interest adapters
+  'pacifica': normalizedVolumeAdapter('pacifica', CHAIN.OFF_CHAIN, '2026-01-20', 2),
   'extended': normalizedVolumeAdapter('extended', CHAIN.STARKNET, '2026-01-20'),
   'nado': normalizedVolumeAdapter('nado', CHAIN.INK, '2026-01-20'),
   'standx': normalizedVolumeAdapter('standx', CHAIN.STANDX, '2026-01-20'),
