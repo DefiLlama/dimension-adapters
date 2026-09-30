@@ -45,7 +45,6 @@
 // Post-graduation swaps are the pool's volume, not the launchpad's.
 //
 // Not counted: a reward coin's transfer fee, which is a token tax paid in the launched coin.
-import { ChainApi } from "@defillama/sdk";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
@@ -87,8 +86,7 @@ const kindKey = (kind: Kind) => "0x" + Buffer.from(kind, "ascii").toString("hex"
 const registered = async (options: FetchOptions): Promise<Record<Kind, Registered[]>> => {
   const contracts = await getConfig(`outbidfun/registry/${options.chain}`, undefined, {
     fetcher: async () => {
-      const api = new ChainApi({ chain: options.chain });
-      const lists = await api.multiCall({ target: REGISTRY, abi: ENTRIES, calls: KINDS.map((kind) => kindKey(kind)) });
+      const lists = await options.api.multiCall({ target: REGISTRY, abi: ENTRIES, calls: KINDS.map((kind) => kindKey(kind)) });
       const byKind = Object.fromEntries(
         KINDS.map((kind, i) => [kind, lists[i].map((entry: any) => ({ address: entry.target, fromBlock: Number(entry.fromBlock) }))]),
       ) as Record<Kind, Registered[]>;
