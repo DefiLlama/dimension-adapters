@@ -84,8 +84,8 @@ type Registered = { address: string; fromBlock: number };
 // A kind as the registry keys it: the name's ASCII, as a bytes32.
 const kindKey = (kind: Kind) => "0x" + Buffer.from(kind, "ascii").toString("hex").padEnd(64, "0");
 
-const registered = (options: FetchOptions): Promise<Record<Kind, Registered[]>> =>
-  getConfig(`outbidfun/registry/${options.chain}`, undefined, {
+const registered = async (options: FetchOptions): Promise<Record<Kind, Registered[]>> => {
+  const contracts = await getConfig(`outbidfun/registry/${options.chain}`, undefined, {
     fetcher: async () => {
       const api = new ChainApi({ chain: options.chain });
       const lists = await api.multiCall({ target: REGISTRY, abi: ENTRIES, calls: KINDS.map((kind) => kindKey(kind)) });
@@ -96,6 +96,12 @@ const registered = (options: FetchOptions): Promise<Record<Kind, Registered[]>> 
       return byKind;
     },
   });
+  // getConfig answers a failed read with the lists it last cached, or with {} where there are none.
+  for (const kind of KINDS) {
+    if (!Array.isArray(contracts?.[kind]) || !contracts[kind].length) throw new Error(`outbidfun: could not read the ${kind} contracts from the registry`);
+  }
+  return contracts;
+};
 // How RevenueRouter's RevenueReceived names native ETH.
 const ETHER = "0x0000000000000000000000000000000000000000";
 // Coin fee shares are in basis points.
