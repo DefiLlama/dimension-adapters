@@ -408,4 +408,5 @@ export enum CHAIN {
   ARC = "arc",
   REDBELLY = "rbn",
   MORPH_TACHYON = "morph_tachyon",
+  RAYLS = "rls",
 }

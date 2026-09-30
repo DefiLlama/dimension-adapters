@@ -391,7 +391,22 @@ const configs: Record<string, SubgraphConfig> = {
     // Tsunami V3 on Ink is dead: TVL collapsed from a $46k peak (2026-05-07) to $51,
     // volume was ~$0 by early August and the goldsky subgraph project was deleted (404).
     deadFrom: '2026-08-04',
-  }
+  },
+  "rayls-swap": {
+    // Algebra Integral fork on Rayls, factory 0x3f912b39A89708Db8E10205421d3726e2DF4984D.
+    // factory.defaultCommunityFee() = pool.globalState().communityFee = 20 out of
+    // COMMUNITY_FEE_DENOMINATOR 1000 => 2% of swap fees to the community vault, 98% to LPs.
+    graphUrls: {
+      [CHAIN.RAYLS]: "https://rayls-graph.algebra.finance/subgraphs/name/mainnet-analytics",
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    totalFees: { factory: "factories", field: "totalFeesUSD" },
+    feesPercent: {
+      type: "fees",
+      SupplySideRevenue: 100,
+    },
+    start: "2026-05-18",
+  },
 };
 
 // Build protocols from configs
