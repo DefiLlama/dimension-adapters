@@ -16,7 +16,7 @@ const RAKEBACK = '0x89E2E1819Fc373e3cD840A0ceb2Ef1eAE79E2dB8' // RakebackV2, pay
 export const LABELS = {
   STAKERS: 'Protocol Fees To MOTO Stakers',
   BUYBACK: 'Protocol Fees To MOTO Buyback And Burn',
-  RAKEBACK: 'Protocol Fees To Trader Rakeback',
+  RAKEBACK: 'Rakeback program',
   TREASURY: 'Protocol Fees To Treasury',
 }
 
@@ -86,7 +86,7 @@ export function addQuote(balances: Balances, token: string, amount: bigint, moto
 // Splits protocol fees that reached the Collector into revenue / holders / protocol / supply side.
 /**
  * Splits a balances object of protocol fees by the Collector split.
- * @returns four labeled clones: to stakers, to buyback and burn, to treasury, to Rakeback
+ * @returns four labeled clones: to stakers, to buyback and burn, to treasury, to the Rakeback program
  */
 export function splitProtocolFees(protocolFees: Balances, split: CollectorSplit) {
   const toStakers = protocolFees.clone(split.stakers, LABELS.STAKERS)

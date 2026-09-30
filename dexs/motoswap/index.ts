@@ -101,18 +101,20 @@ async function addMotoswapMetrics(options: FetchOptions, helperResult: any) {
   const dailySupplySideRevenue = createBalances()
   dailySupplySideRevenue.add(lpFees.clone(1, FEE_LABELS.TO_LPS))
   dailySupplySideRevenue.add(creatorFees.clone(1, FEE_LABELS.TO_CREATORS))
-  dailySupplySideRevenue.add(toRakeback)
 
   const dailyHoldersRevenue = createBalances()
   dailyHoldersRevenue.add(toStakers.clone(1, LABELS.STAKERS))
   dailyHoldersRevenue.add(toBuyback.clone(1, LABELS.BUYBACK))
 
-  const dailyProtocolRevenue = toTreasury.clone(1, LABELS.TREASURY)
+  const dailyProtocolRevenue = createBalances()
+  dailyProtocolRevenue.add(toTreasury.clone(1, LABELS.TREASURY))
+  dailyProtocolRevenue.add(toRakeback.clone(1, LABELS.RAKEBACK))
 
   const dailyRevenue = createBalances()
   dailyRevenue.add(toStakers)
   dailyRevenue.add(toBuyback)
   dailyRevenue.add(toTreasury)
+  dailyRevenue.add(toRakeback)
 
   return {
     dailyVolume,
@@ -129,10 +131,10 @@ const methodology = {
   Volume: 'Volume of swaps on Motoswap pairs, read from the pair Swap events of every pair created by the Motoswap factory. Pairs quoted in MOTO are measured on their MOTO side, valued at the Motoswap MOTO/WETH pair price.',
   Fees: 'Every trade pays the pair swap fee (0.30%) to liquidity providers, a 0.70% Motoswap protocol fee on the quote side, and on coins that graduated from moto.fun a 0.30% creator fee.',
   UserFees: 'Traders pay all of the fees above.',
-  Revenue: 'The part of the 0.70% protocol fee that goes to MOTO stakers, MOTO buyback and burn, and the treasury.',
-  ProtocolRevenue: 'The treasury share of the 0.70% protocol fee.',
+  Revenue: 'The whole 0.70% protocol fee: the shares for MOTO stakers, MOTO buyback and burn, the treasury and the Rakeback program.',
+  ProtocolRevenue: 'The treasury share and the Rakeback program share of the 0.70% protocol fee.',
   HoldersRevenue: 'The share of the 0.70% protocol fee paid to MOTO stakers plus the share used to buy back and burn MOTO.',
-  SupplySideRevenue: 'The 0.30% pair fee to liquidity providers, the creator fee to coin creators, and the Rakeback share of the protocol fee paid back to traders.',
+  SupplySideRevenue: 'The 0.30% pair fee to liquidity providers and the creator fee to coin creators.',
 }
 
 const breakdownMethodology = {
@@ -150,9 +152,11 @@ const breakdownMethodology = {
     [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',
     [LABELS.BUYBACK]: 'Buyback and burn bucket of the Collector (1/7 of the protocol fee since launch), used to buy MOTO and burn it.',
     [LABELS.TREASURY]: 'Treasury bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.RAKEBACK]: 'Rakeback bucket of the Collector (2/7 of the protocol fee since launch). Rakeback is a protocol-run program funded out of the protocol fee, so like token incentives it is spent from revenue, not a supply-side payment.',
   },
   ProtocolRevenue: {
     [LABELS.TREASURY]: 'Treasury bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.RAKEBACK]: 'Rakeback bucket of the Collector (2/7 of the protocol fee since launch). Rakeback is a protocol-run program funded out of the protocol fee, so like token incentives it is spent from revenue, not a supply-side payment.',
   },
   HoldersRevenue: {
     [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',
@@ -161,7 +165,6 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [FEE_LABELS.TO_LPS]: 'Pair swap fee kept by liquidity providers.',
     [FEE_LABELS.TO_CREATORS]: 'Creator fee accrued to the coin creator in the CreatorFeeVault.',
-    [LABELS.RAKEBACK]: 'Rakeback bucket of the Collector (2/7 of the protocol fee since launch), paid back to traders.',
   },
 }
 
