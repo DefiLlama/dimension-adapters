@@ -407,4 +407,5 @@ export enum CHAIN {
   STRATO = "strato",
   ARC = "arc",
   REDBELLY = "rbn",
+  MORPH_TACHYON = "morph_tachyon",
 }
