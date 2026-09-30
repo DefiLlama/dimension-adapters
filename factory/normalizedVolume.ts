@@ -97,7 +97,8 @@ const protocols = {
   'lighter': normalizedVolumeAdapter('lighter', CHAIN.ZK_LIGHTER, '2026-01-20'),
   'aster': normalizedVolumeAdapter('aster', CHAIN.OFF_CHAIN, '2026-01-20'),
   'paradex': normalizedVolumeAdapter('paradex', CHAIN.PARADEX, '2026-01-20', 2),
-  'sunx': normalizedVolumeAdapter('sunx', CHAIN.TRON, '2026-01-20'),
+  // SunPerp matches off-chain and only settles deposits/withdrawals on Tron (see dexs/sunperp)
+  'sunx': normalizedVolumeAdapter('sunx', CHAIN.OFF_CHAIN, '2026-01-20'),
   'apex-omni': normalizedVolumeAdapter('apex-omni', CHAIN.ETHEREUM, '2026-01-20'),
   'grvt': normalizedVolumeAdapter('grvt', CHAIN.GRVT, '2026-01-20'),
   'pacifica': normalizedVolumeAdapter('pacifica', CHAIN.SOLANA, '2026-01-20', 2),
@@ -109,11 +110,13 @@ const protocols = {
   'risex': normalizedVolumeAdapter('risex', CHAIN.RISE, '2026-05-25', 2),
   'dango': { ...normalizedVolumeAdapter('dango', CHAIN.DANGO, '2026-05-28', 2), deadFrom: '2026-07-29' },
   'sodex': normalizedVolumeAdapter('sodex', CHAIN.VALUECHAIN, '2026-05-31'),
-  'variational-omni': normalizedVolumeAdapter('variational', CHAIN.ARBITRUM, '2026-05-07', 2),
+  // Variational books trades in the operator ledger, Arbitrum pools only escrow USDC (see dexs/variational-omni)
+  'variational-omni': normalizedVolumeAdapter('variational', CHAIN.OFF_CHAIN, '2026-05-07', 2),
   'o1-exchange': normalizedVolumeAdapter('01', CHAIN.OFF_CHAIN, '2026-05-06'),
   'ethereal-dex': { ...normalizedVolumeAdapter('ethereal', CHAIN.ETHEREAL, '2026-05-07', 2), deadFrom: '2026-08-25' },
   'phoenix-trade': normalizedVolumeAdapter('phoenix', CHAIN.SOLANA, '2025-11-18'),
-  'arcus-perps': normalizedVolumeAdapter('arcus', CHAIN.ROBINHOOD, '2026-06-22'),
+  // Arcus is an off-chain CLOB, Robinhood Chain only sees state roots and deposits/withdrawals (see dexs/arcus-perps)
+  'arcus-perps': normalizedVolumeAdapter('arcus', CHAIN.OFF_CHAIN, '2026-06-22'),
   'afx': { ...normalizedVolumeAdapter('afx', CHAIN.AFX, '2026-05-12'), deadFrom: '2026-08-11' },
   'dydx-v4': normalizedVolumeAdapter('dydx', 'dydx', '2025-01-20'),
   'katana-perps': normalizedVolumeAdapter('katana', CHAIN.KATANA, '2026-01-15', 2),
