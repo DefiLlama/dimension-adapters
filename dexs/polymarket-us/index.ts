@@ -3,13 +3,23 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const BASE_URL = "https://www.polymarketexchange.com/files/time-and-sales";
+const TABLE_TENNIS_URL = "https://gateway.polymarket.us/v2/sports/table-tennis";
 const VOLUME_THRESHOLD = 500_000_000;
+
+// combo instruments trade under caoc- symbols (https://docs.polymarket.us/api-reference/combos/overview)
+const isCombo = (symbol: string) => symbol.startsWith('caoc-');
 
 interface Trade {
     transactionTime: Date;
     symbol: string;
     lastPrice: number;
     lastQuantity: number;
+}
+
+// Combo taker fee = C × p × [Θ × (1 - p) + 0.04 × (1 - p)^4] (https://docs.polymarket.us/fees)
+const COMBO_THETA = 0.04;
+function comboFee(trade: Trade, takerTheta: number) {
+    return Math.round(trade.lastQuantity * trade.lastPrice * (takerTheta * (1 - trade.lastPrice) + COMBO_THETA * (1 - trade.lastPrice) ** 4) * 100) / 100;
 }
 
 function parseTradeCSV(csv: string): Trade[] {
@@ -40,6 +50,15 @@ async function fetch(options: FetchOptions) {
 
     const csvResponse = await fetchURL(`${BASE_URL}/${todaysData.filename}`);
     const tradesData = parseTradeCSV(csvResponse);
+
+    // Table Tennis taker Θ = 0.10 from 11:59 PM ET 2026-09-30 (https://docs.polymarket.us/fees), applied from the 2026-10-01 file
+    // market symbols carry the league slug as their second segment, e.g. aec-setkameua-polmyk-sklmyk-2026-09-28
+    const tableTennisLeagues = new Set<string>();
+    if (options.dateString >= '2026-10-01') {
+        const { sport } = await fetchURL(TABLE_TENNIS_URL);
+        sport.leagues.forEach((league: any) => tableTennisLeagues.add(league.slug));
+        if (!tableTennisLeagues.size) throw new Error('No table tennis leagues found');
+    }
 
     const dailyVolume = options.createBalances();
     const dailyNotionalVolume = options.createBalances();
@@ -74,17 +93,27 @@ async function fetch(options: FetchOptions) {
             // Fee = 0.06 × C × p × (1 - p), effective from 2026-07-01
             const takerTheta = 0.06;
             const makerRebateTheta = 0.0125;
-            fee = Math.round(takerTheta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
+            fee = isCombo(trade.symbol)
+                ? comboFee(trade, takerTheta)
+                : Math.round(takerTheta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
             const makerRebate = Math.round(makerRebateTheta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
             const protocolRevenue = fee - makerRebate;
-            dailyFees.addUSDValue(fee, 'Taker Fees');
+            dailyFees.addUSDValue(fee, isCombo(trade.symbol) ? 'Combo Taker Fees' : 'Taker Fees');
             dailySupplySideRevenue.addUSDValue(makerRebate, 'Maker Rebates');
             dailyRevenue.addUSDValue(protocolRevenue, 'Protocol Revenue');
         }
         else {
+          // Fee = 0.0695 × C × p × (1 - p), effective from 2026-09-25 (https://docs.polymarket.us/fees)
           const takerTheta = 0.0695;
-          fee = Math.round(takerTheta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
-          dailyFees.addUSDValue(fee, 'Taker Fees');
+          if (isCombo(trade.symbol)) {
+            fee = comboFee(trade, takerTheta);
+            dailyFees.addUSDValue(fee, 'Combo Taker Fees');
+          } else {
+            const tableTennisTheta = 0.10;
+            const theta = tableTennisLeagues.has(trade.symbol.split('-')[1]) ? tableTennisTheta : takerTheta;
+            fee = Math.round(theta * trade.lastQuantity * trade.lastPrice * (1 - trade.lastPrice) * 100) / 100;
+            dailyFees.addUSDValue(fee, 'Taker Fees');
+          }
         }
 
     }
@@ -108,8 +137,8 @@ async function fetch(options: FetchOptions) {
 const methodology = {
     Volume: 'The total volume of trades on Polymarket US',
     NotionalVolume: 'The total notional volume of trades on Polymarket US',
-    Fees: 'Taker fees computed as Θ × C × p × (1 - p), where C is contracts and p is trade price. Θ = 0.06 from 2026-07-01, Θ = 0.05 from 2026-04-04, flat 1% from 2026-01-09 to 2026-04-03. Revenue breakdowns are not available due to lack of per-trader volume data.',
-    UserFees: 'Taker fees computed as Θ × C × p × (1 - p), where C is contracts and p is trade price. Θ = 0.06 from 2026-07-01, Θ = 0.05 from 2026-04-04, flat 1% from 2026-01-09 to 2026-04-03. Revenue breakdowns are not available due to lack of per-trader volume data.',
+    Fees: 'Taker fees computed as Θ × C × p × (1 - p), where C is contracts and p is trade price. Θ = 0.0695 from 2026-09-25 (0.10 for Table Tennis markets from 2026-10-01), Θ = 0.06 from 2026-07-01, Θ = 0.05 from 2026-04-04, flat 1% from 2026-01-09 to 2026-04-03. Combo trades (launched 2026-08-11) pay C × p × [Θ × (1 - p) + 0.04 × (1 - p)^4] instead; the fee schedule documents this curve from 2026-09-25 and it is applied from the first combo trade. Revenue breakdowns are not available due to lack of per-trader volume data.',
+    UserFees: 'Taker fees computed as Θ × C × p × (1 - p), where C is contracts and p is trade price. Θ = 0.0695 from 2026-09-25 (0.10 for Table Tennis markets from 2026-10-01), Θ = 0.06 from 2026-07-01, Θ = 0.05 from 2026-04-04, flat 1% from 2026-01-09 to 2026-04-03. Combo trades (launched 2026-08-11) pay C × p × [Θ × (1 - p) + 0.04 × (1 - p)^4] instead; the fee schedule documents this curve from 2026-09-25 and it is applied from the first combo trade. Revenue breakdowns are not available due to lack of per-trader volume data.',
     // Revenue: 'Protocol revenue after maker rebates are distributed at trade time. Volume-tier taker rebates (paid weekly) are not deducted.',
     // ProtocolRevenue: 'Net taker fees retained by the protocol after maker rebates (Θ = 0.0475 × C × p × (1 - p) from 2026-07-01)',
     // SupplySideRevenue: 'Maker rebates credited at trade time (Θ = 0.0125 × C × p × (1 - p) from 2026-07-01). Volume-tier taker rebates are excluded.',
@@ -118,6 +147,7 @@ const methodology = {
 const breakdownMethodology = {
     Fees: {
         'Taker Fees': 'Fees paid by the aggressor on each trade, computed as Θ × C × p × (1 - p)',
+        'Combo Taker Fees': 'Fees paid by the aggressor on each combo trade since combos launched on 2026-08-11, computed as C × p × [Θ × (1 - p) + 0.04 × (1 - p)^4] on the combo execution price',
     },
     // Revenue: {
     //     'Protocol Revenue': 'Taker fees retained by the protocol after maker rebates at trade time',

@@ -47,6 +47,8 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2026-05-26",
   chains: [CHAIN.POLYGON],
+  // Combos taker fees land in the Polymarket V2 fee recipient and are also counted in the polymarket fees adapter
+  doublecounted: true,
   methodology: {
     Volume: 'USD value paid or received by takers on combo (parlay) positions traded on Polymarket.',
     NotionalVolume: 'Number of combo position shares traded by takers, each share paying out $1 if the combo resolves true.',

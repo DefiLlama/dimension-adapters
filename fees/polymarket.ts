@@ -59,9 +59,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     fromAdddesses: [POLYMARKET_ADDRESSES.v1.FeeModule, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleOld, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleNew, POLYMARKET_ADDRESSES.v1.Ctf, POLYMARKET_ADDRESSES.v1.NegRiskCtf, POLYMARKET_ADDRESSES.v1.WrappedCollateral,
     POLYMARKET_ADDRESSES.v2.Ctf, POLYMARKET_ADDRESSES.v2.NegRiskCtf
     ],
-    targets: [...POLYMARKET_ADDRESSES.v1.FeeRecipients, ...POLYMARKET_ADDRESSES.v2.FeeRecipients],
+    targets: POLYMARKET_ADDRESSES.v1.FeeRecipients,
     tokens: [usdc, pusd],
     logFilter,
+  })
+  await addTokensReceived({
+    options,
+    targets: POLYMARKET_ADDRESSES.v2.FeeRecipients,
+    tokens: [usdc, pusd],
+    logFilter,
+    balances: fees,
   })
   const netLiquidityRewards = await addTokensReceived({
     options,
