@@ -70,7 +70,6 @@ export function cryptoCardAdapterExport(exportConfig: Record<string, CryptoCardA
           tokens: exportConfig[options.chain].paymentTokens || DefaultPaymentTokens[options.chain],
           notFromSenders: exportConfig[options.chain].excludeWallets,
         });
-        if (dailyVolume.isEmpty()) throw new Error(`No tron transfers into ${exportConfig[options.chain].paymentRecipients.join(', ')}, Allium may not have indexed the window yet`);
         return { dailyVolume };
       }
 
