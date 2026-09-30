@@ -31,7 +31,19 @@ export const PEDDLES: Record<string, PeddlesDeployment> = {
     ],
     feeForwarder: "0x77886951f19458B2FC27D4373553001A620264D3",
   },
-  // Robinhood Chain: not deployed yet. It is added here, with its own addresses, once it is live.
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-09-29",
+    fromBlock: 76092920,
+    poolManager: "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    feeHook: "0xfe055282E3cD471A8b2cd922d31E75ECd3bBc0CC",
+    launchFeeCollectors: [
+      "0x4b7Aa977eA4B95D9859D73e6bc922ecF2F881978", // PeddlesStockLaunchpad
+      "0x81213e2cE27f03714143152aE5cf5c94094f1978", // PeddlesLaunchOrchestratorV20
+      "0x2e0029BeDCBb2f211Fd17EeBA8f40657cF6A1978", // PeddlesNFTFactory
+      "0x6C5032DeDCc78b92b370C86a2aA0EA3AD0D71978", // PeddlesNFTBondingGraduationOrchestratorV20
+    ],
+    feeForwarder: "0xc572A003d0Ab529da670a42177Fc583b03D5b026",
+  },
 };
 
 // The registry of Peddles pools: one event per launch, carrying the pool id and both legs.
