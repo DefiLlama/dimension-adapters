@@ -11,7 +11,7 @@ const comptrollerABI = {
   reserveFactor: "uint256:reserveFactorMantissa",
 };
 
-const configs: any = {
+export const configs: any = {
   [CHAIN.BSC]: {
     comptroller: '0xfD36E2c2a6789Db23113685031d7F16329158384',
     protocolShareReserves: '0xCa01D5A9A248a830E9D93231e791B1afFed7c446',
