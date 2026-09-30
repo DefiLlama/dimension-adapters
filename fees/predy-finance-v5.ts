@@ -4,7 +4,7 @@ import BigNumber from "bignumber.js";
 import { gql, request } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { formatTimestampAsDate, getTimestampAtStartOfDayUTC } from "../utils/date";
+import { formatTimestampAsUTCDate, getTimestampAtStartOfDayUTC } from "../utils/date";
 
 const ControllerAbi = ["function getAsset(uint256 _id) view returns ((uint256 id, uint256 pairGroupId, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) stablePool, (address token, address supplyTokenAddress, (uint256 totalCompoundDeposited, uint256 totalNormalDeposited, uint256 totalNormalBorrowed, uint256 assetScaler, uint256 assetGrowth, uint256 debtGrowth) tokenStatus, (uint256 baseRate, uint256 kinkRate, uint256 slope1, uint256 slope2) irmParams) underlyingPool, (uint256 riskRatio, int24 rangeSize, int24 rebalanceThreshold) riskParams, (address uniswapPool, int24 tickLower, int24 tickUpper, uint64 numRebalance, uint256 totalAmount, uint256 borrowedAmount, uint256 lastRebalanceTotalSquartAmount, uint256 lastFee0Growth, uint256 lastFee1Growth, uint256 borrowPremium0Growth, uint256 borrowPremium1Growth, uint256 fee0Growth, uint256 fee1Growth, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionUnderlying, (int256 positionAmount, uint256 lastFeeGrowth) rebalancePositionStable, int256 rebalanceFeeGrowthUnderlying, int256 rebalanceFeeGrowthStable) sqrtAssetStatus, bool isMarginZero, bool isIsolatedMode, uint256 lastUpdateTimestamp))"]
 
@@ -138,7 +138,7 @@ const fetch = async (options: FetchOptions) => {
   const graphUrl = v5endpoints[options.chain];
 
   // Set date string params which are used by queries
-  const todaysDateParts = formatTimestampAsDate(dayTime.toString()).split("/");
+  const todaysDateParts = formatTimestampAsUTCDate(dayTime.toString()).split("/");
   const todaysDateString = `${todaysDateParts[2]}-${todaysDateParts[1]}-${todaysDateParts[0]}`;
 
   const dailyFees = await v5DailyFees(todaysDateString, graphUrl, options);

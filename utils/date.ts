@@ -118,7 +118,12 @@ function pad(s: number) {
   return s < 10 ? "0" + s : s;
 }
 
-export function formatTimestampAsDate(timestamp: string) {
+/**
+ * Formats a timestamp as a zero-padded UTC `dd/mm/yyyy` date string.
+ * @param timestamp - Unix timestamp in seconds, as a string.
+ * @returns A `"dd/mm/yyyy"` string in UTC.
+ */
+export function formatTimestampAsUTCDate(timestamp: string) {
   const date = new Date(Number(timestamp) * 1000);
   return `${pad(date.getUTCDate())}/${pad(
     date.getUTCMonth() + 1
