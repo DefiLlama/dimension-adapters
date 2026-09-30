@@ -2,22 +2,28 @@ import { FetchOptions } from '../../adapters/types';
 import { getPositionedLogArgs } from '../logs';
 import { ABI, CURVE, FAZE, HOOK, NATIVE, START_BLOCK } from './constants';
 
+// Conservative request size used by the pinned Arc replay; not a guarantee against RPC rate limits.
+const LOG_BLOCK_RANGE = 6250;
+
 // SDK fromApi is the opening boundary; include blocks strictly after it through toApi.
 async function windowLogs(options: FetchOptions, target: string, eventAbi: string) {
-  return options.getLogs({ target, eventAbi, fromBlock: (await options.getFromBlock()) + 1, maxBlockRange: 6250 });
+  return options.getLogs({ target, eventAbi, fromBlock: (await options.getFromBlock()) + 1, maxBlockRange: LOG_BLOCK_RANGE });
 }
 
 // Only configuration/discovery events are cached; trades and fee settlements use the requested window.
+/** Discover launches through the closing block using cached configuration events. */
 export async function launches(options: FetchOptions) {
-  return getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: 6250 });
+  return getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE });
 }
 
+/** Add raw quote units, preserving native USDC decimals. */
 export function addQuote(balance: ReturnType<FetchOptions['createBalances']>, quote: string, amount: bigint, label?: string) {
   // Native USDC is 18 decimals; the SDK gas-token mapping must handle it as native, not 6-decimal ERC20 units.
   if (quote.toLowerCase() === NATIVE) balance.addGasToken(amount.toString(), label);
   else balance.add(quote.toLowerCase(), amount.toString(), label);
 }
 
+/** Read windowed trades and authenticate their quote assets against the curve. */
 export async function trades(options: FetchOptions) {
   const buys = await windowLogs(options, CURVE, ABI.Bought);
   const sells = await windowLogs(options, CURVE, ABI.Sold);
@@ -33,6 +39,7 @@ export async function trades(options: FetchOptions) {
   return { buys, sells, quoteOf };
 }
 
+/** Count one quote leg per curve trade, including sell fees. */
 export async function fetchVolume(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const { buys, sells, quoteOf } = await trades(options);
@@ -47,24 +54,25 @@ async function collectFees(options: FetchOptions) {
   for (const t of [...buys, ...sells]) addQuote(dailyFees, quoteOf(t.token), BigInt(t.fee), 'Curve Trading Fees');
 
   const fromBlock = await options.getFromBlock();
-  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: fromBlock + 1, maxBlockRange: 6250 });
+  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: fromBlock + 1, maxBlockRange: LOG_BLOCK_RANGE });
   const graduations = await windowLogs(options, CURVE, ABI.Graduated);
   const graduatedCoins = graduations.length ? await options.toApi.multiCall({ target: CURVE, abi: ABI.getCoin, calls: graduations.map(g => g.token) }) : [];
   graduations.forEach((g, i) => addQuote(dailyFees, graduatedCoins[i].quoteToken, BigInt(g.migrationFee), 'Graduation Fees'));
 
   // The constructor does not emit LaunchFeeSet. Its verified launchFee_ is 0.001 native USDC (18 decimals).
-  // Source: BondingCurveV4 constructor arguments at the CURVE explorer address. Later windows read opening state.
-  const changes = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.LaunchFeeSet, fromBlock: fromBlock + 1, maxBlockRange: 6250 });
+  // Source: BondingCurveV4 constructor arguments at the CURVE explorer address.
+  // Every subsequent setter emits LaunchFeeSet; replay cached history in block/log order.
+  const changes = created.length ? await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.LaunchFeeSet, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE }) : [];
   const order = (a: any, b: any) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
   changes.sort(order);
   const inWindow = created.filter(l => l.blockNumber > fromBlock);
-  const initialFee = !inWindow.length ? 0n : fromBlock < START_BLOCK ? 1_000_000_000_000_000n : BigInt(await options.fromApi.call({ target: CURVE, abi: 'uint256:launchFee' }));
+  const initialFee = 1_000_000_000_000_000n;
   for (const launch of inWindow) {
     const active = changes.filter(c => order(c, launch) < 0).at(-1);
     addQuote(dailyFees, NATIVE, active ? BigInt(active.launchFee) : initialFee, 'Token Launch Fees');
   }
 
-  const pools = await getPositionedLogArgs(options, { target: HOOK, eventAbi: ABI.PoolRegistered, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: 6250 });
+  const pools = await getPositionedLogArgs(options, { target: HOOK, eventAbi: ABI.PoolRegistered, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE });
   const quotes = new Map(pools.map(p => [String(p.poolId).toLowerCase(), String(p.quote)]));
   const hookAmounts = new Map<string, bigint>();
   const settlements = await windowLogs(options, HOOK, ABI.FeesSettled);
@@ -88,18 +96,21 @@ async function collectFees(options: FetchOptions) {
   return { dailyFees, pools, settlements };
 }
 
+/** Return accrued user fees before recipient allocations. */
 export async function fetchGrossFees(options: FetchOptions) {
   const { dailyFees } = await collectFees(options);
   return { dailyFees };
 }
 
 // FAZE's own pool creator allocation belongs to the FAZE project (team-confirmed).
-// Realized buybacks are a separate capital allocation: never add them to gross fees.
+// Buyback funding is a reclassification of retained fees, never additional gross fees.
+/** Reconcile accrued fees, supplier allocations, and fee-funded buyback distributions. */
 export async function fetchFees(options: FetchOptions) {
   const { dailyFees, pools, settlements } = await collectFees(options);
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const fromBlock = await options.getFromBlock();
   const byId = new Map(pools.map(p => [String(p.poolId).toLowerCase(), p]));
   const allocated = new Map<string, { creator: bigint, compound: bigint }>();
@@ -152,9 +163,28 @@ export async function fetchFees(options: FetchOptions) {
     dailyRevenue.add(token, (BigInt(fees[token] ?? 0) - BigInt(supply[token] ?? 0)).toString(), { skipChain: true, label: 'Fees Retained by FAZE' });
   }
   const BURNER = '0x0379DE4B544c6Ac8927f4BCf71553a5816aF1bd3';
-  // Verified factory source: explorer.arc.io/address/0xCEC9C59E1E79908e80a3BCFE7719BfDd469f5f63?tab=contract
-  // ethIn is actual quote spent (refund-adjusted); bountyWei is separate and excluded.
+  // Hook _takeOwed emits OwedWithdrawn; a failed native push recredits PayoutOwed.
+  // Source: explorer.arc.io/address/0x47e7936ae9891e61C5123db720593c05dE7120cc?tab=contract
+  // Measure at the fee source: unrelated deposits into the burner never become holder revenue.
+  const withdrawals = await windowLogs(options, HOOK, 'event OwedWithdrawn(address indexed quote, address indexed recipient, uint256 amount)');
+  const recredits = await windowLogs(options, HOOK, 'event PayoutOwed(address indexed quote, address indexed recipient, uint256 amount)');
+  let funding = 0n;
+  for (const [events, sign] of [[withdrawals, 1n], [recredits, -1n]] as const) {
+    for (const event of events) {
+      if (String(event.recipient).toLowerCase() === BURNER.toLowerCase() && String(event.quote).toLowerCase() === NATIVE)
+        funding += sign * BigInt(event.amount);
+    }
+  }
+  // Actual paid keeper rewards are not value to FAZE holders. Recognition can lag funding.
+  // BuybackBurner.sol is included in the verified BurnerFactory source:
+  // explorer.arc.io/address/0xCEC9C59E1E79908e80a3BCFE7719BfDd469f5f63?tab=contract
   const burns = await windowLogs(options, BURNER, 'event Burned(address indexed caller, uint256 ethIn, uint256 tokensBurned, uint256 bountyWei)');
-  for (const burn of burns) addQuote(dailyHoldersRevenue, NATIVE, BigInt(burn.ethIn), 'FAZE Buybacks');
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  for (const burn of burns) funding -= BigInt(burn.bountyWei);
+  addQuote(dailyHoldersRevenue, NATIVE, funding, 'FAZE Buyback Funding');
+  // Reclassify source-funded distributions, preserving total revenue. This is not a treasury balance.
+  const revenue = dailyRevenue.getBalances(), holders = dailyHoldersRevenue.getBalances();
+  for (const token of new Set([...Object.keys(revenue), ...Object.keys(holders)])) {
+    dailyProtocolRevenue.add(token, (BigInt(revenue[token] ?? 0) - BigInt(holders[token] ?? 0)).toString(), { skipChain: true, label: 'FAZE Revenue After Buyback Funding' });
+  }
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyProtocolRevenue };
 }
