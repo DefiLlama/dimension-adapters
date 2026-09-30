@@ -47,9 +47,11 @@ export const getFeeForwarders = (chain: string) => [...new Set([
 
 export type FeeTransaction = { integrators: Set<string>; kind: 'swap' | 'bridge' };
 
+// integrator tags Jumper uses on its main app, gas refuel, Advanced and RWA products
+const JumperIntegrators = new Set(['jumper.exchange', 'jumper.exchange.gas', 'jumperadvanced', 'jumperrwa']);
+
 export const isJumperTransaction = (transaction?: FeeTransaction) => transaction !== undefined &&
-  transaction.integrators.size === 1 &&
-  (transaction.integrators.has('jumper.exchange') || transaction.integrators.has('jumper.exchange.gas'));
+  transaction.integrators.size === 1 && JumperIntegrators.has([...transaction.integrators][0]);
 
 export const getFeeTransactions = async (options: FetchOptions): Promise<Map<string, FeeTransaction>> => {
   const diamond = LifiDiamonds[options.chain]?.id;
