@@ -75,26 +75,26 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 	fetch: fetch(category),
 	adapter: LifiFeeCollectors,
 	methodology: {
-		Fees: `Fees paid by users on LI.FI-routed ${category === 'bridge' ? 'bridges (and unmatched historical payouts)' : 'same-chain swaps'}, including integrator fees.`,
-		Revenue: 'Fees are collected by LI.FI protocol.',
-		ProtocolRevenue: 'Fees are collected by LI.FI protocol.',
-		SupplySideRevenue: 'Fees distributed to integrations and partnerships, including Jumper platform fees since 2026-09-24.',
+		Fees: `All fees paid by users on LI.FI ${category === 'bridge' ? 'bridges' : 'swaps'}, including integrator fees.`,
+		Revenue: 'Share of fees kept by LI.FI.',
+		ProtocolRevenue: 'Share of fees kept by LI.FI.',
+		SupplySideRevenue: 'Share of fees paid to integrators, including Jumper since 2026-09-24.',
 	},
 	breakdownMethodology: {
 		Fees: {
-			...(category === 'swap' ? { [SwapFee]: 'Fee payouts on transactions with LI.FI swap events and no bridge event.' } : {
-				[BridgeFee]: 'Fee payouts on transactions with LI.FI bridge events, including source swaps.',
-				[OtherFee]: 'Fee payouts without a matching LI.FI diamond event; retained here rather than silently dropped.',
+			...(category === 'swap' ? { [SwapFee]: 'Fees on same-chain swaps.' } : {
+				[BridgeFee]: 'Fees on bridges, including swaps before bridging.',
+				[OtherFee]: 'Fees that could not be matched to a swap or a bridge.',
 			}),
 		},
 		Revenue: {
-			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
+			[LifiProtocolFee]: 'Share of fees kept by LI.FI.',
 		},
 		ProtocolRevenue: {
-			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
+			[LifiProtocolFee]: 'Share of fees kept by LI.FI.',
 		},
 		SupplySideRevenue: {
-			[IntegratorFee]: 'Fees distributed to integrations and partnerships, including Jumper platform fees since 2026-09-24.',
+			[IntegratorFee]: 'Share of fees paid to integrators, including Jumper since 2026-09-24.',
 		},
 	}
 });

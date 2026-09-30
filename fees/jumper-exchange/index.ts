@@ -30,7 +30,7 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 
 export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter => {
   const label = category === 'bridge' ? BridgeFee : SwapFee;
-  const product = category === 'bridge' ? 'bridges (including source swaps)' : 'same-chain swaps';
+  const product = category === 'bridge' ? 'bridges' : 'swaps';
   return {
   version: 2,
   pullHourly: true,
@@ -39,19 +39,19 @@ export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapt
     .filter((chain) => /^0x[0-9a-f]{40}$/i.test(LifiDiamonds[chain]?.id ?? ''))
     .map((chain) => [chain, { start: JumperFeeStart }])),
   methodology: {
-    Fees: `Jumper platform fees on LI.FI-routed ${product} whose diamond event identifies jumper.exchange or jumper.exchange.gas; excludes unrelated LI.FI traffic and network/provider costs.`,
-    Revenue: 'Jumper keeps its whole platform fee (0/2/5 bps); it is paid on-chain into LI.FI\'s fee wallet.',
-    ProtocolRevenue: 'Jumper keeps its whole platform fee (0/2/5 bps); it is paid on-chain into LI.FI\'s fee wallet.',
+    Fees: `Jumper platform fees (0-5 bps depending on the assets) paid by users on ${product}.`,
+    Revenue: 'All platform fees are kept by Jumper.',
+    ProtocolRevenue: 'All platform fees are kept by Jumper.',
   },
   breakdownMethodology: {
     Fees: {
       [label]: `Jumper platform fees on ${product}.`,
     },
     Revenue: {
-      [label]: `Jumper platform fees on ${product}, kept by Jumper.`,
+      [label]: `Jumper platform fees on ${product}.`,
     },
     ProtocolRevenue: {
-      [label]: `Jumper platform fees on ${product}, kept by Jumper.`,
+      [label]: `Jumper platform fees on ${product}.`,
     },
   },
   };
