@@ -1,15 +1,13 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds, LifiFeeCollectors } from "../../helpers/aggregators/lifi";
 import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
-import { FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart, LifiRecipient } from "../lifi/feeSources";
+import { FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart } from "../lifi/feeSources";
 
 const SwapFee = 'Swap Fees';
 const BridgeFee = 'Bridge Fees';
 
 const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const blacklist = new Set((DefaultDexTokensBlacklisted[options.chain] ?? []).map((token) => token.toLowerCase()));
   const forwarded: any[] = await options.getLogs({
     targets: getFeeForwarders(options.chain),
@@ -24,13 +22,10 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
     const token = String(log.args.token);
     if (blacklist.has(token.toLowerCase())) continue;
     const label = category === 'bridge' ? BridgeFee : SwapFee;
-    for (const fee of log.args.fees) {
-      dailyFees.add(token, fee.amount, label);
-      (String(fee.recipient).toLowerCase() === LifiRecipient ? dailyRevenue : dailySupplySideRevenue).add(token, fee.amount, label);
-    }
+    for (const fee of log.args.fees) dailyFees.add(token, fee.amount, label);
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
 };
 
 export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter => {
@@ -45,22 +40,18 @@ export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapt
     .map((chain) => [chain, { start: JumperFeeStart }])),
   methodology: {
     Fees: `Jumper platform fees on LI.FI-routed ${product} whose diamond event identifies jumper.exchange or jumper.exchange.gas; excludes unrelated LI.FI traffic and network/provider costs.`,
-    Revenue: 'The Jumper-attributed fee leg sent to the LI.FI fee recipient. On-chain payout destination is LI.FI; this is attributed to Jumper by the transaction integrator.',
-    ProtocolRevenue: 'The Jumper-attributed fee leg sent to the LI.FI fee recipient.',
-    SupplySideRevenue: 'Any other recipients of Jumper-attributed fee payouts.',
+    Revenue: 'Jumper keeps its whole platform fee (0/2/5 bps); it is paid on-chain into LI.FI\'s fee wallet.',
+    ProtocolRevenue: 'Jumper keeps its whole platform fee (0/2/5 bps); it is paid on-chain into LI.FI\'s fee wallet.',
   },
   breakdownMethodology: {
     Fees: {
-      [label]: `FeesForwarded payouts on Jumper ${product}.`,
+      [label]: `Jumper platform fees on ${product}.`,
     },
     Revenue: {
-      [label]: 'Jumper fee leg sent to the LI.FI fee recipient.',
+      [label]: `Jumper platform fees on ${product}, kept by Jumper.`,
     },
     ProtocolRevenue: {
-      [label]: 'Jumper fee leg sent to the LI.FI fee recipient.',
-    },
-    SupplySideRevenue: {
-      [label]: 'Jumper fee legs sent to other recipients.',
+      [label]: `Jumper platform fees on ${product}, kept by Jumper.`,
     },
   },
   };

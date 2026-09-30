@@ -51,12 +51,13 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 	const separateJumper = options.startTimestamp >= Date.parse(JumperFeeStart) / 1000;
 	forwarded.forEach((log: any) => {
 		const hash = String(log.transactionHash);
-		const transaction = transactions.get(hash.toLowerCase());
-		if (separateJumper && isJumperTransaction(transaction)) return;
+		// Jumper is a separate integrator whose fee is paid into LI.FI's wallet as a single leg (2/5 bps,
+		// no LI.FI cut): count it as integrator fee, not LI.FI revenue.
+		const jumper = separateJumper && isJumperTransaction(transactions.get(hash.toLowerCase()));
 		const source = sourceFor(hash);
 		if (!source) return;
 		log.args.fees.forEach((fee: any) => {
-			addFee(log.args.token, fee.amount, String(fee.recipient).toLowerCase() === LifiRecipient, source);
+			addFee(log.args.token, fee.amount, !jumper && String(fee.recipient).toLowerCase() === LifiRecipient, source);
 		});
 	});
 
@@ -70,14 +71,14 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 
 export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter => ({
 	version: 2,
-	pullHourly: false,
+	pullHourly: false, // each run scans the LI.FI diamond for every swap/bridge event on 40+ chains; hourly pulls would 24x that load
 	fetch: fetch(category),
 	adapter: LifiFeeCollectors,
 	methodology: {
-		Fees: `Fees paid by users on LI.FI-routed ${category === 'bridge' ? 'bridges (and unmatched historical payouts)' : 'same-chain swaps'}, excluding Jumper platform fees from 2026-09-24 onward.`,
+		Fees: `Fees paid by users on LI.FI-routed ${category === 'bridge' ? 'bridges (and unmatched historical payouts)' : 'same-chain swaps'}, including integrator fees.`,
 		Revenue: 'Fees are collected by LI.FI protocol.',
 		ProtocolRevenue: 'Fees are collected by LI.FI protocol.',
-		SupplySideRevenue: 'Fees are distributed to LI.FI and intergations and partnerships.',
+		SupplySideRevenue: 'Fees distributed to integrations and partnerships, including Jumper platform fees since 2026-09-24.',
 	},
 	breakdownMethodology: {
 		Fees: {
@@ -93,7 +94,7 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
 		},
 		SupplySideRevenue: {
-			[IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
+			[IntegratorFee]: 'Fees distributed to integrations and partnerships, including Jumper platform fees since 2026-09-24.',
 		},
 	}
 });

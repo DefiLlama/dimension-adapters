@@ -7,6 +7,7 @@ export const FeesForwardedEvent = "event FeesForwarded(address indexed token, (a
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)";
 const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)";
 
+// Jumper platform fee launch; schedule at https://github.com/lifinance/jumper-docs/blob/main/jumper-fees.mdx
 export const JumperFeeStart = '2026-09-24';
 // The recipient in every LI.FI payout on the 21 chains checked on 2026-07-23.
 export const LifiRecipient = '0xc06ebbefd94032b85424d51906e2a335efae264b';
