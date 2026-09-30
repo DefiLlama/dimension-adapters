@@ -6,10 +6,8 @@ const statsUrl = (path: string, from: number, to: number) =>
     `https://stats.ferra.ag/api/stats/dlmm/${path}?from_timestamp=${from}&to_timestamp=${to}`;
 
 const fetch = async (options: FetchOptions) => {
-    // The stats api lags the chain and answers a window it has not indexed yet with volume 0
-    // (or a partial figure) instead of an error. Only trust a window once the indexer has
-    // recorded volume after it ends.
     const now = Math.floor(Date.now() / 1000);
+    // api often lags the chain and answers a window it has not indexed yet with volume 0
     const volumeAfterWindow = (await fetchURL(statsUrl('volume', options.startTimestamp, now))).data.volume;
     if (!(Number(volumeAfterWindow) > 0))
         throw new Error(`Ferra stats api has not indexed past ${new Date(options.startTimestamp * 1000).toISOString()} yet`);
