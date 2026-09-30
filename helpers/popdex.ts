@@ -8,7 +8,7 @@ import { httpGet } from '../utils/fetchURL'
 // Fee semantics: https://popdex.xyz/docs/product-docs/trading/fees
 
 // Public mainnet REST endpoint supplied by PopDEX.
-const API_BASE = 'https://api.popdex.ai/api/v1/public'
+const API_BASE = 'https://api.popdex.xyz/api/v1/public'
 const EPS = 0.0001 // absolute USD; 1e-6 false-fails once daily fees exceed ~1e8
 // The API documents 100 as the maximum ticker page size:
 // https://popdex.xyz/docs/api/common/market/Get-Tickers
