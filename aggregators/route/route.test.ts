@@ -159,6 +159,10 @@ test('Arc executor contributes volume only', async () => {
   const out = await run([log], 0, Infinity, (options: any) => adapter.fetch!({ ...options, chain: 'arc' } as any, {} as any));
   assert.equal(out.dailyVolume.usd, 295);
   assert.deepEqual(out.dailyVolume.values, {});
+  const excluded = eventLog('0x33c65ba72b023bf6b207d7b62275630ca433afb8', arcExecuted,
+    ['0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d', native, token, usdc, 10n ** 18n, 500000000]);
+  const withExcluded = await run([log, excluded], 0, Infinity, (options: any) => adapter.fetch!({ ...options, chain: 'arc' } as any, {} as any));
+  assert.equal(withExcluded.dailyVolume.usd, 295);
   assert.equal(out.dailyFees, 0);
 });
 

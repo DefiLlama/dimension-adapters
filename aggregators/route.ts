@@ -240,6 +240,7 @@ export const fetchArc = async (options: FetchOptions) => {
   const toBlock = (await options.getToBlock()) - 1;
   const logs = await options.getLogs({ toBlock, target: arcExecutor, eventAbi: arcExecuted });
   for (const log of logs) {
+    if (isVolumeExcluded(log.sender, log.recipient)) continue;
     // Arc's USDC ERC20 interface (6 decimals) is not priced by the coins API; value it directly.
     if (log.tokenIn.toLowerCase() === arcUsdc) dailyVolume.addUSDValue(Number(log.amountIn) / 1e6);
     else if (log.tokenOut.toLowerCase() === arcUsdc) dailyVolume.addUSDValue(Number(log.amountOut) / 1e6);
