@@ -22,10 +22,7 @@ const fetch = async (_: any) => {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  // RFQ against the OLP with the trade booked in the operator's ledger; the Arbitrum
-  // settlement pools only escrow USDC (deposit/withdraw events, no trade or position
-  // data), so the venue is keyed as off_chain rather than Arbitrum.
-  chains: [CHAIN.OFF_CHAIN],
+  chains: [CHAIN.ARBITRUM],
   runAtCurrTime: true,
   start: "2025-01-30", //Mainnet Private Beta
 };

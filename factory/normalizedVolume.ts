@@ -110,8 +110,7 @@ const protocols = {
   'risex': normalizedVolumeAdapter('risex', CHAIN.RISE, '2026-05-25', 2),
   'dango': { ...normalizedVolumeAdapter('dango', CHAIN.DANGO, '2026-05-28', 2), deadFrom: '2026-07-29' },
   'sodex': normalizedVolumeAdapter('sodex', CHAIN.VALUECHAIN, '2026-05-31'),
-  // Variational books trades in the operator ledger, Arbitrum pools only escrow USDC (see dexs/variational-omni)
-  'variational-omni': normalizedVolumeAdapter('variational', CHAIN.OFF_CHAIN, '2026-05-07', 2),
+  'variational-omni': normalizedVolumeAdapter('variational', CHAIN.ARBITRUM, '2026-05-07', 2),
   'o1-exchange': normalizedVolumeAdapter('01', CHAIN.OFF_CHAIN, '2026-05-06'),
   'ethereal-dex': { ...normalizedVolumeAdapter('ethereal', CHAIN.ETHEREAL, '2026-05-07', 2), deadFrom: '2026-08-25' },
   'phoenix-trade': normalizedVolumeAdapter('phoenix', CHAIN.SOLANA, '2025-11-18'),
