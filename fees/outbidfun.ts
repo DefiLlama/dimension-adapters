@@ -32,7 +32,9 @@
 //   - Front-page bids. Each bid in USDG is split on the spot (BidSettled): 20% to the $OUTBID
 //     buyback vault and 5% to the treasury, which is protocol revenue. The other 75% buys the
 //     bid-on coin and burns it. That purchase is a trade on the coin's curve (its volume and its
-//     trading fee are counted above) rather than a fee, so it is not counted again here.
+//     trading fee are counted above) rather than a fee, so it is not counted again here. Since 30
+//     September 2026 a coin launched on PONS can be bid on too, as an ad spot: none of the bid buys
+//     it, 80% goes to the buyback vault and 20% to the treasury, all of it protocol revenue.
 //
 // All protocol revenue is ProtocolRevenue for now: 80% of what reaches the RevenueRouter (and
 // the bids' 20%) accumulates in the OutbidBuyback vault to buy and burn $OUTBID, which has not
@@ -44,46 +46,60 @@
 //
 // Not counted: a reward coin's transfer fee, which is a token tax paid in the launched coin.
 import { Adapter, FetchOptions } from "../adapters/types";
+import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-// Robinhood Chain mainnet deployments. Source and addresses:
-// https://github.com/outbidfun/outbidfun-contracts/blob/main/DEPLOYMENTS.md
-// Two launchpads, both live. The first (27 September 2026) keeps its coins trading on their
-// curves and graduating into its own Uniswap V3; the second (28 September 2026), on a
-// constant-product curve, takes every new launch and has a Uniswap V3 of its own. Each factory
-// launches coins and each listing manager opens its factory's coins' pools; `fromBlock` is the
-// block each contract was deployed in, and nothing emits before it.
-// CoinFactory (first): https://robinhoodchain.blockscout.com/address/0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0
-// CoinFactory (second): https://robinhoodchain.blockscout.com/address/0xDD0e33a1d5452275E563020F58fC989f26B74CF6
-const FACTORIES = [
-  { address: "0xDadC43dbf60eA5d4598C39500Ede46De6A14c0d0", fromBlock: 73821560 },
-  { address: "0xDD0e33a1d5452275E563020F58fC989f26B74CF6", fromBlock: 74842311 },
-];
-// CoinListingManager (first): https://robinhoodchain.blockscout.com/address/0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4
-// CoinListingManager (second): https://robinhoodchain.blockscout.com/address/0xE15E852e3D16939719001D04f5e4d930C1F0DF26
-const LISTING_MANAGERS = [
-  { address: "0xcF4EEc2a27ff46f1dB10Ef6ce3a65704EF5997E4", fromBlock: 73821560 },
-  { address: "0xE15E852e3D16939719001D04f5e4d930C1F0DF26", fromBlock: 74842206 },
-];
-const MIN_FROM_BLOCK = Math.min(
-  ...FACTORIES.map(({ fromBlock }) => fromBlock),
-  ...LISTING_MANAGERS.map(({ fromBlock }) => fromBlock),
-);
-const isListingManager = (owner: string) => LISTING_MANAGERS.some((manager) => manager.address.toLowerCase() === owner.toLowerCase());
-const isFactory = (source: string) => FACTORIES.some((factory) => factory.address.toLowerCase() === source.toLowerCase());
-// RevenueRouter, the listing manager's `treasury()`, where the launch fee is paid:
-// https://robinhoodchain.blockscout.com/address/0xeEc171B409788644acBf1c50B825Cc6d9682D9b7
-const REVENUE_ROUTER = "0xeEc171B409788644acBf1c50B825Cc6d9682D9b7";
-// OutbidMarket, both with history (listed in DEPLOYMENTS.md above):
-// - the first, frozen since 28 September 2026, its board moved to the second:
-//   https://robinhoodchain.blockscout.com/address/0x1Eaca99186F58A258B08fd7A25524A20c31def63
-// - the current one:
-//   https://robinhoodchain.blockscout.com/address/0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A
-const OUTBID_MARKETS = ["0x1Eaca99186F58A258B08fd7A25524A20c31def63", "0xad7ca6bf8c0ab7793eBEC811Da5F54304383669A"];
-// The trade router, which takes the site's trading fee (SwapExecutor.sol in the contracts repo above):
-// https://robinhoodchain.blockscout.com/address/0x5cFE31511A01161136171309881a6820E6a647f7
-const TRADE_ROUTER = "0x5cFE31511A01161136171309881a6820E6a647f7";
+// Robinhood Chain mainnet deployments, read from the protocol's own registry: ProtocolRegistry
+// (contracts/ProtocolRegistry.sol in https://github.com/outbidfun/outbidfun-contracts), which the
+// team registers every contract in as it deploys it, so a redeploy needs no change here. It is
+// append-only and not upgradeable: an entry, once registered, is never removed or changed, and
+// each carries the block its contract was deployed in, before which it emits nothing. Reading
+// it at the latest block is therefore the same as reading it at any window's end, as far as the
+// window's logs go, and it refills history exactly.
+// https://robinhoodchain.blockscout.com/address/0xe474680846735dab1c5E2EA1C56b2B12c64aaC1f
+const REGISTRY = "0xe474680846735dab1c5E2EA1C56b2B12c64aaC1f";
+// `entries(bytes32 kind) returns ((address target, uint64 fromBlock)[])`, as a JSON ABI: the SDK
+// does not parse a tuple array from a human-readable one.
+const ENTRIES = {
+  type: "function",
+  name: "entries",
+  stateMutability: "view",
+  inputs: [{ name: "kind", type: "bytes32" }],
+  outputs: [{ name: "", type: "tuple[]", components: [{ name: "target", type: "address" }, { name: "fromBlock", type: "uint64" }] }],
+};
+// What the registry lists, each kind every contract of that kind the protocol has had:
+// - CoinFactory, CoinListingManager: the launchpads, all live. The first (27 September 2026)
+//   keeps its coins trading on their curves and graduating into its own Uniswap V3; the second
+//   (28 September 2026), on a constant-product curve, takes every new launch and has a Uniswap V3
+//   of its own. Each factory launches coins and each listing manager opens its factory's pools.
+// - RevenueRouter: where the launch fee is paid, the listing managers' `treasury()`.
+// - OutbidMarket: every market with history, the current one last; the first two are frozen,
+//   their boards moved on, and the third is an ERC-1967 proxy (UUPS) that keeps its address.
+// - TradeRouter: the contract that takes the site's trading fee (SwapExecutor.sol).
+const KINDS = ["CoinFactory", "CoinListingManager", "RevenueRouter", "OutbidMarket", "TradeRouter"] as const;
+type Kind = (typeof KINDS)[number];
+type Registered = { address: string; fromBlock: number };
+// A kind as the registry keys it: the name's ASCII, as a bytes32.
+const kindKey = (kind: Kind) => "0x" + Buffer.from(kind, "ascii").toString("hex").padEnd(64, "0");
+
+const registered = async (options: FetchOptions): Promise<Record<Kind, Registered[]>> => {
+  const contracts = await getConfig(`outbidfun/registry/${options.chain}`, undefined, {
+    fetcher: async () => {
+      const lists = await options.api.multiCall({ target: REGISTRY, abi: ENTRIES, calls: KINDS.map((kind) => kindKey(kind)) });
+      const byKind = Object.fromEntries(
+        KINDS.map((kind, i) => [kind, lists[i].map((entry: any) => ({ address: entry.target, fromBlock: Number(entry.fromBlock) }))]),
+      ) as Record<Kind, Registered[]>;
+      for (const kind of KINDS) if (!byKind[kind].length) throw new Error(`outbidfun: the registry lists no ${kind}`);
+      return byKind;
+    },
+  });
+  // getConfig answers a failed read with the lists it last cached, or with {} where there are none.
+  for (const kind of KINDS) {
+    if (!Array.isArray(contracts?.[kind]) || !contracts[kind].length) throw new Error(`outbidfun: could not read the ${kind} contracts from the registry`);
+  }
+  return contracts;
+};
 // How RevenueRouter's RevenueReceived names native ETH.
 const ETHER = "0x0000000000000000000000000000000000000000";
 // Coin fee shares are in basis points.
@@ -191,10 +207,19 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
+  const contracts = await registered(options);
+  const addresses = (kind: Kind) => contracts[kind].map(({ address }) => address);
+  const factories = contracts.CoinFactory;
+  const listingManagers = contracts.CoinListingManager;
+  // Where the launch and pool logs start: the first launchpad's deployment.
+  const minFromBlock = Math.min(...[...factories, ...listingManagers].map(({ fromBlock }) => fromBlock));
+  const isListingManager = (owner: string) => listingManagers.some((manager) => manager.address.toLowerCase() === owner.toLowerCase());
+  const isFactory = (source: string) => factories.some((factory) => factory.address.toLowerCase() === source.toLowerCase());
+
   const launches = await options.getLogs({
-    targets: FACTORIES.map(({ address }) => address),
+    targets: factories.map(({ address }) => address),
     eventAbi: MEMECOIN_DEPLOYED,
-    fromBlock: MIN_FROM_BLOCK,
+    fromBlock: minFromBlock,
     cacheInCloud: true,
   });
   const coins: string[] = launches.map((launch: any) => launch.memecoin);
@@ -226,9 +251,9 @@ const fetch = async (options: FetchOptions) => {
 
   // Graduated pools, with the fee tier each was opened at, from both listing managers.
   const opened = await options.getLogs({
-    targets: LISTING_MANAGERS.map(({ address }) => address),
+    targets: listingManagers.map(({ address }) => address),
     eventAbi: POOL_OPENED,
-    fromBlock: MIN_FROM_BLOCK,
+    fromBlock: minFromBlock,
     cacheInCloud: true,
   });
   if (opened.length) {
@@ -237,8 +262,8 @@ const fetch = async (options: FetchOptions) => {
     if (swaps.some((logs: any[]) => logs.length)) {
       // Every position's liquidity at each swap, replayed from the pools' whole Mint/Burn history:
       // few events, changing slowly, like a pool list.
-      const mints = await options.getLogs({ targets: pools, eventAbi: MINT, fromBlock: MIN_FROM_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
-      const burns = await options.getLogs({ targets: pools, eventAbi: BURN, fromBlock: MIN_FROM_BLOCK, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const mints = await options.getLogs({ targets: pools, eventAbi: MINT, fromBlock: minFromBlock, onlyArgs: false, flatten: false, cacheInCloud: true });
+      const burns = await options.getLogs({ targets: pools, eventAbi: BURN, fromBlock: minFromBlock, onlyArgs: false, flatten: false, cacheInCloud: true });
       const positioned = (log: any, kind: string) => {
         const blockNumber = Number(log.blockNumber);
         const logIndex = Number(log.logIndex);
@@ -292,21 +317,21 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  const received = await options.getLogs({ target: REVENUE_ROUTER, eventAbi: REVENUE_RECEIVED });
+  const received = await options.getLogs({ targets: addresses("RevenueRouter"), eventAbi: REVENUE_RECEIVED });
   for (const log of received) {
     if (!isFactory(log.source) || log.asset !== ETHER) continue;
     dailyFees.addGasToken(log.amount, LABELS.launchFees);
     dailyRevenue.addGasToken(log.amount, LABELS.launchToProtocol);
   }
 
-  const bids = await options.getLogs({ targets: OUTBID_MARKETS, eventAbi: BID_SETTLED });
+  const bids = await options.getLogs({ targets: addresses("OutbidMarket"), eventAbi: BID_SETTLED });
   for (const log of bids) {
     const toProtocol = BigInt(log.toBuyback) + BigInt(log.toTreasury);
     dailyFees.add(log.asset, toProtocol, LABELS.bidFees);
     dailyRevenue.add(log.asset, toProtocol, LABELS.bidsToProtocol);
   }
 
-  const routerFees = await options.getLogs({ target: TRADE_ROUTER, eventAbi: FEE_CHARGED });
+  const routerFees = await options.getLogs({ targets: addresses("TradeRouter"), eventAbi: FEE_CHARGED });
   for (const log of routerFees) {
     dailyFees.add(log.token, log.amount, LABELS.routerFees);
     dailyRevenue.add(log.token, log.amount, LABELS.routerToProtocol);
@@ -325,7 +350,7 @@ const methodology = {
   Volume:
     "The reserve-asset leg of every bonding-curve buy and sell, fees included. Swaps in graduated coins' Uniswap V3 pools are not counted.",
   Fees:
-    "Bonding-curve trading fees (1%, plus the snipe tax on buys in the first seconds after launch), creators' own taxes on curve trades, swap fees in graduated coins' Uniswap V3 pools, the ETH launch fee, the trade router's 0.05% fee on every trade sent from the site, and the 25% of every front-page bid paid to the protocol. A reward coin's transfer fee, a token tax paid in the launched coin, is not counted.",
+    "Bonding-curve trading fees (1%, plus the snipe tax on buys in the first seconds after launch), creators' own taxes on curve trades, swap fees in graduated coins' Uniswap V3 pools, the ETH launch fee, the trade router's 0.05% fee on every trade sent from the site, and the protocol's share of every front-page bid: 25% of a bid on a coin launched here, all of a bid on a coin launched on PONS. A reward coin's transfer fee, a token tax paid in the launched coin, is not counted.",
   Revenue:
     "The protocol's share of trading fees and of the swap fees earned by locked graduation liquidity (each coin's immutable protocolShareBps, 30% at launch), launch fees, the trade router's fee, and the buyback and treasury shares of bids.",
   ProtocolRevenue:
@@ -340,7 +365,7 @@ const breakdownMethodology = {
     [LABELS.creatorTax]: "The creator's own tax on every curve trade, up to 10%, fixed at launch (FeesCharged.tax).",
     [LABELS.swapFees]: "The fee tier of a graduated coin's Uniswap V3 pool (1%) on every swap, measured on the quote-asset leg.",
     [LABELS.launchFees]: "The ETH fee paid to launch a coin, forwarded by the factory to the RevenueRouter.",
-    [LABELS.bidFees]: "The buyback (20%) and treasury (5%) shares of every front-page bid, in USDG (BidSettled).",
+    [LABELS.bidFees]: "The buyback and treasury shares of every front-page bid, in USDG (BidSettled): 20% and 5% of a bid on a coin launched here, 80% and 20% of a bid on a coin launched on PONS, which buys none of it.",
     [LABELS.routerFees]: "The trade router's fee (0.05%) on every trade sent from outbidfun.lol, in what the trade paid or bought (FeeCharged).",
   },
   Revenue: {
