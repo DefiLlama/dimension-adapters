@@ -25,6 +25,10 @@ export type CollectorSplit = { stakers: number, buyback: number, rakeback: numbe
 // Bucket weights read from the Collector at the window end (2/2/2/1 at launch on 2026-09-28:
 // MotoStaking / treasury / RakebackV2 / BuybackBurner). Any recipient that is not one of the three
 // protocol contracts above is the treasury.
+/**
+ * Reads the Collector bucket weights at the window end block (options.toApi).
+ * @returns the share of each Collector inflow going to MOTO stakers, buyback and burn, Rakeback and the treasury, as fractions summing to 1
+ */
 export async function getCollectorSplit(options: FetchOptions): Promise<CollectorSplit> {
   const api = options.toApi
   const length = await api.call({ target: COLLECTOR, abi: 'uint256:bucketsLength' })
@@ -55,6 +59,10 @@ export async function getCollectorSplit(options: FetchOptions): Promise<Collecto
 
 // MOTO has no price on coins.llama.fi since its liquidity moved from Uniswap v2 to Motoswap (2026-09-28),
 // so MOTO amounts are converted to WETH at the Motoswap MOTO/WETH pair reserves at the window end.
+/**
+ * Reads the Motoswap MOTO/WETH pair reserves at the window end block (options.toApi).
+ * @returns a converter from a raw MOTO amount (18 decimals) to the raw WETH amount (18 decimals) at that reserve ratio
+ */
 export async function getMotoToWeth(options: FetchOptions): Promise<(amount: bigint) => bigint> {
   const api = options.toApi
   const token0 = await api.call({ target: MOTO_WETH_PAIR, abi: 'address:token0' })
@@ -67,12 +75,19 @@ export async function getMotoToWeth(options: FetchOptions): Promise<(amount: big
 }
 
 // Adds an amount of a quote asset, with MOTO converted to WETH.
+/**
+ * Adds a raw quote asset amount to balances under the label; MOTO is added as its WETH equivalent, other tokens as is.
+ */
 export function addQuote(balances: Balances, token: string, amount: bigint, motoToWeth: (a: bigint) => bigint, label: string) {
   if (token.toLowerCase() === MOTO.toLowerCase()) balances.add(WETH, motoToWeth(amount).toString(), label)
   else balances.add(token, amount.toString(), label)
 }
 
 // Splits protocol fees that reached the Collector into revenue / holders / protocol / supply side.
+/**
+ * Splits a balances object of protocol fees by the Collector split.
+ * @returns four labeled clones: to stakers, to buyback and burn, to treasury, to Rakeback
+ */
 export function splitProtocolFees(protocolFees: Balances, split: CollectorSplit) {
   const toStakers = protocolFees.clone(split.stakers, LABELS.STAKERS)
   const toBuyback = protocolFees.clone(split.buyback, LABELS.BUYBACK)

@@ -30,16 +30,36 @@ const FEE_LABELS = {
   TO_CREATORS: 'Creator Fees To Coin Creators',
 }
 
-const customLogic = async ({ pairObject, filteredPairs, dailyVolume, dailyFees: helperLpFees, fetchOptions }: any) => {
-  const options: FetchOptions = fetchOptions
+// The uniV2 helper returns early, without calling customLogic, when no pair passes its liquidity filter. So customLogic
+// only reports which pairs the helper kept, and everything Motoswap specific runs in fetch below, in both cases.
+const customLogic = async ({ filteredPairs, dailyVolume, dailyFees }: any) => {
+  return { dailyVolume, dailyFees, keptPairs: Object.keys(filteredPairs) }
+}
+
+async function getPairObject(options: FetchOptions): Promise<Record<string, string[]>> {
+  const api = options.toApi
+  const length = await api.call({ target: FACTORY, abi: 'uint256:allPairsLength' })
+  const pairs: string[] = await api.multiCall({ target: FACTORY, abi: 'function allPairs(uint256) view returns (address)', calls: Array.from({ length: Number(length) }, (_, i) => i) })
+  const token0s: string[] = await api.multiCall({ abi: 'address:token0', calls: pairs })
+  const token1s: string[] = await api.multiCall({ abi: 'address:token1', calls: pairs })
+  const pairObject: Record<string, string[]> = {}
+  pairs.forEach((pair, i) => { pairObject[pair.toLowerCase()] = [token0s[i], token1s[i]] })
+  return pairObject
+}
+
+async function addMotoswapMetrics(options: FetchOptions, helperResult: any) {
   const { createBalances } = options
+  const dailyVolume = helperResult.dailyVolume
+  const helperLpFees = helperResult.dailyFees
+  const keptPairs = new Set<string>((helperResult.keptPairs ?? []).map((p: string) => p.toLowerCase()))
+  const pairObject = await getPairObject(options)
 
   const motoToWeth = await getMotoToWeth(options)
 
   // Coins graduated from moto.fun get a TOKEN/WETH and a TOKEN/MOTO pair. The uniV2 helper only keeps pairs with a
   // priced core asset, so the TOKEN/MOTO pairs are added here, measured on their MOTO side (converted to WETH).
   const motoPairs = Object.keys(pairObject).filter((pair) => {
-    if (filteredPairs[pair] !== undefined) return false
+    if (keptPairs.has(pair)) return false
     return pairObject[pair].some((t: string) => t.toLowerCase() === MOTO.toLowerCase())
   })
   if (motoPairs.length) {
@@ -162,7 +182,7 @@ const fetch = async (options: FetchOptions) => {
     const zero = options.createBalances()
     return { dailyVolume: zero, dailyFees: zero, dailyUserFees: zero, dailyRevenue: zero, dailyProtocolRevenue: zero, dailyHoldersRevenue: zero, dailySupplySideRevenue: zero }
   }
-  return uniV2Fetch(options)
+  return addMotoswapMetrics(options, await uniV2Fetch(options))
 }
 
 const adapter: SimpleAdapter = {
