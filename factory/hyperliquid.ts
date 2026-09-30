@@ -1044,7 +1044,8 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: 
   // products are unrelated and still live).
   "felix-perp": { dexId: "flx", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
-  // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (builder code + HIP-3 dex "mkts")
+  // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (HIP-3 dex "mkts");
+  // its builder codes are in the standalone dexs/kinetiq-interface.ts
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
   // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
