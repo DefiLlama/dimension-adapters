@@ -731,6 +731,38 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   return balances
 }
 
+/**
+ * Track TRC20 token transfers received by one or more Tron addresses, read from Allium.
+ *
+ * Tron RPC logs only reach back about a year and older windows come back empty instead of failing,
+ * so use this over addTokensReceived whenever history has to be refillable.
+ * Automatically excludes transfers between the target addresses.
+ *
+ * @param options - FetchOptions with chain, timestamp range, etc.
+ * @param balances - Optional. Balances object to add results to
+ * @param targets - Tron addresses (base58, case sensitive) to track
+ * @param tokens - TRC20 token addresses (base58) to count
+ * @param notFromSenders - Optional. Exclude transfers from these addresses (in addition to the targets)
+ * @returns Balances object with token amounts received
+ */
+export async function getTronTokensReceived({ options, balances, targets, tokens, notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, targets: string[], tokens: string[], notFromSenders?: string[] }) {
+  if (!balances) balances = options.createBalances()
+  if (!targets.length || !tokens.length) throw new Error('[Tron tokens received] targets and tokens are required')
+
+  const toList = (addresses: string[]) => '( ' + [...new Set(addresses)].map(i => `'${i}'`).join(', ') + ' )'
+  const rows = await queryAllium(`
+    SELECT token_address, SUM(raw_amount) AS amount
+    FROM tron.assets.trc20_token_transfers
+    WHERE to_address IN ${toList(targets)}
+      AND from_address NOT IN ${toList(targets.concat(notFromSenders))}
+      AND token_address IN ${toList(tokens)}
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    GROUP BY 1
+  `)
+  rows.forEach((row: any) => balances!.add(row.token_address, row.amount))
+  return balances
+}
+
 type GetEVMTokenTransfersParams = {
   options: FetchOptions;
   balances?: sdk.Balances;

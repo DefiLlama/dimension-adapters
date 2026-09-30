@@ -1,6 +1,6 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
-import { addTokensReceived } from "./token";
+import { addTokensReceived, getTronTokensReceived } from "./token";
 import ADDRESSES from "./coreAssets.json";
 import { formatAddress } from "../utils/utils";
 
@@ -43,6 +43,9 @@ const DefaultPaymentTokens: Record<string, Array<string>> = {
     ADDRESSES.bsc.USDC,
     ADDRESSES.bsc.USDT,
   ],
+  [CHAIN.TRON]: [
+    ADDRESSES.tron.USDT,
+  ],
 }
 
 interface CryptoCardAdapterConfig {
@@ -57,7 +60,20 @@ export function cryptoCardAdapterExport(exportConfig: Record<string, CryptoCardA
     version: 2,
     pullHourly: true,
     chains: Object.keys(exportConfig),
+    ...(exportConfig[CHAIN.TRON] && { dependencies: [Dependencies.ALLIUM] }),
     fetch: async (options: FetchOptions) => {
+      if (options.chain === CHAIN.TRON) {
+        // Tron RPC logs only reach back about a year (older windows come back empty), so Tron transfers are read from Allium
+        const dailyVolume = await getTronTokensReceived({
+          options,
+          targets: exportConfig[options.chain].paymentRecipients,
+          tokens: exportConfig[options.chain].paymentTokens || DefaultPaymentTokens[options.chain],
+          notFromSenders: exportConfig[options.chain].excludeWallets,
+        });
+        if (dailyVolume.isEmpty()) throw new Error(`No tron transfers into ${exportConfig[options.chain].paymentRecipients.join(', ')}, Allium may not have indexed the window yet`);
+        return { dailyVolume };
+      }
+
       const dailyVolume = await addTokensReceived({
         options,
         targets: exportConfig[options.chain].paymentRecipients,
@@ -65,7 +81,7 @@ export function cryptoCardAdapterExport(exportConfig: Record<string, CryptoCardA
         logFilter: (log: any) => {
           let targets = exportConfig[options.chain].excludeWallets || [];
           targets = targets.concat(exportConfig[options.chain].paymentRecipients.map((t: any) => formatAddress(t)));
-          return !targets.includes(log.from_address);
+          return !targets.includes(formatAddress(log.from_address ?? log.from));
         }
       })
     
@@ -99,6 +115,13 @@ const RedotpayPaymentRecipients = [
   '0x43D1508417335a314483FaA40eB590cC0503987c',
   '0x84c0e85a8aeB537c5b12cC5D9cd168bFE3390673',
   '0x3ba1be1619e9c93c861a6eb252974274f75b72aa',
+  '0x9d7d8b567ee10bcb4f9db438245e1d0668175d72',
+];
+
+const RedotpayTronPaymentRecipients = [
+  'TBrB7UjJJwHCYCL78cXTYWsSgWtjyBkAEn',
+  'TPAe3S3X2dZ32zgXcG3ZzjZMK9h4dq3uKP',
+  'TUijte4BmpKj95GvSZCeVxHNVZovxVmRwe',
 ];
 
 const cryptoCardProtocols: Record<string, SimpleAdapter> = {
@@ -244,6 +267,14 @@ const cryptoCardProtocols: Record<string, SimpleAdapter> = {
     [CHAIN.ARBITRUM]: {
       start: '2022-11-01',
       paymentRecipients: RedotpayPaymentRecipients,
+    },
+    [CHAIN.BSC]: {
+      start: '2023-12-07',
+      paymentRecipients: RedotpayPaymentRecipients,
+    },
+    [CHAIN.TRON]: {
+      start: '2023-12-07',
+      paymentRecipients: RedotpayTronPaymentRecipients,
     },
   }),
 };
