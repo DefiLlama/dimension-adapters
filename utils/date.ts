@@ -21,7 +21,7 @@ export function getTimestampAtStartOfDay(timestamp: number) {
 }
 
 export const getTimestamp24hAgo = (timestamp: number) => {
-  return timestamp - 24*3600
+  return timestamp - 24 * 3600
 }
 
 export const getTimestampAtStartOfDayUTC = (timestamp: number) => {
@@ -120,7 +120,7 @@ function pad(s: number) {
 
 export function formatTimestampAsDate(timestamp: string) {
   const date = new Date(Number(timestamp) * 1000);
-  return `${pad(date.getDate())}/${pad(
-    date.getMonth() + 1
-  )}/${date.getFullYear()}`;
+  return `${pad(date.getUTCDate())}/${pad(
+    date.getUTCMonth() + 1
+  )}/${date.getUTCFullYear()}`;
 }
