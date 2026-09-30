@@ -427,6 +427,13 @@ const configs: Record<string, CuratorConfig> = {
         morpho: ['0x6137dcfdd3c83fe2922b1cba4105d2e92b327a06'],
         start: '2026-03-22',
       },
+      [CHAIN.PHAROS]: {
+        // "RockawayX USDC" (roxUSDC), Morpho V2, performanceFee 15%. Its curator safe
+        // 0x8747...d846 is 2-of-3 with 0xBDa6...f9e5, the sole owner of the Base deployer safe
+        // 0x22d4...676a above. Morpho's API does not cover Pharos, so it is listed by address.
+        morphoV2: ['0x047cd0a91e9b92ed979189a6c8a120bf280f02e5'],
+        start: '2026-07-14',
+      },
       [CHAIN.SOLANA]: {
         // Kamino kvaults curated by RockawayX. Both share vaultAdminAuthority
         // 5WodE5oHa6Uy16zg4eTep9t6DqJKx7jFN6bomAm7bVQv, which owns exactly these
