@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Interface } from 'ethers';
-import adapter, { settled, fetchRouteAccounting } from '../route';
+import adapter, { settled, builderSettled, arcExecuted, fetchRouteAccounting } from '../route';
 import fixtures from './fixtures.json';
 
 // Raw logs in fixtures.json are independently inspectable on Robinhood Blockscout
@@ -18,6 +18,8 @@ class Balances {
     this.values[key] = (this.values[key] ?? 0n) + BigInt(amount);
   }
   addGasToken(amount: any, label: string) { this.add(native, amount, label); }
+  usd = 0;
+  addUSDValue(amount: number) { this.usd += amount; }
   clone() { const b = new Balances(); b.values = { ...this.values }; return b; }
 }
 const value = (b: Balances, token: string, label: string) => b.values[`${token}:${label}`] ?? 0n;
@@ -108,4 +110,54 @@ test('adjacent windows include a boundary event only once', async () => {
   assert.equal(value(before.dailyHoldersRevenue, native, 'Token Buy Back'), 0n);
   assert.equal(value(sharedBefore.dailyHoldersRevenue, native, 'Token Buy Back'), 0n);
   assert.equal(value(after.dailyHoldersRevenue, native, 'Token Buy Back'), 19369721762768720n);
+});
+
+test('September 26 manager, collectors and executors are tracked', async () => {
+  const rampAbi = 'event Executed(uint256 indexed sequence,uint256 revenue,uint256 buybackEth,uint256 lpBudget,uint256 vaultEth,uint256 buybackTokens,uint256 indexed rangeId,uint128 addedShares,address indexed lpOwner)';
+  const swapAbi = 'event Swapped(address indexed sender,address indexed recipient,address indexed tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)';
+  const feeAbi = 'event OutputFee(address indexed token,uint256 gross,uint256 feeBps,uint256 feeAmount)';
+  const lpOwner = '0x09efc01e903033d6642d20a8c5cf6bee210cfbf8';
+  const cycle = eventLog('0xd6fa32a8cfb31c2f237059e4f19a5eff79047957', rampAbi, [0, 1000, 600, 50, 350, 1, 0, 0, lpOwner]);
+  const direct = '0x1562b4ea2cc64c36a7025d04426bcf2729222ebb';
+  const swap = eventLog(direct, swapAbi, [native, native, usdg, route, 5000, 99]);
+  const fee = eventLog(direct, feeAbi, [route, 100, 10, 1]);
+  const collector = eventLog('0x66537759eb8fcea1d4b6b55405eaf8dd3e13fd53', settled, [native, native, usdg, 1000, 10, 1, 999]);
+  const out = await run([cycle, swap, fee, collector], 0, Infinity, fetchRouteAccounting);
+  assert.equal(value(out.dailyHoldersRevenue, native, 'Token Buy Back'), 600n);
+  assert.equal(value(out.dailyCapitalAllocation, native, 'Liquidity Funding'), 50n);
+  assert.equal(value(out.dailyVolume, usdg, ''), 5000n);
+  assert.equal(value(out.dailyFees, route, 'Swap Fees'), 1n);
+  assert.equal(value(out.dailyFees, usdg, 'Swap Fees'), 1n);
+});
+
+test('Route v2 collector reports gross output volume and its fee once', async () => {
+  const v2 = eventLog('0x9f8f538ea588ccf935876527115bb2a834c2f5fc', settled, [native, native, usdg, 10000, 10, 10, 9990]);
+  const out = await run([v2]);
+  assert.equal(value(out.dailyVolume, usdg, ''), 10000n);
+  assert.equal(value(out.dailyFees, usdg, 'Swap Fees'), 10n);
+  assert.equal(value(out.dailyRevenue, usdg, 'Swap Fees To Route'), 10n);
+});
+
+test('builder settlements add the Route fee as revenue and the integrator fee as supply side only', async () => {
+  const id = '0x' + '01'.repeat(32);
+  const log = eventLog('0xcbe3987a243541cc9592ca08838cf1233c15f6e1', builderSettled,
+    [id, id, id, native, native, usdg, 10000, 5, 20, 9975, native, 3, native, 1]);
+  const out = await run([log]);
+  assert.equal(value(out.dailyFees, usdg, 'Swap Fees'), 5n);
+  assert.equal(value(out.dailyRevenue, usdg, 'Swap Fees To Route'), 5n);
+  assert.equal(value(out.dailyFees, usdg, 'Builder Fees'), 20n);
+  assert.equal(value(out.dailyRevenue, usdg, 'Builder Fees'), 0n);
+  assert.equal(value(out.dailySupplySideRevenue, usdg, 'Builder Fees'), 20n);
+  // Builder volume is already carried by the inner engine's Swapped event.
+  assert.deepEqual(out.dailyVolume.values, {});
+});
+
+test('Arc executor contributes volume only', async () => {
+  const usdc = '0x3600000000000000000000000000000000000000';
+  const token = '0x545030e5ca372756940691be0b186e293d83ed3f';
+  const log = eventLog('0x33c65ba72b023bf6b207d7b62275630ca433afb8', arcExecuted, [native, native, token, usdc, 10n ** 18n, 295000000]);
+  const out = await run([log], 0, Infinity, (options: any) => adapter.fetch!({ ...options, chain: 'arc' } as any, {} as any));
+  assert.equal(out.dailyVolume.usd, 295);
+  assert.deepEqual(out.dailyVolume.values, {});
+  assert.equal(out.dailyFees, 0);
 });

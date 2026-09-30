@@ -17,7 +17,20 @@ For example, [the first creator-fee claim](https://robinhoodchain.blockscout.com
 
 Creator fees are counted once when distributed from the curve/pool. Claims do not add revenue again. Subsequent revenue-funded purchases enter the buyback series when executed, without claiming they occurred on the same day as the revenue receipt.
 
-LP funding is excluded from holder revenue and is not deducted from protocol revenue. `fetchRouteAccounting` retains a separate `dailyCapitalAllocation` balance with a `Liquidity Funding` breakdown: the full emitted `lpBudget` from successful September 11 and Ramp manager cycles, including both assets and carry-forward balances, not exact deposited value. It excludes dedicated buybacks and does not recount later spending of those balances. The default adapter fetch omits this balance because DefiLlama has no supported capital-allocation dimension. Publishing it or a combined "Buybacks + LP funding" chart requires separate maintainer-supported dashboard/schema work; it must not be relabeled as holder income.
+LP funding is excluded from holder revenue and is not deducted from protocol revenue. `fetchRouteAccounting` retains a separate `dailyCapitalAllocation` balance with a `Liquidity Funding` breakdown: the full emitted `lpBudget` from successful September 11 and both Ramp manager cycles, including both assets and carry-forward balances, not exact deposited value. It excludes dedicated buybacks and does not recount later spending of those balances. The default adapter fetch omits this balance because DefiLlama has no supported capital-allocation dimension. Publishing it or a combined "Buybacks + LP funding" chart requires separate maintainer-supported dashboard/schema work; it must not be relabeled as holder income.
+
+## Coverage by settlement generation
+
+| Generation | Contracts | Volume from | Fees from |
+| --- | --- | --- | --- |
+| Original engines (Sep 5+) | `engines` | `Swapped` (outer call only) | `FeePaid` |
+| Tiered collectors (Sep 11, 16, 18, 26) | `collectors` | inner engine `Swapped` | `Settled.feeAmount` |
+| Provider executors (Sep 12, 18, 26) | `integratedFeeExecutors` | own `Swapped` | `OutputFee` |
+| Builder integrations (Sep 15, 18, 26) | `builderExecutors` | inner engine `Swapped` | `BuilderSettled.routeFee` (revenue), `builderFee` (supply side) |
+| Route v2 (collector deployed Sep 26) | `v2Collectors` | `Settled.grossAmountOut` (its flow executor emits no `Swapped`) | `Settled.feeAmount` |
+| Arc (Sep 16, zero Route fee) | `arcExecutor` | `Executed` | none |
+
+Buybacks come from the 100 reviewed dev-wallet purchases and all four managers: `0xAdA9...` (first), `0xDa57...` (September 11, 35/30/35), `0xdd4F...` (Ramp, 30/30/40) and `0xd6fA...` (Ramp, 60/5/35, creator-fee recipient since Safe transaction `0x087a1c17...` on September 26). Each generation remains listed so historical backfills keep their completed buys. A new deployment must be appended here, not substituted.
 
 ## RPC rate limits during validation
 

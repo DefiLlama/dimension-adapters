@@ -32,6 +32,11 @@ const engines = [
   '0x486c62ba146823324722ec3350f0296fd7cae3a0',
   // https://repo.sourcify.dev/4663/0xc6d9b0a91ea71ee1df9733e2a07ab830dcd0c15c
   '0xc6d9b0a91ea71ee1df9733e2a07ab830dcd0c15c',
+  // September 26 replacements for the 60/5/35 manager; same Swapped/OutputFee ABI.
+  // https://repo.sourcify.dev/4663/0x71d51561671e5CaB84AD6D1A2aab57DE082e9DeB
+  '0x71d51561671e5cab84ad6d1a2aab57de082e9deb',
+  // https://repo.sourcify.dev/4663/0x1562B4EA2cC64C36A7025D04426BCf2729222ebb
+  '0x1562b4ea2cc64c36a7025d04426bcf2729222ebb',
 ];
 // Exact source: https://repo.sourcify.dev/4663/0xBFADcf357545cb185420eAD0fDE1008A289c0154
 const collectors = [
@@ -44,13 +49,39 @@ const collectors = [
   '0xc49663f88f1cfb448fa8730f960829ca3a470c13',
   // https://repo.sourcify.dev/4663/0x84497be24ae78b3232f7009d619a33eb500a46cf
   '0x84497be24ae78b3232f7009d619a33eb500a46cf',
+  // September 26 replacements: regular tiered collector, then Premium collector.
+  // https://repo.sourcify.dev/4663/0x66537759Eb8Fcea1d4B6b55405EAF8DD3e13Fd53
+  '0x66537759eb8fcea1d4b6b55405eaf8dd3e13fd53',
+  // https://repo.sourcify.dev/4663/0xEda33d977CeFCFd56b85c7525e91bB383D92069C
+  '0xeda33d977cefcfd56b85c7525e91bb383d92069c',
 ];
+// Route v2 settles through its own flow executor, which emits no Swapped event, so its
+// collector's Settled event is the only record of both v2 volume (gross output) and fees.
+// https://repo.sourcify.dev/4663/0x9F8f538EA588CcF935876527115BB2A834c2F5Fc
+const v2Collectors = [
+  '0x9f8f538ea588ccf935876527115bb2a834c2f5fc',
+];
+// Builder executors call the engines above, whose Swapped events already carry the volume.
+// Their own Route fee and integrator fee are only reported in BuilderSettled.
+const builderExecutors = [
+  // https://repo.sourcify.dev/4663/0x8BD4C3f0128DECd897600d635800017Abcc1f8a5
+  '0x8bd4c3f0128decd897600d635800017abcc1f8a5',
+  // https://repo.sourcify.dev/4663/0x143728B383f6cdBE5c8b53e448A3eB1cc9Bff2Ef
+  '0x143728b383f6cdbe5c8b53e448a3eb1cc9bff2ef',
+  // https://repo.sourcify.dev/4663/0xeb4881239a5997255E7F90F2414F4a4C3Cf8d197
+  '0xeb4881239a5997255e7f90f2414f4a4c3cf8d197',
+  // https://repo.sourcify.dev/4663/0xCBE3987A243541CC9592CA08838cf1233C15F6E1
+  '0xcbe3987a243541cc9592ca08838cf1233c15f6e1',
+];
+export const builderSettled = 'event BuilderSettled(bytes32 indexed id,bytes32 indexed builder,bytes32 indexed keyId,address payer,address recipient,address tokenOut,uint256 gross,uint256 routeFee,uint256 builderFee,uint256 amountOut,address tokenIn,uint256 amountIn,address builderRecipient,uint256 policyVersion)';
 // The integrated executors above emit OutputFee, not Settled or FeePaid.
 const integratedFeeExecutors = [
   '0xd49259d75786e7ffba599e400e6bd83bd3758a71',
   '0x90c74e5ab8e383e92c39c524b4eb0767dd9f4bc4',
   '0x486c62ba146823324722ec3350f0296fd7cae3a0',
   '0xc6d9b0a91ea71ee1df9733e2a07ab830dcd0c15c',
+  '0x71d51561671e5cab84ad6d1a2aab57de082e9deb',
+  '0x1562b4ea2cc64c36a7025d04426bcf2729222ebb',
 ];
 const outputFee = 'event OutputFee(address indexed token,uint256 gross,uint256 feeBps,uint256 feeAmount)';
 export const settled = 'event Settled(address indexed sender,address indexed recipient,address indexed tokenOut,uint256 grossAmountOut,uint256 feeBps,uint256 feeAmount,uint256 amountOut)';
@@ -82,6 +113,10 @@ const firstManager = '0xada939f2f1482a13e3c0c612bcb14f2615221e9d';
 const creatorManager = '0xda5790345fd25878e5186ebd98823814188acfbe';
 // https://repo.sourcify.dev/4663/0xdd4F63Ff19b8A871fadc734de2c5fE13b35f1631
 const rampManager = '0xdd4f63ff19b8a871fadc734de2c5fe13b35f1631';
+// Second Ramp deployment (60% buyback / 5% LP / 35% treasury), creator-fee recipient since
+// Safe transaction 0x087a1c171f1daa1f2a235f0d5076c73906fe9307a4515b1ca5cd8111c6d1347b.
+// https://repo.sourcify.dev/4663/0xd6fA32A8CFB31c2f237059E4f19a5EFF79047957
+const rampManagers = [rampManager, '0xd6fa32a8cfb31c2f237059e4f19a5eff79047957'];
 const firstExecuted = 'event Executed(uint256 indexed sequence,uint256 claimed,uint256 boughtWith,uint256 tokensOut,uint256 treasuryEth)';
 const executed = 'event Executed(uint256 indexed sequence,uint256 revenue,uint256 buybackEth,uint256 lpBudget,uint256 vaultEth,uint256 buybackTokens,uint256 positionId,uint128 liquidityAdded)';
 const rampExecuted = 'event Executed(uint256 indexed sequence,uint256 revenue,uint256 buybackEth,uint256 lpBudget,uint256 vaultEth,uint256 buybackTokens,uint256 indexed rangeId,uint128 addedShares,address indexed lpOwner)';
@@ -100,6 +135,7 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   let buybackEth = 0n;
   let lpFundingEth = 0n;
   const addBuyback = (amount: string | bigint) => { buybackEth += BigInt(amount); };
@@ -138,6 +174,19 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
     dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
     dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
   }
+  const v2Settlements = await options.getLogs({ toBlock, targets: v2Collectors, eventAbi: settled });
+  for (const log of v2Settlements) {
+    dailyVolume.add(log.tokenOut, log.grossAmountOut);
+    dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
+    dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
+  }
+  const builderSettlements = await options.getLogs({ toBlock, targets: builderExecutors, eventAbi: builderSettled });
+  for (const log of builderSettlements) {
+    dailyFees.add(log.tokenOut, log.routeFee, 'Swap Fees');
+    dailyRevenue.add(log.tokenOut, log.routeFee, 'Swap Fees To Route');
+    dailyFees.add(log.tokenOut, log.builderFee, 'Builder Fees');
+    dailySupplySideRevenue.add(log.tokenOut, log.builderFee, 'Builder Fees');
+  }
   // Count only ROUTE's creator share, not Pons protocol fees or unrelated pools.
   // Covers dev wallet, first manager, September 11 manager and Ramp recipient alike.
   // Do not also count escrow credits/claims or converted swap-fee deposits as income.
@@ -160,7 +209,7 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   const firstExecutions = await options.getLogs({ toBlock, target: firstManager, eventAbi: firstExecuted });
   for (const log of firstExecutions) addBuyback(log.boughtWith.toString());
   const executions = await options.getLogs({ toBlock, target: creatorManager, eventAbi: executed });
-  const rampExecutions = await options.getLogs({ toBlock, target: rampManager, eventAbi: rampExecuted });
+  const rampExecutions = await options.getLogs({ toBlock, targets: rampManagers, eventAbi: rampExecuted });
   for (const log of [...executions, ...rampExecutions]) {
     addBuyback(log.buybackEth.toString());
     // Full ETH allocation in a successful cycle, including the paired-asset budget.
@@ -173,31 +222,53 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   const dailyProtocolRevenue = dailyRevenue.clone();
   dailyProtocolRevenue.addGasToken((-buybackEth).toString(), METRIC.TOKEN_BUY_BACK);
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue: 0, dailyCapitalAllocation };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue, dailyCapitalAllocation };
+};
+
+// Route's Arc executor (first swap September 16) charges no Route fee: volume only.
+// https://arcscan.app/address/0x33C65bA72B023BF6B207D7B62275630cA433AFB8
+const arcExecutor = '0x33c65ba72b023bf6b207d7b62275630ca433afb8';
+const arcUsdc = '0x3600000000000000000000000000000000000000';
+export const arcExecuted = 'event Executed(address indexed sender,address indexed recipient,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)';
+export const fetchArc = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const toBlock = (await options.getToBlock()) - 1;
+  const logs = await options.getLogs({ toBlock, target: arcExecutor, eventAbi: arcExecuted });
+  for (const log of logs) {
+    // Arc's USDC ERC20 interface (6 decimals) is not priced by the coins API; value it directly.
+    if (log.tokenIn.toLowerCase() === arcUsdc) dailyVolume.addUSDValue(Number(log.amountIn) / 1e6);
+    else if (log.tokenOut.toLowerCase() === arcUsdc) dailyVolume.addUSDValue(Number(log.amountOut) / 1e6);
+    else addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
+  }
+  return { dailyVolume, dailyFees: 0, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue: 0 };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true, // Hourly slices are summed into UTC daily totals; chart granularity is a dashboard setting.
-  chains: [CHAIN.ROBINHOOD],
   fetch: async (options) => {
+    if (options.chain === CHAIN.ARC) return fetchArc(options);
     // Only export supported income/volume dimensions; LP funding is not holder income.
     const { dailyCapitalAllocation, ...incomeAndVolume } = await fetchRouteAccounting(options);
     return incomeAndVolume;
   },
-  start: '2026-09-05',
+  adapter: {
+    [CHAIN.ROBINHOOD]: { start: '2026-09-05' },
+    [CHAIN.ARC]: { start: '2026-09-15' },
+  },
   allowNegativeValue: true, // Buybacks can use revenue collected in an earlier period.
   methodology: {
-    Volume: 'Completed swaps through the tracked Route contracts, counted once per trade, including integrations and treasury trades but excluding quotes and individual pool hops.',
-    Fees: 'Actual Route swap fees and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, private transfers and cross-chain fees.',
-    Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending.',
+    Volume: 'Completed swaps through every Route settlement generation (original engines, fee collectors and provider executors, builder integrations and the Route v2 collector), counted once per trade, including integrations and treasury trades but excluding quotes and individual pool hops.',
+    Fees: 'Actual Route swap fees (including builder-integration and Route v2 swaps), integrator fees on builder swaps, and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, API subscriptions, private transfers and cross-chain fees.',
+    Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending; integrator fees paid to builders are excluded.',
     ProtocolRevenue: 'Tracked revenue less revenue-funded ROUTE buybacks, which may spend receipts from earlier days; LP funding is a separate capital allocation, not a revenue deduction.',
     HoldersRevenue: 'Actual ETH input for early creator-revenue-funded dev-wallet purchases and completed automated ROUTE buybacks; excludes all LP budgets and purchases made for liquidity.',
-    SupplySideRevenue: 'None of the tracked fee receipts are paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
+    SupplySideRevenue: 'Integrator fees paid to builders on builder-integration swaps. No other tracked fee receipt is paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
   },
   breakdownMethodology: {
     Fees: {
-      'Swap Fees': 'Fees paid on swaps through the tracked Route contracts, using the actual amount charged on each trade.',
+      'Swap Fees': 'Route fees paid on swaps through the tracked Route contracts, using the actual amount charged on each trade.',
+      'Builder Fees': 'Integrator fees charged on builder-integration swaps and paid directly to the builder.',
       [METRIC.CREATOR_FEES]: 'Actual creatorAmount distributed by ROUTE\'s bonding curve or original Pons pool, including the original dev wallet and every manager recipient; excludes the Pons protocol share.',
     },
     Revenue: {
@@ -209,8 +280,11 @@ const adapter: SimpleAdapter = {
       'Creator Fees To Route': 'ROUTE creator fees credited to Route, before the separate deduction for completed buybacks.',
       [METRIC.TOKEN_BUY_BACK]: 'ETH spent buying ROUTE, deducted from protocol revenue when the purchase completes; spending earlier receipts can make this period\'s net amount negative.',
     },
+    SupplySideRevenue: {
+      'Builder Fees': 'Integrator fees paid to builders on builder-integration swaps.',
+    },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all three automated managers; excludes the launch purchase, gas, and ROUTE bought within the separate capital-allocation budget.',
+      [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all four automated managers (the current Ramp manager splits revenue 60% buyback, 5% LP, 35% treasury); excludes the launch purchase, gas, and ROUTE bought within the separate capital-allocation budget.',
     },
   },
 };
