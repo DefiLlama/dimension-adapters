@@ -161,3 +161,16 @@ test('Arc executor contributes volume only', async () => {
   assert.deepEqual(out.dailyVolume.values, {});
   assert.equal(out.dailyFees, 0);
 });
+
+test('wallets excluded from Route reporting add no volume', async () => {
+  const abi = 'event Swapped(address indexed sender,address indexed recipient,address indexed tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)';
+  const excluded = '0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d';
+  const engine = '0x9990a63ef329ab407956b4fe5a812aba0d81e20c';
+  const asSender = eventLog(engine, abi, [excluded, native, usdg, route, 1000, 1]);
+  const asRecipient = eventLog(engine, abi, [native, excluded, usdg, route, 2000, 1]);
+  const counted = eventLog(engine, abi, [native, native, usdg, route, 4000, 1]);
+  const v2 = eventLog('0x9f8f538ea588ccf935876527115bb2a834c2f5fc', settled, [excluded, excluded, usdg, 8000, 10, 8, 7992]);
+  const out = await run([asSender, asRecipient, counted, v2]);
+  assert.equal(value(out.dailyVolume, usdg, ''), 4000n);
+  assert.equal(value(out.dailyFees, usdg, 'Swap Fees'), 8n);
+});
