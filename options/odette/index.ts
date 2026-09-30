@@ -15,7 +15,7 @@ const OPTION_INITIALIZED =
   "event OptionInitialized(address indexed buyer, address indexed seller, address indexed createdBy, uint256 optionType, address collateralToken, address priceFeed, uint256[] strikes, uint256 expiryTimestamp, uint256 numContracts, uint256 collateralAmount, bytes extraOptionData)";
 const GET_STRIKES = "function getStrikes() view returns (uint256[])";
 
-type OptionInfo = { token: string; contracts: bigint; collateral: bigint; strikes: bigint[] };
+type OptionInfo = { token: string; contracts: bigint; strikes: bigint[] };
 
 const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
@@ -29,19 +29,18 @@ const fetch = async (options: FetchOptions) => {
   const info = new Map<string, OptionInfo>();
   const inits = await options.getLogs({ targets: optionAddresses, eventAbi: OPTION_INITIALIZED, entireLog: true });
   for (const log of inits) {
-    info.set(log.address.toLowerCase(), { token: log.args.collateralToken, contracts: BigInt(log.args.numContracts), collateral: BigInt(log.args.collateralAmount), strikes: log.args.strikes.map((x: any) => BigInt(x)) });
+    info.set(log.address.toLowerCase(), { token: log.args.collateralToken, contracts: BigInt(log.args.numContracts), strikes: log.args.strikes.map((x: any) => BigInt(x)) });
   }
   const missing = optionAddresses.filter((a) => !info.has(a));
   if (missing.length) {
-    const [tokens, contracts, collateral, strikes] = await Promise.all([
+    const [tokens, contracts, strikes] = await Promise.all([
       options.api.multiCall({ abi: "address:collateralToken", calls: missing }),
       options.api.multiCall({ abi: "uint256:numContracts", calls: missing }),
-      options.api.multiCall({ abi: "uint256:collateralAmount", calls: missing }),
       options.api.multiCall({ abi: GET_STRIKES, calls: missing }),
     ]);
     missing.forEach((a, i) => {
       if (/^0x0{40}$/i.test(tokens[i]) || !strikes[i].length) throw new Error(`no option data for ${a}`);
-      info.set(a, { token: tokens[i], contracts: BigInt(contracts[i]), collateral: BigInt(collateral[i]), strikes: strikes[i].map((x: any) => BigInt(x)) });
+      info.set(a, { token: tokens[i], contracts: BigInt(contracts[i]), strikes: strikes[i].map((x: any) => BigInt(x)) });
     });
   }
 
@@ -52,11 +51,8 @@ const fetch = async (options: FetchOptions) => {
   for (const fill of fills) {
     const o = info.get(fill.optionAddress.toLowerCase())!;
     dailyPremiumVolume.add(o.token, fill.premiumAmount);
-    if (o.strikes.length === 1) {
-      dailyNotionalVolume.addUSDValue(Number(o.contracts * o.strikes[0]) / 1e8 / 10 ** decimals.get(o.token.toLowerCase())!); // strikes use 8 decimals
-    } else {
-      dailyNotionalVolume.add(o.token, o.collateral);
-    }
+    const avgStrike = o.strikes.reduce((a, b) => a + b, 0n) / BigInt(o.strikes.length);
+    dailyNotionalVolume.addUSDValue(Number(o.contracts * avgStrike) / 1e8 / 10 ** decimals.get(o.token.toLowerCase())!); // strikes use 8 decimals
   }
 
   return { dailyNotionalVolume, dailyPremiumVolume };
@@ -70,7 +66,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     NotionalVolume:
-      "Underlying value of options bought and sold through Odette on Base, identified by the Odette referrer address on the OptionBook contracts, counted as contracts times strike for single-strike options and as collateral for spreads, butterflies and condors.",
+      "Underlying value of options bought and sold through Odette on Base, identified by the Odette referrer address on the OptionBook contracts, counted as contracts times strike, using the mean strike for spreads, butterflies and condors, counted once per fill, not per leg.",
     PremiumVolume: "Premium paid by option buyers on OptionBook fills referred by Odette.",
   },
 };
