@@ -8,9 +8,8 @@ const LifiProtocolFee = 'LiFi Fees'
 const SwapFee = 'Swap Fees'
 const BridgeFee = 'Bridge Fees'
 const OtherFee = 'Other Fees'
-const LegacyFee = 'Legacy Fees'
 
-const fetch = async (options: FetchOptions) => {
+const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => {
 	const dailyFees = options.createBalances();
 	const dailyRevenue = options.createBalances();
 	const dailySupplySideRevenue = options.createBalances();
@@ -28,23 +27,34 @@ const fetch = async (options: FetchOptions) => {
 	const legacy: any[] = await options.getLogs({
 		target: LifiFeeCollectors[options.chain].id,
 		eventAbi: FeeCollectedEvent,
+		entireLog: true,
 	});
-	legacy.forEach((log: any) => {
-		addFee(log._token, log._integratorFee, false, LegacyFee);
-		addFee(log._token, log._lifiFee, true, LegacyFee);
-	});
-
 	const forwarded: any[] = await options.getLogs({
 		targets: getFeeForwarders(options.chain),
 		eventAbi: FeesForwardedEvent,
 		entireLog: true,
 	});
-	const transactions = forwarded.length ? await getFeeTransactions(options) : new Map();
+	const transactions = legacy.length || forwarded.length ? await getFeeTransactions(options) : new Map();
+	const sourceFor = (hash: string) => {
+		const kind = transactions.get(hash.toLowerCase())?.kind;
+		if (kind === category) return kind === 'bridge' ? BridgeFee : SwapFee;
+		if (!kind && category === 'bridge') return OtherFee;
+		return undefined;
+	};
+	legacy.forEach((log: any) => {
+		const source = sourceFor(String(log.transactionHash));
+		if (!source) return;
+		addFee(log.args._token, log.args._integratorFee, false, source);
+		addFee(log.args._token, log.args._lifiFee, true, source);
+	});
+
 	const separateJumper = options.startTimestamp >= Date.parse(JumperFeeStart) / 1000;
 	forwarded.forEach((log: any) => {
-		const transaction = transactions.get(String(log.transactionHash).toLowerCase());
+		const hash = String(log.transactionHash);
+		const transaction = transactions.get(hash.toLowerCase());
 		if (separateJumper && isJumperTransaction(transaction)) return;
-		const source = transaction?.kind === 'bridge' ? BridgeFee : transaction?.kind === 'swap' ? SwapFee : OtherFee;
+		const source = sourceFor(hash);
+		if (!source) return;
 		log.args.fees.forEach((fee: any) => {
 			addFee(log.args.token, fee.amount, String(fee.recipient).toLowerCase() === LifiRecipient, source);
 		});
@@ -58,23 +68,23 @@ const fetch = async (options: FetchOptions) => {
 	};
 };
 
-const adapter: SimpleAdapter = {
+export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter => ({
 	version: 2,
-	// pullHourly: true,
-	fetch,
+	pullHourly: false,
+	fetch: fetch(category),
 	adapter: LifiFeeCollectors,
 	methodology: {
-		Fees: 'Fees paid by users on LI.FI-routed swaps and bridges, excluding Jumper platform fees from 2026-09-24 onward.',
+		Fees: `Fees paid by users on LI.FI-routed ${category === 'bridge' ? 'bridges (and unmatched historical payouts)' : 'same-chain swaps'}, excluding Jumper platform fees from 2026-09-24 onward.`,
 		Revenue: 'Fees are collected by LI.FI protocol.',
 		ProtocolRevenue: 'Fees are collected by LI.FI protocol.',
 		SupplySideRevenue: 'Fees are distributed to LI.FI and intergations and partnerships.',
 	},
 	breakdownMethodology: {
 		Fees: {
-			[SwapFee]: 'FeesForwarded payouts on transactions with LI.FI swap events and no bridge event.',
-			[BridgeFee]: 'FeesForwarded payouts on transactions with LI.FI bridge events, including source swaps.',
-			[OtherFee]: 'FeesForwarded payouts with no matching LI.FI diamond event.',
-			[LegacyFee]: 'Historical FeesCollected payouts before the fee-router migration.',
+			...(category === 'swap' ? { [SwapFee]: 'Fee payouts on transactions with LI.FI swap events and no bridge event.' } : {
+				[BridgeFee]: 'Fee payouts on transactions with LI.FI bridge events, including source swaps.',
+				[OtherFee]: 'Fee payouts without a matching LI.FI diamond event; retained here rather than silently dropped.',
+			}),
 		},
 		Revenue: {
 			[LifiProtocolFee]: 'Fees share for LI.FI protocol.',
@@ -86,6 +96,6 @@ const adapter: SimpleAdapter = {
 			[IntegratorFee]: 'Fees are distributed to LI.FI and intergations and partnerships.',
 		},
 	}
-};
+});
 
-export default adapter;
+export default createLifiFeeAdapter('bridge');
