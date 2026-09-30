@@ -382,6 +382,8 @@ export enum CHAIN {
   CSC = "csc",
   WORLD_MOBILE = "world_mobile",
   RISE = "rise",
+  RISE_TESTNET = "rise_testnet",
+  ARC_TESTNET = "arc_testnet",
   FLUENT = "fluent",
   LUKSO = "lukso",
   MOCA = "moca",
