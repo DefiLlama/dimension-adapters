@@ -93,8 +93,10 @@ async function fetch(options: FetchOptions) {
     const buyback = BigInt(log.args.buybackAmount);
     const creator = BigInt(log.args.creatorAmount);
     credit(dailyFees, quoteAsset, protocol + buyback + creator, METRIC.SWAP_FEES);
-    credit(dailyRevenue, quoteAsset, protocol + buyback, METRIC.SWAP_FEES);
-    credit(dailySupplySideRevenue, quoteAsset, creator, METRIC.SWAP_FEES);
+    credit(dailyRevenue, quoteAsset, protocol, METRIC.SWAP_FEES);
+    // the buyback is carved out of the creator slice and buys the launch token, not a governance
+    // token, so it is a cost of funds rather than revenue the protocol keeps
+    credit(dailySupplySideRevenue, quoteAsset, buyback + creator, METRIC.SWAP_FEES);
   }
 
   for (const log of (
@@ -131,8 +133,8 @@ async function fetch(options: FetchOptions) {
     const buyback = BigInt(log.buybackSpent);
     const creator = BigInt(log.creatorAmount);
     credit(dailyFees, quoteAsset, protocol + buyback + creator, POOL_FEE_LABEL);
-    credit(dailyRevenue, quoteAsset, protocol + buyback, POOL_FEE_LABEL);
-    credit(dailySupplySideRevenue, quoteAsset, creator, POOL_FEE_LABEL);
+    credit(dailyRevenue, quoteAsset, protocol, POOL_FEE_LABEL);
+    credit(dailySupplySideRevenue, quoteAsset, buyback + creator, POOL_FEE_LABEL);
   }
 
   for (const log of await options.getLogs({ target: GRADUATED_POOL_HOOK, eventAbi: poolFeesRescuedAbi })) {
@@ -156,9 +158,9 @@ const methodology = {
   UserFees:
     "Traders pay a curve fee plus the launch's creator tax on every bonding-curve buy and sell, and an anti-snipe tax on buys made in the opening window. Swaps in a graduated Uniswap V4 pool pay the same creator tax plus a hook fee. Creators pay a flat launch fee in ETH when they launch a token.",
   Fees: "All launch fees, bonding-curve trading fees and graduated-pool hook fees, counted when the curve or the hook distributes them.",
-  Revenue: "The protocol's share of trading fees, the launch fees in full, and the quote asset spent buying launch tokens back into the vesting vault.",
+  Revenue: "The protocol's share of trading fees plus the launch fees in full.",
   ProtocolRevenue: "Same as revenue: Story.fun has no other revenue stream.",
-  SupplySideRevenue: "The creator's share of bonding-curve and graduated-pool fees, credited to each launch's creator fee recipient.",
+  SupplySideRevenue: "The creator's share of bonding-curve and graduated-pool fees, plus the quote asset spent buying launch tokens back into the vesting vault. The buyback is funded out of the creator slice and buys the launch token, so it is a cost of funds rather than revenue the protocol keeps.",
 };
 
 const breakdownMethodology = {
@@ -167,14 +169,24 @@ const breakdownMethodology = {
     [LAUNCH_FEE_LABEL]: "Flat ETH fee paid to launch a token.",
     [POOL_FEE_LABEL]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools (these swaps also appear under Uniswap V4).",
   },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades.",
+    [LAUNCH_FEE_LABEL]: "Flat ETH fee paid to launch a token.",
+    [POOL_FEE_LABEL]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools.",
+  },
   Revenue: {
-    [METRIC.SWAP_FEES]: "Protocol share of bonding-curve fees, plus the quote asset spent on buybacks.",
+    [METRIC.SWAP_FEES]: "Protocol share of bonding-curve fees.",
     [LAUNCH_FEE_LABEL]: "Launch fees go to the protocol fee recipient in full.",
-    [POOL_FEE_LABEL]: "Protocol share of graduated-pool fees, plus the quote asset spent on buybacks.",
+    [POOL_FEE_LABEL]: "Protocol share of graduated-pool fees.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SWAP_FEES]: "Protocol share of bonding-curve fees.",
+    [LAUNCH_FEE_LABEL]: "Launch fees go to the protocol fee recipient in full.",
+    [POOL_FEE_LABEL]: "Protocol share of graduated-pool fees.",
   },
   SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: "Creator share of bonding-curve fees.",
-    [POOL_FEE_LABEL]: "Creator share of graduated-pool fees.",
+    [METRIC.SWAP_FEES]: "Creator share of bonding-curve fees, plus the quote asset spent buying the launch token back into the vesting vault.",
+    [POOL_FEE_LABEL]: "Creator share of graduated-pool fees, plus the quote asset spent on buybacks.",
   },
 };
 
