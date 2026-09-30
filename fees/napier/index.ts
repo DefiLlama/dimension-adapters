@@ -77,12 +77,17 @@ const breakdownMethodology = {
   },
 };
 
-const chainConfig: Record<string, { start: string }> = {
+const chainConfig: Record<string, { start: string, deadFrom?: string }> = {
   [CHAIN.ETHEREUM]: { start: "2025-02-28" },
   [CHAIN.BASE]: { start: "2025-02-28" },
+  [CHAIN.SONIC]: { start: "2025-03-10", deadFrom: "2026-09-28" },
   [CHAIN.ARBITRUM]: { start: "2025-03-28" },
+  [CHAIN.OPTIMISM]: { start: "2025-03-11", deadFrom: "2026-09-28" },
   [CHAIN.FRAXTAL]: { start: "2025-03-29" },
+  [CHAIN.MANTLE]: { start: "2025-03-11", deadFrom: "2026-09-28" },
   [CHAIN.BSC]: { start: "2025-03-12" },
+  [CHAIN.POLYGON]: { start: "2025-03-27", deadFrom: "2026-09-28" },
+  [CHAIN.AVAX]: { start: "2025-03-12", deadFrom: "2026-09-28" },
   [CHAIN.HYPERLIQUID]: { start: "2025-05-23" },
   [CHAIN.PLUME]: { start: "2025-05-28" },
   [CHAIN.ROBINHOOD]: { start: "2026-09-15" },
