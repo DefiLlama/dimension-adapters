@@ -5,7 +5,7 @@ import { queryClickhouse } from "../helpers/indexer";
 import { queryAllium } from "../helpers/allium";
 import { CHAIN } from './chains';
 import { METRIC } from './metrics';
-import { Row } from "@clickhouse/client";
+import { Row } from "./indexer";
 
 const feeWallet = '0x4200000000000000000000000000000000000011';
 const l1FeeVault = '0x420000000000000000000000000000000000001a';
@@ -107,20 +107,27 @@ const ROLLUP_ECONOMICS_NAME_MAP: Record<string, string> = {
 // the heavy L2 `gas.fees` scan moves to ClickHouse; only the tiny pre-
 // aggregated `rollup_economics_ethereum.l1_fees` Spellbook lookup stays on
 // Dune. Chains outside this set fall back to the original Dune-only query.
-// Coverage verified against the live indexer (chain ids 10/204/324/1101/
-// 8453/42161/59144/81457/534352 all present).
+// The hybrid path only activates when the chain ALSO has a
+// ROLLUP_ECONOMICS_NAME_MAP entry, so indexed rollups without a Spellbook
+// label are inert here until one is added. Keep this set in sync with the
+// indexer's chain list (metis and fraxtal are NOT indexed — a non-indexed
+// chain in this set would report zero fees instead of falling back to Dune).
 const INDEXER_SUPPORTED_CHAINS = new Set<string>([
-	CHAIN.ARBITRUM,
-	CHAIN.BASE,
-	CHAIN.BLAST,
-	CHAIN.OPTIMISM,
-	CHAIN.OP_BNB,
-	CHAIN.POLYGON_ZKEVM,
-	CHAIN.SCROLL,
-	CHAIN.ERA, // zksync era
-	CHAIN.LINEA,
-	CHAIN.METIS,
-	CHAIN.FRAXTAL,
+	CHAIN.ARBITRUM, // 42161
+	CHAIN.ARBITRUM_NOVA, // 42170
+	CHAIN.BASE, // 8453
+	CHAIN.BLAST, // 81457
+	CHAIN.ERA, // 324, zksync era
+	CHAIN.LINEA, // 59144
+	CHAIN.MEGAETH, // 4326
+	CHAIN.MODE, // 34443
+	CHAIN.OPTIMISM, // 10
+	CHAIN.OP_BNB, // 204
+	CHAIN.POLYGON_ZKEVM, // 1101
+	CHAIN.SCROLL, // 534352
+	CHAIN.SONEIUM, // 1868
+	CHAIN.UNICHAIN, // 130
+	CHAIN.XLAYER, // 196
 ]);
 
 // L2 transaction fee sum from indexer v2: gas_used * effective_gas_price per

@@ -1,4 +1,4 @@
-import { Row } from "@clickhouse/client"
+import { Row } from "../../helpers/indexer"
 import { Dependencies, FetchOptions, ProtocolType, Adapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { queryClickhouse } from "../../helpers/indexer";
