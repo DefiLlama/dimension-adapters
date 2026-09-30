@@ -13,24 +13,24 @@ const readUsd = (value: unknown): number | null => {
 const fetch = async (options: FetchOptions) => {
   const dayEnd = options.startOfDay + 86400;
   if (options.endTimestamp < dayEnd || dayEnd > Math.floor(Date.now() / 1000))
-    throw new Error(`haedal-lending: fees_revenue only serves a completed UTC day, got ${options.dateString}`);
+    throw new Error(`haedal-lending-vault: fees_revenue only serves a completed UTC day, got ${options.dateString}`);
 
   const url = `${FEES_REVENUE_URL}?${new URLSearchParams({ date: options.dateString })}`;
   const response = await fetchURL(url);
   if (response?.success !== true || response?.code !== 200)
     throw new Error(
-      `haedal-lending: fees_revenue failed for ${options.dateString} (code ${JSON.stringify(response?.code)}, msg ${JSON.stringify(response?.msg)})`
+      `haedal-lending-vault: fees_revenue failed for ${options.dateString} (code ${JSON.stringify(response?.code)}, msg ${JSON.stringify(response?.msg)})`
     );
 
   const dailyFeesUsd = readUsd(response?.data?.fee);
   const dailyRevenueUsd = readUsd(response?.data?.revenue);
   if (dailyFeesUsd === null || dailyRevenueUsd === null)
     throw new Error(
-      `haedal-lending: unreadable fees_revenue for ${options.dateString} (fee ${JSON.stringify(response?.data?.fee)}, revenue ${JSON.stringify(response?.data?.revenue)})`
+      `haedal-lending-vault: unreadable fees_revenue for ${options.dateString} (fee ${JSON.stringify(response?.data?.fee)}, revenue ${JSON.stringify(response?.data?.revenue)})`
     );
   if (dailyRevenueUsd > dailyFeesUsd)
     throw new Error(
-      `haedal-lending: api returned ${dailyRevenueUsd} revenue against ${dailyFeesUsd} fees for ${options.dateString}`
+      `haedal-lending-vault: api returned ${dailyRevenueUsd} revenue against ${dailyFeesUsd} fees for ${options.dateString}`
     );
 
   const dailyFees = options.createBalances();
