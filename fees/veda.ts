@@ -207,11 +207,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
         ])
         const rateFrom = readAccountantState(stateFrom, version).exchangeRate
         const { exchangeRate: rateTo, performanceFeeRate } = readAccountantState(stateTo, version)
-        const growthRate = rateTo > rateFrom ? rateTo - rateFrom : 0
+        // rate declines are realized vault losses; performance fees are profit-only
+        const growthRate = rateTo - rateFrom
 
-        if (growthRate > 0) {
+        if (growthRate !== 0) {
           const supplySideYield = Number(totalSupply) * growthRate / vaultRateBase
-          const totalYield = supplySideYield / (1 - performanceFeeRate)
+          const totalYield = growthRate > 0 ? supplySideYield / (1 - performanceFeeRate) : supplySideYield
           dailyFees.add(token, totalYield)
           dailySupplySideRevenue.add(token, supplySideYield)
           dailyProtocolRevenue.add(token, totalYield - supplySideYield)
@@ -239,11 +240,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           })
 
         for (const event of events) {
-          // newRate - oldRate
-          const growthRate = event.newRate > event.oldRate ? Number(event.newRate - event.oldRate) : 0
+          // newRate - oldRate; a decline is a realized loss passed to depositors
+          const growthRate = Number(event.newRate - event.oldRate)
 
-          // don't need to make calls if there isn't rate growth
-          if (growthRate > 0) {
+          // don't need to make calls if the rate did not change
+          if (growthRate !== 0) {
 
             // supply/state at the event block
             const totalSupplyAtUpdated = await sdk.api2.abi.call({
@@ -265,7 +266,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
             const totalDeposited = Number(totalSupplyAtUpdated) * Number(exchangeRate) / vaultRateBase
 
             const supplySideYield = Number(totalSupplyAtUpdated) * growthRate / vaultRateBase
-            const totalYield = supplySideYield / (1 - performanceFeeRate)
+            // performance fee is charged on profits only, so a rate decline is not grossed up
+            const totalYield = growthRate > 0 ? supplySideYield / (1 - performanceFeeRate) : supplySideYield
             const protocolFee = totalYield - supplySideYield
 
             dailyFees.add(token, totalYield)
@@ -343,6 +345,7 @@ const adapter: Adapter = {
     },
   },
   doublecounted: true,
+  allowNegativeValue: true, // exchange rates can fall; the loss is supply-side yield and performance fees stay profit-only
 }
 
 export default adapter
