@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { ethers } from "ethers";
 
 // PancakeSwap X (PCSX): RFQ / Dutch-order intents filled by professional market makers
 // from their own inventory, so fills do not route through any tracked AMM.
@@ -46,9 +47,7 @@ const chainConfig: Record<string, { start: string; routers: string[]; reactors: 
 const FILL_EVENT = "event Fill(bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)";
 const FILL_DATA_EVENT = "event FillData(bytes32 indexed orderHash, address indexed inputToken, uint256 inputAmount, (address token, uint256 amount, address recipient)[] outputs)";
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-
-const toAddressTopic = (address: string) => "0x" + address.slice(2).toLowerCase().padStart(64, "0");
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 
 type Transfer = { token: string; from: string; to: string; value: bigint; logIndex: number; used: boolean };
 
@@ -75,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
     const transfers = await options.getLogs({
       noTarget: true,
       eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, toAddressTopic(filler)],
+      topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(filler, 32)],
       entireLog: true,
       parseLog: true,
     });
