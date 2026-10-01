@@ -1,9 +1,9 @@
 // Mercurifi Launchpad (launch.mercuri.finance) - bonding-curve launchpad on Arc. Every trade pays the token's
 // immutable fee rate on its USDC side into one FeeManager, so volume is reconstructed from the FeeManager's
 // FeeAccrued events at each token's own rate, read from the factory's TokenCreated record. FeeAccrued's
-// `source` tells the venues apart: 0 is a trade against a bonding curve (this adapter), 1 is a swap in a
-// graduated token's Uniswap v4 pool (dexs/mercurifi-dex). Source (verified on the explorer, full match on
-// Sourcify): https://github.com/mercuri-finance/mercuri-launch-contracts
+// `source` is 0 for a trade against a bonding curve (this adapter) and 1 for a swap in a graduated token's
+// Uniswap v4 pool, which is Uniswap v4 volume and is not counted here. Source (verified on the explorer, full
+// match on Sourcify): https://github.com/mercuri-finance/mercuri-launch-contracts
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -20,14 +20,13 @@ const TOKEN_CREATED =
 const FEE_ACCRUED =
   "event FeeAccrued(address indexed token, address indexed trader, address creator, address referrer, uint256 creatorAmount, uint256 referrerAmount, uint256 platformAmount, uint8 source)";
 
-export const SOURCE_CURVE = 0;
-export const SOURCE_POOL = 1;
+const SOURCE_CURVE = 0;
 const BPS = 10_000n;
 
 const lower = (value: any) => String(value).toLowerCase();
 
 // Amounts are native USDC wei (18 decimals): on Arc, USDC is the gas token, so addGasToken prices them.
-export const mercurifiVolume = (source: number) => async (options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
 
   // Every launch the factory has ever made, for each token's own immutable fee rate. Cached, because it is the
@@ -43,7 +42,7 @@ export const mercurifiVolume = (source: number) => async (options: FetchOptions)
 
   const tradeFeeLogs = await options.getLogs({ target: FEE_MANAGER, eventAbi: FEE_ACCRUED });
   for (const log of tradeFeeLogs) {
-    if (Number(log.source) !== source) continue;
+    if (Number(log.source) !== SOURCE_CURVE) continue;
     const bps = feeBpsOfToken.get(lower(log.token));
     // Only tokens the factory recorded are trusted, and a zero-rate config would price no volume at all.
     if (!bps) continue;
@@ -57,13 +56,13 @@ export const mercurifiVolume = (source: number) => async (options: FetchOptions)
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch: mercurifiVolume(SOURCE_CURVE),
+  fetch,
   chains: [CHAIN.ARC],
   // Mainnet deployment, block 22060881; matches fees/mercurifi.
   start: "2026-09-21",
   methodology: {
     Volume:
-      "The USDC side of every buy and sell against a token's bonding curve (FeeAccrued with source 0), reconstructed from the protocol's fee events at each token's own immutable fee rate (1% at deployment). Swaps in graduated tokens' pools are counted by dexs/mercurifi-dex, not here.",
+      "The USDC side of every buy and sell against a token's bonding curve (FeeAccrued with source 0), reconstructed from the protocol's fee events at each token's own immutable fee rate (1% at deployment). Swaps in graduated tokens' Uniswap v4 pools are Uniswap v4 volume and are not counted here.",
   },
 };
 
