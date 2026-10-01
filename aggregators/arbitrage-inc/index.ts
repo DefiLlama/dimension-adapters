@@ -10,7 +10,8 @@ const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
 // This address is used only for protocol limit-order fees.
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
 // Treasury wallet for the 40% RevShare allocation documented in PR #9453.
-// This EOA is used only for the dedicated tax allocation; getETHReceived counts all native BNB inflows to it.
+// This EOA receives only the protocol's 40% tax allocation for the full tracked period.
+// getETHReceived is recipient-based, so this wallet segregation is the sender filter.
 const TREASURY_WALLET = "0x66BB01F14229E2179bAD84D52A69C0e4628dE63f";
 
 // Legacy receiver and tax accumulator used before the October 1, 2026 migration.
@@ -141,7 +142,7 @@ const adapter: SimpleAdapter = {
 	methodology: {
 		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026, swap and limit-order volume use the dedicated receivers at 0.5% and 0.1%. The dedicated receivers are used only for their stated protocol fee streams.",
 		Fees: "Before October 1, 2026, fees include the legacy swap receiver and ARB INC token transfer tax. From October 1, 2026, fees include the dedicated swap receiver, dedicated limit-order receiver, and BNB tax proceeds from the dedicated treasury.",
-		Revenue: "The adapter preserves legacy swap and token-tax accounting before October 1, 2026 and uses the new dedicated receiver and treasury accounting from that date onward. The configured wallets are dedicated to protocol flows; native BNB is recipient-based through getETHReceived.",
+		Revenue: "The adapter preserves legacy swap and token-tax accounting before October 1, 2026 and uses the new dedicated receiver and treasury accounting from that date onward. The treasury EOA receives only the 40% tax allocation for the full tracked period, so recipient-based getETHReceived accounting is valid.",
 		ProtocolRevenue: "Before October 1, 2026, 100% of legacy swap fees and 60% of token tax are protocol revenue. From October 1, 2026, 100% of dedicated swap and limit-order fees plus 70.8% of realized BNB tax are protocol revenue.",
 		HoldersRevenue: "Before October 1, 2026, holders receive 29.2% of token tax. From October 1, 2026, holders receive 29.2% of realized BNB tax, calculated as the 40% treasury allocation multiplied by the 0.73 safety factor.",
 	},
@@ -155,14 +156,14 @@ const adapter: SimpleAdapter = {
 			"Legacy Token Transfer Tax": "Pre-migration ARB INC token tax received by the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
 			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC.",
 			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219.",
-			"ARB INC Tax Realized In BNB": "Post-migration native BNB received by the dedicated treasury 0x66BB01F14229E2179bAD84D52A69C0e4628dE63f, grossed up from its 40% allocation; direct BNB deposits to this EOA cannot be distinguished by getETHReceived.",
+			"ARB INC Tax Realized In BNB": "Post-migration native BNB received by the dedicated treasury 0x66BB01F14229E2179bAD84D52A69C0e4628dE63f, grossed up from its 40% allocation. The treasury EOA receives only this tax allocation for the full tracked period, so all recipient inflows returned by getETHReceived are tax proceeds.",
 		},
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
 			"Legacy Tax Revenue": "Pre-migration ARB INC token tax before the holder allocation.",
 			"Kyber Swap Revenue": "Post-migration swap fees retained by the protocol.",
 			"Kyber Limit Order Revenue": "Post-migration limit-order fees retained by the protocol.",
-			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds before the holder allocation; the treasury is dedicated to this tax flow.",
+			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds before the holder allocation; the treasury receives only this dedicated tax flow.",
 		},
 		ProtocolRevenue: {
 			"Legacy Swap Fees To Protocol": "100% of pre-migration legacy swap fees.",
