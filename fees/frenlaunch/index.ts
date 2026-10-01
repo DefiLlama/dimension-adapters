@@ -9,7 +9,6 @@
 // revenue, and the gross fee is ten times them.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
-import { AbiCoder, Interface } from "ethers";
 import { METRIC } from "../../helpers/metrics";
 import { getTransactions } from "../../helpers/getTxReceipts";
 const deployments: Record<string, { factory: string; hook: string; fromBlock: number; start: string; doppler?: { module: string; safe: string; claimer: string; poolManager: string } }> = {
@@ -40,7 +39,6 @@ const SELL = "event Sell(address indexed seller, uint256 tokensIn, uint256 ethOu
 const CURVE_FEES = "event FeesAccrued(address indexed creator, uint256 creatorCut, address indexed platform, uint256 platformCut)";
 const HOOK_FEES = "event FeeAccrued(bytes32 indexed poolId, address indexed creator, uint256 creatorCut, uint256 platformCut, address indexed currencyIn)";
 const LAUNCH_FEE = "function launchFee() view returns (uint256)";
-const IS_OFFICIAL_CURVE = "function isOfficialCurve(address curve) view returns (bool)";
 // Topics, not ABIs: the Doppler rail filters on indexed addresses. Transfer(address,address,uint256)
 // and the Rehype module's Release(bytes32,address,uint256,uint256).
 
@@ -50,15 +48,15 @@ const IS_OFFICIAL_CURVE = "function isOfficialCurve(address curve) view returns 
 const DOPPLER_SPLIT = { creator: 6000n, referrer: 1000n, liquidity: 1132n, doppler: 868n };
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const RELEASE_TOPIC = "0x951cb665214ddfa483febb22b592b0c67f38eac40f7be33f6fcbbe63289276d1";
-// The Rehype module's IntegratorSet(bytes32 indexed poolId, address indexed old, address indexed new),
-// its per-pool beneficiary list (poolId indexed; data: (address beneficiary, uint96 shares)[]), and
-// the v4 PoolManager's Swap (poolId indexed), which ties each payout to its pool.
+// The Rehype module's IntegratorSet(bytes32 indexed poolId, address indexed old, address indexed new)
+// and the v4 PoolManager's Swap (poolId indexed), which ties each payout to its pool.
 const INTEGRATOR_SET_TOPIC = "0x3206bab1589699b18a3896cde833d2558d37b6def086f4368ff5f26e7a92cff2";
-const BENEFICIARIES_TOPIC = "0x0c90f8fcadd900399eb6c30bc91ec4531380b92bc2c4c364675528b1d30601e2";
 const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
-// Doppler FeesManager's UpdateBeneficiary(bytes32 poolId, address oldBeneficiary, address newBeneficiary),
-// nothing indexed: a beneficiary moving all its shares (the platform's claimer can, via transferSlot).
-const UPDATE_BENEFICIARY_TOPIC = "0x1cf54f5b8d44449c5e825b10be69352659f801b88a02d8c6dfdb5ddd655be77d";
+// FeeBeneficiariesSet(bytes32 indexed poolId, (address beneficiary, uint96 shares)[] beneficiaries):
+// the pool's beneficiary list at creation. UpdateBeneficiary moves one seat's shares; nothing is
+// indexed (the platform's claimer can, via transferSlot).
+const FEE_BENEFICIARIES_SET = "event FeeBeneficiariesSet(bytes32 indexed poolId, (address beneficiary, uint96 shares)[] beneficiaries)";
+const UPDATE_BENEFICIARY = "event UpdateBeneficiary(bytes32 poolId, address oldBeneficiary, address newBeneficiary)";
 // The referrer seat's share of the beneficiary pot (9.5/70 of 1e18); its holder is the creator's
 // referrer, or the platform (fee claimer or Safe) when a launch names none.
 const REFERRER_SEAT_SHARES = 135714285714285714n;
@@ -79,15 +77,6 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances(), dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances(), dailySupplySideRevenue = options.createBalances();
 
-  // One log query per source and window (Arc's public RPCs rate-limit hard): the factory's
-  // launches, and every Buy/Sell/FeesAccrued on the chain, kept only when the emitter is one of
-  // the factory's curves (LaunchFactory.isOfficialCurve, read at the head: a curve stays
-  // official; a failed read fails the window rather than dropping trades). Asking the factory
-  // beats replaying every TokenLaunched since deploy, which pruned RPCs refuse ("pruned history
-  // unavailable" on Arc).
-  const iface = new Interface([TOKEN_LAUNCHED, POOL_LAUNCHED, BUY, SELL, CURVE_FEES]);
-  const topic = (name: string) => iface.getEvent(name)!.topicHash;
-
   // Launch fees: launches in the window, each paying the factory's fee. Both rails pay it: curve
   // launches (TokenLaunched) and pool launches (PoolLaunched, a pool from block one whose trades
   // are the hook fees below; a factory without the rail emits none). launch() requires
@@ -96,7 +85,11 @@ async function fetch(options: FetchOptions) {
   // thousand blocks of it). A launch sent through another contract reads launchFee at its own
   // block; if no RPC has that state, or the transaction cannot be fetched, the window fails and
   // is retried rather than guessed.
-  const factoryLogs = await options.getLogs({ target: d.factory, topics: [[topic("TokenLaunched"), topic("PoolLaunched")] as any], entireLog: true });
+  const [tokenLaunches, poolLaunches] = await Promise.all([
+    options.getLogs({ target: d.factory, eventAbi: TOKEN_LAUNCHED, entireLog: true, parseLog: true }),
+    options.getLogs({ target: d.factory, eventAbi: POOL_LAUNCHED, entireLog: true, parseLog: true }),
+  ]);
+  const factoryLogs = [...tokenLaunches, ...poolLaunches];
   if (factoryLogs.length) {
     const txs = await getTransactions(options.chain, factoryLogs.map((l: any) => l.transactionHash));
     for (let i = 0; i < factoryLogs.length; i++) {
@@ -110,24 +103,24 @@ async function fetch(options: FetchOptions) {
     }
   }
 
-  // Curve trades, in the native asset.
-  const curveLogs = await options.getLogs({ noTarget: true, topics: [[topic("Buy"), topic("Sell"), topic("FeesAccrued")] as any], entireLog: true });
-  const emitters = [...new Set<string>(curveLogs.map((l: any) => l.address.toLowerCase()))];
-  const official = emitters.length
-    ? await sdk.api2.abi.multiCall({ chain: options.chain, target: d.factory, abi: IS_OFFICIAL_CURVE, calls: emitters.map((a) => ({ params: [a] })) })
-    : [];
-  const curves = new Set(emitters.filter((_, i) => official[i] === true));
-  for (const log of curveLogs) {
-    if (!curves.has(log.address.toLowerCase())) continue;
-    const e = iface.parseLog({ topics: log.topics, data: log.data })!;
-    if (e.name === "Buy") dailyVolume.addGasToken(BigInt(e.args.ethIn));
-    if (e.name === "Sell") dailyVolume.addGasToken(BigInt(e.args.ethOut) + BigInt(e.args.fee));
-    if (e.name === "FeesAccrued") {
-      const creatorCut = BigInt(e.args.creatorCut), platformCut = BigInt(e.args.platformCut);
-      dailyFees.addGasToken(creatorCut + platformCut, L.CURVE);
-      dailyRevenue.addGasToken(platformCut, L.CURVE_P);
-      dailySupplySideRevenue.addGasToken(creatorCut, L.CURVE_C);
-    }
+  // Curve trades, in the native asset. The targets are this factory's curves, from TokenLaunched
+  // since the chain's deployment block (cached, so Arc is not asked to replay pruned history on
+  // every hourly run).
+  const curves = [...new Set((await options.getLogs({
+    target: d.factory, eventAbi: TOKEN_LAUNCHED, fromBlock: d.fromBlock, cacheInCloud: true,
+  })).map((l: any) => String(l.curve).toLowerCase()))];
+  const [buys, sells, curveFees] = curves.length ? await Promise.all([
+    options.getLogs({ targets: curves, eventAbi: BUY, parseLog: true }),
+    options.getLogs({ targets: curves, eventAbi: SELL, parseLog: true }),
+    options.getLogs({ targets: curves, eventAbi: CURVE_FEES, parseLog: true }),
+  ]) : [[], [], []];
+  for (const log of buys) dailyVolume.addGasToken(BigInt(log.ethIn));
+  for (const log of sells) dailyVolume.addGasToken(BigInt(log.ethOut) + BigInt(log.fee));
+  for (const log of curveFees) {
+    const creatorCut = BigInt(log.creatorCut), platformCut = BigInt(log.platformCut);
+    dailyFees.addGasToken(creatorCut + platformCut, L.CURVE);
+    dailyRevenue.addGasToken(platformCut, L.CURVE_P);
+    dailySupplySideRevenue.addGasToken(creatorCut, L.CURVE_C);
   }
 
   // Graduated pools: the hook takes the fee in the swap's input currency (the native asset on
@@ -155,18 +148,18 @@ async function fetch(options: FetchOptions) {
     const seatHolder = new Map<string, string>();                       // at pool creation
     const seatMoves = new Map<string, { at: number; from: string; to: string }[]>();
     if (pools.length) {
-      for (const l of await options.getLogs({ target: module, topics: [BENEFICIARIES_TOPIC, pools as any], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true })) {
-        const [rows] = AbiCoder.defaultAbiCoder().decode(["tuple(address beneficiary, uint96 shares)[]"], l.data);
-        for (const [holder, shares] of rows)
-          if (BigInt(shares) === REFERRER_SEAT_SHARES) seatHolder.set(l.topics[1].toLowerCase(), String(holder).toLowerCase());
+      // extraTopics is the pool id (topic1). Passing it as topics would replace the event signature.
+      const beneficiaryLogs = await options.getLogs({ target: module, eventAbi: FEE_BENEFICIARIES_SET, ...{ extraTopics: [pools] }, fromBlock: d.fromBlock, entireLog: true, parseLog: true, cacheInCloud: true });
+      for (const l of beneficiaryLogs) {
+        for (const row of l.args.beneficiaries)
+          if (BigInt(row.shares) === REFERRER_SEAT_SHARES) seatHolder.set(String(l.args.poolId).toLowerCase(), String(row.beneficiary).toLowerCase());
       }
-      const moves = await options.getLogs({ target: module, topics: [UPDATE_BENEFICIARY_TOPIC], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true });
+      const moves = await options.getLogs({ target: module, eventAbi: UPDATE_BENEFICIARY, fromBlock: d.fromBlock, entireLog: true, parseLog: true, cacheInCloud: true });
       for (const l of [...moves].sort((a: any, b: any) => order(a) - order(b))) {
-        const [poolId, from, to] = AbiCoder.defaultAbiCoder().decode(["bytes32", "address", "address"], l.data);
-        const id = String(poolId).toLowerCase();
+        const id = String(l.args.poolId).toLowerCase();
         if (!ours.has(id)) continue;
         if (!seatMoves.has(id)) seatMoves.set(id, []);
-        seatMoves.get(id)!.push({ at: order(l), from: String(from).toLowerCase(), to: String(to).toLowerCase() });
+        seatMoves.get(id)!.push({ at: order(l), from: String(l.args.oldBeneficiary).toLowerCase(), to: String(l.args.newBeneficiary).toLowerCase() });
       }
     }
     const platformHoldsSeat = (pool: string | undefined, log: any) => {
@@ -195,6 +188,7 @@ async function fetch(options: FetchOptions) {
     // every platform seat is the fee claimer's since 2026-09-14).
     const seatTxs = new Set((await options.getLogs({ target: module, topics: [RELEASE_TOPIC, null as any, pad(safe)], entireLog: true }))
       .map((l: any) => l.transactionHash.toLowerCase()));
+    // Emitted by the fee token (WETH on sells, the launched token on buys), so there is no contract list to pass as targets.
     const payouts = await options.getLogs({ noTarget: true, topics: [TRANSFER_TOPIC, pad(module), pad(safe)], entireLog: true });
     for (const log of payouts) {
       if (seatTxs.has(log.transactionHash.toLowerCase())) continue;
@@ -217,7 +211,7 @@ const methodology = {
   Volume: "Trades on frenlaunch bonding curves. Swaps in Uniswap v4 pools (graduated curve pools and Doppler pools) are excluded (they are Uniswap v4 volume).",
   Fees: "Launch fees, the 1% fee on curve trades, the 1% hook fee on swaps in graduated pools (all from the contracts' fee-accrual events), and the swap fee on frenlaunch's Doppler pools (ten times the platform's 10% integrator payout).",
   Revenue: "All launch fees, the platform's 25% of curve and graduated-pool trading fees, the platform's 10% integrator share of Doppler pool swap fees, and the 10% referrer seat on Doppler pools launched without a referrer (the platform holds that seat).",
-  ProtocolRevenue: "Same as revenue: there is no token and no holder distribution.",
+  ProtocolRevenue: "All launch fees and the platform's 25% of curve and graduated-pool trading fees, the platform's 10% integrator share of Doppler pool swap fees, and the 10% referrer seat on Doppler pools launched without a referrer (the platform holds that seat).",
   SupplySideRevenue: "Curve and graduated pools: the creator's 75% of trading fees. Doppler pools: creator 60%, creator's referrer 10% (when the launch has one), re-invested liquidity 11.32%, Doppler 8.68% of the swap fee.",
 };
 const breakdownMethodology = {
@@ -229,7 +223,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(Object.entries(deployments).map(([chain, d]: any) => [chain, { fetch, start: d.start }])),
+  adapter: deployments,
+  fetch,
   methodology,
   breakdownMethodology,
 };
