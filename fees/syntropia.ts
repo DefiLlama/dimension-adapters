@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 /**
  * Syntropia (https://syntropia.ai)
@@ -34,21 +35,20 @@ const VAULTS = [
   "0x8df3deba711ae4a9af16cbca5e4fbb1402f036d5", // synUSDx (Syntropia Boosted)
 ];
 
+// asset() and decimals() are identical on all three vaults (verified on-chain).
+// USDC: https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
+const USDC = ADDRESSES.ethereum.USDC;
+const SHARE_DECIMALS = 18;
+const ONE_SHARE = 10n ** BigInt(SHARE_DECIMALS);
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Query vault metadata (underlying asset and share token decimals)
-  const [assets, decimals] = await Promise.all([
-    options.api.multiCall({ abi: "address:asset", calls: VAULTS }),
-    options.api.multiCall({ abi: "uint8:decimals", calls: VAULTS }),
-  ]);
-
-  // One share unit scaled to vault share token decimals (typically 18 decimals: 10^18)
-  const oneShareCalls = VAULTS.map((vault, i) => ({
+  const oneShareCalls = VAULTS.map((vault) => ({
     target: vault,
-    params: [(10n ** BigInt(decimals[i] ?? 18)).toString()],
+    params: [ONE_SHARE.toString()],
   }));
 
   // Query share exchange rates and total supplies at start and end of the reporting window
@@ -66,31 +66,35 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   for (let i = 0; i < VAULTS.length; i++) {
-    const asset = assets[i];
-    const dec = BigInt(decimals[i] ?? 18);
-    const oneShare = 10n ** dec;
+    if (fromRates[i] == null || toRates[i] == null || fromSupplies[i] == null || toSupplies[i] == null) {
+      throw new Error(`Syntropia vault data unavailable for ${VAULTS[i]}`);
+    }
 
-    const fromRate = BigInt(fromRates[i] ?? 0);
-    const toRate = BigInt(toRates[i] ?? 0);
-    const fromSupply = BigInt(fromSupplies[i] ?? 0);
-    const toSupply = BigInt(toSupplies[i] ?? 0);
+    const fromRate = BigInt(fromRates[i]);
+    const toRate = BigInt(toRates[i]);
+    const fromSupply = BigInt(fromSupplies[i]);
+    const toSupply = BigInt(toSupplies[i]);
+
+    // A zero exchange rate is not a valid ERC-4626 quote; treating it as no yield stores a false $0.
+    if (fromRate === 0n || toRate === 0n) {
+      throw new Error(`Syntropia exchange rate unavailable for ${VAULTS[i]}`);
+    }
 
     // In batch-settlement vaults (Lagoon / ERC-7540), valuation updates at discrete settlement
     // points. The exchange-rate delta (toRate - fromRate) applies to the shares outstanding
     // prior to settlement (fromSupply). Using fromSupply ensures that newly minted shares
     // issued during the settlement do not retroactively claim past-epoch yield.
     const shares = fromSupply > 0n ? fromSupply : toSupply;
-
-    if (shares === 0n || fromRate === 0n || toRate === 0n) continue;
+    if (shares === 0n) continue;
 
     const rateDelta = toRate - fromRate;
     if (rateDelta === 0n) continue;
 
     // Net yield in underlying asset units: (shares * rateDelta) / 10^shareDecimals
-    const netYield = (shares * rateDelta) / oneShare;
+    const netYield = (shares * rateDelta) / ONE_SHARE;
 
-    dailyFees.add(asset, netYield, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(asset, netYield, METRIC.ASSETS_YIELDS);
+    dailyFees.add(USDC, netYield, METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.add(USDC, netYield, METRIC.ASSETS_YIELDS);
   }
 
   return {
