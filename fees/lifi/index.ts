@@ -73,7 +73,9 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 	version: 2,
 	pullHourly: false, // each run scans the LI.FI diamond for every swap/bridge event on 40+ chains; hourly pulls would 24x that load
 	fetch: fetch(category),
-	adapter: LifiFeeCollectors,
+	// copy per adapter: the runner writes fetch onto each chain entry, so a shared object makes
+	// lifi-dex-aggregator run the bridge fetch (or vice versa)
+	adapter: Object.fromEntries(Object.entries(LifiFeeCollectors).map(([chain, config]) => [chain, { ...config }])),
 	methodology: {
 		Fees: `All fees paid by users on LI.FI ${category === 'bridge' ? 'bridges' : 'swaps'}, including integrator fees.`,
 		Revenue: 'Share of fees kept by LI.FI.',
