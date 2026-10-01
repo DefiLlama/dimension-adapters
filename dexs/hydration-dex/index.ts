@@ -55,9 +55,9 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(unknown, "Omnipool Asset Fees Unknown Destination");
 
   dailyHoldersRevenue.addUSDValue(burned, "Omnipool Protocol Fees Burned");
-  dailyProtocolRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Protocol");
+  dailyProtocolRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Treasury");
   dailyRevenue.addUSDValue(burned, "Omnipool Protocol Fees Burned");
-  dailyRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Protocol");
+  dailyRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Treasury");
 
   return {
     dailyVolume,
@@ -92,10 +92,10 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       "Omnipool Protocol Fees Burned": "Hub-asset protocol fees destroyed by the runtime.",
-      "Omnipool Protocol Fees To Protocol": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
+      "Omnipool Protocol Fees To Treasury": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
     },
     ProtocolRevenue: {
-      "Omnipool Protocol Fees To Protocol": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
+      "Omnipool Protocol Fees To Treasury": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
     },
     SupplySideRevenue: {
       "Swap Fees To Accounts": "Swap fees credited to an account that are not the Omnipool protocol fee. Recipients include LPs, referrers, and HDX stakers; the indexer does not record which.",
