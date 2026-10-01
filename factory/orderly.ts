@@ -174,6 +174,16 @@ const feesConfigs: Record<string, Config> = {
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
+  },
+  "flipper-perps": {
+    broker_id: "flipper",
+    start: "2026-09-25",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Flipper interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
   }
 }
 
