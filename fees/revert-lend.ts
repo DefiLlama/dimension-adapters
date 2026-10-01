@@ -186,21 +186,18 @@ const fetch = async (options: FetchOptions) => {
       let liquidationValue: bigint | null = null;
       let liquidationCost = cost;
 
-      // 1. Attempt exact historical contract call at blockNumber - 1 to obtain actual position liquidationValue
+      // Historical loanInfo at blockNumber - 1: the loan still exists, so this is the
+      // liquidationValue the contract would have used. A failed archive read must throw.
       if (tokenId !== undefined && blockNumber !== undefined && blockNumber > 0) {
-        try {
-          const info = await options.api.call({
-            target: vault,
-            abi: LOAN_INFO_ABI,
-            params: [tokenId],
-            block: blockNumber - 1,
-          });
-          if (info && info.liquidationValue) {
-            liquidationValue = BigInt(info.liquidationValue);
-            liquidationCost = BigInt(info.liquidationCost);
-          }
-        } catch {
-          // If archive call fails, continue to contract-derived branch
+        const info = await options.api.call({
+          target: vault,
+          abi: LOAN_INFO_ABI,
+          params: [tokenId],
+          block: blockNumber - 1,
+        });
+        if (info && info.liquidationValue) {
+          liquidationValue = BigInt(info.liquidationValue);
+          liquidationCost = BigInt(info.liquidationCost);
         }
       }
 
