@@ -1,7 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios"
 import { sleep } from "./utils"
 import { getEnv } from "../helpers/env"
-import https from 'https';
 
 export default async function fetchURL(url: string, retries = 3) {
   try {
@@ -80,12 +79,7 @@ export async function proxiedFetch(url: string) {
   const [host, username, password, port] = authInfo.split(':')
 
   try {
-
-    const client = axios.create({
-      httpsAgent: new https.Agent({
-        rejectUnauthorized: false,
-      }),
-    });
+    const client = axios.create()
     const { data } = await client
       .get(url.toString(), {
         proxy: {
