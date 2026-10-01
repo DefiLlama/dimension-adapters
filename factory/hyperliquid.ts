@@ -30,6 +30,20 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "hypercall": {
+    // Hypercall's production builder address. Hyperliquid
+    // tx 0x3c8adce349aa2e9a3e0404459d987902096500c8e4ad4d6ce053883608ae0884
+    // includes it with a zero builder fee.
+    addresses: ["0x406cebfc7063e55761007d1c4b66b29308016602"],
+    start: "2026-10-01",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid trades routed through Hypercall's builder code.",
+      Fees: "Builder code fees paid on trades routed through Hypercall; excludes Hyperliquid trading fees.",
+      Revenue: "Builder code fees collected by Hypercall on those trades.",
+      ProtocolRevenue: "Builder code fees retained by Hypercall on those trades.",
+    },
+    breakdownFees: true,
+  },
   "jumper-perps-hl": {
     addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
     start: "2026-09-09",
