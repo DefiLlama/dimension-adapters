@@ -24,7 +24,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   adapter: chainConfig,
   methodology: {
-    Volume: "Swap volume of the pools the Homelander plugin runs in, measured on the pool's first token, excluding the plugin's own arbitrage legs. The pools are listed in the adapter rather than discovered on each run, so a pool opened later is counted once it is added to that list.",
+    Volume: "Swap volume of the pools the Homelander plugin runs in, measured on the pool's first token and excluding the plugin's own arbitrage legs. Pools are read from each chain's plugin factory, except on Flare, Soneium and Somnia, where they are named in the adapter because those public nodes cannot serve the factory history.",
   },
 };
 

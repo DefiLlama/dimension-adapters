@@ -1,6 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { chainConfig, collectSwaps, protocolShareBps, shareOf } from "./shared";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 // Homelander is MEV-X's yield maximization layer for AMMs: a plugin that runs
 // inside the pool. It sets the pool's fee on every swap, and when a swap moves
@@ -19,7 +20,7 @@ import { chainConfig, collectSwaps, protocolShareBps, shareOf } from "./shared";
 // those AMMs' own listings. `doublecounted` is set for that reason, here and on
 // the volume adapter.
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // The distributor states the whole of a capture in one event, including a
 // payout made in the chain's native currency, which moves no ERC-20 and would
@@ -119,7 +120,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Fees: "Two things, and they are different money, and only the first of them is paid by anyone: it is reported as the user fee as well. First, the fee a trader paid on a swap in a pool the plugin runs in, at the rate the plugin set for that swap; the plugin takes no share of that fee, so nothing of it is charged to the user on the protocol's behalf. Second, the arbitrage the plugin realised inside the pool and paid out, read from the ProfitDistributed event where a deployment settles through a distributor and from the donatedToLps leg of ProfitShared where the plugin pays the pool's liquidity providers directly.",
   Revenue: "The protocol's share of the captured arbitrage, taken from the distributor's own share config as it stood at the block of each capture. Nothing of the swap fee is the protocol's, and the captures donated straight to liquidity providers leave it nothing either.",
-  ProtocolRevenue: "Same as Revenue. There is no token, so nothing is distributed to holders.",
+  ProtocolRevenue: "The protocol's share of the captured arbitrage, taken from the distributor's own share config as it stood at the block of each capture. Nothing of the swap fee is the protocol's, and the captures donated straight to liquidity providers leave it nothing either.",
   SupplySideRevenue: "The swap fee in full, which the pool's liquidity providers and its AMM earn, plus the part of every capture that the share config pays to the pool's beneficiaries.",
 };
 
