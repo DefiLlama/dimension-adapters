@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
     const { dailyVolume: builderVolume, dailyFees: builderFees } = await builderCodeRevenue(options, builder_address);
 
     dailyVolume.add(builderVolume);
-    dailyFees.add(dailyFees, 'Hyperliquid Builder Code Fees');
+    dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
   }
 
   return {
