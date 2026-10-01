@@ -2,9 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
 
-// Kinetiq's HIP-3 markets are tracked in dexs/kinetiq-markets.ts. This listing is the builder-code
-// side: orders placed through the Kinetiq Markets interface, on any Hyperliquid perp market.
-const KINETIQ_MARKETS_LEGACY_END_DATE = "2026-06-20";
 // Kinetiq Markets routes orders through two production builder codes, one per client. Both are
 // Kinetiq-operated and their fees accrue to Kinetiq; tracking only the web one understates revenue.
 const KINETIQ_MARKETS_BUILDER_ADDRESSES = [
@@ -29,37 +26,21 @@ const builderCodeRevenue = async (options: FetchOptions, builder_address: string
 };
 
 const fetch = async (options: FetchOptions) => {
-  const deployerId = options.dateString > KINETIQ_MARKETS_LEGACY_END_DATE ? 'mkts' : 'km';
   const dailyVolume = options.createBalances();
-  const builderFees = options.createBalances();
+  const dailyFees = options.createBalances();
 
   for (const builder_address of KINETIQ_MARKETS_BUILDER_ADDRESSES) {
-    const { dailyVolume: builderVolume, dailyFees } = await builderCodeRevenue(options, builder_address);
+    const { dailyVolume: builderVolume, dailyFees: builderFees } = await builderCodeRevenue(options, builder_address);
 
     dailyVolume.add(builderVolume);
-    builderFees.add(dailyFees);
-
-    // Builder-routed trades on Kinetiq's own HIP-3 markets are already counted as volume by
-    // kinetiq-markets, so they are left out here to count each trade once across the two listings.
-    // No builder activity means the builder/HIP-3 intersection is necessarily zero.
-    if (await builderVolume.getUSDValue()) {
-      const { dailyVolume: builderHip3Volume } = await builderCodeRevenue(options, builder_address, 'hip3', deployerId);
-      dailyVolume.subtract(builderHip3Volume);
-    }
+    dailyFees.add(dailyFees, 'Hyperliquid Builder Code Fees');
   }
-
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-
-  // Builder-code fees are retained entirely by Kinetiq.
-  dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
-  dailyRevenue.add(builderFees, 'Builder Code Fees To Kinetiq');
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   };
 };
 
