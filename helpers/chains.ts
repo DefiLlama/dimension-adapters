@@ -1,5 +1,6 @@
 // Use
 export enum CHAIN {
+  EX1024 = "1024ex",
   CHAIN_GLOBAL = "chain_global", // for some adapters aggregate data across all chains is not the sum of individual chains, so we need a separate identifier for the aggregate data
   BITCOIN_SV = "bsv",
   PACASWAP = "pacaswap",
