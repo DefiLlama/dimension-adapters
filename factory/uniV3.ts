@@ -449,11 +449,20 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ARC]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-09-16" },
     // [CHAIN.ROBINHOOD]: factory '0x6307fc239C7964942c1BfFE51930E55606619c74', deployed 2026-07-14, no pools created so far
   },
+  "unitflow-finance-v3": {
+    // https://docs.unitflow.finance/docs/dev/contracts; first PoolCreated: Arc block 21163157 (2026-09-16).
+    [CHAIN.ARC]: {
+      factory: '0x5bfBCeb73d39F722B1cB83fD2F11736b28c1Be6d',
+      start: '2026-09-16',
+    },
+  },
 }
 
-const optionsMap: Record<string, any> = {}
-
 const methodologyMap: Record<string, any> = {
+  "unitflow-finance-v3": {
+    Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
+    Fees: "Swap fees estimated from each pool's configured fee tier and one token side of each swap. Excludes V2.5 pools.",
+  },
   "bdex-v3": {
     Volume: "Swap volume from all BDEX V3 pools deployed via the V3 factory on BOT Chain.",
     Fees: "Users pay each pool's configured fee tier (0.05%, 0.3% or 1%) on every swap.",
@@ -691,12 +700,18 @@ const feesMethodologyMap: Record<string, any> = {
 // Build dex protocols
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
-  const adapter = uniV3Exports(config, optionsMap[name])
+  const adapter = uniV3Exports(config)
   adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   protocols[name] = adapter
 }
+
+protocols['unitflow-finance-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['unitflow-finance-v3'].Fees },
+}
+// feeProtocol is owner-settable; omit revenue until its historical split is accounted for.
+protocols['unitflow-finance-v3'].skipBreakdownValidation = true
 
 // Build fees protocols
 const feesProtocols: Record<string, any> = {}
