@@ -91,6 +91,20 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "dxap": {
+    // DXAP (https://www.dxap.ai) builder code. The app's approveBuilderFee action names this address,
+    // and the address owns Hyperliquid referral code DXRG. Fee schedule: https://docs.dxap.ai/reference/fees-and-risks/
+    // Daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x5803667556f289ae854c914e59a2395b75c8aa24/20260914.csv.lz4
+    addresses: ["0x5803667556f289ae854c914e59a2395b75c8aa24"],
+    start: "2026-06-19",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through DXAP, mostly by users' AI trading agents, counted from DXAP's builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through DXAP (0.1% until 2026-07-09, 0.01% until 2026-09-03, 0.025% since); excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by DXAP from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees collected by DXAP from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "sogo-terminal": {
     addresses: ["0x980adfdcb7655198ea69d2e19eb7daca594a9e67"],
     start: "2026-07-12",
