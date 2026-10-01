@@ -36,11 +36,13 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
   }
 
+  const dailyRevenue = dailyFees.clone(1, 'Builder Code Fees To Kinetiq');
+
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 };
 
