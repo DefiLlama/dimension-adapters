@@ -120,10 +120,18 @@ const alliumChainMap: Record<string, string> = {
   vana: CHAIN.VANA,
   arc: CHAIN.ARC,
   b3: CHAIN.B3,
-  plume: 'plume', // https://docs.allium.so/historical-data/supported-blockchains/evm/plume/raw/blocks
+  plume_mainnet: CHAIN.PLUME,
 }
 
-const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
+// registry id -> Allium table name, for entries where they differ (e.g. blockscoutStatsExports already uses id "plume")
+const alliumTableOverrides: Record<string, string> = {
+  plume_mainnet: 'plume', // https://docs.allium.so/historical-data/supported-blockchains/evm/plume/raw/blocks
+}
+
+const alliumExports = Object.keys(alliumChainMap).map(c => {
+  const alliumTable = alliumTableOverrides[c] ?? c
+  return { name: c, id: c, getUsers: getAlliumUsersChain(alliumTable), getNewUsers: getAlliumNewUsersChain(alliumTable), chain: alliumChainMap[c], type: 'chain' }
+})
 
 const evmChainMetricConfigKeys = ["core"] as const;
 const evmChainMetricExports = evmChainMetricConfigKeys.map((name) => {
