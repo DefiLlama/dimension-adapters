@@ -271,7 +271,15 @@ The wrong vehicle is a blocker, decide this first:
 - `factory/registry.ts` is not edited, factories auto-expose their configs.
 - Fee ratios in factory entries come from the protocol's documented split only; omit the ratio fields rather than guess (volume still works without them).
 - New chain: add a `CHAIN` enum member in `helpers/chains.ts` (string value = the DefiLlama chain slug, match neighbours' casing/order); a dedicated RPC goes in `DEFAULTS` in `helpers/env.ts`. Add chain support together with the protocol that needs it; config no live adapter consumes is rejected.
-- Chain key for venues with an off-chain engine: use `off_chain` only when the chain hosts nothing but the deposit and withdrawal contract, so matching, balances and positions live solely in the operator's database. If anything else is recorded on-chain (positions or position deltas, fill settlement, state roots or proofs, oracle prices), keep that chain's key, or the venue's own chain key when it runs its own chain or appchain. This is a deliberately simple filter, not a full decentralisation test; cite the venue's own docs on where funds and positions live.
+- Chain key for venues with an off-chain matching engine (dimensions only; TVL adapters stay on the custody chain):
+  - Find the bridge or custody contract first: it shows where user funds are held.
+  - Use `off_chain` when the chain hosts nothing but that deposit and withdrawal contract. Periodic summaries posted to back withdrawals (state roots, Merkle roots, equity snapshots) are part of it and do not change the key (Polymarket Perps, Kyan).
+  - Keep that chain's key when the venue's own contracts record per-position or per-fill data: positions or position deltas (Arcus), per-fill settlement, or validity proofs of the exchange state. A price feed on its own does not count.
+  - Use the venue's own chain key when user balances and positions live on its own public chain (explorer, RPC, DefiLlama chain key), even if funds enter through a bridge contract elsewhere: Hyperliquid stays `hyperliquid` although USDC was bridged through an Arbitrum contract before native USDC. A private appchain or validator committee is not a chain; key on the chain it settles to.
+  - Evidence is the doc sentence plus a contract address or sample transaction. Wording like "on-chain settlement" alone is not evidence.
+  - With several custody chains, key on the chain holding the settlement contract or state roots, else the one with the most TVL; do not split by deposit chain.
+  - A perp venue needs a findable bridge or custody contract to be listed; without one it is not listed.
+  - When an earlier version settled on-chain, keep that history on its chain with a per-chain `deadFrom` and start the new key on the switch date.
 - Pool/yield additions belong in `DefiLlama/yield-server`; token emission schedules belong in `DefiLlama/emissions-adapters`, not here.
 
 ## Naming, identity and listings
