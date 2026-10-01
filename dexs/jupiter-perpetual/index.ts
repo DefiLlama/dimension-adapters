@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   pullHourly: false,
   start: "2024-01-23",
   methodology: {
-    Volume: "Live rolling 24-hour USD volume of Jupiter's SOL, BTC and ETH perpetual markets, summed from Jupiter's per-market stats endpoint. Snapshots cannot be used for historical UTC-day refills.",
+    Volume: "24-hour USD trading volume across Jupiter's SOL, BTC and ETH perpetual markets.",
   },
 };
 
