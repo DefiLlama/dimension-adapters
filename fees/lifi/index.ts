@@ -80,7 +80,7 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 		Fees: `All fees paid by users on LI.FI ${category === 'bridge' ? 'bridges' : 'swaps'}, including integrator fees.`,
 		Revenue: 'Share of fees kept by LI.FI.',
 		ProtocolRevenue: 'Share of fees kept by LI.FI.',
-		SupplySideRevenue: 'Share of fees paid to integrators, including Jumper since 2026-09-24.',
+		SupplySideRevenue: 'Share of fees paid to integrators, including Jumper since 2026-08-07.',
 	},
 	breakdownMethodology: {
 		Fees: {
@@ -96,7 +96,7 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 			[LifiProtocolFee]: 'Share of fees kept by LI.FI.',
 		},
 		SupplySideRevenue: {
-			[IntegratorFee]: 'Share of fees paid to integrators, including Jumper since 2026-09-24.',
+			[IntegratorFee]: 'Share of fees paid to integrators, including Jumper since 2026-08-07.',
 		},
 	}
 });
