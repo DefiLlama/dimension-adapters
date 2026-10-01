@@ -20,7 +20,10 @@ const fetch = async () => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ARBITRUM]: {
+    // Central off-chain order book; the Arbitrum ClearingHouse only handles deposits,
+    // withdrawals and periodic equity updates (docs: smart-contracts), so the venue is
+    // keyed as off_chain rather than Arbitrum.
+    [CHAIN.OFF_CHAIN]: {
       fetch,
       start: "2025-04-25",
       runAtCurrTime: true,

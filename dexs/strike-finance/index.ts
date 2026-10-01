@@ -39,9 +39,11 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.CARDANO],
-  // V2 stats history begins 2026-03-20; earlier volume (from 2025-05-16) was
-  // recorded by the previous adapter version against the V1 analytics API.
+  // V2 (from 2026-03-20) runs matching, positions and liquidations in the Strike node and
+  // Cardano only holds the deposit lockers (docs: perpetuals/strike-node), so V2 is keyed as
+  // off_chain. V1 volume (from 2025-05-16) was an on-chain pool and was recorded by the
+  // previous adapter version against the V1 analytics API; that history stays on Cardano.
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-03-20",
   methodology,
 };
