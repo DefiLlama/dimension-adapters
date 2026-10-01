@@ -271,7 +271,7 @@ The wrong vehicle is a blocker, decide this first:
 - `factory/registry.ts` is not edited, factories auto-expose their configs.
 - Fee ratios in factory entries come from the protocol's documented split only; omit the ratio fields rather than guess (volume still works without them).
 - New chain: add a `CHAIN` enum member in `helpers/chains.ts` (string value = the DefiLlama chain slug, match neighbours' casing/order); a dedicated RPC goes in `DEFAULTS` in `helpers/env.ts`. Add chain support together with the protocol that needs it; config no live adapter consumes is rejected.
-- Fully off-chain venues get their own chain key (or `off_chain`), never the host EVM chain.
+- Chain key for venues with an off-chain engine: use `off_chain` only when the chain hosts nothing but the deposit and withdrawal contract, so matching, balances and positions live solely in the operator's database. If anything else is recorded on-chain (positions or position deltas, fill settlement, state roots or proofs, oracle prices), keep that chain's key, or the venue's own chain key when it runs its own chain or appchain. This is a deliberately simple filter, not a full decentralisation test; cite the venue's own docs on where funds and positions live.
 - Pool/yield additions belong in `DefiLlama/yield-server`; token emission schedules belong in `DefiLlama/emissions-adapters`, not here.
 
 ## Naming, identity and listings
