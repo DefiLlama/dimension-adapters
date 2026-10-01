@@ -57,7 +57,7 @@ const adapter: SimpleAdapter = {
 	pullHourly: true,
 	fetch,
 	chains: [CHAIN.BSC],
-	start: "2026-10-01",
+	start: "2026-03-23",
 	dependencies: [Dependencies.ALLIUM],
 	methodology: {
 		Volume: "Swap volume is collected from the dedicated swap fee receiver at 0.5%; limit-order volume is collected from the dedicated limit-order receiver at 0.1%. Personal activity and the separate 40% team receiver are excluded.",
