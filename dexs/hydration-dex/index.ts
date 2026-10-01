@@ -2,16 +2,41 @@ import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-// Hydration's own API (backed by the firesquid archive), returning per-day
-// volume and per-pool fees. Replaces the retired aggregation-indexer GraphQL.
-const API = "https://api.hydradx.io/defillama/v1/backfill";
+const API = "https://hydration-api.neckwork.net/defillama/v1/backfill";
+
+type DayRow = {
+  date: string;
+  volume_usd: number;
+  dailyFees: number;
+  dailyFeesToAccounts: number;
+  dailyFeesBurned: number;
+  dailyFeesUnknownDestination: number;
+  dailyProtocolFees: number;
+};
 
 const fetch = async (options: FetchOptions) => {
   const day = new Date(options.startOfDay * 1000).toISOString().slice(0, 10);
-  const rows = await fetchURL(`${API}?startDate=${day}&endDate=${day}`);
-  const row = rows?.[0];
-  if (!row) {
-    throw new Error(`Hydration API has no volume data for ${day}`);
+  const rows: DayRow[] = await fetchURL(`${API}?startDate=${day}&endDate=${day}`);
+  const row = rows?.find((r) => r.date === day);
+  if (!row || row.volume_usd == null || row.dailyFees == null) {
+    throw new Error(`Hydration API has no closed-day volume for ${day}`);
+  }
+
+  const fees = row.dailyFees;
+  const burned = row.dailyFeesBurned;
+  const protocolFees = row.dailyProtocolFees;
+  const toAccounts = row.dailyFeesToAccounts;
+  const unknown = row.dailyFeesUnknownDestination;
+  // Protocol fee credited rather than burned: Treasury until 2026-02-16, then the
+  // HDX sub-pool hub reserve (protocol-owned liquidity). The burn share is measured
+  // per day, so the 2025-02-16 and 2026-02-16 runtime changes need no date switch.
+  // https://hydration-api.neckwork.net/openapi.json — dailyProtocolFees
+  const protocolCredited = protocolFees - burned;
+  // Account credits that are not the protocol fee: LPs, referrers, and HDX stakers.
+  // The indexer records the recipient account but not its role, so those shares stay together.
+  const accountFees = toAccounts - protocolCredited;
+  if (protocolCredited < -0.01 || accountFees < -0.01 || unknown < 0 || burned < 0) {
+    throw new Error(`Hydration fee split does not balance for ${day}`);
   }
 
   const dailyVolume = options.createBalances();
@@ -21,35 +46,18 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const xykFee = Number(row.fees.xyk);
-  const stableswapFee = Number(row.fees.stableswap);
-  const omnipoolFee = Number(row.fees.omnipool);
+  dailyVolume.addUSDValue(row.volume_usd);
+  dailyFees.addUSDValue(fees, "Swap Fees");
 
-  dailyVolume.addUSDValue(Number(row.volume_usd));
-  dailyFees.addUSDValue(xykFee, 'XYK Pools Fees');
-  dailyFees.addUSDValue(stableswapFee, 'StableSwap Fees');
-  dailyFees.addUSDValue(omnipoolFee, 'Omnipool Fees');
+  dailySupplySideRevenue.addUSDValue(accountFees, "Swap Fees To Accounts");
+  // Pre-Broadcast Omnipool asset fees (mostly before 2025). The chain did not record
+  // a recipient; they are real fees and are not protocol revenue.
+  dailySupplySideRevenue.addUSDValue(unknown, "Omnipool Asset Fees Unknown Destination");
 
-  // XYK and Stableswap fees go 100% to LPs
-  dailySupplySideRevenue.addUSDValue(xykFee, 'XYK Pools Fees To LPs');
-  dailySupplySideRevenue.addUSDValue(stableswapFee, 'StableSwap Fees To LPs');
-
-  // Omnipool has two independent fee types combined in the omnipool figure:
-  //   Asset fee  (≈80% of total): 50% stays in pool → LPs, 50% → Referral pallet (stakers/referrers/traders)
-  //   Protocol fee (≈20% of total): 100% → Treasury (BurnProtocolFee = 0% in runtime)
-  // Ratio approximated from fee ranges: asset 0.15-5%, protocol 0.05-0.25%
-  const assetFee = omnipoolFee * 0.8;
-  const protocolFee = omnipoolFee * 0.2;
-
-  dailySupplySideRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To LPs');
-  dailyHoldersRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
-
-  // BurnProtocolFee = 0% in runtime (hydration-node/runtime/hydradx/src/assets.rs)
-  // 100% of protocol fee goes to Treasury; nothing is burned currently
-  dailyProtocolRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
-
-  dailyRevenue.addUSDValue(assetFee * 0.5, 'Omnipool Asset Fees To Stakers & Referrals');
-  dailyRevenue.addUSDValue(protocolFee, 'Omnipool Protocol Fees To Treasury');
+  dailyHoldersRevenue.addUSDValue(burned, "Omnipool Protocol Fees Burned");
+  dailyProtocolRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Protocol");
+  dailyRevenue.addUSDValue(burned, "Omnipool Protocol Fees Burned");
+  dailyRevenue.addUSDValue(protocolCredited, "Omnipool Protocol Fees To Protocol");
 
   return {
     dailyVolume,
@@ -61,46 +69,42 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
-
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.HYDRADX]: {
       fetch,
-      start: '2024-04-28',
+      start: "2024-04-28",
     },
   },
 
-  // https://docs.hydration.net/products/trading/fees#protocol-fee
   methodology: {
-    Fees: 'All fees paid by users for swaps on Hydration (asset fees + protocol fees across all pool types).',
-    Revenue: '50% of Omnipool asset fees distributed to HDX stakers & referrals, plus 50% of Omnipool protocol fees sent to Treasury.',
-    SupplySideRevenue: '100% of XYK and Stableswap fees go to LPs. For Omnipool, 50% of the asset fee (≈40% of total Omnipool fees) stays in the pool for LPs.',
-    ProtocolRevenue: '100% of Omnipool protocol fees (≈20% of total Omnipool fees) sent to Treasury. BurnProtocolFee is set to 0% in the runtime (no H2O burn currently active).',
-    HoldersRevenue: '50% of Omnipool asset fees (≈40% of total Omnipool fees) distributed via the Referral pallet to HDX stakers, referrers, and traders.',
+    Volume: "Single-counted USD trading volume of Hydration swaps. A routed trade counts once, at the larger of its two boundary sides. Money-market wrap round-trips are excluded.",
+    Fees: "All swap fees paid on Hydration, valued when the trade happened.",
+    Revenue: "Omnipool protocol fees charged in the hub asset. Burned HDX is holder revenue; the rest is kept by the protocol.",
+    SupplySideRevenue: "Swap fees credited to accounts other than the protocol fee, plus Omnipool asset fees whose recipient the chain did not record. LP, referrer, and HDX staker shares are not separated.",
+    ProtocolRevenue: "Omnipool protocol fees kept by the protocol: the Treasury share until 16 February 2026, and the HDX sub-pool hub reserve (protocol-owned liquidity) since.",
+    HoldersRevenue: "Omnipool protocol fees burned. The runtime burned all of them until 16 February 2025, half until 16 February 2026, and none since.",
   },
   breakdownMethodology: {
     Fees: {
-      'XYK Pools Fees': 'All fees collected from XYK pools.',
-      'StableSwap Fees': 'All fees collected from stable swap pools.',
-      'Omnipool Fees': 'All fees collected from Omnipool (asset fee + protocol fee combined).',
+      "Swap Fees": "All swap fees paid on Hydration, across Omnipool, XYK, Stableswap, and Uniswap v3 pools.",
     },
     Revenue: {
-      'Omnipool Asset Fees To Stakers & Referrals': '50% of Omnipool asset fees distributed via the Referral pallet.',
-      'Omnipool Protocol Fees To Treasury': '100% of Omnipool protocol fees sent to Treasury (BurnProtocolFee = 0% in runtime).',
+      "Omnipool Protocol Fees Burned": "Hub-asset protocol fees destroyed by the runtime.",
+      "Omnipool Protocol Fees To Protocol": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
     },
     ProtocolRevenue: {
-      'Omnipool Protocol Fees To Treasury': '100% of Omnipool protocol fees sent to Treasury (BurnProtocolFee = 0% in runtime).',
+      "Omnipool Protocol Fees To Protocol": "Hub-asset protocol fees credited to the Treasury or, since 16 February 2026, to protocol-owned liquidity.",
     },
     SupplySideRevenue: {
-      'XYK Pools Fees To LPs': 'All fees collected from XYK pools go to LPs.',
-      'StableSwap Fees To LPs': 'All fees collected from Stableswap pools go to LPs.',
-      'Omnipool Asset Fees To LPs': '50% of Omnipool asset fees stay in the pool for LPs.',
+      "Swap Fees To Accounts": "Swap fees credited to an account that are not the Omnipool protocol fee. Recipients include LPs, referrers, and HDX stakers; the indexer does not record which.",
+      "Omnipool Asset Fees Unknown Destination": "Pre-Broadcast Omnipool asset fees whose recipient the chain did not record. Not counted as protocol revenue.",
     },
     HoldersRevenue: {
-      'Omnipool Asset Fees To Stakers & Referrals': '50% of Omnipool asset fees distributed via the Referral pallet to HDX stakers, referrers, and traders.',
+      "Omnipool Protocol Fees Burned": "Hub-asset protocol fees destroyed by the runtime. All of them until 16 February 2025, half until 16 February 2026, and none since.",
     },
-  }
+  },
 };
 
 export default adapter;
