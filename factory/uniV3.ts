@@ -465,6 +465,7 @@ const optionsMap: Record<string, any> = {
 const methodologyMap: Record<string, any> = {
   "unitflow-finance-v3": {
     Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
+    Fees: "Swap fees estimated from each pool's configured fee tier and one token side of each swap. Excludes V2.5 pools.",
   },
   "bdex-v3": {
     Volume: "Swap volume from all BDEX V3 pools deployed via the V3 factory on BOT Chain.",
@@ -710,14 +711,11 @@ for (const [name, config] of Object.entries(configs)) {
   protocols[name] = adapter
 }
 
-// Keep this listing volume-only, including the helper's empty-pool return path.
-const unitflowV3 = protocols['unitflow-finance-v3'].adapter[CHAIN.ARC]
-const unitflowV3Fetch = unitflowV3.fetch
-unitflowV3.fetch = async (options: FetchOptions) => {
-  const { dailyVolume } = await unitflowV3Fetch(options)
-  return { dailyVolume }
+protocols['unitflow-finance-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['unitflow-finance-v3'].Fees },
 }
-protocols['unitflow-finance-v3'].skipBreakdownValidation = false
+// feeProtocol is owner-settable; omit revenue until its historical split is accounted for.
+protocols['unitflow-finance-v3'].skipBreakdownValidation = true
 
 // Build fees protocols
 const feesProtocols: Record<string, any> = {}
