@@ -458,10 +458,6 @@ const configs: Record<string, Record<string, any>> = {
   },
 }
 
-const optionsMap: Record<string, any> = {
-  "unitflow-finance-v3": { pullHourly: true },
-}
-
 const methodologyMap: Record<string, any> = {
   "unitflow-finance-v3": {
     Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
@@ -704,7 +700,7 @@ const feesMethodologyMap: Record<string, any> = {
 // Build dex protocols
 const protocols: Record<string, any> = {}
 for (const [name, config] of Object.entries(configs)) {
-  const adapter = uniV3Exports(config, optionsMap[name])
+  const adapter = uniV3Exports(config)
   adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
