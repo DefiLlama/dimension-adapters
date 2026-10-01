@@ -30,7 +30,7 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
-  "jumper-exchange-perps": {
+  "jumper-perps-hl": {
     addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
     start: "2026-09-09",
     methodology: {
