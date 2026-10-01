@@ -756,7 +756,7 @@ const builderAddressActiveOn = (
 
 export const exportBuilderAdapter = (
   builderAddresses: Array<BuilderAddressConfig>,
-  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean, market?: HyperliquidMarket, skipMissingOlderFiles?: boolean },
+  props: { start?: string; deadFrom?: string; methodology?: any; extraReturnFields?: Record<string, any>, breakdownFees?: boolean, market?: HyperliquidMarket },
 ) => {
   const extraFields = props.extraReturnFields || {};
   const startDate = props.start ? props.start : "2025-08-01";
@@ -779,20 +779,11 @@ export const exportBuilderAdapter = (
             const address = builderAddressActiveOn(entry, dayStr);
             if (!address) continue;
 
-            let result;
-            try {
-              result = await fetchBuilderCodeRevenue({
-                options,
-                builder_address: address,
-                market,
-              });
-            } catch (error) {
-              if (!props.skipMissingOlderFiles || !(error instanceof Error) ||
-                !error.message.startsWith('Builder fee data is not available') ||
-                Date.now() - options.startOfDay * 1000 < 2 * 86400 * 1000) throw error;
-              console.error(`hyperliquid: no builder fills for ${address} on ${dayStr}`);
-              continue;
-            }
+            const result = await fetchBuilderCodeRevenue({
+              options,
+              builder_address: address,
+              market,
+            });
             dailyVolume.addBalances(result.dailyVolume);
             dailyFees.addBalances(result.dailyFees, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);
             dailyRevenue.addBalances(result.dailyRevenue, props.breakdownFees ? 'Hyperliquid Builder Code Fees' : undefined);

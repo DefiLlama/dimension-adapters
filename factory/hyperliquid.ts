@@ -9,7 +9,6 @@ interface BuilderConfig {
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidMarket;
-  skipMissingOlderFiles?: boolean;
 }
 
 // this config is used for both superx and superX
@@ -41,7 +40,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
     },
     breakdownFees: true,
-    skipMissingOlderFiles: true,
   },
   "synthra-perps": {
     // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
@@ -1096,7 +1094,6 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
     market: config.market,
-    skipMissingOlderFiles: config.skipMissingOlderFiles,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
