@@ -9,6 +9,7 @@ interface BuilderConfig {
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidMarket;
+  skipMissingOlderFiles?: boolean;
 }
 
 // this config is used for both superx and superX
@@ -30,6 +31,18 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "jumper-exchange-perps": {
+    addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
+    start: "2026-09-09",
+    methodology: {
+      Volume: "Perpetual trading volume routed through Jumper on Hyperliquid.",
+      Fees: "Builder code fees paid by users trading Hyperliquid perpetuals through Jumper.",
+      Revenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
+      ProtocolRevenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
+    },
+    breakdownFees: true,
+    skipMissingOlderFiles: true,
+  },
   "synthra-perps": {
     // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
     // factory 0x6307fc239C7964942c1BfFE51930E55606619c74 on Robinhood Chain and Arc, and it is the
@@ -1083,6 +1096,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
     market: config.market,
+    skipMissingOlderFiles: config.skipMissingOlderFiles,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
