@@ -116,8 +116,7 @@ const protocols = {
   'o1-exchange': normalizedVolumeAdapter('01', CHAIN.OFF_CHAIN, '2026-05-06'),
   'ethereal-dex': { ...normalizedVolumeAdapter('ethereal', CHAIN.ETHEREAL, '2026-05-07', 2), deadFrom: '2026-08-25' },
   'phoenix-trade': normalizedVolumeAdapter('phoenix', CHAIN.SOLANA, '2025-11-18'),
-  // Arcus is an off-chain CLOB, Robinhood Chain only sees state roots and deposits/withdrawals (see dexs/arcus-perps)
-  'arcus-perps': normalizedVolumeAdapter('arcus', CHAIN.OFF_CHAIN, '2026-06-22'),
+  'arcus-perps': normalizedVolumeAdapter('arcus', CHAIN.ROBINHOOD, '2026-06-22'),
   'afx': { ...normalizedVolumeAdapter('afx', CHAIN.AFX, '2026-05-12'), deadFrom: '2026-08-11' },
   'dydx-v4': normalizedVolumeAdapter('dydx', 'dydx', '2025-01-20'),
   'katana-perps': normalizedVolumeAdapter('katana', CHAIN.KATANA, '2026-01-15', 2),
