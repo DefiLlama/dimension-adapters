@@ -105,9 +105,10 @@ const fetch = async (options: FetchOptions) => {
           dailyRevenue.add(FUCI, amount, FEES_IN_FUCI);
         } else if (token < ZERO && fuci > ZERO) {
           // Sell: the fee is the launched token, which has no price feed, so it is valued in $FUCI at this swap's
-          // own execution price: (tokenIn * fee) * (fuciOut / tokenIn) = fuciOut * fee. Burning it benefits that
-          // token's holders, not $FUCI holders, so it is supply side.
-          const amount = (fuci * fee) / PIPS;
+          // own price. v4 takes the fee from the input before computing the output, so fuciOut was bought with
+          // tokenIn * (1 - fee): the fee is worth fuciOut * fee / (1 - fee). Burning it benefits that token's
+          // holders, not $FUCI holders, so it is supply side.
+          const amount = (fuci * fee) / (PIPS - fee);
           dailyFees.add(FUCI, amount, FEES_IN_TOKEN);
           dailySupplySideRevenue.add(FUCI, amount, FEES_IN_TOKEN);
         }
