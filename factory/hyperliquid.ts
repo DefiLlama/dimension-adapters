@@ -30,6 +30,20 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "gdex-perps": {
+    // GDEX (gdex.pro, by Gemach DAO) builder code, attached to every Hyperliquid perp order placed through
+    // GDEX at 5 bps. Verifiable: GDEX's public endpoint https://trade-api.gemach.io/v1/hl/builder_referral
+    // returns exactly this address's Hyperliquid `referral` state (builderRewards / claimedRewards).
+    addresses: ["0x60e26ec284d4cd118547611f109f84207fa4bb14"],
+    start: "2026-05-05",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through GDEX, including HIP-3 markets.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through GDEX.",
+      Revenue: "Hyperliquid builder code fees collected by GDEX from perpetual trades.",
+      ProtocolRevenue: "Hyperliquid builder code fees collected by GDEX from perpetual trades.",
+    },
+    breakdownFees: true,
+  },
   "jumper-perps-hl": {
     addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
     start: "2026-09-09",
