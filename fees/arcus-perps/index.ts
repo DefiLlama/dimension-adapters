@@ -67,10 +67,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  // Off-chain CLOB; a permissioned validator set posts state roots to Robinhood Chain and
-  // the bridge vault handles deposits/withdrawals, fills never land on-chain (docs: exchange
-  // architecture), so the venue is keyed as off_chain rather than Robinhood Chain.
-  chains: [CHAIN.OFF_CHAIN],
+  chains: [CHAIN.ROBINHOOD],
   start: "2026-07-01",
   methodology,
   breakdownMethodology,
