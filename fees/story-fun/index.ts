@@ -39,8 +39,17 @@ const poolFeesRescuedAbi =
 const topicFeesDistributed = "0x312c5308f42848705a866c73dec11fd0783c2d64aac6a97e94467062ad3f4058";
 const topicFeesRescued = "0xb3b191714883dfbab174a2faced794fdee634297591bd8204850aed9bc69079b";
 
-const LAUNCH_FEE_LABEL = "Token Launch Fees";
-const POOL_FEE_LABEL = "Graduated Pool Fees";
+// source labels on fees; destination labels on revenue and supply-side revenue
+const CURVE_FEES = METRIC.SWAP_FEES;
+const LAUNCH_FEES = "Token Launch Fees";
+const POOL_FEES = "Graduated Pool Fees";
+const CURVE_TO_PROTOCOL = "Token Swap Fees To Protocol";
+const CURVE_TO_CREATORS = "Token Swap Fees To Creators";
+const CURVE_TO_BUYBACKS = "Token Swap Fees To Buybacks";
+const LAUNCH_TO_PROTOCOL = "Token Launch Fees To Protocol";
+const POOL_TO_PROTOCOL = "Graduated Pool Fees To Protocol";
+const POOL_TO_CREATORS = "Graduated Pool Fees To Creators";
+const POOL_TO_BUYBACKS = "Graduated Pool Fees To Buybacks";
 
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
@@ -49,7 +58,8 @@ async function fetch(options: FetchOptions) {
 
   // one credit of the fee ledger per quote asset, so that a launch quoted in an ERC-20 is booked
   // in that ERC-20 rather than in the gas token
-  const credit = (balances: ReturnType<FetchOptions["createBalances"]>, quoteAsset: string, amount: any, label: string) => {
+  const credit = (balances: ReturnType<FetchOptions["createBalances"]>, quoteAsset: string, amount: bigint, label: string) => {
+    if (amount === 0n) return;
     if (quoteAsset.toLowerCase() === NATIVE) balances.addGasToken(amount, label);
     else balances.add(quoteAsset, amount, label);
   };
@@ -74,9 +84,27 @@ async function fetch(options: FetchOptions) {
     // read at the end of the window: a window that contains a launch also ends after the factory
     // was deployed, while the start of the very first window predates it and would revert
     const launchFee = await options.api.call({ target: LAUNCH_FACTORY, abi: "uint96:launchFee" });
-    dailyFees.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_FEE_LABEL);
-    dailyRevenue.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_FEE_LABEL);
+    dailyFees.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_FEES);
+    dailyRevenue.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_TO_PROTOCOL);
   }
+
+  // the buyback is carved out of the creator slice and buys the launch token, not a governance
+  // token, so it is a cost of funds rather than revenue the protocol keeps
+  const bookSplit = (
+    quoteAsset: string,
+    protocol: bigint,
+    creator: bigint,
+    buyback: bigint,
+    feeLabel: string,
+    protocolLabel: string,
+    creatorLabel: string,
+    buybackLabel: string,
+  ) => {
+    credit(dailyFees, quoteAsset, protocol + creator + buyback, feeLabel);
+    credit(dailyRevenue, quoteAsset, protocol, protocolLabel);
+    credit(dailySupplySideRevenue, quoteAsset, creator, creatorLabel);
+    credit(dailySupplySideRevenue, quoteAsset, buyback, buybackLabel);
+  };
 
   const fromCurve = (log: any) => curveQuoteAsset[log.address.toLowerCase()] !== undefined;
 
@@ -89,15 +117,16 @@ async function fetch(options: FetchOptions) {
       parseLog: true,
     })
   ).filter(fromCurve)) {
-    const quoteAsset = curveQuoteAsset[log.address.toLowerCase()];
-    const protocol = BigInt(log.args.protocolAmount);
-    const buyback = BigInt(log.args.buybackAmount);
-    const creator = BigInt(log.args.creatorAmount);
-    credit(dailyFees, quoteAsset, protocol + buyback + creator, METRIC.SWAP_FEES);
-    credit(dailyRevenue, quoteAsset, protocol, METRIC.SWAP_FEES);
-    // the buyback is carved out of the creator slice and buys the launch token, not a governance
-    // token, so it is a cost of funds rather than revenue the protocol keeps
-    credit(dailySupplySideRevenue, quoteAsset, buyback + creator, METRIC.SWAP_FEES);
+    bookSplit(
+      curveQuoteAsset[log.address.toLowerCase()],
+      BigInt(log.args.protocolAmount),
+      BigInt(log.args.creatorAmount),
+      BigInt(log.args.buybackAmount),
+      CURVE_FEES,
+      CURVE_TO_PROTOCOL,
+      CURVE_TO_CREATORS,
+      CURVE_TO_BUYBACKS,
+    );
   }
 
   for (const log of (
@@ -109,12 +138,16 @@ async function fetch(options: FetchOptions) {
       parseLog: true,
     })
   ).filter(fromCurve)) {
-    const quoteAsset = curveQuoteAsset[log.address.toLowerCase()];
-    const protocol = BigInt(log.args.protocolAmount);
-    const creator = BigInt(log.args.creatorAmount);
-    credit(dailyFees, quoteAsset, protocol + creator, METRIC.SWAP_FEES);
-    credit(dailyRevenue, quoteAsset, protocol, METRIC.SWAP_FEES);
-    credit(dailySupplySideRevenue, quoteAsset, creator, METRIC.SWAP_FEES);
+    bookSplit(
+      curveQuoteAsset[log.address.toLowerCase()],
+      BigInt(log.args.protocolAmount),
+      BigInt(log.args.creatorAmount),
+      0n,
+      CURVE_FEES,
+      CURVE_TO_PROTOCOL,
+      CURVE_TO_CREATORS,
+      CURVE_TO_BUYBACKS,
+    );
   }
 
   // the hook guards every graduated pool, so its own events need no address filtering
@@ -130,27 +163,36 @@ async function fetch(options: FetchOptions) {
   for (const log of await options.getLogs({ target: GRADUATED_POOL_HOOK, eventAbi: poolFeesSweptAbi })) {
     const quoteAsset = poolQuoteAsset[log.poolId.toLowerCase()];
     if (!quoteAsset) continue;
-    const protocol = BigInt(log.protocolAmount);
-    const buyback = BigInt(log.buybackSpent);
-    const creator = BigInt(log.creatorAmount);
-    credit(dailyFees, quoteAsset, protocol + buyback + creator, POOL_FEE_LABEL);
-    credit(dailyRevenue, quoteAsset, protocol, POOL_FEE_LABEL);
-    credit(dailySupplySideRevenue, quoteAsset, buyback + creator, POOL_FEE_LABEL);
+    bookSplit(
+      quoteAsset,
+      BigInt(log.protocolAmount),
+      BigInt(log.creatorAmount),
+      BigInt(log.buybackSpent),
+      POOL_FEES,
+      POOL_TO_PROTOCOL,
+      POOL_TO_CREATORS,
+      POOL_TO_BUYBACKS,
+    );
   }
 
   for (const log of await options.getLogs({ target: GRADUATED_POOL_HOOK, eventAbi: poolFeesRescuedAbi })) {
-    const protocol = BigInt(log.protocolAmount);
-    const creator = BigInt(log.creatorAmount);
-    credit(dailyFees, log.currency, protocol + creator, POOL_FEE_LABEL);
-    credit(dailyRevenue, log.currency, protocol, POOL_FEE_LABEL);
-    credit(dailySupplySideRevenue, log.currency, creator, POOL_FEE_LABEL);
+    bookSplit(
+      log.currency,
+      BigInt(log.protocolAmount),
+      BigInt(log.creatorAmount),
+      0n,
+      POOL_FEES,
+      POOL_TO_PROTOCOL,
+      POOL_TO_CREATORS,
+      POOL_TO_BUYBACKS,
+    );
   }
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees: dailyFees.clone(),
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
   };
 }
@@ -166,28 +208,30 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades.",
-    [LAUNCH_FEE_LABEL]: "Flat ETH fee paid to launch a token.",
-    [POOL_FEE_LABEL]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools (these swaps also appear under Uniswap V4).",
+    [CURVE_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades, counted when the curve distributes them.",
+    [LAUNCH_FEES]: "Flat ETH fee paid to launch a token.",
+    [POOL_FEES]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools, counted when the hook distributes them (these swaps also appear under Uniswap V4).",
   },
   UserFees: {
-    [METRIC.SWAP_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades.",
-    [LAUNCH_FEE_LABEL]: "Flat ETH fee paid to launch a token.",
-    [POOL_FEE_LABEL]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools.",
+    [CURVE_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades.",
+    [LAUNCH_FEES]: "Flat ETH fee paid to launch a token.",
+    [POOL_FEES]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools.",
   },
   Revenue: {
-    [METRIC.SWAP_FEES]: "Protocol share of bonding-curve fees.",
-    [LAUNCH_FEE_LABEL]: "Launch fees go to the protocol fee recipient in full.",
-    [POOL_FEE_LABEL]: "Protocol share of graduated-pool fees.",
+    [CURVE_TO_PROTOCOL]: "Protocol share of bonding-curve fees.",
+    [LAUNCH_TO_PROTOCOL]: "Launch fees go to the protocol fee recipient in full.",
+    [POOL_TO_PROTOCOL]: "Protocol share of graduated-pool fees.",
   },
   ProtocolRevenue: {
-    [METRIC.SWAP_FEES]: "Protocol share of bonding-curve fees.",
-    [LAUNCH_FEE_LABEL]: "Launch fees go to the protocol fee recipient in full.",
-    [POOL_FEE_LABEL]: "Protocol share of graduated-pool fees.",
+    [CURVE_TO_PROTOCOL]: "Protocol share of bonding-curve fees.",
+    [LAUNCH_TO_PROTOCOL]: "Launch fees go to the protocol fee recipient in full.",
+    [POOL_TO_PROTOCOL]: "Protocol share of graduated-pool fees.",
   },
   SupplySideRevenue: {
-    [METRIC.SWAP_FEES]: "Creator share of bonding-curve fees, plus the quote asset spent buying the launch token back into the vesting vault.",
-    [POOL_FEE_LABEL]: "Creator share of graduated-pool fees, plus the quote asset spent on buybacks.",
+    [CURVE_TO_CREATORS]: "Creator share of bonding-curve fees, paid to the launch's creator fee recipient.",
+    [CURVE_TO_BUYBACKS]: "Quote asset spent buying the launch token back into the vesting vault. Funded out of the creator slice.",
+    [POOL_TO_CREATORS]: "Creator share of graduated-pool fees, paid to the launch's creator fee recipient.",
+    [POOL_TO_BUYBACKS]: "Quote asset spent buying the launch token back into the vesting vault from graduated-pool fees. Funded out of the creator slice.",
   },
 };
 
