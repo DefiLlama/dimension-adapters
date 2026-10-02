@@ -16,7 +16,8 @@ const CREATE_VAULT_EVENT =
   "event CreateVaultV2(address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const WAD = 1e18;
+// performanceFee uses the ERC-4626/Alchemix 1e18 fixed-point denominator.
+const WAD_BI = 1000000000000000000n;
 const DEFAULT_PERFORMANCE_FEE = 150000000000000000;
 
 type AlchemixV3Market = {
@@ -168,7 +169,6 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
     const netYield = ((afterBi - beforeBi) * totalSupplyBi) / unit;
     
     const performanceFee = performanceFees[i] != null ? BigInt(performanceFees[i]) : BigInt(DEFAULT_PERFORMANCE_FEE);
-    const WAD_BI = 1000000000000000000n; // 1e18
     
     if (netYield > 0n && performanceFee > 0n && performanceFee < WAD_BI) {
       const grossYield = (netYield * WAD_BI) / (WAD_BI - performanceFee);
