@@ -41,10 +41,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-23" },
   },
   dependencies: [Dependencies.ALLIUM],
+  pullHourly: true,
   methodology: {
     Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    Revenue: "All fees are revenue of the Nullmask team.",
-    ProtocolRevenue: "All fees are revenue of the Nullmask team.",
+    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
   },
   breakdownMethodology: {
     Fees: {
