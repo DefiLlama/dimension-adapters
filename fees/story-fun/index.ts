@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 // Story.fun is a token launchpad on Robinhood Chain. Each launch gets its own BondingCurve, and a
 // curve that sells out graduates into a Uniswap V4 pool guarded by a single GraduatedPoolHook.
@@ -15,7 +16,7 @@ const GRADUATED_POOL_HOOK = "0xa9926c1323b72D8b66c05EdEa293cd016C29e044";
 // LaunchFactory deployment block
 const START_BLOCK = 75644816;
 // Native ETH is the quote asset of every launch so far; the factory stores it as the zero address.
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 const tokenLaunchedAbi =
   "event TokenLaunched(address indexed token, address indexed curve, address indexed creator, bytes32 launchSalt, address quoteAsset, bytes32 quoteConfigHash, uint32 launchConfigId, uint16 curveFeeBps, int24 tickSpacing, address creatorFeeRecipient, uint16 creatorTaxBps, bool buybackEnabled, string name, string symbol, string logo, string description, (string,string,string,string,string,string) socials)";
@@ -159,7 +160,7 @@ const methodology = {
     "Traders pay a curve fee plus the launch's creator tax on every bonding-curve buy and sell, and an anti-snipe tax on buys made in the opening window. Swaps in a graduated Uniswap V4 pool pay the same creator tax plus a hook fee. Creators pay a flat launch fee in ETH when they launch a token.",
   Fees: "All launch fees, bonding-curve trading fees and graduated-pool hook fees, counted when the curve or the hook distributes them.",
   Revenue: "The protocol's share of trading fees plus the launch fees in full.",
-  ProtocolRevenue: "Same as revenue: Story.fun has no other revenue stream.",
+  ProtocolRevenue: "The protocol's share of trading fees plus the launch fees in full.",
   SupplySideRevenue: "The creator's share of bonding-curve and graduated-pool fees, plus the quote asset spent buying launch tokens back into the vesting vault. The buyback is funded out of the creator slice and buys the launch token, so it is a cost of funds rather than revenue the protocol keeps.",
 };
 
@@ -198,6 +199,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   doublecounted: true, // graduated-pool fees are charged on swaps that Uniswap V4 also reports
+  pullHourly: true,
 };
 
 export default adapter;
