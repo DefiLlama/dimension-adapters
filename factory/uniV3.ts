@@ -472,7 +472,8 @@ const configs: Record<string, Record<string, any>> = {
         '0x466426b776207550095c48aBfeEc20537a4c4141', // 0.3%
         '0x3C33d14346ADBB6D111aF7Cba5A04efF482B281F', // 0.05%
         '0x59E1b47D802B8601E91648CF67dE953f2d21cc92', // 1%
-        '0xF885508ef332d8DC6b05Ac3afE4938d17473535A', // ARGUS/USDC 1%, created 2026-10-02
+        '0xF885508ef332d8DC6b05Ac3afE4938d17473535A', // ARGUS/WUSDC 1%, created 2026-10-02
+        '0x7FDE7f39e0A06B9A97fA71A82D26F766C7A616D4', // ARGUS/USDC 1%, created 2026-10-02
       ],
     },
   },
