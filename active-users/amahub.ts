@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
   const { d, row } = await rowFor(options);
   return {
     dailyActiveUsers: need(row.active_users, "active-user reading", d),
-    dailyTransactionsCount: row.executions ?? undefined,
+    dailyTransactionsCount: need(row.executions, "execution reading", d),
   };
 };
 
