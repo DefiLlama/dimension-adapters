@@ -24,7 +24,7 @@ async function fetchLegacyStatistics(startOfDay: number) {
 }
 
 async function fetchUltraStatistics(options: FetchOptions) {
-  const res = await httpGet(
+  const res = await fetchURL(
     `https://ultra.vooi.io/api/ultra/public-statistics?timestamp=${options.startOfDay}`,
   );
   if (res?.date !== options.dateString) {
