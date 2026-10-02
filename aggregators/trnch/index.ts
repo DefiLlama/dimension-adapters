@@ -57,20 +57,23 @@ export type RouterFeePayment = { hash: string; router: FeeRouter; from: string; 
 // ERC-20: Transfer to the Safe (any token, so no target list; the public RPC caps address-less queries at
 // 30k blocks). ETH: SafeReceived, emitted by the Safe on every native transfer it receives.
 // Payments to the Safe from any other transaction (LI.FI fee claims, own-wallet transfers) are ignored here.
+// 0x and Uniswap take the integrator fee out of the swap and the router contract (0x Settler, Universal Router)
+// pays it, so on those routers a payment made by the transaction sender's own wallet is not a fee and is ignored
+// (KyberSwap pulls an input-side fee straight from the trader, and its swaps are identified by ClientData).
 export async function getRouterFeePayments(options: FetchOptions): Promise<RouterFeePayment[]> {
   const [tokenIn, ethIn] = await Promise.all([
     options.getLogs({ noTarget: true, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, null as any, padAddress(TRNCH_TREASURY_SAFE)], entireLog: true, maxBlockRange: 30000 }),
     options.getLogs({ target: TRNCH_TREASURY_SAFE, eventAbi: SafeReceivedEvent, entireLog: true }),
   ]);
-  const byTx = new Map<string, { token: string; amount: bigint }[]>();
-  const push = (hash: string, token: string, amount: any) => {
+  const byTx = new Map<string, { token: string; amount: bigint; payer: string }[]>();
+  const push = (hash: string, token: string, amount: any, payer: string) => {
     const key = String(hash).toLowerCase();
     const list = byTx.get(key) ?? [];
-    list.push({ token: normalizeToken(token), amount: BigInt(amount) });
+    list.push({ token: normalizeToken(token), amount: BigInt(amount), payer: String(payer).toLowerCase() });
     byTx.set(key, list);
   };
-  for (const log of tokenIn) push(log.transactionHash, log.address, log.args.value);
-  for (const log of ethIn) push(log.transactionHash, NULL_ADDRESS, log.args.value);
+  for (const log of tokenIn) push(log.transactionHash, log.address, log.args.value, log.args.from);
+  for (const log of ethIn) push(log.transactionHash, NULL_ADDRESS, log.args.value, log.args.sender);
   if (!byTx.size) return [];
 
   const hashes = [...byTx.keys()];
@@ -81,7 +84,9 @@ export async function getRouterFeePayments(options: FetchOptions): Promise<Route
     if (!tx) throw new Error(`trnch: transaction ${hash} not found`);
     const router = tx.to ? FEE_ROUTERS[tx.to.toLowerCase()] : undefined;
     if (!router) return;
-    payments.push({ hash, router, from: tx.from.toLowerCase(), value: BigInt(tx.value ?? 0), fees: byTx.get(hash)! });
+    const from = tx.from.toLowerCase();
+    const fees = byTx.get(hash)!.filter((fee) => router === 'kyberswap' || fee.payer !== from).map(({ token, amount }) => ({ token, amount }));
+    if (fees.length) payments.push({ hash, router, from, value: BigInt(tx.value ?? 0), fees });
   });
   return payments;
 }
@@ -127,8 +132,9 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 0x and Uniswap: swaps that pay the TRNCH fee, counted on what the trader's wallet sent
-  // (ETH value of the transaction and ERC-20 transfers out of the sender)
+  // 0x and Uniswap: swaps that pay the TRNCH fee, counted on the swap input only: the ETH value of the
+  // transaction, or else the first ERC-20 transfer out of the trader's wallet (AllowanceHolder / Permit2 pull),
+  // never a transfer to the treasury Safe
   // (KyberSwap fee payments are skipped here: those swaps are already counted from ClientData)
   const feeSwaps = (await getRouterFeePayments(options)).filter((p) => p.router !== 'kyberswap');
   if (feeSwaps.length) {
@@ -138,12 +144,15 @@ const fetch = async (options: FetchOptions) => {
       if (!receipt) throw new Error(`trnch: receipt ${payment.hash} not found`);
       if (Number(receipt.status) !== 1) return;
       const label = payment.router === '0x' ? '0x' : 'Uniswap';
-      if (payment.value > 0n) dailyVolume.add(NULL_ADDRESS, payment.value, label);
-      for (const log of receipt.logs) {
-        if (log.topics[0] !== TRANSFER_TOPIC || log.topics.length !== 3) continue;
-        if (!sameAddress('0x' + log.topics[1].slice(26), payment.from)) continue;
-        dailyVolume.add(normalizeToken(log.address), BigInt(log.data), label);
+      if (payment.value > 0n) {
+        dailyVolume.add(NULL_ADDRESS, payment.value, label);
+        return;
       }
+      const input = [...receipt.logs].sort((a, b) => logIndexOf(a) - logIndexOf(b)).find((log: any) =>
+        log.topics[0] === TRANSFER_TOPIC && log.topics.length === 3 && String(log.data).length === 66 && BigInt(log.data) > 0n
+        && sameAddress('0x' + log.topics[1].slice(26), payment.from)
+        && !sameAddress('0x' + log.topics[2].slice(26), TRNCH_TREASURY_SAFE));
+      if (input) dailyVolume.add(normalizeToken(input.address), BigInt(input.data), label);
     });
   }
 
