@@ -1,0 +1,193 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+import { uniV2Exports } from "../../helpers/uniswap";
+import { LABELS, MOTO, WETH, addQuote, getCollectorSplit, getMotoToWeth, splitProtocolFees } from "../../helpers/motoswap";
+
+// Motoswap: Uniswap v2 math DEX on Ethereum, live since 2026-09-28. https://motoswap.org
+// Pairs come from the Motoswap factory. Pair.swap is only open to the Motoswap routers, and every trade goes
+// through the FeeRouter, which takes a protocol fee (70 bps at launch) once per trade on the quote leg and sends it to the
+// Collector, plus a creator fee (30 bps at launch) on coins graduated from moto.fun, sent to the CreatorFeeVault.
+// The pair itself keeps the LP fee (factory swapFeeBps, 30 bps at launch; feeTo is unset, so all of it stays with LPs).
+// Contracts:
+//   Factory   https://etherscan.io/address/0x81C9CBC47d700dA1777aBd831D8dA3f526DfAe24
+//   FeeRouter https://etherscan.io/address/0x9f846ef584FD44d075B5E8dF00dDB4416da61a80
+//   Collector https://etherscan.io/address/0xC13307272bBf73f2191cE57d0Fb714C2A9200cF3
+const FACTORY = '0x81C9CBC47d700dA1777aBd831D8dA3f526DfAe24'
+const FEE_ROUTER = '0x9f846ef584FD44d075B5E8dF00dDB4416da61a80'
+const DEPLOY_BLOCK = 26075263 // factory, FeeRouter and Collector deployed in this block (2026-09-28 10:09 UTC)
+const HELPER_LP_FEE = 0.003 // rate passed to the uniV2 helper; rescaled below to the factory's live swapFeeBps
+
+const PAIR_SWAP_EVENT = 'event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)'
+const FEE_ROUTER_SWAP_EVENT = 'event Swap(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, address feeToken, uint256 feeAmount)'
+const CREATOR_FEE_EVENT = 'event CreatorFee(address indexed token, address indexed creator, address quoteAsset, uint256 amount)'
+
+const FEE_LABELS = {
+  TO_LPS: 'Swap Fees To LPs',
+  TO_CREATORS: 'Creator Fees To Coin Creators',
+}
+
+// The uniV2 helper returns early, without calling customLogic, when no pair passes its liquidity filter. So customLogic
+// only reports which pairs the helper kept, and everything Motoswap specific runs in fetch below, in both cases.
+const customLogic = async ({ filteredPairs, dailyVolume, dailyFees }: any) => {
+  return { dailyVolume, dailyFees, keptPairs: Object.keys(filteredPairs) }
+}
+
+async function getPairObject(options: FetchOptions): Promise<Record<string, string[]>> {
+  const api = options.toApi
+  const length = await api.call({ target: FACTORY, abi: 'uint256:allPairsLength' })
+  const pairs: string[] = await api.multiCall({ target: FACTORY, abi: 'function allPairs(uint256) view returns (address)', calls: Array.from({ length: Number(length) }, (_, i) => i) })
+  const token0s: string[] = await api.multiCall({ abi: 'address:token0', calls: pairs })
+  const token1s: string[] = await api.multiCall({ abi: 'address:token1', calls: pairs })
+  const pairObject: Record<string, string[]> = {}
+  pairs.forEach((pair, i) => { pairObject[pair.toLowerCase()] = [token0s[i], token1s[i]] })
+  return pairObject
+}
+
+async function addMotoswapMetrics(options: FetchOptions, helperResult: any) {
+  const { createBalances } = options
+  const dailyVolume = helperResult.dailyVolume
+  const helperLpFees = helperResult.dailyFees
+  const keptPairs = new Set<string>((helperResult.keptPairs ?? []).map((p: string) => p.toLowerCase()))
+  const pairObject = await getPairObject(options)
+
+  const motoToWeth = await getMotoToWeth(options)
+
+  // Coins graduated from moto.fun get a TOKEN/WETH and a TOKEN/MOTO pair. The uniV2 helper only keeps pairs with a
+  // priced core asset, so the TOKEN/MOTO pairs are added here, measured on their MOTO side (converted to WETH).
+  const motoPairs = Object.keys(pairObject).filter((pair) => {
+    if (keptPairs.has(pair)) return false
+    return pairObject[pair].some((t: string) => t.toLowerCase() === MOTO.toLowerCase())
+  })
+  if (motoPairs.length) {
+    const motoPairLogs = await options.getLogs({ targets: motoPairs, eventAbi: PAIR_SWAP_EVENT, flatten: false })
+    motoPairLogs.forEach((logs: any[], i: number) => {
+      const motoIs0 = pairObject[motoPairs[i]][0].toLowerCase() === MOTO.toLowerCase()
+      for (const log of logs) {
+        const motoAmount = BigInt(motoIs0 ? log.amount0In : log.amount1In) + BigInt(motoIs0 ? log.amount0Out : log.amount1Out)
+        const wethAmount = motoToWeth(motoAmount)
+        dailyVolume.add(WETH, wethAmount.toString())
+        helperLpFees.add(WETH, Number(wethAmount) * HELPER_LP_FEE)
+      }
+    })
+  }
+
+  const swapFeeBps = await options.toApi.call({ target: FACTORY, abi: 'uint256:swapFeeBps' })
+  const lpFees = helperLpFees.clone(Number(swapFeeBps) / 10_000 / HELPER_LP_FEE)
+  const split = await getCollectorSplit(options)
+
+  const protocolFees = createBalances()
+  const routerSwaps = await options.getLogs({ target: FEE_ROUTER, eventAbi: FEE_ROUTER_SWAP_EVENT })
+  for (const log of routerSwaps) {
+    addQuote(protocolFees, log.feeToken, BigInt(log.feeAmount), motoToWeth, METRIC.SWAP_FEES)
+  }
+
+  const creatorFees = createBalances()
+  const creatorLogs = await options.getLogs({ target: FEE_ROUTER, eventAbi: CREATOR_FEE_EVENT })
+  for (const log of creatorLogs) {
+    addQuote(creatorFees, log.quoteAsset, BigInt(log.amount), motoToWeth, METRIC.SWAP_FEES)
+  }
+
+  const dailyFees = createBalances()
+  dailyFees.add(lpFees.clone(1, METRIC.SWAP_FEES))
+  dailyFees.add(protocolFees.clone(1, METRIC.SWAP_FEES))
+  dailyFees.add(creatorFees.clone(1, METRIC.SWAP_FEES))
+
+  const { toStakers, toBuyback, toTreasury, toRakeback } = splitProtocolFees(protocolFees, split)
+
+  const dailySupplySideRevenue = createBalances()
+  dailySupplySideRevenue.add(lpFees.clone(1, FEE_LABELS.TO_LPS))
+  dailySupplySideRevenue.add(creatorFees.clone(1, FEE_LABELS.TO_CREATORS))
+
+  const dailyHoldersRevenue = createBalances()
+  dailyHoldersRevenue.add(toStakers.clone(1, LABELS.STAKERS))
+  dailyHoldersRevenue.add(toBuyback.clone(1, LABELS.BUYBACK))
+
+  const dailyProtocolRevenue = createBalances()
+  dailyProtocolRevenue.add(toTreasury.clone(1, LABELS.TREASURY))
+  dailyProtocolRevenue.add(toRakeback.clone(1, LABELS.RAKEBACK))
+
+  const dailyRevenue = createBalances()
+  dailyRevenue.add(toStakers)
+  dailyRevenue.add(toBuyback)
+  dailyRevenue.add(toTreasury)
+  dailyRevenue.add(toRakeback)
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(1, METRIC.SWAP_FEES),
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
+  }
+}
+
+const methodology = {
+  Volume: 'Volume of swaps on Motoswap pairs, read from the pair Swap events of every pair created by the Motoswap factory. Pairs quoted in MOTO are measured on their MOTO side, valued at the Motoswap MOTO/WETH pair price.',
+  Fees: 'Every trade pays the pair swap fee (0.30%) to liquidity providers, a 0.70% Motoswap protocol fee on the quote side, and on coins that graduated from moto.fun a 0.30% creator fee.',
+  UserFees: 'Traders pay all of the fees above.',
+  Revenue: 'The whole 0.70% protocol fee: the shares for MOTO stakers, MOTO buyback and burn, the treasury and the Rakeback program.',
+  ProtocolRevenue: 'The treasury share and the Rakeback program share of the 0.70% protocol fee.',
+  HoldersRevenue: 'The share of the 0.70% protocol fee paid to MOTO stakers plus the share used to buy back and burn MOTO.',
+  SupplySideRevenue: 'The 0.30% pair fee to liquidity providers and the creator fee to coin creators.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'All swap fees on Motoswap trades: the pair swap fee (factory swapFeeBps, 0.30% since launch) kept for liquidity providers, the protocol fee (FeeRouter protocolFeeBps, 0.70% since launch) sent to the Collector, and the creator fee (0.30% since launch) on coins graduated from moto.fun.',
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'All swap fees paid by traders: the pair swap fee, the protocol fee, and the creator fee on coins graduated from moto.fun.',
+  },
+  Revenue: {
+    [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.BUYBACK]: 'Buyback and burn bucket of the Collector (1/7 of the protocol fee since launch), used to buy MOTO and burn it.',
+    [LABELS.TREASURY]: 'Treasury bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.RAKEBACK]: 'Rakeback bucket of the Collector (2/7 of the protocol fee since launch). Rakeback is a protocol-run program funded out of the protocol fee, so like token incentives it is spent from revenue, not a supply-side payment.',
+  },
+  ProtocolRevenue: {
+    [LABELS.TREASURY]: 'Treasury bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.RAKEBACK]: 'Rakeback bucket of the Collector (2/7 of the protocol fee since launch). Rakeback is a protocol-run program funded out of the protocol fee, so like token incentives it is spent from revenue, not a supply-side payment.',
+  },
+  HoldersRevenue: {
+    [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',
+    [LABELS.BUYBACK]: 'Buyback and burn bucket of the Collector (1/7 of the protocol fee since launch), used to buy MOTO and burn it.',
+  },
+  SupplySideRevenue: {
+    [FEE_LABELS.TO_LPS]: 'Pair swap fee kept by liquidity providers.',
+    [FEE_LABELS.TO_CREATORS]: 'Creator fee accrued to the coin creator in the CreatorFeeVault.',
+  },
+}
+
+const uniV2Adapter: any = uniV2Exports({
+  [CHAIN.ETHEREUM]: {
+    factory: FACTORY,
+    fees: HELPER_LP_FEE,
+    customLogic,
+    allowReadPairs: true,
+    start: '2026-09-28',
+  },
+})
+const uniV2Fetch = uniV2Adapter.adapter[CHAIN.ETHEREUM].fetch
+
+// The first hours of 2026-09-28 are before the contracts existed: nothing traded, so every metric is zero.
+const fetch = async (options: FetchOptions) => {
+  if (await options.getToBlock() < DEPLOY_BLOCK) {
+    const zero = options.createBalances()
+    return { dailyVolume: zero, dailyFees: zero, dailyUserFees: zero, dailyRevenue: zero, dailyProtocolRevenue: zero, dailyHoldersRevenue: zero, dailySupplySideRevenue: zero }
+  }
+  return addMotoswapMetrics(options, await uniV2Fetch(options))
+}
+
+const adapter: SimpleAdapter = {
+  ...uniV2Adapter,
+  adapter: {
+    [CHAIN.ETHEREUM]: { fetch, start: '2026-09-28' },
+  },
+  methodology,
+  breakdownMethodology,
+}
+
+export default adapter
