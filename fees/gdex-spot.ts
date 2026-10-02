@@ -44,16 +44,19 @@ const KYBER_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 // Per chain: GDEX treasury (fee receiver set on every KyberSwap route request) and start = first KyberSwap fee
 // paid to it. Sample swap per chain, with the Fee event paying the treasury.
 // Other GDEX EVM chains are left out because their treasuries show no fee activity this adapter can verify:
-//  - Base, Optimism: KyberSwap fees to the treasury stopped (last on Base 2026-06-17, Optimism 2025-04-25) and were
-//    worth under $1 over their whole history; Base's earlier fees went through GDEX's own router (see above).
+//  - Optimism: four KyberSwap fees in April 2025, under $0.01 in total.
 //  - BSC, Sonic, Berachain, Fraxtal, Nibiru: treasury balance unchanged for 6+ months, no KyberSwap fees found.
-//  - Robinhood Chain: swaps mostly settle on Pons launch curves, whose fee is a plain native transfer (no event);
-//    KyberSwap fees to its treasury (0x1Bd38cf3155FCB4719592ae5DD5c966e9736D9D9) only began on 2026-09-21 and are a few cents.
+// Base's fees before 2025-01 and most Robinhood Chain fees (Pons launch curves) are plain native transfers with no
+// event, so on those chains only the KyberSwap-routed fees are counted.
 const evmConfig: Record<string, { treasury: string; start: string }> = {
   // https://etherscan.io/tx/0xb683ef8fe7c29f50f02460dbb681dc322bb67f99b5ac7b267a3b3bc96a6f0d7f
   [CHAIN.ETHEREUM]: { treasury: "0x1B24c481BB4e43E6b8d16254C267BBc702E16dc2", start: "2025-03-31" },
   // https://arbiscan.io/tx/0x2eeeb831133e9ebb775c1dc99c31d5ac94fb8895dbc85c7a0347762694b858b3
   [CHAIN.ARBITRUM]: { treasury: "0x64C27c24dD567845004C439100189770119c6B25", start: "2025-03-31" },
+  // https://basescan.org/tx/0xab0e1070e5a0c46f59db2bb74e57b884f65f1f6d6f1e9cc13e8763bcb44e71de
+  [CHAIN.BASE]: { treasury: "0x64C27c24dD567845004C439100189770119c6B25", start: "2025-01-20" },
+  // Robinhood Chain tx 0x12b5042ff6e9c091db2d1d4040cd858f690ef883495c164b18a060f418733ae8 (block 68455809)
+  [CHAIN.ROBINHOOD]: { treasury: "0x1Bd38cf3155FCB4719592ae5DD5c966e9736D9D9", start: "2026-09-21" },
 };
 
 const chainConfig: Record<string, { start: string }> = {
