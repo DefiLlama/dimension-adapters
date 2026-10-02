@@ -16,8 +16,6 @@ const CURVE_DEPLOY_BLOCK = 26075451 // 2026-09-28, about 10:47 UTC
 const TRADE_EVENT = 'event Trade(address indexed trader, address indexed token, bool isBuy, uint256 ethAmount, uint256 tokenAmount, uint256 priceX18, uint256 protocolFee, uint256 creatorFee)'
 
 const FEE_LABELS = {
-  PROTOCOL: 'Bonding Curve Protocol Fees',
-  CREATOR: METRIC.CREATOR_FEES,
   TO_CREATORS: 'Creator Fees To Coin Creators',
 }
 
@@ -34,16 +32,16 @@ const fetch = async (options: FetchOptions) => {
   const trades = await options.getLogs({ target: CURVE, eventAbi: TRADE_EVENT })
   for (const trade of trades) {
     dailyVolume.add(WETH, trade.ethAmount)
-    protocolFees.add(WETH, trade.protocolFee, FEE_LABELS.PROTOCOL)
-    creatorFees.add(WETH, trade.creatorFee, FEE_LABELS.CREATOR)
+    protocolFees.add(WETH, trade.protocolFee, METRIC.SWAP_FEES)
+    creatorFees.add(WETH, trade.creatorFee, METRIC.SWAP_FEES)
   }
 
   const split = await getCollectorSplit(options)
   const { toStakers, toBuyback, toTreasury, toRakeback } = splitProtocolFees(protocolFees, split)
 
   const dailyFees = options.createBalances()
-  dailyFees.add(protocolFees.clone(1, FEE_LABELS.PROTOCOL))
-  dailyFees.add(creatorFees.clone(1, FEE_LABELS.CREATOR))
+  dailyFees.add(protocolFees.clone(1, METRIC.SWAP_FEES))
+  dailyFees.add(creatorFees.clone(1, METRIC.SWAP_FEES))
 
   const dailySupplySideRevenue = options.createBalances()
   dailySupplySideRevenue.add(creatorFees.clone(1, FEE_LABELS.TO_CREATORS))
@@ -65,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(1),
+    dailyUserFees: dailyFees.clone(1, METRIC.SWAP_FEES),
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -85,12 +83,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [FEE_LABELS.PROTOCOL]: 'Protocol fee (curve protocolFeeBps, 0.70% since launch) sent to the Motoswap Collector, from the Trade event protocolFee.',
-    [FEE_LABELS.CREATOR]: 'Creator fee (curve creatorFeeBps, 0.50% since launch) accrued to the coin creator, from the Trade event creatorFee.',
+    [METRIC.SWAP_FEES]: 'All bonding curve fees: the protocol fee (curve protocolFeeBps, 0.70% since launch) sent to the Motoswap Collector and the creator fee (curve creatorFeeBps, 0.50% since launch) accrued to the coin creator, from the Trade event.',
   },
   UserFees: {
-    [FEE_LABELS.PROTOCOL]: 'Protocol fee paid by traders.',
-    [FEE_LABELS.CREATOR]: 'Creator fee paid by traders.',
+    [METRIC.SWAP_FEES]: 'All bonding curve fees paid by traders: the protocol fee and the creator fee.',
   },
   Revenue: {
     [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',

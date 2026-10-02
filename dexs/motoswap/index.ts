@@ -23,9 +23,6 @@ const FEE_ROUTER_SWAP_EVENT = 'event Swap(address indexed user, address indexed 
 const CREATOR_FEE_EVENT = 'event CreatorFee(address indexed token, address indexed creator, address quoteAsset, uint256 amount)'
 
 const FEE_LABELS = {
-  LP: 'Swap Fees',
-  PROTOCOL: 'Protocol Swap Fees',
-  CREATOR: METRIC.CREATOR_FEES,
   TO_LPS: 'Swap Fees To LPs',
   TO_CREATORS: 'Creator Fees To Coin Creators',
 }
@@ -82,19 +79,19 @@ async function addMotoswapMetrics(options: FetchOptions, helperResult: any) {
   const protocolFees = createBalances()
   const routerSwaps = await options.getLogs({ target: FEE_ROUTER, eventAbi: FEE_ROUTER_SWAP_EVENT })
   for (const log of routerSwaps) {
-    addQuote(protocolFees, log.feeToken, BigInt(log.feeAmount), motoToWeth, FEE_LABELS.PROTOCOL)
+    addQuote(protocolFees, log.feeToken, BigInt(log.feeAmount), motoToWeth, METRIC.SWAP_FEES)
   }
 
   const creatorFees = createBalances()
   const creatorLogs = await options.getLogs({ target: FEE_ROUTER, eventAbi: CREATOR_FEE_EVENT })
   for (const log of creatorLogs) {
-    addQuote(creatorFees, log.quoteAsset, BigInt(log.amount), motoToWeth, FEE_LABELS.CREATOR)
+    addQuote(creatorFees, log.quoteAsset, BigInt(log.amount), motoToWeth, METRIC.SWAP_FEES)
   }
 
   const dailyFees = createBalances()
-  dailyFees.add(lpFees.clone(1, FEE_LABELS.LP))
-  dailyFees.add(protocolFees.clone(1, FEE_LABELS.PROTOCOL))
-  dailyFees.add(creatorFees.clone(1, FEE_LABELS.CREATOR))
+  dailyFees.add(lpFees.clone(1, METRIC.SWAP_FEES))
+  dailyFees.add(protocolFees.clone(1, METRIC.SWAP_FEES))
+  dailyFees.add(creatorFees.clone(1, METRIC.SWAP_FEES))
 
   const { toStakers, toBuyback, toTreasury, toRakeback } = splitProtocolFees(protocolFees, split)
 
@@ -119,7 +116,7 @@ async function addMotoswapMetrics(options: FetchOptions, helperResult: any) {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(1),
+    dailyUserFees: dailyFees.clone(1, METRIC.SWAP_FEES),
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -139,14 +136,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [FEE_LABELS.LP]: 'Pair swap fee (factory swapFeeBps, 0.30% since launch), kept in the pair for liquidity providers.',
-    [FEE_LABELS.PROTOCOL]: 'Motoswap protocol fee (FeeRouter protocolFeeBps, 0.70% since launch) taken once per trade on the quote side and sent to the Collector, from the FeeRouter Swap event feeAmount.',
-    [FEE_LABELS.CREATOR]: 'Creator fee (0.30% since launch) on trades of coins graduated from moto.fun, from the FeeRouter CreatorFee event.',
+    [METRIC.SWAP_FEES]: 'All swap fees on Motoswap trades: the pair swap fee (factory swapFeeBps, 0.30% since launch) kept for liquidity providers, the protocol fee (FeeRouter protocolFeeBps, 0.70% since launch) sent to the Collector, and the creator fee (0.30% since launch) on coins graduated from moto.fun.',
   },
   UserFees: {
-    [FEE_LABELS.LP]: 'Pair swap fee paid by traders.',
-    [FEE_LABELS.PROTOCOL]: 'Motoswap protocol fee paid by traders.',
-    [FEE_LABELS.CREATOR]: 'Creator fee paid by traders of graduated moto.fun coins.',
+    [METRIC.SWAP_FEES]: 'All swap fees paid by traders: the pair swap fee, the protocol fee, and the creator fee on coins graduated from moto.fun.',
   },
   Revenue: {
     [LABELS.STAKERS]: 'MOTO stakers bucket of the Collector (2/7 of the protocol fee since launch).',

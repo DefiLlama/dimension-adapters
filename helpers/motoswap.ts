@@ -1,12 +1,13 @@
 import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
+import ADDRESSES from "./coreAssets.json";
 
 // Shared by dexs/motoswap and fees/moto-fun: both send their protocol fee leg to the same Motoswap Collector,
 // which splits every inflow across weighted buckets.
 // Contracts: https://etherscan.io/address/0xC13307272bBf73f2191cE57d0Fb714C2A9200cF3 (Collector)
 
 export const MOTO = '0xBd965230588EAA536dE6aA45E8ebbc01638535e0'
-export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+export const WETH = ADDRESSES.ethereum.WETH
 export const MOTO_WETH_PAIR = '0x302C53B6176F750e5547D775645dc8778524fCc1' // Motoswap MOTO/WETH pair
 export const COLLECTOR = '0xC13307272bBf73f2191cE57d0Fb714C2A9200cF3'
 const MOTO_STAKING = '0xCE88F2C6B49EfBb92555eE5475311f0e250C2528' // stakers of MOTO (governance token)
