@@ -3,7 +3,7 @@ import { FetchResult, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import asyncRetry from "async-retry";
 
-const ULTRA_STATS_START = "2026-10-01";
+const ULTRA_STATS_START = "2026-10-02";
 const ULTRA_STATS_START_TS = Math.floor(new Date(ULTRA_STATS_START).getTime() / 1000);
 const LEGACY_DEAD_FROM = new Date((ULTRA_STATS_START_TS - 86400) * 1000).toISOString().slice(0, 10);
 
