@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 // Story.fun is a token launchpad on Robinhood Chain. A launch trades against its own BondingCurve
 // until the curve sells out, at which point it graduates into a Uniswap V4 pool and stops being a
@@ -13,7 +14,7 @@ const LAUNCH_FACTORY = "0x1A9BC7Fd7EE06Fa0477781633223bcC102C08fbd";
 // LaunchFactory deployment block
 const START_BLOCK = 75644816;
 // Native ETH is the quote asset of every launch so far; the factory stores it as the zero address.
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 const tokenLaunchedAbi =
   "event TokenLaunched(address indexed token, address indexed curve, address indexed creator, bytes32 launchSalt, address quoteAsset, bytes32 quoteConfigHash, uint32 launchConfigId, uint16 curveFeeBps, int24 tickSpacing, address creatorFeeRecipient, uint16 creatorTaxBps, bool buybackEnabled, string name, string symbol, string logo, string description, (string,string,string,string,string,string) socials)";
@@ -44,6 +45,7 @@ async function fetch(options: FetchOptions) {
     fromBlock: START_BLOCK,
     cacheInCloud: true,
   });
+
   const curveQuoteAsset: Record<string, string> = {};
   for (const log of launches) curveQuoteAsset[log.curve.toLowerCase()] = log.quoteAsset;
 
@@ -71,6 +73,7 @@ const adapter: SimpleAdapter = {
     Volume:
       "Quote asset (native ETH) traded on Story.fun bonding curves, counted once per trade on its quote-asset leg. Trading in the Uniswap V4 pools that graduated launches move to is reported by Uniswap V4 and is not counted here.",
   },
+  pullHourly: true,
 };
 
 export default adapter;
