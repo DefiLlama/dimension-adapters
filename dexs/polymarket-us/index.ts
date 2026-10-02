@@ -65,7 +65,7 @@ function parseTradeCSV(csv: string, fileDate: string, fromMs: number, toMs: numb
 async function fetch(options: FetchOptions) {
 
     const fromMs = options.startOfDay * 1000;
-    const toMs = options.endTimestamp * 1000;
+    const toMs = fromMs + 86400_000;
     const fileDates = [options.dateString, new Date(toMs).toISOString().slice(0, 10)];
 
     // the next day's file is only published after its 17:00 ET close, so the latest UTC day throws until then
