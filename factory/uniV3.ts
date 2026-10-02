@@ -456,9 +456,36 @@ const configs: Record<string, Record<string, any>> = {
       start: '2026-09-16',
     },
   },
+  // Kaleido Swap (kaleidofi.xyz): stock Uniswap V3 fork on Arc, factory 0xbB74f2319494461B2591F8fbF126654Dd4c2a649
+  // (every pool below returns it from pool.factory(), checked 2026-10-02); first pools created 2026-09-16.
+  // slot0().feeProtocol = 0 on every live pool (0x8a02…42Ca, 0x542E…164a, checked 2026-10-02) => 100% of swap fees to LPs.
+  "kaleido-swap": {
+    // Static pool list: no PoolCreated cache exists for this factory (Arc public RPCs reject the long log scan, so the
+    // TVL adapter discovers pools with getPool instead). These are every pool the factory returns from getPool over
+    // every pair of Arc core assets x fee tiers 100/500/3000/10000 (checked 2026-10-02). Add new pools here.
+    [CHAIN.ARC]: {
+      start: '2026-09-16', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0,
+      pools: [
+        '0x8a02d189B74cC725A632107Ef3A850F3cDd942Ca', // USDC/EURC 0.3%
+        '0x542E6E2256270215d667ED43e65d4def8295164a', // USDC/cirBTC 0.3%
+        '0x2D3a8369C1406E12756D69304e133c73E2555cd9', // 0.05%
+        '0x466426b776207550095c48aBfeEc20537a4c4141', // 0.3%
+        '0x3C33d14346ADBB6D111aF7Cba5A04efF482B281F', // 0.05%
+        '0x59E1b47D802B8601E91648CF67dE953f2d21cc92', // 1%
+      ],
+    },
+  },
 }
 
 const methodologyMap: Record<string, any> = {
+  "kaleido-swap": {
+    Volume: "Swap volume from all Kaleido Swap V3 pools created by the Kaleido factory on Arc.",
+    Fees: "Users pay each pool's fee tier on every swap.",
+    UserFees: "Users pay each pool's fee tier on every swap.",
+    Revenue: "No protocol fee is taken (feeProtocol is 0 on every pool); all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "All swap fees go to liquidity providers.",
+  },
   "unitflow-finance-v3": {
     Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
     Fees: "Swap fees estimated from each pool's configured fee tier and one token side of each swap. Excludes V2.5 pools.",
