@@ -2,18 +2,16 @@ import { FetchOptions } from '../../adapters/types';
 import { getPositionedLogArgs } from '../logs';
 import { ABI, CURVE, FAZE, HOOK, NATIVE, START_BLOCK } from './constants';
 
-// Conservative request size used by the pinned Arc replay; not a guarantee against RPC rate limits.
-const LOG_BLOCK_RANGE = 6250;
 
 // SDK fromApi is the opening boundary; include blocks strictly after it through toApi.
 async function windowLogs(options: FetchOptions, target: string, eventAbi: string) {
-  return options.getLogs({ target, eventAbi, fromBlock: (await options.getFromBlock()) + 1, maxBlockRange: LOG_BLOCK_RANGE });
+  return options.getLogs({ target, eventAbi, fromBlock: (await options.getFromBlock()) + 1 });
 }
 
 // Only configuration/discovery events are cached; trades and fee settlements use the requested window.
 /** Discover launches through the closing block using cached configuration events. */
 export async function launches(options: FetchOptions) {
-  return getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE });
+  return getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: START_BLOCK, cacheInCloud: true });
 }
 
 /** Add raw quote units, preserving native USDC decimals. */
@@ -54,7 +52,7 @@ async function collectFees(options: FetchOptions) {
   for (const t of [...buys, ...sells]) addQuote(dailyFees, quoteOf(t.token), BigInt(t.fee), 'Curve Trading Fees');
 
   const fromBlock = await options.getFromBlock();
-  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: fromBlock + 1, maxBlockRange: LOG_BLOCK_RANGE });
+  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: fromBlock + 1 });
   const graduations = await windowLogs(options, CURVE, ABI.Graduated);
   const graduatedCoins = graduations.length ? await options.toApi.multiCall({ target: CURVE, abi: ABI.getCoin, calls: graduations.map(g => g.token) }) : [];
   graduations.forEach((g, i) => addQuote(dailyFees, graduatedCoins[i].quoteToken, BigInt(g.migrationFee), 'Graduation Fees'));
@@ -62,7 +60,7 @@ async function collectFees(options: FetchOptions) {
   // The constructor does not emit LaunchFeeSet. Its verified launchFee_ is 0.001 native USDC (18 decimals).
   // Source: BondingCurveV4 constructor arguments at the CURVE explorer address.
   // Every subsequent setter emits LaunchFeeSet; replay cached history in block/log order.
-  const changes = created.length ? await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.LaunchFeeSet, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE }) : [];
+  const changes = created.length ? await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.LaunchFeeSet, fromBlock: START_BLOCK, cacheInCloud: true }) : [];
   const order = (a: any, b: any) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
   changes.sort(order);
   const inWindow = created.filter(l => l.blockNumber > fromBlock);
@@ -72,7 +70,7 @@ async function collectFees(options: FetchOptions) {
     addQuote(dailyFees, NATIVE, active ? BigInt(active.launchFee) : initialFee, 'Token Launch Fees');
   }
 
-  const pools = await getPositionedLogArgs(options, { target: HOOK, eventAbi: ABI.PoolRegistered, fromBlock: START_BLOCK, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE });
+  const pools = await getPositionedLogArgs(options, { target: HOOK, eventAbi: ABI.PoolRegistered, fromBlock: START_BLOCK, cacheInCloud: true });
   const quotes = new Map(pools.map(p => [String(p.poolId).toLowerCase(), String(p.quote)]));
   const hookAmounts = new Map<string, bigint>();
   const settlements = await windowLogs(options, HOOK, ABI.FeesSettled);
