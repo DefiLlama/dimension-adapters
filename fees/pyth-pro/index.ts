@@ -35,7 +35,10 @@ const fetch = async (options: FetchOptions) => {
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_address = '${DOURO_LABS_WALLET}'
-      AND to_address IN ('${PYTH_DAO_WALLET}', '${PYTHIAN_COUNCIL_WALLET}')
+      AND (
+        (mint = '${USDC_MINT}' AND to_address = '${PYTHIAN_COUNCIL_WALLET}')
+        OR (mint = '${PYTH_MINT}' AND to_address = '${PYTH_DAO_WALLET}')
+      )
     GROUP BY mint
   `;
 
