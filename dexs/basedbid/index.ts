@@ -2,6 +2,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { BASEDBID_SOLANA_PROGRAM, getBasedBidSolanaQuoteMints } from "../../helpers/basedbid";
 
 const ZERO_ADDRESS = ADDRESSES.null;
 
@@ -12,6 +13,8 @@ const chainConfig: Record<string, { CORE_CONTRACT: string; start: string }> = {
   [CHAIN.BASE]: { CORE_CONTRACT: "0x0F2C33F406D58144Dec03FCdb69571249F0b0286", start: "2025-11-17" },
   [CHAIN.MEGAETH]: { CORE_CONTRACT: "0x695e175c9704432cdFB98e3C193966F95a5F119D", start: "2026-02-09" },
   [CHAIN.ROBINHOOD]: { CORE_CONTRACT: "0x6EC95a3C6C7b8368C9bF37Ff664672E55df3550d", start: "2026-07-09" },
+  // Arc's native coin is USDC, so a native-quoted launch is priced as the chain's gas token.
+  [CHAIN.ARC]: { CORE_CONTRACT: "0x50C5939990CE22C5CF967cAB42a488eEa11945cB", start: "2026-09-04" },
 };
 
 const DEX_STRUCT =
@@ -36,7 +39,9 @@ const ABI = {
 // Each meme token is priced in the base token chosen at creation: the chain's native coin
 // (stored as the zero address, or as WETH which the curve still settles natively) or an
 // arbitrary ERC20. The Bought/Sold events carry only raw amounts, so the base token is
-// read from the diamond for every meme token traded in the period.
+// read from the diamond for every meme token traded in the period. The read is not allowed
+// to fail: a trade whose quote token is unknown cannot be valued, and guessing the native
+// coin would misprice every launch quoted in another token.
 const getBaseTokens = async (options: FetchOptions, core: string, memeTokens: string[]) => {
   const baseTokens: Record<string, string> = {};
   if (!memeTokens.length) return baseTokens;
@@ -44,15 +49,10 @@ const getBaseTokens = async (options: FetchOptions, core: string, memeTokens: st
   const results = await options.api.multiCall({
     abi: ABI.getMemeTokenData,
     calls: memeTokens.map((memeToken) => ({ target: core, params: [memeToken] })),
-    permitFailure: true,
   });
 
   results.forEach((data: any, i: number) => {
-    if (!data) return;
-    const baseToken = data?.initialData?.baseTokenForPair;
-    // A failed or undecodable read falls back to the native coin, which is the base token
-    // for the overwhelming majority of launches.
-    baseTokens[memeTokens[i]] = typeof baseToken === "string" ? baseToken.toLowerCase() : ZERO_ADDRESS;
+    baseTokens[memeTokens[i]] = String(data.initialData.baseTokenForPair).toLowerCase();
   });
 
   return baseTokens;
@@ -97,7 +97,7 @@ const fetchEVM = async (options: FetchOptions) => {
 };
 
 // BasedBid bonding-curve launchpad program on Solana.
-const SOLANA_PROGRAM = "CuodpYRDz4k87K6ZUFxk7X8JkVv5dNVZAcTQX2TEzTef";
+const SOLANA_PROGRAM = BASEDBID_SOLANA_PROGRAM;
 // Hardcoded admin wallet receiving the protocol fee share — excluded so fees are not
 // counted as trade principal.
 const SOLANA_FEE_WALLET = "8umVV7k9HoVm4yy5DiRtKSH5qbKtw8xWDARGX8QiLfLe";
@@ -109,17 +109,15 @@ const DEX_PROGRAMS = [
   "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG", // Meteora DAMM v2
   "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo", // Meteora DLMM
 ];
-const BASE_MINTS = [
-  ADDRESSES.solana.SOL,
-  ADDRESSES.solana.USDC,
-  "USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB", // USD1
-];
 
 // A bonding-curve buy moves the trade principal from the trader to the pool account
 // (plus smaller percentage fees to admin/sub-board/referrer wallets); a sell moves the
 // principal from the pool back to the trader. Per transaction the largest base-token
-// transfer that does not touch the admin fee wallet is the trade principal.
+// transfer that does not touch the admin fee wallet is the trade principal. Projects can
+// launch against any quote token, so the base mints are the quote mints of every project
+// registered on the program rather than a fixed list.
 const fetchSolana = async (options: FetchOptions) => {
+  const baseMints = await getBasedBidSolanaQuoteMints();
   const rows = await queryAllium(`
     WITH program_txs AS (
       SELECT txn_id
@@ -136,7 +134,7 @@ const fetchSolana = async (options: FetchOptions) => {
       JOIN program_txs p ON p.txn_id = tr.txn_id
       WHERE tr.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND tr.block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND tr.mint IN (${BASE_MINTS.map((m) => `'${m}'`).join(", ")})
+        AND tr.mint IN (${baseMints.map((m) => `'${m}'`).join(", ")})
         AND tr.to_address != '${SOLANA_FEE_WALLET}'
         AND tr.from_address != '${SOLANA_FEE_WALLET}'
         AND tr.to_address != tr.from_address
@@ -163,7 +161,7 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "Bonding-curve trade volume on BasedBid. On EVM chains it is the base-token leg of every Bought and Sold event emitted by the core diamond's TradeFacet — the base token paid in on a buy and paid out on a sell — priced in the base token configured for each meme token (native coin or ERC20). On Solana it is, per trade, the base-token (SOL/USDC/USD1) amount moved between the trader and the bonding-curve pool. Post-graduation trading is excluded on both: the curve stops emitting once a token lists, and that volume belongs to the DEX it graduated to.",
+      "Bonding-curve trade volume on BasedBid. On EVM chains it is the base-token leg of every Bought and Sold event emitted by the core diamond's TradeFacet — the base token paid in on a buy and paid out on a sell — priced in the base token configured for each meme token (native coin or ERC20). On Solana it is, per trade, the base-token amount (any quote token used by a registered project) moved between the trader and the bonding-curve pool. Post-graduation trading is excluded on both: the curve stops emitting once a token lists, and that volume belongs to the DEX it graduated to.",
   },
 };
 
