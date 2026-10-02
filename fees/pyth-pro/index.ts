@@ -5,8 +5,12 @@ import { queryAllium } from "../../helpers/allium";
 
 // Douro Labs is the official Pyth Pro data distributor
 // Revenue split: Douro Labs keeps 40%, Pyth DAO receives 60%
+// Revenue distribution: If paid in USDC, Douro Labs sends to the Pythian Council Wallet,
+// or if paid in PYTH, Douro Labs sends directly to the Pyth DAO treasury
 const DOURO_LABS_WALLET = "2ru31e9g8RF2mSSNgTQ11QMb166NE6LJccmBqGJM8xxy";
 const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
+const PYTHIAN_COUNCIL_WALLET = "GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2";
+
 
 // Token mints
 const USDC_MINT = ADDRESSES.solana.USDC;
