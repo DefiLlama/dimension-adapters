@@ -5,8 +5,16 @@ import { queryAllium } from "../../helpers/allium";
 
 // Douro Labs is the official Pyth Pro data distributor
 // Revenue split: Douro Labs keeps 40%, Pyth DAO receives 60%
+// PYTH payments go to the Pyth DAO treasury in both periods.
+// Before PIP-136, USDC payments also went to the Pyth DAO treasury.
+// From PIP-136, USDC payments go to the Pythian Council Ops Multisig
+// (GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2), which buys PYTH for the DAO.
 const DOURO_LABS_WALLET = "2ru31e9g8RF2mSSNgTQ11QMb166NE6LJccmBqGJM8xxy";
 const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
+const PYTHIAN_COUNCIL_WALLET = "GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2";
+
+// PIP-136: USDC DAO share is delivered to the Pythian Council instead of the DAO treasury
+const PIP_136 = "2026-09-25";
 
 // Token mints
 const USDC_MINT = ADDRESSES.solana.USDC;
@@ -20,7 +28,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Query USDC and PYTH transfers from Douro Labs to Pyth DAO
+  // Before PIP-136 both tokens settle at the DAO. From PIP-136, USDC settles at the Council.
+  const usdcRecipient = options.dateString >= PIP_136
+    ? PYTHIAN_COUNCIL_WALLET
+    : PYTH_DAO_WALLET;
+
   // Note: Douro distributes in month N+1 for revenue earned in month N,
   // so DefiLlama data lags ~1 month vs actual earning period
   const subscriptionQuery = `
@@ -31,7 +43,10 @@ const fetch = async (options: FetchOptions) => {
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_address = '${DOURO_LABS_WALLET}'
-      AND to_address = '${PYTH_DAO_WALLET}'
+      AND (
+        (mint = '${USDC_MINT}' AND to_address = '${usdcRecipient}')
+        OR (mint = '${PYTH_MINT}' AND to_address = '${PYTH_DAO_WALLET}')
+      )
     GROUP BY mint
   `;
 
