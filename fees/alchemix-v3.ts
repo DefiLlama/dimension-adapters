@@ -160,10 +160,18 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
     const after = cumulativeIndexAfter[i];
     if (!token || !totalSupply || !decimal || !before || !after) continue;
 
-    const netYield = (Number(after) - Number(before)) * Number(totalSupply) / (10 ** Number(decimal));
-    const performanceFee = (performanceFees[i] != null ? Number(performanceFees[i]) : DEFAULT_PERFORMANCE_FEE) / WAD;
-    if (netYield > 0 && performanceFee > 0 && performanceFee < 1) {
-      const grossYield = netYield / (1 - performanceFee);
+    const totalSupplyBi = BigInt(totalSupply);
+    const decimalBi = BigInt(decimal);
+    const beforeBi = BigInt(before);
+    const afterBi = BigInt(after);
+    const unit = 10n ** decimalBi;
+    const netYield = ((afterBi - beforeBi) * totalSupplyBi) / unit;
+    
+    const performanceFee = performanceFees[i] != null ? BigInt(performanceFees[i]) : BigInt(DEFAULT_PERFORMANCE_FEE);
+    const WAD_BI = 1000000000000000000n; // 1e18
+    
+    if (netYield > 0n && performanceFee > 0n && performanceFee < WAD_BI) {
+      const grossYield = (netYield * WAD_BI) / (WAD_BI - performanceFee);
       const protocolYield = grossYield - netYield;
       dailyFees.add(token, grossYield, METRIC.ASSETS_YIELDS);
       dailyRevenue.add(token, protocolYield, "MYT Performance Fees");
@@ -175,6 +183,14 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
   }
 }
 
+/**
+ * Fetches the daily fees, revenue, and supply-side revenue for Alchemix V3.
+ * Queries ERC-4626 MYT vault share-price appreciation over the period, scaling it by the on-chain
+ * performanceFee to accurately separate protocol revenue from depositor yields.
+ * Also accounts for Alchemist/Transmuter protocol fees and early-exit penalties.
+ * @param options - The FetchOptions injected by the DefiLlama SDK.
+ * @returns The populated balances object for the day/hour slice.
+ */
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const { factory, fromBlock, feeReceiver, markets } = chainConfig[options.chain];
 
