@@ -1,0 +1,249 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json';
+
+// Story.fun is a token launchpad on Robinhood Chain. Each launch gets its own BondingCurve, and a
+// curve that sells out graduates into a Uniswap V4 pool guarded by a single GraduatedPoolHook.
+//
+// Fees are recognised where the protocol splits them, not where they accrue: both the curve and the
+// hook hold fees in an internal bucket and emit one event per distribution naming the protocol,
+// buyback and creator amounts in quote-asset units. Reading those events keeps fees, revenue and
+// supply-side revenue on one basis, and it is the only place the hook's launch-token fees appear
+// already converted to the quote asset.
+const LAUNCH_FACTORY = "0x1A9BC7Fd7EE06Fa0477781633223bcC102C08fbd";
+const GRADUATED_POOL_HOOK = "0xa9926c1323b72D8b66c05EdEa293cd016C29e044";
+// LaunchFactory deployment block
+const START_BLOCK = 75644816;
+// Native ETH is the quote asset of every launch so far; the factory stores it as the zero address.
+const NATIVE = ADDRESSES.null;
+
+const tokenLaunchedAbi =
+  "event TokenLaunched(address indexed token, address indexed curve, address indexed creator, bytes32 launchSalt, address quoteAsset, bytes32 quoteConfigHash, uint32 launchConfigId, uint16 curveFeeBps, int24 tickSpacing, address creatorFeeRecipient, uint16 creatorTaxBps, bool buybackEnabled, string name, string symbol, string logo, string description, (string,string,string,string,string,string) socials)";
+// curve fee distribution: `buybackAmount` is quote spent buying the launch token back, not a token amount
+const feesDistributedAbi =
+  "event FeesDistributed(uint256 protocolAmount, uint256 buybackAmount, uint256 creatorAmount)";
+// fallback path taken when a quote asset cannot use the escrow; the factory pays the beneficiaries directly
+const feesRescuedAbi = "event FeesRescued(uint256 protocolAmount, uint256 creatorAmount)";
+const poolRegisteredAbi =
+  "event PoolRegistered(bytes32 indexed poolId, address indexed token, address indexed quoteAsset)";
+// hook fee distribution, after launch-token fees have been converted to the pool's quote asset
+const poolFeesSweptAbi =
+  "event PoolFeesSwept(bytes32 indexed poolId, uint256 protocolAmount, uint256 buybackSpent, uint256 creatorAmount, uint96 tokensLocked)";
+// fallback path taken when an abnormal balance blocks conversion; amounts stay in `currency`
+const poolFeesRescuedAbi =
+  "event PoolFeesRescued(bytes32 indexed poolId, address indexed currency, uint256 protocolAmount, uint256 creatorAmount)";
+
+// topic0 of the two curve events, for a chain-wide scan: one curve per launch makes a targeted
+// request per curve unworkable, so the logs are filtered on the emitting address instead
+const topicFeesDistributed = "0x312c5308f42848705a866c73dec11fd0783c2d64aac6a97e94467062ad3f4058";
+const topicFeesRescued = "0xb3b191714883dfbab174a2faced794fdee634297591bd8204850aed9bc69079b";
+
+// source labels on fees; destination labels on revenue and supply-side revenue
+const CURVE_FEES = METRIC.SWAP_FEES;
+const LAUNCH_FEES = "Token Launch Fees";
+const POOL_FEES = "Graduated Pool Fees";
+const CURVE_TO_PROTOCOL = "Token Swap Fees To Protocol";
+const CURVE_TO_CREATORS = "Token Swap Fees To Creators";
+const CURVE_TO_BUYBACKS = "Token Swap Fees To Buybacks";
+const LAUNCH_TO_PROTOCOL = "Token Launch Fees To Protocol";
+const POOL_TO_PROTOCOL = "Graduated Pool Fees To Protocol";
+const POOL_TO_CREATORS = "Graduated Pool Fees To Creators";
+const POOL_TO_BUYBACKS = "Graduated Pool Fees To Buybacks";
+
+async function fetch(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  // one credit of the fee ledger per quote asset, so that a launch quoted in an ERC-20 is booked
+  // in that ERC-20 rather than in the gas token
+  const credit = (balances: ReturnType<FetchOptions["createBalances"]>, quoteAsset: string, amount: bigint, label: string) => {
+    if (amount === 0n) return;
+    if (quoteAsset.toLowerCase() === NATIVE) balances.addGasToken(amount, label);
+    else balances.add(quoteAsset, amount, label);
+  };
+
+  // every launch ever, kept as whole logs so that the same cached scan also dates each launch
+  const launches = await options.getLogs({
+    target: LAUNCH_FACTORY,
+    eventAbi: tokenLaunchedAbi,
+    fromBlock: START_BLOCK,
+    cacheInCloud: true,
+    onlyArgs: false,
+  });
+  const curveQuoteAsset: Record<string, string> = {};
+  for (const log of launches) curveQuoteAsset[log.args.curve.toLowerCase()] = log.args.quoteAsset;
+
+  // the flat launch fee is credited to the protocol fee recipient in full, in native ETH
+  const [windowFrom, windowTo] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  const launchedInWindow = launches.filter(
+    (log: any) => log.blockNumber >= windowFrom && log.blockNumber < windowTo,
+  ).length;
+  if (launchedInWindow) {
+    // read at the end of the window: a window that contains a launch also ends after the factory
+    // was deployed, while the start of the very first window predates it and would revert
+    const launchFee = await options.api.call({ target: LAUNCH_FACTORY, abi: "uint96:launchFee" });
+    dailyFees.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_FEES);
+    dailyRevenue.addGasToken(BigInt(launchFee) * BigInt(launchedInWindow), LAUNCH_TO_PROTOCOL);
+  }
+
+  // the buyback is carved out of the creator slice and buys the launch token, not a governance
+  // token, so it is a cost of funds rather than revenue the protocol keeps
+  const bookSplit = (
+    quoteAsset: string,
+    protocol: bigint,
+    creator: bigint,
+    buyback: bigint,
+    feeLabel: string,
+    protocolLabel: string,
+    creatorLabel: string,
+    buybackLabel: string,
+  ) => {
+    credit(dailyFees, quoteAsset, protocol + creator + buyback, feeLabel);
+    credit(dailyRevenue, quoteAsset, protocol, protocolLabel);
+    credit(dailySupplySideRevenue, quoteAsset, creator, creatorLabel);
+    credit(dailySupplySideRevenue, quoteAsset, buyback, buybackLabel);
+  };
+
+  const fromCurve = (log: any) => curveQuoteAsset[log.address.toLowerCase()] !== undefined;
+
+  for (const log of (
+    await options.getLogs({
+      eventAbi: feesDistributedAbi,
+      topics: [topicFeesDistributed],
+      noTarget: true,
+      entireLog: true,
+      parseLog: true,
+    })
+  ).filter(fromCurve)) {
+    bookSplit(
+      curveQuoteAsset[log.address.toLowerCase()],
+      BigInt(log.args.protocolAmount),
+      BigInt(log.args.creatorAmount),
+      BigInt(log.args.buybackAmount),
+      CURVE_FEES,
+      CURVE_TO_PROTOCOL,
+      CURVE_TO_CREATORS,
+      CURVE_TO_BUYBACKS,
+    );
+  }
+
+  for (const log of (
+    await options.getLogs({
+      eventAbi: feesRescuedAbi,
+      topics: [topicFeesRescued],
+      noTarget: true,
+      entireLog: true,
+      parseLog: true,
+    })
+  ).filter(fromCurve)) {
+    bookSplit(
+      curveQuoteAsset[log.address.toLowerCase()],
+      BigInt(log.args.protocolAmount),
+      BigInt(log.args.creatorAmount),
+      0n,
+      CURVE_FEES,
+      CURVE_TO_PROTOCOL,
+      CURVE_TO_CREATORS,
+      CURVE_TO_BUYBACKS,
+    );
+  }
+
+  // the hook guards every graduated pool, so its own events need no address filtering
+  const pools = await options.getLogs({
+    target: GRADUATED_POOL_HOOK,
+    eventAbi: poolRegisteredAbi,
+    fromBlock: START_BLOCK,
+    cacheInCloud: true,
+  });
+  const poolQuoteAsset: Record<string, string> = {};
+  for (const log of pools) poolQuoteAsset[log.poolId.toLowerCase()] = log.quoteAsset;
+
+  for (const log of await options.getLogs({ target: GRADUATED_POOL_HOOK, eventAbi: poolFeesSweptAbi })) {
+    const quoteAsset = poolQuoteAsset[log.poolId.toLowerCase()];
+    if (!quoteAsset) continue;
+    bookSplit(
+      quoteAsset,
+      BigInt(log.protocolAmount),
+      BigInt(log.creatorAmount),
+      BigInt(log.buybackSpent),
+      POOL_FEES,
+      POOL_TO_PROTOCOL,
+      POOL_TO_CREATORS,
+      POOL_TO_BUYBACKS,
+    );
+  }
+
+  for (const log of await options.getLogs({ target: GRADUATED_POOL_HOOK, eventAbi: poolFeesRescuedAbi })) {
+    bookSplit(
+      log.currency,
+      BigInt(log.protocolAmount),
+      BigInt(log.creatorAmount),
+      0n,
+      POOL_FEES,
+      POOL_TO_PROTOCOL,
+      POOL_TO_CREATORS,
+      POOL_TO_BUYBACKS,
+    );
+  }
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailySupplySideRevenue,
+  };
+}
+
+const methodology = {
+  UserFees:
+    "Traders pay a curve fee plus the launch's creator tax on every bonding-curve buy and sell, and an anti-snipe tax on buys made in the opening window. Swaps in a graduated Uniswap V4 pool pay the same creator tax plus a hook fee. Creators pay a flat launch fee in ETH when they launch a token.",
+  Fees: "All launch fees, bonding-curve trading fees and graduated-pool hook fees, counted when the curve or the hook distributes them.",
+  Revenue: "The protocol's share of trading fees plus the launch fees in full.",
+  ProtocolRevenue: "The protocol's share of trading fees plus the launch fees in full.",
+  SupplySideRevenue: "The creator's share of bonding-curve and graduated-pool fees, plus the quote asset spent buying launch tokens back into the vesting vault. The buyback is funded out of the creator slice and buys the launch token, so it is a cost of funds rather than revenue the protocol keeps.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [CURVE_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades, counted when the curve distributes them.",
+    [LAUNCH_FEES]: "Flat ETH fee paid to launch a token.",
+    [POOL_FEES]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools, counted when the hook distributes them (these swaps also appear under Uniswap V4).",
+  },
+  UserFees: {
+    [CURVE_FEES]: "Curve fee, creator tax and anti-snipe tax charged on bonding-curve trades.",
+    [LAUNCH_FEES]: "Flat ETH fee paid to launch a token.",
+    [POOL_FEES]: "Hook fee and creator tax charged on swaps in graduated Uniswap V4 pools.",
+  },
+  Revenue: {
+    [CURVE_TO_PROTOCOL]: "Protocol share of bonding-curve fees.",
+    [LAUNCH_TO_PROTOCOL]: "Launch fees go to the protocol fee recipient in full.",
+    [POOL_TO_PROTOCOL]: "Protocol share of graduated-pool fees.",
+  },
+  ProtocolRevenue: {
+    [CURVE_TO_PROTOCOL]: "Protocol share of bonding-curve fees.",
+    [LAUNCH_TO_PROTOCOL]: "Launch fees go to the protocol fee recipient in full.",
+    [POOL_TO_PROTOCOL]: "Protocol share of graduated-pool fees.",
+  },
+  SupplySideRevenue: {
+    [CURVE_TO_CREATORS]: "Creator share of bonding-curve fees, paid to the launch's creator fee recipient.",
+    [CURVE_TO_BUYBACKS]: "Quote asset spent buying the launch token back into the vesting vault. Funded out of the creator slice.",
+    [POOL_TO_CREATORS]: "Creator share of graduated-pool fees, paid to the launch's creator fee recipient.",
+    [POOL_TO_BUYBACKS]: "Quote asset spent buying the launch token back into the vesting vault from graduated-pool fees. Funded out of the creator slice.",
+  },
+};
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  fetch,
+  chains: [CHAIN.ROBINHOOD],
+  start: "2026-09-29",
+  methodology,
+  breakdownMethodology,
+  doublecounted: true, // graduated-pool fees are charged on swaps that Uniswap V4 also reports
+  pullHourly: true,
+};
+
+export default adapter;
