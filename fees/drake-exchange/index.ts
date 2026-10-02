@@ -2,8 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
-import { ASSET_TRANSFERRED_EVENT, getCommissionTransfers } from "./feeTransfers";
+import { ASSET_TRANSFERRED_EVENT, TRANSFER_EVENT, attributeCommissions } from "./feeTransfers";
 
 const TRADING = "0xE6dfD064F1CFf4F62236fC862A2543EA98380F32";
 const COMMON_HELPER = "0x4939AEf78CD2Dc2bAE5bf9DA51C61A113Cae909a";
@@ -64,7 +63,7 @@ const fetch = async (options: FetchOptions) => {
         eventAbi: ASSET_TRANSFERRED_EVENT,
     });
 
-    const commissionByTx = new Map<string, bigint>();
+    const commissions: any[] = [];
     transfers.forEach((tr: any) => {
         // Decoders return uint8 values as either bigint (ethers) or string (indexer).
         const actionType = BigInt(tr.args._actionType);
@@ -83,24 +82,27 @@ const fetch = async (options: FetchOptions) => {
         }
 
         dailyFees.add(AUSD, amt, METRIC.TRADING_FEES);
-        const hash = tr.transactionHash.toLowerCase();
-        commissionByTx.set(hash, (commissionByTx.get(hash) ?? 0n) + amt);
+        commissions.push(tr);
     });
 
-    // Receipt transfers capture historical rate/recipient changes, maker vs taker
-    // attribution, multiple fills, and the contract's exact integer rounding.
-    const hashes = [...commissionByTx.keys()];
-    const receipts = hashes.length ? await getTxReceiptsWithRetry(options.chain, hashes) : [];
-    receipts.forEach((receipt, index) => {
-        if (!receipt) throw new Error(`Missing Drake commission receipt ${hashes[index]}`);
-        const allocations = getCommissionTransfers(receipt.logs, AUSD, COMMON_HELPER, VAULT);
-        const total = allocations.reduce((sum, allocation) => sum + allocation.amount, 0n);
-        if (total !== commissionByTx.get(hashes[index]))
-            throw new Error(`Drake commission logs do not reconcile with receipt ${hashes[index]}`);
-        allocations.forEach(({ vaultAmount, revenue }) => {
-            dailySupplySideRevenue.add(AUSD, vaultAmount, TRADING_TO_VAULT);
-            dailyRevenue.add(AUSD, revenue, TRADING_TO_TREASURY);
-        });
+    // The vault and operator cuts are the AUSD transfers immediately before each
+    // commission event. A log scan keeps maker/taker splits and rounding without
+    // fetching a receipt per fill.
+    const ausdTransfers = commissions.length
+        ? await options.getLogs({
+            target: AUSD,
+            onlyArgs: false,
+            eventAbi: TRANSFER_EVENT,
+        })
+        : [];
+    const commissionTxs = new Set(commissions.map((tr) => String(tr.transactionHash).toLowerCase()));
+    attributeCommissions(
+        commissions,
+        ausdTransfers.filter((tr: any) => commissionTxs.has(String(tr.transactionHash).toLowerCase())),
+        VAULT,
+    ).forEach(({ vaultAmount, revenue }) => {
+        dailySupplySideRevenue.add(AUSD, vaultAmount, TRADING_TO_VAULT);
+        dailyRevenue.add(AUSD, revenue, TRADING_TO_TREASURY);
     });
 
     const legacyFbFees = await options.getLogs({
@@ -167,7 +169,7 @@ const breakdownMethodology = {
 
 export default {
     version: 2,
-    pullHourly: true,
+   // pullHourly: true,
     chains: [CHAIN.MONAD],
     start: "2026-07-07",
     fetch,
@@ -175,9 +177,9 @@ export default {
         Volume: "Notional taker volume (size x execution price, in AUSD) across orderbook and AMM fills.",
         Fees: "All trading commission fees (orderbook + AMM), isolated margin add/reduce fees, and net borrowing/imbalance funding fees charged to traders.",
         Revenue:
-            "Actual trading commission transferred to the operation recipient (treasury), read from transaction receipts without hardcoded fee splits.",
+            "Actual trading commission transferred to the operation recipient (treasury), matched from the AUSD transfers immediately before each commission event.",
         ProtocolRevenue:
-            "Actual trading commission transferred to the operation recipient (treasury), read from transaction receipts without hardcoded fee splits.",
+            "Actual trading commission transferred to the operation recipient (treasury), matched from the AUSD transfers immediately before each commission event.",
         SupplySideRevenue:
             "Actual trading commission transferred to the liquidity vault, plus margin-change and positive net borrowing/funding fees.",
     },
