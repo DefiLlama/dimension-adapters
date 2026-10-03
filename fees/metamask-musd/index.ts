@@ -1,45 +1,66 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import * as sdk from "@defillama/sdk";
 
 const M_TOKEN = "0x866A2BF4E572CbcF37D5071A7a58503Bfb36be1b";
 const MUSD_TOKEN = "0xacA92E438df0B2401fF60dA7E4337B687a2435DA";
-const ONE_YEAR = 365 * 24 * 60 * 60;
+const TRANSFER_EVENT = 'event Transfer(address indexed from, address indexed to, uint256 value)';
+const INDEX_SCALE = 10n ** 12n; // https://docs.m0.org/protocol/m-token
 
 const LABEL = 'mUSD Asset Yields';
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
-    const api = new sdk.ChainApi({ chain: CHAIN.ETHEREUM });
+    const fromBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
+    if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock) || fromBlock < 0 || fromBlock > toBlock)
+        throw new Error('Invalid historical M balance window');
+    const balanceCall = { abi: 'erc20:balanceOf', target: M_TOKEN, params: MUSD_TOKEN };
+    const [openingBalance, closingBalance, transfers] = await Promise.all([
+        options.fromApi.call(balanceCall),
+        options.toApi.call(balanceCall),
+        // The opening balance already includes transfers in fromBlock.
+        fromBlock < toBlock ? options.getLogs({
+            target: M_TOKEN,
+            eventAbi: TRANSFER_EVENT,
+            fromBlock: fromBlock + 1,
+            toBlock,
+        }) : [],
+    ]);
 
-    const earnerRate = await api.call({
-        abi: 'uint32:earnerRate',
-        target: M_TOKEN,
-    });
+    // Count index-driven growth, excluding deposits, withdrawals and donations.
+    // On Linea, yield is recognized when a new M index reaches the chain.
+    let dailyYield = BigInt(closingBalance) - BigInt(openingBalance);
+    const account = MUSD_TOKEN.toLowerCase();
+    let transferCount = 0n;
+    for (const transfer of transfers) {
+        const incoming = transfer.to.toLowerCase() === account;
+        const outgoing = transfer.from.toLowerCase() === account;
+        if (incoming) dailyYield -= BigInt(transfer.value);
+        if (outgoing) dailyYield += BigInt(transfer.value);
+        if (incoming || outgoing) transferCount++;
+    }
+    if (dailyYield < 0n) {
+        // Converting M transfers to principal can lose up to ceil(index / 1e12) units per transfer.
+        const index = BigInt(await options.toApi.call({ target: M_TOKEN, abi: 'uint128:currentIndex' }));
+        const roundingLimit = transferCount * ((index + INDEX_SCALE - 1n) / INDEX_SCALE);
+        if (-dailyYield > roundingLimit)
+            throw new Error(`M yield decrease exceeds transfer rounding (${dailyYield}, limit ${roundingLimit})`);
+        dailyYield = 0n;
+    }
 
-    const mTokenBalance = await options.api.call({
-        abi: 'function balanceOf(address) returns (uint256)',
-        target: M_TOKEN,
-        params: MUSD_TOKEN
-    });
-
-    const timeframe = options.fromTimestamp && options.toTimestamp ? (options.toTimestamp - options.fromTimestamp) : 24 * 60 * 60;
-
-    const dailyYield = (mTokenBalance * (earnerRate / 100) * (timeframe / ONE_YEAR)) / 100;
-
-    dailyFees.addUSDValue(dailyYield / 1e6, LABEL);
+    dailyFees.addUSDValue(Number(dailyYield) / 1e6, LABEL);
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees
+        dailyRevenue: dailyFees.clone(),
+        dailyProtocolRevenue: dailyFees.clone()
     }
 }
 
 const methodology = {
-    Fees: "M token yields earned by M backing metamask USD",
-    Revenue: "All fees are revenue",
-    ProtocolRevenue: "All the revenue goes to protocol",
+    Fees: "Yield accrued by M backing MetaMask USD (mUSD), recognized on Linea when its M index updates.",
+    Revenue: "All accrued M yield is allocated to the mUSD yield recipient.",
+    ProtocolRevenue: "Yield allocated to the mUSD yield recipient.",
 };
 
 const breakdownMethodology = {
@@ -47,15 +68,16 @@ const breakdownMethodology = {
         [LABEL]: "M token yield earned by the M backing MetaMask USD (mUSD).",
     },
     Revenue: {
-        [LABEL]: "All M token yield is kept as revenue.",
+        [LABEL]: "M yield allocated to the mUSD yield recipient.",
     },
     ProtocolRevenue: {
-        [LABEL]: "All revenue goes to the protocol.",
+        [LABEL]: "M yield allocated to the mUSD yield recipient.",
     },
 };
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.LINEA],
     start: '2025-08-12',
