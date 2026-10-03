@@ -61,6 +61,7 @@ const adapter: SimpleAdapter = {
   // would report V2 only, so the adapter refuses them rather than understate.
   start: "2026-07-05",
   methodology,
+  pullHourly: true,
 };
 
 export default adapter;
