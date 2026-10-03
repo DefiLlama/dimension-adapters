@@ -45,8 +45,8 @@ const adapter: SimpleAdapter = {
   start: "2026-10-01", // first UTC day with settled operations
   methodology: {
     Fees: "Fees Loan Meme charges on borrows, repayments, and lending deposits and withdrawals, in USD at the time they are charged.",
-    Revenue: "All of the fees; the protocol treasury keeps them in full.",
-    ProtocolRevenue: "All of the fees; the protocol treasury keeps them in full.",
+    Revenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol treasury keeps them in full.",
+    ProtocolRevenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol treasury keeps them in full.",
   },
   breakdownMethodology: {
     Fees: { [METRIC.PROTOCOL_FEES]: FEES_DESCRIPTION },
