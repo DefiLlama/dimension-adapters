@@ -142,7 +142,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: reactors,
   methodology: {
-    Volume: "Executed UniswapX orders (Dutch auction, Dutch V2/V3 and Priority orders) on Uniswap's official reactor contracts, each valued once from the input amount the swapper paid to the filler. Classic Uniswap AMM swaps that do not go through UniswapX are excluded, and fills that fillers source from AMM pools also appear in those DEXs' volume.",
+    Volume: "Orders filled through UniswapX, Uniswap's intent-based swap system, each counted once at the value of the tokens the user sold. Regular Uniswap pool swaps are not included.",
   },
 };
 
