@@ -35,6 +35,7 @@ const LiquidityIndexDecimals = BigInt(1e27);
 
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
+const HIGH_RESERVE_FACTOR = 0.99;
 
 // The stuck-markets cache records one entry per pool, whose value names the
 // offending reserves in a fixed shape: "SYMBOL: reason", several of them joined
@@ -148,6 +149,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].availableLiquidity)
         + BigInt(reserveDataBefore[reserveIndex].totalStableDebt)
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
       totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
@@ -172,6 +174,21 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       // The borrow index keeps growing on bad debt that will never be repaid and the treasury aTokens
       // minted against it are unbacked, so any interest here is phantom. Skip it entirely.
       continue
+    } else if (pool.version !== 1 && reserveFactor >= HIGH_RESERVE_FACTOR) {
+      // Reserves frozen with a reserve factor just under 100% (aave v2 uses 99.99%) leave suppliers
+      // almost nothing, so backing interest out of the liquidity index divides by (1 - reserveFactor)
+      // and multiplies any liquidity index growth by up to 10,000x. Read the interest off the debt instead.
+      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
+      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      if (growthVariableBorrowIndex <= 0n || reserveVariableBorrowIndexBefore === 0n) continue
+
+      const interestAccrued = Number(totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore)
+      const revenueAccrued = interestAccrued * reserveFactor
+
+      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, interestAccrued - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
     } else {
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
