@@ -37,16 +37,14 @@ const chainConfigs: Record<string, any> = {
 
 const HarvestEvent = 'event Harvest(address indexed yieldToken, uint256 minimumAmountOut, uint256 totalHarvested, uint256 credit)';
 
-// AlchemistV2 contracts define the fee denominator as 10000 basis points.
-// The default fee (if unreadable) is 1000 bps (10%).
+// AlchemistV2 protocolFee is in basis points. Denominator is 10000.
+// https://github.com/alchemix-finance/v2-foundry/blob/master/src/AlchemistV2.sol
 const FEE_DENOMINATOR_BPS = 10000n;
-const DEFAULT_PROTOCOL_FEE_BPS = 1000n;
 
 /**
  * Fetches the daily fees and revenue for Alchemix V2.
- * Calculates the exact fee distribution between the protocol and depositors
- * by reading the HarvestEvent logs and dynamically querying each Alchemist's protocolFee.
- * @param options - The FetchOptions injected by the DefiLlama sdk containing block & chain context.
+ * Harvest events report gross yield. protocolFee is read once per alchemist
+ * and applied to every harvest in the window.
  */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -54,34 +52,31 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   
   const alchemists = chainConfigs[options.chain].alchemists;
-  const harvestLogs = await options.getLogs({
-    targets: alchemists,
-    eventAbi: HarvestEvent,
-    flatten: true,
-    onlyArgs: false,
+  const [harvestLogs, protocolFees] = await Promise.all([
+    options.getLogs({
+      targets: alchemists,
+      eventAbi: HarvestEvent,
+      flatten: true,
+      onlyArgs: false,
+    }),
+    options.api.multiCall({
+      abi: 'uint256:protocolFee',
+      calls: alchemists,
+    }),
+  ]);
+
+  const feeRateByAlchemist: Record<string, bigint> = {};
+  alchemists.forEach((alchemist: string, index: number) => {
+    feeRateByAlchemist[formatAddress(alchemist)] = BigInt(protocolFees[index]);
   });
 
-  const feeRates = await Promise.all(harvestLogs.map(async (log: any) => {
-    try {
-      const fee = await options.api.call({
-        target: log.address,
-        abi: 'uint256:protocolFee',
-        block: log.blockNumber
-      });
-      return BigInt(fee);
-    } catch {
-      return DEFAULT_PROTOCOL_FEE_BPS;
-    }
-  }));
-
-  let i = 0;
   for (const log of harvestLogs) {
     const args = (log as any).args || log;
     const _token = formatAddress(args.yieldToken);
     const token = chainConfigs[options.chain].customAssets && chainConfigs[options.chain].customAssets[_token] ? chainConfigs[options.chain].customAssets[_token] : _token;
     
     const totalYield = BigInt(args.totalHarvested);
-    const feeRate = feeRates[i++];
+    const feeRate = feeRateByAlchemist[formatAddress(log.address)];
     
     const protocolYield = (totalYield * feeRate) / FEE_DENOMINATOR_BPS;
     const supplySideYield = totalYield - protocolYield;
@@ -133,4 +128,3 @@ const adapter: Adapter = {
 }
 
 export default adapter;
-
