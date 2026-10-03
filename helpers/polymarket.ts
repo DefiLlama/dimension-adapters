@@ -109,31 +109,189 @@ interface GetPolymarketVolumeProps {
   currency: string;
 }
 
+type PolymarketOrderSide = 'BUY' | 'SELL';
+type PolymarketNumericValue = string | number | bigint;
+
+interface PolymarketOrderFilledArgs {
+  orderHash: string;
+  maker: string;
+  taker: string;
+  makerAssetId: PolymarketNumericValue;
+  takerAssetId: PolymarketNumericValue;
+  makerAmountFilled: PolymarketNumericValue;
+  takerAmountFilled: PolymarketNumericValue;
+}
+
+interface PolymarketLogMetadata {
+  logIndex?: PolymarketNumericValue;
+  log_index?: PolymarketNumericValue;
+  index?: PolymarketNumericValue;
+  transactionHash?: string;
+  transaction_hash?: string;
+  txHash?: string;
+  address?: string;
+  contractAddress?: string;
+  contract_address?: string;
+}
+
+type PolymarketOrderFilledLog =
+  | (PolymarketLogMetadata & PolymarketOrderFilledArgs & { args?: undefined })
+  | (PolymarketLogMetadata & { args: PolymarketOrderFilledArgs });
+
+const ORDER_FILLED_EVENT = 'event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)';
+
+const getLogArgs = (log: PolymarketOrderFilledLog): PolymarketOrderFilledArgs => log.args ?? log;
+
+const getLogIndex = (log: PolymarketOrderFilledLog) => {
+  const value = Number(log.logIndex ?? log.log_index ?? log.index);
+  if (!Number.isFinite(value)) throw new Error('Polymarket log is missing logIndex');
+  return value;
+};
+
+const getLogTransactionHash = (log: PolymarketOrderFilledLog) => {
+  const value = String(log.transactionHash ?? log.transaction_hash ?? log.txHash ?? '').toLowerCase();
+  if (!value) throw new Error('Polymarket log is missing transactionHash');
+  return value;
+};
+
+const getLogAddress = (log: PolymarketOrderFilledLog) => {
+  const value = String(log.address ?? log.contractAddress ?? log.contract_address ?? '').toLowerCase();
+  if (!value) throw new Error('Polymarket log is missing contract address');
+  return value;
+};
+
+const getOrderSide = (log: PolymarketOrderFilledLog): PolymarketOrderSide => {
+  const args = getLogArgs(log);
+  const makerAssetId = BigInt(args.makerAssetId);
+  const takerAssetId = BigInt(args.takerAssetId);
+
+  if (makerAssetId === 0n && takerAssetId !== 0n) return 'BUY';
+  if (makerAssetId !== 0n && takerAssetId === 0n) return 'SELL';
+
+  throw new Error(`Unable to derive Polymarket order side for ${String(args.orderHash ?? 'unknown order')}`);
+};
+
+const getCashAmount = (log: PolymarketOrderFilledLog) => {
+  const args = getLogArgs(log);
+  return getOrderSide(log) === 'BUY'
+    ? BigInt(args.makerAmountFilled)
+    : BigInt(args.takerAmountFilled);
+};
+
+const getTokenAmount = (log: PolymarketOrderFilledLog) => {
+  const args = getLogArgs(log);
+  return getOrderSide(log) === 'BUY'
+    ? BigInt(args.takerAmountFilled)
+    : BigInt(args.makerAmountFilled);
+};
+
+const getFillTaker = (log: PolymarketOrderFilledLog) => {
+  const value = String(getLogArgs(log).taker ?? '').toLowerCase();
+  if (!value) throw new Error('Polymarket OrderFilled log is missing taker');
+  return value;
+};
+
+const getFillMaker = (log: PolymarketOrderFilledLog) => {
+  const value = String(getLogArgs(log).maker ?? '').toLowerCase();
+  if (!value) throw new Error('Polymarket OrderFilled log is missing maker');
+  return value;
+};
+
+/**
+ * Computes one-sided volume and token notional from Polymarket-style OrderFilled logs.
+ * Matched batches use full maker contributions while unassigned fills preserve legacy half-weight accounting.
+ */
 export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<FetchResult> {
   const { options, exchanges, currency } = props;
-  
+
   const dailyVolume = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
-  
-  const OrderFilledLogs = await options.getLogs({
-    targets: exchanges,
-    eventAbi: 'event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)',
-    flatten: true,
-  });
 
-  for (const log of OrderFilledLogs) {
-    if (log.makerAssetId.toString() === '0') {
-      dailyVolume.add(currency, BigInt(log.makerAmountFilled) / 2n);
-      dailyNotionalVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
+  const orderFilledLogs = await options.getLogs({
+    targets: exchanges,
+    eventAbi: ORDER_FILLED_EVENT,
+    flatten: true,
+    entireLog: true,
+    parseLog: true,
+  }) as PolymarketOrderFilledLog[];
+
+  const groups = new Map<string, PolymarketOrderFilledLog[]>();
+
+  const getGroup = (log: PolymarketOrderFilledLog) => {
+    const key = `${getLogTransactionHash(log)}:${getLogAddress(log)}`;
+    let group = groups.get(key);
+
+    if (!group) {
+      group = [];
+      groups.set(key, group);
     }
-    else if (log.takerAssetId.toString() === '0') {
-      dailyVolume.add(currency, BigInt(log.takerAmountFilled) / 2n);
-      dailyNotionalVolume.add(currency, BigInt(log.makerAmountFilled) / 2n)
+
+    return group;
+  };
+
+  const seenLogs = new Set<string>();
+
+  for (const log of orderFilledLogs) {
+    const key = `${getLogTransactionHash(log)}:${getLogAddress(log)}:${getLogIndex(log)}`;
+    if (seenLogs.has(key)) continue;
+
+    seenLogs.add(key);
+    getGroup(log).push(log);
+  }
+
+  for (const fills of groups.values()) {
+    fills.sort((a, b) => getLogIndex(a) - getLogIndex(b));
+
+    const assigned = new Set<PolymarketOrderFilledLog>();
+    const terminalFills = fills.filter((fill) => getFillTaker(fill) === getLogAddress(fill));
+    let previousTerminalIndex = -1;
+
+    for (const terminalFill of terminalFills) {
+      const terminalIndex = getLogIndex(terminalFill);
+      const terminalMaker = getFillMaker(terminalFill);
+      const takerSide = getOrderSide(terminalFill);
+
+      const makerFills = fills.filter((fill) => {
+        const index = getLogIndex(fill);
+
+        return (
+          !assigned.has(fill)
+          && index > previousTerminalIndex
+          && index < terminalIndex
+          && getFillTaker(fill) === terminalMaker
+        );
+      });
+
+      if (!makerFills.length) {
+        throw new Error(
+          `Polymarket matched batch has no maker fills before terminal log ${terminalIndex}`
+        );
+      }
+
+      assigned.add(terminalFill);
+
+      for (const fill of makerFills) {
+        const makerSide = getOrderSide(fill);
+        const tokenAmount = getTokenAmount(fill);
+        const volumeAmount = makerSide === takerSide ? tokenAmount : getCashAmount(fill);
+
+        dailyVolume.add(currency, volumeAmount);
+        dailyNotionalVolume.add(currency, tokenAmount);
+        assigned.add(fill);
+      }
+
+      previousTerminalIndex = terminalIndex;
+    }
+
+    for (const fill of fills) {
+      if (assigned.has(fill)) continue;
+
+      dailyVolume.add(currency, getCashAmount(fill) / 2n);
+      dailyNotionalVolume.add(currency, getTokenAmount(fill) / 2n);
     }
   }
 
   return { dailyVolume, dailyNotionalVolume };
 }
-
 
 export default polymarketBuilderExports;
