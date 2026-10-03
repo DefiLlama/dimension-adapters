@@ -158,7 +158,8 @@ const fetch = async (options: FetchOptions) => {
     lpFeesBurned = Number(result.lp_fees_burned || 0);
   }
 
-  // Holders revenue is carved out of protocol revenue; fees and revenue are unchanged.
+  // The buyback is paid out of gacha revenue, so it moves from protocol revenue to holders.
+  // LP fees are never counted in fees/revenue, so burning them only adds to holders revenue.
   const dailyProtocolRevenue = dailyFees.clone();
   if (cardsBought > 0) {
     dailyHoldersRevenue.add(CARDS_MINT, cardsBought, 'Token Buyback');
@@ -166,7 +167,6 @@ const fetch = async (options: FetchOptions) => {
   }
   if (lpFeesBurned > 0) {
     dailyHoldersRevenue.add(CARDS_MINT, lpFeesBurned, 'LP Fees Burned');
-    dailyProtocolRevenue.add(CARDS_MINT, -lpFeesBurned, 'LP Fees Burned');
   }
 
   return {
@@ -185,7 +185,7 @@ const methodology = {
   Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
   HoldersRevenue: "CARDS bought back with gacha revenue (since April 2026) and CARDS LP fees sent to the burn wallet (since August 2026). Excludes advisor and investor token returns.",
-  ProtocolRevenue: "Revenue minus the CARDS bought back or burned for holders."
+  ProtocolRevenue: "Revenue minus the gacha revenue spent on CARDS buybacks. LP fees are not part of revenue, so burning them does not reduce it."
 }
 
 const gachaBreakdown = {
@@ -201,7 +201,6 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     ...gachaBreakdown,
     "Token Buyback": "CARDS bought back with gacha revenue, moved from protocol revenue to holders.",
-    "LP Fees Burned": "CARDS LP fees sent to the burn wallet, moved from protocol revenue to holders.",
   },
   HoldersRevenue: {
     "Token Buyback": "CARDS bought back with gacha revenue, counted at purchase.",
