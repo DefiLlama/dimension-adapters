@@ -25,8 +25,10 @@ const fetch = async (options: FetchOptions) => {
   // Moves between NABLA's own accounts would otherwise read as a second receipt of the same fee.
   const received = await getSolanaReceived({ options, targets: TARGETS, mints: FEE_MINTS, blacklists: TARGETS });
   dailyFees.addBalances(received, METRIC.SWAP_FEES);
+  // Jupiter's referral program keeps 20%; NABLA claims the other 80% into its treasury.
   const dailyRevenue = dailyFees.clone(0.8, METRIC.SWAP_FEES);
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  const dailySupplySideRevenue = dailyFees.clone(0.2, 'Token Swap Fees To Jupiter');
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -40,8 +42,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "The 0.50% fee on every swap made through NABLA, taken in SOL, USDC or USDT and paid into its Jupiter referral fee accounts.",
     UserFees: "Traders pay the 0.50% fee on each swap made through NABLA.",
-    Revenue: "NABLA's 80% of the fees, claimed into its treasury; Jupiter keeps 20% as its referral program's share.",
+    Revenue: "NABLA's 80% of the fees, claimed into its treasury.",
     ProtocolRevenue: "NABLA's 80% of the fees, claimed into its treasury.",
+    SupplySideRevenue: "Jupiter's 20% of the fees, kept as its referral program's share.",
   },
   breakdownMethodology: {
     Fees: {
@@ -55,6 +58,9 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       [METRIC.SWAP_FEES]: "NABLA's 80% share of the swap fees, claimed into its treasury.",
+    },
+    SupplySideRevenue: {
+      'Token Swap Fees To Jupiter': "Jupiter's 20% share of the swap fees, kept by its referral program.",
     },
   },
 };
