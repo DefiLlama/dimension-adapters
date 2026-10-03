@@ -109,6 +109,7 @@ const borrowInterest = async (comptroller: string, options: FetchOptions) => {
     }
     const underlying = underlyings[marketIndex];
     const interest = BigInt(log.args.interestAccumulated);
+    // Venus uses a 1e18 reserve-factor scale: https://github.com/VenusProtocol/isolated-pools/blob/main/contracts/VToken.sol
     const revenue = interest * BigInt(reserveFactors[marketIndex]) / 10n ** 18n;
     dailyFees.add(underlying, interest, METRIC.BORROW_INTEREST);
     dailyRevenue.add(underlying, revenue, METRIC.BORROW_INTEREST);
@@ -155,7 +156,7 @@ const fetch = async (options: FetchOptions) => {
   
   dailySupplySideRevenue.addBalances(dailyFees);
   Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
-    dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addTokenVannila(token, -BigInt(balance), METRIC.BORROW_INTEREST);
   });
   
   const liquidation = await liquidationIncome(configs[options.chain].protocolShareReserves, options);
