@@ -14,6 +14,9 @@ const STRCON_DECIMALS = 18;
 const BPS = 10000;
 const PERFORMANCE_FEE_BPS = 1000;
 const STAKERS_REVENUE_BPS = 1000; // Saturn returns 10% of revenue to sUSDat holders
+// STRC backing left sUSDat.strcBalance for the STRC mirror module and the STRCon module.
+// https://saturncredit.gitbook.io/saturn-docs/solution
+const STRCON_MIGRATION = 1790812800; // 2026-10-01 00:00:00 UTC
 
 const METRICS = {
     STRC_PRICE_FLUCTUATIONS: "Effect of STRC price fluctuations",
@@ -67,12 +70,12 @@ const fetch = async (options: FetchOptions) => {
         }
     }
 
-    const [strcBalanceV1, usdatBalanceBackingSUSDat, usdatTotalSupply] = await Promise.all([
-        options.api.call({
-            target: sUSDat,
-            abi: 'uint256:strcBalance',
-            permitFailure: true,
-        }),
+    const postMigration = options.startTimestamp >= STRCON_MIGRATION;
+
+    const [strcBalanceBackingSUSDat, usdatBalanceBackingSUSDat, usdatTotalSupply] = await Promise.all([
+        postMigration
+            ? options.api.call({ target: STRC_MIRROR_MODULE, abi: 'uint256:balance' })
+            : options.api.call({ target: sUSDat, abi: 'uint256:strcBalance' }),
         options.api.call({
             target: sUSDat,
             abi: 'uint256:usdatBalance',
@@ -82,8 +85,6 @@ const fetch = async (options: FetchOptions) => {
             abi: 'uint256:totalSupply',
         }),
     ])
-
-    const strcBalanceBackingSUSDat = strcBalanceV1 ?? await options.api.call({ target: STRC_MIRROR_MODULE, abi: 'uint256:balance' })
 
     const [strcDataBefore, strcDataAfter] = await Promise.all([
         options.fromApi.call({
@@ -105,7 +106,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
     dailySupplySideRevenue.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
 
-    if (strcBalanceV1 === null) {
+    if (postMigration) {
         const strconBalance = await options.api.call({ target: STRCON_MODULE, abi: 'uint256:balance' })
         if (Number(strconBalance) > 0) {
             const strconOracle = await options.api.call({ target: STRCON_MODULE, abi: 'address:oracle' })
