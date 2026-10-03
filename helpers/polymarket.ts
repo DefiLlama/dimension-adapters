@@ -110,30 +110,57 @@ interface GetPolymarketVolumeProps {
 }
 
 type PolymarketOrderSide = 'BUY' | 'SELL';
+type PolymarketNumericValue = string | number | bigint;
+
+interface PolymarketOrderFilledArgs {
+  orderHash: string;
+  maker: string;
+  taker: string;
+  makerAssetId: PolymarketNumericValue;
+  takerAssetId: PolymarketNumericValue;
+  makerAmountFilled: PolymarketNumericValue;
+  takerAmountFilled: PolymarketNumericValue;
+}
+
+interface PolymarketLogMetadata {
+  logIndex?: PolymarketNumericValue;
+  log_index?: PolymarketNumericValue;
+  index?: PolymarketNumericValue;
+  transactionHash?: string;
+  transaction_hash?: string;
+  txHash?: string;
+  address?: string;
+  contractAddress?: string;
+  contract_address?: string;
+}
+
+type PolymarketOrderFilledLog =
+  | (PolymarketLogMetadata & PolymarketOrderFilledArgs & { args?: undefined })
+  | (PolymarketLogMetadata & { args: PolymarketOrderFilledArgs });
 
 const ORDER_FILLED_EVENT = 'event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed taker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled, uint256 fee)';
 
-const getLogArgs = (log: any) => log.args ?? log;
+const getLogArgs = (log: PolymarketOrderFilledLog): PolymarketOrderFilledArgs => log.args ?? log;
 
-const getLogIndex = (log: any) => {
+const getLogIndex = (log: PolymarketOrderFilledLog) => {
   const value = Number(log.logIndex ?? log.log_index ?? log.index);
   if (!Number.isFinite(value)) throw new Error('Polymarket log is missing logIndex');
   return value;
 };
 
-const getLogTransactionHash = (log: any) => {
+const getLogTransactionHash = (log: PolymarketOrderFilledLog) => {
   const value = String(log.transactionHash ?? log.transaction_hash ?? log.txHash ?? '').toLowerCase();
   if (!value) throw new Error('Polymarket log is missing transactionHash');
   return value;
 };
 
-const getLogAddress = (log: any) => {
+const getLogAddress = (log: PolymarketOrderFilledLog) => {
   const value = String(log.address ?? log.contractAddress ?? log.contract_address ?? '').toLowerCase();
   if (!value) throw new Error('Polymarket log is missing contract address');
   return value;
 };
 
-const getOrderSide = (log: any): PolymarketOrderSide => {
+const getOrderSide = (log: PolymarketOrderFilledLog): PolymarketOrderSide => {
   const args = getLogArgs(log);
   const makerAssetId = BigInt(args.makerAssetId);
   const takerAssetId = BigInt(args.takerAssetId);
@@ -144,27 +171,27 @@ const getOrderSide = (log: any): PolymarketOrderSide => {
   throw new Error(`Unable to derive Polymarket order side for ${String(args.orderHash ?? 'unknown order')}`);
 };
 
-const getCashAmount = (log: any) => {
+const getCashAmount = (log: PolymarketOrderFilledLog) => {
   const args = getLogArgs(log);
   return getOrderSide(log) === 'BUY'
     ? BigInt(args.makerAmountFilled)
     : BigInt(args.takerAmountFilled);
 };
 
-const getTokenAmount = (log: any) => {
+const getTokenAmount = (log: PolymarketOrderFilledLog) => {
   const args = getLogArgs(log);
   return getOrderSide(log) === 'BUY'
     ? BigInt(args.takerAmountFilled)
     : BigInt(args.makerAmountFilled);
 };
 
-const getFillTaker = (log: any) => {
+const getFillTaker = (log: PolymarketOrderFilledLog) => {
   const value = String(getLogArgs(log).taker ?? '').toLowerCase();
   if (!value) throw new Error('Polymarket OrderFilled log is missing taker');
   return value;
 };
 
-const getFillMaker = (log: any) => {
+const getFillMaker = (log: PolymarketOrderFilledLog) => {
   const value = String(getLogArgs(log).maker ?? '').toLowerCase();
   if (!value) throw new Error('Polymarket OrderFilled log is missing maker');
   return value;
@@ -186,11 +213,11 @@ export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Prom
     flatten: true,
     entireLog: true,
     parseLog: true,
-  });
+  }) as PolymarketOrderFilledLog[];
 
-  const groups = new Map<string, any[]>();
+  const groups = new Map<string, PolymarketOrderFilledLog[]>();
 
-  const getGroup = (log: any) => {
+  const getGroup = (log: PolymarketOrderFilledLog) => {
     const key = `${getLogTransactionHash(log)}:${getLogAddress(log)}`;
     let group = groups.get(key);
 
@@ -215,7 +242,7 @@ export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Prom
   for (const fills of groups.values()) {
     fills.sort((a, b) => getLogIndex(a) - getLogIndex(b));
 
-    const assigned = new Set<any>();
+    const assigned = new Set<PolymarketOrderFilledLog>();
     const terminalFills = fills.filter((fill) => getFillTaker(fill) === getLogAddress(fill));
     let previousTerminalIndex = -1;
 
