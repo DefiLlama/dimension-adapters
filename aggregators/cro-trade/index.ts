@@ -69,7 +69,7 @@ const CL_ACCOUNT_FACTORIES = [
   { address: '0x35fb1161d23e1e592dfab6b4d848c13c4874da42', start: '2026-10-01', deployBlock: 97363789 },
 ]
 
-export const LABELS = {
+const LABELS = {
   Fees: METRIC.TRADING_FEES,
   ToTreasury: 'Trading Fees To Treasury',
   ToBuyback: 'Trading Fees To CRONUS Buyback And Burn',
@@ -78,7 +78,7 @@ export const LABELS = {
 
 const toTs = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
 
-export async function fetchCroTrade(options: FetchOptions) {
+const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, endTimestamp } = options
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -148,11 +148,13 @@ export async function fetchCroTrade(options: FetchOptions) {
 
   const factories = CL_ACCOUNT_FACTORIES.filter((f) => live(f.start))
   if (factories.length) {
-    const accounts: string[] = []
-    for (const factory of factories) {
-      const created = await getLogs({ target: factory.address, eventAbi: ABI.AccountCreated, fromBlock: factory.deployBlock, cacheInCloud: true })
-      created.forEach((l: any) => accounts.push(l.account))
-    }
+    const created = await getLogs({
+      targets: factories.map((f) => f.address),
+      eventAbi: ABI.AccountCreated,
+      fromBlock: Math.min(...factories.map((f) => f.deployBlock)),
+      cacheInCloud: true,
+    })
+    const accounts = created.map((l: any) => l.account)
     if (accounts.length) {
       const [buys, sells] = await Promise.all([
         getLogs({ targets: accounts, eventAbi: ABI.AccountBought }),
@@ -162,12 +164,42 @@ export async function fetchCroTrade(options: FetchOptions) {
     }
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  }
 }
 
-const fetch = async (options: FetchOptions) => {
-  const { dailyVolume } = await fetchCroTrade(options)
-  return { dailyVolume }
+const methodology = {
+  Volume: 'Spot trades routed through cro.trade on Cronos (DEX swaps, launchpad bonding-curve trades and Cronos Launch trade accounts), counted once per trade at full notional, derived from the fixed 0.9% cro.trade fee each trade pays on-chain.',
+  Fees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
+  UserFees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
+  Revenue: 'All trading fees are kept by cro.trade (no share goes to liquidity providers). Spot referral payouts are made off-chain from another venue and are not deducted.',
+  ProtocolRevenue: 'Trading fees paid to the cro.trade treasury wallet: all fees until 2026-09-22, none after.',
+  HoldersRevenue: 'Trading fees paid to the CronusBurner contract, which buys CRONUS on the market and burns it: all fees since 2026-09-22, none before.',
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [LABELS.Fees]: 'The 0.9% fee on each spot trade routed by cro.trade, taken in CRO or in the input token.',
+  },
+  UserFees: {
+    [LABELS.Fees]: 'The 0.9% fee on each spot trade routed by cro.trade, taken in CRO or in the input token.',
+  },
+  Revenue: {
+    [LABELS.ToTreasury]: 'Trading fees sent to the cro.trade treasury wallet (until 2026-09-22).',
+    [LABELS.ToBuyback]: 'Trading fees sent to the CronusBurner contract to buy back and burn CRONUS (since 2026-09-22).',
+  },
+  ProtocolRevenue: {
+    [LABELS.ToTreasury]: 'Trading fees sent to the cro.trade treasury wallet (until 2026-09-22).',
+  },
+  HoldersRevenue: {
+    [LABELS.Buyback]: 'Trading fees sent to the CronusBurner contract, which buys CRONUS and burns it (since 2026-09-22).',
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -176,9 +208,8 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.CRONOS],
   start: '2026-03-04',
-  methodology: {
-    Volume: 'Spot trades routed through cro.trade on Cronos (DEX swaps, launchpad bonding-curve trades and Cronos Launch trade accounts), counted once per trade at full notional, derived from the fixed 0.9% cro.trade fee each trade pays on-chain.',
-  },
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter
