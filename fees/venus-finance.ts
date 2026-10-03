@@ -9,6 +9,7 @@ const comptrollerABI = {
   getAllMarkets: "address[]:getAllMarkets",
   accrueInterest: "event AccrueInterest(uint256 cashPrior,uint256 interestAccumulated,uint256 borrowIndex,uint256 totalBorrows)",
   reserveFactor: "uint256:reserveFactorMantissa",
+  reserveFactorUpdated: "event NewReserveFactor(uint256 oldReserveFactorMantissa, uint256 newReserveFactorMantissa)",
 };
 
 export const configs: any = {
@@ -68,31 +69,50 @@ const borrowInterest = async (comptroller: string, options: FetchOptions) => {
   const latestApi = new sdk.ChainApi({ chain: options.chain });
   const markets = await latestApi.call({ target: comptroller, abi: comptrollerABI.getAllMarkets });
   const underlyings = await latestApi.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true });
-  const reserveFactors = await latestApi.multiCall({ calls: markets, abi: comptrollerABI.reserveFactor });
+  const reserveFactors = await options.api.multiCall({ calls: markets, abi: comptrollerABI.reserveFactor, permitFailure: true });
   const marketIndexes: Record<string, number> = {};
   markets.forEach((market: string, index: number) => {
     marketIndexes[market.toLowerCase()] = index;
   });
-  const rawLogs = (await options.getLogs({
-    targets: markets,
-    flatten: false,
-    eventAbi: comptrollerABI.accrueInterest,
-  })).map((log: any[], marketIndex: number) => log.map((event) => ({ ...event, marketIndex }))).flat();
-  const logs = rawLogs.map((event: any) => ({
-    ...event,
-    marketIndex: event.marketIndex ?? marketIndexes[event.address?.toLowerCase()],
-    interestAccumulated: Number(event.interestAccumulated),
-  }));
+  const [accrualLogs, factorLogs] = await Promise.all([
+    options.getLogs({ targets: markets, eventAbi: comptrollerABI.accrueInterest, entireLog: true, parseLog: true }),
+    options.getLogs({ targets: markets, eventAbi: comptrollerABI.reserveFactorUpdated, entireLog: true, parseLog: true }),
+  ]);
+  const logs = [
+    ...accrualLogs.map((log: any) => ({ ...log, factorChange: false })),
+    ...factorLogs.map((log: any) => ({ ...log, factorChange: true })),
+  ];
+  for (const log of logs) {
+    if (log.blockNumber == null || (log.logIndex ?? log.index) == null
+      || !Number.isFinite(Number(log.blockNumber)) || !Number.isFinite(Number(log.logIndex ?? log.index))) {
+      throw new Error('Venus log is missing its block or log index');
+    }
+  }
+  // Start with the period-end factors and unwind changes in reverse log order.
+  // setReserveFactor accrues interest with the old factor before emitting its change.
+  logs.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber)
+    || Number(b.logIndex ?? b.index) - Number(a.logIndex ?? a.index));
 
   underlyings.forEach((underlying, index) => {
     if (!underlying) underlyings[index] = ADDRESSES.null;
   });
 
   logs.forEach((log) => {
-    const underlying = underlyings[log.marketIndex];
-
-    dailyFees.add(underlying, log.interestAccumulated, METRIC.BORROW_INTEREST);
-    dailyRevenue.add(underlying, log.interestAccumulated * Number(reserveFactors[log.marketIndex]) / 1e18, METRIC.BORROW_INTEREST);
+    const marketIndex = marketIndexes[log.address.toLowerCase()];
+    if (reserveFactors[marketIndex] == null) throw new Error(`Missing historical reserve factor for ${log.address}`);
+    if (log.factorChange) {
+      if (BigInt(reserveFactors[marketIndex]) !== BigInt(log.args.newReserveFactorMantissa)) {
+        throw new Error(`Reserve factor history does not match period-end state for ${log.address}`);
+      }
+      reserveFactors[marketIndex] = log.args.oldReserveFactorMantissa;
+      return;
+    }
+    const underlying = underlyings[marketIndex];
+    const interest = BigInt(log.args.interestAccumulated);
+    // Venus uses a 1e18 reserve-factor scale: https://github.com/VenusProtocol/isolated-pools/blob/main/contracts/VToken.sol
+    const revenue = interest * BigInt(reserveFactors[marketIndex]) / 10n ** 18n;
+    dailyFees.add(underlying, interest, METRIC.BORROW_INTEREST);
+    dailyRevenue.add(underlying, revenue, METRIC.BORROW_INTEREST);
   });
 
   return { dailyFees, dailyRevenue };
@@ -136,7 +156,7 @@ const fetch = async (options: FetchOptions) => {
   
   dailySupplySideRevenue.addBalances(dailyFees);
   Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
-    dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addTokenVannila(token, -BigInt(balance), METRIC.BORROW_INTEREST);
   });
   
   const liquidation = await liquidationIncome(configs[options.chain].protocolShareReserves, options);
