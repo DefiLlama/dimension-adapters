@@ -48,6 +48,196 @@ const fetch = async (options: FetchOptions) => {
     ),
     polymarket_market_data as (
         select * from market_data
+    ),
+    v2_fills AS (
+        SELECT
+            evt_tx_hash,
+            contract_address,
+            evt_index,
+            orderHash,
+            taker,
+            side AS maker_side,
+            CASE
+                WHEN side = 0 THEN makerAmountFilled
+                WHEN side = 1 THEN takerAmountFilled
+            END AS cash_amount,
+            CASE
+                WHEN side = 0 THEN takerAmountFilled
+                WHEN side = 1 THEN makerAmountFilled
+            END AS token_amount
+        FROM polymarket_v2_polygon.ctfexchange_evt_orderfilled
+        WHERE evt_block_number > 85050371
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+    ),
+    v2_matches_raw AS (
+        SELECT
+            evt_tx_hash,
+            contract_address,
+            evt_index AS match_index,
+            takerOrderHash,
+            takerOrderMaker,
+            side AS taker_side
+        FROM polymarket_v2_polygon.ctfexchange_evt_ordersmatched
+        WHERE evt_block_number > 85050371
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+    ),
+    v2_matches AS (
+        SELECT
+            *,
+            lag(match_index, 1, CAST(-1 AS bigint)) OVER (
+                PARTITION BY evt_tx_hash, contract_address
+                ORDER BY match_index
+            ) AS previous_match_index
+        FROM v2_matches_raw
+    ),
+    v2_matched_fills AS (
+        SELECT
+            f.*,
+            m.takerOrderHash,
+            m.taker_side
+        FROM v2_fills f
+        JOIN v2_matches m
+            ON f.evt_tx_hash = m.evt_tx_hash
+            AND f.contract_address = m.contract_address
+            AND f.evt_index > m.previous_match_index
+            AND f.evt_index < m.match_index
+            AND (
+                f.orderHash = m.takerOrderHash
+                OR f.taker = m.takerOrderMaker
+            )
+    ),
+    v2_unmatched_fills AS (
+        SELECT f.*
+        FROM v2_fills f
+        LEFT JOIN v2_matched_fills m
+            ON f.evt_tx_hash = m.evt_tx_hash
+            AND f.contract_address = m.contract_address
+            AND f.evt_index = m.evt_index
+        WHERE m.evt_index IS NULL
+    ),
+    legacy_fills AS (
+        SELECT
+            'ctf' AS exchange_type,
+            evt_tx_hash,
+            contract_address,
+            evt_index,
+            orderHash,
+            taker,
+            CASE
+                WHEN makerAssetId = 0 THEN 0
+                WHEN takerAssetId = 0 THEN 1
+            END AS maker_side,
+            CASE
+                WHEN makerAssetId = 0 THEN makerAmountFilled
+                WHEN takerAssetId = 0 THEN takerAmountFilled
+            END AS cash_amount,
+            CASE
+                WHEN makerAssetId = 0 THEN takerAmountFilled
+                WHEN takerAssetId = 0 THEN makerAmountFilled
+            END AS token_amount
+        FROM polymarket_polygon.CTFExchange_evt_OrderFilled
+        WHERE evt_block_number > 33605403
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+
+        UNION ALL
+
+        SELECT
+            'negrisk' AS exchange_type,
+            evt_tx_hash,
+            contract_address,
+            evt_index,
+            orderHash,
+            taker,
+            CASE
+                WHEN makerAssetId = 0 THEN 0
+                WHEN takerAssetId = 0 THEN 1
+            END AS maker_side,
+            CASE
+                WHEN makerAssetId = 0 THEN makerAmountFilled
+                WHEN takerAssetId = 0 THEN takerAmountFilled
+            END AS cash_amount,
+            CASE
+                WHEN makerAssetId = 0 THEN takerAmountFilled
+                WHEN takerAssetId = 0 THEN makerAmountFilled
+            END AS token_amount
+        FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled
+        WHERE evt_block_number > 50505492
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+    ),
+    legacy_matches_raw AS (
+        SELECT
+            'ctf' AS exchange_type,
+            evt_tx_hash,
+            contract_address,
+            evt_index AS match_index,
+            takerOrderHash,
+            takerOrderMaker,
+            CASE
+                WHEN makerAssetId = 0 THEN 0
+                WHEN takerAssetId = 0 THEN 1
+            END AS taker_side
+        FROM polymarket_polygon.CTFExchange_evt_OrdersMatched
+        WHERE evt_block_number > 33605403
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+
+        UNION ALL
+
+        SELECT
+            'negrisk' AS exchange_type,
+            evt_tx_hash,
+            contract_address,
+            evt_index AS match_index,
+            takerOrderHash,
+            takerOrderMaker,
+            CASE
+                WHEN makerAssetId = 0 THEN 0
+                WHEN takerAssetId = 0 THEN 1
+            END AS taker_side
+        FROM polymarket_polygon.NegRiskCtfExchange_evt_OrdersMatched
+        WHERE evt_block_number > 50505492
+            AND evt_block_time >= from_unixtime(${options.startTimestamp})
+            AND evt_block_time < from_unixtime(${options.endTimestamp})
+    ),
+    legacy_matches AS (
+        SELECT
+            *,
+            lag(match_index, 1, CAST(-1 AS bigint)) OVER (
+                PARTITION BY exchange_type, evt_tx_hash, contract_address
+                ORDER BY match_index
+            ) AS previous_match_index
+        FROM legacy_matches_raw
+    ),
+    legacy_matched_fills AS (
+        SELECT
+            f.*,
+            m.takerOrderHash,
+            m.taker_side
+        FROM legacy_fills f
+        JOIN legacy_matches m
+            ON f.exchange_type = m.exchange_type
+            AND f.evt_tx_hash = m.evt_tx_hash
+            AND f.contract_address = m.contract_address
+            AND f.evt_index > m.previous_match_index
+            AND f.evt_index < m.match_index
+            AND (
+                f.orderHash = m.takerOrderHash
+                OR f.taker = m.takerOrderMaker
+            )
+    ),
+    legacy_unmatched_fills AS (
+        SELECT f.*
+        FROM legacy_fills f
+        LEFT JOIN legacy_matched_fills m
+            ON f.exchange_type = m.exchange_type
+            AND f.evt_tx_hash = m.evt_tx_hash
+            AND f.contract_address = m.contract_address
+            AND f.evt_index = m.evt_index
+        WHERE m.evt_index IS NULL
     )
     SELECT
         SUM(volume_usd) AS total_volume_usd,
@@ -56,74 +246,59 @@ const fetch = async (options: FetchOptions) => {
         SELECT
             SUM(
                 CASE
-                    WHEN side = 0 THEN makerAmountFilled
-                    WHEN side = 1 THEN takerAmountFilled
+                    WHEN maker_side = taker_side THEN token_amount
+                    ELSE cash_amount
                 END
             ) / 1e6 AS volume_usd,
+            SUM(token_amount) / 1e6 AS notional_volume
+        FROM v2_matched_fills
+        WHERE orderHash <> takerOrderHash
+
+        UNION ALL
+
+        SELECT
+            SUM(cash_amount) / 2e6 AS volume_usd,
+            SUM(token_amount) / 2e6 AS notional_volume
+        FROM v2_unmatched_fills
+
+        UNION ALL
+
+        SELECT
             SUM(
                 CASE
-                    WHEN side = 0 THEN takerAmountFilled
-                    WHEN side = 1 THEN makerAmountFilled
+                    WHEN maker_side = taker_side THEN token_amount
+                    ELSE cash_amount
                 END
-            ) / 1e6 AS notional_volume
-        FROM
-            polymarket_v2_polygon.ctfexchange_evt_orderfilled a --includes both ctf and negrisk
-        WHERE
-            a.evt_block_number > 85050371
-            AND evt_block_time >= from_unixtime(${options.startTimestamp})
-            AND evt_block_time < from_unixtime(${options.endTimestamp})
-
-        UNION ALL
-        
-        SELECT
-            SUM(CASE
-                    WHEN makerAssetId = 0 THEN makerAmountFilled
-                    WHEN takerAssetId = 0 THEN takerAmountFilled
-                END) / 1e6 as volume_usd,
-            SUM(CASE
-                    WHEN makerAssetId = 0 THEN takerAmountFilled
-                    WHEN takerAssetId = 0 THEN makerAmountFilled
-                END) / 1e6 as notional_volume
-        FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled b
-        where b.evt_block_number > 50505492
-            and evt_block_time >= from_unixtime(${options.startTimestamp})
-            and evt_block_time < from_unixtime(${options.endTimestamp})
+            ) / 1e6 AS volume_usd,
+            SUM(token_amount) / 1e6 AS notional_volume
+        FROM legacy_matched_fills
+        WHERE orderHash <> takerOrderHash
 
         UNION ALL
 
         SELECT
-            SUM(CASE
-                    WHEN makerAssetId = 0 THEN makerAmountFilled
-                    WHEN takerAssetId = 0 THEN takerAmountFilled
-                END) / 1e6 as volume_usd,
-            SUM(CASE
-                    WHEN makerAssetId = 0 THEN takerAmountFilled
-                    WHEN takerAssetId = 0 THEN makerAmountFilled
-                END) / 1e6 as notional_volume
-        FROM polymarket_polygon.CTFExchange_evt_OrderFilled a
-        where a.evt_block_number > 33605403
-            and evt_block_time >= from_unixtime(${options.startTimestamp})
-            and evt_block_time < from_unixtime(${options.endTimestamp})
+            SUM(cash_amount) / 2e6 AS volume_usd,
+            SUM(token_amount) / 2e6 AS notional_volume
+        FROM legacy_unmatched_fills
 
         UNION ALL
 
-        select
-            bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 as volume_usd,
-            bytearray_to_uint256(substr(pl.DATA, 65, 96)) / 1e6 as notional_volume
-        from
-            polygon.logs pl
-            left join polymarket_market_data md on pl.contract_address = md.market_maker_address
-        where
-            pl.topic0 in (
-                0x4f62630f51608fc8a7603a9391a5101e58bd7c276139366fc107dc3b67c3dcf8,
-                0xadcf2a240ed9300d681d9a3f5382b6c1beed1b7e46643e0c7b42cbe6e2d766b4
-            )
+        SELECT
+            bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 AS volume_usd,
+            bytearray_to_uint256(substr(pl.DATA, 65, 96)) / 1e6 AS notional_volume
+        FROM polygon.logs pl
+        LEFT JOIN polymarket_market_data md
+            ON pl.contract_address = md.market_maker_address
+        WHERE pl.topic0 IN (
+            0x4f62630f51608fc8a7603a9391a5101e58bd7c276139366fc107dc3b67c3dcf8,
+            0xadcf2a240ed9300d681d9a3f5382b6c1beed1b7e46643e0c7b42cbe6e2d766b4
+        )
             AND pl.block_number >= 4023680
-            AND pl.contract_address in (
+            AND pl.contract_address IN (
                 SELECT * FROM markets
             )
-            and pl.block_time >= from_unixtime(${options.startTimestamp})
-            and pl.block_time < from_unixtime(${options.endTimestamp})
+            AND pl.block_time >= from_unixtime(${options.startTimestamp})
+            AND pl.block_time < from_unixtime(${options.endTimestamp})
     ) as combined_volumes
   `);
 
@@ -132,10 +307,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
 
-  // Polymarket emits two OrderFilled events per trade (maker + taker), so summing them directly double-counts volume. Dividing by 2 converts this into true one-sided volume. This also normalizes swaps and merge/split fills, where maker and taker amounts can differ but still represent the same underlying trade, preventing inflated totals
-
-  dailyVolume.addUSDValue(data[0].total_volume_usd / 2);
-  dailyNotionalVolume.addUSDValue(data[0].total_notional_volume/2);
+  dailyVolume.addUSDValue(data[0].total_volume_usd);
+  dailyNotionalVolume.addUSDValue(data[0].total_notional_volume);
 
   return { dailyVolume, dailyNotionalVolume }
 }
