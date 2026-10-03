@@ -5,8 +5,11 @@ import { METRIC } from "../../helpers/metrics";
 const USDAT = "0x23238f20b894f29041f48D88eE91131C395Aaa71";
 const sUSDat = "0xD166337499E176bbC38a1FBd113Ab144e5bd2Df7";
 const STRC_ORACLE = "0x5f7eCD0D045c393da6cb6c933c671AC305A871BF";
+const STRC_MIRROR_MODULE = "0xa2Cf4B9410cEbcDCeb3cFf772aC0219F6D1105C9";
+const STRCON_MODULE = "0x3C0f0b502aa7C2ed85620f7f52B8eFb8049b1ECf";
 
 const BALANCE_DECIMALS = 6;
+const STRCON_DECIMALS = 18;
 
 const BPS = 10000;
 const PERFORMANCE_FEE_BPS = 1000;
@@ -35,6 +38,9 @@ const Event = {
 const ABI = {
     depositFeeBps: "uint256:depositFeeBps",
     getPrice: "function getPrice() view returns (uint256 price, uint8 priceDecimals)",
+    strconPrice: "function getPrice() view returns (uint256)",
+    primaryFeed: "address:primaryFeed",
+    latestAnswer: "int256:latestAnswer",
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -44,7 +50,7 @@ const fetch = async (options: FetchOptions) => {
 
     const [depositLogs, strcRewardLogs, usdatYieldLogs] = await Promise.all([
         options.getLogs({ target: sUSDat, eventAbi: Event.Deposit }),
-        options.getLogs({ target: sUSDat, eventAbi: Event.RewardsReceived }),
+        options.getLogs({ targets: [sUSDat, STRC_MIRROR_MODULE], eventAbi: Event.RewardsReceived }),
         options.getLogs({ target: USDAT, eventAbi: Event.YieldClaimed }),
     ]);
 
@@ -61,10 +67,11 @@ const fetch = async (options: FetchOptions) => {
         }
     }
 
-    const [strcBalanceBackingSUSDat, usdatBalanceBackingSUSDat, usdatTotalSupply] = await Promise.all([
+    const [strcBalanceV1, usdatBalanceBackingSUSDat, usdatTotalSupply] = await Promise.all([
         options.api.call({
             target: sUSDat,
             abi: 'uint256:strcBalance',
+            permitFailure: true,
         }),
         options.api.call({
             target: sUSDat,
@@ -75,6 +82,8 @@ const fetch = async (options: FetchOptions) => {
             abi: 'uint256:totalSupply',
         }),
     ])
+
+    const strcBalanceBackingSUSDat = strcBalanceV1 ?? await options.api.call({ target: STRC_MIRROR_MODULE, abi: 'uint256:balance' })
 
     const [strcDataBefore, strcDataAfter] = await Promise.all([
         options.fromApi.call({
@@ -95,6 +104,23 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
     dailySupplySideRevenue.addUSDValue(strcPriceDelta * strcBalance, METRICS.STRC_PRICE_FLUCTUATIONS);
+
+    if (strcBalanceV1 === null) {
+        const strconBalance = await options.api.call({ target: STRCON_MODULE, abi: 'uint256:balance' })
+        if (Number(strconBalance) > 0) {
+            const strconOracle = await options.api.call({ target: STRCON_MODULE, abi: 'address:oracle' })
+            const getStrconPrice = async (api: any) => {
+                const price = await api.call({ target: strconOracle, abi: ABI.strconPrice, permitFailure: true })
+                if (price !== null && price !== undefined) return Number(price) / 1e8
+                const feed = await api.call({ target: strconOracle, abi: ABI.primaryFeed })
+                return Number(await api.call({ target: feed, abi: ABI.latestAnswer })) / 1e8
+            }
+            const [strconPriceBefore, strconPriceAfter] = await Promise.all([getStrconPrice(options.fromApi), getStrconPrice(options.toApi)])
+            const strconValueDelta = (strconPriceAfter - strconPriceBefore) * Number(strconBalance) / (10 ** STRCON_DECIMALS)
+            dailyFees.addUSDValue(strconValueDelta, METRICS.STRC_PRICE_FLUCTUATIONS);
+            dailySupplySideRevenue.addUSDValue(strconValueDelta, METRICS.STRC_PRICE_FLUCTUATIONS);
+        }
+    }
 
     strcRewardLogs.forEach((log: any) => {
         // `amount` is the raw STRC reward (6 dec) passed to transferInRewards(strcAmount).
@@ -142,7 +168,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-        [METRICS.STRC_PRICE_FLUCTUATIONS]: "Effect of STRC price fluctuations on sUSDat",
+        [METRICS.STRC_PRICE_FLUCTUATIONS]: "Effect of STRC price fluctuations on sUSDat, on STRC held directly and, from the 2026-10-01 migration, on STRCon (Ondo tokenized STRC) held by the vault's STRCon module",
         [METRIC.DEPOSIT_WITHDRAW_FEES]: "Fees paid when users deposit USDat into sUSDat.",
         'Asset yields - STRC': "Yields from STRC dividends",
         'Asset yields - Tbill': "Yields from Tbill through M0 yield model",
