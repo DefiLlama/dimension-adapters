@@ -251,7 +251,7 @@ export const fetchArc = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true, // Hourly slices are summed into UTC daily totals; chart granularity is a dashboard setting.
+  pullHourly: true, // Hourly slices are summed into UTC daily totals; chart granularity is a dashboard setting.
   fetch: async (options) => {
     if (options.chain === CHAIN.ARC) return fetchArc(options);
     // Only export supported income/volume dimensions; LP funding is not holder income.
