@@ -18,6 +18,49 @@ const UNLOCK_CONTRACTS: { [chain: string]: string } = {
   [CHAIN.SCROLL]: "0x259813B665C8f6074391028ef782e27B65840d89",
 };
 
+const abis = {
+  GNPChanged: "event GNPChanged(uint256 grossNetworkProduct, uint256 _valueInETH, address tokenAddress, uint256 value, address lockAddress)",
+  Transfer: "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+  isLockManager: "function isLockManager(address) view returns (bool)",
+}
+
+// A lock manager buying a key on its own lock pays itself: 99% of the price goes straight back to
+// the lock and only the 1% protocol fee leaves. Done with a flash loan, it inflates the
+// grossNetworkProduct counter by any amount at a cost of 1% (it is how the purchase reward is farmed).
+// Returns the GNP added by purchases whose key was minted to a manager of the same lock.
+const getSelfPurchaseGNP = async (options: FetchOptions): Promise<bigint> => {
+  const gnpLogs = await options.getLogs({ target: UNLOCK_CONTRACTS[options.chain], eventAbi: abis.GNPChanged, entireLog: true, parseLog: true });
+  if (!gnpLogs.length) return 0n;
+
+  const locks = [...new Set<string>(gnpLogs.map((log: any) => log.args.lockAddress.toLowerCase()))];
+  const mintLogs = await options.getLogs({ targets: locks, eventAbi: abis.Transfer, entireLog: true, parseLog: true, flatten: false });
+
+  const recipientsByPurchase: Record<string, Set<string>> = {};
+  mintLogs.forEach((logs: any[], i: number) => {
+    for (const log of logs) {
+      if (BigInt(log.args.from) !== 0n) continue;
+      const key = `${log.transactionHash}-${locks[i]}`;
+      (recipientsByPurchase[key] ??= new Set()).add(log.args.to.toLowerCase());
+    }
+  });
+
+  const checks: { target: string; params: string[] }[] = [];
+  for (const key of Object.keys(recipientsByPurchase)) {
+    const lock = key.split("-")[1];
+    for (const recipient of recipientsByPurchase[key]) checks.push({ target: lock, params: [recipient] });
+  }
+  const isManager = checks.length ? await options.toApi.multiCall({ abi: abis.isLockManager, calls: checks, permitFailure: true }) : [];
+  const managers = new Set(checks.filter((_, i) => isManager[i] === true).map(c => `${c.target}-${c.params[0]}`));
+
+  let selfPurchaseGNP = 0n;
+  for (const log of gnpLogs) {
+    const lock = log.args.lockAddress.toLowerCase();
+    const recipients = recipientsByPurchase[`${log.transactionHash}-${lock}`];
+    if (recipients && [...recipients].some(r => managers.has(`${lock}-${r}`))) selfPurchaseGNP += BigInt(log.args._valueInETH);
+  }
+  return selfPurchaseGNP;
+}
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -27,13 +70,19 @@ const fetch = async (options: FetchOptions) => {
   const gnpEnd = await options.toApi.call({ target: UNLOCK_CONTRACTS[options.chain], abi: "uint256:grossNetworkProduct", permitFailure: true});
 
   if (gnpEnd && gnpStart) {
-    const dailyGNP = gnpEnd - gnpStart;
+    const selfPurchaseGNP = await getSelfPurchaseGNP(options);
+    const dailyGNP = Number(BigInt(gnpEnd) - BigInt(gnpStart) - selfPurchaseGNP);
   
     // Only add positive daily changes (handles resets/errors)
     if (dailyGNP > 0) {
       dailyFees.addGasToken(dailyGNP);
       dailyRevenue.addGasToken(dailyGNP * 0.01); // 1% to protocol
       dailySupplySideRevenue.addGasToken(dailyGNP * 0.99); // 99% to creators
+    }
+    // the 1% protocol fee on a self-purchase is really paid, so it stays as fees and revenue
+    if (selfPurchaseGNP > 0n) {
+      dailyFees.addGasToken(Number(selfPurchaseGNP) * 0.01);
+      dailyRevenue.addGasToken(Number(selfPurchaseGNP) * 0.01);
     }
   }
 
