@@ -271,15 +271,8 @@ The wrong vehicle is a blocker, decide this first:
 - `factory/registry.ts` is not edited, factories auto-expose their configs.
 - Fee ratios in factory entries come from the protocol's documented split only; omit the ratio fields rather than guess (volume still works without them).
 - New chain: add a `CHAIN` enum member in `helpers/chains.ts` (string value = the DefiLlama chain slug, match neighbours' casing/order); a dedicated RPC goes in `DEFAULTS` in `helpers/env.ts`. Add chain support together with the protocol that needs it; config no live adapter consumes is rejected.
-- Chain key for venues with an off-chain matching engine (dimensions only; TVL adapters stay on the custody chain):
-  - Find the bridge or custody contract first: it shows where user funds are held.
-  - Use `off_chain` when the chain hosts nothing but that deposit and withdrawal contract. Periodic summaries posted to back withdrawals (state roots, Merkle roots, equity snapshots) are part of it and do not change the key (Polymarket Perps, Kyan).
-  - Keep that chain's key when the venue's own contracts record per-position or per-fill data: positions or position deltas (Arcus), per-fill settlement, or validity proofs of the exchange state. A price feed on its own does not count.
-  - Use the venue's own chain key when user balances and positions live on its own public chain (explorer, RPC, DefiLlama chain key), even if funds enter through a bridge contract elsewhere: Hyperliquid stays `hyperliquid` although USDC was bridged through an Arbitrum contract before native USDC. A private appchain or validator committee is not a chain; key on the chain it settles to.
-  - Evidence is the doc sentence plus a contract address or sample transaction. Wording like "on-chain settlement" alone is not evidence.
-  - With several custody chains, key on the chain holding the settlement contract or state roots, else the one with the most TVL; do not split by deposit chain.
-  - A perp venue needs a findable bridge or custody contract to be listed; without one it is not listed.
-  - When an earlier version settled on-chain, keep that history on its chain with a per-chain `deadFrom` and start the new key on the switch date.
+- Off-chain matching engine venues: `off_chain` when the chain only hosts the deposit/withdrawal contract (state roots or snapshots backing withdrawals included); keep the chain key when the venue's contracts record positions, fills or validity proofs; use the venue's own chain key when balances and positions live on its public chain.
+- Back the choice with the doc sentence plus a contract address or sample tx; a perp venue with no findable bridge/custody contract is not listed.
 - Pool/yield additions belong in `DefiLlama/yield-server`; token emission schedules belong in `DefiLlama/emissions-adapters`, not here.
 
 ## Naming, identity and listings
