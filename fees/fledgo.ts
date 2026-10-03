@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import ADDRESSES from '../helpers/coreAssets.json';
 
 // Verified FledgoTaxHook deployments: https://fledgo.fun/docs/contracts
 // Fee rules: https://fledgo.fun/docs/trading-and-fees
@@ -9,22 +10,20 @@ const chainConfig: Record<string, { hook: string; block: number; start: string }
   [CHAIN.ROBINHOOD]: { hook: '0xFfe22F0ec484e8EE982db0625eBA3F5d4932A0CC', block: 60383041, start: '2026-09-30' },
   [CHAIN.ARC]: { hook: '0x1Dd014D0BC4c3dE0B96976423C7234F69f27E0Cc', block: 21701778, start: '2026-10-01' },
 };
-const ZERO = '0x0000000000000000000000000000000000000000';
+const ZERO = ADDRESSES.null;
 const ABI = {
   accrued: 'event FeesAccrued(bytes32 indexed poolId,address indexed trader,address indexed referrer,uint256 grossQuote,uint256 totalFee)',
   config: 'function poolConfigs(bytes32) view returns(address launchToken,address quote,uint16 creatorBps,uint16 referralBps,uint16 buybackBps,uint16 totalBps,bool launchTokenIs0,bool taxed,bool registered)',
 };
 
 async function fetch(options: FetchOptions) {
-  const { hook, block } = chainConfig[options.chain];
+  const { hook } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  // Exclude the preceding window's closing block, even for hourly pulls.
-  const fromBlock = Math.max(block, await options.getFromBlock() + 1);
-  const toBlock = await options.getToBlock();
-  const logs = fromBlock > toBlock ? [] : await options.getLogs({
-    target: hook, eventAbi: ABI.accrued, fromBlock, toBlock,
+
+  const logs = await options.getLogs({
+    target: hook, eventAbi: ABI.accrued,
   });
   const ids = [...new Set(logs.map(log => log.poolId))];
   const configs = ids.length ? await options.api.multiCall({
@@ -58,7 +57,7 @@ async function fetch(options: FetchOptions) {
     add(dailySupplySideRevenue, referral, 'Trading fees to referrers');
     add(dailySupplySideRevenue, buyback, 'Trading fees to launched-token buybacks');
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
 const treasuryMethodology = {
