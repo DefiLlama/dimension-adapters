@@ -1,8 +1,10 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
-import { METRIC } from "../helpers/metrics";
 import { getSolanaReceived } from "../helpers/token";
+
+const INTEGRATOR_FEES = 'Integrator Fees';
+const REFERRAL_FEES = 'Referral Fees To Jupiter';
 
 // NABLA (https://www.nabladefi.com) routes its swaps through Jupiter and charges a 0.50% integrator fee, taken in SOL, USDC or
 // USDT and paid into its Jupiter referral fee accounts. NABLA claims 80% of the accrued fees into its Squads treasury; Jupiter
@@ -24,10 +26,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   // Moves between NABLA's own accounts would otherwise read as a second receipt of the same fee.
   const received = await getSolanaReceived({ options, targets: TARGETS, mints: FEE_MINTS, blacklists: TARGETS });
-  dailyFees.addBalances(received, METRIC.SWAP_FEES);
+  dailyFees.addBalances(received, INTEGRATOR_FEES);
   // Jupiter's referral program keeps 20%; NABLA claims the other 80% into its treasury.
-  const dailyRevenue = dailyFees.clone(0.8, METRIC.SWAP_FEES);
-  const dailySupplySideRevenue = dailyFees.clone(0.2, 'Token Swap Fees To Jupiter');
+  const dailyRevenue = dailyFees.clone(0.8, INTEGRATOR_FEES);
+  const dailySupplySideRevenue = dailyFees.clone(0.2, REFERRAL_FEES);
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
@@ -48,19 +50,19 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.SWAP_FEES]: "0.50% fee on swaps routed through Jupiter, paid into NABLA's Jupiter referral fee accounts.",
+      [INTEGRATOR_FEES]: "0.50% integrator fee on swaps routed through Jupiter, paid into NABLA's Jupiter referral fee accounts.",
     },
     UserFees: {
-      [METRIC.SWAP_FEES]: "0.50% fee paid by traders on each swap made through NABLA.",
+      [INTEGRATOR_FEES]: "0.50% integrator fee paid by traders on each swap made through NABLA.",
     },
     Revenue: {
-      [METRIC.SWAP_FEES]: "NABLA's 80% share of the swap fees.",
+      [INTEGRATOR_FEES]: "NABLA's 80% share of the integrator fees.",
     },
     ProtocolRevenue: {
-      [METRIC.SWAP_FEES]: "NABLA's 80% share of the swap fees, claimed into its treasury.",
+      [INTEGRATOR_FEES]: "NABLA's 80% share of the integrator fees, claimed into its treasury.",
     },
     SupplySideRevenue: {
-      'Token Swap Fees To Jupiter': "Jupiter's 20% share of the swap fees, kept by its referral program.",
+      [REFERRAL_FEES]: "Jupiter's 20% share of the fees, kept by its referral program.",
     },
   },
 };
