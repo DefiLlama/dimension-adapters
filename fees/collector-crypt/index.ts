@@ -19,23 +19,15 @@ const GACHA_FIAT_ADDRESS = '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s';
 
 const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
 
-// CARDS value accrual to holders comes from two flows, both ending in the burn wallet:
-//
-// 1. Open-market buyback bot (team-named wallet). It is funded with USDC straight from the gacha
-//    sink, market-buys CARDS on the CARDS/USDC pool (since 2026-04-19) and forwards everything
-//    bought to the burn wallet. CARDS received by the bot = revenue-funded buyback, counted once
-//    at purchase; the later transfer to the burn wallet and the burn itself are not counted again.
-// 2. LP-fee harvests. The treasury (Squads multisig) is the LP of the CARDS/USDC pool, claims the
-//    CARDS side of its LP fees and sends them to the burn wallet. Counted when the treasury
-//    transfers CARDS to the burn wallet (first tranche 2026-08-28), not at claim time, because
-//    claims mix fee collection with liquidity withdrawals and only the burned part is value to holders.
-//
-// Other burn-wallet inflows (an earlier bot funded by a market-making wallet, vesting tranches
-// returned by advisors) are not revenue-funded and are ignored.
-const BUYBACK_BOT = '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq'; // open-market CARDS buyback bot
-const TREASURY = '3PnVBrb4wPLFLW38oaYR7dA6HSfKpawxHGESPj5kF1QB'; // CC treasury (Squads), LP of the CARDS/USDC pool
-const BURN_WALLET = 'BLuefR7NzdAu9dTUp43dzAnDW9EcCXwM4w2i3sT132z4'; // CARDS burn wallet (burns 2026-08-29, 2026-10-01, ...)
-// 'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu' was once tracked as a buyback hub (seen since 2026-06-11); never confirmed, kept only as a team exclusion below
+// Holders revenue, two flows that both end in the CARDS burn wallet:
+// - buyback bot: funded with USDC from the gacha sink, buys CARDS on the CARDS/USDC pool and
+//   forwards them to the burn wallet. Counted at purchase (CARDS received by the bot).
+// - LP fees: the treasury earns CARDS LP fees on the CARDS/USDC pool and sends them to the burn
+//   wallet. Counted at the transfer to the burn wallet (claims also include liquidity withdrawals).
+// Other burn-wallet inflows (advisor/investor token returns) are not revenue funded and are ignored.
+const BUYBACK_BOT = '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq'; // active since 2026-04-19
+const TREASURY = '3PnVBrb4wPLFLW38oaYR7dA6HSfKpawxHGESPj5kF1QB'; // Squads multisig
+const BURN_WALLET = 'BLuefR7NzdAu9dTUp43dzAnDW9EcCXwM4w2i3sT132z4'; // first burn 2026-08-29
 
 const TEAM_ADDRESSES = [
   'BAxTk97HsaJqbnbFmTiQTaL4KSRvJ8Y65ArZCsP6vA5M',
@@ -62,8 +54,8 @@ const TEAM_ADDRESSES = [
   'GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3',
   'GachazZscHZ5bn3vnq1yEC4zpYdhAYJBzuKJwSJksc9z',
   '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s',
-  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // unofficial CC bot wallet; kept as an exclusion (it sends USDC into the gacha sink) even though its buyback role is no longer tracked
-  '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq', // CARDS buyback bot: its USDC funding from the gacha sink is a token buyback, not a pack buyback spend (was wrongly netted out of fees before 2026-10-03)
+  'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // CC bot wallet, sends USDC into the gacha sink
+  '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq', // buyback bot: its USDC funding from the gacha sink is not a pack buyback spend
 ]
 
 const timeRange = (options: FetchOptions) =>
@@ -166,9 +158,7 @@ const fetch = async (options: FetchOptions) => {
     lpFeesBurned = Number(result.lp_fees_burned || 0);
   }
 
-  // CARDS bought back on the open market and CARDS LP fees sent to the burn wallet -> holders
-  // revenue. Both are value redirected to holders, so they are subtracted from protocol revenue
-  // (total fees/revenue are unchanged). Priced by the framework via the CARDS mint.
+  // Holders revenue is carved out of protocol revenue; fees and revenue are unchanged.
   const dailyProtocolRevenue = dailyFees.clone();
   if (cardsBought > 0) {
     dailyHoldersRevenue.add(CARDS_MINT, cardsBought, 'Token Buyback');
@@ -194,8 +184,8 @@ const methodology = {
   Fees: "Total fees from gacha card pack sales (on-chain and fiat/credit-card) and marketplace transactions, net of gacha pack buybacks.",
   Revenue: "Revenue from gacha sales (on-chain and fiat/credit-card) + marketplace fees/royalties, net of gacha pack buybacks.",
   UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-  HoldersRevenue: "USD value of CARDS removed from supply for holders: CARDS bought on the open market by the gacha-revenue-funded buyback bot (since April 2026, counted at purchase) and CARDS LP fees earned by the treasury on the CARDS/USDC pool that are sent to the burn wallet (since August 2026, counted when burned). Excludes advisor and investor token returns that are also burned.",
-  ProtocolRevenue: "Revenue retained by the protocol after gacha pack buybacks, minus the value of CARDS bought back or burned for holders."
+  HoldersRevenue: "CARDS bought back with gacha revenue (since April 2026) and CARDS LP fees sent to the burn wallet (since August 2026). Excludes advisor and investor token returns.",
+  ProtocolRevenue: "Revenue minus the CARDS bought back or burned for holders."
 }
 
 const gachaBreakdown = {
@@ -210,12 +200,12 @@ const breakdownMethodology = {
   Revenue: gachaBreakdown,
   ProtocolRevenue: {
     ...gachaBreakdown,
-    "Token Buyback": "CARDS bought back on the open market by the gacha-revenue-funded bot, subtracted from protocol revenue and credited to holders.",
-    "LP Fees Burned": "CARDS LP fees earned by the treasury on the CARDS/USDC pool and sent to the burn wallet, subtracted from protocol revenue and credited to holders.",
+    "Token Buyback": "CARDS bought back with gacha revenue, moved from protocol revenue to holders.",
+    "LP Fees Burned": "CARDS LP fees sent to the burn wallet, moved from protocol revenue to holders.",
   },
   HoldersRevenue: {
-    "Token Buyback": "USD value of CARDS bought back on the open market by the gacha-revenue-funded bot, counted at purchase.",
-    "LP Fees Burned": "USD value of CARDS LP fees earned by the treasury on the CARDS/USDC pool, counted when sent to the burn wallet.",
+    "Token Buyback": "CARDS bought back with gacha revenue, counted at purchase.",
+    "LP Fees Burned": "CARDS LP fees earned on the CARDS/USDC pool, counted when sent to the burn wallet.",
   },
 }
 
