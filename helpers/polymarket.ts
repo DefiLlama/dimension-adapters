@@ -170,6 +170,10 @@ const getFillMaker = (log: any) => {
   return value;
 };
 
+/**
+ * Computes one-sided volume and token notional from Polymarket-style OrderFilled logs.
+ * Matched batches use full maker contributions while unassigned fills preserve legacy half-weight accounting.
+ */
 export async function getPolymarketVolume(props: GetPolymarketVolumeProps): Promise<FetchResult> {
   const { options, exchanges, currency } = props;
 

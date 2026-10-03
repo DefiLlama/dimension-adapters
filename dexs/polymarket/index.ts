@@ -14,41 +14,7 @@ const fetch = async (options: FetchOptions) => {
         WHERE
             collateralToken = 0x2791bca1f2de4661ed88a30c99a7a9449aa84174
     ),
-    unnested_data AS (
-        SELECT 
-            TRY_CAST(json_each.value AS JSON) AS market
-        FROM 
-            dune.fergmolina.result_polymarket_gamma_api,  
-            UNNEST(TRY_CAST(json_parse(json_data) AS array(json))) AS json_each(value)
-    ),
-    market_data as (
-        SELECT distinct
-            JSON_EXTRACT_SCALAR(market, '$.question') AS question,
-            JSON_EXTRACT_SCALAR(market, '$.conditionId') AS condition_id,
-            JSON_EXTRACT_SCALAR(market, '$.slug') AS slug,
-            JSON_EXTRACT_SCALAR(market, '$.icon') AS icon,
-            JSON_EXTRACT_SCALAR(market, '$.description') AS description,
-            CASE WHEN from_hex(JSON_EXTRACT_SCALAR(market, '$.marketMakerAddress')) <> 0x THEN from_hex(JSON_EXTRACT_SCALAR(market, '$.marketMakerAddress')) END AS market_maker_address,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.new') AS BOOLEAN) AS new,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.archived') AS BOOLEAN) AS archived,
-            JSON_EXTRACT_SCALAR(market, '$.questionID') AS question_id,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.restricted') as varchar) AS restricted,
-            CAST(JSON_EXTRACT_SCALAR(event.value, '$.negRisk') as boolean) AS neg_risk,
-            ltrim(outcome.value) AS outcome,
-            ltrim(clobTokenId.value) AS clob_token_id,
-            JSON_EXTRACT_SCALAR(event.value, '$.title') AS event_title,
-            JSON_EXTRACT_SCALAR(event.value, '$.slug') AS event_slug
-        FROM 
-            unnested_data
-            , UNNEST(split(REPLACE(REPLACE(REPLACE(TRY_CAST(JSON_EXTRACT(market, '$.outcomes') AS varchar),'"',''),']',''),'[',''),',')) WITH ORDINALITY AS outcome(value, outcome_ordinality)
-            , UNNEST(split(REPLACE(REPLACE(REPLACE(TRY_CAST(JSON_EXTRACT(market, '$.clobTokenIds') AS varchar),'"',''),']',''),'[',''),',')) WITH ORDINALITY AS clobTokenId(value, clobToken_ordinality)
-            , UNNEST(TRY_CAST(JSON_EXTRACT(market, '$.events') AS ARRAY(JSON))) AS event(value)
-
-        WHERE outcome_ordinality = clobToken_ordinality
-    ),
-    polymarket_market_data as (
-        select * from market_data
-    ),
+    -- V2 fill and match scans keep the existing adapter deployment boundary at block 85050371.
     v2_fills AS (
         SELECT
             evt_tx_hash,
@@ -117,6 +83,7 @@ const fetch = async (options: FetchOptions) => {
             AND f.evt_index = m.evt_index
         WHERE m.evt_index IS NULL
     ),
+    -- Legacy CTF and NegRisk scans keep the existing adapter boundaries at blocks 33605403 and 50505492.
     legacy_fills AS (
         SELECT
             'ctf' AS exchange_type,
@@ -256,6 +223,7 @@ const fetch = async (options: FetchOptions) => {
 
         UNION ALL
 
+        -- Unmatched fills preserve the legacy fallback: 1e6 token scaling with half-weight accounting.
         SELECT
             SUM(cash_amount) / 2e6 AS volume_usd,
             SUM(token_amount) / 2e6 AS notional_volume
@@ -276,6 +244,7 @@ const fetch = async (options: FetchOptions) => {
 
         UNION ALL
 
+        -- Apply the same legacy fallback to unmatched fills from the legacy exchanges.
         SELECT
             SUM(cash_amount) / 2e6 AS volume_usd,
             SUM(token_amount) / 2e6 AS notional_volume
@@ -286,9 +255,8 @@ const fetch = async (options: FetchOptions) => {
         SELECT
             bytearray_to_uint256(substr(pl.DATA, 1, 32)) / 1e6 AS volume_usd,
             bytearray_to_uint256(substr(pl.DATA, 65, 96)) / 1e6 AS notional_volume
+        -- Factory membership already identifies valid FPMMs; joining market metadata would multiply logs by outcome rows.
         FROM polygon.logs pl
-        LEFT JOIN polymarket_market_data md
-            ON pl.contract_address = md.market_maker_address
         WHERE pl.topic0 IN (
             0x4f62630f51608fc8a7603a9391a5101e58bd7c276139366fc107dc3b67c3dcf8,
             0xadcf2a240ed9300d681d9a3f5382b6c1beed1b7e46643e0c7b42cbe6e2d766b4
