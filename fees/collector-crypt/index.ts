@@ -23,9 +23,9 @@ const CARDS_MINT = 'CARDSccUMFKoPRZxt5vt3ksUbxEFEcnZ3H2pd3dKxYjp';
 // - buyback bot: funded with USDC from the gacha sink, buys CARDS on the Raydium CARDS/USDC pool
 //   and later burns them. Holders revenue, counted at purchase (CARDS received from the pool).
 // - LP fees: the treasury is an LP of the same pool and claims fees in both tokens. The USDC side
-//   stays with the protocol (fees, revenue, protocol revenue); the CARDS side has been burned so far
-//   and is counted as holders revenue at claim time. Only fee-only claims are counted (Raydium
-//   decrease_liquidity with liquidity = 0), so liquidity withdrawals are excluded.
+//   goes to fees, revenue and protocol revenue; the CARDS side (burned by the team) goes to fees,
+//   revenue and holders revenue. Only fee-only claims are counted (Raydium decrease_liquidity
+//   with liquidity = 0), so liquidity withdrawals are excluded.
 const BUYBACK_BOT = '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq'; // active since 2026-04-19
 const TREASURY = '3PnVBrb4wPLFLW38oaYR7dA6HSfKpawxHGESPj5kF1QB'; // Squads multisig
 const CARDS_USDC_POOL = 'HnhpJPJgBG2KwniMTNW8cVBHvk1hFog3RC3kjnyc23tD'; // Raydium CLMM pool state (owner of the vaults)
@@ -71,7 +71,6 @@ const decreaseLiquidityDiscriminators = DECREASE_LIQUIDITY_DISCRIMINATORS.map(d 
 const gachaOnchainAddresses = GACHA_ONCHAIN_ADDRESSES.map(addr => `'${addr}'`).join(', ');
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
@@ -166,45 +165,47 @@ const fetch = async (options: FetchOptions) => {
 
   const data = await queryAllium(query);
 
-  let cardsBought = 0;
-  let lpFeesCards = 0;
-  if (data && data.length > 0) {
-    const result = data[0];
-    const onchainSpend = Number(result.gacha_spend_onchain || 0);
-    if (onchainSpend) {
-      dailyVolume.addUSDValue(onchainSpend);
-      dailyFees.addUSDValue(onchainSpend, 'Gacha Pack Sales');
-    }
-    const fiatSpend = Number(result.gacha_spend_fiat || 0);
-    if (fiatSpend) {
-      dailyVolume.addUSDValue(fiatSpend);
-      dailyFees.addUSDValue(fiatSpend, 'Gacha Fiat Pack Sales');
-    }
-    dailyFees.addUSDValue(result.fees_royalty, 'Royalty Fees');
-    dailyFees.addUSDValue(-result.buyback, 'Pack Buyback Spends');
-    cardsBought = Number(result.cards_buyback || 0);
-    lpFeesCards = Number(result.lp_fees_cards || 0);
-    dailyFees.addUSDValue(result.lp_fees_usdc, 'LP Fees');
-    dailyFees.add(CARDS_MINT, lpFeesCards, 'LP Fees');
-  }
+  if (!data || data.length === 0) throw new Error('collector-crypt: empty Allium result');
+  const result = data[0];
 
-  // Protocol revenue keeps the USDC side of the LP fees. The CARDS side of the LP fees and the
-  // gacha-funded buyback go to holders instead.
-  const dailyProtocolRevenue = dailyFees.clone();
+  // User fees: the gacha business (what users pay, net of pack buybacks).
+  const dailyUserFees = options.createBalances();
+  const onchainSpend = Number(result.gacha_spend_onchain || 0);
+  if (onchainSpend) {
+    dailyVolume.addUSDValue(onchainSpend);
+    dailyUserFees.addUSDValue(onchainSpend, 'Gacha Pack Sales');
+  }
+  const fiatSpend = Number(result.gacha_spend_fiat || 0);
+  if (fiatSpend) {
+    dailyVolume.addUSDValue(fiatSpend);
+    dailyUserFees.addUSDValue(fiatSpend, 'Gacha Fiat Pack Sales');
+  }
+  dailyUserFees.addUSDValue(result.fees_royalty, 'Royalty Fees');
+  dailyUserFees.addUSDValue(-result.buyback, 'Pack Buyback Spends');
+
+  const cardsBought = Number(result.cards_buyback || 0);
+  const lpFeesCards = Number(result.lp_fees_cards || 0);
+
+  // Fees = user fees + both sides of the claimed LP fees.
+  const dailyFees = dailyUserFees.clone();
+  dailyFees.addUSDValue(result.lp_fees_usdc, 'LP Fees');
+  dailyFees.add(CARDS_MINT, lpFeesCards, 'LP Fees');
+
+  // Protocol revenue = user fees + USDC side of the LP fees, minus the gacha revenue spent on the
+  // buyback. The CARDS side of the LP fees goes straight to holders and never enters protocol revenue.
+  const dailyProtocolRevenue = dailyUserFees.clone();
+  dailyProtocolRevenue.addUSDValue(result.lp_fees_usdc, 'LP Fees');
   if (cardsBought > 0) {
     dailyHoldersRevenue.add(CARDS_MINT, cardsBought, 'Token Buyback');
     dailyProtocolRevenue.add(CARDS_MINT, -cardsBought, 'Token Buyback');
   }
-  if (lpFeesCards > 0) {
-    dailyHoldersRevenue.add(CARDS_MINT, lpFeesCards, 'LP Fees');
-    dailyProtocolRevenue.add(CARDS_MINT, -lpFeesCards, 'LP Fees');
-  }
+  if (lpFeesCards > 0) dailyHoldersRevenue.add(CARDS_MINT, lpFeesCards, 'LP Fees');
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyHoldersRevenue,
     dailyProtocolRevenue,
   }
@@ -214,9 +215,9 @@ const methodology = {
   Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain or through the CC fiat/credit-card rail.",
   Fees: "Gacha card pack sales (on-chain and fiat/credit-card) and marketplace royalties, net of gacha pack buybacks, plus the LP fees the treasury claims from the CARDS/USDC pool.",
   Revenue: "Same as Fees: gacha sales and royalties net of pack buybacks, plus claimed LP fees.",
-  UserFees: "Total fees paid by users for gacha and marketplace transactions.",
-  HoldersRevenue: "CARDS bought back with gacha revenue (since April 2026) and the CARDS side of the treasury's claimed LP fees, which is burned.",
-  ProtocolRevenue: "Revenue minus the CARDS that go to holders: gacha revenue spent on buybacks and the CARDS side of LP fees. The USDC side of LP fees stays with the protocol."
+  UserFees: "Gacha pack sales and marketplace royalties paid by users, net of gacha pack buybacks (LP fees excluded).",
+  HoldersRevenue: "CARDS bought back with gacha revenue (since April 2026) and the CARDS side of the treasury's claimed LP fees, which the team burns.",
+  ProtocolRevenue: "User fees plus the USDC side of the claimed LP fees, minus the gacha revenue spent on CARDS buybacks. The CARDS side of LP fees goes to holders, not to the protocol."
 }
 
 const gachaBreakdown = {
@@ -227,12 +228,15 @@ const gachaBreakdown = {
   "LP Fees": "USDC and CARDS LP fees claimed by the treasury from the CARDS/USDC pool (fee-only claims, liquidity withdrawals excluded).",
 }
 
+const { "LP Fees": _lpFees, ...userFeesBreakdown } = gachaBreakdown;
+
 const breakdownMethodology = {
   Fees: gachaBreakdown,
   Revenue: gachaBreakdown,
+  UserFees: userFeesBreakdown,
   ProtocolRevenue: {
     ...gachaBreakdown,
-    "LP Fees": "USDC side of the claimed LP fees; the CARDS side is moved to holders.",
+    "LP Fees": "USDC side of the claimed LP fees.",
     "Token Buyback": "CARDS bought back with gacha revenue, moved from protocol revenue to holders.",
   },
   HoldersRevenue: {
