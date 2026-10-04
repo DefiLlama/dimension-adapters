@@ -59,8 +59,8 @@ const CLANKER_FEES = "Clanker Pool LP Fees";
 const INTEGRATION_FEES = "Integration Fees";
 const STAKING_REWARDS = "BNKR Staking Rewards From Bankr Fees";
 const STAKING_DONATIONS = "BNKR Staking Rewards From Others";
-// protocol revenue line, negative: fee proceeds Bankr moved to stakers
-const FEES_TO_STAKERS = "Bankr Fees Sent To BNKR Stakers";
+// protocol revenue: Bankr's fees net of the part it funds BNKR staking with
+const NET_BANKR_FEES = "Bankr Fees Net Of BNKR Staking Rewards";
 
 const toBankr = (label: string) => `${label} To Bankr`;
 
@@ -198,8 +198,9 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  const dailyProtocolRevenue = dailyRevenue.clone();
-  dailyProtocolRevenue.subtract(feesToHolders, FEES_TO_STAKERS);
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(dailyRevenue, NET_BANKR_FEES);
+  dailyProtocolRevenue.subtract(feesToHolders, NET_BANKR_FEES);
 
   return {
     dailyVolume,
@@ -224,7 +225,7 @@ const adapter: SimpleAdapter = {
     Volume: 'Trade volume routed through Bankr, taken per chain from the dashboard\'s dailyVolumeByChain series.',
     Fees: 'Creator fees plus Bankr\'s own fees from token launches and integrations. Bankr\'s fees are the tokens its fee contracts pay to Bankr\'s three fee addresses on each chain, priced with DefiLlama prices; fees paid in Bankr-launched tokens are left out. Creator fees come from Bankr\'s dashboard, per chain.',
     Revenue: 'Bankr\'s fees from token launches and integrations, read on-chain per chain since 2026-07-03. Before that, the dashboard\'s combined figure is reported on Base.',
-    ProtocolRevenue: 'Bankr\'s fees from token launches and integrations, minus the BNKR Bankr sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream).',
+    ProtocolRevenue: 'Bankr\'s fees from token launches and integrations, minus the BNKR it sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream).',
     SupplySideRevenue: 'Fees paid out to token creators, split per chain, from Bankr\'s dashboard.',
     HoldersRevenue: 'BNKR paid into the BNKR staking reward stream (BnkrStakingV3) since 2026-09-26, on the day it is paid in: from Bankr\'s fee addresses (out of fees counted in Revenue) or from anyone else.',
   },
@@ -248,12 +249,7 @@ const adapter: SimpleAdapter = {
       [toBankr(INTEGRATION_FEES)]: 'Integration fees received by Bankr',
     },
     ProtocolRevenue: {
-      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03)',
-      [toBankr(HOOK_FEES)]: 'Hook fee on launched-token swaps received by Bankr',
-      [toBankr(LP_FEES)]: 'Bankr\'s share of multicurve launch pool LP fees',
-      [toBankr(CLANKER_FEES)]: 'Bankr\'s share of Clanker v4 LP fees',
-      [toBankr(INTEGRATION_FEES)]: 'Integration fees received by Bankr',
-      [FEES_TO_STAKERS]: 'BNKR Bankr sends from its fee addresses into the BNKR staking stream, subtracted here because it was bought with fees already counted above (negative on funding days)',
+      [NET_BANKR_FEES]: 'Bankr\'s launch and integration fees (from the dashboard, combined across chains on Base, before 2026-07-03; received on-chain per chain since), minus the BNKR Bankr sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream)',
     },
     SupplySideRevenue: {
       [CREATOR_FEES]: 'Fees paid out to token creators on this chain',
