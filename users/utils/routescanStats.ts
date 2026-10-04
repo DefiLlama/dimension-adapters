@@ -20,7 +20,7 @@ const routescanStatsChains: Record<string, ChainConfig> = {
   dexalot: { chain: CHAIN.DEXALOT, chainId: 432204, start: "2022-12-04" },
   step: { chain: CHAIN.STEP, chainId: 1234, start: "2022-08-12" },
   numbers: { chain: CHAIN.NUMBERS, chainId: 10507, start: "2022-10-12" },
-  metis: { chain: CHAIN.METIS, chainId: 1088, start: "2021-11-18" },
+  //metis: { chain: CHAIN.METIS, chainId: 1088, start: "2021-11-18" }, moved to Allium in users/chains.ts, Routescan aggregations unreliable
   chz: { chain: CHAIN.CHILIZ, chainId: 88888, start: "2023-02-08" },
   blast: { chain: CHAIN.BLAST, chainId: 81457, start: "2024-02-24" },
   mantle: { chain: CHAIN.MANTLE, chainId: 5000, start: "2023-07-02" },

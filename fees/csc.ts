@@ -41,6 +41,7 @@ const adapter: SimpleAdapter = {
     start: '2021-06-25',
     methodology,
     protocolType: ProtocolType.CHAIN,
+    deadFrom: '2026-09-29'
 }
 
 export default adapter;

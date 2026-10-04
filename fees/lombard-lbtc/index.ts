@@ -100,6 +100,7 @@ const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
+  allowNegativeValue: true,
   adapter: chainConfig,
   methodology: {
     Fees:
