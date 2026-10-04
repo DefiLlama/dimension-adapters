@@ -25,7 +25,7 @@ const routescanStatsChains: Record<string, ChainConfig> = {
   blast: { chain: CHAIN.BLAST, chainId: 81457, start: "2024-02-24" },
   mantle: { chain: CHAIN.MANTLE, chainId: 5000, start: "2023-07-02" },
   nibiru: { chain: CHAIN.NIBIRU, chainId: 6900, start: "2025-02-11" },
-  plasma: { chain: CHAIN.PLASMA, chainId: 9745, start: "2025-09-03" },
+  // plasma: { chain: CHAIN.PLASMA, chainId: 9745, start: "2025-09-03" }, // moved to Allium in users/chains.ts, Routescan aggregations unreliable
   btnx: { chain: CHAIN.BOTANIX, chainId: 3637, start: "2025-05-22" },
   beam: { chain: CHAIN.BEAM, chainId: 4337, start: "2023-08-14" },
 };
