@@ -71,18 +71,14 @@ const fetch = async (options: FetchOptions) => {
 
   if (gnpEnd && gnpStart) {
     const selfPurchaseGNP = await getSelfPurchaseGNP(options);
-    const dailyGNP = Number(BigInt(gnpEnd) - BigInt(gnpStart) - selfPurchaseGNP);
-  
+    const dailyGNP = BigInt(gnpEnd) - BigInt(gnpStart) - selfPurchaseGNP;
+    const protocolFee = dailyGNP / 100n; // 1% to protocol
+
     // Only add positive daily changes (handles resets/errors)
-    if (dailyGNP > 0) {
-      dailyFees.addGasToken(dailyGNP);
-      dailyRevenue.addGasToken(dailyGNP * 0.01); // 1% to protocol
-      dailySupplySideRevenue.addGasToken(dailyGNP * 0.99); // 99% to creators
-    }
-    // the 1% protocol fee on a self-purchase is really paid, so it stays as fees and revenue
-    if (selfPurchaseGNP > 0n) {
-      dailyFees.addGasToken(Number(selfPurchaseGNP) * 0.01);
-      dailyRevenue.addGasToken(Number(selfPurchaseGNP) * 0.01);
+    if (dailyGNP > 0n) {
+      dailyFees.addGasToken(dailyGNP.toString());
+      dailyRevenue.addGasToken(protocolFee.toString());
+      dailySupplySideRevenue.addGasToken((dailyGNP - protocolFee).toString()); // 99% to creators
     }
   }
 
