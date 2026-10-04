@@ -24,6 +24,7 @@ export interface AaveLendingPoolConfig {
 
 export interface AaveAdapterExportConfig {
   start?: string;
+  deadFrom?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -363,6 +364,7 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         }
       }),
       start: config.start,
+      ...(config.deadFrom ? { deadFrom: config.deadFrom } : {}),
     }
   })
   return exportObject
@@ -1249,6 +1251,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
     config: {
       [CHAIN.ETHERLINK]: {
         start: '2024-10-04',
+        deadFrom: '2026-08-27',
         pools: [
           {
             version: 3,

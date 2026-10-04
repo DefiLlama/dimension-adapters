@@ -24,7 +24,7 @@ const protocolChainMap: Record<string, string> = {
   "harmony": CHAIN.HARMONY,
   "hashkey": CHAIN.HASHKEY,
   "hemi": CHAIN.HEMI,
-  "imx": CHAIN.IMX,
+  // "imx": CHAIN.IMX, moved to fees/imx.ts to report revenue
   "iota_evm": CHAIN.IOTAEVM,
   "karak": CHAIN.KARAK,
   "kardia": CHAIN.KARDIA,
@@ -112,10 +112,9 @@ const protocolChainMap: Record<string, string> = {
   "exsat": CHAIN.EXSAT,
   "kroma": CHAIN.KROMA,
   "eni": CHAIN.ENI,
-  "megaeth": CHAIN.MEGAETH,
   "coti": CHAIN.COTI,
   "mezo": CHAIN.MEZO,
-  "world-mobile": CHAIN.WORLD_MOBILE,
+  // "world-mobile": CHAIN.WORLD_MOBILE, moved to fees/world-mobile.ts to report revenue
   "rise": CHAIN.RISE,
   "citrea": CHAIN.CITREA,
   "moca": CHAIN.MOCA,

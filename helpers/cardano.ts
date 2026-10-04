@@ -11,6 +11,15 @@ export async function blockfrost(path: string) {
     return cardano.blockfrost({ path });
 }
 
+export async function getAddressTransactionsBetween(address: string, start: number, end: number) {
+    const [fromBlock, toBlock] = await Promise.all([
+        cardano.getBlockAtTimestamp({ timestamp: start }),
+        cardano.getBlockAtTimestamp({ timestamp: end }),
+    ]);
+    const txs = await cardano.getAddressTransactions({ address, from: fromBlock.number, to: toBlock.number });
+    return txs.filter(tx => tx.block_time >= start && tx.block_time < end);
+}
+
 // ADA received by `address` in transactions with `start <= block_time <= end`, in ADA.
 export async function getAdaReceived(
     start: number,

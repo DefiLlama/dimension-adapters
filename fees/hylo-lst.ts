@@ -105,4 +105,5 @@ export default {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
 };
