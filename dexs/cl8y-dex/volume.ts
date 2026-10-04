@@ -2,19 +2,26 @@ type Get = (url: string) => Promise<any>;
 
 const INDEXER = "https://indexer.dex.cl8y.com/api/v1";
 
+/** Parse finite, non-negative USD numbers or decimal strings; reject other forms. */
 function usd(value: unknown): number | null {
   if (typeof value !== "number" && typeof value !== "string") return null;
-  if (typeof value === "string" && !value.trim()) return null;
+  if (typeof value === "string" &&
+      !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return null;
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Require an exact non-negative integer trade count for comparing rollup scopes. */
 function count(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-export async function getDailyVolume(startOfDay: number, get: Get): Promise<number> {
-  const date = new Date(startOfDay * 1000).toISOString().slice(0, 10);
+/**
+ * Read the UTC day's priced volume, recovering legacy nulls only from a matching
+ * protocol rollup. The runner supplies startOfDay and dateString through
+ * FetchOptions; missing, malformed or differently scoped data throws.
+ */
+export async function getDailyVolume(startOfDay: number, date: string, get: Get): Promise<number> {
   const data = await get(`${INDEXER}/defillama/daily?timestamp=${startOfDay}`);
   if (data?.timestamp !== startOfDay || data?.date !== date || !count(data?.trade_count)) {
     throw new Error(`cl8y-dex invalid daily response for ${date}`);

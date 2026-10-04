@@ -4,8 +4,9 @@ import { httpGet } from "../../utils/fetchURL";
 import { getDailyVolume } from "./volume";
 
 // UTC-day rollup. Version 1: indexer cannot split a calendar day into hourly ranges.
+/** Fetch the priced volume lower bound for the runner's UTC calendar day. */
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = await getDailyVolume(options.startOfDay, httpGet);
+  const dailyVolume = await getDailyVolume(options.startOfDay, options.dateString, httpGet);
   return { dailyVolume };
 };
 
