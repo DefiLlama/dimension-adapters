@@ -53,7 +53,7 @@ function assertClose(actual: number, expected: number, what: string) {
  * endTimestamp is already the next hour boundary. */
 export function perpsWindowMs(options: { startTimestamp: number, endTimestamp: number }): { startTime: number, endTime: number } {
   const startSec = Math.ceil(options.startTimestamp / 3600) * 3600
-  const endSec = options.endTimestamp
+  const endSec = startSec + 3600
   if (startSec % 3600 !== 0 || endSec % 3600 !== 0 || startSec >= endSec) {
     throw new Error(`popdex: window is not hour-aligned: ${startSec} -> ${endSec}`)
   }
