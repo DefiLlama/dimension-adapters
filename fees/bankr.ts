@@ -60,7 +60,7 @@ const INTEGRATION_FEES = "Integration Fees";
 const STAKING_REWARDS = "BNKR Staking Rewards From Bankr Fees";
 const STAKING_DONATIONS = "BNKR Staking Rewards From Others";
 // protocol revenue: Bankr's fees net of the part it funds BNKR staking with
-const NET_BANKR_FEES = "Bankr Fees Net Of BNKR Staking Rewards";
+const NET_BANKR_FEES = "Bankr Fees To Protocol";
 
 const toBankr = (label: string) => `${label} To Bankr`;
 
