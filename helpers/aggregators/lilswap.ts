@@ -26,8 +26,31 @@ export const lilswapChainAliases: Record<string, string> = {
 
 const BASE_URL = 'https://api.lilswap.xyz/v1/metrics/daily';
 
-// Returns the endpoint row for the current chain and day, or undefined when there was no activity.
-export async function fetchLilSwapDailyMetrics(options: FetchOptions) {
+type LilSwapBridgeMetrics = {
+    txCount: number;
+    volumeUsd: string;
+    feesUsd: string;
+    revenueUsd: string;
+    supplySideRevenueUsd: string;
+}
+
+export type LilSwapDailyRow = {
+    date: string;
+    chain: string;
+    volumeUsd: string;
+    feesUsd: string;
+    revenueUsd: string;
+    protocolRevenueUsd: string;
+    supplySideRevenueUsd: string;
+    txCount: number;
+    bridge?: LilSwapBridgeMetrics | null;
+}
+
+/**
+ * Fetches LilSwap's public daily metrics for the current chain and day.
+ * @returns the endpoint row for that chain and day, or undefined when there was no activity.
+ */
+export async function fetchLilSwapDailyMetrics(options: FetchOptions): Promise<LilSwapDailyRow | undefined> {
     const chainAlias = lilswapChainAliases[options.chain];
 
     const response = await fetchURL(`${BASE_URL}?start=${options.fromTimestamp}&end=${options.toTimestamp}&chain=${chainAlias}`);
@@ -36,5 +59,6 @@ export async function fetchLilSwapDailyMetrics(options: FetchOptions) {
         throw new Error(`No data found for chain ${options.chain} on ${options.dateString}`);
     }
 
-    return response.data.find((item: any) => item.date === options.dateString);
+    const rows = response.data as LilSwapDailyRow[];
+    return rows.find((row) => row.date === options.dateString);
 }
