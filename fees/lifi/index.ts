@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
-import { DefaultDexTokensBlacklisted } from "../../helpers/lists"
+import { getDefaultDexTokensBlacklisted } from "../../helpers/lists"
 import { FeeCollectedEvent, FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart, LifiRecipient } from './feeSources'
 
 const IntegratorFee = 'Integration & Partnership Fees'
@@ -15,7 +15,7 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 	const dailySupplySideRevenue = options.createBalances();
 
 	// 0x0000000000000000000000000000000000000000 is the gas token for all chains, we already handle it in the Balances
-	const blacklistForChain = new Set(DefaultDexTokensBlacklisted[options.chain] ?? []);
+	const blacklistForChain = new Set(getDefaultDexTokensBlacklisted(options.chain));
 
 	const addFee = (token: string, amount: any, isLifi: boolean, source: string) => {
 		if (blacklistForChain.has(token.toLowerCase())) return;
