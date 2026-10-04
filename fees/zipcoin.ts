@@ -2,7 +2,6 @@ import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { METRIC } from "../helpers/metrics";
 
 // zipcoin: a Privacy Pools deployment for the ZC token on Ethereum, plus contracts that spend a
 // private note to burn ZC for a public message ("the Book"), gift ZC to an address, pay DAI/ETH,
@@ -23,11 +22,6 @@ const TELLER_STABLE: Record<string, string> = {
   "0x0F6E7E5269be27e8f40C55DE5FFc5E99abCC406f": ADDRESSES.ethereum.USDC,
   "0xc3288A1cA1206D9EA0b21caF7daF03B8f831FC13": ADDRESSES.ethereum.USDT,
 };
-// ZC trades on a Stockereum launch (Uniswap v4 hook 0x322dcEc4958C14e021A9F1cD49DF11b9457968cC, 1% swap fee,
-// LaunchOpened feePpm = 10000). Half of every trade's fee is credited to the token creator in Stockereum's
-// escrow; the other half is Stockereum's and is not counted here.
-const STOCKEREUM_ESCROW = "0xAcefe251da006887dA41C063D06CC82A060824BA";
-const FEE_RECIPIENT = "0x49071f087c949cda8e05969999e9e6cfeab5c279"; // LaunchOpened.feeRecipient for ZC
 // Team wallets (https://www.zipcoin.cash/analytics labels them): their public burns are team-funded supply
 // reductions, not fees paid by users, so they are excluded. Anonymous posts cannot be attributed.
 const TEAM = new Set([
@@ -42,7 +36,6 @@ const METRICS = {
   BURN_TO_POST: "Burn-to-Post Fees",
   RELAY_FEES: "Relay Fees",
   VETTING_FEES: "Deposit Vetting Fees",
-  SWAP_FEES: METRIC.SWAP_FEES,
 };
 
 const abis = {
@@ -56,7 +49,6 @@ const abis = {
   tellerEthPaid: "event Paid(address indexed to, uint256 nullifierHash, uint256 ethIn, uint256 daiOut, uint256 fee)",
   tellerStablePaid: "event Paid(address indexed to, uint256 nullifierHash, uint256 assetIn, uint256 daiOut, uint256 fee)",
   changed: "event Changed(address indexed to, uint256 nullifierHash, uint256 zcIn, uint256 ethOut, uint256 fee)",
-  credited: "event Credited(address indexed account, address indexed currency, uint256 amount)",
 };
 
 const addressTopic = (address: string) => ethers.zeroPadValue(address.toLowerCase(), 32);
@@ -153,25 +145,13 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  // Creator share of the 1% swap fee on ZC trades, credited per trade in Stockereum's escrow (in WETH).
-  const credited = await options.getLogs({
-    target: STOCKEREUM_ESCROW,
-    eventAbi: abis.credited,
-    topics: [eventTopic(abis.credited), addressTopic(FEE_RECIPIENT)],
-  });
-  credited.forEach((log: any) => {
-    dailyFees.add(log.currency, log.amount, METRICS.SWAP_FEES);
-    dailyRevenue.add(log.currency, log.amount, METRICS.SWAP_FEES);
-    dailyProtocolRevenue.add(log.currency, log.amount, METRICS.SWAP_FEES);
-  });
-
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "ZC burned by users to publish in the Book, relay fees on private posts, payments and withdrawals, deposit vetting fees of the ZC privacy pool, and zipcoin's half of the 1% swap fee on ZC trades.",
+  Fees: "ZC burned by users to publish in the Book, relay fees on private posts, payments and withdrawals, and deposit vetting fees of the ZC privacy pool. The launcher share of Stockereum's swap fee on ZC trades is a token tax and is not counted.",
   Revenue: "All fees: burns accrue to holders, the rest to the protocol; no supply-side payments except relay fees earned by third-party relayers.",
-  ProtocolRevenue: "Relay fees earned by the team-run relayer, deposit vetting fees kept by the Entrypoint, and the swap fee share credited to the team.",
+  ProtocolRevenue: "Relay fees earned by the team-run relayer and deposit vetting fees kept by the Entrypoint.",
   HoldersRevenue: "ZC permanently burned by users to post.",
   SupplySideRevenue: "Relay fees on zipcoin Entrypoint withdrawals submitted by relayers other than the team's.",
 };
@@ -181,18 +161,15 @@ const breakdownMethodology = {
     [METRICS.BURN_TO_POST]: "ZC sent to the burn address by users to publish a word via ZipBroadcaster, ZipDoorstep or ZipHearth (which buys ZC with ETH and burns it). Public burns from the team's own wallets are excluded.",
     [METRICS.RELAY_FEES]: "Basis-point fee on the withdrawn value paid to the relayer that submits a private post, payment, swap or withdrawal, in the note's asset (ZC, ETH, DAI, USDC or USDT).",
     [METRICS.VETTING_FEES]: "Fee the zipcoin Entrypoint deducts from each deposit into the ZC privacy pool (assetConfig.vettingFeeBPS).",
-    [METRICS.SWAP_FEES]: "Creator half of the 1% Stockereum swap fee on ZC trades, credited to the launch's fee recipient per trade.",
   },
   Revenue: {
     [METRICS.BURN_TO_POST]: "Burned ZC; see HoldersRevenue.",
     [METRICS.RELAY_FEES]: "Relay fees earned by the team-run relayer.",
     [METRICS.VETTING_FEES]: "Vetting fees kept by the Entrypoint, withdrawable by its owner.",
-    [METRICS.SWAP_FEES]: "Swap fee share claimable by the team from Stockereum's escrow.",
   },
   ProtocolRevenue: {
     [METRICS.RELAY_FEES]: "Relay fees earned by the team-run relayer.",
     [METRICS.VETTING_FEES]: "Vetting fees kept by the Entrypoint, withdrawable by its owner.",
-    [METRICS.SWAP_FEES]: "Swap fee share claimable by the team from Stockereum's escrow; the team has used it for ZC buybacks, which are not counted again.",
   },
   HoldersRevenue: {
     [METRICS.BURN_TO_POST]: "ZC permanently removed from supply when users post.",
