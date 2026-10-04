@@ -36,12 +36,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const startMs = options.startTimestamp * 1000;
   const endMs = options.endTimestamp * 1000;
 
+  // a finite deadline, so a response that never completes fails the run instead of stalling it
   const ledger = await httpPost(HL_INFO_API, {
     type: "userNonFundingLedgerUpdates",
     user: SYSTEM_INTEREST_ADDRESS,
     startTime: startMs,
     endTime: endMs,
-  });
+  }, { timeout: 30_000 });
   // An empty window is an empty array. Anything else is not an answer, and must not be stored as $0.
   if (!Array.isArray(ledger)) throw new Error(`Hyperliquid userNonFundingLedgerUpdates returned a non-array body for ${SYSTEM_INTEREST_ADDRESS}`);
 
