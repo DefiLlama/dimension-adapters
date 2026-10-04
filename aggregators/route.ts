@@ -5,8 +5,8 @@ import { METRIC } from '../helpers/metrics';
 import { addOneToken } from '../helpers/prices';
 import { earlyPoolBuybacks, earlyExecutorBuybacks } from './route/earlyBuybacks';
 
-// Historical settlement registry: https://github.com/routerh/route/blob/main/lib/route/activity.ts
-// Keep old emitters for backfills. They are not current approval recommendations.
+// Current Route contracts: https://docs.route.fun/contracts. Older emitters below are kept for
+// backfills; they are not current approval recommendations.
 const engines = [
   '0xfb866d8cd2796efd920a7a062814aeb88b1d2bcb',
   '0xb1a65445695b79d042caaa86b5aa1e3b5f38ac03',
