@@ -1,5 +1,6 @@
 import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters/types"
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 
 const address = '0x185214FD3696942FBf29Af2983AA7493112777Ae';
 const event_distribution = 'event Distribution(uint256 indexed epoch,address indexed by,uint256 amount)';
@@ -7,28 +8,38 @@ const event_paid = 'event Paid(uint256 indexed epoch,address indexed payee,uint2
 const yield_yak_master = '0x0cf605484a512d3f3435fed77ab5ddc0525daf5f';
 const yak_gov = '0x5925c5c6843a8f67f7ef2b55db1f5491573c85eb';
 
+// payee split read on-chain from Paid events: ~70% stakers / 15% gov / 15% other payees until early 2024,
+// 100% stakers through most of 2025, 75% gov / 25% stakers since early 2026
 const fetch = async ({ createBalances, getLogs, }: FetchOptions): Promise<FetchResultFees> => {
   const dailyFees = createBalances()
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const logs_distribution = await getLogs({ target: address, eventAbi: event_distribution, })
   const logs_paid = await getLogs({ target: address, eventAbi: event_paid, })
 
-  logs_distribution.map((e: any) => dailyFees.addGasToken(e.amount))
+  logs_distribution.map((e: any) => dailyFees.addGasToken(e.amount, METRIC.PROTOCOL_FEES))
 
   logs_paid.map((e: any) => {
     const payee = e.payee.toLowerCase()
     if (payee === yield_yak_master)
-      dailyHoldersRevenue.addGasToken(e.amount)
+      dailyHoldersRevenue.addGasToken(e.amount, 'Protocol Fees To YAK Stakers')
     else if (payee === yak_gov)
-      dailyProtocolRevenue.addGasToken(e.amount)
+      dailyProtocolRevenue.addGasToken(e.amount, 'Protocol Fees To Governance')
+    else
+      dailySupplySideRevenue.addGasToken(e.amount, 'Protocol Fees To Other Payees')
   })
+
+  const dailyRevenue = dailyHoldersRevenue.clone()
+  dailyRevenue.add(dailyProtocolRevenue)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
     dailyHoldersRevenue,
-    dailyProtocolRevenue,}
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  }
 }
 
 
@@ -39,10 +50,29 @@ const adapter: Adapter = {
   chains: [CHAIN.AVAX],
   start: '2021-11-14',
   methodology: {
-    Fees: "Yield and rewards are distributed.",
-    Revenue: "Fees distributed to holders and protocol.",
-    HoldersRevenue: "All revenue distributed to holders.",
-    ProtocolRevenue: "All revenue collected by protocol.",
+    Fees: "Yield Yak protocol revenue, converted to AVAX and paid out by the fee distributor contract.",
+    Revenue: "The part of distributed fees that goes to YAK stakers and Yield Yak governance.",
+    HoldersRevenue: "AVAX paid to YAK stakers.",
+    ProtocolRevenue: "AVAX paid to the Yield Yak governance wallet.",
+    SupplySideRevenue: "AVAX paid to all other payees of the fee distributor.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.PROTOCOL_FEES]: 'Yield Yak protocol revenue paid out by the fee distributor',
+    },
+    Revenue: {
+      'Protocol Fees To YAK Stakers': 'AVAX paid to YAK stakers',
+      'Protocol Fees To Governance': 'AVAX paid to the Yield Yak governance wallet',
+    },
+    HoldersRevenue: {
+      'Protocol Fees To YAK Stakers': 'AVAX paid to YAK stakers',
+    },
+    ProtocolRevenue: {
+      'Protocol Fees To Governance': 'AVAX paid to the Yield Yak governance wallet',
+    },
+    SupplySideRevenue: {
+      'Protocol Fees To Other Payees': 'AVAX paid to all other payees of the fee distributor',
+    },
   },
 }
 
