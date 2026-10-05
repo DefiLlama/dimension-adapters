@@ -50,7 +50,10 @@ interface RevenueFeed {
   daily_data: DailyRevenueRow[];
 }
 
-const TOLERANCE_USD = 0.021;
+// Feed monetary fields are already rounded to cents and validated upstream.
+// This epsilon is only for IEEE-754 addition/subtraction noise in JavaScript;
+// it is six orders of magnitude below $1 and far below one cent.
+const FLOAT_EPSILON_USD = 1e-6;
 
 const finiteNonNegative = (
   value: unknown,
@@ -71,7 +74,7 @@ const finiteNonNegative = (
 const closeEnough = (
   left: number,
   right: number,
-): boolean => Math.abs(left - right) <= TOLERANCE_USD;
+): boolean => Math.abs(left - right) <= FLOAT_EPSILON_USD;
 
 const fetch = async (options: FetchOptions) => {
   const response: RevenueFeed = await fetchURL(REVENUE_URL);
@@ -289,7 +292,6 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyFees = options.createBalances();
-  const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -298,13 +300,6 @@ const fetch = async (options: FetchOptions) => {
   if (feesUsd > 0) {
     dailyFees.addUSDValue(
       feesUsd,
-      CARRIER_WIFI_OFFLOAD_FEES,
-    );
-  }
-
-  if (userFeesUsd > 0) {
-    dailyUserFees.addUSDValue(
-      userFeesUsd,
       CARRIER_WIFI_OFFLOAD_FEES,
     );
   }
@@ -356,7 +351,6 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
@@ -366,6 +360,9 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // The public XNET source publishes one service-accrual row per UTC date,
+  // not hourly observations, so hourly pulls would duplicate the same daily
+  // accounting rather than add real resolution.
   pullHourly: false,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
@@ -377,9 +374,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees:
       "Carriers pay XNET for mobile data offloaded onto WiFi. Until settlement arrives, Fees are conservatively accrued from measured daily offload. Closed unsettled months use XNET's official monthly projection and newer days use a conservative API-GB rate. Carrier payments typically settle about two months later, and historical accrual is reconciled to the amount actually paid.",
-
-    UserFees:
-      "Same as Fees. XNET's carrier customers pay for mobile data offloaded onto WiFi.",
 
     Revenue:
       "Carrier WiFi offload Fees retained within XNET after payments to operators that elect fiat compensation under XIP-13.1.",
@@ -398,11 +392,6 @@ const adapter: SimpleAdapter = {
     Fees: {
       [CARRIER_WIFI_OFFLOAD_FEES]:
         "Gross carrier WiFi offload service Fees. Daily values are shaped by network offload, use official monthly projections when available, and are reconciled to actual carrier settlement.",
-    },
-
-    UserFees: {
-      [CARRIER_WIFI_OFFLOAD_FEES]:
-        "Carrier WiFi offload service Fees paid by XNET's carrier customers.",
     },
 
     Revenue: {
