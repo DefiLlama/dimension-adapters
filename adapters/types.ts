@@ -202,6 +202,14 @@ export type FetchResultLiquidations = FetchResultBase & {
   dailyLiquidationVolume?: FetchResponseValue
 };
 
+// BRIDGES
+export type FetchResultBridges = FetchResultBase & {
+  dailyOutgoingVolume?: FetchResponseValue
+  dailyIncomingVolume?: FetchResponseValue
+  dailyOutgoingTxCount?: FetchResponseValue
+  dailyIncomingTxCount?: FetchResponseValue
+};
+
 export enum AdapterType {
   FEES = 'fees',
   DEXS = 'dexs',
@@ -219,9 +227,10 @@ export enum AdapterType {
   ACTIVE_USERS = 'active-users',
   NEW_USERS = 'new-users',
   LIQUIDATIONS = 'liquidations',
+  BRIDGES = 'bridges',
 }
 
-export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives & FetchResultActiveUsers & FetchResultNewUsers & FetchResultLiquidations
+export type FetchResult = FetchResultVolume & FetchResultFees & FetchResultAggregators & FetchResultOptions & FetchResultIncentives & FetchResultActiveUsers & FetchResultNewUsers & FetchResultLiquidations & FetchResultBridges
 
 export const whitelistedDimensionKeys = new Set([
   'startTimestamp', 'chain', 'timestamp', 'block',
@@ -232,6 +241,7 @@ export const whitelistedDimensionKeys = new Set([
   'dailyOtherIncome', 'dailyOperatingIncome', 'dailyNetIncome',, 'dailyPremiumVolume', 'dailyNotionalVolume',
   'dailyActiveUsers', 'dailyNewUsers', 'dailyTransactionsCount', 'dailyGasUsed',
   'dailyCollateralLiquidated', 'dailyLiquidationVolume',
+  'dailyOutgoingVolume', 'dailyIncomingVolume', 'dailyOutgoingTxCount', 'dailyIncomingTxCount',
 ])
 export const accumulativeKeySet = new Set([
   'totalVolume', 'totalBridgeVolume', 'tokenIncentives', 'totalPremiumVolume', 'totalNotionalVolume',
