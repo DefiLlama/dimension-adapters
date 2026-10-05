@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPositionedLogArgs } from "../../helpers/logs";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 // PeddleQuest contracts: immutable, no proxies, deployed from the same deployer
 // nonce so the addresses are identical on Base, BSC, Robinhood Chain and Arc.
@@ -10,7 +11,7 @@ const ESCROW = "0x16267bE6D067b3d411bf779B5aD041f9eba4CadE"; // PeddlesQuestEscr
 const MARKET = "0x704E5eA6752EbfcEDB377512b67c0138461f4849"; // PeddlesPromotionMarket: trending / banner slots
 const BADGE = "0x6DA219d4072A91665F702e34ca6CcaCd3eA7AE91"; // PeddlesQuestBadge: completion badges
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // Escrow: `_accrue` is the only writer of the treasury's pending balance and
 // always emits TreasuryAccrued. It is called from exactly three places, each
@@ -104,8 +105,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything PeddleQuest charges: the fee quest creators pay on top of the reward pool they deposit, the flat quest creation fee, the protocol's share of rewards that winners did not claim before the deadline, payments for trending and banner promotion slots, and the fee users pay to mint an optional completion badge.",
   UserFees: "Same as Fees: all of it is paid by quest creators, advertisers and badge minters. Joining a quest and claiming a reward are free.",
-  Revenue: "All fees are kept by the protocol. Quest rewards themselves go to winners and are not counted as fees or revenue.",
-  ProtocolRevenue: "Fees accrued to the protocol treasury (a Safe multisig).",
+  Revenue: "All fees (quest creation, deposit, unclaimed, promotion and badge) are kept by the protocol. Quest rewards themselves go to winners and are not counted as fees or revenue.",
+  ProtocolRevenue: "Fees (quest creation, deposit, unclaimed, promotion and badge) accrued to the protocol treasury (a Safe multisig).",
   HoldersRevenue: "The share of badge mint fees routed on-chain to buyback and burn. Zero while that route is switched off, which it has been since launch.",
 };
 
