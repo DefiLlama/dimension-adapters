@@ -74,10 +74,11 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.addUSDValue(wad(log.m) * lev);
   }
 
-  // A trader close (closeId > 0; 0 is a delist sweep) trades its slice of the frozen notional
-  // lev x M0. Closed carries the collateral slice; a margin top-up raises collateral but not
-  // notional, so the slice is scaled by M0/collateral. Read at the latest block because the
-  // public RPC keeps little historical state; both terms only change at a later top-up.
+  // A trader close (closeId > 0; 0 is a delist sweep) trades its slice of the frozen notional.
+  // A partial close cuts the notional n and the face r by the same fraction, and a margin top-up
+  // changes neither, so n / r is fixed for the life of the position and Closed.sliceR x n / r is
+  // the slice's notional. That holds at any later block, so a refill reproduces the same value
+  // even though the public RPC keeps little historical state.
   const traderCloses = closes.filter((log: any) => Number(log.closeId) !== 0);
   if (traderCloses.length) {
     const ids = [...new Map(traderCloses.map((log: any) => [key(log), log])).values()];
@@ -91,8 +92,8 @@ const fetch = async (options: FetchOptions) => {
     ids.forEach((log: any, i: number) => { termsByPos[key(log)] = positions[i]; });
     for (const log of traderCloses) {
       const p = termsByPos[key(log)];
-      const scale = Number(p.mCol) > 0 ? Number(p.m) / Number(p.mCol) : 1;
-      dailyVolume.addUSDValue(wad(log.sliceM) * Number(p.lev) * scale);
+      if (Number(p.r) === 0) throw new Error(`mog: position ${key(log)} has no face`);
+      dailyVolume.addUSDValue(wad(log.sliceR) * (Number(p.n) / Number(p.r)));
     }
   }
 
