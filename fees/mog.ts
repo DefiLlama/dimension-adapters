@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
+import { METRIC } from "../helpers/metrics";
 
 // mog (https://mog.xyz) - treasury-backed perps on Robinhood Chain, up to 1000x, no LPs.
 // Traders face the protocol treasury: losses accrue to it (and mint MOG), profits are paid from it.
@@ -12,15 +13,16 @@ const MARKETS = "0xBaF66148476F57F50f154a7f77F1AEF82Ce7F24c";
 const OPEN_FEE_RELEASED = "event OpenFeeReleased(address indexed to, uint256 fee, bool refunded)";
 const WIN_SETTLED = "event WinSettled(uint16 indexed mkt, address indexed owner, uint64 indexed cohortId, uint64 posId, uint256 r, uint256 face, uint256 fee)";
 const BUILDER_ACCRUED = "event BuilderAccrued(address indexed builder, uint256 amount)";
+const MOG_TOKEN = "0x45c94a25d951d652c2d09e9f6f7d6c0d75dd8d23";
+const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
+const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 const FILLED = "event Filled(uint16 indexed mkt, uint64 indexed posId, address indexed owner, uint8 side, uint128 m, uint128 r, uint128 fillMark, uint64 nonce)";
 const FILLED_TERMS = "event FilledTerms(uint16 indexed mkt, uint64 indexed posId, uint128 downLevel, uint128 upLevel, bool near, uint16 lev, uint256 kWad)";
 const CLOSED = "event Closed(uint16 indexed mkt, uint64 indexed closeId, uint64 indexed posId, uint64 nonce, uint128 sliceM, uint128 sliceR, uint128 remainderM)";
 const POSITION_OF = "function positionOf(uint16 mkt, uint64 posId) view returns ((address owner, uint8 side, uint8 status, uint56 fillNonce, uint8 flags, uint16 lev, uint128 m, uint128 r, uint128 downLevel, uint128 upLevel, uint128 fillMark, uint64 hWad, uint64 dPrev, uint64 dNext, uint64 uPrev, uint64 uNext, uint64 cWad, uint128 n, uint128 mCol))";
 
-const PROFIT_FEE_BUYBACK_SHARE = 0.7; // https://docs.mog.xyz/mog/buybacks-and-burns
 const OPEN_FEES = "Open Fees";
 const PROFIT_FEES = "Profit Fees";
-const BUYBACK_ALLOCATION = "Buyback Allocation";
 const BUILDER_FEES = "Builder Fees";
 const wad = (x: any) => Number(x) / 1e18;
 const key = (log: any) => `${log.mkt}-${log.posId}`;
@@ -29,12 +31,14 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const [openFees, wins, builders, fills, terms, closes] = await Promise.all([
+  const [openFees, wins, builders, mogTransfers, fills, terms, closes] = await Promise.all([
     options.getLogs({ target: CORE, eventAbi: OPEN_FEE_RELEASED }),
     options.getLogs({ target: CORE, eventAbi: WIN_SETTLED }),
     options.getLogs({ target: CORE, eventAbi: BUILDER_ACCRUED }),
+    options.getLogs({ target: MOG_TOKEN, eventAbi: TRANSFER }),
     options.getLogs({ target: MARKETS, eventAbi: FILLED }),
     options.getLogs({ target: MARKETS, eventAbi: FILLED_TERMS }),
     options.getLogs({ target: MARKETS, eventAbi: CLOSED }),
@@ -48,14 +52,12 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addUSDValue(wad(log.fee), OPEN_FEES);
   }
 
-  // 5% of settled profit: 70% accrues to the MOG buyback payee, 30% to protocol operations.
-  // The buyback payee is a protocol wallet whose accrual is junior to trader payouts, so the
-  // whole profit fee is protocol revenue.
+  // 5% of settled profit. 70% accrues to the MOG buyback wallet and is junior to every trader
+  // payout; it counts as holders revenue only when the wallet burns MOG with it (below).
   for (const log of wins) {
     const fee = wad(log.fee);
     dailyFees.addUSDValue(fee, PROFIT_FEES);
-    dailyProtocolRevenue.addUSDValue(fee * PROFIT_FEE_BUYBACK_SHARE, BUYBACK_ALLOCATION);
-    dailyProtocolRevenue.addUSDValue(fee * (1 - PROFIT_FEE_BUYBACK_SHARE), PROFIT_FEES);
+    dailyProtocolRevenue.addUSDValue(fee, PROFIT_FEES);
   }
 
   // A qualifying builder (the frontend that placed the order) takes a carve out of the operations share.
@@ -63,6 +65,19 @@ const fetch = async (options: FetchOptions) => {
     const carve = wad(log.amount);
     dailySupplySideRevenue.addUSDValue(carve, BUILDER_FEES);
     dailyProtocolRevenue.addUSDValue(-carve, PROFIT_FEES);
+  }
+
+  // A buyback is the buyback wallet buying MOG and burning it with MogToken.burn, which emits
+  // Transfer(wallet, 0). Only those burns are holders revenue, moved out of protocol revenue.
+  // Payouts to the wallet are not counted: the wallet can use them for other treasury moves.
+  const burns = mogTransfers.filter((log: any) => log.to.toLowerCase() === NULL_ADDRESS);
+  if (burns.length) {
+    const buybackWallet = (await new ChainApi({ chain: options.chain }).call({ target: CORE, abi: "address:buyback" })).toLowerCase();
+    for (const log of burns) {
+      if (log.from.toLowerCase() !== buybackWallet) continue;
+      dailyHoldersRevenue.add(MOG_TOKEN, log.value, METRIC.TOKEN_BUY_BACK);
+      dailyProtocolRevenue.add(MOG_TOKEN, -BigInt(log.value), METRIC.TOKEN_BUY_BACK);
+    }
   }
 
   // notional opened = margin (Filled.m) x leverage (FilledTerms.lev), both emitted in the fill tx
@@ -99,7 +114,7 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue);
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const methodology = {
@@ -108,7 +123,8 @@ const methodology = {
   UserFees: "Open fees and profit fees paid by traders.",
   Revenue: "Fees minus the builder carve; there are no liquidity providers.",
   SupplySideRevenue: "Builder carve paid to the frontend that placed the order, out of the operations share.",
-  ProtocolRevenue: "Open fees plus profit fees, net of the builder carve. 70% of profit fees accrue to the MOG buyback payee, a protocol wallet whose accrual is junior to trader payouts.",
+  HoldersRevenue: "MOG bought back and burned by the buyback wallet, valued at the MOG price. 70% of profit fees accrue to that wallet; only the MOG it burns is counted.",
+  ProtocolRevenue: "Revenue minus holders revenue.",
 };
 
 const breakdownMethodology = {
@@ -127,10 +143,13 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [BUILDER_FEES]: "Builder carve from the operations share of profit fees.",
   },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: "MOG burned by the buyback wallet after buying it.",
+  },
   ProtocolRevenue: {
     [OPEN_FEES]: "Open fees funding protocol operations.",
-    [PROFIT_FEES]: "30% of profit fees funding protocol operations, net of the builder carve.",
-    [BUYBACK_ALLOCATION]: "70% of profit fees accrued to the MOG buyback payee.",
+    [PROFIT_FEES]: "Profit fees, net of the builder carve.",
+    [METRIC.TOKEN_BUY_BACK]: "Buyback burns moved to holders revenue.",
   },
 };
 
