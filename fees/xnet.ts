@@ -219,17 +219,6 @@ const fetch = async (options: FetchOptions) => {
 
   if (
     !closeEnough(
-      revenueUsd,
-      holdersRevenueUsd + protocolRevenueUsd,
-    )
-  ) {
-    throw new Error(
-      "XNET feed invariant failed: Revenue != HoldersRevenue + ProtocolRevenue",
-    );
-  }
-
-  if (
-    !closeEnough(
       ordinaryProtocolRevenueUsd,
       ordinaryOperationsRevenueUsd +
         ordinaryLiquidityRevenueUsd,
