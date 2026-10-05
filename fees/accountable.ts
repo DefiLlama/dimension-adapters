@@ -20,6 +20,7 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
       "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
       "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+      "0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE",
     ],
     start: "2026-01-16",
   },
@@ -38,6 +39,7 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
       "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
       "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+      "0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE",
     ],
     start: "2026-04-20",
   },
@@ -72,6 +74,7 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0xd51FaCdE443729A8302A8138f3e050e831Db413D",
       "0x6E659cD796aAB41419C70def7748Fff37Bf3967a",
       "0xdBdbb4F6B80CA00B2a8B1f929C1957eCecd1BAaB",
+      "0xF9a0197f9dB6bd8171EBa53D21cb098597D23871",
     ],
     start: "2026-09-23",
   },
@@ -119,6 +122,9 @@ const abis = {
   feeSharesMinted:
     "event FeeSharesMinted(address indexed recipient, uint256 shares)",
   upgraded: "event Upgraded(address indexed implementation)",
+  escrow: "function escrow() view returns (address)",
+  upfrontFeeCollected:
+    "event UpfrontFeeCollected(uint256 managerAmount, uint256 protocolAmount, uint256 totalFee)",
 };
 
 // `scaleFactor()` on the credit strategies is an accrual index scaled by 1e36,
@@ -245,9 +251,15 @@ const fetch = async (options: FetchOptions) => {
     calls: strategies,
     permitFailure: true,
   });
+  const escrows = await toApi.multiCall({
+    abi: abis.escrow,
+    calls: strategies,
+    permitFailure: true,
+  });
 
   const lending: number[] = [];
   const priced: number[] = [];
+  const upfront: number[] = [];
   strategies.forEach((_, i) => {
     // Every strategy has a vault, so a null here is a failed read rather than a
     // strategy to skip, and skipping it would drop its whole day of yield.
@@ -259,7 +271,12 @@ const fetch = async (options: FetchOptions) => {
     // classification signal here rather than a failed read. It is taken at the
     // closing block alone: a strategy created mid-window answers at the end but
     // not at the start, and requiring both would route it down the wrong path.
-    if (sfEnd[i] !== null) lending.push(i);
+    // `escrow()` only exists on the collateral fixed-term strategies, which
+    // answer neither `scaleFactor()` nor carry a share price worth measuring:
+    // their only charge is a one-off fee taken at loan acceptance, and on the
+    // share-price path that fee would read as a loss to depositors.
+    if (escrows[i]) upfront.push(i);
+    else if (sfEnd[i] !== null) lending.push(i);
     else priced.push(i);
   });
 
@@ -653,6 +670,71 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
+  // Collateral fixed-term: interest is forced to zero, and the only charge is
+  // the management fee, taken once out of the principal when the borrower
+  // accepts (`principal * rate * duration / (1e6 * 365 days)`) and paid
+  // straight to the manager and the treasury, as `UpfrontFeeCollected` states.
+  // The rate it used is snapshotted into internal storage with no getter, so
+  // the event is the only exact record of the amount. It is spread evenly over
+  // the loan term rather than booked on the acceptance day, which keeps this
+  // path on the same accrual basis as the other two; the term is fixed at
+  // acceptance, so the slices add up to exactly the fee charged.
+  if (upfront.length) {
+    const upfrontAssets = await toApi.multiCall({
+      abi: abis.asset,
+      calls: upfront.map((i) => vaults[i]),
+      permitFailure: true,
+    });
+
+    await Promise.all(
+      upfront.map(async (i, k) => {
+        const loan = loansEnd[i];
+        if (!loan)
+          throw new Error(
+            `Accountable: could not read the loan of ${strategies[i]} on ${options.chain}`,
+          );
+        // `startTime` stays zero until the loan is accepted, and acceptance is
+        // what charges the fee.
+        const start = big(loan.startTime);
+        const duration = big(loan.duration);
+        if (start === 0n || duration === 0n) return;
+        const end = start + duration;
+        const from = start > windowStart ? start : windowStart;
+        const to = end < windowEnd ? end : windowEnd;
+        if (to <= from) return;
+
+        // The acceptance transaction is the block stamped `startTime`; the hour
+        // either side only absorbs the timestamp-to-block lookup's imprecision.
+        const [fromBlock, toBlock] = await Promise.all([
+          options.getBlock(Number(start) - 3600, options.chain, {}),
+          options.getBlock(Number(start) + 3600, options.chain, {}),
+        ]);
+        const logs = await options.getLogs({
+          target: strategies[i],
+          eventAbi: abis.upfrontFeeCollected,
+          fromBlock,
+          toBlock,
+        });
+        // Acceptance always emits it, a zero fee included, so a miss is a
+        // failed read rather than a free loan.
+        if (!logs?.length)
+          throw new Error(
+            `Accountable: no UpfrontFeeCollected for accepted loan ${strategies[i]} on ${options.chain}, refusing to report zero`,
+          );
+
+        const token = upfrontAssets[k];
+        if (!token)
+          throw new Error(
+            `Accountable: could not read the asset of ${strategies[i]} on ${options.chain}`,
+          );
+        const covered = to - from;
+        const manager = (big(logs[0].managerAmount) * covered) / duration;
+        const protocol = (big(logs[0].protocolAmount) * covered) / duration;
+        book(token, manager + protocol, manager, protocol, METRIC.MANAGEMENT_FEES);
+      }),
+    );
+  }
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -663,7 +745,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Value earned by Accountable vaults over the day, read on chain: for credit vaults the interest accrued by borrowers, for NAV, looping and fixed-term vaults the increase in share price plus the fee shares minted out of it.",
+  Fees: "Value earned by Accountable vaults over the day, read on chain: for credit vaults the interest accrued by borrowers, for NAV, looping and fixed-term vaults the increase in share price plus the fee shares minted out of it, and for collateral fixed-term vaults the one-off management fee charged at loan acceptance, spread evenly over the loan term.",
   Revenue:
     "The Accountable protocol's share of the performance and management fees.",
   ProtocolRevenue:
@@ -678,6 +760,8 @@ const breakdownMethodology = {
       "Interest accrued by borrowers on drawn credit vault capital, before fees are taken out of it.",
     [METRIC.ASSETS_YIELDS]:
       "Yield accrued by NAV, looping and fixed-term vaults, measured as share price appreciation, before fees are taken out of it.",
+    [METRIC.MANAGEMENT_FEES]:
+      "Management fee on collateral fixed-term vaults, charged once out of the deposited collateral when the borrower accepts the loan and spread evenly over the loan term. These vaults pay no interest.",
   },
   Revenue: {
     [PROTOCOL]:
