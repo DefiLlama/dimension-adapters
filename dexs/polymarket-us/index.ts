@@ -68,17 +68,21 @@ async function fetch(options: FetchOptions) {
     const toMs = fromMs + 86400_000;
     const fileDates = [options.dateString, new Date(toMs).toISOString().slice(0, 10)];
 
-    // the next day's file is only published after its 17:00 ET close, so the latest UTC day throws until then
+    // a UTC day spans two 17:00 ET files; the next day's file lands after its close.
+    // partial data is stored and a later refill (reconcile job) replaces it once the missing file is published.
     const manifestData = await fetchURL(`${BASE_URL}/manifest.json`);
-    for (const fileDate of fileDates) {
-        if (!manifestData.files.some((item: any) => item.filename === fileName(fileDate))) {
-            throw new Error(`No data found for ${fileDate}`);
-        }
-    }
+    const available = new Set(fileDates.filter((fileDate) =>
+        manifestData.files.some((item: any) => item.filename === fileName(fileDate))
+    ));
+    if (available.size === 0) throw new Error(`No data found for ${fileDates.join(' or ')}`);
 
     const [dayFile, nextFile] = fileDates;
-    const next = parseTradeCSV(await fetchURL(`${BASE_URL}/${fileName(nextFile)}`), nextFile, fromMs, toMs);
-    const day = parseTradeCSV(await fetchURL(`${BASE_URL}/${fileName(dayFile)}`), dayFile, fromMs, toMs, next.early);
+    const next = available.has(nextFile)
+        ? parseTradeCSV(await fetchURL(`${BASE_URL}/${fileName(nextFile)}`), nextFile, fromMs, toMs)
+        : { trades: [] as Trade[], early: new Map<string, number>() };
+    const day = available.has(dayFile)
+        ? parseTradeCSV(await fetchURL(`${BASE_URL}/${fileName(dayFile)}`), dayFile, fromMs, toMs, next.early)
+        : { trades: [] as Trade[] };
     const tradesData = day.trades.concat(next.trades);
 
     const dailyVolume = options.createBalances();
