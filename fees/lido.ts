@@ -122,12 +122,16 @@ const fetch = async (options: FetchOptions) => {
   })
   dailyHoldersRevenue.addBalances(buybacks, "LDO Accumulation Program")
 
+  // Buybacks are paid out of the DAO-treasury share
+  const dailyProtocolRevenue = options.createBalances()
+  dailyProtocolRevenue.addBalances(dailyRevenue, 'DAO treasury share')
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, 'DAO treasury share')
 
   return {
     dailyFees,
     dailyUserFees: 0,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue
   };
@@ -137,12 +141,13 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2020-12-19',
+  allowNegativeValue: true, // protocol revenue nets out LDO buybacks, which land in lumps of 1.7M-6.5M LDO (~$1.5M on 2026-06-01 vs ~$75k/day treasury revenue)
   methodology: {
     Fees: "Staking rewards earned by all staked ETH",
     UserFees: "Lido takes no fees from users.",
     Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (2023-05-15) the treasury/operator split is the validator-share-weighted aggregate read live from the StakingRouter; before V2 the split was a fixed 5%/5%, so half the fee is treasury.",
     HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
-    ProtocolRevenue: "DAO-treasury portion of the 10% fee (same as Revenue); excludes the node-operator share.",
+    ProtocolRevenue: "DAO-treasury portion of the 10% fee, minus the LDO bought back under the LDO Accumulation Program; excludes the node-operator share.",
     SupplySideRevenue: "Staking rewards earned by stETH holders plus the node-operator share of the 10% fee (paid to operators for running validators)."
   },
   breakdownMethodology: {
@@ -155,8 +160,7 @@ const adapter: Adapter = {
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards.',
-      [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
+      'DAO treasury share': 'DAO treasury share of the 10% fee on staking and MEV rewards, minus LDO bought back under the LDO Accumulation Program (negative on buyback days).',
     },
     SupplySideRevenue: {
       'Staking rewards to ETH stakers': 'Share of ETH rewards from running Beacon chain validators to stakers.',

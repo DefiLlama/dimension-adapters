@@ -211,7 +211,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   adapter: {
     [CHAIN.BASE]: { fetch: fetchBase, start: '2024-10-15' },
     [CHAIN.ETHEREUM]: { fetch: fetchEthereum, start: '2025-06-11' },

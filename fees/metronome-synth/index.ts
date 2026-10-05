@@ -36,6 +36,7 @@ const AERO_LABEL = "AERO Rewards";
 const CRV_OETH_FXN_REWARDS_LABEL = "CRV / OETH / FXN Rewards";
 const UNIV3_LABEL = "UniV3 LP Fees";
 const MET_DISTRIBUTION_LABEL = "MET Distribution";
+const TREASURY_REVENUE_LABEL = "Revenue To Treasury";
 
 type InflowEntry = {
   label: string;
@@ -357,9 +358,15 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue.addBalances(metTransfers, MET_DISTRIBUTION_LABEL);
   }
 
+  // Protocol revenue is what the treasury keeps after the MET distributed to holders
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(dailyFees, TREASURY_REVENUE_LABEL);
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, TREASURY_REVENUE_LABEL);
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
   };
 };
@@ -368,9 +375,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   // pullHourly: true,
   fetch,
+  allowNegativeValue: true, // protocol revenue nets out MET distributions, which land monthly in lumps (~$47k on 2026-09-09) far above daily fees
   methodology: {
-    Fees: "Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN) and UniV3 fees on treasury-owned positions.",
+    Fees:"Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN) and UniV3 fees on treasury-owned positions.",
     Revenue: "Same as Fees.",
+    ProtocolRevenue: "Revenue minus the MET distributed to holders; negative on distribution days.",
     HoldersRevenue: "MET distributed to holders.",
   },
   breakdownMethodology: {
@@ -383,6 +392,9 @@ const adapter: SimpleAdapter = {
       [VELO_KITE_LABEL]: "VELO/KITE rewards to the Optimism treasury (excl. MetBasis).",
       [CRV_OETH_FXN_REWARDS_LABEL]: "CRV/OETH/FXN rewards to the Ethereum treasury.",
       [UNIV3_LABEL]: "Ethereum UniV3 LP fees, net of same-tx liquidity withdrawals.",
+    },
+    ProtocolRevenue: {
+      [TREASURY_REVENUE_LABEL]: "All revenue kept by the treasury, minus the MET distributed to holders (negative on distribution days).",
     },
     HoldersRevenue: {
       [MET_DISTRIBUTION_LABEL]: "MET distributed to holders.",
