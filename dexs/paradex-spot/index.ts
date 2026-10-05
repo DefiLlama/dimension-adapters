@@ -1,56 +1,33 @@
 import fetchURL from "../../utils/fetchURL"
-import { getConfig } from "../../helpers/cache"
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const API_URL = "https://api.prod.paradex.trade/v1";
+// Paradex 48H Volume (Hourly) - one row per completed UTC hour.
+// Row format: [TRADE_HOUR, PERPS, PERP_OPTIONS, SPOT, OPTIONS, TOTAL]
+// The SPOT column matches the lifetime daily volume card (21187) SPOT_VOLUME (verified
+// 2026-10-04), so this is the same metric at hourly resolution. Rolling 48h window.
+const hourlyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/36136/card/42538?parameters=%5B%5D'
 
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  // See the perp adapter note on deriving the hour from toTimestamp.
+  const hourStart = Math.floor(options.toTimestamp / 3600) * 3600
 
-async function fetchMarkets() {
-  const marketsRes = await getConfig('paradex-spot/markets', `https://api.prod.paradex.trade/v1/markets`);
-  const allMarkets = marketsRes?.results;
-  if (!Array.isArray(allMarkets)) throw new Error('Paradex markets config is unavailable');
+  const { data: { rows } } = await fetchURL(hourlyVolumeEndpoint)
+  if (!rows || rows.length === 0) throw new Error('No data returned from Paradex hourly volume card')
 
-  return allMarkets
-    .filter(m => m.asset_kind === 'SPOT' && parseFloat(m.max_order_size) > 0)
-    .map(m => ({ id: m.symbol, symbol: m.symbol.toLowerCase() }));
-}
-
-async function fetchCandles(options: FetchOptions, marketId: string) {
-  try {
-    const { startTimestamp, endTimestamp, startOfDay } = options;
-    const klineUrl = `${API_URL}/tradingview/history?symbol=${marketId}&resolution=1D&from=${startTimestamp}&to=${endTimestamp}&countback=330&price_kind=mark&request_source=paradex-ui`;
-    const klineRes: { t?: number[], v?: number[] } = await fetchURL(klineUrl);
-
-    if (!klineRes?.t || !klineRes?.v || !Array.isArray(klineRes.t) || !Array.isArray(klineRes.v)) {
-      return 0;
-    }
-
-    const index = klineRes.t.indexOf(startOfDay);
-    if (index === -1) return 0;
-
-    return klineRes.v[index] || 0;
-  } catch (error) {
-    return 0;
-  }
-}
-
-const fetch = async (options: FetchOptions) => {
-  const markets = await fetchMarkets();
-  let dailyVolume = 0;
-  for (const market of markets) {
-    const volume = await fetchCandles(options, market.id);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    dailyVolume += volume;
-  }
-  return { dailyVolume };
+  const hourKey = new Date(hourStart * 1000).toISOString().slice(0, 19) + 'Z'
+  const row = rows.find((r: any[]) => r?.[0] === hourKey)
+  if (!row) throw new Error(`Paradex hourly card has no row for ${hourKey} (outside the 48h window)`)
+  // A null sum means no spot trades in that hour - a true zero, not missing data.
+  return { dailyVolume: Number(row[3] ?? 0) }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   chains: [CHAIN.PARADEX],
   fetch,
-  start: '2026-02-04',
+  start: '2026-10-03',
 }
 
 export default adapter;

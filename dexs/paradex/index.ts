@@ -2,59 +2,38 @@ import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Rolling 24H volume - for current day
-const rolling24hEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/9308/card/8353?parameters=%5B%5D'
-// Lifetime Volume - for historical daily volumes (has data from 2023-08-25)
-const dailyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/20065/card/21187?parameters=%5B%5D'
-
-interface DailyVolumeCache {
-  [date: string]: number
-}
-
-let dailyVolumeCache: DailyVolumeCache | null = null
-
-const fetchDailyVolumeCache = async (): Promise<DailyVolumeCache> => {
-  if (dailyVolumeCache) return dailyVolumeCache
-  const { data: { rows } } = await fetchURL(dailyVolumeEndpoint)
-  dailyVolumeCache = {}
-  for (const row of rows) {
-    // Row format: [TRADE_DATE, PERP_VOLUME, OPTION_VOLUME, TOTAL_VOLUME, CUMULATIVE_VOLUME]
-    const date = row[0].slice(0, 10) // "2026-01-19T00:00:00Z" -> "2026-01-19"
-    const perpVolume = Number(row[1] ?? 0)
-    dailyVolumeCache[date] = perpVolume
-  }
-  return dailyVolumeCache
-}
+// Paradex 48H Volume (Hourly) - one row per completed UTC hour.
+// Row format: [TRADE_HOUR, PERPS, PERP_OPTIONS, SPOT, OPTIONS, TOTAL]
+// Columns match the lifetime daily volume card (21187) exactly (verified 2026-10-04:
+// hourly sum equals the daily PERP_VOLUME to the cent), so this is the same metric at
+// hourly resolution. The card serves a rolling 48h window.
+const hourlyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/36136/card/42538?parameters=%5B%5D'
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const { startOfDay, endTimestamp } = options
-  const todayStartOfDay = Math.floor(new Date(new Date(endTimestamp * 1000).toISOString().slice(0, 10)).getTime() / 1000)
-  const isCurrentDay = startOfDay === todayStartOfDay
+  // The runner's window is (toTimestamp - 3600, toTimestamp]; toTimestamp is the last
+  // second of the requested hour, so floor to the hour start (mirrors how startOfDay is
+  // derived from toTimestamp for daily adapters).
+  const hourStart = Math.floor(options.toTimestamp / 3600) * 3600
 
-  if (isCurrentDay) {
-    // Use rolling 24h volume for current day
-    const { data: { rows } } = await fetchURL(rolling24hEndpoint)
-    if (!rows || rows.length === 0) throw new Error('No data returned from API')
-    return { dailyVolume: Number(rows[0][0] ?? 0) }
-  }
+  const { data: { rows } } = await fetchURL(hourlyVolumeEndpoint)
+  if (!rows || rows.length === 0) throw new Error('No data returned from Paradex hourly volume card')
 
-  // Use historical daily volume for past dates
-  // The chart uses TRADE_DATE which is the date trades occurred (startOfDay)
-  const cache = await fetchDailyVolumeCache()
-  const dateKey = new Date(startOfDay * 1000).toISOString().slice(0, 10)
-  const dailyVolume = cache[dateKey]
-  if (dailyVolume === undefined) throw new Error(`No historical data for ${dateKey}`)
-  return { dailyVolume }
+  const hourKey = new Date(hourStart * 1000).toISOString().slice(0, 19) + 'Z' // "2026-10-03T08:00:00Z"
+  const row = rows.find((r: any[]) => r?.[0] === hourKey)
+  if (!row) throw new Error(`Paradex hourly card has no row for ${hourKey} (outside the 48h window)`)
+  // A null sum means no perp trades in that hour - a true zero, not missing data.
+  return { dailyVolume: Number(row[1] ?? 0) }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.PARADEX]: {
       fetch,
-      start: '2023-09-01',
+      start: '2026-10-03',
     },
   },
 }
 
-export default adapter 
+export default adapter
