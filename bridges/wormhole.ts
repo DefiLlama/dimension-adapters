@@ -83,11 +83,17 @@ const fetch = async (options: FetchOptions) => {
   for (const row of rows) {
     const usd = Number(row.usd);
     const txs = Number(row.txs);
-    if (chainMap[row.source_chain] === options.chain) {
+    // the query filters out null USD rows, so a non-finite sum means the table changed shape: fail rather than store a partial day
+    if (!Number.isFinite(usd) || !Number.isFinite(txs)) throw new Error(`wormhole: non-numeric aggregate for ${row.source_chain}->${row.destination_chain}: usd=${row.usd} txs=${row.txs}`);
+    const source = chainMap[row.source_chain];
+    const destination = chainMap[row.destination_chain];
+    // two Allium labels can map to one slug (sei and seievm)
+    if (source && source === destination) continue;
+    if (source === options.chain) {
       dailyOutgoingVolume.addUSDValue(usd);
       dailyOutgoingTxCount += txs;
     }
-    if (chainMap[row.destination_chain] === options.chain) {
+    if (destination === options.chain) {
       dailyIncomingVolume.addUSDValue(usd);
       dailyIncomingTxCount += txs;
     }
