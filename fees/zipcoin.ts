@@ -98,10 +98,13 @@ const fetch = async (options: FetchOptions) => {
   tellerPaid.forEach((log: any) => relayFee(ZC, log.fee));
   const tellerEthPaid = await options.getLogs({ target: TELLER_ETH, eventAbi: abis.tellerEthPaid });
   tellerEthPaid.forEach((log: any) => relayFee(ADDRESSES.null, log.fee));
-  for (const [teller, asset] of Object.entries(TELLER_STABLE)) {
-    const paid = await options.getLogs({ target: teller, eventAbi: abis.tellerStablePaid });
-    paid.forEach((log: any) => relayFee(asset, log.fee));
-  }
+  const stableTellers = Object.entries(TELLER_STABLE);
+  const stablePaid = await options.getLogs({
+    targets: stableTellers.map(([teller]) => teller),
+    eventAbi: abis.tellerStablePaid,
+    flatten: false,
+  });
+  stablePaid.forEach((logs: any[], i: number) => logs.forEach((log: any) => relayFee(stableTellers[i][1], log.fee)));
   const changed = await options.getLogs({ target: CHANGER, eventAbi: abis.changed });
   changed.forEach((log: any) => relayFee(ZC, log.fee));
 
