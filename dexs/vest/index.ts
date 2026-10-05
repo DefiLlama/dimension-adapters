@@ -17,6 +17,7 @@ const fetch = async (): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: false, // The endpoint only returns current rolling 24-hour volume, not hourly intervals.
     adapter: {
         [CHAIN.OFF_CHAIN]: {
             fetch,
