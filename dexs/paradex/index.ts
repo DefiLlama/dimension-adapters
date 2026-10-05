@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// Paradex 48H Volume (Hourly) - one row per completed UTC hour, rolling window.
+// Paradex 7D Volume (Hourly) - one row per completed UTC hour, rolling 7-day window.
 // Row format: [TRADE_HOUR, PERPS, PERP_OPTIONS, SPOT, OPTIONS, TOTAL]
 // The listing is whole-exchange volume (perps + spot + options), which is the TOTAL
 // column. Verified against the daily lifetime card (21187) on 2026-10-04: the hourly
@@ -33,9 +33,9 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.PARADEX]: {
       fetch,
-      // The card is a rolling 48h window, so `start` must sit inside it at deploy time or the
-      // initial refill's first hours throw. Set to a day inside the current window; move it
-      // forward if the merge is delayed.
+      // The card is a rolling 7-day window, so `start` must sit inside it at deploy time or
+      // the initial refill's first hours throw. Set to a day inside the current window; move
+      // it forward if the merge is delayed beyond the window.
       start: '2026-10-04',
     },
   },
