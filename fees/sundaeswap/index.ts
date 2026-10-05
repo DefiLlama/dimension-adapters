@@ -113,6 +113,7 @@ const adapter: Adapter = {
   chains: [CHAIN.CARDANO],
   fetch,
   start: "2022-01-20",
+  deadFrom: "2026-10-01", // protocol fees reported by the Sundae API are currently incorrect
   methodology,
   breakdownMethodology,
 };
