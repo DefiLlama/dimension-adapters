@@ -4,12 +4,14 @@ import { gql, GraphQLClient } from "graphql-request";
 import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const getDailyVolume = () => {
+// MetricsGlobalDay id/timestamp = UTC midnight of the day; filter on it instead of paging the whole history
+const getDailyVolume = (dayTimestamp: number) => {
   return gql`{
-    metricsGlobalDays(first:1000, skip:0) {
+    metricsGlobalDays(where: { timestamp: ${dayTimestamp} }) {
       timestamp
       volUSD
     }
+    _meta { block { timestamp } }
   }`
 }
 
@@ -24,13 +26,18 @@ interface IGraphResponse {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume())).metricsGlobalDays;
+  const response = await getGQLClient().request(getDailyVolume(options.startOfDay));
+  // a lagging subgraph would return a partial (or missing) day row
+  if (Number(response._meta.block.timestamp) < options.endTimestamp)
+    throw new Error(`spartan subgraph not synced past ${options.dateString}`)
+  const historicalVolume: IGraphResponse[] = response.metricsGlobalDays;
 
+  // no row once synced = no pool activity that day
   const dailyVolume = historicalVolume
     .find(dayItem => (Number(dayItem.timestamp)) === options.startOfDay)?.volUSD
 
   return {
-    dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : undefined,
+    dailyVolume: dailyVolume ? `${Number(dailyVolume)/1e18}` : 0,
   }
 }
 
@@ -38,6 +45,9 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.BSC],
   start: '2021-10-04',
+  methodology: {
+    Volume: 'Sum of the SPARTA side of every pool swap, valued in USD at the subgraph SPARTA price (average of the SPARTA/USDT, SPARTA/USDC and SPARTA/BUSD pools holding over 100k SPARTA). All pools are paired with SPARTA, so a token-to-token trade swaps through two pools and is counted in both.',
+  },
 };
 
 export default adapter;
