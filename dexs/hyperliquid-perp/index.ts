@@ -1,7 +1,7 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidaqav2InterestUSD, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
 
 const methodology = {
   Volume: "Track trading volume on all perps markets (including HIP-3 markets), excluding all spot markets volume.",
@@ -17,10 +17,12 @@ const breakdownMethodology = {
     'Perp Fees': 'Perp trade fees collected as revenue, excluding spot fee.',
     'Builder Code Fees': 'Fees added on top by other platforms building on top of Hyperliquid.',
     'Priority Fees': 'Fees from priority orders paid.',
+    'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
   Revenue: {
     'Perp Fees': '99% of perp trade fees, excluding spot fees and builders fees.',
     'Priority Fees': 'Fees from priority orders paid.',
+    'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
   SupplySideRevenue: {
     'Builder Code Distribution': 'All extra fees added on top by builders are fully passed down to these platforms.',
@@ -31,6 +33,7 @@ const breakdownMethodology = {
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "99% of perp trade fees (excluding spot fees and builders fees) for buy back HYPE tokens.",
     'HYPE Burn From Priority Fees': 'All prioroty fees will be used to buy and burn HYPE.',
+    'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
 }
 
@@ -61,6 +64,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   } else {
     // get volume and fees from indexer
     const result = await queryHyperliquidIndexer(options);
+    const aqav2Interest = await queryHyperliquidaqav2InterestUSD(options);
 
     // perp volume
     const dailyVolume = result.dailyPerpVolume;
@@ -75,6 +79,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(result.dailyBuildersRevenue.clone(-1), 'Perp Fees')
     dailyFees.add(result.dailyBuildersRevenue, 'Builder Code Fees')
     // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
+    dailyFees.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
     dailySupplySideRevenue.add(result.dailyHyperliquidRevenue.clone(hlpShare), 'HLP')
     dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builder Code Distribution')
@@ -83,9 +88,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     
     // 99% of revenue
     dailyRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), 'Perp Fees')
+    dailyRevenue.add(aqav2Interest, 'AQAv2 - USDC Yields')
     // dailyRevenue.add(result.dailyPriorityFeesUsd, 'Priority Fees')
+
     dailyHoldersRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
     // dailyHoldersRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
+    dailyHoldersRevenue.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
     return {
       dailyVolume,

@@ -929,3 +929,15 @@ export const exportValidatorStakingAdapter = (exportOptions: ExportValidatorStak
 
   return adapter;
 };
+
+// https://hyperliquid.gitbook.io/hyperliquid-docs/hypercore/aligned-quote-assets
+export const HYPERLQIUID_AQAV2_ACTIVE_DATE = 1786838400; // 2026-08-16
+export const queryHyperliquidaqav2InterestUSD = async (options: FetchOptions): Promise<Balances> => {
+  const interest = options.createBalances();
+  const endpoint = getEnv("LLAMA_HL_INDEXER");
+  if (options.startOfDay >= HYPERLQIUID_AQAV2_ACTIVE_DATE && endpoint) {
+    const data = await httpGet(`${endpoint}/v1/data/snapshot/aqav2InterestHistory/${options.startOfDay}`);
+    interest.addCGToken("usd-coin", data.interest);
+  }
+  return interest;
+}
