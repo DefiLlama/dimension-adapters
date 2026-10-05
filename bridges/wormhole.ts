@@ -98,7 +98,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   prefetch: prefetch as any,
   chains: [...new Set(Object.values(chainMap))],
