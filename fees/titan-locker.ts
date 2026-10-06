@@ -66,7 +66,6 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
     dailySupplySideRevenue: 0,
@@ -76,7 +75,6 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Lock creation fees paid by users to Titan Locker, read from FeeCollected events on every lock manager: a flat ETH fee, or a share of the deposited token for ERC-20 and vesting locks.",
-  UserFees: "Users pay the lock creation fee when they create a lock.",
   Revenue: "All lock creation fees go to the Titan Locker fee receiver.",
   ProtocolRevenue: "All lock creation fees go to the Titan Locker fee receiver.",
   SupplySideRevenue: "No fees are shared with liquidity providers or other parties.",
@@ -87,10 +85,6 @@ const breakdownMethodology = {
   Fees: {
     [LABELS.ETH_FEES]: "Flat ETH fee paid when creating a lock, in which case the whole deposit is locked.",
     [LABELS.TOKEN_FEES]: "Share of the deposited token taken as the fee when an ERC-20 or vesting lock is created without paying ETH.",
-  },
-  UserFees: {
-    [LABELS.ETH_FEES]: "Flat ETH fee paid when creating a lock.",
-    [LABELS.TOKEN_FEES]: "Share of the deposited token paid as the fee when creating an ERC-20 or vesting lock.",
   },
   Revenue: {
     [LABELS.ETH_FEES]: "ETH lock creation fees sent to the Titan Locker fee receiver.",
