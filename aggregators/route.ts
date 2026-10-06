@@ -55,16 +55,30 @@ const collectors = [
   // https://repo.sourcify.dev/4663/0xEda33d977CeFCFd56b85c7525e91bB383D92069C
   '0xeda33d977cefcfd56b85c7525e91bb383d92069c',
 ];
+// https://repo.sourcify.dev/4663/0xE057C06010D6bBE1A8EB371ab8fFdF4024379d60
+const partnerExecutor = '0xe057c06010d6bbe1a8eb371ab8ffdf4024379d60';
 // Route v2 settlements emit one Settled per swap and no Swapped event, so Settled is the only
-// record of both v2 volume (gross output) and fees. Fees go straight to the treasury Safe.
+// record of both v2 volume (gross output) and Route fees. The October 1 executor pays its fee to
+// the treasury Safe; the flywheel and partner executors pay it into the 60/5/35 revenue manager
+// (its buybacks are counted from the manager's Executed events below, not here).
 const v2Collectors = [
-  // Route v2 executor used by route.fun since October 1, 2026.
+  // Route v2 flywheel executor, used by route.fun and partner keys since October 6, 2026.
+  // https://repo.sourcify.dev/4663/0x2cDD127B79290Af1c32a64fE3E2f69A8F8c7211B
+  '0x2cdd127b79290af1c32a64fe3e2f69a8f8c7211b',
+  // Route v2 partner executor (October 6, 2026): same swap and Settled, plus a partner fee.
+  // https://repo.sourcify.dev/4663/0xE057C06010D6bBE1A8EB371ab8fFdF4024379d60
+  partnerExecutor,
+  // Route v2 executor used by route.fun from October 1, 2026.
   // https://repo.sourcify.dev/4663/0x27F38C4fd323D635d0E15054a6cfbdFc9D076F25
   '0x27f38c4fd323d635d0e15054a6cfbdfc9d076f25',
   // Earlier v2 fee collector (September 26).
   // https://repo.sourcify.dev/4663/0x9F8f538EA588CcF935876527115BB2A834c2F5Fc
   '0x9f8f538ea588ccf935876527115bb2a834c2f5fc',
 ];
+// The partner fee (bps of the gross output, on top of Route's fee) goes to the integrating partner's
+// wallet, converted to USDG in the same swap when possible. It is the partner's income, not Route's:
+// reported as supply-side, like builder fees. feeAmount is in the swap's tokenOut.
+const partnerFee = 'event PartnerFee(address indexed partner,address indexed tokenOut,uint256 feeAmount,address paidToken,uint256 paidAmount)';
 // Builder executors call the engines above, whose Swapped events already carry the volume.
 // Their own Route fee and integrator fee are only reported in BuilderSettled.
 const builderExecutors = [
@@ -189,6 +203,11 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
     dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
     dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
   }
+  const partnerFees = await options.getLogs({ toBlock, target: partnerExecutor, eventAbi: partnerFee });
+  for (const log of partnerFees) {
+    dailyFees.add(log.tokenOut, log.feeAmount, 'Partner Fees');
+    dailySupplySideRevenue.add(log.tokenOut, log.feeAmount, 'Partner Fees');
+  }
   const builderSettlements = await options.getLogs({ toBlock, targets: builderExecutors, eventAbi: builderSettled });
   for (const log of builderSettlements) {
     dailyFees.add(log.tokenOut, log.routeFee, 'Swap Fees');
@@ -268,21 +287,22 @@ const adapter: SimpleAdapter = {
   },
   allowNegativeValue: true, // Buybacks can use revenue collected in an earlier period.
   methodology: {
-    Volume: 'Completed swaps through every Route settlement generation (original engines, fee collectors and provider executors, builder integrations and the Route v2 executor that route.fun uses since October 1, 2026), counted once per trade, including integrations and treasury trades but excluding quotes, individual pool hops and swaps sent from or to wallet 0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d, which Route excludes from its own reported volume.',
-    Fees: 'Actual Route swap fees (including builder-integration and Route v2 swaps), integrator fees on builder swaps, and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, API subscriptions, private transfers and cross-chain fees.',
-    Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending; integrator fees paid to builders are excluded.',
+    Volume: 'Completed swaps through every Route settlement generation (original engines, fee collectors and provider executors, builder integrations and the Route v2 executors: the October 1, 2026 executor, the flywheel executor route.fun and partners use since October 6, and the partner executor), counted once per trade, including integrations and treasury trades but excluding quotes, individual pool hops and swaps sent from or to wallet 0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d, which Route excludes from its own reported volume.',
+    Fees: 'Actual Route swap fees (including builder-integration and Route v2 swaps), integrator fees on builder swaps, partner fees on partner-executor swaps, and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, API subscriptions, private transfers and cross-chain fees.',
+    Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending; integrator fees paid to builders and partner fees paid to partners are excluded.',
     ProtocolRevenue: 'Tracked revenue less revenue-funded ROUTE buybacks, which may spend receipts from earlier days; LP funding is a separate capital allocation, not a revenue deduction.',
     HoldersRevenue: 'Actual ETH input for early creator-revenue-funded dev-wallet purchases and completed automated ROUTE buybacks; excludes all LP budgets and purchases made for liquidity.',
-    SupplySideRevenue: 'Integrator fees paid to builders on builder-integration swaps. No other tracked fee receipt is paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
+    SupplySideRevenue: 'Integrator fees paid to builders on builder-integration swaps and partner fees paid to partners on partner-executor swaps. No other tracked fee receipt is paid to outside liquidity providers or referrers; LP funding is a subsequent capital allocation.',
   },
   breakdownMethodology: {
     Fees: {
       'Swap Fees': 'Route fees paid on swaps through the tracked Route contracts, using the actual amount charged on each trade.',
       'Builder Fees': 'Integrator fees charged on builder-integration swaps and paid directly to the builder.',
+      'Partner Fees': 'Partner fees charged on Route v2 partner-executor swaps and paid to the partner wallet (in USDG when converted in the swap), from the PartnerFee event.',
       [METRIC.CREATOR_FEES]: 'Actual creatorAmount distributed by ROUTE\'s bonding curve or original Pons pool, including the original dev wallet and every manager recipient; excludes the Pons protocol share.',
     },
     Revenue: {
-      'Swap Fees To Route': 'Swap fees received by Route before buybacks and treasury spending, including Route v2 fees paid directly to the treasury Safe.',
+      'Swap Fees To Route': 'Swap fees received by Route before buybacks and treasury spending, including Route v2 fees paid directly to the treasury Safe or into the 60/5/35 revenue manager.',
       'Creator Fees To Route': 'ROUTE creator fees paid to its historical or current recipient; later escrow claims, fee conversions and internal transfers are not additional income.',
     },
     ProtocolRevenue: {
@@ -292,6 +312,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       'Builder Fees': 'Integrator fees paid to builders on builder-integration swaps.',
+      'Partner Fees': 'Partner fees paid to partners on Route v2 partner-executor swaps.',
     },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'Actual ETH input for 100 post-launch dev-wallet buys funded by ROUTE creator fees (see the historical funding reconciliation) and completed buys from all four automated managers (the current Ramp manager splits revenue 60% buyback, 5% LP, 35% treasury); excludes the launch purchase, gas, and ROUTE bought within the separate capital-allocation budget.',
