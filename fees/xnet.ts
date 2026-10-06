@@ -348,11 +348,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  // The public XNET source publishes one service-accrual row per UTC date,
-  // not hourly observations, so hourly pulls would duplicate the same daily
-  // accounting rather than add real resolution.
-  pullHourly: false,
+  version: 1,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
 
