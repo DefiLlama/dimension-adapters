@@ -31,9 +31,11 @@ import { METRIC } from "../../helpers/metrics";
 // Per-chain start dates = first pool creation, UTC. Verified 2026-06-02 by querying each
 // subgraph for the earliest Pair.createdAtTimestamp. NOTE: Base + HyperEVM predate the 2026-04
 // redeploy wave (HyperEVM live since 2025-08, Base since 2025-10).
+// Subgraph URLs: the 1.x deployments were deleted (Goldsky 404); the 2.0.0 ones are taken from the
+// app.sweepnflip.io front-end config (Base still served from 1.1.0 there).
 const chainConfig: any = {
   [CHAIN.ETHEREUM]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-mainnet/1.1.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-mainnet/2.0.0/gn',
     start: '2026-04-15'
   },
   [CHAIN.BASE]: {
@@ -41,35 +43,35 @@ const chainConfig: any = {
     start: '2025-10-25'
   },
   [CHAIN.ARBITRUM]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-arbitrum/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-arbitrum/2.0.0/gn',
     start: '2026-04-15'
   },
   [CHAIN.POLYGON]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-polygon/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-polygon/2.0.0/gn',
     start: '2026-04-15'
   },
   [CHAIN.HYPERLIQUID]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-hyperevm/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-hyperevm/2.0.0/gn',
     start: '2025-08-23'
   },
   [CHAIN.APECHAIN]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-apechain/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmnyu0s049bde01vr754rehxg/subgraphs/snf-apechain/2.0.0/gn',
     start: '2026-04-28'
   },
   [CHAIN.BERACHAIN]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-berachain/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-berachain/2.0.0/gn',
     start: '2026-04-28'
   },
   [CHAIN.MONAD]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-monad/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-monad/2.0.0/gn',
     start: '2026-03-30'
   },
   [CHAIN.ABSTRACT]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-abstract/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-abstract/2.0.0/gn',
     start: '2026-06-15'
   },
   [CHAIN.RONIN]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-ronin/1.0.0/gn',
+    subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-ronin/2.0.0/gn',
     start: '2026-06-15'
   },
 }
