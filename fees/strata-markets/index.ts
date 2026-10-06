@@ -117,8 +117,10 @@ async function processCDO(
   // already in it. the previous window's toBlock is this window's fromBlock and
   // getLogs includes both ends, so we start one block later. otherwise a deposit
   // or withdrawal in the boundary block gets counted in both windows.
-  const fromBlock = (await getFromBlock()) + 1;
-  const toBlock = await getToBlock();
+  const [startBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+  // getBlock returns null if the lookup fails. null + 1 would scan from block 1
+  if (!startBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${startBlock}, ${toBlock})`);
+  const fromBlock = startBlock + 1;
 
   const [
     jrtDeposits,
