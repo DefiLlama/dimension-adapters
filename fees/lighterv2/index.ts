@@ -214,9 +214,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyHoldersRevenue.addUSDValue(dailyBuybackUsd, METRIC.TOKEN_BUY_BACK)
   }
 
+  // Revenue = ProtocolRevenue + HoldersRevenue: whatever is not spent on buybacks stays with the treasury
+  const dailyProtocolRevenue = options.createBalances()
+  dailyProtocolRevenue.addUSDValue(tradingFees + totalTransferFee + totalWithdrawFee - dailyBuybackUsd, 'Fees To Treasury')
+
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   }
@@ -225,6 +230,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const methodology = {
   Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
   Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees. Liquidation fees are excluded as they go directly to LLP.',
+  ProtocolRevenue: 'Revenue kept by the treasury after LIT buybacks. Negative on days when buybacks exceed that day\'s revenue.',
   HoldersRevenue: 'LIT token buybacks from treasury. The protocol uses fees to buy back LIT tokens from the market.',
   SupplySideRevenue: 'Liquidation fees paid to the LLP (Lighter Liquidity Pool / insurance fund).',
 }
@@ -240,6 +246,9 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: 'Maker and taker fees from perpetual trading.',
     'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
+  },
+  ProtocolRevenue: {
+    'Fees To Treasury': 'Maker, taker, transfer and withdraw fees minus the LIT buybacks counted under HoldersRevenue.',
   },
   SupplySideRevenue: {
     'Liquidation Fees To LLP': 'Liquidation fees (up to 1% of notional) sent to the LLP / insurance fund.',
@@ -257,6 +266,7 @@ const adapter: SimpleAdapter = {
   start: '2025-06-22',
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // ProtocolRevenue is negative on days when LIT buybacks exceed that day's revenue
 }
 
 export default adapter

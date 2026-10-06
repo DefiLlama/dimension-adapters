@@ -110,18 +110,11 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
         dailySupplySideRevenue.add(HYPE_ADDRESS, totalDeployerFees);
     }
 
-    // Protocol revenue should ideally be 0 (all protocol fees should go to stakers)
-    // Any difference represents timing lag or undistributed fees
-    const protocolRevenueAmount = totalProtocolFees - holdersRevenueAmount;
-    if (protocolRevenueAmount > 0n) {
-        dailyProtocolRevenue.add(HYPE_ADDRESS, protocolRevenueAmount);
-    }
-
-    // Calculate total revenue (protocol + holders)
-    const totalRevenueAmount = protocolRevenueAmount + holdersRevenueAmount;
-    if (totalRevenueAmount > 0n) {
-        dailyRevenue.add(HYPE_ADDRESS, totalRevenueAmount);
-    }
+    // Staker rewards are paid out of the protocol fees, so they move from protocol revenue to holders revenue.
+    // Protocol revenue is the undistributed remainder; it goes negative when a distribution pays out
+    // fees collected in an earlier window, so Revenue = ProtocolRevenue + HoldersRevenue holds every window
+    dailyProtocolRevenue.add(HYPE_ADDRESS, totalProtocolFees - holdersRevenueAmount);
+    dailyRevenue.add(HYPE_ADDRESS, totalProtocolFees);
 
     return {
         dailyVolume,
@@ -137,7 +130,7 @@ const methodology = {
     Volume: "Volume is calculated from hypeIn amounts in TokensPurchased events and hypeOut amounts in TokensSold events.",
     Fees: "Fees include: (1) Pre-bond trading fees: 1% of HYPE from TokensPurchased/TokensSold events, (2) Bond fees: 20 HYPE when tokens bond to DEX, (3) Post-bond LP fees: claimed via FeesClaimed events.",
     Revenue: "Revenue to the protocol ecosystem (ProtocolRevenue + HoldersRevenue), excluding deployer fees.",
-    ProtocolRevenue: "Should ideally be 0 as all protocol fees go to LIQD stakers.",
+    ProtocolRevenue: "Protocol fees not yet distributed to LIQD stakers; negative when a distribution pays out fees collected earlier.",
     HoldersRevenue: "Revenue distributed to LIQD stakers via RewardAdded events from the staking contract. This should include all protocol fees (pre-bond 1% fees + 75% of bond fees + 50% of LP fees).",
     SupplySideRevenue: "Revenue that goes to token deployers: 25% of bond fees (5 HYPE per bond) + 50% of post-bond LP fees from FeesClaimed events.",
 }
@@ -149,6 +142,8 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.HYPERLIQUID],
     start: "2025-02-21",
     methodology,
+    // protocol revenue goes negative in windows where the LIQD staker distribution exceeds the fees collected in that window
+    allowNegativeValue: true,
 };
 
 export default adapter; 

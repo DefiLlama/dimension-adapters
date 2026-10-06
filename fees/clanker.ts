@@ -75,13 +75,17 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue.addBalances(rawBuybacks, "Token Buy Back");
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  // buybacks are paid out of protocol revenue, so ProtocolRevenue = Revenue - HoldersRevenue
+  const dailyProtocolRevenue = dailyRevenue.clone();
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, "Swap Fees To Protocol");
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
 };
 
 const methodology = {
   Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee).",
   Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap.",
-  ProtocolRevenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap.",
+  ProtocolRevenue: "Clanker protocol's cut of swap fees, minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
   HoldersRevenue: "CLANKER tokens bought back and distributed to holders.",
   SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position.",
 };
@@ -107,6 +111,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // CLANKER buybacks spend revenue accrued earlier, so ProtocolRevenue goes negative when a buyback exceeds the period's revenue (e.g. 2025-10-26)
+  allowNegativeValue: true,
   methodology,
   breakdownMethodology,
   fetch,

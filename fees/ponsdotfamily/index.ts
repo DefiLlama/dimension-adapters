@@ -166,11 +166,16 @@ async function fetch(options: FetchOptions) {
 
   const dailyHoldersRevenue = dailyBurns.clone(1, "Protocol Revenue to Buyback and Burn");
 
+  // the buyback and burn is paid out of protocol revenue, so it moves from protocol revenue to holders revenue
+  const dailyProtocolRevenue = dailyRevenue.clone(1, "Fees To Treasury");
+  dailyProtocolRevenue.subtract(dailyBurns, "Fees To Treasury");
+
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
+    dailyProtocolRevenue,
   };
 }
 
@@ -178,7 +183,8 @@ const methodology = {
   Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $200 in TVL are included) and 0.0005 $ETH per token launched.",
   Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function, only pools with at least $200 in TVL are included) and all the launch fees (0.0005 $ETH per token launched).",
   SupplySideRevenue: "Includes one-sixth of swap fees (routed to Uniswap after July 27, 2026, and zero before that), as well as the portion of swap fees paid to token creators after protocol revenue is deducted.",
-  HoldersRevenue: "Around 80% of revenue is used to buyback and burn $PONS tokens."
+  HoldersRevenue: "Around 80% of revenue is used to buyback and burn $PONS tokens.",
+  ProtocolRevenue: "Revenue minus the $PONS bought back and burnt.",
 };
 
 const breakdownMethodology = {
@@ -197,6 +203,9 @@ const breakdownMethodology = {
   HoldersRevenue: {
     "Protocol Revenue to Buyback and Burn": "Around 80% of revenue is used to buyback and burn $PONS tokens.",
   },
+  ProtocolRevenue: {
+    "Fees To Treasury": "Protocol share of swap fees and all launch fees, minus the $PONS bought back and burnt.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -209,6 +218,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   doublecounted: true, // uniswap
   isExpensiveAdapter: true,
+  // protocol revenue is negative on days the $PONS burns exceed this listing's revenue: the burns are also
+  // funded by Pons V2 revenue (ponsdotfamily-v2 tracks no burns), and they are batched
+  allowNegativeValue: true,
 };
 
 export default adapter;

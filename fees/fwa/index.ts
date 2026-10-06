@@ -18,6 +18,7 @@ const METRICS = {
   RetainedToNFTHolders: 'Retained Settlement Penalties to Snapshot NFT Holders',
   TokenBuyBack: 'Token Buy Back',
   RetroactiveBuybacks: 'Retroactive buybacks',
+  FeesToTeam: 'Fees To Team',
 };
 
 const ABIS = {
@@ -39,7 +40,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
   const [ownerSettlementFeeBps, retainedToProtocol, ownerShareBps] = await Promise.all([
@@ -138,7 +138,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   ];
   components.forEach(([amount, label, nftLabel]) => {
     dailyRevenue.addGasToken(proRata(amount, teamShare), label);
-    dailyProtocolRevenue.addGasToken(proRata(amount, teamShare), label);
     dailySupplySideRevenue.addGasToken(proRata(amount, nftHoldersShare), nftLabel);
   });
   // ProtocolFeesToToken fires when the slice is paid out, which can be a later window than the
@@ -155,6 +154,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // were already booked as protocol revenue when they accrued
   bought.forEach((log: any) => { dailyHoldersRevenue.addGasToken(log.ethSpent, METRICS.RetroactiveBuybacks); });
 
+  // Revenue = ProtocolRevenue + HoldersRevenue: both buyback legs are deducted from the team's share
+  const dailyProtocolRevenue = dailyRevenue.clone(1, METRICS.FeesToTeam);
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, METRICS.FeesToTeam);
+
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
@@ -162,7 +165,7 @@ const methodology = {
   Volume: "Gross ETH paid by purchasers for acquisitions (pulls), net of refunded, expired, or slippage-cancelled requests.",
   Fees: "Net Acquisition fees paid by NFT purchasers, plus settlement fees taken from listing backings.",
   Revenue: "Team share of the protocol's cut of acquisition and settlement fees, plus any fees diverted to FWA-token buybacks.",
-  ProtocolRevenue: "Team share of the protocol's fee cut, per the Splitter contract's live split.",
+  ProtocolRevenue: "Team share of the protocol's fee cut, per the Splitter contract's live split, minus the FWA-token buybacks counted under HoldersRevenue.",
   HoldersRevenue: "FWA-token buybacks funded from protocol fees, plus retroactive scheduled buybacks funded from previously earned team fees.",
   SupplySideRevenue: "Share of net acquisition fees distributed to NFT depositors (equal split across active listings plus the top-listing pot), plus the snapshot soulbound-NFT holders' share of protocol fees via the Splitter.",
 };
@@ -188,9 +191,7 @@ const breakdownMethodology = {
     [METRICS.RetainedSettlements]: "Settlement discount redistributed among active NFT depositors.",
   },
   ProtocolRevenue: {
-    [METRICS.AcquisitionFees]: "Protocol cut (1%) of acquisition fees.",
-    [METRICS.SettlementFees]: "Settlement fees accrue entirely to the protocol.",
-    [METRICS.RetainedSettlements]: "Retained settlement penalties accrue to the protocol.",
+    [METRICS.FeesToTeam]: "Team share of acquisition fees, settlement fees and retained settlement penalties, minus fee-funded and retroactive FWA-token buybacks.",
   },
   HoldersRevenue: {
     [METRICS.TokenBuyBack]: "Protocol fees diverted to FWA-token buybacks.",
@@ -201,7 +202,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  allowNegativeValue: true, // quick-sell payouts and refunds can exceed same-window pull spend
+  allowNegativeValue: true, // quick-sell payouts and refunds can exceed same-window pull spend; buybacks can exceed the window's team share of fees
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2026-07-20',
