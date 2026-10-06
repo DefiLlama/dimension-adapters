@@ -13,9 +13,14 @@ const fetch = async (options: FetchOptions) => {
   const fees = response.data.rows.find((row: string[]) => row[0].slice(0, 10) === options.dateString)?.[SPOT_FEES_INDEX]
   if (fees == null) throw new Error(`Missing Paradex spot fees for ${options.dateString}`)
 
+  const dailyFees = options.createBalances()
+  const dailyUserFees = options.createBalances()
+  dailyFees.addUSDValue(fees, 'Spot Trading Fees')
+  dailyUserFees.addUSDValue(fees, 'Spot Trading Fees')
+
   return {
-    dailyFees: fees,
-    dailyUserFees: fees,
+    dailyFees,
+    dailyUserFees,
   }
 }
 
@@ -30,6 +35,9 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Spot trading fees paid by takers and makers on Paradex, taken from the SPOT_FEES breakdown of the public Paradex stats dashboard.",
     UserFees: "Spot trading fees paid by users on Paradex.",
+  },
+  breakdownMethodology: {
+    'Spot Trading Fees': "Spot trading fees paid by users on Paradex, from the SPOT_FEES breakdown of the public Paradex stats dashboard.",
   },
   // Paradex does not publish a supply-side/protocol split of its fees, so - as with
   // the Paradex perps and options adapters - dailyRevenue is deliberately not reported.
