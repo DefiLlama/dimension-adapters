@@ -55,7 +55,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     fetch,
-    start: '2026-07-05',
+    start: '2026-07-04',
     chains: Object.keys(lilswapChainAliases),
     methodology,
     breakdownMethodology,

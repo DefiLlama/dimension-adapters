@@ -81,11 +81,15 @@ const fetchLegacy = async (options: FetchOptions) => {
     dailyHoldersRevenue.add(SSV_TOKEN, log.value, "Token Burns");
   }
 
+  // Burns are funded from the DAO treasury, so they are deducted from the treasury's share: Revenue = ProtocolRevenue + HoldersRevenue
+  const dailyProtocolRevenue = dailyRevenue.clone();
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, "DAO Treasury Allocation");
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
   };
@@ -150,7 +154,7 @@ const methodology = {
   Fees: "Total validator fees on ssv.network: network fee (set by the DAO) plus operator fees (set by each operator in a free market). Denominated in SSV before the April 2026 SSV Staking / cSSV migration and in ETH after it.",
   UserFees: "Pre-migration metric: fees paid by stakers running validators (operator + network fees), equal to total Fees. SSV-denominated.",
   Revenue: "Network fees, the protocol's share of validator fees. Pre-migration these accrued to the DAO treasury, post-migration they are distributed to cSSV stakers.",
-  ProtocolRevenue: "Pre-migration metric: network fees allocated to the SSV DAO treasury. Not applicable after the migration, when network fees go to cSSV stakers instead.",
+  ProtocolRevenue: "Pre-migration metric: network fees allocated to the SSV DAO treasury minus SSV burned from the treasury, so it is negative on burn days. Not applicable after the migration, when network fees go to cSSV stakers instead.",
   SupplySideRevenue: "Operator fees earned by node operators running the distributed validator infrastructure (SSV-denominated pre-migration, ETH after).",
   HoldersRevenue: "Value accruing to holders: SSV token burns pre-migration; ETH network fees distributed to cSSV stakers post-migration.",
 };
@@ -167,7 +171,7 @@ const breakdownMethodology = {
     "Network Fees To cSSV Stakers": "Post-migration: network fees collected by the protocol.",
   },
   ProtocolRevenue: {
-    "DAO Treasury Allocation": "Pre-migration: network fees allocated to the SSV DAO treasury.",
+    "DAO Treasury Allocation": "Pre-migration: network fees allocated to the SSV DAO treasury, minus SSV burned from the treasury (counted under HoldersRevenue).",
   },
   SupplySideRevenue: {
     [METRIC.OPERATORS_FEES]: "Pre-migration: SSV fees earned by node operators (market-determined per validator).",
@@ -185,6 +189,7 @@ const adapter: SimpleAdapter = {
   start: "2023-06-18",
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true, // ProtocolRevenue is negative on pre-migration burn days: treasury burns exceed that day's network fees
   pullHourly: false, //legacy subgraph does not support hourly data
 };
 

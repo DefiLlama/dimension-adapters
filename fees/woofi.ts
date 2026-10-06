@@ -33,6 +33,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = valutManagerFees.clone()
   const dailyRevenue = valutManagerFees.clone()
   const dailyHoldersRevenue = valutManagerFees.clone()
+  const dailyProtocolRevenue = treasuryFees.clone()
   dailyFees.addBalances(rebateManagerFees)
   dailyFees.addBalances(treasuryFees)
   dailyRevenue.addBalances(treasuryFees)
@@ -40,6 +41,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
   }
 }

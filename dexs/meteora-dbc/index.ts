@@ -102,12 +102,16 @@ const fetch = async (options: FetchOptions) => {
         mints: ["METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"],  // MET token
     })
 
+    // MET buybacks are paid out of Meteora protocol revenue (all products, tracked here for historic
+    // support), so they move from protocol revenue to holders revenue: Revenue = Protocol + Holders
+    const dailyRevenue = dailyProtocolRevenue.clone()
+    dailyProtocolRevenue.subtract(dailyHoldersRevenue)
 
     return {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyProtocolRevenue,
+        dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
         dailySupplySideRevenue
@@ -121,11 +125,14 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE,Dependencies.ALLIUM],
     start: '2025-04-23',
     isExpensiveAdapter: true,
+    // protocol revenue is negative on MET buyback days: the buybacks are funded by revenue from all
+    // Meteora products (DLMM, DAMM, DBC), which is far larger than DBC's own protocol fees
+    allowNegativeValue: true,
     methodology: {
         Fees: "Trading fees paid by users.",
         Revenue: "Protocol fees collected by Meteora DBC protocol.",
-        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol.",
-        HoldersRevenue: "Part of revenue going to MET token buybacks.",
+        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol, minus the MET buybacks funded from Meteora protocol revenue.",
+        HoldersRevenue: "MET token buybacks funded from Meteora protocol revenue across all Meteora products.",
         SupplySideRevenue: "The portion of the trading fees paid to LPs and referrals."
     }
 }
