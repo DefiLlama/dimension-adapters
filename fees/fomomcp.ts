@@ -67,8 +67,8 @@ const fetch = async (options: FetchOptions) => (options.chain === CHAIN.SOLANA ?
 const methodology = {
   Fees: "Copy trading fees fomo-mcp users pay on every copied buy and sell (1% on copies under $100, 0.5% from $100), plus the creator fees of the fomo-mcp token $FOMOMCP on the Pons launchpad.",
   UserFees: "Copy trading fees paid by fomo-mcp users. Excludes the $FOMOMCP creator fees, which are paid by $FOMOMCP traders.",
-  Revenue: "All fees are kept by fomo-mcp.",
-  ProtocolRevenue: "All fees are kept by fomo-mcp.",
+  Revenue: "All fees (copy trading fees and $FOMOMCP creator fees) are kept by fomo-mcp.",
+  ProtocolRevenue: "All fees (copy trading fees and $FOMOMCP creator fees) are kept by fomo-mcp.",
 };
 
 const breakdownMethodology = {
