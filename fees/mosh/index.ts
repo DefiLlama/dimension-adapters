@@ -47,6 +47,9 @@ const EVENTS = {
   SafeReceived: "event SafeReceived(address indexed sender, uint256 value)",
   Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
   Deposited: "event Deposited(address indexed contributor, uint256 amount)",
+  Refunded: "event Refunded(address indexed contributor, uint256 amount)",
+  TeamClaimMinted: "event TeamClaimMinted(address indexed recipient, uint256 claimMinted)",
+  ClaimTransferred: "event ClaimTransferred(address indexed from, address indexed to, uint256 amount)",
   Initialize: "event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, uint24 fee, int24 tickSpacing, address hooks, uint160 sqrtPriceX96, int24 tick)",
   Swap: "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)",
   CurveBuy: "event CurveBuy(address indexed a, address indexed b, uint256 amount0, uint256 amount1, uint256 fee, uint256 tax)",
@@ -74,7 +77,9 @@ const LABELS = {
   poolVolume: "Graduated pool trades",
 }
 
-type Swarm = { address: string; native: boolean; counter: string; treasury: string | null; treasuryFunded: number }
+// one change to a swarm's fee claims: `delta` to the treasury's claim and `total` to all claims
+type ClaimMove = { block: number; index: number; treasury: bigint; total: bigint }
+type Swarm = { address: string; native: boolean; counter: string; treasury: string | null; treasuryFunded: number; claims: ClaimMove[] }
 
 const SAFE_RECEIVED_TOPIC = id("SafeReceived(address,uint256)")
 const TRANSFER_TOPIC = id("Transfer(address,address,uint256)")
@@ -96,13 +101,21 @@ async function getSwarms(options: FetchOptions): Promise<Swarm[]> {
     api.multiCall({ abi: ABI.counterAsset, calls: addresses, permitFailure: true }),
     api.multiCall({ abi: ABI.treasury, calls: addresses, permitFailure: true }),
   ])
-  // THE TREASURY CAN BE A BACKER. When Mosh's own treasury funds a bundle, the backers' share of
-  // its fees is Mosh's revenue, not supply-side revenue, and the raise fee is the treasury paying
-  // itself. Each bundle's treasury-funded fraction is its treasury deposits over all its deposits
-  // (raises are closed by the time fees flow, so the fraction is fixed). $BUN: 8 of 8 ETH.
-  const deposits = await options.getLogs({
-    targets: addresses, eventAbi: EVENTS.Deposited, fromBlock: LEGACY_FROM_BLOCK, cacheInCloud: true, entireLog: true, parseLog: true,
+  // THE TREASURY CAN BE A BACKER. When Mosh's own treasury funds a bundle, its share of the backers'
+  // fees is Mosh's revenue, not supply-side revenue, and the raise fee on its own deposits is the
+  // treasury paying itself. $BUN: the treasury deposited 8 of 8 ETH and holds the only claim.
+  //
+  // Two different fractions, because two different things are split:
+  // - the RAISE FEE is charged on deposits, so the treasury's part of it is its share of deposits;
+  // - FEES are credited pro rata to CLAIMS, which a deposit creates but a team share also mints
+  //   (TeamClaimMinted, with no deposit) and which can change hands (ClaimTransferred). So the
+  //   treasury's part of each sync is its claim over all claims at that sync, replayed from events.
+  const logsOf = (eventAbi: string) => options.getLogs({
+    targets: addresses, eventAbi, fromBlock: LEGACY_FROM_BLOCK, cacheInCloud: true, entireLog: true, parseLog: true,
   })
+  const [deposits, refunds, teamMints, transfers] = await Promise.all([
+    logsOf(EVENTS.Deposited), logsOf(EVENTS.Refunded), logsOf(EVENTS.TeamClaimMinted), logsOf(EVENTS.ClaimTransferred),
+  ])
   const total = new Map<string, bigint>(), fromTreasury = new Map<string, bigint>()
   for (const d of deposits) {
     const sw = String(d.address).toLowerCase()
@@ -110,6 +123,21 @@ async function getSwarms(options: FetchOptions): Promise<Swarm[]> {
     total.set(sw, (total.get(sw) ?? 0n) + amount)
     if (String(d.args.contributor).toLowerCase() === MOSH_TREASURY) fromTreasury.set(sw, (fromTreasury.get(sw) ?? 0n) + amount)
   }
+  const isTreasury = (a: any) => String(a).toLowerCase() === MOSH_TREASURY
+  const claimsOf = new Map<string, ClaimMove[]>()
+  const move = (l: any, treasury: bigint, totalDelta: bigint) => {
+    const sw = String(l.address).toLowerCase()
+    if (!claimsOf.has(sw)) claimsOf.set(sw, [])
+    claimsOf.get(sw)!.push({ block: Number(l.blockNumber), index: Number(l.logIndex ?? l.index ?? 0), treasury, total: totalDelta })
+  }
+  for (const l of deposits) { const a = BigInt(l.args.amount); move(l, isTreasury(l.args.contributor) ? a : 0n, a) }
+  for (const l of refunds) { const a = BigInt(l.args.amount); move(l, isTreasury(l.args.contributor) ? -a : 0n, -a) }
+  for (const l of teamMints) { const a = BigInt(l.args.claimMinted); move(l, isTreasury(l.args.recipient) ? a : 0n, a) }
+  for (const l of transfers) {
+    const a = BigInt(l.args.amount)
+    move(l, (isTreasury(l.args.to) ? a : 0n) - (isTreasury(l.args.from) ? a : 0n), 0n)
+  }
+  for (const list of claimsOf.values()) list.sort((x, y) => x.block - y.block || x.index - y.index)
   const fundedShare = (sw: string) => {
     const t = total.get(sw) ?? 0n
     return t > 0n ? Number(((fromTreasury.get(sw) ?? 0n) * 1_000_000n) / t) / 1_000_000 : 0
@@ -117,6 +145,7 @@ async function getSwarms(options: FetchOptions): Promise<Swarm[]> {
   return addresses.map((address, i) => ({
     address,
     treasuryFunded: fundedShare(address),
+    claims: claimsOf.get(address) ?? [],
     // the legacy bundle predates counterIsNative(); it is native ETH
     native: native[i] === null || native[i] === undefined ? LEGACY_SWARMS.includes(address) : Boolean(native[i]),
     counter: String(counter[i] ?? "").toLowerCase(),
@@ -210,6 +239,19 @@ const fetch = async (options: FetchOptions) => {
     const mosh = (a * BigInt(Math.round(share * 1_000_000))) / 1_000_000n
     return [mosh, a - mosh]
   }
+  // the backers' share of a sync split by the treasury's claim over all claims just before that
+  // sync, exactly in base units: [Mosh's, the backers']
+  const splitByClaims = (amount: bigint | string, s: Swarm, block: number, index: number): [bigint, bigint] => {
+    const a = BigInt(amount)
+    let mine = 0n, all = 0n
+    for (const c of s.claims) {
+      if (c.block > block || (c.block === block && c.index >= index)) break
+      mine += c.treasury; all += c.total
+    }
+    if (all <= 0n || mine <= 0n) return [0n, a]
+    const mosh = (a * mine) / all
+    return [mosh, a - mosh]
+  }
 
   // the fee stream: every sync splits what the swarm received into Mosh's share and the backers'
   const synced = await options.getLogs({
@@ -223,7 +265,7 @@ const fetch = async (options: FetchOptions) => {
     add(dailyRevenue, s, toTreasury, LABELS.treasuryShare)
     add(dailyProtocolRevenue, s, toTreasury, LABELS.treasuryShare)
     // the backers' share: the treasury's part of it is Mosh's revenue, the rest the backers'
-    const [moshPart, backersPart] = split(toContributors, s.treasuryFunded)
+    const [moshPart, backersPart] = splitByClaims(toContributors, s, Number(log.blockNumber), Number(log.logIndex ?? log.index ?? 0))
     add(dailyRevenue, s, moshPart, LABELS.treasuryAsBacker)
     add(dailyProtocolRevenue, s, moshPart, LABELS.treasuryAsBacker)
     add(dailySupplySideRevenue, s, backersPart, LABELS.backerShare)
@@ -266,7 +308,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Trading volume of every token launched through Mosh, in each bundle's counter asset: trades on the token's Pons bonding curve, then on its graduated Uniswap v4 pool (the one carrying the Pons hook). Pons V2 and Uniswap v4 count the same trades, so this adapter is marked as double counted.",
   Fees: "Pons creator fees paid to Mosh bundles (each bundle's swarm contract), plus the one-time raise fee Mosh takes when a bundle launches. The creator fees are also counted by Pons V2 as its creators' share, so this adapter is marked as double counted.",
-  Revenue: "Mosh's share of the creator fees (creatorFeeShareBps, 20% at launch), the raise fee (raiseFeeBps, 5% of the filled raise), and the backers' share of bundles the Mosh treasury funded itself, in proportion to its deposits.",
+  Revenue: "Mosh's share of the creator fees (creatorFeeShareBps, 20% at launch), the raise fee (raiseFeeBps, 5% of the filled raise), and, where the Mosh treasury holds a bundle's fee claims itself, its pro-rata part of the backers' share.",
   ProtocolRevenue: "All of Mosh's revenue goes to the Mosh treasury.",
   SupplySideRevenue: "The bundle backers' share of the creator fees (80% at launch), including any team share a bundle's creator set out of it, less the part the Mosh treasury holds as a backer.",
 }
@@ -283,12 +325,12 @@ const breakdownMethodology = {
   Revenue: {
     [LABELS.treasuryShare]: "Mosh's share of the creator fees, paid to its treasury at each sync (FeesSynced.toTreasury).",
     [LABELS.raiseFees]: "The raise fee, all of it Mosh's.",
-    [LABELS.treasuryAsBacker]: "The backers' share of the creator fees on bundles the Mosh treasury funded, in proportion to its deposits ($BUN: all of it).",
+    [LABELS.treasuryAsBacker]: "The part of the backers' share credited to the Mosh treasury's own fee claims, in proportion to its claim over all claims at each sync ($BUN: all of it).",
   },
   ProtocolRevenue: {
     [LABELS.treasuryShare]: "Mosh's share of the creator fees, paid to its treasury at each sync (FeesSynced.toTreasury).",
     [LABELS.raiseFees]: "The raise fee, all of it Mosh's.",
-    [LABELS.treasuryAsBacker]: "The backers' share of the creator fees on bundles the Mosh treasury funded, in proportion to its deposits ($BUN: all of it).",
+    [LABELS.treasuryAsBacker]: "The part of the backers' share credited to the Mosh treasury's own fee claims, in proportion to its claim over all claims at each sync ($BUN: all of it).",
   },
   SupplySideRevenue: {
     [LABELS.backerShare]: "The backers' share of the creator fees, credited to their claims at each sync (FeesSynced.toContributors), less the treasury's part as a backer.",
