@@ -41,11 +41,14 @@ const fetch = async (options: FetchOptions) => {
   // The hourly cards cover a rolling window. Only trust hourly sums when the whole requested
   // window sits inside that coverage - otherwise the window edge would yield a partial total
   // (a missing hour inside coverage is a true zero, but an hour before coverage is not data).
-  const coverageStart = Math.min(
-    ...volRows.map((r: any[]) => Date.parse(r[0]) / 1000),
-    ...premRows.map((r: any[]) => Date.parse(r[0]) / 1000),
+  // Take the later of the two cards' first rows: a window must be covered by BOTH cards.
+  const coverageStart = Math.max(
+    Math.min(...volRows.map((r: any[]) => Date.parse(r[0]) / 1000)),
+    Math.min(...premRows.map((r: any[]) => Date.parse(r[0]) / 1000)),
   )
-  if (fromTimestamp >= coverageStart) {
+  // The runner's window is (fromTimestamp, toTimestamp]; a bucket stamped coverageStart covers
+  // the hour starting there, so a request from coverageStart - 1 already includes it.
+  if (fromTimestamp >= coverageStart - 1) {
     return {
       // A missing hour means no trades in that hour - a true zero, not missing data.
       dailyNotionalVolume: volWindow.reduce((sum, r) => sum + Number(r[4] ?? 0), 0),
