@@ -24,6 +24,10 @@ const USDC_DAO_EXCEPTION_LAST_DATE = "2026-10-15";
 const PIP_136_DAO_EXCEPTION_TX =
   "4HmpUVkLMCTBZVoY2kmQaDpFkFTUUTpJ4bhrPwQeXTEKcdkmnXb8fhUv5Ha8kspL9xhvYaJYVjLE5DRcZSXNq6eZ";
 
+// The exception payment occurred on October 5, 2026 UTC.
+const EXCEPTION_PAYMENT_START = 1791158400;
+const EXCEPTION_PAYMENT_END = 1791244800;
+
 const PIP_136_EXCEPTION_ALLOCATIONS = [
   {
     feesLabel: "Pyth Pro Subscription Fees",
@@ -134,52 +138,60 @@ const fetch = async (options: FetchOptions) => {
   // Process the first post-PIP-136 DAO-directed payment separately. The Solana
   // transfer is 553,693 USDC, but the official report allocates it as:
   // 460,850 Pyth Pro, 11,430 LaaS, and 81,413 Indices DAO share.
-  const exceptionQuery = `
-    SELECT COUNT(*) as matching_transfers
-    FROM solana.assets.transfers
-    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      AND txn_id = '${PIP_136_DAO_EXCEPTION_TX}'
-      AND mint = '${USDC_MINT}'
-      AND from_address = '${DOURO_LABS_WALLET}'
-      AND to_address = '${PYTH_DAO_WALLET}'
-  `;
+  const exceptionWindowOverlaps =
+    options.startTimestamp < EXCEPTION_PAYMENT_END &&
+    options.endTimestamp > EXCEPTION_PAYMENT_START;
 
-  const exceptionRes = await queryAllium(exceptionQuery);
-  const exceptionFound = exceptionRes.some(
-    (row) => BigInt(row.matching_transfers || 0) > 0n,
-  );
+  if (exceptionWindowOverlaps) {
+    const exceptionQuery = `
+      SELECT COUNT(*) as matching_transfers
+      FROM solana.assets.transfers
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND txn_id = '${PIP_136_DAO_EXCEPTION_TX}'
+        AND mint = '${USDC_MINT}'
+        AND from_address = '${DOURO_LABS_WALLET}'
+        AND to_address = '${PYTH_DAO_WALLET}'
+    `;
 
-  if (exceptionFound) {
-    for (const allocation of PIP_136_EXCEPTION_ALLOCATIONS) {
-      addDistribution(
-        USDC_MINT,
-        allocation.daoAmount,
-        allocation.daoSharePercent,
-        allocation.feesLabel,
-        `${allocation.feesLabel} to Pyth DAO`,
-        `${allocation.feesLabel} to Douro Labs`,
-        true,
-      );
+    const exceptionRes = await queryAllium(exceptionQuery);
+    const exceptionFound = exceptionRes.some(
+      (row) => BigInt(row.matching_transfers || 0) > 0n,
+    );
+
+    if (exceptionFound) {
+      for (const allocation of PIP_136_EXCEPTION_ALLOCATIONS) {
+        addDistribution(
+          USDC_MINT,
+          allocation.daoAmount,
+          allocation.daoSharePercent,
+          allocation.feesLabel,
+          `${allocation.feesLabel} to Pyth DAO`,
+          `${allocation.feesLabel} to Douro Labs`,
+          true,
+        );
+      }
     }
   }
 
-  // Count PYTH only when it reaches the official DAO treasury. This covers
-  // direct PYTH distributions from Douro and PYTH returned by the Council
-  // after direct buybacks attributed to the Pyth Pro umbrella under this adapter's accounting policy.
+  // Count PYTH when it reaches the official DAO treasury.
+  // Direct Douro distributions are known Pyth Pro umbrella revenue.
+  // Historical Council returns are tracked separately as unattributed DAO treasury buybacks
+  // until a direct Douro -> Council funding link is available.
   //
-  // Example September 2026 buyback:
+  // Example September 2026 direct buyback:
   // swap:   https://orbmarkets.io/tx/2YzFNSJDBQDHCAQVWz43nM7kk6ntKRRuMxf8mV4tehhKGzFmq1qBd6XreXmiYXWbDLuYS4KGbSNUYGaWFtTdxQqQ
   // return: https://orbmarkets.io/tx/26q1EGem6CSRrafDCkefLPY78WJJZs99ZweXaLVpkfvM9vLaa8o2vJTuzRPyqvxfVAe34bQTs6XmzVjwsvK4ZtKS
   const holdersRevenueQuery = `
     SELECT
       mint as token_mint_address,
+      from_address as source_address,
       TO_VARCHAR(COALESCE(SUM(TRY_TO_DECIMAL(raw_amount_str, 38, 0)), 0)) as total_amount
     FROM solana.assets.transfers
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint = '${PYTH_MINT}'
       AND to_address = '${PYTH_DAO_WALLET}'
       AND from_address IN ('${DOURO_LABS_WALLET}', '${PYTHIAN_COUNCIL_WALLET}')
-    GROUP BY mint
+    GROUP BY mint, from_address
   `;
 
   const holdersRevenueRes = await queryAllium(holdersRevenueQuery);
@@ -188,11 +200,11 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(row.total_amount || 0);
     if (amount === 0n) continue;
 
-    dailyHoldersRevenue.add(
-      row.token_mint_address,
-      amount,
-      "PYTH Direct Distributions and Buybacks",
-    );
+    const label = row.source_address === DOURO_LABS_WALLET
+      ? "PYTH Direct Distribution - Pyth Pro Umbrella"
+      : "PYTH Buyback - Unattributed DAO Treasury";
+
+    dailyHoldersRevenue.add(row.token_mint_address, amount, label);
   }
 
   return {
@@ -207,8 +219,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Total Pyth Pro umbrella revenue, including Pyth Pro subscriptions, LaaS, and Indices. Product-specific DAO shares and supplier shares are applied before aggregation.",
   Revenue: "The DAO share of the Pyth Pro umbrella, including Pyth Pro subscriptions, LaaS, and Indices.",
-  ProtocolRevenue: "Pyth Pro umbrella DAO revenue received in USDC and held as protocol or treasury revenue before PYTH accumulation.",
-  HoldersRevenue: "PYTH directly distributed by Douro Labs or returned to the DAO treasury after Council buybacks attributed to the Pyth Pro umbrella under this adapter's accounting policy.",
+  ProtocolRevenue: "Pyth Pro umbrella DAO revenue received in USDC and held as protocol or treasury revenue before a source-linked PYTH reclassification.",
+  HoldersRevenue: "PYTH directly distributed by Douro Labs or returned to the DAO treasury after Council buybacks. Historical Council returns remain separately labelled as unattributed DAO treasury buybacks until their funding source is linked.",
   SupplySideRevenue: "Douro Labs' applicable share of Pyth Pro subscriptions, LaaS, and Indices revenue.",
 }
 
@@ -229,7 +241,8 @@ const breakdownMethodology = {
     "Pyth Pro Indices Fees to Pyth DAO": "Indices DAO revenue held as protocol or treasury revenue.",
   },
   HoldersRevenue: {
-    "PYTH Direct Distributions and Buybacks": "PYTH directly distributed by Douro Labs or returned to the DAO treasury after Council buybacks.",
+    "PYTH Direct Distribution - Pyth Pro Umbrella": "PYTH directly distributed by Douro Labs to the DAO treasury.",
+    "PYTH Buyback - Unattributed DAO Treasury": "PYTH returned to the DAO treasury by the Council from a buyback whose original funding source is not yet linked.",
   },
   SupplySideRevenue: {
     "Pyth Pro Subscription Fees to Douro Labs": "Douro Labs' share of Pyth Pro subscription revenue.",
