@@ -39,8 +39,11 @@ const celerPool = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event Send(bytes32 transferId, address sender, address receiver, address token, uint256 amount, uint64 dstChainId, uint64 nonce, uint32 maxSlippage)", targets, direction: "outgoing", tokenArg: "token", amountArg: "amount" },
   { eventAbi: "event Relay(bytes32 transferId, address sender, address receiver, address token, uint256 amount, uint64 srcChainId, bytes32 srcTransferId)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount" },
 ];
+// Withdrawn and Mint also fire for refunds of failed transfers and for fee claims.
+// Both carry a zero burnAccount / depositor because no burn or deposit on another chain backs them
+const hasCounterparty = (field: string) => (args: any) => String(args[field]).toLowerCase() !== ADDRESSES.null;
 const celerVaultWithdrawn = (targets: string[]): BridgeEvent =>
-  ({ eventAbi: "event Withdrawn(bytes32 withdrawId, address receiver, address token, uint256 amount, uint64 refChainId, bytes32 refId, address burnAccount)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount" });
+  ({ eventAbi: "event Withdrawn(bytes32 withdrawId, address receiver, address token, uint256 amount, uint64 refChainId, bytes32 refId, address burnAccount)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount", filter: hasCounterparty("burnAccount") });
 const celerVaultV1 = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event Deposited(bytes32 depositId, address depositor, address token, uint256 amount, uint64 mintChainId, address mintAccount)", targets, direction: "outgoing", tokenArg: "token", amountArg: "amount" },
   celerVaultWithdrawn(targets),
@@ -50,7 +53,7 @@ const celerVaultV2 = (targets: string[]): BridgeEvent[] => [
   celerVaultWithdrawn(targets),
 ];
 const celerPeggedMint = (targets: string[]): BridgeEvent =>
-  ({ eventAbi: "event Mint(bytes32 mintId, address token, address account, uint256 amount, uint64 refChainId, bytes32 refId, address depositor)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount" });
+  ({ eventAbi: "event Mint(bytes32 mintId, address token, address account, uint256 amount, uint64 refChainId, bytes32 refId, address depositor)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount", filter: hasCounterparty("depositor") });
 const celerPeggedV1 = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event Burn(bytes32 burnId, address token, address account, uint256 amount, address withdrawAccount)", targets, direction: "outgoing", tokenArg: "token", amountArg: "amount" },
   celerPeggedMint(targets),

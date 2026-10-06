@@ -1,5 +1,6 @@
+import * as sdk from "@defillama/sdk";
+import { ethers } from "ethers";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { addTokensReceived } from "../token";
 
 /**
  * Engine behind `factory/evmBridges.ts`. Adapters do not import this directly: a plain bridge is one
@@ -33,10 +34,10 @@ export type BridgeEvent = {
 export type BridgeTransfers = {
   /** Bridge escrow / vault addresses. ERC20 transfers into them are outgoing, out of them incoming. */
   wallets: string[];
-  /** Tokens to track. When omitted every ERC20 transfer touching the wallets is counted. */
+  /** Restrict to these tokens (mixed-use wallets). Omit to count every token the wallets send or receive. */
   tokens?: string[];
-  /** Return false to skip a transfer. Runs on the raw transfer log. */
-  filter?: (log: any) => boolean;
+  /** Return false to skip a transfer. */
+  filter?: (row: any) => boolean;
 };
 
 export type BridgeChainConfig = {
@@ -107,16 +108,63 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
   }
 
   if (transfers?.wallets?.length) {
-    // the filter runs once per transfer on the indexer and per-token log paths, which is how transfers are counted;
-    // the no-token-list log fallback does not call it, so counts there are lower than the volume suggests
-    const counting = (onCount: () => void) => (log: any) => {
-      if (transfers.filter && !transfers.filter(log)) return false;
-      onCount();
-      return true;
-    };
-    await addTokensReceived({ options, targets: transfers.wallets, tokens: transfers.tokens, balances: dailyOutgoingVolume, logFilter: counting(() => dailyOutgoingTxCount++) });
-    await addTokensReceived({ options, fromAdddesses: transfers.wallets, tokens: transfers.tokens, balances: dailyIncomingVolume, logFilter: counting(() => dailyIncomingTxCount++) });
+    // Transfers into the wallets are deposits ('in'), transfers out of them are withdrawals ('out'). Both paths cover
+    // every token the wallets hold without a token list.
+    const wallets = new Set(transfers.wallets.map((w) => w.toLowerCase()));
+    for (const transferType of ["in", "out"] as const) {
+      const rows = await getWalletTransfers(options, transfers, transferType);
+      for (const row of rows) {
+        // moves between the bridge's own wallets are not user transfers
+        if (wallets.has(String(row.from_address).toLowerCase()) && wallets.has(String(row.to_address).toLowerCase())) continue;
+        if (transfers.filter && !transfers.filter(row)) continue;
+        if (transferType === "in") {
+          dailyOutgoingVolume.add(row.token, row.value);
+          dailyOutgoingTxCount++;
+        } else {
+          dailyIncomingVolume.add(row.token, row.value);
+          dailyIncomingTxCount++;
+        }
+      }
+    }
   }
 
   return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount, dailyIncomingTxCount };
+}
+
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+type WalletTransfer = { token: string; value: any; from_address: string; to_address: string };
+
+async function getWalletTransfers(options: FetchOptions, { wallets, tokens }: BridgeTransfers, transferType: "in" | "out"): Promise<WalletTransfer[]> {
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+
+  if (sdk.indexer.isIndexerEnabled(options.chain))
+    return sdk.indexer.getTokenTransfers({ chain: options.chain, targets: wallets, transferType, fromBlock, toBlock, tokens });
+
+  // Chains outside the indexer: Transfer logs filtered by the wallet as sender or receiver. With a token list the query
+  // targets those token contracts; without one it filters by topic only (no contract address)
+  const rows: WalletTransfer[] = [];
+  for (const wallet of wallets) {
+    const padded = ethers.zeroPadValue(wallet, 32);
+    const topics = transferType === "in" ? [TRANSFER_TOPIC, null, padded] : [TRANSFER_TOPIC, padded, null];
+    const logs: any[] = await options.getLogs({
+      ...(tokens?.length ? { targets: tokens } : { noTarget: true }),
+      eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+      topics: topics as any,
+      entireLog: true,
+      skipIndexer: true,
+      fromBlock,
+      toBlock,
+    });
+    for (const log of logs) {
+      // ERC721 shares the Transfer signature but indexes the token id as a fourth topic and has no data
+      if (log.topics.length !== 3 || !log.data || log.data === "0x") continue;
+      rows.push({
+        token: log.address.toLowerCase(),
+        value: BigInt(log.data).toString(),
+        from_address: "0x" + log.topics[1].slice(26),
+        to_address: "0x" + log.topics[2].slice(26),
+      });
+    }
+  }
+  return rows;
 }
