@@ -65,6 +65,8 @@ const ABI = {
   counterIsNative: "function counterIsNative() view returns (bool)",
   counterAsset: "function counterAsset() view returns (address)",
   treasury: "function treasury() view returns (address)",
+  totalClaims: "uint256:totalClaims",
+  totalDeposited: "uint256:totalDeposited",
 }
 
 const LABELS = {
@@ -77,9 +79,12 @@ const LABELS = {
   poolVolume: "Graduated pool trades",
 }
 
-// one change to a swarm's fee claims: `delta` to the treasury's claim and `total` to all claims
-type ClaimMove = { block: number; index: number; treasury: bigint; total: bigint }
-type Swarm = { address: string; native: boolean; counter: string; treasury: string | null; treasuryFunded: number; claims: ClaimMove[] }
+// one change to the treasury's fee claim on a swarm
+type ClaimMove = { block: number; index: number; delta: bigint }
+type Swarm = {
+  address: string; native: boolean; counter: string; treasury: string | null
+  treasuryFunded: number; claims: ClaimMove[]; totalClaims: bigint
+}
 
 const SAFE_RECEIVED_TOPIC = id("SafeReceived(address,uint256)")
 const TRANSFER_TOPIC = id("Transfer(address,address,uint256)")
@@ -96,56 +101,74 @@ async function getSwarms(options: FetchOptions): Promise<Swarm[]> {
   // a swarm's counter asset and treasury are fixed at creation: read them at the chain head, which
   // the node can always answer (Robinhood Chain's public RPC does not keep old state)
   const api = new ChainApi({ chain: options.chain })
-  const [native, counter, treasury] = await Promise.all([
+  const [native, counter, treasury, totalClaims, totalDeposited] = await Promise.all([
     api.multiCall({ abi: ABI.counterIsNative, calls: addresses, permitFailure: true }),
     api.multiCall({ abi: ABI.counterAsset, calls: addresses, permitFailure: true }),
     api.multiCall({ abi: ABI.treasury, calls: addresses, permitFailure: true }),
+    api.multiCall({ abi: ABI.totalClaims, calls: addresses, permitFailure: true }),
+    api.multiCall({ abi: ABI.totalDeposited, calls: addresses, permitFailure: true }),
   ])
-  // THE TREASURY CAN BE A BACKER. When Mosh's own treasury funds a bundle, its share of the backers'
-  // fees is Mosh's revenue, not supply-side revenue, and the raise fee on its own deposits is the
-  // treasury paying itself. $BUN: the treasury deposited 8 of 8 ETH and holds the only claim.
+  // THE TREASURY CAN BE A BACKER. When Mosh's own treasury holds a bundle's fee claims, its share of
+  // the backers' fees is Mosh's revenue, not supply-side revenue, and the raise fee on its own
+  // deposits is the treasury paying itself. $BUN: the treasury deposited 8 of 8 ETH and holds the
+  // only claim; swarm 0x47bf…00ee minted its 20% team claim to the treasury.
   //
   // Two different fractions, because two different things are split:
-  // - the RAISE FEE is charged on deposits, so the treasury's part of it is its share of deposits;
-  // - FEES are credited pro rata to CLAIMS, which a deposit creates but a team share also mints
-  //   (TeamClaimMinted, with no deposit) and which can change hands (ClaimTransferred). So the
-  //   treasury's part of each sync is its claim over all claims at that sync, replayed from events.
-  const logsOf = (eventAbi: string) => options.getLogs({
-    targets: addresses, eventAbi, fromBlock: LEGACY_FROM_BLOCK, cacheInCloud: true, entireLog: true, parseLog: true,
+  // - the RAISE FEE is charged on deposits: the treasury's part is its deposits over totalDeposited;
+  // - FEES are credited pro rata to CLAIMS, which a deposit creates, a team share also mints
+  //   (TeamClaimMinted, with no deposit), and which can change hands (ClaimTransferred). The
+  //   treasury's part of a sync is its claim at that sync over totalClaims.
+  //
+  // Both totals are read at the head, which is exact: fees only flow after launch, and from launch
+  // on neither total moves (a transfer moves a claim between holders, never the total). The
+  // treasury's own claim CAN move, so it is replayed from the events that name it, found by the
+  // treasury's indexed address across all contracts: a handful of queries, not a full history of
+  // every swarm.
+  // Every swarm but the legacy one was created after FACTORY_FROM_BLOCK, so the address-free
+  // queries start there; the legacy swarm's own deposits are one targeted query from its era.
+  const byTreasury = (eventAbi: string, topics: (string | null)[]) => options.getLogs({
+    noTarget: true, eventAbi, topics: topics as any, fromBlock: FACTORY_FROM_BLOCK, cacheInCloud: true, entireLog: true, parseLog: true,
   })
-  const [deposits, refunds, teamMints, transfers] = await Promise.all([
-    logsOf(EVENTS.Deposited), logsOf(EVENTS.Refunded), logsOf(EVENTS.TeamClaimMinted), logsOf(EVENTS.ClaimTransferred),
+  const T = pad(MOSH_TREASURY)
+  const [legacyDeposits, deposits, refunds, teamMints, sentFrom, sentTo] = await Promise.all([
+    options.getLogs({
+      targets: LEGACY_SWARMS, eventAbi: EVENTS.Deposited, topics: [id("Deposited(address,uint256)"), T] as any,
+      fromBlock: LEGACY_FROM_BLOCK, toBlock: FACTORY_FROM_BLOCK, cacheInCloud: true, entireLog: true, parseLog: true,
+    }),
+    byTreasury(EVENTS.Deposited, [id("Deposited(address,uint256)"), T]),
+    byTreasury(EVENTS.Refunded, [id("Refunded(address,uint256)"), T]),
+    byTreasury(EVENTS.TeamClaimMinted, [id("TeamClaimMinted(address,uint256)"), T]),
+    byTreasury(EVENTS.ClaimTransferred, [id("ClaimTransferred(address,address,uint256)"), T]),
+    byTreasury(EVENTS.ClaimTransferred, [id("ClaimTransferred(address,address,uint256)"), null, T]),
   ])
-  const total = new Map<string, bigint>(), fromTreasury = new Map<string, bigint>()
-  for (const d of deposits) {
-    const sw = String(d.address).toLowerCase()
-    const amount = BigInt(d.args.amount)
-    total.set(sw, (total.get(sw) ?? 0n) + amount)
-    if (String(d.args.contributor).toLowerCase() === MOSH_TREASURY) fromTreasury.set(sw, (fromTreasury.get(sw) ?? 0n) + amount)
-  }
-  const isTreasury = (a: any) => String(a).toLowerCase() === MOSH_TREASURY
+  const known = new Set(addresses)
+  const deposited = new Map<string, bigint>()
   const claimsOf = new Map<string, ClaimMove[]>()
-  const move = (l: any, treasury: bigint, totalDelta: bigint) => {
+  const move = (l: any, delta: bigint) => {
     const sw = String(l.address).toLowerCase()
+    if (!known.has(sw)) return
     if (!claimsOf.has(sw)) claimsOf.set(sw, [])
-    claimsOf.get(sw)!.push({ block: Number(l.blockNumber), index: Number(l.logIndex ?? l.index ?? 0), treasury, total: totalDelta })
+    claimsOf.get(sw)!.push({ block: Number(l.blockNumber), index: Number(l.logIndex ?? l.index ?? 0), delta })
   }
-  for (const l of deposits) { const a = BigInt(l.args.amount); move(l, isTreasury(l.args.contributor) ? a : 0n, a) }
-  for (const l of refunds) { const a = BigInt(l.args.amount); move(l, isTreasury(l.args.contributor) ? -a : 0n, -a) }
-  for (const l of teamMints) { const a = BigInt(l.args.claimMinted); move(l, isTreasury(l.args.recipient) ? a : 0n, a) }
-  for (const l of transfers) {
-    const a = BigInt(l.args.amount)
-    move(l, (isTreasury(l.args.to) ? a : 0n) - (isTreasury(l.args.from) ? a : 0n), 0n)
+  for (const l of [...legacyDeposits, ...deposits]) {
+    const sw = String(l.address).toLowerCase(), a = BigInt(l.args.amount)
+    if (known.has(sw)) deposited.set(sw, (deposited.get(sw) ?? 0n) + a)
+    move(l, a)
   }
+  for (const l of refunds) move(l, -BigInt(l.args.amount))
+  for (const l of teamMints) move(l, BigInt(l.args.claimMinted))
+  for (const l of sentFrom) move(l, -BigInt(l.args.amount))
+  for (const l of sentTo) move(l, BigInt(l.args.amount))
   for (const list of claimsOf.values()) list.sort((x, y) => x.block - y.block || x.index - y.index)
-  const fundedShare = (sw: string) => {
-    const t = total.get(sw) ?? 0n
-    return t > 0n ? Number(((fromTreasury.get(sw) ?? 0n) * 1_000_000n) / t) / 1_000_000 : 0
+  const fundedShare = (sw: string, i: number) => {
+    const t = BigInt(totalDeposited[i] ?? 0)
+    return t > 0n ? Number(((deposited.get(sw) ?? 0n) * 1_000_000n) / t) / 1_000_000 : 0
   }
   return addresses.map((address, i) => ({
     address,
-    treasuryFunded: fundedShare(address),
+    treasuryFunded: fundedShare(address, i),
     claims: claimsOf.get(address) ?? [],
+    totalClaims: BigInt(totalClaims[i] ?? 0),
     // the legacy bundle predates counterIsNative(); it is native ETH
     native: native[i] === null || native[i] === undefined ? LEGACY_SWARMS.includes(address) : Boolean(native[i]),
     counter: String(counter[i] ?? "").toLowerCase(),
@@ -243,13 +266,13 @@ const fetch = async (options: FetchOptions) => {
   // sync, exactly in base units: [Mosh's, the backers']
   const splitByClaims = (amount: bigint | string, s: Swarm, block: number, index: number): [bigint, bigint] => {
     const a = BigInt(amount)
-    let mine = 0n, all = 0n
+    let mine = 0n
     for (const c of s.claims) {
       if (c.block > block || (c.block === block && c.index >= index)) break
-      mine += c.treasury; all += c.total
+      mine += c.delta
     }
-    if (all <= 0n || mine <= 0n) return [0n, a]
-    const mosh = (a * mine) / all
+    if (s.totalClaims <= 0n || mine <= 0n) return [0n, a]
+    const mosh = (a * (mine > s.totalClaims ? s.totalClaims : mine)) / s.totalClaims
     return [mosh, a - mosh]
   }
 
