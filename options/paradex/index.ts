@@ -70,7 +70,28 @@ const fetch = async (options: FetchOptions) => {
   const dayFullyBeforeCoverage = dayStart + ONE_DAY <= coverageStart
   const isFirstUtcHour = near(windowSeconds - ONE_HOUR) && startsAtUtcMidnight
   const isWholeUtcDay = near(windowSeconds - ONE_DAY) && startsAtUtcMidnight
-  if (!dayFullyBeforeCoverage || (!isFirstUtcHour && !isWholeUtcDay)) {
+  const useDailyCard = dayFullyBeforeCoverage && (isFirstUtcHour || isWholeUtcDay)
+  // Temporary: production windows for days outside the hourly cards are not matching
+  // the first-hour / full-day checks. Remove once the real from/to shape is known.
+  console.log(JSON.stringify({
+    paradexOptionsDebug: true,
+    branch: useDailyCard ? 'daily' : 'zero',
+    dateString: options.dateString,
+    startOfDay: options.startOfDay,
+    startTimestamp: options.startTimestamp,
+    endTimestamp: options.endTimestamp,
+    fromTimestamp,
+    toTimestamp,
+    windowSeconds,
+    secondsIntoDay,
+    coverageStart,
+    dayStart,
+    dayFullyBeforeCoverage,
+    startsAtUtcMidnight,
+    isFirstUtcHour,
+    isWholeUtcDay,
+  }))
+  if (!useDailyCard) {
     return {
       dailyNotionalVolume: 0,
       dailyPremiumVolume: 0,
