@@ -4,11 +4,16 @@ import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 
-const feesEndpoint = "https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/5913/card/5760?parameters=%5B%5D"
+// Lifetime fees broken down by product. This listing is perps-only, so it reads PERP_FEES.
+// The previous source reported whole-exchange fees (perps + options + spot), which double-counted
+// the options fees already tracked in fees/paradex-options.
+// Row format: [TRADE_DATE, PERP_FEES, PERP_OPTION_FEES, SPOT_FEES, OPTION_FEES, TOTAL_FEE, CUMULATIVE_FEES]
+const feesEndpoint = "https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/20068/card/21188?parameters=%5B%5D"
+const PERP_FEES_INDEX = 1
 
 interface IFeesData {
   data: {
-    rows: [string, number][];
+    rows: [string, ...number[]][];
   }
 }
 
@@ -19,9 +24,8 @@ const PARADEX_BRIDGE = "0xe3cbe3a636ab6a754e9e41b12b09d09ce9e53db3";
 
 const fetchParadex = async (options: FetchOptions): Promise<FetchResultV2> => {
   const feesData = await fetchURL(feesEndpoint) as IFeesData
-  const timestampStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  const dailyFees = feesData.data.rows.find(row => row[0] === timestampStr)?.[1]
-  if (!dailyFees) throw new Error('record missing!')
+  const dailyFees = feesData.data.rows.find(row => row[0].slice(0, 10) === options.dateString)?.[PERP_FEES_INDEX]
+  if (dailyFees == null) throw new Error('record missing!')
 
   return {
     dailyFees,
@@ -60,7 +64,7 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-		Fees: "Tracks total fees paid by traders on Paradex.",
+		Fees: "Perps trading fees paid by traders on Paradex, from the PERP_FEES breakdown of the public Paradex stats dashboard. Options and spot fees are tracked in their own listings.",
     HoldersRevenue: "$DIME purchased with net protocol revenue."
 	},
   skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
