@@ -48,6 +48,11 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 1,
+  // api.web3.world (the only data source) has no A/AAAA record on web3.world's Cloudflare
+  // nameservers, while the live web3.world bundle still calls it, so there is no replacement host.
+  // Venom's own RPC has not produced a masterchain block since 2026-09-28. Last published
+  // point 2026-09-30 ($0), and TVL fell from $548k to $114k on 2026-09-28.
+  deadFrom: '2026-10-01',
 };
 
 export default adapter;
