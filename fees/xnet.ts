@@ -273,7 +273,7 @@ const fetch = async (options: FetchOptions) => {
   if (
     fiatGrossAllocationUsd > 0 &&
     row.fiat_allocation_basis !==
-      "xip_13_1_net60_two_month_service_lag"
+      "xip_13_1_carrier_settlement_reconciliation"
   ) {
     throw new Error(
       "Unexpected XNET fiat-deployer attribution basis",
@@ -368,7 +368,7 @@ const adapter: SimpleAdapter = {
       "Carrier WiFi offload Fees retained within XNET after payments to operators that elect fiat compensation under XIP-13.1.",
 
     SupplySideRevenue:
-      "Passed XIP-13.1 lets designated operators choose fiat instead of token distributions. Their 75% operator cash share is Supply-Side Revenue and is attributed to service two months before the reported payout, consistent with XIP-13.1's monthly-in-arrears NET60+ settlement timeline.",
+      "Passed XIP-13.1 lets designated operators choose fiat instead of token distributions. Their 75% operator cash share is Supply-Side Revenue and is attributed to the service month reconciled by the carrier settlement that funds the payout, preserving the observed NET60+ settlement cadence.",
 
     HoldersRevenue:
       "Accrued service-period tokenholder allocation. Historically 80% of ordinary carrier Fees accrued to buyback-and-burn; under passed XIP-12, 60% does. The XIP-13.1 fiat slice contributes its 5% facilitation/BBB allocation. Values are provisional wherever the underlying Fees are provisional and reconcile with settlement. This is accrual attribution; actual on-chain buyback or burn execution can occur later.",
