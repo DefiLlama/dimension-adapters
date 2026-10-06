@@ -11,11 +11,9 @@ const CRV_TOKEN = ADDRESSES.ethereum.CRV; // Curve DAO Token
 const CVX_TOKEN = ADDRESSES.ethereum.CVX; // Convex Token
 const FXS_TOKEN = ADDRESSES.ethereum.FXS; // Frax Share
 
-// Convex protocol fee recipients — verified by inspecting CRV Transfer events
-// from the Booster (0xF403...AAE31) over a 7-day window via Ethereum event logs.
-// These two addresses receive CRV every single day proportional to fee rates.
-const CVXCRV_STAKING = "0x3Fe65692bfCD0e6CF84cB1E7d24108E434A7587e"; // lockRewards (10% of CRV)
-const CVX_LOCKER_REWARDS = "0xcf50b810e57ac33b91dcf525c6ddd9881b139332"; // stakerRewards (~4.5% of CRV)
+// Reward recipients configured once by Booster.setRewardContracts.
+const CVXCRV_STAKING = "0x3Fe65692bfCD0e6CF84cB1E7d24108E434A7587e"; // lockRewards
+const CVX_LOCKER_REWARDS = "0xcf50b810e57ac33b91dcf525c6ddd9881b139332"; // stakerRewards
 
 // FXS revenue recipients — Convex's Frax-side fee distribution contracts.
 // stkCvxFxs staking contract receives FXS for cvxFXS stakers and CVX lockers.
@@ -32,13 +30,6 @@ const reUSD     = "0x57aB1E0003F623289CD798B1824Be09a793e4Bec";
 const registry  = "0x10101010E0C3171D894B71B3400668aF311e7D94";
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
-const boosterAbi = {
-  lockIncentive:   "function lockIncentive() view returns (uint256)",
-  stakerIncentive: "function stakerIncentive() view returns (uint256)",
-  earmarkIncentive:"function earmarkIncentive() view returns (uint256)",
-  platformFee:     "function platformFee() view returns (uint256)",
-};
-
 const abi = {
   getAddress: "function getAddress(string key) external view returns (address)",
   rewardPaid:  "event RewardPaid(address indexed user, address indexed rewardToken, address indexed recipient, uint256 reward)",
@@ -68,22 +59,23 @@ const fetchBribesUSDForDay = async (dayTimestamp: number): Promise<number> => {
 // ─── Methodology ──────────────────────────────────────────────────────────────
 const methodology = {
   UserFees: "No user fees",
-  Fees: "All CRV and FXS harvested through Convex: the protocol's own fee take (cvxCRV/cvxFXS stakers and CVX lockers) plus the LP share passed through to pool stakers, plus reUSD locker revenue and Votium bribes.",
+  Fees: "All CRV and FXS harvested through Convex: the protocol's own fee take (cvxCRV/cvxFXS stakers and CVX lockers) plus LP rewards, harvest incentives and treasury fees, plus reUSD locker revenue and Votium bribes.",
   HoldersRevenue: "CRV/CVX/FXS flowing to CVX lockers and cvxCRV/cvxFXS stakers, plus Votium bribes",
   Revenue: "Sum of protocol revenue and holders' revenue",
-  ProtocolRevenue: "reUSD revenue directed to Convex treasury",
-  SupplySideRevenue: "CRV rewards received by LP stakers on Convex pools",
+  ProtocolRevenue: "CRV platform fees and reUSD revenue directed to Convex treasury",
+  SupplySideRevenue: "CRV rewards to pool stakers and incentives paid to harvest callers",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "CRV Revenue": "CRV harvested through Convex: the fee take flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive), plus the LP share passed through to pool stakers",
+    "CRV Revenue": "CRV harvested through Convex: the fee take flowing to cvxCRV stakers (lockIncentive) and CVX lockers (stakerIncentive), plus LP rewards, harvest incentives and treasury fees",
     "CVX Revenue": "CVX emissions flowing to cvxCRV stakers",
     "FXS Revenue": "FXS flowing to cvxFXS stakers, CVX lockers and LP providers via Convex's Frax-side fee contracts",
     "Others Revenue": "reUSD locker revenue",
     "Bribes Rewards": "Votium bribes",
   },
   Revenue: {
+    "CRV Treasury Fees": "CRV platform fees transferred to the treasury during harvests",
     "CRV Revenue": "CRV to cvxCRV stakers and CVX lockers",
     "CVX Revenue": "CVX emissions to cvxCRV stakers",
     "FXS Revenue": "FXS distributed to cvxFXS stakers and CVX lockers",
@@ -97,10 +89,12 @@ const breakdownMethodology = {
     "Bribes Revenue": "Votium bribes",
   },
   SupplySideRevenue: {
+    "Harvest Incentives": "CRV paid to callers who harvest pool rewards",
     "CRV Revenue": "CRV rewards to LP stakers via Convex pool reward contracts",
     "FXS Revenue": "FXS rewards to LP providers via Convex's Frax gauge integration",
   },
   ProtocolRevenue: {
+    "CRV Treasury Fees": "CRV platform fees transferred to the treasury during harvests",
     "Others Revenue": "reUSD yield retained by the treasury",
   },
 };
@@ -110,46 +104,55 @@ const fetch = async (options: FetchOptions) => {
   const { startTimestamp, createBalances } = options;
   const dayStart = Math.floor(startTimestamp / 86400) * 86400;
 
-  // Read current Booster fee rates (in basis points out of 10_000)
-  const [lockIncentive, stakerIncentive, earmarkIncentive, platformFee] =
-    await Promise.all([
-      options.api.call({ target: BOOSTER, abi: boosterAbi.lockIncentive }),
-      options.api.call({ target: BOOSTER, abi: boosterAbi.stakerIncentive }),
-      options.api.call({ target: BOOSTER, abi: boosterAbi.earmarkIncentive }),
-      options.api.call({ target: BOOSTER, abi: boosterAbi.platformFee }),
-    ]);
-
-  // Total protocol fee rate (portion NOT going to LPs)
-  const protocolFeeBps =
-    Number(lockIncentive) + Number(stakerIncentive) +
-    Number(earmarkIncentive) + Number(platformFee);
-
-  // ── Track CRV flowing to protocol fee recipients ─────────────────────────
-  // CVXCRV_STAKING receives `lockIncentive` % of all CRV harvested.
-  // CVX_LOCKER_REWARDS receives `stakerIncentive` % of all CRV harvested.
-  // From these two amounts and the known fee split we can extrapolate total CRV
-  // fees and LP supply-side CRV without scanning all pool reward contracts.
-
-  const cvxCrvStakerCRV = createBalances();
-  const cvxLockerCRV    = createBalances();
-
-  await Promise.all([
-    addTokensReceived({
-      token: CRV_TOKEN,
-      fromAddressFilter: BOOSTER,
-      target: CVXCRV_STAKING,
-      options,
-      balances: cvxCrvStakerCRV,
-    }),
-    addTokensReceived({
-      token: CRV_TOKEN,
-      fromAddressFilter: BOOSTER,
-      target: CVX_LOCKER_REWARDS,
-      options,
-      balances: cvxLockerCRV,
-    }),
-  ]);
-
+  // Booster._earmarkRewards emits CRV transfers in order:
+  // optional treasury, caller, pool rewards, lock rewards, staker rewards.
+  // Read actual payouts so fee/treasury changes and integer rounding are preserved.
+  // https://github.com/convex-eth/platform/blob/main/contracts/contracts/Booster.sol
+  const crvTransfers = await options.getLogs({
+    target: CRV_TOKEN,
+    eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
+    topics: [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x" + BOOSTER.slice(2).toLowerCase().padStart(64, "0"),
+    ],
+    entireLog: true,
+  });
+  const transactions = new Map<string, any[]>();
+  const seenTransfers = new Set<string>();
+  for (const log of crvTransfers) {
+    const index = Number(log.logIndex ?? log.index);
+    if (!log.transactionHash || !Number.isSafeInteger(index) || index < 0)
+      throw new Error('Missing Booster CRV transfer ordering');
+    const hash = log.transactionHash.toLowerCase();
+    const key = `${hash}:${index}`;
+    if (seenTransfers.has(key)) throw new Error(`Duplicate Booster CRV transfer ${key}`);
+    seenTransfers.add(key);
+    const logs = transactions.get(hash) ?? [];
+    logs.push(log);
+    transactions.set(hash, logs);
+  }
+  const amounts = { lock: 0n, staker: 0n, treasury: 0n, caller: 0n, lp: 0n };
+  const lockAddress = CVXCRV_STAKING.toLowerCase();
+  const stakerAddress = CVX_LOCKER_REWARDS.toLowerCase();
+  for (const [hash, logs] of transactions) {
+    logs.sort((a, b) => Number(a.logIndex ?? a.index) - Number(b.logIndex ?? b.index));
+    let payouts: any[] = [];
+    for (const log of logs) {
+      payouts.push(log.args);
+      if (log.args.to.toLowerCase() !== stakerAddress ||
+          payouts[payouts.length - 2]?.to.toLowerCase() !== lockAddress || payouts.length < 4) continue;
+      if (payouts.length !== 4 && payouts.length !== 5)
+        throw new Error(`Unexpected Booster CRV distribution in ${hash}`);
+      const offset = payouts.length === 5 ? 1 : 0;
+      if (offset) amounts.treasury += BigInt(payouts[0].value);
+      amounts.caller += BigInt(payouts[offset].value);
+      amounts.lp += BigInt(payouts[offset + 1].value);
+      amounts.lock += BigInt(payouts[offset + 2].value);
+      amounts.staker += BigInt(payouts[offset + 3].value);
+      payouts = [];
+    }
+    if (payouts.length) throw new Error(`Unclassified Booster CRV transfers in ${hash}`);
+  }
   // CVX emissions received by cvxCRV stakers (lockIncentive earns CVX too)
   const cvxCrvStakerCVX = createBalances();
   await addTokensReceived({
@@ -159,41 +162,6 @@ const fetch = async (options: FetchOptions) => {
     options,
     balances: cvxCrvStakerCVX,
   });
-
-  // ── Extrapolate LP supply-side CRV via the on-chain fee rates ─────────────
-  // CVXCRV_STAKING receives exactly `lockIncentive` bps of all CRV harvested.
-  // From that single amount and the fee split we can derive LP CRV without
-  // scanning every individual pool reward contract.
-  //
-  //   cvxCrvAmount  = lockIncentive bps worth of total CRV
-  //   total CRV     = cvxCrvAmount ÷ lockIncentive × 10_000
-  //   LP CRV        = total CRV × supplyBps ÷ 10_000
-  //                 = cvxCrvAmount × supplyBps ÷ lockIncentive
-  //
-  // We fetch CRV transfers directly with topic filters rather than reading back
-  // from cvxCrvStakerCRV.getBalances(). The SDK's sumSingleBalance stores values
-  // via Number(bigint).toString(), which produces scientific notation strings
-  // (e.g. "2.9e+22") for large wei amounts — BigInt() cannot parse these, and
-  // the Number() conversion has already discarded the low-order digits.
-  const lockBps   = Number(lockIncentive);
-  const supplyBps = 10_000 - protocolFeeBps;
-
-  const supplySideCRV = createBalances();
-  if (lockBps > 0) {
-    // Mirror the topic filter used internally by addTokensReceived
-    const TRANSFER_SIG = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const pad32 = (addr: string) => "0x" + addr.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
-    const stakingTransfers = await options.getLogs({
-      target: CRV_TOKEN,
-      eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-      topics: [TRANSFER_SIG, pad32(BOOSTER), pad32(CVXCRV_STAKING)],
-    });
-    const cvxCrvRawAmount = stakingTransfers.reduce(
-      (acc: bigint, log: any) => acc + BigInt(log.value), 0n
-    );
-    const lpCRVAmount = cvxCrvRawAmount * BigInt(supplyBps) / BigInt(lockBps);
-    supplySideCRV.add(CRV_TOKEN, lpCRVAmount, "CRV Revenue");
-  }
 
   // ── FXS revenue via on-chain distribution events ──────────────────────────
   // Previous approach tracked inbound FXS transfers to these contracts, which
@@ -258,32 +226,23 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue   = createBalances();
   const dailyProtocolRevenue  = createBalances();
 
-  // CRV to cvxCRV stakers
-  dailyFees.addBalances(cvxCrvStakerCRV, "CRV Revenue");
-  dailyRevenue.addBalances(cvxCrvStakerCRV, "CRV Revenue");
-  dailyHoldersRevenue.addBalances(cvxCrvStakerCRV, "CRV Revenue");
-
-  // CRV to CVX lockers
-  dailyFees.addBalances(cvxLockerCRV, "CRV Revenue");
-  dailyRevenue.addBalances(cvxLockerCRV, "CRV Revenue");
-  dailyHoldersRevenue.addBalances(cvxLockerCRV, "CRV Revenue");
+  const holdersCRV = amounts.lock + amounts.staker;
+  const grossCRV = holdersCRV + amounts.lp + amounts.caller + amounts.treasury;
+  dailyFees.add(CRV_TOKEN, grossCRV, "CRV Revenue");
+  dailyRevenue.add(CRV_TOKEN, holdersCRV, "CRV Revenue");
+  dailyHoldersRevenue.add(CRV_TOKEN, holdersCRV, "CRV Revenue");
 
   // CVX emissions to cvxCRV stakers
   dailyFees.addBalances(cvxCrvStakerCVX, "CVX Revenue");
   dailyRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
   dailyHoldersRevenue.addBalances(cvxCrvStakerCVX, "CVX Revenue");
 
-  // LP supply-side CRV (extrapolated).
-  //
-  // This also belongs in dailyFees. fees/AGENTS.md defines dailyFees as
-  // "All fees from ALL sources - total value flow into protocol ecosystem" and
-  // requires dailyFees = dailyRevenue + dailySupplySideRevenue to hold within
-  // the same period. Leaving the LP leg out of fees broke that badly: the
-  // adapter was reporting 25.40k of supply-side revenue paid out of 4.44k of
-  // total fees. The FXS gauge leg below already books its supply-side amount
-  // into both, so this is also what makes the adapter consistent with itself.
-  dailyFees.addBalances(supplySideCRV, "CRV Revenue");
-  dailySupplySideRevenue.addBalances(supplySideCRV, "CRV Revenue");
+  // Actual LP reward payouts.
+  dailySupplySideRevenue.add(CRV_TOKEN, amounts.lp, "CRV Revenue");
+
+  dailyRevenue.add(CRV_TOKEN, amounts.treasury, "CRV Treasury Fees");
+  dailyProtocolRevenue.add(CRV_TOKEN, amounts.treasury, "CRV Treasury Fees");
+  dailySupplySideRevenue.add(CRV_TOKEN, amounts.caller, "Harvest Incentives");
 
   // FXS claimed by cvxFXS stakers / CVX lockers (STKFXS_STAKING) → fees + revenue + holders
   if (fxsStakingAmount > 0n) {
