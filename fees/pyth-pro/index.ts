@@ -14,37 +14,60 @@ const PYTHIAN_COUNCIL_WALLET = "GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2";
 // PIP-136: USDC DAO share is delivered to the Pythian Council instead of the DAO treasury.
 const PIP_136 = "2026-09-25";
 
-// Temporary compatibility window for the first post-PIP-136 payout, which was sent
-// to the DAO treasury by mistake. The DAO recipient is not accepted after this date.
-const USDC_DAO_EXCEPTION_LAST_DATE = "2026-10-15";
-
-// September 2026 mixed-product distribution. The official report allocates the
-// DAO receipt across the Pyth Pro umbrella's three verticals.
-// Source: https://forum.pyth.network/t/pyth-pro-douro-labs-report-september-2026/2720
-const PIP_136_DAO_EXCEPTION_TX =
-  "4HmpUVkLMCTBZVoY2kmQaDpFkFTUUTpJ4bhrPwQeXTEKcdkmnXb8fhUv5Ha8kspL9xhvYaJYVjLE5DRcZSXNq6eZ";
-
-// The exception payment occurred on October 5, 2026 UTC.
-const EXCEPTION_PAYMENT_START = 1791158400;
-const EXCEPTION_PAYMENT_END = 1791244800;
-
-const PIP_136_EXCEPTION_ALLOCATIONS = [
+// Source-backed mixed distributions. All three streams remain inside the public
+// Pyth Pro umbrella listing; these allocations only preserve their different shares.
+// August source: https://forum.pyth.network/t/pyth-pro-douro-labs-report-august-2026/2695
+// September source: https://forum.pyth.network/t/pyth-pro-douro-labs-report-september-2026/2720
+const MIXED_DISTRIBUTIONS = [
   {
-    feesLabel: "Pyth Pro Subscription Fees",
-    daoAmount: 460_850_000_000n,
-    daoSharePercent: 60n,
+    txnId: "3e5rijGDRxiBHXdXz1Q6mSKKtd6UXibR9PibDNc2Z5v9dh1GsCALnzeF26g8RKwjZ7zNsnap1tMAZQCwrL8QU6cY",
+    startTimestamp: 1788825600, // 2026-09-08 00:00 UTC
+    endTimestamp: 1788912000,   // 2026-09-09 00:00 UTC
+    allocations: [
+      {
+        feesLabel: "Pyth Pro Subscription Fees",
+        daoAmount: 405_560_000_000n,
+        daoSharePercent: 60n,
+      },
+      {
+        feesLabel: "Pyth Pro LaaS Fees",
+        daoAmount: 10_980_000_000n,
+        daoSharePercent: 90n,
+      },
+      {
+        feesLabel: "Pyth Pro Indices Fees",
+        daoAmount: 17_200_000_000n,
+        daoSharePercent: 60n,
+      },
+    ],
   },
   {
-    feesLabel: "Pyth Pro LaaS Fees",
-    daoAmount: 11_430_000_000n,
-    daoSharePercent: 90n,
-  },
-  {
-    feesLabel: "Pyth Pro Indices Fees",
-    daoAmount: 81_413_000_000n,
-    daoSharePercent: 60n,
+    txnId: "4HmpUVkLMCTBZVoY2kmQaDpFkFTUUTpJ4bhrPwQeXTEKcdkmnXb8fhUv5Ha8kspL9xhvYaJYVjLE5DRcZSXNq6eZ",
+    startTimestamp: 1791158400, // 2026-10-05 00:00 UTC
+    endTimestamp: 1791244800,   // 2026-10-06 00:00 UTC
+    allocations: [
+      {
+        feesLabel: "Pyth Pro Subscription Fees",
+        daoAmount: 460_850_000_000n,
+        daoSharePercent: 60n,
+      },
+      {
+        feesLabel: "Pyth Pro LaaS Fees",
+        daoAmount: 11_430_000_000n,
+        daoSharePercent: 90n,
+      },
+      {
+        feesLabel: "Pyth Pro Indices Fees",
+        daoAmount: 81_413_000_000n,
+        daoSharePercent: 60n,
+      },
+    ],
   },
 ] as const;
+
+const MIXED_DISTRIBUTION_TX_IDS = MIXED_DISTRIBUTIONS
+  .map(({ txnId }) => `'${txnId}'`)
+  .join(", ");
 
 // Token mints
 const USDC_MINT = ADDRESSES.solana.USDC;
@@ -81,22 +104,15 @@ const fetch = async (options: FetchOptions) => {
     }
   };
 
-  // Before PIP-136 both tokens settle at the DAO. From PIP-136, USDC settles at the Council.
-  const usdcRecipient = options.dateString >= PIP_136
-    ? PYTHIAN_COUNCIL_WALLET
-    : PYTH_DAO_WALLET;
+  // Before PIP-136, ordinary USDC settlements went to the DAO treasury.
+  // After PIP-136, ordinary USDC settlements must be added to MIXED_DISTRIBUTIONS
+  // once their source-backed product allocation is published. This avoids applying
+  // a blanket 60% gross-up to an aggregate mixed-product payment.
+  const ordinaryUsdcPredicate = options.dateString < PIP_136
+    ? `mint = '${USDC_MINT}' AND to_address = '${PYTH_DAO_WALLET}'`
+    : "1 = 0";
 
-  const allowLegacyUsdcRecipient =
-    options.dateString >= PIP_136 &&
-    options.dateString <= USDC_DAO_EXCEPTION_LAST_DATE;
-
-  const usdcRecipientPredicate = allowLegacyUsdcRecipient
-    ? `to_address IN ('${PYTHIAN_COUNCIL_WALLET}', '${PYTH_DAO_WALLET}')`
-    : `to_address = '${usdcRecipient}'`;
-
-  // Note: Douro distributes in month N+1 for revenue earned in month N,
-  // so DefiLlama data lags ~1 month vs actual earning period.
-  // The mixed September transaction is excluded and allocated below by product.
+  // Direct PYTH distributions always settle at the DAO treasury.
   const subscriptionQuery = `
     SELECT
       mint as token_mint_address,
@@ -107,10 +123,10 @@ const fetch = async (options: FetchOptions) => {
       AND from_address = '${DOURO_LABS_WALLET}'
       AND NOT (
         mint = '${USDC_MINT}'
-        AND txn_id = '${PIP_136_DAO_EXCEPTION_TX}'
+        AND txn_id IN (${MIXED_DISTRIBUTION_TX_IDS})
       )
       AND (
-        (mint = '${USDC_MINT}' AND ${usdcRecipientPredicate})
+        (${ordinaryUsdcPredicate})
         OR (mint = '${PYTH_MINT}' AND to_address = '${PYTH_DAO_WALLET}')
       )
     GROUP BY mint
@@ -135,31 +151,38 @@ const fetch = async (options: FetchOptions) => {
     );
   }
 
-  // Process the first post-PIP-136 DAO-directed payment separately. The Solana
-  // transfer is 553,693 USDC, but the official report allocates it as:
-  // 460,850 Pyth Pro, 11,430 LaaS, and 81,413 Indices DAO share.
-  const exceptionWindowOverlaps =
-    options.startTimestamp < EXCEPTION_PAYMENT_END &&
-    options.endTimestamp > EXCEPTION_PAYMENT_START;
+  // Process only source-backed mixed distributions in this fetch window.
+  const mixedDistributionWindowOverlaps = MIXED_DISTRIBUTIONS.some(
+    (distribution) =>
+      options.startTimestamp < distribution.endTimestamp &&
+      options.endTimestamp > distribution.startTimestamp,
+  );
 
-  if (exceptionWindowOverlaps) {
-    const exceptionQuery = `
-      SELECT COUNT(*) as matching_transfers
+  if (mixedDistributionWindowOverlaps) {
+    const mixedDistributionQuery = `
+      SELECT
+        txn_id,
+        COUNT(*) as matching_transfers
       FROM solana.assets.transfers
       WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND txn_id = '${PIP_136_DAO_EXCEPTION_TX}'
+        AND txn_id IN (${MIXED_DISTRIBUTION_TX_IDS})
         AND mint = '${USDC_MINT}'
         AND from_address = '${DOURO_LABS_WALLET}'
         AND to_address = '${PYTH_DAO_WALLET}'
+      GROUP BY txn_id
     `;
 
-    const exceptionRes = await queryAllium(exceptionQuery);
-    const exceptionFound = exceptionRes.some(
-      (row) => BigInt(row.matching_transfers || 0) > 0n,
-    );
+    const mixedDistributionRes = await queryAllium(mixedDistributionQuery);
 
-    if (exceptionFound) {
-      for (const allocation of PIP_136_EXCEPTION_ALLOCATIONS) {
+    for (const row of mixedDistributionRes) {
+      if (BigInt(row.matching_transfers || 0) === 0n) continue;
+
+      const distribution = MIXED_DISTRIBUTIONS.find(
+        (item) => item.txnId === row.txn_id,
+      );
+      if (!distribution) continue;
+
+      for (const allocation of distribution.allocations) {
         addDistribution(
           USDC_MINT,
           allocation.daoAmount,
@@ -175,8 +198,8 @@ const fetch = async (options: FetchOptions) => {
 
   // Count PYTH when it reaches the official DAO treasury.
   // Direct Douro distributions are known Pyth Pro umbrella revenue.
-  // Historical Council returns are tracked separately as unattributed DAO treasury buybacks
-  // until a direct Douro -> Council funding link is available.
+  // Historical Council returns are tracked separately as unattributed DAO treasury
+  // buybacks until a direct Douro -> Council funding link is available.
   //
   // Example September 2026 direct buyback:
   // swap:   https://orbmarkets.io/tx/2YzFNSJDBQDHCAQVWz43nM7kk6ntKRRuMxf8mV4tehhKGzFmq1qBd6XreXmiYXWbDLuYS4KGbSNUYGaWFtTdxQqQ
