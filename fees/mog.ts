@@ -1,6 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { ChainApi } from "@defillama/sdk";
 import { METRIC } from "../helpers/metrics";
 
 // mog (https://mog.xyz) - treasury-backed perps on Robinhood Chain, up to 1000x, no LPs.
@@ -72,7 +71,7 @@ const fetch = async (options: FetchOptions) => {
   // Payouts to the wallet are not counted: the wallet can use them for other treasury moves.
   const burns = mogTransfers.filter((log: any) => log.to.toLowerCase() === NULL_ADDRESS);
   if (burns.length) {
-    const buybackWallet = (await new ChainApi({ chain: options.chain }).call({ target: CORE, abi: "address:buyback" })).toLowerCase();
+    const buybackWallet = (await options.api.call({ target: CORE, abi: "address:buyback" })).toLowerCase();
     for (const log of burns) {
       if (log.from.toLowerCase() !== buybackWallet) continue;
       dailyHoldersRevenue.add(MOG_TOKEN, log.value, METRIC.TOKEN_BUY_BACK);
@@ -97,8 +96,7 @@ const fetch = async (options: FetchOptions) => {
   const traderCloses = closes.filter((log: any) => Number(log.closeId) !== 0);
   if (traderCloses.length) {
     const ids = [...new Map(traderCloses.map((log: any) => [key(log), log])).values()];
-    const api = new ChainApi({ chain: options.chain });
-    const positions = await api.multiCall({
+    const positions = await options.api.multiCall({
       target: MARKETS,
       abi: POSITION_OF,
       calls: ids.map((log: any) => ({ params: [log.mkt, log.posId] })),
@@ -160,6 +158,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-18",
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
