@@ -42,10 +42,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   // A day that still overlaps the hourly card is not fully outside that week — its covered hours
   // are summed above, so this uncovered slice stays zero instead of adding the daily total again.
   const windowSeconds = toTimestamp - fromTimestamp
-  const dayStart = Math.floor(toTimestamp / ONE_DAY) * ONE_DAY
+  const near = (delta: number) => Math.abs(delta) <= 1
+  const secondsIntoDay = ((fromTimestamp % ONE_DAY) + ONE_DAY) % ONE_DAY
+  const startsAtUtcMidnight = secondsIntoDay <= 1 || secondsIntoDay >= ONE_DAY - 1
+  // A `to` that lands exactly on midnight is the exclusive end of the previous day.
+  const dayStart = Math.floor((toTimestamp - 1) / ONE_DAY) * ONE_DAY
   const dayFullyBeforeCoverage = dayStart + ONE_DAY <= coverageStart
-  const isFirstUtcHour = windowSeconds === ONE_HOUR && (fromTimestamp + 1) % ONE_DAY === 0
-  const isWholeUtcDay = windowSeconds === ONE_DAY && (toTimestamp + 1) % ONE_DAY === 0
+  const isFirstUtcHour = near(windowSeconds - ONE_HOUR) && startsAtUtcMidnight
+  const isWholeUtcDay = near(windowSeconds - ONE_DAY) && startsAtUtcMidnight
   if (!dayFullyBeforeCoverage || (!isFirstUtcHour && !isWholeUtcDay)) {
     return { dailyVolume: 0 }
   }
