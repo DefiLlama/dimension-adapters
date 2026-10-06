@@ -1,8 +1,9 @@
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import ADDRESSES from "../../helpers/coreAssets.json"
 
 const CRYSTAL = "0x508254c838B2e936B0631440c5C6E3AB3a4a98BD"
-const ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+const ETH = ADDRESSES.GAS_TOKEN_2
 const abi = {
   allMarketsLength: 'uint256:allMarketsLength',
   allMarkets: 'function allMarkets(uint256) view returns (address)',
@@ -25,6 +26,8 @@ const abi = {
 const fetch = async ({ api, fromApi, getLogs, createBalances }: FetchOptions) => {
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+  const takerByQuote: Record<string, bigint> = {}
   const len = Number(await api.call({ target: CRYSTAL, abi: abi.allMarketsLength }))
   const markets: string[] = await api.multiCall({ target: CRYSTAL, abi: abi.allMarkets, calls: Array.from({ length: len }, (_, i) => i.toString()) })
   const infos = await api.multiCall({ target: CRYSTAL, abi: abi.getMarket, calls: markets, permitFailure: true })
@@ -73,9 +76,14 @@ const fetch = async ({ api, fromApi, getLogs, createBalances }: FetchOptions) =>
     if (taker === 0n) continue
     const spread = 100000n - taker
     const takerFeeAmt = args.isBuy ? BigInt(args.amountIn) * spread / 100000n : BigInt(args.amountOut) * spread / taker
-    dailyFees.add(mi.quote, takerFeeAmt.toString())
+    const quote = mi.quote.toLowerCase()
+    takerByQuote[quote] = (takerByQuote[quote] ?? 0n) + takerFeeAmt
+    dailyFees.add(mi.quote, takerFeeAmt.toString(), 'Taker Fees')
     const lp = lpByTrade[`${l.transactionHash}:${l.logIndex ?? l.index}`]
-    if (lp) dailyFees.add(mi.quote, lp.toString())
+    if (lp) {
+      dailyFees.add(mi.quote, lp.toString(), 'AMM LP Fees')
+      dailySupplySideRevenue.add(mi.quote, lp.toString(), 'AMM LP Fees To LPs')
+    }
   }
   const weth = (await api.call({ target: CRYSTAL, abi: abi.weth })).toLowerCase()
   const gov = (await api.call({ target: CRYSTAL, abi: abi.gov })).toLowerCase()
@@ -102,8 +110,12 @@ const fetch = async ({ api, fromApi, getLogs, createBalances }: FetchOptions) =>
       received[weth] -= collected - collected * split / 100n
     }
   }
-  for (const q in received) dailyRevenue.add(q, received[q].toString())
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
+  for (const q in received) dailyRevenue.add(q, received[q].toString(), 'Trading Fees To Protocol')
+  for (const q of new Set([...Object.keys(takerByQuote), ...Object.keys(received)])) {
+    const share = (takerByQuote[q] ?? 0n) - (received[q] ?? 0n) // taker fee not credited to the fee recipient
+    if (share !== 0n) dailySupplySideRevenue.add(q, share.toString(), 'Taker Fees To Referrers And Creators')
+  }
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapter: Adapter = {
@@ -114,9 +126,30 @@ const adapter: Adapter = {
   start: "2026-09-20",
   methodology: {
     Fees: "Taker fees paid on every orderbook and AMM trade plus the AMM constant-product LP fee. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted, expressed in the market's quote asset.",
-    UserFees: "Same as Fees.",
+    UserFees: "Taker fees paid on every orderbook and AMM trade plus the AMM constant-product LP fee. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted, expressed in the market's quote asset.",
     Revenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol.",
-    ProtocolRevenue: "Same as Revenue.",
+    ProtocolRevenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol.",
+    SupplySideRevenue: "AMM LP fees plus the taker fees paid to referrers and market creators instead of the protocol fee recipient.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Taker Fees': 'Taker fee charged on each orderbook and AMM trade, in the market quote asset.',
+      'AMM LP Fees': 'Constant-product fee earned by AMM LPs, from the quote-reserve change on the Sync that belongs to that trade.',
+    },
+    UserFees: {
+      'Taker Fees': 'Taker fee charged on each orderbook and AMM trade, in the market quote asset.',
+      'AMM LP Fees': 'Constant-product fee earned by AMM LPs, from the quote-reserve change on the Sync that belongs to that trade.',
+    },
+    Revenue: {
+      'Trading Fees To Protocol': 'Trading fees credited to the protocol fee recipient, after referral commissions, creator splits, launchpad fees, and locked-reserve credits.',
+    },
+    ProtocolRevenue: {
+      'Trading Fees To Protocol': 'Trading fees credited to the protocol fee recipient, after referral commissions, creator splits, launchpad fees, and locked-reserve credits.',
+    },
+    SupplySideRevenue: {
+      'AMM LP Fees To LPs': 'Constant-product fee paid to AMM liquidity providers.',
+      'Taker Fees To Referrers And Creators': 'Taker fees not credited to the protocol fee recipient, paid to referrers and market creators.',
+    },
   },
 }
 
