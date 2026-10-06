@@ -44,7 +44,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const windowSeconds = toTimestamp - fromTimestamp
   const near = (delta: number) => Math.abs(delta) <= 1
   const secondsIntoDay = ((fromTimestamp % ONE_DAY) + ONE_DAY) % ONE_DAY
-  const startsAtUtcMidnight = secondsIntoDay <= 1 || secondsIntoDay >= ONE_DAY - 1
+  const startsAtUtcMidnight = secondsIntoDay <= 60 || secondsIntoDay >= ONE_DAY - 60
   // A `to` that lands exactly on midnight is the exclusive end of the previous day.
   const dayStart = Math.floor((toTimestamp - 1) / ONE_DAY) * ONE_DAY
   const dayFullyBeforeCoverage = dayStart + ONE_DAY <= coverageStart

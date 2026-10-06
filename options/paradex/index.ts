@@ -64,34 +64,13 @@ const fetch = async (options: FetchOptions) => {
   const windowSeconds = toTimestamp - fromTimestamp
   const near = (delta: number) => Math.abs(delta) <= 1
   const secondsIntoDay = ((fromTimestamp % ONE_DAY) + ONE_DAY) % ONE_DAY
-  const startsAtUtcMidnight = secondsIntoDay <= 1 || secondsIntoDay >= ONE_DAY - 1
+  const startsAtUtcMidnight = secondsIntoDay <= 60 || secondsIntoDay >= ONE_DAY - 60
   // A `to` that lands exactly on midnight is the exclusive end of the previous day.
   const dayStart = Math.floor((toTimestamp - 1) / ONE_DAY) * ONE_DAY
   const dayFullyBeforeCoverage = dayStart + ONE_DAY <= coverageStart
   const isFirstUtcHour = near(windowSeconds - ONE_HOUR) && startsAtUtcMidnight
   const isWholeUtcDay = near(windowSeconds - ONE_DAY) && startsAtUtcMidnight
-  const useDailyCard = dayFullyBeforeCoverage && (isFirstUtcHour || isWholeUtcDay)
-  // Temporary: production windows for days outside the hourly cards are not matching
-  // the first-hour / full-day checks. Remove once the real from/to shape is known.
-  console.log(JSON.stringify({
-    paradexOptionsDebug: true,
-    branch: useDailyCard ? 'daily' : 'zero',
-    dateString: options.dateString,
-    startOfDay: options.startOfDay,
-    startTimestamp: options.startTimestamp,
-    endTimestamp: options.endTimestamp,
-    fromTimestamp,
-    toTimestamp,
-    windowSeconds,
-    secondsIntoDay,
-    coverageStart,
-    dayStart,
-    dayFullyBeforeCoverage,
-    startsAtUtcMidnight,
-    isFirstUtcHour,
-    isWholeUtcDay,
-  }))
-  if (!useDailyCard) {
+  if (!dayFullyBeforeCoverage || (!isFirstUtcHour && !isWholeUtcDay)) {
     return {
       dailyNotionalVolume: 0,
       dailyPremiumVolume: 0,
