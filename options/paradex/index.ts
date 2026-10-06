@@ -38,7 +38,14 @@ const fetch = async (options: FetchOptions) => {
   const volWindow = volRows.filter(inWindow)
   const premWindow = premRows.filter(inWindow)
 
-  if (volWindow.length || premWindow.length) {
+  // The hourly cards cover a rolling window. Only trust hourly sums when the whole requested
+  // window sits inside that coverage - otherwise the window edge would yield a partial total
+  // (a missing hour inside coverage is a true zero, but an hour before coverage is not data).
+  const coverageStart = Math.min(
+    ...volRows.map((r: any[]) => Date.parse(r[0]) / 1000),
+    ...premRows.map((r: any[]) => Date.parse(r[0]) / 1000),
+  )
+  if (fromTimestamp >= coverageStart) {
     return {
       // A missing hour means no trades in that hour - a true zero, not missing data.
       dailyNotionalVolume: volWindow.reduce((sum, r) => sum + Number(r[4] ?? 0), 0),
@@ -46,19 +53,12 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // No hourly rows in the window: either a genuine gap inside the window, or a refill older
-  // than the rolling card. Only a full-day window can safely fall back to the daily cards -
-  // a narrower window cannot, because the daily value is the whole day and summing it across
-  // the day's hourly slices would multiply it.
-  const oldestHour = Math.min(...volRows.map((r: any[]) => Date.parse(r[0]) / 1000))
-  const weekAgo = Math.floor(Date.now() / 1000) - ONE_WEEK
-  const olderThanWindow = toTimestamp <= oldestHour || toTimestamp < weekAgo
-
-  if (!olderThanWindow) {
-    throw new Error(`Paradex hourly options cards have no rows in (${fromTimestamp}, ${toTimestamp}]`)
-  }
-  if (toTimestamp - fromTimestamp < ONE_DAY - 1) {
-    throw new Error('Paradex hourly options data does not cover this window and it is too narrow to fall back to the daily cards. Refill full days only (daily notional/premium cover history from 2026-03-25).')
+  // The window extends before the hourly coverage: fall back to the daily cards, but only for
+  // exactly one UTC-aligned day. A narrower/longer/shifted window cannot use a daily value -
+  // the daily number is the whole day, so applying it to a partial window would be wrong.
+  const isWholeUtcDay = toTimestamp - fromTimestamp === ONE_DAY && (toTimestamp + 1) % ONE_DAY === 0
+  if (!isWholeUtcDay) {
+    throw new Error('Paradex hourly options data does not cover this window and it is not a single UTC-aligned day. Refill full UTC days only (daily notional/premium cover history from 2026-03-25).')
   }
 
   const dayKey = new Date(Math.floor(toTimestamp / ONE_DAY) * ONE_DAY * 1000).toISOString().slice(0, 10)
