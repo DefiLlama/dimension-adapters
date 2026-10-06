@@ -85,7 +85,7 @@ const eventsQuery = (options: FetchOptions) => `
   SELECT SUM(
     CASE
       WHEN h.omint IN (${MAJOR_MINTS.map(m => `'${m}'`).join(', ')}) AND h.imint NOT IN (${MAJOR_MINTS.map(m => `'${m}'`).join(', ')})
-        THEN h.oamt / power(10, po.decimals) * po.price
+        THEN coalesce(h.oamt / power(10, po.decimals) * po.price, h.iamt / power(10, pi.decimals) * pi.price)
       ELSE coalesce(h.iamt / power(10, pi.decimals) * pi.price, h.oamt / power(10, po.decimals) * po.price)
     END
   ) AS volume_24,
