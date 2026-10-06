@@ -37,6 +37,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  fetch,
+  adapter: deployments,
   methodology: {
     Fees: "USDW trading fees accrued to the protocol, measured as the increase in FeeRouter.totalPlatformFees() on each chain where Wager Predict is deployed.",
     Revenue: "The same increase in FeeRouter.totalPlatformFees(). That counter is the platform's collected trading fees.",
@@ -53,14 +55,7 @@ const adapter: SimpleAdapter = {
       "Trading Fees To Protocol": "USDW added to FeeRouter.totalPlatformFees() during the period.",
     },
   },
-  adapter: {},
 }
 
-for (const [chain, config] of Object.entries(deployments)) {
-  adapter.adapter[chain] = {
-    fetch,
-    start: config.start,
-  }
-}
 
 export default adapter
