@@ -19,7 +19,7 @@ const API = "https://swap.vurto.cc/api/stats/daily-volume";
 // The day per-swap USD volume started being recorded. Earlier days are not
 // zero-volume days, they are days without a record, so the adapter does not
 // claim them.
-const START = "2026-08-11";
+const START = "2026-08-10";
 
 // Solana is keyed by its network id rather than an EIP-155 number, which is
 // what Vurto's API and database use for it. Solana support shipped on
