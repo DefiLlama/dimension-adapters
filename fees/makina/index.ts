@@ -108,7 +108,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const securityModule = securityModules[i]?.toLowerCase();
     // a fee manager exposing receivers but no readable rate is a failed read, not a zero rate
     if (mgmtReceivers[i] != null && mgmtRates[i] == null) throw new Error(`makina: cannot read management fee rate of machine ${machine}`);
-    const mgmtList: string[] = Number(mgmtRates[i] ?? 0) > 0 ? mgmtReceivers[i].map((a: string) => a.toLowerCase()) : [];
+    const mgmtList: string[] = Number(mgmtRates[i] ?? 0) > 0 ? (mgmtReceivers[i] ?? []).map((a: string) => a.toLowerCase()) : [];
     const byTx: Record<string, any[]> = {};
     for (const log of transferLogs[i]) {
       const { from, to } = log.args;
