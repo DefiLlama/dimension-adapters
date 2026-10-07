@@ -100,7 +100,7 @@ async function processCDO(
   dailyProtocolRevenue: any,
   dailySupplySideRevenue: any
 ) {
-  const { fromApi, toApi, getLogs } = options;
+  const { fromApi, toApi, getLogs, getFromBlock, getToBlock } = options;
 
   const [baseAsset, navStartRaw, navEndRaw, reserveBpsRaw] = await Promise.all([
     toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
@@ -113,6 +113,15 @@ async function processCDO(
   const navEnd = BigInt(navEndRaw);
   const reserveBps = BigInt(reserveBpsRaw);
 
+  // navStart is read at the end of fromBlock, so anything in that block is
+  // already in it. the previous window's toBlock is this window's fromBlock and
+  // getLogs includes both ends, so we start one block later. otherwise a deposit
+  // or withdrawal in the boundary block gets counted in both windows.
+  const [startBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+  // getBlock returns null if the lookup fails. null + 1 would scan from block 1
+  if (!startBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${startBlock}, ${toBlock})`);
+  const fromBlock = startBlock + 1;
+
   const [
     jrtDeposits,
     jrtWithdraws,
@@ -121,12 +130,12 @@ async function processCDO(
     feeAccrued,
     reserveReduced,
   ] = await Promise.all([
-    getLogs({ target: cfg.jrt, eventAbi: ERC4626_DEPOSIT }),
-    getLogs({ target: cfg.jrt, eventAbi: ERC4626_WITHDRAW }),
-    getLogs({ target: cfg.srt, eventAbi: ERC4626_DEPOSIT }),
-    getLogs({ target: cfg.srt, eventAbi: ERC4626_WITHDRAW }),
-    getLogs({ target: cfg.accounting, eventAbi: FEE_ACCRUED }),
-    getLogs({ target: cfg.cdo, eventAbi: RESERVE_REDUCED }),
+    getLogs({ target: cfg.jrt, eventAbi: ERC4626_DEPOSIT, fromBlock, toBlock }),
+    getLogs({ target: cfg.jrt, eventAbi: ERC4626_WITHDRAW, fromBlock, toBlock }),
+    getLogs({ target: cfg.srt, eventAbi: ERC4626_DEPOSIT, fromBlock, toBlock }),
+    getLogs({ target: cfg.srt, eventAbi: ERC4626_WITHDRAW, fromBlock, toBlock }),
+    getLogs({ target: cfg.accounting, eventAbi: FEE_ACCRUED, fromBlock, toBlock }),
+    getLogs({ target: cfg.cdo, eventAbi: RESERVE_REDUCED, fromBlock, toBlock }),
   ]);
 
   const inflows =
