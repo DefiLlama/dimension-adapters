@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 // EL Predict (by EL-Casino) — UP / DOWN price rounds on Robinhood Chain. ElcasMarketsHub (source verified on
 // Sourcify) gives every stake token its own book (a CREATE2 clone); fees are paid in that book's token.
@@ -8,7 +9,7 @@ import { CHAIN } from "../helpers/chains";
 // (FeeAccrued to the creator), the settler's bounty (Bounty) and the rest to the market's house vault (Settled.toHouse).
 // When a market has no house LPs the rest goes back to the winners and is not a fee.
 const HUB = "0xBd65EE837e57D5060013cbE8bAc8a6d0F8037f45";
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null
 
 const SETTLED = "event Settled(uint256 indexed market, uint256 indexed epoch, uint8 status, uint256 payout, uint256 toProtocol, uint256 toHouse, uint256 houseResult)";
 const BOUNTY = "event Bounty(uint256 indexed market, uint256 indexed epoch, address indexed settler, uint256 amount)";
@@ -28,18 +29,20 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const tokens: string[] = await options.api.call({ abi: "address[]:allPredictTokens", target: HUB });
   const books: string[] = await options.api.multiCall({ abi: "function predictBook(address) view returns (address)", target: HUB, calls: tokens });
+  const [settled, bounties, accrued] = await Promise.all([
+    options.getLogs({ targets: books, eventAbi: SETTLED, flatten: false }),
+    options.getLogs({ targets: books, eventAbi: BOUNTY, flatten: false }),
+    options.getLogs({ targets: books, eventAbi: ACCRUED, flatten: false }),
+  ]);
   for (let i = 0; i < books.length; i++) {
-    const book = books[i], token = tokens[i];
-    const settled = await options.getLogs({ target: book, eventAbi: SETTLED });
-    const bounties = await options.getLogs({ target: book, eventAbi: BOUNTY });
-    const accrued = await options.getLogs({ target: book, eventAbi: ACCRUED });
-    for (const l of accrued) {
+    const token = tokens[i];
+    for (const l of accrued[i]) {
       dailyFees.add(token, l.amount, L.fees);
       if (String(l.to).toLowerCase() === ZERO) dailyRevenue.add(token, l.amount, L.toProtocol);
       else dailySupplySideRevenue.add(token, l.amount, L.toCreators);
     }
-    for (const l of settled) { dailyFees.add(token, l.toHouse, L.fees); dailySupplySideRevenue.add(token, l.toHouse, L.toHouse); }
-    for (const l of bounties) { dailyFees.add(token, l.amount, L.fees); dailySupplySideRevenue.add(token, l.amount, L.toSettlers); }
+    for (const l of settled[i]) { dailyFees.add(token, l.toHouse, L.fees); dailySupplySideRevenue.add(token, l.toHouse, L.toHouse); }
+    for (const l of bounties[i]) { dailyFees.add(token, l.amount, L.fees); dailySupplySideRevenue.add(token, l.amount, L.toSettlers); }
   }
   return { dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };

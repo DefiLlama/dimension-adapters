@@ -24,9 +24,7 @@ const PLATFORM = "event PlatformFeeCollected(uint256 amount)";
 const CREATOR = "event CreatorFeeCollected(uint256 amount)";
 
 const L = {
-  lp: "Bet Fees",
-  platform: "Platform Fees",
-  creator: "Creator Fees",
+  fees: "Bet Fees",
   lpToStakers: "Bet Fees To Room Stakers",
   platformToBurn: "Platform Fees To ELCAS Buyback And Burn",
   creatorToCreators: "Creator Fees To Room Creators",
@@ -56,9 +54,10 @@ const fetch = async (options: FetchOptions) => {
     // pending fees grow with bets and drop when paid out: accrued in the window = change of pending + paid in the window
     const platform = BigInt(plA[i]) - BigInt(plB[i]) + sum(plPaid[i]);
     const creator = BigInt(crA[i]) - BigInt(crB[i]) + sum(crPaid[i]);
-    dailyFees.add(t, lp, L.lp); dailySupplySideRevenue.add(t, lp, L.lpToStakers);
-    dailyFees.add(t, platform, L.platform); dailyRevenue.add(t, platform, L.platformToBurn);
-    dailyFees.add(t, creator, L.creator); dailySupplySideRevenue.add(t, creator, L.creatorToCreators);
+    dailyFees.add(t, lp + platform + creator, L.fees);
+    dailySupplySideRevenue.add(t, lp, L.lpToStakers);
+    dailyRevenue.add(t, platform, L.platformToBurn);
+    dailySupplySideRevenue.add(t, creator, L.creatorToCreators);
   });
   return { dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
@@ -78,9 +77,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [L.lp]: "Fee on each bet kept by the room's pool for its stakers.",
-      [L.platform]: "Platform fee on each bet (CasinoHubV5).",
-      [L.creator]: "Fee on each bet for the room's creator.",
+      [L.fees]: "Fees charged on each bet: the room stakers' fee, the platform fee and the room creator's fee.",
     },
     Revenue: {
       [L.platformToBurn]: "Platform fee sent to the ElcasTreasury, which buys and burns $ELCAS.",
