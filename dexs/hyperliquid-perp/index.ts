@@ -1,7 +1,8 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidaqav2InterestUSD, queryHyperliquidIndexer, queryHypurrscanApi } from "../../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHypurrscanApi } from "../../helpers/hyperliquid";
+import { queryHyperliquidIndexerV2 } from "../../helpers/hyperliquid-v2";
 
 const methodology = {
   Volume: "Track trading volume on all perps markets (including HIP-3 markets), excluding all spot markets volume.",
@@ -63,8 +64,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
   } else {
     // get volume and fees from indexer
-    const result = await queryHyperliquidIndexer(options);
-    const aqav2Interest = await queryHyperliquidaqav2InterestUSD(options);
+    const result = await queryHyperliquidIndexerV2(options);
+    const aqav2Interest = result.dailyAqav2Yield;
 
     // perp volume
     const dailyVolume = result.dailyPerpVolume;
@@ -75,16 +76,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyHoldersRevenue = options.createBalances()
 
     // all perp fees
-    dailyFees.add(result.dailyPerpRevenue, 'Perp Fees') // = hyperliquid fees + deployer fees
-    dailyFees.add(result.dailyBuildersRevenue.clone(-1), 'Perp Fees')
-    dailyFees.add(result.dailyBuildersRevenue, 'Builder Code Fees')
+    dailyFees.add(result.dailyPerpFees, 'Perp Fees') // = hyperliquid fees + deployer fees
+    dailyFees.add(result.dailyBuildersFees.clone(-1), 'Perp Fees')
+    dailyFees.add(result.dailyBuildersFees, 'Builder Code Fees')
     // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
     dailyFees.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
     dailySupplySideRevenue.add(result.dailyHyperliquidRevenue.clone(hlpShare), 'HLP')
-    dailySupplySideRevenue.add(result.dailyBuildersRevenue, 'Builder Code Distribution')
-    dailySupplySideRevenue.add(result.dailyHip3DeployersRevenue, 'HIP-3 Deployer Distribution')
-    dailySupplySideRevenue.add(result.dailyPerpMakerRebates, 'Maker Rebates')
+    dailySupplySideRevenue.add(result.dailyBuildersFees, 'Builder Code Distribution')
+    dailySupplySideRevenue.add(result.dailyPerpDeployersFees, 'HIP-3 Deployer Distribution')
+    dailySupplySideRevenue.add(result.dailyMakerRebates, 'Maker Rebates')
     
     // 99% of revenue
     dailyRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), 'Perp Fees')

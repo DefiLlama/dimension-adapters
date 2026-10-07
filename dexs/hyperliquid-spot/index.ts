@@ -4,10 +4,10 @@ import { METRIC } from "../../helpers/metrics";
 import {
   getRevenueRatioShares,
   LLAMA_HL_INDEXER_FROM_TIME,
-  queryHyperliquidIndexer,
   queryHypurrscanApi,
   queryHypurrscanSpotAuctionBurns,
 } from "../../helpers/hyperliquid";
+import { queryHyperliquidIndexerV2 } from "../../helpers/hyperliquid-v2";
 
 const SPOT_DEPLOYMENT_AUCTION_BURNS = "Spot Deployment Auction Burns";
 
@@ -74,7 +74,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
   } else {
     const [result, dailySpotAuctionBurns] = await Promise.all([
-      queryHyperliquidIndexer(options),
+      queryHyperliquidIndexerV2(options),
       queryHypurrscanSpotAuctionBurns(options),
     ]);
 
@@ -87,19 +87,19 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyHoldersRevenue = options.createBalances()
 
     // all spot fees
-    dailyFees.add(result.dailySpotRevenue, 'Spot Fees')
-    dailyFees.add(result.dailyUnitRevenue, 'Spot fees on Unit markets')
+    dailyFees.add(result.dailySpotFees, 'Spot Fees')
+    dailyFees.add(result.dailyUnitFees, 'Spot fees on Unit markets')
     dailyFees.add(dailySpotAuctionBurns, SPOT_DEPLOYMENT_AUCTION_BURNS)
 
     // unit revenue + 1% spot revenue
-    dailySupplySideRevenue.add(result.dailySpotRevenue.clone(hlpShare), 'HLP')
-    dailySupplySideRevenue.add(result.dailyUnitRevenue, 'Unit Revenue')
-    
+    dailySupplySideRevenue.add(result.dailySpotFees.clone(hlpShare), 'HLP')
+    dailySupplySideRevenue.add(result.dailyUnitFees, 'Unit Revenue')
+
     // 99% of spot fees
-    dailyRevenue.add(result.dailySpotRevenue.clone(holdersShare), 'Spot Fees')
+    dailyRevenue.add(result.dailySpotFees.clone(holdersShare), 'Spot Fees')
     dailyRevenue.add(dailySpotAuctionBurns, SPOT_DEPLOYMENT_AUCTION_BURNS)
 
-    dailyHoldersRevenue.add(result.dailySpotRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
+    dailyHoldersRevenue.add(result.dailySpotFees.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
     dailyHoldersRevenue.add(dailySpotAuctionBurns, SPOT_DEPLOYMENT_AUCTION_BURNS)
 
     return {

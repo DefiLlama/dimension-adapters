@@ -1,4 +1,5 @@
-import { exportBuilderAdapter, exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type BuilderAddressConfig, type HyperliquidMarket } from "../helpers/hyperliquid";
+import { exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type BuilderAddressConfig } from "../helpers/hyperliquid";
+import { exportBuilderAdapterV2, type HyperliquidBuilderMarketV2 } from "../helpers/hyperliquid-v2";
 import { createFactoryExports } from "./registry";
 
 interface BuilderConfig {
@@ -8,7 +9,7 @@ interface BuilderConfig {
   methodology?: any;
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
-  market?: HyperliquidMarket;
+  market?: HyperliquidBuilderMarketV2; // perps when omitted, see builderMarketListings for the other markets
 }
 
 // this config is used for both superx and superX
@@ -54,8 +55,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
     // (userNonFundingLedgerUpdates deposit, 2026-05-05).
     start: "2026-05-05",
     methodology: {
-      Volume: "Notional volume of Hyperliquid trades placed through GDEX: perpetuals (including HIP-3 markets) and HIP-4 outcome markets.",
-      Fees: "Hyperliquid builder code fees paid by users on perpetual and outcome-market trades placed through GDEX.",
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through GDEX.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through GDEX.",
       Revenue: "Hyperliquid builder code fees collected by GDEX. Referral rewards GDEX later pays out off-chain from its treasury are not deducted.",
       ProtocolRevenue: "Hyperliquid builder code fees collected by GDEX. Referral rewards GDEX later pays out off-chain from its treasury are not deducted.",
     },
@@ -189,10 +190,10 @@ const builderConfigs: Record<string, BuilderConfig> = {
     ],
     start: "2026-06-01",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perps, spot and HIP-4 prediction-market trades executed through Liquary (formerly Hypersight).",
-      Fees: "Builder code fees paid by users on trades executed through Liquary (0.05% on perps and on HIP-4 prediction-market closes).",
-      Revenue: "Builder code fees collected by Liquary from Hyperliquid trades.",
-      ProtocolRevenue: "Builder code fees collected by Liquary from Hyperliquid trades.",
+      Volume: "Notional volume of Hyperliquid perps trades executed through Liquary (formerly Hypersight).",
+      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid perps trades executed through Liquary.",
+      Revenue: "Builder code fees collected by Liquary from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Liquary from Hyperliquid perps trades.",
     },
     breakdownFees: true,
   },
@@ -425,7 +426,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "outcome-xyz": {
     addresses: ["0xab5dbc057628bc18523c4cdfc0e1e2ebdbecb704"],
     start: "2026-05-02",
-    market: "hip4",
+    market: "outcome",
   },
   "omni-terminal": {
     addresses: ["0x733f40a4fa0cd13d59abade04b9ed2e9acac6457"],
@@ -440,12 +441,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "stratium": {
     addresses: ["0xcbd0ab1f5872dba6667c23765613de93453e3320"],
     start: "2026-05-08",
-    market: "hip4",
+    market: "outcome",
   },
   "liquidiction": {
     addresses: ["0x2e10360cbfb68080b72c17f35633700e75fe461b"],
     start: "2026-05-13",
-    market: "hip4",
+    market: "outcome",
   },
   "resolvium": {
     // Protocol: https://www.resolvium.xyz/
@@ -455,7 +456,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x90536b9d94d65c9fabd372002bdfc2ef012231b2/20260527.csv.lz4
     addresses: ["0x90536b9d94d65c9fabd372002bdfc2ef012231b2"],
     start: "2026-05-27",
-    market: "hip4",
+    market: "outcome",
   },
   "rabby-perps": {
     addresses: ["0xad9be64fd7a35d99a138b87cb212baefbcdcf045"],
@@ -951,15 +952,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
     // stats-data.hyperliquid.xyz/Mainnet/builder_fills (nothing before this date).
     start: "2026-01-15",
     methodology: {
-      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 equity markets) routed through Midas' AI trading app.",
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 equity markets) routed through Midas' AI trading app.",
       // Rate is descriptive only: fees are summed from the per-fill `builder_fee`
       // column, not computed from this number. 0.05% is the rate observed across
       // every fill in the builder_fills data, and sits under Hyperliquid's builder
       // cap of 0.1% perps / 1% spot
       // (https://hyperliquid.gitbook.io/hyperliquid-docs/trading/builder-codes).
-      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid trades executed through Midas.",
-      Revenue: "Builder code fees collected by Midas from Hyperliquid trades.",
-      ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid trades.",
+      Fees: "Builder code fees (0.05%) paid by users on Hyperliquid perps trades executed through Midas.",
+      Revenue: "Builder code fees collected by Midas from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Midas from Hyperliquid perps trades.",
     },
     breakdownFees: true,
   },
@@ -967,10 +968,10 @@ const builderConfigs: Record<string, BuilderConfig> = {
     addresses: ["0x459b632f49023881cd45d8f0003297ebe16a13d6"],
     start: "2026-07-30",
     methodology: {
-      Volume: "Notional volume of Hyperliquid trades (perps, spot and HIP-3 markets) executed through Quote.",
-      Fees: "Builder code fees paid by users on Hyperliquid trades executed through Quote.",
-      Revenue: "Builder code fees collected by Quote from Hyperliquid trades.",
-      ProtocolRevenue: "Builder code fees collected by Quote from Hyperliquid trades.",
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) executed through Quote.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades executed through Quote.",
+      Revenue: "Builder code fees collected by Quote from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Quote from Hyperliquid perps trades.",
     },
     breakdownFees: true,
   },
@@ -1101,7 +1102,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: 
   "felix-perp": { dexId: "flx", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Felix protocol" },
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (HIP-3 dex "mkts");
-  // its builder codes are in the standalone dexs/kinetiq-interface.ts
+  // its builder codes are in the standalone dexs/kinetiq-interface.ts (perps) and dexs/kinetiq-interface-spot.ts
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
   // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
@@ -1129,16 +1130,124 @@ function hip3Methodology(name: string) {
   };
 }
 
+// Builders are split into one listing per market. Each builderConfigs entry is the builder's perps listing
+// (its outcome listing for outcome-only builders); these are the builder's other markets, reusing its addresses
+// and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
+const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string }> = {
+  "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
+  "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
+  "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02" },
+  "blockchain-wallet-spot": { builder: "blockchain-wallet-perps", market: "spot", start: "2026-05-12" },
+  "bloxwap-outcome": { builder: "bloxwap-perps", market: "outcome", start: "2026-05-02" },
+  "bullpenfi-spot": { builder: "bullpenfi-perps", market: "spot", start: "2025-03-25" },
+  "ccxt-spot": { builder: "ccxt-perps", market: "spot", start: "2025-07-16" },
+  "cipher-spot": { builder: "cipher-perps", market: "spot", start: "2025-04-15" },
+  "cipher-outcome": { builder: "cipher-perps", market: "outcome", start: "2026-05-02" },
+  "coin98-spot": { builder: "coin98-perps", market: "spot", start: "2025-09-26" },
+  "cro-trade-outcome": { builder: "cro-trade-perps", market: "outcome", start: "2026-05-02" },
+  "defiapp-spot": { builder: "defiapp-perps", market: "spot", start: "2025-03-24" },
+  "dexari-spot": { builder: "dexari", market: "spot", start: "2025-01-28" },
+  "dexly-trade-spot": { builder: "dexly-trade", market: "spot", start: "2026-02-01" },
+  "dexly-trade-outcome": { builder: "dexly-trade", market: "outcome", start: "2026-05-02" },
+  "dreamcash-spot": { builder: "dreamcash", market: "spot", start: "2025-06-12" },
+  "dreamcash-outcome": { builder: "dreamcash", market: "outcome", start: "2026-05-02" },
+  "evplusai-spot": { builder: "evplusai-perps", market: "spot", start: "2025-02-23" },
+  "floatout-outcome": { builder: "floatout", market: "outcome", start: "2026-05-05" },
+  "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01" },
+  "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02" },
+  "gdex-outcome": { builder: "gdex-perps", market: "outcome", start: "2026-05-05" },
+  "gemwallet-spot": { builder: "gemwallet-perps", market: "spot", start: "2025-08-01" },
+  "grider-spot": { builder: "grider-perps", market: "spot", start: "2026-03-08" },
+  "gtr-trade-spot": { builder: "gtr-trade-perps", market: "spot", start: "2025-06-17" },
+  "gtr-trade-outcome": { builder: "gtr-trade-perps", market: "outcome", start: "2026-05-02" },
+  "hbank-spot": { builder: "hbank-perps", market: "spot", start: "2026-04-14" },
+  "hbank-outcome": { builder: "hbank-perps", market: "outcome", start: "2026-05-02" },
+  "hyperbeat-liquidbank-spot": { builder: "hyperbeat-liquidbank-perps", market: "spot", start: "2026-02-09" },
+  "hyperbeat-liquidbank-outcome": { builder: "hyperbeat-liquidbank-perps", market: "outcome", start: "2026-05-02" },
+  "hyperdash-spot": { builder: "hyperdash", market: "spot", start: "2025-01-05" },
+  "hyperdash-outcome": { builder: "hyperdash", market: "outcome", start: "2026-05-02" },
+  "hypersight-spot": { builder: "hypersight", market: "spot", start: "2026-06-01" },
+  "hypersight-outcome": { builder: "hypersight", market: "outcome", start: "2026-06-01" },
+  "hyperx-spot": { builder: "hyperx-perps", market: "spot", start: "2025-04-17" },
+  "hyprearn-spot": { builder: "hyprearn-perps", market: "spot", start: "2025-09-01" },
+  "infinex-spot": { builder: "infinex-perps", market: "spot", start: "2025-08-18" },
+  "infinex-outcome": { builder: "infinex-perps", market: "outcome", start: "2026-05-02" },
+  "jumper-perps-hl-spot": { builder: "jumper-perps-hl", market: "spot", start: "2026-09-09" },
+  "katoshi-spot": { builder: "katoshi-perps", market: "spot", start: "2025-08-01" },
+  "legend-trade-spot": { builder: "legend-trade", market: "spot", start: "2026-01-29" },
+  "liminal-spot": { builder: "liminal-perps", market: "spot", start: "2025-07-20" },
+  "liquid-spot": { builder: "liquid-perps", market: "spot", start: "2025-06-12" },
+  "liquid-outcome": { builder: "liquid-perps", market: "outcome", start: "2026-05-02" },
+  "liquidiction-perps": { builder: "liquidiction", market: "perps", start: "2026-05-13" },
+  "lit-trade-spot": { builder: "lit-trade", market: "spot", start: "2025-08-01" },
+  "lootbase-spot": { builder: "lootbase", market: "spot", start: "2025-02-05" },
+  "metascalp-spot": { builder: "metascalp-perps", market: "spot", start: "2025-09-11" },
+  "metascalp-outcome": { builder: "metascalp-perps", market: "outcome", start: "2026-05-02" },
+  "midas-spot": { builder: "midas-perps", market: "spot", start: "2026-01-15" },
+  "moonbot-spot": { builder: "moonbot", market: "spot", start: "2025-08-01" },
+  "moonbot-outcome": { builder: "moonbot", market: "outcome", start: "2026-05-02" },
+  "moontrader-spot": { builder: "moontrader-perps", market: "spot", start: "2025-09-01" },
+  "nansen-outcome": { builder: "nansen-perps", market: "outcome", start: "2026-05-04" },
+  "ohayo-spot": { builder: "ohayo-perps", market: "spot", start: "2026-03-15" },
+  "okto-wallet-spot": { builder: "okto-wallet", market: "spot", start: "2024-10-28" },
+  "omni-terminal-spot": { builder: "omni-terminal", market: "spot", start: "2026-02-26" },
+  "omni-terminal-outcome": { builder: "omni-terminal", market: "outcome", start: "2026-05-02" },
+  "onekey-spot": { builder: "onekey-perps", market: "spot", start: "2025-08-20" },
+  "onyx-spot": { builder: "onyx-perps", market: "spot", start: "2025-08-29" },
+  "onyx-outcome": { builder: "onyx-perps", market: "outcome", start: "2026-05-02" },
+  "origami-tech-spot": { builder: "origami-tech-perps", market: "spot", start: "2025-11-07" },
+  "outcome-xyz-perps": { builder: "outcome-xyz", market: "perps", start: "2026-05-02" },
+  "outcome-xyz-spot": { builder: "outcome-xyz", market: "spot", start: "2026-05-02" },
+  "owly-fi-spot": { builder: "owly-fi-perps", market: "spot", start: "2025-12-17" },
+  "perpflow-spot": { builder: "perpflow", market: "spot", start: "2025-07-26" },
+  "perpflow-outcome": { builder: "perpflow", market: "outcome", start: "2026-05-02" },
+  "perpmate-spot": { builder: "perpmate", market: "spot", start: "2025-09-04" },
+  "perpmate-outcome": { builder: "perpmate", market: "outcome", start: "2026-05-02" },
+  "phantom-spot": { builder: "phantom-perps", market: "spot", start: "2025-07-08" },
+  "phantom-outcome": { builder: "phantom-perps", market: "outcome", start: "2026-05-02" },
+  "profunding-spot": { builder: "profunding", market: "spot", start: "2026-02-22" },
+  "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
+  "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
+  "rainbow-spot": { builder: "rainbow-perps", market: "spot", start: "2025-09-15" },
+  "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },
+  "splashos-spot": { builder: "splashos-perps", market: "spot", start: "2025-06-04" },
+  "stablejack-spot": { builder: "stablejack-perps", market: "spot", start: "2026-06-17" },
+  "stratium-perps": { builder: "stratium", market: "perps", start: "2026-05-08" },
+  "stratium-spot": { builder: "stratium", market: "spot", start: "2026-05-08" },
+  "supercexy-spot": { builder: "supercexy", market: "spot", start: "2025-07-12" },
+  "superstack-spot": { builder: "superstack", market: "spot", start: "2025-10-28" },
+  "superx-spot": { builder: "superx", market: "spot", start: "2025-04-15" },
+  "supurr-spot": { builder: "supurr-perps", market: "spot", start: "2025-09-19" },
+  "supurr-outcome": { builder: "supurr-perps", market: "outcome", start: "2026-05-02" },
+  "sushi-spot": { builder: "sushi-perps", market: "spot", start: "2025-03-30" },
+  "tradoor-outcome": { builder: "tradoor-perps", market: "outcome", start: "2026-05-02" },
+  "tria-spot": { builder: "tria-perps", market: "spot", start: "2026-01-27" },
+  "unigox-spot": { builder: "unigox-perps", market: "spot", start: "2025-09-01" },
+  "valiant-outcome": { builder: "valiant-perps", market: "outcome", start: "2026-05-02" },
+  "vergex-spot": { builder: "vergex-perps", market: "spot", start: "2025-11-14" },
+  "wunder-spot": { builder: "wunder-perps", market: "spot", start: "2025-10-19" },
+};
+
 // Build dexs protocols (builder + HIP3 dex)
 const dexsProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(builderConfigs)) {
-  dexsProtocols[name] = exportBuilderAdapter(config.addresses, {
+  dexsProtocols[name] = exportBuilderAdapterV2(config.addresses, {
     start: config.start,
     deadFrom: config.deadFrom,
     methodology: config.methodology,
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
-    market: config.market,
+    market: config.market ?? "perps",
+  });
+}
+for (const [name, listing] of Object.entries(builderMarketListings)) {
+  const builder = builderConfigs[listing.builder];
+  dexsProtocols[name] = exportBuilderAdapterV2(builder.addresses, {
+    start: listing.start,
+    deadFrom: builder.deadFrom,
+    extraReturnFields: builder.extraReturnFields,
+    breakdownFees: builder.breakdownFees,
+    market: listing.market,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {

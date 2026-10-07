@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { queryHyperliquidIndexerV2 } from "../helpers/hyperliquid-v2";
 
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
@@ -14,9 +15,9 @@ async function fetch(options: FetchOptions) {
     perpFees = result.dailyPerpFees.clone(hlpShare)
     spotFees = result.dailySpotFees.clone(hlpShare)
   } else {
-    const result = await queryHyperliquidIndexer(options);
+    const result = await queryHyperliquidIndexerV2(options);
     perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
-    spotFees = result.dailySpotRevenue.clone(hlpShare)
+    spotFees = result.dailySpotFees.clone(hlpShare)
   }
 
   dailyFees.add(perpFees, 'Perp Fees')
