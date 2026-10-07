@@ -107,12 +107,15 @@ export const getFetch = (versions: SundaeVersion[]) => async (options: FetchOpti
   };
 };
 
+// the Sundae API only lists the 50 largest pools by TVL across all versions, see `query`
+const COVERAGE_NOTE = "Only pools among the 50 largest SundaeSwap pools by TVL (across all versions) are counted; smaller pools are excluded.";
+
 export const methodology = {
-  Fees: "The total trading fees paid by users, excluding L1 transaction fees",
-  Revenue: "A fixed ADA cost per transaction that is collected by the protocol",
-  SupplySideRevenue: "A percentage cut on all trading volume, paid to Liquidity Providers",
-  ProtocolRevenue: "The share of the fixed ADA cost per transaction kept by the treasury: 85% since May 2024, 100% before",
-  HoldersRevenue: "The share of the fixed ADA cost per transaction going to holders: 15% since May 2024, 0% before"
+  Fees: `The total trading fees paid by users, excluding L1 transaction fees. ${COVERAGE_NOTE}`,
+  Revenue: `A fixed ADA cost per transaction that is collected by the protocol. ${COVERAGE_NOTE}`,
+  SupplySideRevenue: `A percentage cut on all trading volume, paid to Liquidity Providers. ${COVERAGE_NOTE}`,
+  ProtocolRevenue: `The share of the fixed ADA cost per transaction kept by the treasury: 85% since May 2024, 100% before. ${COVERAGE_NOTE}`,
+  HoldersRevenue: `The share of the fixed ADA cost per transaction going to holders: 15% since May 2024, 0% before. ${COVERAGE_NOTE}`
 };
 
 export const breakdownMethodology = {
