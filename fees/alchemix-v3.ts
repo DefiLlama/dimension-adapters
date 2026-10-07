@@ -93,6 +93,20 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
       },
     ],
   },
+  [CHAIN.BASE]: {
+    start: "2026-09-10",
+    factory: "0x2584e8b0616b3e750492c9629a3b27679c410cb9",
+    fromBlock: 51125654,
+    feeReceiver: "0x24E9cbB9DdDa1247ae4b4eEEE3C569A2190ac401",
+    markets: [
+      {
+        myt: "0xb8befe5a6941ca4022a52042075ff269c3c67467",
+        alchemist: "0xeb380d86eed275c9f2ed77745ab1b2ccf364bf7a",
+        transmuter: "0x5b1c7180c630d3b2b6782df70f43ae5ea80425ba",
+        syntheticToken: "0x877014E21c32feA108B6A1f45f367efc9a2d9B9F",
+      },
+    ],
+  },
 };
 
 function topicAddress(address: string) {
