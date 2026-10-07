@@ -4,10 +4,15 @@ import { METRIC } from "../../helpers/metrics";
 
 // Arrowfarm is a Beefy CLM fork on Robinhood Chain (chain id 4663).
 // Strategies are deployed by the StrategyFactory, which emits ProxyCreated for each one.
+// https://robinhoodchain.blockscout.com/address/0xd626504db63FBe10Ea98a99f52717c5315e9eD46
 const STRATEGY_FACTORY = "0xd626504db63FBe10Ea98a99f52717c5315e9eD46";
+// Block of the StrategyFactory deployment (same start block as the merged Arrowfarm TVL adapter in DefiLlama-Adapters)
 const FACTORY_FROM_BLOCK = 67634274;
+// WETH on Robinhood Chain, the token every performance fee is charged in
+// https://robinhoodchain.blockscout.com/address/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
 // ArrowBuybackBurner receives the arrowFee WETH, buys ARROWFARM and burns it.
+// https://robinhoodchain.blockscout.com/address/0xd6BF871252d442C1ebBC94333f60e1823ef44cE7
 const BUYBACK_BURNER = "0xd6BF871252d442C1ebBC94333f60e1823ef44cE7";
 
 const proxyCreatedAbi = "event ProxyCreated(string strategyName, address proxy)";
@@ -23,6 +28,7 @@ const LABELS = {
   PERFORMANCE_FEES: METRIC.PERFORMANCE_FEES,
   BUYBACK: METRIC.TOKEN_BUY_BACK,
   TREASURY: METRIC.PROTOCOL_FEES,
+  CALLER: METRIC.OPERATORS_FEES,
 };
 
 // Harvest semantics differ per strategy type, so an unknown type must fail loudly
@@ -34,6 +40,10 @@ const POST_FEE_HARVEST: Record<string, boolean> = {
   "velodrome-v1": true, // Harvest is the post-fee user share of the gauge reward
 };
 
+/**
+ * Reads one window of Arrowfarm strategy events (Harvest, ChargedFees, SentFeesToTreasury)
+ * and maps them to fees, revenue and supply side so that fees = revenue + supply side.
+ */
 async function fetch(options: FetchOptions) {
   const { api, getLogs, createBalances } = options;
 
@@ -91,6 +101,8 @@ async function fetch(options: FetchOptions) {
     const { callFeeAmount, arrowFeeAmount, strategistFeeAmount } = log.args;
     const charged = BigInt(callFeeAmount) + BigInt(arrowFeeAmount) + BigInt(strategistFeeAmount);
     dailySupplySideRevenue.add(WETH, -charged, LABELS.LP_FEES);
+    // the harvest caller fee goes to the harvester, a cost of the protocol, not revenue
+    dailySupplySideRevenue.add(WETH, callFeeAmount, LABELS.CALLER);
     dailyRevenue.add(WETH, arrowFeeAmount, LABELS.PERFORMANCE_FEES);
     dailyRevenue.add(WETH, strategistFeeAmount, LABELS.PERFORMANCE_FEES);
     dailyHoldersRevenue.add(WETH, arrowFeeAmount, LABELS.BUYBACK);
@@ -106,6 +118,7 @@ async function fetch(options: FetchOptions) {
     const { callFeeAmount, arrowFeeAmount, strategistFeeAmount } = log.args;
     const charged = BigInt(callFeeAmount) + BigInt(arrowFeeAmount) + BigInt(strategistFeeAmount);
     dailyFees.add(WETH, charged, LABELS.PERFORMANCE_FEES);
+    dailySupplySideRevenue.add(WETH, callFeeAmount, LABELS.CALLER);
     dailyRevenue.add(WETH, arrowFeeAmount, LABELS.PERFORMANCE_FEES);
     dailyRevenue.add(WETH, strategistFeeAmount, LABELS.PERFORMANCE_FEES);
     dailyHoldersRevenue.add(WETH, arrowFeeAmount, LABELS.BUYBACK);
@@ -127,7 +140,7 @@ const methodology = {
   Revenue: "Performance fees charged on harvests (arrow fee and strategist fee, paid in WETH) plus trading fees that strategies send to the treasury. The harvest caller fee is not counted as revenue.",
   ProtocolRevenue: "Strategist performance fees and trading fees sent to the Arrowfarm treasury.",
   HoldersRevenue: "The arrow performance fee in WETH is sent to the ArrowBuybackBurner, which buys ARROWFARM and burns it.",
-  SupplySideRevenue: "Yield that stays with vault depositors: gross harvested trading fees minus the performance fee, and the user share of Velodrome gauge rewards. The harvest caller fee is excluded.",
+  SupplySideRevenue: "Yield that stays with vault depositors (gross harvested trading fees minus the performance fee, and the user share of Velodrome gauge rewards), plus the harvest caller fee paid to whoever calls harvest.",
 };
 
 const breakdownMethodology = {
@@ -150,6 +163,7 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [LABELS.LP_FEES]: "LP trading fees retained by vault depositors, net of the performance fee.",
     [LABELS.YIELD]: "User share of Velodrome gauge rewards.",
+    [LABELS.CALLER]: "Harvest caller fee in WETH paid to the account that calls harvest (0 since launch).",
   },
 };
 
