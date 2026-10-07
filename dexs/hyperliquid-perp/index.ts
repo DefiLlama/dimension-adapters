@@ -75,17 +75,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailySupplySideRevenue = options.createBalances()
     const dailyHoldersRevenue = options.createBalances()
 
-    // all perp fees
-    dailyFees.add(result.dailyPerpFees, 'Perp Fees') // = hyperliquid fees + deployer fees
-    dailyFees.add(result.dailyBuildersFees.clone(-1), 'Perp Fees')
-    dailyFees.add(result.dailyBuildersFees, 'Builder Code Fees')
+    // all perp fees, perp builder fees and rebates only: spot and outcome ones are netted in their own listings
+    dailyFees.add(result.dailyPerpFees, 'Perp Fees') // = hyperliquid fees + deployer fees + perp builder fees
+    dailyFees.add(result.dailyPerpBuildersFees.clone(-1), 'Perp Fees')
+    dailyFees.add(result.dailyPerpBuildersFees, 'Builder Code Fees')
     // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
     dailyFees.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
     dailySupplySideRevenue.add(result.dailyHyperliquidRevenue.clone(hlpShare), 'HLP')
-    dailySupplySideRevenue.add(result.dailyBuildersFees, 'Builder Code Distribution')
+    dailySupplySideRevenue.add(result.dailyPerpBuildersFees, 'Builder Code Distribution')
     dailySupplySideRevenue.add(result.dailyPerpDeployersFees, 'HIP-3 Deployer Distribution')
-    dailySupplySideRevenue.add(result.dailyMakerRebates, 'Maker Rebates')
+    dailySupplySideRevenue.add(result.dailyPerpMakerRebates, 'Maker Rebates')
     
     // 99% of revenue
     dailyRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), 'Perp Fees')

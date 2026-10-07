@@ -50,24 +50,29 @@ export interface QueryHyperliquidIndexerV2Result {
   // on days aggregated before it existed (44 days from 2026-03-21 on), the USD total is always there
   dailyPerpDeployersFees: Balances;
 
-  // spot fees users paid, split by fee token: tokens deployed by Unit go to Unit, the rest is Hyperliquid's
+  // spot fees users paid (builder fees included, maker rebates excluded), split by fee token: tokens deployed
+  // by Unit go to Unit, the rest is Hyperliquid's
   dailySpotFees: Balances;
   dailyUnitFees: Balances;
 
+  // outcome fees users paid, builder fees included (outcome trading has no maker rebates)
   dailyOutcomeFees: Balances;
 
-  // builder-code fees and maker rebates per market type, and over all markets
+  // builder-code fees and maker rebates per market type. Each market's fees include only its own builder fees
+  // and exclude its own rebates, so they are netted per market, never summed across markets.
+  // Spot builder fees are split by fee token like the spot fees: dailySpot* for Hyperliquid's tokens, dailyUnit*
+  // for Unit's. Spot maker rebates are all paid by Hyperliquid, whatever token they are paid in
   dailyPerpBuildersFees: Balances;
   dailySpotBuildersFees: Balances;
+  dailyUnitBuildersFees: Balances;
   dailyOutcomeBuildersFees: Balances;
-  dailyBuildersFees: Balances;
   dailyPerpMakerRebates: Balances;
   dailySpotMakerRebates: Balances;
-  dailyMakerRebates: Balances;
 
-  // perp fees kept by Hyperliquid: perp fees - builder fees - HIP-3 deployer fees - maker rebates, with the
-  // builder fees and maker rebates of every market type netted against perps, as queryHyperliquidIndexer does
+  // perp fees kept by Hyperliquid: perp fees - perp builder fees - HIP-3 deployer fees - perp maker rebates
   dailyHyperliquidRevenue: Balances;
+  // spot fees kept by Hyperliquid: dailySpotFees - dailySpotBuildersFees - dailySpotMakerRebates
+  dailySpotHyperliquidRevenue: Balances;
 
   // AQAv2 reserve yield accrued that day, summed over the tracked stablecoins, 0 before 2026-08-27
   dailyAqav2Yield: Balances;
@@ -120,34 +125,39 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     return balances;
   };
 
+  // spot token maps: tokens deployed by Unit priced through Unit's map, the rest through CoinGeckoMaps
+  const unitTokens = (tokenMap: TokenMap = {}) => {
+    const balances = options.createBalances();
+    for (const [token, amount] of Object.entries(tokenMap)) {
+      if (coinsDeployedByUnit[token]) balances.addCGToken(coinsDeployedByUnit[token], Number(amount || 0));
+    }
+    return balances;
+  };
+  const hyperliquidTokens = (tokenMap: TokenMap) => tokens(tokenMap, (token) => !coinsDeployedByUnit[token]);
+
   const dailyPerpFees = tokens(fees.perpsFees);
   const dailyPerpDeployersFees = usd(fees.perpsDeployersFeesUsd);
-
-  const dailyUnitFees = options.createBalances();
-  for (const [token, amount] of Object.entries(fees.spotFees ?? {})) {
-    if (coinsDeployedByUnit[token]) dailyUnitFees.addCGToken(coinsDeployedByUnit[token], Number(amount || 0));
-  }
-  const dailySpotFees = tokens(fees.spotFees, (token) => !coinsDeployedByUnit[token]);
-
   const dailyPerpBuildersFees = tokens(fees.perpsBuildersFees);
-  const dailySpotBuildersFees = tokens(fees.spotBuildersFees);
-  const dailyOutcomeBuildersFees = tokens(fees.outcomeBuildersFees);
-  const dailyBuildersFees = options.createBalances();
-  dailyBuildersFees.add(dailyPerpBuildersFees);
-  dailyBuildersFees.add(dailySpotBuildersFees);
-  dailyBuildersFees.add(dailyOutcomeBuildersFees);
-
   const dailyPerpMakerRebates = tokens(fees.perpsMakerRebates);
-  const dailySpotMakerRebates = tokens(fees.spotMakerRebates);
-  const dailyMakerRebates = options.createBalances();
-  dailyMakerRebates.add(dailyPerpMakerRebates);
-  dailyMakerRebates.add(dailySpotMakerRebates);
+
+  const dailySpotFees = hyperliquidTokens(fees.spotFees);
+  const dailyUnitFees = unitTokens(fees.spotFees);
+  const dailySpotBuildersFees = hyperliquidTokens(fees.spotBuildersFees);
+  const dailyUnitBuildersFees = unitTokens(fees.spotBuildersFees);
+  // rebates paid in Unit tokens are paid by Hyperliquid too, so they are not netted against Unit's fees
+  const dailySpotMakerRebates = hyperliquidTokens(fees.spotMakerRebates);
+  dailySpotMakerRebates.add(unitTokens(fees.spotMakerRebates));
 
   const dailyHyperliquidRevenue = usd(
     await dailyPerpFees.getUSDValue()
-    - await dailyBuildersFees.getUSDValue()
+    - await dailyPerpBuildersFees.getUSDValue()
     - await dailyPerpDeployersFees.getUSDValue()
-    - await dailyMakerRebates.getUSDValue()
+    - await dailyPerpMakerRebates.getUSDValue()
+  );
+  const dailySpotHyperliquidRevenue = usd(
+    await dailySpotFees.getUSDValue()
+    - await dailySpotBuildersFees.getUSDValue()
+    - await dailySpotMakerRebates.getUSDValue()
   );
 
   return {
@@ -163,12 +173,12 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     dailyOutcomeFees: tokens(fees.outcomeFees),
     dailyPerpBuildersFees,
     dailySpotBuildersFees,
-    dailyOutcomeBuildersFees,
-    dailyBuildersFees,
+    dailyUnitBuildersFees,
+    dailyOutcomeBuildersFees: tokens(fees.outcomeBuildersFees),
     dailyPerpMakerRebates,
     dailySpotMakerRebates,
-    dailyMakerRebates,
     dailyHyperliquidRevenue,
+    dailySpotHyperliquidRevenue,
     dailyAqav2Yield: usd(fees.aqav2YieldUsd),
     dailyAssistanceFundBuyBack: usd(fees.afBuyBackHypeUsd),
   };

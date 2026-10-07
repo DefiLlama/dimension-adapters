@@ -17,7 +17,7 @@ async function fetch(options: FetchOptions) {
   } else {
     const result = await queryHyperliquidIndexerV2(options);
     perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
-    spotFees = result.dailySpotFees.clone(hlpShare)
+    spotFees = result.dailySpotHyperliquidRevenue.clone(hlpShare)
   }
 
   dailyFees.add(perpFees, 'Perp Fees')
@@ -31,7 +31,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% of perp and spot trading revenue (excluding builders and unit revenue) share for HLP.",
+  Fees: "1% of perp and spot trading revenue (after builder code fees, maker rebates, HIP-3 deployer and unit revenue) share for HLP.",
   SupplySideRevenue: 'All fees share of HLP are distributed to vaults suppliers.',
   Revenue: "No revenue.",
 }
