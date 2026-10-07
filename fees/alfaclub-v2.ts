@@ -83,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Fees paid on room-key buys and sells, the flat fee to launch a room token, and swap fees earned by room-token liquidity. Excludes fees on Spot swaps routed through third-party aggregators.",
   Revenue: "AlfaClub's platform key-trading fee, room-token launch fees and 15% of room-token swap fees, plus the creator shares in AlfaClub's own room, the room behind the ALFA token.",
-  ProtocolRevenue: "Same as Revenue; there is no buyback or distribution to ALFA holders.",
+  ProtocolRevenue: "AlfaClub's platform key-trading fee, room-token launch fees and 15% of room-token swap fees, plus the creator shares in AlfaClub's own room, the room behind the ALFA token.",
   SupplySideRevenue: "Creator key-trading fees, plus 85% of room-token swap fees: 50% to the room's keyholders and 35% to the creator. Creator shares in AlfaClub's own room count as Revenue instead.",
 };
 
