@@ -2,12 +2,12 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { breakdownMethodology, getFetch, methodology } from "../../helpers/sundaeswap";
 
-// Listed as SundaeSwap V2 on DefiLlama; the Sundae API calls these pools V1
 const adapter: Adapter = {
   version: 1,
   chains: [CHAIN.CARDANO],
-  fetch: getFetch(["V1"]),
-  start: "2022-01-20",
+  fetch: getFetch(["V4"]),
+  start: "2026-10-01",
+  deadFrom: "2026-10-01", // disabled: V4 protocol fees reported by the Sundae API are currently incorrect
   methodology,
   breakdownMethodology,
 };

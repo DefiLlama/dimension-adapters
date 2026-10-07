@@ -2,12 +2,12 @@ import { Adapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { breakdownMethodology, getFetch, methodology } from "../../helpers/sundaeswap";
 
-// Listed as SundaeSwap V2 on DefiLlama; the Sundae API calls these pools V1
+// V3 constant-product pools plus Stableswaps pools (launched 2026-02)
 const adapter: Adapter = {
   version: 1,
   chains: [CHAIN.CARDANO],
-  fetch: getFetch(["V1"]),
-  start: "2022-01-20",
+  fetch: getFetch(["V3", "Stableswaps"]),
+  start: "2024-05-09",
   methodology,
   breakdownMethodology,
 };
