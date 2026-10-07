@@ -13,6 +13,13 @@ const NETWORK_ID: Record<string, string> = {
   [CHAIN.ETHEREUM]: "EVM:1",
 };
 
+// share of every fee set aside for $LOAN buybacks once the token launches; the rest goes to the treasury.
+// No buyback has executed yet, so the reserve stays in protocol revenue; holders revenue is added once they do.
+// Routing: https://loanmeme.io/docs#h-feeflow (reserve first, surplus to the buyback contract, #h-buyback); 77% share set by the team.
+const BUYBACK_RESERVE_SHARE = 0.77;
+const RESERVE_LABEL = "Protocol Fees To Buyback Reserve";
+const TREASURY_LABEL = "Protocol Fees To Treasury";
+
 // one point per UTC calendar day, ending today; 366 days is the most the API serves.
 // totalUsd is every fee charged that day, in USD at the moment it was charged, or null
 // when the oracle had no usable price for one of them.
@@ -30,10 +37,12 @@ const fetch = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(Number(point.totalUsd), METRIC.PROTOCOL_FEES);
-  // every fee goes to the protocol treasury in full
+  // the protocol keeps every fee: 77% into the buyback reserve, 23% to the treasury
   const dailyRevenue = dailyFees.clone();
+  const dailyProtocolRevenue = dailyFees.clone(BUYBACK_RESERVE_SHARE, RESERVE_LABEL);
+  dailyProtocolRevenue.addBalances(dailyFees.clone(1 - BUYBACK_RESERVE_SHARE, TREASURY_LABEL));
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
 const FEES_DESCRIPTION = "Fees charged on borrows, repayments, and lending deposits and withdrawals.";
@@ -45,13 +54,16 @@ const adapter: SimpleAdapter = {
   start: "2026-10-01", // first UTC day with settled operations
   methodology: {
     Fees: "Fees Loan Meme charges on borrows, repayments, and lending deposits and withdrawals, in USD at the time they are charged.",
-    Revenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol treasury keeps them in full.",
-    ProtocolRevenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol treasury keeps them in full.",
+    Revenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol keeps them in full.",
+    ProtocolRevenue: "All of the fees (Borrow, Repay, Deposit, Withdraw): 77% is set aside for $LOAN buybacks at token launch and 23% goes to the treasury. No buyback has executed yet; holders revenue will be reported once they do.",
   },
   breakdownMethodology: {
     Fees: { [METRIC.PROTOCOL_FEES]: FEES_DESCRIPTION },
     Revenue: { [METRIC.PROTOCOL_FEES]: FEES_DESCRIPTION },
-    ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: FEES_DESCRIPTION },
+    ProtocolRevenue: {
+      [RESERVE_LABEL]: "77% of the fees, set aside for $LOAN buybacks at token launch.",
+      [TREASURY_LABEL]: "23% of the fees, kept by the protocol treasury.",
+    },
   },
 };
 
