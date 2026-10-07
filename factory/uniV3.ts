@@ -26,7 +26,7 @@ async function voltageV4Breakdown({ pairObject, dailyVolume, dailyFees, fetchOpt
     dailyRevenue: revenue,
     dailyProtocolRevenue: revenue.clone(),
     dailySupplySideRevenue: supplySide,
-    // Observed collector distributions were owner-funded, not proven fee-funded.
+    // Observed collector distributions do not establish fee-funded holder income.
     dailyHoldersRevenue: 0,
   })
   if (!allLogs.some((logs: any[]) => logs.length)) return response()
@@ -827,7 +827,7 @@ feesProtocols['voltage-v4'].methodology = {
   Revenue: 'Accrued pool community fees net of the Community Vault\'s historical Algebra share.',
   ProtocolRevenue: 'The Voltage share of accrued community fees; no claim-date accounting.',
   SupplySideRevenue: 'Swap fees allocated to LPs plus Algebra\'s share of community fees.',
-  HoldersRevenue: 'Zero under the current scope: observed collector distributions were owner-funded.',
+  HoldersRevenue: 'Zero under the current scope: observed collector distributions do not establish fee-funded holder income.',
 }
 feesProtocols['voltage-v4'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': feesProtocols['voltage-v4'].methodology.Fees },
