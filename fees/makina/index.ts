@@ -74,9 +74,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     )
   );
 
-  // Machines invest in each other: shares held by Makina calibers (hub or spoke) or machines earn yield that
-  // already shows up in the holding machine's own share price, so only externally held shares count.
-  const holders = [...hubCalibers, ...spokeCalibers.map((log: any) => log.caliber), ...machines];
+  // Machines invest in each other: shares held by Makina calibers (hub or spoke) earn yield that already shows up
+  // in the holding machine's own share price, so only externally held shares count.
+  const holders = [...hubCalibers, ...spokeCalibers.map((log: any) => log.caliber)];
   const nestedBalances = await options.toApi.multiCall({
     abi: "erc20:balanceOf",
     calls: shareTokens.flatMap((target) => holders.map((holder) => ({ target, params: [holder] }))),
@@ -146,7 +146,7 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "Share price growth of each machine times the shares not held by other Makina machines or calibers, net of fees.",
+      [METRIC.ASSETS_YIELDS]: "Share price growth of each machine times the shares not held by Makina calibers, net of fees.",
       [METRIC.MANAGEMENT_FEES]: "Time-based management (and security module) fee shares minted by machines, valued at the machine share price.",
       [METRIC.PERFORMANCE_FEES]: "Performance fee shares minted by machines on share price gains above the watermark, valued at the machine share price.",
     },
