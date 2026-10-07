@@ -96,6 +96,16 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
   return enqueueIndexer(() => requestIndexer<T>(query, variables));
 }
 
+// Match the Aptos indexer wording ("rate limit", "compute units") and HTTP 408/429.
+// A bare "limit" also appears in unrelated GraphQL errors and must not pause the queue.
+function isIndexerRateLimit(message: string): boolean {
+  return /\b429\b|\brate limit\b|\bcompute units?\b/i.test(message);
+}
+
+function isTransientIndexerError(message: string): boolean {
+  return isIndexerRateLimit(message) || /\b408\b|\btimed out\b|\btimeout\b|\bECONNRESET\b|\bsocket\b/i.test(message);
+}
+
 async function requestIndexer<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -108,8 +118,8 @@ async function requestIndexer<T>(query: string, variables: Record<string, unknow
       const body = await httpPost(APTOS_GRAPHQL, { query, variables }, { headers });
       if (body?.errors?.length) {
         const message = body.errors.map((error: { message?: string }) => error.message).join("; ");
-        if (attempt < 3 && /rate|limit|compute|408/i.test(message)) {
-          await sleep(/rate|limit|compute/i.test(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
+        if (attempt < 3 && isTransientIndexerError(message)) {
+          await sleep(isIndexerRateLimit(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
           continue;
         }
         throw new Error(`yield-ai indexer: ${message}`);
@@ -118,8 +128,9 @@ async function requestIndexer<T>(query: string, variables: Record<string, unknow
     } catch (error) {
       lastError = error;
       const message = String((error as { message?: string })?.message ?? error);
-      if (attempt < 3 && /408|429|rate|limit|timeout|ECONNRESET|socket/i.test(message)) {
-        await sleep(/429|rate|limit/i.test(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
+      if (message.startsWith("yield-ai indexer:")) throw error;
+      if (attempt < 3 && isTransientIndexerError(message)) {
+        await sleep(isIndexerRateLimit(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
         continue;
       }
       throw error;
