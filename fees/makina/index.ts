@@ -35,7 +35,7 @@ const ABI = {
   convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
   // WatermarkFeeManager
   mgmtFeeRatePerSecond: "uint256:mgmtFeeRatePerSecond",
-  mgmtFeeSplitBps: "function mgmtFeeSplitBps() view returns (uint256[])",
+  mgmtFeeReceivers: "function mgmtFeeReceivers() view returns (address[])",
   securityModule: "address:securityModule",
 };
 
@@ -61,8 +61,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     options.toApi.multiCall({ abi: "erc20:totalSupply", calls: shareTokens }),
     options.api.multiCall({ abi: "erc20:decimals", calls: shareTokens }),
   ]);
-  const [mgmtRates, mgmtSplits, securityModules] = await Promise.all(
-    [ABI.mgmtFeeRatePerSecond, ABI.mgmtFeeSplitBps, ABI.securityModule].map((abi) =>
+  const [mgmtRates, mgmtReceivers, securityModules] = await Promise.all(
+    [ABI.mgmtFeeRatePerSecond, ABI.mgmtFeeReceivers, ABI.securityModule].map((abi) =>
       options.toApi.multiCall({ abi, calls: feeManagers, permitFailure: true })
     )
   );
@@ -89,7 +89,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   machines.forEach((machine, i) => {
     const token = accountingTokens[i];
-    const toAssets = (shares: bigint) => (priceAfter[i] == null ? 0n : (shares * BigInt(priceAfter[i])) / unitShares[i]);
+    const toAssets = (shares: bigint) => {
+      if (priceAfter[i] == null) throw new Error(`makina: cannot read share price of machine ${machine}`);
+      return (shares * BigInt(priceAfter[i])) / unitShares[i];
+    };
 
     // depositor yield, net of fees: share price growth over the period times externally held shares
     if (priceBefore[i] != null && priceAfter[i] != null) {
@@ -100,10 +103,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     }
 
     // Fee shares are minted to the machine, then the WatermarkFeeManager transfers them out, in order: the security
-    // module fee, one transfer per management fee receiver, then one per performance fee receiver.
+    // module fee, the management fee receivers, then the performance fee receivers (zero amounts are skipped).
     const feeTxs = new Set(feeLogs[i].map((log: any) => log.transactionHash));
     const securityModule = securityModules[i]?.toLowerCase();
-    const mgmtTransfers = Number(mgmtRates[i] ?? 0) > 0 ? (mgmtSplits[i] ?? []).filter((bps: string) => Number(bps) > 0).length : 0;
+    const mgmtList: string[] = Number(mgmtRates[i] ?? 0) > 0 ? (mgmtReceivers[i] ?? []).map((a: string) => a.toLowerCase()) : [];
     const byTx: Record<string, any[]> = {};
     for (const log of transferLogs[i]) {
       const { from, to } = log.args;
@@ -113,7 +116,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     for (const logs of Object.values(byTx)) {
       logs.sort((a, b) => Number(a.logIndex) - Number(b.logIndex));
-      let position = 0;
+      // walk the management receivers in order; the first transfer that cannot belong to them starts the performance fees
+      let next = 0;
+      let inPerf = false;
       for (const log of logs) {
         const to = log.args.to.toLowerCase();
         const assets = toAssets(BigInt(log.args.value));
@@ -122,7 +127,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
           dailySupplySideRevenue.add(token, assets, METRIC.STAKING_REWARDS);
           continue;
         }
-        const label = position++ < mgmtTransfers ? METRIC.MANAGEMENT_FEES : METRIC.PERFORMANCE_FEES;
+        const mgmtIndex = inPerf ? -1 : mgmtList.indexOf(to, next);
+        if (mgmtIndex === -1) inPerf = true;
+        else next = mgmtIndex + 1;
+        const label = inPerf ? METRIC.PERFORMANCE_FEES : METRIC.MANAGEMENT_FEES;
         dailyFees.add(token, assets, label);
         if (to === TREASURY) dailyRevenue.add(token, assets, label);
         else dailySupplySideRevenue.add(token, assets, METRIC.OPERATORS_FEES);
