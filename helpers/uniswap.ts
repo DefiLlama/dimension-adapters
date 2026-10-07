@@ -339,6 +339,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
     const communityFees: IJSON<number> = {}
+    const missingFeePools = new Set<string>()
 
     if (!chain) throw new Error('Wrong version?')
 
@@ -365,7 +366,10 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
       if (isAlgebraV3) {
         let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _fees.forEach((fee: any, i: number) => { if (fee != null) fees[logs[i].pool] = fee / 1e6 })
+        _fees.forEach((fee: any, i: number) => {
+          if (fee != null) fees[logs[i].pool] = fee / 1e6
+          else missingFeePools.add(logs[i].pool.toLowerCase())
+        })
       }
       if (isAlgebraV2) {
         let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
@@ -493,7 +497,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     })
 
     if (customLogic) {
-      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
+      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions, pairs, allLogs, fees, communityFees, missingFeePools })
     }
 
     const dailyFees = swapFees.clone(1, 'Token Swap Fees')
