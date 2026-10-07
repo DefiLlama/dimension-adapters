@@ -1,6 +1,7 @@
 // helpers/aggregators/soheil.ts — shared by aggregators/soheil and bridge-aggregators/soheil: our network ids (LI.FI's numbering for EVM chains, LI.FI-style ids for the
 // rest) → DefiLlama chain keys. Volume on a network that is not listed here is left out rather than guessed.
 import { CHAIN } from "../chains";
+import { FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
 
 export const SOHEIL_CHAINS: Record<string, string> = {
@@ -28,9 +29,10 @@ export const SOHEIL_CHAINS: Record<string, string> = {
 };
 
 export const SOHEIL_START = "2026-10-01";
-export const SOHEIL_VOLUME_API = "https://soheil.fi/api/site/volume?days=400";
+// One UTC day per request (?day=YYYY-MM-DD), so any date can be filled or refilled; public, no key
+export const SOHEIL_VOLUME_API = "https://soheil.fi/api/site/volume";
 
-export interface SoheilDay {
+interface SoheilDay {
   day: string; // YYYY-MM-DD, UTC
   trades: number;
   volumeUsd: number;
@@ -42,12 +44,24 @@ export interface SoheilDay {
 export const SOHEIL_CHAIN_LIST = [...new Set(Object.values(SOHEIL_CHAINS))];
 
 /**
- * One request per run for all chains: every UTC day since the start (verified trades only), keyed by day. Typed loosely
- * because the runner types prefetch results as dimension results; the adapters read it as SoheilDays.
+ * Prefetch, one request per run for all chains: the day being filled (options.dateString), flattened to
+ * "swap:<chain>" and "bridge:<chain>" (source chain) → USD. Networks missing from SOHEIL_CHAINS are left out.
  */
-export const fetchSoheilDays = async (): Promise<any> => {
-  const days: SoheilDay[] = await httpGet(SOHEIL_VOLUME_API);
-  return Object.fromEntries(days.map((d) => [d.day, d]));
-};
-
-export type SoheilDays = Record<string, SoheilDay | undefined>;
+export async function fetchSoheilDay(options: FetchOptions): Promise<Record<string, number>> {
+  const days: SoheilDay[] = await httpGet(`${SOHEIL_VOLUME_API}?day=${options.dateString}`);
+  const volumes: Record<string, number> = {};
+  const add = (key: string, usd: number) => {
+    volumes[key] = (volumes[key] ?? 0) + usd;
+  };
+  for (const day of days) {
+    for (const s of day.swaps) {
+      const chain = SOHEIL_CHAINS[String(s.chainId)];
+      if (chain) add(`swap:${chain}`, s.volumeUsd);
+    }
+    for (const b of day.bridges) {
+      const chain = SOHEIL_CHAINS[String(b.fromChainId)];
+      if (chain) add(`bridge:${chain}`, b.volumeUsd);
+    }
+  }
+  return volumes;
+}
