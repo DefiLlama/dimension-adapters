@@ -347,6 +347,7 @@ The wrong vehicle is a blocker, decide this first:
 ## Writing `methodology` and `breakdownMethodology` text
 
 - `methodology`: one plain-English sentence per metric key, written for an end user with zero context. Name where the money comes from, not the mechanism. State known exclusions explicitly ("excludes the HLP vault and HyperEVM fees"). Human-readable names, not `CONSTANT_CASE`.
+- Every `methodology` entry must stand on its own. Never write "Same as revenue", "Same as fees" or "Same as above": each metric has its own page (Revenue, Protocol Revenue, Holders Revenue, ...) where the text is shown without the other metrics, so a cross-reference tells the reader nothing. When two metrics have identical values, restate the source anyway (`Fees: "Trading fees paid by users."`, `Revenue: "All trading fees paid by users, kept by the protocol."`, `ProtocolRevenue: "All trading fees paid by users, sent to the protocol treasury."`).
 - Name fee types precisely: a percentage taken on yield earned is a performance fee, not a management fee.
 - State split changes with their date in one sentence ("15% to treasury since September 2025, 0% before"). Numbers and percentages come from the code or the protocol's docs, never from memory.
 - The label check is bidirectional: every `.add()`/`.addUSDValue()` label appears in `breakdownMethodology` under each metric it flows into (same spelling), and every entry there has code emitting it.
