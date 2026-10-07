@@ -16,7 +16,10 @@ const APTOS_GRAPHQL = "https://api.mainnet.aptoslabs.com/v1/graphql";
 // The indexer caps a response at 100 rows. Page by (transaction_version, event_index).
 const PAGE_SIZE = 100;
 const MAX_PAGES = 200;
-const SIBLING_VERSION_BATCH = 15;
+const SIBLING_VERSION_BATCH = 40;
+// Anonymous indexer quota is 40k compute units per 5 minutes per IP. CI runs
+// 24 hourly windows back to back, so a 429 has to wait out that window.
+const INDEXER_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 
 const DEPOSIT = "0x1::fungible_asset::Deposit";
 
@@ -79,9 +82,23 @@ function addAmount(map: Map<string, bigint>, key: string, amount: bigint) {
   map.set(key, (map.get(key) ?? 0n) + amount);
 }
 
+// Hourly slots run two at a time in one process. Keep indexer calls in series so a
+// rate-limit pause covers every slot, instead of each slot retrying on its own.
+let indexerQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueIndexer<T>(job: () => Promise<T>): Promise<T> {
+  const run = indexerQueue.then(job, job);
+  indexerQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+  return enqueueIndexer(() => requestIndexer<T>(query, variables));
+}
+
+async function requestIndexer<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   let lastError: unknown;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     try {
       // The repo's Aptos helper does not attach an indexer key. Anonymous queries are
       // capped at 40k compute units / 5 min per IP, so use a key when one is configured.
@@ -91,8 +108,8 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
       const body = await httpPost(APTOS_GRAPHQL, { query, variables }, { headers });
       if (body?.errors?.length) {
         const message = body.errors.map((error: { message?: string }) => error.message).join("; ");
-        if (attempt < 5 && /rate|limit|compute|408/i.test(message)) {
-          await sleep(15000 * (attempt + 1));
+        if (attempt < 3 && /rate|limit|compute|408/i.test(message)) {
+          await sleep(/rate|limit|compute/i.test(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
           continue;
         }
         throw new Error(`yield-ai indexer: ${message}`);
@@ -101,8 +118,8 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
     } catch (error) {
       lastError = error;
       const message = String((error as { message?: string })?.message ?? error);
-      if (attempt < 5 && /408|429|rate|limit|timeout|ECONNRESET|socket/i.test(message)) {
-        await sleep(15000 * (attempt + 1));
+      if (attempt < 3 && /408|429|rate|limit|timeout|ECONNRESET|socket/i.test(message)) {
+        await sleep(/429|rate|limit/i.test(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
         continue;
       }
       throw error;
