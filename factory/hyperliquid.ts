@@ -444,8 +444,9 @@ const builderConfigs: Record<string, BuilderConfig> = {
     market: "outcome",
   },
   "liquidiction": {
-    addresses: ["0x2e10360cbfb68080b72c17f35633700e75fe461b"],
-    start: "2026-05-13",
+    // second builder code from https://www.flowscan.xyz/builders, active since HIP-4 launched
+    addresses: ["0x2e10360cbfb68080b72c17f35633700e75fe461b", "0x0fdd59414989f52989973fef8995b7d10248cc18"],
+    start: "2026-05-02",
     market: "outcome",
   },
   "resolvium": {
@@ -789,8 +790,9 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
   "blockchain-wallet-perps": {
-    addresses: ["0xdbc27ea7aa99274026404b2fa21114815d9997a6"],
-    start: "2026-05-12",
+    // 0xf5ba... is the second builder code labelled Blockchain on https://www.flowscan.xyz/builders, active 2026-05-02..2026-06-11
+    addresses: ["0xdbc27ea7aa99274026404b2fa21114815d9997a6", "0xf5ba3507df4e01a9ed6100b4d5671e346bf5443f"],
+    start: "2026-05-02",
     methodology: {
       Fees: "Builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
@@ -986,6 +988,216 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by WatchCrypto from Hyperliquid perpetual trades.",
     },
     breakdownFees: true,
+  },
+  "coindcx-perps": {
+    // CoinDCX exchange app (https://coindcx.com), separate from its Okto wallet listed as okto-wallet; address labelled CoinDCX on https://www.flowscan.xyz/builders
+    addresses: ["0x7cc0fd2b76835ab96aa4a3501a9f65e75677e781"],
+    start: "2026-01-07",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through CoinDCX.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through CoinDCX.",
+      Revenue: "Builder code fees collected by CoinDCX from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by CoinDCX from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "bitget-wallet-perps": {
+    // Bitget Wallet (https://web3.bitget.com); address labelled Bitget Wallet on https://www.flowscan.xyz/builders
+    addresses: ["0xdf39721d2c4fc0fedc92c68e3879ba594bb64750"],
+    start: "2025-10-29",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Bitget Wallet.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Bitget Wallet.",
+      Revenue: "Builder code fees collected by Bitget Wallet from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Bitget Wallet from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "hyperlink-perps": {
+    // HyperLink prime broker (https://www.hyperlink.xyz), routes its clients' orders from one account and charges almost no builder fee; address labelled HyperLink on https://www.flowscan.xyz/builders
+    addresses: ["0xe66eafbfe28155cc735170317ae5d0bf818f68ef"],
+    start: "2026-06-06",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through HyperLink.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through HyperLink.",
+      Revenue: "Builder code fees collected by HyperLink from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by HyperLink from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "borsa-perps": {
+    // Borsa trading terminal (https://www.borsa.cc); address labelled Borsa on https://www.flowscan.xyz/builders
+    addresses: ["0x74c362cd3a141769f38c48d66ee51b1938ea4bd0"],
+    start: "2026-02-09",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Borsa.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Borsa.",
+      Revenue: "Builder code fees collected by Borsa from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Borsa from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "truenorth-perps": {
+    // TrueNorth agentic brokerage (https://truenorth.xyz), charges a 0% builder fee; address labelled TrueNorth on https://www.flowscan.xyz/builders
+    addresses: ["0x30599f69164b854a2c10ada95e5cd219b72d5216"],
+    start: "2026-06-02",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through TrueNorth.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through TrueNorth.",
+      Revenue: "Builder code fees collected by TrueNorth from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by TrueNorth from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "velo-data-perps": {
+    // Velo data and trading terminal (https://velo.xyz); address labelled Velo on https://www.flowscan.xyz/builders
+    addresses: ["0x5d3551942be7630a9b988a32208ac9c1d1a49ce6"],
+    start: "2025-12-08",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Velo.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Velo.",
+      Revenue: "Builder code fees collected by Velo from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Velo from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "slash-trade-perps": {
+    // Slash Trade Telegram bot (https://slash.trade); address labelled Slash Trade on https://www.flowscan.xyz/builders
+    addresses: ["0xaf69b1587b87c78409e5a20c3fd5f1ca386fd350"],
+    start: "2025-03-19",
+    deadFrom: "2026-05-02", // no builder fills since 2026-05-01
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Slash Trade.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Slash Trade.",
+      Revenue: "Builder code fees collected by Slash Trade from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Slash Trade from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "topnod-perps": {
+    // TopNod wallet (https://topnod.com); address labelled TopNod on https://www.flowscan.xyz/builders
+    addresses: ["0x2c22225424e6e2bf39008c41be148e70cf8e0193"],
+    start: "2026-04-01",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through TopNod.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through TopNod.",
+      Revenue: "Builder code fees collected by TopNod from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by TopNod from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "aura-money-perps": {
+    // Aura trading app (https://aura.money); address labelled Aura on https://www.flowscan.xyz/builders
+    addresses: ["0xee41f05496bc30dbd29c96bc31283c7e9f062192"],
+    start: "2025-07-08",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Aura.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Aura.",
+      Revenue: "Builder code fees collected by Aura from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Aura from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "pocket-protector-perps": {
+    // Pocket Protector Telegram bot (https://www.pocketprotector.xyz); address labelled Pocket Protector on https://www.flowscan.xyz/builders
+    addresses: ["0x7151a036313eee8aa9bc45d0969ca0e1637aad3c"],
+    start: "2025-03-20",
+    deadFrom: "2025-08-02", // no builder fills since 2025-08-01, its perps bot moved to dYdX
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Pocket Protector.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Pocket Protector.",
+      Revenue: "Builder code fees collected by Pocket Protector from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Pocket Protector from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "zerion-perps": {
+    // Zerion wallet (https://zerion.io); address labelled Zerion on https://www.flowscan.xyz/builders
+    addresses: ["0x0101fe18daad2b57359d89358a4cf069c7870162"],
+    start: "2026-01-30",
+    deadFrom: "2026-05-06", // no builder fills since 2026-05-05
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Zerion.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Zerion.",
+      Revenue: "Builder code fees collected by Zerion from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Zerion from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "dapital-perps": {
+    // Dapital social trading app (https://dapital.xyz); address labelled Dapital on https://www.flowscan.xyz/builders
+    addresses: ["0x82466dfb172c7014c2987f00cf2539caed4c5909"],
+    start: "2026-04-06",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Dapital.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Dapital.",
+      Revenue: "Builder code fees collected by Dapital from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Dapital from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "purrps": {
+    // Purrps trading frontend (https://purrps.trade); address labelled Purrps on https://www.flowscan.xyz/builders
+    addresses: ["0x038a9e6803ba93d57d562e667efc35e6c0d2adef"],
+    start: "2026-01-20",
+    deadFrom: "2026-04-07", // no builder fills since 2026-04-06
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Purrps.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Purrps.",
+      Revenue: "Builder code fees collected by Purrps from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Purrps from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "pluto-perps": {
+    // Pluto mobile trading app by Ellipsoid Labs (https://tradepluto.com); address labelled Pluto on https://www.flowscan.xyz/builders
+    addresses: ["0xcdde3cdada126e2dcb1faea51a1155e306c692f5"],
+    start: "2025-05-26",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Pluto.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Pluto.",
+      Revenue: "Builder code fees collected by Pluto from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Pluto from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "fan-app-perps": {
+    // Fan App (https://docs.fan.fun); address labelled Fan App on https://www.flowscan.xyz/builders
+    addresses: ["0xbbbbbbe4126c0bbc6a209faa60b67f17b10dea86"],
+    start: "2025-08-21",
+    deadFrom: "2026-04-09", // no builder fills since 2026-04-08
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Fan App.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Fan App.",
+      Revenue: "Builder code fees collected by Fan App from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Fan App from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "sendai-perps": {
+    // Sendai, matched by name only to SendAI (https://www.sendai.fun); address labelled Sendai on https://www.flowscan.xyz/builders
+    addresses: ["0xd58ee5dc9cb03df60843c6234644aa535b08a8b9"],
+    start: "2026-02-11",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Sendai.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Sendai.",
+      Revenue: "Builder code fees collected by Sendai from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Sendai from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
+  "limits-perps": {
+    // Limits smart limit orders (https://limits.trade); address labelled Limits on https://www.flowscan.xyz/builders
+    addresses: ["0x746337a98821e1e38aa2bad0e77900d98b80609e"],
+    start: "2025-08-21",
+    deadFrom: "2026-02-01", // no builder fills since 2026-01-31
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades (including HIP-3 markets) placed through Limits.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Limits.",
+      Revenue: "Builder code fees collected by Limits from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees collected by Limits from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
   }
 };
 
@@ -1135,10 +1347,14 @@ function hip3Methodology(name: string) {
 // and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
 const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string }> = {
   "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
+  "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
+  "aura-money-spot": { builder: "aura-money-perps", market: "spot", start: "2026-03-24" },
   "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
   "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02" },
-  "blockchain-wallet-spot": { builder: "blockchain-wallet-perps", market: "spot", start: "2026-05-12" },
+  "blockchain-wallet-spot": { builder: "blockchain-wallet-perps", market: "spot", start: "2026-05-02" },
   "bloxwap-outcome": { builder: "bloxwap-perps", market: "outcome", start: "2026-05-02" },
+  "borsa-outcome": { builder: "borsa-perps", market: "outcome", start: "2026-05-02" },
+  "borsa-spot": { builder: "borsa-perps", market: "spot", start: "2026-02-08" },
   "bullpenfi-spot": { builder: "bullpenfi-perps", market: "spot", start: "2025-03-25" },
   "ccxt-spot": { builder: "ccxt-perps", market: "spot", start: "2025-07-16" },
   "cipher-spot": { builder: "cipher-perps", market: "spot", start: "2025-04-15" },
@@ -1152,6 +1368,7 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "dreamcash-spot": { builder: "dreamcash", market: "spot", start: "2025-06-12" },
   "dreamcash-outcome": { builder: "dreamcash", market: "outcome", start: "2026-05-02" },
   "evplusai-spot": { builder: "evplusai-perps", market: "spot", start: "2025-02-23" },
+  "fan-app-spot": { builder: "fan-app-perps", market: "spot", start: "2025-09-06" },
   "floatout-outcome": { builder: "floatout", market: "outcome", start: "2026-05-05" },
   "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01" },
   "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02" },
@@ -1166,6 +1383,7 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "hyperbeat-liquidbank-outcome": { builder: "hyperbeat-liquidbank-perps", market: "outcome", start: "2026-05-02" },
   "hyperdash-spot": { builder: "hyperdash", market: "spot", start: "2025-01-05" },
   "hyperdash-outcome": { builder: "hyperdash", market: "outcome", start: "2026-05-02" },
+  "hyperlink-spot": { builder: "hyperlink-perps", market: "spot", start: "2026-06-08" },
   "hypersight-spot": { builder: "hypersight", market: "spot", start: "2026-06-01" },
   "hypersight-outcome": { builder: "hypersight", market: "outcome", start: "2026-06-01" },
   "hyperx-spot": { builder: "hyperx-perps", market: "spot", start: "2025-04-17" },
@@ -1176,9 +1394,10 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "katoshi-spot": { builder: "katoshi-perps", market: "spot", start: "2025-08-01" },
   "legend-trade-spot": { builder: "legend-trade", market: "spot", start: "2026-01-29" },
   "liminal-spot": { builder: "liminal-perps", market: "spot", start: "2025-07-20" },
+  "limits-spot": { builder: "limits-perps", market: "spot", start: "2025-12-09" },
   "liquid-spot": { builder: "liquid-perps", market: "spot", start: "2025-06-12" },
   "liquid-outcome": { builder: "liquid-perps", market: "outcome", start: "2026-05-02" },
-  "liquidiction-perps": { builder: "liquidiction", market: "perps", start: "2026-05-13" },
+  "liquidiction-perps": { builder: "liquidiction", market: "perps", start: "2026-05-02" },
   "lit-trade-spot": { builder: "lit-trade", market: "spot", start: "2025-08-01" },
   "lootbase-spot": { builder: "lootbase", market: "spot", start: "2025-02-05" },
   "metascalp-spot": { builder: "metascalp-perps", market: "spot", start: "2025-09-11" },
@@ -1205,10 +1424,14 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "perpmate-outcome": { builder: "perpmate", market: "outcome", start: "2026-05-02" },
   "phantom-spot": { builder: "phantom-perps", market: "spot", start: "2025-07-08" },
   "phantom-outcome": { builder: "phantom-perps", market: "outcome", start: "2026-05-02" },
+  "pluto-spot": { builder: "pluto-perps", market: "spot", start: "2025-05-26" },
   "profunding-spot": { builder: "profunding", market: "spot", start: "2026-02-22" },
+  "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
   "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
   "rainbow-spot": { builder: "rainbow-perps", market: "spot", start: "2025-09-15" },
+  "sendai-outcome": { builder: "sendai-perps", market: "outcome", start: "2026-05-02" },
+  "sendai-spot": { builder: "sendai-perps", market: "spot", start: "2026-04-15" },
   "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },
   "splashos-spot": { builder: "splashos-perps", market: "spot", start: "2025-06-04" },
   "stablejack-spot": { builder: "stablejack-perps", market: "spot", start: "2026-06-17" },
@@ -1222,8 +1445,11 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "sushi-spot": { builder: "sushi-perps", market: "spot", start: "2025-03-30" },
   "tradoor-outcome": { builder: "tradoor-perps", market: "outcome", start: "2026-05-02" },
   "tria-spot": { builder: "tria-perps", market: "spot", start: "2026-01-27" },
+  "truenorth-outcome": { builder: "truenorth-perps", market: "outcome", start: "2026-08-29" },
+  "truenorth-spot": { builder: "truenorth-perps", market: "spot", start: "2026-06-02" },
   "unigox-spot": { builder: "unigox-perps", market: "spot", start: "2025-09-01" },
   "valiant-outcome": { builder: "valiant-perps", market: "outcome", start: "2026-05-02" },
+  "velo-data-spot": { builder: "velo-data-perps", market: "spot", start: "2025-12-19" },
   "vergex-spot": { builder: "vergex-perps", market: "spot", start: "2025-11-14" },
   "wunder-spot": { builder: "wunder-perps", market: "spot", start: "2025-10-19" },
 };
