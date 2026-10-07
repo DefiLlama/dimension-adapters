@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { PEDDLES, POOL_REGISTERED, PeddlesPool } from "../helpers/peddles";
 
 // Peddles: a token launchpad on Uniswap v4. Volume is the quote side of every swap on a pool that
-// PeddlesFeeHook registered: ETH, or the tokenised stock the launch is paired against.
+// PeddlesFeeHook registered: ETH, BNB, USDC, or the tokenised stock the launch is paired against.
 //
 // The pools sit on the canonical Uniswap v4 PoolManager and their positions are minted through
 // Uniswap's PositionManager, so dexs/uniswap-v4 can count the same swaps: hence doublecounted.
@@ -53,7 +53,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: PEDDLES,
   methodology: {
-    Volume: "Swap volume on the pools of tokens launched on Peddles, counted once per trade on the side the token is paired against: ETH or a tokenised stock.",
+    Volume: "Swap volume on the pools of tokens launched on Peddles, counted once per trade on the side the token is paired against: ETH, BNB, USDC or a tokenised stock.",
   },
 };
 
