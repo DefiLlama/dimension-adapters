@@ -1,15 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { fetchSoheilDays, SOHEIL_CHAIN_LIST, SOHEIL_CHAINS, SOHEIL_START, SoheilDays } from "../../helpers/aggregators/soheil";
+import { fetchSoheilDay, SOHEIL_CHAIN_LIST, SOHEIL_START } from "../../helpers/aggregators/soheil";
 
 // Soheil.fi (https://soheil.fi, https://x.com/Soheil_fi): non-custodial swap and bridge aggregator over LI.FI, Rango,
 // KyberSwap, Jupiter, NEAR Intents, STON.fi and its own routes. Same-chain swaps here; cross-chain transfers are in
 // bridge-aggregators/soheil. Soheil has no contracts of its own (routes run through partner contracts), so the source is
 // its public API of trades it verified on-chain.
 const fetch = async (options: FetchOptions) => {
-  const day = (options.preFetchedResults as SoheilDays)[options.dateString];
-  const dailyVolume = (day?.swaps ?? [])
-    .filter((s) => SOHEIL_CHAINS[String(s.chainId)] === options.chain)
-    .reduce((sum, s) => sum + s.volumeUsd, 0);
+  const dailyVolume = options.preFetchedResults?.[`swap:${options.chain}`] ?? 0;
   return { dailyVolume };
 };
 
@@ -18,7 +15,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: SOHEIL_CHAIN_LIST,
   start: SOHEIL_START,
-  prefetch: fetchSoheilDays,
+  prefetch: fetchSoheilDay,
   doublecounted: true, // routed through aggregators and DEXs that DefiLlama already tracks
   methodology: {
     Volume:
