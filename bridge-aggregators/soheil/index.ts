@@ -1,27 +1,27 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { httpGet } from "../../utils/fetchURL";
-import { dayOf, SOHEIL_CHAINS, SOHEIL_START, SOHEIL_VOLUME_API, SoheilDay } from "../../helpers/aggregators/soheil";
+import { fetchSoheilDays, SOHEIL_CHAIN_LIST, SOHEIL_CHAINS, SOHEIL_START, SoheilDays } from "../../helpers/aggregators/soheil";
 
-/**
- * Soheil.fi (https://soheil.fi): cross-chain transfers routed through the bridges and intent networks it compares
- * (LI.FI, Rango, NEAR Intents, Hyperlane for Bittensor). Counted on the source chain, by the amount sent, for trades
- * the Soheil server verified on-chain. Same-chain swaps are in aggregators/soheil. Public endpoint, no key.
- */
+// Soheil.fi (https://soheil.fi, https://x.com/Soheil_fi): cross-chain transfers routed through the bridges and intent
+// networks it compares (LI.FI, Rango, NEAR Intents, Symbiosis, Hyperlane for Bittensor). Same-chain swaps are in
+// aggregators/soheil. Soheil has no contracts of its own, so the source is its public API of trades it verified on-chain.
 const fetch = async (options: FetchOptions) => {
-  const days: SoheilDay[] = options.preFetchedResults;
-  const day = days.find((d) => d.day === dayOf(options.toTimestamp));
-  const dailyBridgeVolume = day?.bridges
+  const day = (options.preFetchedResults as SoheilDays)[options.dateString];
+  const dailyBridgeVolume = (day?.bridges ?? [])
     .filter((b) => SOHEIL_CHAINS[String(b.fromChainId)] === options.chain)
-    .reduce((sum, b) => sum + b.volumeUsd, 0) ?? 0;
+    .reduce((sum, b) => sum + b.volumeUsd, 0);
   return { dailyBridgeVolume };
 };
 
-const prefetch = async (_: FetchOptions) => httpGet(SOHEIL_VOLUME_API);
-
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: Object.fromEntries([...new Set(Object.values(SOHEIL_CHAINS))].map((chain) => [chain, { fetch, start: SOHEIL_START }])),
-  prefetch,
+  version: 1, // the source only returns daily aggregates (per UTC day)
+  fetch,
+  chains: SOHEIL_CHAIN_LIST,
+  start: SOHEIL_START,
+  prefetch: fetchSoheilDays,
+  methodology: {
+    BridgeVolume:
+      "USD value sent cross-chain through Soheil.fi, counted on the source chain and only when Soheil's server found the transaction on-chain, sent from the reporting wallet and routed with Soheil's integrator tag; priced at execution time. Source: https://soheil.fi/api/site/volume",
+  },
 };
 
 export default adapter;
