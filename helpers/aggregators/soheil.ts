@@ -1,6 +1,7 @@
 // helpers/aggregators/soheil.ts — shared by aggregators/soheil and bridge-aggregators/soheil: our network ids (LI.FI's numbering for EVM chains, LI.FI-style ids for the
 // rest) → DefiLlama chain keys. Volume on a network that is not listed here is left out rather than guessed.
 import { CHAIN } from "../chains";
+import { httpGet } from "../../utils/fetchURL";
 
 export const SOHEIL_CHAINS: Record<string, string> = {
   "1": CHAIN.ETHEREUM,
@@ -37,5 +38,16 @@ export interface SoheilDay {
   bridges: { fromChainId: number; toChainId: number; trades: number; volumeUsd: number }[];
 }
 
-/** The UTC day of the adapter's end timestamp, as our API writes it. */
-export const dayOf = (toTimestamp: number) => new Date(toTimestamp * 1000).toISOString().slice(0, 10);
+/** The chains DefiLlama shows us on (each once). */
+export const SOHEIL_CHAIN_LIST = [...new Set(Object.values(SOHEIL_CHAINS))];
+
+/**
+ * One request per run for all chains: every UTC day since the start (verified trades only), keyed by day. Typed loosely
+ * because the runner types prefetch results as dimension results; the adapters read it as SoheilDays.
+ */
+export const fetchSoheilDays = async (): Promise<any> => {
+  const days: SoheilDay[] = await httpGet(SOHEIL_VOLUME_API);
+  return Object.fromEntries(days.map((d) => [d.day, d]));
+};
+
+export type SoheilDays = Record<string, SoheilDay | undefined>;
