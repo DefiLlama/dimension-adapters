@@ -1,9 +1,9 @@
 import fetchURL from "../utils/fetchURL";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-// Reya replaced the passive-perp AMM with an order book (perpOB): the AMM-era /v2/marketDefinitions
-// route was removed and PassivePerpProxy.getMarketData / getInstantaneousPoolPrice now revert.
+// Reya trades perps on an order book now: the AMM-era /v2/marketDefinitions route was removed and
+// PassivePerpProxy.getInstantaneousPoolPrice reverts, so OI comes from Reya's market summary.
 // Docs: https://docs.reya.xyz/developers/api-reference/rest-api-reference/market-data.md
 const PERP_MARKETS_SUMMARY_ENDPOINT = "https://api.reya.xyz/v2/perpMarkets/summary";
 
@@ -13,7 +13,7 @@ type PerpMarketSummary = {
   markPrice: string;
 };
 
-const fetch = async (_: FetchOptions) => {
+const fetch = async () => {
   const markets: PerpMarketSummary[] = await fetchURL(PERP_MARKETS_SUMMARY_ENDPOINT);
   if (!Array.isArray(markets) || !markets.length) throw new Error("Reya perpMarkets/summary returned no markets");
 
@@ -28,7 +28,6 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.REYA],
   fetch,
   runAtCurrTime: true, // API only exposes a live snapshot
-  start: "2026-03-11",
 };
 
 export default adapter;

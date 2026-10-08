@@ -20,6 +20,7 @@ const adapter: SimpleAdapter = {
   fetch: fetchLyraVolumeData,
   chains: [CHAIN.LYRA],
   start: '2023-12-15',
+  deadFrom: '2026-10-06', // Derive moved to v3, see dexs/derive-v3-perps.ts
 };
 
 export async function fetchLyraVolumeData(options: FetchOptions) {
