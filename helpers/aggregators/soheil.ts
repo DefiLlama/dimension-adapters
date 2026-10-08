@@ -49,6 +49,9 @@ export const SOHEIL_CHAIN_LIST = [...new Set(Object.values(SOHEIL_CHAINS))];
  */
 export async function fetchSoheilDay(options: FetchOptions): Promise<Record<string, number>> {
   const days: SoheilDay[] = await httpGet(`${SOHEIL_VOLUME_API}?day=${options.dateString}`);
+  if (!days.length) {
+    throw new Error(`No data found for ${options.dateString}`);
+  }
   const volumes: Record<string, number> = {};
   const add = (key: string, usd: number) => {
     volumes[key] = (volumes[key] ?? 0) + usd;
