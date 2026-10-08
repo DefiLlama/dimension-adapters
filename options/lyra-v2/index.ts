@@ -15,6 +15,7 @@ export const lyraVolumeEndpoint = (endTime: number) => {
 }
 
 export const v2_adapter: SimpleAdapter = {
+  deadFrom: "2026-10-06", // Derive moved to v3, see options/derive-v3.ts
   adapter: {
     [CHAIN.LYRA]: {
       fetch: fetchLyraVolumeData,
