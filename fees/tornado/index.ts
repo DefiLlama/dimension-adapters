@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const withdrawABI = "event Withdrawal(address to, bytes32 nullifierHash, address indexed relayer, uint256 fee)";
 const stakeBurnedABI = "event StakeBurned(address relayer, uint256 amountBurned)";
 
-// RelayerRegistry proxy on Ethereum
+// Tornado Cash RelayerRegistry proxy on Ethereum, emits StakeBurned on every relayed withdrawal
 const RELAYER_REGISTRY = "0x58E8dCC13BE9780fC42E8723D8EaD4CF46943dF2";
 // TORN token
 const TORN = "0x77777FeddddFFc19Ff86DB637967013e6c6A116C";
@@ -134,74 +134,69 @@ interface TornadoPoolData {
     token: string;
 }
 
+const LABELS = {
+    RELAYER_FEES: 'Relayer Fees',
+    RELAYER_FEES_TO_RELAYERS: 'Relayer Fees To Relayers',
+    TORN_BURNS_TO_STAKERS: 'Relayer TORN Stake Burns To Stakers',
+};
+
 const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
     const dailyFees = createBalances();
-    const dailyRevenue = createBalances();
-    const dailySupplySideRevenue = createBalances();
-
-    const contracts = TORNADO_CONTRACTS[chain];
-    if (!contracts) {
-        return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+    for (const data of Object.values(TORNADO_CONTRACTS[chain]) as TornadoPoolData[]) {
+        const logs = await getLogs({ targets: data.pools, eventAbi: withdrawABI });
+        logs.forEach((log: any) => dailyFees.add(data.token, log.fee, LABELS.RELAYER_FEES));
     }
 
-    // 1. Collect all withdrawal fees paid to relayers
-    for (const [, data] of Object.entries(contracts) as [string, TornadoPoolData][]) {
-        for (const pool of data.pools) {
-            const logs = await getLogs({
-                target: pool,
-                eventAbi: withdrawABI,
-            });
-
-            for (const log of logs) {
-                const fee = log.fee.toString();
-                dailyFees.add(data.token, fee);
-                // By default everything goes to relayers (Supply Side)
-                dailySupplySideRevenue.add(data.token, fee);
-            }
-        }
-    }
-
-    // 2. On Ethereum only: read real protocol revenue from StakeBurned events (in TORN)
-    //On Ethereum the protocol share is paid separately in TORN (not deducted from the ETH/token fee)
+    // On Ethereum every relayed withdrawal burns part of the relayer's TORN stake (governance-set pool fee) and the
+    // RelayerRegistry credits it to TORN locked in governance staking. The relayer recovers it through the withdrawal
+    // fee it charges, so it is the stakers' share of that fee. e.g. tx 0x8d18c4f45cb3ef22f1198a297f7beaa89a082d5add70ceaba85b513f67251246
+    const dailyHoldersRevenue = createBalances();
     if (chain === CHAIN.ETHEREUM) {
-        const burnLogs = await getLogs({
-            target: RELAYER_REGISTRY,
-            eventAbi: stakeBurnedABI,
-        });
-
-        for (const log of burnLogs) {
-            const amountBurned = Number(log.amountBurned);
-            // This is the true protocol revenue distributed to TORN stakers
-            dailyRevenue.add(TORN, amountBurned);
-        }
+        const burnLogs = await getLogs({ target: RELAYER_REGISTRY, eventAbi: stakeBurnedABI });
+        burnLogs.forEach((log: any) => dailyHoldersRevenue.add(TORN, log.amountBurned, LABELS.TORN_BURNS_TO_STAKERS));
     }
+
+    const dailySupplySideRevenue = dailyFees.clone(1, LABELS.RELAYER_FEES_TO_RELAYERS);
+    dailySupplySideRevenue.subtract(dailyHoldersRevenue, LABELS.RELAYER_FEES_TO_RELAYERS);
 
     return {
         dailyFees,
-        dailyRevenue,
+        dailyRevenue: dailyHoldersRevenue.clone(),
+        dailyHoldersRevenue,
+        dailyProtocolRevenue: 0,
         dailySupplySideRevenue,
     };
 };
 
 const methodology = {
-    Fees: "All fees paid by users to relayers on withdrawal (from Withdrawal events).",
-    Revenue: "Protocol revenue on Ethereum only. Collected by burning TORN from registered relayers' stakes (StakeBurned events on RelayerRegistry). This TORN is distributed to governance stakers. Small pools (0.1 ETH, 100 DAI, 100/1k USDC, 100/1k USDT) and all non-Ethereum chains have no protocol fee.",
-    SupplySideRevenue: "Fees paid to relayers. On Ethereum the protocol share is paid separately in TORN (not deducted from the ETH/token fee).",
+    Fees: "Fees users pay to relayers when withdrawing from Tornado Cash pools through a relayer.",
+    Revenue: "TORN burned from relayer stakes on each relayed Ethereum withdrawal, paid out of the relayer fee and distributed to TORN governance stakers. Other chains have no protocol fee.",
+    HoldersRevenue: "TORN burned from relayer stakes on each relayed Ethereum withdrawal and distributed to TORN locked in governance staking.",
+    ProtocolRevenue: "No fees go to a protocol treasury.",
+    SupplySideRevenue: "Relayer fees kept by relayers after the TORN stake burn.",
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [LABELS.RELAYER_FEES]: "Fees users pay to relayers when withdrawing through a relayer, in the pool's token.",
+    },
+    Revenue: {
+        [LABELS.TORN_BURNS_TO_STAKERS]: "TORN burned from the relayer's stake on each relayed Ethereum withdrawal and credited to governance stakers.",
+    },
+    HoldersRevenue: {
+        [LABELS.TORN_BURNS_TO_STAKERS]: "TORN burned from the relayer's stake on each relayed Ethereum withdrawal and credited to governance stakers.",
+    },
+    SupplySideRevenue: {
+        [LABELS.RELAYER_FEES_TO_RELAYERS]: "Relayer fees minus the TORN burned from the relayer's stake for the same withdrawals.",
+    },
 };
 
 const adapter: SimpleAdapter = {
     methodology,
+    breakdownMethodology,
     fetch: getFees,
     version: 2,
-    chains: [
-        CHAIN.ETHEREUM,
-        CHAIN.BSC,
-        CHAIN.AVAX,
-        CHAIN.OPTIMISM,
-        CHAIN.ARBITRUM,
-        CHAIN.POLYGON,
-        CHAIN.XDAI,
-    ],
+    chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
     adapter: {},
     isExpensiveAdapter: true,
     pullHourly: true,
