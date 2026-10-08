@@ -35,6 +35,7 @@ interface VolumeDailyResponse {
   outcomeVolumeUsd: number;
   outcomeNotionalVolumeUsd: number;
   liquidationVolumeUsd: number;
+  spotVolumeByTokens: TokenMap; // base-token units traded per spot token, not USD
 }
 
 export interface QueryHyperliquidIndexerV2Result {
@@ -54,6 +55,8 @@ export interface QueryHyperliquidIndexerV2Result {
   // by Unit go to Unit, the rest is Hyperliquid's
   dailySpotFees: Balances;
   dailyUnitFees: Balances;
+  // spot volume of tokens deployed by Unit, priced from the base-token units traded
+  dailyUnitVolume: Balances;
 
   // outcome fees users paid, builder fees included (outcome trading has no maker rebates)
   dailyOutcomeFees: Balances;
@@ -170,6 +173,7 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     dailyPerpDeployersFees,
     dailySpotFees,
     dailyUnitFees,
+    dailyUnitVolume: unitTokens(volume.spotVolumeByTokens),
     dailyOutcomeFees: tokens(fees.outcomeFees),
     dailyPerpBuildersFees,
     dailySpotBuildersFees,
