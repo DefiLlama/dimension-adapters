@@ -6,6 +6,8 @@ import {
   bimTxsCte,
   duneChains,
   getDuneChain,
+  isRpcChain,
+  BIM_RPC_CHAINS,
   DUNE_START_TIMESTAMP,
   ALLOWANCE_HOLDER,
   BIM_FEE_WALLET,
@@ -13,6 +15,7 @@ import {
   SWAP_AND_BRIDGE_SELECTOR,
   PERFORM_ACTIONS_SELECTOR,
 } from "../../aggregators/bim/config";
+import { fetchBimFromRpc } from "../../aggregators/bim/rpc";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import fetchURL from "../../utils/fetchURL";
@@ -98,6 +101,10 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
       dailyBridgeVolume,
     };
   }
+  if (isRpcChain(options.chain)) {
+    const { dailyVolume, dailyFees } = await fetchBimFromRpc(options, [BRIDGE_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, PERFORM_ACTIONS_SELECTOR]);
+    return { dailyBridgeVolume: dailyVolume, dailyFees };
+  }
   const dailyBridgeVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const rows = (options.preFetchedResults || []) as Array<{ blockchain: string, metric: string, token: string | null, amount: string }>;
@@ -116,15 +123,14 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 const adapter: SimpleAdapter = {
   version: 1,
   doublecounted: true, //Bungee
-  dependencies: [Dependencies.DUNE],
-  prefetch,
+  dependencies: [Dependencies.DUNE], prefetch,
   adapter: {
     ...bimAdapterChains.reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
           fetch,
-          start: '2026-01-13',
+          start: BIM_RPC_CHAINS[chain]?.start ?? '2026-01-13',
         }
       }
     }, {}),

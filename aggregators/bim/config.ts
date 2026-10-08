@@ -7,6 +7,9 @@ const SocketGatewayContracts: { [key: string]: string } = {
   [CHAIN.BASE]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.BSC]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.POLYGON]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
+  [CHAIN.CITREA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
+  [CHAIN.ROBINHOOD]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
+  [CHAIN.ARC]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
 }
 
 const BungeeGatewayContracts: {
@@ -88,8 +91,41 @@ export const BIM_NEW_API_CHAINS: Array<string> = [
   CHAIN.AVAX,
   CHAIN.BERACHAIN,
   CHAIN.BSC,
-  CHAIN.PLUME
+  CHAIN.PLUME,
+  CHAIN.CITREA,
+  CHAIN.ROBINHOOD,
+  CHAIN.ARC
 ];
+
+// Chains bim is live on that Dune does not index. Their volume and fees are read
+// straight from the chain's RPC instead of the Dune prefetch - same contracts and
+// same fee wallet, only the data source differs. Add a chain here (on top of
+// BIM_NEW_API_CHAINS) as soon as bim deploys on it, without waiting for Dune to
+// pick it up; remove it again once Dune indexes the chain and the numbers will
+// come from the prefetch instead.
+export const BIM_RPC_CHAINS: { [chain: string]: BimRpcChainConfig } = {
+  [CHAIN.CITREA]: {
+    start: '2026-09-18',
+    maxBlockRange: 900,
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-10-01',
+  },
+  [CHAIN.ARC]: {
+    start: '2026-10-01',
+  },
+};
+
+export type BimRpcChainConfig = {
+  start: string
+  maxBlockRange?: number
+  rpcConcurrency?: number
+}
+
+export const isRpcChain = (chain: string): boolean => !!BIM_RPC_CHAINS[chain];
+
+// new API chains Dune does index - the only ones the prefetch queries for
+export const BIM_DUNE_CHAINS: Array<string> = BIM_NEW_API_CHAINS.filter((chain) => !isRpcChain(chain));
 
 // legacy chains (for refills of pre-June-24 days) + new API chains
 export const bimAdapterChains: Array<string> = [...new Set([...fetchBimChains(), ...BIM_NEW_API_CHAINS])];
@@ -103,8 +139,9 @@ const DUNE_CHAIN_MAP: { [key: string]: string } = {
 };
 
 export const getDuneChain = (chain: string) => DUNE_CHAIN_MAP[chain] ?? chain;
-export const duneChains = BIM_NEW_API_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ');
-
+export const duneChains = BIM_DUNE_CHAINS.length
+  ? BIM_DUNE_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ')
+  : `''`;
 // All bim txs on the new API: emit RequestExecuted from OpenRouter, enter directly
 // or through AllowanceHolder.exec (inner calldata starts at byte 197), and carry
 // bim's fee wallet in calldata.

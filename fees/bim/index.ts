@@ -4,6 +4,8 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
+import { BIM_RPC_CHAINS, BRIDGE_SELECTOR, isRpcChain, PERFORM_ACTIONS_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, SWAP_SELECTOR } from "../../aggregators/bim/config";
+import { fetchBimFromRpc } from "../../aggregators/bim/rpc";
 
 const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
 const STELLAR_BRIDGE_URL = "https://defillama-data.bim.finance/bridge";
@@ -160,6 +162,7 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.STELLAR]: {
     start: "2026-04-19",
   },
+  ...Object.fromEntries(Object.entries(BIM_RPC_CHAINS).map(([chain, { start }]) => [chain, { start }])),
 };
 
 const fetchVaults = (): Promise<any[]> => {
@@ -208,6 +211,12 @@ const getStakingFees = async (options: FetchOptions): Promise<Balances> => {
 
 const getBridgeAndSwapFees = async (options: FetchOptions): Promise<any> => {
   const { chain } = options;
+  // chains Dune does not index: fees are read per bim tx from the chain's RPC instead
+  // of the fee wallet's token transfers (never both, they cover the same wallet)
+  if (isRpcChain(chain)) {
+    const { dailyFees } = await fetchBimFromRpc(options, [SWAP_SELECTOR, BRIDGE_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, PERFORM_ACTIONS_SELECTOR]);
+    return dailyFees;
+  }
   const tokens = await fetchBridgeAndSwapTokens();
   const bridgeAndSwapTarget = options.dateString >= bridgeAndSwapTargetChangeDate ? newBridgeAndSwapTarget : oldBridgeAndSwapTarget;
   return addTokensReceived({
