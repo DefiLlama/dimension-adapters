@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { PEDDLES } from "../helpers/peddles";
 
 // Peddles: a token launchpad on Uniswap v4. Every launch pool carries PeddlesFeeHook, which charges
-// each swap in the pool's quote asset (ETH, or the tokenised stock the launch is paired against) and
+// each swap in the pool's quote asset (ETH, BNB, USDC, or the tokenised stock the launch is paired against) and
 // splits the charge at that moment between the protocol, the token's creator and the token's holders.
 //
 // Everything is read from events, and each amount is added against the asset it was charged in.
@@ -45,6 +45,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Launch and Terminal fees are paid in the chain's native currency.
+  const addNative = (balances: any, amount: any, label: string) => {
+    if (deployment.nativeAs) balances.add(deployment.nativeAs.token, BigInt(amount) / deployment.nativeAs.divisor, label);
+    else balances.addGasToken(amount, label);
+  };
+
   const accrued = await options.getLogs({ target: deployment.feeHook, eventAbi: FEE_ACCRUED });
   for (const log of accrued) {
     dailyFees.add(log.quote, log.platform, SWAP_FEES);
@@ -73,14 +79,14 @@ const fetch = async (options: FetchOptions) => {
     flatten: true,
   });
   for (const log of launchFees) {
-    dailyFees.addGasToken(log.amount, LAUNCH_FEES);
-    dailyRevenue.addGasToken(log.amount, LAUNCH_FEES_TO_PROTOCOL);
+    addNative(dailyFees, log.amount, LAUNCH_FEES);
+    addNative(dailyRevenue, log.amount, LAUNCH_FEES_TO_PROTOCOL);
   }
 
   const forwarded = await options.getLogs({ target: deployment.feeForwarder, eventAbi: FORWARDER_FEE_COLLECTED });
   for (const log of forwarded) {
-    dailyFees.addGasToken(log.amount, TERMINAL_FEES);
-    dailyRevenue.addGasToken(log.amount, TERMINAL_FEES_TO_PROTOCOL);
+    addNative(dailyFees, log.amount, TERMINAL_FEES);
+    addNative(dailyRevenue, log.amount, TERMINAL_FEES_TO_PROTOCOL);
   }
 
   return {
