@@ -113,6 +113,7 @@ Rules that follow from the identities:
 ## Breakdown Labels - CRITICAL
 
 **Every label used in `.add()` calls MUST appear in `breakdownMethodology`**, and every label in `breakdownMethodology` must have corresponding data in code.
+- Never emit a negative breakdown label. When a flow is deducted from a metric (holders revenue funded out of protocol revenue, a rebate netted from fees), subtract it under the SAME label the metric already uses (`balances.subtract(x, METRIC.PROTOCOL_FEES)`) so the label nets; a separate 'Minus X' row looks wrong on the income statement.
 
 ### Why Labels Matter
 
