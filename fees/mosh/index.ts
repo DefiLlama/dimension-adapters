@@ -29,11 +29,6 @@ const FACTORIES = [
 const FACTORY_FROM_BLOCK = 70_000_000
 // the first bundle ($BUN), created before the factories above by the original deployment
 const LEGACY_SWARMS = ["0x7bdb0b02f41ca6644750b9e6ae75de08f1bc6d01"]
-// the legacy bundle predates the Launched event, so its Pons curve is named here ($BUN)
-const LEGACY_LAUNCHES = [{
-  swarm: "0x7bdb0b02f41ca6644750b9e6ae75de08f1bc6d01",
-  curve: "0x62e4aa27046b0cbd28d76d0ec7c56c5a32ce3af4",
-}]
 // the legacy bundle predates the Launched event; its raise fee (0.4 ETH at block 52,687,031, tx
 // 0x3e9dcd19093da517aa3001975828065c846d785a4ac7858af76d52d4eec90914) is NOT counted: the Mosh
 // treasury funded the whole 8 ETH raise, so that fee was the treasury paying itself
@@ -48,8 +43,6 @@ const EVENTS = {
   Refunded: "event Refunded(address indexed contributor, uint256 amount)",
   TeamClaimMinted: "event TeamClaimMinted(address indexed recipient, uint256 claimMinted)",
   ClaimTransferred: "event ClaimTransferred(address indexed from, address indexed to, uint256 amount)",
-  CurveBuy: "event CurveBuy(address indexed a, address indexed b, uint256 amount0, uint256 amount1, uint256 fee, uint256 tax)",
-  CurveSell: "event CurveSell(address indexed a, address indexed b, uint256 amount0, uint256 amount1, uint256 fee, uint256 tax)",
 }
 // the Mosh treasury, which also funds bundles itself (it was $BUN's only backer)
 const MOSH_TREASURY = "0x6736b8bc65f110e02ca4f681fd84375940f37da6"
@@ -161,55 +154,11 @@ async function getSwarms(options: FetchOptions): Promise<Swarm[]> {
   }))
 }
 
-// LAUNCH VOLUME: trades on a Mosh token's Pons bonding curve, in the bundle's counter asset, before
-// the token graduates. After graduation the token trades in a Uniswap v4 pool, which Uniswap v4
-// already counts, so those swaps are left out. Pons V2 counts the same curve trades, so this is
-// double counted like the fees.
-async function addLaunchVolume(options: FetchOptions, swarms: Swarm[], dailyVolume: any) {
-  const byAddress = new Map(swarms.map((s) => [s.address, s]))
-  const launched = await options.getLogs({
-    targets: swarms.map((s) => s.address), eventAbi: EVENTS.Launched, fromBlock: FACTORY_FROM_BLOCK, cacheInCloud: true,
-    entireLog: true, parseLog: true,
-  })
-  const curveOf = new Map<string, Swarm>()
-  for (const l of LEGACY_LAUNCHES) {
-    const s = byAddress.get(l.swarm)
-    if (s) curveOf.set(l.curve, s)
-  }
-  for (const l of launched) {
-    const s = byAddress.get(String(l.address).toLowerCase())
-    if (s) curveOf.set(String(l.args.curve).toLowerCase(), s)
-  }
-  const curves = [...curveOf.keys()]
-  if (!curves.length) return
-
-  const add = (s: Swarm, amount: bigint) => {
-    if (amount <= 0n) return
-    if (s.native) dailyVolume.addGasToken(amount)
-    else if (s.counter) dailyVolume.add(s.counter, amount)
-  }
-
-  // quote in on a buy; quote out plus the fee and tax on a sell (Pons V2's measure)
-  const [buys, sells] = await Promise.all([
-    options.getLogs({ targets: curves, eventAbi: EVENTS.CurveBuy, entireLog: true, parseLog: true }),
-    options.getLogs({ targets: curves, eventAbi: EVENTS.CurveSell, entireLog: true, parseLog: true }),
-  ])
-  for (const l of buys) {
-    const s = curveOf.get(String(l.address).toLowerCase())
-    if (s) add(s, BigInt(l.args.amount0))
-  }
-  for (const l of sells) {
-    const s = curveOf.get(String(l.address).toLowerCase())
-    if (s) add(s, BigInt(l.args.amount1) + BigInt(l.args.fee) + BigInt(l.args.tax))
-  }
-}
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
-  const dailyVolume = options.createBalances()
 
   const swarms = await getSwarms(options)
   const byAddress = new Map(swarms.map((s) => [s.address, s]))
@@ -285,13 +234,10 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  await addLaunchVolume(options, swarms, dailyVolume)
-
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
 }
 
 const methodology = {
-  Volume: "Trading volume of tokens launched through Mosh while they trade on their Pons bonding curve, in each bundle's counter asset. Swaps after a token graduates to Uniswap v4 are excluded. Pons V2 counts the same curve trades, so this adapter is marked as double counted.",
   Fees: "Pons creator fees paid to Mosh bundles (each bundle's swarm contract), plus the one-time raise fee Mosh takes when a bundle launches. The creator fees are also counted by Pons V2 as its creators' share, so this adapter is marked as double counted.",
   Revenue: "Mosh's share of the creator fees (creatorFeeShareBps, 20% at launch), the raise fee (raiseFeeBps, 5% of the filled raise), and, where the Mosh treasury holds a bundle's fee claims itself, its pro-rata part of the backers' share.",
   ProtocolRevenue: "Mosh's share of the creator fees (creatorFeeShareBps, 20% at launch), the raise fee (raiseFeeBps, 5% of the filled raise), and, where the Mosh treasury holds a bundle's fee claims itself, its pro-rata part of the backers' share.",
