@@ -201,6 +201,8 @@ const adapter: SimpleAdapter = {
     adapter: {},
     isExpensiveAdapter: true,
     pullHourly: true,
+    // relayers set their fee themselves while the TORN taken from their stake is a governance-set rate priced off a TWAP, so in some windows the TORN is worth more than the relayer fees and the relayer share is negative
+    allowNegativeValue: true,
 };
 
 export default adapter;
