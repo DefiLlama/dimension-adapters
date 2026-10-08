@@ -110,12 +110,13 @@ swaps AS (
 valued AS (
   SELECT
     fee_mint,
-    amount_usd IS NULL OR fee_side_raw IS NULL OR fee_side_raw = 0 AS unpriced,
     gross_fee,
     protocol_fee,
-    -- a fee cannot exceed the trade it was taken from
-    least(CAST(gross_fee AS DOUBLE) * amount_usd / fee_side_raw, amount_usd) AS fee_usd,
-    least(CAST(protocol_fee AS DOUBLE) * amount_usd / fee_side_raw, amount_usd) AS protocol_usd
+    CAST(gross_fee AS DOUBLE) * amount_usd / fee_side_raw AS fee_usd,
+    CAST(protocol_fee AS DOUBLE) * amount_usd / fee_side_raw AS protocol_usd,
+    -- no trade price, or a fee worth more than its own swap (mismatched row): price the raw amount instead
+    amount_usd IS NULL OR fee_side_raw IS NULL OR fee_side_raw = 0
+      OR CAST(gross_fee AS DOUBLE) * amount_usd / fee_side_raw > amount_usd AS unpriced
   FROM swaps
 )
 SELECT
