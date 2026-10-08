@@ -6,6 +6,8 @@ import { httpGet } from "../utils/fetchURL";
 // https://docs.valdora.finance/liquid-staking/introduction
 const ZIGCHAIN_ARCHIVAL_LCD = "https://api.zigchain.com";
 const STAKER_CONTRACT = "zig18nnde5tpn76xj3wm53n0tmuf3q06nruj3p6kdemcllzxqwzkpqzqk7ue55";
+// From this block (2026-09-30 19:06 UTC) rewards_earned_today is an 18-decimal Decimal (uzig * 1e12); fees_minted_today stays in uzig
+const REWARDS_DECIMAL_HEIGHT = 12554333;
 
 function encodeQuery(data: Record<string, unknown>): string {
   return encodeURIComponent(Buffer.from(JSON.stringify(data)).toString("base64"));
@@ -60,7 +62,9 @@ async function queryDailyRewards(height: number) {
 
 const fetch = async (options: FetchOptions) => {
   const height = await getHeightAtOrBefore(options.toTimestamp);
-  const { rewards_earned_today, fees_minted_today } = await queryDailyRewards(height);
+  const res = await queryDailyRewards(height);
+  const { fees_minted_today } = res;
+  const rewards_earned_today = height >= REWARDS_DECIMAL_HEIGHT ? (BigInt(res.rewards_earned_today) / 10n ** 12n).toString() : res.rewards_earned_today;
 
   const supplySideAmount = (BigInt(rewards_earned_today) - BigInt(fees_minted_today)).toString();
 
