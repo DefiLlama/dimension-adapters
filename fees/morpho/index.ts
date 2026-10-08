@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { cache } from "@defillama/sdk";
+import { getExcludedMarketIds, getExcludedAssets } from "../../helpers/morphoExclusions";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -352,7 +353,17 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+  // asset_usage is 'all', so a market is excluded if either leg uses an excluded asset
+  const excludedAssets = new Set(await getExcludedAssets(options.chain, options.dateString));
+  const assetExcludedIds = Object.values(marketMap)
+    .filter(m => excludedAssets.has(m.loanAsset.toLowerCase()) || (!!m.collateralAsset && excludedAssets.has(m.collateralAsset.toLowerCase())))
+    .map(m => m.marketId.toLowerCase());
+
+  const blacklistedIds = [
+    ...assetExcludedIds,
+    ...(blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? []),
+    ...(await getExcludedMarketIds(options.chain, options.dateString)), // morpho's own feed, additive
+  ];
 
   const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
 
