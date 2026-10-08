@@ -1,21 +1,25 @@
-// Ryntra (https://ryntra.io) on Solana: the trades people make through Ryntra and the tokens they launch with it.
+// Ryntra (https://ryntra.io) on Solana: the trades people make through Ryntra (listing "Ryntra", a trading app)
+// and the tokens they launch with it (listing "Ryntra Launch", a launchpad on Meteora's Dynamic Bonding Curve).
 //
-// Every address below is in Ryntra's public attribution registry, which https://ryntra.io/stats draws and
+// Every Ryntra address below is in Ryntra's public attribution registry, which https://ryntra.io/stats draws and
 // https://ryntra.io/api/stats/registry serves as JSON. Each address has one job and is used for nothing else.
 // Nothing here reads Ryntra's own records: every figure comes from the transactions themselves.
 import ADDRESSES from './coreAssets.json'
-import { base58Decode, base58Encode, getSignaturesForAddress, getTransaction } from './solana'
+import { base58Decode, base58Encode, getSignaturesForAddress, getTransaction, solanaRpc } from './solana'
 
 export const SOL = ADDRESSES.solana.SOL
 export const USDC = ADDRESSES.solana.USDC
 export const USDT = ADDRESSES.solana.USDT
 const STABLES = new Set([USDC, USDT])
 
-// --- Trading fees -------------------------------------------------------------------------------------------
+export const TRADING_START = Date.UTC(2026, 8, 10) / 1000 // the day of the referral account's first fee (2026-09-10 08:00 UTC)
+export const LAUNCH_START = Date.UTC(2026, 9, 6) / 1000 // the day Ryntra Launch opened to people (2026-10-06)
 
-// Ryntra's Jupiter referral account (registry id `solana-jupiter-referral`) and the token accounts it owns.
-// Swaps through Ryntra's Jupiter integration pay the fee into them since 2026-09-10. The referral project
-// keeps 80% for Ryntra; Jupiter takes 20% of an integrator fee
+// --- Ryntra: trading fees -----------------------------------------------------------------------------------
+
+// Ryntra's Jupiter referral account (registry id `solana-jupiter-referral`). Swaps through Ryntra's Jupiter
+// integration pay the fee into token accounts it owns, since 2026-09-10; the two below are the ones it owns today,
+// and any other it opens is found on chain. Jupiter takes 20% of an integrator's referral fee when it is claimed
 // (https://developers.jup.ag/docs/swap/order-and-execute#how-it-works).
 export const JUPITER_REFERRAL = 'F9pV233uBksW4U1BKiK7u9qShgXkwoR6F8MzU4FZYPUv'
 export const JUPITER_REFERRAL_ACCOUNTS: Record<string, string> = {
@@ -25,7 +29,7 @@ export const JUPITER_REFERRAL_ACCOUNTS: Record<string, string> = {
 export const JUPITER_SHARE_OF_REFERRAL_FEES = 0.2
 
 // Ryntra's fee wallet (registry id `solana-fee-wallet`), since 2026-10-05: Jupiter /build pays Ryntra's whole fee
-// into its three token accounts inside the swap. Jupiter takes nothing on /build
+// into its three token accounts inside the swap; Jupiter takes nothing on /build
 // (https://developers.jup.ag/docs/swap/build/index#fees). Only these three accounts count: anyone can open
 // another token account for a public wallet and send it anything.
 export const FEE_WALLET = '5sWCoxARMPyGdqTu9ru6z69REZ1ZZLojcb1rfABDP2Ne'
@@ -35,23 +39,24 @@ export const FEE_WALLET_ACCOUNTS: Record<string, string> = {
   '3QzAhYsiAXEWB64FHwmms63sZcbBKtC1hkPENFMAjMbA': USDT,
 }
 
-// --- Ryntra Launch (Meteora Dynamic Bonding Curve) ----------------------------------------------------------
+// --- Ryntra Launch ------------------------------------------------------------------------------------------
 
 export const DBC_PROGRAM = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
 export const DAMM_V2_PROGRAM = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG'
 
-// The two configs Ryntra Launch creates pools on (registry ids `solana-launch-config-classic` and
-// `-protected`), created on 2026-10-05: fees collected in USDC (collect_fee_mode 0), the creator's share of the
-// trading fee 40%, the rest to Ryntra as the config's partner.
+// The two configs Ryntra Launch creates pools on (registry ids `solana-launch-config-classic` and `-protected`),
+// created on 2026-10-05: a 1% curve fee collected in USDC (collect_fee_mode 0), of which Meteora keeps 20% as its
+// protocol fee; the rest, the configs' trading fee, goes 40% to the token's creator and 60% to Ryntra as the
+// partner. At graduation a 2% migration fee, 60% of it the partner's.
 export const LAUNCH_CONFIGS = ['B6gheJ5PL6tpE9V3vQGYA8wLqe3pcFh1fgKf4aPxZh1G', '33KU1WNMVAXLBuGF1EQAHqWFnrsDevofJnw4VAamiK2G']
 export const CREATOR_SHARE_PERCENT = 40n
 // The wallet that pays for every pool Ryntra Launch creates (`solana-launch-pool-payer`), used for nothing else.
 // A pool someone else opens on the same public config is not a Ryntra launch.
 export const LAUNCH_POOL_PAYER = 'H2Bzv5pcrEGug1STGbZhvX98DGb3SCFa4pnAtUwktyyV'
-// The configs' fee claimer, a Squads vault (`solana-launch-fee-claimer`); its USDC account is Meteora's referral
-// account in the trades made through Ryntra on a launched token (`solana-launch-referral-usdc`; the first on chain
-// on 2026-10-06, every one since 2026-10-08). Counted by the referral fee the swap's event states, never by the
-// account's credits: the claimer's claims land in the same account.
+// The configs' fee claimer, a Squads vault (`solana-launch-fee-claimer`). Its USDC account is Meteora's referral
+// account in the trades made through Ryntra of tokens launched with Ryntra, on the curve and in the pool after
+// graduation (`solana-launch-referral-usdc`; the first on chain on 2026-10-06). Counted by the referral fee the
+// swap's event states, never by the account's credits: the claimer's own withdrawals land in the same account.
 export const LAUNCH_FEE_CLAIMER = '22BZNVD9FuZPQvGwALBwhopSyxUCTuNNeTW1Lr1KsSvA'
 export const LAUNCH_REFERRAL_ACCOUNT = '4kVogGhWqheXKjteM2urywUS5L8q7AnSNJCYDna4VrDy'
 
@@ -62,12 +67,16 @@ const IX = {
   INIT_POOL_SPL: '8c55d7b06636684f', // DBC initialize_virtual_pool_with_spl_token
   INIT_POOL_2022: 'a976334e916edc9b', // DBC initialize_virtual_pool_with_token2022
   INIT_POOL_2022_HOOK: 'b60de9b12a918702', // DBC initialize_virtual_pool_with_token2022_transfer_hook
+  WITHDRAW_MIGRATION_FEE: 'ed8e2d178106dea2', // DBC withdraw_migration_fee
+  PARTNER_WITHDRAW_SURPLUS: 'a8ad4864c962265c', // DBC partner_withdraw_surplus
   CLAIM_POSITION_FEE: 'b4269a118521a2d3', // DAMM v2 claim_position_fee
 }
-const EVENT_TAG = 'e445a52e51cb9a1d' // emit_cpi! prefix on an event logged as a self-invocation
+const EVENT_TAG = 'e445a52e51cb9a1d' // emit_cpi! prefix of an event logged as the program's self-invocation
 const EVENT = {
   DBC_SWAP: '1b3c15d58aaabb93',
   SWAP2: 'bd4233a826507599', // EvtSwap2, the same name and discriminator in both programs
+  WITHDRAW_MIGRATION_FEE: '1acb5455a11764d6',
+  PARTNER_WITHDRAW_SURPLUS: 'c3389809e8482316',
   DAMM_CLAIM_POSITION_FEE: 'c6b6b734610c3138',
 }
 // Account positions inside the instructions (IDL order).
@@ -76,39 +85,52 @@ const INIT_POOL_ACCOUNTS: Record<string, { config: number; baseMint: number; quo
   [IX.INIT_POOL_2022]: { config: 0, baseMint: 3, quoteMint: 4, pool: 5, payer: 8 },
   [IX.INIT_POOL_2022_HOOK]: { config: 0, baseMint: 3, quoteMint: 4, pool: 5, payer: 9 },
 }
-const SWAP_REFERRAL_ACCOUNT: Record<string, number> = { [DBC_PROGRAM]: 12, [DAMM_V2_PROGRAM]: 11 }
+// swap and swap2: the pool, its two mints and the referral token account.
+const SWAP_ACCOUNTS: Record<string, { pool: number; mintA: number; mintB: number; referral: number }> = {
+  [DBC_PROGRAM]: { pool: 2, mintA: 7, mintB: 8, referral: 12 }, // base_mint, quote_mint
+  [DAMM_V2_PROGRAM]: { pool: 1, mintA: 6, mintB: 7, referral: 11 }, // token_a_mint, token_b_mint
+}
 
 // --- Reading the chain --------------------------------------------------------------------------------------
 
 type Signature = { signature: string; blockTime: number }
+type History = { readAt: number; list: Signature[]; before?: string; complete: boolean; queue: Promise<void> }
 
-const histories = new Map<string, Promise<Signature[]>>()
+const histories = new Map<string, History>()
+const now = () => Math.floor(Date.now() / 1000)
 
-// Every successful signature of an address from now back to `floor`, newest first, read once per run. The
-// addresses are Ryntra's own accounts and pools, so the walk is short; a refill of many days reads it once.
-function history(address: string, floor: number): Promise<Signature[]> {
-  const key = `${address}:${floor}`
-  if (!histories.has(key)) histories.set(key, (async () => {
-    const found: Signature[] = []
-    let before: string | undefined
-    while (true) {
-      const page = await getSignaturesForAddress({ address, limit: 1000, before })
-      if (!page?.length) break
-      for (const entry of page) if (!entry.err && typeof entry.blockTime === 'number' && entry.blockTime >= floor) found.push({ signature: entry.signature, blockTime: entry.blockTime })
-      // A signature not timestamped yet says nothing about the window; keep paging past it.
-      const oldest = [...page].reverse().find((entry: any) => typeof entry.blockTime === 'number')
-      if (page.length < 1000 || (oldest && oldest.blockTime! < floor)) break
-      before = page[page.length - 1].signature
+// The successful signatures of an address back to `from`, newest first. A run reads each address once, from the
+// newest signature down to the start of its window, and a later window of the same run extends the same walk; a
+// window ending after the walk began starts it again, so a long-lived process never serves a stale list.
+async function walk(address: string, from: number, to: number): Promise<Signature[]> {
+  let history = histories.get(address)
+  if (!history || (to > history.readAt + 60 && now() > history.readAt + 60)) {
+    history = { readAt: now(), list: [], complete: false, queue: Promise.resolve() }
+    histories.set(address, history)
+  }
+  const h = history
+  h.queue = h.queue.then(async () => {
+    while (!h.complete && (h.list.length === 0 || h.list[h.list.length - 1].blockTime >= from)) {
+      const page = await getSignaturesForAddress({ address, limit: 1000, before: h.before })
+      if (!page?.length) { h.complete = true; break }
+      for (const entry of page) {
+        if (entry.err) continue
+        // A signature the node has not timestamped yet: its transaction says when it landed.
+        const blockTime = typeof entry.blockTime === 'number' ? entry.blockTime : (await readTx(entry.signature)).blockTime
+        h.list.push({ signature: entry.signature, blockTime })
+      }
+      h.before = page[page.length - 1].signature
+      if (page.length < 1000) h.complete = true
     }
-    return found
-  })())
-  return histories.get(key)!
+  })
+  await h.queue
+  return h.list
 }
 
-export async function signaturesIn(addresses: string[], from: number, to: number, floor: number): Promise<string[]> {
+export async function signaturesIn(addresses: string[], from: number, to: number): Promise<string[]> {
   const seen = new Set<string>()
   for (const address of addresses)
-    for (const entry of await history(address, Math.min(floor, from)))
+    for (const entry of await walk(address, from, to))
       if (entry.blockTime >= from && entry.blockTime < to) seen.add(entry.signature)
   return [...seen]
 }
@@ -130,30 +152,36 @@ export type Tx = {
 const transactions = new Map<string, Promise<Tx>>()
 
 export function readTx(signature: string): Promise<Tx> {
-  if (!transactions.has(signature)) transactions.set(signature, (async () => {
-    const tx = await getTransaction({ signature, encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 })
-    // No transaction or no metadata means the node could not serve it, not that nothing happened.
-    if (!tx?.meta || !tx.transaction?.message) throw new Error(`ryntra: solana rpc returned no transaction for ${signature}`)
-    const keys: string[] = tx.transaction.message.accountKeys.map((key: any) => (typeof key === 'string' ? key : key.pubkey))
-    const signers = tx.transaction.message.accountKeys.filter((key: any) => key.signer).map((key: any) => key.pubkey)
-    const balances = (entries: any[]): TokenBalance[] => (entries ?? []).map((entry) => ({ account: keys[entry.accountIndex], mint: entry.mint, owner: entry.owner, amount: BigInt(entry.uiTokenAmount.amount) }))
-    const lamports = new Map<string, bigint>()
-    keys.forEach((key, index) => lamports.set(key, BigInt(tx.meta.postBalances[index]) - BigInt(tx.meta.preBalances[index])))
-    const instruction = (ix: any): Instruction => ({ programId: ix.programId, accounts: ix.accounts ?? [], data: typeof ix.data === 'string' ? Buffer.from(base58Decode(ix.data)) : Buffer.alloc(0) })
-    const flows: Instruction[][] = tx.transaction.message.instructions.map((ix: any, index: number) => {
-      const inner = (tx.meta.innerInstructions ?? []).find((group: any) => group.index === index)?.instructions ?? []
-      return [instruction(ix), ...inner.map(instruction)]
-    })
-    return { signature, blockTime: tx.blockTime, signers, networkFee: BigInt(tx.meta.fee ?? 0), pre: balances(tx.meta.preTokenBalances), post: balances(tx.meta.postTokenBalances), lamports, flows }
-  })())
+  if (!transactions.has(signature)) {
+    const read = (async () => {
+      const tx = await getTransaction({ signature, encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 })
+      // No transaction, no metadata or no time means the node could not serve it, not that nothing happened.
+      if (!tx?.meta || !tx.transaction?.message || typeof tx.blockTime !== 'number') throw new Error(`ryntra: solana rpc returned no transaction for ${signature}`)
+      const keys: string[] = tx.transaction.message.accountKeys.map((key: any) => (typeof key === 'string' ? key : key.pubkey))
+      const signers = tx.transaction.message.accountKeys.filter((key: any) => key.signer).map((key: any) => key.pubkey)
+      const balances = (entries: any[]): TokenBalance[] => (entries ?? []).map((entry) => ({ account: keys[entry.accountIndex], mint: entry.mint, owner: entry.owner, amount: BigInt(entry.uiTokenAmount.amount) }))
+      const lamports = new Map<string, bigint>()
+      keys.forEach((key, index) => lamports.set(key, BigInt(tx.meta.postBalances[index]) - BigInt(tx.meta.preBalances[index])))
+      const instruction = (ix: any): Instruction => ({ programId: ix.programId, accounts: ix.accounts ?? [], data: typeof ix.data === 'string' ? Buffer.from(base58Decode(ix.data)) : Buffer.alloc(0) })
+      const flows: Instruction[][] = tx.transaction.message.instructions.map((ix: any, index: number) => {
+        const inner = (tx.meta.innerInstructions ?? []).find((group: any) => group.index === index)?.instructions ?? []
+        return [instruction(ix), ...inner.map(instruction)]
+      })
+      return { signature, blockTime: tx.blockTime, signers, networkFee: BigInt(tx.meta.fee ?? 0), pre: balances(tx.meta.preTokenBalances), post: balances(tx.meta.postTokenBalances), lamports, flows }
+    })()
+    // A failed read is not remembered: the next call asks the node again.
+    read.catch(() => transactions.delete(signature))
+    transactions.set(signature, read)
+  }
   return transactions.get(signature)!
 }
 
 const hex = (data: Buffer, start: number, end: number) => data.subarray(start, end).toString('hex')
 const u64 = (data: Buffer, offset: number) => data.readBigUInt64LE(offset)
 const key = (data: Buffer, offset: number) => base58Encode(data.subarray(offset, offset + 32))
+const abs = (value: bigint) => (value < 0n ? -value : value)
 
-// Net movement per mint of the token accounts of one owner (or of the given accounts only).
+// Net movement per mint of the token accounts that match.
 function deltas(tx: Tx, match: (entry: TokenBalance) => boolean): Map<string, bigint> {
   const totals = new Map<string, bigint>()
   for (const entry of tx.pre) if (match(entry)) totals.set(entry.mint, (totals.get(entry.mint) ?? 0n) - entry.amount)
@@ -167,98 +195,88 @@ function deltas(tx: Tx, match: (entry: TokenBalance) => boolean): Map<string, bi
 export type LaunchSwap = {
   program: string
   pool: string
-  config: string | null // DBC only
+  mintA: string // DBC: the launched token; DAMM v2: token A
+  mintB: string // the quote
   buy: boolean // quote in, base out
   quoteVolume: bigint // the quote side of the swap, fee included
-  tradingFee: bigint // DBC: the config's trading fee (creator and partner); DAMM v2: the liquidity's fee
+  tradingFee: bigint // DBC: the configs' trading fee (creator and partner); DAMM v2: the liquidity's fee
   protocolFee: bigint
   referralFee: bigint
   referralAccount: string | null // the referral token account the swap instruction named
 }
 
-// Every Meteora swap in a transaction with its event: the event a program emits is the next self-invocation
-// after the swap instruction that caused it.
+// Every Meteora swap in a transaction with its event: the event a program emits is its next self-invocation after
+// the swap instruction that caused it.
 export function launchSwaps(tx: Tx): LaunchSwap[] {
   const swaps: LaunchSwap[] = []
   for (const flow of tx.flows) {
-    const pending: { program: string; referral: string | null }[] = []
+    const pending: { program: string; pool: string; mintA: string; mintB: string; referral: string | null }[] = []
     for (const ix of flow) {
-      const isMeteora = ix.programId === DBC_PROGRAM || ix.programId === DAMM_V2_PROGRAM
-      if (!isMeteora || ix.data.length < 16) continue
+      if ((ix.programId !== DBC_PROGRAM && ix.programId !== DAMM_V2_PROGRAM) || ix.data.length < 8) continue
       const head = hex(ix.data, 0, 8)
       if (head === IX.SWAP || head === IX.SWAP2) {
-        pending.push({ program: ix.programId, referral: ix.accounts[SWAP_REFERRAL_ACCOUNT[ix.programId]] ?? null })
+        const at = SWAP_ACCOUNTS[ix.programId]
+        pending.push({ program: ix.programId, pool: ix.accounts[at.pool], mintA: ix.accounts[at.mintA], mintB: ix.accounts[at.mintB], referral: ix.accounts[at.referral] ?? null })
         continue
       }
-      if (head !== EVENT_TAG) continue
+      if (head !== EVENT_TAG || ix.data.length < 16) continue
       const event = hex(ix.data, 8, 16)
-      const at = pending.findIndex((swap) => swap.program === ix.programId)
-      if (at < 0) continue
       const d = ix.data
-      let swap: LaunchSwap | null = null
+      let found: Omit<LaunchSwap, 'mintA' | 'mintB' | 'referralAccount'> | null = null
       // Offsets: 8 bytes of tag, 8 of event discriminator, then the fields in IDL order.
       if (ix.programId === DBC_PROGRAM && event === EVENT.DBC_SWAP) {
         // EvtSwap: pool, config, trade_direction, has_referral, {amount_in, minimum_amount_out},
         // {actual_input_amount, output_amount, next_sqrt_price u128, trading_fee, protocol_fee, referral_fee}, amount_in, current_timestamp
         const buy = d[80] === 1
-        swap = { program: DBC_PROGRAM, pool: key(d, 16), config: key(d, 48), buy, quoteVolume: buy ? u64(d, 154) : u64(d, 106), tradingFee: u64(d, 130), protocolFee: u64(d, 138), referralFee: u64(d, 146), referralAccount: null }
+        found = { program: DBC_PROGRAM, pool: key(d, 16), buy, quoteVolume: buy ? u64(d, 154) : u64(d, 106), tradingFee: u64(d, 130), protocolFee: u64(d, 138), referralFee: u64(d, 146) }
       } else if (ix.programId === DBC_PROGRAM && event === EVENT.SWAP2) {
         // EvtSwap2: pool, config, trade_direction, has_referral, {amount_0, amount_1, swap_mode u8},
         // {included_fee_input_amount, excluded_fee_input_amount, amount_left, output_amount, next_sqrt_price u128, trading_fee, protocol_fee, referral_fee}, ...
         const buy = d[80] === 1
-        swap = { program: DBC_PROGRAM, pool: key(d, 16), config: key(d, 48), buy, quoteVolume: buy ? u64(d, 99) : u64(d, 123), tradingFee: u64(d, 147), protocolFee: u64(d, 155), referralFee: u64(d, 163), referralAccount: null }
+        found = { program: DBC_PROGRAM, pool: key(d, 16), buy, quoteVolume: buy ? u64(d, 99) : u64(d, 123), tradingFee: u64(d, 147), protocolFee: u64(d, 155), referralFee: u64(d, 163) }
       } else if (ix.programId === DAMM_V2_PROGRAM && event === EVENT.SWAP2) {
         // EvtSwap2: pool, trade_direction, collect_fee_mode, has_referral, {amount_0, amount_1, swap_mode u8},
         // {included_fee_input_amount, excluded_fee_input_amount, amount_left, output_amount, next_sqrt_price u128, claiming_fee, protocol_fee, compounding_fee, referral_fee}, ...
         const buy = d[48] === 1 // B (the quote) to A
-        swap = { program: DAMM_V2_PROGRAM, pool: key(d, 16), config: null, buy, quoteVolume: buy ? u64(d, 68) : u64(d, 92), tradingFee: u64(d, 116) + u64(d, 132), protocolFee: u64(d, 124), referralFee: u64(d, 140), referralAccount: null }
+        found = { program: DAMM_V2_PROGRAM, pool: key(d, 16), buy, quoteVolume: buy ? u64(d, 68) : u64(d, 92), tradingFee: u64(d, 116) + u64(d, 132), protocolFee: u64(d, 124), referralFee: u64(d, 140) }
       }
-      if (!swap) continue
-      swap.referralAccount = pending[at].referral
-      pending.splice(at, 1)
-      swaps.push(swap)
+      if (!found) continue
+      const at = pending.findIndex((swap) => swap.program === found!.program && swap.pool === found!.pool)
+      if (at < 0) continue
+      const swap = pending.splice(at, 1)[0]
+      swaps.push({ ...found, mintA: swap.mintA, mintB: swap.mintB, referralAccount: swap.referral })
     }
   }
   return swaps
 }
 
-// --- Trades made through Ryntra -----------------------------------------------------------------------------
+// --- Ryntra: the trades made through it ---------------------------------------------------------------------
 
-export type Credit = { identity: 'jupiter-referral' | 'fee-wallet' | 'launch-referral'; mint: string; amount: bigint }
 export type RyntraTrade = {
   signature: string
   blockTime: number
   taker: string
-  credits: Credit[]
+  credits: { identity: 'jupiter-referral' | 'fee-wallet'; mint: string; amount: bigint }[]
   legs: Map<string, bigint> // the taker's own token movements, per mint
   takerLamports: bigint
-  onLaunchCurve: boolean // a trade on a Ryntra Launch bonding curve: its volume is Ryntra Launch's
 }
 
-const isFeeAccount = (entry: TokenBalance) => entry.account in FEE_WALLET_ACCOUNTS
-const isReferralAccount = (entry: TokenBalance) => entry.account in JUPITER_REFERRAL_ACCOUNTS
-const OWN = new Set([JUPITER_REFERRAL, FEE_WALLET, LAUNCH_FEE_CLAIMER, LAUNCH_POOL_PAYER])
-// The rent a closed token account returns, at most (a Token-2022 account with extensions holds more).
-const RENT_CEILING = 3_000_000n
+const RENT_CEILING = 3_000_000n // the rent a closed token account returns, at most
 
-// Ryntra's attribution rule (version 1.2.0, the rule ryntra.io/stats counts by): a transaction is a trade through
-// Ryntra when it credited one of Ryntra's fee accounts and the signer traded. A plain transfer into a fee account
-// is a deposit. Through the fee wallet alone the signer must have received something or paid in another mint,
-// and the fee must be at least one basis point of the signer's own movement in that asset, so dust sent beside
-// somebody else's swap never makes it Ryntra's. Through Meteora, the trade's swap names Ryntra's referral account
-// and its event states the referral fee.
+// Ryntra's attribution rule, version 1.2.0 — the rule https://ryntra.io/stats counts by, line for line: a
+// transaction is a trade through Ryntra when it credited a token account of Ryntra's Jupiter referral account or
+// one of the fee wallet's three, and the signer traded. A plain transfer into them is a deposit. Through the fee
+// wallet alone the signer must have received something or paid in another mint, and the fee must be at least one
+// basis point of the signer's own movement in that asset, so dust sent beside someone else's swap does not make
+// it Ryntra's.
 export function ryntraTrade(tx: Tx): RyntraTrade | null {
-  const credits: Credit[] = []
-  for (const [mint, amount] of deltas(tx, isReferralAccount)) if (amount > 0n) credits.push({ identity: 'jupiter-referral', mint, amount })
-  for (const [mint, amount] of deltas(tx, isFeeAccount)) if (amount > 0n) credits.push({ identity: 'fee-wallet', mint, amount })
-  const swaps = launchSwaps(tx)
-  const launchReferral = swaps.filter((swap) => swap.referralAccount === LAUNCH_REFERRAL_ACCOUNT && swap.referralFee > 0n)
-  const launchFee = launchReferral.reduce((sum, swap) => sum + swap.referralFee, 0n)
-  if (launchFee > 0n) credits.push({ identity: 'launch-referral', mint: USDC, amount: launchFee })
+  const credits: RyntraTrade['credits'] = []
+  for (const [mint, amount] of deltas(tx, (entry) => entry.owner === JUPITER_REFERRAL)) if (amount > 0n) credits.push({ identity: 'jupiter-referral', mint, amount })
+  for (const [mint, amount] of deltas(tx, (entry) => entry.account in FEE_WALLET_ACCOUNTS && FEE_WALLET_ACCOUNTS[entry.account] === entry.mint)) if (amount > 0n) credits.push({ identity: 'fee-wallet', mint, amount })
   if (!credits.length) return null
 
-  // The taker: the first signer, Ryntra's own accounts aside, whose tokens moved; else the fee payer.
-  const signers = tx.signers.filter((signer) => !OWN.has(signer))
+  // The taker: the first signer, Ryntra's own two aside, whose tokens moved; else the first of them.
+  const signers = tx.signers.filter((signer) => signer !== JUPITER_REFERRAL && signer !== FEE_WALLET)
   if (!signers.length) return null
   let taker = signers[0]
   let legs = new Map<string, bigint>()
@@ -268,21 +286,17 @@ export function ryntraTrade(tx: Tx): RyntraTrade | null {
   }
   const takerLamports = tx.lamports.get(taker) ?? 0n
 
-  // A deposit: every movement of the signer is a debit equal to a credit of a fee account in the same mint.
+  // A deposit: every movement of the signer is a debit equal to the fee credited in the same mint.
   const credited = (mint: string) => credits.filter((credit) => credit.mint === mint).reduce((sum, credit) => sum + credit.amount, 0n)
-  const bare = legs.size > 0 && [...legs].every(([mint, amount]) => amount < 0n && credited(mint) === -amount)
-  if (bare) return null
+  if (legs.size > 0 && [...legs].every(([mint, amount]) => amount < 0n && credited(mint) === -amount)) return null
 
-  const viaFeeWalletOnly = credits.every((credit) => credit.identity === 'fee-wallet')
-  if (viaFeeWalletOnly) {
+  if (!credits.some((credit) => credit.identity === 'jupiter-referral')) {
     const owned = (entries: TokenBalance[]) => new Set(entries.filter((entry) => entry.owner === taker).map((entry) => entry.account))
     const after = owned(tx.post)
     const closed = [...owned(tx.pre)].filter((account) => !after.has(account)).length
     const received = [...legs.values()].some((amount) => amount > 0n) || takerLamports > BigInt(closed) * RENT_CEILING
     const creditedMints = new Set(credits.map((credit) => credit.mint))
-    const traded = received || [...legs].some(([mint, amount]) => amount < 0n && !creditedMints.has(mint))
-    if (!traded) return null
-    const abs = (value: bigint) => (value < 0n ? -value : value)
+    if (!received && ![...legs].some(([mint, amount]) => amount < 0n && !creditedMints.has(mint))) return null
     const sized = credits.every((credit) => {
       let reference = abs(legs.get(credit.mint) ?? 0n)
       if (credit.mint === SOL) reference += abs(takerLamports)
@@ -290,8 +304,7 @@ export function ryntraTrade(tx: Tx): RyntraTrade | null {
     })
     if (!sized) return null
   }
-  const onLaunchCurve = launchReferral.some((swap) => swap.program === DBC_PROGRAM)
-  return { signature: tx.signature, blockTime: tx.blockTime, taker, credits, legs, takerLamports, onLaunchCurve }
+  return { signature: tx.signature, blockTime: tx.blockTime, taker, credits, legs, takerLamports }
 }
 
 // The trade's size, one side of it, in a token DefiLlama can price: the person's stablecoin leg (what they paid,
@@ -300,7 +313,6 @@ export function ryntraTrade(tx: Tx): RyntraTrade | null {
 // accounts, so SOL wrapped and closed inside the swap counts, and the rent of an account the trade opens or closes
 // and the network fee do not.
 export function tradeSize(trade: RyntraTrade, tx: Tx): { mint: string; amount: bigint } | null {
-  const abs = (value: bigint) => (value < 0n ? -value : value)
   const legs = [...trade.legs]
   const stable = legs.find(([mint, amount]) => STABLES.has(mint) && amount < 0n) ?? legs.find(([mint]) => STABLES.has(mint))
   if (stable) return { mint: stable[0], amount: abs(stable[1]) }
@@ -315,76 +327,134 @@ export function tradeSize(trade: RyntraTrade, tx: Tx): { mint: string; amount: b
   return paid ? { mint: paid[0], amount: abs(paid[1]) } : null
 }
 
-// Every trade through Ryntra in a window. The fee accounts are read back to the first fee, and only
-// transactions inside the window are fetched.
-export const TRADING_START = Date.UTC(2026, 8, 10) / 1000 // the referral account's first fee, 2026-09-10 08:00 UTC
-export const LAUNCH_START = Date.UTC(2026, 9, 6) / 1000 // Ryntra Launch opened to people on 2026-10-06
+let referralAccounts: Promise<string[]> | null = null
 
-export async function ryntraTrades(from: number, to: number): Promise<{ trade: RyntraTrade; tx: Tx }[]> {
-  const signatures = await signaturesIn([...Object.keys(JUPITER_REFERRAL_ACCOUNTS), ...Object.keys(FEE_WALLET_ACCOUNTS)], from, to, TRADING_START)
-  if (to > LAUNCH_START) for (const signature of await signaturesIn([LAUNCH_REFERRAL_ACCOUNT], Math.max(from, LAUNCH_START), to, LAUNCH_START)) if (!signatures.includes(signature)) signatures.push(signature)
-  const found: { trade: RyntraTrade; tx: Tx }[] = []
+// The token accounts the referral account owns, read from the chain — today the two above.
+function referralTokenAccounts(): Promise<string[]> {
+  if (!referralAccounts) {
+    const read = (async () => {
+      const found = new Set(Object.keys(JUPITER_REFERRAL_ACCOUNTS))
+      for (const programId of ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']) {
+        const { value } = await solanaRpc('getTokenAccountsByOwner', [JUPITER_REFERRAL, { programId }, { encoding: 'base64', dataSlice: { offset: 0, length: 0 } }])
+        for (const account of value ?? []) found.add(account.pubkey)
+      }
+      return [...found]
+    })()
+    read.catch(() => { referralAccounts = null })
+    referralAccounts = read
+  }
+  return referralAccounts
+}
+
+// Every trade through Ryntra in a window, with whether it crossed the bonding curve of a Ryntra launch (that
+// volume is Ryntra Launch's).
+export async function ryntraTrades(from: number, to: number): Promise<{ trade: RyntraTrade; tx: Tx; onLaunchCurve: boolean }[]> {
+  const signatures = await signaturesIn([...(await referralTokenAccounts()), ...Object.keys(FEE_WALLET_ACCOUNTS)], from, to)
+  const found: { trade: RyntraTrade; tx: Tx; onLaunchCurve: boolean }[] = []
+  let curves: Set<string> | null = null
   for (const signature of signatures) {
     const tx = await readTx(signature)
     const trade = ryntraTrade(tx)
-    if (trade) found.push({ trade, tx })
+    if (!trade) continue
+    const dbc = launchSwaps(tx).filter((swap) => swap.program === DBC_PROGRAM)
+    if (dbc.length && !curves) curves = new Set((await launchPools(to)).map((launch) => launch.pool))
+    found.push({ trade, tx, onLaunchCurve: dbc.some((swap) => curves!.has(swap.pool)) })
   }
   return found
 }
 
-// --- Tokens launched through Ryntra -------------------------------------------------------------------------
+// --- Ryntra Launch: the pools, their trades and Ryntra's income ---------------------------------------------
 
-// Every pool Ryntra Launch created before `to`: a Meteora DBC pool initialised on one of Launch's configs and paid
-// for by Launch's pool payer, with the token it launched.
-export async function launchPools(to: number): Promise<{ pool: string; mint: string }[]> {
-  const pools = new Map<string, string>()
-  for (const signature of await signaturesIn([LAUNCH_POOL_PAYER], LAUNCH_START, to, LAUNCH_START)) {
-    const tx = await readTx(signature)
-    for (const flow of tx.flows) for (const ix of flow) {
-      if (ix.programId !== DBC_PROGRAM || ix.data.length < 8) continue
-      const layout = INIT_POOL_ACCOUNTS[hex(ix.data, 0, 8)]
-      if (!layout) continue
-      if (LAUNCH_CONFIGS.includes(ix.accounts[layout.config]) && ix.accounts[layout.payer] === LAUNCH_POOL_PAYER && ix.accounts[layout.quoteMint] === USDC) pools.set(ix.accounts[layout.pool], ix.accounts[layout.baseMint])
-    }
+let pools: { readAt: number; list: Promise<{ pool: string; mint: string }[]> } | null = null
+
+// Every pool Ryntra Launch has created: a Meteora DBC pool initialised on one of its configs, against USDC, paid
+// for by its pool payer — with the token it launched. The pool payer does nothing else, so this reads one
+// transaction per launch; the list is read once per run.
+export function launchPools(to: number): Promise<{ pool: string; mint: string }[]> {
+  if (!pools || (to > pools.readAt + 60 && now() > pools.readAt + 60)) {
+    const list = (async () => {
+      const found = new Map<string, string>()
+      for (const signature of await signaturesIn([LAUNCH_POOL_PAYER], LAUNCH_START, now() + 1)) {
+        const tx = await readTx(signature)
+        for (const flow of tx.flows) for (const ix of flow) {
+          if (ix.programId !== DBC_PROGRAM || ix.data.length < 8) continue
+          const layout = INIT_POOL_ACCOUNTS[hex(ix.data, 0, 8)]
+          if (layout && LAUNCH_CONFIGS.includes(ix.accounts[layout.config]) && ix.accounts[layout.payer] === LAUNCH_POOL_PAYER && ix.accounts[layout.quoteMint] === USDC)
+            found.set(ix.accounts[layout.pool], ix.accounts[layout.baseMint])
+        }
+      }
+      return [...found].map(([pool, mint]) => ({ pool, mint }))
+    })()
+    list.catch(() => { pools = null })
+    pools = { readAt: now(), list }
   }
-  return [...pools].map(([pool, mint]) => ({ pool, mint }))
+  return pools.list
 }
 
-// The swaps on the bonding curves of Ryntra's launches in a window, one per event.
+// The swaps on the bonding curves of Ryntra's launches in a window, one per event, whoever made them.
 export async function launchCurveSwaps(from: number, to: number): Promise<LaunchSwap[]> {
-  const pools = (await launchPools(to)).map((launch) => launch.pool)
+  const curves = new Set((await launchPools(to)).map((launch) => launch.pool))
   const swaps: LaunchSwap[] = []
-  for (const signature of await signaturesIn(pools, from, to, LAUNCH_START)) {
-    const tx = await readTx(signature)
-    for (const swap of launchSwaps(tx)) if (swap.program === DBC_PROGRAM && pools.includes(swap.pool) && LAUNCH_CONFIGS.includes(swap.config!)) swaps.push(swap)
+  for (const signature of await signaturesIn([...curves], from, to)) {
+    for (const swap of launchSwaps(await readTx(signature))) if (swap.program === DBC_PROGRAM && curves.has(swap.pool)) swaps.push(swap)
   }
   return swaps
 }
 
-// After a curve graduates, its liquidity moves to a Meteora DAMM v2 pool and half of it stays locked for Ryntra
-// as the partner (partner_permanent_locked_liquidity_percentage 50). The fees of that position reach Ryntra when
-// the fee claimer claims them: DAMM v2 claim_position_fee, signed through the claimer, on a pool of a launched
-// token against USDC, and the EvtClaimPositionFee it emits with the claimer as the owner.
-export async function graduatedPositionClaims(from: number, to: number): Promise<{ mint: string; amount: bigint }[]> {
-  const launched = new Set((await launchPools(to)).map((launch) => launch.mint))
-  const claims: { mint: string; amount: bigint }[] = []
-  for (const signature of await signaturesIn([LAUNCH_FEE_CLAIMER], Math.max(from, LAUNCH_START), to, LAUNCH_START)) {
+// The trades made through Ryntra of tokens launched with Ryntra: Meteora swaps that name Ryntra Launch's referral
+// account, on one of its curves or, after graduation, in a DAMM v2 pool of a launched token against USDC. A swap
+// that names the account anywhere else is not counted.
+export async function launchReferralSwaps(from: number, to: number): Promise<LaunchSwap[]> {
+  const launches = await launchPools(to)
+  const curves = new Set(launches.map((launch) => launch.pool))
+  const mints = new Set(launches.map((launch) => launch.mint))
+  const swaps: LaunchSwap[] = []
+  for (const signature of await signaturesIn([LAUNCH_REFERRAL_ACCOUNT], Math.max(from, LAUNCH_START), to)) {
+    for (const swap of launchSwaps(await readTx(signature))) {
+      if (swap.referralAccount !== LAUNCH_REFERRAL_ACCOUNT || swap.referralFee === 0n || swap.mintB !== USDC) continue
+      if (swap.program === DBC_PROGRAM ? curves.has(swap.pool) : mints.has(swap.mintA)) swaps.push(swap)
+    }
+  }
+  return swaps
+}
+
+// What Ryntra takes as the partner when a launch graduates, at the moment the fee claimer takes it: its share of
+// the migration fee (withdraw_migration_fee as the partner, flag 0) and the surplus above the graduation threshold
+// (partner_withdraw_surplus), in USDC; and after graduation the fees of the DAMM v2 liquidity locked for Ryntra
+// (claim_position_fee with the claimer as owner), in the launched token and USDC.
+export async function partnerIncome(from: number, to: number): Promise<{ kind: 'migration-fee' | 'surplus' | 'position-fees'; mint: string; amount: bigint }[]> {
+  const launches = await launchPools(to)
+  const curves = new Set(launches.map((launch) => launch.pool))
+  const mints = new Set(launches.map((launch) => launch.mint))
+  const income: { kind: 'migration-fee' | 'surplus' | 'position-fees'; mint: string; amount: bigint }[] = []
+  for (const signature of await signaturesIn([LAUNCH_FEE_CLAIMER], Math.max(from, LAUNCH_START), to)) {
     const tx = await readTx(signature)
     for (const flow of tx.flows) {
-      let mints: [string, string] | null = null
+      let caller: { head: string; mints?: [string, string] } | null = null
       for (const ix of flow) {
-        if (ix.programId !== DAMM_V2_PROGRAM || ix.data.length < 8) continue
+        if ((ix.programId !== DBC_PROGRAM && ix.programId !== DAMM_V2_PROGRAM) || ix.data.length < 8) continue
         const head = hex(ix.data, 0, 8)
-        // claim_position_fee: token_a_mint 7, token_b_mint 8 (IDL order)
-        if (head === IX.CLAIM_POSITION_FEE) { mints = launched.has(ix.accounts[7]) && ix.accounts[8] === USDC ? [ix.accounts[7], ix.accounts[8]] : null; continue }
-        if (!mints || head !== EVENT_TAG || ix.data.length < 128 || hex(ix.data, 8, 16) !== EVENT.DAMM_CLAIM_POSITION_FEE) continue
-        // EvtClaimPositionFee: pool, position, owner, fee_a_claimed, fee_b_claimed
-        if (key(ix.data, 80) === LAUNCH_FEE_CLAIMER) {
-          claims.push({ mint: mints[0], amount: u64(ix.data, 112) }, { mint: mints[1], amount: u64(ix.data, 120) })
+        if (head !== EVENT_TAG) {
+          // withdraw_migration_fee: virtual_pool 2, sender 6; partner_withdraw_surplus: virtual_pool 2, fee_claimer 6;
+          // claim_position_fee: token_a_mint 7, token_b_mint 8.
+          if (ix.programId === DBC_PROGRAM && (head === IX.WITHDRAW_MIGRATION_FEE || head === IX.PARTNER_WITHDRAW_SURPLUS))
+            caller = curves.has(ix.accounts[2]) && ix.accounts[6] === LAUNCH_FEE_CLAIMER ? { head } : null
+          else if (ix.programId === DAMM_V2_PROGRAM && head === IX.CLAIM_POSITION_FEE)
+            caller = mints.has(ix.accounts[7]) && ix.accounts[8] === USDC ? { head, mints: [ix.accounts[7], ix.accounts[8]] } : null
+          continue
         }
-        mints = null
+        if (!caller || ix.data.length < 16) continue
+        const event = hex(ix.data, 8, 16)
+        // EvtWithdrawMigrationFee: pool, fee, flag (0 = the partner). EvtPartnerWithdrawSurplus: pool, surplus_amount.
+        if (caller.head === IX.WITHDRAW_MIGRATION_FEE && event === EVENT.WITHDRAW_MIGRATION_FEE && ix.data[56] === 0) income.push({ kind: 'migration-fee', mint: USDC, amount: u64(ix.data, 48) })
+        else if (caller.head === IX.PARTNER_WITHDRAW_SURPLUS && event === EVENT.PARTNER_WITHDRAW_SURPLUS) income.push({ kind: 'surplus', mint: USDC, amount: u64(ix.data, 48) })
+        // EvtClaimPositionFee: pool, position, owner, fee_a_claimed, fee_b_claimed.
+        else if (caller.head === IX.CLAIM_POSITION_FEE && event === EVENT.DAMM_CLAIM_POSITION_FEE && key(ix.data, 80) === LAUNCH_FEE_CLAIMER)
+          income.push({ kind: 'position-fees', mint: caller.mints![0], amount: u64(ix.data, 112) }, { kind: 'position-fees', mint: caller.mints![1], amount: u64(ix.data, 120) })
+        else continue
+        caller = null
       }
     }
   }
-  return claims.filter((claim) => claim.amount > 0n)
+  return income.filter((entry) => entry.amount > 0n)
 }
