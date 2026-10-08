@@ -35,6 +35,19 @@ const HelioETHProvider = "0x0326c157bfF399e25dd684613aEF26DBb40D3BA4";
 // const MasterVault = "0x986b40C2618fF295a49AC442c5ec40febB26CC54";
 const SnBnbYieldConverterStrategy =
   "0x0000000000000000000000006f28fec449dbd2056b76ac666350af8773e03873";
+// BNB yield skim. The CDP BNB principal left SnBnbYieldConverterStrategy for this YieldAccount on
+// 2026-09-30 (the strategy keeps a small residue, still counted above), so from 2026-10-01 almost
+// all of this revenue stream stopped being seen. The skimmed slisBNB does not move through the
+// YieldAccount itself — it sits as Moolah collateral and the lending slisBNB provider sends it
+// straight to the revenue distributor — so the YieldSkimmed event is read instead of a Transfer:
+// slisAmount is exactly what the treasury receives: every YieldSkimmed since the account went live
+// (2026-10-02 .. 2026-10-08) is matched to the wei by an slisBNB transfer in the same transaction,
+// and it stays correct when the skim's recipient changes. That 1:1 is observational, not a contract
+// rule — a skim that paid out partially, or split to a second recipient, would over-report here.
+// The account is an ERC-1967 clone (implementation 0xa7274686a9e20081dedc6951b43e13051e8baa87) and
+// exposes no registry getter, so a second instance would have to be added by hand.
+// https://bscscan.com/address/0xfd4057cd72a31a080a0f6cf234a922f2f647c608
+const yieldAccount = "0xfd4057cd72a31a080a0f6cf234a922f2f647c608";
 const CeETHVault = "0xA230805C28121cc97B348f8209c79BEBEa3839C0";
 const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 
@@ -140,6 +153,13 @@ const fetch = async (options: FetchOptions) => {
   const bnbLiquidStakingProfit = await options.getLogs({
     target: slisBNB,
     topics: [transferHash, SnBnbYieldConverterStrategy, treasury],
+  });
+
+  // bnb yield skim - YieldAccount (see above)
+  const bnbYieldSkim = await options.getLogs({
+    target: yieldAccount,
+    eventAbi:
+      "event YieldSkimmed(uint256 slisAmount, uint256 bnbValue, uint256 claimableAtCall)",
   });
 
   // borrow lisUSD interest
@@ -276,6 +296,9 @@ const fetch = async (options: FetchOptions) => {
   [...bnbLiquidStakingProfit].forEach((log) => {
     dailyFees.add(slisBNB, Number(log.data), BNB_STAKING_PROFIT);
   });
+  [...bnbYieldSkim].forEach((log: any) => {
+    dailyFees.add(slisBNB, log.slisAmount, BNB_STAKING_PROFIT);
+  });
   [...borrowLisUSDInterest].forEach((log) => {
     dailyFees.add(lisUSD, Number(log.data), BORROW_INTEREST);
   });
@@ -353,7 +376,7 @@ const fetch = async (options: FetchOptions) => {
 
 const LISUSD_BREAKDOWN = {
   [ETH_STAKING_PROFIT]: 'Profit from ETH / wBETH liquid staking (HelioETHProvider, CeETHVault)',
-  [BNB_STAKING_PROFIT]: 'Profit from BNB liquid staking (SnBnbYieldConverterStrategy)',
+  [BNB_STAKING_PROFIT]: 'Profit from BNB liquid staking, skimmed from the CDP BNB principal: SnBnbYieldConverterStrategy until 2026-09-30, the YieldAccount it moved to from 2026-10-02',
   [BORROW_INTEREST]: 'Interest paid by lisUSD borrowers',
   [VELISTA_EARLY_CLAIM_FEE]: 'Penalty paid for claiming veLista rewards early',
   [LIQUIDATION_PROFIT]: 'Profit from CDP / lending liquidations',
