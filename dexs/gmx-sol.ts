@@ -1,4 +1,4 @@
-import request, { gql } from "graphql-request";
+import request, { gql, RequestOptions } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -100,7 +100,7 @@ const fetch = async (options: FetchOptions) => {
       url,
       document: tradesQuery,
       variables: { from, to, limit: PAGE, offset },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) as RequestOptions["signal"],
     });
     const page: TradeEvent[] = res.tradeEvents;
     events.push(...page);
