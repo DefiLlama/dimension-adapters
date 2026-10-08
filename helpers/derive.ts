@@ -7,12 +7,12 @@ const API = "https://api.derive.xyz/v3/public";
 export type DeriveTrade = {
   instrument_name: string; // e.g. ETH-PERP, ETH-USDC
   timestamp: number; // ms
-  liquidity_role: "maker" | "taker"; // every trade is returned twice, once per side, each row carrying that side's own fee
+  liquidity_role: "maker" | "taker"; // each trade is returned twice, one row per side with that side's fee
   trade_price: string;
   trade_amount: string;
   index_price: string;
   trade_fee: string;
-  extra_fee: string; // optional builder fee the submitting app sets per unit of volume, paid to that app
+  extra_fee: string; // builder fee set by the submitting app, paid to that app
   expected_rebate: string; // maker rebate
   batch_status: string | null;
 };
@@ -34,11 +34,14 @@ export async function getDeriveTrades(options: FetchOptions, instrumentType: "pe
     numPages = result.pagination.num_pages;
     trades.push(...result.trades);
   }
-  // half-open window, and skip batches that failed and never settled
-  return trades.filter((t) => t.timestamp >= from_timestamp && t.timestamp < to_timestamp && !t.batch_status?.endsWith("Error"));
+  const inWindow = trades.filter((t) => t.timestamp >= from_timestamp && t.timestamp < to_timestamp);
+  // batch_status: null = v2 trade (final), Settled = proven on Ethereum (final), ...Error = batch failed (trade dropped),
+  // anything else is still in flight and can still fail, so throw and let the run retry (settlement lags ~15 min)
+  const pending = inWindow.filter((t) => t.batch_status && t.batch_status !== "Settled" && !t.batch_status.endsWith("Error"));
+  if (pending.length) throw new Error(`Derive ${instrumentType}: ${pending.length} trades not settled yet (${pending[0].batch_status})`);
+  return inWindow.filter((t) => !t.batch_status?.endsWith("Error"));
 }
 
-// fee dimensions shared by the perp, option and spot fee adapters
 export async function getDeriveFees(options: FetchOptions, instrumentType: "perp" | "option" | "erc20", isTracked = (_: DeriveTrade) => true) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -80,14 +83,7 @@ export const deriveFeesMethodology = (market: string) => ({
   },
 });
 
-// what a referral/builder code earns, in USD: its share of referred traders' fees plus the builder fees it set on their orders
-// (total_referred_fees is what those traders paid Derive, already counted in the derive-v3 fee adapters)
-export async function getDeriveBuilderFees(referral_code: string, options: FetchOptions) {
-  const res = await rpc("get_referral_performance", { referral_code, start_ms: options.startTimestamp * 1000, end_ms: options.endTimestamp * 1000 });
-  return Number(res.total_fee_rewards) + Number(res.total_builder_fee_collected);
-}
-
-// current one-sided open interest in USD, from get_all_currencies (oi is in underlying units)
+// current one-sided open interest in USD (oi is in underlying units)
 export async function getDeriveOpenInterest(instrumentType: "perp" | "option") {
   const currencies = await rpc("get_all_currencies", {});
   let openInterest = 0;

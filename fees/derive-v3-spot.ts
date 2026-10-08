@@ -1,9 +1,8 @@
-// Derive v3 spot markets: trading fees, revenue, maker rebates and builder fees
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { deriveFeesMethodology, getDeriveFees } from "../helpers/derive";
 
-// all spot pairs are quoted in USDC, so price is USD
+// USDC-quoted pairs only, so price is USD
 const fetch = (options: FetchOptions) => getDeriveFees(options, "erc20", (t) => t.instrument_name.endsWith("-USDC"));
 
 const adapter: SimpleAdapter = {
@@ -11,8 +10,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: {
-    [CHAIN.LYRA]: { start: "2024-07-12", deadFrom: "2026-10-06" }, // first spot trade on Derive (no v2 spot listing), settled on Derive Chain until the v3 cutover
-    [CHAIN.DERIVE_V3]: { start: "2026-10-06" }, // v3 zkVM exchange, listed as its own chain like the v2 Derive Chain it replaces
+    [CHAIN.LYRA]: { start: "2024-07-12", deadFrom: "2026-10-06" }, // no v2 spot listing, history stays on Derive Chain
+    [CHAIN.DERIVE_V3]: { start: "2026-10-06" },
   },
   ...deriveFeesMethodology("spot"),
 };

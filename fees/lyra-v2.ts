@@ -1,7 +1,16 @@
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getEnv } from "../helpers/env";
 import { httpGet } from "../utils/fetchURL";
+
+export async function getDeriveBuilderData(builderName: string, fromTime: number, toTime: number) {
+  const response = await httpGet(`https://api.lyra.finance/public/get_referral_performance?start_ms=${fromTime * 1000}&end_ms=${toTime * 1000}&referral_code=${builderName}`)
+
+  const volume = response.result.total_notional_volume || 0;
+  const fees = response.result.total_referred_fees || 0 + response.result.total_fee_rewards || 0;
+
+  return { volume, fees }
+}
 
 type DailyFeesRow = {
   day: string;
@@ -68,7 +77,7 @@ export const getLyraAdapter = (instrument: string): any => ({
   fetch: fetch(instrument),
   chains: [CHAIN.LYRA],
   start: "2023-11-01",
-  deadFrom: "2026-10-06", // Derive moved to v3 (see fees/derive-v3.ts), v2 stats API is no longer updated
+  deadFrom: "2026-10-06", // Derive moved to v3, see fees/derive-v3.ts
   methodology,
 })
 
