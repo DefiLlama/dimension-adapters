@@ -3,6 +3,13 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const withdrawABI = "event Withdrawal(address to, bytes32 nullifierHash, address indexed relayer, uint256 fee)";
+const stakeBurnedABI = "event StakeBurned(address relayer, uint256 amountBurned)";
+
+// Tornado Cash RelayerRegistry proxy on Ethereum, emits StakeBurned on every relayed withdrawal.
+// Despite the name no TORN is burned: the amount is deducted from the relayer's stake and credited to governance stakers.
+const RELAYER_REGISTRY = "0x58E8dCC13BE9780fC42E8723D8EaD4CF46943dF2";
+// TORN token
+const TORN = "0x77777FeddddFFc19Ff86DB637967013e6c6A116C";
 
 const TORNADO_CONTRACTS = {
     [CHAIN.ETHEREUM]: {
@@ -128,43 +135,74 @@ interface TornadoPoolData {
     token: string;
 }
 
+const LABELS = {
+    RELAYER_FEES: 'Relayer Fees',
+    RELAYER_FEES_TO_RELAYERS: 'Relayer Fees To Relayers',
+    TORN_STAKE_FEES_TO_STAKERS: 'Relayer TORN Stake Fees To Stakers',
+};
+
 const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
-    const fees: { [token: string]: number } = {};
-
-    for (const [token, data] of Object.entries(TORNADO_CONTRACTS[chain]) as [string, TornadoPoolData][]) {
-        const feesPaid = await getLogs({
-            targets: data.pools,
-            eventAbi: withdrawABI,
-        });
-        fees[data.token] = feesPaid.reduce((sum, log) => sum + Number(log.fee), 0);
-    }
-
     const dailyFees = createBalances();
-    for (const [token, fee] of Object.entries(fees)) {
-        dailyFees.add(token, fee);
+    for (const data of Object.values(TORNADO_CONTRACTS[chain]) as TornadoPoolData[]) {
+        const logs = await getLogs({ targets: data.pools, eventAbi: withdrawABI });
+        logs.forEach((log: any) => dailyFees.add(data.token, log.fee, LABELS.RELAYER_FEES));
     }
+
+    // On Ethereum every relayed withdrawal deducts the governance-set pool fee from the relayer's TORN stake. The TORN stays
+    // in the staking contract (total supply is unchanged) and is credited pro rata to TORN locked in governance, claimable by
+    // stakers. The relayer recovers it through the withdrawal fee it charges, so it is the stakers' share of that fee. e.g. tx 0x8d18c4f45cb3ef22f1198a297f7beaa89a082d5add70ceaba85b513f67251246
+    const dailyHoldersRevenue = createBalances();
+    if (chain === CHAIN.ETHEREUM) {
+        const stakeFeeLogs = await getLogs({ target: RELAYER_REGISTRY, eventAbi: stakeBurnedABI });
+        stakeFeeLogs.forEach((log: any) => dailyHoldersRevenue.add(TORN, log.amountBurned, LABELS.TORN_STAKE_FEES_TO_STAKERS));
+    }
+
+    const dailySupplySideRevenue = dailyFees.clone(1, LABELS.RELAYER_FEES_TO_RELAYERS);
+    dailySupplySideRevenue.subtract(dailyHoldersRevenue, LABELS.RELAYER_FEES_TO_RELAYERS);
 
     return {
-      dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
+        dailyFees,
+        dailyRevenue: dailyHoldersRevenue.clone(),
+        dailyHoldersRevenue,
+        dailyProtocolRevenue: 0,
+        dailySupplySideRevenue,
     };
-}
+};
 
 const methodology = {
-    Fees: "All fees that are paid by users from withdrawal to relayers.",
-    SupplySideRevenue: "All fees that are paid by users from withdrawal to relayers.",
-    Revenue: "No revenue.",
-}
+    Fees: "Fees users pay to relayers when withdrawing from Tornado Cash pools through a relayer.",
+    Revenue: "TORN deducted from relayer stakes on each relayed Ethereum withdrawal, paid out of the relayer fee and distributed to TORN governance stakers. Other chains have no protocol fee.",
+    HoldersRevenue: "TORN deducted from relayer stakes on each relayed Ethereum withdrawal and distributed to TORN locked in governance (no TORN is burned).",
+    ProtocolRevenue: "No fees go to a protocol treasury.",
+    SupplySideRevenue: "Relayer fees kept by relayers after the TORN deducted from their stake.",
+};
+
+const breakdownMethodology = {
+    Fees: {
+        [LABELS.RELAYER_FEES]: "Fees users pay to relayers when withdrawing through a relayer, in the pool's token.",
+    },
+    Revenue: {
+        [LABELS.TORN_STAKE_FEES_TO_STAKERS]: "TORN deducted from the relayer's stake on each relayed Ethereum withdrawal and credited to TORN locked in governance; no TORN is burned.",
+    },
+    HoldersRevenue: {
+        [LABELS.TORN_STAKE_FEES_TO_STAKERS]: "TORN deducted from the relayer's stake on each relayed Ethereum withdrawal and credited to TORN locked in governance; no TORN is burned.",
+    },
+    SupplySideRevenue: {
+        [LABELS.RELAYER_FEES_TO_RELAYERS]: "Relayer fees minus the TORN deducted from the relayer's stake for the same withdrawals.",
+    },
+};
 
 const adapter: SimpleAdapter = {
     methodology,
+    breakdownMethodology,
     fetch: getFees,
     version: 2,
     chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
     adapter: {},
     isExpensiveAdapter: true,
     pullHourly: true,
+    // relayers set their fee themselves while the TORN taken from their stake is a governance-set rate priced off a TWAP, so in some windows the TORN is worth more than the relayer fees and the relayer share is negative
+    allowNegativeValue: true,
 };
 
 export default adapter;
