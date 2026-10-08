@@ -39,8 +39,9 @@ const getBlacklistedPools = async (): Promise<Set<string>> => {
   for (let page = 1; ; page++) {
     // sorted by creation time so pages are stable (the default volume sort reshuffles ties between pages)
     const res = await httpGet(`${DLMM_API}?page=${page}&page_size=${PAGE_SIZE}&filter_by=is_blacklisted%3Dtrue&sort_by=pool_created_at%3Aasc`);
-    for (const pool of res.data ?? []) pools.add(pool.address);
-    if (page >= res.pages) break;
+    if (!Array.isArray(res.data) || !Number.isFinite(res.pages)) throw new Error('meteora-dlmm: unexpected DLMM API response');
+    for (const pool of res.data) pools.add(pool.address);
+    if (!res.data.length || page >= res.pages) break;
     await sleep(100);
   }
   return pools;
