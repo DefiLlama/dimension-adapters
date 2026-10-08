@@ -7,12 +7,12 @@ const API = "https://api.derive.xyz/v3/public";
 export type DeriveTrade = {
   instrument_name: string; // e.g. ETH-PERP, ETH-USDC
   timestamp: number; // ms
-  liquidity_role: "maker" | "taker"; // every trade is returned twice, once per side
+  liquidity_role: "maker" | "taker"; // every trade is returned twice, once per side, each row carrying that side's own fee
   trade_price: string;
   trade_amount: string;
   index_price: string;
   trade_fee: string;
-  extra_fee: string;
+  extra_fee: string; // optional builder fee the submitting app sets per unit of volume, paid to that app
   expected_rebate: string; // maker rebate
   batch_status: string | null;
 };
@@ -38,10 +38,53 @@ export async function getDeriveTrades(options: FetchOptions, instrumentType: "pe
   return trades.filter((t) => t.timestamp >= from_timestamp && t.timestamp < to_timestamp && !t.batch_status?.endsWith("Error"));
 }
 
-// referral/builder code performance, in USD
+// fee dimensions shared by the perp, option and spot fee adapters
+export async function getDeriveFees(options: FetchOptions, instrumentType: "perp" | "option" | "erc20", isTracked = (_: DeriveTrade) => true) {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  for (const trade of await getDeriveTrades(options, instrumentType)) {
+    if (!isTracked(trade)) continue;
+    const fee = Number(trade.trade_fee);
+    const builderFee = Number(trade.extra_fee);
+    const rebate = Number(trade.expected_rebate);
+    dailyFees.addUSDValue(fee, "Trading Fees");
+    dailyFees.addUSDValue(builderFee, "Builder Fees");
+    dailySupplySideRevenue.addUSDValue(rebate, "Maker Rebates");
+    dailySupplySideRevenue.addUSDValue(builderFee, "Builder Fees To Builders");
+    dailyRevenue.addUSDValue(fee - rebate, "Trading Fees Net Of Rebates");
+  }
+
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+}
+
+export const deriveFeesMethodology = (market: string) => ({
+  methodology: {
+    Fees: `Trading fees paid by users on Derive ${market} markets, plus builder fees that third-party apps set on the orders they submit.`,
+    UserFees: `Trading fees and builder fees paid by users on Derive ${market} markets.`,
+    Revenue: `Trading fees paid by users on Derive ${market} markets, minus rebates paid to market makers. Builder fees are excluded, they go to the apps that set them.`,
+    ProtocolRevenue: `Trading fees paid by users on Derive ${market} markets, minus rebates paid to market makers, kept by the protocol.`,
+    SupplySideRevenue: `Rebates paid to market makers on Derive ${market} markets, plus builder fees passed on to third-party apps.`,
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Trading Fees": `Trading fees charged on Derive ${market} trades.`,
+      "Builder Fees": `Extra fees that third-party apps set on the ${market} orders they submit for their users.`,
+    },
+    Revenue: { "Trading Fees Net Of Rebates": "Trading fees remaining after maker rebates." },
+    SupplySideRevenue: {
+      "Maker Rebates": "Rebates paid to market makers for providing liquidity.",
+      "Builder Fees To Builders": "Builder fees passed on to the third-party apps that set them.",
+    },
+  },
+});
+
+// what a referral/builder code earns, in USD: its share of referred traders' fees plus the builder fees it set on their orders
+// (total_referred_fees is what those traders paid Derive, already counted in the derive-v3 fee adapters)
 export async function getDeriveBuilderFees(referral_code: string, options: FetchOptions) {
-  const res = await rpc("get_referral_performance", { referral_code, start_ms: options.fromTimestamp * 1000, end_ms: options.toTimestamp * 1000 });
-  return Number(res.total_referred_fees) + Number(res.total_fee_rewards);
+  const res = await rpc("get_referral_performance", { referral_code, start_ms: options.startTimestamp * 1000, end_ms: options.endTimestamp * 1000 });
+  return Number(res.total_fee_rewards) + Number(res.total_builder_fee_collected);
 }
 
 // current one-sided open interest in USD, from get_all_currencies (oi is in underlying units)

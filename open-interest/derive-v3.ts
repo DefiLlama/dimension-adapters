@@ -7,7 +7,7 @@ const fetch = async () => ({ openInterestAtEnd: await getDeriveOpenInterest("per
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.LYRA],
+  chains: [CHAIN.ETHEREUM], // v3 custody and settlement proofs live on Ethereum mainnet, Derive Chain is being wound down
   runAtCurrTime: true, // Derive only serves current open interest
 };
 

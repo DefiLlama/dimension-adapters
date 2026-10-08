@@ -19,8 +19,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.LYRA],
-  start: "2026-10-06",
+  chains: [CHAIN.ETHEREUM], // v3 custody and settlement proofs live on Ethereum mainnet, Derive Chain is being wound down
+  start: "2026-10-06", // v3 cutover, the v2 listing (lyra-v2) is dead from this date
   methodology: {
     NotionalVolume: "Underlying notional (amount times index price) of options traded on Derive, counted once per trade.",
     PremiumVolume: "Premium paid by option buyers on Derive, counted once per trade.",
