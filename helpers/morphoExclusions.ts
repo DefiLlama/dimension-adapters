@@ -1,9 +1,11 @@
+import * as sdk from "@defillama/sdk";
 import { getConfig } from "./cache";
 import { httpGet } from "../utils/fetchURL";
 
 // Morpho's own exclusion feed. Additive: unioned with the hardcoded lists and the insolvent-markets
 // cache, never a replacement - the feed is currently a subset of what we already exclude.
 const BASE_URL = "https://api.morpho.org/reporting/v1/exclusions";
+const KINDS = ["markets", "assets", "vaults"];
 
 interface ExclusionRow {
   chain: string;
@@ -27,15 +29,24 @@ function parseCsv(text: string): Array<ExclusionRow> {
   });
 }
 
-async function getExclusions(): Promise<Record<string, Array<ExclusionRow>>> {
-  return getConfig("morpho-blue/exclusions", undefined, {
+// a header-only file is a valid empty list; a missing key means we never got that file
+const isValidBundle = (bundle: any) => !!bundle && KINDS.every((k) => Array.isArray(bundle[k]));
+
+async function getExclusions(): Promise<Record<string, Array<ExclusionRow>> | null> {
+  const bundle = await getConfig("morpho-blue/exclusions", undefined, {
     fetcher: async () => {
-      const [markets, assets, vaults] = await Promise.all(
-        ["markets", "assets", "vaults"].map((f) => httpGet(`${BASE_URL}/${f}.csv`))
-      );
-      return { markets: parseCsv(markets), assets: parseCsv(assets), vaults: parseCsv(vaults) };
+      const files = await Promise.all(KINDS.map((f) => httpGet(`${BASE_URL}/${f}.csv`)));
+      const fetched = Object.fromEntries(KINDS.map((k, i) => [k, parseCsv(files[i])]));
+      // a partial fetch must not overwrite the cache - getConfig falls back to the last good copy
+      if (!isValidBundle(fetched)) throw new Error("morpho exclusions: incomplete feed");
+      return fetched;
     },
   });
+  if (!isValidBundle(bundle)) {
+    sdk.log("morpho exclusions: no valid feed and no cache, running without feed exclusions");
+    return null;
+  }
+  return bundle;
 }
 
 // effective_from is inclusive, effective_to exclusive and empty while the exclusion is still active
