@@ -5,6 +5,7 @@ import { httpPost } from "../utils/fetchURL";
 const API = "https://api.derive.xyz/v3/public";
 
 export type DeriveTrade = {
+  instrument_name: string; // e.g. ETH-PERP, ETH-USDC
   timestamp: number; // ms
   liquidity_role: "maker" | "taker"; // every trade is returned twice, once per side
   trade_price: string;
@@ -23,7 +24,7 @@ async function rpc(method: string, params: object) {
 }
 
 // https://docs.derive.xyz/api-reference/market-data/publicget_trade_history.md (pages start at 1, max page_size 1000)
-export async function getDeriveTrades(options: FetchOptions, instrumentType: "perp" | "option"): Promise<DeriveTrade[]> {
+export async function getDeriveTrades(options: FetchOptions, instrumentType: "perp" | "option" | "erc20"): Promise<DeriveTrade[]> {
   const from_timestamp = options.startTimestamp * 1000;
   const to_timestamp = options.endTimestamp * 1000;
   const trades: DeriveTrade[] = [];

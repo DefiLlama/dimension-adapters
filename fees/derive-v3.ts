@@ -1,3 +1,4 @@
+// Derive v3 perpetual markets: trading fees, revenue and maker rebates
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDeriveTrades } from "../helpers/derive";
