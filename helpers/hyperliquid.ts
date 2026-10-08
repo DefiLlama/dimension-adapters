@@ -231,6 +231,13 @@ export const CoinGeckoMaps: Record<string, string> = {
   UDZ: "doublezero",
   USPYX: "sp500-xstock",
   UMOG: "mog-coin",
+  UMON: "monad",
+  UMEGA: "megaeth",
+  UZEC: "unit-zcash",
+  UVIRT: "virtual-protocol",
+  UAVAX: "unit-avalanche",
+  UANSEM: "the-black-bull",
+  AURA: "aura-on-sol", // Unit AURA, bridged from Solana
   USDH: "usdh-2",
   USDA: "angle-usd",
 };
