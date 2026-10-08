@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { fetchDreamDailyStats } from '../helpers/dream';
+import { fetchDreamDailyStats } from '../fees/dreaming';
 
 // Dream trades OTC with STS Digital, Solana only carries the USDC settlement, so off_chain like fees/kyan.ts
 const fetch = async (options: FetchOptions) => {

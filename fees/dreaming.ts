@@ -1,7 +1,11 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { getDeriveBuilderData } from '../fees/lyra-v2';
 import { CHAIN } from '../helpers/chains';
-import { fetchDreamDailyStats } from '../helpers/dream';
+import fetchURL from '../utils/fetchURL';
+
+// Dream's public daily stats, one finished UTC day per call, shared with options/dreaming.ts
+export const fetchDreamDailyStats = (options: FetchOptions) =>
+  fetchURL(`https://api.dos.app/public/defillama/daily?date=${options.dateString}`);
 
 const DERIVE_REFERRAL_FEES = 'Derive Builder Referral Fees';
 const OPTION_TRADING_FEES = 'Option Trading Fees';
