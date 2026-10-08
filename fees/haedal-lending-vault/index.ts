@@ -11,10 +11,6 @@ const readUsd = (value: unknown): number | null => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const dayEnd = options.startOfDay + 86400;
-  if (options.endTimestamp < dayEnd || dayEnd > Math.floor(Date.now() / 1000))
-    throw new Error(`haedal-lending-vault: fees_revenue only serves a completed UTC day, got ${options.dateString}`);
-
   const url = `${FEES_REVENUE_URL}?${new URLSearchParams({ date: options.dateString })}`;
   const response = await fetchURL(url);
   if (response?.success !== true || response?.code !== 200)
