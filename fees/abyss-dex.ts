@@ -112,7 +112,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1, // The generated-fee API provides daily aggregates, not hourly fee data.
   chains: [CHAIN.ROBINHOOD],
-  start: "2026-09-19", // Preserve the original history boundary; incomplete API days throw.
+  start: "2026-08-31", // Earliest available API bucket; trading fees precede the first distribution.
   allowNegativeValue: true, // Buyback funding can spend revenue accrued on earlier days.
   fetch,
   methodology: {
