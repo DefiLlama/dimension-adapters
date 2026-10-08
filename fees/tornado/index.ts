@@ -3,6 +3,12 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const withdrawABI = "event Withdrawal(address to, bytes32 nullifierHash, address indexed relayer, uint256 fee)";
+const stakeBurnedABI = "event StakeBurned(address relayer, uint256 amountBurned)";
+
+// RelayerRegistry proxy on Ethereum
+const RELAYER_REGISTRY = "0x58E8dCC13BE9780fC42E8723D8EaD4CF46943dF2";
+// TORN token
+const TORN = "0x77777FeddddFFc19Ff86DB637967013e6c6A116C";
 
 const TORNADO_CONTRACTS = {
     [CHAIN.ETHEREUM]: {
@@ -129,39 +135,73 @@ interface TornadoPoolData {
 }
 
 const getFees = async ({ getLogs, chain, createBalances }: FetchOptions) => {
-    const fees: { [token: string]: number } = {};
+    const dailyFees = createBalances();
+    const dailyRevenue = createBalances();
+    const dailySupplySideRevenue = createBalances();
 
-    for (const [token, data] of Object.entries(TORNADO_CONTRACTS[chain]) as [string, TornadoPoolData][]) {
-        const feesPaid = await getLogs({
-            targets: data.pools,
-            eventAbi: withdrawABI,
-        });
-        fees[data.token] = feesPaid.reduce((sum, log) => sum + Number(log.fee), 0);
+    const contracts = TORNADO_CONTRACTS[chain];
+    if (!contracts) {
+        return { dailyFees, dailyRevenue, dailySupplySideRevenue };
     }
 
-    const dailyFees = createBalances();
-    for (const [token, fee] of Object.entries(fees)) {
-        dailyFees.add(token, fee);
+    // 1. Collect all withdrawal fees paid to relayers
+    for (const [, data] of Object.entries(contracts) as [string, TornadoPoolData][]) {
+        for (const pool of data.pools) {
+            const logs = await getLogs({
+                target: pool,
+                eventAbi: withdrawABI,
+            });
+
+            for (const log of logs) {
+                const fee = log.fee.toString();
+                dailyFees.add(data.token, fee);
+                // By default everything goes to relayers (Supply Side)
+                dailySupplySideRevenue.add(data.token, fee);
+            }
+        }
+    }
+
+    // 2. On Ethereum only: read real protocol revenue from StakeBurned events (in TORN)
+    //On Ethereum the protocol share is paid separately in TORN (not deducted from the ETH/token fee)
+    if (chain === CHAIN.ETHEREUM) {
+        const burnLogs = await getLogs({
+            target: RELAYER_REGISTRY,
+            eventAbi: stakeBurnedABI,
+        });
+
+        for (const log of burnLogs) {
+            const amountBurned = Number(log.amountBurned);
+            // This is the true protocol revenue distributed to TORN stakers
+            dailyRevenue.add(TORN, amountBurned);
+        }
     }
 
     return {
-      dailyFees,
-      dailySupplySideRevenue: dailyFees,
-      dailyRevenue: 0,
+        dailyFees,
+        dailyRevenue,
+        dailySupplySideRevenue,
     };
-}
+};
 
 const methodology = {
-    Fees: "All fees that are paid by users from withdrawal to relayers.",
-    SupplySideRevenue: "All fees that are paid by users from withdrawal to relayers.",
-    Revenue: "No revenue.",
-}
+    Fees: "All fees paid by users to relayers on withdrawal (from Withdrawal events).",
+    Revenue: "Protocol revenue on Ethereum only. Collected by burning TORN from registered relayers' stakes (StakeBurned events on RelayerRegistry). This TORN is distributed to governance stakers. Small pools (0.1 ETH, 100 DAI, 100/1k USDC, 100/1k USDT) and all non-Ethereum chains have no protocol fee.",
+    SupplySideRevenue: "Fees paid to relayers. On Ethereum the protocol share is paid separately in TORN (not deducted from the ETH/token fee).",
+};
 
 const adapter: SimpleAdapter = {
     methodology,
     fetch: getFees,
     version: 2,
-    chains: [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.XDAI],
+    chains: [
+        CHAIN.ETHEREUM,
+        CHAIN.BSC,
+        CHAIN.AVAX,
+        CHAIN.OPTIMISM,
+        CHAIN.ARBITRUM,
+        CHAIN.POLYGON,
+        CHAIN.XDAI,
+    ],
     adapter: {},
     isExpensiveAdapter: true,
     pullHourly: true,
