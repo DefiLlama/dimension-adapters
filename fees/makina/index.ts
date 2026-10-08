@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Machines are discovered from MachineCreated events on each hub chain's HubCoreFactory, so new machines are
 // covered without adapter changes. The other hub's factory, deployed at the same address, deploys the spoke
@@ -22,7 +23,7 @@ const HUBS: Record<string, { factory: string; fromBlock: number; spokeFactory: {
 
 // Makina treasury, receiving the protocol share of every machine's fees on all chains.
 const TREASURY = "0x68825baff4caedf6facc658269cf1a0491f1ba9f";
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const ABI = {
   MachineCreated: "event MachineCreated(address indexed machine, address indexed shareToken)",
