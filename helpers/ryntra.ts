@@ -5,7 +5,7 @@
 // https://ryntra.io/api/stats/registry serves as JSON. Each address has one job and is used for nothing else.
 // Nothing here reads Ryntra's own records: every figure comes from the transactions themselves.
 import ADDRESSES from './coreAssets.json'
-import { base58Decode, base58Encode, getSignaturesForAddress, getTransaction, solanaRpc } from './solana'
+import { base58Decode, base58Encode, findProgramAddress, getSignaturesForAddress, getTransaction } from './solana'
 
 export const SOL = ADDRESSES.solana.SOL
 export const USDC = ADDRESSES.solana.USDC
@@ -18,8 +18,9 @@ export const LAUNCH_START = Date.UTC(2026, 9, 6) / 1000 // the day Ryntra Launch
 // --- Ryntra: trading fees -----------------------------------------------------------------------------------
 
 // Ryntra's Jupiter referral account (registry id `solana-jupiter-referral`). Swaps through Ryntra's Jupiter
-// integration pay the fee into token accounts it owns, since 2026-09-10; the two below are the ones it owns today,
-// and any other it opens is found on chain. Jupiter takes 20% of an integrator's referral fee when it is claimed
+// integration pay the fee into the referral program's token accounts it owns, since 2026-09-10 — the two below, each
+// published in the registry. Only these two count: anyone can open another token account owned by a public address.
+// Jupiter takes 20% of an integrator's referral fee when it is claimed
 // (https://developers.jup.ag/docs/swap/order-and-execute#how-it-works).
 export const JUPITER_REFERRAL = 'F9pV233uBksW4U1BKiK7u9qShgXkwoR6F8MzU4FZYPUv'
 export const JUPITER_REFERRAL_ACCOUNTS: Record<string, string> = {
@@ -59,6 +60,10 @@ export const LAUNCH_POOL_PAYER = 'H2Bzv5pcrEGug1STGbZhvX98DGb3SCFa4pnAtUwktyyV'
 // swap's event states, never by the account's credits: the claimer's own withdrawals land in the same account.
 export const LAUNCH_FEE_CLAIMER = '22BZNVD9FuZPQvGwALBwhopSyxUCTuNNeTW1Lr1KsSvA'
 export const LAUNCH_REFERRAL_ACCOUNT = '4kVogGhWqheXKjteM2urywUS5L8q7AnSNJCYDna4VrDy'
+// The DAMM v2 config a graduating curve migrates into: Meteora's for a customizable migration fee
+// (migration_fee_option 6, both configs; DAMM_V2_MIGRATION_FEE_ADDRESS[6] in @meteora-ag/dynamic-bonding-curve-sdk).
+// The graduated pool is its PDA ["pool", config, larger mint, smaller mint] under DAMM v2.
+const DAMM_V2_MIGRATION_CONFIG = 'A8gMrEPJkacWkcb3DGwtJwTe16HktSEfvwtuDh2MCtck'
 
 // Anchor discriminators from the programs' IDLs (@meteora-ag/dynamic-bonding-curve-sdk, @meteora-ag/cp-amm-sdk).
 const IX = {
@@ -94,7 +99,7 @@ const SWAP_ACCOUNTS: Record<string, { pool: number; mintA: number; mintB: number
 // --- Reading the chain --------------------------------------------------------------------------------------
 
 type Signature = { signature: string; blockTime: number }
-type History = { readAt: number; list: Signature[]; before?: string; complete: boolean; queue: Promise<void> }
+type History = { readAt: number; list: Signature[]; oldest: number; before?: string; complete: boolean; queue: Promise<void> }
 
 const histories = new Map<string, History>()
 const now = () => Math.floor(Date.now() / 1000)
@@ -105,19 +110,22 @@ const now = () => Math.floor(Date.now() / 1000)
 async function walk(address: string, from: number, to: number): Promise<Signature[]> {
   let history = histories.get(address)
   if (!history || (to > history.readAt + 60 && now() > history.readAt + 60)) {
-    history = { readAt: now(), list: [], complete: false, queue: Promise.resolve() }
+    history = { readAt: now(), list: [], oldest: Infinity, complete: false, queue: Promise.resolve() }
     histories.set(address, history)
   }
   const h = history
   h.queue = h.queue.then(async () => {
-    while (!h.complete && (h.list.length === 0 || h.list[h.list.length - 1].blockTime >= from)) {
+    // The walk stops at the window's start by the oldest signature read, failed ones included.
+    while (!h.complete && h.oldest >= from) {
       const page = await getSignaturesForAddress({ address, limit: 1000, before: h.before })
       if (!page?.length) { h.complete = true; break }
       for (const entry of page) {
+        if (typeof entry.blockTime === 'number') h.oldest = Math.min(h.oldest, entry.blockTime)
         if (entry.err) continue
         // A signature the node has not timestamped yet: its transaction says when it landed.
         const blockTime = typeof entry.blockTime === 'number' ? entry.blockTime : (await readTx(entry.signature)).blockTime
         h.list.push({ signature: entry.signature, blockTime })
+        h.oldest = Math.min(h.oldest, blockTime)
       }
       h.before = page[page.length - 1].signature
       if (page.length < 1000) h.complete = true
@@ -263,15 +271,15 @@ export type RyntraTrade = {
 
 const RENT_CEILING = 3_000_000n // the rent a closed token account returns, at most
 
-// Ryntra's attribution rule, version 1.2.0 — the rule https://ryntra.io/stats counts by, line for line: a
-// transaction is a trade through Ryntra when it credited a token account of Ryntra's Jupiter referral account or
-// one of the fee wallet's three, and the signer traded. A plain transfer into them is a deposit. Through the fee
-// wallet alone the signer must have received something or paid in another mint, and the fee must be at least one
-// basis point of the signer's own movement in that asset, so dust sent beside someone else's swap does not make
-// it Ryntra's.
+// Ryntra's attribution rule, version 1.2.0 — the rule https://ryntra.io/stats counts by: a transaction is a trade
+// through Ryntra when it credited one of the referral account's two token accounts or one of the fee wallet's three,
+// and the signer traded. A plain transfer into them is a deposit. Through the fee wallet alone the signer must have
+// received something or paid in another mint. One check is stricter than the page's, on every credit: the fee must
+// be at least one basis point of the signer's own movement in that asset (Jupiter's referral fee is 50 bps or more,
+// Ryntra's own from 10 bps), so dust sent beside someone else's swap never makes it Ryntra's.
 export function ryntraTrade(tx: Tx): RyntraTrade | null {
   const credits: RyntraTrade['credits'] = []
-  for (const [mint, amount] of deltas(tx, (entry) => entry.owner === JUPITER_REFERRAL)) if (amount > 0n) credits.push({ identity: 'jupiter-referral', mint, amount })
+  for (const [mint, amount] of deltas(tx, (entry) => entry.account in JUPITER_REFERRAL_ACCOUNTS && JUPITER_REFERRAL_ACCOUNTS[entry.account] === entry.mint)) if (amount > 0n) credits.push({ identity: 'jupiter-referral', mint, amount })
   for (const [mint, amount] of deltas(tx, (entry) => entry.account in FEE_WALLET_ACCOUNTS && FEE_WALLET_ACCOUNTS[entry.account] === entry.mint)) if (amount > 0n) credits.push({ identity: 'fee-wallet', mint, amount })
   if (!credits.length) return null
 
@@ -297,13 +305,13 @@ export function ryntraTrade(tx: Tx): RyntraTrade | null {
     const received = [...legs.values()].some((amount) => amount > 0n) || takerLamports > BigInt(closed) * RENT_CEILING
     const creditedMints = new Set(credits.map((credit) => credit.mint))
     if (!received && ![...legs].some(([mint, amount]) => amount < 0n && !creditedMints.has(mint))) return null
-    const sized = credits.every((credit) => {
-      let reference = abs(legs.get(credit.mint) ?? 0n)
-      if (credit.mint === SOL) reference += abs(takerLamports)
-      return reference > 0n && credit.amount * 10_000n >= reference
-    })
-    if (!sized) return null
   }
+  const sized = credits.every((credit) => {
+    let reference = abs(legs.get(credit.mint) ?? 0n)
+    if (credit.mint === SOL) reference += abs(takerLamports)
+    return reference > 0n && credit.amount * 10_000n >= reference
+  })
+  if (!sized) return null
   return { signature: tx.signature, blockTime: tx.blockTime, taker, credits, legs, takerLamports }
 }
 
@@ -327,38 +335,18 @@ export function tradeSize(trade: RyntraTrade, tx: Tx): { mint: string; amount: b
   return paid ? { mint: paid[0], amount: abs(paid[1]) } : null
 }
 
-let referralAccounts: Promise<string[]> | null = null
-
-// The token accounts the referral account owns, read from the chain — today the two above.
-function referralTokenAccounts(): Promise<string[]> {
-  if (!referralAccounts) {
-    const read = (async () => {
-      const found = new Set(Object.keys(JUPITER_REFERRAL_ACCOUNTS))
-      for (const programId of ['TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']) {
-        const { value } = await solanaRpc('getTokenAccountsByOwner', [JUPITER_REFERRAL, { programId }, { encoding: 'base64', dataSlice: { offset: 0, length: 0 } }])
-        for (const account of value ?? []) found.add(account.pubkey)
-      }
-      return [...found]
-    })()
-    read.catch(() => { referralAccounts = null })
-    referralAccounts = read
-  }
-  return referralAccounts
-}
-
-// Every trade through Ryntra in a window, with whether it crossed the bonding curve of a Ryntra launch (that
-// volume is Ryntra Launch's).
-export async function ryntraTrades(from: number, to: number): Promise<{ trade: RyntraTrade; tx: Tx; onLaunchCurve: boolean }[]> {
-  const signatures = await signaturesIn([...(await referralTokenAccounts()), ...Object.keys(FEE_WALLET_ACCOUNTS)], from, to)
-  const found: { trade: RyntraTrade; tx: Tx; onLaunchCurve: boolean }[] = []
-  let curves: Set<string> | null = null
+// Every trade through Ryntra in a window, with whether its volume is Ryntra Launch's: it crossed the bonding curve
+// of a Ryntra launch, or it is a trade through Ryntra in the pool a Ryntra launch graduated into.
+export async function ryntraTrades(from: number, to: number): Promise<{ trade: RyntraTrade; tx: Tx; launchVolume: boolean }[]> {
+  const signatures = await signaturesIn([...Object.keys(JUPITER_REFERRAL_ACCOUNTS), ...Object.keys(FEE_WALLET_ACCOUNTS)], from, to)
+  const found: { trade: RyntraTrade; tx: Tx; launchVolume: boolean }[] = []
   for (const signature of signatures) {
     const tx = await readTx(signature)
     const trade = ryntraTrade(tx)
     if (!trade) continue
-    const dbc = launchSwaps(tx).filter((swap) => swap.program === DBC_PROGRAM)
-    if (dbc.length && !curves) curves = new Set((await launchPools(to)).map((launch) => launch.pool))
-    found.push({ trade, tx, onLaunchCurve: dbc.some((swap) => curves!.has(swap.pool)) })
+    const swaps = launchSwaps(tx)
+    const launch = swaps.length ? await launchMarkets(to) : null
+    found.push({ trade, tx, launchVolume: swaps.some((swap) => (swap.program === DBC_PROGRAM ? launch!.curves.has(swap.pool) : swap.referralAccount === LAUNCH_REFERRAL_ACCOUNT && launch!.graduated.has(swap.pool))) })
   }
   return found
 }
@@ -391,6 +379,18 @@ export function launchPools(to: number): Promise<{ pool: string; mint: string }[
   return pools.list
 }
 
+// The graduated pool of a launched token: the DAMM v2 pool the curve migrates into, whoever else opens a pool of it.
+export function graduatedPool(mint: string): string {
+  const [first, second] = [base58Decode(mint), base58Decode(USDC)].sort((a, b) => Buffer.compare(Buffer.from(b), Buffer.from(a)))
+  return findProgramAddress([Buffer.from('pool'), Buffer.from(base58Decode(DAMM_V2_MIGRATION_CONFIG)), Buffer.from(first), Buffer.from(second)], DAMM_V2_PROGRAM)[0]
+}
+
+// Ryntra Launch's markets: its curves and the pools they graduate into.
+export async function launchMarkets(to: number): Promise<{ curves: Set<string>; graduated: Set<string> }> {
+  const launches = await launchPools(to)
+  return { curves: new Set(launches.map((launch) => launch.pool)), graduated: new Set(launches.map((launch) => graduatedPool(launch.mint))) }
+}
+
 // The swaps on the bonding curves of Ryntra's launches in a window, one per event, whoever made them.
 export async function launchCurveSwaps(from: number, to: number): Promise<LaunchSwap[]> {
   const curves = new Set((await launchPools(to)).map((launch) => launch.pool))
@@ -402,17 +402,15 @@ export async function launchCurveSwaps(from: number, to: number): Promise<Launch
 }
 
 // The trades made through Ryntra of tokens launched with Ryntra: Meteora swaps that name Ryntra Launch's referral
-// account, on one of its curves or, after graduation, in a DAMM v2 pool of a launched token against USDC. A swap
-// that names the account anywhere else is not counted.
+// account, on one of its curves or, after graduation, in the pool the curve migrated into. Anyone can name a
+// referral account, so a swap that names it anywhere else is not counted.
 export async function launchReferralSwaps(from: number, to: number): Promise<LaunchSwap[]> {
-  const launches = await launchPools(to)
-  const curves = new Set(launches.map((launch) => launch.pool))
-  const mints = new Set(launches.map((launch) => launch.mint))
+  const { curves, graduated } = await launchMarkets(to)
   const swaps: LaunchSwap[] = []
   for (const signature of await signaturesIn([LAUNCH_REFERRAL_ACCOUNT], Math.max(from, LAUNCH_START), to)) {
     for (const swap of launchSwaps(await readTx(signature))) {
       if (swap.referralAccount !== LAUNCH_REFERRAL_ACCOUNT || swap.referralFee === 0n || swap.mintB !== USDC) continue
-      if (swap.program === DBC_PROGRAM ? curves.has(swap.pool) : mints.has(swap.mintA)) swaps.push(swap)
+      if ((swap.program === DBC_PROGRAM ? curves : graduated).has(swap.pool)) swaps.push(swap)
     }
   }
   return swaps
@@ -436,11 +434,11 @@ export async function partnerIncome(from: number, to: number): Promise<{ kind: '
         const head = hex(ix.data, 0, 8)
         if (head !== EVENT_TAG) {
           // withdraw_migration_fee: virtual_pool 2, sender 6; partner_withdraw_surplus: virtual_pool 2, fee_claimer 6;
-          // claim_position_fee: token_a_mint 7, token_b_mint 8.
+          // claim_position_fee: pool 1, token_a_mint 7, token_b_mint 8.
           if (ix.programId === DBC_PROGRAM && (head === IX.WITHDRAW_MIGRATION_FEE || head === IX.PARTNER_WITHDRAW_SURPLUS))
             caller = curves.has(ix.accounts[2]) && ix.accounts[6] === LAUNCH_FEE_CLAIMER ? { head } : null
           else if (ix.programId === DAMM_V2_PROGRAM && head === IX.CLAIM_POSITION_FEE)
-            caller = mints.has(ix.accounts[7]) && ix.accounts[8] === USDC ? { head, mints: [ix.accounts[7], ix.accounts[8]] } : null
+            caller = mints.has(ix.accounts[7]) && ix.accounts[8] === USDC && ix.accounts[1] === graduatedPool(ix.accounts[7]) ? { head, mints: [ix.accounts[7], ix.accounts[8]] } : null
           continue
         }
         if (!caller || ix.data.length < 16) continue
