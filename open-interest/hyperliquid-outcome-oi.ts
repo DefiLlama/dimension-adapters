@@ -5,6 +5,7 @@ import { queryHyperliquidOutcomeOpenInterestV2 } from "../helpers/hyperliquid-v2
 // HIP-4 outcome markets: every outstanding Yes/No pair is backed by $1 of USDC collateral and is one contract,
 // so open interest is the number of outstanding pairs in USD, counted once.
 const fetch = async (options: FetchOptions) => {
+  throw Error('temporary disable to correct data source');
   const openInterestAtEnd = options.createBalances();
   openInterestAtEnd.addUSDValue(await queryHyperliquidOutcomeOpenInterestV2(options));
   return { openInterestAtEnd };
