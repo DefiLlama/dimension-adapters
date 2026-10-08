@@ -12,10 +12,17 @@ const DLMM_PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo';
 // Referral Staking (https://meteora.ag/referral, since 2026-07-21): 10% of DLMM protocol fees to MET stakers plus
 // referrer (8%) / referred-LP (2%) rewards, paid in USDC via one merkle distributor per monthly cycle
 // (Cycle 1 $262k funded 2026-09-10, Cycle 2 $703k funded 2026-09-23 from 5o9QjCUzXf7HkoiSe4DGaS1m5KBo3x6cmMEHRceFh96q).
-// Counted when claimed, since the funding wallet/ATA changes per cycle. All claims are holders revenue: referral
-// rewards only go to wallets that stake MET themselves (200 MET minimum), and the split is not on-chain anyway.
-// Only Referral Staking pays USDC through this distributor today (airdrops and LP Stimulus are paid in MET).
+// Counted when claimed. All claims are holders revenue: referral rewards only go to wallets that stake MET
+// themselves (200 MET minimum), and the split is not on-chain anyway.
+// The distributor program is a shared deployment (same upgrade authority as Jupiter's), so claims are scoped to
+// the cycle distributor accounts funded by the wallet above; a new cycle adds one entry here.
 const MERKLE_DISTRIBUTOR_PROGRAM = 'DiSLRwcSFvtwvMWSs7ubBMvYRaYNYupa76ZSuYLe6D7j';
+const REFERRAL_STAKING_DISTRIBUTORS = [
+  'F8V2kory4zDQ7a1eRp4PEiuXeqC94hbHqcekHDwpdYrz', // cycle 1 (2026-07-21 to 2026-08-21), funded 2026-09-10
+  'ETZXpSBB22C3vTt923c31rNYweVd3LAnkjEmgQwZQAw5', // cycle 2 (2026-08-21 to 2026-09-21), funded 2026-09-23
+];
+// USDC paid out by an unlisted distributor above this is either a new cycle (add it) or another project's drop
+const UNLISTED_DISTRIBUTOR_ALERT_USDC = 1_000;
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const REFERRAL_STAKING_CLAIMS_START = '2026-09-10'; // first cycle became claimable
 const REFERRAL_STAKING_REWARDS = 'Referral Staking Rewards';
@@ -134,7 +141,7 @@ GROUP BY fee_mint
 `;
 
 const getReferralStakingClaimsQuery = (options: FetchOptions) => `
-SELECT CAST(coalesce(sum(amount), 0) AS VARCHAR) AS usdc_raw
+SELECT from_owner AS distributor, CAST(sum(amount) AS VARCHAR) AS usdc_raw
 FROM tokens_solana.transfers
 WHERE block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
   AND block_date <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
@@ -142,6 +149,7 @@ WHERE block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
   AND block_time < from_unixtime(${options.endTimestamp})
   AND token_mint_address = '${USDC_MINT}'
   AND outer_executing_account = '${MERKLE_DISTRIBUTOR_PROGRAM}'
+GROUP BY 1
 `;
 
 const fetch = async (options: FetchOptions) => {
@@ -176,8 +184,13 @@ const fetch = async (options: FetchOptions) => {
   // Referral Staking USDC claims; a day without claims is a real 0
   const dailyHoldersRevenue = options.createBalances();
   if (options.dateString >= REFERRAL_STAKING_CLAIMS_START) {
-    const [claims] = await queryDuneSql(options, getReferralStakingClaimsQuery(options), { extraUIDKey: 'referral-staking-claims' });
-    dailyHoldersRevenue.add(USDC_MINT, claims.usdc_raw, REFERRAL_STAKING_REWARDS);
+    const claims: { distributor: string; usdc_raw: string }[] = await queryDuneSql(options, getReferralStakingClaimsQuery(options), { extraUIDKey: 'referral-staking-claims' });
+    const unlisted = claims.filter((c) => !REFERRAL_STAKING_DISTRIBUTORS.includes(c.distributor));
+    const unlistedUsdc = unlisted.reduce((sum, c) => sum + Number(c.usdc_raw) / 1e6, 0);
+    if (unlistedUsdc > UNLISTED_DISTRIBUTOR_ALERT_USDC)
+      throw new Error(`meteora-dlmm: ${unlistedUsdc.toFixed(0)} USDC claimed from unlisted distributor(s) ${unlisted.map((c) => c.distributor).join(', ')}`);
+    for (const c of claims)
+      if (REFERRAL_STAKING_DISTRIBUTORS.includes(c.distributor)) dailyHoldersRevenue.add(USDC_MINT, c.usdc_raw, REFERRAL_STAKING_REWARDS);
   }
 
   // staking rewards are paid out of the protocol share: ProtocolRevenue = Revenue - HoldersRevenue
