@@ -179,7 +179,7 @@ const fetch = async (options: FetchOptions) => {
 
   // staking rewards are paid out of the protocol share: ProtocolRevenue = Revenue - HoldersRevenue
   const dailyProtocolRevenue = dailyRevenue.clone();
-  dailyProtocolRevenue.subtract(dailyHoldersRevenue, REFERRAL_STAKING_REWARDS);
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, METRIC.PROTOCOL_FEES);
 
   return {
     dailyFees,
@@ -214,10 +214,7 @@ const adapter: SimpleAdapter = {
     Fees: { [METRIC.SWAP_FEES]: 'Swap fees paid by traders.' },
     UserFees: { [METRIC.SWAP_FEES]: 'Swap fees paid by traders.' },
     Revenue: { [METRIC.PROTOCOL_FEES]: 'Protocol share of swap fees.' },
-    ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: 'Protocol share of swap fees.',
-      [REFERRAL_STAKING_REWARDS]: 'Minus USDC staking rewards claimed that day.',
-    },
+    ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: 'Protocol share of swap fees, net of USDC staking rewards claimed that day.' },
     HoldersRevenue: { [REFERRAL_STAKING_REWARDS]: 'USDC rewards claimed by MET stakers and referrers.' },
     SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees paid to liquidity providers, limit-order owners and swap hosts.' },
   },
