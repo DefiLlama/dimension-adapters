@@ -15,6 +15,20 @@ type BuilderVolumeRow = {
   volume: number
 }
 
+/**
+ * Daily volume of one Polymarket builder for the day that starts at `options.startOfDay` (UTC).
+ *
+ * - `dailyNotionalVolume`: Polymarket's own daily volume for `builder` (in shares), from Data API v2
+ *   `/v2/builders/volume`, matched on the day and the builder name.
+ * - `dailyVolume` (only when `builderCode` is given): the USD size of the builder's attributed CLOB trades that day.
+ *
+ * Supported range: v2 serves only the latest 90 daily buckets, so only about the last 90 days can be fetched.
+ * Two different errors:
+ * - a day older than the oldest bucket returned throws `Polymarket builder volume is only served from <oldest>, ...`
+ *   (the data exists upstream but is out of reach; nothing should be written for that day);
+ * - a day inside the range with no row for the builder throws `No volume data found for <builder> on <day>`
+ *   (the builder had no attributed volume that day).
+ */
 export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
 
   const { data }: { data: BuilderVolumeRow[] } = await fetchURL(BUILDERS_VOLUME_URL)
