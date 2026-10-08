@@ -32,6 +32,7 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "virae": { builder: "Virae.ai", start: "2026-05-02", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc" },
   "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
   "cro-trade-predict": { builder: "crotrade", start: "2026-06-03", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4" },
+  "whalidate": { builder: "Whalidate", start: "2026-10-01", builderCode: "0x7043f01555796d800d711fd807cbb367bd260d85ba45b052ac472b1e049d596f" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string }> = {
