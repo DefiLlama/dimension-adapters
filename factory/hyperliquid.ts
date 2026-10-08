@@ -30,6 +30,23 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+    "auspex": {
+    // Auspex (auspex-trade.com) builder code, attached to every Hyperliquid order placed through the app:
+    // 5 bps on orders the user places, 10 bps on orders the app places for them (copy trades, automation).
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards) and referral code AUSPEX; the
+    // app's fee page states the rates: https://auspex-trade.com/pricing
+    addresses: ["0x814dbd1821c67473c5e6e5d0ad3c0da3d36232c6"],
+    // first day with builder revenue on this address
+    start: "2026-09-18",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Auspex.",
+      Fees: "Hyperliquid builder code fees paid by users on trades placed through Auspex; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by Auspex. Referral rewards Auspex later pays out from its treasury are not deducted.",
+      ProtocolRevenue: "Builder code fees collected by Auspex. Referral rewards Auspex later pays out from its treasury are not deducted.",
+    },
+    breakdownFees: true,
+  },
+
   "hypercall": {
     // Hypercall's production builder address. Hyperliquid
     // tx 0x3c8adce349aa2e9a3e0404459d987902096500c8e4ad4d6ce053883608ae0884
