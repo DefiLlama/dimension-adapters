@@ -35,6 +35,14 @@ const HelioETHProvider = "0x0326c157bfF399e25dd684613aEF26DBb40D3BA4";
 // const MasterVault = "0x986b40C2618fF295a49AC442c5ec40febB26CC54";
 const SnBnbYieldConverterStrategy =
   "0x0000000000000000000000006f28fec449dbd2056b76ac666350af8773e03873";
+// BNB yield skim. The CDP BNB principal left SnBnbYieldConverterStrategy for this YieldAccount on
+// 2026-09-30 (the strategy keeps a small residue, still counted above), so from 2026-10-01 almost
+// all of this revenue stream stopped being seen. The skimmed slisBNB does not move through the
+// YieldAccount itself — it sits as Moolah collateral and the lending slisBNB provider sends it
+// straight to the revenue distributor — so the YieldSkimmed event is read instead of a Transfer:
+// slisAmount is exactly what the treasury receives (verified 1:1 on 2026-10-05 and 2026-10-08) and
+// it stays correct when the skim's recipient changes.
+const yieldAccount = "0xfd4057cd72a31a080a0f6cf234a922f2f647c608";
 const CeETHVault = "0xA230805C28121cc97B348f8209c79BEBEa3839C0";
 const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 
@@ -140,6 +148,13 @@ const fetch = async (options: FetchOptions) => {
   const bnbLiquidStakingProfit = await options.getLogs({
     target: slisBNB,
     topics: [transferHash, SnBnbYieldConverterStrategy, treasury],
+  });
+
+  // bnb yield skim - YieldAccount (see above)
+  const bnbYieldSkim = await options.getLogs({
+    target: yieldAccount,
+    eventAbi:
+      "event YieldSkimmed(uint256 slisAmount, uint256 bnbValue, uint256 claimableAtCall)",
   });
 
   // borrow lisUSD interest
@@ -275,6 +290,9 @@ const fetch = async (options: FetchOptions) => {
   });
   [...bnbLiquidStakingProfit].forEach((log) => {
     dailyFees.add(slisBNB, Number(log.data), BNB_STAKING_PROFIT);
+  });
+  [...bnbYieldSkim].forEach((log: any) => {
+    dailyFees.add(slisBNB, log.slisAmount, BNB_STAKING_PROFIT);
   });
   [...borrowLisUSDInterest].forEach((log) => {
     dailyFees.add(lisUSD, Number(log.data), BORROW_INTEREST);
