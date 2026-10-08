@@ -992,10 +992,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
   "watchcrypto": {
-    // The builder code moved to a dedicated wallet on 2026-10-08. Daily fills:
-    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/YYYYMMDD.csv.lz4
+    // The builder code moved to a dedicated wallet on 2026-10-08 (the old wallet
+    // had no fills that day). Daily fills, old wallet:
+    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xd11825808d42cf05845308f7c7b295e912a28398/20260913.csv.lz4
+    // New wallet: the same path under 0xc4354257624d8fc9298897a16dc101eb0381e94c from its first fill.
     addresses: [
-      { address: "0xd11825808d42cf05845308f7c7b295e912a28398", end: "2026-10-08" },
+      { address: "0xd11825808d42cf05845308f7c7b295e912a28398", end: "2026-10-07" },
       { address: "0xc4354257624d8fc9298897a16dc101eb0381e94c", start: "2026-10-08" },
     ],
     start: "2026-09-11",
