@@ -992,8 +992,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
   "watchcrypto": {
-    // WatchCrypto builder; daily fills: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0xd11825808d42cf05845308f7c7b295e912a28398/20260914.csv.lz4
-    addresses: ["0xd11825808d42cf05845308f7c7b295e912a28398"],
+    // The builder code moved to a dedicated wallet on 2026-10-08. Daily fills:
+    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/YYYYMMDD.csv.lz4
+    addresses: [
+      { address: "0xd11825808d42cf05845308f7c7b295e912a28398", end: "2026-10-08" },
+      { address: "0xc4354257624d8fc9298897a16dc101eb0381e94c", start: "2026-10-08" },
+    ],
     start: "2026-09-11",
     methodology: {
       Volume: "Notional volume of Hyperliquid perpetual trades placed through WatchCrypto's trading terminal.",
