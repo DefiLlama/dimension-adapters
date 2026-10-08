@@ -48,6 +48,12 @@ const SnBnbYieldConverterStrategy =
 // exposes no registry getter, so a second instance would have to be added by hand.
 // https://bscscan.com/address/0xfd4057cd72a31a080a0f6cf234a922f2f647c608
 const yieldAccount = "0xfd4057cd72a31a080a0f6cf234a922f2f647c608";
+// ListaRevenueDistributor — the unpadded newTreasury. It forwards `distributeRate` of each token it
+// receives to the LISTA buy-back that funds veLista holders, and the remainder to the treasury
+// wallet, so that share is HoldersRevenue rather than ProtocolRevenue. The rate is governance-set
+// (RateChanged) and is read per day rather than hardcoded, so a change needs no adapter edit.
+// https://bscscan.com/address/0x34b504a5cf0ff41f8a480580533b6dda687fa3da
+const revenueDistributor = "0x34B504A5CF0fF41F8A480580533b6Dda687fa3Da";
 const CeETHVault = "0xA230805C28121cc97B348f8209c79BEBEa3839C0";
 const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
 
@@ -122,6 +128,7 @@ const FREEZE_LISTA = "Freeze LISTA";
 const LSR_SAVINGS_COST = "sLisUSD Savings Cost";
 const LAUNCHPOOL_INCOME = "Launchpool Income";
 const VOTING_REWARDS = "Voting Rewards";
+const LISTA_BUY_BACK = "LISTA Buy Back";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -366,10 +373,44 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue, LSR_SAVINGS_COST);
 
+  // The streams above that are paid into ListaRevenueDistributor, which splits them between the
+  // LISTA buy-back and the treasury wallet. The rest of this adapter's income goes to the Ops Safe,
+  // an LP wallet or a burn address and is never split, so it cannot be cloned wholesale.
+  const distributorRevenue = options.createBalances();
+  if (treasury === newTreasury) {
+    [...ethStakingEth].forEach((log) => distributorRevenue.add(eth, Number(log.data)));
+    [...ethStakingWbeth].forEach((log) => distributorRevenue.add(wbeth, Number(log.data)));
+    [...bnbLiquidStakingProfit].forEach((log) => distributorRevenue.add(slisBNB, Number(log.data)));
+    [...bnbYieldSkim].forEach((log: any) => distributorRevenue.add(slisBNB, log.slisAmount));
+    [...borrowLisUSDInterest].forEach((log) => distributorRevenue.add(lisUSD, Number(log.data)));
+    [...veListaEarlyClaimPenalty].forEach((log) => distributorRevenue.add(lista, Number(log.data)));
+    [...liquidationBot].forEach((log) => distributorRevenue.add(lisUSD, Number(log.data)));
+  }
+  // These three always settle to the distributor, whichever treasury the day's other streams used.
+  [...liquidationProfit].forEach((log) => distributorRevenue.add(lisUSD, Number(log.data)));
+  [...veListaAutoCompoundFee].forEach((log) => distributorRevenue.add(lista, Number(log.data)));
+  [...psmConvertFee].forEach((log) => distributorRevenue.add(lisUSD, Number(log.data)));
+
+  // Read the rate as of the start of the day being indexed, so historical days use the rate that
+  // was actually in force. Before the distributor existed the call reverts and nothing is split.
+  let buybackRate = 0;
+  try {
+    const rate = await options.fromApi.call({
+      target: revenueDistributor,
+      abi: "uint128:distributeRate",
+    });
+    buybackRate = Number(rate) / 1e18;
+  } catch (e) {}
+
+  const dailyHoldersRevenue = distributorRevenue.clone(buybackRate, LISTA_BUY_BACK);
+  const dailyProtocolRevenue = dailyRevenue.clone();
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
