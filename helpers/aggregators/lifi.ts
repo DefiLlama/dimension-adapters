@@ -14,9 +14,19 @@ type IContract = {
   }
 }
 
-interface LifiTransfer {
+export interface LifiFeeCost {
+  name: string;
+  amount: string;
+  token: {
+    address: string;
+    chainId: number;
+  };
+}
+
+export interface LifiTransfer {
   transactionId: string;
   status: string;
+  substatus?: string;
   sending: {
     amountUSD: string;
     chainId: number;
@@ -28,6 +38,7 @@ interface LifiTransfer {
   metadata: {
     integrator: string;
   };
+  feeCosts?: LifiFeeCost[];
 }
 
 interface LifiResponse {
@@ -101,7 +112,8 @@ export const LifiDiamonds: IContract = {
     start: '2025-02-12'
   },
   [CHAIN.INK]: {
-    id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+    // deployments/ink.json (0x1231deb6... has no code on Ink)
+    id: '0x864b314D4C5a0399368609581d3E8933a63b9232',
     chainId: '57073',
     start: '2025-01-22'
   },
@@ -352,7 +364,7 @@ export const LIFI_API_CHAINS = [
 // LI.FI dropped support for these chains: they are absent from li.quest/v1/chains and the analytics
 // API answers 400, which burned 3 retries per chain on every run. They stay in LifiDiamonds and
 // LIFI_API_CHAINS so their history is preserved and getLogs (unreliable on all four) is not used.
-const LIFI_UNSUPPORTED_CHAINS: string[] = [
+export const LIFI_UNSUPPORTED_CHAINS: string[] = [
   CHAIN.TAIKO, CHAIN.SWELLCHAIN, CHAIN.SUPERPOSITION, CHAIN.SOPHON,
 ]
 
@@ -631,4 +643,32 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, start: number, endTim
   }
 
   return totalValue;
+};
+
+// DONE transfers sent in [start, endTime) by `integrators`, from `chain` or all chains
+export const fetchTransfersFromLIFIAPI = async (start: number, endTime: number, integrators: string[], chain?: Chain): Promise<LifiTransfer[]> => {
+  if (chain && LIFI_UNSUPPORTED_CHAINS.includes(chain)) return [];
+
+  const transfers: LifiTransfer[] = [];
+  let nextCursor: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      fromTimestamp: start.toString(),
+      toTimestamp: endTime.toString(),
+      status: 'DONE',
+      integrator: integrators.join(','),
+      limit: '1000'
+    });
+    if (chain) params.append('fromChain', LifiDiamonds[chain].chainId ?? LifiDiamonds[chain].id);
+    if (nextCursor) params.append('next', nextCursor);
+
+    const response = await queuedFetch(`https://li.quest/v2/analytics/transfers?${params}`) as LifiResponse;
+    if (!Array.isArray(response?.data)) throw new Error(`LI.FI analytics API returned no transfers for ${chain ?? 'all chains'}`);
+
+    transfers.push(...response.data.filter((tx) => tx.status === 'DONE' && tx.sending.timestamp >= start && tx.sending.timestamp < endTime));
+    nextCursor = response.hasNext ? response.next : undefined;
+  } while (nextCursor);
+
+  return transfers;
 };
