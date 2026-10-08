@@ -409,7 +409,8 @@ export async function launchReferralSwaps(from: number, to: number): Promise<Lau
   const swaps: LaunchSwap[] = []
   for (const signature of await signaturesIn([LAUNCH_REFERRAL_ACCOUNT], Math.max(from, LAUNCH_START), to)) {
     for (const swap of launchSwaps(await readTx(signature))) {
-      if (swap.referralAccount !== LAUNCH_REFERRAL_ACCOUNT || swap.referralFee === 0n || swap.mintB !== USDC) continue
+      // A referral fee that rounds to zero still makes the trade Ryntra's: its volume counts, its fee adds nothing.
+      if (swap.referralAccount !== LAUNCH_REFERRAL_ACCOUNT || swap.mintB !== USDC) continue
       if ((swap.program === DBC_PROGRAM ? curves : graduated).has(swap.pool)) swaps.push(swap)
     }
   }
