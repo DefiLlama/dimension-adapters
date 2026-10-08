@@ -146,6 +146,7 @@ const fetch = async (options: FetchOptions) => {
     const { folio, folioFeeLogs } = result;
     folioFeeLogs.forEach((folioFee: any) => {
       dailyFees.addUSDValue(folioPriceMap.get(folio) * Number(folioFee.amount) / 1e18, METRIC.MANAGEMENT_FEES);
+      dailySupplySideRevenue.addUSDValue(folioPriceMap.get(folio) * Number(folioFee.amount) / 1e18, METRIC.MANAGEMENT_FEES);
     });
   });
 
@@ -204,7 +205,7 @@ const methodology = {
   Fees: "Includes tvl fee, mint fee, platform fee, yields of yield DTF's, governance fee",
   Revenue: "Includes some percentage of yields going to RSR token stakers, 100% of platform fee going to RSR buy back and burn",
   HoldersRevenue: "Includes some percentage of yields going to RSR token stakers, 100% of platform fee going to RSR buy back and burn",
-  SupplySideRevenue: "Includes yields earned by yield DTF holders which is usually realised by melting yield DTF"
+  SupplySideRevenue: "Includes yields earned by yield DTF holders which is usually realised by melting yield DTF, and the share of index DTF fees paid to each DTF's own fee recipients"
 };
 
 const breakdownMethodology = {
@@ -218,7 +219,8 @@ const breakdownMethodology = {
     [METRIC.STAKING_REWARDS]: 'Part of yields from yield bearing DTFs going to RSR buy back which is distributed among RSR stakers'
   },
   SupplySideRevenue: {
-    [METRIC.ASSETS_YIELDS]: 'Yields received by yield DTF holders due to yields from underlying assets, which is realised by periodically melting yield DTFs'
+    [METRIC.ASSETS_YIELDS]: 'Yields received by yield DTF holders due to yields from underlying assets, which is realised by periodically melting yield DTFs',
+    [METRIC.MANAGEMENT_FEES]: 'Index DTF fee shares paid to the fee recipients each DTF sets for itself, the part of the fee not paid to the Reserve DAO'
   }
 };
 
