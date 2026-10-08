@@ -53,7 +53,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 },
   mode: { chain: CHAIN.MODE, baseUrl: "https://explorer.mode.network", version: 2 },
   neon: { chain: CHAIN.NEON, baseUrl: "https://neon.blockscout.com", version: 2 },
-  "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 },
+  // "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 }, // explorer no longer runs blockscout, no stats api
   perennial: { chain: CHAIN.PERENNIAL, baseUrl: "https://explorer.perennial.foundation", version: 1 },
   plume: { chain: CHAIN.PLUME, baseUrl: "https://explorer.plume.org", version: 2 },
   prom: { chain: CHAIN.PROM, baseUrl: "https://promscan.io", version: 2 },
@@ -67,7 +67,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   soneium: { chain: CHAIN.SONEIUM, baseUrl: "https://soneium.blockscout.com", version: 2 },
   somnia: { chain: CHAIN.SOMNIA, baseUrl: "https://explorer.somnia.network", statsUrl: "https://stats.mainnet.somnia.w3us.site", version: 1, start: "2025-07-01" },
   superposition: { chain: CHAIN.SUPERPOSITION, baseUrl: "https://explorer-superposition-1v9rjalnat.t.conduit.xyz", version: 1 },
-  superseed: { chain: CHAIN.SSEED, baseUrl: "https://explorer.superseed.xyz", version: 1 },
+  // superseed: { chain: CHAIN.SSEED, baseUrl: "https://explorer.superseed.xyz", version: 1 }, // explorer no longer runs blockscout, no stats api
   story: { chain: CHAIN.STORY, baseUrl: "https://www.datanetscan.io", version: 2 },
   swellchain: { chain: CHAIN.SWELLCHAIN, baseUrl: "https://explorer.swellnetwork.io", version: 1 },
   syndicate: { chain: CHAIN.SYNDICATE, baseUrl: "https://explorer.syndicate.io", version: 2, deadFrom:  "2026-05-21" },
@@ -84,7 +84,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
   lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
   "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 },
-  b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" },
+  // b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" }, // stats host and explorers offline
   degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2, start: "2024-03-10" },
   robinhood: { chain: CHAIN.ROBINHOOD, baseUrl: "https://robinhoodchain.blockscout.com", version: 2, start: "2026-04-30" },
 };
