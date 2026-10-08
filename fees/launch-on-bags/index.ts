@@ -49,13 +49,26 @@ const fetchSolana = async (options: FetchOptions) => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue: dailyProtocolRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyProtocolRevenue.clone(),
   };
 };
 
-// Robinhood Chain (EVM) leg - Bags V1 + V2 launchpads, all pools quoted in WETH
+// Robinhood Chain (EVM) leg - Bags V1 + V2 launchpads (all pools quoted in WETH) and the V3 launchpad
 
 const ROBINHOOD_WETH = ADDRESSES.robinhood.WETH;
+
+interface BagsPool {
+  quote: string;
+  partner: string;
+  partnerFeeBps: bigint;
+}
+
+interface BagsV3Pool extends BagsPool {
+  buyFeeBps: bigint;
+  sellFeeBps: bigint;
+  protocolBuyFeeBps: bigint;
+  protocolSellFeeBps: bigint;
+}
 
 interface BagsDeployment {
   factory: string;
@@ -63,7 +76,15 @@ interface BagsDeployment {
   vault: string;
   deployBlock: number;
   feesSplitEvent: string;
-  hookHasPartnerRouting: boolean;
+  creatorFeeField: 'creatorFeeWETH' | 'creatorFeeQuote';
+  // V1's FeesSplit has no partner leg
+  partnerFeeField?: 'partnerFeeWETH' | 'partnerFeeQuote';
+  hookFeeEvent: string;
+  // V2/V3: hook registration, emitted in the launch tx; V3's also carries the quote asset and fee rates
+  poolRegisteredEvent?: string;
+  // V1: factory TokenCreated.curve is the FeesSplit allowlist
+  tokenCreatedEvent?: string;
+  perLaunchFees: boolean;
 }
 
 const BAGS_DEPLOYMENTS: BagsDeployment[] = [
@@ -75,7 +96,10 @@ const BAGS_DEPLOYMENTS: BagsDeployment[] = [
     // https://robinhoodchain.blockscout.com/block/6191492 (2026-07-10)
     deployBlock: 6191492,
     feesSplitEvent: 'event FeesSplit(address indexed payer, address indexed vault, address indexed feeShare, uint256 vaultFeeQuote, uint256 creatorFeeWETH)',
-    hookHasPartnerRouting: false,
+    creatorFeeField: 'creatorFeeWETH',
+    hookFeeEvent: 'event HookFeeTaken(bytes32 indexed poolId, uint256 amount)',
+    tokenCreatedEvent: 'event TokenCreated(address indexed token, address indexed curve, address indexed creator, address feeShare, bytes32 poolId, string name, string symbol, string metadataURI)',
+    perLaunchFees: false,
   },
   {
     // Bags V2 (current) factory/hook/vault, e.g. https://robinhoodchain.blockscout.com/address/0xe8Cc4431adF8b5A847C113EF0c6af9043219Cb37
@@ -85,13 +109,31 @@ const BAGS_DEPLOYMENTS: BagsDeployment[] = [
     // https://robinhoodchain.blockscout.com/block/7887312 (2026-07-12)
     deployBlock: 7887312,
     feesSplitEvent: 'event FeesSplit(address indexed payer, address indexed vault, address indexed feeShare, uint256 vaultFeeQuote, uint256 creatorFeeWETH, uint256 partnerFeeWETH)',
-    hookHasPartnerRouting: true,
+    creatorFeeField: 'creatorFeeWETH',
+    partnerFeeField: 'partnerFeeWETH',
+    hookFeeEvent: 'event HookFeeTaken(bytes32 indexed poolId, uint256 amount)',
+    poolRegisteredEvent: 'event PoolRegistered(bytes32 indexed poolId, address indexed bondingCurve, address indexed feeShare, address partner, uint16 partnerFeeBps)',
+    perLaunchFees: false,
+  },
+  {
+    // standalone V3 deployment; each launch snapshots its own quote and fee tuple
+    // Bags V3 factory/hook/vault, e.g. https://robinhoodchain.blockscout.com/address/0xC4210279fB1e1dE24A87d6F5Cc597c9422Aef899
+    factory: '0xC4210279fB1e1dE24A87d6F5Cc597c9422Aef899',
+    hook: '0x22E9A027e14769d4cd28B6C7240B36b1dBB26eCC',
+    vault: '0x24eD44bEDEAc6708A0049dA8d43CB55471eb7D08',
+    // https://robinhoodchain.blockscout.com/block/54594936 (2026-09-04)
+    deployBlock: 54594936,
+    // same topic0 as V2 FeesSplit; the indexed vault topic keeps the two noTarget scans apart
+    feesSplitEvent: 'event FeesSplit(address indexed payer, address indexed vault, address indexed feeShare, uint256 vaultFeeQuote, uint256 creatorFeeQuote, uint256 partnerFeeQuote)',
+    creatorFeeField: 'creatorFeeQuote',
+    partnerFeeField: 'partnerFeeQuote',
+    hookFeeEvent: 'event HookFeeTaken(bytes32 indexed poolId, uint256 amount, bool isBuy)',
+    poolRegisteredEvent: 'event PoolRegistered(bytes32 indexed poolId, address indexed bondingCurve, address indexed feeShare, address partner, uint16 partnerFeeBps, address quoteCurrency, tuple(uint16 buyFeeBps, uint16 sellFeeBps, uint16 protocolBuyFeeBps, uint16 protocolSellFeeBps) fees)',
+    perLaunchFees: true,
   },
 ];
 
 const VAULT_RECEIVED_EVENT = 'event Received(address indexed from, uint256 amount)';
-const HOOK_FEE_TAKEN_EVENT = 'event HookFeeTaken(bytes32 indexed poolId, uint256 amount)';
-const POOL_REGISTERED_EVENT = 'event PoolRegistered(bytes32 indexed poolId, address indexed bondingCurve, address indexed feeShare, address partner, uint16 partnerFeeBps)';
 
 const CREATION_FEE_LABEL = 'Token Creation Fees';
 const PARTNER_FEE_LABEL = 'Partner Fees';
@@ -103,73 +145,123 @@ const fetchEvm = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  const toBlock = await options.getToBlock();
+  if (!toBlock) throw new Error('launch-on-bags: could not resolve the end block of the period');
+
   for (const deployment of BAGS_DEPLOYMENTS) {
-    // creation fees: vault receipts sent by the factory (from=factory excludes curve/sweep/donation receipts)
+    if (toBlock < deployment.deployBlock) continue;
+
+    // from=factory: vault Received is also used for other inflows; restrict to factory-paid creation fees (native ETH)
     const vaultReceipts = await options.getLogs({
       target: deployment.vault,
       eventAbi: VAULT_RECEIVED_EVENT,
     });
     for (const log of vaultReceipts) {
       if (String(log.from).toLowerCase() !== deployment.factory.toLowerCase()) continue;
-      // creation fee is paid in native ETH (vault receive())
       dailyFees.addGasToken(log.amount, CREATION_FEE_LABEL);
       dailyRevenue.addGasToken(log.amount, CREATION_FEE_LABEL);
     }
 
-    // bonding-curve fees: one curve contract per token (thousands, a targets list is impractical),
-    // so noTarget scan - the indexed vault topic only ever matches Bags curves, one call per deployment
+    // one bonding curve per token, so thousands of emitters: scan topic0 + indexed vault instead of listing every curve
+    // onlyArgs: false keeps the emitter, which must be a registered Bags curve: an unknown emitter throws so a
+    // registry gap (e.g. a new hook) fails loudly instead of silently under-counting
     const feesSplitLogs = await options.getLogs({
       noTarget: true,
       eventAbi: deployment.feesSplitEvent,
       topics: [eventTopic0(deployment.feesSplitEvent), null as any, ethers.zeroPadValue(deployment.vault, 32)],
+      onlyArgs: false,
     });
-    for (const log of feesSplitLogs) {
-      const vaultFee = BigInt(log.vaultFeeQuote);
-      const creatorFee = BigInt(log.creatorFeeWETH);
-      const partnerFee = log.partnerFeeWETH === undefined ? 0n : BigInt(log.partnerFeeWETH);
-      dailyFees.add(ROBINHOOD_WETH, vaultFee + creatorFee + partnerFee, METRIC.SWAP_FEES);
-      dailyRevenue.add(ROBINHOOD_WETH, vaultFee, METRIC.PROTOCOL_FEES);
-      dailySupplySideRevenue.add(ROBINHOOD_WETH, creatorFee, METRIC.CREATOR_FEES);
-      if (partnerFee > 0n) dailySupplySideRevenue.add(ROBINHOOD_WETH, partnerFee, PARTNER_FEE_LABEL);
-    }
 
     const hookFeeLogs = await options.getLogs({
       target: deployment.hook,
-      eventAbi: HOOK_FEE_TAKEN_EVENT,
+      eventAbi: deployment.hookFeeEvent,
     });
 
-    // partner/partnerFeeBps are snapshotted at pool registration and immutable afterwards
-    const poolConfigs: Record<string, { partner: string; partnerFeeBps: bigint }> = {};
-    if (deployment.hookHasPartnerRouting && hookFeeLogs.length) {
+    const pools: Record<string, BagsPool | BagsV3Pool> = {};
+    const quoteByCurve: Record<string, string> = {};
+
+    if (deployment.poolRegisteredEvent && (hookFeeLogs.length > 0 || feesSplitLogs.length > 0)) {
       const registrations = await options.getLogs({
         target: deployment.hook,
-        eventAbi: POOL_REGISTERED_EVENT,
+        eventAbi: deployment.poolRegisteredEvent,
         fromBlock: deployment.deployBlock,
         cacheInCloud: true,
       });
       for (const log of registrations) {
-        poolConfigs[String(log.poolId)] = { partner: String(log.partner), partnerFeeBps: BigInt(log.partnerFeeBps) };
+        // ETH launches register WETH, never address(0)
+        const quote = deployment.perLaunchFees ? String(log.quoteCurrency) : ROBINHOOD_WETH;
+        const pool: BagsPool | BagsV3Pool = deployment.perLaunchFees
+          ? {
+              quote,
+              partner: String(log.partner),
+              partnerFeeBps: BigInt(log.partnerFeeBps),
+              buyFeeBps: BigInt(log.fees.buyFeeBps),
+              sellFeeBps: BigInt(log.fees.sellFeeBps),
+              protocolBuyFeeBps: BigInt(log.fees.protocolBuyFeeBps),
+              protocolSellFeeBps: BigInt(log.fees.protocolSellFeeBps),
+            }
+          : {
+              quote,
+              partner: String(log.partner),
+              partnerFeeBps: BigInt(log.partnerFeeBps),
+            };
+        pools[String(log.poolId)] = pool;
+        quoteByCurve[String(log.bondingCurve).toLowerCase()] = quote;
+      }
+    } else if (deployment.tokenCreatedEvent && feesSplitLogs.length > 0) {
+      const created = await options.getLogs({
+        target: deployment.factory,
+        eventAbi: deployment.tokenCreatedEvent,
+        fromBlock: deployment.deployBlock,
+        cacheInCloud: true,
+      });
+      for (const log of created) {
+        quoteByCurve[String(log.curve).toLowerCase()] = ROBINHOOD_WETH;
       }
     }
 
+    for (const log of feesSplitLogs) {
+      const quote = quoteByCurve[String(log.address).toLowerCase()];
+      if (!quote) throw new Error(`launch-on-bags: FeesSplit from unregistered curve ${log.address} (vault ${deployment.vault}, tx ${log.transactionHash})`);
+      const args = log.args;
+      const vaultFee = BigInt(args.vaultFeeQuote);
+      const creatorFee = BigInt(args[deployment.creatorFeeField]);
+      const partnerFee = deployment.partnerFeeField ? BigInt(args[deployment.partnerFeeField]) : 0n;
+      dailyFees.add(quote, vaultFee + creatorFee + partnerFee, METRIC.SWAP_FEES);
+      dailyRevenue.add(quote, vaultFee, METRIC.PROTOCOL_FEES);
+      dailySupplySideRevenue.add(quote, creatorFee, METRIC.CREATOR_FEES);
+      if (partnerFee > 0n) dailySupplySideRevenue.add(quote, partnerFee, PARTNER_FEE_LABEL);
+    }
+
     for (const log of hookFeeLogs) {
+      const pool = pools[String(log.poolId)];
+      // registration always precedes fee accrual, so a missing entry is a bug, not a late register
+      if (deployment.poolRegisteredEvent && !pool) throw new Error(`launch-on-bags: no PoolRegistered event found for pool ${log.poolId}`);
       const grossFee = BigInt(log.amount);
-      // 50/50 split; partner (if set) takes partnerFeeBps of the protocol half - verified against on-chain FeesSwept distributions
-      const protocolHalf = grossFee / 2n;
-      const creatorHalf = grossFee - protocolHalf;
+      let protocolPart: bigint;
       let partnerCut = 0n;
-      if (deployment.hookHasPartnerRouting) {
-        const pool = poolConfigs[String(log.poolId)];
-        // registration always precedes fee accrual - a missing entry means broken log data, fail fast
-        if (!pool) throw new Error(`launch-on-bags: no PoolRegistered event found for pool ${log.poolId}`);
-        if (pool.partner !== ethers.ZeroAddress) {
-          partnerCut = protocolHalf * pool.partnerFeeBps / 10000n;
+      if (deployment.perLaunchFees) {
+        const v3Pool = pool as BagsV3Pool;
+        const [sideBps, protocolSideBps] = log.isBuy
+          ? [v3Pool.buyFeeBps, v3Pool.protocolBuyFeeBps]
+          : [v3Pool.sellFeeBps, v3Pool.protocolSellFeeBps];
+        protocolPart = grossFee * protocolSideBps / sideBps;
+        // hook floors the partner cut once per sweep; adapter floors per take (under 1 wei per take)
+        if (v3Pool.partner !== ethers.ZeroAddress) {
+          partnerCut = protocolPart * v3Pool.partnerFeeBps / 10000n;
+        }
+      } else {
+        // V1/V2 50/50 split verified against on-chain FeesSwept
+        protocolPart = grossFee / 2n;
+        if (pool && pool.partner !== ethers.ZeroAddress) {
+          partnerCut = protocolPart * pool.partnerFeeBps / 10000n;
         }
       }
-      dailyFees.add(ROBINHOOD_WETH, grossFee, METRIC.SWAP_FEES);
-      dailyRevenue.add(ROBINHOOD_WETH, protocolHalf - partnerCut, METRIC.PROTOCOL_FEES);
-      dailySupplySideRevenue.add(ROBINHOOD_WETH, creatorHalf, METRIC.CREATOR_FEES);
-      if (partnerCut > 0n) dailySupplySideRevenue.add(ROBINHOOD_WETH, partnerCut, PARTNER_FEE_LABEL);
+      const quote = pool?.quote ?? ROBINHOOD_WETH;
+      dailyFees.add(quote, grossFee, METRIC.SWAP_FEES);
+      dailyRevenue.add(quote, protocolPart - partnerCut, METRIC.PROTOCOL_FEES);
+      dailySupplySideRevenue.add(quote, grossFee - protocolPart, METRIC.CREATOR_FEES);
+      if (partnerCut > 0n) dailySupplySideRevenue.add(quote, partnerCut, PARTNER_FEE_LABEL);
     }
   }
 
@@ -177,7 +269,7 @@ const fetchEvm = async (options: FetchOptions) => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
@@ -193,28 +285,28 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROBINHOOD]: { fetch: fetchEvm, start: '2026-07-10' },
   },
   methodology: {
-    Fees: "On Solana: total trading fees paid by users when swapping against Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration), excluding the underlying Meteora protocol fee, DAMMv2 LP fees and any referral fees. On Robinhood Chain: token creation fees plus gross trading fees charged on Bags bonding-curve swaps (pre-migration) and Uniswap v4 hook swaps (post-migration) across the V1 and V2 deployments.",
-    SupplySideRevenue: "Creator fees paid to token creators, plus (on Robinhood Chain V2) the partner/referrer share carved out of the protocol half of trading fees.",
-    Revenue: "Bags' net share: on Solana, trading-fee revenue from DBC (pre-migration) and DAMMv2 (post-migration); on Robinhood Chain, token creation fees plus the protocol share of trading fees (50% of gross, minus the partner cut on V2 pools with a partner).",
+    Fees: "On Solana: total trading fees paid by users when swapping against Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration), excluding the underlying Meteora protocol fee, DAMMv2 LP fees and any referral fees. On Robinhood Chain: token creation fees plus gross trading fees charged on Bags bonding-curve swaps (pre-migration) and Uniswap v4 hook swaps (post-migration) across the V1, V2 and V3 deployments. V1/V2 pools are quoted in WETH; each V3 launch sets its own 1-10% buy and sell fees, and its fees are counted in its quote asset: WETH or an allowlisted ERC-20 (e.g. tokenized stocks).",
+    SupplySideRevenue: "Creator fees paid to token creators, plus (on Robinhood Chain V2 and V3) the partner/referrer share carved out of the protocol share of trading fees.",
+    Revenue: "Bags' net share: on Solana, trading-fee revenue from DBC (pre-migration) and DAMMv2 (post-migration); on Robinhood Chain, token creation fees plus the protocol share of trading fees net of the partner cut: 50% of gross on V1/V2 (partner cut on V2 pools with a partner), and on V3 max(20% of the fee, 0.5% of volume) per side, minus a partner cut of the launch's snapshotted partnerFeeBps (25% by default) of that share on pools with a partner.",
     ProtocolRevenue: "Net revenue earned by the Bags protocol from trading and token-creation activity."
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.CREATOR_FEES]: 'Creator fees to token creators from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration) on Solana.',
       [METRIC.PROTOCOL_FEES]: 'Protocol fees to Bags protocol from Bags DBC pools (pre-migration) and DAMMv2 pools (post-migration) on Solana.',
-      [METRIC.SWAP_FEES]: 'Gross trading fees charged on Robinhood Chain bonding-curve swaps and post-migration Uniswap v4 hook swaps.',
+      [METRIC.SWAP_FEES]: 'Gross trading fees charged on Robinhood Chain bonding-curve swaps and post-migration Uniswap v4 hook swaps: in WETH on V1/V2, and on V3 in each launch\'s quote asset (WETH or an allowlisted ERC-20) at its own 1-10% buy and sell rates.',
       [CREATION_FEE_LABEL]: 'Token creation fees paid to the Bags vault on each Robinhood Chain token launch.',
     },
     SupplySideRevenue: {
-      [METRIC.CREATOR_FEES]: 'Creator share of trading fees: Bags DBC/DAMMv2 pools on Solana, and 50% of bonding-curve and hook trading fees on Robinhood Chain (on V1 the partner/referrer cut is carved out of this share downstream).',
-      [PARTNER_FEE_LABEL]: 'Partner/referrer share on Robinhood Chain V2: partnerFeeBps (default 25%) of the protocol half of trading fees.',
+      [METRIC.CREATOR_FEES]: 'Creator share of trading fees: Bags DBC/DAMMv2 pools on Solana, and on Robinhood Chain 50% of bonding-curve and hook trading fees on V1/V2 (on V1 the partner/referrer cut is carved out of this share downstream) and the trading fee minus the protocol share on V3.',
+      [PARTNER_FEE_LABEL]: 'Partner/referrer share on Robinhood Chain V2 and V3: partnerFeeBps (default 25%) of the protocol share of trading fees (the protocol half on V2).',
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: 'Protocol share of trading fees kept by Bags: DBC/DAMMv2 fees on Solana, and the protocol half of Robinhood Chain trading fees net of the V2 partner cut.',
+      [METRIC.PROTOCOL_FEES]: 'Protocol share of trading fees kept by Bags: DBC/DAMMv2 fees on Solana, and on Robinhood Chain the protocol half of V1/V2 trading fees and the V3 protocol share (max of 20% of the fee and 0.5% of volume, per side), net of the V2/V3 partner cut.',
       [CREATION_FEE_LABEL]: 'Token creation fees paid to the Bags vault on each Robinhood Chain token launch.',
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: 'Protocol share of trading fees kept by Bags: DBC/DAMMv2 fees on Solana, and the protocol half of Robinhood Chain trading fees net of the V2 partner cut.',
+      [METRIC.PROTOCOL_FEES]: 'Protocol share of trading fees kept by Bags: DBC/DAMMv2 fees on Solana, and on Robinhood Chain the protocol half of V1/V2 trading fees and the V3 protocol share (max of 20% of the fee and 0.5% of volume, per side), net of the V2/V3 partner cut.',
       [CREATION_FEE_LABEL]: 'Token creation fees paid to the Bags vault on each Robinhood Chain token launch.',
     },
   }
