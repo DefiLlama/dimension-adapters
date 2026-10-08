@@ -8,15 +8,22 @@ import { CHAIN } from './chains';
 // and serves only the latest 90 daily buckets (`limit` max 90), so older days cannot be fetched.
 const BUILDERS_VOLUME_URL = 'https://data-api.polymarket.com/v2/builders/volume?interval=day&limit=90'
 
+// One row of the v2 builders volume series (data-api.polymarket.com/v2/docs).
+type BuilderVolumeRow = {
+  date: string
+  builder_name: string
+  volume: number
+}
+
 export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
 
-  const { data } = await fetchURL(BUILDERS_VOLUME_URL)
+  const { data }: { data: BuilderVolumeRow[] } = await fetchURL(BUILDERS_VOLUME_URL)
   const dateString = new Date(options.startOfDay * 1000).toISOString().slice(0, 10)
-  const oldestDate: string | undefined = data.reduce((oldest: string | undefined, item: any) => !oldest || item.date < oldest ? item.date : oldest, undefined)
+  const oldestDate: string | undefined = data.reduce((oldest: string | undefined, item) => !oldest || item.date < oldest ? item.date : oldest, undefined)
   if (oldestDate && dateString < oldestDate) {
     throw new Error(`Polymarket builder volume is only served from ${oldestDate}, cannot fetch ${builder} on ${dateString}`);
   }
-  const volume = data.find((item: any) => item.date === dateString && item.builder_name === builder)
+  const volume = data.find((item) => item.date === dateString && item.builder_name === builder)
 
   if (!volume) {
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
