@@ -5,7 +5,13 @@ import { httpGet } from "../utils/fetchURL";
 // Morpho's own exclusion feed. Additive: unioned with the hardcoded lists and the insolvent-markets
 // cache, never a replacement - the feed is currently a subset of what we already exclude.
 const BASE_URL = "https://api.morpho.org/reporting/v1/exclusions";
-const KINDS = ["markets", "assets", "vaults"];
+// required columns per file: a response that does not carry them is not a CSV we understand,
+// which is how an html error page served as 200 is told apart from a genuine header-only file
+const KINDS: Record<string, Array<string>> = {
+  markets: ["chain", "market_id", "effective_from", "effective_to"],
+  assets: ["chain", "asset_address", "effective_from", "effective_to"],
+  vaults: ["chain", "vault_address", "effective_from", "effective_to"],
+};
 
 interface ExclusionRow {
   chain: string;
@@ -14,11 +20,13 @@ interface ExclusionRow {
   [key: string]: string;
 }
 
-// the feed is plain comma-separated with no quoting; reason is last, so any extra commas fold into it
-function parseCsv(text: string): Array<ExclusionRow> {
+// the feed is plain comma-separated with no quoting; reason is last, so any extra commas fold into it.
+// returns null when the header is missing the required columns, so the caller can keep the old cache
+function parseCsv(text: string, requiredColumns: Array<string>): Array<ExclusionRow> | null {
   const lines = String(text).trim().split("\n").filter(Boolean);
-  if (lines.length < 2) return [];
+  if (!lines.length) return null;
   const header = lines[0].split(",").map((h) => h.trim());
+  if (!requiredColumns.every((c) => header.includes(c))) return null;
   return lines.slice(1).map((line) => {
     const parts = line.split(",");
     const row: any = {};
@@ -29,16 +37,21 @@ function parseCsv(text: string): Array<ExclusionRow> {
   });
 }
 
-// a header-only file is a valid empty list; a missing key means we never got that file
-const isValidBundle = (bundle: any) => !!bundle && KINDS.every((k) => Array.isArray(bundle[k]));
+// a header-only file is a valid empty list; a missing key means we never got a usable version of it
+const isValidBundle = (bundle: any) => !!bundle && Object.keys(KINDS).every((k) => Array.isArray(bundle[k]));
 
 async function getExclusions(): Promise<Record<string, Array<ExclusionRow>> | null> {
+  const kinds = Object.keys(KINDS);
   const bundle = await getConfig("morpho-blue/exclusions", undefined, {
     fetcher: async () => {
-      const files = await Promise.all(KINDS.map((f) => httpGet(`${BASE_URL}/${f}.csv`)));
-      const fetched = Object.fromEntries(KINDS.map((k, i) => [k, parseCsv(files[i])]));
-      // a partial fetch must not overwrite the cache - getConfig falls back to the last good copy
-      if (!isValidBundle(fetched)) throw new Error("morpho exclusions: incomplete feed");
+      const files = await Promise.all(kinds.map((f) => httpGet(`${BASE_URL}/${f}.csv`)));
+      const fetched: any = {};
+      kinds.forEach((k, i) => {
+        const rows = parseCsv(files[i], KINDS[k]);
+        if (rows) fetched[k] = rows;
+      });
+      // a partial or malformed fetch must not overwrite the cache - getConfig keeps the last good copy
+      if (!isValidBundle(fetched)) throw new Error("morpho exclusions: incomplete or malformed feed");
       return fetched;
     },
   });
