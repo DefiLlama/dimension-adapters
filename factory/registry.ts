@@ -116,6 +116,9 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'compoundV2:liquidations',
     'gmxV1:liquidations',
   ],
+  'bridges': [
+    'evmBridges',
+  ],
 };
 
 /**
