@@ -19,6 +19,7 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const { startTimestamp: from, endTimestamp: to } = options;
@@ -28,26 +29,30 @@ const fetch = async (options: FetchOptions) => {
     // the rest. Collected in USDC, the configs' quote (collect_fee_mode 0).
     const creator = (swap.tradingFee * CREATOR_SHARE_PERCENT) / 100n;
     dailyFees.add(USDC, swap.tradingFee, LABELS.CURVE_FEES);
+    dailyUserFees.add(USDC, swap.tradingFee, LABELS.CURVE_FEES);
     dailyRevenue.add(USDC, swap.tradingFee - creator, LABELS.CURVE_TO_RYNTRA);
     dailySupplySideRevenue.add(USDC, creator, LABELS.CURVE_TO_CREATORS);
   }
   // Meteora pays the referral fee out of its own protocol fee, which is not counted here.
   for (const swap of await launchReferralSwaps(from, to)) {
     dailyFees.add(USDC, swap.referralFee, LABELS.REFERRAL_FEES);
+    dailyUserFees.add(USDC, swap.referralFee, LABELS.REFERRAL_FEES);
     dailyRevenue.add(USDC, swap.referralFee, LABELS.REFERRAL_TO_RYNTRA);
   }
   for (const income of await partnerIncome(from, to)) {
     const [fees, revenue] = income.kind === "position-fees" ? [LABELS.POOL_FEES, LABELS.POOL_TO_RYNTRA] : [LABELS.GRADUATION_FEES, LABELS.GRADUATION_TO_RYNTRA];
     dailyFees.add(income.mint, income.amount, fees);
     dailyRevenue.add(income.mint, income.amount, revenue);
+    // Pool fees are paid by traders; the migration fee comes out of the curve's own reserve.
+    if (income.kind === "position-fees") dailyUserFees.add(income.mint, income.amount, fees);
   }
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "On the bonding curves of tokens launched with Ryntra Launch (Meteora DBC pools on its configs, created by its pool payer): the configs' trading fee on every swap, from the swap events; the referral fee Meteora pays Ryntra on trades made through Ryntra, on the curve and in the pool after graduation; and what Ryntra takes as the partner when a curve graduates — its share of the migration fee, the surplus above the threshold, and later the fees of the DAMM v2 liquidity locked for it — when its fee claimer withdraws them. Meteora's protocol fee and the creator's share of the migration fee are not included.",
-  UserFees: "Equal to fees: every fee is paid by the trader.",
+  Fees: "On the bonding curves of tokens launched with Ryntra Launch (Meteora DBC pools on its configs, created by its pool payer): the configs' trading fee on every swap, from the swap events; the referral fee Meteora pays Ryntra on trades made through Ryntra, on the curve and in the pool after graduation; and what Ryntra takes as the partner from a graduated curve — its share of the migration fee and later the fees of the DAMM v2 liquidity locked for it — when its fee claimer withdraws them. Meteora's protocol fee, the creator's share of the migration fee and the quote above the graduation threshold (not a fee) are not included.",
+  UserFees: "What traders pay: the bonding curve trading fee, the referral fee and the graduated pool's fees; not the migration fee, which comes out of the curve's reserve.",
   Revenue: "Ryntra's 60% of the bonding curve trading fee as the configs' partner, the referral fees, and its graduation income when withdrawn.",
   ProtocolRevenue: "Equal to revenue: there is no token and nothing is distributed to holders.",
   SupplySideRevenue: "The token creator's 40% of the bonding curve trading fee.",
@@ -57,7 +62,7 @@ const breakdownMethodology = {
   Fees: {
     [LABELS.CURVE_FEES]: "The configs' trading fee (0.8% of a trade: the 1% curve fee less Meteora's 20%) on every swap on the bonding curve of a token launched with Ryntra.",
     [LABELS.REFERRAL_FEES]: "The referral fee Meteora pays Ryntra, out of its protocol fee, on trades made through Ryntra of tokens launched with it, as the swap event states it.",
-    [LABELS.GRADUATION_FEES]: "Ryntra's 60% of a graduating curve's 2% migration fee, and the quote above the graduation threshold, when withdrawn by its fee claimer.",
+    [LABELS.GRADUATION_FEES]: "Ryntra's 60% of a graduating curve's 2% migration fee, when withdrawn by its fee claimer.",
     [LABELS.POOL_FEES]: "Fees of the DAMM v2 liquidity locked for Ryntra after a launch graduates, when claimed, in USDC and in the launched token.",
   },
   Revenue: {

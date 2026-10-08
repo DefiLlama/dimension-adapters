@@ -73,7 +73,6 @@ const IX = {
   INIT_POOL_2022: 'a976334e916edc9b', // DBC initialize_virtual_pool_with_token2022
   INIT_POOL_2022_HOOK: 'b60de9b12a918702', // DBC initialize_virtual_pool_with_token2022_transfer_hook
   WITHDRAW_MIGRATION_FEE: 'ed8e2d178106dea2', // DBC withdraw_migration_fee
-  PARTNER_WITHDRAW_SURPLUS: 'a8ad4864c962265c', // DBC partner_withdraw_surplus
   CLAIM_POSITION_FEE: 'b4269a118521a2d3', // DAMM v2 claim_position_fee
 }
 const EVENT_TAG = 'e445a52e51cb9a1d' // emit_cpi! prefix of an event logged as the program's self-invocation
@@ -81,7 +80,6 @@ const EVENT = {
   DBC_SWAP: '1b3c15d58aaabb93',
   SWAP2: 'bd4233a826507599', // EvtSwap2, the same name and discriminator in both programs
   WITHDRAW_MIGRATION_FEE: '1acb5455a11764d6',
-  PARTNER_WITHDRAW_SURPLUS: 'c3389809e8482316',
   DAMM_CLAIM_POSITION_FEE: 'c6b6b734610c3138',
 }
 // Account positions inside the instructions (IDL order).
@@ -104,6 +102,19 @@ type History = { readAt: number; list: Signature[]; oldest: number; before?: str
 const histories = new Map<string, History>()
 const now = () => Math.floor(Date.now() / 1000)
 
+// A public endpoint answers 429 to a burst of the same call (api.mainnet-beta does to getTransaction): wait and ask
+// again, a few times. Any other failure, and a 429 that outlasts the waits, is thrown.
+async function patiently<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await call()
+    } catch (error: any) {
+      if (attempt >= 6 || !/\b429\b|Too many requests/i.test(String(error?.message ?? error))) throw error
+      await new Promise((resolve) => setTimeout(resolve, 2_000 * attempt))
+    }
+  }
+}
+
 // The successful signatures of an address back to `from`, newest first. A run reads each address once, from the
 // newest signature down to the start of its window, and a later window of the same run extends the same walk; a
 // window ending after the walk began starts it again, so a long-lived process never serves a stale list.
@@ -114,10 +125,10 @@ async function walk(address: string, from: number, to: number): Promise<Signatur
     histories.set(address, history)
   }
   const h = history
-  h.queue = h.queue.then(async () => {
+  const run = h.queue.catch(() => {}).then(async () => {
     // The walk stops at the window's start by the oldest signature read, failed ones included.
     while (!h.complete && h.oldest >= from) {
-      const page = await getSignaturesForAddress({ address, limit: 1000, before: h.before })
+      const page = await patiently(() => getSignaturesForAddress({ address, limit: 1000, before: h.before }))
       if (!page?.length) { h.complete = true; break }
       for (const entry of page) {
         if (typeof entry.blockTime === 'number') h.oldest = Math.min(h.oldest, entry.blockTime)
@@ -131,7 +142,10 @@ async function walk(address: string, from: number, to: number): Promise<Signatur
       if (page.length < 1000) h.complete = true
     }
   })
-  await h.queue
+  h.queue = run
+  // A failed walk is not remembered: the next call starts the address again, unless a newer walk already has.
+  run.catch(() => { if (histories.get(address) === h) histories.delete(address) })
+  await run
   return h.list
 }
 
@@ -162,7 +176,7 @@ const transactions = new Map<string, Promise<Tx>>()
 export function readTx(signature: string): Promise<Tx> {
   if (!transactions.has(signature)) {
     const read = (async () => {
-      const tx = await getTransaction({ signature, encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 })
+      const tx = await patiently(() => getTransaction({ signature, encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }))
       // No transaction, no metadata or no time means the node could not serve it, not that nothing happened.
       if (!tx?.meta || !tx.transaction?.message || typeof tx.blockTime !== 'number') throw new Error(`ryntra: solana rpc returned no transaction for ${signature}`)
       const keys: string[] = tx.transaction.message.accountKeys.map((key: any) => (typeof key === 'string' ? key : key.pubkey))
@@ -417,15 +431,15 @@ export async function launchReferralSwaps(from: number, to: number): Promise<Lau
   return swaps
 }
 
-// What Ryntra takes as the partner when a launch graduates, at the moment the fee claimer takes it: its share of
-// the migration fee (withdraw_migration_fee as the partner, flag 0) and the surplus above the graduation threshold
-// (partner_withdraw_surplus), in USDC; and after graduation the fees of the DAMM v2 liquidity locked for Ryntra
-// (claim_position_fee with the claimer as owner), in the launched token and USDC.
-export async function partnerIncome(from: number, to: number): Promise<{ kind: 'migration-fee' | 'surplus' | 'position-fees'; mint: string; amount: bigint }[]> {
+// What Ryntra takes as the partner from a graduated launch, at the moment the fee claimer takes it: its share of
+// the migration fee (withdraw_migration_fee as the partner, flag 0), in USDC; and the fees of the DAMM v2 liquidity
+// locked for Ryntra (claim_position_fee with the claimer as owner), in the launched token and USDC. The quote above
+// the graduation threshold (partner_withdraw_surplus) is not a fee and is not counted.
+export async function partnerIncome(from: number, to: number): Promise<{ kind: 'migration-fee' | 'position-fees'; mint: string; amount: bigint }[]> {
   const launches = await launchPools(to)
   const curves = new Set(launches.map((launch) => launch.pool))
   const mints = new Set(launches.map((launch) => launch.mint))
-  const income: { kind: 'migration-fee' | 'surplus' | 'position-fees'; mint: string; amount: bigint }[] = []
+  const income: { kind: 'migration-fee' | 'position-fees'; mint: string; amount: bigint }[] = []
   for (const signature of await signaturesIn([LAUNCH_FEE_CLAIMER], Math.max(from, LAUNCH_START), to)) {
     const tx = await readTx(signature)
     for (const flow of tx.flows) {
@@ -434,9 +448,8 @@ export async function partnerIncome(from: number, to: number): Promise<{ kind: '
         if ((ix.programId !== DBC_PROGRAM && ix.programId !== DAMM_V2_PROGRAM) || ix.data.length < 8) continue
         const head = hex(ix.data, 0, 8)
         if (head !== EVENT_TAG) {
-          // withdraw_migration_fee: virtual_pool 2, sender 6; partner_withdraw_surplus: virtual_pool 2, fee_claimer 6;
-          // claim_position_fee: pool 1, token_a_mint 7, token_b_mint 8.
-          if (ix.programId === DBC_PROGRAM && (head === IX.WITHDRAW_MIGRATION_FEE || head === IX.PARTNER_WITHDRAW_SURPLUS))
+          // withdraw_migration_fee: virtual_pool 2, sender 6; claim_position_fee: pool 1, token_a_mint 7, token_b_mint 8.
+          if (ix.programId === DBC_PROGRAM && head === IX.WITHDRAW_MIGRATION_FEE)
             caller = curves.has(ix.accounts[2]) && ix.accounts[6] === LAUNCH_FEE_CLAIMER ? { head } : null
           else if (ix.programId === DAMM_V2_PROGRAM && head === IX.CLAIM_POSITION_FEE)
             caller = mints.has(ix.accounts[7]) && ix.accounts[8] === USDC && ix.accounts[1] === graduatedPool(ix.accounts[7]) ? { head, mints: [ix.accounts[7], ix.accounts[8]] } : null
@@ -444,9 +457,8 @@ export async function partnerIncome(from: number, to: number): Promise<{ kind: '
         }
         if (!caller || ix.data.length < 16) continue
         const event = hex(ix.data, 8, 16)
-        // EvtWithdrawMigrationFee: pool, fee, flag (0 = the partner). EvtPartnerWithdrawSurplus: pool, surplus_amount.
+        // EvtWithdrawMigrationFee: pool, fee, flag (0 = the partner).
         if (caller.head === IX.WITHDRAW_MIGRATION_FEE && event === EVENT.WITHDRAW_MIGRATION_FEE && ix.data[56] === 0) income.push({ kind: 'migration-fee', mint: USDC, amount: u64(ix.data, 48) })
-        else if (caller.head === IX.PARTNER_WITHDRAW_SURPLUS && event === EVENT.PARTNER_WITHDRAW_SURPLUS) income.push({ kind: 'surplus', mint: USDC, amount: u64(ix.data, 48) })
         // EvtClaimPositionFee: pool, position, owner, fee_a_claimed, fee_b_claimed.
         else if (caller.head === IX.CLAIM_POSITION_FEE && event === EVENT.DAMM_CLAIM_POSITION_FEE && key(ix.data, 80) === LAUNCH_FEE_CLAIMER)
           income.push({ kind: 'position-fees', mint: caller.mints![0], amount: u64(ix.data, 112) }, { kind: 'position-fees', mint: caller.mints![1], amount: u64(ix.data, 120) })
