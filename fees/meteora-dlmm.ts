@@ -12,7 +12,9 @@ const DLMM_PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo';
 // Referral Staking (https://meteora.ag/referral, since 2026-07-21): 10% of DLMM protocol fees to MET stakers plus
 // referrer (8%) / referred-LP (2%) rewards, paid in USDC via one merkle distributor per monthly cycle
 // (Cycle 1 $262k funded 2026-09-10, Cycle 2 $703k funded 2026-09-23 from 5o9QjCUzXf7HkoiSe4DGaS1m5KBo3x6cmMEHRceFh96q).
-// Counted when claimed, since the funding wallet/ATA changes per cycle; staker vs referrer split is not on-chain.
+// Counted when claimed, since the funding wallet/ATA changes per cycle. All claims are holders revenue: referral
+// rewards only go to wallets that stake MET themselves (200 MET minimum), and the split is not on-chain anyway.
+// Only Referral Staking pays USDC through this distributor today (airdrops and LP Stimulus are paid in MET).
 const MERKLE_DISTRIBUTOR_PROGRAM = 'DiSLRwcSFvtwvMWSs7ubBMvYRaYNYupa76ZSuYLe6D7j';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 const REFERRAL_STAKING_CLAIMS_START = '2026-09-10'; // first cycle became claimable
