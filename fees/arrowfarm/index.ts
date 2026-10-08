@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Arrowfarm is a Beefy CLM fork on Robinhood Chain (chain id 4663).
 // Strategies are deployed by the StrategyFactory, which emits ProxyCreated for each one.
@@ -9,8 +10,7 @@ const STRATEGY_FACTORY = "0xd626504db63FBe10Ea98a99f52717c5315e9eD46";
 // Block of the StrategyFactory deployment (same start block as the merged Arrowfarm TVL adapter in DefiLlama-Adapters)
 const FACTORY_FROM_BLOCK = 67634274;
 // WETH on Robinhood Chain, the token every performance fee is charged in
-// https://robinhoodchain.blockscout.com/address/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
+const WETH = ADDRESSES.robinhood.WETH;
 // ArrowBuybackBurner receives the arrowFee WETH, buys ARROWFARM and burns it.
 // https://robinhoodchain.blockscout.com/address/0xd6BF871252d442C1ebBC94333f60e1823ef44cE7
 const BUYBACK_BURNER = "0xd6BF871252d442C1ebBC94333f60e1823ef44cE7";
