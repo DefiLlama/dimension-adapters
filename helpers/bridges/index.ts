@@ -21,12 +21,16 @@ export type BridgeEvent = {
   targets: string[];
   /** 'outgoing' = deposit into the bridge on this chain, 'incoming' = withdrawal from the bridge on this chain. */
   direction: BridgeDirection;
+  /** Arg name, or a dotted path into a tuple arg (e.g. 'order.inputAmount'). */
   amountArg: string;
+  /** Arg name, or a dotted path into a tuple arg. */
   tokenArg?: string;
   /** Token to price when the event carries none, e.g. the zero address for native deposits. */
   fixedToken?: string;
   /** Remap token addresses before pricing, lowercase keys. */
   mapTokens?: Record<string, string>;
+  /** Price the token as an address on this chain instead of the chain the event is read on (canonical bridges that report the L1 address on the L2). */
+  tokenChain?: string;
   /** Return false to skip an event. Runs on decoded args. */
   filter?: (args: any) => boolean;
 };
@@ -36,6 +40,8 @@ export type BridgeTransfers = {
   wallets: string[];
   /** Restrict to these tokens (mixed-use wallets). Omit to count every token the wallets send or receive. */
   tokens?: string[];
+  /** Count only one leg from transfers when events already cover the other. Omit to count both. */
+  direction?: BridgeDirection;
   /** Return false to skip a transfer. */
   filter?: (row: any) => boolean;
 };
@@ -90,16 +96,17 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
 
     for (const args of logs) {
       if (event.filter && !event.filter(args)) continue;
-      const amount = args[event.amountArg];
+      const amount = getArg(args, event.amountArg);
       if (amount === undefined) throw new Error(`bridge helper: arg ${event.amountArg} missing on ${event.eventAbi}`);
       if (BigInt(amount) === 0n) continue;
 
-      let token: string = event.tokenArg ? args[event.tokenArg] : event.fixedToken;
+      let token: string = event.tokenArg ? getArg(args, event.tokenArg) : event.fixedToken;
       if (!token) throw new Error(`bridge helper: token missing on ${event.eventAbi}`);
       token = token.toLowerCase();
       if (event.mapTokens?.[token]) token = event.mapTokens[token];
 
-      balances.add(token, amount);
+      if (event.tokenChain) balances.add(`${event.tokenChain}:${token}`, amount, { skipChain: true });
+      else balances.add(token, amount);
       count++;
     }
 
@@ -111,7 +118,8 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
     // Transfers into the wallets are deposits ('in'), transfers out of them are withdrawals ('out'). Both paths cover
     // every token the wallets hold without a token list.
     const wallets = new Set(transfers.wallets.map((w) => w.toLowerCase()));
-    for (const transferType of ["in", "out"] as const) {
+    const transferTypes: ("in" | "out")[] = transfers.direction ? [transfers.direction === "outgoing" ? "in" : "out"] : ["in", "out"];
+    for (const transferType of transferTypes) {
       const rows = await getWalletTransfers(options, transfers, transferType);
       for (const row of rows) {
         // moves between the bridge's own wallets are not user transfers
@@ -130,6 +138,9 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
 
   return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount, dailyIncomingTxCount };
 }
+
+// 'a.b.c' walks into tuple args, which ethers decodes as named results
+const getArg = (args: any, path: string): any => path.split(".").reduce((value, key) => value?.[key], args);
 
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 type WalletTransfer = { token: string; value: any; from_address: string; to_address: string };
