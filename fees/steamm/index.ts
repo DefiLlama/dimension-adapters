@@ -71,6 +71,7 @@ const fetchSteammStats = async ({ fromTimestamp, createBalances }: FetchOptions)
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: "2026-10-05", // Suilend deprecated the STEAMM product on 2026-10-05; positions are withdraw-only through Suilend
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchSteammStats,
