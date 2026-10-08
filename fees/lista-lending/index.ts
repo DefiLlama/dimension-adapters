@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from "../../helpers/token";
+import { ethers } from "ethers";
 
 /**
  * Lista Lending (Moolah) — a Morpho-Blue fork on BSC and Ethereum.
@@ -11,7 +12,9 @@ import { addTokensReceived } from "../../helpers/token";
  * canonical Morpho adapter), so the full borrow interest — including the yield earned by
  * suppliers/lenders — is captured, not only Lista's protocol cut:
  *
- *   - Fees              = total borrow interest across all markets (Moolah `AccrueInterest.interest`).
+ *   - Fees              = total borrow interest across all markets (Moolah `AccrueInterest.interest`)
+ *                         plus the fixed interest of the broker-run fixed-term markets, which never
+ *                         touches Moolah's accrual.
  *   - Revenue           = Lista's protocol cut = market protocol fee (interest × market.fee) +
  *                         MoolahVault management fee (vault `AccrueInterest.feeShares`, only for the
  *                         self-operated vaults whose feeRecipient is Lista's LendingFeeRecipient).
@@ -53,9 +56,14 @@ const MOOLAH_VAULT_ACCOUNT: Record<string, string> = {
 };
 const LISUSD_BSC = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const DAO_YIELD_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // DAO position-yield recipient -> swapped to USDT, forwarded to treasury (NOT a LISTA buy-back)
-const PAGE_SIZE = 100;
+const VAULT_PAGE_SIZE = 100;
 const vaultListUrl = (chain: string, page: number) =>
-  `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${API_CHAIN[chain]}`;
+  `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${VAULT_PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${API_CHAIN[chain]}`;
+// The market list ignores a `chain` filter and always returns every chain, so it is fetched once for
+// both and the entries are filtered on their own `chain` field. 200 is the endpoint's page cap.
+const MARKET_PAGE_SIZE = 200;
+const marketListUrl = (page: number) =>
+  `https://api.lista.org/api/moolah/borrow/marketList?page=${page}&pageSize=${MARKET_PAGE_SIZE}`;
 
 const abis = {
   AccrueInterest:
@@ -65,24 +73,95 @@ const abis = {
   market:
     "function market(bytes32) view returns (uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee)",
   VaultAccrueInterest: "event AccrueInterest(uint256 newTotalAssets, uint256 feeShares)",
+  ProtocolFeeCharged: "event ProtocolFeeCharged(address indexed broker, address indexed feeRecipient, uint256 fee)",
+  Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
 };
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// Paginate the full vault inventory; throw (rather than silently under-report) if the API/cache
-// returns an invalid response.
-const getVaultAddresses = async (chain: string): Promise<string[]> => {
-  const addresses: string[] = [];
+// Paginate a Lista list endpoint; throw (rather than silently under-report) if the API/cache
+// returns a response that cannot be paginated to completion.
+const getPagedList = async (cacheKey: string, pageSize: number, urlFor: (page: number) => string): Promise<any[]> => {
+  const items: any[] = [];
   let page = 1;
-  let total = Infinity;
-  while (addresses.length < total) {
-    const res = await getConfig(`lista-lending/vaults-${chain}-${page}`, vaultListUrl(chain, page));
+  while (true) {
+    const res = await getConfig(`${cacheKey}-${page}`, urlFor(page));
     const list = res?.data?.list;
-    if (!Array.isArray(list)) throw new Error(`Lista vault list unavailable for ${chain}`);
-    total = Number(res.data.total ?? list.length);
-    addresses.push(...list.map((v: any) => v.address));
-    if (list.length === 0) break;
+    if (!Array.isArray(list)) throw new Error(`Lista list unavailable: ${cacheKey}`);
+    // `Number(null)` and `Number("")` are both 0, so a missing `total` has to be rejected before the
+    // finite check or the walk stops after page one and quietly returns part of the inventory —
+    // the failure this adapter already got bitten by once.
+    const { total } = res.data;
+    if (total == null || !Number.isFinite(Number(total))) throw new Error(`Lista list has no usable total: ${cacheKey}`);
+    const expected = Number(total);
+    items.push(...list);
+    // `total` is re-read from every page, so it tracks the server's current count: promising fewer
+    // rows than it has already handed over is the `total: 0` / `total: ""` shape, both of which
+    // coerce to a finite 0 and would otherwise end the walk on page one with a fraction of the
+    // inventory. A full page proves nothing on its own — an inventory that happens to be an exact
+    // multiple of the page size ends on one.
+    if (expected < items.length) throw new Error(`Lista list total below returned rows: ${cacheKey} (${items.length}/${expected})`);
+    if (items.length === expected) return items;
+    // The server contradicting itself the other way: it promised more than it is willing to hand
+    // over. Throw rather than return a silently short inventory.
+    if (list.length < pageSize) throw new Error(`Lista list ended early: ${cacheKey} (${items.length}/${expected})`);
     page++;
   }
-  return addresses;
+};
+
+const getVaultAddresses = async (chain: string): Promise<string[]> => {
+  const vaults = await getPagedList(`lista-lending/vaults-${chain}`, VAULT_PAGE_SIZE, (page) => vaultListUrl(chain, page));
+  // Offset pagination over a `depositsUsd` sort can hand back the same vault on two pages if a
+  // deposit reorders the list mid-walk, and a duplicate would count that vault's management fee
+  // twice. The market walk is already immune — it keys by relayer into a Set.
+  return [...new Set(vaults.map((v: any) => v.address))];
+};
+
+// Fixed-term markets are priced off-market: their IRM returns a zero borrow rate, so Moolah never
+// emits `AccrueInterest` for them and the market layer above sees nothing. Borrowers hold the
+// position at Moolah at 0% and pay their fixed interest to a per-market broker contract, which a
+// fixed-term market stores in its `oracle` slot. On repayment the broker hands that interest to its
+// InterestRelayer, which skims the protocol fee and supplies the rest to the MoolahVault.
+// The relayer set is resolved from the live market list rather than hardcoded, so a newly launched
+// loan token cannot silently drop out of the numbers. The ceiling of reading it from the API is that
+// a refill sees today's inventory: were Lista ever to drop a matured market from the list instead of
+// leaving it at `status: 2`, its relayer would disappear from later refills of past days. Moolah's
+// `CreateMarket` logs would be immune to that, at the cost of a full-history log scan.
+type FixedTermRelayer = { relayer: string; brokers: Set<string> };
+
+const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Promise<FixedTermRelayer[]> => {
+  const markets = await getPagedList("lista-lending/markets", MARKET_PAGE_SIZE, marketListUrl);
+  const ids = markets
+    .filter((m: any) => m.chain === API_CHAIN[chain] && m.isFixedTerm)
+    .map((m: any) => m.marketId)
+    .filter(Boolean);
+  if (!ids.length) return [];
+  const params = await api.multiCall({
+    abi: abis.idToMarketParams,
+    calls: ids.map((id: string) => ({ target: MOOLAH[chain], params: [id] })),
+  });
+  // Three BSC markets (slisBNB/lisUSD, WBNB/lisUSD, BTCB/lisUSD) are genuine fixed-term markets that
+  // have no broker wired up yet: their `oracle` is still the plain price oracle
+  // 0xf3afD82A4071f272F403dC176916141f44E6c750, so there is nothing to read. They are a known
+  // coverage gap, not mislabelled data — when Lista deploys their brokers they join on their own.
+  // `BROKER_NAME` is what tells a broker apart from a price oracle, which lets `RELAYER` run without
+  // permitFailure: once a contract is known to be a broker, a missing relayer is a real failure and
+  // has to throw rather than quietly drop that relayer's whole fee history.
+  const brokerNames = await api.multiCall({ abi: "string:BROKER_NAME", calls: params.map((p: any) => p.oracle), permitFailure: true });
+  // `!= null` rather than truthiness: an empty name is a broker that answered, and dropping it would
+  // be the same silent omission this layer exists to remove.
+  const brokers = params.filter((_: any, i: number) => brokerNames[i] != null).map((p: any) => p.oracle);
+  if (!brokers.length) return [];
+  const relayers = await api.multiCall({ abi: "address:RELAYER", calls: brokers });
+  const byRelayer: Record<string, FixedTermRelayer> = {};
+  relayers.forEach((relayer: string, i: number) => {
+    // `RELAYER` is storage with a one-time setter, so a broker read at a block between its proxy
+    // upgrade and that migration answers 0x0 instead of reverting. Name it here rather than letting
+    // it surface later as an opaque decode failure that takes the whole chain's fetch down.
+    if (!relayer || /^0x0+$/i.test(relayer)) throw new Error(`Lista broker ${brokers[i]} has no relayer set`);
+    const key = relayer.toLowerCase();
+    (byRelayer[key] ??= { relayer: key, brokers: new Set() }).brokers.add(brokers[i].toLowerCase());
+  });
+  return Object.values(byRelayer);
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -151,6 +230,53 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // ---- Fixed-term layer: interest collected by the broker InterestRelayers ----
+  // Gross interest is the loan token a broker hands to its relayer: `supplyToVault` pulls exactly
+  // the amount being settled, which the relayer's own source calls "incoming revenue (interest +
+  // penalty)" — borrower-paid either way, so all of it is Fees. The protocol's cut of it is
+  // `ProtocolFeeCharged`. Both legs are read directly so the split survives a fee-rate change:
+  // deriving one from the other through `feeRate` would misattribute any window the rate moved in,
+  // and would report zero fees outright if the rate were ever set to 0 — the same silent-zero this
+  // fix exists to remove. The fee is booked as protocol revenue whoever `feeRecipient` is; today it
+  // is the treasury on both chains (BSC 0x34B504A5CF0fF41F8A480580533b6Dda687fa3Da, Ethereum
+  // 0x0fe5741e8dFe53618c4056F745fad531118640D9), and it is a cut Lista takes out of supplier
+  // interest regardless of where it is forwarded.
+  // `InterestAccumulated` is not usable for either leg: it reports the relayer balance left *after*
+  // the fee and is re-emitted unchanged whenever that balance stays below `minLoan`, so summing it
+  // double counts.
+  const relayers = await getFixedTermRelayers(chain, api);
+  if (relayers.length) {
+    const relayerTokens = await api.multiCall({ abi: "address:token", calls: relayers.map((r) => r.relayer) });
+    const [feeLogs, interestLogsPerRelayer] = await Promise.all([
+      options.getLogs({ targets: relayers.map((r) => r.relayer), eventAbi: abis.ProtocolFeeCharged, flatten: false }),
+      Promise.all(
+        relayers.map((r, i) =>
+          options.getLogs({
+            target: relayerTokens[i],
+            eventAbi: abis.Transfer,
+            topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(r.relayer, 32)],
+          })
+        )
+      ),
+    ]);
+    relayers.forEach((r, i) => {
+      // Both legs are filtered to the same broker set. Only brokers can move interest in, so on the
+      // transfer side this rejects donations; on the fee side it keeps the two legs symmetric — a
+      // relayer is shared by up to eight brokers, and counting a broker's fee without its interest
+      // would push that relayer's supply side negative.
+      const interest = interestLogsPerRelayer[i]
+        .filter((log: any) => r.brokers.has(String(log.from).toLowerCase()))
+        .reduce((sum: bigint, log: any) => sum + BigInt(log.value), 0n);
+      if (!interest) return;
+      const fee = (feeLogs[i] ?? [])
+        .filter((log: any) => r.brokers.has(String(log.broker).toLowerCase()))
+        .reduce((sum: bigint, log: any) => sum + BigInt(log.fee), 0n);
+      dailyFees.add(relayerTokens[i], interest, METRIC.BORROW_INTEREST);
+      dailyRevenue.add(relayerTokens[i], fee, METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.add(relayerTokens[i], interest - fee, METRIC.BORROW_INTEREST);
+    });
+  }
+
   // At this point dailyRevenue is Lista's protocol cut only -> ProtocolRevenue.
   const dailyProtocolRevenue = dailyRevenue.clone();
 
@@ -181,24 +307,24 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total borrow interest paid by borrowers across all Moolah markets.",
-  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee) plus the DAO's own MoolahVault position yield that the protocol keeps as revenue.",
-  ProtocolRevenue: "Market protocol fee (interest × market fee), the management fee on self-operated MoolahVaults, and the DAO's own MoolahVault position yield kept by the protocol (routed to the treasury as USDT, not a LISTA buy-back).",
-  SupplySideRevenue: "Borrow interest distributed to third-party suppliers/lenders, net of Lista's protocol cut and net of the DAO's own position yield reclassified to protocol revenue.",
+  Fees: "Total borrow interest paid by borrowers across all Moolah markets, including the fixed interest (and late penalties) paid on fixed-term markets.",
+  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee + the fixed-term InterestRelayer fee) plus the DAO's own MoolahVault position yield that the protocol keeps as revenue.",
+  ProtocolRevenue: "Market protocol fee (interest × market fee), the fee the fixed-term InterestRelayers skim off the fixed interest before it reaches suppliers, the management fee on self-operated MoolahVaults, and the DAO's own MoolahVault position yield kept by the protocol (routed to the treasury as USDT, not a LISTA buy-back).",
+  SupplySideRevenue: "Borrow interest (variable and fixed-term) distributed to third-party suppliers/lenders, net of Lista's protocol cut and net of the DAO's own position yield reclassified to protocol revenue.",
 };
 
 const breakdownMethodology = {
-  Fees: { [METRIC.BORROW_INTEREST]: "Total interest paid by borrowers across all Moolah markets." },
+  Fees: { [METRIC.BORROW_INTEREST]: "Total interest paid by borrowers across all Moolah markets, variable-rate and fixed-term." },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee) plus the DAO's own MoolahVault position yield kept by the protocol.",
+    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee), the fixed-term InterestRelayer fee, plus the DAO's own MoolahVault position yield kept by the protocol.",
     [METRIC.MANAGEMENT_FEES]: "Management fee on self-operated MoolahVaults (feeRecipient = Lista's LendingFeeRecipient).",
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee) plus the DAO's own MoolahVault position yield kept by the protocol.",
+    [METRIC.BORROW_INTEREST]: "Market protocol fee (interest × market fee), the fixed-term InterestRelayer fee, plus the DAO's own MoolahVault position yield kept by the protocol.",
     [METRIC.MANAGEMENT_FEES]: "Management fee on self-operated MoolahVaults.",
   },
   SupplySideRevenue: {
-    [METRIC.BORROW_INTEREST]: "Interest to third-party suppliers/lenders, net of the market fee, vault management fee, and the DAO's own position yield reclassified to protocol revenue.",
+    [METRIC.BORROW_INTEREST]: "Interest to third-party suppliers/lenders, net of the market fee, the fixed-term InterestRelayer fee, the vault management fee, and the DAO's own position yield reclassified to protocol revenue.",
   },
 };
 
@@ -208,6 +334,8 @@ const adapter: SimpleAdapter = {
   // A DAO yield claim realises position yield accrued over many prior days, so on a claim day the
   // reclassified amount can exceed that window's supplier interest and push SupplySideRevenue negative.
   // This is expected lumpiness that nets out cumulatively — keep such days rather than throwing.
+  // Fixed-term interest is lumpy for a related reason: a term loan's whole interest settles on the
+  // day it is repaid, so those days spike. That one only ever adds, so it cannot go negative.
   allowNegativeValue: true,
   methodology,
   breakdownMethodology,
