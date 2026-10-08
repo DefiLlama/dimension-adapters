@@ -3,11 +3,20 @@ import fetchURL from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 import { CHAIN } from './chains';
 
+// Data API v1 is retired on 2026-10-24: https://docs.polymarket.com/migrate/data-api-v1-to-v2
+// v2 wraps the rows in `data`, uses snake_case fields and a YYYY-MM-DD `date`. It is not paginated
+// and serves only the latest 90 daily buckets (`limit` max 90), so older days cannot be fetched.
+const BUILDERS_VOLUME_URL = 'https://data-api.polymarket.com/v2/builders/volume?interval=day&limit=90'
+
 export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
 
-  const data = await fetchURL('https://data-api.polymarket.com/v1/builders/volume?timePeriod=DAY')
-  const dateString = (new Date(options.startOfDay * 1000).toISOString()).replace('.000Z', 'Z' )
-  const volume = data.find((item: any) => item.dt === dateString && item.builder === builder)
+  const { data } = await fetchURL(BUILDERS_VOLUME_URL)
+  const dateString = new Date(options.startOfDay * 1000).toISOString().slice(0, 10)
+  const oldestDate: string | undefined = data.reduce((oldest: string | undefined, item: any) => !oldest || item.date < oldest ? item.date : oldest, undefined)
+  if (oldestDate && dateString < oldestDate) {
+    throw new Error(`Polymarket builder volume is only served from ${oldestDate}, cannot fetch ${builder} on ${dateString}`);
+  }
+  const volume = data.find((item: any) => item.date === dateString && item.builder_name === builder)
 
   if (!volume) {
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
