@@ -8,7 +8,6 @@
 //
 // Event layouts and fee maths: https://github.com/Deep-Liquidity/deep-sdk (docs/INTEGRATORS.md,
 // sections 5 and 7; the Anchor IDLs are in packages/sdk/idl).
-import PromisePool from "@supercharge/promise-pool";
 import ADDRESSES from "./coreAssets.json";
 import { FetchOptions } from "../adapters/types";
 import { METRIC } from "./metrics";
@@ -71,10 +70,24 @@ interface SignatureWalk {
 // One walk per program and process: an hourly run asks for consecutive windows, and each of
 // them would otherwise page back from the tip again.
 const walks: Record<string, SignatureWalk> = {};
+// The dexs and fees adapters of one program can ask at the same time. They share the walk, so
+// its pages are fetched one caller at a time: two callers must never append the same page.
+const walkQueue: Record<string, Promise<unknown>> = {};
 
 // Signatures come newest first and cannot be asked for by time, so they are walked back from
 // the tip until they are older than the window. Failed transactions changed nothing.
-async function signaturesInWindow(address: string, fromTimestamp: number, toTimestamp: number): Promise<string[]> {
+function signaturesInWindow(address: string, fromTimestamp: number, toTimestamp: number): Promise<string[]> {
+  const previous = walkQueue[address] ?? Promise.resolve();
+  // Runs after the previous caller whether it succeeded or failed; its own error stays its own.
+  const mine = previous.then(
+    () => walkSignatures(address, fromTimestamp, toTimestamp),
+    () => walkSignatures(address, fromTimestamp, toTimestamp),
+  );
+  walkQueue[address] = mine.catch(() => undefined);
+  return mine;
+}
+
+async function walkSignatures(address: string, fromTimestamp: number, toTimestamp: number): Promise<string[]> {
   let walk = walks[address];
   // A walk started before the window closed may miss the window's latest transactions.
   if (!walk || walk.fetchedAt < toTimestamp)
@@ -130,18 +143,55 @@ function eventField(event: ProgramEvent, offset: number, name: string): bigint {
   return event.data.readBigUInt64LE(offset);
 }
 
+// The parts of a `getTransaction` answer (encoding "jsonParsed") that are read here.
+interface RpcInstruction {
+  programId: string;
+  /** Present when the node could parse the instruction (the System Program's always are). */
+  parsed?: unknown;
+  /** Inner instructions only: 2 for what a top-level instruction invokes, and so on. */
+  stackHeight?: number | null;
+}
+interface RpcTransaction {
+  meta: {
+    logMessages?: string[] | null;
+    innerInstructions?: { index: number; instructions: RpcInstruction[] }[] | null;
+  } | null;
+  transaction: { message: { instructions: RpcInstruction[] } };
+}
+/** A transaction whose logs were returned: the only kind that is processed. */
+type LoggedTransaction = RpcTransaction & { meta: { logMessages: string[] } };
+
+interface SystemTransfer {
+  source: string;
+  destination: string;
+  lamports: bigint;
+}
+
 interface ParsedInstruction {
   parent?: string; // the program that invoked this instruction; undefined at the top level
   programId: string;
-  parsed?: any;
+  parsed?: unknown;
+}
+
+const SYSTEM_PROGRAM = "11111111111111111111111111111111";
+
+// A System Program `transfer` as the node parsed it, or undefined for anything else.
+function asSystemTransfer(ix: ParsedInstruction): SystemTransfer | undefined {
+  if (ix.programId !== SYSTEM_PROGRAM || typeof ix.parsed !== "object" || ix.parsed === null) return undefined;
+  const { type, info } = ix.parsed as { type?: unknown; info?: unknown };
+  if (type !== "transfer" || typeof info !== "object" || info === null) return undefined;
+  const { source, destination, lamports } = info as Record<string, unknown>;
+  if (typeof source !== "string" || typeof destination !== "string") return undefined;
+  if (typeof lamports !== "number" && typeof lamports !== "string") return undefined;
+  return { source, destination, lamports: BigInt(lamports) };
 }
 
 // Every instruction of the transaction, top-level and inner, with the program that invoked it.
-function instructionsWithParent(tx: any, signature: string): ParsedInstruction[] {
+function instructionsWithParent(tx: LoggedTransaction, signature: string): ParsedInstruction[] {
   const all: ParsedInstruction[] = [];
-  const innerByIndex: Record<number, any[]> = {};
+  const innerByIndex: Record<number, RpcInstruction[]> = {};
   for (const group of tx.meta.innerInstructions ?? []) innerByIndex[group.index] = group.instructions;
-  tx.transaction.message.instructions.forEach((outer: any, index: number) => {
+  tx.transaction.message.instructions.forEach((outer, index) => {
     const stack: string[] = [outer.programId];
     all.push({ programId: outer.programId, parsed: outer.parsed });
     for (const inner of innerByIndex[index] ?? []) {
@@ -157,33 +207,32 @@ function instructionsWithParent(tx: any, signature: string): ParsedInstruction[]
 }
 
 // Lamports moved by System Program transfers that match `filter`.
-function systemTransfers(instructions: ParsedInstruction[], filter: (transfer: { source: string; destination: string }, parent?: string) => boolean): bigint {
+function systemTransfers(instructions: ParsedInstruction[], filter: (transfer: SystemTransfer, parent?: string) => boolean): bigint {
   let lamports = 0n;
   for (const ix of instructions) {
-    if (ix.programId !== "11111111111111111111111111111111" || ix.parsed?.type !== "transfer") continue;
-    if (filter(ix.parsed.info, ix.parent)) lamports += BigInt(ix.parsed.info.lamports);
+    const transfer = asSystemTransfer(ix);
+    if (transfer && filter(transfer, ix.parent)) lamports += transfer.lamports;
   }
   return lamports;
 }
 
-async function forEachTransaction(programId: string, options: FetchOptions, handle: (tx: any, events: ProgramEvent[], signature: string) => void) {
+const hasLogs = (tx: RpcTransaction | null | undefined): tx is LoggedTransaction => Array.isArray(tx?.meta?.logMessages);
+
+async function forEachTransaction(programId: string, options: FetchOptions, handle: (tx: LoggedTransaction, events: ProgramEvent[], signature: string) => void) {
   const signatures = await signaturesInWindow(programId, options.startTimestamp, options.endTimestamp);
   // One request at a time: public Solana RPCs rate-limit getTransaction.
-  await PromisePool.withConcurrency(1)
-    .for(signatures)
-    .handleError((error) => { throw error; })
-    .process(async (signature) => {
-      // The signature was just listed, so the transaction exists: an empty answer means this
-      // node cannot serve it (public RPC pools answer from nodes with different histories),
-      // not that nothing was traded. Ask again, then fail rather than count it as zero.
-      let tx: any;
-      for (let attempt = 0; attempt < 6 && !tx?.meta?.logMessages; attempt++) {
-        if (attempt > 0) await sleep(1000 * 2 ** attempt); // 2 s, 4 s, ... 32 s
-        tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
-      }
-      if (!tx?.meta?.logMessages) throw new Error(`deep: no transaction logs for ${signature}`);
-      handle(tx, programEvents(tx.meta.logMessages, programId, signature), signature);
-    });
+  for (const signature of signatures) {
+    // The signature was just listed, so the transaction exists: an empty answer means this
+    // node cannot serve it (public RPC pools answer from nodes with different histories),
+    // not that nothing was traded. Ask again, then fail rather than count it as zero.
+    let tx: RpcTransaction | null | undefined;
+    for (let attempt = 0; attempt < 6 && !hasLogs(tx); attempt++) {
+      if (attempt > 0) await sleep(1000 * 2 ** attempt); // 2 s, 4 s, ... 32 s
+      tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+    }
+    if (!hasLogs(tx)) throw new Error(`deep: no transaction logs for ${signature}`);
+    handle(tx, programEvents(tx.meta.logMessages, programId, signature), signature);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -194,6 +243,16 @@ async function forEachTransaction(programId: string, options: FetchOptions, hand
 // token_amount u64 @81 | protocol_fee u64 @89 | creator_fee u64 @97 | 4 x reserves u64 |
 // timestamp i64 @137 | reward_model u8 @145 | holder_fee u64 @146
 // LaunchFeeCharged: ... | usd_cents u16 @72 | lamports u64 @74 | ...
+/**
+ * Volume, fees and revenue of the DEEP launchpad (Deep Curve) in the window
+ * `options.startTimestamp` (inclusive) to `options.endTimestamp` (exclusive), read from the
+ * program's own events in that window's successful transactions.
+ *
+ * @returns `dailyVolume`: SOL traded on the bonding curves, gross of fees on both sides.
+ *   `dailyFees`: everything users paid (trading fees, creator and holder rewards, launch fees,
+ *   migration fees). `dailyRevenue` and `dailyProtocolRevenue`: the part DEEP receives.
+ *   `dailySupplySideRevenue`: the creator and holder rewards. All in SOL (lamports).
+ */
 export async function fetchDeepLaunchpad(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -223,17 +282,20 @@ export async function fetchDeepLaunchpad(options: FetchOptions) {
         const lamports = eventField(event, 74, "lamports");
         dailyFees.add(SOL, lamports, LABEL.LaunchFees);
         dailyRevenue.add(SOL, lamports, LABEL.LaunchFees);
-      } else if (isEvent(event, EVENT.Graduated)) {
-        // The migration fee (a share of the SOL the curve raised) first pays the network rent
-        // of the new pool's accounts; what DEEP receives is what the graduation then sends to
-        // the fee vault, including the pool creation fee DeepSwap charges it.
-        const toVault = systemTransfers(
-          instructionsWithParent(tx, signature),
-          ({ source, destination }) => source === GRADUATION_PAYER && (destination === FEE_VAULT || destination === FEE_VAULT_WSOL),
-        );
-        dailyFees.add(SOL, toVault, LABEL.MigrationFees);
-        dailyRevenue.add(SOL, toVault, LABEL.MigrationFees);
       }
+    }
+
+    // The migration fee (a share of the SOL the curve raised) first pays the network rent of
+    // the new pool's accounts; what DEEP receives is what the graduation then sends to the fee
+    // vault, including the pool creation fee DeepSwap charges it. The transfers are those of
+    // the whole transaction, so they are summed once however many tokens graduate in it.
+    if (events.some((event) => isEvent(event, EVENT.Graduated))) {
+      const toVault = systemTransfers(
+        instructionsWithParent(tx, signature),
+        ({ source, destination }) => source === GRADUATION_PAYER && (destination === FEE_VAULT || destination === FEE_VAULT_WSOL),
+      );
+      dailyFees.add(SOL, toVault, LABEL.MigrationFees);
+      dailyRevenue.add(SOL, toVault, LABEL.MigrationFees);
     }
   });
 
@@ -254,6 +316,17 @@ export async function fetchDeepLaunchpad(options: FetchOptions) {
 // input_amount u64 @56 | output_amount u64 @64 | ...
 // SwapFeesV1: 8 discriminator | pool_id 32 | is_buy u8 @40 | quote_mint 32 @41 | lp_fee u64 @73 |
 // protocol_fee u64 @81 | reward_fee u64 @89 | reward_model u8 @97
+/**
+ * Volume, fees and revenue of DeepSwap in the window `options.startTimestamp` (inclusive) to
+ * `options.endTimestamp` (exclusive), read from the program's own events in that window's
+ * successful transactions.
+ *
+ * @returns `dailyVolume`: the quote side of every swap, gross of fees. `dailyFees`: everything
+ *   traders and pool creators paid (LP fees, DEEP's fee, creator and holder rewards, pool
+ *   creation fees). `dailyRevenue` and `dailyProtocolRevenue`: the part DEEP receives.
+ *   `dailySupplySideRevenue`: LP fees and the creator and holder rewards. Each amount is in
+ *   the pool's quote token (base units); pool creation fees are in SOL (lamports).
+ */
 export async function fetchDeepSwap(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
