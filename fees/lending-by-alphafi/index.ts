@@ -1,34 +1,41 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
 
-// Returns USD amounts for an arbitrary time range (max 25 hours)
-const FEES_API = "https://api-staging.alphafi.xyz/public/metrics/fees";
-
-interface FeesResponse {
-  start: number;
-  end: number;
-  alphalend: {
-    fees: number;
-    revenue: number;
-    supplySideRevenue: number;
-  };
-}
+// AlphaLend FeeEarnedEvent, emitted by the mainnet package (first package id in @alphafi/alphalend-sdk prodConstants).
+// fee_type 0 = borrow interest: interest_earned is gross interest, market_fee is the protocol cut.
+// fee_type 1 = liquidation: only market_fee is set, kept by the protocol.
+// Replaces api.alphafi.xyz/public/metrics/fees, which has failed since 2026-09-30.
+const FEE_EARNED_EVENT = '0xd631cd66138909636fc3f73ed75820d0c5b76332d1644608ed1c85ea2b8219b4::events::Event<%FeeEarnedEvent%';
 
 const LENDING_FEES = 'Lending Fees';
 const PROTOCOL_SHARE = 'Protocol Share';
 const SUPPLY_SIDE_INTEREST = 'Supply Side Interest';
 
 const fetch = async (options: FetchOptions) => {
-  const res: FeesResponse = await fetchURL(`${FEES_API}?start=${options.fromTimestamp}&end=${options.toTimestamp}`);
+  const rows = await queryAllium(`
+    SELECT
+      parsed_json:event:coin_type::string AS coin,
+      SUM(IFF(parsed_json:event:fee_type::int = 0, parsed_json:event:interest_earned::number, parsed_json:event:market_fee::number)) AS fees,
+      SUM(parsed_json:event:market_fee::number) AS revenue,
+      SUM(IFF(parsed_json:event:fee_type::int = 0, parsed_json:event:interest_earned::number - parsed_json:event:market_fee::number, 0)) AS supply_side
+    FROM sui.raw.events
+    WHERE checkpoint_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND checkpoint_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND type LIKE '${FEE_EARNED_EVENT}'
+    GROUP BY 1
+  `);
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(res.alphalend.fees, LENDING_FEES);
-  dailyRevenue.addUSDValue(res.alphalend.revenue, PROTOCOL_SHARE);
-  dailySupplySideRevenue.addUSDValue(res.alphalend.supplySideRevenue, SUPPLY_SIDE_INTEREST);
+  for (const r of rows) {
+    const coin = '0x' + r.coin;
+    dailyFees.add(coin, r.fees, LENDING_FEES);
+    dailyRevenue.add(coin, r.revenue, PROTOCOL_SHARE);
+    dailySupplySideRevenue.add(coin, r.supply_side, SUPPLY_SIDE_INTEREST);
+  }
 
   return {
     dailyFees,
@@ -68,6 +75,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;
