@@ -19,7 +19,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: {
     [CHAIN.LYRA]: { start: "2024-07-12", deadFrom: "2026-10-06" }, // first spot trade on Derive (no v2 spot listing), settled on Derive Chain until the v3 cutover
-    [CHAIN.ETHEREUM]: { start: "2026-10-06" }, // v3 custody and settlement proofs live on Ethereum mainnet
+    [CHAIN.DERIVE_V3]: { start: "2026-10-06" }, // v3 zkVM exchange, listed as its own chain like the v2 Derive Chain it replaces
   },
   methodology: { Volume: "Notional volume of spot trades on Derive, counted once per trade." },
 };

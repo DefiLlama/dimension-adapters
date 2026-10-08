@@ -184,6 +184,7 @@ export enum CHAIN {
   SVM = "svm",
   ASTRZK = "astrzk",
   LYRA = "lyra",
+  DERIVE_V3 = "derive_v3", // Derive v3 zkVM exchange (proofs verified and funds custodied on Ethereum), successor of Derive Chain (lyra)
   BITLAYER = "btr",
   XLAYER = "xlayer",
   MERLIN = "merlin",
