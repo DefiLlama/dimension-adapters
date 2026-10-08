@@ -129,7 +129,10 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
     [CHAIN.TEMPO]: symbiosisBridge({ portal: "0x5Aa5f7f84eD0E5db0a4a85C3947eA16B53352FD4" }, "2026-08-06"),
     [CHAIN.ROBINHOOD]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2026-09-13"),
     [CHAIN.STABLE]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2026-09-16"),
-    // tron (portal 0xd83b5752b42856a08087748de6095af0be52d299, $574M lifetime): not an EVM getLogs chain here, needs its own source
+    // tron events report hex token addresses, tron prices are keyed by base58
+    [CHAIN.TRON]: symbiosisBridge({ portal: "0xd83b5752b42856a08087748de6095af0be52d299" }, "2026-03-05", {
+      "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", // USDT
+    }),
     // symbiosis chain (synthesis 0x45CFd6FB7999328F189aaD2739Fba4Be6C45E5bf): no CHAIN key / RPC, no recorded volume
     // telos, morph: under $1k lifetime volume; sei, goat, citrea: no recorded volume
   },

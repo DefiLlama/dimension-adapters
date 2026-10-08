@@ -138,9 +138,10 @@ const symbiosisSynthesis = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event SynthesizeCompleted(bytes32 indexed id, address indexed to, bytes32 indexed crossChainID, uint256 amount, uint256 bridgingFee, address token)", targets, direction: "incoming", tokenArg: "token", amountArg: "amount" },
 ];
 
-export const symbiosisBridge = (contracts: { portal?: string; synthesis?: string }, start?: string): BridgeChainConfig => ({
+export const symbiosisBridge = (contracts: { portal?: string; synthesis?: string }, start?: string, mapTokens?: Record<string, string>): BridgeChainConfig => ({
   start,
-  events: [...(contracts.portal ? symbiosisPortal([contracts.portal]) : []), ...(contracts.synthesis ? symbiosisSynthesis([contracts.synthesis]) : [])],
+  events: [...(contracts.portal ? symbiosisPortal([contracts.portal]) : []), ...(contracts.synthesis ? symbiosisSynthesis([contracts.synthesis]) : [])]
+    .map((event) => (mapTokens ? { ...event, mapTokens } : event)),
 });
 
 // ---------------------------------------------------------------------------------------------------
