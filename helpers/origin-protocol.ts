@@ -25,7 +25,7 @@ export const STAKING_REWARDS_LABEL = "OGN Staking Rewards";
 /**
  * Describes one Origin product that is rolled up into a per-protocol fee
  * adapter (origin-dollar = ["ousd"], origin-ether = ["oeth", "superOethb"],
- * origin-sonic = ["os"], origin-arm = [...four ARM vaults]).
+ * origin-sonic = ["os"], origin-arm = [...one entry per ARM vault]).
  */
 export interface OriginProduct {
   /** Key under which Origin's daily_revenue API reports this product (e.g. "ousd"). */
