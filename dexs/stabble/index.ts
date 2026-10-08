@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
-const volumeURL = "https://api.stabble.org/metric";
+const volumeURL = "https://api.knotsfarming.org/metric";
 
 interface DailyStats {
   volume: number;
