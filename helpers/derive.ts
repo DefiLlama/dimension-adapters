@@ -64,21 +64,21 @@ export async function getDeriveFees(options: FetchOptions, instrumentType: "perp
 
 export const deriveFeesMethodology = (market: string) => ({
   methodology: {
-    Fees: `Trading fees paid by users on Derive ${market} markets, plus builder fees that third-party apps set on the orders they submit.`,
-    UserFees: `Trading fees and builder fees paid by users on Derive ${market} markets.`,
-    Revenue: `Trading fees paid by users on Derive ${market} markets, minus rebates paid to market makers. Builder fees are excluded, they go to the apps that set them.`,
-    ProtocolRevenue: `Trading fees paid by users on Derive ${market} markets, minus rebates paid to market makers, kept by the protocol.`,
-    SupplySideRevenue: `Rebates paid to market makers on Derive ${market} markets, plus builder fees passed on to third-party apps.`,
+    Fees: `Trading fees and builder fees paid on Derive ${market} trades.`,
+    UserFees: `Trading fees and builder fees paid on Derive ${market} trades.`,
+    Revenue: `Trading fees minus maker rebates.`,
+    ProtocolRevenue: `Trading fees minus maker rebates.`,
+    SupplySideRevenue: `Maker rebates and builder fees.`,
   },
   breakdownMethodology: {
     Fees: {
-      "Trading Fees": `Trading fees charged on Derive ${market} trades.`,
-      "Builder Fees": `Extra fees that third-party apps set on the ${market} orders they submit for their users.`,
+      "Trading Fees": `Trading fees on ${market} trades.`,
+      "Builder Fees": `Fees set by third-party apps on the orders they submit.`,
     },
-    Revenue: { "Trading Fees Net Of Rebates": "Trading fees remaining after maker rebates." },
+    Revenue: { "Trading Fees Net Of Rebates": "Trading fees minus maker rebates." },
     SupplySideRevenue: {
-      "Maker Rebates": "Rebates paid to market makers for providing liquidity.",
-      "Builder Fees To Builders": "Builder fees passed on to the third-party apps that set them.",
+      "Maker Rebates": "Rebates paid to market makers.",
+      "Builder Fees To Builders": "Builder fees paid to the apps that set them.",
     },
   },
 });

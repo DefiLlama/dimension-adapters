@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDeriveTrades } from "../helpers/derive";
 
-const fetch = async (options: FetchOptions) => {
+export const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   for (const trade of await getDeriveTrades(options, "erc20")) {
     if (!trade.instrument_name.endsWith("-USDC")) continue; // USDC-quoted pairs only, so price is USD
@@ -16,11 +16,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.LYRA]: { start: "2024-07-12", deadFrom: "2026-10-06" }, // no v2 spot listing, history stays on Derive Chain
-    [CHAIN.DERIVE_V3]: { start: "2026-10-06" },
-  },
-  methodology: { Volume: "Notional volume of spot trades on Derive, counted once per trade." },
+  chains: [CHAIN.DERIVE_V3],
+  start: "2026-10-06", // v3 cutover
+  methodology: { Volume: "Spot trading volume on Derive." },
 };
 
 export default adapter;

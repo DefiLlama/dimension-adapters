@@ -9,7 +9,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.DERIVE_V3],
   runAtCurrTime: true, // Derive only serves current open interest
   methodology: {
-    OpenInterest: "Open interest of all Derive perpetual markets, one side counted, in underlying units times the current spot price.",
+    OpenInterest: "Open interest of Derive perpetual markets, one side counted.",
   },
 };
 

@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.DERIVE_V3],
   start: "2026-10-06", // v3 cutover
-  methodology: { Volume: "Notional volume of perpetual trades on Derive, counted once per trade." },
+  methodology: { Volume: "Perpetual trading volume on Derive." },
 };
 
 export default adapter;

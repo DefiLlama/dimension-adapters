@@ -21,8 +21,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.DERIVE_V3],
   start: "2026-10-06", // v3 cutover
   methodology: {
-    NotionalVolume: "Underlying notional (amount times index price) of options traded on Derive, counted once per trade.",
-    PremiumVolume: "Premium paid by option buyers on Derive, counted once per trade.",
+    NotionalVolume: "Notional value of options traded on Derive.",
+    PremiumVolume: "Premium paid on options traded on Derive.",
   },
 };
 
