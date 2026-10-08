@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json'
@@ -61,7 +62,8 @@ async function fetch(options: FetchOptions) {
   const dailyNotionalVolume = options.createBalances()
   const dailyPremiumVolume = options.createBalances()
   const tokens = contracts[options.chain].map(i => i[0]);
-  let decimals = await options.api.multiCall({ abi: 'erc20:decimals', calls: tokens, });
+  // decimals never change: read them at the latest block, since the public bitlayer RPCs are not archive nodes
+  let decimals = await new ChainApi({ chain: options.chain }).multiCall({ abi: 'erc20:decimals', calls: tokens, });
   tokens.map((token, index) => {
     tokenDecimals[token.toLowerCase()] = decimals[index];
   });

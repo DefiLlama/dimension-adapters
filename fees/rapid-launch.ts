@@ -20,6 +20,7 @@ const REFERRAL_RECIPIENTS = [
   "A8pkLHANwLsHoRLe2zKGVnehNsUQXM9S1FortS1hRuHi", // 1.6%
   "H9zga9rFmAoZ3VQHhXYe3VTJiGvhc3cqVjCHrXM8kvti", // 1.0%
 ];
+const REFERRAL_SHARE = 0.14;
 const COLLECTOR_FEES = "Rapid Launch Collector Fees";
 const COLLECTOR_FEES_TO_TREASURY = "Rapid Launch Collector Fees To Treasury";
 const REFERRAL_FEES_TO_REFERRERS = "Rapid Launch Referral Fees To Referrers";
@@ -38,23 +39,20 @@ const fetch = async (options: FetchOptions) => {
     blacklist_signers: FEE_COLLECTORS,
   });
 
-  const referralDistributions = await getSolanaReceived({
-    options,
-    targets: REFERRAL_RECIPIENTS,
-    mints: [ADDRESSES.solana.SOL],
-    fromAddresses: FEE_COLLECTORS,
-  });
-
+  // Referral payouts are batched and lag receipts by up to an hour, so subtracting the
+  // actual payouts per hourly window can go negative; apply the fixed split instead.
   const dailyFees = options.createBalances();
   dailyFees.addBalances(received, COLLECTOR_FEES);
   const dailySupplySideRevenue = options.createBalances();
   dailySupplySideRevenue.addBalances(
-    referralDistributions,
+    received.clone(REFERRAL_SHARE),
     REFERRAL_FEES_TO_REFERRERS,
   );
   const dailyRevenue = options.createBalances();
-  dailyRevenue.addBalances(received, COLLECTOR_FEES_TO_TREASURY);
-  dailyRevenue.subtract(referralDistributions, COLLECTOR_FEES_TO_TREASURY);
+  dailyRevenue.addBalances(
+    received.clone(1 - REFERRAL_SHARE),
+    COLLECTOR_FEES_TO_TREASURY,
+  );
 
   return {
     dailyFees,
@@ -76,10 +74,10 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "SOL fees paid by users for Rapid Launch token deployment and trading tools.",
     Revenue:
-      "Fees collected by Rapid Launch after referral distributions are paid to referrers.",
-    ProtocolRevenue: "Fees collected by Rapid Launch after referral distributions are paid to referrers..",
+      "86% of collector fees, kept by Rapid Launch after the 14% referral split.",
+    ProtocolRevenue: "86% of collector fees, kept by Rapid Launch after the 14% referral split.",
     SupplySideRevenue:
-      "SOL distributed from Rapid Launch's fee collectors to referral recipients.",
+      "14% of collector fees, distributed to referral recipients.",
   },
   breakdownMethodology: {
     Fees: {
@@ -88,15 +86,15 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [COLLECTOR_FEES_TO_TREASURY]:
-        "Gross collector fees minus SOL distributed to referral recipients.",
+        "Gross collector fees minus the 14% referral share.",
     },
     ProtocolRevenue: {
       [COLLECTOR_FEES_TO_TREASURY]:
-        "Gross collector fees minus SOL distributed to referral recipients, retained as protocol revenue.",
+        "Gross collector fees minus the 14% referral share, retained as protocol revenue.",
     },
     SupplySideRevenue: {
       [REFERRAL_FEES_TO_REFERRERS]:
-        "SOL distributed by Rapid Launch's fee collectors to referral recipients.",
+        "14% of collector fees, distributed by Rapid Launch's fee collectors to referral recipients.",
     },
   },
 };

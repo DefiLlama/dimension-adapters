@@ -38,6 +38,14 @@ const configs: Record<string, Record<string, any>> = {
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
   },
+  "energiswap": {
+    // uniV2 fork on Energi; graph.energi.network no longer resolves. Factory from TVL registry uniswapV2.js.
+    [CHAIN.ENERGI]: { factory: '0x875aDBaF8109c9CC9AbCC708a42607F573f594E4' },
+  },
+  "glide-finance": {
+    // uniV2 fork on Elastos; api.glidefinance.io subgraph stopped indexing. Factory from TVL registry uniswapV2.js.
+    [CHAIN.ELASTOS]: { factory: '0xaAbe38153b25f0d4b2bDa620f67059B3a45334e5', start: '2021-10-29' },
+  },
   "heliswap": {
     // uniV2 fork on Hedera, replaces dead GraphQL backend
     [CHAIN.HEDERA]: { factory: '0x0000000000000000000000000000000000134224', start: '2022-10-05' },
@@ -1496,13 +1504,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalVolume: "totalVolumeUSD",
     start: '2021-05-19',
   },
-  "energiswap": {
-    endpoints: {
-      [CHAIN.ENERGI]: "https://graph.energi.network/http/subgraphs/name/energi/energiswap",
-    },
-    factoriesName: "energiswapFactories",
-    totalVolume: "totalVolumeUSD",
-  },
   "fathom-dex": {
     endpoints: {
       [CHAIN.XDC]: "https://xinfin-graph.fathom.fi/subgraphs/name/dex-subgraph",
@@ -1525,13 +1526,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.FUNCTIONX]: "https://graph-node.functionx.io/subgraphs/name/subgraphFX2",
     },
     factoriesName: "fxswapFactories",
-  },
-  "glide-finance": {
-    endpoints: {
-      [CHAIN.ELASTOS]: "https://api.glidefinance.io/subgraphs/name/glide/exchange",
-    },
-    factoriesName: "glideFactories",
-    start: '2021-10-29',
   },
   "hercules": {
     endpoints: {

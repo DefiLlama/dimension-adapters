@@ -456,6 +456,18 @@ const configs: Record<string, Record<string, any>> = {
       start: '2026-09-16',
     },
   },
+  "morFi": {
+    // Algebra Integral fork on Morph; moved off subgraph.morfi.io (stalls indexing). Factory from TVL registry uniswapV3.js.
+    // Pools have no fee() method: fee and community (protocol) fee are read from globalState().
+    [CHAIN.MORPH]: {
+      factory: '0x1be404c921ef85537233ef2be251a27583072861', start: '2024-10-29', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent,
+      userFeesRatio: 1, algebraCommunityFee: true, holdersRevenueRatio: 0,
+      getRevenueRatio: ({ communityFeeRatio }: any) => {
+        if (communityFeeRatio === undefined) throw new Error('morFi: could not read pool community fee')
+        return { _revenueRatio: communityFeeRatio, _protocolRevenueRatio: communityFeeRatio }
+      },
+    },
+  },
 }
 
 const methodologyMap: Record<string, any> = {

@@ -8,18 +8,24 @@ const endpoints: Record<string, string> = {
     sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
 };
 
-const fetch = async ({ createBalances, startOfDay, chain }: FetchOptions) => {
+const fetch = async ({ createBalances, startOfDay, toTimestamp, chain }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dateId = Math.floor(startOfDay);
 
-  const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { cvxRevenue fraxRevenue } }`;
+  const graphQuery = `{ dailyRevenueSnapshot(id: ${dateId}) { cvxRevenue fraxRevenue } _meta { block { timestamp } } }`;
 
-  const { dailyRevenueSnapshot: snapshot } = await request(
+  const { dailyRevenueSnapshot: snapshot, _meta } = await request(
     endpoints[chain],
     graphQuery
   );
-  if (!snapshot) throw new Error("No data found");
+  if (!snapshot) {
+    // the subgraph only writes a snapshot on days with a harvest; once it has indexed past the
+    // end of the day, a missing snapshot means no harvest that day, not missing data
+    const indexedTo = Number(_meta?.block?.timestamp ?? 0);
+    if (indexedTo < Math.min(dateId + 86400, toTimestamp)) throw new Error(`No data found: subgraph indexed only to ${indexedTo}`);
+    return { dailyFees, dailyRevenue };
+  }
 
   const cvxAmount = Number(snapshot.cvxRevenue);
   const fraxAmount = Number(snapshot.fraxRevenue);

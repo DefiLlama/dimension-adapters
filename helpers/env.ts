@@ -61,9 +61,12 @@ const DEFAULTS: any = {
   ARC_MULTICALL_CHUNK_SIZE: '50',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
+  STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head
   RONIN_RPC: 'https://ronin.gateway.tenderly.co,https://gateway.tenderly.co/public/ronin',
   RSK_RPC: 'https://rootstock.blockscout.com/api/eth-rpc', // the rsk hosts in providers.json have no eth_getLogs, this blockscout proxy does
+  GENSYN_RPC: 'https://gensyn-mainnet.explorer.alchemy.com/api/eth-rpc', // blockscout eth-rpc proxy
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
+  BITCICHAIN_RPC: 'https://rpc.bitci.com', // chainId 1907; the sdk only knows this chain as "bitci"
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)

@@ -379,7 +379,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           ? 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee)'
           : 'function globalState() view returns (uint160 price, int24 tick, uint16 feeZto, uint16 feeOtz, uint16 timepointIndex, uint16 communityFee)'
         const _states = await api.multiCall({ abi, calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _states.forEach((state: any, i: number) => { if (state != null) communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR })
+        _states.forEach((state: any, i: number) => {
+          if (state == null) return
+          communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR
+          // some Integral pools have no fee() method; the current fee is the 3rd globalState field
+          if (isAlgebraV3 && !fees[logs[i].pool]) fees[logs[i].pool] = Number(state.fee) / 1e6
+        })
       }
     } else if (Array.isArray(pools)) {
 

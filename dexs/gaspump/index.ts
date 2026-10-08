@@ -20,6 +20,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  // gas111.com and gaspump.tg no longer resolve; TVL listing dead since 2025-12-14. Last nonzero volume 2026-09-02.
+  deadFrom: '2026-09-03',
   adapter: {
     [CHAIN.TON]: {
       fetch,
