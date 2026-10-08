@@ -1,17 +1,17 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
-import { getDeriveBuilderData } from '../fees/lyra-v2';
 import { CHAIN } from '../helpers/chains';
+import { getDeriveBuilderFees } from '../helpers/derive';
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch: async function (options: FetchOptions) {
-    const { fees } = await getDeriveBuilderData('dream', options.fromTimestamp, options.toTimestamp);
+    const fees = await getDeriveBuilderFees('dream', options);
     return {
       dailyFees: fees,
       dailyRevenue: fees,
       dailyProtocolRevenue: fees,
     }
-    
   },
   start: '2025-11-29',
   chains: [CHAIN.LYRA],
