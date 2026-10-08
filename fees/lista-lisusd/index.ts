@@ -371,7 +371,7 @@ const fetch = async (options: FetchOptions) => {
 
 const LISUSD_BREAKDOWN = {
   [ETH_STAKING_PROFIT]: 'Profit from ETH / wBETH liquid staking (HelioETHProvider, CeETHVault)',
-  [BNB_STAKING_PROFIT]: 'Profit from BNB liquid staking (SnBnbYieldConverterStrategy)',
+  [BNB_STAKING_PROFIT]: 'Profit from BNB liquid staking, skimmed from the CDP BNB principal: SnBnbYieldConverterStrategy until 2026-09-30, the YieldAccount it moved to from 2026-10-03',
   [BORROW_INTEREST]: 'Interest paid by lisUSD borrowers',
   [VELISTA_EARLY_CLAIM_FEE]: 'Penalty paid for claiming veLista rewards early',
   [LIQUIDATION_PROFIT]: 'Profit from CDP / lending liquidations',
