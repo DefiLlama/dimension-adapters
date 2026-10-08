@@ -77,7 +77,7 @@ export const getLyraAdapter = (instrument: string): any => ({
   fetch: fetch(instrument),
   chains: [CHAIN.LYRA],
   start: "2023-11-01",
-  deadFrom: "2026-10-06", // Derive moved to v3, see fees/derive-v3.ts
+  deadFrom: "2026-10-06", // Derive moved to v3, see fees/derive-v3-perps.ts
   methodology,
 })
 

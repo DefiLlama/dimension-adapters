@@ -26,5 +26,5 @@ export default {
     chains: [CHAIN.LYRA],
     fetch,
     runAtCurrTime: true,
-    deadFrom: "2026-10-06", // Derive moved to v3, see open-interest/derive-v3*.ts
+    deadFrom: "2026-10-06", // Derive moved to v3, see open-interest/derive-v3-options.ts
 }
