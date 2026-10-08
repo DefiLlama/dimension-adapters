@@ -40,8 +40,13 @@ const SnBnbYieldConverterStrategy =
 // all of this revenue stream stopped being seen. The skimmed slisBNB does not move through the
 // YieldAccount itself — it sits as Moolah collateral and the lending slisBNB provider sends it
 // straight to the revenue distributor — so the YieldSkimmed event is read instead of a Transfer:
-// slisAmount is exactly what the treasury receives (verified 1:1 on 2026-10-05 and 2026-10-08) and
-// it stays correct when the skim's recipient changes.
+// slisAmount is exactly what the treasury receives: every YieldSkimmed since the account went live
+// (2026-10-02 .. 2026-10-08) is matched to the wei by an slisBNB transfer in the same transaction,
+// and it stays correct when the skim's recipient changes. That 1:1 is observational, not a contract
+// rule — a skim that paid out partially, or split to a second recipient, would over-report here.
+// The account is an ERC-1967 clone (implementation 0xa7274686a9e20081dedc6951b43e13051e8baa87) and
+// exposes no registry getter, so a second instance would have to be added by hand.
+// https://bscscan.com/address/0xfd4057cd72a31a080a0f6cf234a922f2f647c608
 const yieldAccount = "0xfd4057cd72a31a080a0f6cf234a922f2f647c608";
 const CeETHVault = "0xA230805C28121cc97B348f8209c79BEBEa3839C0";
 const HayJoin = "0x4C798F81de7736620Cd8e6510158b1fE758e22F7";
