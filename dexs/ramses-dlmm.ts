@@ -115,11 +115,6 @@ interface IVoteBribe {
   amount: string;
 }
 
-interface IDlmmPool {
-  id: string;
-  isAlive?: boolean;
-}
-
 interface IToken {
   id: string;
   priceUSD: string;
@@ -167,7 +162,7 @@ async function getDlmmBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp,
+      from: options.startTimestamp + 1,
       to: options.endTimestamp,
       first,
       skip,
@@ -220,129 +215,66 @@ function shouldUseDayRollups(options: FetchOptions) {
   return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
 }
 
-function splitDlmmProtocolFees(protocolFeesUSD: number, feeTreasury: number, isAlive: boolean) {
-  if (protocolFeesUSD <= 0) return { voterFeesUSD: 0, treasuryFeesUSD: 0 };
-  if (!isAlive) return { voterFeesUSD: 0, treasuryFeesUSD: protocolFeesUSD };
-
-  const treasuryFeesUSD = protocolFeesUSD * feeTreasury;
-  return {
-    voterFeesUSD: protocolFeesUSD - treasuryFeesUSD,
-    treasuryFeesUSD,
-  };
-}
-
-async function fetchDlmmFactoryFeeTreasury(options: FetchOptions) {
-  const chainId = chainIds[options.chain];
-  const query = gql`
-    query getDLMMFactoryFeeTreasury {
-      DLMMFactory(where: { chainId: { _eq: ${chainId} } }) {
-        feeTreasury
-      }
-    }
-  `;
-  const data = await request<any>(dlmmSubgraphEndpoints[options.chain], query);
-  const feeTreasury = Number(data.DLMMFactory?.[0]?.feeTreasury ?? 0);
-
-  if (!Number.isFinite(feeTreasury) || feeTreasury < 0 || feeTreasury > 1) {
-    throw new Error("Invalid DLMM factory feeTreasury");
+function recordedDlmmValue(row: Record<string, unknown>, field: string) {
+  const value = row[field];
+  if ((typeof value !== 'string' && typeof value !== 'number')
+    || (typeof value === 'string' && !value.trim()) || !Number.isFinite(Number(value)) || Number(value) < 0) {
+    throw new Error(`Invalid recorded DLMM ${field}: ${value}`);
   }
-
-  return feeTreasury;
+  return Number(value);
 }
 
-async function fetchDlmmPoolIsAliveById(options: FetchOptions, poolIds: string[]) {
-  if (!poolIds.length) return new Map<string, boolean>();
-
-  const chainId = chainIds[options.chain];
-  const query = gql`
-    query getDLMMPools($poolIds: [String!]!) {
-      DLMMPool(where: { chainId: { _eq: ${chainId} }, id: { _in: $poolIds } }) {
-        id
-        isAlive
-      }
-    }
-  `;
-  const data = await request<any>(dlmmSubgraphEndpoints[options.chain], query, { poolIds });
-
-  return new Map((data.DLMMPool ?? []).map((pool: IDlmmPool) => [pool.id, pool.isAlive === true]));
+function recordedDlmmSupplySideRevenue(feesUSD: number, voterFeesUSD: number, treasuryFeesUSD: number) {
+  const remainder = feesUSD - voterFeesUSD - treasuryFeesUSD;
+  // Allow only floating-point subtraction roundoff, scaled to the recorded USD amounts.
+  const roundoff = 4 * Number.EPSILON * Math.max(feesUSD, voterFeesUSD, treasuryFeesUSD);
+  if (remainder < -roundoff) {
+    throw new Error(`Recorded DLMM fee splits exceed feesUSD: ${feesUSD} < ${voterFeesUSD} + ${treasuryFeesUSD}`);
+  }
+  return Math.max(remainder, 0);
 }
 
 async function fetchDlmmWindowStats(options: FetchOptions) {
+  const from = options.startTimestamp + 1;
+  const to = options.endTimestamp;
+  if (from % 3600 !== 0 || to % 3600 !== 0 || to <= from) {
+    throw new Error('DLMM recorded fee splits require an hour-aligned window');
+  }
   const endpoint = dlmmSubgraphEndpoints[options.chain];
   const chainId = chainIds[options.chain];
-  const swapsQuery = gql`
-    query dlmmSwaps($from: String!, $to: String!, $limit: Int!, $offset: Int!) {
-      DLMMSwap(
+  // The Ramses subgraph records swap and composition fees in these buckets.
+  // DLMMFeeEvent has no voter/treasury split; current factory/gauge state cannot reproduce it.
+  const query = gql`
+    query dlmmHourStats($from: Int!, $to: Int!, $limit: Int!, $offset: Int!) {
+      DLMMPoolHourData(
         limit: $limit
         offset: $offset
-        where: { chainId: { _eq: ${chainId} }, timestamp: { _gte: $from, _lt: $to } }
+        order_by: { id: asc }
+        where: { chainId: { _eq: ${chainId} }, startOfHour: { _gte: $from, _lt: $to } }
       ) {
-        amountUSD
+        volumeUSD
+        feesUSD
+        voterFeesUSD
+        treasuryFeesUSD
       }
     }
   `;
-  const feesQuery = gql`
-    query dlmmFeeEvents($from: String!, $to: String!, $limit: Int!, $offset: Int!) {
-      DLMMFeeEvent(
-        limit: $limit
-        offset: $offset
-        where: { chainId: { _eq: ${chainId} }, timestamp: { _gte: $from, _lt: $to } }
-      ) {
-        totalFeesUSD
-        protocolFeesUSD
-        lpFeesUSD
-        pool
-      }
-    }
-  `;
-
-  const variables = {
-    from: String(options.startTimestamp),
-    to: String(options.endTimestamp),
-  };
-  const [swaps, feeEvents] = await Promise.all([
-    paginate<{ amountUSD?: string }>(
-      (limit, offset) => request<any>(endpoint, swapsQuery, { ...variables, limit, offset })
-        .then((data) => data.DLMMSwap),
-      subgraphQueryLimit,
-    ),
-    paginate<{
-      totalFeesUSD?: string;
-      protocolFeesUSD?: string;
-      lpFeesUSD?: string;
-      pool?: string;
-    }>(
-      (limit, offset) => request<any>(endpoint, feesQuery, { ...variables, limit, offset })
-        .then((data) => data.DLMMFeeEvent),
-      subgraphQueryLimit,
-    ),
-  ]);
-  const poolIds = Array.from(new Set(feeEvents.map((event) => event.pool ?? "").filter(Boolean)));
-  const [feeTreasury, poolIsAliveById] = await Promise.all([
-    fetchDlmmFactoryFeeTreasury(options),
-    fetchDlmmPoolIsAliveById(options, poolIds),
-  ]);
-
-  const protocolSplit = feeEvents.reduce((sum, event) => {
-    const split = splitDlmmProtocolFees(
-      Number(event.protocolFeesUSD ?? 0),
-      feeTreasury,
-      poolIsAliveById.get(event.pool ?? "") === true,
-    );
-
-    return {
-      voterFeesUSD: sum.voterFeesUSD + split.voterFeesUSD,
-      treasuryFeesUSD: sum.treasuryFeesUSD + split.treasuryFeesUSD,
-    };
-  }, { voterFeesUSD: 0, treasuryFeesUSD: 0 });
-
-  return {
-    volumeUSD: swaps.reduce((sum, swap) => sum + Number(swap.amountUSD ?? 0), 0),
-    feesUSD: feeEvents.reduce((sum, event) => sum + Number(event.totalFeesUSD ?? 0), 0),
-    holdersRevenueUSD: protocolSplit.voterFeesUSD,
-    protocolRevenueUSD: protocolSplit.treasuryFeesUSD,
-    supplySideRevenueUSD: feeEvents.reduce((sum, event) => sum + Number(event.lpFeesUSD ?? 0), 0),
-  };
+  const rows = await paginate<Record<string, unknown>>(
+    (limit, offset) => request<any>(endpoint, query, { from, to, limit, offset })
+      .then((data) => data.DLMMPoolHourData),
+    subgraphQueryLimit,
+  );
+  return rows.reduce<IDlmmStats>((sum, row) => {
+    const feesUSD = recordedDlmmValue(row, 'feesUSD');
+    const voterFeesUSD = recordedDlmmValue(row, 'voterFeesUSD');
+    const treasuryFeesUSD = recordedDlmmValue(row, 'treasuryFeesUSD');
+    sum.volumeUSD += recordedDlmmValue(row, 'volumeUSD');
+    sum.feesUSD += feesUSD;
+    sum.holdersRevenueUSD += voterFeesUSD;
+    sum.protocolRevenueUSD += treasuryFeesUSD;
+    sum.supplySideRevenueUSD += recordedDlmmSupplySideRevenue(feesUSD, voterFeesUSD, treasuryFeesUSD);
+    return sum;
+  }, { volumeUSD: 0, feesUSD: 0, holdersRevenueUSD: 0, protocolRevenueUSD: 0, supplySideRevenueUSD: 0 });
 }
 
 async function fetchDlmmDayStats(options: FetchOptions) {
@@ -367,16 +299,16 @@ async function fetchDlmmDayStatsForDay(options: FetchOptions, startOfDay: number
     startOfDay,
   });
   const dayData = data.DLMMProtocolDayData?.[0];
-  const feesUSD = Number(dayData?.feesUSD ?? 0);
-  const voterFeesUSD = Number(dayData?.voterFeesUSD ?? 0);
-  const treasuryFeesUSD = Number(dayData?.treasuryFeesUSD ?? 0);
+  const feesUSD = dayData ? recordedDlmmValue(dayData, 'feesUSD') : 0;
+  const voterFeesUSD = dayData ? recordedDlmmValue(dayData, 'voterFeesUSD') : 0;
+  const treasuryFeesUSD = dayData ? recordedDlmmValue(dayData, 'treasuryFeesUSD') : 0;
 
   return {
-    volumeUSD: Number(dayData?.volumeUSD ?? 0),
+    volumeUSD: dayData ? recordedDlmmValue(dayData, 'volumeUSD') : 0,
     feesUSD,
     holdersRevenueUSD: voterFeesUSD,
     protocolRevenueUSD: treasuryFeesUSD,
-    supplySideRevenueUSD: Math.max(feesUSD - voterFeesUSD - treasuryFeesUSD, 0),
+    supplySideRevenueUSD: recordedDlmmSupplySideRevenue(feesUSD, voterFeesUSD, treasuryFeesUSD),
   };
 }
 
@@ -496,9 +428,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   // Delayed Sarcophagus funding can exceed protocol revenue accrued in the current window.
   allowNegativeValue: true,
-  // DLMM voter vs treasury split for recent windows is derived from fee events;
-  // daily protocol rollups remain the source for historical full-day queries.
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-07-22",

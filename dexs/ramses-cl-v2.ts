@@ -65,16 +65,6 @@ interface IPoolHourStats {
   treasuryFeesUSD: number;
 }
 
-interface IPoolMetadata {
-  id: string;
-  feeProtocol?: string;
-}
-
-interface IGaugeMetadata {
-  pool: string;
-  isAlive?: boolean;
-}
-
 interface IVoteBribe {
   token: { id: string };
   legacyPool?: { id: string };
@@ -133,7 +123,7 @@ async function getBribes(options: FetchOptions) {
 
   const getData = async (first: number, skip: number) =>
     request<any>(subgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp,
+      from: options.startTimestamp + 1,
       to: options.endTimestamp,
       first,
       skip,
@@ -206,7 +196,6 @@ function getWindowStartOfDays(options: FetchOptions) {
 async function fetchPoolHourStats(
   options: FetchOptions,
   root: "ClPoolHourData" | "LegacyPoolHourData",
-  poolRoot: "ClPool" | "LegacyPool",
 ): Promise<IPoolHourStats> {
   const chainId = chainIds[options.chain];
   const query = gql`
@@ -216,70 +205,46 @@ async function fetchPoolHourStats(
         offset: $skip
         where: { chainId: { _eq: ${chainId} }, startOfHour: { _gte: $from, _lt: $to } }
       ) {
-        pool
         volumeUSD
         feesUSD
+        voterFeesUSD
         treasuryFeesUSD
       }
     }
   `;
 
   const items = await paginate<{
-    pool?: string;
-    volumeUSD?: string;
-    feesUSD?: string;
-    treasuryFeesUSD?: string;
+    volumeUSD: string;
+    feesUSD: string;
+    voterFeesUSD: string;
+    treasuryFeesUSD: string;
   }>(
     (first, skip) => request<any>(rawSubgraphEndpoints[options.chain], query, {
-      from: options.startTimestamp,
+      from: options.startTimestamp + 1,
       to: options.endTimestamp,
       first,
       skip,
     }).then((data) => data.items),
     subgraphQueryLimit,
   );
-  const poolIds = Array.from(new Set(items.map((item) => item.pool ?? "").filter(Boolean)));
-  const metadataQuery = gql`
-    query poolMetadata($poolIds: [String!]!) {
-      pools: ${poolRoot}(where: { chainId: { _eq: ${chainId} }, id: { _in: $poolIds } }) {
-        id
-        feeProtocol
+  const totals: IPoolHourStats = { volumeUSD: 0, feesUSD: 0, voterFeesUSD: 0, treasuryFeesUSD: 0 };
+  for (const item of items) {
+    for (const field of Object.keys(totals) as (keyof IPoolHourStats)[]) {
+      const value = item[field];
+      if (value == null || String(value).trim() === "" || !Number.isFinite(Number(value)) || Number(value) < 0) {
+        throw new Error(`Invalid ${root} ${field} on ${options.chain}`);
       }
-      gauges: Gauge(where: { chainId: { _eq: ${chainId} }, pool: { _in: $poolIds } }) {
-        pool
-        isAlive
-      }
+      totals[field] += Number(value);
     }
-  `;
-  const metadata = poolIds.length
-    ? await request<any>(rawSubgraphEndpoints[options.chain], metadataQuery, { poolIds })
-    : { pools: [], gauges: [] };
-  const poolById = new Map<string, IPoolMetadata>((metadata.pools ?? []).map((pool: IPoolMetadata) => [pool.id, pool]));
-  const gaugeIsAliveByPool = new Map<string, boolean>((metadata.gauges ?? []).map((gauge: IGaugeMetadata) => [gauge.pool, gauge.isAlive === true]));
-  const protocolSplit = items.reduce((sum, item) => {
-    const feesUSD = Number(item.feesUSD ?? 0);
-    const treasuryFeesUSD = Number(item.treasuryFeesUSD ?? 0);
-    const feeProtocol = Number(poolById.get(item.pool ?? "")?.feeProtocol ?? 0);
-    const protocolFeesUSD = feesUSD * feeProtocol;
-    const voterFeesUSD = gaugeIsAliveByPool.get(item.pool ?? "") === true
-      ? Math.max(protocolFeesUSD - treasuryFeesUSD, 0)
-      : 0;
-
-    return {
-      voterFeesUSD: sum.voterFeesUSD + voterFeesUSD,
-      treasuryFeesUSD: sum.treasuryFeesUSD + treasuryFeesUSD,
-    };
-  }, { voterFeesUSD: 0, treasuryFeesUSD: 0 });
-
-  return {
-    volumeUSD: items.reduce((sum, item) => sum + Number(item.volumeUSD ?? 0), 0),
-    feesUSD: items.reduce((sum, item) => sum + Number(item.feesUSD ?? 0), 0),
-    voterFeesUSD: protocolSplit.voterFeesUSD,
-    treasuryFeesUSD: protocolSplit.treasuryFeesUSD,
-  };
+  }
+  return totals;
 }
 
 export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
+  // Pool-hour rollups cannot represent partial hours. The runner starts one second before the window.
+  if ((options.startTimestamp + 1) % 3600 !== 0 || options.endTimestamp % 3600 !== 0) {
+    throw new Error("Ramses CL and legacy rollups require hour-aligned window endpoints");
+  }
   const statsQuery = gql`
     query getProtocolDayData($startOfDays: [Int!]!) {
       ClProtocolDayData: clProtocolDayDatas(where: { startOfDay_in: $startOfDays }) {
@@ -327,13 +292,24 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
   const legacyUserBribeRevenueUSD = getBribeRevenueUSD(legacyVoteBribes);
   const clUserBribeRevenueUSD = getBribeRevenueUSD(clVoteBribes);
 
+  const useDayRollups = shouldUseDayRollups(options);
+  if (useDayRollups) {
+    for (const row of [clDayData, legacyDayData]) {
+      if (!row) continue;
+      for (const field of ['volumeUsd', 'feesUsd', 'voterFeesUsd', 'treasuryFeesUsd']) {
+        const value = row[field];
+        if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
+          throw new Error(`Invalid Ramses protocol day ${field} on ${options.chain}`);
+        }
+      }
+    }
+  }
   const clDayFeesUSD = Number(clDayData?.feesUsd ?? 0);
   const clDayVoterFeesUSD = Number(clDayData?.voterFeesUsd ?? 0);
   const clDayTreasuryFeesUSD = Number(clDayData?.treasuryFeesUsd ?? 0);
   const legacyDayFeesUSD = Number(legacyDayData?.feesUsd ?? 0);
   const legacyDayVoterFeesUSD = Number(legacyDayData?.voterFeesUsd ?? 0);
   const legacyDayTreasuryFeesUSD = Number(legacyDayData?.treasuryFeesUsd ?? 0);
-  const useDayRollups = shouldUseDayRollups(options);
   const [clStats, legacyStats] = await Promise.all([
     useDayRollups
       ? Promise.resolve({
@@ -342,7 +318,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
         voterFeesUSD: clDayVoterFeesUSD,
         treasuryFeesUSD: clDayTreasuryFeesUSD,
       })
-      : fetchPoolHourStats(options, "ClPoolHourData", "ClPool"),
+      : fetchPoolHourStats(options, "ClPoolHourData"),
     useDayRollups
       ? Promise.resolve({
         volumeUSD: Number(legacyDayData?.volumeUsd ?? 0),
@@ -350,7 +326,7 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
         voterFeesUSD: legacyDayVoterFeesUSD,
         treasuryFeesUSD: legacyDayTreasuryFeesUSD,
       })
-      : fetchPoolHourStats(options, "LegacyPoolHourData", "LegacyPool"),
+      : fetchPoolHourStats(options, "LegacyPoolHourData"),
   ]);
 
   return {
@@ -418,6 +394,7 @@ export function createFetchHandler(poolType: PoolType) {
     const dailySupplySideRevenue = options.createBalances();
 
     dailyFees.addUSDValue(poolStats.feesUSD, METRIC.SWAP_FEES);
+    const dailyUserFees = dailyFees.clone();
     dailyHoldersRevenue.addUSDValue(poolStats.userFeesRevenueUSD, 'Swap Fees to holders');
     dailyProtocolRevenue.addUSDValue(poolStats.protocolRevenueUSD, 'Swap Fees to protocol');
 
@@ -437,7 +414,7 @@ export function createFetchHandler(poolType: PoolType) {
     return {
       dailyVolume,
       dailyFees,
-      dailyUserFees: dailyFees,
+      dailyUserFees,
       dailyHoldersRevenue,
       dailyProtocolRevenue,
       dailyRevenue,
@@ -461,6 +438,9 @@ export const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Fees are collected from users on each swap.",
     ["Bribes"]: "Bribes paid by protocols",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Fees paid by users on each swap.",
   },
   Revenue: {
     ["Swap Fees to protocol"]: "Revenue going to the protocol.",
