@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { cache } from "@defillama/sdk";
+import { getExcludedMarketIds, getExcludedAssets } from "../../helpers/morphoExclusions";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -352,7 +353,17 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+  // asset_usage is 'all', so a market is excluded if either leg uses an excluded asset
+  const excludedAssets = new Set(await getExcludedAssets(options.chain, options.dateString));
+  const assetExcludedIds = Object.values(marketMap)
+    .filter(m => excludedAssets.has(m.loanAsset.toLowerCase()) || (!!m.collateralAsset && excludedAssets.has(m.collateralAsset.toLowerCase())))
+    .map(m => m.marketId.toLowerCase());
+
+  const blacklistedIds = [
+    ...assetExcludedIds,
+    ...(blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? []),
+    ...(await getExcludedMarketIds(options.chain, options.dateString)), // morpho's own feed, additive
+  ];
 
   const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
 
@@ -363,6 +374,9 @@ const fetchEvents = async (
     ...((insolventMarketsDetails.apiFlagged?.markets ?? {})?.[options.chain] ?? {}),
   }).map(item => item.toLowerCase());
 
+  // one predicate for both event types: an excluded market must not contribute interest OR liquidation bonus
+  const isExcluded = (id: string) => blacklistedIds.includes(id.toLowerCase()) || cacheBlacklistedMarkets.includes(id.toLowerCase());
+
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
       eventAbi: MorphoBlueAbis.AccrueInterest,
@@ -370,7 +384,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if (blacklistedIds.includes(log.id.toLowerCase()) || cacheBlacklistedMarkets.includes(log.id.toLowerCase())) interest = 0;
+    if (isExcluded(log.id)) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),
@@ -381,7 +395,7 @@ const fetchEvents = async (
       eventAbi: MorphoBlueAbis.Liquidate,
       target: MorphoBlues[options.chain].blue,
     })
-  ).filter(log => marketMap[String(log.id).toLowerCase()]).map((log: any) => {
+  ).filter(log => marketMap[String(log.id).toLowerCase()] && !isExcluded(String(log.id))).map((log: any) => {
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].collateralAsset : null,
       lif: marketMap[String(log.id).toLowerCase()].lif,
