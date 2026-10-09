@@ -91,7 +91,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.SOLANA],
-  start: "2026-05-03",
+  start: "2026-08-14",
   fetch,
   methodology: {
     Volume: "USDC execution quote amounts of perpetual fills returned by Fermi's monitoring API, counted once per fill ID; excludes the API's stable-price volume valuation.",
