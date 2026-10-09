@@ -221,7 +221,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Volume: "Swaps routed by the Uniswap Trading API, which quotes Uniswap v2, v3 and v4 pools and UniswapX fillers and executes the best route. Each swap is counted once at the value of the tokens the user sold: UniswapX orders from the reactor fill logs, and pool routes from the transactions carrying the Trading API calldata tag, including those submitted through third-party wallets and smart-account bundlers. Swaps sent to Uniswap pools directly by other routers, bots and aggregators are not included, and swaps involving tokens on DefiLlama's shared scam and wash-trading blacklist are excluded.",
+    Volume: "Swaps routed by Uniswap's Trading API, which picks the best route across Uniswap pools and UniswapX fillers. Each swap is counted once at the value of the tokens sold. Swaps sent to Uniswap pools by other routers or aggregators and swaps in blacklisted scam tokens are excluded.",
   },
 };
 
