@@ -2,22 +2,39 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
   vol_clean: number;
 }
 
-const QUOTE_TOKENS = [
+const STATIC_QUOTE_TOKENS = [
   ADDRESSES.solana.SOL,
   'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
   ADDRESSES.solana.USDC,
   ADDRESSES.solana.USDT,
   ADDRESSES.solana.PUMP,
   'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT',
-].map((a) => `'${a}'`).join(',')
+]
+
+// Custom Pairs (https://pump.fun/docs/custom-pairs): any quote asset the pump.fun bonding-curve program has
+// accepted for a launch, read from its CreateEvent on Dune as of the window end so refills reproduce history.
+// Allium decodes every pump.fun curve as SOL-quoted, so the set cannot come from the same warehouse.
+// PumpSwap pool creation is permissionless, so this (plus the static list) is the pump-sanctioned quote set.
+const getPumpQuoteMints = async (options: FetchOptions): Promise<string[]> => {
+  const rows = await queryDuneSql(options, `
+    SELECT DISTINCT quote_mint
+    FROM pumpdotfun_solana.pump_evt_createevent
+    WHERE quote_mint IS NOT NULL
+      AND quote_mint <> '11111111111111111111111111111111'
+      AND evt_block_time < from_unixtime(${options.endTimestamp})
+  `)
+  return rows.map((r: any) => r.quote_mint)
+}
 
 const fetch = async (options: FetchOptions) => {
+  const QUOTE_TOKENS = [...new Set([...STATIC_QUOTE_TOKENS, ...await getPumpQuoteMints(options)])].map((a) => `'${a}'`).join(',')
   const query = `WITH pool_filter AS (
         SELECT DISTINCT
           liquidity_pool_address
@@ -106,9 +123,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2025-02-20',
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   methodology: {
-    Volume: "Volume is the total volume of all pools on PumpSwap where the base/quote token is SOL, mSOL, USDC, USDT, PUMP, or BONK, and the pool has TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
+    Volume: "Volume is the total volume of all pools on PumpSwap where the base/quote token is SOL, mSOL, USDC, USDT, PUMP, BONK or any pump.fun Custom Pair quote asset (tokenized stocks, WBTC, other pump.fun coins, ...), and the pool has TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
   }
 }
 

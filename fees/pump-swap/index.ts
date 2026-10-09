@@ -31,6 +31,15 @@ const fetch = async (options: FetchOptions) => {
                     '${ADDRESSES.solana.PUMP}',
                     'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
                 )
+                -- Custom Pairs (https://pump.fun/docs/custom-pairs): any quote asset the pump.fun bonding-curve
+                -- program has accepted for a launch (read from its CreateEvent, as of the window end so refills
+                -- reproduce history). Pool creation on PumpSwap is permissionless, so this is the pump-sanctioned set.
+                OR quote_mint IN (
+                    SELECT DISTINCT quote_mint
+                    FROM pumpdotfun_solana.pump_evt_createevent
+                    WHERE quote_mint IS NOT NULL
+                      AND evt_block_time < from_unixtime(${options.endTimestamp})
+                )
         ),
         sells AS (
             SELECT
@@ -131,7 +140,7 @@ const adapter: SimpleAdapter = {
         Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
         Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
         SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
-        Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
+        Volume: "Tracks the trading volume across all pairs on PumpFun AMM quoted in SOL, mSOL, USDC, USDT, PUMP, BONK or any pump.fun Custom Pair asset (tokenized stocks, WBTC, other pump.fun coins, ...)",
     },
     isExpensiveAdapter: true
 }
