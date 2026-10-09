@@ -1004,15 +1004,15 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
           },
         ],
       },
-      [CHAIN.SEI]: {
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
-            dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
-          },
-        ],
-      },
+      // [CHAIN.SEI]: {
+      //   pools: [
+      //     {
+      //       version: 3,
+      //       lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
+      //       dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
+      //     },
+      //   ],
+      // },
     },
   },
   'colend-protocol': {
