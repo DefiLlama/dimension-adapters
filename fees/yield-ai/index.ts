@@ -1,7 +1,6 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
-import { sleep } from "../../utils/utils";
 
 // Yield AI vault package on Aptos mainnet. protocol::GlobalConfig at this address
 // has perf_bps = 500 (5% performance fee) and treasury set to TREASURY.
@@ -11,20 +10,8 @@ const PACKAGE = "0x333d1890e0aa3762bb256f5caeeb142431862628c63063801f44c152ef154
 const TREASURY = "0x80cf20e44ac2aeb5d593e2bf9e0426b1e765deccec1c215700903eb7e8ebf1c6";
 const ENTRY_PREFIX = `${PACKAGE}::vault::execute_`;
 
-const APTOS_GRAPHQL = "https://api.mainnet.aptoslabs.com/v1/graphql";
-
-// The indexer caps a response at 100 rows. Page by (transaction_version, event_index).
-const PAGE_SIZE = 100;
-const MAX_PAGES = 200;
-const SIBLING_VERSION_BATCH = 40;
-// Anonymous indexer quota is 40k compute units per 5 minutes per IP. CI runs
-// 24 hourly windows back to back, so a 429 has to wait out that window.
-const INDEXER_LIMIT_WINDOW_MS = 5 * 60 * 1000;
-
-const DEPOSIT = "0x1::fungible_asset::Deposit";
-
 // Gross claimed amount is reconstructed from fungible-asset deposits in the same
-// transaction. The indexer no longer exposes an events table.
+// transaction (Allium aptos.assets.fungible_transfers, one row per deposit event).
 //
 // "split": the treasury and the safe are paid as two deposits (the 5% cut and the
 // 95% that stays). Gross is their sum. execute_hyperion_claim_fees and
@@ -55,296 +42,74 @@ const FEE_SOURCE: Record<string, { kind: CutKind; label: string }> = {
   [`${ENTRY_PREFIX}withdraw_full_as_owner`]: { kind: "kept", label: WITHDRAWAL_REMAINDER },
 };
 
-type Activity = {
-  transaction_version: string;
-  event_index: number;
-  amount: string;
-  asset_type: string;
-  entry_function_id_str: string | null;
-  owner_address: string;
-};
-
 const treasuryTo = (label: string) => `${label} To Treasury`;
 const safesKeep = (label: string) => `${label} To Safes`;
 
-function canonicalAsset(asset: string): string {
-  const lower = asset.toLowerCase();
-  if (!lower.startsWith("0x") || lower.includes("::")) return lower;
-  const hex = lower.slice(2).replace(/^0+/, "") || "0";
-  return `0x${hex}`;
-}
-
-function sameAddress(a: string, b: string): boolean {
-  return canonicalAsset(a) === canonicalAsset(b);
-}
-
-function addAmount(map: Map<string, bigint>, key: string, amount: bigint) {
-  map.set(key, (map.get(key) ?? 0n) + amount);
-}
-
-// Hourly slots run two at a time in one process. Keep indexer calls in series so a
-// rate-limit pause covers every slot, instead of each slot retrying on its own.
-let indexerQueue: Promise<unknown> = Promise.resolve();
-
-function enqueueIndexer<T>(job: () => Promise<T>): Promise<T> {
-  const run = indexerQueue.then(job, job);
-  indexerQueue = run.then(() => undefined, () => undefined);
-  return run;
-}
-
-async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-  return enqueueIndexer(() => requestIndexer<T>(query, variables));
-}
-
-// Match the Aptos indexer wording ("rate limit", "compute units") and HTTP 408/429.
-// A bare "limit" also appears in unrelated GraphQL errors and must not pause the queue.
-function isIndexerRateLimit(message: string): boolean {
-  return /\b429\b|\brate limit\b|\bcompute units?\b/i.test(message);
-}
-
-function isTransientIndexerError(message: string): boolean {
-  return isIndexerRateLimit(message) || /\b408\b|\btimed out\b|\btimeout\b|\bECONNRESET\b|\bsocket\b/i.test(message);
-}
-
-async function requestIndexer<T>(query: string, variables: Record<string, unknown>): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      // The repo's Aptos helper does not attach an indexer key. Anonymous queries are
-      // capped at 40k compute units / 5 min per IP, so use a key when one is configured.
-      const headers: Record<string, string> = {};
-      const apiKey = process.env.APTOS_API_KEY;
-      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-      const body = await httpPost(APTOS_GRAPHQL, { query, variables }, { headers });
-      if (body?.errors?.length) {
-        const message = body.errors.map((error: { message?: string }) => error.message).join("; ");
-        if (attempt < 3 && isTransientIndexerError(message)) {
-          await sleep(isIndexerRateLimit(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
-          continue;
-        }
-        throw new Error(`yield-ai indexer: ${message}`);
-      }
-      return body.data as T;
-    } catch (error) {
-      lastError = error;
-      const message = String((error as { message?: string })?.message ?? error);
-      if (message.startsWith("yield-ai indexer:")) throw error;
-      if (attempt < 3 && isTransientIndexerError(message)) {
-        await sleep(isIndexerRateLimit(message) ? INDEXER_LIMIT_WINDOW_MS : 15000);
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw lastError;
-}
-
-const TREASURY_QUERY = `
-  query YieldAiTreasuryDeposits(
-    $owner: String!
-    $from: timestamp!
-    $to: timestamp!
-    $prefix: String!
-    $limit: Int!
-    $cursorVersion: bigint!
-    $cursorIndex: bigint!
-  ) {
-    fungible_asset_activities(
-      where: {
-        owner_address: { _eq: $owner }
-        type: { _eq: "${DEPOSIT}" }
-        is_gas_fee: { _eq: false }
-        is_transaction_success: { _eq: true }
-        entry_function_id_str: { _like: $prefix }
-        transaction_timestamp: { _gte: $from, _lt: $to }
-        _or: [
-          { transaction_version: { _gt: $cursorVersion } }
-          {
-            transaction_version: { _eq: $cursorVersion }
-            event_index: { _gt: $cursorIndex }
-          }
-        ]
-      }
-      order_by: [{ transaction_version: asc }, { event_index: asc }]
-      limit: $limit
-    ) {
-      transaction_version
-      event_index
-      amount
-      asset_type
-      entry_function_id_str
-      owner_address
-    }
-  }
-`;
-
-const SIBLING_QUERY = `
-  query YieldAiClaimDeposits(
-    $versions: [bigint!]!
-    $limit: Int!
-    $cursorVersion: bigint!
-    $cursorIndex: bigint!
-  ) {
-    fungible_asset_activities(
-      where: {
-        transaction_version: { _in: $versions }
-        type: { _eq: "${DEPOSIT}" }
-        is_gas_fee: { _eq: false }
-        is_transaction_success: { _eq: true }
-        _or: [
-          { transaction_version: { _gt: $cursorVersion } }
-          {
-            transaction_version: { _eq: $cursorVersion }
-            event_index: { _gt: $cursorIndex }
-          }
-        ]
-      }
-      order_by: [{ transaction_version: asc }, { event_index: asc }]
-      limit: $limit
-    ) {
-      transaction_version
-      event_index
-      amount
-      asset_type
-      owner_address
-    }
-  }
-`;
-
-async function pageTreasuryDeposits(fromIso: string, toIso: string): Promise<Activity[]> {
-  const rows: Activity[] = [];
-  let cursorVersion = "0";
-  let cursorIndex = "-1";
-
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const data = await gql<{ fungible_asset_activities: Activity[] }>(TREASURY_QUERY, {
-      owner: TREASURY,
-      from: fromIso,
-      to: toIso,
-      prefix: `${ENTRY_PREFIX}%`,
-      limit: PAGE_SIZE,
-      cursorVersion,
-      cursorIndex,
-    });
-    const activities = data.fungible_asset_activities ?? [];
-    rows.push(...activities);
-    if (activities.length < PAGE_SIZE) return rows;
-    const last = activities[activities.length - 1];
-    cursorVersion = String(last.transaction_version);
-    cursorIndex = String(last.event_index);
-  }
-
-  throw new Error(`yield-ai: more than ${MAX_PAGES * PAGE_SIZE} treasury deposits in one window`);
-}
-
-async function siblingDeposits(versions: string[]): Promise<Activity[]> {
-  const rows: Activity[] = [];
-  for (let i = 0; i < versions.length; i += SIBLING_VERSION_BATCH) {
-    const batch = versions.slice(i, i + SIBLING_VERSION_BATCH);
-    let cursorVersion = "0";
-    let cursorIndex = "-1";
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const data = await gql<{ fungible_asset_activities: Activity[] }>(SIBLING_QUERY, {
-        versions: batch,
-        limit: PAGE_SIZE,
-        cursorVersion,
-        cursorIndex,
-      });
-      const activities = data.fungible_asset_activities ?? [];
-      rows.push(...activities);
-      if (activities.length < PAGE_SIZE) break;
-      const last = activities[activities.length - 1];
-      cursorVersion = String(last.transaction_version);
-      cursorIndex = String(last.event_index);
-      if (page === MAX_PAGES - 1)
-        throw new Error(`yield-ai: sibling deposits for versions ${batch[0]}.. did not fit in ${MAX_PAGES} pages`);
-    }
-  }
-  return rows;
-}
+type ClaimRow = {
+  transaction_version: string;
+  fn: string;
+  token_address: string;
+  treasury_amount: string;
+  other_amount: string;
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const fromIso = new Date(options.fromTimestamp * 1000).toISOString();
-  const toIso = new Date(options.toTimestamp * 1000).toISOString();
+  const timeFilter = (alias: string) => `${alias}.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND ${alias}.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
-  const treasuryRows = await pageTreasuryDeposits(fromIso, toIso);
-  if (treasuryRows.length === 0) {
-    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
-  }
+  // One row per (vault::execute_* tx, token) that paid the treasury, with the treasury
+  // deposits and every other deposit of that token in the tx summed separately.
+  // Gas rows carry no deposit_metadata, so they drop out.
+  const rows: ClaimRow[] = await queryAllium(`
+    WITH claims AS (
+      SELECT DISTINCT t.transaction_version
+      FROM aptos.assets.fungible_transfers t
+      WHERE ${timeFilter("t")}
+        AND t.to_address = '${TREASURY}'
+        AND t.tx_payload:function::STRING LIKE '${ENTRY_PREFIX}%'
+    )
+    SELECT
+      t.transaction_version,
+      t.tx_payload:function::STRING AS fn,
+      LOWER(t.token_address) AS token_address,
+      CAST(SUM(IFF(t.to_address = '${TREASURY}', TRY_CAST(t.raw_amount_str AS DECIMAL(38, 0)), 0)) AS VARCHAR) AS treasury_amount,
+      CAST(SUM(IFF(t.to_address = '${TREASURY}', 0, TRY_CAST(t.raw_amount_str AS DECIMAL(38, 0)))) AS VARCHAR) AS other_amount
+    FROM aptos.assets.fungible_transfers t
+    JOIN claims c ON c.transaction_version = t.transaction_version
+    WHERE ${timeFilter("t")}
+      AND t.deposit_metadata IS NOT NULL
+    GROUP BY 1, 2, 3
+    HAVING SUM(IFF(t.to_address = '${TREASURY}', TRY_CAST(t.raw_amount_str AS DECIMAL(38, 0)), 0)) > 0
+  `);
 
-  // version|asset -> summed treasury cut, and the entry function that paid it.
-  const revenue = new Map<string, { fn: string; asset: string; amount: bigint }>();
-  for (const row of treasuryRows) {
-    const fn = row.entry_function_id_str ?? "";
-    if (!FEE_SOURCE[fn])
-      throw new Error(`yield-ai: treasury deposit from unclassified entry ${fn} in tx ${row.transaction_version}`);
-    const asset = canonicalAsset(row.asset_type);
-    const id = `${row.transaction_version}|${asset}`;
-    const prev = revenue.get(id);
-    const amount = BigInt(row.amount);
-    if (prev && prev.fn !== fn)
-      throw new Error(`yield-ai: tx ${row.transaction_version} paid the treasury from two entry functions`);
-    revenue.set(id, { fn, asset, amount: (prev?.amount ?? 0n) + amount });
-  }
-
-  const versions = [...new Set(treasuryRows.map((row) => String(row.transaction_version)))];
-  const siblings = await siblingDeposits(versions);
-  const other = new Map<string, bigint>();
-  for (const row of siblings) {
-    if (sameAddress(row.owner_address, TREASURY)) continue;
-    const asset = canonicalAsset(row.asset_type);
-    addAmount(other, `${row.transaction_version}|${asset}`, BigInt(row.amount));
-  }
-
-  const fees = new Map<string, Map<string, bigint>>();
-  const revenueByLabel = new Map<string, Map<string, bigint>>();
-  const supplyByLabel = new Map<string, Map<string, bigint>>();
-
-  const bump = (bucket: Map<string, Map<string, bigint>>, label: string, asset: string, amount: bigint) => {
-    if (amount === 0n) return;
-    let assets = bucket.get(label);
-    if (!assets) {
-      assets = new Map();
-      bucket.set(label, assets);
-    }
-    addAmount(assets, asset, amount);
-  };
-
-  for (const [id, cut] of revenue) {
-    const source = FEE_SOURCE[cut.fn];
-    const userShare = other.get(id) ?? 0n;
+  for (const row of rows) {
+    const source = FEE_SOURCE[row.fn];
+    if (!source)
+      throw new Error(`yield-ai: treasury deposit from unclassified entry ${row.fn} in tx ${row.transaction_version}`);
+    const cut = BigInt(row.treasury_amount);
+    const userShare = BigInt(row.other_amount);
     let gross: bigint;
     if (source.kind === "kept") {
-      gross = cut.amount;
+      gross = cut;
     } else if (userShare === 0n) {
-      throw new Error(`yield-ai: tx ${id} (${cut.fn}) deposited to the treasury with no paired safe deposit`);
+      throw new Error(`yield-ai: tx ${row.transaction_version} (${row.fn}) deposited to the treasury with no paired safe deposit`);
     } else if (source.kind === "split") {
-      gross = userShare + cut.amount;
+      gross = userShare + cut;
     } else {
       gross = userShare;
     }
-    const supply = gross - cut.amount;
+    const supply = gross - cut;
     if (supply < 0n)
-      throw new Error(`yield-ai: supply side went negative for ${id} (${cut.fn})`);
+      throw new Error(`yield-ai: supply side went negative for tx ${row.transaction_version} (${row.fn})`);
 
-    bump(fees, source.label, cut.asset, gross);
-    bump(revenueByLabel, treasuryTo(source.label), cut.asset, cut.amount);
-    bump(supplyByLabel, safesKeep(source.label), cut.asset, supply);
+    dailyFees.add(row.token_address, gross.toString(), source.label);
+    dailyRevenue.add(row.token_address, cut.toString(), treasuryTo(source.label));
+    if (supply > 0n) dailySupplySideRevenue.add(row.token_address, supply.toString(), safesKeep(source.label));
   }
-
-  const write = (bucket: Map<string, Map<string, bigint>>, balances: ReturnType<FetchOptions["createBalances"]>) => {
-    for (const [label, assets] of bucket) {
-      for (const [asset, amount] of assets) balances.add(asset, amount.toString(), label);
-    }
-  };
-
-  write(fees, dailyFees);
-  write(revenueByLabel, dailyRevenue);
-  write(supplyByLabel, dailySupplySideRevenue);
 
   return {
     dailyFees,
@@ -357,7 +122,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Gross value of rewards and LP fees claimed by the Yield AI vault executor: Echelon farming rewards (including the earlier execute_claim_apt path), Hyperion CLMM swap fees, and Hyperion farm and campaign rewards. The protocol takes 5% of each claim. Lending interest that accrues inside Echelon positions, and looping carry, are not charged and are not included. Counted when claimed, not as it accrues. Dust deposited to the treasury during a full withdrawal is included at the amount received.",
   Revenue: "The 5% performance fee (perf_bps = 500) deposited to the protocol treasury in the same vault::execute_* transaction that claims rewards or LP fees, plus any dust a full withdrawal deposits to that treasury.",
-  ProtocolRevenue: "The same treasury deposits. Yield AI has no governance token, so the whole fee stays with the protocol treasury.",
+  ProtocolRevenue: "The 5% performance fee on claimed rewards and LP fees, plus full-withdrawal dust, deposited to the protocol treasury. Yield AI has no governance token, so the whole fee stays with the protocol treasury.",
   SupplySideRevenue: "The remaining 95% of each claimed reward and LP fee, which stays in the user's safe. Withdrawal dust kept by the treasury has no supply-side share.",
 };
 
@@ -396,10 +161,13 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.APTOS],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   // First non-gas treasury deposit from vault::execute_* (execute_claim_apt, tx 4342516904).
   start: "2026-02-17",
   methodology,
   breakdownMethodology,
+  doublecounted: true,
 };
 
 export default adapter;
