@@ -3302,30 +3302,6 @@
         "runAtCurrTime": false
       }
     },
-    "fermi-dex": {
-      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
-      "codePath": "dexs/fermi-dex",
-      "module": {
-        "version": 2,
-        "pullHourly": true,
-        "chains": [
-          "solana"
-        ],
-        "start": "2026-05-03",
-        "fetch": "_f",
-        "methodology": {
-          "Volume": "Perpetual volume is served by Fermi's monitoring API, which aggregates on-chain perp fills from the SOL-PERP, ETH-PERP, and BTC-PERP markets."
-        },
-        "deadFrom": "2026-08-14",
-        "adapter": {
-          "solana": {
-            "fetch": "_f",
-            "start": "2026-05-03"
-          }
-        },
-        "runAtCurrTime": false
-      }
-    },
     "fibonacci-dex": {
       "modulePath": "-",
       "codePath": "dead/dexs/fibonacci-dex.ts",
