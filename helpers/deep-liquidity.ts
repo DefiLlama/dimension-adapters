@@ -62,6 +62,25 @@ const REWARD_MODEL_HOLDER = 2;
 
 const PAGE = 1000;
 
+// A rate-limited or briefly unavailable RPC is asked again, with a growing pause, before the
+// run fails: a public endpoint answers 429 under load, and counting nothing would be wrong.
+const RETRY_PAUSES_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
+const isTransient = (error: unknown) =>
+  /\b(429|502|503|504)\b|too many requests|rate limit|timeout|timed out|ECONNRESET|ETIMEDOUT|socket hang up/i.test(
+    error instanceof Error ? error.message : String(error),
+  );
+
+async function withRetry<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      if (attempt >= RETRY_PAUSES_MS.length || !isTransient(error)) throw error;
+      await sleep(RETRY_PAUSES_MS[attempt]);
+    }
+  }
+}
+
 interface SignatureWalk {
   fetchedAt: number; // unix seconds: the walk holds every signature older than this
   entries: { signature: string; blockTime: number; failed: boolean }[]; // newest first
@@ -95,7 +114,7 @@ async function walkSignatures(address: string, fromTimestamp: number, toTimestam
 
   const oldest = () => walk.entries[walk.entries.length - 1];
   while (!walk.complete && (!walk.entries.length || oldest().blockTime >= fromTimestamp)) {
-    const page = await getSignaturesForAddress({ address, limit: PAGE, before: oldest()?.signature });
+    const page = await withRetry(() => getSignaturesForAddress({ address, limit: PAGE, before: oldest()?.signature }));
     for (const entry of page) {
       // No block time yet: the transaction cannot be placed in or out of a window.
       if (typeof entry.blockTime !== "number") throw new Error(`deep: no block time for ${entry.signature}`);
@@ -228,7 +247,7 @@ async function forEachTransaction(programId: string, options: FetchOptions, hand
     let tx: RpcTransaction | null | undefined;
     for (let attempt = 0; attempt < 6 && !hasLogs(tx); attempt++) {
       if (attempt > 0) await sleep(1000 * 2 ** attempt); // 2 s, 4 s, ... 32 s
-      tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+      tx = await withRetry(() => getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
     }
     if (!hasLogs(tx)) throw new Error(`deep: no transaction logs for ${signature}`);
     handle(tx, programEvents(tx.meta.logMessages, programId, signature), signature);
