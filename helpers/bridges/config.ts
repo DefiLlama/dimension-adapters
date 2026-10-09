@@ -565,6 +565,26 @@ export const rainbowBridge = (start?: string): BridgeChainConfig => {
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Rootstock Token Bridge (Rootstock <-> Ethereum), Rootstock side. Cross locks or burns the Rootstock token to leave;
+// Claimed releases on arrival and reports the token's original address, which for Ethereum-origin tokens is the
+// Ethereum address and is priced there. https://dev.rootstock.io/resources/guides/token-bridge/
+// ---------------------------------------------------------------------------------------------------
+export const rootstockTokenBridge = (ethereumOrigin: string[], start?: string): BridgeChainConfig => {
+  const targets = ["0x9d11937e2179dc5270aa86a3f8143232d6da0e69"];
+  const fromEthereum = new Set(ethereumOrigin.map((t) => t.toLowerCase()));
+  const isEthereumOrigin = (args: any) => fromEthereum.has(String(args._originalTokenAddress).toLowerCase());
+  const claimed = "event Claimed(bytes32 indexed _transactionHash, address indexed _originalTokenAddress, address indexed _to, address _sender, uint256 _amount, bytes32 _blockHash, uint256 _logIndex, address _reciever, address _relayer, uint256 _fee)";
+  return {
+    start,
+    events: [
+      { eventAbi: "event Cross(address indexed _tokenAddress, address indexed _from, address indexed _to, uint256 _amount, bytes _userData)", targets, direction: "outgoing", tokenArg: "_tokenAddress", amountArg: "_amount" },
+      { eventAbi: claimed, targets, direction: "incoming", tokenArg: "_originalTokenAddress", amountArg: "_amount", tokenChain: "ethereum", filter: isEthereumOrigin },
+      { eventAbi: claimed, targets, direction: "incoming", tokenArg: "_originalTokenAddress", amountArg: "_amount", filter: (args: any) => !isEthereumOrigin(args) },
+    ],
+  };
+};
+
+// ---------------------------------------------------------------------------------------------------
 // StarkGate on Ethereum (Starknet side is non-EVM). Deposits from each token bridge; withdrawals are L2->L1
 // messages to a bridge on the Starknet core contract, amount low 128 bits at payload[3].
 // https://docs.starknet.io/tools/bridged-tokens/

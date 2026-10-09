@@ -4,7 +4,7 @@ import {
   agglayerBridge, allbridgeClassicBridge, aoriBridge, assetChainBridge, cctpBridge, celerBridge, connextBridge, coreBitcoinBridge,
   crossCurveBridge, crowdSwapBridge, eclipseBridge, flyoverBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, opStackBridge, optimismTeleportrEvents, polygonPosBridge, rainbowBridge,
-  rhinoBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
+  rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
   universalXBridge, wanBridge, xswapBridge, xyBridge, zkBridge,
 } from "../helpers/bridges/config";
 import { createFactoryExports } from "./registry";
@@ -642,6 +642,16 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
   // one-sided (destinationChain: aurora)
   "rainbow-bridge": {
     [CHAIN.ETHEREUM]: rainbowBridge("2022-11-04"),
+  },
+  // one-sided: only the Rootstock side is tracked, the Ethereum leg is attributed server-side (destinationChain: ethereum)
+  "rootstock-token-bridge": {
+    [CHAIN.ROOTSTOCK]: rootstockTokenBridge([
+      "0x6B175474E89094C44Da98b954EedeAC495271d0F", // DAI
+      "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC
+      "0xdAC17F958D2ee523a2206206994597C13D831ec7", // USDT
+      "0x514910771AF9Ca656af840dff83E8264EcF986CA", // LINK
+      "0x8D3E855f3f55109D473735aB76F753218400fe96", // BUND
+    ]),
   },
   // one-sided (destinationChain: starknet)
   "starkgate": {
