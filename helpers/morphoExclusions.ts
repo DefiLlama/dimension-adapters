@@ -75,7 +75,7 @@ async function getExclusions(): Promise<Record<string, Array<ExclusionRow>> | nu
 
 // effective_from is inclusive, effective_to exclusive and empty while the exclusion is still active
 const isActive = (row: ExclusionRow, dateString: string) =>
-  (!row.effective_from || row.effective_from <= dateString) &&
+  isDate(row.effective_from) && row.effective_from <= dateString &&
   (!row.effective_to || row.effective_to > dateString);
 
 async function getRows(kind: string, chain: string, dateString: string): Promise<Array<ExclusionRow>> {
