@@ -13,33 +13,22 @@ async function solanaUsers(start: number, end: number) {
 }
 
 
-const timeDif = (d: string, t: number) => Math.abs(new Date(d).getTime() - new Date(t * 1e3).getTime())
-function findClosestItem(results: any[], timestamp: number, getTimestamp: (x: any) => string) {
-  return results.reduce((acc: any, t: any) => {
-    if (timeDif(getTimestamp(t), timestamp) < timeDif(getTimestamp(acc), timestamp)) {
-      return t
-    } else {
-      return acc
-    }
-  }, results[0])
-}
-
-
 const toIso = (d: number) => new Date(d * 1e3).toISOString()
 function coinmetricsData(assetID: string) {
   return async (start: number, end: number) => {
+    const dayTimestamp = Math.floor((end - 1) / 86400) * 86400;
     const activeUsersResult = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=AdrActCnt&assets=${assetID}&start_time=${toIso(start - 24 * 3600)}&end_time=${toIso(end + 24 * 3600)}`)).data;
     const txcountResult = (await httpGet(`https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?page_size=10000&metrics=TxCnt&assets=${assetID}&start_time=${toIso(start - 24 * 3600)}&end_time=${toIso(end + 24 * 3600)}`)).data;
 
-    const activeUsersClosestDatapoint = findClosestItem(activeUsersResult, start, t => t.time)
-    const txcountClosestDatapoint = findClosestItem(txcountResult, start, t => t.time)
+    const activeUsersDatapoint = activeUsersResult.find((item: any) => new Date(item.time).getTime() === dayTimestamp * 1e3)
+    const txcountDatapoint = txcountResult.find((item: any) => new Date(item.time).getTime() === dayTimestamp * 1e3)
 
-    if (!activeUsersClosestDatapoint || !txcountClosestDatapoint) {
-      throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${end}, no data`);
+    if (!activeUsersDatapoint || !txcountDatapoint) {
+      throw new Error(`Failed to fetch CoinMetrics data for ${assetID} on ${toIso(dayTimestamp)}, no exact-date data`);
     }
 
-    const activeUsers = parseFloat(activeUsersClosestDatapoint['AdrActCnt']);
-    const txcount = parseFloat(txcountClosestDatapoint['TxCnt']);
+    const activeUsers = parseFloat(activeUsersDatapoint['AdrActCnt']);
+    const txcount = parseFloat(txcountDatapoint['TxCnt']);
 
     return [{
       usercount: activeUsers,
