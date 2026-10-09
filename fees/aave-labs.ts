@@ -23,6 +23,7 @@ const adapters: SimpleAdapter = {
   fetch,
   start: '2025-05-21',
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.XDAI],
+  deadFrom: '2025-12-28', // stopped interface fees post unification: https://support.uniswap.org/hc/en-us/articles/20131678274957-What-are-Uniswap-Labs-fees
   methodology: {
     Fees: "All swap fees from Aave frontend using CowSwap integration.",
     UserFees: "Users pay 0.15%-0.25% per swap while swap tokens using Aave frontend.",
