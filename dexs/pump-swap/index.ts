@@ -6,7 +6,8 @@ import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
-  vol_clean: number;
+  quote_mint: string;
+  quote_amount_raw: string;
 }
 
 const STATIC_QUOTE_TOKENS = [
@@ -18,10 +19,12 @@ const STATIC_QUOTE_TOKENS = [
   'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT',
 ]
 
-// Custom Pairs (https://pump.fun/docs/custom-pairs): any quote asset the pump.fun bonding-curve program has
-// accepted for a launch, read from its CreateEvent on Dune as of the window end so refills reproduce history.
-// Allium decodes every pump.fun curve as SOL-quoted, so the set cannot come from the same warehouse.
-// PumpSwap pool creation is permissionless, so this (plus the static list) is the pump-sanctioned quote set.
+// Custom Pairs (https://pump.fun/docs/custom-pairs): any external quote asset the pump.fun bonding-curve program
+// has accepted for a launch, read from its CreateEvent on Dune as of the window end so refills reproduce history.
+// Coins launched on pump.fun itself are never accepted as a quote (coin-quoted-in-coin pairs are open to anyone
+// and priced off a thin coin the launcher controls). Allium decodes every pump.fun curve as SOL-quoted, so the
+// set cannot come from the same warehouse. PumpSwap pool creation is permissionless, so this (plus the static
+// list) is the pump-sanctioned quote set.
 const getPumpQuoteMints = async (options: FetchOptions): Promise<string[]> => {
   const rows = await queryDuneSql(options, `
     SELECT DISTINCT quote_mint
@@ -29,10 +32,13 @@ const getPumpQuoteMints = async (options: FetchOptions): Promise<string[]> => {
     WHERE quote_mint IS NOT NULL
       AND quote_mint <> '11111111111111111111111111111111'
       AND evt_block_time < from_unixtime(${options.endTimestamp})
+      AND quote_mint NOT IN (SELECT mint FROM pumpdotfun_solana.pump_evt_createevent)
   `)
   return rows.map((r: any) => r.quote_mint)
 }
 
+// Volume is the quote-side amount of each trade, summed per quote mint and priced by DefiLlama's own feed
+// (Allium's usd_amount is only used for the pool TVL wash filter), so a quote DefiLlama cannot price adds nothing.
 const fetch = async (options: FetchOptions) => {
   const QUOTE_TOKENS = [...new Set([...STATIC_QUOTE_TOKENS, ...await getPumpQuoteMints(options)])].map((a) => `'${a}'`).join(',')
   const query = `WITH pool_filter AS (
@@ -49,21 +55,23 @@ const fetch = async (options: FetchOptions) => {
         SELECT
           pool,
           sender_token_acc,
-          SUM(usd_amount) as volume_usd
+          CASE WHEN token_sold_mint IN (${QUOTE_TOKENS}) THEN token_sold_mint ELSE token_bought_mint END AS quote_mint,
+          SUM(CASE WHEN token_sold_mint IN (${QUOTE_TOKENS}) THEN token_sold_amount_raw ELSE token_bought_amount_raw END) AS quote_amount_raw
         FROM solana.dex.trades
         WHERE project = 'pumpswap'
           AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
           AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
           AND pool IN (SELECT liquidity_pool_address FROM pool_filter)
-        GROUP BY pool, sender_token_acc
+        GROUP BY pool, sender_token_acc, quote_mint
       ),
       pool_volume AS (
         SELECT
           pool,
-          SUM(volume_usd) as total_volume_usd,
+          quote_mint,
+          SUM(quote_amount_raw) as quote_amount_raw,
           COUNT(DISTINCT sender_token_acc) as unique_traders
         FROM volume_data
-        GROUP BY pool
+        GROUP BY pool, quote_mint
       ),
       pool_info AS (
         SELECT DISTINCT
@@ -99,18 +107,18 @@ const fetch = async (options: FetchOptions) => {
         GROUP BY pvault.pool
       )
       SELECT
-        SUM(CASE
-          WHEN pt.total_tvl_usd >= 5000 AND pv.unique_traders >= 50 THEN pv.total_volume_usd
-          ELSE 0
-        END) as vol_clean
+        pv.quote_mint,
+        TO_VARCHAR(SUM(pv.quote_amount_raw)) as quote_amount_raw
       FROM pool_volume pv
-      INNER JOIN pool_tvl pt ON pv.pool = pt.liquidity_pool_address`
+      INNER JOIN pool_tvl pt ON pv.pool = pt.liquidity_pool_address
+      WHERE pt.total_tvl_usd >= 5000 AND pv.unique_traders >= 50
+      GROUP BY pv.quote_mint`
   
-  const [row]: IData[] = await queryAllium(query);
-  const cleanVolume = row?.vol_clean ?? 0
+  const rows: IData[] = await queryAllium(query);
+  if (!rows.length) throw new Error('no PumpSwap trades for the window')
 
   const dailyVolume = options.createBalances()
-  dailyVolume.addCGToken('tether', cleanVolume);
+  for (const { quote_mint, quote_amount_raw } of rows) dailyVolume.add(quote_mint, quote_amount_raw)
 
   return {
     dailyVolume,
@@ -125,7 +133,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   methodology: {
-    Volume: "Volume is the total volume of all pools on PumpSwap where the base/quote token is SOL, mSOL, USDC, USDT, PUMP, BONK or any pump.fun Custom Pair quote asset (tokenized stocks, WBTC, other pump.fun coins, ...), and the pool has TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
+    Volume: "Quote-side amount of every trade in PumpSwap pools whose quote token is SOL, mSOL, USDC, USDT, PUMP, BONK or any external pump.fun Custom Pair asset (tokenized stocks, WBTC, ...), priced by DefiLlama, where the pool has TVL >= $5,000 and at least 50 unique traders. Pools quoted in another pump.fun coin are excluded. This filters out wash trading pools.",
   }
 }
 

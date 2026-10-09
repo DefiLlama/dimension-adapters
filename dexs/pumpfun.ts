@@ -11,18 +11,26 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 // other pump.fun coins as quote from 2026-10-09. The dex_solana.trades spell keeps the SOL leg of those
 // trades at 0, so from the first custom-pair trade volume is read from the program's own TradeEvent,
 // grouped by quote mint. quote_mint/quote_amount are null on rows decoded before the IDL update.
+// Coins launched on pump.fun itself are never counted as a quote (coin-quoted-in-coin pairs are open to
+// anyone and priced off a thin coin the launcher controls); only external pair assets are kept, and only
+// those DefiLlama can price contribute, since amounts are added per quote mint and priced by our own feed.
 const CUSTOM_PAIRS_START = 1779062400 // 2026-05-21
 const SYSTEM_PROGRAM = '11111111111111111111111111111111' // quote_mint reported for SOL-quoted curves
 
 const fetchFromTradeEvents = async (options: FetchOptions) => {
   const rows = await queryDuneSql(options, `
-    SELECT
-      COALESCE(quote_mint, '${SYSTEM_PROGRAM}') AS quote_mint,
-      SUM(CASE WHEN quote_mint IS NULL THEN sol_amount ELSE quote_amount END) AS quote_amount
-    FROM pumpdotfun_solana.pump_evt_tradeevent
-    WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
-      AND evt_block_time < from_unixtime(${options.endTimestamp})
-    GROUP BY 1
+    WITH by_quote AS (
+      SELECT
+        COALESCE(quote_mint, '${SYSTEM_PROGRAM}') AS quote_mint,
+        SUM(CASE WHEN quote_mint IS NULL THEN sol_amount ELSE quote_amount END) AS quote_amount
+      FROM pumpdotfun_solana.pump_evt_tradeevent
+      WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
+        AND evt_block_time < from_unixtime(${options.endTimestamp})
+      GROUP BY 1
+    )
+    SELECT quote_mint, quote_amount
+    FROM by_quote
+    WHERE quote_mint NOT IN (SELECT mint FROM pumpdotfun_solana.pump_evt_createevent)
   `)
   if (!rows.length) throw new Error('no pump TradeEvent rows for the window')
 
@@ -68,7 +76,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: "Quote-asset side of every trade on pump.fun bonding curves: SOL for standard launches, and the pair asset (USDC, tokenized stocks, WBTC, PUMP, other pump.fun coins, ...) for Custom Pairs since May 2026.",
+    Volume: "Quote-asset side of every trade on pump.fun bonding curves: SOL for standard launches, and the pair asset (USDC, tokenized stocks, WBTC, PUMP, ...) for Custom Pairs since May 2026. Curves quoted in another pump.fun coin are excluded.",
   },
 };
 
