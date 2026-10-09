@@ -28,6 +28,7 @@ const ChainFeeForwarders: Record<string, string[]> = {
   [CHAIN.ERA]: ['0xA577ddDa8E06BE1a0705fE9c6e6Ce2D2011100c9', '0x92870bEd7554532ddE5213aC0f304573D79AaB24'],
   [CHAIN.FUSE]: ['0x79C3F5B651Ee5782Ba15d968B088458cd5f1f4EF'],
   [CHAIN.HEMI]: ['0xA5971Bd73Dbb879aAaA6fEcB95Dc3fD50c2e3C25', '0xB401ccdA43C36935e6059C02103E9541FbA3337E'],
+  [CHAIN.HYPERLIQUID]: ['0xba072Bf218314E51d5c3d254800d799840ae6a25'],
   [CHAIN.INK]: ['0xA5971Bd73Dbb879aAaA6fEcB95Dc3fD50c2e3C25', '0xB401ccdA43C36935e6059C02103E9541FbA3337E'],
   [CHAIN.KATANA]: ['0xaaa55A0157670Ff2b4CF82F5cd2C754FE54BA574', '0x51586Ff93Ded33DbEb6D5fA68d046Fd036251D8A'],
   [CHAIN.LINEA]: ['0x72015d314542457cBB6BF14318d82464E4D413ec', '0xD8b700cEd3e486c3c4FC31Fc0c3b3590e1a52D7e'],
@@ -49,7 +50,7 @@ export const getFeeForwarders = (chain: string) => [...new Set([
 export type FeeTransaction = { integrators: Set<string>; kind: 'swap' | 'bridge' };
 
 // integrator tags Jumper uses on its main app, gas refuel, Advanced and RWA products
-const JumperIntegrators = new Set(['jumper.exchange', 'jumper.exchange.gas', 'jumperadvanced', 'jumperrwa']);
+export const JumperIntegrators = new Set(['jumper.exchange', 'jumper.exchange.gas', 'jumperadvanced', 'jumperrwa']);
 
 export const isJumperTransaction = (transaction?: FeeTransaction) => transaction !== undefined &&
   transaction.integrators.size === 1 && JumperIntegrators.has([...transaction.integrators][0]);
