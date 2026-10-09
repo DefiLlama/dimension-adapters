@@ -1,6 +1,7 @@
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
@@ -42,14 +43,14 @@ const fetch = async (options: FetchOptions) => {
     const dailyRevenue = options.createBalances()
     const dailySupplySideRevenue = options.createBalances()
     data.forEach(({ quote_mint, protocol_fee, platform_fee, creator_fee }) => {
-        dailyFees.add(quote_mint, protocol_fee, 'Protocol Fee')
-        dailyFees.add(quote_mint, platform_fee, 'Launch Platform Fee')
-        dailyFees.add(quote_mint, creator_fee, 'Token Creator Fee')
-        dailyRevenue.add(quote_mint, protocol_fee, 'Protocol Fee')
+        dailyFees.add(quote_mint, protocol_fee, 'Token Launch Fees')
+        dailyFees.add(quote_mint, platform_fee, 'Token Launch Fees')
+        dailyFees.add(quote_mint, creator_fee, 'Token Launch Fees')
+        dailyRevenue.add(quote_mint, protocol_fee, METRIC.PROTOCOL_FEES)
         dailySupplySideRevenue.add(quote_mint, platform_fee, 'Launch Platform Fee')
         dailySupplySideRevenue.add(quote_mint, creator_fee, 'Token Creator Fee')
     })
-    const dailyHoldersRevenue = dailyRevenue.clone(0.25) // 25% of the protocol fee is burned
+    const dailyHoldersRevenue = dailyRevenue.clone(0.25, METRIC.TOKEN_BUY_BACK) // 25% of the protocol fee is burned
     const dailyProtocolRevenue = dailyRevenue.clone(0.75) // 75% goes to the protocol
 
     return {
@@ -77,12 +78,16 @@ const adapter: SimpleAdapter = {
     },
     breakdownMethodology: {
         Fees: {
-            'Protocol Fee': 'Raydium\'s cut of each trade (0.25% on the default config).',
-            'Launch Platform Fee': 'Fee taken by the front-end that configured the launch, set per platform config (1% on the default config).',
-            'Token Creator Fee': 'Fee taken by the wallet that created the token.',
+            'Token Launch Fees': 'All fees deducted from bonding-curve trades: Raydium\'s protocol fee (0.25% on the default config), the launch platform\'s fee (1% on the default config) and the token creator\'s fee.',
         },
         Revenue: {
-            'Protocol Fee': 'Raydium\'s cut of each trade.',
+            [METRIC.PROTOCOL_FEES]: 'Raydium\'s cut of each trade.',
+        },
+        ProtocolRevenue: {
+            [METRIC.PROTOCOL_FEES]: '75% of Raydium\'s cut of each trade, kept by the protocol.',
+        },
+        HoldersRevenue: {
+            [METRIC.TOKEN_BUY_BACK]: '25% of Raydium\'s cut of each trade, used to buy back and burn RAY.',
         },
         SupplySideRevenue: {
             'Launch Platform Fee': 'Paid to the launch platform, claimed via claim_platform_fee.',
