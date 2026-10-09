@@ -79,6 +79,21 @@ const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
   return cachedTokensPromise;
 };
 
+// BIM buyback program: bought-back BIM is sent to this Safe on Base.
+// Sample tx: 0xdd15d68d7e863a6f31773129042e6bcc0a11fe87c3aa0adfe0f03fd6369931b0
+const BIM_TOKEN_BASE = "0x555fff48549c1a25a723bd8e7ed10870d82e8379";
+const BIM_BUYBACK_WALLET = "0x472f31ab919ef12ccadfdd3f9ed5704397546d79";
+const BIM_BUYBACK_START = "2026-02-20"; // first BIM transfer into the wallet
+
+const getBuybacks = async (options: FetchOptions): Promise<Balances> => {
+  if (options.chain !== CHAIN.BASE || options.dateString < BIM_BUYBACK_START) return options.createBalances();
+  return addTokensReceived({
+    options,
+    token: BIM_TOKEN_BASE,
+    target: BIM_BUYBACK_WALLET,
+  });
+};
+
 const stakingTarget = "0xcc0516d2B5D8E156890D894Ee03a42BaC7176972";
 const vaultsEndpoint = "https://staking-api.bim.finance/vaults";
 let cachedVaultsPromise: Promise<any[]> | null = null;
@@ -221,14 +236,18 @@ const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.STELLAR) return fetchStellarFees(options);
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
+  const buybacksPromise = getBuybacks(options);
   const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   dailyFees.addBalances(await stakingFeesPromise, "Staking Fees");
   dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise, "Swap & Bridge Fees (EVM)");
+  dailyHoldersRevenue.addBalances(await buybacksPromise, "BIM Buyback");
 
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue,
   };
 };
 
@@ -236,6 +255,7 @@ const methodology = {
   Fees: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
   Revenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
   ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  HoldersRevenue: `BIM tokens bought back by the protocol and sent to the buyback wallet on Base.`,
 };
 
 const feesBreakdown = {
@@ -255,6 +275,9 @@ const adapter: SimpleAdapter = {
     Fees: feesBreakdown,
     Revenue: feesBreakdown,
     ProtocolRevenue: feesBreakdown,
+    HoldersRevenue: {
+      "BIM Buyback": "BIM tokens received by the protocol's buyback wallet on Base.",
+    },
   },
 };
 
