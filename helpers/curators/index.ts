@@ -553,12 +553,26 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
 
         const eulerVaults = (await getEulerVaults(options, vaults.euler, vaults.eulerVaultOwners)).filter(vault => !isBlacklistedVault(vault));
 
+        const morphoBalances = {
+          dailyFees: options.createBalances(),
+          dailyRevenue: options.createBalances(),
+          dailySupplySideRevenue: options.createBalances(),
+        }
         if (morphoVaults.length > 0) {
-          await getMorphoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaults, curatorConfig.breakdownFees)
+          await getMorphoVaultFee(options, morphoBalances, morphoVaults, curatorConfig.breakdownFees)
         }
         if (morphoVaultsV2.length > 0) {
-          await getMorphoVaultV2Fee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, morphoVaultsV2, curatorConfig.breakdownFees)
+          await getMorphoVaultV2Fee(options, morphoBalances, morphoVaultsV2, curatorConfig.breakdownFees)
         }
+        for (const token of await getExcludedAssets(options.chain, options.dateString)) {
+          morphoBalances.dailyFees.removeTokenBalance(token)
+          morphoBalances.dailyRevenue.removeTokenBalance(token)
+          morphoBalances.dailySupplySideRevenue.removeTokenBalance(token)
+        }
+        dailyFees.addBalances(morphoBalances.dailyFees)
+        dailyRevenue.addBalances(morphoBalances.dailyRevenue)
+        dailySupplySideRevenue.addBalances(morphoBalances.dailySupplySideRevenue)
+
         if (eulerVaults.length > 0) {
           await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, eulerVaults, curatorConfig.breakdownFees)
         }
@@ -566,10 +580,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
           await getKaminoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.kaminoVaults, curatorConfig.breakdownFees)
         }
 
-        const blacklistedTokensForChain = [
-          ...(blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token) ?? []),
-          ...(await getExcludedAssets(options.chain, options.dateString)), // morpho's own feed, additive
-        ]
+        const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token) ?? []
 
         if (blacklistedTokensForChain.length > 0) {
           for (const token of blacklistedTokensForChain) {

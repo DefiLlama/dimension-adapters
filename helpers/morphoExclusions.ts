@@ -20,21 +20,32 @@ interface ExclusionRow {
   [key: string]: string;
 }
 
+const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isId = (v: string) => /^0x[0-9a-fA-F]+$/.test(v);
+
 // the feed is plain comma-separated with no quoting; reason is last, so any extra commas fold into it.
-// returns null when the header is missing the required columns, so the caller can keep the old cache
+// returns null when the header or any row is malformed, so the caller can keep the old cache: a
+// truncated file would otherwise read as a short but valid list and silently drop live exclusions
 function parseCsv(text: string, requiredColumns: Array<string>): Array<ExclusionRow> | null {
   const lines = String(text).trim().split("\n").filter(Boolean);
   if (!lines.length) return null;
   const header = lines[0].split(",").map((h) => h.trim());
   if (!requiredColumns.every((c) => header.includes(c))) return null;
-  return lines.slice(1).map((line) => {
+
+  const rows: Array<ExclusionRow> = [];
+  for (const line of lines.slice(1)) {
     const parts = line.split(",");
+    if (parts.length < header.length) return null; // truncated row
     const row: any = {};
     header.forEach((h, i) => {
       row[h] = (i === header.length - 1 ? parts.slice(i).join(",") : parts[i] || "").trim();
     });
-    return row as ExclusionRow;
-  });
+    const idColumn = requiredColumns[1];
+    if (!row.chain || !isId(row[idColumn] || "")) return null;
+    if (!isDate(row.effective_from) || (row.effective_to && !isDate(row.effective_to))) return null;
+    rows.push(row as ExclusionRow);
+  }
+  return rows;
 }
 
 // a header-only file is a valid empty list; a missing key means we never got a usable version of it
@@ -73,11 +84,14 @@ async function getRows(kind: string, chain: string, dateString: string): Promise
   return rows.filter((row) => row.chain === chain && isActive(row, dateString));
 }
 
+// Market ids morpho excludes on `chain`, active on `dateString` (effective_from inclusive, effective_to exclusive).
 export const getExcludedMarketIds = async (chain: string, dateString: string): Promise<Array<string>> =>
   (await getRows("markets", chain, dateString)).map((i) => i.market_id.toLowerCase());
 
+// Asset addresses morpho excludes on `chain`, active on `dateString` (effective_from inclusive, effective_to exclusive).
 export const getExcludedAssets = async (chain: string, dateString: string): Promise<Array<string>> =>
   (await getRows("assets", chain, dateString)).map((i) => i.asset_address.toLowerCase());
 
+// Vault addresses morpho excludes on `chain`, active on `dateString` (effective_from inclusive, effective_to exclusive).
 export const getExcludedVaults = async (chain: string, dateString: string): Promise<Array<string>> =>
   (await getRows("vaults", chain, dateString)).map((i) => i.vault_address.toLowerCase());
