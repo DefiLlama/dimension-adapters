@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.HYPERLIQUID], // HyperEVM Exchange contract records positions, settlement and the LP balance
+  chains: [CHAIN.OFF_CHAIN], // synthetic bets against the house, no real perp trades on Hyperliquid
   start: "2026-10-10", // public launch
   methodology: {
     Volume: "Notional (margin times leverage) of BTC and ETH positions opened and voluntarily closed on Papertrade, in USD; liquidations are excluded. Every trade is against the protocol-owned LP at Hyperliquid's mid price, so there is no maker side and no Hyperliquid order-book volume is included.",

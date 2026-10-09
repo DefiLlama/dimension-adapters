@@ -12,7 +12,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.HYPERLIQUID],
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-07", // first accounts funded during pre-deposits
   methodology: {
     NewUsers: "Accounts that funded a Papertrade trading balance for the first time, from the protocol's cumulative unique account count.",

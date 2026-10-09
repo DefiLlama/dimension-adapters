@@ -44,7 +44,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.HYPERLIQUID],
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-10", // public launch
   methodology: {
     Fees: "The 2% fee Papertrade takes on realized trading PnL: a win fee on the gain of profitable closes and a fee carved from the LP's gain on losing closes and liquidations, counted when it is distributed (fees are only paid out while the payout queue is empty). Excludes the asymmetric-impact haircut and trader losses kept by the protocol-owned LP, and LP surplus paid to stakers above the $5M LP cap.",

@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   pullHourly: false, // a trailing-24h unique count cannot be sliced into hours
   runAtCurrTime: true, // no historical leaderboard
   fetch,
-  chains: [CHAIN.HYPERLIQUID],
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-07",
   methodology: {
     ActiveUsers: "Papertrade accounts that took any action (trade, deposit, withdrawal, stake or claim) in the trailing 24 hours, from the protocol's live leaderboard.",
