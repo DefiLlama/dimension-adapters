@@ -12,7 +12,7 @@ import ADDRESSES from "./coreAssets.json";
 import { FetchOptions } from "../adapters/types";
 import { METRIC } from "./metrics";
 import { sleep } from "../utils/utils";
-import { base58Encode, findProgramAddress, getSignaturesForAddress, getTransaction } from "./solana";
+import { base58Decode, base58Encode, findProgramAddress, getAccountInfo, getSignaturesForAddress, getTransaction } from "./solana";
 
 export const DEEP_CURVE_PROGRAM = "7czURwVLkQpcF1HVhhZU5GGzvPA8YniogZY1BhZHCDtA";
 export const DEEP_AMM_PROGRAM = "HCrCy6bzHhZ1b6bXwQAucEFkKXyzYMh3hgAR8UPrYSEP";
@@ -65,7 +65,11 @@ const PAGE = 1000;
 // A rate-limited or briefly unavailable RPC is asked again, with a growing pause, before the
 // run fails: a public endpoint answers 429 under load, and counting nothing would be wrong.
 const RETRY_PAUSES_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
+// JSON-RPC codes a node answers with when it is behind or overloaded: -32005 (node unhealthy),
+// -32603 (internal error), -32000 (server error).
+const TRANSIENT_RPC_CODES: unknown[] = [-32005, -32603, -32000];
 const isTransient = (error: unknown) =>
+  TRANSIENT_RPC_CODES.includes((error as { code?: unknown } | null)?.code) ||
   /\b(429|502|503|504)\b|too many requests|rate limit|timeout|timed out|ECONNRESET|ETIMEDOUT|socket hang up/i.test(
     error instanceof Error ? error.message : String(error),
   );
@@ -133,25 +137,44 @@ interface ProgramEvent {
   data: Buffer;
 }
 
+interface ProgramLogs {
+  events: ProgramEvent[];
+  /**
+   * Whether every log line of that invocation was returned. False only in a transaction whose
+   * logs the network cut off, for the invocations that had not finished by then.
+   */
+  complete: (frame: number) => boolean;
+}
+
 // A transaction's logs carry the events of every program it touched, and a program can log
 // arbitrary bytes, so an event is only trusted when the DEEP program is the one running: the
 // innermost invocation still open when the line was written.
-function programEvents(logs: string[], programId: string, signature: string): ProgramEvent[] {
+//
+// The network keeps about 10 kB of logs per transaction and then writes "Log truncated": a
+// transaction with many instructions loses the events of its last ones. Nothing after that
+// line is read (lines that still fit can follow it, with gaps), and the caller is told which
+// invocations were logged in full.
+function programEvents(logs: string[], programId: string): ProgramLogs {
   const events: ProgramEvent[] = [];
   const stack: { program: string; frame: number }[] = [];
+  const finished = new Set<number>();
+  let truncated = false;
   let frame = 0;
   for (const log of logs) {
-    if (log === "Log truncated")
-      throw new Error(`deep: the logs of ${signature} are truncated, its events cannot be read`);
+    if (log === "Log truncated") { truncated = true; break; }
     const invoked = log.match(/^Program (\S+) invoke \[\d+\]$/);
     if (invoked) { stack.push({ program: invoked[1], frame: frame++ }); continue; }
-    if (/^Program \S+ (success|failed)/.test(log)) { stack.pop(); continue; }
+    if (/^Program \S+ (success|failed)/.test(log)) {
+      const done = stack.pop();
+      if (done) finished.add(done.frame);
+      continue;
+    }
     const emitted = log.match(/^Program data: (\S+)$/);
     const top = stack[stack.length - 1];
     if (emitted && top?.program === programId)
       events.push({ frame: top.frame, data: Buffer.from(emitted[1], "base64") });
   }
-  return events;
+  return { events, complete: (index) => !truncated || finished.has(index) };
 }
 
 const isEvent = (event: ProgramEvent, discriminator: string) =>
@@ -167,6 +190,10 @@ interface RpcInstruction {
   programId: string;
   /** Present when the node could parse the instruction (the System Program's always are). */
   parsed?: unknown;
+  /** Present when the node could not parse it (a DEEP program's instructions): its accounts. */
+  accounts?: string[];
+  /** Present when the node could not parse it: the instruction data, base58. */
+  data?: string;
   /** Inner instructions only: 2 for what a top-level instruction invokes, and so on. */
   stackHeight?: number | null;
 }
@@ -187,9 +214,13 @@ interface SystemTransfer {
 }
 
 interface ParsedInstruction {
+  frame: number; // its place in execution order: the number of its invocation in the logs
+  parentFrame?: number; // the instruction that invoked it; undefined at the top level
   parent?: string; // the program that invoked this instruction; undefined at the top level
   programId: string;
   parsed?: unknown;
+  accounts?: string[];
+  data?: string;
 }
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
@@ -211,15 +242,28 @@ function instructionsWithParent(tx: LoggedTransaction, signature: string): Parse
   const innerByIndex: Record<number, RpcInstruction[]> = {};
   for (const group of tx.meta.innerInstructions ?? []) innerByIndex[group.index] = group.instructions;
   tx.transaction.message.instructions.forEach((outer, index) => {
-    const stack: string[] = [outer.programId];
-    all.push({ programId: outer.programId, parsed: outer.parsed });
+    const stack: ParsedInstruction[] = [];
+    const push = (ix: RpcInstruction) => {
+      const parent = stack[stack.length - 1];
+      const entry: ParsedInstruction = {
+        frame: all.length,
+        parentFrame: parent?.frame,
+        parent: parent?.programId,
+        programId: ix.programId,
+        parsed: ix.parsed,
+        accounts: ix.accounts,
+        data: ix.data,
+      };
+      all.push(entry);
+      stack.push(entry);
+    };
+    push(outer);
     for (const inner of innerByIndex[index] ?? []) {
       // stackHeight: 1 for a top-level instruction, 2 for what it invokes, and so on.
       if (typeof inner.stackHeight !== "number" || inner.stackHeight < 2 || inner.stackHeight > stack.length + 1)
         throw new Error(`deep: cannot rebuild the call stack of ${signature}`);
       stack.length = inner.stackHeight - 1;
-      all.push({ parent: stack[stack.length - 1], programId: inner.programId, parsed: inner.parsed });
-      stack.push(inner.programId);
+      push(inner);
     }
   });
   return all;
@@ -237,7 +281,18 @@ function systemTransfers(instructions: ParsedInstruction[], filter: (transfer: S
 
 const hasLogs = (tx: RpcTransaction | null | undefined): tx is LoggedTransaction => Array.isArray(tx?.meta?.logMessages);
 
-async function forEachTransaction(programId: string, options: FetchOptions, handle: (tx: LoggedTransaction, events: ProgramEvent[], signature: string) => void) {
+// The program's own instructions whose events the network cut from the logs (none in nearly
+// every transaction), in execution order. `counted` says whether an instruction's event was
+// read before the cut.
+function unloggedInstructions(all: ParsedInstruction[], logs: ProgramLogs, programId: string, signature: string, counted: (frame: number) => boolean): ParsedInstruction[] {
+  // Instructions and log invocations are numbered alike, so every event read must belong to
+  // an instruction of the program.
+  for (const event of logs.events)
+    if (all[event.frame]?.programId !== programId) throw new Error(`deep: logs and instructions of ${signature} do not line up`);
+  return all.filter((ix) => ix.programId === programId && !logs.complete(ix.frame) && !counted(ix.frame));
+}
+
+async function forEachTransaction(programId: string, options: FetchOptions, handle: (tx: LoggedTransaction, logs: ProgramLogs, signature: string) => void | Promise<void>) {
   const signatures = await signaturesInWindow(programId, options.startTimestamp, options.endTimestamp);
   // One request at a time: public Solana RPCs rate-limit getTransaction.
   for (const signature of signatures) {
@@ -245,12 +300,12 @@ async function forEachTransaction(programId: string, options: FetchOptions, hand
     // node cannot serve it (public RPC pools answer from nodes with different histories),
     // not that nothing was traded. Ask again, then fail rather than count it as zero.
     let tx: RpcTransaction | null | undefined;
-    for (let attempt = 0; attempt < 6 && !hasLogs(tx); attempt++) {
-      if (attempt > 0) await sleep(1000 * 2 ** attempt); // 2 s, 4 s, ... 32 s
+    for (let attempt = 0; attempt < 4 && !hasLogs(tx); attempt++) {
+      if (attempt > 0) await sleep(1000 * 2 ** attempt); // 2 s, 4 s, 8 s
       tx = await withRetry(() => getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
     }
     if (!hasLogs(tx)) throw new Error(`deep: no transaction logs for ${signature}`);
-    handle(tx, programEvents(tx.meta.logMessages, programId, signature), signature);
+    await handle(tx, programEvents(tx.meta.logMessages, programId), signature);
   }
 }
 
@@ -262,6 +317,69 @@ async function forEachTransaction(programId: string, options: FetchOptions, hand
 // token_amount u64 @81 | protocol_fee u64 @89 | creator_fee u64 @97 | 4 x reserves u64 |
 // timestamp i64 @137 | reward_model u8 @145 | holder_fee u64 @146
 // LaunchFeeCharged: ... | usd_cents u16 @72 | lamports u64 @74 | ...
+
+// Anchor instruction discriminator: sha256("global:buy")[0..8]
+const BUY_INSTRUCTION = "66063d1201daebea";
+// Anchor account discriminator: sha256("account:BondingCurve")[0..8]
+const BONDING_CURVE_ACCOUNT = "17b7f83760d8ac60";
+const BPS = 10_000n;
+
+interface CurveTerms {
+  buyProtocolFeeBps: bigint;
+  rewardBps: bigint;
+  toHolders: boolean;
+}
+// A token's fee terms are written to its bonding-curve account at launch and never change.
+const curveTerms: Record<string, Promise<CurveTerms>> = {};
+
+// BondingCurve: 8 discriminator | mint 32 | creator 32 | 6 x u64 | protocol_fee_bps u16 @120
+// (the buy side) | creator_fee_bps u16 @122 (the token's reward rate) | ... | reward_model u8 @187
+function readCurveTerms(curve: string): Promise<CurveTerms> {
+  return (curveTerms[curve] ??= (async () => {
+    const account = await withRetry(() => getAccountInfo({ account: curve, encoding: "base64" }));
+    const data = Array.isArray(account?.data) ? Buffer.from(account.data[0], "base64") : undefined;
+    if (account?.owner !== DEEP_CURVE_PROGRAM || !data || data.length < 188 || data.subarray(0, 8).toString("hex") !== BONDING_CURVE_ACCOUNT)
+      throw new Error(`deep: ${curve} is not a bonding curve`);
+    return {
+      buyProtocolFeeBps: BigInt(data.readUInt16LE(120)),
+      rewardBps: BigInt(data.readUInt16LE(122)),
+      toHolders: data[187] === REWARD_MODEL_HOLDER,
+    };
+  })());
+}
+
+interface CurveTrade {
+  gross: bigint; // SOL traded, fees included
+  protocolFee: bigint;
+  creatorFee: bigint;
+  holderFee: bigint;
+}
+
+// A buy whose event the network cut from the logs, rebuilt from what the transaction still
+// holds. A buy makes one System Program transfer, buyer to bonding curve, of exactly the
+// event's sol_amount (the SOL paid, fees included), and the program computes the fee from
+// that amount and the token's own rates alone: total = ceil(amount x (protocol + reward) /
+// 10 000), reward = floor(amount x reward / 10 000), protocol = total - reward. So the result
+// equals the missing event to the lamport. Accounts of a buy: buyer, config, mint, curve, ...
+async function rebuildBuy(buy: ParsedInstruction, all: ParsedInstruction[], signature: string): Promise<CurveTrade> {
+  const [buyer, , , curve] = buy.accounts ?? [];
+  const payments = all
+    .filter((ix) => ix.parentFrame === buy.frame)
+    .map(asSystemTransfer)
+    .filter((transfer): transfer is SystemTransfer => !!transfer);
+  if (!buyer || !curve || payments.length !== 1 || payments[0].source !== buyer || payments[0].destination !== curve)
+    throw new Error(`deep: cannot rebuild the buy cut from the logs of ${signature}`);
+  const gross = payments[0].lamports;
+  const terms = await readCurveTerms(curve);
+  const total = (gross * (terms.buyProtocolFeeBps + terms.rewardBps) + BPS - 1n) / BPS;
+  const reward = (gross * terms.rewardBps) / BPS;
+  return {
+    gross,
+    protocolFee: total - reward,
+    creatorFee: terms.toHolders ? 0n : reward,
+    holderFee: terms.toHolders ? reward : 0n,
+  };
+}
 /**
  * Volume, fees and revenue of the DEEP launchpad (Deep Curve) in the window
  * `options.startTimestamp` (inclusive) to `options.endTimestamp` (exclusive), read from the
@@ -278,7 +396,19 @@ export async function fetchDeepLaunchpad(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  await forEachTransaction(DEEP_CURVE_PROGRAM, options, (tx, events, signature) => {
+  const addTrade = ({ gross, protocolFee, creatorFee, holderFee }: CurveTrade) => {
+    dailyVolume.add(SOL, gross);
+
+    dailyFees.add(SOL, protocolFee, LABEL.CurveProtocolFees);
+    dailyRevenue.add(SOL, protocolFee, LABEL.CurveProtocolFees);
+    dailyFees.add(SOL, creatorFee, LABEL.CurveCreatorRewards);
+    dailySupplySideRevenue.add(SOL, creatorFee, LABEL.CurveCreatorRewards);
+    dailyFees.add(SOL, holderFee, LABEL.CurveHolderRewards);
+    dailySupplySideRevenue.add(SOL, holderFee, LABEL.CurveHolderRewards);
+  };
+
+  await forEachTransaction(DEEP_CURVE_PROGRAM, options, async (tx, logs, signature) => {
+    const { events } = logs;
     for (const event of events) {
       if (isEvent(event, EVENT.Trade)) {
         const isBuy = event.data[72] === 1;
@@ -288,20 +418,23 @@ export async function fetchDeepLaunchpad(options: FetchOptions) {
         const holderFee = eventField(event, 146, "holder_fee");
         // sol_amount is what the buyer paid, fees included, or what the seller received, fees
         // already taken: the fees are added back so both sides are gross.
-        const gross = isBuy ? solAmount : solAmount + protocolFee + creatorFee + holderFee;
-        dailyVolume.add(SOL, gross);
-
-        dailyFees.add(SOL, protocolFee, LABEL.CurveProtocolFees);
-        dailyRevenue.add(SOL, protocolFee, LABEL.CurveProtocolFees);
-        dailyFees.add(SOL, creatorFee, LABEL.CurveCreatorRewards);
-        dailySupplySideRevenue.add(SOL, creatorFee, LABEL.CurveCreatorRewards);
-        dailyFees.add(SOL, holderFee, LABEL.CurveHolderRewards);
-        dailySupplySideRevenue.add(SOL, holderFee, LABEL.CurveHolderRewards);
+        addTrade({ gross: isBuy ? solAmount : solAmount + protocolFee + creatorFee + holderFee, protocolFee, creatorFee, holderFee });
       } else if (isEvent(event, EVENT.LaunchFeeCharged)) {
         const lamports = eventField(event, 74, "lamports");
         dailyFees.add(SOL, lamports, LABEL.LaunchFees);
         dailyRevenue.add(SOL, lamports, LABEL.LaunchFees);
       }
+    }
+
+    // Instructions whose events the network cut from the logs. A buy is rebuilt exactly; for
+    // anything else the run fails rather than report a day that is short.
+    const instructions = instructionsWithParent(tx, signature);
+    const tradeFrames = new Set(events.filter((event) => isEvent(event, EVENT.Trade)).map((event) => event.frame));
+    for (const ix of unloggedInstructions(instructions, logs, DEEP_CURVE_PROGRAM, signature, (frame) => tradeFrames.has(frame))) {
+      const discriminator = ix.data ? Buffer.from(base58Decode(ix.data)).subarray(0, 8).toString("hex") : "";
+      if (discriminator !== BUY_INSTRUCTION)
+        throw new Error(`deep: the logs of ${signature} are truncated and an instruction other than a buy lost its events`);
+      addTrade(await rebuildBuy(ix, instructions, signature));
     }
 
     // The migration fee (a share of the SOL the curve raised) first pays the network rent of
@@ -310,7 +443,7 @@ export async function fetchDeepLaunchpad(options: FetchOptions) {
     // the whole transaction, so they are summed once however many tokens graduate in it.
     if (events.some((event) => isEvent(event, EVENT.Graduated))) {
       const toVault = systemTransfers(
-        instructionsWithParent(tx, signature),
+        instructions,
         ({ source, destination }) => source === GRADUATION_PAYER && (destination === FEE_VAULT || destination === FEE_VAULT_WSOL),
       );
       dailyFees.add(SOL, toVault, LABEL.MigrationFees);
@@ -352,7 +485,13 @@ export async function fetchDeepSwap(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  await forEachTransaction(DEEP_AMM_PROGRAM, options, (tx, events, signature) => {
+  await forEachTransaction(DEEP_AMM_PROGRAM, options, (tx, logs, signature) => {
+    const { events } = logs;
+    const instructions = instructionsWithParent(tx, signature);
+    // The events of every DeepSwap instruction must have been returned: a swap cut from the
+    // logs cannot be counted, and the run fails rather than report a day that is short.
+    if (unloggedInstructions(instructions, logs, DEEP_AMM_PROGRAM, signature, () => false).length)
+      throw new Error(`deepswap: the logs of ${signature} are truncated, its events cannot be read`);
     // A swap emits one SwapEvent and one SwapFeesV1 from the same invocation.
     for (const swap of events.filter((event) => isEvent(event, EVENT.Swap))) {
       const fees = events.find((event) => event.frame === swap.frame && isEvent(event, EVENT.SwapFeesV1));
@@ -391,7 +530,7 @@ export async function fetchDeepSwap(options: FetchOptions) {
     // vault's wrapped SOL account. The pool of a graduating token is paid for out of that
     // token's migration fee, which the launchpad adapter reports, so it is left out here.
     const poolCreationFees = systemTransfers(
-      instructionsWithParent(tx, signature),
+      instructions,
       ({ source, destination }, parent) => parent === DEEP_AMM_PROGRAM && destination === FEE_VAULT_WSOL && source !== GRADUATION_PAYER,
     );
     dailyFees.add(SOL, poolCreationFees, LABEL.PoolCreationFees);
