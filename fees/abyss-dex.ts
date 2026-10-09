@@ -1,4 +1,5 @@
 import BigNumber from "bignumber.js";
+import { blocks, getProvider } from "@defillama/sdk";
 import { httpGet } from "../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -27,6 +28,47 @@ const BUYBACK = "Buyback Funding";
 const compareLogs = (a: PositionedLogArgs, b: PositionedLogArgs) =>
   a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
 
+// SDK lookups are approximate and can return the current head near midnight.
+// Refine the seed with sequential RPC timestamp reads, including all blocks in the boundary second.
+const getClosingBlock = async (timestamp: number, chain: string) => {
+  const seed = await blocks.getBlock(chain, timestamp, { allowedTimeRange: 0, acceptableBlockImprecision: 1 });
+  if (!Number.isSafeInteger(seed.block))
+    throw new Error("Abyss: invalid daily boundary block");
+  const provider = getProvider(chain);
+  const timestampAt = async (block: number) => {
+    const header = await provider.getBlock(block);
+    if (!header)
+      throw new Error(`Abyss: unavailable boundary block ${block}`);
+    return header.timestamp;
+  };
+  let low = seed.block;
+  let high = seed.block;
+  let lowTimestamp = seed.timestamp;
+  let highTimestamp = seed.timestamp;
+  let distance = 1;
+  while (lowTimestamp > timestamp || highTimestamp <= timestamp) {
+    if (lowTimestamp > timestamp) {
+      low = Math.max(0, seed.block - distance);
+      lowTimestamp = await timestampAt(low);
+      if (low === 0 && lowTimestamp > timestamp)
+        throw new Error("Abyss: boundary precedes chain history");
+    }
+    if (highTimestamp <= timestamp) {
+      high = seed.block + distance;
+      highTimestamp = await timestampAt(high);
+    }
+    distance *= 2;
+  }
+  while (low + 1 < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (await timestampAt(mid) <= timestamp)
+      low = mid;
+    else
+      high = mid;
+  }
+  return low;
+};
+
 const fetch = async (options: FetchOptions) => {
   const day = options.startOfDay;
   const end = day + 86400; // The source publishes UTC daily buckets only.
@@ -52,10 +94,8 @@ const fetch = async (options: FetchOptions) => {
   if (fees !== lpFees + revenue)
     throw new Error(`Abyss: generated fees do not reconcile for ${options.dateString}`);
 
-  const beforeDay = await options.getBlock(day - 1, options.chain, {});
-  const toBlock = await options.getBlock(end - 1, options.chain, {});
-  if (!Number.isSafeInteger(beforeDay) || !Number.isSafeInteger(toBlock))
-    throw new Error("Abyss: unavailable daily boundary blocks");
+  const beforeDay = await getClosingBlock(day - 1, options.chain);
+  const toBlock = await getClosingBlock(end - 1, options.chain);
   if (!("indexedBlock" in data) || typeof data.indexedBlock !== "string" || !/^\d+$/.test(data.indexedBlock)
     || BigInt(data.indexedBlock) < BigInt(toBlock))
     throw new Error(`Abyss: fee indexer has not completed ${options.dateString}`);
