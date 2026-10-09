@@ -3,7 +3,9 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const SUBGRAPH_URL = "https://gateway.eva.markets/subgraph";
+// Envio HyperIndex endpoint used by the eva.markets frontend (gateway.eva.markets/subgraph returns 404).
+// The path segment is a deployment hash and changes on redeploy: re-read it from the eva.markets JS bundle if this 404s.
+const SUBGRAPH_URL = "https://indexer.dev.hyperindex.xyz/92e116c/v1/graphql";
 
 type VaultSkim = {
   amount: string;

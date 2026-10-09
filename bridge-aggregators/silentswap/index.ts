@@ -12,7 +12,9 @@ import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
  */
 
 const STATS_CONTRACT = "0x5894a9B8B342BDb1AD7570C3656eE406eE26f676"; // BNB mainnet, deployed 2026-05-25
-const DEPLOYMENT_DATE = 20260525n; // the day before this has no snapshot by design, not due to a stall
+// The contract was backfilled: the first row it holds is 2025-11-30. Days before this have no
+// snapshot by design, not due to a stall.
+const FIRST_SNAPSHOT_DATE = 20251130n;
 
 const ONE_DAY_SECONDS = 24 * 60 * 60;
 
@@ -30,10 +32,12 @@ function toYYYYMMDD(ts: number): bigint {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp } = options;
+  // startOfDay is the UTC midnight of the day being reported. startTimestamp is not usable here:
+  // for v1 adapters it sits one second before midnight, which resolved to the previous day's row.
+  const { startOfDay } = options;
 
-  const date = toYYYYMMDD(startTimestamp);
-  const prevDate = toYYYYMMDD(startTimestamp - ONE_DAY_SECONDS);
+  const date = toYYYYMMDD(startOfDay);
+  const prevDate = toYYYYMMDD(startOfDay - ONE_DAY_SECONDS);
 
   // Read at the latest block: the full daily series is persisted in current
   // storage keyed by YYYYMMDD, and the contract did not exist before 2026, so
@@ -53,25 +57,29 @@ const fetch = async (options: FetchOptions) => {
   // has a real publishedAt timestamp. This is exactly the failure mode that
   // caused issue #8100 (a stalled keeper left ~10 days unpublished, which the
   // old code silently reported as $0/day instead of surfacing the outage).
-  if (inflowData[0].publishedAt === 0n) {
+  // multiCall returns uint values as decimal strings, so convert before comparing.
+  const [today, yesterday] = inflowData.map((row: any) => ({
+    inflowUsd: BigInt(row.inflowUsd),
+    publishedAt: BigInt(row.publishedAt),
+  }));
+
+  if (today.publishedAt === 0n) {
     throw new Error(
       `silentswap: no snapshot published yet for ${date} (publishedAt=0) - ` +
       `stats keeper may be stalled, not a genuine zero-volume day`,
     );
   }
-  if (prevDate >= DEPLOYMENT_DATE && inflowData[1].publishedAt === 0n) {
+  if (prevDate >= FIRST_SNAPSHOT_DATE && yesterday.publishedAt === 0n) {
     throw new Error(
       `silentswap: no snapshot published yet for prior day ${prevDate} ` +
       `(publishedAt=0) - cannot compute a valid delta against it`,
     );
   }
-  // prevDate before DEPLOYMENT_DATE (i.e. the adapter's first day, 2026-05-25)
-  // will always have publishedAt=0 - the contract didn't exist yet, this is
-  // expected and not a stall. inflowsTillYesterday correctly defaults to 0n
-  // in that case, so delta = inflowsTillToday, the full first day's volume.
+  // A prevDate before FIRST_SNAPSHOT_DATE has publishedAt=0 by design. inflowUsd is then 0,
+  // so delta = inflowsTillToday, the full first day's volume.
 
-  const inflowsTillToday = inflowData[0].inflowUsd;
-  const inflowsTillYesterday = inflowData[1].inflowUsd;
+  const inflowsTillToday = today.inflowUsd;
+  const inflowsTillYesterday = yesterday.inflowUsd;
 
   // Clamp to >=0 as a secondary safety net for any other edge case (e.g. a
   // genuine on-chain correction) - the publishedAt checks above now catch the

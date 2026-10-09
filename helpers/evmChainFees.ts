@@ -62,6 +62,7 @@ export type EvmChainMetricConfig = {
 export type EvmChainFeesConfig = EvmChainMetricConfig & {
   revenueShare: number;
   supplySideRevenueShare?: number;
+  CGToken?: string; // price fees via this coingecko id when the sdk has no gas token mapping for the chain
 };
 
 type BlockRange = {
@@ -328,6 +329,7 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
 
   return {
     version: 2,
+    pullHourly: true,
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
     chains: [config.chain],
@@ -339,8 +341,8 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
       const dailyFees = options.createBalances();
       const dailyRevenue = options.createBalances();
 
-      dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
-      addGasFeeShare(dailyRevenue, metrics.totalFeesWei, config.revenueShare, CHAIN_REVENUE_LABEL);
+      addGasFeeShare(dailyFees, metrics.totalFeesWei, 1, METRIC.TRANSACTION_GAS_FEES, config.CGToken);
+      addGasFeeShare(dailyRevenue, metrics.totalFeesWei, config.revenueShare, CHAIN_REVENUE_LABEL, config.CGToken);
       const response: Record<string, any> = {
         dailyFees,
         dailyRevenue,
@@ -350,7 +352,7 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
 
       if (isPositiveShare(config.supplySideRevenueShare)) {
         const dailySupplySideRevenue = options.createBalances();
-        addGasFeeShare(dailySupplySideRevenue, metrics.totalFeesWei, config.supplySideRevenueShare, SUPPLY_SIDE_REVENUE_LABEL);
+        addGasFeeShare(dailySupplySideRevenue, metrics.totalFeesWei, config.supplySideRevenueShare, SUPPLY_SIDE_REVENUE_LABEL, config.CGToken);
         response.dailySupplySideRevenue = dailySupplySideRevenue;
       }
 
@@ -388,8 +390,10 @@ function formatShare(share: number) {
   return `${Number((share * 100).toFixed(4))}%`;
 }
 
-function addGasFeeShare(balances: ReturnType<FetchOptions["createBalances"]>, totalFeesWei: bigint, share: number, label: string) {
-  balances.addGasToken(applyShare(totalFeesWei, share), label);
+function addGasFeeShare(balances: ReturnType<FetchOptions["createBalances"]>, totalFeesWei: bigint, share: number, label: string, CGToken?: string) {
+  const amount = applyShare(totalFeesWei, share);
+  if (CGToken) balances.addCGToken(CGToken, Number(amount) / 1e18, label);
+  else balances.addGasToken(amount, label);
 }
 
 function applyShare(amount: bigint, share: number) {

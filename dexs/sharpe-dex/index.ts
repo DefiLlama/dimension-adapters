@@ -15,6 +15,8 @@ const fetch = async () => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // base-api.sharpe.ai no longer resolves; API reported zero volume since 2025-04-13.
+  deadFrom: '2025-04-13',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,
