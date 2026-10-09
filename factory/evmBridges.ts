@@ -671,6 +671,11 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
   },
 };
 
+/** Event contracts a registry entry reads on a chain, so adapters that scan a whole standard (bridges/layerzero.ts) can skip
+ * contracts another listing already counts. */
+export const getBridgeContracts = (slug: string, chain: string): string[] =>
+  (configs[slug]?.[chain]?.events ?? []).flatMap((event) => event.targets).map((target) => target.toLowerCase());
+
 const protocols: Record<string, any> = {};
 for (const [slug, config] of Object.entries(configs)) {
   protocols[slug] = bridgeExport(config);
