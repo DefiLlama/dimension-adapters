@@ -16,16 +16,20 @@ const abi = {
 // Basis point denominator (10,000 bps = 100%) defined in FeeDepositController.BPS
 const BPS_DENOMINATOR = 10000
 
+// The pair list is cached for the process lifetime to minimize redundant RPC calls during hourly evaluations.
+// Newly deployed pairs during a running process are not picked up, and historical backfills use the current list
+// (which relies on getLogs tolerating targets that did not yet exist at historical blocks).
 let cachedPairs: string[] = []
 
 /**
  * Fetches the daily fees, revenue, supply-side revenue, protocol revenue, and holders revenue for ReSupply.
  * ReSupply is a CDP lending market where pairs emit AddInterest (borrow interest), Borrow (mint fees),
  * and Redeemed (protocol redemption fees) in reUSD.
- * Fees are distributed via FeeDepositController based on dynamic on-chain splits:
- * - insurance (25%): distributed to insurance pool depositors / lenders (SupplySideRevenue)
- * - treasury (5%): retained by DAO treasury (ProtocolRevenue)
- * - platform (70%): distributed to RSUP governance token stakers (HoldersRevenue)
+ * Fees are distributed via FeeDepositController based on dynamic on-chain splits (currently 25% insurance,
+ * 5% treasury, 70% platform stakers):
+ * - insurance: distributed to insurance pool depositors / lenders (SupplySideRevenue)
+ * - treasury: retained by DAO treasury (ProtocolRevenue)
+ * - platform: distributed to RSUP governance token stakers (HoldersRevenue)
  * @param options - FetchOptions provided by the DefiLlama SDK
  */
 const fetch = async (options: FetchOptions) => {
@@ -49,13 +53,23 @@ const fetch = async (options: FetchOptions) => {
   redeemedLogs.forEach((log) => dailyFees.add(reUSD, log._protocolFee, METRIC.MINT_REDEEM_FEES))
   borrowLogs.forEach((log) => dailyFees.add(reUSD, log._mintFees, METRIC.MINT_REDEEM_FEES))
 
-  const insuranceRatio = Number(splits.insurance) / BPS_DENOMINATOR
-  const treasuryRatio = Number(splits.treasury) / BPS_DENOMINATOR
-  const platformRatio = Number(splits.platform) / BPS_DENOMINATOR
-  const revenueRatio = (Number(splits.treasury) + Number(splits.platform)) / BPS_DENOMINATOR
+  const insuranceBps = Number(splits.insurance)
+  const treasuryBps = Number(splits.treasury)
+  const platformBps = Number(splits.platform)
+  const totalBps = insuranceBps + treasuryBps + platformBps
 
-  const dailySupplySideRevenue = dailyFees.clone(insuranceRatio)
+  if (totalBps === 0) {
+    throw new Error('FeeDepositController splits sum to 0')
+  }
+
+  // Derive ratios normalized to totalBps, guaranteeing supplySide + revenue strictly equals dailyFees
+  const treasuryRatio = treasuryBps / totalBps
+  const platformRatio = platformBps / totalBps
+  const revenueRatio = (treasuryBps + platformBps) / totalBps
+  const insuranceRatio = 1 - revenueRatio
+
   const dailyRevenue = dailyFees.clone(revenueRatio)
+  const dailySupplySideRevenue = dailyFees.clone(insuranceRatio)
   const dailyHoldersRevenue = dailyFees.clone(platformRatio)
   const dailyProtocolRevenue = dailyFees.clone(treasuryRatio)
 
@@ -71,9 +85,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Total interest paid by borrowers, borrow mint fees, and collateral redemption fees.",
   Revenue: "Protocol and platform share of fees distributed to the DAO treasury and RSUP stakers.",
-  ProtocolRevenue: "Treasury share of fees (5% of all fees).",
-  HoldersRevenue: "Platform staking share of fees distributed to RSUP stakers (70% of all fees).",
-  SupplySideRevenue: "Insurance pool share of fees distributed to lenders and insurance pool depositors (25% of all fees).",
+  ProtocolRevenue: "Portion of protocol fees allocated to the DAO treasury based on on-chain splits.",
+  HoldersRevenue: "Portion of protocol fees distributed as staking rewards to RSUP stakers based on on-chain splits.",
+  SupplySideRevenue: "Portion of protocol fees allocated to the insurance pool for lenders and depositors based on on-chain splits.",
 }
 
 const breakdownMethodology = {
@@ -90,12 +104,12 @@ const breakdownMethodology = {
     [METRIC.MINT_REDEEM_FEES]: "Insurance pool share of mint and redemption fees distributed to lenders and depositors.",
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: "DAO treasury share of borrow interest (5%).",
-    [METRIC.MINT_REDEEM_FEES]: "DAO treasury share of mint and redemption fees (5%).",
+    [METRIC.BORROW_INTEREST]: "DAO treasury share of borrow interest based on on-chain splits.",
+    [METRIC.MINT_REDEEM_FEES]: "DAO treasury share of mint and redemption fees based on on-chain splits.",
   },
   HoldersRevenue: {
-    [METRIC.BORROW_INTEREST]: "Staking rewards from borrow interest distributed to RSUP stakers (70%).",
-    [METRIC.MINT_REDEEM_FEES]: "Staking rewards from mint and redemption fees distributed to RSUP stakers (70%).",
+    [METRIC.BORROW_INTEREST]: "Staking rewards from borrow interest distributed to RSUP stakers based on on-chain splits.",
+    [METRIC.MINT_REDEEM_FEES]: "Staking rewards from mint and redemption fees distributed to RSUP stakers based on on-chain splits.",
   },
 }
 
