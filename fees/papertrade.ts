@@ -7,6 +7,8 @@ import { httpGet } from "../utils/fetchURL";
 // The only fee is 2% of realized PnL (win fee on gains after the impact haircut, LP-side fee on losses and liquidations),
 // paid out only while the payout queue is empty, half to PAPER stakers and half to the dev fee recipient
 // (https://docs.papertrade.xyz/#/paper/staking). The API reports the staker half as cumulative `stakingRewards`.
+// On the Exchange proxy winFeeRate(), lossFeeRate() and liquidationFeeRate() all return 0.02e18; the halves accrue in
+// stakerFeeAccumulator() and devFeeAccumulator() (no split getter, the 50/50 comes from the docs).
 const STAKER_SHARE = 0.5;
 
 // Stakers also receive LP surplus above the staker reward cap through the same push, and the API does not separate it
