@@ -57,9 +57,11 @@ const INSURANCE_FUND_PAYEES = new Set([
 const SPRL_SHARE = 0.15;
 const PGP_42 = { start: "2026-05-25", end: "2026-10-01" };
 const PAID_TO_STAKERS_BY_HAND = { start: "2026-09-01", end: "2026-10-01" };
-const TO_TREASURY = "Borrow Interest To Treasury";
-const TO_PRL_HOLDERS = "Borrow Interest To PRL Holders";
-const TO_INSURANCE_FUND = "Borrow Interest To Insurance Fund";
+// One label for the three fees: the income accrued by a core does not tell interest, origination and liquidation fees apart.
+const BORROWING_FEES = "Borrowing Fees";
+const TO_TREASURY = "Borrowing Fees To Treasury";
+const TO_PRL_HOLDERS = "Borrowing Fees To PRL Holders";
+const TO_INSURANCE_FUND = "Borrowing Fees To Insurance Fund";
 
 const ABI = {
   collateralConfig: "function collateralConfigs(uint256 _id) view returns ((address collateralType, uint256 debtLimit, uint256 liquidationRatio, uint256 minCollateralRatio, uint256 borrowRate, uint256 originationFee, uint256 liquidationBonus, uint256 liquidationFee))",
@@ -149,7 +151,7 @@ const fetch = async (options: FetchOptions) => {
       if (!paidByHand) holdersLabel = METRIC.TOKEN_BUY_BACK;
     }
 
-    dailyFees.add(stablex, fees, METRIC.BORROW_INTEREST);
+    dailyFees.add(stablex, fees, BORROWING_FEES);
     dailySupplySideRevenue.add(stablex, fees * shares.insuranceFund, TO_INSURANCE_FUND);
     dailyRevenue.add(stablex, fees * shares.treasury, TO_TREASURY);
     dailyProtocolRevenue.add(stablex, fees * shares.treasury, TO_TREASURY);
@@ -172,7 +174,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.BORROW_INTEREST]: "Interest compounded per second on each collateral type's debt, plus the origination fee on new borrows and the liquidation fee.",
+    [BORROWING_FEES]: "Every fee borrowers pay, all added to the vaults' debt: the interest compounded per second on each collateral type's debt, the 0.2% origination fee on new borrows and the liquidation fee (0 on every collateral today).",
   },
   Revenue: {
     [TO_TREASURY]: "The DAO Treasury's share of the fees, without the 15% for PRL holders: 80% before 1 May 2025, 65% since.",
