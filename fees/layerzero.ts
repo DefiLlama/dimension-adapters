@@ -65,6 +65,7 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.FLARE]: { sendLibs: ["0xe1844c5D63a9543023008D332Bd3d2e6f1FE1043", "0x15e51701F245F6D5bd0FEE87bCAf55B0841451B3"], start: "2024-09-01" },
   [CHAIN.SOPHON]: { sendLibs: ["0x01047601DB5E63b1574aae317BAd9C684E3C9056", "0xd07C30aF3Ff30D96BDc9c6044958230Eb797DDBF"], start: "2025-01-01" },
   [CHAIN.STABLE]: { sendLibs: ["0x37aaaf95887624a363effB7762D489E3C05c2a02", "0xe1844c5D63a9543023008D332Bd3d2e6f1FE1043"], start: "2025-10-30" },
+  [CHAIN.ARC]: { sendLibs: ["0xc39161c743d0307eb9bcc9fef03eeb9dc4802de7", "0x37aaaf95887624a363effb7762d489e3c05c2a02"], start: "2026-06-01" },
   // [CHAIN.NIBIRU]: { sendLibs: ["0xd1FA2df582C6C986Ec573e1a3B0218049CF1E5c7", "0x3c4962Ff6258dcfCafD23a814237B7d6Eb712063"], start: "2025-01-01" },
   // [CHAIN.LISK]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2024-12-01" },
   // [CHAIN.REYA]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2024-08-01" },
@@ -137,7 +138,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: config,
   methodology: {
