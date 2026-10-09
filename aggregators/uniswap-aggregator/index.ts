@@ -12,6 +12,7 @@ import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../../helpers
 // Fill txs never carry the tag (0 of 2281 Ethereum fills on 2026-10-07), so the legs do not overlap.
 const FILL = "event Fill(bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const USER_OPERATION_EVENT_TOPIC = "0x49628fd1471006c1482da88028e9ce4dbb080b815c9b0344d39e5a8e6ec1419f"; // ERC-4337 EntryPoint
 const TAG_START = "2025-10-21";
 
 // Reactors: https://github.com/Uniswap/sdks/blob/main/sdks/uniswapx-sdk/src/constants.ts (REACTOR_ADDRESS_MAPPING).
@@ -63,29 +64,49 @@ const chainConfig: Record<string, { start: string; dune: string; reactors?: stri
 
 const prefetch = async (options: FetchOptions) => {
   if (options.dateString < TAG_START) return [];
-  const tagged = Object.values(chainConfig)
-    .map(({ dune }) => `SELECT '${dune}' AS blockchain, hash FROM ${dune}.transactions WHERE TIME_RANGE AND success AND bytearray_position(data, 0x756e69780000) > 0`)
+  const chains = Object.values(chainConfig).map(({ dune }) => dune);
+  const tagged = chains
+    .map((dune) => `SELECT '${dune}' AS blockchain, hash FROM ${dune}.transactions WHERE TIME_RANGE AND success AND bytearray_position(data, 0x756e69780000) > 0`)
     .join("\n      UNION ALL ");
-  // legs = dex.trades rows of tagged txs minus blacklisted tokens; a leg whose sold token was bought earlier in the
-  // same tx is an intermediate hop and is not counted
+  const bundles = chains
+    .map((dune) => `SELECT '${dune}' AS blockchain, tx_hash FROM ${dune}.logs WHERE TIME_RANGE AND topic0 = ${USER_OPERATION_EVENT_TOPIC} GROUP BY 1, 2 HAVING COUNT(*) > 1`)
+    .join("\n      UNION ALL ");
+  // legs: dex.trades rows of tagged txs, minus blacklisted tokens and minus ERC-4337 bundles carrying several user
+  // operations (other users' swaps cannot be told apart from the tagged one; ~2% of Base volume, ~0 elsewhere).
+  // A leg is an intermediate hop when the earlier legs of the same tx already bought at least its sold amount of
+  // that token (running balance in event order), which handles multi-hop, split and cyclic routes. ponytail: two
+  // independent swaps sharing a token inside one tx would merge; the API builds one swap per tx.
   const sql = `
     WITH tagged AS (
       ${tagged}
     ),
+    bundles AS (
+      ${bundles}
+    ),
     legs AS (
-      SELECT t.blockchain, t.tx_hash, t.token_sold_address, t.token_bought_address, t.amount_usd
+      SELECT t.blockchain, t.tx_hash, t.evt_index, t.token_sold_address, t.token_bought_address,
+        CAST(t.token_sold_amount_raw AS DOUBLE) AS sold, CAST(t.token_bought_amount_raw AS DOUBLE) AS bought, t.amount_usd
       FROM dex.trades t
       JOIN tagged g ON g.blockchain = t.blockchain AND g.hash = t.tx_hash
+      LEFT JOIN bundles m ON m.blockchain = t.blockchain AND m.tx_hash = t.tx_hash
       LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = t.token_bought_address AND b0.chain IN ('any', t.blockchain)
       LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = t.token_sold_address AND b1.chain IN ('any', t.blockchain)
-      WHERE TIME_RANGE AND t.project = 'uniswap' AND b0.address IS NULL AND b1.address IS NULL
+      WHERE TIME_RANGE AND t.project = 'uniswap' AND m.tx_hash IS NULL AND b0.address IS NULL AND b1.address IS NULL
+    ),
+    flows AS (
+      SELECT blockchain, tx_hash, evt_index, token_sold_address AS token, -sold AS delta FROM legs
+      UNION ALL
+      SELECT blockchain, tx_hash, evt_index, token_bought_address, bought FROM legs
+    ),
+    held AS (
+      SELECT blockchain, tx_hash, evt_index, token, delta,
+        SUM(delta) OVER (PARTITION BY blockchain, tx_hash, token ORDER BY evt_index RANGE BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS before
+      FROM flows
     )
-    SELECT a.blockchain, SUM(a.amount_usd) AS volume_usd
-    FROM legs a
-    WHERE NOT EXISTS (
-      SELECT 1 FROM legs b
-      WHERE b.blockchain = a.blockchain AND b.tx_hash = a.tx_hash AND b.token_bought_address = a.token_sold_address
-    )
+    SELECT l.blockchain, SUM(l.amount_usd) AS volume_usd
+    FROM legs l
+    JOIN held h ON h.blockchain = l.blockchain AND h.tx_hash = l.tx_hash AND h.evt_index = l.evt_index AND h.token = l.token_sold_address AND h.delta < 0
+    WHERE COALESCE(h.before, 0) < l.sold * (1 - 1e-9)
     GROUP BY 1
   `;
   return queryDuneSql(options, sql);
@@ -97,19 +118,19 @@ const addressFromTopic = (topic: string) => `0x${topic.slice(-40)}`;
 // Fallback RPCs return null (or throw) for receipts that exist; keep re-requesting the stragglers.
 const getReceipts = async (chain: string, txHashes: string[]) => {
   const receipts = new Map<string, any>();
-  for (let round = 0; round < 8; round++) {
-    const missing = txHashes.filter((hash) => !receipts.has(hash));
-    if (!missing.length) break;
+  let lastError: any;
+  let missing = txHashes;
+  for (let round = 0; round < 8 && missing.length; round++) {
     if (round) await new Promise((resolve) => setTimeout(resolve, 1000 * round));
-    let fetched: any[];
     try {
-      fetched = await getTxReceiptsWithRetry(chain, missing);
+      const fetched = await getTxReceiptsWithRetry(chain, missing);
+      fetched.forEach((receipt, i) => { if (receipt) receipts.set(missing[i], receipt); });
     } catch (e) {
-      console.log(`UniswapX: receipt batch failed on ${chain} (round ${round + 1}): ${(e as any)?.[0]?.message ?? e}`);
-      continue;
+      lastError = (e as any)?.[0]?.message ?? e;
     }
-    fetched.forEach((receipt, i) => { if (receipt) receipts.set(missing[i], receipt); });
+    missing = txHashes.filter((hash) => !receipts.has(hash));
   }
+  if (missing.length) throw new Error(`UniswapX: ${missing.length} fill receipts missing on ${chain} after 8 rounds (${missing[0]}): ${lastError ?? "null receipts"}`);
   return txHashes.map((hash) => receipts.get(hash));
 };
 
@@ -129,8 +150,6 @@ const addUniswapXFills = async (options: FetchOptions, targets: string[], dailyV
 
   receipts.forEach((receipt, i) => {
     const txHash = txHashes[i];
-    if (!receipt) throw new Error(`UniswapX: missing receipt for fill tx ${txHash} on ${options.chain}`);
-
     const transfersByPair: Record<string, any[]> = {};
     for (const log of receipt.logs) {
       if (log.topics.length !== 3 || log.topics[0].toLowerCase() !== TRANSFER_TOPIC || log.data === "0x") continue;
