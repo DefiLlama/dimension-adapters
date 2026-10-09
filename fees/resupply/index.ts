@@ -1,7 +1,6 @@
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { METRIC } from "../../helpers/metrics"
-import sdk from "@defillama/sdk"
 
 const reUSD = "0x57aB1E0003F623289CD798B1824Be09a793e4Bec"
 const feeDepositController = "0x7E3D2F480AbbA95863040D763DDe8F30D100C6F5"
@@ -14,23 +13,17 @@ const abi = {
   splits: "function splits() external view returns (tuple(uint80 insurance, uint80 treasury, uint80 platform))"
 }
 
-// Basis point denominator (10,000 bps = 100%) defined in FeeDepositController.BPS
-const BPS_DENOMINATOR = 10000
-
-// Default on-chain splits set in constructor: 25% insurance, 5% treasury, 70% platform
-const DEFAULT_SPLITS = { insurance: 2500, treasury: 500, platform: 7000 }
-
 // The pair list is cached for the process lifetime to minimize redundant RPC calls during hourly evaluations.
 // Newly deployed pairs during a running process are not picked up, and historical backfills use the current list
 // (which relies on getLogs tolerating targets that did not yet exist at historical blocks).
 let cachedPairs: string[] = []
+let pairsPromise: Promise<string[]> | null = null
 
 /**
  * Fetches the daily fees, revenue, supply-side revenue, protocol revenue, and holders revenue for ReSupply.
  * ReSupply is a CDP lending market where pairs emit AddInterest (borrow interest), Borrow (mint fees),
  * and Redeemed (protocol redemption fees) in reUSD.
- * Fees are distributed via FeeDepositController based on dynamic on-chain splits (currently 25% insurance,
- * 5% treasury, 70% platform stakers):
+ * Fees are distributed via FeeDepositController based on dynamic on-chain splits:
  * - insurance: distributed to insurance pool depositors / lenders (SupplySideRevenue)
  * - treasury: retained by DAO treasury (ProtocolRevenue)
  * - platform: distributed to RSUP governance token stakers (HoldersRevenue)
@@ -40,40 +33,28 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
   if (cachedPairs.length === 0) {
-    try {
-      cachedPairs = await options.api.call({
-        abi: 'address[]:getAllPairAddresses',
-        target: registryAddress,
-      })
-    } catch {
-      // If historical state is pruned on public RPCs, query pair registry at latest block
-      const latestApi = new sdk.ChainApi({ chain: options.chain })
-      cachedPairs = await latestApi.call({
-        abi: 'address[]:getAllPairAddresses',
-        target: registryAddress,
-      })
+    if (!pairsPromise) {
+      pairsPromise = options.api
+        .call({
+          abi: 'address[]:getAllPairAddresses',
+          target: registryAddress,
+        })
+        .then((pairs: string[]) => {
+          cachedPairs = pairs
+          return pairs
+        })
+        .catch((err: any) => {
+          pairsPromise = null
+          throw err
+        })
     }
+    cachedPairs = await pairsPromise
   }
 
-  const getSplits = async () => {
-    try {
-      return await options.api.call({ target: feeDepositController, abi: abi.splits })
-    } catch {
-      try {
-        const latestApi = new sdk.ChainApi({ chain: options.chain })
-        return await latestApi.call({ target: feeDepositController, abi: abi.splits })
-      } catch {
-        return DEFAULT_SPLITS
-      }
-    }
-  }
-
-  const [splits, addInterestLogs, redeemedLogs, borrowLogs] = await Promise.all([
-    getSplits(),
-    options.getLogs({ targets: cachedPairs as any, eventAbi: abi.addInterest }),
-    options.getLogs({ targets: cachedPairs as any, eventAbi: abi.redeemed }),
-    options.getLogs({ targets: cachedPairs as any, eventAbi: abi.borrow }),
-  ])
+  const splits = await options.api.call({ target: feeDepositController, abi: abi.splits })
+  const addInterestLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.addInterest })
+  const redeemedLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.redeemed })
+  const borrowLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.borrow })
 
 
   addInterestLogs.forEach((log) => dailyFees.add(reUSD, log.interestEarned, METRIC.BORROW_INTEREST))
