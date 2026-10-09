@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
+import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../../helpers/lists";
 
 // The Uniswap Trading API (https://developers.uniswap.org/docs/trading/overview) quotes Uniswap v2/v3/v4 pools and
 // UniswapX fillers for every request and executes the best route. Its volume has two legs:
@@ -12,6 +13,8 @@ import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 //     (project = uniswap) and valued at the user's sold token, excluding intermediate hops. First tagged txs:
 //     2025-10-21 on Ethereum, Base, Arbitrum, BNB and Unichain.
 // Fill txs never carry the tag (0 of 2281 Ethereum fills on 2026-10-07), so the two legs do not overlap.
+// Swaps touching a token in the shared scam/wash blacklist (helpers/lists.ts, Dune dataset + local list) are dropped
+// from both legs.
 
 // Every UniswapX reactor (Exclusive Dutch, Dutch V2, Dutch V3, Priority) emits the same Fill event, which carries
 // no amounts. The order input is pulled by Permit2 from the swapper to the filler (reactor msg.sender) inside the
@@ -88,7 +91,8 @@ const chainConfig: Record<string, { start: string; dune: string; reactors?: stri
 };
 
 // One query for every chain. A multi-hop route shows up as several dex.trades rows per tx; only the legs whose sold
-// token was not bought earlier in the same tx are the user's input, so intermediate hops are dropped.
+// token was not bought earlier in the same tx are the user's input, so intermediate hops are dropped. Legs touching
+// a blacklisted token are dropped before that, so a scam token cannot survive as the "input" of a route.
 const prefetch = async (options: FetchOptions) => {
   if (options.dateString < TAG_START) return [];
   const tagged = Object.values(chainConfig)
@@ -102,7 +106,9 @@ const prefetch = async (options: FetchOptions) => {
       SELECT t.blockchain, t.tx_hash, t.token_sold_address, t.token_bought_address, t.amount_usd
       FROM dex.trades t
       JOIN tagged g ON g.blockchain = t.blockchain AND g.hash = t.tx_hash
-      WHERE TIME_RANGE AND t.project = 'uniswap'
+      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = t.token_bought_address AND b0.chain IN ('any', t.blockchain)
+      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = t.token_sold_address AND b1.chain IN ('any', t.blockchain)
+      WHERE TIME_RANGE AND t.project = 'uniswap' AND b0.address IS NULL AND b1.address IS NULL
     )
     SELECT a.blockchain, SUM(a.amount_usd) AS volume_usd, COUNT(*) AS legs
     FROM legs a
@@ -142,6 +148,8 @@ const getReceipts = async (chain: string, txHashes: string[]) => {
 
 const addUniswapXFills = async (options: FetchOptions, targets: string[], dailyVolume: any) => {
   const fills = await options.getLogs({ targets, eventAbi: FILL, entireLog: true, parseLog: true });
+  if (!fills.length) return;
+  const blacklisted = new Set(await getDexTokensBlacklisted(options));
 
   const fillsByTx: Record<string, any[]> = {};
   for (const fill of fills) {
@@ -182,7 +190,10 @@ const addUniswapXFills = async (options: FetchOptions, targets: string[], dailyV
           continue;
         }
       }
-      for (const log of legs) dailyVolume.add(log.address, BigInt(log.data));
+      for (const log of legs) {
+        if (blacklisted.has(log.address.toLowerCase())) continue;
+        dailyVolume.add(log.address, BigInt(log.data));
+      }
     }
   });
 };
@@ -194,7 +205,7 @@ const fetch = async (options: FetchOptions) => {
   if (options.dateString >= TAG_START) {
     const row = (options.preFetchedResults || []).find((r: any) => r.blockchain === dune);
     // Every listed chain has tagged swaps daily; a missing row means Dune has not ingested the day yet.
-    if (!row || row.volume_usd == null) throw new Error(`Uniswap Trading API: no tagged swaps on Dune for ${options.chain} ${options.dateString}`);
+    if (!row || row.volume_usd == null) throw new Error(`Uniswap Aggregator: no tagged swaps on Dune for ${options.chain} ${options.dateString}`);
     dailyVolume.addUSDValue(row.volume_usd);
   }
 
@@ -210,7 +221,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Volume: "Swaps routed by the Uniswap Trading API, which quotes Uniswap v2, v3 and v4 pools and UniswapX fillers and executes the best route. Each swap is counted once at the value of the tokens the user sold: UniswapX orders from the reactor fill logs, and pool routes from the transactions carrying the Trading API calldata tag, including those submitted through third-party wallets and smart-account bundlers. Swaps sent to Uniswap pools directly by other routers, bots and aggregators are not included.",
+    Volume: "Swaps routed by the Uniswap Trading API, which quotes Uniswap v2, v3 and v4 pools and UniswapX fillers and executes the best route. Each swap is counted once at the value of the tokens the user sold: UniswapX orders from the reactor fill logs, and pool routes from the transactions carrying the Trading API calldata tag, including those submitted through third-party wallets and smart-account bundlers. Swaps sent to Uniswap pools directly by other routers, bots and aggregators are not included, and swaps involving tokens on DefiLlama's shared scam and wash-trading blacklist are excluded.",
   },
 };
 
