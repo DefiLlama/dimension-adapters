@@ -2,14 +2,16 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
-import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../../helpers/lists";
+import { getDexTokensBlacklisted } from "../../helpers/lists";
 
 // Uniswap Trading API volume (https://developers.uniswap.org/docs/trading/overview), two legs:
 //  1. UniswapX orders: Fill logs on the reactors, valued from the swapper -> filler input transfer in the fill tx.
 //  2. Pool routes: every tx built by the API carries the calldata tag 0x756e69780000 ("unix" + ms timestamp), also
-//     when wrapped by MetaMask's router or ERC-4337 bundlers. Matched on Dune and joined to dex.trades (uniswap),
-//     valued at the user's sold token with intermediate hops dropped. Tag first seen 2025-10-21.
+//     when wrapped by MetaMask's router, EIP-7702 batches or ERC-4337 bundlers. Each tagged tx that contains a
+//     Uniswap pool swap is valued on Dune by the swapper's own net token outflows (native + ERC-20, refunds netted),
+//     so intermediate hops, split routes and other users' swaps in the same tx never count. Tag first seen 2025-10-21.
 // Fill txs never carry the tag (0 of 2281 Ethereum fills on 2026-10-07), so the legs do not overlap.
+// Tokens on the shared scam blacklist (helpers/lists.ts) are skipped in both legs.
 const FILL = "event Fill(bytes32 indexed orderHash, address indexed filler, address indexed swapper, uint256 nonce)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const USER_OPERATION_EVENT_TOPIC = "0x49628fd1471006c1482da88028e9ce4dbb080b815c9b0344d39e5a8e6ec1419f"; // ERC-4337 EntryPoint
@@ -62,52 +64,50 @@ const chainConfig: Record<string, { start: string; dune: string; reactors?: stri
   [CHAIN.ROBINHOOD]: { start: "2026-06-11", dune: "robinhood", reactors: ["0x000000007A1C8e570011EeDF86A2A35593013cBA"] },
 };
 
+// One query for every chain, returning (blockchain, token, amount) with the swapper's net outflow per token.
+// swapper = tx sender, or the ERC-4337 UserOperation sender for single-operation bundles (multi-operation bundles are
+// dropped: ~2% of Base volume, ~0 elsewhere). Only tokens named in the calldata (or the native token) count, and only
+// txs with a Uniswap pool swap, which leaves out the API's wrap/unwrap transactions.
 const prefetch = async (options: FetchOptions) => {
   if (options.dateString < TAG_START) return [];
   const chains = Object.values(chainConfig).map(({ dune }) => dune);
   const tagged = chains
-    .map((dune) => `SELECT '${dune}' AS blockchain, hash FROM ${dune}.transactions WHERE TIME_RANGE AND success AND bytearray_position(data, 0x756e69780000) > 0`)
+    .map((dune) => `SELECT '${dune}' AS blockchain, hash, "from" AS tx_from, data FROM ${dune}.transactions WHERE TIME_RANGE AND success AND bytearray_position(data, 0x756e69780000) > 0`)
     .join("\n      UNION ALL ");
-  const bundles = chains
-    .map((dune) => `SELECT '${dune}' AS blockchain, tx_hash FROM ${dune}.logs WHERE TIME_RANGE AND topic0 = ${USER_OPERATION_EVENT_TOPIC} GROUP BY 1, 2 HAVING COUNT(*) > 1`)
+  const ops = chains
+    .map((dune) => `SELECT '${dune}' AS blockchain, tx_hash, COUNT(*) AS n, arbitrary(bytearray_substring(topic2, 13, 20)) AS sender FROM ${dune}.logs WHERE TIME_RANGE AND topic0 = ${USER_OPERATION_EVENT_TOPIC} GROUP BY 1, 2`)
     .join("\n      UNION ALL ");
-  // legs: dex.trades rows of tagged txs, minus blacklisted tokens and minus ERC-4337 bundles carrying several user
-  // operations (other users' swaps cannot be told apart from the tagged one; ~2% of Base volume, ~0 elsewhere).
-  // A leg is an intermediate hop when the earlier legs of the same tx already bought at least its sold amount of
-  // that token (running balance in event order), which handles multi-hop, split and cyclic routes. ponytail: two
-  // independent swaps sharing a token inside one tx would merge; the API builds one swap per tx.
+  const inList = chains.map((c) => `'${c}'`).join(", ");
   const sql = `
     WITH tagged AS (
       ${tagged}
     ),
-    bundles AS (
-      ${bundles}
+    ops AS (
+      ${ops}
     ),
-    legs AS (
-      SELECT t.blockchain, t.tx_hash, t.evt_index, t.token_sold_address, t.token_bought_address,
-        CAST(t.token_sold_amount_raw AS DOUBLE) AS sold, CAST(t.token_bought_amount_raw AS DOUBLE) AS bought, t.amount_usd
-      FROM dex.trades t
-      JOIN tagged g ON g.blockchain = t.blockchain AND g.hash = t.tx_hash
-      LEFT JOIN bundles m ON m.blockchain = t.blockchain AND m.tx_hash = t.tx_hash
-      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = t.token_bought_address AND b0.chain IN ('any', t.blockchain)
-      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = t.token_sold_address AND b1.chain IN ('any', t.blockchain)
-      WHERE TIME_RANGE AND t.project = 'uniswap' AND m.tx_hash IS NULL AND b0.address IS NULL AND b1.address IS NULL
+    swaps AS (
+      SELECT DISTINCT blockchain, tx_hash FROM dex.trades WHERE TIME_RANGE AND project = 'uniswap' AND blockchain IN (${inList})
     ),
-    flows AS (
-      SELECT blockchain, tx_hash, evt_index, token_sold_address AS token, -sold AS delta FROM legs
-      UNION ALL
-      SELECT blockchain, tx_hash, evt_index, token_bought_address, bought FROM legs
+    swappers AS (
+      SELECT g.blockchain, g.hash, COALESCE(o.sender, g.tx_from) AS swapper, g.data
+      FROM tagged g
+      JOIN swaps s ON s.blockchain = g.blockchain AND s.tx_hash = g.hash
+      LEFT JOIN ops o ON o.blockchain = g.blockchain AND o.tx_hash = g.hash
+      WHERE COALESCE(o.n, 1) = 1
     ),
-    held AS (
-      SELECT blockchain, tx_hash, evt_index, token, delta,
-        SUM(delta) OVER (PARTITION BY blockchain, tx_hash, token ORDER BY evt_index RANGE BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS before
-      FROM flows
+    per_tx AS (
+      SELECT s.blockchain, s.hash,
+        CASE WHEN t.token_standard = 'native' THEN 'native' ELSE CAST(t.contract_address AS VARCHAR) END AS token,
+        SUM(CASE WHEN t."from" = s.swapper THEN 1 ELSE -1 END * CAST(t.amount_raw AS DOUBLE)) AS net
+      FROM tokens.transfers t
+      JOIN swappers s ON s.blockchain = t.blockchain AND s.hash = t.tx_hash AND (t."from" = s.swapper OR t."to" = s.swapper)
+      WHERE TIME_RANGE AND t.blockchain IN (${inList})
+        AND (t.token_standard = 'native' OR bytearray_position(s.data, t.contract_address) > 0)
+      GROUP BY 1, 2, 3
     )
-    SELECT l.blockchain, SUM(l.amount_usd) AS volume_usd
-    FROM legs l
-    JOIN held h ON h.blockchain = l.blockchain AND h.tx_hash = l.tx_hash AND h.evt_index = l.evt_index AND h.token = l.token_sold_address AND h.delta < 0
-    WHERE COALESCE(h.before, 0) < l.sold * (1 - 1e-9)
-    GROUP BY 1
+    SELECT blockchain, token, format('%.0f', SUM(net)) AS amount
+    FROM per_tx WHERE net > 0
+    GROUP BY 1, 2
   `;
   return queryDuneSql(options, sql);
 };
@@ -134,10 +134,9 @@ const getReceipts = async (chain: string, txHashes: string[]) => {
   return txHashes.map((hash) => receipts.get(hash));
 };
 
-const addUniswapXFills = async (options: FetchOptions, targets: string[], dailyVolume: any) => {
+const addUniswapXFills = async (options: FetchOptions, targets: string[], blacklisted: Set<string>, dailyVolume: any) => {
   const fills = await options.getLogs({ targets, eventAbi: FILL, entireLog: true, parseLog: true });
   if (!fills.length) return;
-  const blacklisted = new Set(await getDexTokensBlacklisted(options));
 
   const fillsByTx: Record<string, any[]> = {};
   for (const fill of fills) {
@@ -180,14 +179,18 @@ const addUniswapXFills = async (options: FetchOptions, targets: string[], dailyV
 const fetch = async (options: FetchOptions) => {
   const { dune, reactors } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
+  const blacklisted = new Set(await getDexTokensBlacklisted(options));
 
   if (options.dateString >= TAG_START) {
-    const row = (options.preFetchedResults || []).find((r: any) => r.blockchain === dune);
-    if (!row || row.volume_usd == null) throw new Error(`Uniswap Aggregator: no tagged swaps on Dune for ${options.chain} ${options.dateString}`);
-    dailyVolume.addUSDValue(row.volume_usd);
+    const rows = (options.preFetchedResults || []).filter((r: any) => r.blockchain === dune);
+    if (!rows.length) throw new Error(`Uniswap Aggregator: no tagged swaps on Dune for ${options.chain} ${options.dateString}`);
+    for (const { token, amount } of rows) {
+      if (token === "native") dailyVolume.addGasToken(amount);
+      else if (!blacklisted.has(token.toLowerCase())) dailyVolume.add(token, amount);
+    }
   }
 
-  if (reactors) await addUniswapXFills(options, reactors, dailyVolume);
+  if (reactors) await addUniswapXFills(options, reactors, blacklisted, dailyVolume);
 
   return { dailyVolume };
 };

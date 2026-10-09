@@ -16,6 +16,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xac68931b666e086e9de380cfdb0fb5704a35dc2d", // old BNBTiger
     "0x4c769928971548eb71a3392eaf66bedc8bef4b80", // scam BITCOIN token
     "0xc53ca0d56c420e8f913316e84d2c492ede99c61e", // scam GROK token
+    "0xbe8d9ec5d3c9313e4af08d50b6f85af76a69a1f1", // USDB: a few wallets loop fake ATC -> USDB -> fake BTC through Uniswap v3/v4 pools (~$2.4M/day at the $1 price, Oct 2026)
     "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
     "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
     "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
