@@ -1,8 +1,6 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
-import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
 
 interface IData {
@@ -10,59 +8,48 @@ interface IData {
   quote_amount_raw: string;
 }
 
-const STATIC_QUOTE_TOKENS = [
-  ADDRESSES.solana.SOL,
-  'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-  ADDRESSES.solana.USDC,
-  ADDRESSES.solana.USDT,
-  ADDRESSES.solana.PUMP,
-  'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT',
-]
-
-// Custom Pairs (https://pump.fun/docs/custom-pairs): any external quote asset the pump.fun bonding-curve program
-// has accepted for a launch, read from its CreateEvent on Dune as of the window end so refills reproduce history.
-// Coins launched on pump.fun itself are never accepted as a quote (coin-quoted-in-coin pairs are open to anyone
-// and priced off a thin coin the launcher controls). Allium decodes every pump.fun curve as SOL-quoted, so the
-// set cannot come from the same warehouse. PumpSwap pool creation is permissionless, so this (plus the static
-// list) is the pump-sanctioned quote set.
-const getPumpQuoteMints = async (options: FetchOptions): Promise<string[]> => {
-  const rows = await queryDuneSql(options, `
-    SELECT DISTINCT quote_mint
-    FROM pumpdotfun_solana.pump_evt_createevent
-    WHERE quote_mint IS NOT NULL
-      AND quote_mint <> '11111111111111111111111111111111'
-      AND evt_block_time < from_unixtime(${options.endTimestamp})
-      AND quote_mint NOT IN (SELECT mint FROM pumpdotfun_solana.pump_evt_createevent)
-  `)
-  return rows.map((r: any) => r.quote_mint)
-}
-
-// Volume is the quote-side amount of each trade, summed per quote mint and priced by DefiLlama's own feed
-// (Allium's usd_amount is only used for the pool TVL wash filter), so a quote DefiLlama cannot price adds nothing.
+// Volume is the quote-side amount of each trade, summed per quote mint and priced by DefiLlama, so a quote we
+// cannot price adds nothing. No quote allowlist: Custom Pairs (https://pump.fun/docs/custom-pairs) allow many
+// quote assets. Allium's usd_amount is only used for the pool TVL wash filter.
+// Allium's token0/token1 order is arbitrary (SOL is token0 in ~1.1M pools and token1 in ~350k), so the quote is
+// taken as whichever side appears in more PumpSwap pools: SOL, USDC, PUMP and every pair asset sit in many pools,
+// a launched coin in one. ponytail: tie (both sides in a single pool) picks token1, such pools are unpriced anyway.
 const fetch = async (options: FetchOptions) => {
-  const QUOTE_TOKENS = [...new Set([...STATIC_QUOTE_TOKENS, ...await getPumpQuoteMints(options)])].map((a) => `'${a}'`).join(',')
-  const query = `WITH pool_filter AS (
+  const query = `WITH pool_info AS (
         SELECT DISTINCT
-          liquidity_pool_address
+          liquidity_pool_address,
+          token0_address,
+          token0_vault,
+          token1_address,
+          token1_vault
         FROM solana.dex.pools
         WHERE project = 'pumpswap'
-          AND (
-            token0_address IN (${QUOTE_TOKENS})
-            OR token1_address IN (${QUOTE_TOKENS})
-          )
+      ),
+      mint_pools AS (
+        SELECT mint, COUNT(*) AS n
+        FROM (SELECT token0_address AS mint FROM pool_info UNION ALL SELECT token1_address FROM pool_info)
+        GROUP BY mint
+      ),
+      pool_quote AS (
+        SELECT
+          p.liquidity_pool_address,
+          IFF(m1.n >= m0.n, p.token1_address, p.token0_address) AS quote_mint
+        FROM pool_info p
+        JOIN mint_pools m0 ON m0.mint = p.token0_address
+        JOIN mint_pools m1 ON m1.mint = p.token1_address
       ),
       volume_data AS (
         SELECT
-          pool,
-          sender_token_acc,
-          CASE WHEN token_sold_mint IN (${QUOTE_TOKENS}) THEN token_sold_mint ELSE token_bought_mint END AS quote_mint,
-          SUM(CASE WHEN token_sold_mint IN (${QUOTE_TOKENS}) THEN token_sold_amount_raw ELSE token_bought_amount_raw END) AS quote_amount_raw
-        FROM solana.dex.trades
-        WHERE project = 'pumpswap'
-          AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-          AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-          AND pool IN (SELECT liquidity_pool_address FROM pool_filter)
-        GROUP BY pool, sender_token_acc, quote_mint
+          t.pool,
+          t.sender_token_acc,
+          p.quote_mint,
+          SUM(CASE WHEN t.token_sold_mint = p.quote_mint THEN t.token_sold_amount_raw ELSE t.token_bought_amount_raw END) AS quote_amount_raw
+        FROM solana.dex.trades t
+        JOIN pool_quote p ON p.liquidity_pool_address = t.pool
+        WHERE t.project = 'pumpswap'
+          AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+          AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        GROUP BY t.pool, t.sender_token_acc, p.quote_mint
       ),
       pool_volume AS (
         SELECT
@@ -73,21 +60,10 @@ const fetch = async (options: FetchOptions) => {
         FROM volume_data
         GROUP BY pool, quote_mint
       ),
-      pool_info AS (
-        SELECT DISTINCT
-          liquidity_pool_address,
-          token0_address,
-          token0_vault,
-          token1_address,
-          token1_vault
-        FROM solana.dex.pools
-        WHERE project = 'pumpswap'
-          AND liquidity_pool_address IN (SELECT pool FROM pool_volume)
-      ),
       pool_vaults AS (
-        SELECT liquidity_pool_address AS pool, token0_vault AS vault, token0_address AS mint FROM pool_info
+        SELECT liquidity_pool_address AS pool, token0_vault AS vault, token0_address AS mint FROM pool_info WHERE liquidity_pool_address IN (SELECT pool FROM pool_volume)
         UNION ALL
-        SELECT liquidity_pool_address AS pool, token1_vault AS vault, token1_address AS mint FROM pool_info
+        SELECT liquidity_pool_address AS pool, token1_vault AS vault, token1_address AS mint FROM pool_info WHERE liquidity_pool_address IN (SELECT pool FROM pool_volume)
       ),
       vault_bal AS (
         SELECT token_account, mint, usd_amount
@@ -113,7 +89,7 @@ const fetch = async (options: FetchOptions) => {
       INNER JOIN pool_tvl pt ON pv.pool = pt.liquidity_pool_address
       WHERE pt.total_tvl_usd >= 5000 AND pv.unique_traders >= 50
       GROUP BY pv.quote_mint`
-  
+
   const rows: IData[] = await queryAllium(query);
   if (!rows.length) throw new Error('no PumpSwap trades for the window')
 
@@ -131,9 +107,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2025-02-20',
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Volume: "Quote-side amount of every trade in PumpSwap pools whose quote token is SOL, mSOL, USDC, USDT, PUMP, BONK or any external pump.fun Custom Pair asset (tokenized stocks, WBTC, ...), priced by DefiLlama, where the pool has TVL >= $5,000 and at least 50 unique traders. Pools quoted in another pump.fun coin are excluded. This filters out wash trading pools.",
+    Volume: "Quote-side amount of every trade on PumpSwap pools, priced by DefiLlama, for pools with TVL >= $5,000 and at least 50 unique traders. This filters out wash trading pools.",
   }
 }
 

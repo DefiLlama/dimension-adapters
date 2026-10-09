@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -22,26 +21,8 @@ const fetch = async (options: FetchOptions) => {
                 quote_mint AS quoteMint
             FROM
                 pumpdotfun_solana.pump_amm_evt_createpoolevent
-            WHERE
-                quote_mint IN (
-                    '${ADDRESSES.solana.SOL}',
-                    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    '${ADDRESSES.solana.USDC}',
-                    '${ADDRESSES.solana.USDT}',
-                    '${ADDRESSES.solana.PUMP}',
-                    'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
-                )
-                -- Custom Pairs (https://pump.fun/docs/custom-pairs): any external quote asset the pump.fun
-                -- bonding-curve program has accepted for a launch (read from its CreateEvent, as of the window end
-                -- so refills reproduce history). Pool creation on PumpSwap is permissionless, so this is the
-                -- pump-sanctioned set; coins launched on pump.fun itself are never accepted as a quote.
-                OR quote_mint IN (
-                    SELECT DISTINCT quote_mint
-                    FROM pumpdotfun_solana.pump_evt_createevent
-                    WHERE quote_mint IS NOT NULL
-                      AND evt_block_time < from_unixtime(${options.endTimestamp})
-                      AND quote_mint NOT IN (SELECT mint FROM pumpdotfun_solana.pump_evt_createevent)
-                )
+            -- no quote filter: Custom Pairs (https://pump.fun/docs/custom-pairs) allow many quote assets; fees are
+            -- summed per quote mint and priced by DefiLlama, so a quote we cannot price adds nothing
         ),
         sells AS (
             SELECT
@@ -142,7 +123,7 @@ const adapter: SimpleAdapter = {
         Fees: "Total fees collected from all sources, including LP fees (0.20%) and protocol fees (0.05%) and coin creator fees (0.05%) from each trade",
         Revenue: "Revenue kept by the protocol, which is the 0.05% protocol fee from each trade",
         SupplySideRevenue: "Value earned by liquidity providers, which is the 0.20% LP fee from each trade",
-        Volume: "Tracks the trading volume across all pairs on PumpFun AMM quoted in SOL, mSOL, USDC, USDT, PUMP, BONK or any external pump.fun Custom Pair asset (tokenized stocks, WBTC, ...); pools quoted in another pump.fun coin are excluded",
+        Volume: "Tracks the trading volume across all pairs on PumpFun AMM",
     },
     isExpensiveAdapter: true
 }
