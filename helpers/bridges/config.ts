@@ -446,3 +446,140 @@ export const assetChainBridge = (bridges: { bridge: string; token: string }[], s
     { eventAbi: "event FulfilledTokens(string indexed fromUser, address indexed toUser, string fromChain, string toChain, uint256 amount, uint256 exchangeRate)", targets: [bridge], direction: "incoming", fixedToken: token, amountArg: "amount" },
   ]),
 });
+
+// ---------------------------------------------------------------------------------------------------
+// Stargate. v2 pools and OFTs emit OFTSent/OFTReceived (zero address token = native gas token).
+// v1 pools emit Swap/SwapRemote in shared decimals; only pools whose shared decimals equal the
+// underlying token's are listed, the rest would need rescaling. STG bridges as an OFT: on Ethereum it
+// emits SendToChain/ReceiveFromChain, elsewhere it burns to and mints from the zero address.
+// https://stargateprotocol.gitbook.io/stargate/v2-user-docs/technical-reference/mainnet-contracts
+// ---------------------------------------------------------------------------------------------------
+const stargateV1Events = (pool: string, token: string): BridgeEvent[] => [
+  { eventAbi: "event Swap(uint16 chainId, uint256 dstPoolId, address from, uint256 amountSD, uint256 eqReward, uint256 eqFee, uint256 protocolFee, uint256 lpFee)", targets: [pool], direction: "outgoing", fixedToken: token, amountArg: "amountSD" },
+  { eventAbi: "event SwapRemote(address to, uint256 amountSD, uint256 protocolFee, uint256 dstFee)", targets: [pool], direction: "incoming", fixedToken: token, amountArg: "amountSD" },
+];
+const STG_ETHEREUM = "0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6";
+const stgEvents = (stg: string): BridgeEvent[] => stg === STG_ETHEREUM
+  ? [
+    { eventAbi: "event SendToChain(uint16 dstChainId, bytes to, uint256 qty)", targets: [stg], direction: "outgoing", fixedToken: stg, amountArg: "qty" },
+    { eventAbi: "event ReceiveFromChain(uint16 srcChainId, uint64 nonce, uint256 qty)", targets: [stg], direction: "incoming", fixedToken: stg, amountArg: "qty" },
+  ]
+  : [
+    { eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)", targets: [stg], direction: "outgoing", fixedToken: stg, amountArg: "value", filter: (args: any) => String(args.to).toLowerCase() === ADDRESSES.null },
+    { eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)", targets: [stg], direction: "incoming", fixedToken: stg, amountArg: "value", filter: (args: any) => String(args.from).toLowerCase() === ADDRESSES.null },
+  ];
+
+/** v2 and v1 are [pool, token] pairs. */
+export const stargateBridge = (contracts: { v2?: [string, string][]; v1?: [string, string][]; stg?: string }, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    ...(contracts.v2 ?? []).flatMap(([pool, token]) => oftEvents(pool, token)),
+    ...(contracts.v1 ?? []).flatMap(([pool, token]) => stargateV1Events(pool, token)),
+    ...(contracts.stg ? stgEvents(contracts.stg) : []),
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Hop: one bridge contract per token per chain. L1 bridges send with TransferSentToL2 and pay out bonded
+// withdrawals; L2 bridges send with TransferSent and receive from L1 or from bonded L2 transfers.
+// https://github.com/hop-protocol/hop/blob/develop/packages/core/src/addresses/mainnet.ts
+// ---------------------------------------------------------------------------------------------------
+const HOP_WITHDRAWAL_BONDED = "event WithdrawalBonded(bytes32 indexed transferId, uint256 amount)";
+
+/** [bridge, canonical token] pairs. */
+export const hopL1Bridge = (bridges: [string, string][], start?: string): BridgeChainConfig => ({
+  start,
+  events: bridges.flatMap(([bridge, token]): BridgeEvent[] => [
+    { eventAbi: "event TransferSentToL2(uint256 indexed chainId, address indexed recipient, uint256 amount, uint256 amountOutMin, uint256 deadline, address indexed relayer, uint256 relayerFee)", targets: [bridge], direction: "outgoing", fixedToken: token, amountArg: "amount" },
+    { eventAbi: HOP_WITHDRAWAL_BONDED, targets: [bridge], direction: "incoming", fixedToken: token, amountArg: "amount" },
+  ]),
+});
+
+export const hopL2Bridge = (bridges: [string, string][], start?: string): BridgeChainConfig => ({
+  start,
+  events: bridges.flatMap(([bridge, token]): BridgeEvent[] => [
+    { eventAbi: "event TransferSent(bytes32 indexed transferId, uint256 indexed chainId, address indexed recipient, uint256 amount, bytes32 transferNonce, uint256 bonderFee, uint256 index, uint256 amountOutMin, uint256 deadline)", targets: [bridge], direction: "outgoing", fixedToken: token, amountArg: "amount" },
+    { eventAbi: "event TransferFromL1Completed(address indexed recipient, uint256 amount, uint256 amountOutMin, uint256 deadline, address indexed relayer, uint256 relayerFee)", targets: [bridge], direction: "incoming", fixedToken: token, amountArg: "amount" },
+    { eventAbi: HOP_WITHDRAWAL_BONDED, targets: [bridge], direction: "incoming", fixedToken: token, amountArg: "amount" },
+  ]),
+});
+
+// ---------------------------------------------------------------------------------------------------
+// zkBridge (Polyhedra) token bridges: each contract serves several pools, the poolId picks the token.
+// ---------------------------------------------------------------------------------------------------
+/** pools maps poolId to the token it moves on this chain. */
+export const zkBridgeEvents = (contract: string, pools: Record<number, string>): BridgeEvent[] => {
+  const mapTokens = Object.fromEntries(Object.entries(pools).map(([poolId, token]) => [poolId, token.toLowerCase()]));
+  const knownPool = (args: any) => String(args.poolId) in mapTokens;
+  return [
+    { eventAbi: "event TransferToken(uint64 indexed sequence, uint16 indexed dstChainId, uint256 indexed poolId, address sender, address recipient, uint256 amount)", targets: [contract], direction: "outgoing", tokenArg: "poolId", mapTokens, amountArg: "amount", filter: knownPool },
+    { eventAbi: "event ReceiveToken(uint64 indexed sequence, uint16 indexed srcChainId, uint256 indexed poolId, address recipient, uint256 amount)", targets: [contract], direction: "incoming", tokenArg: "poolId", mapTokens, amountArg: "amount", filter: knownPool },
+  ];
+};
+
+export const zkBridge = (contracts: [string, Record<number, string>][], start?: string): BridgeChainConfig => ({
+  start,
+  events: contracts.flatMap(([contract, pools]) => zkBridgeEvents(contract, pools)),
+});
+
+// ---------------------------------------------------------------------------------------------------
+// XY Finance: yBridge (SwapRequested out, SwappedForUser in) and XYRouter requests routed through other
+// bridges (yBridge-routed requests are skipped, its own events count them). Native is 0xEeee...EEeE.
+// https://docs.xy.finance/smart-contract/addresses
+// ---------------------------------------------------------------------------------------------------
+const XY_NATIVE = { "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": ADDRESSES.null };
+export const xyBridge = (contracts: { yBridge: string; router: string }, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event XYRouterRequested(uint256 xyRouterRequestId, address indexed sender, address srcToken, uint256 amountIn, address indexed bridgeAddress, address bridgeToken, uint256 bridgeAmount, uint256 dstChainId, bytes bridgeAssetReceiver, ((bool hasTip, address tipReceiver) tipInfo, (bool hasDstChainSwap, ((address srcToken, address dstToken, uint256 minReturnAmount, address receiver) swapRequest, address dexAddress, address approveToAddress, bytes dexCalldata) swapAction) dstChainSwapInfo, (bool hasIM, address xApp, address refundReceiver, bytes message) imInfo) dstChainAction, address indexed affiliate)", targets: [contracts.router], direction: "outgoing", tokenArg: "bridgeToken", amountArg: "bridgeAmount", mapTokens: XY_NATIVE, filter: (args: any) => String(args.bridgeAddress).toLowerCase() !== contracts.yBridge.toLowerCase() },
+    { eventAbi: "event SwapRequested(uint256 _swapId, address indexed _aggregatorAdaptor, (uint32 dstChainId, address dstChainToken, address dstAggregatorAdaptor, uint256 expectedDstChainTokenAmount, uint32 slippage) _dstChainDesc, address _srcToken, address indexed _vaultToken, uint256 _vaultTokenAmount, address _receiver, uint256 _srcTokenAmount, uint256 _expressFeeAmount, address indexed _referrer)", targets: [contracts.yBridge], direction: "outgoing", tokenArg: "_vaultToken", amountArg: "_vaultTokenAmount", mapTokens: XY_NATIVE },
+    { eventAbi: "event SwappedForUser(address indexed _aggregatorAdaptor, address indexed _srcToken, uint256 _srcTokenAmount, address _dstToken, uint256 _dstTokenAmountOut, address _receiver)", targets: [contracts.yBridge], direction: "incoming", tokenArg: "_dstToken", amountArg: "_dstTokenAmountOut", mapTokens: XY_NATIVE },
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Wanchain WanBridge Portal: lock/burn to leave the chain, release/mint on arrival. Native coin is the
+// zero address. https://docs.wanchain.org
+// ---------------------------------------------------------------------------------------------------
+export const wanBridge = (portal: string, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event UserLockLogger(bytes32 indexed smgID, uint256 indexed tokenPairID, address indexed tokenAccount, uint256 value, uint256 contractFee, bytes userAccount)", targets: [portal], direction: "outgoing", tokenArg: "tokenAccount", amountArg: "value" },
+    { eventAbi: "event UserBurnLogger(bytes32 indexed smgID, uint256 indexed tokenPairID, address indexed tokenAccount, uint256 value, uint256 contractFee, uint256 fee, bytes userAccount)", targets: [portal], direction: "outgoing", tokenArg: "tokenAccount", amountArg: "value" },
+    { eventAbi: "event SmgReleaseLogger(bytes32 indexed uniqueID, bytes32 indexed smgID, uint256 indexed tokenPairID, uint256 value, address tokenAccount, address userAccount)", targets: [portal], direction: "incoming", tokenArg: "tokenAccount", amountArg: "value" },
+    { eventAbi: "event SmgMintLogger(bytes32 indexed uniqueID, bytes32 indexed smgID, uint256 indexed tokenPairID, uint256 value, address tokenAccount, address userAccount)", targets: [portal], direction: "incoming", tokenArg: "tokenAccount", amountArg: "value" },
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Rainbow Bridge ERC20 locker on Ethereum (Near/Aurora side is non-EVM). Unlocked carries no token, so
+// withdrawals are read as transfers out of the locker. https://doc.aurora.dev/bridge/introduction
+// ---------------------------------------------------------------------------------------------------
+export const rainbowBridge = (start?: string): BridgeChainConfig => {
+  const locker = "0x23Ddd3e3692d1861Ed57EDE224608875809e127f";
+  return {
+    start,
+    events: [{ eventAbi: "event Locked(address indexed token, address indexed sender, uint256 amount, string accountId)", targets: [locker], direction: "outgoing", tokenArg: "token", amountArg: "amount" }],
+    transfers: { wallets: [locker], direction: "incoming" },
+  };
+};
+
+// ---------------------------------------------------------------------------------------------------
+// StarkGate on Ethereum (Starknet side is non-EVM). Deposits from each token bridge; withdrawals are L2->L1
+// messages to a bridge on the Starknet core contract, amount low 128 bits at payload[3].
+// https://docs.starknet.io/tools/bridged-tokens/
+// ---------------------------------------------------------------------------------------------------
+/** bridges maps each StarkGate token bridge to the L1 token it holds (zero address for ETH). */
+export const starkgateBridge = (bridges: Record<string, string>, start?: string): BridgeChainConfig => {
+  const tokenByBridge = Object.fromEntries(Object.entries(bridges).map(([bridge, token]) => [bridge.toLowerCase(), token.toLowerCase()]));
+  return {
+    start,
+    events: [
+      // the ETH bridge reports the 'ETH' sentinel as its token, the others the L1 token
+      { eventAbi: "event Deposit(address indexed sender, address indexed token, uint256 amount, uint256 indexed l2Recipient, uint256 nonce, uint256 fee)", targets: Object.keys(bridges), direction: "outgoing", tokenArg: "token", amountArg: "amount", mapTokens: { "0x0000000000000000000000000000000000455448": ADDRESSES.null } },
+      // withdrawals are type 0 (TRANSFER_FROM_STARKNET) with payload [0, recipient, token, amount_low, amount_high];
+      // bridges also receive other, shorter message types
+      { eventAbi: "event LogMessageToL1(uint256 indexed fromAddress, address indexed toAddress, uint256[] payload)", targets: ["0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"], direction: "incoming", tokenArg: "toAddress", mapTokens: tokenByBridge, amountArg: "payload.3", filter: (args: any) => String(args.toAddress).toLowerCase() in tokenByBridge && args.payload.length === 5 && Number(args.payload[0]) === 0 },
+    ],
+  };
+};

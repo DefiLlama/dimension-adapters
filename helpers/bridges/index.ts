@@ -102,7 +102,8 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
 
       let token: string = event.tokenArg ? getArg(args, event.tokenArg) : event.fixedToken;
       if (!token) throw new Error(`bridge helper: token missing on ${event.eventAbi}`);
-      token = token.toLowerCase();
+      // String(): numeric ids (e.g. a pool id remapped through mapTokens) decode as bigint
+      token = String(token).toLowerCase();
       if (event.mapTokens?.[token]) token = event.mapTokens[token];
 
       if (event.tokenChain) balances.add(`${event.tokenChain}:${token}`, amount, { skipChain: true });
