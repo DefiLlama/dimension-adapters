@@ -11,8 +11,8 @@ const endpoint = "https://api.sundae.fi/graphql";
 const HOLDERS_REVENUE_START_TIMESTAMP = 1715212800; //2024-05-09
 const HOLDERS_REVENUE_SHARE_PERCENT = 15n; // 15% of protocol fees go to holders since 2024-05-09, 85% to treasury
 
-// the Sundae API only lists the 50 largest pools by TVL across all versions, see `query`
-const COVERAGE_NOTE = "Only pools among the 50 largest SundaeSwap pools by TVL (across all versions) are counted; smaller pools are excluded.";
+// the Sundae API only lists the 50 largest pools by TVL across all versions, as of query time (`popular` takes no date), see `query`
+const COVERAGE_NOTE = "Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.";
 
 const formatDate = (ts: number) => {
   return new Date(ts * 1000).toISOString().replace('T', ' ').substring(0, 19);
