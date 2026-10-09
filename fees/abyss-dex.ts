@@ -44,8 +44,8 @@ const fetch = async (options: FetchOptions) => {
     || typeof protocolRevenueUsdX18 !== "string" || !/^\d+$/.test(protocolRevenueUsdX18)
     || typeof unpricedFeeCount !== "string" || !/^\d+$/.test(unpricedFeeCount))
     throw new Error(`Abyss: missing or invalid fee amounts for ${options.dateString}`);
-  if (BigInt(unpricedFeeCount) !== 0n)
-    throw new Error(`Abyss: incomplete fee pricing for ${options.dateString} (${unpricedFeeCount} unpriced fee amounts)`);
+  // The approved metric covers only fees priced by the indexer; unpriced amounts are excluded.
+  // Keep validating the coverage counter so missing source fields still fail instead of becoming zero.
   const fees = BigInt(tradingFeeUsdX18);
   const lpFees = BigInt(lpFeeUsdX18);
   const revenue = BigInt(protocolRevenueUsdX18);
@@ -116,18 +116,18 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // Buyback funding can spend revenue accrued on earlier days.
   fetch,
   methodology: {
-    Fees: "Swap and flash fees reported by Abyss DEX, valued when generated and including the LP and protocol shares; excludes lending and rejects incomplete fee pricing.",
-    Revenue: "The share of generated swap and flash fees allocated to the protocol fee vault, before developer payments and buyback funding.",
-    SupplySideRevenue: "The share of generated swap and flash fees allocated to liquidity providers.",
-    ProtocolRevenue: "Generated protocol revenue less fee-vault WETH allocated to ABYSS buybacks that day, which may be negative when funding uses earlier revenue.",
+    Fees: "USD-priced swap and flash fees reported by Abyss DEX, valued when generated and including the LP and protocol shares; excludes lending and fees without a verified USD price.",
+    Revenue: "The protocol fee vault's share of USD-priced swap and flash fees, before developer payments and buyback funding; excludes fees without a verified USD price.",
+    SupplySideRevenue: "Liquidity providers' share of USD-priced swap and flash fees; excludes fees without a verified USD price.",
+    ProtocolRevenue: "USD-priced protocol revenue less fee-vault WETH allocated to ABYSS buybacks that day, which may be negative when funding uses earlier revenue; excludes unpriced fee accruals.",
     HoldersRevenue: "Fee-vault WETH allocated to the ABYSS buyback burner, measured at funding rather than execution; excludes pre-existing router balances and in-kind ABYSS distributions.",
   },
   breakdownMethodology: {
-    Fees: { [FEES]: "Daily generated swap and flash fees from the protocol indexer, converting USD scaled by 10^18 to USD without treating distributions as additional fees." },
-    Revenue: { [REVENUE]: "Generated trading fees allocated to the protocol fee vault, not the narrower developer share." },
-    SupplySideRevenue: { [LP_FEES]: "Generated trading fees allocated to liquidity providers." },
+    Fees: { [FEES]: "Generated swap and flash fees with a verified USD price from the protocol indexer; excludes unpriced fee amounts and does not count distributions as additional fees." },
+    Revenue: { [REVENUE]: "USD-priced generated trading fees allocated to the protocol fee vault, not the narrower developer share; excludes unpriced fee amounts." },
+    SupplySideRevenue: { [LP_FEES]: "USD-priced generated trading fees allocated to liquidity providers; excludes unpriced fee amounts." },
     ProtocolRevenue: {
-      [REVENUE]: "Generated fee-vault revenue before buyback attribution, including the developer share.",
+      [REVENUE]: "USD-priced generated fee-vault revenue before buyback attribution, including the developer share; excludes unpriced fee amounts.",
       [BUYBACK]: "Fee-vault WETH allocated to ABYSS buybacks, deducted from retained protocol revenue rather than counted again.",
     },
     HoldersRevenue: { [BUYBACK]: "WETH allocated to ABYSS buybacks, counted once at the fee source, not again on execution." },
