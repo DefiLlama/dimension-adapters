@@ -1,20 +1,28 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { getHouseSnapshotAtEnd, getProtocolWindowDeltas } from "../helpers/papertrade";
+import { getProtocolWindowDeltas, PAPERTRADE_API } from "../helpers/papertrade";
+import { httpGet } from "../utils/fetchURL";
 
 // The only fee is 2% of realized PnL (win fee on gains after the impact haircut, LP-side fee on losses and liquidations),
 // paid out only while the payout queue is empty, half to PAPER stakers and half to the dev fee recipient
 // (https://docs.papertrade.xyz/#/paper/staking). The API reports the staker half as cumulative `stakingRewards`.
 const STAKER_SHARE = 0.5;
-// Above the staker reward cap the same push also sweeps LP surplus to stakers and the API does not separate it,
-// so stop rather than count house PnL as fees; a fee-only source is needed past this point.
-const STAKER_REWARD_CAP_USD = 5_000_000;
+
+// Stakers also receive LP surplus above the staker reward cap through the same push, and the API does not separate it
+// from fees. `tailProgress` is a never-decreasing high-water mark of LP gain above the cliff, so once it reaches
+// cap - cliff the LP may have crossed the cap at some point and `stakingRewards` can no longer be read as fee-only.
+// Current state only, so this is conservative for refills of windows before the crossing. A fee-only counter is
+// needed past this point; `fees.lifetime` in the same response is not used because its composition is undocumented.
+async function assertFeeOnlyRewards() {
+  const { paper } = await httpGet(`${PAPERTRADE_API}/query/protocol/summary`);
+  const tailProgress = BigInt(paper.tailProgress);
+  const surplusStart = BigInt(paper.cap) - BigInt(paper.cliff);
+  if (tailProgress >= surplusStart) throw new Error(`papertrade: LP tail progress ${tailProgress} reached the staker reward cap, stakingRewards may include LP surplus`);
+}
 
 const fetch = async (options: FetchOptions) => {
-  const { lp } = await getHouseSnapshotAtEnd(options, ["lp"]);
-  if (lp > STAKER_REWARD_CAP_USD) throw new Error(`papertrade: LP is ${lp} USD, above the ${STAKER_REWARD_CAP_USD} staker reward cap, stakingRewards now includes LP surplus`);
-
+  await assertFeeOnlyRewards();
   const { stakingRewards } = await getProtocolWindowDeltas(options, ["stakingRewards"]);
   const totalFees = stakingRewards / STAKER_SHARE;
   const devFees = totalFees - stakingRewards;
