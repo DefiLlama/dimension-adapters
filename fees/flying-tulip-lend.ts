@@ -5,13 +5,26 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 // LendingLens is CREATE2-deterministic at the same address on Sonic and
 // Ethereum. Verified via deployment manifests at
 // https://flyingtulipdotcom.github.io/deployments/prod-{sonic,eth}-ftdnmm-lend.toon
-const LENDING_LENS = '0x3682168023e6ba8d1f995fda1d920827c5a8a43e'
+// BNB Smart Chain has its own deployment.
+const LENDING_LENS: Record<string, string> = {
+  [CHAIN.SONIC]: '0x3682168023e6ba8d1f995fda1d920827c5a8a43e',
+  [CHAIN.ETHEREUM]: '0x3682168023e6ba8d1f995fda1d920827c5a8a43e',
+  [CHAIN.BSC]: '0xc374d2ae274f31bf53c561d0b4024136cc692f48',
+}
 
-// LeverageRfqEngine and RfqEngine on Sonic. Both forward fees to the same
-// treasury (0x1118e1c057211306a40A4d7006C040dbfE1370Cb) via feeCollector /
-// liqFeeCollector.
-const LEVERAGE_RFQ_ENGINE = '0x8263a07504d93cB95e0a74f3627bb15faaf140e2'
-const RFQ_ENGINE = '0xEB00B335Ca52216Fb60fdFFA361397367C39Dc32'
+// LeverageRfqEngine (v1 and the current v2) and RfqEngine. All forward fees to
+// the Flying Tulip treasury (0x1118e1c057211306a40A4d7006C040dbfE1370Cb) via
+// feeCollector / liqFeeCollector. Most fills now go through v2.
+const LEVERAGE_RFQ_ENGINES: Record<string, string[]> = {
+  [CHAIN.SONIC]: ['0x8263a07504d93cb95e0a74f3627bb15faaf140e2', '0x93496075909f56d93b33302df5d1655568eb6e70'],
+  [CHAIN.ETHEREUM]: ['0x8263a07504d93cb95e0a74f3627bb15faaf140e2', '0x93496075909f56d93b33302df5d1655568eb6e70'],
+  [CHAIN.BSC]: ['0x01916c31def593cd94d707724facdf7add121bf1'],
+}
+const RFQ_ENGINES: Record<string, string[]> = {
+  [CHAIN.SONIC]: ['0xeb00b335ca52216fb60fdffa361397367c39dc32', '0xc64516d58f8b83bc256448bc69d7bf2361557fdb'],
+  [CHAIN.ETHEREUM]: ['0xeb00b335ca52216fb60fdffa361397367c39dc32', '0xc64516d58f8b83bc256448bc69d7bf2361557fdb'],
+  [CHAIN.BSC]: ['0xa0dbd53aeec3f5acd16c69c3001114ee51813e58'],
+}
 
 // Reserves are maintained off chain. Flying Tulip's LendingLens does not expose
 // a public enumeration method (no getReserves / allAssets / reservesList). The
@@ -19,6 +32,7 @@ const RFQ_ENGINE = '0xEB00B335Ca52216Fb60fdFFA361397367C39Dc32'
 // the public API. To refresh either list, call:
 //     curl https://api.flyingtulip.com/mm/lend?chainId=146 | jq '.data.chains[0].assets[].address'
 //     curl https://api.flyingtulip.com/mm/lend?chainId=1   | jq '.data.chains[0].assets[].address'
+//     curl https://api.flyingtulip.com/mm/lend?chainId=56  | jq '.data.chains[0].assets[].address'
 const RESERVES: Record<string, string[]> = {
   [CHAIN.SONIC]: [
     ADDRESSES.sonic.USDC_e, // USDC
@@ -27,7 +41,8 @@ const RESERVES: Record<string, string[]> = {
     ADDRESSES.sonic.STS, // stS
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD
     '0x50c42deacd8fc9773493ed674b675be577f2634b', // WETH
-    ADDRESSES.bsc.WBTC, // WBTC
+    ADDRESSES.sonic.WBTC, // WBTC
+    '0x000000000eccff26b795f73fb0a70d48da657fef', // USSD
   ],
   [CHAIN.ETHEREUM]: [
     ADDRESSES.ethereum.USDC, // USDC
@@ -36,6 +51,23 @@ const RESERVES: Record<string, string[]> = {
     ADDRESSES.ethereum.WBTC, // WBTC
     '0x5dd1a7a369e8273371d2dbf9d83356057088082c', // FT
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD (CREATE2 same address as Sonic)
+    ADDRESSES.ethereum.WSTETH, // wstETH
+    '0xf939e0a03fb07f59a73314e73794be0e57ac1b4e', // crvUSD
+    ADDRESSES.ethereum.USDe, // USDe
+    '0x0655977feb2f289a4ab78af67bab0d17aab84367', // scrvUSD
+    ADDRESSES.ethereum.USDG, // USDG
+    ADDRESSES.ethereum.sUSDe, // sUSDe
+  ],
+  [CHAIN.BSC]: [
+    ADDRESSES.bsc.USDC, // USDC
+    ADDRESSES.bsc.USDT, // USDT
+    ADDRESSES.bsc.WBNB, // WBNB
+    ADDRESSES.bsc.FDUSD, // FDUSD
+    '0x77734e70b6e88b4d82fe632a168edf6e700912b6', // asBNB
+    '0x2170ed0880ac9a755fd29b2688956bd959f933f8', // ETH
+    ADDRESSES.bsc.BTCB, // BTCB
+    '0xa2e3356610840701bdf5611a53974510ae27e2e1', // wBETH
+    '0x205812cdbed920aff76c6580abd681a46d11efc7', // QQQB
   ],
 }
 
@@ -56,6 +88,8 @@ const CLOSE_LEVERAGE_FILLED =
   'event CloseLeverageFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountIn, uint256 buyAmountMin, uint256 feeAmount, bytes32 digest)'
 const CLOSE_LEVERAGE_FLASH_FILLED =
   'event CloseLeverageFlashFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountMin, uint256 feeAmount, address fillTarget, bytes32 digest)'
+const COLLATERAL_SWAP_FLASH_FILLED =
+  'event CollateralSwapFlashFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountMin, uint256 feeAmount, address fillTarget, bytes32 digest)'
 const COLLATERAL_SWAP_FILLED =
   'event CollateralSwapFilled(address indexed filler, address indexed user, address indexed receiver, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmountIn, uint256 buyAmountMin, uint256 feeAmount, bytes32 digest)'
 const LIQUIDATION_FEE_COLLECTED =
@@ -75,13 +109,13 @@ const fetch = async (options: FetchOptions) => {
 
   const [states, cfgs] = await Promise.all([
     options.toApi.multiCall({
-      target: LENDING_LENS,
+      target: LENDING_LENS[options.chain],
       abi: ASSET_STATE_ABI,
       calls: reserves,
       permitFailure: true,
     }),
     options.toApi.multiCall({
-      target: LENDING_LENS,
+      target: LENDING_LENS[options.chain],
       abi: ASSET_CFG_ABI,
       calls: reserves,
       permitFailure: true,
@@ -100,7 +134,7 @@ const fetch = async (options: FetchOptions) => {
     if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
     const borrows = BigInt(state[1])
     if (borrows === 0n) continue
-    aprCalls.push({ target: LENDING_LENS, params: [irm, [state[3].toString()]] })
+    aprCalls.push({ target: LENDING_LENS[options.chain], params: [irm, [state[3].toString()]] })
     aprIndex.push(i)
   }
 
@@ -130,9 +164,10 @@ const fetch = async (options: FetchOptions) => {
     [CLOSE_LEVERAGE_FILLED, 'Close Leverage Fee'],
     [CLOSE_LEVERAGE_FLASH_FILLED, 'Close Leverage Fee'],
     [COLLATERAL_SWAP_FILLED, 'Collateral Swap Fee'],
+    [COLLATERAL_SWAP_FLASH_FILLED, 'Collateral Swap Fee'],
   ]
   for (const [eventAbi, label] of leverageEvents) {
-    let logs: any[] = await options.getLogs({ target: LEVERAGE_RFQ_ENGINE, eventAbi })
+    const logs: any[] = await options.getLogs({ targets: LEVERAGE_RFQ_ENGINES[options.chain], eventAbi })
     for (const log of logs) {
       const fee = BigInt(log.feeAmount.toString())
       if (fee === 0n) continue
@@ -144,7 +179,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // 3) RfqEngine liquidation fees — protocol revenue (to liqFeeCollector = treasury).
-  const liqLogs: any[] = await options.getLogs({ target: RFQ_ENGINE, eventAbi: LIQUIDATION_FEE_COLLECTED })
+  const liqLogs: any[] = await options.getLogs({ targets: RFQ_ENGINES[options.chain], eventAbi: LIQUIDATION_FEE_COLLECTED })
   for (const log of liqLogs) {
     const amount = BigInt(log.amount.toString())
     if (amount === 0n) continue
@@ -182,7 +217,7 @@ const breakdownMethodology = {
     'Close Leverage Fee':
       'feeAmount field of LeverageRfqEngine.CloseLeverageFilled and CloseLeverageFlashFilled events.',
     'Collateral Swap Fee':
-      'feeAmount field of LeverageRfqEngine.CollateralSwapFilled events.',
+      'feeAmount field of LeverageRfqEngine.CollateralSwapFilled and CollateralSwapFlashFilled events.',
     'RFQ Liquidation Fee':
       'amount field of RfqEngine.LiquidationFeeCollected events, denominated in the asset being liquidated.',
   },
@@ -217,6 +252,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch,
       start: '2026-05-01',
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: '2026-09-14',
     },
   },
 }
