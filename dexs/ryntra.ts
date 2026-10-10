@@ -182,45 +182,69 @@ const fetchArc = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // KyberSwap: the fee leg paid to Ryntra, and the swap's priceable side (a core asset if either side is one).
+  // KyberSwap: the fee leg paid to Ryntra, and the swap's priceable side (a core asset if either side is one). One
+  // transaction may call the router more than once: each call logs its Fee (when it takes one) and then its Swapped,
+  // so a Swapped is paired with the Fee logged since the call's previous Swapped, by log position.
   const kyberFees: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
-  // tx -> the fee's token, the amount it was taken from and all of it (every recipient's): what the swap's volume is
-  // restored to gross with.
-  const kyberTxs = new Map<string, { token: string; total: bigint; fee: bigint }>();
+  type KyberFee = { index: number; token: string; total: bigint; fee: bigint; ryntra: boolean };
+  const kyberTxs = new Map<string, KyberFee[]>();
   for (const log of kyberFees) {
     const { token, totalAmount, totalFee, recipients, amounts, isBps } = log.args;
+    let ryntra = false;
     recipients.forEach((recipient: string, i: number) => {
       if (String(recipient).toLowerCase() !== ARC_FEE_RECIPIENT) return;
+      ryntra = true;
       const fee = isBps ? (BigInt(totalAmount) * BigInt(amounts[i])) / 10_000n : BigInt(amounts[i]);
       const [asset, amount] = arcAmount(String(token), fee);
       dailyFees.add(asset, amount, METRIC.TRADING_FEES);
       dailyRevenue.add(asset, amount, LABELS.TO_RYNTRA);
-      kyberTxs.set(txOf(log), { token: String(token).toLowerCase(), total: BigInt(totalAmount), fee: BigInt(totalFee) });
     });
+    const tx = txOf(log);
+    const list = kyberTxs.get(tx) ?? [];
+    list.push({ index: indexOf(log), token: String(token).toLowerCase(), total: BigInt(totalAmount), fee: BigInt(totalFee), ryntra });
+    kyberTxs.set(tx, list);
   }
+  for (const [tx, list] of kyberTxs) if (!list.some((fee) => fee.ryntra)) kyberTxs.delete(tx);
   if (kyberTxs.size) {
     const swaps: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_SWAPPED_EVENT, onlyArgs: false });
+    const byTx = new Map<string, any[]>();
     for (const log of swaps) {
-      const fee = kyberTxs.get(txOf(log));
-      if (!fee) continue;
-      const src = String(log.args.srcToken).toLowerCase();
-      const dst = String(log.args.dstToken).toLowerCase();
-      const priceable = (token: string) => ARC_CORE.includes(token) || token === ARC_NATIVE;
-      // Volume is gross of fees. The router takes its fee from the input (`spentAmount` is then the input less the
-      // fee: 0x265dd1f3… — Fee.totalAmount 455026, totalFee 2275, spentAmount 452751) or from the output
-      // (`returnAmount` is then the output less the fee); Fee.totalAmount is the amount the fee was taken from, the
-      // same on every router path. The priced side in the fee's token is that amount; the output, when the fee came
-      // off the input, is scaled up by what the fee took.
-      if (!priceable(src) && priceable(dst)) {
-        let output = BigInt(log.args.returnAmount);
-        if (fee.token === dst) output = fee.total;
-        else if (fee.token === src && fee.total > fee.fee) output = (output * fee.total) / (fee.total - fee.fee);
-        const [asset, amount] = arcAmount(dst, output);
-        dailyVolume.add(asset, amount);
-      } else {
-        const input = fee.token === src ? fee.total : BigInt(log.args.spentAmount);
-        const [asset, amount] = arcAmount(src, input);
-        dailyVolume.add(asset, amount);
+      const tx = txOf(log);
+      if (!kyberTxs.has(tx)) continue;
+      byTx.set(tx, [...(byTx.get(tx) ?? []), log]);
+    }
+    for (const [tx, txSwaps] of byTx) {
+      const fees = kyberTxs.get(tx)!;
+      const ordered = [...fees.map((fee) => ({ index: fee.index, fee })), ...txSwaps.map((log) => ({ index: indexOf(log), log }))].sort((a, b) => a.index - b.index);
+      let pending: KyberFee | null = null;
+      for (const item of ordered) {
+        if ("fee" in item) {
+          pending = item.fee;
+          continue;
+        }
+        const fee = pending;
+        pending = null;
+        if (!fee?.ryntra) continue; // a call that paid Ryntra no fee is not Ryntra's swap
+        const log = item.log;
+        const src = String(log.args.srcToken).toLowerCase();
+        const dst = String(log.args.dstToken).toLowerCase();
+        const priceable = (token: string) => ARC_CORE.includes(token) || token === ARC_NATIVE;
+        // Volume is gross of fees. The router takes its fee from the input (`spentAmount` is then the input less the
+        // fee: 0x265dd1f3… — Fee.totalAmount 455026, totalFee 2275, spentAmount 452751) or from the output
+        // (`returnAmount` is then the output less the fee); Fee.totalAmount is the amount the fee was taken from, the
+        // same on every router path. The priced side in the fee's token is that amount; the output, when the fee came
+        // off the input, is scaled up by what the fee took.
+        if (!priceable(src) && priceable(dst)) {
+          let output = BigInt(log.args.returnAmount);
+          if (fee.token === dst) output = fee.total;
+          else if (fee.token === src && fee.total > fee.fee) output = (output * fee.total) / (fee.total - fee.fee);
+          const [asset, amount] = arcAmount(dst, output);
+          dailyVolume.add(asset, amount);
+        } else {
+          const input = fee.token === src ? fee.total : BigInt(log.args.spentAmount);
+          const [asset, amount] = arcAmount(src, input);
+          dailyVolume.add(asset, amount);
+        }
       }
     }
   }
