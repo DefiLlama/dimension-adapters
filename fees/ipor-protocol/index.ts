@@ -115,10 +115,10 @@ const adapter: SimpleAdapter = {
             fetch,
             start: "2025-06-18",
         },
-        [CHAIN.TAC]: {
-            fetch,
-            start: "2025-07-11",
-        },
+        // [CHAIN.TAC]: {
+        //     fetch,
+        //     start: "2025-07-11",
+        // },
         [CHAIN.INK]: {
             fetch,
             start: "2025-07-29",

@@ -126,12 +126,12 @@ export const EulerChainConfigs: Record<string, EulerChainConfig> = {
     tokenEUL: tokenEUL[CHAIN.AVAX],
     start: '2025-02-04',
   },
-  [CHAIN.TAC]: {
-    eVaultAddress: eVaultFactories[CHAIN.TAC],
-    feeFlowController: feeFlowControllers[CHAIN.TAC],
-    tokenEUL: tokenEUL[CHAIN.TAC],
-    start: '2025-06-21',
-  },
+  // [CHAIN.TAC]: {
+  //   eVaultAddress: eVaultFactories[CHAIN.TAC],
+  //   feeFlowController: feeFlowControllers[CHAIN.TAC],
+  //   tokenEUL: tokenEUL[CHAIN.TAC],
+  //   start: '2025-06-21',
+  // },
   [CHAIN.LINEA]: {
     eVaultAddress: eVaultFactories[CHAIN.LINEA],
     feeFlowController: feeFlowControllers[CHAIN.LINEA],
