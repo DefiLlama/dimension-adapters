@@ -94,7 +94,7 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
 const LABELS = {
   TO_RYNTRA: "Trading Fees To Ryntra",
   TO_JUPITER: "Trading Fees To Jupiter",
-  TO_CIRCLE: "Trading Fees To Circle",
+  TO_CIRCLE_PROTOCOL: "Developer Fee Protocol Share",
 };
 
 // Jupiter takes 20% of an integrator's referral fee when it is claimed
@@ -133,30 +133,48 @@ const fetchSolana = async (options: FetchOptions) => {
 };
 
 // Arc: Ryntra's swap fee lands on one address used for nothing else, inside the swap's own transaction, through one
-// of two routes. Circle's swap service (App Kit) pays it as the developer fee of the swap: Circle's fee collector
-// moves it and logs one event naming the token, the recipient and Circle's 10% share of it. KyberSwap's router pays
-// it as the swap's fee and logs it in its Fee event, next to the Swapped event of the same swap. A swap is Ryntra's
-// when one of these two events names the address; a plain transfer to it is not a fee. Only these events are read,
-// never USDC Transfer logs: on Arc every USDC movement logs twice (the native 18-decimal system event and the
-// 6-decimal ERC-20 one). Swaps priced off chain by Relay pay Ryntra's fee to Relay's off-chain balance and are not
-// counted here.
+// of two routes. Circle's swap service (App Kit) pays it as the swap's developer fee: Circle's fee collector moves it
+// and logs one event naming the token, the recipient and the share it routes to its protocol recipient (about 10%).
+// KyberSwap's router pays it as the swap's fee and logs it in its Fee event, next to the Swapped event of the same
+// swap. A swap is Ryntra's when one of these two events names the address; a plain transfer to it is not a fee. The
+// fee and the swap share a transaction by construction — both routes pay the fee from inside the swap call (e.g.
+// 0x265dd1f39e13d3efb920baa34a855bfd4b72bc766adf90f8602584ec7008ff3a: Fee, then Swapped, one transaction). Only these
+// events are read for fees, never USDC Transfer logs: on Arc every USDC movement logs twice (the native 18-decimal
+// system event and the 6-decimal ERC-20 one). Swaps priced off chain by Relay pay Ryntra's fee to Relay's off-chain
+// balance and are not counted here.
 const ARC_FEE_RECIPIENT = "0x4480dcf81d177a4295b4ff32393ebeda35bb02e2";
 const ARC_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-const ARC_USDC_SYSTEM = "0xfffffffffffffffffffffffffffffffffffffffe"; // logs native USDC movements, 18 decimals
+const ARC_USDC_SYSTEM = "0xfffffffffffffffffffffffffffffffffffffffe"; // logs native USDC movements, 18 decimals (EIP-7708)
 const ARC_CORE = [ADDRESSES.arc.USDC, ADDRESSES.arc.EURC, ADDRESSES.arc.WETH, ADDRESSES.arc.cirBTC].map((a) => a.toLowerCase());
 const CIRCLE_ADAPTER = "0x7fb8c7260b63934d8da38af902f87ae6e284a845";
 const CIRCLE_FEE_COLLECTOR = "0xf992efcb5fa2ed7cb48310d9dd8cb4ce5fb7ddc9";
-// topics [this, token, recipient, Circle's recipient]; data (bytes32 tag, uint256 toRecipient, uint256 toCircle)
+// The collector's source is not verified, so its event is read by topic: topics [this, token, recipient, protocol
+// recipient]; data (bytes32 tag, uint256 toRecipient, uint256 toProtocol), as every swap mined through Circle's
+// Adapter on Arc logs it.
 const CIRCLE_FEE_TOPIC = "0x4f38c48982671f45b4ff27338f085a7489ee53fd3f5cd1f33950c171bed75802";
 const CIRCLE_DEVELOPER_FEE_TAG = "0x535741505f444600000000000000000000000000000000000000000000000000"; // "SWAP_DF"
 const KYBER_ROUTER = "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"; // MetaAggregationRouterV2
 const KYBER_FEE_EVENT = "event Fee(address token, uint256 totalAmount, uint256 totalFee, address[] recipients, uint256[] amounts, bool isBps)";
 const KYBER_SWAPPED_EVENT = "event Swapped(address sender, address srcToken, address dstToken, address dstReceiver, uint256 spentAmount, uint256 returnAmount)";
+const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 // A token as DefiLlama prices it on Arc: native USDC (18 decimals) as the USDC interface (6 decimals).
 const arcAmount = (token: string, amount: bigint): [string, bigint] =>
-  token.toLowerCase() === ARC_NATIVE ? [ADDRESSES.arc.USDC, amount / 10n ** 12n] : [token, amount];
+  token.toLowerCase() === ARC_NATIVE ? [ADDRESSES.arc.USDC, amount / 10n ** 12n] : [token.toLowerCase(), amount];
+
+// The transaction and position of a log, whichever shape the log source returns; a log without them would join
+// every swap to every fee, so it stops the run.
+const txOf = (log: any): string => {
+  const hash = log.transactionHash ?? log.transaction_hash ?? log.hash;
+  if (!hash) throw new Error("ryntra (Arc): a log without its transaction hash");
+  return String(hash).toLowerCase();
+};
+const indexOf = (log: any): number => {
+  const index = Number(log.logIndex ?? log.log_index ?? log.index);
+  if (!Number.isFinite(index)) throw new Error("ryntra (Arc): a log without its position");
+  return index;
+};
 
 const fetchArc = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -165,32 +183,35 @@ const fetchArc = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   // KyberSwap: the fee leg paid to Ryntra, and the swap's priceable side (a core asset if either side is one).
-  const kyberFees: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, entireLog: true });
+  const kyberFees: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
   const kyberTxs = new Set<string>();
   for (const log of kyberFees) {
     const { token, totalAmount, recipients, amounts, isBps } = log.args;
     recipients.forEach((recipient: string, i: number) => {
-      if (recipient.toLowerCase() !== ARC_FEE_RECIPIENT) return;
+      if (String(recipient).toLowerCase() !== ARC_FEE_RECIPIENT) return;
       const fee = isBps ? (BigInt(totalAmount) * BigInt(amounts[i])) / 10_000n : BigInt(amounts[i]);
       const [asset, amount] = arcAmount(String(token), fee);
       dailyFees.add(asset, amount, METRIC.TRADING_FEES);
       dailyRevenue.add(asset, amount, LABELS.TO_RYNTRA);
-      kyberTxs.add(String(log.transactionHash).toLowerCase());
+      kyberTxs.add(txOf(log));
     });
   }
   if (kyberTxs.size) {
-    const swaps: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_SWAPPED_EVENT, entireLog: true });
+    const swaps: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_SWAPPED_EVENT, onlyArgs: false });
     for (const log of swaps) {
-      if (!kyberTxs.has(String(log.transactionHash).toLowerCase())) continue;
-      const { srcToken, dstToken, spentAmount, returnAmount } = log.args;
-      const useDst = !ARC_CORE.includes(String(srcToken).toLowerCase()) && String(srcToken).toLowerCase() !== ARC_NATIVE
-        && (ARC_CORE.includes(String(dstToken).toLowerCase()) || String(dstToken).toLowerCase() === ARC_NATIVE);
-      const [asset, amount] = useDst ? arcAmount(String(dstToken), BigInt(returnAmount)) : arcAmount(String(srcToken), BigInt(spentAmount));
+      if (!kyberTxs.has(txOf(log))) continue;
+      const src = String(log.args.srcToken).toLowerCase();
+      const dst = String(log.args.dstToken).toLowerCase();
+      const priceable = (token: string) => ARC_CORE.includes(token) || token === ARC_NATIVE;
+      const [asset, amount] = !priceable(src) && priceable(dst)
+        ? arcAmount(dst, BigInt(log.args.returnAmount))
+        : arcAmount(src, BigInt(log.args.spentAmount));
       dailyVolume.add(asset, amount);
     }
   }
 
-  // Circle: the developer fee naming Ryntra (Circle keeps 10% of it), and the input the trader sent the Adapter.
+  // Circle: the developer fee naming Ryntra (its protocol recipient keeps about 10% of it), and the input the
+  // trader sent the Adapter.
   const circleFees: any[] = await options.getLogs({
     target: CIRCLE_FEE_COLLECTOR,
     topics: [CIRCLE_FEE_TOPIC, null as any, zeroPadValue(ARC_FEE_RECIPIENT, 32)],
@@ -200,27 +221,35 @@ const fetchArc = async (options: FetchOptions) => {
   for (const log of circleFees) {
     const data = String(log.data).slice(2);
     if ("0x" + data.slice(0, 64) !== CIRCLE_DEVELOPER_FEE_TAG) continue;
-    const token = ("0x" + String(log.topics[1]).slice(26)).toLowerCase();
+    const topics: string[] = log.topics ?? [log.topic0, log.topic1, log.topic2, log.topic3];
+    const token = ("0x" + String(topics[1]).slice(26)).toLowerCase();
     const [asset, toRyntra] = arcAmount(token, BigInt("0x" + data.slice(64, 128)));
-    const [, toCircle] = arcAmount(token, BigInt("0x" + data.slice(128, 192)));
-    dailyFees.add(asset, toRyntra + toCircle, METRIC.TRADING_FEES);
+    const [, toProtocol] = arcAmount(token, BigInt("0x" + data.slice(128, 192)));
+    dailyFees.add(asset, toRyntra + toProtocol, METRIC.TRADING_FEES);
     dailyRevenue.add(asset, toRyntra, LABELS.TO_RYNTRA);
-    if (toCircle > 0n) dailySupplySideRevenue.add(asset, toCircle, LABELS.TO_CIRCLE);
-    circleTxs.set(String(log.transactionHash).toLowerCase(), asset.toLowerCase());
+    if (toProtocol > 0n) dailySupplySideRevenue.add(asset, toProtocol, LABELS.TO_CIRCLE_PROTOCOL);
+    circleTxs.set(txOf(log), asset);
   }
   for (const token of new Set(circleTxs.values())) {
-    // USDC's input is read from the native system event alone, so an ERC-20 USDC transfer is not counted twice.
+    // The trader's input is the first transfer of the fee token into the Adapter in the swap's transaction; a later
+    // one (a refund to the Adapter) is not volume. USDC is read from the native system event alone, so an ERC-20
+    // USDC transfer is not counted twice.
     const isUsdc = token === ADDRESSES.arc.USDC.toLowerCase();
-    const inputs: any[] = await options.getLogs({
+    const transfers: any[] = await options.getLogs({
       target: isUsdc ? ARC_USDC_SYSTEM : token,
+      eventAbi: TRANSFER_EVENT,
       topics: [TRANSFER_TOPIC, null as any, zeroPadValue(CIRCLE_ADAPTER, 32)],
-      entireLog: true,
+      onlyArgs: false,
     });
-    for (const log of inputs) {
-      if (circleTxs.get(String(log.transactionHash).toLowerCase()) !== token) continue;
-      const amount = BigInt(log.data);
-      dailyVolume.add(token, isUsdc ? amount / 10n ** 12n : amount);
+    const inputs = new Map<string, { index: number; amount: bigint }>();
+    for (const log of transfers) {
+      const tx = txOf(log);
+      if (circleTxs.get(tx) !== token) continue;
+      const index = indexOf(log);
+      const seen = inputs.get(tx);
+      if (!seen || index < seen.index) inputs.set(tx, { index, amount: BigInt(log.args.value) });
     }
+    for (const { amount } of inputs.values()) dailyVolume.add(token, isUsdc ? amount / 10n ** 12n : amount);
   }
 
   return {
@@ -237,9 +266,9 @@ const methodology = {
   Volume: "One side of every trade made through Ryntra. On Solana, from the trader's own token movements in the trade: the stablecoin they paid or received, else the SOL, else the token they paid. On Arc, from the swap's own events: the side in USDC, EURC, WETH or cirBTC of a KyberSwap swap, and the input a trader sent Circle's swap Adapter. A trade is Ryntra's when it paid Ryntra's fee inside it. Trades on the bonding curve of a token launched with Ryntra are counted under Ryntra Launch. Double counted: the venues the trades are routed through already list this volume.",
   Fees: "Fees people pay Ryntra on trades made through it. On Solana: what the swap router (Jupiter, or DFlow when Jupiter routes through it) pays into Ryntra's fee wallet and its Jupiter referral account inside the trade. On Arc: the developer fee of a Circle swap and the fee leg of a KyberSwap swap that name Ryntra's fee address, read from Circle's fee collector and KyberSwap's router events. Plain transfers into these accounts are not fees.",
   UserFees: "Fees traders pay Ryntra inside the trades they make through it.",
-  Revenue: "Trading fees kept by Ryntra: the whole fee paid into its fee wallet on Solana and from KyberSwap on Arc, what reached its Jupiter referral account less Jupiter's 20% share, and the Circle developer fee less Circle's 10% share. Cashback and invite rewards are paid later, when people claim them, and are not deducted.",
+  Revenue: "Trading fees kept by Ryntra: the whole fee paid into its fee wallet on Solana and from KyberSwap on Arc, what reached its Jupiter referral account less Jupiter's 20% share, and the Circle developer fee less the share (about 10%) Circle's fee collector routes to its protocol recipient. Cashback and invite rewards are paid later, when people claim them, and are not deducted.",
   ProtocolRevenue: "Trading fees kept by Ryntra, all of it for the protocol: Ryntra has no token and distributes nothing to holders.",
-  SupplySideRevenue: "Jupiter's 20% share of the fees that reached Ryntra's Jupiter referral account, and Circle's 10% share of the developer fee on Arc.",
+  SupplySideRevenue: "Jupiter's 20% share of the fees that reached Ryntra's Jupiter referral account, and the share (about 10%) of the Circle developer fee that Circle's fee collector routes to its protocol recipient on Arc.",
 };
 
 const breakdownMethodology = {
@@ -250,14 +279,14 @@ const breakdownMethodology = {
     [METRIC.TRADING_FEES]: "Ryntra's fee on swaps and spot trades, paid by the trader inside the trade.",
   },
   Revenue: {
-    [LABELS.TO_RYNTRA]: "The whole fee paid into the fee wallet and from KyberSwap, 80% of what reached the Jupiter referral account, and 90% of the Circle developer fee.",
+    [LABELS.TO_RYNTRA]: "The whole fee paid into the fee wallet and from KyberSwap, 80% of what reached the Jupiter referral account, and what the Circle developer fee leaves Ryntra after the protocol share (about 90%).",
   },
   ProtocolRevenue: {
-    [LABELS.TO_RYNTRA]: "The whole fee paid into the fee wallet and from KyberSwap, 80% of what reached the Jupiter referral account, and 90% of the Circle developer fee.",
+    [LABELS.TO_RYNTRA]: "The whole fee paid into the fee wallet and from KyberSwap, 80% of what reached the Jupiter referral account, and what the Circle developer fee leaves Ryntra after the protocol share (about 90%).",
   },
   SupplySideRevenue: {
     [LABELS.TO_JUPITER]: "Jupiter's 20% share of the fees that reached Ryntra's Jupiter referral account.",
-    [LABELS.TO_CIRCLE]: "Circle's 10% share of the developer fee its swap service pays Ryntra on Arc.",
+    [LABELS.TO_CIRCLE_PROTOCOL]: "The share (about 10%) of the developer fee on a Circle swap that Circle's fee collector routes to its protocol recipient on Arc, read from the collector's event.",
   },
 };
 
