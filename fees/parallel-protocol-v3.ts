@@ -124,15 +124,16 @@ const fetch = async (options: FetchOptions) => {
 
   dailyFees.addUSDValue(yieldUSD, "Yield From Backing Collateral");
   dailySupplySideRevenue.addUSDValue(yieldUSD * SUSDP_RATIO, "Yield to sUSDp Savings Holders");
+  // Angle Labs is the BUSL licensor, an outside party, so its cut is a cost of funds.
+  if (licenseActive) dailySupplySideRevenue.addUSDValue(yieldUSD * ANGLE_LABS_RATIO, "Yield to Angle Labs");
   dailyRevenue.addUSDValue(yieldUSD * daoRatio, "Yield to DAO Treasury");
-  if (licenseActive) dailyRevenue.addUSDValue(yieldUSD * ANGLE_LABS_RATIO, "Yield to Angle Labs");
   dailyProtocolRevenue.addUSDValue(yieldUSD * daoRatio, "Yield to DAO Treasury");
 
   if (mintRedeemFeesUSD) {
     dailyFees.addUSDValue(mintRedeemFeesUSD, METRIC.MINT_REDEEM_FEES);
     dailySupplySideRevenue.addUSDValue(mintRedeemFeesUSD * SUSDP_RATIO, "Mint/Redeem Fees to sUSDp Savings Holders");
+    if (licenseActive) dailySupplySideRevenue.addUSDValue(mintRedeemFeesUSD * ANGLE_LABS_RATIO, "Mint/Redeem Fees to Angle Labs");
     dailyRevenue.addUSDValue(mintRedeemFeesUSD * daoRatio, "Mint/Redeem Fees to DAO Treasury");
-    if (licenseActive) dailyRevenue.addUSDValue(mintRedeemFeesUSD * ANGLE_LABS_RATIO, "Mint/Redeem Fees to Angle Labs");
     dailyProtocolRevenue.addUSDValue(mintRedeemFeesUSD * daoRatio, "Mint/Redeem Fees to DAO Treasury");
   }
 
@@ -147,9 +148,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Daily change in protocol net surplus (total collateral value minus USDp outstanding), in two lines: the mint, burn and redeem fees paid that day, computed from the Parallelizer's Swap and Redeemed events at the rates the contract applies (read on-chain), and the yield from the yield-bearing collateral, which is the rest of the surplus change.",
-  Revenue: "DAO Treasury share of net surplus accrual, on both lines: 9% before June 1, 2026 (plus 1% to Angle Labs under BUSL 1.1 PIP-50), and 10% thereafter (Angle Labs 1% redistributed to DAO post license expiry).",
+  Revenue: "DAO Treasury share of net surplus accrual, on both lines: 9% before June 1, 2026, and 10% thereafter (the 1% previously paid to Angle Labs is redistributed to the DAO after the BUSL 1.1 license expires).",
   ProtocolRevenue: "DAO Treasury share of net surplus accrual, on both lines: 9% before June 1, 2026, 10% after (Angle Labs 1% redistributed to DAO post license expiry).",
-  SupplySideRevenue: "90% of net surplus accrual distributed to sUSDp savings holders, on both lines.",
+  SupplySideRevenue: "90% of net surplus accrual distributed to sUSDp savings holders, plus, before June 1, 2026, the 1% license share paid to Angle Labs under BUSL 1.1 (PIP-50), on both lines.",
   HoldersRevenue: "None: the surplus share kept by the protocol goes to the DAO Treasury. The Treasury's PRL buybacks are not counted here. Those funded by the PRL holders' share of Parallel V2 fees under PGP-42 are counted at that fee source, in Parallel V2's holders revenue; the others are paid from the Treasury's holdings (the PGP-40 monthly allocation, the PGP-45 OTC buyback).",
 };
 
@@ -160,9 +161,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     "Yield to DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
-    "Yield to Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
     "Mint/Redeem Fees to DAO Treasury": "9% of the mint, burn and redeem fees before June 1, 2026; 10% after.",
-    "Mint/Redeem Fees to Angle Labs": "1% of the mint, burn and redeem fees paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
   },
   ProtocolRevenue: {
     "Yield to DAO Treasury": "9% of net surplus accrual before June 1, 2026; 10% after (the 1% previously paid to Angle Labs is redistributed to the DAO Treasury post license expiry).",
@@ -170,7 +169,9 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     "Yield to sUSDp Savings Holders": "90% of net surplus accrual distributed to sUSDp stakers as savings yield.",
+    "Yield to Angle Labs": "1% of net surplus accrual paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
     "Mint/Redeem Fees to sUSDp Savings Holders": "90% of the mint, burn and redeem fees, distributed to sUSDp stakers as savings yield.",
+    "Mint/Redeem Fees to Angle Labs": "1% of the mint, burn and redeem fees paid to Angle Labs under BUSL 1.1 license (PIP-50), applicable only before June 1, 2026.",
   },
 };
 
