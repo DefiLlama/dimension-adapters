@@ -71,9 +71,10 @@ const CL_ACCOUNT_FACTORIES = [
 
 const LABELS = {
   Fees: METRIC.TRADING_FEES,
-  ToTreasury: 'Trading Fees To Treasury',
+  ToRevShare: 'Trading Fees To CRONUS Revenue Share',
   ToBuyback: 'Trading Fees To CRONUS Buyback And Burn',
   Buyback: METRIC.TOKEN_BUY_BACK,
+  RevShare: 'CRONUS Holders Revenue Share',
 }
 
 const toTs = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
@@ -100,8 +101,9 @@ const fetch = async (options: FetchOptions) => {
       add(dailyRevenue, amount, LABELS.ToBuyback)
       add(dailyHoldersRevenue, amount, LABELS.Buyback)
     } else {
-      add(dailyRevenue, amount, LABELS.ToTreasury)
-      add(dailyProtocolRevenue, amount, LABELS.ToTreasury)
+      // until 2026-09-22 the fee wallet bought CRONUS and distributed 100% of it to holders
+      add(dailyRevenue, amount, LABELS.ToRevShare)
+      add(dailyHoldersRevenue, amount, LABELS.RevShare)
     }
   }
 
@@ -179,8 +181,8 @@ const methodology = {
   Fees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
   UserFees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
   Revenue: 'All trading fees are kept by cro.trade (no share goes to liquidity providers). Spot referral payouts are made off-chain from another venue and are not deducted.',
-  ProtocolRevenue: 'Trading fees paid to the cro.trade treasury wallet: all fees until 2026-09-22, none after.',
-  HoldersRevenue: 'Trading fees paid to the CronusBurner contract, which buys CRONUS on the market and burns it: all fees since 2026-09-22, none before.',
+  ProtocolRevenue: 'No trading fees are kept by the protocol: they all go to CRONUS holders.',
+  HoldersRevenue: 'All trading fees. Until 2026-09-22 they went to the fee wallet, which bought CRONUS and distributed 100% of it to holders through the revenue share contract; since then they go to the CronusBurner contract, which buys CRONUS on the market and burns it.',
 }
 
 const breakdownMethodology = {
@@ -191,13 +193,11 @@ const breakdownMethodology = {
     [LABELS.Fees]: 'The 0.9% fee on each spot trade routed by cro.trade, taken in CRO or in the input token.',
   },
   Revenue: {
-    [LABELS.ToTreasury]: 'Trading fees sent to the cro.trade treasury wallet (until 2026-09-22).',
+    [LABELS.ToRevShare]: 'Trading fees sent to the fee wallet and distributed 100% to CRONUS holders as revenue share (until 2026-09-22).',
     [LABELS.ToBuyback]: 'Trading fees sent to the CronusBurner contract to buy back and burn CRONUS (since 2026-09-22).',
   },
-  ProtocolRevenue: {
-    [LABELS.ToTreasury]: 'Trading fees sent to the cro.trade treasury wallet (until 2026-09-22).',
-  },
   HoldersRevenue: {
+    [LABELS.RevShare]: 'Trading fees used to buy CRONUS and distribute 100% of it to holders through the revenue share contract (until 2026-09-22).',
     [LABELS.Buyback]: 'Trading fees sent to the CronusBurner contract, which buys CRONUS and burns it (since 2026-09-22).',
   },
 }
