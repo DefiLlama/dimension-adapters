@@ -38,8 +38,9 @@ function bucketEndingAt(h: ProtocolHistory, tMs: number, length: number): number
   return idx;
 }
 
-// /query/protocol/history: cumulative USD counters (volume, stakingRewards, users, ...); returns end minus start of the window
-export async function getProtocolWindowDeltas(options: FetchOptions, keys: string[]): Promise<Record<string, number>> {
+// /query/protocol/history: cumulative USD counters (volume, stakingRewards, users, ...); returns end minus start of the
+// window. Counters are monotonic except the ones listed in signedKeys (traderPnl), which may go either way.
+export async function getProtocolWindowDeltas(options: FetchOptions, keys: string[], signedKeys: string[] = []): Promise<Record<string, number>> {
   const { startMs, endMs } = windowOf(options);
   for (const interval of INTERVALS) {
     const h: ProtocolHistory = await httpGet(`${PAPERTRADE_API}/query/protocol/history?interval=${interval}`);
@@ -54,6 +55,7 @@ export async function getProtocolWindowDeltas(options: FetchOptions, keys: strin
       const prev = from === -1 ? 0 : col?.[from];
       if (cur == null || prev == null) throw new Error(`papertrade: ${key} is null in the ${interval} series for ${options.dateString}`);
       const delta = cur - prev;
+      if (signedKeys.includes(key)) { out[key] = delta; continue; }
       if (delta < -1e-6) throw new Error(`papertrade: cumulative ${key} went down in the ${interval} series for ${options.dateString}`);
       out[key] = Math.max(delta, 0); // float noise on an unchanged counter
     }
