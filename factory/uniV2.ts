@@ -845,6 +845,10 @@ const configs: Record<string, Record<string, any>> = {
   "robinswap": {
     [CHAIN.ROBINHOOD]: { factory: "0xa95DA9b9fCef09A07F99444fE9304457d6ECdccA", start: "2026-07-09", fees: 0.0025, revenueRatio: 1 / 4 },
   },
+  "ouro-dex-v2": {
+    // 0.3% swap fee; feeTo is set, so 1/6 of it goes to the protocol
+    [CHAIN.ROBINHOOD]: { factory: "0xaf0660Fd4d96F4e925AE85eba7A90a74C727fA2F", start: "2026-09-26", fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
   "upheaval-v2": {
     [CHAIN.HYPERLIQUID]: { factory: "0x98e19A533FadB2C9853983772E4e7aa09a1478e0", fees: 0.003, revenueRatio: 0.16, start: "2025-07-26" },
   },
