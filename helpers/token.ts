@@ -189,7 +189,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
       const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
       tokens = ankrTokens[ankrChainMapping[chain]] ?? []
     } else {
-      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options)
+      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options, logFilter)
     }
   }
 
@@ -207,9 +207,24 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
 
   logs.forEach((logs, index) => {
     const token = tokens![index]
-    logs.filter(logFilter).forEach((i: any) => balances!.add(tokenTransform(token), i.value))
+    logs.filter((log: any) => logFilter(transferRow(log, token))).forEach((i: any) => balances!.add(tokenTransform(token), i.value))
   })
   return balances
+}
+
+// Indexer rows, decoded Transfer args and raw logs name fields differently; give logFilter
+// every spelling, lowercased, so a filter written for one path keeps filtering on the others.
+function transferRow(log: any, token?: string) {
+  const from = String(log.from ?? log.from_address ?? '').toLowerCase()
+  const to = String(log.to ?? log.to_address ?? '').toLowerCase()
+  token = String(token ?? log.token ?? '').toLowerCase()
+  const txHash = log.transaction_hash ?? log.transactionHash
+  return {
+    ...(Array.isArray(log) ? {} : log),
+    from, to, token, value: log.value,
+    from_address: from, to_address: to, fromAddress: from, toAddress: to, sender: from, address: token,
+    transaction_hash: txHash, transactionHash: txHash,
+  }
 }
 
 async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
@@ -225,7 +240,7 @@ async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
     fromAddressFilter: fromAddressFilter as any,
     tokens,
   })
-  logs.filter(logFilter).forEach((i: any) => {
+  logs.filter((log: any) => logFilter(transferRow(log))).forEach((i: any) => {
     balances!.add(tokenTransform(i.token), i.value)
   })
 
@@ -313,8 +328,10 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
   }
 }
 
+const topicToAddress = (topic?: string) => topic ? '0x' + topic.slice(-40) : ''
+
 async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter: string | null,
-  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions) {
+  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions, logFilter: (log: any) => boolean = () => true) {
   const logs = await options.getLogs({
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer(address,address,uint256)
@@ -328,6 +345,8 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
 
   logs.forEach((log) => {
     if (log.data == '0x') return
+    const row = { from: topicToAddress(log.topics[1]), to: topicToAddress(log.topics[2]), value: log.data, transactionHash: log.transactionHash }
+    if (!logFilter(transferRow(row, log.address))) return
     balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
