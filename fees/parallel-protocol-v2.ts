@@ -2,6 +2,7 @@ import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 // Parallel V2 (formerly Mimo): PAR (EUR) and paUSD (USD) borrowed against collateral in the Classic Vaults.
 // https://docs.parallel.best/products/parallel-v3/fees#legacy-parallel-v2-fees-par-and-pausd
@@ -76,48 +77,78 @@ const RAY = 1e27;
 // availableIncome() plus the interest accrued since each collateral type's last refresh, in wei of PAR or paUSD.
 // availableIncome() is debt - (supply - the amount minted by the bridge). It is computed here from those terms, because its
 // SafeMath reverts once the bridge has minted more than the supply (Polygon paUSD, which has no debt left).
-const accruedIncome = async (api: ChainApi, timestamp: number, core: string, stablex: string, vaultsData: string, configProvider: string) => {
-  const state = await api.call({ abi: "address:state", target: core });
-  const bridgeableToken = await api.call({ abi: "address:bridgeableToken", target: state });
-  const [debt, supply, bridged, count] = await Promise.all([
-    api.call({ abi: "uint256:debt", target: vaultsData }),
-    api.call({ abi: "uint256:totalSupply", target: stablex }),
-    api.call({ abi: "uint256:getPrincipalTokenAmountMinted", target: bridgeableToken }),
-    api.call({ abi: "uint256:numCollateralConfigs", target: configProvider }),
+// One number per core, in the same order as `cores`.
+const accruedIncome = async (api: ChainApi, timestamp: number, cores: string[], stablexs: string[], vaultsDatas: string[], configProviders: string[]) => {
+  const states = await api.multiCall({ abi: "address:state", calls: cores });
+  const bridgeableTokens = await api.multiCall({ abi: "address:bridgeableToken", calls: states });
+  const [debts, supplies, bridged, counts] = await Promise.all([
+    api.multiCall({ abi: "uint256:debt", calls: vaultsDatas }),
+    api.multiCall({ abi: "uint256:totalSupply", calls: stablexs }),
+    api.multiCall({ abi: "uint256:getPrincipalTokenAmountMinted", calls: bridgeableTokens }),
+    api.multiCall({ abi: "uint256:numCollateralConfigs", calls: configProviders }),
   ]);
-  const income = Number(debt) - (Number(supply) - Number(bridged));
   // the configs are numbered from 1; reading 0 to count covers both numberings, empty entries are skipped
-  const ids = Array.from({ length: Number(count) + 1 }, (_, i) => i);
-  const collaterals = (await api.multiCall({ abi: ABI.collateralConfig, target: configProvider, calls: ids, permitFailure: true }))
-    .filter((c: any) => c && c.collateralType !== "0x0000000000000000000000000000000000000000");
-  const types = collaterals.map((c: any) => c.collateralType);
-  const [debts, lastRefreshes] = await Promise.all([
-    api.multiCall({ abi: ABI.collateralDebt, target: vaultsData, calls: types }),
-    api.multiCall({ abi: ABI.lastRefresh, target: state, calls: types }),
-  ]);
-  let accrued = 0;
-  collaterals.forEach((c: any, i: number) => {
-    const elapsed = timestamp - Number(lastRefreshes[i]);
-    // a borrow rate at or below RAY charges no interest
-    if (!Number(debts[i]) || elapsed <= 0 || Number(c.borrowRate) <= RAY) return;
-    accrued += Number(debts[i]) * (Math.pow(Number(c.borrowRate) / RAY, elapsed) - 1);
+  const configCalls = counts.flatMap((count: any, i: number) =>
+    Array.from({ length: Number(count) + 1 }, (_, id) => ({ target: configProviders[i], params: [id] }))
+  );
+  const rawConfigs = await api.multiCall({ abi: ABI.collateralConfig, calls: configCalls, permitFailure: true });
+  let cursor = 0;
+  const collateralsPerCore: any[][] = counts.map((count: any) => {
+    const slice = rawConfigs.slice(cursor, cursor + Number(count) + 1);
+    cursor += Number(count) + 1;
+    return slice.filter((c: any) => c && c.collateralType !== ADDRESSES.null);
   });
-  return income + accrued;
+  const debtCalls = collateralsPerCore.flatMap((collaterals, i) =>
+    collaterals.map((c: any) => ({ target: vaultsDatas[i], params: [c.collateralType] }))
+  );
+  const refreshCalls = collateralsPerCore.flatMap((collaterals, i) =>
+    collaterals.map((c: any) => ({ target: states[i], params: [c.collateralType] }))
+  );
+  const [collateralDebts, lastRefreshes] = debtCalls.length
+    ? await Promise.all([
+      api.multiCall({ abi: ABI.collateralDebt, calls: debtCalls }),
+      api.multiCall({ abi: ABI.lastRefresh, calls: refreshCalls }),
+    ])
+    : [[], []];
+  let offset = 0;
+  return cores.map((_, i) => {
+    const income = Number(debts[i]) - (Number(supplies[i]) - Number(bridged[i]));
+    let accrued = 0;
+    collateralsPerCore[i].forEach((c: any) => {
+      const debt = collateralDebts[offset];
+      const elapsed = timestamp - Number(lastRefreshes[offset]);
+      offset++;
+      // a borrow rate at or below RAY charges no interest
+      if (!Number(debt) || elapsed <= 0 || Number(c.borrowRate) <= RAY) return;
+      accrued += Number(debt) * (Math.pow(Number(c.borrowRate) / RAY, elapsed) - 1);
+    });
+    return income + accrued;
+  });
 };
 
-// shares of the released income by role, from the FeeDistributor's payees
-const getShares = async (api: ChainApi, feeDistributor: string) => {
-  const payees: string[] = await api.call({ abi: ABI.payees, target: feeDistributor });
-  const shares = await api.multiCall({ abi: ABI.shares, target: feeDistributor, calls: payees });
-  const total = shares.reduce((sum: number, s: any) => sum + Number(s), 0);
-  const split = { treasury: 0, insuranceFund: 0, sPrl: 0 };
-  payees.forEach((p: string, i: number) => {
-    const share = Number(shares[i]) / total;
-    if (SPRL_PAYEES.has(p.toLowerCase())) split.sPrl += share;
-    else if (INSURANCE_FUND_PAYEES.has(p.toLowerCase())) split.insuranceFund += share;
-    else split.treasury += share;
+// shares of the released income by role, from each FeeDistributor's payees, in the same order
+const getShares = async (api: ChainApi, feeDistributors: string[]) => {
+  const payeesPerDistributor: string[][] = await api.multiCall({ abi: ABI.payees, calls: feeDistributors });
+  const shareCalls = payeesPerDistributor.flatMap((payees, i) =>
+    payees.map((payee) => ({ target: feeDistributors[i], params: [payee] }))
+  );
+  const shareValues = shareCalls.length
+    ? await api.multiCall({ abi: ABI.shares, calls: shareCalls })
+    : [];
+  let offset = 0;
+  return payeesPerDistributor.map((payees) => {
+    const shares = shareValues.slice(offset, offset + payees.length);
+    offset += payees.length;
+    const total = shares.reduce((sum: number, s: any) => sum + Number(s), 0);
+    const split = { treasury: 0, insuranceFund: 0, sPrl: 0 };
+    payees.forEach((p: string, i: number) => {
+      const share = Number(shares[i]) / total;
+      if (SPRL_PAYEES.has(p.toLowerCase())) split.sPrl += share;
+      else if (INSURANCE_FUND_PAYEES.has(p.toLowerCase())) split.insuranceFund += share;
+      else split.treasury += share;
+    });
+    return split;
   });
-  return split;
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -128,19 +159,23 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = createBalances();
   const dailyHoldersRevenue = createBalances();
 
-  for (const core of config[chain].cores) {
-    const addressProvider = await toApi.call({ abi: "address:a", target: core });
-    const [stablex, vaultsData, configProvider, feeDistributor] = await Promise.all(
-      ["stablex", "vaultsData", "config", "feeDistributor"].map((f) => toApi.call({ abi: `address:${f}`, target: addressProvider }))
-    );
-    const [incomeStart, incomeEnd, releases, shares] = await Promise.all([
-      accruedIncome(fromApi, fromTimestamp, core, stablex, vaultsData, configProvider),
-      accruedIncome(toApi, toTimestamp, core, stablex, vaultsData, configProvider),
-      getLogs({ target: feeDistributor, eventAbi: FEE_RELEASED }),
-      getShares(toApi, feeDistributor),
-    ]);
-    const released = releases.reduce((sum: number, log: any) => sum + Number(log.income), 0);
-    const fees = incomeEnd - incomeStart + released;
+  const cores = config[chain].cores;
+  const addressProviders = await toApi.multiCall({ abi: "address:a", calls: cores });
+  const [stablexs, vaultsDatas, configProviders, feeDistributors] = await Promise.all(
+    ["stablex", "vaultsData", "config", "feeDistributor"].map((f) => toApi.multiCall({ abi: `address:${f}`, calls: addressProviders }))
+  );
+  const [incomesStart, incomesEnd, releasesPerCore, sharesList] = await Promise.all([
+    accruedIncome(fromApi, fromTimestamp, cores, stablexs, vaultsDatas, configProviders),
+    accruedIncome(toApi, toTimestamp, cores, stablexs, vaultsDatas, configProviders),
+    getLogs({ targets: feeDistributors, eventAbi: FEE_RELEASED, flatten: false }),
+    getShares(toApi, feeDistributors),
+  ]);
+
+  cores.forEach((_, i) => {
+    const stablex = stablexs[i];
+    const shares = sharesList[i];
+    const released = releasesPerCore[i].reduce((sum: number, log: any) => sum + Number(log.income), 0);
+    const fees = incomesEnd[i] - incomesStart[i] + released;
 
     // under PGP-42 the stakers' payee is gone and the DAO Treasury's share holds their 15%
     let holdersLabel = METRIC.STAKING_REWARDS;
@@ -159,7 +194,7 @@ const fetch = async (options: FetchOptions) => {
       dailyRevenue.add(stablex, fees * shares.sPrl, TO_PRL_HOLDERS);
       dailyHoldersRevenue.add(stablex, fees * shares.sPrl, holdersLabel);
     }
-  }
+  });
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
@@ -198,6 +233,7 @@ const adapter: SimpleAdapter = {
   adapter: config,
   methodology,
   breakdownMethodology,
+  pullHourly: true,
 };
 
 export default adapter;
