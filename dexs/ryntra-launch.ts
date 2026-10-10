@@ -8,10 +8,15 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 // Ryntra's public attribution registry (https://ryntra.io/api/stats/registry, drawn on https://ryntra.io/stats).
 // Meteora already lists the volume, so it is double counted.
 
-export const LAUNCH_CONFIGS = ["B6gheJ5PL6tpE9V3vQGYA8wLqe3pcFh1fgKf4aPxZh1G", "33KU1WNMVAXLBuGF1EQAHqWFnrsDevofJnw4VAamiK2G"];
+// Classic and Protected (created 2026-10-05) and Micro (created 2026-10-10). Ryntra's demo-market config is its own
+// technical validation and is not counted.
+export const LAUNCH_CONFIGS = ["B6gheJ5PL6tpE9V3vQGYA8wLqe3pcFh1fgKf4aPxZh1G", "33KU1WNMVAXLBuGF1EQAHqWFnrsDevofJnw4VAamiK2G", "3xh95YxdDBDiR35mWJo4E3hVoXNDqW4hdXemuWwsBD8w"];
 export const CONFIGS_CREATED = "2026-10-05";
 export const LAUNCH_POOL_PAYER = "H2Bzv5pcrEGug1STGbZhvX98DGb3SCFa4pnAtUwktyyV";
 const FEE_CLAIMER = "22BZNVD9FuZPQvGwALBwhopSyxUCTuNNeTW1Lr1KsSvA";
+// On Micro the partner's fees go to Ryntra's launch executor instead of the vault: it owns the DAMM v2 position locked for
+// Ryntra on Micro's graduated pools.
+const LAUNCH_EXECUTOR = "J7zLmXSewhb1kcqwpL4SKpKfivivwn6wmSHwSg6H4JeU";
 const REFERRAL_ACCOUNT = "4kVogGhWqheXKjteM2urywUS5L8q7AnSNJCYDna4VrDy";
 const USDC = ADDRESSES.solana.USDC;
 
@@ -99,12 +104,12 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
       SELECT 'position_fees', g.base_mint, CAST(f.fee_a_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
-      WHERE f.owner = '${FEE_CLAIMER}' AND ${window("f.evt_block_time")}
+      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}
       UNION ALL
       SELECT 'position_fees', '${USDC}', CAST(f.fee_b_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
-      WHERE f.owner = '${FEE_CLAIMER}' AND ${window("f.evt_block_time")}
+      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}
     )
     -- Volume is the curve's only: after graduation it is Meteora DAMM v2's, which lists it.
     SELECT 'volume' AS metric, '${USDC}' AS mint, CAST(SUM(quote_volume) AS VARCHAR) AS amount FROM swaps WHERE market = 'curve'
@@ -197,9 +202,9 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.CURVE_FEES]: "The whole fee traders pay on every swap on the bonding curve of a token launched with Ryntra. It starts at 50% (protected config) or 20% (classic) at launch to deter snipers and decays to 1% within minutes, plus a volatility fee. 80% goes to the configs (40% of it to the creator, 60% to Ryntra) and 20% to Meteora, which pays the referral fee out of its part.",
+    [LABELS.CURVE_FEES]: "The whole fee traders pay on every swap on the bonding curve of a token launched with Ryntra. It starts at 50% (protected config) or 20% (classic, micro) at launch to deter snipers and decays to 1% within minutes, plus a volatility fee. 80% goes to the configs (40% of it to the creator, 60% to Ryntra) and 20% to Meteora, which pays the referral fee out of its part.",
     [LABELS.GRADUATED_REFERRAL_FEES]: "The referral fee Meteora pays Ryntra, out of its protocol fee, on trades made through Ryntra in the pool a launch graduated into.",
-    [LABELS.GRADUATION_FEES]: "Ryntra's 60% of a graduating curve's 2% migration fee, when withdrawn by its fee claimer.",
+    [LABELS.GRADUATION_FEES]: "Ryntra's share of a graduating curve's migration fee — 60% of 2% on Classic and Protected, all of 8% on Micro — when withdrawn by its claimer (the vault, or on Micro Ryntra's launch executor).",
     [LABELS.POOL_FEES]: "Fees of the DAMM v2 liquidity locked for Ryntra after a launch graduates, when claimed, in USDC and in the launched token.",
   },
   UserFees: {
