@@ -2,15 +2,15 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { fetchDittoLifiVolume } from '../../helpers/aggregators/ditto-lifi'
 import { CHAIN } from '../../helpers/chains'
 
+/** Return completed same-chain routed volume for the requested source-chain window. */
 const fetch = async (options: FetchOptions) => ({
   dailyVolume: await fetchDittoLifiVolume(options, 'same-chain'),
 })
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // Venue API attribution across routers; avoid 24 hourly windows per integrator/chain.
-  // Each query and local filter still enforce the exact requested half-open window.
-  pullHourly: false,
+  // LI.FI supports arbitrary timestamp windows; local filtering is half-open.
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: '2026-08-28' },
     [CHAIN.BASE]: { fetch, start: '2026-10-03' },

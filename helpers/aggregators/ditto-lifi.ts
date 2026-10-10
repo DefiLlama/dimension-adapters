@@ -7,6 +7,7 @@ const integrators = [
   { query: 'DittoNetwork', normalized: 'dittonetwork' },
   { query: 'ditto-app', normalized: 'ditto-app' },
 ]
+// LI.FI's public chain inventory: https://li.quest/v1/chains
 const chainIds: Record<string, string> = {
   [CHAIN.ARBITRUM]: '42161',
   [CHAIN.BASE]: '8453',
@@ -25,6 +26,14 @@ interface LifiResponse {
   next?: string | null
 }
 
+/**
+ * Sum completed Ditto-attributed LI.FI transfers in an exact half-open window.
+ * Count source-side USD once per transfer and separate same/cross-chain routes.
+ * Paginate both integrators; malformed responses and upstream errors propagate.
+ * @param options Requested source chain, time boundaries and balance factory.
+ * @param routeType Whether the destination must match or differ from the source.
+ * @returns Completed source-side USD volume for the requested route type.
+ */
 export async function fetchDittoLifiVolume(
   options: FetchOptions,
   routeType: 'same-chain' | 'cross-chain',
@@ -44,6 +53,8 @@ export async function fetchDittoLifiVolume(
         toTimestamp: options.endTimestamp.toString(),
         status: 'DONE',
         integrator: integrator.query,
+        // Chosen page size to reduce pagination requests, not a claimed API cap.
+        // Timestamp filters/cursors: https://docs.li.fi/api-reference/get-a-paginated-list-of-filtered-transfers
         limit: '100',
       })
       if (cursor) params.set('next', cursor)
