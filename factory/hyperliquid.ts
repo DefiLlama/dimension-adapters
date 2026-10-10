@@ -32,7 +32,10 @@ const superxConfig: BuilderConfig = {
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
   "ditto-perps": {
+    // Public Hyperliquid builder attribution; the daily indexer counts every tagged fill.
+    // Scope/fields: https://hl-indexer.llama.rip/llms.txt (builder daily summaries).
     addresses: ["0x2530e4a72587450529fb99518db39d6a218a4177"],
+    // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x2530e4a72587450529fb99518db39d6a218a4177/20260828.csv.lz4
     start: "2026-08-28",
     methodology: {
       Volume: "Filled notional of Hyperliquid perpetual trades carrying Ditto's builder address.",
@@ -1380,6 +1383,7 @@ function hip3Methodology(name: string) {
 // (its outcome listing for outcome-only builders); these are the builder's other markets, reusing its addresses
 // and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
 const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string }> = {
+  // Earliest positive Spot day: https://hl-indexer.llama.rip/v2/data/builder/0x2530e4a72587450529fb99518db39d6a218a4177/daily/2026-09-30
   "ditto-spot": { builder: "ditto-perps", market: "spot", start: "2026-09-30" },
   "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
