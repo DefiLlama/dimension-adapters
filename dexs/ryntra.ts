@@ -72,18 +72,25 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
         AND (t.to_owner = x.trader OR t.from_owner = x.trader)
       GROUP BY 1, 2
     ),
+    -- Ryntra's fee of each trade, per mint.
+    trade_fees AS (
+      SELECT tx_id, mint, SUM(amount) AS fee FROM fees GROUP BY 1, 2
+    ),
     -- One side of each trade, in a token that can be priced: the stablecoin paid, else received; else SOL; else the
-    -- token paid.
+    -- token paid. Gross of Ryntra's fee: a side the trader paid already holds it (a fee on the input comes out of what
+    -- they paid); a side they received is short of a fee taken from the output in that token, so it is added back
+    -- (e.g. 5L5XDfKERZMB…: 3.067760 USDC received, 0.015415 USDC fee — 3.083175 USDC traded).
     sides AS (
-      SELECT mint, ABS(net) AS amount,
+      SELECT l.mint, ABS(l.net) + CASE WHEN l.net > 0 THEN COALESCE(f.fee, 0) ELSE 0 END AS amount,
         ROW_NUMBER() OVER (
-          PARTITION BY tx_id
+          PARTITION BY l.tx_id
           ORDER BY
-            CASE WHEN mint IN (${quoted([ADDRESSES.solana.USDC, ADDRESSES.solana.USDT])}) THEN 0 WHEN mint = '${ADDRESSES.solana.SOL}' THEN 1 ELSE 2 END,
-            CASE WHEN net < 0 THEN 0 ELSE 1 END
+            CASE WHEN l.mint IN (${quoted([ADDRESSES.solana.USDC, ADDRESSES.solana.USDT])}) THEN 0 WHEN l.mint = '${ADDRESSES.solana.SOL}' THEN 1 ELSE 2 END,
+            CASE WHEN l.net < 0 THEN 0 ELSE 1 END
         ) AS pick
-      FROM legs
-      WHERE net <> 0
+      FROM legs l
+      LEFT JOIN trade_fees f ON f.tx_id = l.tx_id AND f.mint = l.mint
+      WHERE l.net <> 0
     )
     SELECT 'fees' AS metric, recipient, mint, CAST(SUM(amount) AS VARCHAR) AS amount FROM fees GROUP BY 2, 3
     UNION ALL
@@ -302,7 +309,7 @@ const fetchArc = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "One side of every trade made through Ryntra. On Solana, from the trader's own token movements in the trade: the stablecoin they paid or received, else the SOL, else the token they paid. On Arc, from the swap's own events: the side in USDC, EURC, WETH or cirBTC of a KyberSwap swap, gross of the router's fees (the amount the fee was taken from), and the input a trader sent Circle's swap Adapter. A trade is Ryntra's when it paid Ryntra's fee inside it. Trades on the bonding curve of a token launched with Ryntra are counted under Ryntra Launch. Double counted: the venues the trades are routed through already list this volume.",
+  Volume: "One side of every trade made through Ryntra. On Solana, from the trader's own token movements in the trade: the stablecoin they paid or received, else the SOL, else the token they paid — gross of Ryntra's fee (a fee taken from what they received is added back). On Arc, from the swap's own events: the side in USDC, EURC, WETH or cirBTC of a KyberSwap swap, gross of the router's fees (the amount the fee was taken from), and the input a trader sent Circle's swap Adapter. A trade is Ryntra's when it paid Ryntra's fee inside it. Trades on the bonding curve of a token launched with Ryntra are counted under Ryntra Launch. Double counted: the venues the trades are routed through already list this volume.",
   Fees: "Fees people pay Ryntra on trades made through it. On Solana: what the swap router (Jupiter, or DFlow when Jupiter routes through it) pays into Ryntra's fee wallet and its Jupiter referral account inside the trade. On Arc: the developer fee of a Circle swap and the fee leg of a KyberSwap swap that name Ryntra's fee address, read from Circle's fee collector and KyberSwap's router events. Plain transfers into these accounts are not fees.",
   UserFees: "Fees traders pay Ryntra inside the trades they make through it.",
   Revenue: "Trading fees kept by Ryntra: the whole fee paid into its fee wallet on Solana and from KyberSwap on Arc, what reached its Jupiter referral account less Jupiter's 20% share, and the Circle developer fee less the share (about 10%) Circle's fee collector routes to its protocol recipient. Cashback and invite rewards are paid later, when people claim them, and are not deducted.",
