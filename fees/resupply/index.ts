@@ -1,46 +1,124 @@
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { METRIC } from "../../helpers/metrics"
 
 const reUSD = "0x57aB1E0003F623289CD798B1824Be09a793e4Bec"
-const feeDepostController = "0x7E3D2F480AbbA95863040D763DDe8F30D100C6F5"
+const feeDepositController = "0x7E3D2F480AbbA95863040D763DDe8F30D100C6F5"
+const registryAddress = "0x10101010E0C3171D894B71B3400668aF311e7D94"
 
 const abi = {
   addInterest: "event AddInterest(uint256 interestEarned, uint256 rate)",
   redeemed: "event Redeemed(address indexed _caller, uint256 _amount, uint256 _collateralFreed, uint256 _protocolFee, uint256 _debtReduction)",
+  borrow: "event Borrow(address indexed _borrower, address indexed _receiver, uint256 _borrowAmount, uint256 _sharesAdded, uint256 _mintFees)",
   splits: "function splits() external view returns (tuple(uint80 insurance, uint80 treasury, uint80 platform))"
 }
 
+// The pair list is cached for the process lifetime to minimize redundant RPC calls during hourly evaluations.
+// Newly deployed pairs during a running process are not picked up, and historical backfills use the current list
+// (which relies on getLogs tolerating targets that did not yet exist at historical blocks).
+let cachedPairs: string[] = []
+let pairsPromise: Promise<string[]> | null = null
+
+/**
+ * Fetches the daily fees, revenue, supply-side revenue, protocol revenue, and holders revenue for ReSupply.
+ * ReSupply is a CDP lending market where pairs emit AddInterest (borrow interest), Borrow (mint fees),
+ * and Redeemed (protocol redemption fees) in reUSD.
+ * Fees are distributed via FeeDepositController based on dynamic on-chain splits:
+ * - insurance: distributed to insurance pool depositors / lenders (SupplySideRevenue)
+ * - treasury: retained by DAO treasury (ProtocolRevenue)
+ * - platform: distributed to RSUP governance token stakers (HoldersRevenue)
+ * @param options - FetchOptions provided by the DefiLlama SDK
+ */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  const pairContracts = await options.api.call({ abi: 'address[]:getAllPairAddresses', target: '0x10101010E0C3171D894B71B3400668aF311e7D94' })
-  const splits = await options.api.call({ target: feeDepostController, abi: abi.splits })
 
-  const addInterestLogs = (await options.getLogs({ targets: pairContracts as any, eventAbi: abi.addInterest, }))
-  const redeemedLogs = (await options.getLogs({ targets: pairContracts as any, eventAbi: abi.redeemed, }))
+  if (cachedPairs.length === 0) {
+    if (!pairsPromise) {
+      pairsPromise = options.api
+        .call({
+          abi: 'address[]:getAllPairAddresses',
+          target: registryAddress,
+        })
+        .then((pairs: string[]) => {
+          cachedPairs = pairs
+          return pairs
+        })
+        .catch((err: any) => {
+          pairsPromise = null
+          throw err
+        })
+    }
+    cachedPairs = await pairsPromise
+  }
 
-  addInterestLogs.forEach((log) => dailyFees.add(reUSD, log.interestEarned))
-  redeemedLogs.forEach((log) => dailyFees.add(reUSD, log._protocolFee))
+  const splits = await options.api.call({ target: feeDepositController, abi: abi.splits })
+  const addInterestLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.addInterest })
+  const redeemedLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.redeemed })
+  const borrowLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.borrow })
 
-  const dailySupplySideRevenue = dailyFees.clone(splits.insurance / 1e4)
-  const dailyRevenue = dailyFees.clone((+splits.treasury + +splits.platform) / 1e4)
-  const dailyHoldersRevenue = dailyFees.clone(splits.platform / 1e4)
-  const dailyProtocolRevenue = dailyFees.clone(splits.treasury / 1e4)
+
+  addInterestLogs.forEach((log) => dailyFees.add(reUSD, log.interestEarned, METRIC.BORROW_INTEREST))
+  redeemedLogs.forEach((log) => dailyFees.add(reUSD, log._protocolFee, METRIC.MINT_REDEEM_FEES))
+  borrowLogs.forEach((log) => dailyFees.add(reUSD, log._mintFees, METRIC.MINT_REDEEM_FEES))
+
+  const insuranceBps = Number(splits.insurance)
+  const treasuryBps = Number(splits.treasury)
+  const platformBps = Number(splits.platform)
+  const totalBps = insuranceBps + treasuryBps + platformBps
+
+  if (totalBps === 0) {
+    throw new Error('FeeDepositController splits sum to 0')
+  }
+
+  // Derive ratios normalized to totalBps, guaranteeing supplySide + revenue strictly equals dailyFees
+  const treasuryRatio = treasuryBps / totalBps
+  const platformRatio = platformBps / totalBps
+  const revenueRatio = (treasuryBps + platformBps) / totalBps
+  const insuranceRatio = 1 - revenueRatio
+
+  const dailyRevenue = dailyFees.clone(revenueRatio)
+  const dailySupplySideRevenue = dailyFees.clone(insuranceRatio)
+  const dailyHoldersRevenue = dailyFees.clone(platformRatio)
+  const dailyProtocolRevenue = dailyFees.clone(treasuryRatio)
 
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue
+    dailyHoldersRevenue,
   }
 }
 
 const methodology = {
-  Fees: "Total interest paid by borrowers + redemption fees",
-  Revenue: "Protocol's share of interest (treasury + RSUP stakers)",
-  ProtocolRevenue: "Treasury's portion of interest",
-  HoldersRevenue: "Platform fees distributed to RSUP stakers",
-  SupplySideRevenue: "Interest paid to lenders in the insurance pool"
+  Fees: "Total interest paid by borrowers, borrow mint fees, and collateral redemption fees.",
+  Revenue: "Protocol and platform share of fees distributed to the DAO treasury and RSUP stakers.",
+  ProtocolRevenue: "Portion of protocol fees allocated to the DAO treasury based on on-chain splits.",
+  HoldersRevenue: "Portion of protocol fees distributed as staking rewards to RSUP stakers based on on-chain splits.",
+  SupplySideRevenue: "Portion of protocol fees allocated to the insurance pool for lenders and depositors based on on-chain splits.",
+}
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.BORROW_INTEREST]: "Interest accrued and paid by borrowers across all active pairs.",
+    [METRIC.MINT_REDEEM_FEES]: "Mint fees incurred on borrow and protocol fees charged on collateral redemptions.",
+  },
+  Revenue: {
+    [METRIC.BORROW_INTEREST]: "Combined DAO treasury and RSUP staking share of borrow interest.",
+    [METRIC.MINT_REDEEM_FEES]: "Combined DAO treasury and RSUP staking share of mint and redemption fees.",
+  },
+  SupplySideRevenue: {
+    [METRIC.BORROW_INTEREST]: "Insurance pool share of borrow interest distributed to lenders and depositors.",
+    [METRIC.MINT_REDEEM_FEES]: "Insurance pool share of mint and redemption fees distributed to lenders and depositors.",
+  },
+  ProtocolRevenue: {
+    [METRIC.BORROW_INTEREST]: "DAO treasury share of borrow interest based on on-chain splits.",
+    [METRIC.MINT_REDEEM_FEES]: "DAO treasury share of mint and redemption fees based on on-chain splits.",
+  },
+  HoldersRevenue: {
+    [METRIC.BORROW_INTEREST]: "Staking rewards from borrow interest distributed to RSUP stakers based on on-chain splits.",
+    [METRIC.MINT_REDEEM_FEES]: "Staking rewards from mint and redemption fees distributed to RSUP stakers based on on-chain splits.",
+  },
 }
 
 const adapters: Adapter = {
@@ -51,6 +129,7 @@ const adapters: Adapter = {
     },
   },
   methodology,
+  breakdownMethodology,
   version: 2,
   pullHourly: true,
 }
