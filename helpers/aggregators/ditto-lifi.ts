@@ -1,6 +1,7 @@
 import { FetchOptions } from '../../adapters/types'
 import { CHAIN } from '../chains'
-import { fetchURLAutoHandleRateLimit } from '../../utils/fetchURL'
+import axios from 'axios'
+import { sleep } from '../../utils/utils'
 
 const endpoint = 'https://li.quest/v2/analytics/transfers'
 const integrators = [
@@ -24,6 +25,43 @@ interface LifiResponse {
   data: LifiTransfer[]
   hasNext: boolean
   next?: string | null
+}
+
+// Public analytics quota: 100 requests/minute. Leave room for another process
+// by spacing this process's requests at least 1.2 seconds apart (<= 50/minute).
+// https://help.li.fi/hc/en-us/articles/12111455848859-What-is-the-LI-FI-API-rate-limit
+const REQUEST_GAP_MS = 1200
+const RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_ATTEMPTS = 3 // Initial request and at most two rate-limit retries.
+let requestQueue: Promise<unknown> = Promise.resolve()
+
+/** Serialize analytics requests; honor Retry-After on 429, then fail if exhausted. */
+function fetchLifiPage(url: string): Promise<LifiResponse> {
+  const result = requestQueue.then(async () => {
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        // Bound each transport attempt; unrelated failures are not retried here.
+        const response = await axios.get<LifiResponse>(url, { timeout: 30_000 })
+        return response.data
+      } catch (error) {
+        if (!axios.isAxiosError(error) || error.response?.status !== 429
+          || attempt === MAX_ATTEMPTS - 1) throw error
+        const header = error.response.headers['retry-after']
+        const raw = header === undefined ? '' : String(header).trim()
+        const delay = !raw ? NaN : /^\d+(\.\d+)?$/.test(raw)
+          ? Number(raw) * 1000 : Date.parse(raw) - Date.now()
+        const retryDelay = Number.isFinite(delay)
+          ? Math.max(REQUEST_GAP_MS, delay) : RATE_LIMIT_WINDOW_MS
+        // Do not shorten a longer server-requested wait or retry indefinitely.
+        if (retryDelay > RATE_LIMIT_WINDOW_MS) throw error
+        await sleep(retryDelay)
+      }
+    }
+    throw new Error('LI.FI analytics retry attempts exhausted')
+  })
+  // Reset the queue after either outcome, without hiding the caller's rejection.
+  requestQueue = result.then(() => sleep(REQUEST_GAP_MS), () => sleep(REQUEST_GAP_MS))
+  return result
 }
 
 /**
@@ -58,9 +96,9 @@ export async function fetchDittoLifiVolume(
         limit: '100',
       })
       if (cursor) params.set('next', cursor)
-      const response = await fetchURLAutoHandleRateLimit(
+      const response = await fetchLifiPage(
         `${endpoint}?${params.toString()}`,
-      ) as LifiResponse
+      )
       if (!response || !Array.isArray(response.data) || typeof response.hasNext !== 'boolean') {
         throw new Error('LI.FI returned an invalid Ditto analytics response')
       }
