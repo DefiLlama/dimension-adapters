@@ -798,20 +798,20 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
           },
         ],
       },
-      // [CHAIN.TAIKO]: {
-      //   pools: [
-      //     {
-      //       version: 3,
-      //       lendingPoolProxy: '0xA7f1c55530B1651665C15d8104663B3f03E3386f',
-      //       dataProvider: '0x43248dF19B9B55f7b488CF68A1224308Af2D81eC',
-      //     },
-      //     {
-      //       version: 3,
-      //       lendingPoolProxy: '0x9dd29AA2BD662E6b569524ba00C55be39e7B00fB',
-      //       dataProvider: '0xF6Aa54a5b60c324602C9359E8221423793e5205d',
-      //     },
-      //   ],
-      // },
+      [CHAIN.TAIKO]: {
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xA7f1c55530B1651665C15d8104663B3f03E3386f',
+            dataProvider: '0x43248dF19B9B55f7b488CF68A1224308Af2D81eC',
+          },
+          {
+            version: 3,
+            lendingPoolProxy: '0x9dd29AA2BD662E6b569524ba00C55be39e7B00fB',
+            dataProvider: '0xF6Aa54a5b60c324602C9359E8221423793e5205d',
+          },
+        ],
+      },
       [CHAIN.SONIC]: {
         pools: [
           {
