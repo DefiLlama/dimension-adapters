@@ -77,6 +77,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: '2026-08-30', // sole source stats.a11bd.net dead (SERVFAIL), last data 2026-08-30; legacy bridge superseded by Allbridge Core (fees/allbridge-core live)
   fetch,
   adapter: chainConfig,
   methodology,
