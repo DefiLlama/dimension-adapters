@@ -70,6 +70,7 @@ const startTimes = {
 
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-08-31', // sole source stats.a11bd.net dead (SERVFAIL), series frozen since 2026-08-30; legacy bridge superseded by Allbridge Core (fees/allbridge-core live)
   adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
     acc[chain] = {
       fetch,
