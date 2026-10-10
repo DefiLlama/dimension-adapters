@@ -65,7 +65,7 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.PLASMA]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-09-25" },
   [CHAIN.MEGAETH]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-09-01" },
   // [CHAIN.BITLAYER]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2024-04-01" },
-  [CHAIN.PLUME]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-02-01" },
+  [CHAIN.PLUME]: { ultraLightNodeV2: "0xfd76d9CB0Bac839725aB79127E7411fe71b1e3CA", start: "2025-02-01" },
   [CHAIN.KATANA]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-05-01" },
   [CHAIN.SOPHON]: { ultraLightNodeV2: "0xFe5DFA6B4d6bE848B57dd378b0798aF60F1E6D35", start: "2025-01-01" },
   // [CHAIN.NIBIRU]: { ultraLightNodeV2: "0xD958989F016b6f64aDEEa935E2C51cbdeC1c83Ed", start: "2025-01-01" },
