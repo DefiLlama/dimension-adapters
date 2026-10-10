@@ -1,6 +1,8 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { METRIC } from "../dexs/latch-protocol";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 /**
  * Vaultex (https://vaultex.fun), a Solana meme coin launchpad built on Meteora's
@@ -57,6 +59,7 @@ type Row = {
 };
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
   const rows: Row[] = await queryDuneSql(options, `
     WITH
       vaultex_configs AS (
@@ -107,10 +110,7 @@ const fetch = async (options: FetchOptions) => {
     const protocol = Number(row.protocol_fee ?? 0);
     const referral = Number(row.referral_fee ?? 0);
 
-    dailyFees.add(row.quote_mint, vaultex, LABELS.ToVaultex);
-    dailyFees.add(row.quote_mint, creator, LABELS.ToCreators);
-    dailyFees.add(row.quote_mint, protocol, LABELS.Meteora);
-    dailyFees.add(row.quote_mint, referral, LABELS.Referral);
+    dailyFees.add(row.quote_mint, vaultex + protocol + referral + creator, METRIC.SWAP_FEES);
 
     dailyRevenue.add(row.quote_mint, vaultex, LABELS.ToVaultex);
 
@@ -130,10 +130,7 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.ToVaultex]: "Vaultex share of the 2% bonding-curve trade fee (0.592% of volume on current configs).",
-    [LABELS.ToCreators]: "Coin creator share of the 2% bonding-curve trade fee (1.008% of volume on current configs), per the config's creator_trading_fee_percentage.",
-    [LABELS.Meteora]: "Meteora DBC protocol fee, 20% of the trade fee, taken before the partner/creator split.",
-    [LABELS.Referral]: "Part of the Meteora protocol fee paid to the frontend that hosted the swap.",
+    [METRIC.SWAP_FEES]: "2% fee on every bonding-curve trade: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.",
   },
   Revenue: {
     [LABELS.ToVaultex]: "Vaultex share of bonding-curve trade fees, claimable by the Vaultex fee claimer.",
@@ -160,7 +157,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "2% fee on every bonding-curve trade: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.",
     Revenue: "Vaultex share of the trading fee (100% minus the config's creator percentage; 37% on current configs).",
-    ProtocolRevenue: "Same as Revenue.",
+    ProtocolRevenue: "Vaultex share of the trading fee (100% minus the config's creator percentage; 37% on current configs).",
     SupplySideRevenue: "Creator share of the trading fee plus the Meteora protocol and referral fees.",
   },
   breakdownMethodology,
