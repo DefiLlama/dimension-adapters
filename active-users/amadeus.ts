@@ -28,7 +28,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.AMADEUS],
   protocolType: ProtocolType.CHAIN,
-  start: "2026-08-11",
+  start: "2025-12-05",
   methodology: {
     ActiveUsers: "Distinct addresses that signed at least one successful transaction on Amadeus during the UTC day.",
     Transactions: "Successful transactions on Amadeus during the UTC day.",
