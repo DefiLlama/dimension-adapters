@@ -1,7 +1,8 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
-import { bimAdapterChains, bimTxsCte, duneChains, getDuneChain, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
+import { bimAdapterChains, bimTxsCte, duneChains, getDuneChain, isRpcChain, BIM_RPC_CHAINS, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
+import { fetchBimFromRpc } from "./rpc";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import fetchURL from "../../utils/fetchURL";
@@ -64,6 +65,7 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
       dailyVolume,
     };
   }
+  if (isRpcChain(options.chain)) return fetchBimFromRpc(options, [SWAP_SELECTOR]);
   const dailyFees = options.createBalances();
   const rows = (options.preFetchedResults || []) as Array<{ blockchain: string, metric: string, token: string | null, amount: string }>;
   const chainRows = rows.filter((row) => row.blockchain === getDuneChain(options.chain));
@@ -87,7 +89,7 @@ const adapter: SimpleAdapter = {
         ...acc,
         [chain]: {
           fetch,
-          start: '2026-01-13',
+          start: BIM_RPC_CHAINS[chain]?.start ?? '2026-01-13',
         }
       }
     }, {}),
