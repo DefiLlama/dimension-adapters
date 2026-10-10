@@ -20,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  deadFrom: '2026-09-02', // sole backend api.gas111.com NXDOMAIN (domain lapsed), last data 2026-09-02; frontend serves but no data flows
   adapter: {
     [CHAIN.TON]: {
       fetch,
