@@ -1,43 +1,40 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getBlock } from "../helpers/getBlock";
 import { METRIC } from "../helpers/metrics";
-import { getProtocolWindowDeltas, PAPERTRADE_API } from "../helpers/papertrade";
-import { httpGet } from "../utils/fetchURL";
 
-// The only fee is 2% of realized PnL (win fee on gains after the impact haircut, LP-side fee on losses and liquidations),
-// paid out only while the payout queue is empty, half to PAPER stakers and half to the dev fee recipient
-// (https://docs.papertrade.xyz/#/paper/staking). The API reports the staker half as cumulative `stakingRewards`.
-// On the Exchange proxy winFeeRate(), lossFeeRate() and liquidationFeeRate() all return 0.02e18; the halves accrue in
-// stakerFeeAccumulator() and devFeeAccumulator() (no split getter, the 50/50 comes from the docs).
-const STAKER_SHARE = 0.5;
-
-// Stakers also receive LP surplus above the staker reward cap through the same push, and the API does not separate it
-// from fees. `tailProgress` is a never-decreasing high-water mark of LP gain above the cliff, so once it reaches
-// cap - cliff the LP may have crossed the cap at some point and `stakingRewards` can no longer be read as fee-only.
-// Current state only, so this is conservative for refills of windows before the crossing. A fee-only counter is
-// needed past this point; `fees.lifetime` in the same response is not used because its composition is undocumented.
-async function assertFeeOnlyRewards() {
-  const { paper } = await httpGet(`${PAPERTRADE_API}/query/protocol/summary`);
-  const tailProgress = BigInt(paper.tailProgress);
-  const surplusStart = BigInt(paper.cap) - BigInt(paper.cliff);
-  if (tailProgress >= surplusStart) throw new Error(`papertrade: LP tail progress ${tailProgress} reached the staker reward cap, stakingRewards may include LP surplus`);
-}
+// The only fee is 2% of realized PnL (win fee on gains after the impact haircut, LP-side fee on losses), half to PAPER
+// stakers and half to the dev fee recipient (https://docs.papertrade.xyz/#/paper/staking). The Exchange emits both
+// halves per settled close in PositionsClosed (source unverified; the signature resolves from the bytecode and the two
+// fee words reconcile 1:1 with each other and with 2% of the PositionClosed PnL word). Liquidations emit Liquidated
+// without a fee word; their 2% of lost margin is immaterial (under 0.1% of close fees on launch day) and excluded.
+// The stats API's stakingRewards counter is NOT usable for fees: it also carries LP surplus swept to stakers.
+const EXCHANGE = "0x6cd5661646289fb6e65ea5c032310fded797d0a2"; // HyperEVM proxy, impl 0x0f3febfc94876b0c895f7acecdc8f5c863b549ee
+// word names for the first two values are inferred (margin returned, balance after); only the fee words are used
+const POSITIONS_CLOSED = "event PositionsClosed(address indexed user, uint256 marginReturned, uint256 balanceAfter, uint256 stakerFee, uint256 devFee)";
+const usd = (x: bigint) => Number(x / 10n ** 12n) / 1e6; // fee words are USD with 18 decimals
 
 const fetch = async (options: FetchOptions) => {
-  await assertFeeOnlyRewards();
-  const { stakingRewards } = await getProtocolWindowDeltas(options, ["stakingRewards"]);
-  const totalFees = stakingRewards / STAKER_SHARE;
-  const devFees = totalFees - stakingRewards;
+  // listed under off_chain (synthetic bets against the house), the contract itself lives on HyperEVM
+  const [fromBlock, toBlock] = await Promise.all([getBlock(options.fromTimestamp, CHAIN.HYPERLIQUID), getBlock(options.toTimestamp, CHAIN.HYPERLIQUID)]);
+  const logs = await sdk.getEventLogs({ chain: CHAIN.HYPERLIQUID, target: EXCHANGE, fromBlock, toBlock, eventAbi: POSITIONS_CLOSED, onlyArgs: true });
+  let stakerFees = 0n;
+  let devFees = 0n;
+  for (const log of logs as any[]) {
+    stakerFees += BigInt(log.stakerFee);
+    devFees += BigInt(log.devFee);
+  }
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  dailyFees.addUSDValue(totalFees, METRIC.TRADING_FEES);
-  dailyRevenue.addUSDValue(stakingRewards, "Trading Fees To PAPER Stakers");
-  dailyRevenue.addUSDValue(devFees, "Trading Fees To Dev Fee Recipient");
-  dailyHoldersRevenue.addUSDValue(stakingRewards, "Trading Fees To PAPER Stakers");
-  dailyProtocolRevenue.addUSDValue(devFees, "Trading Fees To Dev Fee Recipient");
+  dailyFees.addUSDValue(usd(stakerFees + devFees), METRIC.TRADING_FEES);
+  dailyRevenue.addUSDValue(usd(stakerFees), "Trading Fees To PAPER Stakers");
+  dailyRevenue.addUSDValue(usd(devFees), "Trading Fees To Dev Fee Recipient");
+  dailyHoldersRevenue.addUSDValue(usd(stakerFees), "Trading Fees To PAPER Stakers");
+  dailyProtocolRevenue.addUSDValue(usd(devFees), "Trading Fees To Dev Fee Recipient");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue: 0 };
 };
@@ -49,25 +46,25 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-10", // public launch
   methodology: {
-    Fees: "The 2% fee Papertrade takes on realized trading PnL: a win fee on the gain of profitable closes and a fee carved from the LP's gain on losing closes and liquidations, counted when it is distributed (fees are only paid out while the payout queue is empty). Excludes the asymmetric-impact haircut and trader losses kept by the protocol-owned LP, and LP surplus paid to stakers above the $5M LP cap.",
+    Fees: "The 2% fee Papertrade takes on realized trading PnL when a position is closed: a win fee on the gain of profitable closes and a fee carved from the LP's gain on losing closes, read from the exchange contract's own close events. Excludes the asymmetric-impact haircut and trader losses kept by the protocol-owned LP, LP surplus paid to stakers above the $5M LP cap, and the 2% liquidation fee on lost margin.",
     Revenue: "All of the 2% PnL fee. There are no external liquidity providers: half goes to PAPER stakers and half to the dev fee recipient.",
-    ProtocolRevenue: "The half of the 2% PnL fee paid to the dev fee recipient.",
-    HoldersRevenue: "The half of the 2% PnL fee paid in USDC to PAPER stakers.",
+    ProtocolRevenue: "The half of the 2% PnL fee credited to the dev fee recipient.",
+    HoldersRevenue: "The half of the 2% PnL fee credited in USDC to PAPER stakers.",
     SupplySideRevenue: "Zero. Traders bet against the protocol-owned LP, which has no outside depositors.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]: "2% of realized PnL: the win fee on profitable closes plus the LP-side fee on losing closes and liquidations.",
+      [METRIC.TRADING_FEES]: "2% of realized PnL on closed positions: the win fee on profitable closes plus the LP-side fee on losing closes.",
     },
     Revenue: {
-      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee, distributed in USDC to PAPER stakers.",
+      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee, credited in USDC to PAPER stakers.",
       "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee, claimable by the dev fee recipient set by the contract owner.",
     },
     ProtocolRevenue: {
       "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee, claimable by the dev fee recipient set by the contract owner.",
     },
     HoldersRevenue: {
-      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee, distributed in USDC to PAPER stakers.",
+      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee, credited in USDC to PAPER stakers.",
     },
   },
 };
