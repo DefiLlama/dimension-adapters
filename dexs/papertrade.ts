@@ -3,6 +3,9 @@ import { CHAIN } from "../helpers/chains";
 import { getOpenInterestAtEnd, getProtocolWindowDeltas } from "../helpers/papertrade";
 
 const fetch = async (options: FetchOptions) => {
+  // Volume is not listed for now: 1000x synthetic bets produce hundreds of billions of notional a day on ~$100M TVL,
+  // which is not comparable with order-book perp venues. Fees stay listed in fees/papertrade.ts.
+  throw new Error("papertrade: volume and open interest intentionally not published yet");
   // `volume` counts the open leg and the outcome leg (close or liquidation) of every position; `liquidation` is the
   // stats page's "cumulative liquidated notional". Liquidations are not perp volume, so only opens and closes remain.
   const { volume, liquidation } = await getProtocolWindowDeltas(options, ["volume", "liquidation"]);
