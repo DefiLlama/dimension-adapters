@@ -26,6 +26,7 @@ import { queryDuneSql } from "../helpers/dune";
  *             1.008%  coin creator
  *             0.592%  Vaultex
  * The split is read per config from evtcreateconfigv2, not hardcoded.
+ * Fees are read from EvtSwap2 only, which every DBC swap emits once.
  *
  * SCOPE
  *
@@ -35,7 +36,10 @@ import { queryDuneSql } from "../helpers/dune";
 
 const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
 const VAULTEX_FEE_CLAIMER = "4wwpefxyZ2nqeePNa2fctMuu5273wrzkUuoy5wC2QeP2";
-const START = "2026-08-13";
+// The day the first Vaultex config with this fee claimer was created on mainnet
+// (config Dsj1V3FARMfLVvWW5M3bAfwh7LvKZ3AKb7mMUmj7mVA5). No Vaultex pool, and so
+// no Vaultex fee, can exist before it.
+const START = "2026-08-12";
 
 const LABELS = {
   ToVaultex: "Trading Fees to Vaultex",
@@ -64,25 +68,13 @@ const fetch = async (options: FetchOptions) => {
         WHERE fee_claimer = '${VAULTEX_FEE_CLAIMER}'
         GROUP BY config
       ),
+      -- A legacy swap emits both EvtSwap and EvtSwap2 and swap2 emits only EvtSwap2,
+      -- so EvtSwap2 alone holds every trade exactly once.
       swaps AS (
         SELECT s.config,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
-        FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
-        WHERE s.config IN (SELECT config FROM vaultex_configs)
-          AND s.evt_executing_account = '${DBC_PROGRAM}'
-          AND s.evt_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
-          AND s.evt_block_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
-          AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
-          AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
-
-        UNION ALL
-
-        SELECT s.config,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)),
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)),
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0))
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
         FROM meteora_solana.dynamic_bonding_curve_evt_evtswap2 s
         WHERE s.config IN (SELECT config FROM vaultex_configs)
           AND s.evt_executing_account = '${DBC_PROGRAM}'
@@ -94,7 +86,8 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       c.quote_mint,
       SUM(COALESCE(s.trading_fee, 0)) AS trading_fee,
-      -- the curve program floors the creator share per swap
+      -- creator_trading_fee_percentage is a whole percent (0..100); the curve
+      -- program floors the creator share on each swap, so floor per swap here too
       SUM(FLOOR(COALESCE(s.trading_fee, 0) * c.creator_pct / 100)) AS creator_fee,
       SUM(COALESCE(s.protocol_fee, 0)) AS protocol_fee,
       SUM(COALESCE(s.referral_fee, 0)) AS referral_fee
@@ -156,10 +149,11 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
+  // Dune queries run once a day; version 2 would re-run the same query hourly.
   version: 1,
-  adapter: {
-    [CHAIN.SOLANA]: { fetch, start: START },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: START,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   doublecounted: true, // meteora-dbc also tracks these pools
