@@ -184,29 +184,44 @@ const fetchArc = async (options: FetchOptions) => {
 
   // KyberSwap: the fee leg paid to Ryntra, and the swap's priceable side (a core asset if either side is one).
   const kyberFees: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
-  const kyberTxs = new Set<string>();
+  // tx -> the fee's token, the amount it was taken from and all of it (every recipient's): what the swap's volume is
+  // restored to gross with.
+  const kyberTxs = new Map<string, { token: string; total: bigint; fee: bigint }>();
   for (const log of kyberFees) {
-    const { token, totalAmount, recipients, amounts, isBps } = log.args;
+    const { token, totalAmount, totalFee, recipients, amounts, isBps } = log.args;
     recipients.forEach((recipient: string, i: number) => {
       if (String(recipient).toLowerCase() !== ARC_FEE_RECIPIENT) return;
       const fee = isBps ? (BigInt(totalAmount) * BigInt(amounts[i])) / 10_000n : BigInt(amounts[i]);
       const [asset, amount] = arcAmount(String(token), fee);
       dailyFees.add(asset, amount, METRIC.TRADING_FEES);
       dailyRevenue.add(asset, amount, LABELS.TO_RYNTRA);
-      kyberTxs.add(txOf(log));
+      kyberTxs.set(txOf(log), { token: String(token).toLowerCase(), total: BigInt(totalAmount), fee: BigInt(totalFee) });
     });
   }
   if (kyberTxs.size) {
     const swaps: any[] = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_SWAPPED_EVENT, onlyArgs: false });
     for (const log of swaps) {
-      if (!kyberTxs.has(txOf(log))) continue;
+      const fee = kyberTxs.get(txOf(log));
+      if (!fee) continue;
       const src = String(log.args.srcToken).toLowerCase();
       const dst = String(log.args.dstToken).toLowerCase();
       const priceable = (token: string) => ARC_CORE.includes(token) || token === ARC_NATIVE;
-      const [asset, amount] = !priceable(src) && priceable(dst)
-        ? arcAmount(dst, BigInt(log.args.returnAmount))
-        : arcAmount(src, BigInt(log.args.spentAmount));
-      dailyVolume.add(asset, amount);
+      // Volume is gross of fees. The router takes its fee from the input (`spentAmount` is then the input less the
+      // fee: 0x265dd1f3… — Fee.totalAmount 455026, totalFee 2275, spentAmount 452751) or from the output
+      // (`returnAmount` is then the output less the fee); Fee.totalAmount is the amount the fee was taken from, the
+      // same on every router path. The priced side in the fee's token is that amount; the output, when the fee came
+      // off the input, is scaled up by what the fee took.
+      if (!priceable(src) && priceable(dst)) {
+        let output = BigInt(log.args.returnAmount);
+        if (fee.token === dst) output = fee.total;
+        else if (fee.token === src && fee.total > fee.fee) output = (output * fee.total) / (fee.total - fee.fee);
+        const [asset, amount] = arcAmount(dst, output);
+        dailyVolume.add(asset, amount);
+      } else {
+        const input = fee.token === src ? fee.total : BigInt(log.args.spentAmount);
+        const [asset, amount] = arcAmount(src, input);
+        dailyVolume.add(asset, amount);
+      }
     }
   }
 
@@ -263,7 +278,7 @@ const fetchArc = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "One side of every trade made through Ryntra. On Solana, from the trader's own token movements in the trade: the stablecoin they paid or received, else the SOL, else the token they paid. On Arc, from the swap's own events: the side in USDC, EURC, WETH or cirBTC of a KyberSwap swap, and the input a trader sent Circle's swap Adapter. A trade is Ryntra's when it paid Ryntra's fee inside it. Trades on the bonding curve of a token launched with Ryntra are counted under Ryntra Launch. Double counted: the venues the trades are routed through already list this volume.",
+  Volume: "One side of every trade made through Ryntra. On Solana, from the trader's own token movements in the trade: the stablecoin they paid or received, else the SOL, else the token they paid. On Arc, from the swap's own events: the side in USDC, EURC, WETH or cirBTC of a KyberSwap swap, gross of the router's fees (the amount the fee was taken from), and the input a trader sent Circle's swap Adapter. A trade is Ryntra's when it paid Ryntra's fee inside it. Trades on the bonding curve of a token launched with Ryntra are counted under Ryntra Launch. Double counted: the venues the trades are routed through already list this volume.",
   Fees: "Fees people pay Ryntra on trades made through it. On Solana: what the swap router (Jupiter, or DFlow when Jupiter routes through it) pays into Ryntra's fee wallet and its Jupiter referral account inside the trade. On Arc: the developer fee of a Circle swap and the fee leg of a KyberSwap swap that name Ryntra's fee address, read from Circle's fee collector and KyberSwap's router events. Plain transfers into these accounts are not fees.",
   UserFees: "Fees traders pay Ryntra inside the trades they make through it.",
   Revenue: "Trading fees kept by Ryntra: the whole fee paid into its fee wallet on Solana and from KyberSwap on Arc, what reached its Jupiter referral account less Jupiter's 20% share, and the Circle developer fee less the share (about 10%) Circle's fee collector routes to its protocol recipient. Cashback and invite rewards are paid later, when people claim them, and are not deducted.",
