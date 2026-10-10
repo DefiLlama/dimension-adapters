@@ -21,7 +21,7 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions): Promise<F
   const markets = premiums.concat(collaterals);
   const logs = await getLogs({ targets: markets, eventAbi: event_deposit, flatten: false, })
   logs.forEach((logs: any, index: number) => {
-    logs.forEach((log: any) => dailyVolume.add(tokens[index], log.deposit))
+    logs.forEach((log: any) => dailyVolume.add(tokens[index], log.assets))
   })
 
   return { dailyVolume, };

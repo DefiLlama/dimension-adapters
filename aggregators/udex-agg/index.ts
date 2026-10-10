@@ -4,7 +4,7 @@ import { FetchResult, FetchResultV2, FetchV2, SimpleAdapter } from "../../adapte
 import { CHAIN } from "../../helpers/chains";
 
 let abi = ["event Swap(address indexed payer,address indexed payee,address fromToken,address toToken,uint fromAmount,uint receivedAmount)"];
-let knownTokens=new Set([ADDRESSES.bsc.WBNB,ADDRESSES.bsc.USDT,ADDRESSES.bsc.USDC])
+let knownTokens=new Set([ADDRESSES.bsc.WBNB,ADDRESSES.bsc.USDT,ADDRESSES.bsc.USDC].map(t => t.toLowerCase()))
 type IContract = {
     [c: string | Chain]: string;
 }
@@ -22,7 +22,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain, }): Promise<Fetc
     const dailyVolume = createBalances();
     const logs = (await getLogs({ target: contract[chain], eventAbi: abi[0] }))
     logs.map((log: any) => {
-        if ( knownTokens.has(log.toToken)){
+        if ( knownTokens.has(log.toToken.toLowerCase())){
             dailyVolume.add(log.toToken, log.receivedAmount)
         }else{
             dailyVolume.add(log.fromToken, log.fromAmount)
