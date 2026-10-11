@@ -8,6 +8,9 @@ const DEFAULTS: any = {
   ALTHEA_RPC: "https://althea-l1-archive.althea.systems:8545",
   BSC_RPC: 'https://bsc.rpc.sentio.xyz', // historical eth_call; public dataseed nodes prune state
   BSC_ARCHIVAL_RPC: 'https://bsc.rpc.sentio.xyz', // eth_getLogs; the SDK splits ranges over its 10,000-block limit
+  // eth_getLogs: full archive, 10,000-block ranges. evm.cronos.org caps ranges at 2,000 blocks, so hourly windows fell
+  // back to a random SDK RPC, and cronos-evm-rpc.publicnode.com is pruned: it answers older ranges with [] instead of an error.
+  CRONOS_ARCHIVAL_RPC: 'https://cronos.rpc.sentio.xyz',
   TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
   TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
   ETLK_RPC: 'https://node.mainnet.etherlink.com',
