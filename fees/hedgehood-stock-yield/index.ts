@@ -30,9 +30,11 @@ async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // A failed lookup returns null: rescanning from deployment would count earlier settlements again
+  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
   // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a settlement.
-  const fromBlock = Math.max((await options.getFromBlock()) + 1, DEPLOYMENT_BLOCK);
-  const toBlock = await options.getToBlock();
+  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
 
   if (fromBlock <= toBlock) {
     for (const vault of VAULTS) {
@@ -48,8 +50,9 @@ async function fetch(options: FetchOptions) {
         const fee = BigInt(e.feePaid);
         const userNetPnl = BigInt(e.userNetPnl);
         // netPnl = premium kept (less any void refund) minus the option payout; the desk fee comes out of the premium
-        // and the rest is the depositors' result. Loss coverage or broker cash costs would break that split: those
-        // paths are not used by this deployment, so stop rather than misattribute them.
+        // and the rest is the depositors' result. Only operator loss coverage breaks that split, and it is unreachable
+        // while the vault's operator is the desk-only BrokerVaultDeskOperator; stop rather than misattribute it if the
+        // Safe ever replaces the operator.
         if (BigInt(e.settledAt) === 0n || BigInt(e.lossCoverage) !== 0n || netPnl !== fee + userNetPnl)
           throw new Error(`Stock Yield: epoch ${epochIds[i]} of ${vault} does not split as fee + depositor result`);
         dailyFees.add(USDG, netPnl, LABELS.premiums);

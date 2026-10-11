@@ -25,9 +25,11 @@ const ABI = {
 async function fetch(options: FetchOptions) {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
+  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // A failed lookup returns null: rescanning from deployment would count earlier sales again
+  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
   // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a sale.
-  const fromBlock = Math.max((await options.getFromBlock()) + 1, DEPLOYMENT_BLOCK);
-  const toBlock = await options.getToBlock();
+  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
 
   if (fromBlock <= toBlock) {
     for (const { vault, desk, stock } of VAULTS) {
@@ -39,7 +41,8 @@ async function fetch(options: FetchOptions) {
       const premiums = new Map(sales.map((log: any) => [String(log.epoch), log.premium]));
       for (const lock of locks) {
         const premium = premiums.get(String(lock.epoch));
-        // Every lock on this deployment goes through the desk; one without a desk sale has no premium we can read.
+        // The vault's operator is the desk-only BrokerVaultDeskOperator, so every lock goes through the desk. A lock
+        // without a desk sale (only possible if the Safe replaces the operator) has no premium we can read.
         if (premium === undefined) throw new Error(`Stock Yield: epoch ${lock.epoch} of ${vault} locked without a desk sale`);
         dailyPremiumVolume.add(USDG, premium);
         dailyNotionalVolume.add(stock, lock.coveredStock);
