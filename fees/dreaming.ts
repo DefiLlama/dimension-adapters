@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
-import { getDeriveBuilderData } from '../fees/lyra-v2';
 import { CHAIN } from '../helpers/chains';
-import fetchURL from '../utils/fetchURL';
+import fetchURL, { httpGet } from '../utils/fetchURL';
 
 // Dream's public daily stats, one finished UTC day per call, shared with options/dreaming.ts
 export const fetchDreamDailyStats = (options: FetchOptions) =>
@@ -11,12 +10,22 @@ const BUILDER_REFERRAL_FEES = 'Builder Referral Fees';
 const OPTION_TRADING_FEES = 'Option Trading Fees';
 const REFERRAL_PAYOUTS = 'Referral Payouts';
 
-// Dream routed options to a third-party venue until 2026-08-17, then moved to its own RFQ-based brokerage (off_chain)
+function referralIncome(value: unknown, field: string): number {
+  if (typeof value !== 'string' || !/^\d+(\.\d+)?$/.test(value) || !Number.isFinite(Number(value)))
+    throw new Error(`Invalid Derive ${field}`);
+  return Number(value);
+}
+
+// Keep the legacy venue series through its shutdown, including after the RFQ brokerage launched.
 async function fetchBuilderReferrals(options: FetchOptions) {
-  const { fees } = await getDeriveBuilderData('dream', options.fromTimestamp, options.toTimestamp);
+  const { result } = await httpGet(`https://api.lyra.finance/public/get_referral_performance?start_ms=${options.fromTimestamp * 1000}&end_ms=${options.toTimestamp * 1000}&referral_code=dream`);
+  // Builder fees are paid to Dream in addition to its referral rewards; referred fees belong to the venue.
+  // https://docs.derive.xyz/integrators/programs/builder-fees
+  const fees = referralIncome(result?.total_builder_fee_collected, 'total_builder_fee_collected')
+    + referralIncome(result?.total_fee_rewards, 'total_fee_rewards');
 
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(Number(fees), BUILDER_REFERRAL_FEES);
+  dailyFees.addUSDValue(fees, BUILDER_REFERRAL_FEES);
 
   return {
     dailyFees,
@@ -55,15 +64,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.OFF_CHAIN]: { fetch: fetchSts, start: '2026-08-17' },
   },
   methodology: {
-    Fees: "Trading fees paid by users when opening options positions through Dream's RFQ-based brokerage.",
+    Fees: "Opening fees from Dream's RFQ-based brokerage, plus historical builder fees and referral rewards earned by Dream on Derive.",
     UserFees: "Trading fees paid by users when opening options positions through Dream's RFQ-based brokerage.",
     SupplySideRevenue: 'Share of trading fees distributed to referral partners.',
-    Revenue: "Dream's share of trading fees collected from options transactions, excluding fees distributed to referral partners.",
-    ProtocolRevenue: "Dream's share of trading fees collected from options transactions, excluding fees distributed to referral partners.",
+    Revenue: "Brokerage opening fees less referral partner allocations, plus historical builder fees and referral rewards earned by Dream on Derive.",
+    ProtocolRevenue: "Brokerage opening fees less referral partner allocations, plus historical builder fees and referral rewards earned by Dream on Derive.",
   },
   breakdownMethodology: {
     Fees: {
-      [BUILDER_REFERRAL_FEES]: 'Referral fee share Dream earned as a builder on a third-party venue before its own brokerage launched; ended 2026-10-06.',
+      [BUILDER_REFERRAL_FEES]: 'Builder fees and referral rewards earned by Dream on Derive, excluding exchange fees retained by Derive; series ended 2026-10-06.',
       [OPTION_TRADING_FEES]: "Trading fees charged on opens at Dream's RFQ-based brokerage, cash-settled in USDC on Solana.",
     },
     UserFees: {
@@ -73,11 +82,11 @@ const adapter: SimpleAdapter = {
       [REFERRAL_PAYOUTS]: 'Share of trading fees distributed to referral partners.',
     },
     Revenue: {
-      [BUILDER_REFERRAL_FEES]: 'Builder referral fee share, all kept by Dream.',
+      [BUILDER_REFERRAL_FEES]: 'Historical Derive builder fees and referral rewards, all earned by Dream.',
       [OPTION_TRADING_FEES]: 'Trading fees after referral payouts.',
     },
     ProtocolRevenue: {
-      [BUILDER_REFERRAL_FEES]: 'Builder referral fee share, all kept by Dream.',
+      [BUILDER_REFERRAL_FEES]: 'Historical Derive builder fees and referral rewards, all earned by Dream.',
       [OPTION_TRADING_FEES]: 'Trading fees after referral payouts.',
     },
   },
