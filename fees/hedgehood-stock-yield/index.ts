@@ -92,11 +92,20 @@ async function fetch(options: FetchOptions) {
       });
     }
 
-    // An epoch nobody bought a call for is closed with a zero settleEpoch. A nonzero one would be a call sold
-    // outside the desk, impossible while the vault's operator is the desk-only BrokerVaultDeskOperator; stop rather
-    // than misattribute it if the Safe ever replaces the operator.
-    for (const log of reported)
-      if (BigInt(log.netPnl) !== 0n) throw new Error(`Stock Yield: epoch ${log.epoch} of ${vault} settled outside the desk`);
+    // An epoch nobody bought a call for is closed with a zero settleEpoch. A call sold outside the desk (only if the
+    // Safe replaces the desk-only BrokerVaultDeskOperator) has no premium at the sale; its premium less payout is
+    // reported at this settlement and counted then. Loss coverage the operator adds is a subsidy, not fees.
+    if (reported.length) {
+      const epochs = await options.api.multiCall({ target: vault, abi: ABI.getEpoch, calls: reported.map((log: any) => log.epoch) });
+      epochs.forEach((e: any) => {
+        const netPnl = BigInt(e.netPnl);
+        const fee = BigInt(e.feePaid);
+        if (netPnl === 0n && fee === 0n) return;
+        dailyFees.add(USDG, netPnl, LABELS.premiums);
+        dailyRevenue.add(USDG, fee, LABELS.deskFee);
+        dailySupplySideRevenue.add(USDG, netPnl - fee, LABELS.depositors);
+      });
+    }
   }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 }
@@ -111,20 +120,20 @@ const adapter: SimpleAdapter = {
   // and supply-side revenue are negative.
   allowNegativeValue: true,
   methodology: {
-    Fees: "Premiums the vault earns selling a weekly call, recognized one hour after each sale when the Safe can no longer void it (net of the 90% refunded if it did), minus the value of the stock the buyer receives when a call settles in the money at expiry.",
+    Fees: "Premiums the vault earns selling a weekly call, recognized one hour after each sale when the Safe can no longer void it (net of the 90% refunded if it did), minus the value of the stock the buyer receives when a call settles in the money at expiry. A call sold outside the desk (not possible with the current operator) is counted at settlement, from the premium less payout the operator reports.",
     Revenue: "The desk's fee on each sale's gross premium (20% at launch), fixed at the sale and recognized with it; paid to the HedgeHood treasury Safe at settlement. No fee is charged on a voided sale.",
     ProtocolRevenue: "The same desk fee, paid to the HedgeHood treasury Safe.",
     SupplySideRevenue: "Each sale's premium after the desk fee (or after the refund, if voided), recognized with the sale, minus the payout to the option buyer at expiry: what depositors gain or lose, paid as USDG rewards or deducted from their stock.",
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.premiums]: 'Premium paid by the option buyer for each sale (QuotedLocked.premium), less the refund if the sale was voided (QuotedVoided.refund), one hour after the sale; minus the intrinsic value paid to the buyer in stock when a call settles in the money (premium - getEpoch.netPnl).',
+      [LABELS.premiums]: 'Premium paid by the option buyer for each sale (QuotedLocked.premium), less the refund if the sale was voided (QuotedVoided.refund), one hour after the sale; minus the intrinsic value paid to the buyer in stock when a call settles in the money (premium - getEpoch.netPnl). A call sold outside the desk counts its reported premium less payout (getEpoch.netPnl) at settlement.',
     },
     Revenue: {
-      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided.',
+      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided; for a call sold outside the desk, the fee recorded at settlement (getEpoch.feePaid).',
     },
     ProtocolRevenue: {
-      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided.',
+      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided; for a call sold outside the desk, the fee recorded at settlement (getEpoch.feePaid).',
     },
     SupplySideRevenue: {
       [LABELS.depositors]: "Premium kept by the vault less the desk fee, credited to depositors as USDG rewards at settlement; minus the intrinsic value paid to the option buyer out of depositors' stock when a call settles in the money.",

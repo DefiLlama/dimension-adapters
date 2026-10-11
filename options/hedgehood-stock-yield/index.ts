@@ -33,21 +33,16 @@ async function fetch(options: FetchOptions) {
 
   if (fromBlock <= toBlock) {
     for (const { vault, desk, stock } of VAULTS) {
-      // The desk's lock pays the premium and the vault records the covered stock in the same transaction.
+      // Every call the vault sells is an EpochLocked; a desk sale also emits QuotedLocked, with its premium, in the
+      // same transaction.
       const [sales, locks] = await Promise.all([
         options.getLogs({ target: desk, eventAbi: ABI.quotedLocked, fromBlock, toBlock }),
         options.getLogs({ target: vault, eventAbi: ABI.epochLocked, fromBlock, toBlock }),
       ]);
-      const premiums = new Map(sales.map((log: any) => [String(log.epoch), log.premium]));
-      for (const lock of locks) {
-        const premium = premiums.get(String(lock.epoch));
-        // The vault's operator is the desk-only BrokerVaultDeskOperator, so every lock goes through the desk. A lock
-        // without a desk sale (only possible if the Safe replaces the operator) has no premium we can read.
-        if (premium === undefined) throw new Error(`Stock Yield: epoch ${lock.epoch} of ${vault} locked without a desk sale`);
-        dailyPremiumVolume.add(USDG, premium);
-        dailyNotionalVolume.add(stock, lock.coveredStock);
-      }
-      if (sales.length !== locks.length) throw new Error(`Stock Yield: ${vault} has ${sales.length} desk sales but ${locks.length} locks`);
+      for (const lock of locks) dailyNotionalVolume.add(stock, lock.coveredStock);
+      // The vault's operator is the desk-only BrokerVaultDeskOperator. A call sold through the operator's own lockEpoch
+      // (only if the Safe replaces it) has no premium at the sale, so it counts toward notional only.
+      for (const sale of sales) dailyPremiumVolume.add(USDG, sale.premium);
     }
   }
   return { dailyNotionalVolume, dailyPremiumVolume };
@@ -61,7 +56,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     NotionalVolume: 'The stock covered by each weekly call when it is sold (EpochLocked.coveredStock), valued at the stock token price.',
-    PremiumVolume: "The premium in USDG the option buyer pays the vault for each weekly call (the desk's QuotedLocked event), counted when the call is sold. A trade voided within its first hour still counts here; 90% of its premium is refunded.",
+    PremiumVolume: "The premium in USDG the option buyer pays the vault for each weekly call sold through its quoted desk (QuotedLocked), counted when the call is sold. A trade voided within its first hour still counts here; 90% of its premium is refunded.",
   },
 };
 
