@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { fetchDreamDailyStats } from '../fees/dreaming';
 
-// Dream trades OTC with STS Digital, Solana only carries the USDC settlement, so off_chain like fees/kyan.ts
+// Dream's RFQ-based brokerage executes off-chain; Solana only carries the USDC settlement, so off_chain like fees/kyan.ts
 const fetch = async (options: FetchOptions) => {
   const { notionalUsd, premiumUsd } = await fetchDreamDailyStats(options);
   return {
@@ -17,8 +17,8 @@ const adapter: SimpleAdapter = {
   start: '2026-08-17',
   chains: [CHAIN.OFF_CHAIN],
   methodology: {
-    NotionalVolume: "Contracts times the underlying price for options opened and closed at Dream's OTC desk.",
-    PremiumVolume: "Premium paid on opens plus premium received on closes at Dream's OTC desk.",
+    NotionalVolume: 'Total USD notional value of options contracts traded through Dream, including positions opened and closed. Each executed transaction is counted once.',
+    PremiumVolume: 'Total USD value of options premiums paid on executed opening and closing transactions, excluding brokerage fees.',
   },
 }
 
