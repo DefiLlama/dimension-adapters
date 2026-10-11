@@ -7,6 +7,10 @@ import { httpPost } from "../../utils/fetchURL";
 // Volume is read from Textile's public GraphQL API, which serves the protocol's
 // Goldsky-indexed reactor fills with per-trade USD volume (the fill's stable
 // leg), timestamp and chainId. https://docs.textilecredit.com
+//
+// Not read on-chain directly: the Fill event carries no amounts (they come from
+// the maker's Transfer logs in each fill tx), Celo is about half the volume and
+// has no llama indexer, and public Celo RPCs drop logs and receipts.
 const ENDPOINT = "https://api.textilecredit.com/graphql";
 
 const CHAIN_IDS: Record<string, number> = {
@@ -17,37 +21,35 @@ const CHAIN_IDS: Record<string, number> = {
   [CHAIN.CELO]: 42220,
 };
 
-// Server-side [from, to) filter — same bounds as FetchOptions — so we don't
-// pull full maker history on every hourly run. settlementTradeVolumes includes
-// every reactor fill (Stitches and limit-order fills).
+// Server-side [from, to) and chain filter, same bounds as FetchOptions.
+// settlementTradeVolumes includes every reactor fill (Stitches and limit-order
+// fills). It returns an error rather than a short list when this chain's
+// subgraph read failed or hasn't indexed up to `to` yet.
 const QUERY = `
-  query TextileVolumes($from: Int!, $to: Int!) {
-    settlementTradeVolumes(fromTimestamp: $from, toTimestamp: $to) {
-      timestamp
-      chainId
+  query TextileVolumes($from: Int!, $to: Int!, $chainId: Int!) {
+    settlementTradeVolumes(fromTimestamp: $from, toTimestamp: $to, chainId: $chainId) {
       volumeUsd
     }
   }
 `;
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const chainId = CHAIN_IDS[options.chain];
-
   const res = await httpPost(ENDPOINT, {
     query: QUERY,
     variables: {
       from: options.fromTimestamp,
       to: options.toTimestamp,
+      chainId: CHAIN_IDS[options.chain],
     },
   });
-  const rows = res?.data?.settlementTradeVolumes ?? [];
 
-  let dailyVolume = 0;
-  for (const t of rows) {
-    if (t.chainId !== chainId) continue;
-    dailyVolume += t.volumeUsd ?? 0;
-  }
+  // GraphQL errors come back with HTTP 200. Treating them as zero volume is how
+  // whole hours went missing, so fail the run and let it be retried.
+  if (res?.errors?.length) throw new Error(`Textile API: ${res.errors.map((e: any) => e.message).join("; ")}`);
+  const rows = res?.data?.settlementTradeVolumes;
+  if (!Array.isArray(rows)) throw new Error("Textile API: settlementTradeVolumes missing from response");
 
+  const dailyVolume = rows.reduce((sum: number, row: any) => sum + row.volumeUsd, 0);
   return { dailyVolume };
 }
 
