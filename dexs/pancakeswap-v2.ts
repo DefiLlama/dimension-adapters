@@ -6,6 +6,7 @@ import { queryAllium } from "../helpers/allium";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { Row } from "../helpers/indexer";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 const METRIC = {
   SWAP_FEES: 'Token Swap Fees',
@@ -26,6 +27,9 @@ const FEE_CONFIG = {
   SupplySideRevenue: 0.17,
   Revenue: 0.08
 };
+
+const CAKE_BURN_RATE_CHANGE_TIMESTAMP = 1655380606;
+const FEE_CONFIG_BEFORE_BURN_RATE_CHANGE = { ...FEE_CONFIG, ProtocolRevenue: 0.03, HoldersRevenue: 0.05 };
 
 // --- Data source types ---
 
@@ -212,17 +216,24 @@ type SwapAggRow = Row & { pair: string; amount0_out: string; amount1_out: string
 
 const unpadTopic = (t: string) => '0x' + String(t).slice(-40).toLowerCase();
 
+const BSC_STABLECOIN_CG_IDS: Record<string, string> = {
+  [ADDRESSES.bsc.USDT]: 'tether',
+  [ADDRESSES.bsc.BUSD]: 'binance-usd',
+  [ADDRESSES.bsc.USDC]: 'usd-coin',
+};
+
+const addBscVolume = (balances: sdk.Balances, token: string, amount: string) => {
+  const cgId = BSC_STABLECOIN_CG_IDS[token];
+  if (cgId) balances.addCGToken(cgId, Number(BigInt(amount) / BigInt(1e12)) / 1e6);
+  else balances.add(token, amount);
+};
+
 async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances()
 
   const emptyResult = (): FetchResultV2 => ({
     dailyVolume,
-    dailyFees: dailyVolume.clone(0.0025),
-    dailyUserFees: dailyVolume.clone(0.0025),
-    dailyRevenue: dailyVolume.clone(0.0008),
-    dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.000575),
+    ...calculateFeesBalances(dailyVolume, options.startTimestamp),
   });
 
   const whitelistedTokens = (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase());
@@ -268,19 +279,11 @@ async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   for (const row of swapRows) {
     const tokens = pairToTokens[String(row.pair).toLowerCase()];
     if (!tokens) continue;
-    dailyVolume.add(tokens.token0, row.amount0_out);
-    dailyVolume.add(tokens.token1, row.amount1_out);
+    addBscVolume(dailyVolume, tokens.token0, row.amount0_out);
+    addBscVolume(dailyVolume, tokens.token1, row.amount1_out);
   }
 
-  return {
-    dailyVolume,
-    dailyFees: dailyVolume.clone(0.0025),
-    dailyUserFees: dailyVolume.clone(0.0025),
-    dailyRevenue: dailyVolume.clone(0.0008),
-    dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.000575),
-  }
+  return emptyResult();
 }
 
 // --- Aptos V2 volume ---
@@ -333,20 +336,21 @@ const fetchAptosVolume: FetchV2 = async (options) => {
 
   return {
     dailyVolume,
-    ...calculateFeesBalances(dailyVolume),
+    ...calculateFeesBalances(dailyVolume, options.startTimestamp),
   };
 };
 
 // --- Fee calculation helpers ---
 
-const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
+const calculateFeesBalances = (dailyVolume: sdk.Balances, startTimestamp: number) => {
+  const feeConfig = startTimestamp < CAKE_BURN_RATE_CHANGE_TIMESTAMP ? FEE_CONFIG_BEFORE_BURN_RATE_CHANGE : FEE_CONFIG;
   return {
-    dailyFees: dailyVolume.clone(FEE_CONFIG.Fees / 100),
-    dailyUserFees: dailyVolume.clone(FEE_CONFIG.UserFees / 100),
-    dailyRevenue: dailyVolume.clone(FEE_CONFIG.Revenue / 100),
-    dailyProtocolRevenue: dailyVolume.clone(FEE_CONFIG.ProtocolRevenue / 100),
-    dailySupplySideRevenue: dailyVolume.clone(FEE_CONFIG.SupplySideRevenue / 100),
-    dailyHoldersRevenue: dailyVolume.clone(FEE_CONFIG.HoldersRevenue / 100),
+    dailyFees: dailyVolume.clone(feeConfig.Fees / 100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees / 100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue / 100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue / 100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue / 100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue / 100),
   };
 };
 
@@ -374,7 +378,7 @@ const fetchV2 = async (options: FetchOptions) => {
       blacklistTokens: await getDexTokensBlacklisted(options),
     });
     const logStats = await adapter(options);
-    const fees = calculateFeesBalances(logStats.dailyVolume);
+    const fees = calculateFeesBalances(logStats.dailyVolume, options.startTimestamp);
     v2Stats = { ...logStats, ...fees }
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     v2Stats = await fetchAptosVolume(options);
@@ -406,9 +410,9 @@ const fetchV2 = async (options: FetchOptions) => {
 
 const methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 0.0225% of each swap.",
+  ProtocolRevenue: "Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.",
   SupplySideRevenue: "LPs receive 0.17% of the fees.",
-  HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
+  HoldersRevenue: "0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.",
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user."
 }
@@ -418,17 +422,17 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: 'User pays 0.25% fees on each swap',
   },
   Revenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
-    [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
+    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.',
+    [METRIC.HOLDERS_REVENUE]: '0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.',
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
+    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'LPs receive 0.17% of the fees.',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: '0.0575% is used to facilitate CAKE buyback and burn.',
+    [METRIC.BUY_BACK_AND_BURN]: '0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.',
   },
 }
 
