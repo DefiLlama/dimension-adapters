@@ -1,52 +1,20 @@
 import { SimpleAdapter, FetchOptions } from '../adapters/types';
 import { CHAIN } from "../helpers/chains";
-import fetchURL from '../utils/fetchURL';
-
-interface ChainData {
-  id: string;
-  feeCollected?: number;
-}
-
-const getFees = async (chainCode: string, fromDate: string, toDate: string): Promise<number> => {
-  const url = `https://stats.a11bd.net/aggregated?dateFrom=${fromDate}&dateTo=${toDate}`;
-  const responseBody = (await fetchURL(url));
-  const chainData = responseBody.data.chains
-    .filter((d: ChainData) => d.id === chainCode)
-    .pop();
-  return chainData?.feeCollected ?? 0;
-}
-
-const chainConfig: Record<string, { chainCode: string; start: string; }> = {
-  [CHAIN.ETHEREUM]: { chainCode: "ETH", start: '2021-11-13' },
-  [CHAIN.BSC]: { chainCode: "BSC", start: '2021-11-13' },
-  [CHAIN.TERRA]: { chainCode: "TRA", start: '2021-12-09' },
-  [CHAIN.AURORA]: { chainCode: "AURO", start: '2021-12-14' },
-  [CHAIN.POLYGON]: { chainCode: "POL", start: '2021-11-10' },
-  [CHAIN.HECO]: { chainCode: "HECO", start: '2021-11-13' },
-  [CHAIN.CELO]: { chainCode: "CELO", start: '2021-11-13' },
-  [CHAIN.AVAX]: { chainCode: "AVA", start: '2021-11-13' },
-  [CHAIN.FANTOM]: { chainCode: "FTM", start: '2021-11-21' },
-  [CHAIN.FUSE]: { chainCode: "FUSE", start: '2022-01-01' },
-  [CHAIN.SOLANA]: { chainCode: "SOL", start: '2021-11-10' },
-  [CHAIN.NEAR]: { chainCode: "NEAR", start: '2022-02-01' },
-  [CHAIN.HARMONY]: { chainCode: "HRM", start: '2022-01-01' },
-  [CHAIN.TEZOS]: { chainCode: "TEZ", start: '2022-06-05' },
-  [CHAIN.KLAYTN]: { chainCode: "KLAY", start: '2022-08-15' },
-  [CHAIN.WAVES]: { chainCode: "WAVE", start: '2022-09-15' },
-  [CHAIN.STELLAR]: { chainCode: "XLM", start: '2022-12-30' },
-  [CHAIN.STACKS]: { chainCode: "STKS", start: '2023-07-27' },
-}
+import { BRIDGE, SENT_ABI, tokenFromSourceAddress } from "../helpers/allbridge";
 
 const fetch = async (options: FetchOptions) => {
-  const chain = options.chain;
-  const config = chainConfig[chain];
-  if (chain === CHAIN.HECO) { return {} } // skip HECO for now
-  const chainCode = config.chainCode;
-  const dateString = options.dateString;
-  const df = await getFees(chainCode, dateString, dateString);
-
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(df, 'Bridge Fees');
+  const logs = await options.getLogs({ target: BRIDGE, eventAbi: SENT_ABI });
+  for (const log of logs) {
+    if (options.chain === CHAIN.ETHEREUM) {
+      dailyFees.addUSDValue(1, 'Bridge Fees');
+      continue;
+    }
+    const fee = (BigInt(log.amount) * 3n) / 1000n;
+    const token = tokenFromSourceAddress(log.tokenSourceAddress);
+    if (token) dailyFees.add(token, fee);
+    else dailyFees.addGasToken(fee);
+  }
   const dailyRevenue = dailyFees.clone(0.2, 'Bridge Fees');
   const dailySupplySideRevenue = dailyFees.clone(0.8, 'Bridge Fees');
 
@@ -58,9 +26,9 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "Users pay bridge fee for each transfer on the source chain.",
-  ProtocolRevenue: "Protocol receives 20% of the collected bridge fee.",
-  SupplySideRevenue: "80% of the collected bridge fee is used for rewards to the stakers",
+  Fees: "Bridge-fee estimate reconstructed on-chain at the documented nominal rate (0.3%, $1 flat on Ethereum); ABR-staker discounts mean actuals read slightly lower, and one observed transfer carried an unexplained side transfer whose fee role is unconfirmed.",
+  ProtocolRevenue: "20% of bridge fees, kept by the protocol.",
+  SupplySideRevenue: "80% of bridge fees, distributed as staking rewards.",
 };
 
 const breakdownMethodology = {
@@ -75,11 +43,35 @@ const breakdownMethodology = {
   },
 };
 
+// On-chain rebuild 2026-10: the legacy stats API (stats.a11bd.net) went dark,
+// freezing this series at 2026-08-30. Same 6 documented EVM legs as dexs.
+// Starts are gap-fill guards (not earliest-data dates): pre-2026-08-30 history
+// stays exactly as the legacy API recorded it and must not be recomputed.
+// Non-EVM/sunset legs commented out with reasons (see dexs/allbridge-classic).
 const adapter: SimpleAdapter = {
-  version: 1,
-  deadFrom: '2026-08-30', // sole source stats.a11bd.net dead (SERVFAIL), last data 2026-08-30; legacy bridge superseded by Allbridge Core (fees/allbridge-core live)
+  version: 2,
+  pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  adapter: {
+    [CHAIN.ETHEREUM]: { start: '2026-08-30' },
+    [CHAIN.BSC]: { start: '2026-08-30' },
+    [CHAIN.POLYGON]: { start: '2026-08-30' },
+    [CHAIN.AVAX]: { start: '2026-08-30' },
+    [CHAIN.CELO]: { start: '2026-08-30' },
+    [CHAIN.FANTOM]: { start: '2026-08-30' },
+    // [CHAIN.AURORA]: EVM but no documented fee rate; follow-up
+    // [CHAIN.FUSE]: EVM but no documented fee rate; follow-up
+    // [CHAIN.SOLANA]: needs Solana program-log parsing; follow-up
+    // [CHAIN.NEAR]: needs Near receipt parsing; follow-up
+    // [CHAIN.TEZOS]: needs Tezos indexing; follow-up
+    // [CHAIN.KLAYTN]: archive RPC unreliable; follow-up
+    // [CHAIN.WAVES]: needs Waves node API; follow-up
+    // [CHAIN.STELLAR]: needs Stellar Horizon API; follow-up
+    // [CHAIN.STACKS]: needs Stacks API (0.1% rate documented); follow-up
+    // [CHAIN.TERRA]: chain sunset; history frozen
+    // [CHAIN.HARMONY]: chain sunset; history frozen
+    // [CHAIN.HECO]: skipped before too; history frozen
+  },
   methodology,
   breakdownMethodology,
 }

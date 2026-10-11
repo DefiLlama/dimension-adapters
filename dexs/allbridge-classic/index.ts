@@ -1,83 +1,62 @@
 import { CHAIN } from "../../helpers/chains";
-import { BaseAdapter, Chain, FetchResultVolume, IJSON, SimpleAdapter, FetchOptions } from '../../adapters/types';
-import fetchURL from '../../utils/fetchURL';
-
-interface ChainData {
-  id: string;
-  volume?: number;
-}
-
-const getVolume = async (chainCode: string, fromDate: string, toDate: string): Promise<number> => {
-  const url = `https://stats.a11bd.net/aggregated?dateFrom=${fromDate}&dateTo=${toDate}`;
-  const responseBody = (await fetchURL(url));
-  const chainData = responseBody.data.chains
-    .filter((d: ChainData) => d.id === chainCode)
-    .pop();
-  return chainData?.volume ?? 0;
-}
+import { Chain, FetchResultVolume, SimpleAdapter, FetchOptions } from '../../adapters/types';
+import { BRIDGE, SENT_ABI, tokenFromSourceAddress } from "../../helpers/allbridge";
 
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  if (options.chain === CHAIN.HECO) { return {} } // skip HECO for now
-  const chainCode = chainCodeMap[options.chain];
-  const dailyVolume = await getVolume(chainCode, options.dateString, options.dateString);
+  const dailyVolume = options.createBalances();
+  const logs = await options.getLogs({ target: BRIDGE, eventAbi: SENT_ABI });
+  for (const log of logs) {
+    // Sent.amount is net of the fee (observed: 4,999 USDC bridged + 1 USDC fee
+    // on 0x7a89f9...6642f9), so volume adds the fee back to report gross
+    // (dexs rule); kept in integer math, no float dust
+    const gross = options.chain === CHAIN.ETHEREUM
+      ? log.amount
+      : (BigInt(log.amount) * 1003n) / 1000n;
+    const token = tokenFromSourceAddress(log.tokenSourceAddress);
+    if (token) dailyVolume.add(token, gross);
+    else dailyVolume.addGasToken(gross);
+  }
+  return { dailyVolume };
+};
 
-  return {
-    dailyVolume: dailyVolume !== undefined ? String(dailyVolume) : undefined,
-  } as FetchResultVolume;
-}
+const methodology = {
+  Volume: "Bridged amount of every Allbridge Classic transfer on the source chain, read from on-chain Sent events.",
+};
 
-const chainCodeMap: { [key: Chain]: string } = {
-  [CHAIN.ETHEREUM]: "ETH",
-  [CHAIN.BSC]: "BSC",
-  [CHAIN.TERRA]: "TRA",
-  [CHAIN.AURORA]: "AURO",
-  [CHAIN.POLYGON]: "POL",
-  [CHAIN.HECO]: "HECO",
-  [CHAIN.CELO]: "CELO",
-  [CHAIN.AVAX]: "AVA",
-  [CHAIN.FANTOM]: "FTM",
-  [CHAIN.FUSE]: "FUSE",
-  [CHAIN.SOLANA]: "SOL",
-  [CHAIN.NEAR]: "NEAR",
-  [CHAIN.HARMONY]: "HRM",
-  [CHAIN.TEZOS]: "TEZ",
-  [CHAIN.KLAYTN]: "KLAY",
-  [CHAIN.WAVES]: "WAVE",
-  [CHAIN.STELLAR]: "XLM",
-  [CHAIN.STACKS]: "STKS",
-}
-
-const startTimes = {
-  [CHAIN.ETHEREUM]: 1636761600,
-  [CHAIN.BSC]: 1636761600,
-  [CHAIN.TERRA]: 1639008000,
-  [CHAIN.AURORA]: 1639440000,
-  [CHAIN.POLYGON]: 1636502400,
-  [CHAIN.HECO]: 1636761600,
-  [CHAIN.CELO]: 1636761600,
-  [CHAIN.AVAX]: 1636761600,
-  [CHAIN.FANTOM]: 1637452800,
-  [CHAIN.FUSE]: 1640995200,
-  [CHAIN.SOLANA]: 1636502400,
-  [CHAIN.NEAR]: 1643673600,
-  [CHAIN.HARMONY]: 1640995200,
-  [CHAIN.TEZOS]: 1654387200,
-  [CHAIN.KLAYTN]: 1660521600,
-  [CHAIN.WAVES]: 1663200000,
-  [CHAIN.STELLAR]: 1672358400,
-  [CHAIN.STACKS]: 1690416000,
-} as IJSON<number>;
-
+// On-chain rebuild 2026-10: the legacy stats API (stats.a11bd.net) went dark,
+// freezing this series at 2026-08-30. EVM legs rebuilt from bridge logs; the
+// chains below are the documented EVM set sharing one bridge address.
+// Starts are gap-fill guards (not earliest-data dates): pre-2026-08-30 history
+// stays exactly as the legacy API recorded it and must not be recomputed.
+// Non-EVM legs (Solana/Near/Stacks/Stellar/Tezos/Waves/Klaytn) and sunset
+// chains (Terra/Harmony/Heco/Aurora/Fuse) commented out with reasons.
+const chainConfig: { [key: Chain]: { start: string } } = {
+  [CHAIN.ETHEREUM]: { start: '2026-08-30' },
+  [CHAIN.BSC]: { start: '2026-08-30' },
+  [CHAIN.POLYGON]: { start: '2026-08-30' },
+  [CHAIN.AVAX]: { start: '2026-08-30' },
+  [CHAIN.CELO]: { start: '2026-08-30' },
+  [CHAIN.FANTOM]: { start: '2026-08-30' },
+  // [CHAIN.AURORA]: EVM but no documented fee rate and negligible volume; follow-up
+  // [CHAIN.FUSE]: EVM but no documented fee rate and negligible volume; follow-up
+  // [CHAIN.SOLANA]: needs Solana program-log parsing (program BBbD1WSjbHKfyE3TSFWF6vx1JV51c8msKSQy4ess6pXp); follow-up
+  // [CHAIN.NEAR]: needs Near receipt parsing (bridge.a11bd.near); follow-up
+  // [CHAIN.TEZOS]: needs Tezos indexing; follow-up
+  // [CHAIN.KLAYTN]: EVM-compatible but archive RPC unreliable; follow-up
+  // [CHAIN.WAVES]: needs Waves node API; follow-up
+  // [CHAIN.STELLAR]: needs Stellar Horizon API; follow-up
+  // [CHAIN.STACKS]: needs Stacks API; follow-up
+  // [CHAIN.TERRA]: chain sunset; history frozen
+  // [CHAIN.HARMONY]: chain sunset; history frozen
+  // [CHAIN.HECO]: skipped before too; history frozen
+};
 
 const adapter: SimpleAdapter = {
-  deadFrom: '2026-08-30', // sole source stats.a11bd.net dead (SERVFAIL), last data 2026-08-30; legacy bridge superseded by Allbridge Core (fees/allbridge-core live)
-  adapter: Object.keys(chainCodeMap).reduce((acc, chain) => {
-    acc[chain] = {
-      fetch,
-      start: startTimes[chain],
-    };
-    return acc;
-  }, {} as BaseAdapter)
+  version: 2,
+  pullHourly: true,
+  fetch,
+  adapter: chainConfig,
+  methodology,
 }
 
 export default adapter;
