@@ -38,6 +38,8 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
 const VAULTEX_FEE_CLAIMER = "4wwpefxyZ2nqeePNa2fctMuu5273wrzkUuoy5wC2QeP2";
+// creatorTradingFeePercentage of every Vaultex config, read from the config accounts on chain
+const CREATOR_PCT_FALLBACK = 63;
 // The day the first Vaultex config with this fee claimer was created on mainnet
 // (config Dsj1V3FARMfLVvWW5M3bAfwh7LvKZ3AKb7mMUmj7mVA5). No Vaultex pool, and so
 // no Vaultex fee, can exist before it.
@@ -66,7 +68,14 @@ const fetch = async (options: FetchOptions) => {
         SELECT
           config,
           MIN(quote_mint) AS quote_mint,
-          MIN(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_trading_fee_percentage') AS INTEGER)) AS creator_pct
+          -- The key sits at the top level or under ConfigParameters depending on the
+          -- decoder version; a NULL here silently zeroed the creator share, so fall
+          -- back to 63, the value every Vaultex config was created with (on chain).
+          COALESCE(
+            MIN(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_trading_fee_percentage') AS INTEGER)),
+            MIN(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_trading_fee_percentage') AS INTEGER)),
+            ${CREATOR_PCT_FALLBACK}
+          ) AS creator_pct
         FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
         WHERE fee_claimer = '${VAULTEX_FEE_CLAIMER}'
         GROUP BY config
@@ -130,7 +139,7 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "2% fee on every bonding-curve trade: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.",
+    [METRIC.SWAP_FEES]: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more). Most of it goes to the coin creator, read from Meteora DBC swap events on every Vaultex pool config.",
   },
   Revenue: {
     [LABELS.ToVaultex]: "Vaultex share of bonding-curve trade fees, claimable by the Vaultex fee claimer.",
@@ -155,10 +164,10 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   doublecounted: true, // meteora-dbc also tracks these pools
   methodology: {
-    Fees: "2% fee on every bonding-curve trade: trading_fee + protocol_fee + referral_fee from Meteora DBC swap events.",
-    Revenue: "Vaultex share of the trading fee (100% minus the config's creator percentage; 37% on current configs).",
-    ProtocolRevenue: "Vaultex share of the trading fee (100% minus the config's creator percentage; 37% on current configs).",
-    SupplySideRevenue: "Creator share of the trading fee plus the Meteora protocol and referral fees.",
+    Fees: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more). Most of it goes to the coin creator, read from Meteora DBC swap events on every Vaultex pool config.",
+    Revenue: "Vaultex's share of the trading fee on every bonding-curve trade, claimed into the Vaultex treasury.",
+    ProtocolRevenue: "Vaultex's share of the trading fee on every bonding-curve trade, claimed into the Vaultex treasury.",
+    SupplySideRevenue: "The coin creator's share of every trade, which creators can share with their holders through Drip and Drop, plus Meteora's protocol fee.",
   },
   breakdownMethodology,
 };
