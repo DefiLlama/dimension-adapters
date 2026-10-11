@@ -15,8 +15,18 @@ interface withdrawalLog {
 const abi = {
   token: "address:token",
   fee: "uint64:treasuryFee",
+  decimals: "erc20:decimals",
   withdrawals: "event TreasuryFeeWithdrawn(address to, uint64 amountSD)"
 };
+
+const SHARED_DECIMALS = 6n;
+const NATIVE_DECIMALS = 18n;
+
+function toLocalDecimals(amountSD: bigint, localDecimals: bigint) {
+  return localDecimals >= SHARED_DECIMALS
+    ? amountSD * 10n ** (localDecimals - SHARED_DECIMALS)
+    : amountSD / 10n ** (SHARED_DECIMALS - localDecimals);
+}
 
 const contracts: IAddress = {
   [CHAIN.ETHEREUM]: [
@@ -138,12 +148,18 @@ async function getPoolFees(
        ? contracts.map(() => [])
        : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
+  const erc20Assets = assets.filter((asset: string) => asset && asset !== ADDRESSES.null);
+  const erc20Decimals = await api.multiCall({ calls: erc20Assets, abi: abi.decimals });
+  const decimalsByAsset: Record<string, bigint> = {};
+  erc20Assets.forEach((asset: string, i: number) => decimalsByAsset[asset] = BigInt(erc20Decimals[i]));
   assets.forEach((asset, index) => {
     const prevFee = prevFees[index];
     const currFee = currFees[index];
     if (prevFee == null || currFee == null) return;
     const withdrawn = (withdrawals[index] || []).reduce((acc: bigint, log: withdrawalLog) => acc + log.amountSD, 0n);
-    dailyFees.add(asset, BigInt(currFee) - BigInt(prevFee) + withdrawn);
+    const amountSD = BigInt(currFee) - BigInt(prevFee) + withdrawn;
+    const decimals = asset === ADDRESSES.null ? NATIVE_DECIMALS : decimalsByAsset[asset];
+    dailyFees.add(asset, toLocalDecimals(amountSD, decimals));
   });
   return { dailyFees, dailyRevenue: dailyFees };
 }
