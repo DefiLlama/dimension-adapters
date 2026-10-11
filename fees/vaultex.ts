@@ -139,7 +139,7 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more). Most of it goes to the coin creator, read from Meteora DBC swap events on every Vaultex pool config.",
+    [METRIC.SWAP_FEES]: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more), read from Meteora DBC swap events. Most of it goes to the coin creator, split by the creator percentage of each Vaultex pool config (DBC create-config event).",
   },
   Revenue: {
     [LABELS.ToVaultex]: "Vaultex share of bonding-curve trade fees, claimable by the Vaultex fee claimer.",
@@ -164,10 +164,10 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   doublecounted: true, // meteora-dbc also tracks these pools
   methodology: {
-    Fees: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more). Most of it goes to the coin creator, read from Meteora DBC swap events on every Vaultex pool config.",
+    Fees: "Trading fees paid by users on every Vaultex coin: 2% of each buy and sell on the bonding curve, in the coin's quote asset (SOL, USDC and more), read from Meteora DBC swap events. Most of it goes to the coin creator, split by the creator percentage of each Vaultex pool config (DBC create-config event).",
     Revenue: "Vaultex's share of the trading fee on every bonding-curve trade, claimed into the Vaultex treasury.",
     ProtocolRevenue: "Vaultex's share of the trading fee on every bonding-curve trade, claimed into the Vaultex treasury.",
-    SupplySideRevenue: "The coin creator's share of every trade, which creators can share with their holders through Drip and Drop, plus Meteora's protocol fee.",
+    SupplySideRevenue: "The coin creator's share of every trade (which creators can share with their holders through Drip and Drop), Meteora's protocol fee, and the referral fee paid to the frontend that hosted the swap.",
   },
   breakdownMethodology,
 };
