@@ -28,10 +28,9 @@ const ABI = {
 };
 
 const LABELS = {
-  premiums: 'Covered-call option premiums',
-  payouts: 'Option payouts on calls settling in the money',
+  premiums: 'Covered-call premiums net of option payouts',
   deskFee: 'Desk fee on option premiums',
-  depositorPremiums: 'Option premiums to vault depositors',
+  depositors: 'Covered-call premiums to depositors net of option payouts',
 };
 
 async function fetch(options: FetchOptions) {
@@ -73,7 +72,7 @@ async function fetch(options: FetchOptions) {
       const kept = premium - (refund ?? 0n);
       dailyFees.add(USDG, kept, LABELS.premiums);
       dailyRevenue.add(USDG, fee, LABELS.deskFee);
-      dailySupplySideRevenue.add(USDG, kept - fee, LABELS.depositorPremiums);
+      dailySupplySideRevenue.add(USDG, kept - fee, LABELS.depositors);
     }
 
     // At expiry a call in the money pays the buyer stock worth its intrinsic value, out of depositors' stock.
@@ -88,8 +87,8 @@ async function fetch(options: FetchOptions) {
         if (BigInt(e.settledAt) === 0n || payout < 0n || BigInt(e.feePaid) + BigInt(e.userNetPnl) !== netPnl)
           throw new Error(`Stock Yield: epoch ${settled[i].epoch} of ${vault} does not settle as premium - payout`);
         if (payout === 0n) return; // out of the money
-        dailyFees.add(USDG, -payout, LABELS.payouts);
-        dailySupplySideRevenue.add(USDG, -payout, LABELS.payouts);
+        dailyFees.add(USDG, -payout, LABELS.premiums);
+        dailySupplySideRevenue.add(USDG, -payout, LABELS.depositors);
       });
     }
 
@@ -119,8 +118,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.premiums]: 'Premium paid by the option buyer for each sale (QuotedLocked.premium), less the refund if the sale was voided (QuotedVoided.refund), one hour after the sale.',
-      [LABELS.payouts]: 'Negative: intrinsic value paid to the option buyer in stock when a call settles in the money (premium - getEpoch.netPnl).',
+      [LABELS.premiums]: 'Premium paid by the option buyer for each sale (QuotedLocked.premium), less the refund if the sale was voided (QuotedVoided.refund), one hour after the sale; minus the intrinsic value paid to the buyer in stock when a call settles in the money (premium - getEpoch.netPnl).',
     },
     Revenue: {
       [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided.',
@@ -129,8 +127,7 @@ const adapter: SimpleAdapter = {
       [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided.',
     },
     SupplySideRevenue: {
-      [LABELS.depositorPremiums]: 'Premium kept by the vault less the desk fee, credited to depositors as USDG rewards at settlement.',
-      [LABELS.payouts]: 'Negative: intrinsic value paid to the option buyer out of depositors\' stock when a call settles in the money.',
+      [LABELS.depositors]: "Premium kept by the vault less the desk fee, credited to depositors as USDG rewards at settlement; minus the intrinsic value paid to the option buyer out of depositors' stock when a call settles in the money.",
     },
   },
 };
