@@ -44,14 +44,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const usdc = ADDRESSES.polygon.USDC
   const pusd = ADDRESSES.polygon.PUSD
-  const usdcLc = usdc.toLowerCase()
   const pusdLc = pusd.toLowerCase()
   const protocolFeeWalletLc = POLYMARKET_ADDRESSES.common.ProtocolFeeWallet.toLowerCase()
 
   const logFilter = (log: any) => {
-    const to = String(log.to ?? log.toAddress ?? '').toLowerCase()
-    const token = String(log.token ?? log.address ?? '').toLowerCase()
-    return !(token === usdcLc && to === pusdLc) && to !== protocolFeeWalletLc
+    const to = String(log.to ?? log.to_address ?? '').toLowerCase()
+    return to !== pusdLc && to !== protocolFeeWalletLc
   }
 
   const fees = await addTokensReceived({
