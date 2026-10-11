@@ -29,11 +29,10 @@ const fetch = async (options: FetchOptions) => {
 
   const houseIncome = -traderPnl; // traders' net realized loss after fees, negative when traders net win
   const fees = closes.staker + closes.dev + liquidations.staker + liquidations.dev;
-  const stakerFees = closes.staker + liquidations.staker;
   const devFees = closes.dev + liquidations.dev;
-  const lpSurplusToStakers = stakingRewards - stakerFees; // sweeps above the cap; both counters accrue on settlement
-  if (lpSurplusToStakers < -1) throw new Error(`papertrade: staker distributions ${stakingRewards} below the event staker fees ${stakerFees} for ${options.dateString}`);
-  const retainedInLp = houseIncome - fees - Math.max(lpSurplusToStakers, 0);
+  // stakingRewards is what stakers were actually credited (their fee half plus LP surplus sweeps); it can trail the fee
+  // events within an hour because fees reach stakers only once the LP can fund them, so it is kept as one label
+  const retainedInLp = houseIncome - devFees - stakingRewards;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -42,9 +41,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addUSDValue(closes.staker + closes.dev, METRIC.TRADING_FEES);
   dailyFees.addUSDValue(liquidations.staker + liquidations.dev, METRIC.LIQUIDATION_FEES);
   dailyFees.addUSDValue(houseIncome - fees, "House PnL");
-  dailyHoldersRevenue.addUSDValue(closes.staker, "Trading Fees To PAPER Stakers");
-  dailyHoldersRevenue.addUSDValue(liquidations.staker, "Liquidation Fees To PAPER Stakers");
-  dailyHoldersRevenue.addUSDValue(Math.max(lpSurplusToStakers, 0), "LP Surplus To PAPER Stakers");
+  dailyHoldersRevenue.addUSDValue(stakingRewards, "Distributions To PAPER Stakers");
   dailyProtocolRevenue.addUSDValue(closes.dev, "Trading Fees To Dev Fee Recipient");
   dailyProtocolRevenue.addUSDValue(liquidations.dev, "Liquidation Fees To Dev Fee Recipient");
   dailyProtocolRevenue.addUSDValue(retainedInLp, "House PnL Retained In LP");
@@ -75,9 +72,7 @@ const adapter: SimpleAdapter = {
       "House PnL": "Traders' net realized losses beyond the explicit fees, kept by the protocol-owned LP or swept to stakers. Negative when traders net win.",
     },
     Revenue: {
-      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee on closes, credited in USDC to PAPER stakers.",
-      "Liquidation Fees To PAPER Stakers": "Half of the 2% liquidation fee, credited in USDC to PAPER stakers.",
-      "LP Surplus To PAPER Stakers": "98% of LP gains above the $5M staker reward cap, credited in USDC to PAPER stakers.",
+      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of close and liquidation fees plus 98% of LP gains above the $5M staker reward cap.",
       "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes, claimable by the dev fee recipient set by the contract owner.",
       "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee, claimable by the dev fee recipient set by the contract owner.",
       "House PnL Retained In LP": "House PnL kept in the protocol-owned LP after fees and staker sweeps. Negative when traders net win.",
@@ -88,9 +83,7 @@ const adapter: SimpleAdapter = {
       "House PnL Retained In LP": "House PnL kept in the protocol-owned LP after fees and staker sweeps. Negative when traders net win.",
     },
     HoldersRevenue: {
-      "Trading Fees To PAPER Stakers": "Half of the 2% PnL fee on closes, credited in USDC to PAPER stakers.",
-      "Liquidation Fees To PAPER Stakers": "Half of the 2% liquidation fee, credited in USDC to PAPER stakers.",
-      "LP Surplus To PAPER Stakers": "98% of LP gains above the $5M staker reward cap, credited in USDC to PAPER stakers.",
+      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of close and liquidation fees plus 98% of LP gains above the $5M staker reward cap.",
     },
   },
 };
