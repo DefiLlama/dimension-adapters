@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.addBalances(dailyHoldersRevenue);
   dailyRevenue.addBalances(dailyProtocolRevenue);
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue: 0 };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -55,7 +55,6 @@ const adapter: SimpleAdapter = {
     Revenue: "All counted fees: the 2% close and liquidation fees, split half to PAPER stakers and half to the dev fee recipient, plus the LP gains above the $5M cap swept to PAPER stakers.",
     ProtocolRevenue: "The half of the 2% close and liquidation fees credited to the dev fee recipient.",
     HoldersRevenue: "USDC credited to PAPER stakers: half of the 2% close and liquidation fees, plus all LP gains above the $5M cap.",
-    SupplySideRevenue: "Zero. Traders bet against the protocol-owned LP, which has no depositors.",
   },
   breakdownMethodology: {
     Fees: {
