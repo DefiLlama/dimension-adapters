@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   },
   doublecounted: true,
   methodology: {
-    Volume: "Source-side USD value of completed cross-chain LI.FI routes carrying either verified Ditto integrator ID, counted once on the source chain.",
+    BridgeVolume: "Source-side USD value of completed cross-chain LI.FI routes carrying either verified Ditto integrator ID, counted once on the source chain.",
   },
 }
 
