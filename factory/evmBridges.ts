@@ -3,7 +3,7 @@ import { BridgeChainConfig, bridgeExport } from "../helpers/bridges";
 import {
   agglayerBridge, allbridgeClassicBridge, aoriBridge, assetChainBridge, cctpBridge, celerBridge, connextBridge, coreBitcoinBridge,
   crossCurveBridge, crowdSwapBridge, eclipseBridge, flyoverBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
-  helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, opStackBridge, optimismTeleportrEvents, polygonPosBridge, rainbowBridge,
+  helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
   universalXBridge, wanBridge, xswapBridge, xyBridge, zkBridge,
 } from "../helpers/bridges/config";
@@ -19,20 +19,8 @@ const NATIVE = "0x0000000000000000000000000000000000000000";
  * emit on; the destination leg is attributed server-side from the bridge's declared destination chain.
  */
 // chain keys map to BridgeChainConfig; `doublecounted` marks bridges whose transfers another tracked listing also counts
+// OP-stack canonical bridges (optimism, base, mode, mint, manta) live in factory/opStackBridges.ts
 const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> = {
-  // one-sided: only Ethereum is observed, the Optimism leg is attributed server-side (destinationChain: optimism)
-  "optimism-bridge": {
-    [CHAIN.ETHEREUM]: opStackBridge({
-      gateway: "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1",
-      start: "2021-11-12", // L1StandardBridge proxy deployed at the Optimism regenesis, 2021-11-11
-      extraEvents: optimismTeleportrEvents,
-      escrows: [
-        "0x467194771dAe2967Aef3ECbEDD3Bf9a310C76C65", // Optimism: L1 Escrow (DAI)
-        "0x5Fd79D46EBA7F351fe49BFF9E87cdeA6c821eF9f", // Synthetix: L2 Deposit Escrow
-        "0x76943C0D61395d8F2edF9060e1533529cAe05dE6", // Lido: Optimism L1 ERC20 Token Bridge
-      ],
-    }),
-  },
   "cbridge": {
     [CHAIN.ETHEREUM]: celerBridge({ pool: ["0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820"], vaultV1: ["0xB37D31b2A74029B5951a2778F959282E2D518595"], vaultV2: ["0x7510792A3B1969F9307F3845CE88e39578f2bAE1"], peggedV1: ["0x16365b45EB269B5B5dACB34B4a15399Ec79b95eB"], peggedV2: ["0x52E4f244f380f8fA51816c8a10A63105dd4De084"] }, "2021-11-21"), // cBridge 2.0 launch; younger chains below use the first day the old bridges DB has activity for them, Flow uses the Flow EVM mainnet launch
     [CHAIN.POLYGON]: celerBridge({ pool: ["0x88DCDC47D2f83a99CF0000FDF667A468bB958a78"], vaultV1: ["0xc1a2D967DfAa6A10f3461bc21864C23C1DD51EeA"], vaultV2: ["0x4C882ec256823eE773B25b414d36F92ef58a7c0C"], peggedV1: ["0x4d58FDC7d0Ee9b674F49a0ADE11F26C3c9426F7A"], peggedV2: ["0xb51541df05DE07be38dcfc4a80c05389A54502BB"] }),
@@ -221,17 +209,6 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
   // "shimmerbridge": {
   //   [CHAIN.SHIMMER_EVM]: shimmerBridge("0x9C6D5a71FdD306329287a835e9B8EDb7F0F17898", "2024-01-19"),
   // },
-  // one-sided: only Ethereum is observed, the L2 leg is attributed server-side (destinationChain: mode / mint)
-  "mode-bridge": {
-    [CHAIN.ETHEREUM]: opStackBridge({ gateway: "0x735aDBbE72226BD52e818E7181953f42E3b0FF21", start: "2024-02-02" }),
-  },
-  "mint-bridge": {
-    [CHAIN.ETHEREUM]: opStackBridge({ gateway: "0x2b3F201543adF73160bA42E1a5b7750024F30420", start: "2024-10-11" }),
-  },
-  // one-sided (destinationChain: manta). The L1StandardBridge escrows ERC20s itself, so its events already cover them
-  "manta-pacific": {
-    [CHAIN.ETHEREUM]: opStackBridge({ gateway: "0x3B95bC951EE0f553ba487327278cAc44f29715E5", start: "2023-09-15" }),
-  },
   // one-sided (destinationChain: polygon)
   "polygon-pos-bridge": {
     [CHAIN.ETHEREUM]: polygonPosBridge("2022-10-17"),

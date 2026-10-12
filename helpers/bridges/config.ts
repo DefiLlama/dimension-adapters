@@ -4,31 +4,9 @@ import { BridgeChainConfig, BridgeEvent } from "./index";
 /**
  * Event definitions and builders for `factory/evmBridges.ts`. The factory holds addresses and chains
  * only; everything about which events a bridge emits and how to read them lives here. Interfaces
- * shared by several bridges (OP-stack, OFT, CCTP) are defined once and take addresses, bridge-specific
+ * shared by several bridges (OFT, CCTP) are defined once and take addresses, bridge-specific
  * interfaces (Celer) are grouped under the bridge's name.
  */
-
-// ---------------------------------------------------------------------------------------------------
-// OP-stack L1StandardBridge, pre-Bedrock event names still emitted after Bedrock for compatibility.
-// https://docs.optimism.io/chain/addresses
-// ---------------------------------------------------------------------------------------------------
-export const opStackEvents = (gateway: string): BridgeEvent[] => [
-  { eventAbi: "event ERC20DepositInitiated(address indexed _l1Token, address indexed _l2Token, address indexed _from, address _to, uint256 _amount, bytes _data)", targets: [gateway], direction: "outgoing", tokenArg: "_l1Token", amountArg: "_amount" },
-  { eventAbi: "event ETHDepositInitiated(address indexed _from, address indexed _to, uint256 _amount, bytes _data)", targets: [gateway], direction: "outgoing", fixedToken: ADDRESSES.null, amountArg: "_amount" },
-  { eventAbi: "event ERC20WithdrawalFinalized(address indexed _l1Token, address indexed _l2Token, address indexed _from, address _to, uint256 _amount, bytes _data)", targets: [gateway], direction: "incoming", tokenArg: "_l1Token", amountArg: "_amount" },
-  { eventAbi: "event ETHWithdrawalFinalized(address indexed _from, address indexed _to, uint256 _amount, bytes _data)", targets: [gateway], direction: "incoming", fixedToken: ADDRESSES.null, amountArg: "_amount" },
-];
-
-export const opStackBridge = (params: { gateway: string; start?: string; extraEvents?: BridgeEvent[]; escrows?: string[] }): BridgeChainConfig => ({
-  start: params.start,
-  events: [...opStackEvents(params.gateway), ...(params.extraEvents ?? [])],
-  ...(params.escrows?.length ? { transfers: { wallets: params.escrows } } : {}),
-});
-
-// Optimism Teleportr Deposit V2, deposit-only fast bridge, inactive since 2022, kept for history
-export const optimismTeleportrEvents: BridgeEvent[] = [
-  { eventAbi: "event EtherReceived(uint256 indexed depositId, address indexed emitter, uint256 indexed amount)", targets: ["0x52ec2F3d7C5977A8E558C8D9C6000B615098E8fC"], direction: "outgoing", fixedToken: ADDRESSES.null, amountArg: "amount" },
-];
 
 // ---------------------------------------------------------------------------------------------------
 // Celer cBridge: pool-based bridge (Send / Relay), OriginalTokenVault (Deposited / Withdrawn) and
