@@ -59,8 +59,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
     methodology: {
       Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Kokoah, counted from its builder code.",
       Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Kokoah; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees collected by Kokoah.",
-      ProtocolRevenue: "Builder code fees collected by Kokoah.",
+      Revenue: "Builder code fees collected by Kokoah. Referral rewards Kokoah later pays out off-chain from these fees are not deducted.",
+      ProtocolRevenue: "Builder code fees collected by Kokoah. Referral rewards Kokoah later pays out off-chain from these fees are not deducted.",
     },
     breakdownFees: true,
   },
