@@ -13,7 +13,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
-  start: "2026-10-07", // first accounts funded during pre-deposits
+  start: "2026-10-06", // first accounts funded 2026-10-07; one day earlier because refill windows begin a second before the day
   methodology: {
     NewUsers: "Accounts that funded a Papertrade trading balance for the first time, from the protocol's cumulative unique account count.",
   },

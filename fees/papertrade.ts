@@ -56,7 +56,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
-  start: "2026-10-10", // public launch
+  start: "2026-10-09", // launch was 2026-10-10; one day earlier because refill windows begin a second before the day and the runner skips a day whose window starts before `start`
   allowNegativeValue: true, // the house loses when traders net win in a window; the LP then shrinks and protocol revenue is negative
   methodology: {
     Fees: "Papertrade's gross income as the house: traders' net realized losses on BTC and ETH positions settled against the protocol-owned LP, including the 2% fee on realized PnL at close and the 2% fee on margin lost in liquidations. Negative when traders net win. Unrealized PnL on open positions is not counted.",
