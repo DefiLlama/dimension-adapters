@@ -20,7 +20,7 @@ const fetch = async (options: FetchOptions) => {
 
   for (const log of logs) {
     let token = log.inputToken;
-    if (log.inputToken === ADDRESSES.GAS_TOKEN_2) {
+    if (log.inputToken.toLowerCase() === ADDRESSES.GAS_TOKEN_2) {
       // price for native token not supported - WXPL
       token = ADDRESSES.plasma.WXPL;
     }

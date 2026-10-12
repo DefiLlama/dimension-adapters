@@ -26,7 +26,7 @@ const DefaultPaymentTokens: Record<string, Array<string>> = {
   [CHAIN.OPTIMISM]: [
     ADDRESSES.optimism.USDC,
     ADDRESSES.optimism.USDC_CIRCLE,
-    ADDRESSES.arbitrum.USDT,
+    ADDRESSES.optimism.USDT,
   ],
   [CHAIN.AVAX]: [
     ADDRESSES.avax.USDC,
