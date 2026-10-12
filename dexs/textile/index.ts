@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -51,20 +52,16 @@ async function fetchOnchain(options: FetchOptions): Promise<FetchResultV2> {
     addFiller(tx, fill.args.filler.toLowerCase());
   }
 
-  // Stable transfers sent or received by each maker, kept when the counterparty is a
-  // filler of one of that maker's fills in the same tx.
   const makers = [...new Set(fills.map((fill: any) => fill.args.swapper.toLowerCase()))] as string[];
-  for (const maker of makers) {
-    const padded = ethers.zeroPadValue(maker, 32);
-    for (const topics of [[TRANSFER_TOPIC, padded], [TRANSFER_TOPIC, null, padded]]) {
-      const logs = await options.getLogs({ target: stable, eventAbi: TRANSFER_EVENT, topics: topics as any, entireLog: true });
-      for (const log of logs) {
-        const from = topicAddress(log.topics[1]);
-        const to = topicAddress(log.topics[2]);
-        const counterparty = from === maker ? to : from;
-        if (fillers.get(`${log.transactionHash.toLowerCase()}:${maker}`)?.has(counterparty)) dailyVolume.add(stable, BigInt(log.data));
-      }
-    }
+  const transfers = makers.length ? await sdk.indexer.getTokenTransfers({
+    chain: options.chain, fromBlock: await options.getFromBlock(), toBlock: await options.getToBlock(),
+    targets: makers, token: stable, transferType: "all",
+  }) : [];
+  for (const transfer of transfers) {
+    const from = transfer.from_address.toLowerCase();
+    const to = transfer.to_address.toLowerCase();
+    const tx = transfer.transaction_hash.toLowerCase();
+    if (fillers.get(`${tx}:${from}`)?.has(to) || fillers.get(`${tx}:${to}`)?.has(from)) dailyVolume.add(stable, transfer.value);
   }
 
   // Volume is gross of fees. When the maker receives the stable leg, the fee is an extra
