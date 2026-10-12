@@ -3,9 +3,10 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { queryAllium } from '../../helpers/allium'
 
-/** Single source-of-fees label: spin payments netted against USDC returned to players. */
-const LABEL_GACHA_FEES = 'Gacha Fees'
-const LABEL_GACHA_REVENUE = 'Gacha Fees To Treasury'
+/** Gross pack spend, shown separately from USDC paid back to players. */
+const LABEL_PACK_PURCHASES = 'Pack Purchases'
+/** USDC returned to players, subtracted from fees so the row nets against purchases. */
+const LABEL_BUYBACKS = 'Buybacks'
 
 /** FluxBox proxy on Base, emits BuyAndRaffle once per spin with its full price. https://basescan.org/address/0x93c4bD8598d7f3710b7C558A725E324746CCDb5c */
 const BASE_FLUX_BOX = '0x93c4bD8598d7f3710b7C558A725E324746CCDb5c'
@@ -122,26 +123,30 @@ const fetchSolana = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
+  const buybacks = options.createBalances()
   const isSolana = options.chain === CHAIN.SOLANA
   const usdc = isSolana ? ADDRESSES.solana.USDC : ADDRESSES.base.USDC
   const { spend, payout } = isSolana ? await fetchSolana(options) : await fetchBase(options)
   dailyVolume.add(usdc, spend)
-  dailyFees.add(usdc, spend - payout, LABEL_GACHA_FEES)
-  const dailyRevenue = dailyFees.clone(1, LABEL_GACHA_REVENUE)
+  dailyFees.add(usdc, spend, LABEL_PACK_PURCHASES)
+  buybacks.add(usdc, payout)
+  dailyFees.subtract(buybacks, LABEL_BUYBACKS)
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
 const methodology = {
   Volume:
     'USDC players spend opening Raflux gacha packs of physical trading cards (Super Gacha on Solana, FluxBox on Base), at the full pack price including any part covered by a coupon. Packs are sold at fixed prices of 10, 25, 50 and 100 USDC (1 USDC packs on Base at launch); each pack pulls a physical card, often with a USDC bonus, that the player can ship home or sell back for USDC.',
-  Fees: 'Pack spend minus all USDC returned to players: refunds of cancelled pulls, card cash-outs, sell-backs, USDC prizes and reimbursed card shipments. This is the 10% fee Raflux keeps when a card is exchanged for USDC plus the game result of pulls, so it is negative on days when players win more than they pay.',
-  Revenue: 'Same as Fees. No share goes to LPs, referrers or token holders.',
-  ProtocolRevenue: 'All revenue goes to the Raflux treasury.',
+  Fees: 'Pack purchases minus USDC returned to players: refunds of cancelled pulls, card cash-outs, sell-backs, USDC prizes and reimbursed card shipments. This is the 10% fee Raflux keeps when a card is exchanged for USDC plus the game result of pulls, so it is negative on days when players win more than they pay.',
+  Revenue:
+    'Pack purchases minus USDC returned to players, kept by Raflux. No share goes to LPs, referrers or token holders.',
+  ProtocolRevenue:
+    'Pack purchases minus USDC returned to players, all of it sent to the Raflux treasury.',
 }
 
 /**
@@ -160,16 +165,22 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      [LABEL_GACHA_FEES]:
-        'Pack spend minus USDC returned to players; includes the 10% sell-back and cash-out fee.',
+      [LABEL_PACK_PURCHASES]:
+        'USDC players spend opening packs, at the full pack price including any part covered by a coupon.',
+      [LABEL_BUYBACKS]:
+        'USDC returned to players: refunds of cancelled pulls, card cash-outs, sell-backs, USDC prizes and reimbursed card shipments.',
     },
     Revenue: {
-      [LABEL_GACHA_REVENUE]:
-        'Pack spend minus USDC returned to players, kept by the Raflux treasury.',
+      [LABEL_PACK_PURCHASES]:
+        'USDC players spend opening packs, kept by Raflux before player payouts.',
+      [LABEL_BUYBACKS]:
+        'USDC returned to players, subtracted from revenue kept by Raflux.',
     },
     ProtocolRevenue: {
-      [LABEL_GACHA_REVENUE]:
-        'Pack spend minus USDC returned to players, kept by the Raflux treasury.',
+      [LABEL_PACK_PURCHASES]:
+        'USDC players spend opening packs, sent to the Raflux treasury before player payouts.',
+      [LABEL_BUYBACKS]:
+        'USDC returned to players, subtracted from treasury revenue.',
     },
   },
   allowNegativeValue: true,
