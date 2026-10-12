@@ -2,6 +2,12 @@ import { CHAIN } from "../../helpers/chains";
 import { Chain, FetchResultVolume, SimpleAdapter, FetchOptions } from '../../adapters/types';
 import { BRIDGE, SENT_ABI, tokenFromSourceAddress } from "../../helpers/allbridge";
 
+// Allbridge Classic documents a 0.3% transfer fee; Sent.amount is net of it, so gross volume reverses the fee.
+// 1003/1000 is the existing integer approximation used to gross up the 0.3% fee.
+// https://docs.allbridge.io
+const GROSS_UP_NUM = 1003n;
+const GROSS_UP_DENOM = 1000n;
+
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({ target: BRIDGE, eventAbi: SENT_ABI });
@@ -11,7 +17,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     // (dexs rule); kept in integer math, no float dust
     const gross = options.chain === CHAIN.ETHEREUM
       ? log.amount
-      : (BigInt(log.amount) * 1003n) / 1000n;
+      : (BigInt(log.amount) * GROSS_UP_NUM) / GROSS_UP_DENOM;
     const token = tokenFromSourceAddress(log.tokenSourceAddress);
     if (token) dailyVolume.add(token, gross);
     else dailyVolume.addGasToken(gross);
@@ -30,13 +36,13 @@ const methodology = {
 // stays exactly as the legacy API recorded it and must not be recomputed.
 // Non-EVM legs (Solana/Near/Stacks/Stellar/Tezos/Waves/Klaytn) and sunset
 // chains (Terra/Harmony/Heco/Aurora/Fuse) commented out with reasons.
-const chainConfig: { [key: Chain]: { start: string } } = {
-  [CHAIN.ETHEREUM]: { start: '2026-08-30' },
-  [CHAIN.BSC]: { start: '2026-08-30' },
-  [CHAIN.POLYGON]: { start: '2026-08-30' },
-  [CHAIN.AVAX]: { start: '2026-08-30' },
-  [CHAIN.CELO]: { start: '2026-08-30' },
-  [CHAIN.FANTOM]: { start: '2026-08-30' },
+const chains: Chain[] = [
+  CHAIN.ETHEREUM,
+  CHAIN.BSC,
+  CHAIN.POLYGON,
+  CHAIN.AVAX,
+  CHAIN.CELO,
+  CHAIN.FANTOM,
   // [CHAIN.AURORA]: EVM but no documented fee rate and negligible volume; follow-up
   // [CHAIN.FUSE]: EVM but no documented fee rate and negligible volume; follow-up
   // [CHAIN.SOLANA]: needs Solana program-log parsing (program BBbD1WSjbHKfyE3TSFWF6vx1JV51c8msKSQy4ess6pXp); follow-up
@@ -49,13 +55,15 @@ const chainConfig: { [key: Chain]: { start: string } } = {
   // [CHAIN.TERRA]: chain sunset; history frozen
   // [CHAIN.HARMONY]: chain sunset; history frozen
   // [CHAIN.HECO]: skipped before too; history frozen
-};
+];
+const start = '2026-08-30';
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  chains,
+  start,
   methodology,
 }
 

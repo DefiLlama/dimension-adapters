@@ -2,31 +2,40 @@ import { SimpleAdapter, FetchOptions } from '../adapters/types';
 import { CHAIN } from "../helpers/chains";
 import { BRIDGE, SENT_ABI, tokenFromSourceAddress } from "../helpers/allbridge";
 
+// Allbridge Classic documents a 0.3% bridge fee; Ethereum transfers use the observed $1 flat fee.
+// https://docs.allbridge.io
+const FEE_RATE_NUMERATOR = 3n;
+const FEE_RATE_DENOMINATOR = 1000n;
+const ETH_FLAT_FEE_USD = 1;
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const logs = await options.getLogs({ target: BRIDGE, eventAbi: SENT_ABI });
   for (const log of logs) {
     if (options.chain === CHAIN.ETHEREUM) {
-      dailyFees.addUSDValue(1, 'Bridge Fees');
+      dailyFees.addUSDValue(ETH_FLAT_FEE_USD, 'Bridge Fees');
       continue;
     }
-    const fee = (BigInt(log.amount) * 3n) / 1000n;
+    const fee = (BigInt(log.amount) * FEE_RATE_NUMERATOR) / FEE_RATE_DENOMINATOR;
     const token = tokenFromSourceAddress(log.tokenSourceAddress);
-    if (token) dailyFees.add(token, fee);
-    else dailyFees.addGasToken(fee);
+    if (token) dailyFees.add(token, fee, 'Bridge Fees');
+    else dailyFees.addGasToken(fee, 'Bridge Fees');
   }
   const dailyRevenue = dailyFees.clone(0.2, 'Bridge Fees');
+  const dailyProtocolRevenue = dailyRevenue.clone();
   const dailySupplySideRevenue = dailyFees.clone(0.8, 'Bridge Fees');
 
   return {
     dailyFees,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
   }
 }
 
 const methodology = {
   Fees: "Bridge-fee estimate reconstructed on-chain at the documented nominal rate (0.3%, $1 flat on Ethereum); ABR-staker discounts mean actuals read slightly lower, and one observed transfer carried an unexplained side transfer whose fee role is unconfirmed.",
+  Revenue: "20% of bridge fees, kept by the protocol.",
   ProtocolRevenue: "20% of bridge fees, kept by the protocol.",
   SupplySideRevenue: "80% of bridge fees, distributed as staking rewards.",
 };
@@ -34,6 +43,9 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     "Bridge Fees": "Fees charged to users for each cross-chain token transfer on the source chain.",
+  },
+  Revenue: {
+    "Bridge Fees": "20% of bridge fees kept by the protocol.",
   },
   ProtocolRevenue: {
     "Bridge Fees": "20% of bridge fees collected by the protocol treasury.",
@@ -52,13 +64,13 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: '2026-08-30' },
-    [CHAIN.BSC]: { start: '2026-08-30' },
-    [CHAIN.POLYGON]: { start: '2026-08-30' },
-    [CHAIN.AVAX]: { start: '2026-08-30' },
-    [CHAIN.CELO]: { start: '2026-08-30' },
-    [CHAIN.FANTOM]: { start: '2026-08-30' },
+  chains: [
+    CHAIN.ETHEREUM,
+    CHAIN.BSC,
+    CHAIN.POLYGON,
+    CHAIN.AVAX,
+    CHAIN.CELO,
+    CHAIN.FANTOM,
     // [CHAIN.AURORA]: EVM but no documented fee rate; follow-up
     // [CHAIN.FUSE]: EVM but no documented fee rate; follow-up
     // [CHAIN.SOLANA]: needs Solana program-log parsing; follow-up
@@ -71,7 +83,8 @@ const adapter: SimpleAdapter = {
     // [CHAIN.TERRA]: chain sunset; history frozen
     // [CHAIN.HARMONY]: chain sunset; history frozen
     // [CHAIN.HECO]: skipped before too; history frozen
-  },
+  ],
+  start: '2026-08-30',
   methodology,
   breakdownMethodology,
 }
