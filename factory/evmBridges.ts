@@ -1,7 +1,7 @@
 import { CHAIN } from "../helpers/chains";
 import { BridgeChainConfig, bridgeExport } from "../helpers/bridges";
 import {
-  agglayerBridge, allbridgeClassicBridge, aoriBridge, assetChainBridge, cctpBridge, celerBridge, connextBridge, coreBitcoinBridge,
+  agglayerBridge, allbridgeClassicBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, connextBridge, coreBitcoinBridge,
   crossCurveBridge, crowdSwapBridge, eclipseBridge, flyoverBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
@@ -11,6 +11,17 @@ import { createFactoryExports } from "./registry";
 
 // the zero address prices as the chain's native gas token
 const NATIVE = "0x0000000000000000000000000000000000000000";
+
+// Interport contracts, same address on every chain they are deployed on
+const IP = {
+  ae: "0xf9Ce5d10977a75B73F06dF0C37ba6a160736Df6c", // ActionExecutor
+  ccipToken: "0x58A6bb60978f8a973585286FdFA8F8dFc1cA2706",
+  ccipV2: "0x0772c76c3e4b081e85747f248ed76cc3813d46c4",
+  ccipBacked: "0x65c56363eE74947a2FE7E749123F3011C66833d6",
+  ccipNative: "0x5E819b8eC7aFe10794661E743B5f073EC31BDA2F",
+  cctpV2: "0x674cb5133A2dEaA4aBE86ed56CB7555960966320",
+  nonEvm: "0x1E4563bc57Bb1a0b4530aAC4a3455c280e3fc3CE",
+};
 
 /**
  * Registry of bridges that are pure configuration: deposit/withdrawal events read with getLogs and/or
@@ -63,6 +74,40 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     // [CHAIN.SEI]: no recorded volume
     // codex: no CHAIN key / RPC yet, no recorded volume
   },
+  // Circle Gateway; the number is each chain's Circle domain id
+  "circle-gateway": {
+    [CHAIN.ETHEREUM]: circleGatewayBridge(0, "2026-07-02"),
+    [CHAIN.AVAX]: circleGatewayBridge(1, "2026-07-02"),
+    [CHAIN.OPTIMISM]: circleGatewayBridge(2, "2026-07-02"),
+    [CHAIN.ARBITRUM]: circleGatewayBridge(3, "2026-07-02"),
+    [CHAIN.BASE]: circleGatewayBridge(6, "2026-07-02"),
+    [CHAIN.POLYGON]: circleGatewayBridge(7, "2026-07-02"),
+    [CHAIN.UNICHAIN]: circleGatewayBridge(10, "2026-07-02"),
+    [CHAIN.SONIC]: circleGatewayBridge(13, "2026-07-02"),
+    [CHAIN.WC]: circleGatewayBridge(14, "2026-07-02"),
+    [CHAIN.HYPERLIQUID]: circleGatewayBridge(19, "2026-07-02"),
+    [CHAIN.ARC]: circleGatewayBridge(26, "2026-09-20"),
+  },
+  // Interport; contract sets per chain from bridges-server's interport-finance/constants.ts
+  "interport": Object.fromEntries(([
+    [CHAIN.ETHEREUM, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipBacked: IP.ccipBacked, ccipNative: { bridge: IP.ccipNative, weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" }, cctpV2: IP.cctpV2, nonEvm: IP.nonEvm }],
+    [CHAIN.ARBITRUM, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipBacked: IP.ccipBacked, ccipNative: { bridge: IP.ccipNative, weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1" }, nonEvm: IP.nonEvm }],
+    [CHAIN.BSC, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2 }],
+    [CHAIN.BASE, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipNative: { bridge: IP.ccipNative, weth: "0x4200000000000000000000000000000000000006" }, cctpV2: IP.cctpV2, nonEvm: IP.nonEvm }],
+    [CHAIN.OPTIMISM, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipNative: { bridge: IP.ccipNative, weth: "0x4200000000000000000000000000000000000006" }, cctpV2: IP.cctpV2, nonEvm: IP.nonEvm }],
+    [CHAIN.AVAX, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipBacked: IP.ccipBacked, cctpV2: IP.cctpV2, nonEvm: IP.nonEvm }],
+    [CHAIN.POLYGON, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipBacked: IP.ccipBacked, nonEvm: IP.nonEvm }],
+    [CHAIN.LINEA, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, cctpV2: IP.cctpV2 }],
+    [CHAIN.SCROLL, "2023-12-13", { actionExecutor: IP.ae, ccipV2: IP.ccipV2 }],
+    [CHAIN.ERA, "2023-12-13", { ccipToken: "0xfe155590D15EE42911FaE4C64faC6c2280fEC13F" }],
+    [CHAIN.SONIC, "2025-04-14", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, cctpV2: IP.cctpV2 }],
+    [CHAIN.SONEIUM, "2025-04-15", { actionExecutor: IP.ae, ccipToken: IP.ccipToken }],
+    [CHAIN.BERACHAIN, "2025-04-16", { actionExecutor: IP.ae, ccipToken: IP.ccipToken }],
+    [CHAIN.BOB, "2025-04-19", { ccipToken: IP.ccipToken }],
+    [CHAIN.HEMI, "2025-06-15", { actionExecutor: IP.ae }],
+    [CHAIN.RONIN, "2025-08-16", { ccipToken: IP.ccipToken }],
+    // polygon_zkevm: RPC frozen; eon, fantom: inactive since 2024, no contract in the current config; chains under $10k lifetime left out
+  ] as [string, string, InterportContracts][]).map(([chain, start, contracts]) => [chain, interportBridge(contracts, start)])),
   "synapse": {
     [CHAIN.ETHEREUM]: synapseBridge({ bridge: "0x2796317b0fF8538F253012862c06787Adfb8cEb6", rfq: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2022-10-25"),
     [CHAIN.ARBITRUM]: synapseBridge({ bridge: "0x6F4e8eBa4D337f874Ab57478AcC2Cb5BACdc19c9", rfq: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2022-10-25"),

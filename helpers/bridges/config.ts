@@ -73,6 +73,47 @@ export const cctpBridge = (contracts: { v1?: string; v2?: string }, start?: stri
 });
 
 // ---------------------------------------------------------------------------------------------------
+// Circle Gateway: a unified USDC balance is burned on the source chain (GatewayBurned on the GatewayWallet) and minted on
+// the destination (AttestationUsed on the GatewayMinter), same addresses on every chain. Deposits into the wallet only fund
+// the balance and are not bridging; a burn or mint whose other domain is the chain's own is a same-chain transfer.
+// https://developers.circle.com/gateway/references/contract-addresses
+// ---------------------------------------------------------------------------------------------------
+export const circleGatewayBridge = (domain: number, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event GatewayBurned(address indexed token, address indexed depositor, bytes32 indexed transferSpecHash, uint32 destinationDomain, bytes32 destinationRecipient, address signer, uint256 value, uint256 fee, uint256 fromAvailable, uint256 fromWithdrawing)", targets: ["0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE"], direction: "outgoing", tokenArg: "token", amountArg: "value", filter: (args: any) => Number(args.destinationDomain) !== domain },
+    { eventAbi: "event AttestationUsed(address indexed token, address indexed recipient, bytes32 indexed transferSpecHash, uint32 sourceDomain, bytes32 sourceDepositor, bytes32 sourceSigner, uint256 value)", targets: ["0x2222222d7164433c4C09B0b0D809a9b52C04C205"], direction: "incoming", tokenArg: "token", amountArg: "value", filter: (args: any) => Number(args.sourceDomain) !== domain },
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
+// Interport: ActionExecutor swaps across chains (ActionSource out, successful ActionTarget in); the CCIP, CCIP V2, backed-token,
+// native, CCTP v2 and non-EVM bridge contracts only emit on the source chain. No transaction emits both ActionSource and a
+// bridge event (checked on Ethereum and BSC). https://docs.interport.fi
+// ---------------------------------------------------------------------------------------------------
+const INTERPORT_NATIVE = { "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": ADDRESSES.null };
+const INTERPORT_TOKEN_AMOUNT = "(address token, uint256 amount)[] tokenAmounts";
+export type InterportContracts = {
+  actionExecutor?: string; ccipToken?: string; ccipV2?: string; ccipBacked?: string; cctpV2?: string; nonEvm?: string;
+  ccipNative?: { bridge: string; weth: string };
+};
+export const interportBridge = (c: InterportContracts, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    ...(c.actionExecutor ? [
+      { eventAbi: "event ActionSource(uint256 indexed actionId, uint256 indexed targetChainId, address indexed sourceSender, address targetRecipient, uint256 gatewayType, uint256 assetType, uint256 routerType, (address tokenAddress, uint256 amount) inputTokenAmountData, (address tokenAddress, uint256 amount) assetTokenAmountData, address targetToken, uint256 timestamp)", targets: [c.actionExecutor], direction: "outgoing", tokenArg: "inputTokenAmountData.tokenAddress", amountArg: "inputTokenAmountData.amount", mapTokens: INTERPORT_NATIVE },
+      { eventAbi: "event ActionTarget(uint256 indexed actionId, uint256 indexed sourceChainId, address indexed recipient, uint256 gatewayType, uint256 assetType, uint256 routerType, (address tokenAddress, uint256 amount) assetTokenAmountData, (address tokenAddress, uint256 amount) outputTokenAmountData, uint256 outputExtraAmount, bool isSuccess, uint256 timestamp)", targets: [c.actionExecutor], direction: "incoming", tokenArg: "outputTokenAmountData.tokenAddress", amountArg: "outputTokenAmountData.amount", mapTokens: INTERPORT_NATIVE, filter: (args: any) => args.isSuccess === true },
+    ] as BridgeEvent[] : []),
+    ...(c.ccipToken ? [{ eventAbi: `event TokenBridgeActionSource(uint256 targetChainId, address indexed sourceSender, address targetRecipient, ${INTERPORT_TOKEN_AMOUNT}, bytes32 indexed ccipMessageId, uint256 timestamp)`, targets: [c.ccipToken], direction: "outgoing", tokenArg: "tokenAmounts.0.token", amountArg: "tokenAmounts.0.amount" }] as BridgeEvent[] : []),
+    ...(c.ccipV2 ? [{ eventAbi: `event TokenBridgeActionSource(uint256 targetChainId, address indexed sourceSender, bytes targetRecipient, ${INTERPORT_TOKEN_AMOUNT}, bytes32 indexed ccipMessageId, uint256 timestamp)`, targets: [c.ccipV2], direction: "outgoing", tokenArg: "tokenAmounts.0.token", amountArg: "tokenAmounts.0.amount" }] as BridgeEvent[] : []),
+    ...(c.ccipBacked ? [{ eventAbi: "event BackedTokenBridgeActionSource(uint256 targetChainId, address indexed sourceSender, address targetRecipient, address tokenAddress, uint256 tokenAmount, bytes32 indexed ccipMessageId, uint256 timestamp)", targets: [c.ccipBacked], direction: "outgoing", tokenArg: "tokenAddress", amountArg: "tokenAmount" }] as BridgeEvent[] : []),
+    ...(c.ccipNative ? [{ eventAbi: "event NativeBridgeActionSource(uint256 indexed actionId, uint256 targetChainId, address indexed sourceSender, address targetRecipient, bool fromWrapped, bool toWrapped, uint256 amount, bytes32 indexed ccipMessageId, uint256 timestamp)", targets: [c.ccipNative.bridge], direction: "outgoing", fixedToken: c.ccipNative.weth, amountArg: "amount" }] as BridgeEvent[] : []),
+    ...(c.cctpV2 ? [{ eventAbi: "event CCTPV2BridgeActionSource(uint32 destinationDomain, address indexed sourceSender, bytes32 targetRecipient, address token, uint256 amount, uint256 reserve, uint256 timestamp)", targets: [c.cctpV2], direction: "outgoing", tokenArg: "token", amountArg: "amount" }] as BridgeEvent[] : []),
+    ...(c.nonEvm ? [{ eventAbi: "event BridgeActionSource(uint32 destinationDomain, address indexed sourceSender, bytes32 targetRecipient, address token, uint256 amount, uint256 reserve, uint64 indexed messageNonce, uint256 timestamp)", targets: [c.nonEvm], direction: "outgoing", tokenArg: "token", amountArg: "amount" }] as BridgeEvent[] : []),
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
 // Synapse: SynapseBridge (deposit/redeem out, withdraw/mint in) and the FastBridge RFQ contract.
 // https://docs.synapseprotocol.com/docs/Contracts/Bridge
 // ---------------------------------------------------------------------------------------------------
