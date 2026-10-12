@@ -10,6 +10,9 @@ const COORDINATORS = [
   "0x8f487264E1B183F588CAc678D000754D3bd9B07E", // v1 (superseded)
   "0x9A39fc7A9385F820CC9820E291519762DA0720a3", // v3 proxy (permanent)
 ];
+// First fulfilled request on v1 (2026-10-05). A challenge can only follow a
+// fulfillment, and v3 is later, so this bounds Challenged logs on both.
+const CHALLENGED_FROM_BLOCK = 25_647_520;
 
 const RequestFulfilledEvent =
   "event RequestFulfilled(uint256 indexed requestId, address indexed operator, bytes32 outputHash, bytes output)";
@@ -17,8 +20,6 @@ const ChallengedEvent =
   "event Challenged(uint256 indexed requestId, address indexed challenger, uint256 bond)";
 const ChallengeResolvedEvent =
   "event ChallengeResolved(uint256 indexed requestId, bool challengerWins)";
-const ChallengedTopic =
-  "0xf2cbc3bae809b898e4918c93cc3a0617e734ec62b3fccc2f3e58ce66cb15ad28"; // Challenged(uint256,address,uint256)
 // `requests()` returns the stored Request struct; field order matches
 // contracts/src/OracleCoordinator.sol (requester, modelId, inputHash, fee, ...)
 // and is identical on v1 and v3.
@@ -42,44 +43,74 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyUserFees = options.createBalances();
 
-  for (const target of COORDINATORS) {
-    const fulfills = await options.getLogs({ target, eventAbi: RequestFulfilledEvent });
+  // flatten: false keeps each coordinator's logs in COORDINATORS order, so
+  // requests() and protocolFeeBps() are read on the contract that emitted them.
+  const [fulfillBatches, resolvedBatches] = await Promise.all([
+    options.getLogs({ targets: COORDINATORS, eventAbi: RequestFulfilledEvent, flatten: false }),
+    options.getLogs({ targets: COORDINATORS, eventAbi: ChallengeResolvedEvent, flatten: false }),
+  ]);
 
-    // Skip contract calls when the window has no events: early hourly slots
-    // can predate a coordinator's deployment, where calls would revert.
-    if (fulfills.length) {
-      const [reqs, bps] = await Promise.all([
-        options.api.multiCall({ target, abi: RequestsAbi, calls: fulfills.map((l: any) => l.requestId) }),
-        options.api.call({ target, abi: "function protocolFeeBps() view returns (uint16)" }),
-      ]);
+  // Skip contract calls when a coordinator has no events: early hourly slots
+  // can predate its deployment, where calls would revert.
+  const requestCalls: { target: string; params: any[] }[] = [];
+  const bpsTargets: string[] = [];
+  fulfillBatches.forEach((logs: any[], i: number) => {
+    if (!logs?.length) return;
+    bpsTargets.push(COORDINATORS[i]);
+    for (const log of logs) requestCalls.push({ target: COORDINATORS[i], params: [log.requestId] });
+  });
 
-      reqs.forEach((r: any) => {
-        const fee = BigInt(r.fee);
-        const cut = (fee * BigInt(bps)) / 10_000n;
-        dailyFees.add(WBOT, fee, "Inference Fees");
-        dailyUserFees.add(WBOT, fee, "Inference Fees");
-        dailySupplySideRevenue.add(WBOT, fee - cut, "Inference Fees To Operators");
-        dailyRevenue.add(WBOT, cut, "Inference Fees To Treasury");
-      });
+  const [reqs, bpsList] = await Promise.all([
+    requestCalls.length ? options.api.multiCall({ abi: RequestsAbi, calls: requestCalls }) : [],
+    bpsTargets.length
+      ? options.api.multiCall({ abi: "function protocolFeeBps() view returns (uint16)", calls: bpsTargets })
+      : [],
+  ]);
+
+  const bpsByTarget: Record<string, bigint> = {};
+  bpsTargets.forEach((target, i) => { bpsByTarget[target] = BigInt(bpsList[i]); });
+
+  requestCalls.forEach((call, i) => {
+    const fee = BigInt(reqs[i].fee);
+    const cut = (fee * bpsByTarget[call.target]) / 10_000n;
+    dailyFees.add(WBOT, fee, "Inference Fees");
+    dailyUserFees.add(WBOT, fee, "Inference Fees");
+    dailySupplySideRevenue.add(WBOT, fee - cut, "Inference Fees To Operators");
+    dailyRevenue.add(WBOT, cut, "Inference Fees To Treasury");
+  });
+
+  const forfeitures: { target: string; requestId: string }[] = [];
+  resolvedBatches.forEach((logs: any[], i: number) => {
+    for (const log of logs ?? []) {
+      if (log.challengerWins) continue;
+      forfeitures.push({ target: COORDINATORS[i], requestId: log.requestId.toString() });
     }
+  });
 
-    // A losing challenger's posted bond accrues to the treasury (winning
-    // challenges return it). Never fired to date; counted for completeness.
-    // The Challenged log that posted the bond may sit outside this window,
-    // so it is looked up per resolution by requestId over all history.
-    const resolved = await options.getLogs({ target, eventAbi: ChallengeResolvedEvent });
-    for (const r of resolved) {
-      if (r.challengerWins) continue;
-      const requestIdTopic = "0x" + BigInt(r.requestId).toString(16).padStart(64, "0");
-      const [challenge] = await options.getLogs({
-        target,
-        eventAbi: ChallengedEvent,
-        fromBlock: 0,
-        topics: [ChallengedTopic, requestIdTopic],
-      });
-      const bond = challenge !== undefined
-        ? BigInt(challenge.bond)
-        : BigInt(await options.api.call({ target, abi: "function challengeBond() view returns (uint256)" }));
+  if (forfeitures.length) {
+    const challengedBatches = await options.getLogs({
+      targets: COORDINATORS,
+      eventAbi: ChallengedEvent,
+      fromBlock: CHALLENGED_FROM_BLOCK,
+      flatten: false,
+      cacheInCloud: true,
+    });
+    const bondByKey: Record<string, bigint> = {};
+    challengedBatches.forEach((logs: any[], i: number) => {
+      for (const log of logs ?? []) bondByKey[`${COORDINATORS[i]}:${log.requestId.toString()}`] = BigInt(log.bond);
+    });
+
+    const missingTargets = [...new Set(
+      forfeitures.filter((f) => bondByKey[`${f.target}:${f.requestId}`] === undefined).map((f) => f.target),
+    )];
+    const fallbackBonds = missingTargets.length
+      ? await options.api.multiCall({ abi: "function challengeBond() view returns (uint256)", calls: missingTargets })
+      : [];
+    const fallbackByTarget: Record<string, bigint> = {};
+    missingTargets.forEach((target, i) => { fallbackByTarget[target] = BigInt(fallbackBonds[i]); });
+
+    for (const forfeiture of forfeitures) {
+      const bond = bondByKey[`${forfeiture.target}:${forfeiture.requestId}`] ?? fallbackByTarget[forfeiture.target];
       dailyFees.add(WBOT, bond, "Dispute Bond Forfeitures");
       dailyRevenue.add(WBOT, bond, "Dispute Bond Forfeitures");
     }
