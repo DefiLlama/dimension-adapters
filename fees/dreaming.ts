@@ -64,30 +64,30 @@ const adapter: SimpleAdapter = {
     [CHAIN.OFF_CHAIN]: { fetch: fetchSts, start: '2026-08-17' },
   },
   methodology: {
-    Fees: "Opening fees from Dream's RFQ-based brokerage, plus historical builder fees and referral rewards earned by Dream on Derive.",
-    UserFees: "Trading fees paid by users when opening options positions through Dream's RFQ-based brokerage.",
+    Fees: 'Dream Options - Trading fees paid by users when opening options positions through Dream’s RFQ-based brokerage.',
+    UserFees: 'Dream Options - Trading fees paid by users when opening options positions through Dream’s RFQ-based brokerage.',
     SupplySideRevenue: 'Share of trading fees distributed to referral partners.',
-    Revenue: "Brokerage opening fees less referral partner allocations, plus historical builder fees and referral rewards earned by Dream on Derive.",
-    ProtocolRevenue: "Brokerage opening fees less referral partner allocations, plus historical builder fees and referral rewards earned by Dream on Derive.",
+    Revenue: 'Dream Options - Dream’s share of trading fees collected from options transactions, excluding fees distributed to referral partners.',
+    ProtocolRevenue: 'Dream Options - Dream’s share of trading fees collected from options transactions, excluding fees distributed to referral partners.',
   },
   breakdownMethodology: {
     Fees: {
-      [BUILDER_REFERRAL_FEES]: 'Builder fees and referral rewards earned by Dream on Derive, excluding exchange fees retained by Derive; series ended 2026-10-06.',
-      [OPTION_TRADING_FEES]: "Trading fees charged on opens at Dream's RFQ-based brokerage, cash-settled in USDC on Solana.",
+      [BUILDER_REFERRAL_FEES]: 'Historical builder fees and referral rewards earned by Dream; series ended 2026-10-06.',
+      [OPTION_TRADING_FEES]: 'Dream Options - Trading fees paid by users when opening options positions through Dream’s RFQ-based brokerage.',
     },
     UserFees: {
-      [OPTION_TRADING_FEES]: 'Trading fees paid by users on opens.',
+      [OPTION_TRADING_FEES]: 'Dream Options - Trading fees paid by users when opening options positions through Dream’s RFQ-based brokerage.',
     },
     SupplySideRevenue: {
       [REFERRAL_PAYOUTS]: 'Share of trading fees distributed to referral partners.',
     },
     Revenue: {
-      [BUILDER_REFERRAL_FEES]: 'Historical Derive builder fees and referral rewards, all earned by Dream.',
-      [OPTION_TRADING_FEES]: 'Trading fees after referral payouts.',
+      [BUILDER_REFERRAL_FEES]: 'Historical builder fees and referral rewards, all earned by Dream.',
+      [OPTION_TRADING_FEES]: 'Dream Options - Dream’s share of trading fees collected from options transactions, excluding fees distributed to referral partners.',
     },
     ProtocolRevenue: {
-      [BUILDER_REFERRAL_FEES]: 'Historical Derive builder fees and referral rewards, all earned by Dream.',
-      [OPTION_TRADING_FEES]: 'Trading fees after referral payouts.',
+      [BUILDER_REFERRAL_FEES]: 'Historical builder fees and referral rewards, all earned by Dream.',
+      [OPTION_TRADING_FEES]: 'Dream Options - Dream’s share of trading fees collected from options transactions, excluding fees distributed to referral partners.',
     },
   },
 }
