@@ -411,7 +411,7 @@ const adapter: SimpleAdapter = {
     UserFees: "Same as Fees - traders pay all of it.",
     Revenue:
       "The protocol fee slice each Swap event carried, plus the router fee on routed fills. Both are paid to the protocol.",
-    ProtocolRevenue: "All of Revenue goes to the protocol.",
+    ProtocolRevenue: "The protocol fee slice each Swap event carried, plus the router fee on routed fills. Both are paid to the protocol.",
     SupplySideRevenue: "The rest of each swap fee, earned by liquidity providers.",
   },
   breakdownMethodology: {
