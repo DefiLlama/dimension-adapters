@@ -26,8 +26,15 @@ type HouseHistory = {
   source: { asOfMs: number };
 };
 
-// the runner's logical window is [startTimestamp + 1, endTimestamp)
-const windowOf = (options: FetchOptions) => ({ startMs: (options.startTimestamp + 1) * 1000, endMs: options.endTimestamp * 1000 });
+// the runner's logical window is [startTimestamp + 1, endTimestamp); refills pass it a second short of the hour on both
+// ends (22:59:59 to 23:59:59), so snap to the hour the series is bucketed on, but never move an end by more than a minute
+const HOUR_MS = 3600 * 1000;
+function alignToHour(ms: number) {
+  const aligned = Math.round(ms / HOUR_MS) * HOUR_MS;
+  if (Math.abs(aligned - ms) > 60 * 1000) throw new Error(`papertrade: window edge ${new Date(ms).toISOString()} is not on an hour`);
+  return aligned;
+}
+const windowOf = (options: FetchOptions) => ({ startMs: alignToHour((options.startTimestamp + 1) * 1000), endMs: alignToHour(options.endTimestamp * 1000) });
 
 // index of the bucket holding the counter at instant tMs; -1 = before genesis (0, daily series only); undefined = cannot answer
 function bucketEndingAt(h: ProtocolHistory, tMs: number, length: number): number | undefined {
