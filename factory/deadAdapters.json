@@ -5625,6 +5625,26 @@
         "runAtCurrTime": false
       }
     },
+    "plenty": {
+      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
+      "codePath": "dexs/plenty",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "tezos"
+        ],
+        "start": "2023-01-01",
+        "deadFrom": "2025-01-20",
+        "adapter": {
+          "tezos": {
+            "fetch": "_f",
+            "start": "2023-01-01"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
     "pokeliquid": {
       "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
       "codePath": "dexs/pokeliquid",
@@ -6140,26 +6160,6 @@
           "arbitrum": {
             "fetch": "_f",
             "start": "2024-01-23"
-          }
-        },
-        "version": 1,
-        "runAtCurrTime": false
-      }
-    },
-    "sithswap": {
-      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
-      "codePath": "dexs/sithswap",
-      "module": {
-        "fetch": "_f",
-        "chains": [
-          "starknet"
-        ],
-        "start": "2023-01-10",
-        "deadFrom": "2024-09-05",
-        "adapter": {
-          "starknet": {
-            "fetch": "_f",
-            "start": "2023-01-10"
           }
         },
         "version": 1,
