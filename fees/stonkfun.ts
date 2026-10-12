@@ -2,6 +2,7 @@ import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
+import { getMultipleAccounts } from "../helpers/solana";
 
 // The operator wallet creates the pools, claims every platform fee, pays the creator and flywheel shares and
 // signs the buybacks.
@@ -56,33 +57,33 @@ const STONK_POOL_LABEL = "STONK Pool";
 const BUYBACK_LABEL = "STONK Buyback And Burn";
 
 type Leg = { kind: "fee" | "payout" | "buyback"; label: string; mint: string; hour: number; raw_amount: string };
+type LegRow = Leg & { tx_id: string | null; two_sided: boolean; t22: boolean; account: string | null; display: number };
+type Lookup = { kind: "created" | "landed"; mint: string; ts: number | null; tx_id: string | null; landed: number | null };
 type TradeSum = { mint: string; hour: number; usd: number; raw: number };
 
+const sqlList = (values: string[]) => values.map((v) => `'${v}'`).join(", ");
+
 // Dune rejects the legs and their pricing as a single query (too many stages), so prices come from a second
-// query over the day's mints.
+// query over the day's mints. DuneSQL also runs a CTE again for every reference to it, so this query reads the
+// day's transfers once and works out each transaction's context with window functions instead of self-joins.
 const legsQuery = (start: number, end: number) => `
   WITH
   -- Transfers into and out of the operator wallet. Dune's account table may have no owner for a token account
   -- opened and closed inside one transaction (temporary wSOL). If the operator signed that transaction, the
-  -- account is the operator's, so these rows keep a NULL owner and each step below decides whether to use them.
-  op_in AS (
+  -- account is the operator's, so these rows count as the operator's and each step below decides whether to use
+  -- them. Only plain transfers count as inflows. token_version identifies native SOL rows, because Dune publishes
+  -- their mint both as the wSOL mint and as ${NATIVE_SOL}. Dune labels a native transfer into a token account it
+  -- knows as 'wrap'.
+  op AS (
     SELECT tx_id, block_time, outer_executing_account AS program, token_mint_address AS mint,
-           amount, amount_display, token_version, from_owner, from_token_account, to_owner
-    FROM tokens_solana.transfers
-    WHERE block_time >= from_unixtime(${start}) AND block_time < from_unixtime(${end})
-      AND action = 'transfer'
-      AND (to_owner = '${OPERATOR}' OR (to_owner IS NULL AND tx_signer = '${OPERATOR}'))
-  ),
-  -- token_version identifies native SOL rows, because Dune publishes their mint both as the wSOL mint and as
-  -- ${NATIVE_SOL}. Dune labels a native transfer into a token account it knows as 'wrap'.
-  op_out AS (
-    SELECT tx_id, block_time, outer_executing_account AS program,
-           CASE WHEN token_version = 'native' THEN '${WSOL}' ELSE token_mint_address END AS mint,
-           token_version = 'native' AS native, amount, from_owner, from_token_account, to_owner, to_token_account
+           CASE WHEN token_version = 'native' THEN '${WSOL}' ELSE token_mint_address END AS out_mint,
+           amount, amount_display, token_version, from_owner, from_token_account, to_owner, to_token_account,
+           COALESCE(action = 'transfer' AND (to_owner = '${OPERATOR}' OR (to_owner IS NULL AND tx_signer = '${OPERATOR}')), false) AS is_in,
+           COALESCE(from_owner = '${OPERATOR}' OR (from_owner IS NULL AND tx_signer = '${OPERATOR}'), false) AS is_out
     FROM tokens_solana.transfers
     WHERE block_time >= from_unixtime(${start}) AND block_time < from_unixtime(${end})
       AND action IN ('transfer', 'wrap')
-      AND (from_owner = '${OPERATOR}' OR (from_owner IS NULL AND tx_signer = '${OPERATOR}'))
+      AND (to_owner = '${OPERATOR}' OR from_owner = '${OPERATOR}' OR tx_signer = '${OPERATOR}')
   ),
   launchlab_pools AS (
     SELECT account_creator AS creator, account_quote_mint AS quote_mint
@@ -97,176 +98,192 @@ const legsQuery = (start: number, end: number) => `
     FROM raydium_solana.raydium_launchpad_call_initialize_with_token_2022
     WHERE call_block_time >= TIMESTAMP '2026-08-21' AND call_block_time < from_unixtime(${end})
   ),
-  -- Curve platform fees, counted when claimed. An operator swap against a curve pool also moves quote out of a
-  -- pool vault, so the per-pool route skips transactions where the operator paid into LaunchLab.
-  curve_claims AS (
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, 'Launch Curve Platform Fee' AS label
-    FROM op_in
-    WHERE program = '${LAUNCHLAB_PROGRAM}'
-      AND (
-        from_owner = '${LAUNCHLAB_FEE_VAULT_AUTHORITY}'
-        OR (
-          from_owner = '${LAUNCHLAB_POOL_AUTHORITY}'
-          AND tx_id NOT IN (SELECT tx_id FROM op_out WHERE program = '${LAUNCHLAB_PROGRAM}')
-        )
-      )
-  ),
   -- Creator fees from graduated pools. The CPMM config charges them on the quote side only, and the query also
-  -- excludes the migration's base vaults in case that changes. Operator swaps through CPMM are skipped as above.
+  -- excludes the migration's base vaults in case that changes.
   migrated_base_vaults AS (
     SELECT account_cpswap_base_vault AS vault
     FROM raydium_solana.raydium_launchpad_call_migrate_to_cpswap
     WHERE call_block_time >= TIMESTAMP '2026-08-21' AND call_block_time < from_unixtime(${end})
       AND account_cpswap_base_vault IS NOT NULL
   ),
-  cpmm_claims AS (
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, 'Graduated Pool Creator Fee' AS label
-    FROM op_in
-    WHERE program = '${CPMM_PROGRAM}' AND from_owner = '${CPMM_AUTHORITY}'
-      AND from_token_account NOT IN (SELECT vault FROM migrated_base_vaults)
-      AND tx_id NOT IN (SELECT tx_id FROM op_out WHERE program = '${CPMM_PROGRAM}')
+  flows AS (
+    SELECT *,
+      -- An operator swap against a curve or CPMM pool also moves quote out of a pool vault, so the per-pool curve
+      -- route and CPMM claims skip transactions where the operator paid into that program.
+      COALESCE(bool_or(is_out AND program = '${LAUNCHLAB_PROGRAM}') OVER (PARTITION BY tx_id), false) AS paid_launchlab,
+      COALESCE(bool_or(is_out AND program = '${CPMM_PROGRAM}') OVER (PARTITION BY tx_id), false) AS paid_cpmm,
+      -- Locked-position harvests. Position NFTs also arrive from the lock program, one unit at a time.
+      COALESCE(is_in AND program = '${LOCK_PROGRAM}' AND CAST(amount AS DOUBLE) > 1, false) AS is_harvest,
+      -- A Jupiter swap that returned STONK to the operator is a buyback, unless it is a dev-buy: a dev-buy on a
+      -- STONK-quoted launch buys STONK and spends it into the launch pool in the same bundle, so both happen in
+      -- the same second.
+      SUM(CASE WHEN is_in AND mint = '${STONK}' AND program = '${JUPITER}' AND to_owner = '${OPERATOR}' THEN CAST(amount AS DOUBLE) END)
+        OVER (PARTITION BY tx_id) AS stonk_bought,
+      MIN(CASE WHEN is_out AND out_mint = '${STONK}' AND program IN ('${CLMM_PROGRAM}', '${LAUNCHLAB_PROGRAM}', '${CPMM_PROGRAM}') THEN CAST(amount AS DOUBLE) END)
+        OVER (PARTITION BY block_time) AS stonk_spent_into_pool
+    FROM op
+    WHERE is_in OR is_out
   ),
-  -- Locked-position harvests. Position NFTs also arrive from the lock program, one unit at a time.
-  harvest_legs AS (
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, from_token_account AS vault
-    FROM op_in
-    WHERE program = '${LOCK_PROGRAM}' AND CAST(amount AS DOUBLE) > 1
-  ),
+  -- A one-sided harvest delivers the quote. A two-sided one also delivers the launched base token, which is told
+  -- apart after this query (see settleTxLegs).
   harvest_sides AS (
-    SELECT tx_id, COUNT(DISTINCT mint) AS sides FROM harvest_legs GROUP BY 1
+    SELECT *,
+      COALESCE(MIN(CASE WHEN is_harvest THEN mint END) OVER (PARTITION BY tx_id)
+        <> MAX(CASE WHEN is_harvest THEN mint END) OVER (PARTITION BY tx_id), false) AS two_sided
+    FROM flows
   ),
-  -- A one-sided delivery is the quote. In a two-sided one the base is the token StonkFun launched (minted by
-  -- the operator, or by LaunchLab), and when both are launches the quote is the older one.
-  minted AS (
-    SELECT token_mint_address AS mint, MIN(block_time) AS minted_at
-    FROM tokens_solana.transfers
-    WHERE block_time >= TIMESTAMP '2026-07-23' AND block_time < from_unixtime(${end})
-      AND action = 'mint'
-      AND (tx_signer = '${OPERATOR}' OR outer_executing_account = '${LAUNCHLAB_PROGRAM}')
-      AND token_mint_address IN (
-        SELECT l.mint FROM harvest_legs l JOIN harvest_sides s ON s.tx_id = l.tx_id WHERE s.sides > 1
-      )
-    GROUP BY 1
-  ),
-  harvest_base AS (
-    SELECT DISTINCT l.tx_id, l.mint
-    FROM harvest_legs l
-    JOIN minted m ON m.mint = l.mint
-    JOIN harvest_legs o ON o.tx_id = l.tx_id AND o.mint <> l.mint
-    LEFT JOIN minted om ON om.mint = o.mint
-    WHERE om.mint IS NULL OR om.minted_at < m.minted_at
-  ),
-  harvest_quotes AS (
-    SELECT l.tx_id, l.block_time, l.mint, l.amount, l.amount_display, l.token_version,
-           CASE WHEN l.vault = '${STONK_POOL_QUOTE_VAULT}' THEN '${STONK_POOL_LABEL}' ELSE 'Locked LP Trading Fees' END AS label
-    FROM harvest_legs l
-    LEFT JOIN harvest_base b ON b.tx_id = l.tx_id AND b.mint = l.mint
-    WHERE b.mint IS NULL
-  ),
-  fee_legs AS (
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, label FROM curve_claims
-    UNION ALL
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, label FROM cpmm_claims
-    UNION ALL
-    SELECT tx_id, block_time, mint, amount, amount_display, token_version, label FROM harvest_quotes
-  ),
-  -- A Token-2022 quote with a transfer fee credits less than the transfer amount, and the issuer keeps the
-  -- difference. Those legs are scaled to what landed (account_activity amounts are decimal adjusted).
-  landed AS (
-    SELECT a.tx_id, a.token_mint_address AS mint, SUM(a.token_balance_change) AS landed_display
-    FROM solana.account_activity a
-    WHERE a.block_time >= from_unixtime(${start}) AND a.block_time < from_unixtime(${end})
-      AND a.tx_success AND a.token_balance_owner = '${OPERATOR}'
-      AND a.tx_id IN (SELECT tx_id FROM fee_legs WHERE token_version = 'spl_token_2022')
-    GROUP BY 1, 2
-  ),
-  fee_tx AS (
-    SELECT tx_id, mint, SUM(amount_display) AS gross_display FROM fee_legs GROUP BY 1, 2
-  ),
-  fees AS (
-    SELECT f.tx_id, f.block_time, f.mint, f.label,
-           CAST(f.amount AS DOUBLE) * CASE
-             WHEN f.token_version = 'spl_token_2022' AND n.landed_display > 0 AND n.landed_display < t.gross_display
-             THEN n.landed_display / t.gross_display
-             ELSE 1
-           END AS amount
-    FROM fee_legs f
-    JOIN fee_tx t ON t.tx_id = f.tx_id AND t.mint = f.mint
-    LEFT JOIN landed n ON n.tx_id = f.tx_id AND n.mint = f.mint
-  ),
-  -- Creator and flywheel shares as paid out: plain transfers from the operator to the flywheel wallet, or to
-  -- the creator of a LaunchLab pool in one of LaunchLab's quote tokens (creators of SOL launches get native
-  -- SOL). Requiring a creator wallet keeps dev-buy deliveries and Jito tips out.
-  payouts AS (
-    SELECT o.tx_id, o.block_time, o.mint, CAST(o.amount AS DOUBLE) AS amount,
-           CASE WHEN o.to_owner = '${FLYWHEEL_WALLET}' THEN 'Flywheel Share' ELSE 'Creator Fee Share' END AS label
-    FROM op_out o
-    WHERE o.program IN ('${TOKEN_PROGRAM}', '${TOKEN_2022_PROGRAM}', '${SYSTEM_PROGRAM}')
-      AND o.block_time >= from_unixtime(${PAYOUTS_FROM})
-      AND o.from_owner = '${OPERATOR}' AND o.to_owner <> '${OPERATOR}'
-      AND (
-        (o.to_owner = '${FLYWHEEL_WALLET}' AND NOT o.native)
-        OR (
-          o.to_owner IN (SELECT creator FROM launchlab_pools WHERE creator IS NOT NULL)
-          AND (o.native OR o.mint IN (SELECT quote_mint FROM launchlab_pools WHERE quote_mint IS NOT NULL))
-        )
-      )
-  ),
-  -- Buybacks: Jupiter swaps that returned STONK to the operator. Routes hop through the operator's own
-  -- accounts and split across pools, so the amount spent is the net outflow per token in that swap.
-  stonk_bought AS (
-    SELECT tx_id, MIN(block_time) AS block_time, SUM(CAST(amount AS DOUBLE)) AS received
-    FROM op_in
-    WHERE mint = '${STONK}' AND program = '${JUPITER}' AND to_owner = '${OPERATOR}'
-    GROUP BY 1
-  ),
-  -- A dev-buy on a STONK-quoted launch buys STONK and spends it into the launch pool in the same bundle, so
-  -- both happen in the same second. Those swaps are not buybacks.
-  dev_buy_swaps AS (
-    SELECT DISTINCT b.tx_id
-    FROM stonk_bought b
-    JOIN op_out p
-      ON p.block_time = b.block_time
-     AND p.mint = '${STONK}'
-     AND p.program IN ('${CLMM_PROGRAM}', '${LAUNCHLAB_PROGRAM}', '${CPMM_PROGRAM}')
-     AND CAST(p.amount AS DOUBLE) <= b.received
-  ),
-  buyback_txs AS (
-    SELECT tx_id FROM stonk_bought WHERE tx_id NOT IN (SELECT tx_id FROM dev_buy_swaps)
-  ),
-  -- A swap that spends SOL does it from a temporary wSOL account it opens and closes. Dune may not know that
-  -- account's owner (op_in and op_out keep the row with a NULL owner because the operator signed) or, for an
-  -- unchecked transfer, its mint. Jupiter only opens such accounts for wSOL, so a missing mint is wSOL.
-  -- Native SOL rows are left out because the wSOL legs already carry the amount.
-  buyback_flows AS (
-    SELECT tx_id, block_time, COALESCE(mint, '${WSOL}') AS mint, CAST(amount AS DOUBLE) AS flow
-    FROM op_out
-    WHERE program = '${JUPITER}' AND NOT native AND COALESCE(mint, '') <> '${STONK}'
-      AND tx_id IN (SELECT tx_id FROM buyback_txs)
-    UNION ALL
-    SELECT tx_id, block_time, COALESCE(mint, '${WSOL}') AS mint, -CAST(amount AS DOUBLE) AS flow
-    FROM op_in
-    WHERE program = '${JUPITER}' AND token_version <> 'native' AND COALESCE(mint, '') <> '${STONK}'
-      AND tx_id IN (SELECT tx_id FROM buyback_txs)
-  ),
-  buybacks AS (
-    SELECT tx_id, MIN(block_time) AS block_time, mint, SUM(flow) AS amount
-    FROM buyback_flows
-    GROUP BY tx_id, mint
-    HAVING SUM(flow) > 0
+  classified AS (
+    SELECT tx_id, block_time, mint, out_mint, amount, amount_display, token_version, to_token_account, is_harvest, two_sided,
+      CASE
+        -- Curve platform fees, counted when claimed.
+        WHEN is_in AND program = '${LAUNCHLAB_PROGRAM}'
+          AND (from_owner = '${LAUNCHLAB_FEE_VAULT_AUTHORITY}' OR (from_owner = '${LAUNCHLAB_POOL_AUTHORITY}' AND NOT paid_launchlab))
+          THEN 'Launch Curve Platform Fee'
+        WHEN is_in AND program = '${CPMM_PROGRAM}' AND from_owner = '${CPMM_AUTHORITY}' AND NOT paid_cpmm
+          AND from_token_account NOT IN (SELECT vault FROM migrated_base_vaults)
+          THEN 'Graduated Pool Creator Fee'
+        WHEN is_harvest
+          THEN CASE WHEN from_token_account = '${STONK_POOL_QUOTE_VAULT}' THEN '${STONK_POOL_LABEL}' ELSE 'Locked LP Trading Fees' END
+      END AS fee_label,
+      -- Creator and flywheel shares as paid out: plain transfers from the operator to the flywheel wallet, or to
+      -- the creator of a LaunchLab pool in one of LaunchLab's quote tokens (creators of SOL launches get native
+      -- SOL). Requiring a creator wallet keeps dev-buy deliveries and Jito tips out.
+      CASE
+        WHEN is_out AND program IN ('${TOKEN_PROGRAM}', '${TOKEN_2022_PROGRAM}', '${SYSTEM_PROGRAM}')
+          AND block_time >= from_unixtime(${PAYOUTS_FROM})
+          AND from_owner = '${OPERATOR}' AND to_owner <> '${OPERATOR}'
+          AND (
+            (to_owner = '${FLYWHEEL_WALLET}' AND token_version <> 'native')
+            OR (
+              to_owner IN (SELECT creator FROM launchlab_pools WHERE creator IS NOT NULL)
+              AND (token_version = 'native' OR out_mint IN (SELECT quote_mint FROM launchlab_pools WHERE quote_mint IS NOT NULL))
+            )
+          )
+          THEN CASE WHEN to_owner = '${FLYWHEEL_WALLET}' THEN 'Flywheel Share' ELSE 'Creator Fee Share' END
+      END AS payout_label,
+      -- Buybacks: routes hop through the operator's own accounts and split across pools, so the amount spent is
+      -- the net outflow per token in that swap. A swap that spends SOL does it from a temporary wSOL account it
+      -- opens and closes. Dune may not know that account's owner or, for an unchecked transfer, its mint. Jupiter
+      -- only opens such accounts for wSOL, so a missing mint is wSOL. Native SOL rows are left out because the
+      -- wSOL legs already carry the amount.
+      stonk_bought IS NOT NULL AND NOT COALESCE(stonk_spent_into_pool <= stonk_bought, false) AS buyback_tx,
+      COALESCE(is_out AND program = '${JUPITER}' AND token_version <> 'native' AND COALESCE(out_mint, '') <> '${STONK}', false) AS swap_out,
+      COALESCE(is_in AND program = '${JUPITER}' AND token_version <> 'native' AND COALESCE(mint, '') <> '${STONK}', false) AS swap_in
+    FROM harvest_sides
   ),
   legs AS (
-    SELECT 'fee' AS kind, label, mint, block_time, amount FROM fees
-    UNION ALL
-    SELECT 'payout' AS kind, label, mint, block_time, amount FROM payouts
-    UNION ALL
-    SELECT 'buyback' AS kind, '${BUYBACK_LABEL}' AS label, mint, block_time, amount FROM buybacks
+    SELECT tx_id, block_time, kind, label,
+      CASE kind WHEN 'fee' THEN mint WHEN 'payout' THEN out_mint ELSE COALESCE(mint, '${WSOL}') END AS mint,
+      CASE WHEN kind = 'buyback'
+        THEN (CASE WHEN swap_out THEN CAST(amount AS DOUBLE) ELSE 0 END) - (CASE WHEN swap_in THEN CAST(amount AS DOUBLE) ELSE 0 END)
+        ELSE CAST(amount AS DOUBLE)
+      END AS amount,
+      amount_display,
+      COALESCE(kind = 'fee' AND is_harvest AND two_sided, false) AS split_harvest,
+      COALESCE(kind = 'fee' AND token_version = 'spl_token_2022', false) AS t22,
+      CASE WHEN kind = 'fee' AND token_version = 'spl_token_2022' THEN to_token_account END AS account
+    FROM (
+      SELECT *,
+        CASE
+          WHEN fee_label IS NOT NULL THEN 'fee'
+          WHEN payout_label IS NOT NULL THEN 'payout'
+          WHEN buyback_tx AND (swap_out OR swap_in) THEN 'buyback'
+        END AS kind,
+        COALESCE(fee_label, payout_label, '${BUYBACK_LABEL}') AS label
+      FROM classified
+    )
+    WHERE kind IS NOT NULL
+  ),
+  per_tx AS (
+    SELECT kind, label, mint, tx_id, date_trunc('hour', block_time) AS hour, split_harvest, t22, account,
+           SUM(amount) AS amount, SUM(amount_display) AS display
+    FROM legs
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
   )
-  SELECT kind, label, mint, CAST(to_unixtime(date_trunc('hour', block_time)) AS BIGINT) AS hour,
-         CAST(CAST(ROUND(SUM(amount)) AS DECIMAL(38, 0)) AS VARCHAR) AS raw_amount
-  FROM legs
-  GROUP BY 1, 2, 3, 4
+  -- Two-sided harvests and Token-2022 fees stay per transaction for settleTxLegs; everything else is summed.
+  SELECT kind, label, mint, CAST(to_unixtime(hour) AS BIGINT) AS hour,
+         CASE WHEN split_harvest OR t22 THEN tx_id END AS tx_id, split_harvest AS two_sided, t22, account,
+         CAST(CAST(ROUND(SUM(amount)) AS DECIMAL(38, 0)) AS VARCHAR) AS raw_amount,
+         SUM(display) AS display
+  FROM per_tx
+  -- A buyback counts each token the swap spent on net.
+  WHERE kind <> 'buyback' OR amount > 0
+  GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
 `;
+
+// Follow-up lookups for the legs that come back per transaction. Each reads a sliver of its table, with literal
+// filters so Dune can skip the rest of it:
+// - created: when each token that a two-sided harvest delivered was created.
+// - landed: what each Token-2022 fee claim credited the operator. A transfer-fee token credits less than the
+//   transfer amount and the issuer keeps the difference (account_activity amounts are decimal adjusted).
+const lookupsQuery = (mints: string[], accounts: string[], start: number, end: number) => {
+  const parts: string[] = [];
+  if (mints.length) parts.push(`
+    SELECT 'created' AS kind, token_mint_address AS mint, CAST(to_unixtime(created_at) AS BIGINT) AS ts,
+           CAST(NULL AS VARCHAR) AS tx_id, CAST(NULL AS DOUBLE) AS landed
+    FROM tokens_solana.fungible
+    WHERE token_mint_address IN (${sqlList(mints)})`);
+  if (accounts.length) parts.push(`
+    SELECT 'landed', token_mint_address, CAST(NULL AS BIGINT), tx_id, SUM(token_balance_change)
+    FROM solana.account_activity
+    WHERE block_time >= from_unixtime(${start}) AND block_time < from_unixtime(${end})
+      AND address IN (${sqlList(accounts)})
+      AND tx_success AND token_balance_owner = '${OPERATOR}'
+    GROUP BY 2, 4`);
+  return parts.join("\n    UNION ALL");
+};
+
+// A token counts as launched by StonkFun when the transaction that created it minted it, signed by the operator or
+// run by LaunchLab, from the first launches on 2026-07-23. Reading only the creation seconds keeps this cheap.
+const LAUNCHES_FROM = Date.UTC(2026, 6, 23) / 1000;
+const mintedQuery = (created: Map<string, number>, end: number) => `
+  SELECT token_mint_address AS mint, CAST(to_unixtime(block_time) AS BIGINT) AS ts
+  FROM tokens_solana.transfers
+  WHERE block_time IN (${[...new Set(created.values())].map((t) => `from_unixtime(${t})`).join(", ")})
+    AND block_time < from_unixtime(${end})
+    AND token_mint_address IN (${sqlList([...created.keys()])})
+    AND action = 'mint'
+    AND (tx_signer = '${OPERATOR}' OR outer_executing_account = '${LAUNCHLAB_PROGRAM}')
+  GROUP BY 1, 2
+`;
+
+// Token-2022 mints with a transfer fee. A mint's extensions are fixed when it is created, so the current account
+// answers this for any date.
+const transferFeeMints = async (mints: string[]) => {
+  if (!mints.length) return new Set<string>();
+  const infos = await getMultipleAccounts({ chain: CHAIN.SOLANA, accounts: mints, encoding: "jsonParsed" });
+  return new Set(mints.filter((_, i) => (infos[i]?.data?.parsed?.info?.extensions ?? []).some((e: any) => e.extension === "transferFeeConfig")));
+};
+
+// Drops the launched base token of two-sided harvests and scales Token-2022 fees to what landed, then sums the
+// per-transaction legs like the rest.
+const settleTxLegs = (rows: LegRow[], mintedAt: Map<string, number>, landed: Map<string, number>): Leg[] => {
+  // In a two-sided harvest the base is the token StonkFun launched, and when both are launches the quote is the
+  // older one.
+  const harvestMints = new Map<string, Set<string>>();
+  for (const r of rows) if (r.two_sided && r.mint) harvestMints.set(r.tx_id!, (harvestMints.get(r.tx_id!) ?? new Set<string>()).add(r.mint));
+  const isBase = (r: LegRow) => {
+    const own = mintedAt.get(r.mint);
+    if (!r.two_sided || own === undefined) return false;
+    return [...harvestMints.get(r.tx_id!)!].some((m) => m !== r.mint && (mintedAt.get(m) ?? -Infinity) < own);
+  };
+  const kept = rows.filter((r) => !isBase(r));
+
+  const gross = new Map<string, number>();
+  for (const r of kept) gross.set(`${r.tx_id}|${r.mint}`, (gross.get(`${r.tx_id}|${r.mint}`) ?? 0) + Number(r.display));
+
+  const legs = new Map<string, { leg: Leg; amount: number }>();
+  for (const r of kept) {
+    const got = landed.get(`${r.tx_id}|${r.mint}`);
+    const sent = gross.get(`${r.tx_id}|${r.mint}`)!;
+    const factor = r.t22 && got !== undefined && got > 0 && got < sent ? got / sent : 1;
+    const key = `${r.label}|${r.mint}|${r.hour}`;
+    const entry = legs.get(key) ?? { leg: { kind: "fee", label: r.label, mint: r.mint, hour: r.hour, raw_amount: "0" }, amount: 0 };
+    entry.amount += Number(r.raw_amount) * factor;
+    legs.set(key, entry);
+  }
+  return [...legs.values()].map(({ leg, amount }) => ({ ...leg, raw_amount: BigInt(Math.round(amount)).toString() }));
+};
 
 // USD and raw units traded per token and hour. Prices are USD per raw unit, so token decimals and scaled-UI
 // multipliers never come into it.
@@ -316,7 +333,21 @@ const fetch = async (options: FetchOptions) => {
   const start = options.startOfDay;
   const end = options.endTimestamp;
   // One key per day, so Dune's bulk mode can't merge several days' legs into a query too complex for Dune.
-  const legs = (await queryDuneSql(options, legsQuery(start, end), { extraUIDKey: `stonkfun-legs-${start}` })) as Leg[];
+  const legRows = (await queryDuneSql(options, legsQuery(start, end), { extraUIDKey: `stonkfun-legs-${start}` })) as LegRow[];
+  const txRows = legRows.filter((r) => r.tx_id);
+  const harvestMints = [...new Set(txRows.filter((r) => r.two_sided && r.mint).map((r) => r.mint))];
+  const feeMints = await transferFeeMints([...new Set(txRows.filter((r) => r.t22).map((r) => r.mint))]);
+  const accounts = [...new Set(txRows.filter((r) => r.t22 && feeMints.has(r.mint) && r.account).map((r) => r.account!))];
+  const lookups = harvestMints.length || accounts.length
+    ? ((await queryDuneSql(options, lookupsQuery(harvestMints, accounts, start, end), { extraUIDKey: `stonkfun-lookups-${start}` })) as Lookup[])
+    : [];
+  const created = new Map(lookups.filter((l) => l.kind === "created" && Number(l.ts) >= LAUNCHES_FROM).map((l) => [l.mint, Number(l.ts)]));
+  const mintedRows = created.size
+    ? ((await queryDuneSql(options, mintedQuery(created, end), { extraUIDKey: `stonkfun-minted-${start}` })) as { mint: string; ts: number }[])
+    : [];
+  const mintedAt = new Map(mintedRows.filter((m) => created.get(m.mint) === Number(m.ts)).map((m) => [m.mint, Number(m.ts)]));
+  const landed = new Map(lookups.filter((l) => l.kind === "landed").map((l) => [`${l.tx_id}|${l.mint}`, Number(l.landed)]));
+  const legs: Leg[] = [...legRows.filter((r) => !r.tx_id), ...settleTxLegs(txRows, mintedAt, landed)];
 
   const mints = [...new Set(legs.map((l) => l.mint).filter(Boolean))];
   const dayTrades = mints.length
