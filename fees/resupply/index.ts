@@ -13,12 +13,6 @@ const abi = {
   splits: "function splits() external view returns (tuple(uint80 insurance, uint80 treasury, uint80 platform))"
 }
 
-// The pair list is cached for the process lifetime to minimize redundant RPC calls during hourly evaluations.
-// Newly deployed pairs during a running process are not picked up, and historical backfills use the current list
-// (which relies on getLogs tolerating targets that did not yet exist at historical blocks).
-let cachedPairs: string[] = []
-let pairsPromise: Promise<string[]> | null = null
-
 /**
  * Fetches the daily fees, revenue, supply-side revenue, protocol revenue, and holders revenue for ReSupply.
  * ReSupply is a CDP lending market where pairs emit AddInterest (borrow interest), Borrow (mint fees),
@@ -31,31 +25,12 @@ let pairsPromise: Promise<string[]> | null = null
  */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
-
-  if (cachedPairs.length === 0) {
-    if (!pairsPromise) {
-      pairsPromise = options.api
-        .call({
-          abi: 'address[]:getAllPairAddresses',
-          target: registryAddress,
-        })
-        .then((pairs: string[]) => {
-          cachedPairs = pairs
-          return pairs
-        })
-        .catch((err: any) => {
-          pairsPromise = null
-          throw err
-        })
-    }
-    cachedPairs = await pairsPromise
-  }
-
+  const pairContracts = await options.api.call({ abi: 'address[]:getAllPairAddresses', target: registryAddress })
   const splits = await options.api.call({ target: feeDepositController, abi: abi.splits })
-  const addInterestLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.addInterest })
-  const redeemedLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.redeemed })
-  const borrowLogs = await options.getLogs({ targets: cachedPairs as any, eventAbi: abi.borrow })
 
+  const addInterestLogs = await options.getLogs({ targets: pairContracts, eventAbi: abi.addInterest })
+  const redeemedLogs = await options.getLogs({ targets: pairContracts, eventAbi: abi.redeemed })
+  const borrowLogs = await options.getLogs({ targets: pairContracts, eventAbi: abi.borrow })
 
   addInterestLogs.forEach((log) => dailyFees.add(reUSD, log.interestEarned, METRIC.BORROW_INTEREST))
   redeemedLogs.forEach((log) => dailyFees.add(reUSD, log._protocolFee, METRIC.MINT_REDEEM_FEES))
