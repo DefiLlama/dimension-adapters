@@ -10,7 +10,6 @@ import { getProtocolWindowDeltas } from "../helpers/papertrade";
 // realized PnL at close and on margin lost in liquidations (half to PAPER stakers, half to the dev fee recipient), and
 // the LP gains above the $5M tracked-LP cap, which are swept in full to stakers (https://docs.papertrade.xyz/#/paper/staking).
 const EXCHANGE = "0x6cd5661646289fb6e65ea5c032310fded797d0a2"; // HyperEVM
-// event signatures resolved from the bytecode (source unverified); only the fee words are used, the other names are inferred
 const POSITIONS_CLOSED = "event PositionsClosed(address indexed user, uint256 marginReturned, uint256 balanceAfter, uint256 stakerFee, uint256 devFee)";
 const LIQUIDATED = "event Liquidated(uint256 indexed positionId, address indexed user, uint64 markPrice, uint64 bustPrice, bool fromQueuedBalance, uint256 stakerFee, uint256 devFee)";
 const usd = (x: bigint) => Number(x / 10n ** 12n) / 1e6; // fee words are USD with 18 decimals
@@ -18,13 +17,11 @@ const usd = (x: bigint) => Number(x / 10n ** 12n) / 1e6; // fee words are USD wi
 const sumFees = (logs: any[]) => logs.reduce((acc, log) => ({ staker: acc.staker + usd(BigInt(log.stakerFee)), dev: acc.dev + usd(BigInt(log.devFee)) }), { staker: 0, dev: 0 });
 
 const fetch = async (options: FetchOptions) => {
-  // listed under off_chain (synthetic bets against the house), the contract itself lives on HyperEVM
   const [fromBlock, toBlock] = await Promise.all([getBlock(options.fromTimestamp, CHAIN.HYPERLIQUID), getBlock(options.toTimestamp, CHAIN.HYPERLIQUID)]);
   const getLogs = (eventAbi: string) => sdk.getEventLogs({ chain: CHAIN.HYPERLIQUID, target: EXCHANGE, fromBlock, toBlock, eventAbi, onlyArgs: true });
   const closes = sumFees(await getLogs(POSITIONS_CLOSED));
   const liquidations = sumFees(await getLogs(LIQUIDATED));
-  // stakingRewards is the USDC credited to stakers: their fee half plus the LP sweeps. Fees reach stakers only once the
-  // LP can fund them, so within an hour the sweep residual can lag the fee events; it nets out over the day
+  // stakingRewards = staker fee half + LP sweeps; it can lag the fee events within an hour
   const { stakingRewards } = await getProtocolWindowDeltas(options, ["stakingRewards"]);
   const lpSweeps = stakingRewards - closes.staker - liquidations.staker;
 
@@ -49,7 +46,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
-  start: "2026-10-09", // launch was 2026-10-10; one day earlier because refill windows begin a second before the day and the runner skips a day whose window starts before `start`
+  start: "2026-10-09",
   methodology: {
     Fees: "The 2% fee on realized PnL when BTC and ETH positions close, the 2% fee on margin lost in liquidations, and the LP gains above the $5M cap that are swept to PAPER stakers. Trader losses that stay in the protocol-owned LP below the cap are not counted, and neither are trader wins: the LP has no owner and only pays winners, queueing them when it runs dry.",
     Revenue: "All counted fees: the 2% close and liquidation fees, split half to PAPER stakers and half to the dev fee recipient, plus the LP gains above the $5M cap swept to PAPER stakers.",
