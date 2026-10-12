@@ -75,9 +75,11 @@ const fetchBase = async (options: FetchOptions) => {
 
 /**
  * Solana: each USDC transfer to or from the pool PDA is attributed to the top-level Super Gacha
- * instruction that made it. Spend is everything paid into the pool by start_spin*, refunds by the
- * cancel instructions, payouts by cash-out / claim / sell-back / shipment reimbursement except the
- * fee leg to the revenue owner. Owner withdrawals and plain top-ups match no listed instruction.
+ * instruction that made it. Spend is everything paid into the pool by start_spin*. A cancelled
+ * spin keeps its spend in the hour it was paid and its refund counts as USDC returned, like
+ * cash-outs, claims, sell-backs and shipment reimbursements (except the fee leg to the revenue
+ * owner), so volume never goes negative. Owner withdrawals and plain top-ups match no listed
+ * instruction.
  */
 const fetchSolana = async (options: FetchOptions) => {
   const timeRange = (alias: string) =>
@@ -114,7 +116,7 @@ const fetchSolana = async (options: FetchOptions) => {
     else if (row.flow === 'refund') refund += BigInt(row.amount)
     else if (row.flow === 'payout') payout += BigInt(row.amount)
   }
-  return { spend: spend - refund, payout }
+  return { spend, payout: payout + refund }
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -136,8 +138,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    'USDC price of every Raflux gacha spin (Super Gacha on Solana, FluxBox on Base), including the part covered by coupons. Cancelled and refunded spins are excluded.',
-  Fees: 'Spin payments minus all USDC returned to players: card cash-outs, sell-backs, USDC prizes and reimbursed card shipments. This is the 10% fee Raflux keeps when a card is exchanged for USDC plus the game result of spins, so it is negative on days when players win more than they pay.',
+    'USDC players spend opening Raflux gacha packs of physical trading cards (Super Gacha on Solana, FluxBox on Base), at the full pack price including any part covered by a coupon. Packs are sold at fixed prices of 10, 25, 50 and 100 USDC (1 USDC packs on Base at launch); each pack pulls a physical card, often with a USDC bonus, that the player can ship home or sell back for USDC.',
+  Fees: 'Pack spend minus all USDC returned to players: refunds of cancelled pulls, card cash-outs, sell-backs, USDC prizes and reimbursed card shipments. This is the 10% fee Raflux keeps when a card is exchanged for USDC plus the game result of pulls, so it is negative on days when players win more than they pay.',
   Revenue: 'Same as Fees. No share goes to LPs, referrers or token holders.',
   ProtocolRevenue: 'All revenue goes to the Raflux treasury.',
 }
@@ -159,15 +161,15 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [LABEL_GACHA_FEES]:
-        'Spin payments minus USDC returned to players; includes the 10% sell-back and cash-out fee.',
+        'Pack spend minus USDC returned to players; includes the 10% sell-back and cash-out fee.',
     },
     Revenue: {
       [LABEL_GACHA_REVENUE]:
-        'Spin payments minus USDC returned to players, kept by the Raflux treasury.',
+        'Pack spend minus USDC returned to players, kept by the Raflux treasury.',
     },
     ProtocolRevenue: {
       [LABEL_GACHA_REVENUE]:
-        'Spin payments minus USDC returned to players, kept by the Raflux treasury.',
+        'Pack spend minus USDC returned to players, kept by the Raflux treasury.',
     },
   },
   allowNegativeValue: true,
