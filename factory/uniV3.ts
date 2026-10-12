@@ -14,8 +14,15 @@ const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed r
 // Voltage's verified Community Vault; algebraFee is a share of community fees, not volume.
 // https://explorer.fuse.io/address/0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E
 const VOLTAGE_VAULT = '0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E'
+// ALGEBRA_FEE_DENOMINATOR in the verified AlgebraCommunityVault.sol; 1,000 means 100%.
+// https://explorer.fuse.io/address/0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E?tab=contract
+const VOLTAGE_ALGEBRA_FEE_DENOMINATOR = 1000
 const voltageAlgebraFeeEvent = 'event AlgebraFee(uint16 newAlgebraFee)'
 
+/**
+ * Allocates existing swap fees to LPs, Algebra and Voltage on an accrual basis.
+ * Replays vault share changes in swap order while preserving gross fees and volume.
+ */
 async function voltageV4Breakdown({ pairObject, dailyVolume, dailyFees, fetchOptions: options, pairs, allLogs, fees, communityFees, missingFeePools }: any) {
   const revenue = options.createBalances()
   const supplySide = options.createBalances()
@@ -33,8 +40,8 @@ async function voltageV4Breakdown({ pairObject, dailyVolume, dailyFees, fetchOpt
 
   const readShare = async (api: ChainApi) => {
     const value = Number(await api.call({ target: VOLTAGE_VAULT, abi: 'uint16:algebraFee' }))
-    if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error('Invalid Voltage Algebra fee share')
-    return value / 1000
+    if (!Number.isInteger(value) || value < 0 || value > VOLTAGE_ALGEBRA_FEE_DENOMINATOR) throw new Error('Invalid Voltage Algebra fee share')
+    return value / VOLTAGE_ALGEBRA_FEE_DENOMINATOR
   }
   const closingShare = await readShare(options.api)
   const changes = await getPositionedLogArgs(options, { target: VOLTAGE_VAULT, eventAbi: voltageAlgebraFeeEvent })
@@ -79,8 +86,8 @@ async function voltageV4Breakdown({ pairObject, dailyVolume, dailyFees, fetchOpt
   const before = (a: any, b: any) => a.blockNumber < b.blockNumber || (a.blockNumber === b.blockNumber && a.logIndex < b.logIndex)
   const changeShare = (change: any) => {
     const value = Number(change.newAlgebraFee)
-    if (!Number.isInteger(value) || value < 0 || value > 1000) throw new Error('Invalid Voltage Algebra fee event')
-    return value / 1000
+    if (!Number.isInteger(value) || value < 0 || value > VOLTAGE_ALGEBRA_FEE_DENOMINATOR) throw new Error('Invalid Voltage Algebra fee event')
+    return value / VOLTAGE_ALGEBRA_FEE_DENOMINATOR
   }
   let index = 0
   for (const swap of swaps) {
