@@ -101,13 +101,23 @@ const sumLogField = (logs: any[], field: string): bigint =>
 // one starting at it get the same NAV and nothing is lost or counted twice.
 const MAX_NAV_LOOKBACK = 2 ** 14; // ~2 days of blocks
 
+function isContractRevert(e: any): boolean {
+  const msg = String(e?.message ?? e ?? "");
+  if (/call reverted|CALL_EXCEPTION|missing revert data/i.test(msg)) return true;
+  if (msg.includes("Llama RPC error!")) {
+    const runnerLines = msg.split("\n").filter((l) => l.trim().startsWith("- host:"));
+    return runnerLines.some((l) => /execution reverted|missing revert data|CALL_EXCEPTION/i.test(l));
+  }
+  return /execution reverted/i.test(msg);
+}
+
 async function navAt(chain: string, strategy: string, block: number): Promise<bigint> {
   const read = async (b: number): Promise<bigint | null> => {
     try {
       return BigInt(await new ChainApi({ chain, block: b }).call({ target: strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }));
     } catch (e: any) {
       // only a real revert falls back. rpc errors still throw so the hour gets retried
-      if (/execution reverted/i.test(String(e?.message))) return null;
+      if (isContractRevert(e)) return null;
       throw e;
     }
   };
