@@ -408,7 +408,7 @@ const adapter: SimpleAdapter = {
     Volume:
       "Gross input of every swap on DeepCore's CLPoolManager and BinPoolManager, one leg per swap, read from Swap events. Trades the DeepCore router fills on other venues are not counted as volume.",
     Fees: "Swap fees charged by DeepCore pools, read from each Swap event (protocol fee included), plus the fee DeepCore's router charges on fills it routes to other venues, read from its Filled events. Launch-pool creator taxes and launch-guard trade fees are not counted.",
-    UserFees: "Same as Fees - traders pay all of it.",
+    UserFees: "Swap fees charged by DeepCore pools, read from each Swap event (protocol fee included), plus the fee DeepCore's router charges on fills it routes to other venues, read from its Filled events. Launch-pool creator taxes and launch-guard trade fees are not counted.",
     Revenue:
       "The protocol fee slice each Swap event carried, plus the router fee on routed fills. Both are paid to the protocol.",
     ProtocolRevenue: "The protocol fee slice each Swap event carried, plus the router fee on routed fills. Both are paid to the protocol.",
