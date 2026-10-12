@@ -48,28 +48,28 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-09",
   methodology: {
-    Fees: "The 2% fee on realized PnL when BTC and ETH positions close, the 2% fee on margin lost in liquidations, and the LP gains above the $5M cap that are swept to PAPER stakers. Trader losses that stay in the protocol-owned LP below the cap are not counted, and neither are trader wins: the LP has no owner and only pays winners, queueing them when it runs dry.",
-    Revenue: "All counted fees: the 2% close and liquidation fees, split half to PAPER stakers and half to the dev fee recipient, plus the LP gains above the $5M cap swept to PAPER stakers.",
-    ProtocolRevenue: "The half of the 2% close and liquidation fees credited to the dev fee recipient.",
-    HoldersRevenue: "USDC credited to PAPER stakers: half of the 2% close and liquidation fees, plus all LP gains above the $5M cap.",
+    Fees: "2% fee on realized PnL at close, 2% fee on margin lost in liquidations, and LP profits above the $5M cap swept to PAPER stakers. Trader wins and losses that stay in the LP are not counted.",
+    Revenue: "All fees: half of the 2% fees to PAPER stakers, half to the dev fee recipient, and LP profits above the $5M cap to PAPER stakers.",
+    ProtocolRevenue: "Half of the 2% close and liquidation fees, paid to the dev fee recipient.",
+    HoldersRevenue: "Half of the 2% close and liquidation fees plus LP profits above the $5M cap, paid in USDC to PAPER stakers.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]: "2% of realized PnL on closed positions: the win fee on profitable closes plus the LP-side fee on losing closes.",
-      [METRIC.LIQUIDATION_FEES]: "2% of the margin lost on liquidated positions.",
-      "LP Surplus": "LP gains above the $5M cap, swept in full to PAPER stakers.",
+      [METRIC.TRADING_FEES]: "2% of realized PnL on closed positions.",
+      [METRIC.LIQUIDATION_FEES]: "2% of margin lost on liquidated positions.",
+      "LP Surplus": "LP profits above the $5M cap, swept to PAPER stakers.",
     },
     Revenue: {
-      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of the 2% close and liquidation fees plus all LP gains above the $5M cap.",
-      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes.",
+      "Distributions To PAPER Stakers": "Half of the 2% fees plus LP profits above the $5M cap.",
+      "Trading Fees To Dev Fee Recipient": "Half of the 2% close fee.",
       "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee.",
     },
     ProtocolRevenue: {
-      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes.",
+      "Trading Fees To Dev Fee Recipient": "Half of the 2% close fee.",
       "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee.",
     },
     HoldersRevenue: {
-      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of the 2% close and liquidation fees plus all LP gains above the $5M cap.",
+      "Distributions To PAPER Stakers": "Half of the 2% fees plus LP profits above the $5M cap.",
     },
   },
 };
