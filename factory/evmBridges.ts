@@ -18,7 +18,8 @@ const NATIVE = "0x0000000000000000000000000000000000000000";
  * this file holds addresses, chains and start dates only. One-sided bridges list only the chain they
  * emit on; the destination leg is attributed server-side from the bridge's declared destination chain.
  */
-const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
+// chain keys map to BridgeChainConfig; `doublecounted` marks bridges whose transfers another tracked listing also counts
+const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> = {
   // one-sided: only Ethereum is observed, the Optimism leg is attributed server-side (destinationChain: optimism)
   "optimism-bridge": {
     [CHAIN.ETHEREUM]: opStackBridge({
@@ -263,6 +264,7 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
   },
   // Citrea token bridges (USDC.e, USDT.e, WBTC.e); Ethereum side are OFT adapters locking the canonical token
   "citrea-token-bridges": {
+    doublecounted: true, // OFT transfers, also counted by bridges/layerzero.ts
     [CHAIN.ETHEREUM]: {
       start: "2026-05-16",
       events: [
@@ -385,6 +387,7 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
     transfers: { wallets: ["0x25aB3Efd52e6470681CE037cD546Dc60726948D3"] },
   }])),
   "usdt0": {
+    doublecounted: true, // OFT transfers, also counted by bridges/layerzero.ts
     [CHAIN.ETHEREUM]: { start: "2025-06-04", events: oftEvents("0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee", "0xdAC17F958D2ee523a2206206994597C13D831ec7") },
     [CHAIN.ARBITRUM]: { start: "2025-06-04", events: oftEvents("0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92", "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9") },
     [CHAIN.BERACHAIN]: { start: "2025-06-04", events: oftEvents("0x3Dc96399109df5ceb2C226664A086140bD0379cB", "0x779Ded0c9e1022225f8E0630b35a9b54bE713736") },
@@ -406,8 +409,14 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
     [CHAIN.HEDERA]: { start: "2026-03-17", events: oftEvents("0xe3119e23fC2371d1E6b01775ba312035425A53d6", "0x00000000000000000000000000000000009Ce723") },
     [CHAIN.TEMPO]: { start: "2026-04-08", events: oftEvents("0xaf37E8B6C9ED7f6318979f56Fc287d76c30847ff", "0x20C00000000000000000000014f22CA97301EB73") },
     [CHAIN.ROOTSTOCK]: { start: "2026-06-23", events: oftEvents("0x1a594d5d5d1c426281C1064B07f23F57B2716B61", "0x779Ded0c9e1022225f8E0630b35a9b54bE713736") },
+    // Tron USDT lockbox; tron events report the hex token address, tron prices are keyed by base58
+    [CHAIN.TRON]: {
+      events: oftEvents("0x3a08f76772e200653bb55c2a92998daca62e0e97", "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c")
+        .map((event) => ({ ...event, mapTokens: { "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" } })), // USDT
+    },
   },
   "stargate": {
+    doublecounted: true, // OFT transfers, also counted by bridges/layerzero.ts
     [CHAIN.ETHEREUM]: stargateBridge({
       v2: [
         ["0xcDafB1b2dB43f366E48e6F614b8DCCBFeeFEEcD3", "0x9E32b13ce7f2E80A01932B42553652E053D6ed8e"], // METIS
@@ -671,14 +680,9 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig }> = {
   },
 };
 
-/** Event contracts a registry entry reads on a chain, so adapters that scan a whole standard (bridges/layerzero.ts) can skip
- * contracts another listing already counts. */
-export const getBridgeContracts = (slug: string, chain: string): string[] =>
-  (configs[slug]?.[chain]?.events ?? []).flatMap((event) => event.targets).map((target) => target.toLowerCase());
-
 const protocols: Record<string, any> = {};
-for (const [slug, config] of Object.entries(configs)) {
-  protocols[slug] = bridgeExport(config);
+for (const [slug, { doublecounted, ...chains }] of Object.entries(configs)) {
+  protocols[slug] = bridgeExport(chains as { [chain: string]: BridgeChainConfig }, doublecounted ? { doublecounted: true } : {});
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
