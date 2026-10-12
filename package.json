@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@clickhouse/client": "^1.15.0",
-    "@defillama/sdk": "5.0.236",
+    "@defillama/sdk": "5.0.238",
     "@supercharge/promise-pool": "^3.1.0",
     "@types/async-retry": "^1.4.8",
     "async-retry": "^1.3.3",
