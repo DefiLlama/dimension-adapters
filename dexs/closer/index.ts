@@ -27,11 +27,22 @@ const sql = `
     SELECT COALESCE(SUM(bytearray_to_bigint(bytearray_reverse(bytearray_substring(data, 34, 8)))), 0) AS volume
     FROM fills
   ),
+  log_lines AS (
+    -- last_runtime: the latest runtime line ("Program <id> invoke/consumed/success/failed") before this line,
+    -- i.e. the program that was executing when the line was written. settle_fill makes no CPI, so a
+    -- "Program data:" line written by Closer always directly follows Closer's own "invoke" line.
+    SELECT
+      l.msg,
+      last_value(CASE WHEN regexp_like(l.msg, '^Program [1-9A-HJ-NP-Za-km-z]{32,44} (invoke \\[|consumed |success$|failed)') THEN l.msg END)
+        IGNORE NULLS OVER (PARTITION BY f.tx_id ORDER BY l.idx ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS last_runtime
+    FROM (SELECT DISTINCT tx_id, log_messages FROM fills) f
+    CROSS JOIN UNNEST(f.log_messages) WITH ORDINALITY AS l(msg, idx)
+  ),
   fill_events AS (
     SELECT TRY(from_base64(split_part(substr(msg, 15), ' ', 1))) AS ev
-    FROM (SELECT DISTINCT tx_id, log_messages FROM fills) f
-    CROSS JOIN UNNEST(f.log_messages) AS l(msg)
+    FROM log_lines
     WHERE msg LIKE 'Program data: DVkp5Gmy%'  -- base64 prefix of FillEvent disc
+      AND last_runtime LIKE 'Program ${CLOSER_PROGRAM} invoke [%'  -- emitted by Closer, not another program
   ),
   fees AS (
     SELECT COALESCE(SUM(bytearray_to_bigint(bytearray_reverse(bytearray_substring(ev, 74, 8)))), 0) AS fees
@@ -65,7 +76,7 @@ const adapter: SimpleAdapter = {
   start: '2026-10-09',
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Volume: 'Sum of gross_amount (USDC) across every successful settle_fill instruction, BUYs and SELLs. Counts the trader side only; the house counterparty leg is not counted.',
+    Volume: 'Cash volume: USDC collateral paid by traders on BUYs and received on SELLs (gross_amount of every successful settle_fill instruction). Counts the trader side only; the house counterparty leg is not counted.',
     Fees: 'Trading fee charged on BUY fills, read from the fee field of the on-chain FillEvent. SELLs and settlements carry no fee.',
     UserFees: 'Same as Fees: the BUY trading fee is paid by traders.',
     Revenue: 'All trading fees are retained by the protocol treasury; there are no LPs or token holders to share with.',
