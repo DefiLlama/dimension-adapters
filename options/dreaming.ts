@@ -17,8 +17,8 @@ const adapter: SimpleAdapter = {
   start: '2026-08-17',
   chains: [CHAIN.OFF_CHAIN],
   methodology: {
-    NotionalVolume: 'Dream Options - Total USD notional value of options contracts traded through Dream, including positions opened and closed. Each executed transaction is counted once.',
-    PremiumVolume: 'Dream Options - Total USD value of options premiums paid on executed opening and closing transactions, excluding brokerage fees.',
+    NotionalVolume: 'Total USD notional value of options contracts traded through Dream, including positions opened and closed. Each executed transaction is counted once.',
+    PremiumVolume: 'Total USD value of options premiums paid on executed opening and closing transactions, excluding brokerage fees.',
   },
 }
 
