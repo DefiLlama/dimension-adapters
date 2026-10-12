@@ -55,6 +55,7 @@ const MAX_PRICE_DEVIATION = 10;
 
 const STONK_POOL_LABEL = "STONK Pool";
 const BUYBACK_LABEL = "STONK Buyback And Burn";
+const PROTOCOL_REVENUE_LABEL = "Fees to Protocol";
 
 type Leg = { kind: "fee" | "payout" | "buyback"; label: string; mint: string; hour: number; raw_amount: string };
 type LegRow = Leg & { tx_id: string | null; two_sided: boolean; t22: boolean; account: string | null; display: number };
@@ -402,9 +403,13 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // There is no dailyProtocolRevenue. Buybacks spend income claimed on earlier days, so one day's revenue minus
-  // holders revenue can go negative, and a capped figure would be invented rather than measured.
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  // One label, so the buyback nets into retained fees instead of a separate negative row. It goes negative when a
+  // buyback spends income claimed on earlier days.
+  const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(dailyRevenue, PROTOCOL_REVENUE_LABEL);
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, PROTOCOL_REVENUE_LABEL);
+
+  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const methodology = {
@@ -413,6 +418,7 @@ const methodology = {
   Revenue: "Fees less the creator share of standard launches and the flywheel share of reward launches, as paid out on-chain. From 2026-08-28, fees paid in STONK and fees from STONK's own pool are excluded: they cannot fund a STONK buyback.",
   SupplySideRevenue: "Creator and flywheel shares of fees, measured when they are paid out.",
   HoldersRevenue: "Quote assets spent buying STONK on Jupiter, identified on-chain as swaps that returned STONK to the operator wallet, at the net amount each swap spent.",
+  ProtocolRevenue: "Fees StonkFun keeps after paying the creator share of standard launches and the flywheel share of reward launches, minus the quote assets spent buying STONK on Jupiter. From 2026-08-28, fees paid in STONK and fees from STONK's own pool are excluded. Buybacks spend income claimed on earlier days, so this is negative when a buyback is larger than the day's retained fees.",
 };
 
 const breakdownMethodology = {
@@ -437,6 +443,9 @@ const breakdownMethodology = {
     "Creator Fee Share": "Creator share of standard-launch fees, paid to each launch's creator wallet.",
     "Flywheel Share": "Flywheel share of reward-launch fees, paid to the flywheel wallet.",
   },
+  ProtocolRevenue: {
+    [PROTOCOL_REVENUE_LABEL]: "Fees kept after creator and flywheel payouts, minus quote assets spent buying STONK. Negative when a buyback spends income claimed on earlier days.",
+  },
   HoldersRevenue: {
     [BUYBACK_LABEL]: "Revenue spent buying the platform token back and burning it.",
   },
@@ -447,7 +456,7 @@ const adapter: Adapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   doublecounted: true, // LaunchLab and Raydium report the same swap fees.
-  allowNegativeValue: true, // A creator or flywheel payout backlog paid out on a quiet day can exceed that day's fees.
+  allowNegativeValue: true, // A creator or flywheel payout backlog, or a STONK buyback of fees claimed earlier, can exceed that day's fees.
   methodology,
   breakdownMethodology,
   adapter: {
