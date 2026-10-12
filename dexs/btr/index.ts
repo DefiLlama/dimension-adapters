@@ -9,16 +9,21 @@ import { CHAIN } from "../../helpers/chains";
 // separate fee-transfer transaction (source: dex-evm/src/interfaces/IPool.sol `Swapped`,
 // dex-evm/src/libraries/PricingLib.sol `_settleAndPay`).
 //
-// Protocol-owned flow is excluded. `Pool.swapCoop_cd` (coop fill) is callable only by addresses
-// holding the COOP_ENABLED permission bit on BTR's AccessControl, which is granted only to BTR's own
-// CoopArb contracts (protocol-owned atomic arbitrage; lane-12 operators call CoopArb, the pool-side
-// `sender` is the CoopArb contract). Those fills rebalance the pool
-// against external venues, whose own adapters already count the external leg, so they are neither
-// user volume nor user fees. The `Swapped.sender` of a coop fill is the CoopArb contract, so each
-// distinct sender's permissions are read at the period's end block and coop senders are dropped.
+// Volume counts EVERY fill, including BTR's own coop-arbitrage fills. `Pool.swapCoop_cd` is
+// callable only by addresses holding the COOP_ENABLED permission bit, which is granted only to
+// BTR's own CoopArb contracts (protocol-owned atomic arbitrage). Those fills are real pool swaps:
+// they move inventory against external venues and pay a non-zero LP fee, so excluding them left the
+// whole series at zero while coop arb was the only flow. They are included here by the protocol's
+// listing decision; the coop lane books a protocol fee of exactly zero, so a coop-only window shows
+// volume and LP revenue with a protocol revenue of 0 (a measured zero, not a missing value).
+//
+// Fees vs revenue follows the DefiLlama convention (and Uniswap's own listing): `fees` is the whole
+// swap fee the taker paid (LP share + protocol share), `revenue` is the protocol's share of it, and
+// `supplySideRevenue` is the LP share. Uniswap reports swap fees as LP fees where its protocol fee
+// is off, and protocol revenue only where a protocol fee is switched on; the two are the same
+// identity, and a DEX with no protocol fee correctly reports zero revenue while its fees stay
+// non-zero. BTR's protocol fee is switched on for public fills and zero on the coop lane.
 const FACTORY = "0xbbbbbbbbbd5e955E20F323cA1F95f8191fD0E0BF";
-const ACCESS_CONTROL = "0xbbbbbbbb3473f8433A8A1a044E8a102D39dC8779";
-const COOP_ENABLED = 1n << 11n; // dex-evm/src/libraries/PoolConstantsLib.sol COOP_ENABLED_BIT (AC lane 11)
 
 const SWAPPED =
   "event Swapped(address indexed sender, address indexed recipient, address indexed tokenIn, address tokenOut, uint256 amounts, uint256 fees, uint256 prices, uint256 outBook, uint256 outState)";
@@ -26,7 +31,6 @@ const SWAPPED =
 const abi = {
   getOfficialPoolsCount: "function getOfficialPoolsCount() view returns (uint256)",
   officialPools: "function officialPools(uint256) view returns (address)",
-  perms: "function perms(address) view returns (uint256)",
 };
 
 const U128 = (1n << 128n) - 1n;
@@ -54,18 +58,13 @@ const fetch = async (options: FetchOptions) => {
     : [];
   const logs = pools.length ? await options.getLogs({ targets: pools, eventAbi: SWAPPED }) : [];
 
-  const senders = [...new Set(logs.map((log: any) => String(log.sender).toLowerCase()))];
-  const senderPerms = senders.length
-    ? await options.api.multiCall({ target: ACCESS_CONTROL, abi: abi.perms, calls: senders })
-    : [];
-  const coop = new Set(senders.filter((_, i) => (BigInt(senderPerms[i]) & COOP_ENABLED) !== 0n));
-
   for (const log of logs) {
-    if (coop.has(String(log.sender).toLowerCase())) continue;
     const amounts = BigInt(log.amounts);
     const fees = BigInt(log.fees);
     const protoFee = fees & U128;
     const lpFee = fees >> 128n;
+    // Input-leg amount only, counted once per fill: the input leg is the notional the taker
+    // actually moved, and the fee is charged on the output leg so it is not double-counted here.
     dailyVolume.add(log.tokenIn, amounts & U128);
     dailyFees.add(log.tokenOut, protoFee + lpFee, "Swap Fees");
     dailyRevenue.add(log.tokenOut, protoFee, "Swap Fees To Protocol");
@@ -84,11 +83,11 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Input-token amount (amountIn) of every swap on BTR pools, read from the pool Swapped event and counted once per swap. Coop fills by BTR's own CoopArb contracts (protocol-owned arbitrage) are excluded.",
+    "Input-token amount (amountIn) of every swap on BTR pools, read from the pool Swapped event and counted once per swap. Includes the protocol's own coop-arbitrage fills (CoopArb): they are real pool swaps that pay an LP fee, and while they were the only flow the series read zero.",
   Fees:
-    "Swap fee charged on the output token of each swap (protocol share plus LP share), read from the Swapped event. The coverage toll a swap may pay when it drains a leg below its coverage floor stays in the leg's reserves as a buffer and is not counted. Coop fills by BTR's own CoopArb contracts are excluded.",
+    "Swap fee charged on the output token of each swap (protocol share plus LP share), read from the Swapped event. The coverage toll a swap may pay when it drains a leg below its coverage floor stays in the leg's reserves as a buffer and is not counted.",
   UserFees: "All swap fees are paid by the swapper.",
-  Revenue: "Protocol share (protoFee) of the swap fee.",
+  Revenue: "Protocol share (protoFee) of the swap fee. Zero on coop fills, which book no protocol fee.",
   ProtocolRevenue: "The protocol share (protoFee) of the swap fee goes to the BTR treasury.",
   SupplySideRevenue: "LP share (lpFee) of the swap fee, accrued to the liquidity providers of the output leg.",
 };
