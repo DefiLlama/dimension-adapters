@@ -5,14 +5,12 @@ import { getBlock } from "../helpers/getBlock";
 import { METRIC } from "../helpers/metrics";
 import { getProtocolWindowDeltas } from "../helpers/papertrade";
 
-// Papertrade is a house: every position is a bet against the protocol-owned LP, so gross income is traders' net realized
-// losses. It splits into explicit fees (2% of realized PnL on closes, 2% of lost margin on liquidations, half to PAPER
-// stakers and half to the dev fee recipient) and house PnL, which fills the LP up to the $5M staker reward cap and is
-// swept 98% to stakers above it (https://docs.papertrade.xyz/#/paper/staking).
-// Fee halves come from the Exchange's settlement events (source unverified, signatures resolved from the bytecode and
-// reconciled against the contract's fee accumulators); trader PnL and staker distributions from the stats counters.
+// Papertrade is a house: every position is a bet against the protocol-owned LP. The LP has no depositors and no owner,
+// it only pays winners, so its own gains and losses are not counted. What is counted is what leaves it: the 2% fee on
+// realized PnL at close and on margin lost in liquidations (half to PAPER stakers, half to the dev fee recipient), and
+// the LP gains above the $5M tracked-LP cap, which are swept in full to stakers (https://docs.papertrade.xyz/#/paper/staking).
 const EXCHANGE = "0x6cd5661646289fb6e65ea5c032310fded797d0a2"; // HyperEVM
-// only the fee words are used, the other names are inferred
+// event signatures resolved from the bytecode (source unverified); only the fee words are used, the other names are inferred
 const POSITIONS_CLOSED = "event PositionsClosed(address indexed user, uint256 marginReturned, uint256 balanceAfter, uint256 stakerFee, uint256 devFee)";
 const LIQUIDATED = "event Liquidated(uint256 indexed positionId, address indexed user, uint64 markPrice, uint64 bustPrice, bool fromQueuedBalance, uint256 stakerFee, uint256 devFee)";
 const usd = (x: bigint) => Number(x / 10n ** 12n) / 1e6; // fee words are USD with 18 decimals
@@ -25,14 +23,10 @@ const fetch = async (options: FetchOptions) => {
   const getLogs = (eventAbi: string) => sdk.getEventLogs({ chain: CHAIN.HYPERLIQUID, target: EXCHANGE, fromBlock, toBlock, eventAbi, onlyArgs: true });
   const closes = sumFees(await getLogs(POSITIONS_CLOSED));
   const liquidations = sumFees(await getLogs(LIQUIDATED));
-  const { traderPnl, stakingRewards } = await getProtocolWindowDeltas(options, ["traderPnl", "stakingRewards"], ["traderPnl"]);
-
-  const houseIncome = -traderPnl; // traders' net realized loss after fees, negative when traders net win
-  const fees = closes.staker + closes.dev + liquidations.staker + liquidations.dev;
-  const devFees = closes.dev + liquidations.dev;
-  // stakingRewards is what stakers were actually credited (their fee half plus LP surplus sweeps); it can trail the fee
-  // events within an hour because fees reach stakers only once the LP can fund them, so it is kept as one label
-  const retainedInLp = houseIncome - devFees - stakingRewards;
+  // stakingRewards is the USDC credited to stakers: their fee half plus the LP sweeps. Fees reach stakers only once the
+  // LP can fund them, so within an hour the sweep residual can lag the fee events; it nets out over the day
+  const { stakingRewards } = await getProtocolWindowDeltas(options, ["stakingRewards"]);
+  const lpSweeps = stakingRewards - closes.staker - liquidations.staker;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -40,11 +34,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   dailyFees.addUSDValue(closes.staker + closes.dev, METRIC.TRADING_FEES);
   dailyFees.addUSDValue(liquidations.staker + liquidations.dev, METRIC.LIQUIDATION_FEES);
-  dailyFees.addUSDValue(houseIncome - fees, "House PnL");
+  dailyFees.addUSDValue(lpSweeps, "LP Surplus");
   dailyHoldersRevenue.addUSDValue(stakingRewards, "Distributions To PAPER Stakers");
   dailyProtocolRevenue.addUSDValue(closes.dev, "Trading Fees To Dev Fee Recipient");
   dailyProtocolRevenue.addUSDValue(liquidations.dev, "Liquidation Fees To Dev Fee Recipient");
-  dailyProtocolRevenue.addUSDValue(retainedInLp, "House PnL Retained In LP");
   dailyRevenue.addBalances(dailyHoldersRevenue);
   dailyRevenue.addBalances(dailyProtocolRevenue);
 
@@ -57,33 +50,30 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-09", // launch was 2026-10-10; one day earlier because refill windows begin a second before the day and the runner skips a day whose window starts before `start`
-  allowNegativeValue: true, // the house loses when traders net win in a window; the LP then shrinks and protocol revenue is negative
   methodology: {
-    Fees: "Papertrade's gross income as the house: traders' net realized losses on BTC and ETH positions settled against the protocol-owned LP, including the 2% fee on realized PnL at close and the 2% fee on margin lost in liquidations. Negative when traders net win. Unrealized PnL on open positions is not counted.",
-    Revenue: "All of the house income. There are no external liquidity providers: it is split between PAPER stakers, the dev fee recipient and the LP itself.",
-    ProtocolRevenue: "The half of close and liquidation fees credited to the dev fee recipient, plus house PnL retained in the protocol-owned LP (the LP keeps gains up to its $5M staker reward cap and absorbs losses, so this can be negative).",
-    HoldersRevenue: "USDC credited to PAPER stakers: half of close and liquidation fees, plus 98% of LP gains above the $5M staker reward cap.",
-    SupplySideRevenue: "Zero. Traders bet against the protocol-owned LP, which has no outside depositors.",
+    Fees: "The 2% fee on realized PnL when BTC and ETH positions close, the 2% fee on margin lost in liquidations, and the LP gains above the $5M cap that are swept to PAPER stakers. Trader losses that stay in the protocol-owned LP below the cap are not counted, and neither are trader wins: the LP has no owner and only pays winners, queueing them when it runs dry.",
+    Revenue: "All counted fees: the 2% close and liquidation fees, split half to PAPER stakers and half to the dev fee recipient, plus the LP gains above the $5M cap swept to PAPER stakers.",
+    ProtocolRevenue: "The half of the 2% close and liquidation fees credited to the dev fee recipient.",
+    HoldersRevenue: "USDC credited to PAPER stakers: half of the 2% close and liquidation fees, plus all LP gains above the $5M cap.",
+    SupplySideRevenue: "Zero. Traders bet against the protocol-owned LP, which has no depositors.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "2% of realized PnL on closed positions: the win fee on profitable closes plus the LP-side fee on losing closes.",
       [METRIC.LIQUIDATION_FEES]: "2% of the margin lost on liquidated positions.",
-      "House PnL": "Traders' net realized losses beyond the explicit fees, kept by the protocol-owned LP or swept to stakers. Negative when traders net win.",
+      "LP Surplus": "LP gains above the $5M cap, swept in full to PAPER stakers.",
     },
     Revenue: {
-      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of close and liquidation fees plus 98% of LP gains above the $5M staker reward cap.",
-      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes, claimable by the dev fee recipient set by the contract owner.",
-      "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee, claimable by the dev fee recipient set by the contract owner.",
-      "House PnL Retained In LP": "House PnL kept in the protocol-owned LP after fees and staker sweeps. Negative when traders net win.",
+      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of the 2% close and liquidation fees plus all LP gains above the $5M cap.",
+      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes.",
+      "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee.",
     },
     ProtocolRevenue: {
-      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes, claimable by the dev fee recipient set by the contract owner.",
-      "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee, claimable by the dev fee recipient set by the contract owner.",
-      "House PnL Retained In LP": "House PnL kept in the protocol-owned LP after fees and staker sweeps. Negative when traders net win.",
+      "Trading Fees To Dev Fee Recipient": "Half of the 2% PnL fee on closes.",
+      "Liquidation Fees To Dev Fee Recipient": "Half of the 2% liquidation fee.",
     },
     HoldersRevenue: {
-      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of close and liquidation fees plus 98% of LP gains above the $5M staker reward cap.",
+      "Distributions To PAPER Stakers": "USDC credited to PAPER stakers: half of the 2% close and liquidation fees plus all LP gains above the $5M cap.",
     },
   },
 };
