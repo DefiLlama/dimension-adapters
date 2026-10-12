@@ -4,7 +4,7 @@ import { METRIC } from "../helpers/metrics";
 import { nullAddress } from "../helpers/token";
 
 /**
- * Iter (formerly Standard) - fully onchain CLOB exchange with band liquidity pools,
+ * Rate (formerly Iter, before that Standard) - fully onchain CLOB exchange with band liquidity pools,
  * stop orders and a token launchpad. Contracts: https://github.com/iter-cx/iter-monorepo
  *
  * Every chain needs the MatchingEngine. The other contracts are read when configured:
@@ -44,7 +44,7 @@ const chainConfig: Record<string, ChainConfig> = {
     swapRouter: '0xb7C0dEFbB427Be3155120EEdCAc25F8df5B4329d',
     bandPoolFactory: '0xA3b41c0F07533B3807E07A688556A6DD68799c8c',
     assetGenerator: '0x07B43f1e64fE740c2f38e23Ee2cb88c1539Cf4b7',
-    // USDC and USDT from the Iter token list for RISE testnet.
+    // USDC and USDT from the Rate token list for RISE testnet.
     stablecoins: ['0x1f18a1724D8960f10165788dba3123F3f5623BB9', '0xB780aa7C36Abd888f81Be044569F4Bf7F2422e07'],
     start: '2026-09-07',
   },
@@ -225,7 +225,7 @@ const fetch = async (options: FetchOptions) => {
         const report = reports
           .filter((r: any) => r.transactionHash === log.transactionHash && r.args.pair.toLowerCase() === pair && logIndex(r) < logIndex(log))
           .sort((a: any, b: any) => logIndex(b) - logIndex(a))[0];
-        if (!report) throw new Error(`Iter: no SwapPriceReport for RemainderRoutedToPool in ${log.transactionHash}`);
+        if (!report) throw new Error(`Rate: no SwapPriceReport for RemainderRoutedToPool in ${log.transactionHash}`);
         swaps.push({ pool: poolOfPair.get(pair)!, quoteToBase: report.args.isBuy, amountIn: BigInt(log.args.spent), amountOut: BigInt(log.args.received) });
       }
     }
