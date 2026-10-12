@@ -14,6 +14,11 @@ import { queryDuneSql } from "../helpers/dune";
 //   90% into that tile's jackpot vault (TREASURY_FEE_BPS = 1_000, constant).
 //   The bid is advertiser income to the protocol, so the whole bid is a fee
 //   and the jackpot share is supply side.
+// - `settle_auction_attn` settles bids paid in ATTN instead of SOL and sends
+//   100% to the treasury's ATTN account. It emits the same AuctionSettled
+//   event with the ATTN amount (9 decimals) in the `*_lamports` fields, so
+//   those bids are booked in ATTN, not SOL (e.g. 8 x 500 ATTN on 2026-10-06:
+//   5JqxjM6VQmfUFL3WCdKYQ4yU3asU8wuUEA3Z9y1u1LHZ7SqP3PRR5YnoadHDtWYyHTMKDfjVJosAgZvxkKinr1gM).
 //
 // Amounts come from the two programs' Anchor events rather than treasury
 // inflows: the treasury is the ATTN launch's Anselm TreasuryVault and also
@@ -25,6 +30,10 @@ import { queryDuneSql } from "../helpers/dune";
 const GAME_PROGRAM = "4CcPUa2UTfVSwrGBHqHAysxGS8xXQmJVh7M5iQrgk5DT";
 // https://solscan.io/account/8XiBS4tQhrRprFwjkqdVoLBUH28S9fEHJyFjwdYDiy5Q
 const ADS_PROGRAM = "8XiBS4tQhrRprFwjkqdVoLBUH28S9fEHJyFjwdYDiy5Q";
+// https://solscan.io/token/H1kXUqEPkQNNeNjGNN5tuHf3nsQK2vB1jUA9c4RggpUf
+const ATTN = "H1kXUqEPkQNNeNjGNN5tuHf3nsQK2vB1jUA9c4RggpUf";
+
+const SETTLE_AUCTION_ATTN = "0x399a6f95b26e015d";
 
 // Anchor event discriminators, sha256("event:<Name>")[0..8].
 // RoundClosed: discriminator (8), round pubkey (32), round_id u64,
@@ -47,18 +56,21 @@ const u64At = (offset: number) =>
 
 const fetch = async (options: FetchOptions) => {
   // try(): Trino may run the decode before the discriminator filter, and not
-  // every "Program data:" line is base64.
+  // every "Program data:" line is base64. attn_settle flags events of a tx
+  // that ran settle_auction_attn (each settlement is its own tx).
   const query = `
     WITH events AS (
-      SELECT DISTINCT
+      SELECT
         i.tx_id,
-        try(from_base64(substr(log_message, 15))) AS payload
+        try(from_base64(substr(log_message, 15))) AS payload,
+        bool_or(varbinary_substring(i.data, 1, 8) = ${SETTLE_AUCTION_ATTN}) AS attn_settle
       FROM solana.instruction_calls i
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success
         AND i.executing_account IN ('${GAME_PROGRAM}', '${ADS_PROGRAM}')
         AND TIME_RANGE
         AND starts_with(log_message, 'Program data: ')
+      GROUP BY 1, 2
     ),
     rounds AS (
       SELECT varbinary_substring(payload, 49, 1) = 0x01 AS funded, payload
@@ -66,16 +78,19 @@ const fetch = async (options: FetchOptions) => {
       WHERE varbinary_substring(payload, 1, 8) = ${ROUND_CLOSED}
     ),
     auctions AS (
-      SELECT payload
+      SELECT attn_settle, payload
       FROM events
       WHERE varbinary_substring(payload, 1, 8) = ${AUCTION_SETTLED}
     )
     SELECT
       (SELECT COUNT(*) FROM rounds) AS round_count,
       (SELECT COALESCE(SUM(${u64At(59)}), 0) FROM rounds WHERE funded) AS round_fee_lamports,
-      (SELECT COALESCE(SUM(${u64At(82)}), 0) FROM auctions) AS ad_bid_lamports,
-      (SELECT COALESCE(SUM(${u64At(90)}), 0) FROM auctions) AS ad_jackpot_lamports,
-      (SELECT COALESCE(SUM(${u64At(98)}), 0) FROM auctions) AS ad_fee_lamports
+      (SELECT COALESCE(SUM(${u64At(82)}), 0) FROM auctions WHERE NOT attn_settle) AS ad_bid_lamports,
+      (SELECT COALESCE(SUM(${u64At(90)}), 0) FROM auctions WHERE NOT attn_settle) AS ad_jackpot_lamports,
+      (SELECT COALESCE(SUM(${u64At(98)}), 0) FROM auctions WHERE NOT attn_settle) AS ad_fee_lamports,
+      (SELECT COALESCE(SUM(${u64At(82)}), 0) FROM auctions WHERE attn_settle) AS ad_bid_attn,
+      (SELECT COALESCE(SUM(${u64At(90)}), 0) FROM auctions WHERE attn_settle) AS ad_jackpot_attn,
+      (SELECT COALESCE(SUM(${u64At(98)}), 0) FROM auctions WHERE attn_settle) AS ad_fee_attn
   `;
 
   const [row] = await queryDuneSql(options, query);
@@ -96,6 +111,10 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.add(ADDRESSES.solana.SOL, row.ad_fee_lamports, AD_FEE_TO_TREASURY);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, row.ad_jackpot_lamports, AD_BIDS_TO_JACKPOTS);
 
+  dailyFees.add(ATTN, row.ad_bid_attn, AD_BIDS);
+  dailyRevenue.add(ATTN, row.ad_fee_attn, AD_FEE_TO_TREASURY);
+  dailySupplySideRevenue.add(ATTN, row.ad_jackpot_attn, AD_BIDS_TO_JACKPOTS);
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -106,28 +125,28 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The protocol fee taken from every round's tile deposits (10% at launch, read per round from the RoundClosed event) plus the full winning bid of every weekly tile ad auction. Player deposits are paid out to winning bidders and are not counted.",
-  UserFees: "Same as Fees, paid by tile bidders and advertisers.",
-  Revenue: "The round protocol fee plus 10% of each winning ad bid, both sent to the protocol treasury.",
+  Fees: "The protocol fee taken from every round's tile deposits (10% at launch, read per round from the RoundClosed event) plus the full winning bid of every weekly tile ad auction, paid in SOL or ATTN. Player deposits are paid out to winning bidders and are not counted.",
+  UserFees: "The round protocol fee paid by tile bidders plus the winning ad auction bids paid by advertisers in SOL or ATTN.",
+  Revenue: "The round protocol fee plus 10% of each winning SOL ad bid and all of each winning ATTN ad bid, sent to the protocol treasury.",
   ProtocolRevenue: "All revenue stays in the protocol treasury; its use (buybacks, staking rewards, build budget) is decided off-chain and not tracked here.",
-  SupplySideRevenue: "The 90% of each winning ad bid forwarded into that tile's jackpot vault, paid to the tile's bidders on a jackpot hit.",
+  SupplySideRevenue: "The 90% of each winning SOL ad bid forwarded into that tile's jackpot vault, paid to the tile's bidders on a jackpot hit.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [ROUND_FEE]: "Protocol fee taken from each round's tile deposits at close (10% at launch, snapshotted per round).",
-    [AD_BIDS]: "Winning bid of each weekly tile ad auction at settlement.",
+    [AD_BIDS]: "Winning bid of each weekly tile ad auction at settlement, in SOL or ATTN.",
   },
   Revenue: {
     [ROUND_FEE_TO_TREASURY]: "Round protocol fee sent to the protocol treasury.",
-    [AD_FEE_TO_TREASURY]: "10% of each winning ad bid sent to the protocol treasury.",
+    [AD_FEE_TO_TREASURY]: "10% of each winning SOL ad bid and 100% of each winning ATTN ad bid sent to the protocol treasury.",
   },
   ProtocolRevenue: {
     [ROUND_FEE_TO_TREASURY]: "Round protocol fee sent to the protocol treasury.",
-    [AD_FEE_TO_TREASURY]: "10% of each winning ad bid sent to the protocol treasury.",
+    [AD_FEE_TO_TREASURY]: "10% of each winning SOL ad bid and 100% of each winning ATTN ad bid sent to the protocol treasury.",
   },
   SupplySideRevenue: {
-    [AD_BIDS_TO_JACKPOTS]: "90% of each winning ad bid forwarded into that tile's jackpot vault.",
+    [AD_BIDS_TO_JACKPOTS]: "90% of each winning SOL ad bid forwarded into that tile's jackpot vault.",
   },
 };
 
