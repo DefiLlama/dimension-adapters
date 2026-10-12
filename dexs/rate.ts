@@ -1,11 +1,10 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { nullAddress } from "../helpers/token";
 
 /**
  * Rate (formerly Iter, before that Standard) - fully onchain CLOB exchange with band liquidity pools,
- * stop orders and a token launchpad. Contracts: https://github.com/iter-cx/iter-monorepo
+ * stop orders and a token launchpad. Contracts: https://github.com/rate-limo/rate-monorepo
  *
  * Every chain needs the MatchingEngine. The other contracts are read when configured:
  *   stopOrderEngine - StopOrderEngine; it matches triggered stop orders itself and emits
@@ -26,27 +25,27 @@ interface ChainConfig {
   start: string;
 }
 
-// Addresses come from packages/deployments/deployments.json in iter-monorepo.
+// Addresses come from packages/deployments/deployments.json in rate-monorepo.
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ARC_TESTNET]: {
-    matchingEngine: '0xD44e3b8bdDC46E112C4eB99EdcF08FF88cf4b0Da',
-    stopOrderEngine: '0x0e7091a9cb0520DA70F947aF67afc3Cb12807341',
-    swapRouter: '0x3d752EE5a67409eAf7809fabB3301506ade67110',
-    bandPoolFactory: '0x1844A8bCDcaa53B54a873220E4Ef7a4a53eF73E5',
-    assetGenerator: '0x2a34500cFe38Bd401320E9D8f247E20C5FD5d355',
+    matchingEngine: '0xeB2d3895D312C5d003D15e6b6b37B2211b201B3C',
+    stopOrderEngine: '0x428516cc93F25916d93683345ea62954F48C4576',
+    swapRouter: '0x7D04EE4B30D2a0B8687bbC4AF0a1cCACa219b727',
+    bandPoolFactory: '0x980F2dFDfFe2E3397d2D6Ba51D48eE67D8558642',
+    assetGenerator: '0xf1f17d971f6fc2f898F0D66c1a7bC8A6E34bE221',
     // Arc's native USDC, read through its 6-decimal ERC-20 view.
     stablecoins: ['0x3600000000000000000000000000000000000000'],
-    start: '2026-09-14',
+    start: '2026-10-08',
   },
   [CHAIN.RISE_TESTNET]: {
-    matchingEngine: '0x631eb12F60698C869a192217C0055CCb660ff9c1',
-    stopOrderEngine: '0xBCBFD284c037bdCf87c494b6Cd92029527b60e65',
-    swapRouter: '0xb7C0dEFbB427Be3155120EEdCAc25F8df5B4329d',
-    bandPoolFactory: '0xA3b41c0F07533B3807E07A688556A6DD68799c8c',
-    assetGenerator: '0x07B43f1e64fE740c2f38e23Ee2cb88c1539Cf4b7',
+    matchingEngine: '0xEBC3DD72a713aeC32688672613Ab2129d037c31A',
+    stopOrderEngine: '0x3f2BD4F0695bb42887BE7FB6326c74A9F9D1eF37',
+    swapRouter: '0x0ab2D96fd8a6c6B02F00E90fB6a00acC8393960a',
+    bandPoolFactory: '0x2ADd89C671F79A44982274bBe629d8b0dD6A2a07',
+    assetGenerator: '0x6acC01674F5167aF6A890b8EadF1E037cAcE49DB',
     // USDC and USDT from the Rate token list for RISE testnet.
     stablecoins: ['0x1f18a1724D8960f10165788dba3123F3f5623BB9', '0xB780aa7C36Abd888f81Be044569F4Bf7F2422e07'],
-    start: '2026-09-07',
+    start: '2026-10-03',
   },
 }
 
@@ -55,8 +54,8 @@ const chainConfig: Record<string, ChainConfig> = {
 // above the deployment block: the RISE node prunes state older than about a week.
 const rpcs: Record<string, { rpc: string; chainId: number; deployBlock: number }> = {
   // Blockdaemon first: the official endpoint allows only a handful of eth_getLogs per minute.
-  [CHAIN.ARC_TESTNET]: { rpc: 'https://rpc.blockdaemon.testnet.arc.network,https://rpc.testnet.arc.network', chainId: 5042002, deployBlock: 62130888 },
-  [CHAIN.RISE_TESTNET]: { rpc: 'https://testnet.riselabs.xyz', chainId: 11155931, deployBlock: 53699750 },
+  [CHAIN.ARC_TESTNET]: { rpc: 'https://rpc.blockdaemon.testnet.arc.network,https://rpc.testnet.arc.network', chainId: 5042002, deployBlock: 66062693 },
+  [CHAIN.RISE_TESTNET]: { rpc: 'https://testnet.riselabs.xyz', chainId: 11155931, deployBlock: 55964573 },
 };
 for (const [chain, { rpc, chainId, deployBlock }] of Object.entries(rpcs)) {
   const key = chain.toUpperCase();
@@ -86,7 +85,6 @@ const ABI = {
   allPoolsLength: 'uint256:allPoolsLength',
   allPools: 'function allPools(uint256) view returns (address)',
   launchFee: 'uint256:launchFee',
-  paymentOptions: 'function paymentOptions(address token) view returns (bool enabled, uint256 amount)',
 }
 
 const EVENT = {
@@ -99,10 +97,11 @@ const EVENT = {
   // A market order's unfilled remainder swapped into the pair's band pool by the engine.
   // It bypasses the router, so BandSwapRouted is not emitted for it.
   remainderRouted: 'event RemainderRoutedToPool(address indexed pair, address indexed recipient, uint256 spent, uint256 received)',
-  // Emitted right before RemainderRoutedToPool in the same transaction; carries the side.
-  swapPriceReport: 'event SwapPriceReport(address indexed pair, uint256 lmpBefore, uint256 reported, uint256 lmpAfter, bool isBuy)',
-  // One per launch; paymentToken is the token the launch fee was paid in.
-  launchSettings: 'event LaunchSettingsRecorded(address indexed coin, uint8 volatilityPreset, uint16 volatilityBps, uint8 feePreset, uint32 makerFee, uint32 takerFee, address indexed paymentToken, uint64 liquidityLockDuration)',
+  // The engine pays the remainder into the pool with a plain ERC-20 transfer; when that
+  // token is the pair's quote, the remainder was a buy.
+  transfer: 'event Transfer(address indexed from, address indexed to, uint256 value)',
+  // One per launch.
+  launched: 'event Launched(address indexed coin, address indexed creator, address indexed pair, address quote, uint256 totalSupply)',
 }
 
 const LAUNCH_FEES = 'Token Launch Fees';
@@ -141,6 +140,9 @@ async function usdPrices(options: FetchOptions, stablecoins: string[], books: st
 
 // Raw logs carry the index as `logIndex` from an RPC and as `index` from ethers.
 const logIndex = (log: any) => Number(log.logIndex ?? log.index);
+
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const asTopic = (address: string) => '0x' + address.toLowerCase().slice(2).padStart(64, '0');
 
 const fetch = async (options: FetchOptions) => {
   const cfg = chainConfig[options.chain];
@@ -207,9 +209,6 @@ const fetch = async (options: FetchOptions) => {
   if (cfg.swapRouter) {
     const routed = await options.getLogs({ target: cfg.swapRouter, eventAbi: EVENT.bandSwapRouted });
     const fallbacks = await options.getLogs({ target: cfg.matchingEngine, eventAbi: EVENT.remainderRouted, entireLog: true, parseLog: true });
-    const reports = fallbacks.length
-      ? await options.getLogs({ target: cfg.matchingEngine, eventAbi: EVENT.swapPriceReport, entireLog: true, parseLog: true })
-      : [];
 
     const swaps: { pool: string; quoteToBase: boolean; amountIn: bigint; amountOut: bigint }[] = [];
     routed.forEach((log: any) => swaps.push({ pool: log.pool, quoteToBase: log.quoteToBase, amountIn: BigInt(log.amountIn), amountOut: BigInt(log.amountOut) }));
@@ -219,14 +218,26 @@ const fetch = async (options: FetchOptions) => {
       const pairs = [...new Set(fallbacks.map((log: any) => log.args.pair.toLowerCase()))];
       const pairPools: string[] = await options.api.multiCall({ abi: ABI.getPool, calls: pairs });
       const poolOfPair = new Map(pairs.map((pair, i) => [pair, pairPools[i]]));
+      // SwapPriceReport is not a usable side marker: the engine emits it only when the swap
+      // moves the last market price, and the per-block rail usually clamps it to no move.
+      const quotes = [...new Set(pairs.map((pair) => tokensOf.get(pair)!.quote.toLowerCase()))];
+      const quotePaidIn: any[] = await options.getLogs({
+        targets: quotes,
+        eventAbi: EVENT.transfer,
+        topics: [TRANSFER_TOPIC, asTopic(cfg.matchingEngine), [...new Set(pairPools)].map(asTopic) as any],
+        entireLog: true,
+        parseLog: true,
+      });
       for (const log of fallbacks) {
         const pair = log.args.pair.toLowerCase();
-        // The side comes from the SwapPriceReport the engine emits just before this log.
-        const report = reports
-          .filter((r: any) => r.transactionHash === log.transactionHash && r.args.pair.toLowerCase() === pair && logIndex(r) < logIndex(log))
-          .sort((a: any, b: any) => logIndex(b) - logIndex(a))[0];
-        if (!report) throw new Error(`Rate: no SwapPriceReport for RemainderRoutedToPool in ${log.transactionHash}`);
-        swaps.push({ pool: poolOfPair.get(pair)!, quoteToBase: report.args.isBuy, amountIn: BigInt(log.args.spent), amountOut: BigInt(log.args.received) });
+        const pool = poolOfPair.get(pair)!;
+        const quote = tokensOf.get(pair)!.quote.toLowerCase();
+        const spent = BigInt(log.args.spent);
+        // The quote transfer into the pool lands before RemainderRoutedToPool in the same transaction.
+        const quoteToBase = quotePaidIn.some((t: any) =>
+          t.transactionHash === log.transactionHash && t.address.toLowerCase() === quote && logIndex(t) < logIndex(log)
+          && t.args.to.toLowerCase() === pool.toLowerCase() && BigInt(t.args.value) === spent);
+        swaps.push({ pool, quoteToBase, amountIn: spent, amountOut: BigInt(log.args.received) });
       }
     }
 
@@ -261,24 +272,15 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 3. Launchpad. The launch fee is a flat amount per launch, set per payment token.
+  // 3. Launchpad. launch() takes a flat launchFee in the gas token and forwards it to feeTo.
   if (cfg.assetGenerator) {
-    const launches = await options.getLogs({ target: cfg.assetGenerator, eventAbi: EVENT.launchSettings });
+    const launches = await options.getLogs({ target: cfg.assetGenerator, eventAbi: EVENT.launched });
     if (launches.length) {
-      const erc20s = [...new Set(launches.map((log: any) => log.paymentToken.toLowerCase()))].filter((t) => t !== nullAddress);
-      const [nativeFee, erc20Fees] = await Promise.all([
-        options.toApi.call({ target: cfg.assetGenerator, abi: ABI.launchFee }),
-        options.toApi.multiCall({ target: cfg.assetGenerator, abi: ABI.paymentOptions, calls: erc20s }),
-      ]);
-      const feeOf = new Map(erc20s.map((t, i) => [t, erc20Fees[i].amount]));
-      for (const log of launches) {
-        const token = log.paymentToken.toLowerCase();
-        if (token === nullAddress) {
-          dailyFees.addGasToken(nativeFee, LAUNCH_FEES);
-          dailyRevenue.addGasToken(nativeFee, LAUNCH_FEES);
-        } else {
-          addFee(token, feeOf.get(token), LAUNCH_FEES, false);
-        }
+      const fee = BigInt(await options.toApi.call({ target: cfg.assetGenerator, abi: ABI.launchFee }));
+      const total = fee * BigInt(launches.length);
+      if (total) {
+        dailyFees.addGasToken(total, LAUNCH_FEES);
+        dailyRevenue.addGasToken(total, LAUNCH_FEES);
       }
     }
   }
@@ -297,7 +299,7 @@ const fetch = async (options: FetchOptions) => {
 const FEE_LABELS = {
   [METRIC.TRADING_FEES]: 'Fees taken from each orderbook fill, in the token of the leg they were charged on. Only the taker leg is charged.',
   [METRIC.SWAP_FEES]: 'Fees charged by band pools on the output token of each swap, at the engine taker rate times the tightest band premium.',
-  [LAUNCH_FEES]: 'Flat fee paid to the protocol for every token launched through the launchpad, in the payment token chosen by the creator.',
+  [LAUNCH_FEES]: 'Flat fee paid to the protocol for every token launched through the launchpad, in the gas token of the chain.',
 };
 
 const adapter: SimpleAdapter = {
