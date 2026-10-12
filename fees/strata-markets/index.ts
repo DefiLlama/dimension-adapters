@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -92,6 +93,49 @@ const CONVERT_TO_ASSETS_ABI = "function convertToAssets(address token, uint256 a
 const sumLogField = (logs: any[], field: string): bigint =>
   logs.reduce<bigint>((acc, l) => acc + BigInt(l[field]), 0n);
 
+// some strategies price through an oracle and totalAssets() reverts while the
+// price is stale or the feeds disagree (PRIME StalePrice, sUSDat FeedDeviation).
+// one revert used to fail the whole hour, so the day couldn't be filled.
+// when that happens we read the NAV at the last block that doesn't revert.
+// the search only depends on the block, so the window ending at a block and the
+// one starting at it get the same NAV and nothing is lost or counted twice.
+const MAX_NAV_LOOKBACK = 2 ** 14; // ~2 days of blocks
+
+async function navAt(chain: string, strategy: string, block: number): Promise<bigint> {
+  const read = async (b: number): Promise<bigint | null> => {
+    try {
+      return BigInt(await new ChainApi({ chain, block: b }).call({ target: strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }));
+    } catch (e: any) {
+      // only a real revert falls back. rpc errors still throw so the hour gets retried
+      if (/execution reverted/i.test(String(e?.message))) return null;
+      throw e;
+    }
+  };
+
+  const nav = await read(block);
+  if (nav !== null) return nav;
+
+  // step back in growing steps until a block reads, then narrow down to the last good one
+  let bad = block;
+  let step = 1;
+  let good = block - step;
+  let goodNav = await read(good);
+  while (goodNav === null) {
+    if (step >= MAX_NAV_LOOKBACK) throw new Error(`strata-markets: totalAssets() of ${strategy} reverts for ${step} blocks before ${block}`);
+    bad = good;
+    step *= 2;
+    good = block - step;
+    goodNav = await read(good);
+  }
+  while (bad - good > 1) {
+    const mid = Math.floor((good + bad) / 2);
+    const v = await read(mid);
+    if (v === null) bad = mid;
+    else { good = mid; goodNav = v; }
+  }
+  return goodNav;
+}
+
 async function processCDO(
   options: FetchOptions,
   cfg: CDOConfig,
@@ -100,18 +144,7 @@ async function processCDO(
   dailyProtocolRevenue: any,
   dailySupplySideRevenue: any
 ) {
-  const { fromApi, toApi, getLogs, getFromBlock, getToBlock } = options;
-
-  const [baseAsset, navStartRaw, navEndRaw, reserveBpsRaw] = await Promise.all([
-    toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
-    fromApi.call({ target: cfg.strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }),
-    toApi.call({ target: cfg.strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }),
-    toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
-  ]);
-
-  const navStart = BigInt(navStartRaw);
-  const navEnd = BigInt(navEndRaw);
-  const reserveBps = BigInt(reserveBpsRaw);
+  const { chain, toApi, getLogs, getFromBlock, getToBlock } = options;
 
   // navStart is read at the end of fromBlock, so anything in that block is
   // already in it. the previous window's toBlock is this window's fromBlock and
@@ -121,6 +154,15 @@ async function processCDO(
   // getBlock returns null if the lookup fails. null + 1 would scan from block 1
   if (!startBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${startBlock}, ${toBlock})`);
   const fromBlock = startBlock + 1;
+
+  const [baseAsset, navStart, navEnd, reserveBpsRaw] = await Promise.all([
+    toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
+    navAt(chain, cfg.strategy, startBlock),
+    navAt(chain, cfg.strategy, toBlock),
+    toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
+  ]);
+
+  const reserveBps = BigInt(reserveBpsRaw);
 
   const [
     jrtDeposits,
