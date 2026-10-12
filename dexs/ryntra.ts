@@ -276,26 +276,30 @@ const fetchArc = async (options: FetchOptions) => {
     if (toProtocol > 0n) dailySupplySideRevenue.add(asset, toProtocol, LABELS.TO_CIRCLE_PROTOCOL);
     circleTxs.set(txOf(log), asset);
   }
-  for (const token of new Set(circleTxs.values())) {
-    // The trader's input is the first transfer of the fee token into the Adapter in the swap's transaction; a later
-    // one (a refund to the Adapter) is not volume. USDC is read from the native system event alone, so an ERC-20
-    // USDC transfer is not counted twice.
-    const isUsdc = token === ADDRESSES.arc.USDC.toLowerCase();
+  // The trader's input is the first transfer of the fee token into the Adapter in the swap's transaction; a later
+  // one (a refund to the Adapter) is not volume. USDC is read from the native system event alone, so an ERC-20
+  // USDC transfer is not counted twice.
+  const usdc = ADDRESSES.arc.USDC.toLowerCase();
+  const circleTokens = [...new Set(circleTxs.values())];
+  if (circleTokens.length) {
     const transfers: any[] = await options.getLogs({
-      target: isUsdc ? ARC_USDC_SYSTEM : token,
+      targets: circleTokens.map((token) => (token === usdc ? ARC_USDC_SYSTEM : token)),
       eventAbi: TRANSFER_EVENT,
       topics: [TRANSFER_TOPIC, null as any, zeroPadValue(CIRCLE_ADAPTER, 32)],
       onlyArgs: false,
     });
-    const inputs = new Map<string, { index: number; amount: bigint }>();
+    const inputs = new Map<string, { index: number; token: string; amount: bigint }>();
     for (const log of transfers) {
       const tx = txOf(log);
+      const address = String(log.address ?? "").toLowerCase();
+      if (!address) throw new Error("ryntra (Arc): a transfer without its token");
+      const token = address === ARC_USDC_SYSTEM ? usdc : address;
       if (circleTxs.get(tx) !== token) continue;
       const index = indexOf(log);
       const seen = inputs.get(tx);
-      if (!seen || index < seen.index) inputs.set(tx, { index, amount: BigInt(log.args.value) });
+      if (!seen || index < seen.index) inputs.set(tx, { index, token, amount: BigInt(log.args.value) });
     }
-    for (const { amount } of inputs.values()) dailyVolume.add(token, isUsdc ? amount / 10n ** 12n : amount);
+    for (const { token, amount } of inputs.values()) dailyVolume.add(token, token === usdc ? amount / 10n ** 12n : amount);
   }
 
   return {
