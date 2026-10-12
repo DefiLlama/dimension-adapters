@@ -177,6 +177,7 @@ const fetch = async (options: FetchOptions) => {
       eventAbi: WEDGE_DEPLOYED_ABI,
       fromBlock: WEDGE_FACTORY_START_BLOCK,
       toBlock: await options.getToBlock(),
+      cacheInCloud: true,
     });
     const wedges = [...new Set(deployed.map((l: any) => String(l.wedge)))];
     if (wedges.length) {

@@ -81,7 +81,8 @@ const fetch = async (options: FetchOptions) => {
     ? await options.getLogs({
       targets: indexAddresses,
       eventAbi: ABI.folioDeployed,
-      fromBlock: chainConfig[options.chain].indexDtfStartBlock
+      fromBlock: chainConfig[options.chain].indexDtfStartBlock,
+      cacheInCloud: true,
     })
     : [];
 
@@ -91,6 +92,7 @@ const fetch = async (options: FetchOptions) => {
         targets: yieldAddresses,
         eventAbi: ABI.rTokenCreated,
         fromBlock: chainConfig[options.chain].yieldDtfStartBlock,
+        cacheInCloud: true,
       })
     : [];
 
