@@ -310,10 +310,10 @@ export async function fetchBuilderCodeDataV2({ options, builderAddresses, market
 }
 
 // Adapter for a protocol whose Hyperliquid builder codes are listed in builderAddresses. Builder-code fees are
-// all kept by the builder.
+// all kept by the builder; with revenueToHolders they all go to the protocol's token holders instead.
 export function exportBuilderAdapterV2(
   builderAddresses: BuilderAddressConfig[],
-  props: { start?: string; deadFrom?: string; methodology?: any; market?: HyperliquidBuilderMarketV2; breakdownFees?: boolean; extraReturnFields?: Record<string, any> } = {},
+  props: { start?: string; deadFrom?: string; methodology?: any; market?: HyperliquidBuilderMarketV2; breakdownFees?: boolean; extraReturnFields?: Record<string, any>; revenueToHolders?: boolean } = {},
 ): SimpleAdapter {
   const market = props.market ?? "all";
   const { name } = BUILDER_MARKET_FIELDS[market];
@@ -334,7 +334,9 @@ export function exportBuilderAdapterV2(
         ...(dailyNotionalVolume ? { dailyNotionalVolume } : {}),
         dailyFees: fees,
         dailyRevenue: fees.clone(),
-        dailyProtocolRevenue: fees.clone(),
+        ...(props.revenueToHolders
+          ? { dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: fees.clone() }
+          : { dailyProtocolRevenue: fees.clone() }),
         ...(props.extraReturnFields ?? {}),
       };
     },
@@ -351,7 +353,9 @@ export function exportBuilderAdapterV2(
     adapter.breakdownMethodology = {
       Fees: { "Hyperliquid Builder Code Fees": "Builder code fees paid by users on Hyperliquid trades." },
       Revenue: { "Hyperliquid Builder Code Fees": "Builder code fees collected by the builder." },
-      ProtocolRevenue: { "Hyperliquid Builder Code Fees": "Builder code fees collected by the builder." },
+      ...(props.revenueToHolders
+        ? { HoldersRevenue: { "Hyperliquid Builder Code Fees": "Builder code fees distributed to the protocol's token holders." } }
+        : { ProtocolRevenue: { "Hyperliquid Builder Code Fees": "Builder code fees collected by the builder." } }),
     };
   }
 
