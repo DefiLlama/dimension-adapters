@@ -2,15 +2,15 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { formatAddress } from "../utils/utils";
 
-// Monad mainnet (chain id 143). ERC-1967 proxies, not the implementations.
+// Kuru v2 ERC-1967 proxies on Monad (chain 143), deployment source commit bcf0b7c.
+// SpotRouter was deployed at block 112776229 (2026-10-12).
 const ACCOUNT_CORE = "0xA0Ba2f08c04C13190ad5dC74542ddc05C59AB516";
 const SPOT_ROUTER = "0x7d08A7B163aadfA9FA8AEdFb40F41c0874376f7D";
 const START_BLOCK = 112776229;
-// Public Monad RPCs reject eth_getLogs ranges above 100 blocks.
-// The SDK also widens each chunk by 10 blocks on both sides, so the requested span stays at 81.
-const MAX_BLOCK_RANGE = 81;
 
+// Fee rates are in parts per 10^7 (7000 = 0.07%): https://kuru-testnet-docs.mintlify.site/deployments/testnet
 const PPS = 10_000_000n;
+// Maker-flags bit set on the last fill of a taker match.
 const MATCH_END = 0x04;
 
 const ABIS = {
@@ -35,6 +35,7 @@ function rawQuote(price: bigint, fillSize: bigint, sizePrecision: bigint, priceP
   return (priceSizeUnits * quoteScale) / pricePrecision;
 }
 
+// 64-byte records, as decoded by decodeTradesPacked in Kuru's TypeScript SDK.
 function decodePackedTrades(packed: string) {
   const hex = packed.startsWith("0x") ? packed.slice(2) : packed;
   const records = [];
@@ -63,7 +64,6 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: ABIS.SpotMarketRegistered,
     fromBlock: START_BLOCK,
     cacheInCloud: true,
-    maxBlockRange: MAX_BLOCK_RANGE,
   });
 
   const markets: Record<string, { quoteToken: string; sizePrecision: bigint; pricePrecision: bigint; quoteScale: bigint }> = {};
@@ -82,11 +82,10 @@ const fetch = async (options: FetchOptions) => {
       targets: orderBooks,
       eventAbi: ABIS.TradesPacked,
       flatten: false,
-      maxBlockRange: MAX_BLOCK_RANGE,
     });
 
     for (let i = 0; i < orderBooks.length; i++) {
-      const market = markets[formatAddress(orderBooks[i])];
+      const market = markets[orderBooks[i]];
       for (const event of tradeLogs[i]) {
         let matchQuote = 0n;
         let matchMakerFee = 0n;
@@ -100,11 +99,11 @@ const fetch = async (options: FetchOptions) => {
           const takerFee = feeUp(matchQuote, BigInt(event.effectiveTakerFeePps));
           if (takerFee > 0n) {
             dailyFees.add(market.quoteToken, takerFee, "Taker Fees");
-            dailyRevenue.add(market.quoteToken, takerFee, "Taker Fees");
+            dailyRevenue.add(market.quoteToken, takerFee, "Taker Fees To Protocol");
           }
           if (matchMakerFee > 0n) {
             dailyFees.add(market.quoteToken, matchMakerFee, "Maker Fees");
-            dailyRevenue.add(market.quoteToken, matchMakerFee, "Maker Fees");
+            dailyRevenue.add(market.quoteToken, matchMakerFee, "Maker Fees To Protocol");
           }
           matchQuote = 0n;
           matchMakerFee = 0n;
@@ -116,49 +115,53 @@ const fetch = async (options: FetchOptions) => {
   const builderFees = await options.getLogs({
     target: ACCOUNT_CORE,
     eventAbi: ABIS.BuilderFeeAccrued,
-    maxBlockRange: MAX_BLOCK_RANGE,
   });
   for (const log of builderFees) {
     if (BigInt(log.amount) === 0n) continue;
     dailyFees.add(log.asset, log.amount, "Builder Fees");
-    dailySupplySideRevenue.add(log.asset, log.amount, "Builder Fees");
+    dailySupplySideRevenue.add(log.asset, log.amount, "Builder Fees To Builders");
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees: dailyFees.clone(),
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Volume: "Quote notional of every OrderBook fill in TradesPacked. That includes native orders, swaps, and passive-band fills.",
-  Fees: "Taker fee, active maker fee, and builder fee.",
-  UserFees: "Taker, maker, and builder fees are paid by users.",
-  Revenue: "Taker fee and active maker fee, both taken in the quote token and credited to the protocol fee collector.",
-  ProtocolRevenue: "Taker fee and active maker fee. Builder fees are excluded.",
-  SupplySideRevenue: "Builder fees credited to the approved builder. A taker buy pays this in base. A taker sell pays it in quote.",
+  Volume: "Value of every trade on Kuru v2 order books, in the quote token at the price each fill executed at.",
+  Fees: "Taker and maker trading fees, plus fees charged by approved builders that route trades.",
+  UserFees: "Taker, maker, and builder fees paid by traders.",
+  Revenue: "Taker and maker trading fees, kept by the protocol.",
+  ProtocolRevenue: "Taker and maker trading fees, sent to the protocol fee collector.",
+  SupplySideRevenue: "Builder fees, paid to the approved builders that routed the trades.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Taker Fees": "Quote fee charged to the taker, rounded up, once per match.",
-    "Maker Fees": "Quote fee charged to active makers, rounded down, per fill. Passive fills carry a zero maker fee.",
-    "Builder Fees": "Fee credited to the approved builder.",
+    "Taker Fees": "Fee charged to the taker on each matched trade.",
+    "Maker Fees": "Fee charged to makers whose resting orders are filled. Fills against passive liquidity carry no maker fee.",
+    "Builder Fees": "Fee charged on trades routed by an approved builder.",
+  },
+  UserFees: {
+    "Taker Fees": "Fee charged to the taker on each matched trade.",
+    "Maker Fees": "Fee charged to makers whose resting orders are filled.",
+    "Builder Fees": "Fee charged on trades routed by an approved builder.",
   },
   Revenue: {
-    "Taker Fees": "Taker fee kept by the protocol fee collector.",
-    "Maker Fees": "Active maker fee kept by the protocol fee collector.",
+    "Taker Fees To Protocol": "Taker fees kept by the protocol.",
+    "Maker Fees To Protocol": "Maker fees kept by the protocol.",
   },
   ProtocolRevenue: {
-    "Taker Fees": "Taker fee kept by the protocol fee collector.",
-    "Maker Fees": "Active maker fee kept by the protocol fee collector.",
+    "Taker Fees To Protocol": "Taker fees sent to the protocol fee collector.",
+    "Maker Fees To Protocol": "Maker fees sent to the protocol fee collector.",
   },
   SupplySideRevenue: {
-    "Builder Fees": "Builder fee credited on AccountCore.",
+    "Builder Fees To Builders": "Builder fees credited to the approved builder.",
   },
 };
 
