@@ -18,7 +18,11 @@ const need = (v: any, what: string, d: string) => { if (v === null || v === unde
 // Amadeus: Amahub on the Amadeus chain itself. A person signs an Amahub act
 // there as a small AMA transfer to the hub's key (a "signed moment"); these
 // are those transfers, read from every block of the day by Amahub's own scan.
+const AMADEUS_FROM = "2026-09-28"; // the first day Amahub actions were signed on Amadeus
 const fetch = async (options: FetchOptions) => {
+  // Before that day nothing was signed on Amadeus: no figure, not a failure, so a
+  // refill of the global series over those days is not blocked by this key.
+  if (options.chain === CHAIN.AMADEUS && day(options.startOfDay) < AMADEUS_FROM) return {};
   const { d, row } = await rowFor(options);
   if (options.chain === CHAIN.AMADEUS) return {
     dailyActiveUsers: need(row.chain_day_amahub_signers, "Amahub signer count on Amadeus", d),
