@@ -6166,26 +6166,6 @@
         "runAtCurrTime": false
       }
     },
-    "sithswap": {
-      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
-      "codePath": "dexs/sithswap",
-      "module": {
-        "fetch": "_f",
-        "chains": [
-          "starknet"
-        ],
-        "start": "2023-01-10",
-        "deadFrom": "2024-09-05",
-        "adapter": {
-          "starknet": {
-            "fetch": "_f",
-            "start": "2023-01-10"
-          }
-        },
-        "version": 1,
-        "runAtCurrTime": false
-      }
-    },
     "slingshot": {
       "commit": "79df3bd74a7bab0e7f6358ec4b7d9c6991da159b",
       "codePath": "dexs/slingshot",
