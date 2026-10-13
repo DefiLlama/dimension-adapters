@@ -23,12 +23,16 @@ const fetch = async (options: FetchOptions) => {
   const rows: any[] = options.preFetchedResults || [];
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
   for (const row of rows) {
-    dailyFees.addUSDValue(Number(row.fees_usd) || 0, SERVICE_FEE);
-    dailySupplySideRevenue.addUSDValue(Number(row.gas_usd) || 0, FEE_PAYER_COST);
+    const fees = Number(row.fees_usd) || 0;
+    const gas = Number(row.gas_usd) || 0;
+    dailyFees.addUSDValue(fees, SERVICE_FEE);
+    dailySupplySideRevenue.addUSDValue(gas, FEE_PAYER_COST);
+    // net revenue under the fee's own label: the cost is subtracted from the service fee,
+    // never emitted as a negative "Fee payer cost" line
+    dailyRevenue.addUSDValue(fees - gas, SERVICE_FEE);
   }
-  const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtract(dailySupplySideRevenue);
 
   return {
     dailyFees,
@@ -58,12 +62,10 @@ const breakdownMethodology = {
     [FEE_PAYER_COST]: "SOL that left the fee payer's account in the transactions it signed (fees and rent, net of rent returned in the same transaction). Transactions where its balance went up are its top-ups from the treasury and are excluded; failed transactions are included since their fee is paid. Priced with the daily SOL price.",
   },
   Revenue: {
-    [SERVICE_FEE]: "Same as the Fees component.",
-    [FEE_PAYER_COST]: "Same as the SupplySideRevenue component, subtracted from fees.",
+    [SERVICE_FEE]: "The service fee net of the fee payer cost of the same day: what copypump keeps.",
   },
   ProtocolRevenue: {
     [SERVICE_FEE]: "Same as the Revenue component.",
-    [FEE_PAYER_COST]: "Same as the Revenue component.",
   },
 };
 

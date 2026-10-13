@@ -21,13 +21,15 @@ export const WSOL = ADDRESSES.solana.SOL;
 
 // Dune partitions tokens_solana.transfers / solana.* / dex_solana.trades by block_date: TIME_RANGE
 // (block_time) alone does not prune partitions, so every query also carries a block_date bound.
+// PRICE_RANGE is half-open like TIME_RANGE: a window ending at midnight must not pick up the next
+// day's price; it reaches two days back so a day whose price is not published yet uses the last one.
 export const partitionRange = (startTimestamp: number, endTimestamp: number) =>
   `block_date >= cast(from_unixtime(${startTimestamp}) as date) AND block_date <= cast(from_unixtime(${endTimestamp}) as date)`;
 export const withPartition = (sql: string, options: { startTimestamp: number; endTimestamp: number }) =>
   sql
     .split("PARTITION_RANGE").join(partitionRange(options.startTimestamp, options.endTimestamp))
     .split("PRICE_RANGE").join(
-      `timestamp >= cast(from_unixtime(${options.startTimestamp}) as date) - interval '2' day AND timestamp <= cast(from_unixtime(${options.endTimestamp}) as date)`,
+      `timestamp >= cast(from_unixtime(${options.startTimestamp}) as date) - interval '2' day AND timestamp < cast(from_unixtime(${options.endTimestamp}) as date)`,
     );
 
 // One row: fees_usd (USDC into the treasury) and gas_usd (SOL spent by the fee payer).
