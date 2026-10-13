@@ -2,20 +2,34 @@ import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import request, { gql } from "graphql-request";
+import { base58Decode, findProgramAddress } from "../helpers/solana";
 
-// GT Buyback Season 2: the GT that referrers sold for day D is confirmed at about 00:01 UTC on D+1 and paid at the GT minting cost of that moment
+const GMSOL_STORE_PROGRAM = 'Gmso1uvJnLbawvw7yezdfCDcPydwW2s2iqG3w6MDucLo'
+const GMSOL_STORE = 'CTDLvGGXnoxvqLyTpGzdGLg9pD6JexKxKXSV8tqqo8bN'
+const GT_EXCHANGE_TIME_WINDOW = 86400 // the store's GT exchange window is one UTC day
+
+// day D's GT exchange vault, derived like find_gt_exchange_vault_address in gmx-solana crates/sdk/src/pda.rs
+const getGtExchangeVault = (startOfDay: number) => {
+  const timeWindowIndex = Buffer.alloc(8)
+  timeWindowIndex.writeBigInt64LE(BigInt(Math.floor(startOfDay / GT_EXCHANGE_TIME_WINDOW)))
+  const timeWindow = Buffer.alloc(4)
+  timeWindow.writeUInt32LE(GT_EXCHANGE_TIME_WINDOW)
+  return findProgramAddress([Buffer.from('gt_exchange_vault'), Buffer.from(base58Decode(GMSOL_STORE)), timeWindowIndex, timeWindow], GMSOL_STORE_PROGRAM)[0]
+}
+
+// GT Buyback Season 2: the GT that referrers sold on day D sits in day D's exchange vault; the keeper confirms it at about 00:01 UTC on D+1
+// and the sellers are paid at the GT minting cost of that moment. Looking the confirmation up by vault keeps a late confirmation on day D.
 const getSeason2BuybackUSD = async (options: FetchOptions, url: string) => {
-  const confirmFrom = new Date((options.startOfDay + 86400) * 1000).toISOString()
-  const confirmTo = new Date((options.startOfDay + 2 * 86400) * 1000).toISOString()
+  const vault = getGtExchangeVault(options.startOfDay)
   const { gtBuybacks } = await request(url, gql`
     {
-      gtBuybacks(where: {timestamp_gte: "${confirmFrom}", timestamp_lt: "${confirmTo}"}, orderBy: timestamp_ASC, limit: 1) {
+      gtBuybacks(where: {gtExchangeVault_eq: "${vault}"}, orderBy: timestamp_ASC, limit: 1) {
         timestamp
         buybackAmount
       }
     }
   `)
-  if (!gtBuybacks.length) throw new Error(`gmx-sol: the GT buyback for ${options.dateString} is not confirmed yet`)
+  if (!gtBuybacks.length) throw new Error(`gmx-sol: the GT buyback for ${options.dateString} (vault ${vault}) is not confirmed yet`)
   const { gtGlobalHistories } = await request(url, gql`
     {
       gtGlobalHistories(where: {timestamp_lte: "${gtBuybacks[0].timestamp}"}, orderBy: timestamp_DESC, limit: 1) {
