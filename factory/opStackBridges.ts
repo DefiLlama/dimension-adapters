@@ -46,6 +46,13 @@ const configs: Record<string, OpStackBridgeConfig> = {
     bridge: "0x3B95bC951EE0f553ba487327278cAc44f29715E5",
     start: "2023-09-15", // first day the old bridges server recorded Manta volume
   },
+  "mantle-bridge": {
+    name: "Mantle",
+    portal: "0xc54cb22944F2bE476E02dECfCD7e3E7d3e15A8Fb",
+    bridge: "0x95fC37A27a2f68e3A647CDc081F0A89bb47c3012",
+    gasToken: "0x3c3a81e81dc49A522A592e7622A7E711c06bf354", // MNT, L1StandardBridge.L1_MNT_ADDRESS()
+    start: "2023-07-11", // first day the old bridges server recorded Mantle volume
+  },
 };
 
 const protocols: Record<string, any> = {};

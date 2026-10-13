@@ -20,6 +20,8 @@ export type OpStackBridgeConfig = {
   escrows?: string[];
   // other contracts' ETH deposit events
   extraEthDeposits?: { target: string; eventAbi: string; amountArg: string }[];
+  // Ethereum address of the L2 gas token when it isn't ETH
+  gasToken?: string;
 };
 
 const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) => {
@@ -40,8 +42,10 @@ const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) 
     const deposits = await options.getLogs({ target: config.portal, eventAbi: "event TransactionDeposited(address indexed from, address indexed to, uint256 indexed version, bytes opaqueData)" });
     for (const { opaqueData } of deposits) {
       const mint = BigInt(ethers.dataSlice(opaqueData, 0, 32));
-      if (!mint) continue;
-      dailyOutgoingVolume.addGasToken(mint);
+      const eth = config.gasToken ? BigInt(ethers.dataSlice(opaqueData, 64, 96)) : mint;
+      if (!mint && !eth) continue;
+      if (config.gasToken && mint) dailyOutgoingVolume.add(config.gasToken, mint);
+      if (eth) dailyOutgoingVolume.addGasToken(eth);
       dailyOutgoingTxCount++;
     }
   }
@@ -58,6 +62,13 @@ const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) 
   for (const { amount } of ethWithdrawals) {
     dailyIncomingVolume.addGasToken(amount);
     dailyIncomingTxCount++;
+  }
+  if (config.gasToken) {
+    const gasTokenWithdrawals = await options.getLogs({ target: config.bridge, eventAbi: "event MNTWithdrawalFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData)" });
+    for (const { amount } of gasTokenWithdrawals) {
+      dailyIncomingVolume.add(config.gasToken, amount);
+      dailyIncomingTxCount++;
+    }
   }
 
   // Token deposits and withdrawals through the bridge
