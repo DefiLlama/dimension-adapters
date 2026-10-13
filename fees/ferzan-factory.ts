@@ -125,7 +125,7 @@ async function fetchSolana(options: FetchOptions) {
   const trading = BigInt(rows[0]?.trading_fee || "0");
   const protocol = BigInt(rows[0]?.protocol_fee || "0");
   const toCreator = trading / 2n; // creatorTradingFeePercentage: 50 in Ferzan's config
-  dailyFees.add(ADDRESSES.solana.SOL, trading.toString(), LABEL.CURVE);
+  dailyFees.add(ADDRESSES.solana.SOL, trading.toString() , LABEL.CURVE);
   dailyFees.add(ADDRESSES.solana.SOL, protocol.toString(), LABEL.METEORA);
   dailyRevenue.add(ADDRESSES.solana.SOL, (trading - toCreator).toString(), LABEL.TO_FERZAN);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, toCreator.toString(), LABEL.TO_CREATORS);
@@ -137,11 +137,12 @@ const adapter: SimpleAdapter = {
   version: 1, // the Solana leg is a Dune query, which must run daily
   dependencies: [Dependencies.DUNE],
   adapter: chainConfig, // each chain carries its own start and fetch
+  isExpensiveAdapter: true,
   methodology: {
     Fees: "The 1% bonding curve trading fee on every Ferzan coin before it graduates (Meteora's DBC fee on Solana, including Meteora's protocol share).",
-    UserFees: "Same as Fees: paid by traders.",
+    UserFees: "The 1% fee paid by traders on every Ferzan coin before it graduates.",
     Revenue: "Ferzan's share of the curve fee: 50%, less 10% to a referrer when one is set. On Solana, half of the DBC trading fee.",
-    ProtocolRevenue: "Same as Revenue. It goes to the Ferzan treasury.",
+    ProtocolRevenue: "Ferzan's share of the curve fee: 50%, less 10% to a referrer when one is set. On Solana, half of the DBC trading fee.",
     SupplySideRevenue: "The coin creator's 50%, referrer payouts, and on Solana Meteora's protocol fee.",
     HoldersRevenue: "None.",
   },
