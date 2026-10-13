@@ -1,6 +1,5 @@
 import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { addOneToken } from "../helpers/prices";
 
 // Pumper Launchpad (pumper.tools) on Stable -- every token launched through it
 // gets its own Uniswap V3 pool, created via the SAME shared, third-party V3
@@ -45,7 +44,16 @@ const REGISTRY = "0x7Cd190e5Ba34C1Ec8FE07F78EddB026719940492";
 const REGISTRY_DEPLOY_BLOCK = 32938134;
 const TOKEN_REGISTERED_EVENT =
   "event TokenRegistered(address indexed token, address indexed creator, address pool, address indexed launchpad)";
-const WGUSDT = "0x817997Ca8394E26CCE3dE3A076a4889b27DbF9dE";
+// Every Pumper launch pairs against one of these stablecoins (WgUSDT for the
+// early launchpads, USDT0 from v9 on). Fees are measured on the stablecoin leg
+// only: the pair is read from each pool's own token0()/token1() rather than
+// assumed, since USDT0 (6dp) and WgUSDT (18dp) sort differently against the
+// launched token -- assuming WgUSDT mislabelled raw 18dp token amounts as
+// WgUSDT on pools like ELOJAK and inflated fees by orders of magnitude.
+const QUOTE_ASSETS = new Set([
+  "0x817997ca8394e26cce3de3a076a4889b27dbf9de", // WgUSDT
+  "0x779ded0c9e1022225f8e0630b35a9b54be713736", // USDT0
+]);
 const V3_SWAP_EVENT =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 
@@ -92,15 +100,26 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     cacheInCloud: true,
   });
 
-  // token0/token1 for each pool: Pumper always pairs the launched token
-  // against WgUSDT, sorted by address the same way Uniswap V3 itself does.
-  const pairObject: Record<string, [string, string]> = {};
-  for (const log of registeredLogs) {
-    const token = (log.token as string).toLowerCase();
-    const pool = (log.pool as string).toLowerCase();
-    pairObject[pool] = token < WGUSDT.toLowerCase() ? [token, WGUSDT] : [WGUSDT, token];
-  }
-  const pools = Object.keys(pairObject);
+  // Lock-launchpad and V4 launches register the shared Uniswap V4 PoolManager
+  // as their "pool" -- those aren't V3 pools and are skipped here.
+  const candidatePools = [...new Set(registeredLogs.map((log: any) => (log.pool as string).toLowerCase()))];
+  const [token0s, token1s] = await Promise.all([
+    options.api.multiCall({ abi: "address:token0", calls: candidatePools, permitFailure: true }),
+    options.api.multiCall({ abi: "address:token1", calls: candidatePools, permitFailure: true }),
+  ]);
+  const pools: string[] = [];
+  const quotes: string[] = [];
+  const quoteIsToken0: boolean[] = [];
+  candidatePools.forEach((pool, i) => {
+    const token0 = token0s[i]?.toLowerCase();
+    const token1 = token1s[i]?.toLowerCase();
+    if (!token0 || !token1) return;
+    const isToken0 = QUOTE_ASSETS.has(token0);
+    if (!isToken0 && !QUOTE_ASSETS.has(token1)) return;
+    pools.push(pool);
+    quotes.push(isToken0 ? token0 : token1);
+    quoteIsToken0.push(isToken0);
+  });
   if (!pools.length) {
     return { dailyFees, dailyRevenue: 0, dailySupplySideRevenue: 0, dailyProtocolRevenue: 0 };
   }
@@ -108,23 +127,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const allLogs = await getLogs({ targets: pools, eventAbi: V3_SWAP_EVENT, flatten: false });
   allLogs.forEach((logs: any[], i: number) => {
     if (!logs?.length) return;
-    const pool = pools[i];
-    const [token0, token1] = pairObject[pool];
+    const quote = quotes[i];
     logs.forEach((log: any) => {
-      const { token: feeToken, amount: feeAmount } = addOneToken({
-        chain: CHAIN.STABLE,
-        balances: dailyFees,
-        token0,
-        token1,
-        amount0: Number(log.amount0) * FEE_FRACTION,
-        amount1: Number(log.amount1) * FEE_FRACTION,
-        label: SWAP_FEES,
-      });
-      dailyRevenue.add(feeToken, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
-      dailyRevenue.add(feeToken, feeAmount * FEFER_VAULT_RATIO, SWAP_FEES_TO_FEFER_VAULT);
-      dailyRevenue.add(feeToken, feeAmount * PUMPER_VAULT_RATIO, SWAP_FEES_TO_PUMPER_VAULT);
-      dailySupplySideRevenue.add(feeToken, feeAmount * SUPPLY_SIDE_RATIO, SWAP_FEES_TO_CREATORS_AND_STAKERS);
-      dailyProtocolRevenue.add(feeToken, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
+      const quoteAmount = BigInt(quoteIsToken0[i] ? log.amount0 : log.amount1);
+      const feeAmount = Number(quoteAmount < 0n ? -quoteAmount : quoteAmount) * FEE_FRACTION;
+      dailyFees.add(quote, feeAmount, SWAP_FEES);
+      dailyRevenue.add(quote, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
+      dailyRevenue.add(quote, feeAmount * FEFER_VAULT_RATIO, SWAP_FEES_TO_FEFER_VAULT);
+      dailyRevenue.add(quote, feeAmount * PUMPER_VAULT_RATIO, SWAP_FEES_TO_PUMPER_VAULT);
+      dailySupplySideRevenue.add(quote, feeAmount * SUPPLY_SIDE_RATIO, SWAP_FEES_TO_CREATORS_AND_STAKERS);
+      dailyProtocolRevenue.add(quote, feeAmount * ADMIN_VAULT_RATIO, SWAP_FEES_TO_ADMIN_VAULT);
     });
   });
 
