@@ -65,7 +65,7 @@ test('BSC no-activity window returns empty fees and real log failures propagate'
 })
 
 import lend from '../fees/flying-tulip-lend'
-async function runLend({ chain = 'bsc', failure = '', debt = '1000000000000000000000', apr = '50000000000000000', tradeFee = '0' } = {}) {
+async function runLend({ chain = 'bsc', failure = '', debt = '1000000000000000000000', apr = '50000000000000000', tradeFee = '0', tradeEvents = {} as Record<string, { sellToken: string; feeAmount: string }[]>, liquidationFees = [] as { asset: string; amount: string }[] } = {}) {
   const rows = { state: [0n, BigInt(debt), 0n, 10n ** 18n], cfg: ['0x1111111111111111111111111111111111111111', 150, false, true, true] }
   const options = {
     chain, startTimestamp: 1000, endTimestamp: 4600,
@@ -82,7 +82,10 @@ async function runLend({ chain = 'bsc', failure = '', debt = '100000000000000000
     } },
     getLogs: async ({ eventAbi }: { eventAbi: string }) => {
       if (failure === 'logs') throw new Error('log source unavailable')
-      if (eventAbi.startsWith('event OpenLeverageFilled(')) return [{ sellToken: usdc[chain], feeAmount: tradeFee }]
+      const eventName = /^event (\w+)\(/.exec(eventAbi)?.[1]
+      if (eventName === 'LiquidationFeeCollected') return liquidationFees
+      if (eventName && tradeEvents[eventName]) return tradeEvents[eventName]
+      if (eventName === 'OpenLeverageFilled') return [{ sellToken: usdc[chain], feeAmount: tradeFee }]
       return []
     },
   } as unknown as FetchOptions
@@ -107,6 +110,20 @@ test('Lend preserves interest on paused debt and separates it from protocol trad
   })
 })
 
+for (const chain of ['ethereum', 'sonic']) {
+  test(`${chain} Lend keeps the existing raw interest and trade-fee allocation`, async () => {
+    const result = await runLend({ chain, tradeFee: '123' })
+    const interest = 50n * 10n ** 18n / 8760n
+    assert.deepEqual((result.dailyFees as unknown as ExactBalances).values, {
+      [`${usdc[chain]}:Borrow Interest`]: interest,
+      [`${usdc[chain]}:Open Leverage Fee`]: 123n,
+    })
+    assert.deepEqual((result.dailyRevenue as unknown as ExactBalances).values, {
+      [`${usdc[chain]}:Open Leverage Fee`]: 123n,
+    })
+  })
+}
+
 for (const failure of ['state', 'cfg', 'apr', 'missing-irm', 'logs']) {
   test(`BSC Lend surfaces ${failure} failure instead of reporting zero income`, async () => {
     await assert.rejects(runLend({ failure }), /unavailable|interest rate model/i)
@@ -118,4 +135,26 @@ test('zero debt or a genuine zero APR yields zero interest', async () => {
     const result = await runLend(options)
     assert.deepEqual((result.dailyFees as unknown as ExactBalances).values, {})
   }
+})
+
+test('BSC direct and flash trading events and liquidation fees enter protocol revenue once', async () => {
+  const tradeEvents = Object.fromEntries([
+    ['OpenLeverageFilled', '2'], ['OpenLeverageFlashFilled', '3'],
+    ['CloseLeverageFilled', '5'], ['CloseLeverageFlashFilled', '7'],
+    ['CollateralSwapFilled', '11'], ['CollateralSwapFlashFilled', '13'],
+  ].map(([name, feeAmount]) => [name, [{ sellToken: usdc.bsc, feeAmount }]]))
+  const result = await runLend({
+    debt: '0', tradeEvents,
+    liquidationFees: [{ asset: usdc.bsc, amount: '17' }],
+  })
+  const expected = {
+    [`${usdc.bsc}:Open Leverage Fee`]: 5n,
+    [`${usdc.bsc}:Close Leverage Fee`]: 12n,
+    [`${usdc.bsc}:Collateral Swap Fee`]: 24n,
+    [`${usdc.bsc}:RFQ Liquidation Fee`]: 17n,
+  }
+  for (const metric of [result.dailyFees, result.dailyRevenue, result.dailyProtocolRevenue]) {
+    assert.deepEqual((metric as unknown as ExactBalances).values, expected)
+  }
+  assert.deepEqual((result.dailySupplySideRevenue as unknown as ExactBalances).values, {})
 })

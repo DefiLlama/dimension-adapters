@@ -5,13 +5,13 @@ import { FetchOptions, SimpleAdapter } from '../adapters/types'
 // Flying Tulip ftUSD — yield-bearing stablecoin. The MintAndRedeem engine
 // charges a per-collateral fee on every mint and redeem (configured via
 // mintFeeBps / redeemFeeBps). Fees are denominated in ftUSD itself, accumulate
-// in the engine's claimableFeeAmount, and the owner periodically calls
-// sweepFees(to, amount) to send them to the Flying Tulip treasury at
+// in the engine's claimableFeeAmount. The owner can call sweepFees(to, amount)
+// to send them to the Flying Tulip treasury at
 // 0x1118e1c057211306a40A4d7006C040dbfE1370Cb.
 //
-// All collected fees flow to the protocol treasury, so dailyFees ==
-// dailyRevenue == dailyProtocolRevenue. There is no supplier or holder cut on
-// this stream.
+// Fees are protocol revenue when charged, including any amount awaiting sweep:
+// dailyFees == dailyRevenue == dailyProtocolRevenue. There is no supplier or
+// holder cut on this stream.
 
 // ftUSD is not yet priced on coins.llama.fi. The fees are denominated in ftUSD
 // (6 decimals, dollar pegged), so we attribute the raw amount to a $1 stablecoin
@@ -32,7 +32,8 @@ const contractsConfig: Record<string, { contract: string; usdc: string; start: s
         feeScale: 1n,
     },
     [CHAIN.BSC]: {
-        // Deployment: https://bscscan.com/tx/0x61c715e759c733c9b8604415cdb30e113c17020e772278edb8cc6d3637e18cf0
+        // Deployed 2026-07-08; the first verified fee event was 2026-09-24.
+        // https://bscscan.com/tx/0x61c715e759c733c9b8604415cdb30e113c17020e772278edb8cc6d3637e18cf0
         contract: '0x7d73863178a3ecb9767f0be1bf50f55305a52743',
         usdc: ADDRESSES.bsc.USDC,
         start: '2026-07-08',
@@ -84,9 +85,9 @@ const methodology = {
     Fees:
         'Mint and redeem fees charged by the ftUSD MintAndRedeem engine on every mint/redeem, summed from Minted and Redeemed events.',
     Revenue:
-        'All ftUSD mint/redeem fees are sent to the Flying Tulip treasury via sweepFees, so revenue equals fees.',
+        'Mint/redeem fees accrue to the protocol when charged, so revenue equals fees. Accrued fees can subsequently be swept to the Flying Tulip treasury.',
     ProtocolRevenue:
-        'Same as Revenue. Fees accumulate in the engine and the owner sweeps them to the treasury (0x1118e1c057211306a40A4d7006C040dbfE1370Cb).',
+        'Same as Revenue. Fees accumulate in the engine pending an owner sweep to the treasury (0x1118e1c057211306a40A4d7006C040dbfE1370Cb).',
     SupplySideRevenue:
         'Not applicable. ftUSD does not pay yield to holders directly. Stakers earn separately via sftUSD/EpochRewardsVault, funded by FT bought on the open market with these fees.',
 }
