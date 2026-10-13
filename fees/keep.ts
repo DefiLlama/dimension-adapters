@@ -174,6 +174,7 @@ const getRobinhoodFullFees = async (options: FetchOptions) => {
     eventAbi: RH_PROJECT_CREATED,
     fromBlock: RH_FULL_START_BLOCK,
     toBlock,
+    cacheInCloud: true,
   });
   const launchpads = [...new Set(created.map((log: any) => String(log.launchpad).toLowerCase()))];
   if (launchpads.length === 0) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
@@ -245,8 +246,14 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.SOLANA, CHAIN.ROBINHOOD],
-  start: "2026-07-15",
+  adapter: {
+    [CHAIN.SOLANA]: {
+      start: "2026-07-15",
+    },
+    [CHAIN.ROBINHOOD]: {
+      start: "2026-10-10",
+    }
+  },
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   doublecounted: true, // Raydium and Uniswap V4 pool fees may be tracked by the underlying DEX listings.
