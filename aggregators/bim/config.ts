@@ -7,9 +7,6 @@ const SocketGatewayContracts: { [key: string]: string } = {
   [CHAIN.BASE]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.BSC]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
   [CHAIN.POLYGON]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
-  [CHAIN.CITREA]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
-  [CHAIN.ROBINHOOD]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
-  [CHAIN.ARC]: '0x3a23f943181408eac424116af7b7790c94cb97a5',
 }
 
 const BungeeGatewayContracts: {
@@ -97,6 +94,13 @@ export const BIM_NEW_API_CHAINS: Array<string> = [
   CHAIN.ARC
 ];
 
+// First day bim is live on chains added after the API migration (others start 2026-01-13)
+export const BIM_CHAIN_START: { [chain: string]: string } = {
+  [CHAIN.CITREA]: '2026-09-18',
+  [CHAIN.ROBINHOOD]: '2026-10-01',
+  [CHAIN.ARC]: '2026-10-01',
+};
+
 // Chains bim is live on that Dune does not index. Their volume and fees are read
 // straight from the chain's RPC instead of the Dune prefetch - same contracts and
 // same fee wallet, only the data source differs. Add a chain here (on top of
@@ -105,21 +109,13 @@ export const BIM_NEW_API_CHAINS: Array<string> = [
 // come from the prefetch instead.
 export const BIM_RPC_CHAINS: { [chain: string]: BimRpcChainConfig } = {
   [CHAIN.CITREA]: {
-    start: '2026-09-18',
     maxBlockRange: 900,
   },
-  [CHAIN.ROBINHOOD]: {
-    start: '2026-10-01',
-  },
-  [CHAIN.ARC]: {
-    start: '2026-10-01',
-  },
+  [CHAIN.ROBINHOOD]: {},
 };
 
 export type BimRpcChainConfig = {
-  start: string
   maxBlockRange?: number
-  rpcConcurrency?: number
 }
 
 export const isRpcChain = (chain: string): boolean => !!BIM_RPC_CHAINS[chain];
@@ -139,9 +135,8 @@ const DUNE_CHAIN_MAP: { [key: string]: string } = {
 };
 
 export const getDuneChain = (chain: string) => DUNE_CHAIN_MAP[chain] ?? chain;
-export const duneChains = BIM_DUNE_CHAINS.length
-  ? BIM_DUNE_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ')
-  : `''`;
+export const duneChains = BIM_DUNE_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ');
+
 // All bim txs on the new API: emit RequestExecuted from OpenRouter, enter directly
 // or through AllowanceHolder.exec (inner calldata starts at byte 197), and carry
 // bim's fee wallet in calldata.

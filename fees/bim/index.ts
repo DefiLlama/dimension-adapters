@@ -4,7 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
-import { BIM_RPC_CHAINS, BRIDGE_SELECTOR, isRpcChain, PERFORM_ACTIONS_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, SWAP_SELECTOR } from "../../aggregators/bim/config";
+import { BIM_CHAIN_START, BRIDGE_SELECTOR, isRpcChain, PERFORM_ACTIONS_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, SWAP_SELECTOR } from "../../aggregators/bim/config";
 import { fetchBimFromRpc } from "../../aggregators/bim/rpc";
 
 const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
@@ -41,6 +41,7 @@ const chainIdMap: Record<number, CHAIN> = {
   56: CHAIN.BSC,
   100: CHAIN.XDAI,
   137: CHAIN.POLYGON,
+  5042: CHAIN.ARC,
   8453: CHAIN.BASE,
   9745: CHAIN.PLASMA,
   42161: CHAIN.ARBITRUM,
@@ -162,7 +163,7 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.STELLAR]: {
     start: "2026-04-19",
   },
-  ...Object.fromEntries(Object.entries(BIM_RPC_CHAINS).map(([chain, { start }]) => [chain, { start }])),
+  ...Object.fromEntries(Object.entries(BIM_CHAIN_START).map(([chain, start]) => [chain, { start }])),
 };
 
 const fetchVaults = (): Promise<any[]> => {

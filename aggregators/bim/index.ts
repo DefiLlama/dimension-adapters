@@ -1,7 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { fetchBungeeData } from "../../helpers/aggregators/bungee";
-import { bimAdapterChains, bimTxsCte, duneChains, getDuneChain, isRpcChain, BIM_RPC_CHAINS, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
+import { bimAdapterChains, bimTxsCte, duneChains, getDuneChain, isRpcChain, BIM_CHAIN_START, DUNE_START_TIMESTAMP, SWAP_SELECTOR, BIM_FEE_WALLET } from "./config";
 import { fetchBimFromRpc } from "./rpc";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -89,7 +89,7 @@ const adapter: SimpleAdapter = {
         ...acc,
         [chain]: {
           fetch,
-          start: BIM_RPC_CHAINS[chain]?.start ?? '2026-01-13',
+          start: BIM_CHAIN_START[chain] ?? '2026-01-13',
         }
       }
     }, {}),

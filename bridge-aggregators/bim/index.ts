@@ -7,7 +7,7 @@ import {
   duneChains,
   getDuneChain,
   isRpcChain,
-  BIM_RPC_CHAINS,
+  BIM_CHAIN_START,
   DUNE_START_TIMESTAMP,
   ALLOWANCE_HOLDER,
   BIM_FEE_WALLET,
@@ -123,14 +123,15 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResult> => {
 const adapter: SimpleAdapter = {
   version: 1,
   doublecounted: true, //Bungee
-  dependencies: [Dependencies.DUNE], prefetch,
+  dependencies: [Dependencies.DUNE],
+  prefetch,
   adapter: {
     ...bimAdapterChains.reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
           fetch,
-          start: BIM_RPC_CHAINS[chain]?.start ?? '2026-01-13',
+          start: BIM_CHAIN_START[chain] ?? '2026-01-13',
         }
       }
     }, {}),

@@ -1,9 +1,8 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import { getProvider } from "@defillama/sdk";
-import { PromisePool } from '@supercharge/promise-pool'
+import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
+import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 import {
   ALLOWANCE_HOLDER,
   BIM_FEE_WALLET,
@@ -21,7 +20,8 @@ import {
 // Volume is the input token and amount of each tx, which for a swap is the input leg
 // rather than Dune's dex.trades amount_usd - there is no RPC equivalent of that table.
 
-const DEFAULT_RPC_CONCURRENCY = 5;
+// tx hashes per indexer request, a longer list overflows the request URL (414)
+const INDEXER_HASH_BATCH = 50;
 
 const openRouter = new ethers.Interface([
   'function swap(bytes32 quoteId, uint256 flags, (address user, address inputToken, uint256 inputAmount) input, (address receiver, uint256 amount) fee, (address target, address approvalSpender, address outputToken, uint256 value, uint256 minOutput, uint256 returnDataWordOffset) swapData, bytes swapCallData, address receiver)',
@@ -36,11 +36,6 @@ const allowanceHolder = new ethers.Interface([
 ]);
 const transferEvent = new ethers.Interface(['event Transfer(address indexed from, address indexed to, uint256 value)']);
 const TRANSFER_TOPIC = transferEvent.getEvent('Transfer')!.topicHash;
-
-// Arc's native USDC (18 decimals) emits a Transfer log from this system address on
-// every native transfer
-// Those logs are skipped: native fees are read from the calldata like on any chain.
-const ARC_NATIVE_TRANSFER_EMITTER = '0xfffffffffffffffffffffffffffffffffffffffe';
 
 export type BimTx = {
   hash: string
@@ -106,13 +101,29 @@ const parseBimTx = (tx: any): BimTx | undefined => {
   }
 }
 
+// The tx behind each hash: one indexer request per 50 hashes on indexed chains,
+// otherwise one RPC call per hash (retried, as a lagging node answers null).
+const getTransactions = async (options: FetchOptions, hashes: Array<string>): Promise<Array<any>> => {
+  if (sdk.indexer.isIndexerEnabled(options.chain)) {
+    try {
+      const [from_block, to_block] = await Promise.all([options.getFromBlock(), options.getToBlock()])
+      const txs: Array<any> = []
+      for (let i = 0; i < hashes.length; i += INDEXER_HASH_BATCH)
+        txs.push(...(await sdk.indexer.getTransactions({ chain: options.chain, transaction_hashes: hashes.slice(i, i + INDEXER_HASH_BATCH), from_block, to_block }) ?? []))
+      if (txs.length === hashes.length) return txs
+      console.error(`bim: indexer returned ${txs.length} of ${hashes.length} ${options.chain} txs, falling back to RPC`)
+    } catch (e) {
+      // the indexer trails the chain head, so the latest window can be out of its range
+      console.error(`bim: indexer failed on ${options.chain}, falling back to RPC`, (e as any)?.message)
+    }
+  }
+  return getTransactionsWithRetry(options.chain, hashes)
+}
+
 // Every bim tx on the new API emits RequestExecuted from OpenRouter, enters either
 // directly or through AllowanceHolder.exec, and pays bim's fee wallet.
 export const getBimTxs = async (options: FetchOptions): Promise<Array<BimTx>> => {
-  const provider = getProvider(options.chain)
-  if (!provider)
-    throw new Error(`bim: ${options.chain} is read from RPC but @defillama/sdk has no RPC for it, set ${options.chain.toUpperCase()}_RPC`)
-  const { maxBlockRange, rpcConcurrency = DEFAULT_RPC_CONCURRENCY } = BIM_RPC_CHAINS[options.chain] ?? {}
+  const { maxBlockRange } = BIM_RPC_CHAINS[options.chain] ?? {}
   const logs = await options.getLogs({
     target: OPEN_ROUTER,
     topics: [REQUEST_EXECUTED_TOPIC],
@@ -123,33 +134,21 @@ export const getBimTxs = async (options: FetchOptions): Promise<Array<BimTx>> =>
   const hashes = [...new Set(logs.map((log: any) => String(log.transactionHash).toLowerCase()))]
   if (!hashes.length) return []
 
-  // these chains are served by a single public RPC, so keep the fan-out modest
-  // rather than reusing helpers/getTxReceipts, which fires 20 calls at a time
-  const { results: txs, errors } = await PromisePool
-    .withConcurrency(rpcConcurrency)
-    .for(hashes)
-    .process((hash: string) => provider.getTransaction(hash))
-  if (errors.length) throw errors[0]
-
-  return (txs as Array<any>).map(parseBimTx).filter((tx): tx is BimTx => !!tx)
+  const txs = await getTransactions(options, hashes)
+  if (txs.some((tx) => !tx)) throw new Error(`bim: no transaction found for a ${options.chain} RequestExecuted log`)
+  return txs.map(parseBimTx).filter((tx): tx is BimTx => !!tx)
 }
 
 // Fees paid to bim's fee wallet by the given txs: ERC20 fees are the Transfer logs
 // into the wallet, native fees come from the calldata as an internal native transfer
 // emits no log.
 const addBimFees = async (options: FetchOptions, txs: Array<BimTx>, dailyFees: any) => {
-  const provider = getProvider(options.chain)
-  const { rpcConcurrency = DEFAULT_RPC_CONCURRENCY } = BIM_RPC_CHAINS[options.chain] ?? {}
-  const { results: receipts, errors } = await PromisePool
-    .withConcurrency(rpcConcurrency)
-    .for(txs)
-    .process((tx: BimTx) => provider.getTransactionReceipt(tx.hash))
-  if (errors.length) throw errors[0]
+  const receipts = await getTxReceiptsWithRetry(options.chain, txs.map((tx) => tx.hash))
+  if (receipts.some((receipt) => !receipt)) throw new Error(`bim: missing receipt for a ${options.chain} bim tx`)
 
   for (const receipt of receipts as Array<any>) {
     for (const log of receipt.logs) {
       if (log.topics[0] !== TRANSFER_TOPIC || log.topics[2]?.toLowerCase() !== BIM_FEE_WALLET_WORD) continue
-      if (options.chain === CHAIN.ARC && log.address.toLowerCase() === ARC_NATIVE_TRANSFER_EMITTER) continue
       dailyFees.add(log.address.toLowerCase(), BigInt(log.data).toString())
     }
   }
