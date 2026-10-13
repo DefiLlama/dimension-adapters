@@ -67,8 +67,8 @@ const TRADE_TAX = "Launched Token Trade Tax";
 const V4_HOOK_FEES = "V4 And Lock Hook Base Fee Plus Trade Tax";
 const PUMPER_SWAP_FEES = "PUMPER Swap Fees";
 const TO_ADMIN_VAULT = "Fees To Admin Vault";
-const TO_FEFER_VAULT = "Fees To Fefer Vault";
-const TO_PUMPER_VAULT = "Fees To Pumper Vault";
+const TO_FEFER_VAULT = "Fees To FEFER Buy And Burn Vault";
+const TO_PUMPER_VAULT = "Fees To PUMPER Buy And Burn Vault";
 const TO_CREATORS_AND_STAKERS = "Fees To Creators And Token Stakers";
 const PUMPER_TO_LPS = "PUMPER Swap Fees To LPs";
 
@@ -97,13 +97,16 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
   const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
 
   const addLaunchpadRevenue = (quote: string, amount: number, label: string) => {
     dailyFees.add(quote, amount, label);
     dailyRevenue.add(quote, amount * ADMIN_VAULT_RATIO, TO_ADMIN_VAULT);
-    dailyRevenue.add(quote, amount * FEFER_VAULT_RATIO, TO_FEFER_VAULT);
     dailyRevenue.add(quote, amount * PUMPER_VAULT_RATIO, TO_PUMPER_VAULT);
     dailyProtocolRevenue.add(quote, amount * ADMIN_VAULT_RATIO, TO_ADMIN_VAULT);
+    dailyHoldersRevenue.add(quote, amount * PUMPER_VAULT_RATIO, TO_PUMPER_VAULT);
+    // FEFER is not Pumper's governance token: its buy-and-burn is not holders revenue
+    dailySupplySideRevenue.add(quote, amount * FEFER_VAULT_RATIO, TO_FEFER_VAULT);
     dailySupplySideRevenue.add(quote, amount * SUPPLY_SIDE_RATIO, TO_CREATORS_AND_STAKERS);
   };
 
@@ -212,7 +215,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     }
   }
 
-  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const adapter: Adapter = {
@@ -222,9 +225,10 @@ const adapter: Adapter = {
   start: "2026-07-01",
   methodology: {
     Fees: "1% swap fees on Pumper-launched tokens' Uniswap V3 pools and on the PUMPER pools, plus creator-set buy/sell taxes and the V4 hook / Lock-curve fees (1% base fee + tax) on Pumper-launched tokens. Launched tokens are taken from PumperProtocolRegistry.",
-    Revenue: "20% of every launched token's fees and taxes: 10% to adminVault, 5% to the FEFER buy-and-burn vault, 5% to the PUMPER buy-and-burn vault. PUMPER's own pool fees carry no protocol cut.",
+    Revenue: "15% of every launched token's fees and taxes: 10% to adminVault and 5% to the PUMPER buy-and-burn vault. PUMPER's own pool fees carry no protocol cut.",
     ProtocolRevenue: "The 10% of launched token fees and taxes paid to adminVault, the protocol treasury.",
-    SupplySideRevenue: "The remaining 80% of launched token fees and taxes, split between each token's creator, stakers, buyback-and-burn and liquidity in a ratio the creator fixes at launch; plus 100% of PUMPER pool fees, paid to its LPs.",
+    HoldersRevenue: "The 5% of launched token fees and taxes sent to the PUMPER buy-and-burn vault, which buys and burns PUMPER.",
+    SupplySideRevenue: "5% of launched token fees and taxes sent to the FEFER buy-and-burn vault (FEFER is a separate token), and 80% split between each token's creator, stakers, buyback-and-burn and liquidity in a ratio the creator fixes at launch; plus 100% of PUMPER pool fees, paid to its LPs.",
   },
   breakdownMethodology: {
     Fees: {
@@ -235,13 +239,16 @@ const adapter: Adapter = {
     },
     Revenue: {
       [TO_ADMIN_VAULT]: "10% of launched token fees and taxes, sent to adminVault.",
-      [TO_FEFER_VAULT]: "5% of launched token fees and taxes, sent to the FEFER buy-and-burn vault.",
       [TO_PUMPER_VAULT]: "5% of launched token fees and taxes, sent to the PUMPER buy-and-burn vault.",
     },
     ProtocolRevenue: {
       [TO_ADMIN_VAULT]: "10% of launched token fees and taxes, sent to adminVault, the protocol treasury.",
     },
+    HoldersRevenue: {
+      [TO_PUMPER_VAULT]: "5% of launched token fees and taxes, used to buy and burn PUMPER.",
+    },
     SupplySideRevenue: {
+      [TO_FEFER_VAULT]: "5% of launched token fees and taxes, used to buy and burn FEFER, a separate token.",
       [TO_CREATORS_AND_STAKERS]: "80% of launched token fees and taxes, split between creator, stakers, buyback-and-burn and liquidity per the creator's fixed split.",
       [PUMPER_TO_LPS]: "100% of PUMPER pool fees, paid to its liquidity providers.",
     },
