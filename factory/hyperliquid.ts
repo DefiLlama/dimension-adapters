@@ -1006,9 +1006,9 @@ const builderConfigs: Record<string, BuilderConfig> = {
     start: "2026-07-17",
     methodology: {
       Volume: "Notional volume of Hyperliquid perpetual trades routed through Mixin Perps' builder code.",
-      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades routed through Mixin Perps; excludes Hyperliquid's trading fees.",
-      Revenue: "Builder code fees collected by Mixin Perps from Hyperliquid perpetual trades.",
-      ProtocolRevenue: "Builder code fees collected by Mixin Perps from Hyperliquid perpetual trades.",
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
     },
     breakdownFees: true,
   },
