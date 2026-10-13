@@ -23,6 +23,9 @@ const fetch = async (options: FetchOptions) => {
   `
   const url = "https://gmx-solana-sqd.squids.live/gmx-solana-base:prod/api/graphql"
   const res = await request(url, query)
+  // the squid writes one record per UTC day with no gaps since 2025-02-10 (zero-fee days included), so no record
+  // means it has not indexed that day yet; dexs/gmx-sol and active-users/gmx-sol throw in the same case
+  if (!res.feesRecordDailies?.length) throw new Error(`gmx-sol: no fees record for ${options.dateString} yet`)
 
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
