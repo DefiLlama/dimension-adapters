@@ -1,3 +1,4 @@
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getMetricAdapter, MetricChainConfig } from "./utils";
 
@@ -16,6 +17,13 @@ const chainConfig: MetricChainConfig = {
   [CHAIN.ROBINHOOD]: { fromBlock: 9477535, start: "2026-07-14" },
 };
 
-const adapter = getMetricAdapter(factory, chainConfig);
+// The first-generation factory was decommissioned on 2026-10-07: its pools were
+// drained and their price providers switched off, so swaps stopped (the last
+// day with volume is 2026-10-07; 2026-10-08 saw ~$1.6k of dust). The live
+// Metric pools now belong to the factory tracked by dexs/metric-v1.
+const adapter: SimpleAdapter = {
+  ...getMetricAdapter(factory, chainConfig),
+  deadFrom: "2026-10-08",
+};
 
 export default adapter;
