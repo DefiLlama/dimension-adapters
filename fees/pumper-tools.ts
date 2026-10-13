@@ -28,9 +28,10 @@ import { CHAIN } from "../helpers/chains";
 // gauge pass them on to PUMPER stakers). The pre-relaunch PUMPER was
 // backfilled into the registry and is excluded from the launchpad set.
 //
-// Fees are measured on the stablecoin leg only. Pools are paired against
-// USDT0 (6dp) or WgUSDT (18dp), and the pair is read from each pool's own
-// token0()/token1() rather than assumed.
+// Fees are reported in the pool's stablecoin. Pools are paired against USDT0
+// (6dp) or WgUSDT (18dp), and the pair is read from each pool's own
+// token0()/token1() rather than assumed. V3 swap fees are taken on the input
+// token; see quoteFeeOf.
 
 const REGISTRY = "0x7Cd190e5Ba34C1Ec8FE07F78EddB026719940492";
 const REGISTRY_DEPLOY_BLOCK = 32938134;
@@ -71,9 +72,22 @@ const TO_PUMPER_VAULT = "Fees To Pumper Vault";
 const TO_CREATORS_AND_STAKERS = "Fees To Creators And Token Stakers";
 const PUMPER_TO_LPS = "PUMPER Swap Fees To LPs";
 
-const abs = (v: any) => {
-  const n = BigInt(v);
-  return Number(n < 0n ? -n : n);
+const Q96 = 2 ** 96;
+
+// Uniswap V3 takes the fee from the swap's input token (the positive delta).
+// When the input is the stablecoin the fee is already in it; when the input is
+// the launched token / PUMPER, the fee is converted to the stablecoin at the
+// pool price the same Swap event reports (the post-swap price).
+const quoteFeeOf = (log: any, quoteIsToken0: boolean) => {
+  const amount0 = Number(log.amount0);
+  const amount1 = Number(log.amount1);
+  const price = (Number(log.sqrtPriceX96) / Q96) ** 2; // token1 per token0, raw units
+  if (amount0 > 0) {
+    const fee0 = amount0 * FEE_FRACTION;
+    return quoteIsToken0 ? fee0 : fee0 * price;
+  }
+  const fee1 = amount1 * FEE_FRACTION;
+  return quoteIsToken0 ? fee1 / price : fee1;
 };
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
@@ -119,7 +133,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   const v3Launches = registered.filter((log: any) => poolQuote[log.pool.toLowerCase()]);
   const v4Launches = registered.filter((log: any) => !poolQuote[log.pool.toLowerCase()]);
 
-  // 1 + PUMPER: 1% swap fee on every V3 pool, stablecoin leg.
+  // 1 + PUMPER: 1% swap fee on every V3 pool, valued in the stablecoin.
   const v3Pools = [...new Set(v3Launches.map((log: any) => log.pool.toLowerCase()))];
   const swapPools = v3Pools.concat(PUMPER_POOLS.filter((p) => poolQuote[p]));
   const swapLogs = await getLogs({ targets: swapPools, eventAbi: V3_SWAP_EVENT, flatten: false });
@@ -128,7 +142,8 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const { quote, isToken0 } = poolQuote[pool];
     const isPumper = PUMPER_POOLS.includes(pool);
     for (const log of logs ?? []) {
-      const fee = abs(isToken0 ? log.amount0 : log.amount1) * FEE_FRACTION;
+      const fee = quoteFeeOf(log, isToken0);
+      if (!Number.isFinite(fee) || fee <= 0) continue;
       if (isPumper) {
         dailyFees.add(quote, fee, PUMPER_SWAP_FEES);
         dailySupplySideRevenue.add(quote, fee, PUMPER_TO_LPS);
@@ -213,10 +228,10 @@ const adapter: Adapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [SWAP_FEES]: "1% swap fees on Uniswap V3 pools of tokens launched through Pumper.",
+      [SWAP_FEES]: "1% swap fees on Uniswap V3 pools of tokens launched through Pumper, taken on the input token; fees paid in the launched token are valued at the pool price after the swap.",
       [TRADE_TAX]: "Creator-set buy/sell taxes on tokens from Pumper's V3 launchpads, taken on trades through the launchpad.",
       [V4_HOOK_FEES]: "Fees taken by the V4 / Lock launchpad hooks on every swap and by the Lock launchpad on curve trades: a 1% base fee plus the creator-set tax, reported together as one TaxNotified amount per collection.",
-      [PUMPER_SWAP_FEES]: "1% swap fees on the PUMPER/USDT0 and PUMPER/WgUSDT pools.",
+      [PUMPER_SWAP_FEES]: "1% swap fees on the PUMPER/USDT0 and PUMPER/WgUSDT pools, taken on the input token; fees paid in PUMPER are valued at the pool price after the swap.",
     },
     Revenue: {
       [TO_ADMIN_VAULT]: "10% of launched token fees and taxes, sent to adminVault.",
