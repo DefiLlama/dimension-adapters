@@ -3,6 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { queryDuneSql } from '../../helpers/dune'
 import { METRIC } from '../../helpers/metrics'
+import { assertDuneSolanaIndexed } from '../../helpers/duneSolanaDex'
 
 // Closer prediction-market vault program (Anchor), USDC-only
 const CLOSER_PROGRAM = 'CLoseukDtTCoUe5ECMjiLABYTCtC94qJz9LpN8tSHPM4'
@@ -53,6 +54,7 @@ const sql = `
 `
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
   const dailyVolume = options.createBalances()
   const dailyFees = options.createBalances()
 
@@ -63,6 +65,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
   }
@@ -74,14 +77,17 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2026-10-09',
   dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   methodology: {
     Volume: 'Cash volume: USDC collateral paid by traders on BUYs and received on SELLs (gross_amount of every successful settle_fill instruction). Counts the trader side only; the house counterparty leg is not counted.',
     Fees: 'Trading fee charged on BUY fills, read from the fee field of the on-chain FillEvent. SELLs and settlements carry no fee.',
+    UserFees: 'Same as Fees: the BUY trading fee is paid by traders.',
     Revenue: 'All trading fees are retained by the protocol treasury; there are no LPs or token holders to share with.',
     ProtocolRevenue: 'All trading fees are retained by the protocol treasury.',
   },
   breakdownMethodology: {
-    Fees: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills: ceil(gross * fee_bps / 10000), with fee_bps fixed per market at creation and emitted in FillEvent.fee.' },
+    Fees: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills (ceil(gross * fee_bps / 10000), currently 1.5%).' },
+    UserFees: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills, paid by traders.' },
     Revenue: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills, 100% to the protocol treasury.' },
     ProtocolRevenue: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills, 100% to the protocol treasury.' },
   },
