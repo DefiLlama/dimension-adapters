@@ -106,19 +106,22 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
 
   const reserves = RESERVES[options.chain] || []
+  // BSC markets are verified against ConfigRegistry; failed reads must not
+  // turn active debt into a reported zero. Preserve the other chains' behavior.
+  const strictReads = options.chain === CHAIN.BSC
 
   const [states, cfgs] = await Promise.all([
     options.toApi.multiCall({
       target: LENDING_LENS[options.chain],
       abi: ASSET_STATE_ABI,
       calls: reserves,
-      permitFailure: true,
+      permitFailure: !strictReads,
     }),
     options.toApi.multiCall({
       target: LENDING_LENS[options.chain],
       abi: ASSET_CFG_ABI,
       calls: reserves,
-      permitFailure: true,
+      permitFailure: !strictReads,
     }),
   ])
 
@@ -129,8 +132,11 @@ const fetch = async (options: FetchOptions) => {
   for (let i = 0; i < reserves.length; i++) {
     const state = states[i]
     const cfg = cfgs[i]
+    if (strictReads && (!state || !cfg)) throw new Error(`BSC reserve data unavailable: ${reserves[i]}`)
     if (!state || !cfg) continue
     const irm = cfg[0]
+    if (strictReads && BigInt(state[1]) > 0n && (!irm || irm.toLowerCase() === ZERO_ADDRESS))
+      throw new Error(`BSC debt has no interest rate model: ${reserves[i]}`)
     if (!irm || irm.toLowerCase() === ZERO_ADDRESS) continue
     const borrows = BigInt(state[1])
     if (borrows === 0n) continue
@@ -141,12 +147,14 @@ const fetch = async (options: FetchOptions) => {
   const aprResults = await options.toApi.multiCall({
     abi: IRM_SAMPLE_APR_ABI,
     calls: aprCalls,
-    permitFailure: true,
+    permitFailure: !strictReads,
   })
 
   for (let k = 0; k < aprIndex.length; k++) {
     const i = aprIndex[k]
     const aprs = aprResults[k]
+    if (strictReads && (!aprs || aprs.length === 0 || aprs[0] == null))
+      throw new Error(`BSC interest rate unavailable: ${reserves[i]}`)
     if (!aprs || aprs.length === 0 || !aprs[0]) continue;
     const borrows = BigInt(states[i][1])
     const aprWad = BigInt(aprs[0])
@@ -199,7 +207,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    'Sum of (a) borrower interest accrued across every Lend reserve, (b) leverage trading fees from LeverageRfqEngine open/close/collateral-swap events, and (c) RFQ liquidation fees from RfqEngine.',
+    'Estimated borrower interest using end-of-window debt and rates, plus measured leverage trading and RFQ liquidation fees.',
   Revenue:
     'Leverage trading fees and RFQ liquidation fees flow to the Flying Tulip treasury via feeCollector and liqFeeCollector. Borrower interest does not retain a protocol cut on chain.',
   ProtocolRevenue:
