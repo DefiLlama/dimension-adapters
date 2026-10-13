@@ -64,6 +64,8 @@ const adapters: SimpleAdapter = {
   },
   version: 2,
   pullHourly: true,
+  // last OrderMatched 2026-09-05, block 404430950
+  deadFrom: '2026-09-06',
 }
 
 export default adapters;
