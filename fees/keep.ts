@@ -1,5 +1,5 @@
 // dimension-adapters/fees/keep.ts  —  DeFiLlama Fees/Revenue adapter for Keep
-// Keep: a refundable token launchpad on Solana.  https://keep.coffee
+// Keep: a refundable token launchpad on Solana and Robinhood Chain.  https://keep.coffee
 // Programs (mainnet): Full Launch ETVtC29T7ExxYyWSkpzKPxzrL3SRyrGPRhZe3FwXmFAo
 //                    Idea Mode 2ww3589FBTgwbCd9sbpBjosiDszsigoqArh5xuc7F2Ve
 //
@@ -25,6 +25,25 @@ const KEEP_PROGRAMS = [
   "ETVtC29T7ExxYyWSkpzKPxzrL3SRyrGPRhZe3FwXmFAo", // Full Launch
   "2ww3589FBTgwbCd9sbpBjosiDszsigoqArh5xuc7F2Ve", // Idea Mode
 ];
+
+// RH Full only. The current metadata-v1 factory is the sole creation route;
+// historical factories are intentionally not mixed into this new listing.
+const RH_FULL_FACTORIES = [
+  "0xC3f2831429F51aCe9243aCe75819488e3566CA7b", // mainnet metadata-v1, block 86016310
+];
+const RH_FULL_START_BLOCK = 86016310;
+const RH_USDG = ADDRESSES.robinhood.USDG;
+
+const RH_PROJECT_CREATED =
+  "event ProjectCreated(uint64 indexed projectId, address indexed launchpad, address indexed token, address creator, uint8 mode)";
+const RH_FUNDING_RELEASED =
+  "event FundingReleased(uint8 indexed stage, uint256 platformAmount, uint256 projectAmount)";
+const RH_SETTLED_SUCCESS =
+  "event SettledSuccess(uint256 platformAmount, uint256 projectAmount, uint128 liquidityLocked)";
+const RH_SETTLED_FAILURE =
+  "event SettledFailure(uint256 platformAmount, uint256 projectAmount)";
+const RH_HARVESTED =
+  "event Harvested(uint256 usdcToPlatform, uint256 usdcToProject, uint256 tokensBurned)";
 
 // Anchor's first eight event bytes, base64-encoded. The complete event payload
 // is decoded below; the prefix is only used to select FeesHarvested log lines.
@@ -134,15 +153,91 @@ const getKeepFees = async (options: FetchOptions) => {
   return { dailyRevenue, dailySupplySideRevenue };
 };
 
-const fetch = async (options: FetchOptions) => {
-  const { dailyRevenue, dailySupplySideRevenue } = await getKeepFees(options);
-
+/**
+ * RH Full emits these fee amounts only after the USDG transfers succeed.
+ * Reading the events therefore measures creator/platform receipts, rather
+ * than scheduled or refundable principal. ResidualSwept is deliberately not
+ * included: it is a refund-pool sweep, not a fee.
+ */
+const getRobinhoodFullFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
-  dailyFees.addBalances(dailySupplySideRevenue, METRIC.CREATOR_FEES);
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  // The current Factory was deployed after the adapter's Solana start date;
+  // avoid asking the indexer for an invalid pre-deployment block range during
+  // historical refills.
+  const toBlock = await options.getToBlock();
+  if (toBlock < RH_FULL_START_BLOCK) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  const created = await options.getLogs({
+    targets: RH_FULL_FACTORIES,
+    eventAbi: RH_PROJECT_CREATED,
+    fromBlock: RH_FULL_START_BLOCK,
+    toBlock,
+  });
+  const launchpads = [...new Set(created.map((log: any) => String(log.launchpad).toLowerCase()))];
+  if (launchpads.length === 0) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+
+  const [funding, success, failure, harvested] = await Promise.all([
+    options.getLogs({ targets: launchpads, eventAbi: RH_FUNDING_RELEASED }),
+    options.getLogs({ targets: launchpads, eventAbi: RH_SETTLED_SUCCESS }),
+    options.getLogs({ targets: launchpads, eventAbi: RH_SETTLED_FAILURE }),
+    options.getLogs({ targets: launchpads, eventAbi: RH_HARVESTED }),
+  ]);
+
+  const platform = (amount: bigint | string | number, label: string) => {
+    if (BigInt(amount) > 0n) {
+      dailyFees.add(RH_USDG, amount, label);
+      dailyRevenue.add(RH_USDG, amount, label);
+    }
+  };
+  const creator = (amount: bigint | string | number, label: string) => {
+    if (BigInt(amount) > 0n) {
+      dailyFees.add(RH_USDG, amount, label);
+      dailySupplySideRevenue.add(RH_USDG, amount, label);
+    }
+  };
+
+  for (const log of funding) {
+    platform(log.platformAmount, "RH Full fundraising fees to platform");
+    creator(log.projectAmount, "RH Full fundraising fees to creators");
+  }
+  for (const log of success) {
+    platform(log.platformAmount, "RH Full fundraising fees to platform");
+    creator(log.projectAmount, "RH Full fundraising fees to creators");
+  }
+  for (const log of failure) {
+    platform(log.platformAmount, "RH Full fundraising fees to platform");
+    creator(log.projectAmount, "RH Full fundraising fees to creators");
+  }
+  for (const log of harvested) {
+    platform(log.usdcToPlatform, "RH Full trading fees to platform");
+    creator(log.usdcToProject, "RH Full trading fees to creators");
+  }
+
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+};
+
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  let dailyRevenue;
+  let dailySupplySideRevenue;
+  if (options.chain === CHAIN.ROBINHOOD) {
+    const result = await getRobinhoodFullFees(options);
+    dailyFees.addBalances(result.dailyFees);
+    dailyRevenue = result.dailyRevenue;
+    dailySupplySideRevenue = result.dailySupplySideRevenue;
+  } else {
+    const result = await getKeepFees(options);
+    dailyRevenue = result.dailyRevenue;
+    dailySupplySideRevenue = result.dailySupplySideRevenue;
+    dailyFees.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
+    dailyFees.addBalances(dailySupplySideRevenue, METRIC.CREATOR_FEES);
+  }
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
+  if (options.chain === CHAIN.ROBINHOOD) dailyProtocolRevenue.addBalances(dailyRevenue);
+  else dailyProtocolRevenue.addBalances(dailyRevenue, METRIC.PROTOCOL_FEES);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };
 };
@@ -150,30 +245,40 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.SOLANA],
-  start: "2026-08-20",
+  chains: [CHAIN.SOLANA, CHAIN.ROBINHOOD],
+  start: "2026-07-15",
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  doublecounted: true, // raydium
+  doublecounted: true, // Raydium and Uniswap V4 pool fees may be tracked by the underlying DEX listings.
   methodology: {
-    Fees: "All Keep USDC fees: platform fee-receiver inflows plus project-owner staged raise-fee transfers and harvested Raydium trading-fee shares. Refundable raise principal and LP liquidity are excluded.",
-    Revenue: "The platform portion of Keep fees, received by the platform fee-receiver USDC account. The project-owner share is reported as Supply Side Revenue.",
-    SupplySideRevenue: "Project-owner staged raise-fee transfers plus the project share of harvested Raydium trading fees, counted only after the on-chain transfer/event occurs.",
-    ProtocolRevenue: "USDC fees received by Keep's platform fee-receiver account.",
+    Fees: "All Keep fees paid to the platform and creators: Solana USDC receipts plus Robinhood Full USDG fundraising and trading-fee receipts. Refundable raise principal, residual refund-pool sweeps and LP liquidity are excluded.",
+    Revenue: "Keep's platform share of Solana USDC fees and Robinhood Full USDG fundraising and trading fees, counted only after the on-chain receipt occurs; creator shares are reported as Supply Side Revenue.",
+    SupplySideRevenue: "Creator shares actually paid from Solana staged funding and harvested trading fees, plus Robinhood Full FundingReleased, settlement and Harvested creator receipts.",
+    ProtocolRevenue: "Keep's platform share of Solana USDC fees and Robinhood Full USDG fundraising and trading fees sent to the platform treasury.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.PROTOCOL_FEES]: "Platform fee slices received by Keep's platform USDC ATA.",
       [METRIC.CREATOR_FEES]: "Project-owner staged raise-fee transfers and share emitted in FeesHarvested events.",
+      "RH Full fundraising fees to platform": "Robinhood Full staged and terminal fundraising fee amounts paid to the platform.",
+      "RH Full fundraising fees to creators": "Robinhood Full staged and terminal fundraising fee amounts paid to creators.",
+      "RH Full trading fees to platform": "Robinhood Full USDG trading-fee share paid to the platform when Harvested is emitted.",
+      "RH Full trading fees to creators": "Robinhood Full USDG trading-fee share paid to creators when Harvested is emitted.",
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]: "Platform fee slices retained by Keep's platform treasury.",
+      "RH Full fundraising fees to platform": "Robinhood Full staged and terminal fundraising fee amounts paid to the platform.",
+      "RH Full trading fees to platform": "Robinhood Full USDG trading-fee share paid to the platform when Harvested is emitted.",
     },
     SupplySideRevenue: {
       [METRIC.CREATOR_FEES]: "Project-owner staged raise-fee transfers and share paid from harvested trading fees.",
+      "RH Full fundraising fees to creators": "Robinhood Full staged and terminal fundraising fee amounts paid to creators.",
+      "RH Full trading fees to creators": "Robinhood Full USDG trading-fee share paid to creators when Harvested is emitted.",
     },
     ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: "Platform fee slices received by Keep's platform treasury.",
+      "RH Full fundraising fees to platform": "Robinhood Full staged and terminal fundraising fee amounts paid to the platform.",
+      "RH Full trading fees to platform": "Robinhood Full USDG trading-fee share paid to the platform when Harvested is emitted.",
     },
   },
 };
