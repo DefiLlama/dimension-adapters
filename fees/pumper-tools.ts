@@ -63,6 +63,7 @@ const SUPPLY_SIDE_RATIO = 1 - ADMIN_VAULT_RATIO - FEFER_VAULT_RATIO - PUMPER_VAU
 
 const SWAP_FEES = "Launched Token Swap Fees";
 const TRADE_TAX = "Launched Token Trade Tax";
+const V4_HOOK_FEES = "V4 And Lock Hook Base Fee Plus Trade Tax";
 const PUMPER_SWAP_FEES = "PUMPER Swap Fees";
 const TO_ADMIN_VAULT = "Fees To Admin Vault";
 const TO_FEFER_VAULT = "Fees To Fefer Vault";
@@ -192,7 +193,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     const taxLogs = await getLogs({ targets: splitters, eventAbi: TAX_NOTIFIED_EVENT });
     for (const log of taxLogs) {
       const quote = quoteOf[log.token.toLowerCase()];
-      if (quote) addLaunchpadRevenue(quote, Number(log.amount), TRADE_TAX);
+      if (quote) addLaunchpadRevenue(quote, Number(log.amount), V4_HOOK_FEES);
     }
   }
 
@@ -213,7 +214,8 @@ const adapter: Adapter = {
   breakdownMethodology: {
     Fees: {
       [SWAP_FEES]: "1% swap fees on Uniswap V3 pools of tokens launched through Pumper.",
-      [TRADE_TAX]: "Creator-set buy/sell taxes on Pumper-launched tokens, plus the 1% base fee taken by the V4 / Lock launchpad hooks.",
+      [TRADE_TAX]: "Creator-set buy/sell taxes on tokens from Pumper's V3 launchpads, taken on trades through the launchpad.",
+      [V4_HOOK_FEES]: "Fees taken by the V4 / Lock launchpad hooks on every swap and by the Lock launchpad on curve trades: a 1% base fee plus the creator-set tax, reported together as one TaxNotified amount per collection.",
       [PUMPER_SWAP_FEES]: "1% swap fees on the PUMPER/USDT0 and PUMPER/WgUSDT pools.",
     },
     Revenue: {
