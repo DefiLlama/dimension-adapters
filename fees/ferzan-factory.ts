@@ -62,6 +62,10 @@ const LABEL = {
   METEORA: "Meteora Protocol Fees",
 };
 
+/**
+ * EVM + Tron fees: the 1% fee from every Trade event of every Ferzan curve, split into the creator's 50%,
+ * the referrer's 10% (when paid) and Ferzan's remainder, exactly as FerzanCurve._splitFee pays it.
+ */
 async function fetchEvm(options: FetchOptions) {
   const { factories = [], fromBlock, native, nativeDiv = 1n } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
@@ -99,6 +103,10 @@ async function fetchEvm(options: FetchOptions) {
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
+/**
+ * Solana fees: DBC swap fees on pools under Ferzan's partner configs (Dune). trading_fee is split 50/50
+ * creator / Ferzan; protocol_fee is Meteora's.
+ */
 async function fetchSolana(options: FetchOptions) {
   const configs = FERZAN_DBC_CONFIGS.map((c) => `'${c}'`).join(", ");
   const rows: { trading_fee: string; protocol_fee: string }[] = await queryDuneSql(options, `
