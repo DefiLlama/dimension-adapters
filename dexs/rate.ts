@@ -65,7 +65,7 @@ for (const [chain, { rpc, chainId, deployBlock }] of Object.entries(rpcs)) {
   process.env[`${key}_RPC_MULTICALL_V3`] ??= '0xcA11bde05977b3631167028862bE2a173976CA11';
   process.env[`${key}_BLOCK_LOW`] ??= String(deployBlock);
   // Public testnet RPCs answer 429 to the SDK's default 25 parallel getLogs calls.
-  process.env[`${chain}_RPC_GET_LOGS_CONCURRENCY_LIMIT`] ??= '3';
+  process.env[`${key}_RPC_GET_LOGS_CONCURRENCY_LIMIT`] ??= '3';
 }
 
 // Fee rates, prices and pool fee shares are all scaled by MatchingEngine.DENOM.
