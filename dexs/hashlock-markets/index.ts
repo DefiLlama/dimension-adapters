@@ -136,9 +136,14 @@ async function solanaSignatures(from: number, to: number) {
   let before: string | undefined;
   for (;;) {
     // The raw call, so a malformed answer throws instead of reading as the end of history.
-    const page: any[] = await solanaRpc("getSignaturesForAddress", [SOLANA_PROGRAM, { before, limit: 1000 }]);
+    // Finalized only: a finalized signature carries its blockTime.
+    const page: any[] = await solanaRpc("getSignaturesForAddress", [SOLANA_PROGRAM, { before, limit: 1000, commitment: "finalized" }]);
     if (!Array.isArray(page)) throw new Error("hashlock-markets: Solana getSignaturesForAddress returned no list");
-    for (const s of page) if (!s.err && s.blockTime && s.blockTime >= from && s.blockTime < to) out.push(s as any);
+    for (const s of page) {
+      if (s.err) continue;
+      if (!s.blockTime) throw new Error(`hashlock-markets: Solana signature ${s.signature} has no blockTime`);
+      if (s.blockTime >= from && s.blockTime < to) out.push(s);
+    }
     const oldest = page[page.length - 1];
     if (page.length < 1000 || (oldest.blockTime && oldest.blockTime < from)) return out;
     before = oldest.signature;
@@ -218,7 +223,7 @@ async function prefetch(options: FetchOptions) {
     if (leg && owns(c.ts)) volume.push({ chain: c.chain, leg }); // no leg: funded before the lookback
   }
 
-  return { volume, solanaFees, legs };
+  return { volume, solanaFees };
 }
 
 const addTo = (b: sdk.Balances, token: string | null, amount: bigint, label?: string) =>
@@ -245,11 +250,14 @@ async function fetch(options: FetchOptions) {
   if (EVM_CHAINS.includes(chain)) {
     for (const f of await options.getLogs({ target: FACTORY, eventAbi: ABI.EvmFee, fromBlock })) fee(evmToken(f.token), BigInt(f.fee));
   } else if (chain === CHAIN.TRON) {
-    // FeeCollected carries no token; the Funded event of the same swap, in the same transaction, names it.
-    for (const f of await options.getLogs({ target: TRON_POOL, eventAbi: ABI.TronFee, fromBlock })) {
-      const leg: Leg | undefined = pre.legs.get(`${CHAIN.TRON}:${lc(f.swapId)}`);
-      if (!leg) throw new Error(`hashlock-markets: TRON fee without its Funded event, swap ${f.swapId}`);
-      fee(leg.token, BigInt(f.fee));
+    // FeeCollected carries no token; the Funded event of the same swap, in the same transaction, names it,
+    // so both are read over the same blocks.
+    const fees = await options.getLogs({ target: TRON_POOL, eventAbi: ABI.TronFee, fromBlock });
+    const funded = await options.getLogs({ target: TRON_POOL, eventAbi: ABI.TronFunded, fromBlock });
+    const tokenOf = new Map(funded.map((e: any) => [lc(e.swapId), tronToken(e.token)]));
+    for (const f of fees) {
+      if (!tokenOf.has(lc(f.swapId))) throw new Error(`hashlock-markets: TRON fee without its Funded event, swap ${f.swapId}`);
+      fee(tokenOf.get(lc(f.swapId))!, BigInt(f.fee));
     }
   } else if (chain === CHAIN.SOLANA) {
     for (const f of pre.solanaFees) fee(f.token, f.fee);
