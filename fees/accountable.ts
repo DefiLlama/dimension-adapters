@@ -2,7 +2,11 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
-const config: Record<string, { factories: string[], start: string }> = {
+// `collateralFixedTermFactories` are kept apart from `factories` because every
+// strategy they create is booked on the upfront-fee path below. Classifying by
+// the creating factory is exact, where probing a getter only those strategies
+// expose would misroute one on a single failed read.
+const config: Record<string, { factories: string[], collateralFixedTermFactories?: string[], start: string }> = {
   [CHAIN.MONAD]: {
     factories: [
       "0x606556A6B544ecDcbf15aF73A63B67516dc16Ad7",
@@ -20,6 +24,9 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
       "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
       "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
+    collateralFixedTermFactories: [
+      // https://etherscan.io/address/0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE
       "0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE",
     ],
     start: "2026-01-16",
@@ -39,6 +46,9 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0x2A7F22f81A3d301b8f0EAf4f09a78558c91Fc69a",
       "0xB4082B8126AF8B5345CfB159AC5d4b4F05F54bC5",
       "0xC0f778b51bF9751BBccBF4e78A107026aDaDbe43",
+    ],
+    collateralFixedTermFactories: [
+      // https://basescan.org/address/0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE
       "0xcC2Af6B6B3a888D96166205B9bA27d7dba3a67DE",
     ],
     start: "2026-04-20",
@@ -74,6 +84,9 @@ const config: Record<string, { factories: string[], start: string }> = {
       "0xd51FaCdE443729A8302A8138f3e050e831Db413D",
       "0x6E659cD796aAB41419C70def7748Fff37Bf3967a",
       "0xdBdbb4F6B80CA00B2a8B1f929C1957eCecd1BAaB",
+    ],
+    collateralFixedTermFactories: [
+      // https://bscscan.com/address/0xF9a0197f9dB6bd8171EBa53D21cb098597D23871
       "0xF9a0197f9dB6bd8171EBa53D21cb098597D23871",
     ],
     start: "2026-09-23",
@@ -122,7 +135,6 @@ const abis = {
   feeSharesMinted:
     "event FeeSharesMinted(address indexed recipient, uint256 shares)",
   upgraded: "event Upgraded(address indexed implementation)",
-  escrow: "function escrow() view returns (address)",
   upfrontFeeCollected:
     "event UpfrontFeeCollected(uint256 managerAmount, uint256 protocolAmount, uint256 totalFee)",
 };
@@ -140,9 +152,14 @@ const PROTOCOL = "Fees To Protocol";
 
 const big = (v: any) => (v === null || v === undefined ? 0n : BigInt(v));
 
-const listStrategies = async (options: FetchOptions): Promise<string[]> => {
+const listStrategies = async (
+  options: FetchOptions,
+): Promise<{ strategies: string[], collateralFixedTerm: Set<string> }> => {
   const api = options.toApi;
-  const factories = config[api.chain]?.factories || [];
+  const chainConfig = config[api.chain];
+  const cftFactories = chainConfig?.collateralFixedTermFactories || [];
+  const factories = [...(chainConfig?.factories || []), ...cftFactories];
+  const cftFactorySet = new Set(cftFactories.map((f) => f.toLowerCase()));
   const counts = await api.multiCall({
     abi: abis.getStrategiesCount,
     calls: factories,
@@ -173,25 +190,30 @@ const listStrategies = async (options: FetchOptions): Promise<string[]> => {
   // A page is only requested for a factory that reported a non-zero count, so a
   // null here is a failed read and must not be silently treated as no vaults.
   const seen = new Set<string>();
+  const collateralFixedTerm = new Set<string>();
   lists.forEach((list: any, i: number) => {
     if (!list)
       throw new Error(
         `Accountable: could not list strategies of ${pages[i].target} on ${api.chain}`,
       );
-    for (const s of list) seen.add(s.toLowerCase());
+    const fromCft = cftFactorySet.has(pages[i].target.toLowerCase());
+    for (const s of list) {
+      seen.add(s.toLowerCase());
+      if (fromCft) collateralFixedTerm.add(s.toLowerCase());
+    }
   });
   for (const s of EXTRA_STRATEGIES[api.chain] || []) {
     if (options.dateString >= s.deployedOn) {
       seen.add(s.address.toLowerCase());
     }
   }
-  return Array.from(seen);
+  return { strategies: Array.from(seen), collateralFixedTerm };
 };
 
 const fetch = async (options: FetchOptions) => {
   const { fromApi, toApi, createBalances } = options;
 
-  const strategies = await listStrategies(options);
+  const { strategies, collateralFixedTerm } = await listStrategies(options);
   if (!strategies.length)
     return {
       dailyFees: createBalances(),
@@ -251,11 +273,6 @@ const fetch = async (options: FetchOptions) => {
     calls: strategies,
     permitFailure: true,
   });
-  const escrows = await toApi.multiCall({
-    abi: abis.escrow,
-    calls: strategies,
-    permitFailure: true,
-  });
 
   const lending: number[] = [];
   const priced: number[] = [];
@@ -271,11 +288,11 @@ const fetch = async (options: FetchOptions) => {
     // classification signal here rather than a failed read. It is taken at the
     // closing block alone: a strategy created mid-window answers at the end but
     // not at the start, and requiring both would route it down the wrong path.
-    // `escrow()` only exists on the collateral fixed-term strategies, which
-    // answer neither `scaleFactor()` nor carry a share price worth measuring:
-    // their only charge is a one-off fee taken at loan acceptance, and on the
-    // share-price path that fee would read as a loss to depositors.
-    if (escrows[i]) upfront.push(i);
+    // Collateral fixed-term strategies answer neither `scaleFactor()` nor carry
+    // a share price worth measuring: their only charge is a one-off fee taken
+    // at loan acceptance, and on the share-price path that fee would read as a
+    // loss to depositors. They are known by the factory that created them.
+    if (collateralFixedTerm.has(strategies[i])) upfront.push(i);
     else if (sfEnd[i] !== null) lending.push(i);
     else priced.push(i);
   });
@@ -677,8 +694,9 @@ const fetch = async (options: FetchOptions) => {
   // The rate it used is snapshotted into internal storage with no getter, so
   // the event is the only exact record of the amount. It is spread evenly over
   // the loan term rather than booked on the acceptance day, which keeps this
-  // path on the same accrual basis as the other two; the term is fixed at
-  // acceptance, so the slices add up to exactly the fee charged.
+  // path on the same accrual basis as the other two. Each window books the
+  // difference of the cumulative amounts at its two ends, so rounding never
+  // accumulates and the slices add up to exactly the fee charged.
   if (upfront.length) {
     const upfrontAssets = await toApi.multiCall({
       abi: abis.asset,
@@ -716,10 +734,22 @@ const fetch = async (options: FetchOptions) => {
           toBlock,
         });
         // Acceptance always emits it, a zero fee included, so a miss is a
-        // failed read rather than a free loan.
+        // failed read rather than a free loan. A loan is accepted once, so
+        // more than one is not a state this path knows how to book.
         if (!logs?.length)
           throw new Error(
             `Accountable: no UpfrontFeeCollected for accepted loan ${strategies[i]} on ${options.chain}, refusing to report zero`,
+          );
+        if (logs.length > 1)
+          throw new Error(
+            `Accountable: ${logs.length} UpfrontFeeCollected events around the acceptance of ${strategies[i]} on ${options.chain}, expected one`,
+          );
+        // `getLogs` returns the decoded args by default; a missing field would
+        // otherwise turn into a silent zero through `big()`.
+        const { managerAmount, protocolAmount } = logs[0];
+        if (managerAmount == null || protocolAmount == null)
+          throw new Error(
+            `Accountable: could not decode UpfrontFeeCollected for ${strategies[i]} on ${options.chain}`,
           );
 
         const token = upfrontAssets[k];
@@ -727,9 +757,12 @@ const fetch = async (options: FetchOptions) => {
           throw new Error(
             `Accountable: could not read the asset of ${strategies[i]} on ${options.chain}`,
           );
-        const covered = to - from;
-        const manager = (big(logs[0].managerAmount) * covered) / duration;
-        const protocol = (big(logs[0].protocolAmount) * covered) / duration;
+        const accrued = (amount: bigint, at: bigint) =>
+          (amount * (at - start)) / duration;
+        const manager =
+          accrued(big(managerAmount), to) - accrued(big(managerAmount), from);
+        const protocol =
+          accrued(big(protocolAmount), to) - accrued(big(protocolAmount), from);
         book(token, manager + protocol, manager, protocol, METRIC.MANAGEMENT_FEES);
       }),
     );
