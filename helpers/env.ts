@@ -99,6 +99,7 @@ export const ENV_KEYS = new Set([
   'OKX_API_KEY',
   'ALCHEMIX_KEY',
   'RELAY_API_KEY',
+  'CCIP_API_KEY',
   'ALCHEMIX_SECRET',
   'STARBASE_API_KEY',
   'ENSO_API_KEY',
