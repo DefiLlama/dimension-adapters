@@ -16,10 +16,8 @@ import { CHAIN } from "../helpers/chains";
 // registry is the one thing that survives every launchpad redeploy. Scanning
 // ITS `TokenRegistered` event log gives exactly and only the pools Pumper's
 // own launchpad(s) created, across every generation, with nothing else mixed
-// in -- and correctly EXCLUDES PUMPER's own PUMPER/WgUSDT pool too, since
-// PUMPER (the platform's governance token) was never launched THROUGH
-// `launch()` (a separate relaunch/airdrop deployment), so it was never
-// registered here either, as it shouldn't be for a launchpad-specific metric.
+// in -- except the old PUMPER, which was backfilled and is filtered out below
+// (the current PUMPER was never registered).
 //
 // NOT using getUniV3LogAdapter/filterPools for the volume/fee leg either,
 // despite using it for pool discovery being the obvious first instinct:
@@ -53,6 +51,12 @@ const TOKEN_REGISTERED_EVENT =
 const QUOTE_ASSETS = new Set([
   "0x817997ca8394e26cce3de3a076a4889b27dbf9de", // WgUSDT
   "0x779ded0c9e1022225f8e0630b35a9b54be713736", // USDT0
+]);
+// The old PUMPER (pre-relaunch) was backfilled into the registry, but PUMPER
+// takes no protocol cut -- its pool fees go 100% to LPs -- so it's excluded
+// here and tracked on its own in fees/pumpertoken.ts.
+const EXCLUDED_TOKENS = new Set([
+  "0x79f09782c17d614b43cfee9b85da191da0db940a", // old PUMPER
 ]);
 const V3_SWAP_EVENT =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
@@ -102,7 +106,9 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
   // Lock-launchpad and V4 launches register the shared Uniswap V4 PoolManager
   // as their "pool" -- those aren't V3 pools and are skipped here.
-  const candidatePools = [...new Set(registeredLogs.map((log: any) => (log.pool as string).toLowerCase()))];
+  const candidatePools = [...new Set(registeredLogs
+    .filter((log: any) => !EXCLUDED_TOKENS.has((log.token as string).toLowerCase()))
+    .map((log: any) => (log.pool as string).toLowerCase()))];
   const [token0s, token1s] = await Promise.all([
     options.api.multiCall({ abi: "address:token0", calls: candidatePools, permitFailure: true }),
     options.api.multiCall({ abi: "address:token1", calls: candidatePools, permitFailure: true }),
