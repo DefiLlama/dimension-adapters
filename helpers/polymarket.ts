@@ -100,9 +100,12 @@ export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { o
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
-export function polymarketV2BuilderFeesExports({ builderCode, builderName, start }: { builderCode: string, builderName: string, start: string }) {
+export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean }) {
   const fetch = async (options: FetchOptions) => {
-    return await fetchPolymarketV2BuilderFees({ options, builderCode });
+    const res = await fetchPolymarketV2BuilderFees({ options, builderCode });
+    if (!revenueToHolders) return res;
+    // all builder fees go to the builder's token holders
+    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: res.dailyFees };
   }
 
   const adapter: SimpleAdapter = {
@@ -115,7 +118,9 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
     methodology: {
       Fees: `Builder fees received by ${builderName} from trades on Polymarket v2`,
       Revenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      ...(revenueToHolders
+        ? { ProtocolRevenue: `No builder fees are kept by ${builderName}`, HoldersRevenue: `Builder fees received by ${builderName}, all distributed to its token holders` }
+        : { ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2` }),
     },
     breakdownMethodology: {
       Fees: {
@@ -124,9 +129,9 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
       Revenue: {
         'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
       },
-      ProtocolRevenue: {
-        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      },
+      ...(revenueToHolders
+        ? { HoldersRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName}, all distributed to its token holders` } }
+        : { ProtocolRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2` } }),
     }
   }
 

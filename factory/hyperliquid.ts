@@ -10,6 +10,7 @@ interface BuilderConfig {
   extraReturnFields?: Record<string, any>;
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidBuilderMarketV2; // perps when omitted, see builderMarketListings for the other markets
+  revenueToHolders?: boolean; // all builder-code fees go to the protocol's token holders
 }
 
 // this config is used for both superx and superX
@@ -839,9 +840,11 @@ const builderConfigs: Record<string, BuilderConfig> = {
     methodology: {
       Fees: "Builder code revenue from Hyperliquid Perps Trades.",
       Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "No builder code revenue is kept by the protocol.",
+      HoldersRevenue: "All builder code revenue goes to CRONUS holders: until 2026-09-22 it bought CRONUS that was distributed 100% to holders through the revenue share contract; since then it buys CRONUS that is burned.",
     },
     breakdownFees: true,
+    revenueToHolders: true,
   },
   "topdog-perps": {
     addresses: ["0xaef63e8441987a5e9bf1d37ebb61d8855f405a98"],
@@ -1412,7 +1415,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "cipher-spot": { builder: "cipher-perps", market: "spot", start: "2025-04-15" },
   "cipher-outcome": { builder: "cipher-perps", market: "outcome", start: "2026-05-02" },
   "coin98-spot": { builder: "coin98-perps", market: "spot", start: "2025-09-26" },
-  "cro-trade-outcome": { builder: "cro-trade-perps", market: "outcome", start: "2026-05-02" },
+  // disabled, do not re-add: cro.trade's HIP-4 outcome product is now inactive and its builder code shows $0 outcome volume since launch (#10115)
+  // "cro-trade-outcome": { builder: "cro-trade-perps", market: "outcome", start: "2026-05-02" },
   "defiapp-spot": { builder: "defiapp-perps", market: "spot", start: "2025-03-24" },
   "dexari-spot": { builder: "dexari", market: "spot", start: "2025-01-28" },
   "dexly-trade-spot": { builder: "dexly-trade", market: "spot", start: "2026-02-01" },
@@ -1516,6 +1520,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     extraReturnFields: config.extraReturnFields,
     breakdownFees: config.breakdownFees,
     market: config.market ?? "perps",
+    revenueToHolders: config.revenueToHolders,
   });
 }
 for (const [name, listing] of Object.entries(builderMarketListings)) {
@@ -1526,6 +1531,7 @@ for (const [name, listing] of Object.entries(builderMarketListings)) {
     extraReturnFields: builder.extraReturnFields,
     breakdownFees: builder.breakdownFees,
     market: listing.market,
+    revenueToHolders: builder.revenueToHolders,
   });
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
