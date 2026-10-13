@@ -45,10 +45,10 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "The service fee copypump charges on every copied buy and sell, collected as a USDC transfer to the copypump treasury and counted on the day it is collected (the collector batches fees per user, so a fee can land the day after its trade).",
-  UserFees: "Same as Fees: every fee is paid by a copypump user.",
+  UserFees: "The service fees copypump charges on every copied buy and sell, collected as a USDC transfer to the copypump treasury and counted on the day it is collected (the collector batches fees per user, so a fee can land the day after its trade).",
   SupplySideRevenue: "The cost copypump pays on users' behalf: the SOL spent by the copypump fee payer, which co-signs every copied trade and pays its signature fee, priority fee and the rent of the token accounts the route creates. Priced at the daily SOL price.",
   Revenue: "Fees minus the fee payer cost: what copypump keeps. The 'app revenue, after gas' figure on copypumpfun.com/data.",
-  ProtocolRevenue: "Same as Revenue: there is no token and no holder distribution, everything copypump keeps goes to the protocol.",
+  ProtocolRevenue: "Fees minus the fee payer cost: what copypump keeps.",
 };
 
 const breakdownMethodology = {
@@ -56,7 +56,7 @@ const breakdownMethodology = {
     [SERVICE_FEE]: "Every USDC transfer into the copypump treasury on Solana.",
   },
   UserFees: {
-    [SERVICE_FEE]: "Same as the Fees component.",
+    [SERVICE_FEE]: "Every USDC transfer into the copypump treasury on Solana.",
   },
   SupplySideRevenue: {
     [FEE_PAYER_COST]: "SOL that left the fee payer's account in the transactions it signed (fees and rent, net of rent returned in the same transaction). Transactions where its balance went up are its top-ups from the treasury and are excluded; failed transactions are included since their fee is paid. Priced with the daily SOL price.",
@@ -65,7 +65,7 @@ const breakdownMethodology = {
     [SERVICE_FEE]: "The service fee net of the fee payer cost of the same day: what copypump keeps.",
   },
   ProtocolRevenue: {
-    [SERVICE_FEE]: "Same as the Revenue component.",
+    [SERVICE_FEE]: "The service fee net of the fee payer cost of the same day: what copypump keeps.",
   },
 };
 
