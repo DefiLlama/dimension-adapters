@@ -20,6 +20,13 @@ const usdc: Record<string, string> = {
   ethereum: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
   sonic: '0x29219dd400f2bf60e5a23d13be72b486d4038894',
 }
+
+test('ftUSD registers BSC from deployment without changing existing chain starts', () => {
+  assert.equal(ftusd.adapter?.bsc?.start, '2026-07-08')
+  assert.equal(ftusd.adapter?.ethereum?.start, '2026-01-26')
+  assert.equal(ftusd.adapter?.sonic?.start, '2026-01-26')
+})
+
 async function run(chain: string, mint: string[], redeem: string[], fail = false) {
   const options = {
     chain,
