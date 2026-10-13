@@ -1,6 +1,8 @@
-import { ethers } from "ethers";
+import { ChainApi } from "@defillama/sdk";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { httpGet } from "../../utils/fetchURL";
 
 // Sprout LaunchpadCore (current core), Injective EVM.
 // Source: contract list in the Sprout docs, https://trysprout.fun/docs (section "Contracts").
@@ -13,185 +15,105 @@ const CORE = "0x1333692eB905823df110762525c26f7489BB9300";
 // Verified source: https://blockscout.injective.network/address/0x4bac811606b5b91a9ce6187330d255b8134169b4
 const HOOK = "0x4bac811606b5b91a9ce6187330d255b8134169b4";
 
-// First block where the core has code (found with a binary search over eth_getCode),
-// so no Sprout event can exist before it. The hook was deployed later.
-const LOWEST_BLOCK = 182781300;
-
 // Share of the platform fee used to buy back and burn SPROUT.
 // Source: Sprout docs, section "$SPROUT" (80% of the platform share buys SPROUT, which is burned).
 // The burn contract (0x65Dc46Ee554A27bC790710f9fAee74B427c1C57D) is not verified, so this ratio
 // cannot be checked on-chain and the admin can change it (docs: minimum 50%).
-const BUYBACK_SHARE_PERCENT = 80n;
+const BUYBACK_SHARE = 0.8;
 
-const BPS_DENOMINATOR = 10_000n; // same denominator as the hook (creatorBps) in the verified source
+const ABI = {
+  buy: "event Buy(uint256 indexed launchId, address indexed buyer, uint256 pairIn, uint256 fee, uint256 tokenOut, uint256 realPair, uint256 tokensSold, uint256 spotPriceWad, uint256 progressBps)",
+  sell: "event Sell(uint256 indexed launchId, address indexed seller, uint256 tokenIn, uint256 pairOutGross, uint256 fee, uint256 realPair, uint256 tokensSold, uint256 spotPriceWad, uint256 progressBps)",
+  creatorFeeAccrued: "event CreatorFeeAccrued(uint256 indexed launchId, address indexed creator, address indexed asset, uint256 amount)",
+  referralFeeAccrued: "event ReferralFeeAccrued(uint256 indexed launchId, address indexed referrer, address indexed asset, uint256 amount)",
+  // hook: one event per swap, the fee is split creatorBps / rest inside the same call
+  feeTaken: "event FeeTaken(bytes32 indexed poolId, uint256 indexed launchId, address quote, uint256 fee)",
+  getLaunchPairAsset: "function getLaunchPairAsset(uint256 launchId) view returns (address)",
+  poolInfo: "function poolInfo(bytes32 poolId) view returns (bool registered, uint256 launchId, address quote, uint16 creatorBps)",
+};
 
-const BUY_EVENT =
-  "event Buy(uint256 indexed launchId, address indexed buyer, uint256 pairIn, uint256 fee, uint256 tokenOut, uint256 realPair, uint256 tokensSold, uint256 spotPriceWad, uint256 progressBps)";
-const SELL_EVENT =
-  "event Sell(uint256 indexed launchId, address indexed seller, uint256 tokenIn, uint256 pairOutGross, uint256 fee, uint256 realPair, uint256 tokensSold, uint256 spotPriceWad, uint256 progressBps)";
-const CREATOR_FEE_EVENT =
-  "event CreatorFeeAccrued(uint256 indexed launchId, address indexed creator, address indexed asset, uint256 amount)";
-const REFERRAL_FEE_EVENT =
-  "event ReferralFeeAccrued(uint256 indexed launchId, address indexed referrer, address indexed asset, uint256 amount)";
-// hook: one event per swap, the fee is split creatorBps / rest inside the same call
-const HOOK_FEE_EVENT =
-  "event FeeTaken(bytes32 indexed poolId, uint256 indexed launchId, address quote, uint256 fee)";
+const LABELS = {
+  fees: "Bonding Curve Trading Fees",
+  creators: "Trading Fees To Creators",
+  referrers: "Trading Fees To Referrers",
+  revenue: "Trading Fees To Platform",
+  gradFees: "Graduated Pool Trading Fees",
+  gradCreators: "Graduated Pool Fees To Creators",
+  gradRevenue: "Graduated Pool Fees To Platform",
+  protocol: "Trading Fees To Protocol",
+  holders: "Trading Fees To SPROUT Buyback And Burn",
+};
 
-const L_FEES = "Bonding Curve Trading Fees";
-const L_CREATORS = "Trading Fees To Creators";
-const L_REFERRERS = "Trading Fees To Referrers";
-const L_REVENUE = "Trading Fees To Platform";
-const L_GRAD_FEES = "Graduated Pool Trading Fees";
-const L_GRAD_CREATORS = "Graduated Pool Fees To Creators";
-const L_GRAD_REVENUE = "Graduated Pool Fees To Platform";
-const L_PROTOCOL = "Trading Fees To Protocol";
-const L_HOLDERS = "Trading Fees To SPROUT Buyback And Burn";
-
-const coreInterface = new ethers.Interface([
-  "function getLaunchPairAsset(uint256 launchId) view returns (address)",
-]);
-const hookInterface = new ethers.Interface([
-  "function poolInfo(bytes32 poolId) view returns (bool registered, uint256 launchId, address quote, uint16 creatorBps)",
-]);
-
-// the quote (pair) asset of a launch and the creator share of a pool never change, so both are cached
-const quoteCache: Record<string, string> = {};
-const creatorBpsCache: Record<string, bigint> = {};
-
-async function getQuoteToken(provider: any, launchId: string): Promise<string> {
-  if (quoteCache[launchId]) return quoteCache[launchId];
-  const data = coreInterface.encodeFunctionData("getLaunchPairAsset", [launchId]);
-  const result = await provider.call({ to: CORE, data });
-  const [asset] = coreInterface.decodeFunctionResult("getLaunchPairAsset", result);
-  if (!asset || asset === ethers.ZeroAddress) {
-    throw new Error(`Sprout: no quote asset found for launch ${launchId}`);
-  }
-  quoteCache[launchId] = String(asset).toLowerCase();
-  return quoteCache[launchId];
-}
-
-async function getCreatorBps(provider: any, poolId: string): Promise<bigint> {
-  if (creatorBpsCache[poolId] !== undefined) return creatorBpsCache[poolId];
-  const data = hookInterface.encodeFunctionData("poolInfo", [poolId]);
-  const result = await provider.call({ to: HOOK, data });
-  const [registered, , , creatorBps] = hookInterface.decodeFunctionResult("poolInfo", result);
-  if (!registered) throw new Error(`Sprout: pool ${poolId} is not registered in the hook`);
-  creatorBpsCache[poolId] = BigInt(creatorBps.toString());
-  return creatorBpsCache[poolId];
-}
-
-// `injective` is registered as both a cosmos and an EVM chain, so the sdk cannot turn
-// a timestamp into an EVM block. Resolve the block range through the EVM rpc instead.
-async function firstBlockAtOrAfter(provider: any, timestamp: number, latest: number): Promise<number> {
-  let lo = LOWEST_BLOCK;
-  let hi = latest;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const block = await provider.getBlock(mid);
-    if (block.timestamp >= timestamp) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
-}
-
-async function getBlockRange(provider: any, options: FetchOptions) {
-  const latest = await provider.getBlockNumber();
-  const latestBlock = await provider.getBlock(latest);
-  const fromBlock = await firstBlockAtOrAfter(provider, options.startTimestamp, latest);
-  const toBlock =
-    latestBlock.timestamp < options.endTimestamp
-      ? latest
-      : (await firstBlockAtOrAfter(provider, options.endTimestamp, latest)) - 1;
-  return { fromBlock, toBlock };
-}
-
-const addTo = (map: Record<string, bigint>, token: string, amount: bigint) => {
-  map[token] = (map[token] ?? 0n) + amount;
+const getBlock = async (timestamp: number): Promise<number> => {
+  const { height } = await httpGet(`https://coins.llama.fi/block/${CHAIN.INJECTIVE}/${timestamp}`);
+  if (!height) throw new Error(`Sprout: no injective block for timestamp ${timestamp}`);
+  return height;
 };
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  const result = { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
+  const dailySupplySideRevenue = options.createBalances();
 
-  const provider = (options.api as any).provider;
-  const { fromBlock, toBlock } = await getBlockRange(provider, options);
-  if (toBlock < fromBlock) return result;
+  const fromBlock = await getBlock(options.fromTimestamp);
+  const toBlock = await getBlock(options.toTimestamp);
+  const getLogs = (target: string, eventAbi: string) => options.getLogs({ target, eventAbi, fromBlock, toBlock });
+  const api = new ChainApi({ chain: options.chain, block: toBlock });
 
-  const getEvents = (target: string, eventAbi: string): Promise<any[]> =>
-    options.getLogs({ target, eventAbi, fromBlock, toBlock } as any);
+  const trades = [...(await getLogs(CORE, ABI.buy)), ...(await getLogs(CORE, ABI.sell))];
+  const creatorFees = await getLogs(CORE, ABI.creatorFeeAccrued);
+  const referralFees = await getLogs(CORE, ABI.referralFeeAccrued);
+  const hookFees = await getLogs(HOOK, ABI.feeTaken);
 
-  const buys = await getEvents(CORE, BUY_EVENT);
-  const sells = await getEvents(CORE, SELL_EVENT);
-  const creatorAccruals = await getEvents(CORE, CREATOR_FEE_EVENT);
-  const referralAccruals = await getEvents(CORE, REFERRAL_FEE_EVENT);
-  const hookFees = await getEvents(HOOK, HOOK_FEE_EVENT);
-
-  // ---- bonding curve ----
-  const launchIds = [...new Set([...buys, ...sells].map((log: any) => String(log.launchId)))];
-  const tokens = await Promise.all(launchIds.map((id) => getQuoteToken(provider, id)));
-  const quoteByLaunch: Record<string, string> = {};
-  launchIds.forEach((id, i) => (quoteByLaunch[id] = tokens[i]));
-
-  const fees: Record<string, bigint> = {};
-  const creators: Record<string, bigint> = {};
-  const referrers: Record<string, bigint> = {};
-
-  [...buys, ...sells].forEach((log: any) => addTo(fees, quoteByLaunch[String(log.launchId)], BigInt(log.fee)));
-  creatorAccruals.forEach((log: any) => addTo(creators, String(log.asset).toLowerCase(), BigInt(log.amount)));
-  referralAccruals.forEach((log: any) => addTo(referrers, String(log.asset).toLowerCase(), BigInt(log.amount)));
-
-  for (const token of Object.keys(fees)) {
-    const fee = fees[token];
-    const creator = creators[token] ?? 0n;
-    const referrer = referrers[token] ?? 0n;
-    // platform share = total trade fee minus what is credited to creators and referrers
-    const platform = fee - creator - referrer;
-    if (platform < 0n) throw new Error(`Sprout: creator and referral fees exceed total fees for ${token}`);
-    const holders = (platform * BUYBACK_SHARE_PERCENT) / 100n;
-
-    dailyFees.add(token, fee, L_FEES);
-    dailySupplySideRevenue.add(token, creator, L_CREATORS);
-    dailySupplySideRevenue.add(token, referrer, L_REFERRERS);
-    dailyRevenue.add(token, platform, L_REVENUE);
-    dailyHoldersRevenue.add(token, holders, L_HOLDERS);
-    dailyProtocolRevenue.add(token, platform - holders, L_PROTOCOL);
-  }
-
-  // ---- graduated Choice v2 pools (hook) ----
-  const poolIds = [...new Set(hookFees.map((log: any) => String(log.poolId)))];
-  const poolBps = await Promise.all(poolIds.map((id) => getCreatorBps(provider, id)));
-  const bpsByPool: Record<string, bigint> = {};
-  poolIds.forEach((id, i) => (bpsByPool[id] = poolBps[i]));
-
-  const gradFees: Record<string, bigint> = {};
-  const gradCreators: Record<string, bigint> = {};
-  hookFees.forEach((log: any) => {
-    const token = String(log.quote).toLowerCase();
-    const fee = BigInt(log.fee);
-    // same split as the hook: creator gets fee * creatorBps / 10000, the platform gets the rest
-    const creator = (fee * bpsByPool[String(log.poolId)]) / BPS_DENOMINATOR;
-    addTo(gradFees, token, fee);
-    addTo(gradCreators, token, creator);
+  // ---- bonding curve: the fee is paid in the launch's pair asset ----
+  const launchIds = [...new Set(trades.map((log) => String(log.launchId)))];
+  const pairAssets = await api.multiCall({ target: CORE, abi: ABI.getLaunchPairAsset, calls: launchIds });
+  const pairAssetByLaunch: Record<string, string> = {};
+  launchIds.forEach((id, i) => {
+    if (!pairAssets[i] || pairAssets[i] === ADDRESSES.null) throw new Error(`Sprout: no pair asset for launch ${id}`);
+    pairAssetByLaunch[id] = pairAssets[i];
   });
 
-  for (const token of Object.keys(gradFees)) {
-    const fee = gradFees[token];
-    const creator = gradCreators[token];
-    const platform = fee - creator;
-    const holders = (platform * BUYBACK_SHARE_PERCENT) / 100n;
+  trades.forEach((log) => {
+    const asset = pairAssetByLaunch[String(log.launchId)];
+    dailyFees.add(asset, log.fee, LABELS.fees);
+    dailyRevenue.add(asset, log.fee, LABELS.revenue);
+  });
+  // creator and referral fees are carved out of the trade fee, the platform keeps the rest
+  creatorFees.forEach((log) => {
+    dailySupplySideRevenue.add(log.asset, log.amount, LABELS.creators);
+    dailyRevenue.subtractToken(log.asset, log.amount, LABELS.revenue);
+  });
+  referralFees.forEach((log) => {
+    dailySupplySideRevenue.add(log.asset, log.amount, LABELS.referrers);
+    dailyRevenue.subtractToken(log.asset, log.amount, LABELS.revenue);
+  });
 
-    dailyFees.add(token, fee, L_GRAD_FEES);
-    dailySupplySideRevenue.add(token, creator, L_GRAD_CREATORS);
-    dailyRevenue.add(token, platform, L_GRAD_REVENUE);
-    dailyHoldersRevenue.add(token, holders, L_HOLDERS);
-    dailyProtocolRevenue.add(token, platform - holders, L_PROTOCOL);
-  }
+  // ---- graduated Choice v2 pools (hook) ----
+  const poolIds = [...new Set(hookFees.map((log) => String(log.poolId)))];
+  const pools = await api.multiCall({ target: HOOK, abi: ABI.poolInfo, calls: poolIds });
+  const creatorBpsByPool: Record<string, bigint> = {};
+  poolIds.forEach((id, i) => {
+    if (!pools[i].registered) throw new Error(`Sprout: pool ${id} is not registered in the hook`);
+    creatorBpsByPool[id] = BigInt(pools[i].creatorBps);
+  });
 
-  return result;
+  hookFees.forEach((log) => {
+    const fee = BigInt(log.fee);
+    // same split as the hook: the creator gets fee * creatorBps / 10000, the platform the rest
+    const creator = (fee * creatorBpsByPool[String(log.poolId)]) / 10_000n;
+    dailyFees.add(log.quote, fee, LABELS.gradFees);
+    dailySupplySideRevenue.add(log.quote, creator, LABELS.gradCreators);
+    dailyRevenue.add(log.quote, fee - creator, LABELS.gradRevenue);
+  });
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: dailyRevenue.clone(BUYBACK_SHARE, LABELS.holders),
+    dailyProtocolRevenue: dailyRevenue.clone(1 - BUYBACK_SHARE, LABELS.protocol),
+  };
 };
 
 const methodology = {
@@ -204,20 +126,24 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [L_FEES]: "Fees charged on every buy and sell on the bonding curve.",
-    [L_GRAD_FEES]: "Fees charged by the Sprout hook on swaps in graduated Choice v2 pools (FeeTaken events).",
+    [LABELS.fees]: "Fees charged on every buy and sell on the bonding curve.",
+    [LABELS.gradFees]: "Fees charged by the Sprout hook on swaps in graduated Choice v2 pools (FeeTaken events).",
   },
   Revenue: {
-    [L_REVENUE]: "Bonding curve trading fees minus creator and referral fees.",
-    [L_GRAD_REVENUE]: "Graduated pool fees minus the creator share (fee * (10000 - creatorBps) / 10000).",
+    [LABELS.revenue]: "Bonding curve trading fees minus creator and referral fees.",
+    [LABELS.gradRevenue]: "Graduated pool fees minus the creator share (fee * (10000 - creatorBps) / 10000).",
   },
   SupplySideRevenue: {
-    [L_CREATORS]: "Bonding curve fees credited to launch creators (CreatorFeeAccrued).",
-    [L_REFERRERS]: "Bonding curve fees credited to referrers (ReferralFeeAccrued).",
-    [L_GRAD_CREATORS]: "Graduated pool fees credited to launch creators (fee * creatorBps / 10000).",
+    [LABELS.creators]: "Bonding curve fees credited to launch creators (CreatorFeeAccrued).",
+    [LABELS.referrers]: "Bonding curve fees credited to referrers (ReferralFeeAccrued).",
+    [LABELS.gradCreators]: "Graduated pool fees credited to launch creators (fee * creatorBps / 10000).",
   },
-  ProtocolRevenue: { [L_PROTOCOL]: "Platform share not used for SPROUT buyback and burn." },
-  HoldersRevenue: { [L_HOLDERS]: "80% of the platform share (curve and graduated pools) used to buy back and burn SPROUT." },
+  ProtocolRevenue: {
+    [LABELS.protocol]: "Platform share not used for SPROUT buyback and burn.",
+  },
+  HoldersRevenue: {
+    [LABELS.holders]: "80% of the platform share (curve and graduated pools) used to buy back and burn SPROUT.",
+  },
 };
 
 const adapter: SimpleAdapter = {
