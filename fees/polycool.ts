@@ -16,12 +16,14 @@ import { addTokensReceived } from "../helpers/token";
  *   - pUSD (Polymarket's 1:1 USDC.e wrapper) since.
  *
  * Income statement:
- *   dailyFees            — service fees received by the treasury (gross)
- *   dailyUserFees        — same: every fee is paid by the trader at fill time
- *   dailyRevenue         — same: no liquidity providers
- *   dailyProtocolRevenue — same (Polycool pays referrers 25% of the fees they
- *                          generate from a separate payout wallet; that share is
- *                          not tracked here yet)
+ *   dailyFees     — service fees received by the treasury (gross)
+ *   dailyUserFees — same: every fee is paid by the trader at fill time
+ *
+ * Revenue is not reported yet: Polycool pays referrers 25% of the fees generated
+ * by the users they referred (about 6% of all fees to date). Those rewards accrue
+ * off-chain and are paid on claim from a separate wallet that also funds other
+ * payouts, so the referral share cannot be isolated on-chain. Until it can, only
+ * gross fees are reported.
  */
 
 // Polycool fee treasury on Polygon. Receives only the per-trade service fees
@@ -45,8 +47,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
   };
 };
 
@@ -55,8 +55,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Per-trade service fee charged by Polycool on every Polymarket buy and sell routed through the app: 1.00% of the notional for new users, decreasing with lifetime volume to 0.50% above $100K. Pulled from the trader's wallet at settlement and received by the Polycool treasury on Polygon as USDC.e (until the pUSD migration) or pUSD.",
     UserFees: "All fees are paid by the trader at fill time.",
-    Revenue: "All fees go to Polycool; there are no liquidity providers.",
-    ProtocolRevenue: "All fees go to the Polycool treasury. Referral rewards (25% of the fees a referred user generates) are paid from a separate wallet and are not deducted here.",
   },
   breakdownMethodology: {
     Fees: {
