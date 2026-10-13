@@ -31,6 +31,7 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.FANTOM, CHAIN.OPTIMISM],
   runAtCurrTime: true,
+  deadFrom: '2023-08-18', // yields.llama.fi has listed no tarot pools since 2023-08-17 (its yield adaptor was later removed), so this has returned 0 fees since
 }
 
 export default adapter;
