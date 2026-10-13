@@ -999,6 +999,19 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "mixin-perps": {
+    // Mixin Perps builder address, lowercased to match Hyperliquid's builder_fills files.
+    addresses: ["0x19c31e9a31f75e14d5dd0d490303b08350d702b9"],
+    // First archived fill date; the previous day has no builder_fills file.
+    start: "2026-07-17",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades routed through Mixin Perps' builder code.",
+      Fees: "Builder code revenue from Hyperliquid Perps Trades.",
+      Revenue: "Builder code revenue from Hyperliquid Perps Trades.",
+      ProtocolRevenue: "Builder code revenue from Hyperliquid Perps Trades.",
+    },
+    breakdownFees: true,
+  },
   "quote": {
     addresses: ["0x459b632f49023881cd45d8f0003297ebe16a13d6"],
     start: "2026-07-30",
