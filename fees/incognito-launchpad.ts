@@ -14,7 +14,6 @@ const PLATFORM_CONFIG = "FtTaVwmhxc99Lb39mvuoRn8HkafVTJqRtoXeRTTXczpe";
 const LOCK_PROGRAM = "LockrWmn6K5twhz3y9w1dQERbmgSaRkfnTeTKbpofwE";
 // The platform config was created on 2026-10-03.
 const START = "2026-10-03";
-const CREATOR_FEES = "Creator Fees";
 
 type Row = { kind: string; mint: string; raw_amount: string };
 
@@ -85,14 +84,15 @@ const fetch = async (options: FetchOptions) => {
   for (const row of rows) {
     const amount = BigInt(row.raw_amount || 0);
     if (amount === 0n) continue;
-    if (row.kind === "creator_fee") {
-      dailyFees.add(row.mint, amount, CREATOR_FEES);
-      dailySupplySideRevenue.add(row.mint, amount, CREATOR_FEES);
-    } else {
-      const label = row.kind === "platform_fee" ? METRIC.TRADING_FEES : METRIC.LP_FEES;
-      dailyFees.add(row.mint, amount, label);
-      dailyRevenue.add(row.mint, amount, label);
+    if (row.kind === "locked_lp_fee") {
+      dailyFees.add(row.mint, amount, METRIC.LP_FEES);
+      dailyRevenue.add(row.mint, amount, "LP Fees To Protocol");
+      continue;
     }
+    // the platform fee and the creator fee are both charged on the same bonding-curve trade
+    dailyFees.add(row.mint, amount, METRIC.TRADING_FEES);
+    if (row.kind === "creator_fee") dailySupplySideRevenue.add(row.mint, amount, "Trading Fees To Creators");
+    else dailyRevenue.add(row.mint, amount, "Trading Fees To Protocol");
   }
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
@@ -100,24 +100,27 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Fees paid by traders of coins launched on Incognito Launchpad (Solana): the launchpad's 0.25% platform fee and the coin creator's 0.5% fee on every trade against the Raydium LaunchLab bonding curves it configures, and, once a coin graduates, the quote-side trading fees of its permanently locked liquidity, harvested with the Fee Key the launchpad holds. Raydium's own protocol fee is excluded. Amounts are in each pool's quote token.",
-  UserFees: "Same as fees, paid by traders.",
+  UserFees: "The launchpad's 0.25% platform fee and the creator's 0.5% fee on every Incognito Launchpad bonding-curve trade, plus the quote-side trading fees of graduated launches' locked liquidity, all paid by traders.",
   Revenue: "The platform fee and the harvested locked-liquidity fees, both received by the launchpad treasury.",
-  ProtocolRevenue: "All revenue goes to the launchpad treasury.",
+  ProtocolRevenue: "The 0.25% platform fee on bonding-curve trades and the harvested locked-liquidity fees, all sent to the launchpad treasury.",
   SupplySideRevenue: "The creator fee of each bonding-curve trade, paid to the wallet that launched the coin.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "0.25% of every LaunchLab bonding curve trade on an Incognito launch, charged in the pool's quote token.",
-    [CREATOR_FEES]: "0.5% of every LaunchLab bonding curve trade, paid to the coin's creator.",
+    [METRIC.TRADING_FEES]: "0.75% of every LaunchLab bonding curve trade on an Incognito launch (0.25% platform fee plus 0.5% creator fee), charged in the pool's quote token.",
     [METRIC.LP_FEES]: "Quote-token fees harvested from the locked liquidity of graduated Incognito launches.",
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: "The whole platform fee, kept by the launchpad.",
-    [METRIC.LP_FEES]: "The harvested locked-liquidity fees, kept by the launchpad.",
+    "Trading Fees To Protocol": "The 0.25% platform fee on bonding curve trades, kept by the launchpad.",
+    "LP Fees To Protocol": "The harvested locked-liquidity fees, kept by the launchpad.",
+  },
+  ProtocolRevenue: {
+    "Trading Fees To Protocol": "The 0.25% platform fee on bonding curve trades, sent to the launchpad treasury.",
+    "LP Fees To Protocol": "The harvested locked-liquidity fees, sent to the launchpad treasury.",
   },
   SupplySideRevenue: {
-    [CREATOR_FEES]: "The creator fee, paid to coin creators.",
+    "Trading Fees To Creators": "The 0.5% creator fee on bonding curve trades, paid to the wallet that launched the coin.",
   },
 };
 
@@ -128,6 +131,7 @@ const adapter: Adapter = {
   chains: [CHAIN.SOLANA],
   start: START,
   isExpensiveAdapter: true,
+  doublecounted: true, // LaunchLab and Raydium report the same swap fees.
   methodology,
   breakdownMethodology,
 };
