@@ -1402,6 +1402,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "cipher-spot": { builder: "cipher-perps", market: "spot", start: "2025-04-15" },
   "cipher-outcome": { builder: "cipher-perps", market: "outcome", start: "2026-05-02" },
   "coin98-spot": { builder: "coin98-perps", market: "spot", start: "2025-09-26" },
+  // disabled, do not re-add: cro.trade's HIP-4 outcome product is now inactive and its builder code shows $0 outcome volume since launch (#10115)
+  // "cro-trade-outcome": { builder: "cro-trade-perps", market: "outcome", start: "2026-05-02" },
   "defiapp-spot": { builder: "defiapp-perps", market: "spot", start: "2025-03-24" },
   "dexari-spot": { builder: "dexari", market: "spot", start: "2025-01-28" },
   "dexly-trade-spot": { builder: "dexly-trade", market: "spot", start: "2026-02-01" },
