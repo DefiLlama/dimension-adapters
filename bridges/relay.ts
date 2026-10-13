@@ -6,7 +6,8 @@ import { httpGet } from "../utils/fetchURL";
 // Relay cross-chain requests from Relay's API.
 // https://docs.relay.link/references/api/get-requests
 const API = "https://api.relay.link/requests/v3";
-const PAGE_DELAY_MS = 350; // ~170 requests a minute, under the ~180/min the old adapter ran at
+// Pages are capped at 100 and fetched one at a time with no fixed delay: ~70 requests a minute, under the 180/min
+// the old bridges-server adapter ran in production. 429s and server errors back off and retry.
 const RETRY_DELAYS_MS = [5_000, 15_000, 30_000, 60_000];
 
 // Relay chain id -> DefiLlama chain (https://api.relay.link/chains)
@@ -53,28 +54,36 @@ const getPage = async (url: string, apiKey: string) => {
   }
 };
 
-// one paged pull per window, shared by every chain
-const prefetch = async (options: FetchOptions): Promise<RelayRequest[]> => {
-  const apiKey = getEnv("RELAY_API_KEY");
-  if (!apiKey) throw new Error("relay: RELAY_API_KEY is required");
-  const requests: RelayRequest[] = [];
-  let continuation: string | undefined;
-  do {
-    const page = await getPage(`${API}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}&limit=100&sortBy=createdAt&sortDirection=asc${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ""}`, apiKey);
-    if (!Array.isArray(page?.requests)) throw new Error("relay: unexpected API response");
-    requests.push(...page.requests);
-    continuation = page.continuation;
-    if (continuation) await sleep(PAGE_DELAY_MS);
-  } while (continuation);
-  return requests.filter((r) => r.status === "success");
-};
-
 // v3 responses carry the legs in data.metadata like v2; fall back to the settled route the old adapter read
 const getLegs = (request: RelayRequest): [Leg | undefined, Leg | undefined] => {
   const metadata = request.data?.metadata;
   if (metadata?.currencyIn && metadata?.currencyOut) return [metadata.currencyIn, metadata.currencyOut];
   const route = request.data?.route?.actual ?? request.data?.route?.quoted;
   return [route?.origin?.inputCurrency, route?.destination?.inputCurrency ?? route?.origin?.outputCurrency];
+};
+
+// keep only the fields fetch reads, so the full request objects can be freed page by page
+const slimLeg = ({ currency, amount, amountUsd }: Leg): Leg => ({ currency: { chainId: currency.chainId, address: currency.address }, amount, amountUsd });
+
+// one paged pull per window, shared by every chain: the [in, out] legs of each successful cross-chain request
+const prefetch = async (options: FetchOptions): Promise<[Leg, Leg][]> => {
+  const apiKey = getEnv("RELAY_API_KEY");
+  if (!apiKey) throw new Error("relay: RELAY_API_KEY is required");
+  const transfers: [Leg, Leg][] = [];
+  let continuation: string | undefined;
+  do {
+    const page = await getPage(`${API}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}&limit=100&sortBy=createdAt&sortDirection=asc${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ""}`, apiKey);
+    if (!Array.isArray(page?.requests)) throw new Error("relay: unexpected API response");
+    for (const request of page.requests as RelayRequest[]) {
+      if (request.status !== "success") continue;
+      const [legIn, legOut] = getLegs(request);
+      // same-chain swaps are not bridging
+      if (!legIn || !legOut || legIn.currency.chainId === legOut.currency.chainId) continue;
+      transfers.push([slimLeg(legIn), slimLeg(legOut)]);
+    }
+    continuation = page.continuation;
+  } while (continuation);
+  return transfers;
 };
 
 const addLeg = (balances: any, leg: Leg) => {
@@ -89,15 +98,13 @@ const addLeg = (balances: any, leg: Leg) => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const requests: RelayRequest[] = options.preFetchedResults;
+  const transfers: [Leg, Leg][] = options.preFetchedResults;
   const dailyOutgoingVolume = options.createBalances();
   const dailyIncomingVolume = options.createBalances();
   let dailyOutgoingTxCount = 0;
   let dailyIncomingTxCount = 0;
 
-  for (const request of requests) {
-    const [legIn, legOut] = getLegs(request);
-    if (!legIn || !legOut || legIn.currency.chainId === legOut.currency.chainId) continue;
+  for (const [legIn, legOut] of transfers) {
     if (RELAY_CHAINS[legIn.currency.chainId] === options.chain) {
       addLeg(dailyOutgoingVolume, legIn);
       dailyOutgoingTxCount++;
