@@ -155,6 +155,10 @@ const adapter: SimpleAdapter = {
       fetch,
       start: '2026-07-01',
     },
+    [CHAIN.ARC]: {
+      fetch,
+      start: '2026-09-01',
+    },
   },
 };
 
