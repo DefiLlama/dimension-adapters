@@ -5,7 +5,7 @@
  * Website: https://hashlock.markets · Docs: https://docs.hashlock.markets
  *
  * Escrows (mainnet):
- *   Ethereum, Base, Robinhood Chain — HTLCFactory 0xa9B6a64837259034E949787B5d17Bfa46304ff71 deploys one
+ *   EVM (every chain in EVM_CHAINS) — HTLCFactory 0xa9B6a64837259034E949787B5d17Bfa46304ff71 deploys one
  *     minimal-proxy clone per leg (SwapCreated); the clone emits Claimed(secret) / Refunded.
  *   TRON — SharedHTLC pool TE97fe1beR5nRZzjixi4azE36qWcHEWmNj (Funded / Claimed / Refunded / FeeCollected).
  *   Solana — program 7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc, one escrow PDA per leg (Anchor events
@@ -16,7 +16,7 @@
  * pays them first — the short-timelock leg, never the Bitcoin one — and that claim reveals the secret;
  * every later claim with the same secret (the other leg, or any escrow someone else funded with the same
  * hashlock) comes after it and is not counted. The hashlock of a claim is sha256 of the secret it reveals,
- * so claims are matched across all five chains without trusting any funding event. The amount is the
+ * so claims are matched across every indexed chain without trusting any funding event. The amount is the
  * claimed leg's escrowed amount. So:
  *   - a trade with a Bitcoin leg is counted through its other leg;
  *   - a refunded leg is never claimed, so it is never counted, and a trade nobody settled adds nothing;
@@ -47,7 +47,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { base58Encode, getTransaction, solanaRpc } from "../../helpers/solana";
 
-const FACTORY = "0xa9B6a64837259034E949787B5d17Bfa46304ff71"; // same address on all three EVM chains
+const FACTORY = "0xa9B6a64837259034E949787B5d17Bfa46304ff71"; // same address on every chain in EVM_CHAINS
 const TRON_POOL = sdk.util.tronToEvmAddress("TE97fe1beR5nRZzjixi4azE36qWcHEWmNj");
 const SOLANA_PROGRAM = "7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc";
 const EVM_CHAINS: string[] = [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ROBINHOOD];
