@@ -679,7 +679,6 @@ const fetch = async (options: FetchOptions) => {
   // the loan term rather than booked on the acceptance day, which keeps this
   // path on the same accrual basis as the other two; the term is fixed at
   // acceptance, so the slices add up to exactly the fee charged.
-  console.log(upfront.length)
   if (upfront.length) {
     const upfrontAssets = await toApi.multiCall({
       abi: abis.asset,
