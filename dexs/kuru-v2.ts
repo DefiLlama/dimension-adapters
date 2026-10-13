@@ -22,20 +22,23 @@ const ABIS = {
     "event BuilderFeeAccrued(address indexed builder, address indexed asset, uint40 indexed takerAccountId, address orderBook, uint24 builderFeePps, uint256 amount)",
 };
 
+/** Rounds a fee down: (amount * feePps) / 10_000_000. Used for maker fees. */
 function feeDown(amount: bigint, feePps: bigint) {
   return (amount * feePps) / PPS;
 }
 
+/** Rounds a fee up: (amount * feePps + 10_000_000 - 1) / 10_000_000. Used for taker fees. */
 function feeUp(amount: bigint, feePps: bigint) {
   return (amount * feePps + PPS - 1n) / PPS;
 }
 
+/** Converts a packed fill's price and size into raw quote-token atoms. */
 function rawQuote(price: bigint, fillSize: bigint, sizePrecision: bigint, pricePrecision: bigint, quoteScale: bigint) {
   const priceSizeUnits = (price * fillSize) / sizePrecision;
   return (priceSizeUnits * quoteScale) / pricePrecision;
 }
 
-// 64-byte records, as decoded by decodeTradesPacked in Kuru's TypeScript SDK.
+/** Splits a TradesPacked payload into 64-byte fill records. */
 function decodePackedTrades(packed: string) {
   const hex = packed.startsWith("0x") ? packed.slice(2) : packed;
   const records = [];
@@ -53,6 +56,7 @@ function decodePackedTrades(packed: string) {
   return records;
 }
 
+/** Loads Kuru v2 markets, trade fills, and builder fees for the requested window. */
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -135,7 +139,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Value of every trade on Kuru v2 order books, in the quote token at the price each fill executed at.",
   Fees: "Taker and maker trading fees, plus fees charged by approved builders that route trades.",
-  UserFees: "Taker, maker, and builder fees paid by traders.",
   Revenue: "Taker and maker trading fees, kept by the protocol.",
   ProtocolRevenue: "Taker and maker trading fees, sent to the protocol fee collector.",
   SupplySideRevenue: "Builder fees, paid to the approved builders that routed the trades.",
@@ -145,11 +148,6 @@ const breakdownMethodology = {
   Fees: {
     "Taker Fees": "Fee charged to the taker on each matched trade.",
     "Maker Fees": "Fee charged to makers whose resting orders are filled. Fills against passive liquidity carry no maker fee.",
-    "Builder Fees": "Fee charged on trades routed by an approved builder.",
-  },
-  UserFees: {
-    "Taker Fees": "Fee charged to the taker on each matched trade.",
-    "Maker Fees": "Fee charged to makers whose resting orders are filled.",
     "Builder Fees": "Fee charged on trades routed by an approved builder.",
   },
   Revenue: {
