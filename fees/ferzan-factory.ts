@@ -101,10 +101,10 @@ async function fetchEvm(options: FetchOptions) {
 
 async function fetchSolana(options: FetchOptions) {
   const configs = FERZAN_DBC_CONFIGS.map((c) => `'${c}'`).join(", ");
-  const rows: { trading_fee: number; protocol_fee: number }[] = await queryDuneSql(options, `
+  const rows: { trading_fee: string; protocol_fee: string }[] = await queryDuneSql(options, `
     SELECT
-      SUM(CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0))) AS trading_fee,
-      SUM(CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0))) AS protocol_fee
+      CAST(COALESCE(SUM(CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0))), 0) AS VARCHAR) AS trading_fee,
+      CAST(COALESCE(SUM(CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0))), 0) AS VARCHAR) AS protocol_fee
     FROM meteora_solana.dynamic_bonding_curve_evt_evtswap
     WHERE config IN (${configs})
       AND evt_block_time >= from_unixtime(${options.startTimestamp})
@@ -113,8 +113,9 @@ async function fetchSolana(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const trading = BigInt(Math.round(Number(rows[0]?.trading_fee || 0)));
-  const protocol = BigInt(Math.round(Number(rows[0]?.protocol_fee || 0)));
+  // sums come back as exact integer strings (lamports), so no float rounding
+  const trading = BigInt(rows[0]?.trading_fee || "0");
+  const protocol = BigInt(rows[0]?.protocol_fee || "0");
   const toCreator = trading / 2n; // creatorTradingFeePercentage: 50 in Ferzan's config
   dailyFees.add(ADDRESSES.solana.SOL, trading.toString(), LABEL.CURVE);
   dailyFees.add(ADDRESSES.solana.SOL, protocol.toString(), LABEL.METEORA);
