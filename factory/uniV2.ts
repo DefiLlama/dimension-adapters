@@ -15,6 +15,9 @@ const configs: Record<string, Record<string, any>> = {
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
     [CHAIN.BOT_CHAIN]: { factory: '0x117115f3B72C8d1989178089A67D0C26f8EE0AA3', start: '2026-06-02', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   },
+  "melegaswap": {
+    [CHAIN.BSC]: { factory: '0xb7E5848e1d0CB457f2026670fCb9BbdB7e9E039C', start: '2022-08-10', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "ebisus-bay-dex": {
     [CHAIN.CRONOS]: {
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
@@ -881,6 +884,14 @@ const methodologyMap: Record<string, any> = {
     Revenue: "No protocol fee is taken (factory feeTo is unset), all swap fees go to liquidity providers.",
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
+  "melegaswap": {
+    Volume: 'Swap volume from MelegaSwap V2 liquidity pairs on BNB Smart Chain.',
+    Fees: 'A 0.3% fee is charged on each swap.',
+    UserFees: 'Users pay the 0.3% swap fee.',
+    Revenue: 'The factory fee recipient is disabled, so the protocol receives no swap-fee revenue.',
+    ProtocolRevenue: 'The factory fee recipient is disabled, so protocol revenue is zero.',
+    SupplySideRevenue: 'Swap fees accrue to liquidity providers.',
   },
   "sonevibe": {
     Volume: "Volume is calculated from Swap events on VibeSwap pairs created by the VibeFactory.",
@@ -1806,6 +1817,14 @@ protocols['bdex-v2'].breakdownMethodology = {
   Revenue: { 'Protocol fees': methodologyMap['bdex-v2'].Revenue },
   ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v2'].ProtocolRevenue },
   SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v2'].SupplySideRevenue },
+}
+
+protocols['melegaswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'The 0.3% fee charged on each token swap.' },
+  UserFees: { 'Trading fees': 'The full 0.3% swap fee paid by users.' },
+  Revenue: { 'Protocol fees': 'Protocol-retained swap fees; zero while the factory fee recipient is disabled.' },
+  ProtocolRevenue: { 'Protocol fees': 'Protocol-retained swap fees; zero while the factory fee recipient is disabled.' },
+  SupplySideRevenue: { 'LP fees': 'Swap fees accruing to liquidity providers.' },
 }
 
 protocols['sonevibe'].breakdownMethodology = {
