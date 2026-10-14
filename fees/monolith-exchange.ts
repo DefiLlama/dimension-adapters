@@ -8,9 +8,14 @@ import { getSolanaReceived } from "../helpers/token";
 // accounts of Monolith's referral account GKcAVVJFKc2YV91jHgQDwZWqfbT4aGtyakY1ximp8Xj4
 // (Jupiter Referral Program, REFER4ZgmyYx9c6He5XfaTMiGfdLwRnkV4RPp9t9iF3), one account per fee
 // mint. Jupiter picks the fee mint (mostly SOL, then stablecoins).
+// SPL fee transfers show up in Allium under the destination's owner (the referral account), and
+// native SOL deposits (JupiterZ makers pay SOL fees as lamports, then sync) under the token
+// account itself, so the query targets both.
 // Sample fee transfers (SOL, USDC):
 // 5qUR2vGGE6nHtiR8QD9hQhsd4ehLgE27i8VkLdgsrvM1UhKrywpTbgS8QAj6euFQPXeHJVfxqxqtd2Yer5ENgupF
 // LDvbkPqg6PFihUTZmtKTQotBc1MkZ4Kew26YzqptpSFSsmstGZSprUFA4QAMckZ7sLeMuMRgzZ6eE8UA8tCuu4Z
+const REFERRAL_ACCOUNT = 'GKcAVVJFKc2YV91jHgQDwZWqfbT4aGtyakY1ximp8Xj4';
+
 const REFERRAL_TOKEN_ACCOUNTS = [
   'F6nQT47E6tBvcbtR332MTm9KijXS4xNN1FR9U79ZeTuj', // SOL
   '2iDBReKsWwSVk2CWKK435tHWc9FhLoX7cKU4gDZ86pSq', // USDC
@@ -54,9 +59,9 @@ const JUPITER_SHARE = 0.2;
 const fetch = async (options: FetchOptions) => {
   const swapFees = await getSolanaReceived({
     options,
-    targets: REFERRAL_TOKEN_ACCOUNTS,
+    targets: [REFERRAL_ACCOUNT, ...REFERRAL_TOKEN_ACCOUNTS],
     // Claims and moves between Monolith's own fee accounts are not new fees.
-    blacklists: REFERRAL_TOKEN_ACCOUNTS,
+    blacklists: [REFERRAL_ACCOUNT, ...REFERRAL_TOKEN_ACCOUNTS],
   });
 
   const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES);
