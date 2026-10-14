@@ -40,10 +40,6 @@ const TREASURY = '0x1118e1c057211306a40A4d7006C040dbfE1370Cb';
 // stETH on Ethereum mainnet
 const STETH = ADDRESSES.ethereum.STETH;
 
-// ETH cost basis for initial stETH acquisition (2192.99 ETH sent to CoWSwap)
-// Used as baseline when start-of-period balance is 0 (acquisition day)
-const STETH_COST_BASIS = BigInt('2192990000000000000000');
-
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
 
@@ -72,21 +68,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyFees.add(log.underlying, log.amount, METRIC.ASSETS_YIELDS);
   });
 
-  // Track daily stETH yield via period delta
-  // When start balance is 0 (day of acquisition), use STETH_COST_BASIS as baseline
-  // so only the conversion gain counts as yield, not the full deposit
-  const stethBalanceEnd = await options.api.call({
-    abi: 'erc20:balanceOf',
+  // Track daily stETH yield as the rebase on the shares held at the start of the period
+  const stethShares = await options.fromApi.call({
+    abi: 'function sharesOf(address) view returns (uint256)',
     target: STETH,
     params: [TREASURY],
   });
-  const stethBalanceStart = await options.fromApi.call({
-    abi: 'erc20:balanceOf',
+  const stethPooledStart = await options.fromApi.call({
+    abi: 'function getPooledEthByShares(uint256) view returns (uint256)',
     target: STETH,
-    params: [TREASURY],
+    params: [stethShares],
   });
-  const baseline = BigInt(stethBalanceStart) > 0n ? BigInt(stethBalanceStart) : STETH_COST_BASIS;
-  const stethYield = BigInt(stethBalanceEnd) - baseline;
+  const stethPooledEnd = await options.api.call({
+    abi: 'function getPooledEthByShares(uint256) view returns (uint256)',
+    target: STETH,
+    params: [stethShares],
+  });
+  const stethYield = BigInt(stethPooledEnd) - BigInt(stethPooledStart);
   if (stethYield > 0n) {
     dailyFees.add(STETH, stethYield, METRIC.ASSETS_YIELDS);
   }
