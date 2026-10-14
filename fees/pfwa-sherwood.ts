@@ -10,7 +10,7 @@ import { CHAIN } from "../helpers/chains";
 //   Season 2 (SherwoodV2.sol, ETH/$IMD pool): 40/20/10% to the top three and 8% to the King of the Hill, 10% buys back
 //     and burns $IMD (the pool's token, not PFWA's), 7% buys back and burns $PFWA, 5% rolls over.
 // Fees are counted when the swap pays them and split by those shares. The pots are also topped up by direct deposits
-// (PotSeeded, mostly from the team); those are not fees, and the burns they fund are not counted as holders revenue,
+// (PotSeeded, so far all from the team wallet); those are not fees, and the burns they fund are not counted as holders revenue,
 // so the $PFWA buyback is measured at the fee source (its share of PotFunded) rather than from the BuybackBurned events.
 // The swaps' LP fees are Uniswap's, and their volume is counted by Uniswap v4, so neither is counted here.
 const HOOKS: { hook: string; prizesBps: number; rolloverBps: number; pfwaBurnBps: number; imdBurnBps: number }[] = [

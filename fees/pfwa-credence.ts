@@ -19,7 +19,8 @@ import ADDRESSES from "../helpers/coreAssets.json";
 //   in the launcher until its owner, the Credence Safe 0x85eb79DBCc50eB3DA0Ee10460109991E863d2666, withdraws it.
 // Not fees: the bet's winnings coming home and the meme tokens they buy back and burn (they are the bet's outcome).
 // The $PFWA buyback is counted at the fee source (20% of the creator fees as they are collected), not from the harvests:
-// a harvest spends 20% of whatever WETH the vault holds, which has included team top-ups and test money besides fees.
+// a harvest spends 20% of whatever WETH the vault holds, which can include WETH that is not fees (the v2 vaults have
+// harvested 0.0125 WETH against 0.0105 WETH of fees collected).
 
 const PFWA_SHARE_BPS = 2000n; // 20% of a token vault's creator fees buys and burns $PFWA (PFWA_FEE_SPLIT_BPS / PFWA_SPLIT_BPS)
 const WETH = ADDRESSES.robinhood.WETH;
