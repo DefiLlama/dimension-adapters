@@ -19,8 +19,12 @@ import { METRIC } from "../../helpers/metrics";
 //    down) to the treasury and the rest to the group's creator. Only Peep's 5% is counted (see methodology).
 //    Sample (500,000 lamports to the treasury, 9,500,000 to the creator, 2026-10-01):
 //    2zJuUuCxiuyHCatTnDFw2wVh88bg5xTHYQpY57sL81EK4MmiqJtPD67wB9wjc1Ap9JrbjdWezqE8kgfpKFSKz8XM
-// The treasury also receives SOL that is not a fee: operator top-ups (a transaction whose only movement
-// is one transfer to the treasury) and its own transactions (signed by the treasury). Failed transactions
+// A Peep swap carries exactly one fee transfer: a swap transaction with more than one SOL transfer to the
+// treasury, or one not sent by its signer, matches no known shape and makes the adapter throw.
+// The treasury also receives SOL that is not a fee: direct transfers (a transaction whose only movement is one
+// SOL transfer to the treasury, from the operator or anyone else) and its own transactions (signed by the
+// treasury). Neither is counted. Direct transfers are recognised rather than rejected, because anyone can
+// send SOL to a public address and a stray transfer must not stop the adapter. Failed transactions
 // are ignored. Every fee payer is a Peep user, so no payer is excluded. Any other SOL inflow, or a
 // transaction Allium has not fully indexed, makes the adapter throw instead of storing a partial value.
 const TREASURY = 'HZbtepdvv8QiNX5dau4sQrCDiNKrBy35eNzrBN8jg6T6';
@@ -47,7 +51,8 @@ const fetch = async (options: FetchOptions) => {
   const rows = await queryAllium(`
     WITH inflows AS (
       -- every SOL credit to the treasury in the window (Peep fees are only paid in SOL)
-      SELECT r.txn_id, r.signer, IFF(${fromSigner('r')}, 1, 0) AS from_signer, TRY_TO_DECIMAL(r.raw_amount_str, 38, 0) AS lamports
+      SELECT r.txn_id, r.signer, IFF(${fromSigner('r')}, 1, 0) AS from_signer, TRY_TO_DECIMAL(r.raw_amount_str, 38, 0) AS lamports,
+        COUNT(*) OVER (PARTITION BY r.txn_id) AS tx_inflows
       FROM solana.assets.transfers r
       WHERE r.to_address = '${TREASURY}'
         AND r.mint = '${ADDRESSES.solana.SOL}'
@@ -84,10 +89,13 @@ const fetch = async (options: FetchOptions) => {
           WHEN p.failed_instructions > 0 THEN 'failed'
           WHEN f.signer = '${TREASURY}' THEN 'treasury_signed'
           WHEN f.from_signer = 0 THEN 'unrecognised'
-          WHEN p.has_jupiter = 1 THEN 'trading_fee'
+          -- Peep's fee is the single SOL transfer from the swap's signer to the treasury
+          WHEN p.has_jupiter = 1 AND f.tx_inflows = 1 THEN 'trading_fee'
+          WHEN p.has_jupiter = 1 THEN 'unrecognised'
           WHEN p.has_other_program = 0 AND l.legs = 2 AND l.signer_legs = 2
             AND f.lamports = FLOOR(l.signer_lamports * ${GROUP_FEE_BPS} / 10000) THEN 'group_join_fee'
-          WHEN l.legs = 1 THEN 'top_up'
+          -- not revenue: a plain gift or operator funding, whoever sends it
+          WHEN l.legs = 1 THEN 'direct_transfer'
           ELSE 'unrecognised'
         END AS kind
       FROM inflows f
@@ -110,7 +118,7 @@ const fetch = async (options: FetchOptions) => {
   if (!row || !Number.isInteger(inflows) || !Number.isInteger(unrecognised))
     throw new Error(`peep: unexpected Allium result for ${period}`);
   if (unrecognised > 0)
-    throw new Error(`peep: ${unrecognised} of ${inflows} treasury SOL inflows in ${period} match no known shape (trading fee, paid group join, top-up, treasury-signed)`);
+    throw new Error(`peep: ${unrecognised} of ${inflows} treasury SOL inflows in ${period} match no known shape (trading fee, paid group join, direct transfer, treasury-signed)`);
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
