@@ -89,6 +89,9 @@ const fetchVolume = (codes: string[]) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  // Swaps settle on the providers Metro routes through (THORChain, Maya,
+  // Chainflip, NEAR Intents), which DefiLlama already tracks.
+  doublecounted: true,
   adapter: Object.fromEntries(
     CHAINS.map(([chain, codes, start]) => [chain, { fetch: fetchVolume(codes), start }]),
   ),
