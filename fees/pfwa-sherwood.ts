@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -50,12 +51,11 @@ async function diceFees(options: FetchOptions, hook: string, flips: FlipLog[]): 
   const provider: string = await options.api.call({ target: hook, abi: "address:diceProvider" });
   let total = 0n;
   for (const flip of flips) {
-    const fee: Uint = await options.api.call({
-      target: dice,
-      abi: "function getFeeV2(address provider, uint32 gasLimit) view returns (uint128)",
-      params: [provider, FLIP_CALLBACK_GAS],
-      block: Number(flip.blockNumber),
-    });
+    const call = { target: dice, abi: "function getFeeV2(address provider, uint32 gasLimit) view returns (uint128)", params: [provider, FLIP_CALLBACK_GAS] };
+    // sdk.api2.abi.call keeps the flip's block (options.api.call replaces it with the window's end block). Nodes
+    // without that block's state fall back to the window's end block.
+    const atFlip: Uint | null = await sdk.api2.abi.call({ chain: options.chain, ...call, block: Number(flip.blockNumber), permitFailure: true });
+    const fee: Uint = atFlip ?? (await options.api.call(call));
     total += BigInt(fee);
   }
   return total;

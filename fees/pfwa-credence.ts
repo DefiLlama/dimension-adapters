@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -125,7 +126,11 @@ const fetch = async (options: FetchOptions) => {
   let launchFees = 0n;
   for (let i = 0; i < launchers.length; i++) {
     for (const log of launches[i]) {
-      const fee: Uint = await options.api.call({ target: launchers[i].launcher, abi: launchers[i].feeAbi, block: Number(log.blockNumber) });
+      const call = { target: launchers[i].launcher, abi: launchers[i].feeAbi };
+      // sdk.api2.abi.call keeps the launch's block (options.api.call replaces it with the window's end block). Nodes
+      // without that block's state fall back to the window's end block.
+      const atLaunch: Uint | null = await sdk.api2.abi.call({ chain: options.chain, ...call, block: Number(log.blockNumber), permitFailure: true });
+      const fee: Uint = atLaunch ?? (await options.api.call(call));
       launchFees += BigInt(fee);
     }
   }

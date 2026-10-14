@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -55,8 +56,12 @@ async function readAtBlocks(options: FetchOptions, abi: string, items: { target:
   const out: Record<string, Uint> = {};
   for (const [block, targetSet] of Object.entries(byBlock)) {
     const targets = [...targetSet];
-    const results: Uint[] = await options.api.multiCall({ abi, calls: targets, block: Number(block) });
-    targets.forEach((target, i) => (out[`${block}-${target}`] = results[i]));
+    // sdk.api2.abi.multiCall keeps `block` (options.api.multiCall replaces it with the window's end block). Nodes
+    // without that block's state fall back to the window's end block.
+    const atBlock: (Uint | null)[] = await sdk.api2.abi.multiCall({ chain: options.chain, abi, calls: targets, block: Number(block), permitFailure: true });
+    const missing = targets.filter((_, i) => atBlock[i] === null);
+    const latest: Uint[] = missing.length ? await options.api.multiCall({ abi, calls: missing }) : [];
+    targets.forEach((target, i) => (out[`${block}-${target}`] = atBlock[i] ?? latest[missing.indexOf(target)]));
   }
   return out;
 }
