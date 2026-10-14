@@ -233,7 +233,7 @@ const methodology = {
   Volume:
     "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, plus marketplace and P2P trade settlement volume.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and payment wallets after subtracting vending-machine card buybacks, plus 5% marketplace fees and 2.5% P2P trade fees. Abstract is tracked before October 13, 2026 at 16:00 UTC; Base is tracked from that time onward. Stripe/card payments are excluded.",
+    "Onchain USDC collected by DYLI contracts and payment wallets after subtracting vending-machine card buybacks, plus 5% marketplace fees. P2P fees are calculated as 2.5% of accepted trade USDC volume on Abstract and measured from USDC paid to the DYLI platform wallet in accepted trades on Base. Abstract is tracked before October 13, 2026 at 16:00 UTC; Base is tracked from that time onward. Stripe/card payments are excluded.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
 };
@@ -243,7 +243,7 @@ const breakdownMethodology = {
     [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet, vault-payment, and batchRedeem fee paths.",
     [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales).",
     [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks).",
-    [METRIC.TRADING_FEES]: "5% of secondary marketplace volume and 2.5% of accepted P2P trade USDC volume.",
+    [METRIC.TRADING_FEES]: "5% of secondary marketplace volume; P2P fees are 2.5% of accepted trade USDC volume on Abstract and the USDC paid to the DYLI platform wallet in accepted trades on Base.",
   },
   Revenue: {
     [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
