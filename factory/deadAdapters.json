@@ -2156,6 +2156,105 @@
         "runAtCurrTime": false
       }
     },
+    "squid": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/squid",
+      "module": {
+        "deadFrom": "2026-10-15",
+        "version": 1,
+        "runAtCurrTime": false,
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "berachain": {
+            "fetch": "_f",
+            "start": "2026-02-12"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "celo": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "filecoin": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "fraxtal": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "hyperliquid": {
+            "fetch": "_f",
+            "start": "2026-02-11"
+          },
+          "imx": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "moonbeam": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "soneium": {
+            "fetch": "_f",
+            "start": "2026-02-13"
+          },
+          "sonic": {
+            "fetch": "_f",
+            "start": "2026-05-08"
+          },
+          "xdai": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          }
+        }
+      }
+    },
     "train": {
       "modulePath": "-",
       "codePath": "dead/bridges/train",
