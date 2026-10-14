@@ -2,7 +2,7 @@ import { Interface, zeroPadValue } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import getTxReceipts from "../../helpers/getTxReceipts";
+import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
 
@@ -194,7 +194,9 @@ const fetch = async (originalOptions: FetchOptions) => {
   if (acceptedTradeTxHashes.length) {
     let receipts;
     try {
-      receipts = await getTxReceipts(options.chain, acceptedTradeTxHashes);
+      receipts = await getTxReceiptsWithRetry(options.chain, acceptedTradeTxHashes);
+      if (receipts.some((receipt) => !receipt))
+        throw new Error("Accepted-trade receipts are still missing after retries");
     } catch (error) {
       throw new Error(`Failed to fetch DYLI P2P trade receipts: ${formatError(error)}`);
     }
@@ -212,7 +214,7 @@ const fetch = async (originalOptions: FetchOptions) => {
         });
         if (!parsedLog || parsedLog.name !== "Transfer") continue;
         if (normalize(parsedLog.args.to) === platformWallet) {
-          if (!isBase) continue;
+          if (!isBase || !isExternalSender(parsedLog)) continue;
           baseTradingFees += BigInt(parsedLog.args.value);
         }
         tradingVolume += BigInt(parsedLog.args.value);
