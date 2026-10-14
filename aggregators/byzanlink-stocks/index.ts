@@ -31,8 +31,8 @@ const fetch = async (options: FetchOptions) => {
       }
       if (pending && isByzanlink(log.args.clientData)) {
         // counted on the USDC leg
-        if (pending.srcToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.spentAmount);
-        else if (pending.dstToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.returnAmount);
+        if (pending.srcToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.spentAmount, "KyberSwap");
+        else if (pending.dstToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.returnAmount, "KyberSwap");
       }
       pending = null;
     }
@@ -49,6 +49,11 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // executed by the KyberSwap router
   methodology: {
     Volume: "USDC value of tokenized stock buys and sells made on Byzanlink, routed through KyberSwap on Base.",
+  },
+  breakdownMethodology: {
+    Volume: {
+      KyberSwap: "Stock trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
+    },
   },
 };
 
