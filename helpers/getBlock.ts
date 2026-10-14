@@ -128,7 +128,7 @@ async function getAsterBlock(unixTS: number) {
 }
 
 async function getWavesBlock(unixTS: number) {
-  const res = await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${unixTS * 1000}`)
+  const res = await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${unixTS * 1000}`, { timeout: 10000 })
   const block = Number(res?.height)
   if (!Number.isFinite(block)) throw new Error(`Waves: invalid block for timestamp ${unixTS}`)
   return block
