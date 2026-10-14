@@ -462,7 +462,7 @@ const stargateV1Events = (pool: string, token: string): BridgeEvent[] => [
   { eventAbi: "event SwapRemote(address to, uint256 amountSD, uint256 protocolFee, uint256 dstFee)", targets: [pool], direction: "incoming", fixedToken: token, amountArg: "amountSD" },
 ];
 const STG_ETHEREUM = "0xAf5191B0De278C7286d6C7CC6ab6BB8A73bA2Cd6";
-const stgEvents = (stg: string): BridgeEvent[] => stg === STG_ETHEREUM
+const stgEvents = (stg: string): BridgeEvent[] => stg.toLowerCase() === STG_ETHEREUM.toLowerCase()
   ? [
     { eventAbi: "event SendToChain(uint16 dstChainId, bytes to, uint256 qty)", targets: [stg], direction: "outgoing", fixedToken: stg, amountArg: "qty" },
     { eventAbi: "event ReceiveFromChain(uint16 srcChainId, uint64 nonce, uint256 qty)", targets: [stg], direction: "incoming", fixedToken: stg, amountArg: "qty" },

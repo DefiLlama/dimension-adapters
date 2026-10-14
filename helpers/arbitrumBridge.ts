@@ -78,6 +78,11 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
   return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount, dailyIncomingTxCount };
 };
 
+/**
+ * Bridge adapter for an Arbitrum-stack (Nitro) chain's canonical bridge, read on Ethereum only: ETH deposits and
+ * retryables from the Inbox, ETH withdrawals from Bridge calls without calldata, and token transfers through the
+ * gateway escrows. The L2 leg is attributed server-side from the listing's destination chain.
+ */
 export const arbitrumBridgeExport = (config: ArbitrumBridgeConfig): SimpleAdapter => ({
   version: 2,
   pullHourly: true,

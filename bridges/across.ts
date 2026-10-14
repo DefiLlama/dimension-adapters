@@ -151,6 +151,8 @@ const prefetch = async (options: FetchOptions) => {
   return results.flat();
 };
 
+const REVERTED_STATUSES = new Set(["expired", "refunded"]);
+
 const fetch = async (options: FetchOptions) => {
   const deposits = options.preFetchedResults as AcrossDeposit[];
   const chainId = chainIds[options.chain];
@@ -160,7 +162,8 @@ const fetch = async (options: FetchOptions) => {
   let dailyIncomingTxCount = 0;
 
   for (const d of deposits) {
-    if (d.originChainId === chainId && d.inputToken && d.inputAmount) {
+    // expired and refunded deposits never left the origin chain (funds returned to the depositor)
+    if (d.originChainId === chainId && !REVERTED_STATUSES.has(d.status) && d.inputToken && d.inputAmount) {
       dailyOutgoingVolume.add(d.inputToken, d.inputAmount);
       dailyOutgoingTxCount++;
     }

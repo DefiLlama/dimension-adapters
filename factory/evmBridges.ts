@@ -102,7 +102,6 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     [CHAIN.HYPERLIQUID]: circleGatewayBridge(19, "2026-07-02"),
     [CHAIN.ARC]: circleGatewayBridge(26, "2026-09-20"),
   },
-  // Interport; contract sets per chain from bridges-server's interport-finance/constants.ts
   // every route has Anubis as one end
   "anubis-bridge": {
     [CHAIN.ANUBI]: anubisBridge({
@@ -140,6 +139,7 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
       [ANUBIS.BNB]: NATIVE,
     }, [ANUBIS_DOMAIN], {}, "2026-10-13"),
   },
+  // Interport; contract sets per chain from bridges-server's interport-finance/constants.ts
   "interport": Object.fromEntries(([
     [CHAIN.ETHEREUM, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipBacked: IP.ccipBacked, ccipNative: { bridge: IP.ccipNative, weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" }, cctpV2: IP.cctpV2, nonEvm: IP.nonEvm }],
     [CHAIN.ARBITRUM, "2023-12-13", { actionExecutor: IP.ae, ccipToken: IP.ccipToken, ccipV2: IP.ccipV2, ccipBacked: IP.ccipBacked, ccipNative: { bridge: IP.ccipNative, weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1" }, nonEvm: IP.nonEvm }],

@@ -105,6 +105,11 @@ const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) 
   return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount, dailyIncomingTxCount };
 };
 
+/**
+ * Bridge adapter for an OP-stack chain's canonical bridge, read on Ethereum only: L1StandardBridge and OptimismPortal
+ * events plus transfers through the configured escrows. The L2 leg is attributed server-side from the listing's
+ * destination chain.
+ */
 export const opStackBridgeExport = (config: OpStackBridgeConfig): SimpleAdapter => ({
   version: 2,
   pullHourly: true,
