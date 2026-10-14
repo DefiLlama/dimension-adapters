@@ -70,9 +70,18 @@ const getDailyVolumes = (date: string) => {
     volumes = httpGet(
       `https://thorswap.finance/api/v1/stats/volume/shares?by=chain_in&from=${date}&to=${date}&limit=${PAGE_SIZE}`,
     ).then((data: DailyShares) => {
+      if (!Array.isArray(data?.shares)) {
+        throw new Error(`Unexpected volume response on ${date}: ${JSON.stringify(data)}`);
+      }
       // A remainder means some chain fell off the page and would be missed.
       if (data.other) throw new Error(`More than ${PAGE_SIZE} chains on ${date}`);
-      return Object.fromEntries(data.shares.map(({ key, volume }) => [key, toCents(volume)]));
+      return Object.fromEntries(
+        data.shares.map(({ key, volume }) => {
+          const cents = toCents(volume);
+          if (!Number.isFinite(cents)) throw new Error(`Invalid volume "${volume}" for ${key} on ${date}`);
+          return [key, cents];
+        }),
+      );
     });
     // A failed request is not cached, so a retry asks again.
     volumes.catch(() => dailyVolumes.delete(date));
