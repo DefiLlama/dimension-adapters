@@ -2,7 +2,7 @@ import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
-// Metro (formerly Thorswap) publishes its daily USD volume per INPUT chain (the
+// Thorswap publishes its daily USD volume per INPUT chain (the
 // chain the user swaps from). One request returns every chain's volume for a
 // UTC day, keyed by the chain code (BTC, THOR, GAIA, POL, ...), which we map to
 // each DefiLlama chain below. BNB (Binance Beacon Chain, retired in 2024) has
@@ -47,7 +47,7 @@ const CHAINS: Array<[string, string[], string]> = [
   [CHAIN.HYPERLIQUID, ["HYPEREVM"], "2026-10-11"],
 ];
 
-// The API's largest page. Metro has volume on fewer chains than this on any
+// The API's largest page. Thorswap has volume on fewer chains than this on any
 // day, so the page always holds all of them.
 const PAGE_SIZE = 50;
 
@@ -68,7 +68,7 @@ const getDailyVolumes = (date: string) => {
   let volumes = dailyVolumes.get(date);
   if (!volumes) {
     volumes = httpGet(
-      `https://metro.exchange/api/v1/stats/volume/shares?by=chain_in&from=${date}&to=${date}&limit=${PAGE_SIZE}`,
+      `https://thorswap.finance/api/v1/stats/volume/shares?by=chain_in&from=${date}&to=${date}&limit=${PAGE_SIZE}`,
     ).then((data: DailyShares) => {
       // A remainder means some chain fell off the page and would be missed.
       if (data.other) throw new Error(`More than ${PAGE_SIZE} chains on ${date}`);
@@ -89,7 +89,7 @@ const fetchVolume = (codes: string[]) => async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  // Swaps settle on the providers Metro routes through (THORChain, Maya,
+  // Swaps settle on the providers Thorswap routes through (THORChain, Maya,
   // Chainflip, NEAR Intents, Flashnet, Harbor, 1inch, Mayan, Garden), most of
   // which DefiLlama already tracks.
   doublecounted: true,
@@ -97,7 +97,7 @@ const adapter: SimpleAdapter = {
     CHAINS.map(([chain, codes, start]) => [chain, { fetch: fetchVolume(codes), start }]),
   ),
   methodology: {
-    Volume: `Volume is sourced from Metro's (formerly Thorswap) public stats API, which aggregates completed swaps across every provider it routes through (THORChain, NEAR Intents, Chainflip, Maya, Flashnet, Harbor, 1inch, Mayan and Garden). Each swap is attributed to its input chain (the chain swapped from) to avoid double-counting the buy and sell legs, and is valued in USD at the time of the swap.`,
+    Volume: `Volume is sourced from Thorswap's public stats API, which aggregates completed swaps across every provider it routes through (THORChain, NEAR Intents, Chainflip, Maya, Flashnet, Harbor, 1inch, Mayan and Garden). Each swap is attributed to its input chain (the chain swapped from) to avoid double-counting the buy and sell legs, and is valued in USD at the time of the swap.`,
   },
 };
 
