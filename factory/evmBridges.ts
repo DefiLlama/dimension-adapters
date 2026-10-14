@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { BridgeChainConfig, bridgeExport } from "../helpers/bridges";
 import {
   agglayerBridge, allbridgeClassicBridge, anubisBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, connextBridge, coreBitcoinBridge,
-  crossCurveBridge, crowdSwapBridge, eclipseBridge, flyoverBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
+  crossCurveBridge, crowdSwapBridge, eclipseBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
   universalXBridge, wanBridge, xswapBridge, xyBridge, zkBridge,
@@ -330,10 +330,6 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
   // one-sided (destinationChain: bitcoin)
   "core-bitcoin-bridge": {
     [CHAIN.AVAX]: coreBitcoinBridge("2024-06-30"),
-  },
-  // one-sided (destinationChain: bitcoin)
-  "powpeg-fast-mode": {
-    [CHAIN.ROOTSTOCK]: flyoverBridge("2024-12-26"),
   },
   // Citrea token bridges (USDC.e, USDT.e, WBTC.e); Ethereum side are OFT adapters locking the canonical token
   "citrea-token-bridges": {

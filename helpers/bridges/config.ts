@@ -410,22 +410,6 @@ export const eclipseBridge = (start?: string): BridgeChainConfig => {
 };
 
 // ---------------------------------------------------------------------------------------------------
-// Rootstock PowPeg Fast Mode (Flyover) LiquidityBridgeContract, native RBTC. PegOutDeposit locks RBTC
-// to leave for Bitcoin; CallForUser is the liquidity provider delivering a peg-in (failed calls deliver nothing).
-// https://dev.rootstock.io/developers/integrate/flyover/
-// ---------------------------------------------------------------------------------------------------
-export const flyoverBridge = (start?: string): BridgeChainConfig => {
-  const targets = ["0xAA9cAf1e3967600578727F975F283446A3Da6612"];
-  return {
-    start,
-    events: [
-      { eventAbi: "event PegOutDeposit(bytes32 indexed quoteHash, address indexed sender, uint256 amount, uint256 timestamp)", targets, direction: "outgoing", fixedToken: ADDRESSES.null, amountArg: "amount" },
-      { eventAbi: "event CallForUser(address indexed from, address indexed dest, uint256 gasLimit, uint256 value, bytes data, bool success, bytes32 quoteHash)", targets, direction: "incoming", fixedToken: ADDRESSES.null, amountArg: "value", filter: (args: any) => args.success === true },
-    ],
-  };
-};
-
-// ---------------------------------------------------------------------------------------------------
 // Bitcoin bridges that mint a wrapped BTC on an EVM chain: mint = BTC arriving, burn/redeem = leaving.
 // ---------------------------------------------------------------------------------------------------
 // Core Bitcoin Bridge, BTC.b on Avalanche. https://core.app/bridge
