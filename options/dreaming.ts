@@ -17,8 +17,8 @@ const adapter: SimpleAdapter = {
   start: '2026-08-17',
   chains: [CHAIN.OFF_CHAIN],
   methodology: {
-    NotionalVolume: 'USD notional of executed opens and manual closes, counted once per execution; expiry settlements are excluded. Uses trade-time underlying prices where available, historical price estimates for backfilled trades, and strike prices when no underlying price is available. Includes the API\'s verified and estimated notional components.',
-    PremiumVolume: 'Total USD value of options premiums paid or received on executed opens and manual closes, excluding brokerage fees and expiry settlement payouts.',
+    NotionalVolume: 'Sum of the notional value of all options that have been traded on the exchange',
+    PremiumVolume: 'Sum of value paid buying and selling options on the exchange',
   },
 }
 
