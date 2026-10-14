@@ -11,9 +11,10 @@ const USDC = {
     [CHAIN.BASE]: coreAssets.base.USDC,
 } as any
 
-export function generateCBCommerceExports(receivingAddress:string) {
+export function generateCBCommerceExports(receivingAddress:string, excludeTxs: string[] = []) {
+    const excluded = new Set(excludeTxs.map((tx) => tx.toLowerCase()))
     const receivedOnEVMChain = async (options: FetchOptions) => {
-        const dailyFees = await addTokensReceived({ options, tokens: [USDC[options.chain]], target: receivingAddress })
+        const dailyFees = await addTokensReceived({ options, tokens: [USDC[options.chain]], target: receivingAddress, logFilter: (log: any) => !excluded.has(String(log.transactionHash).toLowerCase()) })
         return {
             dailyFees,
             dailyRevenue: dailyFees,
