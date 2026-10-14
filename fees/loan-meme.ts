@@ -8,9 +8,10 @@ import { httpPost } from "../utils/fetchURL";
 // Public, unauthenticated GraphQL analytics API; schema at https://api.loanmeme.io/api/graphql/schema
 const API_URL = "https://api.loanmeme.io/api/graphql";
 
-// network ids as the API labels them: "<chain family>:<chain id>"
-const NETWORK_ID: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "EVM:1",
+// networkId as the API labels it: "<chain family>:<chain id>"; start is the chain's first UTC day with settled operations
+const chainConfig: Record<string, { networkId: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { networkId: "EVM:1", start: "2026-10-01" },
+  [CHAIN.BSC]: { networkId: "EVM:56", start: "2026-10-13" },
 };
 
 // share of every fee set aside for $LOAN buybacks once the token launches; the rest goes to the treasury.
@@ -28,7 +29,7 @@ const QUERY = `query ($networkId: String!) {
 }`;
 
 const fetch = async (options: FetchOptions) => {
-  const res = await httpPost(API_URL, { query: QUERY, variables: { networkId: NETWORK_ID[options.chain] } });
+  const res = await httpPost(API_URL, { query: QUERY, variables: { networkId: chainConfig[options.chain].networkId } });
   if (res.errors?.length) throw new Error(`Loan Meme API: ${res.errors.map((e: any) => e.message).join("; ")}`);
 
   const point = res.data.fees.history.find((p: { day: string }) => p.day === options.dateString);
@@ -50,8 +51,7 @@ const FEES_DESCRIPTION = "Fees charged on borrows, repayments, and lending depos
 const adapter: SimpleAdapter = {
   version: 1, // the API serves whole UTC days only
   fetch,
-  chains: Object.keys(NETWORK_ID),
-  start: "2026-10-01", // first UTC day with settled operations
+  adapter: chainConfig, // start dates are read from chainConfig per chain
   methodology: {
     Fees: "Fees Loan Meme charges on borrows, repayments, and lending deposits and withdrawals, in USD at the time they are charged.",
     Revenue: "All of the fees (Borrow, Repay, Deposit, Withdraw); the protocol keeps them in full.",
