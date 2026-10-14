@@ -11,9 +11,12 @@ const USDC = {
     [CHAIN.BASE]: coreAssets.base.USDC,
 } as any
 
-export function generateCBCommerceExports(receivingAddress:string) {
+// excludeTxHashes: transfers that are not payments, e.g. the merchant bridging its own balance between chains
+export function generateCBCommerceExports(receivingAddress:string, excludeTxHashes: string[] = []) {
+    const excluded = new Set(excludeTxHashes.map(h => h.toLowerCase()))
+    const logFilter = excluded.size ? (log: any) => !excluded.has(String(log.transactionHash).toLowerCase()) : undefined
     const receivedOnEVMChain = async (options: FetchOptions) => {
-        const dailyFees = await addTokensReceived({ options, tokens: [USDC[options.chain]], target: receivingAddress })
+        const dailyFees = await addTokensReceived({ options, tokens: [USDC[options.chain]], target: receivingAddress, logFilter })
         return {
             dailyFees,
             dailyRevenue: dailyFees,
