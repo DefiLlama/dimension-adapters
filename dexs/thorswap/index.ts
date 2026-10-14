@@ -90,13 +90,14 @@ const fetchVolume = (codes: string[]) => async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   // Swaps settle on the providers Metro routes through (THORChain, Maya,
-  // Chainflip, NEAR Intents), which DefiLlama already tracks.
+  // Chainflip, NEAR Intents, Flashnet, Harbor, 1inch, Mayan, Garden), most of
+  // which DefiLlama already tracks.
   doublecounted: true,
   adapter: Object.fromEntries(
     CHAINS.map(([chain, codes, start]) => [chain, { fetch: fetchVolume(codes), start }]),
   ),
   methodology: {
-    Volume: `Volume is sourced from Metro's (formerly Thorswap) public stats API, which aggregates completed swaps across every provider it routes through (THORChain, Maya, Chainflip, NEAR Intents and others). Each swap is attributed to its input chain (the chain swapped from) to avoid double-counting the buy and sell legs, and is valued in USD at the time of the swap.`,
+    Volume: `Volume is sourced from Metro's (formerly Thorswap) public stats API, which aggregates completed swaps across every provider it routes through (THORChain, NEAR Intents, Chainflip, Maya, Flashnet, Harbor, 1inch, Mayan and Garden). Each swap is attributed to its input chain (the chain swapped from) to avoid double-counting the buy and sell legs, and is valued in USD at the time of the swap.`,
   },
 };
 
