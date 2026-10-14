@@ -118,6 +118,14 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: {
       [REFERRAL_REWARDS]: "Outgoing pUSD `Transfer` events from the referral payout wallet `0x7537611f943272f53dbecabf5dcdd6a55ba7286e` on Polygon, each one a referral claim paid to a referrer.",
     },
+    Revenue: {
+      [SERVICE_FEES]: "Service fees net of the referral rewards paid out that day. Rewards accrue on service fees only, so they are netted against this row; on a payout-heavy day with few trades the row can be negative.",
+      [BUILDER_FEES]: "Polymarket builder fees, kept in full: no share of them goes to referrers.",
+    },
+    ProtocolRevenue: {
+      [SERVICE_FEES]: "Same as Revenue: service fees net of referral rewards paid out that day.",
+      [BUILDER_FEES]: "Same as Revenue: Polymarket builder fees in full.",
+    },
   },
   adapter: {
     [CHAIN.POLYGON]: {
