@@ -53,6 +53,36 @@ const configs: Record<string, OpStackBridgeConfig> = {
     gasToken: "0x3c3a81e81dc49A522A592e7622A7E711c06bf354", // MNT, L1StandardBridge.L1_MNT_ADDRESS()
     start: "2023-07-11", // first day the old bridges server recorded Mantle volume
   },
+  "worldchain-bridge": {
+    name: "World Chain",
+    portal: "0xd5ec14a83B7d95BE1E2Ac12523e2dEE12Cbeea6C",
+    bridge: "0x470458C91978D2d929704489Ad730DC3E3001113",
+    start: "2026-10-11", // first day the old bridges server recorded World Chain volume
+  },
+  "ink-bridge": {
+    name: "Ink",
+    portal: "0x5d66C1782664115999C47c9fA5cd031f495D3e4F",
+    bridge: "0x88FF1e5b602916615391F55854588EFcBB7663f0",
+    start: "2026-10-11", // first day the old bridges server recorded Ink volume
+  },
+  "lisk-bridge": {
+    name: "Lisk",
+    portal: "0x26dB93F8b8b4f7016240af62F7730979d353f9A7",
+    bridge: "0x2658723Bf70c7667De6B25F99fcce13A16D25d08",
+    start: "2026-10-11", // first day the old bridges server recorded Lisk volume
+  },
+  "unichain-bridge": {
+    name: "Unichain",
+    portal: "0x0bd48f6B86a26D3a217d0Fa6FfE2B491B956A7a2",
+    bridge: "0x81014F44b0a345033bB2b3B21C7a1A308B35fEeA",
+    start: "2026-10-12", // first day the old bridges server recorded Unichain volume
+  },
+  "soneium-bridge": {
+    name: "Soneium",
+    portal: "0x88e529A6ccd302c948689Cd5156C83D4614FAE92",
+    bridge: "0xeb9bf100225c214Efc3E7C651ebbaDcF85177607",
+    start: "2026-10-11", // first day the old bridges server recorded Soneium volume
+  },
 };
 
 const protocols: Record<string, any> = {};

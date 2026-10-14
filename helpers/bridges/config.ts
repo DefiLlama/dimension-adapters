@@ -622,3 +622,27 @@ export const starkgateBridge = (bridges: Record<string, string>, start?: string)
     ],
   };
 };
+
+// ---------------------------------------------------------------------------------------------------
+// Anubis Bridge: one contract on every chain, routes identified by Hyperlane-style domains. BridgeSent out; BridgeReceived or,
+// when the payout is deferred, PendingClaimRecorded in (exactly one per message; PendingClaimPaid later settles a counted claim).
+// Tokens are identified by tokenId (https://app.anubisbridge.com/apiv1/bridge/networks); unknown ids are skipped.
+// tokensPricedOn: token ids priced as another chain's token, for tokens unpriced on the chain the event is read on.
+// ---------------------------------------------------------------------------------------------------
+const ANUBIS_BRIDGE = "0x8932fe7726C1EE743F662f485C3e5a5D1D595F71";
+export const anubisBridge = (tokens: Record<string, string>, counterpartDomains: number[], tokensPricedOn: Record<string, Record<string, string>> = {}, start?: string): BridgeChainConfig => {
+  const lower = (map: Record<string, string>) => Object.fromEntries(Object.entries(map).map(([id, token]) => [id.toLowerCase(), token.toLowerCase()]));
+  const groups: [string | undefined, Record<string, string>][] = [[undefined, lower(tokens)], ...Object.entries(tokensPricedOn).map(([chain, map]): [string, Record<string, string>] => [chain, lower(map)])];
+  const sides: [string, BridgeEvent["direction"], string][] = [
+    ["event BridgeSent(bytes32 indexed tokenId, address indexed sender, uint32 indexed dstDomain, bytes32 recipient, uint256 amount)", "outgoing", "dstDomain"],
+    ["event BridgeReceived(bytes32 indexed tokenId, address indexed recipient, uint32 indexed origin, uint256 amount)", "incoming", "origin"],
+    ["event PendingClaimRecorded(bytes32 indexed tokenId, address indexed account, uint32 indexed origin, uint256 amount)", "incoming", "origin"],
+  ];
+  return {
+    start,
+    events: sides.flatMap(([eventAbi, direction, domainArg]) => groups.map(([tokenChain, mapTokens]) => ({
+      eventAbi, targets: [ANUBIS_BRIDGE], direction, tokenArg: "tokenId", amountArg: "amount", mapTokens, tokenChain,
+      filter: (args: any) => counterpartDomains.includes(Number(args[domainArg])) && String(args.tokenId).toLowerCase() in mapTokens,
+    }))),
+  };
+};

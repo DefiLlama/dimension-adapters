@@ -438,4 +438,5 @@ export enum CHAIN {
   JACKAL = "jackal",
   SOMMELIER = "sommelier",
   FETCHHUB = "fetchhub",
+  ANUBI = "anubi",
 }
