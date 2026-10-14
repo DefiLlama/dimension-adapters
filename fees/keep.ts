@@ -39,8 +39,7 @@ const RH_PROJECT_CREATED =
 const RH_FUNDING_RELEASED =
   "event FundingReleased(uint8 indexed stage, uint256 platformAmount, uint256 projectAmount)";
 const RH_SETTLED_SUCCESS =
-  // KeepLaunchpadV4 emits the LP amount as uint256 (not uint128).
-  "event SettledSuccess(uint256 platformAmount, uint256 projectAmount, uint256 liquidityLocked)";
+  "event SettledSuccess(uint256 platformAmount, uint256 projectAmount, uint128 liquidityLocked)";
 const RH_SETTLED_FAILURE =
   "event SettledFailure(uint256 platformAmount, uint256 projectAmount)";
 const RH_HARVESTED =
