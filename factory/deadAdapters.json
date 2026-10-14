@@ -1480,6 +1480,817 @@
       }
     }
   },
+  "bridges": {
+    "1sec": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/1sec",
+      "module": {
+        "deadFrom": "2026-03-10",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2025-12-10"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2025-12-07"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2025-12-14"
+          },
+          "icp": {
+            "fetch": "_f",
+            "start": "2025-12-07"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "axelarsatellite": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/axelarsatellite",
+      "module": {
+        "deadFrom": "2025-04-05",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-09-08"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "celo": {
+            "fetch": "_f",
+            "start": "2023-09-18"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "filecoin": {
+            "fetch": "_f",
+            "start": "2023-09-09"
+          },
+          "kava": {
+            "fetch": "_f",
+            "start": "2023-09-08"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2023-09-09"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2023-10-10"
+          },
+          "moonbeam": {
+            "fetch": "_f",
+            "start": "2023-09-09"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2023-09-01"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "bunnyfi": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/bunnyfi",
+      "module": {
+        "deadFrom": "2026-04-02",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-07-25"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-07-25"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2024-07-27"
+          },
+          "btr": {
+            "fetch": "_f",
+            "start": "2024-08-05"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-07-24"
+          },
+          "taiko": {
+            "fetch": "_f",
+            "start": "2024-08-08"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "cometbridge": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/cometbridge",
+      "module": {
+        "deadFrom": "2025-12-07",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-08-06"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-09-04"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-09-30"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2024-08-07"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-08-07"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-09-25"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-08-13"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-09-28"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-10-02"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "fastbtc": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/fastbtc",
+      "module": {
+        "deadFrom": "2025-11-20",
+        "adapter": {
+          "bitcoin": {
+            "fetch": "_f",
+            "start": "2024-08-28"
+          },
+          "rsk": {
+            "fetch": "_f",
+            "start": "2024-08-28"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "firefly": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/firefly",
+      "module": {
+        "deadFrom": "2026-06-02",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2026-01-27"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2026-01-27"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2026-01-27"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2026-01-29"
+          },
+          "ink": {
+            "fetch": "_f",
+            "start": "2026-01-29"
+          },
+          "klaytn": {
+            "fetch": "_f",
+            "start": "2026-02-24"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2026-02-27"
+          },
+          "monad": {
+            "fetch": "_f",
+            "start": "2026-05-19"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2026-01-27"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2026-01-30"
+          },
+          "soneium": {
+            "fetch": "_f",
+            "start": "2026-01-29"
+          },
+          "sonic": {
+            "fetch": "_f",
+            "start": "2026-03-01"
+          },
+          "unichain": {
+            "fetch": "_f",
+            "start": "2026-01-31"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "intersoon": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/intersoon",
+      "module": {
+        "deadFrom": "2026-03-08",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2025-08-23"
+          },
+          "ton": {
+            "fetch": "_f",
+            "start": "2025-08-23"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "kaspabridge": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/kaspabridge",
+      "module": {
+        "deadFrom": "2026-01-15",
+        "adapter": {
+          "bsc": {
+            "fetch": "_f",
+            "start": "2025-12-10"
+          },
+          "kasplex": {
+            "fetch": "_f",
+            "start": "2025-12-10"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "minibridge": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/minibridge",
+      "module": {
+        "deadFrom": "2026-08-22",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2024-12-19"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2024-07-30"
+          },
+          "merlin": {
+            "fetch": "_f",
+            "start": "2024-07-31"
+          },
+          "metis": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "op_bnb": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "taiko": {
+            "fetch": "_f",
+            "start": "2024-07-29"
+          },
+          "telos": {
+            "fetch": "_f",
+            "start": "2024-08-15"
+          },
+          "zkfair": {
+            "fetch": "_f",
+            "start": "2024-07-31"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "oooo": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/oooo",
+      "module": {
+        "deadFrom": "2026-02-07",
+        "adapter": {
+          "btr": {
+            "fetch": "_f",
+            "start": "2024-07-10"
+          },
+          "rsk": {
+            "fetch": "_f",
+            "start": "2024-08-23"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "orbiter": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/orbiter",
+      "module": {
+        "deadFrom": "2026-10-11",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "arbitrum_nova": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2025-05-15"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "bob": {
+            "fetch": "_f",
+            "start": "2025-01-08"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2024-06-17"
+          },
+          "btr": {
+            "fetch": "_f",
+            "start": "2024-08-01"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-03-25"
+          },
+          "fraxtal": {
+            "fetch": "_f",
+            "start": "2025-04-29"
+          },
+          "fuse": {
+            "fetch": "_f",
+            "start": "2025-01-09"
+          },
+          "gravity": {
+            "fetch": "_f",
+            "start": "2025-01-07"
+          },
+          "klaytn": {
+            "fetch": "_f",
+            "start": "2025-01-21"
+          },
+          "kroma": {
+            "fetch": "_f",
+            "start": "2025-04-12"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2024-07-03"
+          },
+          "merlin": {
+            "fetch": "_f",
+            "start": "2024-05-07"
+          },
+          "morph": {
+            "fetch": "_f",
+            "start": "2025-10-29"
+          },
+          "op_bnb": {
+            "fetch": "_f",
+            "start": "2025-01-08"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "polygon_zkevm": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-03-01"
+          },
+          "taiko": {
+            "fetch": "_f",
+            "start": "2024-08-31"
+          },
+          "zkfair": {
+            "fetch": "_f",
+            "start": "2025-01-09"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "retrobridge": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/retrobridge",
+      "module": {
+        "deadFrom": "2026-07-07",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "arbitrum_nova": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "bob": {
+            "fetch": "_f",
+            "start": "2025-09-18"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "btr": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "gravity": {
+            "fetch": "_f",
+            "start": "2024-10-16"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "merlin": {
+            "fetch": "_f",
+            "start": "2024-10-20"
+          },
+          "metis": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "op_bnb": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2024-10-15"
+          },
+          "polygon_zkevm": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          },
+          "taiko": {
+            "fetch": "_f",
+            "start": "2024-10-14"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "router": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/router",
+      "module": {
+        "deadFrom": "2025-11-23",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2024-04-12"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2024-04-12"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2024-02-26"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "squid": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/squid",
+      "module": {
+        "deadFrom": "2026-10-15",
+        "version": 1,
+        "runAtCurrTime": false,
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "berachain": {
+            "fetch": "_f",
+            "start": "2026-02-12"
+          },
+          "blast": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "bsc": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "celo": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "filecoin": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "fraxtal": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "hyperliquid": {
+            "fetch": "_f",
+            "start": "2026-02-11"
+          },
+          "imx": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "mantle": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "moonbeam": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "scroll": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          },
+          "soneium": {
+            "fetch": "_f",
+            "start": "2026-02-13"
+          },
+          "sonic": {
+            "fetch": "_f",
+            "start": "2026-05-08"
+          },
+          "xdai": {
+            "fetch": "_f",
+            "start": "2026-02-10"
+          }
+        }
+      }
+    },
+    "train": {
+      "modulePath": "-",
+      "codePath": "dead/bridges/train",
+      "module": {
+        "deadFrom": "2026-03-10",
+        "adapter": {
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2025-04-09"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2025-04-09"
+          },
+          "era": {
+            "fetch": "_f",
+            "start": "2025-04-15"
+          },
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2025-04-14"
+          },
+          "linea": {
+            "fetch": "_f",
+            "start": "2025-05-23"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2025-04-13"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    }
+  },
   "dexs": {
     "10kswap": {
       "commit": "f87f9543a7906b671a14395ef1e44db86a181100",

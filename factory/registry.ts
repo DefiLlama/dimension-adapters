@@ -118,6 +118,8 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   ],
   'bridges': [
     'evmBridges',
+    'opStackBridges',
+    'arbitrumBridges',
   ],
 };
 
