@@ -12,11 +12,6 @@ export const PFWA_MARKET_FACTORIES: { factory: string; version: 1 | 2; firstBloc
   { factory: "0x7B38e940Cd649bc0C701c42eE1A6ceff75584afa", version: 2, firstBlock: 50512948 }, // 2026-08-31
 ];
 
-export async function getPfwaLiveFactories(options: FetchOptions) {
-  const toBlock = await options.getToBlock();
-  return PFWA_MARKET_FACTORIES.filter(({ firstBlock }) => toBlock >= firstBlock);
-}
-
 // Wallets PFWA itself trades and creates markets from. Their buys, sells and paid market creations are the protocol's
 // own activity (seeding liquidity, market making, testing), so they are left out of volume, fees and users. Listed as
 // protocol-operated wallets in the pfwa.fun frontend (lib/adminWallets.ts).
@@ -30,17 +25,43 @@ export const PFWA_PROTOCOL_WALLETS = new Set([
 export const PFWA_EVENTS = {
   buy: "event TokensBought(uint256 indexed marketId, uint256 indexed optionId, address indexed buyer, uint256 ethPaid, uint256 tokenAmount)",
   sell: "event TokensSold(uint256 indexed marketId, uint256 indexed optionId, address indexed seller, uint256 ethReceived, uint256 tokenAmount)",
+  claim: "event WinningsClaimed(uint256 indexed marketId, uint256 indexed optionId, address indexed claimant, uint256 ethReceived, uint256 tokensBurned)",
   // emitted by every buy right after TokensBought, with the two fee legs it paid (sells emit no fee event)
   feeDistributed: "event FeeDistributed(uint256 indexed marketId, uint256 indexed optionId, uint256 creatorFee, uint256 platformFee, string action)",
 };
 
+type Uint = bigint | string | number;
+export type PfwaBuyArgs = { marketId: Uint; optionId: Uint; buyer: string; ethPaid: Uint; tokenAmount: Uint };
+export type PfwaSellArgs = { marketId: Uint; optionId: Uint; seller: string; ethReceived: Uint; tokenAmount: Uint };
+export type PfwaClaimArgs = { marketId: Uint; optionId: Uint; claimant: string; ethReceived: Uint; tokensBurned: Uint };
+export type PfwaFeeArgs = { marketId: Uint; optionId: Uint; creatorFee: Uint; platformFee: Uint; action: string };
+
+/** A log as `options.getLogs` returns it with `entireLog: true`. `args` is missing when the log did not decode. */
+type RawLog<A> = { address: string; transactionHash: string; blockNumber: number | string; args?: A };
+
 export type PfwaMarketToken = { factory: string; version: 1 | 2; marketId: number };
 
-// Every outcome token of every market, read from the factories at the end of the window.
+/** An outcome-token event that decoded and was emitted by one of the factories' outcome tokens. */
+export type PfwaTokenLog<A> = { token: string; info: PfwaMarketToken; transactionHash: string; blockNumber: number; args: A };
+
+/**
+ * The factories that exist by the end of the window (`firstBlock` <= the window's end block). Reading a factory before
+ * it was deployed reverts, so windows that end earlier skip it.
+ */
+export async function getPfwaLiveFactories(options: FetchOptions) {
+  const toBlock = await options.getToBlock();
+  return PFWA_MARKET_FACTORIES.filter(({ firstBlock }) => toBlock >= firstBlock);
+}
+
+/**
+ * Every outcome token of every market, keyed by lowercase address, as listed by the live factories at the end of the
+ * window (`marketCount`, `getOptionTokenAddresses` read at the window's end block). The lists only grow, so this covers
+ * every token that can emit an event inside the window.
+ */
 export async function getPfwaMarketTokens(options: FetchOptions): Promise<Record<string, PfwaMarketToken>> {
   const tokens: Record<string, PfwaMarketToken> = {};
   const factories = await getPfwaLiveFactories(options);
-  const counts = await options.api.multiCall({ abi: "uint256:marketCount", calls: factories.map(({ factory }) => factory) });
+  const counts: Uint[] = await options.api.multiCall({ abi: "uint256:marketCount", calls: factories.map(({ factory }) => factory) });
   for (let i = 0; i < factories.length; i++) {
     const { factory, version } = factories[i];
     const ids = Array.from({ length: Number(counts[i]) }, (_, id) => id);
@@ -50,50 +71,63 @@ export async function getPfwaMarketTokens(options: FetchOptions): Promise<Record
   return tokens;
 }
 
-export type PfwaBuy = { token: string; info: PfwaMarketToken; trader: string; ethPaid: bigint; creatorFee: bigint; platformFee: bigint };
-export type PfwaSell = { token: string; info: PfwaMarketToken; trader: string; ethReceived: bigint; blockNumber: number };
+/**
+ * One outcome-token event over the window, kept only when it was emitted by one of `tokens` and decoded. There are
+ * hundreds of outcome tokens, so the event is fetched by topic (`noTarget`) instead of by target. Anyone can emit a
+ * look-alike event, and other contracts may use the same topic with other indexed fields: those logs are dropped.
+ * `parseLog` is left unset on purpose: with `entireLog` the SDK then returns logs that fail to decode without `args`
+ * instead of throwing, and they are filtered out here.
+ */
+export async function getPfwaTokenLogs<A>(options: FetchOptions, eventAbi: string, tokens: Record<string, PfwaMarketToken>): Promise<PfwaTokenLog<A>[]> {
+  const logs: RawLog<A>[] = await options.getLogs({ eventAbi, noTarget: true, entireLog: true });
+  const out: PfwaTokenLog<A>[] = [];
+  for (const log of logs) {
+    const token = String(log.address).toLowerCase();
+    const info = tokens[token];
+    if (!info || !log.args) continue;
+    out.push({ token, info, transactionHash: String(log.transactionHash).toLowerCase(), blockNumber: Number(log.blockNumber), args: log.args });
+  }
+  return out;
+}
 
-// The window's buys and sells on PFWA outcome tokens, each buy with the fees it paid. There are hundreds of outcome
-// tokens, so the events are fetched by topic and kept only when the emitter is one of the factories' tokens (anyone
-// can emit a look-alike event). Claims of winnings (WinningsClaimed) are not trades and are not read.
+export type PfwaBuy = { token: string; info: PfwaMarketToken; trader: string; blockNumber: number; ethPaid: bigint; creatorFee: bigint; platformFee: bigint };
+export type PfwaSell = { token: string; info: PfwaMarketToken; trader: string; blockNumber: number; ethReceived: bigint };
+
+/**
+ * The window's buys and sells on PFWA outcome tokens (see getPfwaTokenLogs for how they are found), each buy with the
+ * two fee legs it paid. A buy emits TokensBought then FeeDistributed("buy") from the same outcome token in the same
+ * transaction, so the n-th of each are paired per (transaction, token). Trades by PFWA_PROTOCOL_WALLETS are dropped
+ * unless `includeProtocolWallets` is set. Claims of winnings (WinningsClaimed) are not trades and are not read.
+ */
 export async function getPfwaMarketTrades(options: FetchOptions, { includeProtocolWallets = false } = {}) {
   const tokens = await getPfwaMarketTokens(options);
-  const [buyLogs, sellLogs, feeLogs] = await Promise.all(
-    [PFWA_EVENTS.buy, PFWA_EVENTS.sell, PFWA_EVENTS.feeDistributed].map((eventAbi) =>
-      // other contracts on the chain may emit an event with the same topic but other indexed fields: those fail to
-      // decode and are dropped below with every other log that is not from an outcome token
-      options.getLogs({ eventAbi, noTarget: true, entireLog: true, parseLog: true, allowParseFailure: true } as any)
-    )
-  );
-  const ours = (log: any) => log.args && tokens[String(log.address).toLowerCase()];
-  const txKey = (log: any) => `${String(log.transactionHash).toLowerCase()}-${String(log.address).toLowerCase()}`;
+  const [buyLogs, sellLogs, feeLogs] = await Promise.all([
+    getPfwaTokenLogs<PfwaBuyArgs>(options, PFWA_EVENTS.buy, tokens),
+    getPfwaTokenLogs<PfwaSellArgs>(options, PFWA_EVENTS.sell, tokens),
+    getPfwaTokenLogs<PfwaFeeArgs>(options, PFWA_EVENTS.feeDistributed, tokens),
+  ]);
+  const txKey = (log: PfwaTokenLog<unknown>) => `${log.transactionHash}-${log.token}`;
 
-  // a buy emits TokensBought then FeeDistributed("buy") from the same outcome token in the same transaction: pair the
-  // n-th of each per (transaction, token)
-  const feesByTx: Record<string, any[]> = {};
+  const feesByTx: Record<string, PfwaFeeArgs[]> = {};
   for (const log of feeLogs) {
-    if (!ours(log) || log.args.action !== "buy") continue;
+    if (log.args.action !== "buy") continue;
     (feesByTx[txKey(log)] = feesByTx[txKey(log)] || []).push(log.args);
   }
 
   const buys: PfwaBuy[] = [];
   for (const log of buyLogs) {
-    const info = ours(log);
-    if (!info) continue;
     const fee = (feesByTx[txKey(log)] || []).shift();
     if (!fee) throw new Error(`PFWA Markets: no FeeDistributed for the buy in ${log.transactionHash}`);
     const trader = String(log.args.buyer).toLowerCase();
     if (!includeProtocolWallets && PFWA_PROTOCOL_WALLETS.has(trader)) continue;
-    buys.push({ token: String(log.address).toLowerCase(), info, trader, ethPaid: BigInt(log.args.ethPaid), creatorFee: BigInt(fee.creatorFee), platformFee: BigInt(fee.platformFee) });
+    buys.push({ token: log.token, info: log.info, trader, blockNumber: log.blockNumber, ethPaid: BigInt(log.args.ethPaid), creatorFee: BigInt(fee.creatorFee), platformFee: BigInt(fee.platformFee) });
   }
 
   const sells: PfwaSell[] = [];
   for (const log of sellLogs) {
-    const info = ours(log);
-    if (!info) continue;
     const trader = String(log.args.seller).toLowerCase();
     if (!includeProtocolWallets && PFWA_PROTOCOL_WALLETS.has(trader)) continue;
-    sells.push({ token: String(log.address).toLowerCase(), info, trader, ethReceived: BigInt(log.args.ethReceived), blockNumber: Number(log.blockNumber) });
+    sells.push({ token: log.token, info: log.info, trader, blockNumber: log.blockNumber, ethReceived: BigInt(log.args.ethReceived) });
   }
 
   return { tokens, buys, sells };

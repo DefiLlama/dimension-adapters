@@ -13,10 +13,12 @@ import ADDRESSES from "../helpers/coreAssets.json";
 //   buys the outcome (Harvested). The two v1 vaults have no collection event, so their fees are counted when harvested
 //   (same 20/80 split, PFWA_FEE_SPLIT_BPS = 2000).
 // - Creator vault fees. Tokens launched for an X account through CreatorLauncher pay their Pons creator fees into that
-//   account's CreatorFeeVault (Funded, in the token's pair asset). The vault sends protocolBps of each arrival to the
-//   factory's protocolRecipient (Collected.protocolFee) and holds the rest until the account claims it.
+//   account's CreatorFeeVault (Funded, in the token's pair asset). In the same call (_claimEscrow) the vault sends
+//   amount * protocolBps / 10000 to the factory's protocolRecipient and holds the rest until the account claims it.
+//   protocolBps is immutable in the factory, so the split is computed from each Funded event as it accrues.
 // - Launch fees: the Credence fee each launcher charges on top of Pons' own launch fee (credenceFee / launchFee), kept
-//   in the launcher until its owner, the Credence Safe 0x85eb79DBCc50eB3DA0Ee10460109991E863d2666, withdraws it.
+//   in the launcher until its owner withdraws it. The owner can change the fee (CredenceFeeSet / LaunchFeeSet), so it
+//   is read at each launch's block.
 // Not fees: the bet's winnings coming home and the meme tokens they buy back and burn (they are the bet's outcome).
 // The $PFWA buyback is counted at the fee source (20% of the creator fees as they are collected), not from the harvests:
 // a harvest spends 20% of whatever WETH the vault holds, which can include WETH that is not fees (the v2 vaults have
@@ -37,7 +39,6 @@ const EVENTS = {
   feesCollected: "event FeesCollected(uint256 weth)",
   harvested: "event Harvested(uint256 totalWeth, uint256 pfwaBurned, uint256 wethBridged)", // v1 CredenceVault
   funded: "event Funded(address indexed asset, address indexed from, uint256 amount)",
-  collected: "event Collected(address indexed token, address indexed asset, uint256 swept, uint256 claimed, uint256 protocolFee)",
   launchedV1: "event TokenAndVaultLaunched(address indexed memeToken, address indexed vault, address indexed creator, address curve)",
   launchedV2: "event TokenAndVaultLaunched(address indexed memeToken, address indexed vault, address indexed creator, address curve, address polyVault)",
   creatorLaunched: "event CreatorTokenLaunched(address indexed token, address indexed vault, address indexed launcher, bytes32 idHash, address curve, address pairToken)",
@@ -62,6 +63,9 @@ const L = {
   BUYBACK: "PFWA Buyback And Burn",
 };
 
+type Uint = bigint | string | number;
+type LaunchLog = { blockNumber: number | string };
+
 const listVaults = (options: FetchOptions, target: string): Promise<string[]> =>
   options.api.fetchList({ lengthAbi: "uint256:vaultCount", itemAbi: "function allVaults(uint256) view returns (address)", target });
 
@@ -79,14 +83,13 @@ const fetch = async (options: FetchOptions) => {
   const launchers = LAUNCHERS.filter(({ firstBlock }) => toBlock >= firstBlock);
   const vaultLists = await Promise.all(factories.map(({ factory }) => listVaults(options, factory)));
   const vaultsOf = (kind: string) => factories.flatMap(({ kind: k }, i) => (k === kind ? vaultLists[i] : []));
-  const logsOf = async (targets: string[], eventAbi: string): Promise<any[]> => (targets.length ? options.getLogs({ targets, eventAbi }) : []);
+  const logsOf = async <A>(targets: string[], eventAbi: string): Promise<A[]> => (targets.length ? options.getLogs({ targets, eventAbi }) : []);
 
-  const [collectedV2, harvestedV1, funded, collectedCreator, launches] = await Promise.all([
-    logsOf(vaultsOf("v2"), EVENTS.feesCollected),
-    logsOf(vaultsOf("v1"), EVENTS.harvested),
-    logsOf(vaultsOf("creator"), EVENTS.funded),
-    logsOf(vaultsOf("creator"), EVENTS.collected),
-    Promise.all(launchers.map(({ launcher, eventAbi }) => options.getLogs({ target: launcher, eventAbi }))),
+  const [collectedV2, harvestedV1, funded, launches] = await Promise.all([
+    logsOf<{ weth: Uint }>(vaultsOf("v2"), EVENTS.feesCollected),
+    logsOf<{ totalWeth: Uint }>(vaultsOf("v1"), EVENTS.harvested),
+    logsOf<{ asset: string; from: string; amount: Uint }>(vaultsOf("creator"), EVENTS.funded),
+    Promise.all(launchers.map(({ launcher, eventAbi }): Promise<LaunchLog[]> => options.getLogs({ target: launcher, eventAbi, onlyArgs: false }))),
   ]);
 
   const addCreatorFees = (weth: bigint) => {
@@ -103,22 +106,29 @@ const fetch = async (options: FetchOptions) => {
   // v1 vaults: creator fees when harvested
   for (const log of harvestedV1) addCreatorFees(BigInt(log.totalWeth));
 
-  // creator vaults: Pons creator fees arriving for an X account, minus the protocol's cut
-  for (const log of funded) dailyFees.add(assetKey(log.asset), log.amount, L.CREATOR_VAULT_FEES);
-  const creatorVaultFees = options.createBalances();
-  for (const log of funded) creatorVaultFees.add(assetKey(log.asset), log.amount);
-  for (const log of collectedCreator) {
-    if (BigInt(log.protocolFee) === 0n) continue;
-    dailyRevenue.add(assetKey(log.asset), log.protocolFee, L.CREATOR_VAULT_FEES_TO_PROTOCOL);
-    dailyProtocolRevenue.add(assetKey(log.asset), log.protocolFee, L.CREATOR_VAULT_FEES_TO_PROTOCOL);
-    creatorVaultFees.subtractToken(assetKey(log.asset), log.protocolFee);
+  // creator vaults: each Pons creator-fee arrival for an X account, split as it accrues into the protocol's cut and
+  // the account's share, exactly as _claimEscrow does in the same call
+  if (funded.length) {
+    const creatorFactory = factories.find(({ kind }) => kind === "creator")!.factory;
+    const protocolBps = BigInt(await options.api.call({ target: creatorFactory, abi: "uint16:protocolBps" }));
+    for (const log of funded) {
+      const amount = BigInt(log.amount);
+      const toProtocol = (amount * protocolBps) / 10000n;
+      dailyFees.add(assetKey(log.asset), amount, L.CREATOR_VAULT_FEES);
+      dailyRevenue.add(assetKey(log.asset), toProtocol, L.CREATOR_VAULT_FEES_TO_PROTOCOL);
+      dailyProtocolRevenue.add(assetKey(log.asset), toProtocol, L.CREATOR_VAULT_FEES_TO_PROTOCOL);
+      dailySupplySideRevenue.add(assetKey(log.asset), amount - toProtocol, L.CREATOR_VAULT_FEES_TO_CREATORS);
+    }
   }
-  dailySupplySideRevenue.addBalances(creatorVaultFees, L.CREATOR_VAULT_FEES_TO_CREATORS);
 
-  // launch fees: one Credence fee per launch, at the launcher's rate at the end of the window (set by its owner)
-  const feeRates = await Promise.all(launchers.map(({ launcher, feeAbi }) => options.api.call({ target: launcher, abi: feeAbi })));
+  // launch fees: one Credence fee per launch, at the launcher's rate in force at the launch's block
   let launchFees = 0n;
-  launchers.forEach((_, i) => (launchFees += BigInt(feeRates[i]) * BigInt(launches[i].length)));
+  for (let i = 0; i < launchers.length; i++) {
+    for (const log of launches[i]) {
+      const fee: Uint = await options.api.call({ target: launchers[i].launcher, abi: launchers[i].feeAbi, block: Number(log.blockNumber) });
+      launchFees += BigInt(fee);
+    }
+  }
   if (launchFees > 0n) {
     dailyFees.addGasToken(launchFees, L.LAUNCH_FEES);
     dailyRevenue.addGasToken(launchFees, L.LAUNCH_FEES_TO_PROTOCOL);
@@ -157,11 +167,11 @@ const breakdownMethodology = {
   },
   Revenue: {
     [L.CREATOR_FEES_TO_BUYBACK]: "20% of a token vault's creator fees, which the harvest spends buying back and burning $PFWA.",
-    [L.CREATOR_VAULT_FEES_TO_PROTOCOL]: "The protocol's cut (protocolBps) of each creator vault fee arrival, sent to the protocol recipient.",
+    [L.CREATOR_VAULT_FEES_TO_PROTOCOL]: "The protocol's cut of each creator vault fee arrival (protocolBps, 10%), sent to the Credence Safe in the same transaction.",
     [L.LAUNCH_FEES_TO_PROTOCOL]: "Launch fees, withdrawn from the launchers by the Credence Safe.",
   },
   ProtocolRevenue: {
-    [L.CREATOR_VAULT_FEES_TO_PROTOCOL]: "The protocol's cut (protocolBps) of each creator vault fee arrival.",
+    [L.CREATOR_VAULT_FEES_TO_PROTOCOL]: "The protocol's cut of each creator vault fee arrival (protocolBps, 10%).",
     [L.LAUNCH_FEES_TO_PROTOCOL]: "Launch fees, withdrawn from the launchers by the Credence Safe.",
   },
   HoldersRevenue: {
