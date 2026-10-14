@@ -79,15 +79,14 @@ async function _getBlock(timestamp: number, chain: Chain, chainBlocks = {} as Ch
 
   let block: number | undefined
   try {
-    if (chain === CHAIN.WAVES)
-      timestamp = Math.floor(timestamp * 1000)
-
     if (chain === CHAIN.TON)
       block = await getTonBlock(timestamp)
     else if (chain === CHAIN.CHIA)
       block = await getChiaBlock(timestamp)
     else if (chain === CHAIN.ASTER)
       block = await getAsterBlock(timestamp)
+    else if (chain === CHAIN.WAVES)
+      block = await getWavesBlock(timestamp)
     else
       block = await sdk.blocks.getBlockNumber(chain, timestamp)
   } catch (e) {
@@ -126,6 +125,13 @@ async function getAsterBlock(unixTS: number) {
   const height = Math.round(newest.height - (newest.timestamp - targetMs) / blockMs)
   if (!Number.isFinite(height) || height < 0) throw new Error(`Aster: invalid block for timestamp ${unixTS}`)
   return height
+}
+
+async function getWavesBlock(unixTS: number) {
+  const res = await httpGet(`https://nodes.wavesnodes.com/blocks/heightByTimestamp/${unixTS * 1000}`)
+  const block = Number(res?.height)
+  if (!Number.isFinite(block)) throw new Error(`Waves: invalid block for timestamp ${unixTS}`)
+  return block
 }
 
 /**
