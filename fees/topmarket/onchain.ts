@@ -62,7 +62,14 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
     // Base RPCs can cap queries at 100,000 blocks; leave room for SDK padding.
     const raw = await options.getLogs({ targets, eventAbi: events[name], fromBlock: startBlock,
       toBlock, maxBlockRange: MAX_LOG_BLOCK_RANGE, onlyArgs: false, entireLog: true, parseLog: true, cacheInCloud, ...(topics ? { topics } : {}) });
-    return raw.filter((l: any) => Number(l.blockNumber) >= startBlock && Number(l.blockNumber) <= toBlock).map((l: any): Log => {
+    return raw.filter((l: any) => {
+      const value = l?.blockNumber, blockNumber = Number(value);
+      // Invalid source metadata must fail before the range filter can discard it.
+      if ((typeof value !== 'number' && typeof value !== 'string') ||
+          (typeof value === 'string' && !value.trim()) || !Number.isSafeInteger(blockNumber) || blockNumber < 0)
+        throw new Error(`TopMarket: missing/invalid ${name} block number`);
+      return blockNumber >= startBlock && blockNumber <= toBlock;
+    }).map((l: any): Log => {
       const blockNumber = Number(l.blockNumber), logIndex = Number(l.logIndex ?? l.index);
       if (!l.args || !l.address || !targets.includes(lower(l.address)) || !l.transactionHash || l.removed || !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex))
         throw new Error(`TopMarket: incomplete/removed ${name} log`);
