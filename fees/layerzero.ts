@@ -6,6 +6,10 @@ import { METRIC } from "../helpers/metrics";
 const ZRO_BUYBACK_WALLET = "0x6ac55e733dff03a54251670df0667774e8f7d28f";
 const ZRO_TOKEN = "0x6985884c4392d348587b19cb9eaaf157f13271cd";
 
+const MAX_BLOCK_RANGE: Record<string, number> = {
+  [CHAIN.XLAYER]: 80,
+};
+
 const eventExecutorFeePaid = "event ExecutorFeePaid(address executor, uint256 fee)";
 const eventDVNFeePaid = "event DVNFeePaid(address[] requiredDVNs, address[] optionalDVNs, uint256[] fees)";
 
@@ -94,6 +98,7 @@ const fetch = async (options: FetchOptions) => {
       targets,
       eventAbi: eventExecutorFeePaid,
       flatten: true,
+      maxBlockRange: MAX_BLOCK_RANGE[chain],
     });
     for (const log of executorLogs) {
       const fee = log.fee?.toString() ?? "0";
@@ -105,6 +110,7 @@ const fetch = async (options: FetchOptions) => {
       targets,
       eventAbi: eventDVNFeePaid,
       flatten: true,
+      maxBlockRange: MAX_BLOCK_RANGE[chain],
     });
     for (const log of dvnLogs) {
       const fees: any[] = log.fees ?? [];
