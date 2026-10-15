@@ -1,20 +1,21 @@
 import BigNumber from 'bignumber.js';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { httpGet } from '../utils/fetchURL';
+import { getConfig } from '../helpers/cache';
+import ADDRESSES from '../helpers/coreAssets.json';
 
 // Production contract/config: https://app.koo.xyz/ ; public ABI is shipped by its frontend.
 const CORE = '0xA18b67e194d4f4bADe61d4e68cd135C63C438D1d';
-const USDC = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+const USDC = ADDRESSES.arbitrum.USDC_CIRCLE;
 const TRADE = 'event TradeSettled(bytes32 indexed tradeId,uint256 indexed accountId1,uint256 indexed accountId2,string symbol,uint256 size,uint256 price,uint256 tradeValue,uint256 tradeTimestamp,uint8 direction1,uint8 role1,uint8 direction2,uint8 role2,uint8 tradeType)';
 
 const fetch = async (options: FetchOptions) => {
   // Metadata is used only to classify instruments. Volume comes from settlement logs.
-  const metadata = await httpGet('https://gw.koo.xyz/market/contract-list');
+  const metadata = await getConfig('koo/contract-list', 'https://gw.koo.xyz/market/contract-list');
   if (!metadata.success || !Array.isArray(metadata.data) || !metadata.data.length)
     throw new Error('Koo market classification is unavailable');
   const markets = new Map<string, any>(metadata.data.map((market: any) => [market.symbol, market]));
-  const logs = await options.getLogs({ target: CORE, eventAbi: TRADE, maxBlockRange: 10000 });
+  const logs = await options.getLogs({ target: CORE, eventAbi: TRADE });
   const dailyVolume = options.createBalances();
   const seen = new Set<string>();
   let notional = 0n;
