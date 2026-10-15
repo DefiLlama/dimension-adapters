@@ -56,7 +56,8 @@ export type KyberVolumeRecord = {
 };
 export type KyberVerification =
   | { status: 'verified'; record: KyberVolumeRecord }
-  | { status: 'pending' | 'excluded'; reason: string };
+  | { status: 'pending'; reason: string }
+  | { status: 'excluded'; reason: string };
 const same = (a: string | null, b: string) =>
   a?.toLowerCase() === b.toLowerCase();
 const uint = (s: string) => /^(0|[1-9][0-9]{0,77})$/.test(s);
