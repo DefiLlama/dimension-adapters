@@ -8,7 +8,8 @@ import { METRIC } from "../../helpers/metrics";
 // https://peep.fun/private/terms (section 6 "Trading and fees", section 10 "Groups, calls and tips").
 //
 // Peep treasury (fee wallet), published by Peep at https://peep.fun/private/methodology#fee-wallet.
-// It receives two fees, both as top-level System Program SOL transfers that the user signs and pays for:
+// It receives two fees, both as top-level System Program SOL transfers that the user signs and pays for.
+// Only the trading fee is counted:
 // 1. Trading fee: 0.75% of each swap between SOL and a token made in Peep, inside the swap transaction,
 //    which runs a Jupiter v6 route as a top-level instruction. Swaps between SOL and USDC/USDT and
 //    token-to-token swaps carry no Peep fee. Peep does not use Jupiter's platform/referral fee, so this
@@ -16,7 +17,9 @@ import { METRIC } from "../../helpers/metrics";
 //    Sample (81,723 lamports, 2026-09-30):
 //    5ZPezUQpi6MxAKYApxitUuj4kQPUbFoJskiaAaPLWifEChEUoPFgtxN5fSqN16EdgqojpxfxhZYHsFhsKpMEu75S
 // 2. Paid group join: one transaction with two System transfers from the member, Peep's 5% (rounded
-//    down) to the treasury and the rest to the group's creator. Only Peep's 5% is counted (see methodology).
+//    down) to the treasury and the rest to the group's creator. NOT counted: a paid join carries no on-chain
+//    marker that tells it apart from any transaction with the same two transfers, so its shape is recognised
+//    (it does not stop the adapter) but its 5% is not reported. This can only under-count.
 //    Sample (500,000 lamports to the treasury, 9,500,000 to the creator, 2026-10-01):
 //    2zJuUuCxiuyHCatTnDFw2wVh88bg5xTHYQpY57sL81EK4MmiqJtPD67wB9wjc1Ap9JrbjdWezqE8kgfpKFSKz8XM
 // A Peep swap carries exactly one fee transfer: a swap transaction with more than one SOL transfer to the
@@ -32,15 +35,12 @@ const JUPITER_V6 = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
 const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 const COMPUTE_BUDGET_PROGRAM = 'ComputeBudget111111111111111111111111111111';
 // Peep's share of a paid group join: 500 bps of the join price, rounded down ("Peep takes 5% of each
-// payment", https://peep.fun/private/terms section 10). Used only to recognise the group payment on
-// chain; the amount itself is read from the transfer. Unchanged since the first paid join; a change
-// needs a date guard here.
+// payment", https://peep.fun/private/terms section 10). Used only to recognise (and not count) the group
+// payment shape on chain. Unchanged since the first paid join; a change needs a date guard here.
 const GROUP_FEE_BPS = 500;
 
 const LABELS = {
-  GROUP_JOIN_FEES: 'Paid Group Join Fees',
   TRADING_FEES_TO_TREASURY: 'Trading Fees To Treasury',
-  GROUP_JOIN_FEES_TO_TREASURY: 'Paid Group Join Fees To Treasury',
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -92,8 +92,9 @@ const fetch = async (options: FetchOptions) => {
           -- Peep's fee is the single SOL transfer from the swap's signer to the treasury
           WHEN p.has_jupiter = 1 AND f.tx_inflows = 1 THEN 'trading_fee'
           WHEN p.has_jupiter = 1 THEN 'unrecognised'
+          -- recognised, not counted: the paid group join shape has no group-specific on-chain signal
           WHEN p.has_other_program = 0 AND l.legs = 2 AND l.signer_legs = 2
-            AND f.lamports = FLOOR(l.signer_lamports * ${GROUP_FEE_BPS} / 10000) THEN 'group_join_fee'
+            AND f.lamports = FLOOR(l.signer_lamports * ${GROUP_FEE_BPS} / 10000) THEN 'group_join'
           -- not revenue: a plain gift or operator funding, whoever sends it
           WHEN l.legs = 1 THEN 'direct_transfer'
           ELSE 'unrecognised'
@@ -105,8 +106,7 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       COUNT(*) AS inflows,
       COUNT_IF(kind = 'unrecognised') AS unrecognised,
-      TO_VARCHAR(SUM(IFF(kind = 'trading_fee', lamports, 0))) AS trading_fees,
-      TO_VARCHAR(SUM(IFF(kind = 'group_join_fee', lamports, 0))) AS group_join_fees
+      TO_VARCHAR(SUM(IFF(kind = 'trading_fee', lamports, 0))) AS trading_fees
     FROM classified
   `);
 
@@ -125,12 +125,10 @@ const fetch = async (options: FetchOptions) => {
 
   // No SOL reached the treasury in the window: nothing to add.
   if (inflows > 0) {
-    if (row.trading_fees == null || row.group_join_fees == null)
-      throw new Error(`peep: missing fee sums in the Allium result for ${period}`);
+    if (row.trading_fees == null)
+      throw new Error(`peep: missing fee sum in the Allium result for ${period}`);
     dailyFees.add(ADDRESSES.solana.SOL, row.trading_fees, METRIC.TRADING_FEES);
-    dailyFees.add(ADDRESSES.solana.SOL, row.group_join_fees, LABELS.GROUP_JOIN_FEES);
     dailyRevenue.add(ADDRESSES.solana.SOL, row.trading_fees, LABELS.TRADING_FEES_TO_TREASURY);
-    dailyRevenue.add(ADDRESSES.solana.SOL, row.group_join_fees, LABELS.GROUP_JOIN_FEES_TO_TREASURY);
   }
 
   return {
@@ -138,7 +136,7 @@ const fetch = async (options: FetchOptions) => {
     dailyUserFees: dailyFees.clone(),
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue.clone(),
-    // Peep pays no part of these fees to referrers (referral payouts are not made), integrators or Jupiter.
+    // Peep pays no part of this fee to referrers (referral payouts are not made), integrators or Jupiter.
     dailySupplySideRevenue: 0,
   };
 };
@@ -151,28 +149,24 @@ const adapter: SimpleAdapter = {
   start: '2026-09-30', // first trading fee: 5ZPez... at 2026-09-30T17:23:47Z
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: 'SOL paid to Peep by its users: the 0.75% fee on swaps between SOL and a token made in Peep, and Peep\'s 5% share of each paid group join. The other 95% of a group join is the price of the group, paid by the member straight to the group\'s creator, and is not counted. Swaps between SOL and USDC/USDT, token-to-token swaps and tips carry no Peep fee.',
-    UserFees: 'SOL paid by Peep users: the 0.75% fee on swaps between SOL and a token, and Peep\'s 5% share of each paid group join.',
-    Revenue: 'SOL kept by Peep: the whole 0.75% fee on swaps between SOL and a token, and Peep\'s whole 5% share of each paid group join.',
-    ProtocolRevenue: 'SOL received by the Peep treasury: the whole 0.75% fee on swaps between SOL and a token, and Peep\'s 5% share of each paid group join.',
-    SupplySideRevenue: 'None: Peep shares no part of its swap fees or group join fees with referrers, integrators or Jupiter.',
+    Fees: 'SOL paid to Peep by its users: the 0.75% fee on swaps between SOL and a token made in Peep. Swaps between SOL and USDC/USDT, token-to-token swaps and tips carry no Peep fee. Peep\'s 5% share of paid group joins is not counted: a group join carries no on-chain marker that tells it apart from any transaction with the same two transfers.',
+    UserFees: 'SOL paid by Peep users: the 0.75% fee on swaps between SOL and a token.',
+    Revenue: 'SOL kept by Peep: the whole 0.75% fee on swaps between SOL and a token.',
+    ProtocolRevenue: 'SOL received by the Peep treasury: the whole 0.75% fee on swaps between SOL and a token.',
+    SupplySideRevenue: 'None: Peep shares no part of its swap fee with referrers, integrators or Jupiter.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: '0.75% fee on each swap between SOL and a token made in Peep, paid in SOL by the user to the Peep treasury inside the swap transaction and rounded down to the lamport. On a sell it is taken on the minimum SOL out.',
-      [LABELS.GROUP_JOIN_FEES]: 'Peep\'s 5% (rounded down) of each paid group join, paid in SOL by the joining member to the Peep treasury. The other 95% goes from the member straight to the group\'s creator as the price of the group; Peep is not a party to that sale, so it is not counted.',
     },
     UserFees: {
       [METRIC.TRADING_FEES]: '0.75% fee on each swap between SOL and a token made in Peep, paid by the user.',
-      [LABELS.GROUP_JOIN_FEES]: 'Peep\'s 5% of each paid group join, paid by the joining member.',
     },
     Revenue: {
       [LABELS.TRADING_FEES_TO_TREASURY]: 'The whole 0.75% swap fee, kept by Peep.',
-      [LABELS.GROUP_JOIN_FEES_TO_TREASURY]: 'Peep\'s whole 5% share of each paid group join, kept by Peep.',
     },
     ProtocolRevenue: {
       [LABELS.TRADING_FEES_TO_TREASURY]: 'The whole 0.75% swap fee, sent to the Peep treasury.',
-      [LABELS.GROUP_JOIN_FEES_TO_TREASURY]: 'Peep\'s 5% share of each paid group join, sent to the Peep treasury.',
     },
   },
 };
