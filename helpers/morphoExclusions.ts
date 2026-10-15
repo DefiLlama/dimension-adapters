@@ -1,5 +1,5 @@
 import * as sdk from "@defillama/sdk";
-import { getConfig } from "./cache";
+import { getConfig, getCache } from "./cache";
 import { httpGet } from "../utils/fetchURL";
 
 // Morpho's own exclusion feed. Additive: unioned with the hardcoded lists and the insolvent-markets
@@ -63,6 +63,14 @@ async function getExclusions(): Promise<Record<string, Array<ExclusionRow>> | nu
       });
       // a partial or malformed fetch must not overwrite the cache - getConfig keeps the last good copy
       if (!isValidBundle(fetched)) throw new Error("morpho exclusions: incomplete or malformed feed");
+      // these lists only grow in practice, so a sharp drop is a bad publish rather than a real
+      // un-exclusion. Keep the cached copy instead of silently letting markets back into fees.
+      const prior = await getCache("config-cache", "morpho-blue/exclusions").catch(() => null);
+      if (isValidBundle(prior)) {
+        const count = (b: any) => kinds.reduce((n, k) => n + b[k].length, 0);
+        if (count(fetched) < count(prior) * 0.8)
+          throw new Error(`morpho exclusions: feed shrank ${count(prior)} -> ${count(fetched)} rows, keeping cache`);
+      }
       return fetched;
     },
   });
@@ -95,3 +103,12 @@ export const getExcludedAssets = async (chain: string, dateString: string): Prom
 // Vault addresses morpho excludes on `chain`, active on `dateString` (effective_from inclusive, effective_to exclusive).
 export const getExcludedVaults = async (chain: string, dateString: string): Promise<Array<string>> =>
   (await getRows("vaults", chain, dateString)).map((i) => i.vault_address.toLowerCase());
+
+/**
+ * Every vault address morpho lists for `chain`, ignoring the date window. Used to decide which vaults
+ * the feed owns, so another source cannot pull one in earlier than its published effective_from.
+ */
+export const getExcludedVaultAddresses = async (chain: string): Promise<Array<string>> => {
+  const exclusions = await getExclusions();
+  return (exclusions?.vaults ?? []).filter((row) => row.chain === chain).map((i) => i.vault_address.toLowerCase());
+};

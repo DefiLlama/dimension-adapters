@@ -12,23 +12,6 @@ interface MorphoBlueConfig {
   fromBlock?: number;
 }
 
-const blacklistedMarketIds: Record<string, Array<any>> = {
-  [CHAIN.WC]: [{
-    from: "2025-11-07",
-    id: '0x5a96ea60ddb8ece11b0dd1176f05bbc44ec92197ba206adb086db559146cc964' //sdeUSD
-  }],
-  [CHAIN.ETHEREUM]: [{
-    from: "2026-07-21",
-    id: '0x23a7d0ff682b323363fb8ba58327ed87001f6306e09b7fd7413bbe4698e749c8' // fake USDC market, ~$6M/day fabricated interest
-  }],
-  [CHAIN.BASE]: [{
-    from: "2026-07-22",
-    id: '0xa4ec527128b425ee3fcb7f60eca37677b63b3d003345ec2a72ef6a2e72da53fc' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
-  }, {
-    from: "2026-08-04",
-    id: '0x41c08085ddcfd1dc1c5eb82d7dc031593d1a1a831958380e8b60469c45bf7d88' // RSS/USDC 77% LLTV, single supplier looping against self-issued RSS
-  }],
-}
 
 export const MorphoBlues: Record<string, MorphoBlueConfig> = {
   [CHAIN.ETHEREUM]: {
@@ -361,8 +344,7 @@ const fetchEvents = async (
 
   const blacklistedIds = [
     ...assetExcludedIds,
-    ...(blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? []),
-    ...(await getExcludedMarketIds(options.chain, options.dateString)), // morpho's own feed, additive
+    ...(await getExcludedMarketIds(options.chain, options.dateString)),
   ];
 
   const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;

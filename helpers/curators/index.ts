@@ -3,7 +3,7 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 import fetchURL from "../../utils/fetchURL";
-import { getExcludedAssets, getExcludedVaults } from "../morphoExclusions";
+import { getExcludedAssets, getExcludedVaults, getExcludedVaultAddresses } from "../morphoExclusions";
 
 const KAMINO_API = 'https://api.kamino.finance';
 const YEAR_SECS = 365 * 24 * 60 * 60;
@@ -71,65 +71,15 @@ interface VaultERC4626Info {
 
 const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
 
-const blacklistedTokens: Record<string, Array<{ token: string, from: string }>> = {
-  [CHAIN.ETHEREUM]: [{
-    token: '0x7751E2F4b8ae93EF6B79d86419d42FE3295A4559', //wUSDL - winded down
-    from: "2025-12-08",
-  }],
-}
-
-// vaults excluded entirely from a given date onwards. used when a vault's share price is corrupted
-// (e.g. an allocated market frozen at 100% utilization accrues phantom interest, or a pending bad-debt
-// write-off would otherwise show up as a fake large negative day). the adapter only reads vault-level
-// share price, so a single bad market cannot be isolated - the whole vault has to be dropped.
-const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> = {
-  [CHAIN.ETHEREUM]: [{
-    // Clearstar Yield USDC (CSYUSDC) - allocated RLP/USDC market frozen at 100% utilization, accruing phantom
-    // interest that inflated reported yield from ~$281/day to ~$197k/day. vault now deprecated with unrealized
-    // bad debt; excluding from the freeze onset also keeps the eventual write-off out of the series.
-    vault: '0x9B5E92fd227876b4C07a8c02367E2CB23c639DfA',
-    from: '2026-03-21',
-  }, {
-    // Clearstar Yield USDC v2 (0xFa17...F853) - the v2 vault of the same name, allocated to the same
-    // frozen market. Share price ran 1.009084 -> 1.019572 over 2026-03-21..04-04 and 1.794800 ->
-    // 1.908595 over the last week alone, ~165% APR against ~5.2% before the freeze, on a USDC vault
-    // that has now marked itself up 91%. Same phantom accrual as the v1 above, same onset date.
-    vault: '0xFa17f7AAdbfAc2C5d3C8125555404c1AE17Df853',
-    from: '2026-03-21',
-  }, {
-    // MEV Capital Elixir USDC - share price 95.38 -> 97.33 in one day (~71,000% APR) on ~$460k
-    // TVL, reporting ~$894k fees/day. Frozen/unrealized bad debt after the Nov 2025 Elixir deUSD
-    // unwind; phantom accrual compounds from early April 2026.
-    vault: '0x1265a81d42d513Df40d0031f8f2e1346954d665a',
-    from: '2026-04-01',
-  }, {
-    // MEV Capital USD0 - share price 7.73 -> 7.82 in one day (~3,300% APR) on ~$217k TVL,
-    // reporting ~$20k fees/day. Same vault-level share-price corruption.
-    vault: '0x749794E985Af5a9A384B9cEe6D88DaB4CE1576A1',
-    from: '2026-04-01',
-  }, {
-    // Apostro Resolv USDC (aprUSDC) - allocated to Resolv USR/RLP markets that froze at 100%
-    // utilization after the 2026-03-22 Resolv incident. Share price is ~15.74 USDC/share
-    // (started at 1.0) and Morpho still reports ~298,000% APY, so the vault-level share-price
-    // read treats a ~2% real day as a ~34% fee print (~$108k/day on ~$341k TVL).
-    vault: '0x214B47C50057eFaa7adc1B1C2608C3751Cd77D78',
-    from: '2026-03-22',
-  }],
-  [CHAIN.BASE]: [{
-    // Apostro Resolv USDC (aprUSDC) - same Resolv freeze as the ethereum twin. Share price
-    // ~12.26 USDC/share, Morpho APY ~298,000%, reporting ~$46k/day on ~$185k TVL.
-    vault: '0xcdDCDd18A16ED441F6CB10c3909e5e7ec2B9e8f3',
-    from: '2026-03-22',
-  }],
-}
+// vaults excluded entirely from a given date onwards, when a vault's share price is corrupted (e.g. an
+// allocated market frozen at 100% utilization accrues phantom interest). The adapter only reads
+// vault-level share price, so a single bad market cannot be isolated - the whole vault has to be
+// dropped. The list comes from morpho's exclusion feed, with the insolvent-markets cache as a backstop.
 
 async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
-  const blacklistedVaultsForChain = new Set(
-    blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
-  );
-  const hardcodedVaultsWithFrom = new Set(
-    (blacklistedVaults[chain] ?? []).map(item => item.vault.toLowerCase())
-  );
+  const blacklistedVaultsForChain = new Set(await getExcludedVaults(chain, dateString));
+  // the feed publishes its own effective_from for these, so the cache must not pull one in earlier
+  const feedListedVaults = new Set(await getExcludedVaultAddresses(chain));
 
   const insolventMarketsDetails = await sdk.cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
   const cacheVaults = {
@@ -138,13 +88,9 @@ async function getBlacklistedVaultsForChain(chain: string, dateString: string): 
   };
   const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
 
-  for (const vault of await getExcludedVaults(chain, dateString)) {
-    blacklistedVaultsForChain.add(vault);
-  }
-
   for (const vault of Object.keys(cacheVaults)) {
     const vaultLower = vault.toLowerCase();
-    if (hardcodedVaultsWithFrom.has(vaultLower)) continue;
+    if (feedListedVaults.has(vaultLower)) continue;
 
     const firstSeenTs = firstSeenForChain[vaultLower];
     if (firstSeenTs) {
@@ -578,16 +524,6 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         }
         if (vaults.kaminoVaults && vaults.kaminoVaults.length > 0) {
           await getKaminoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.kaminoVaults, curatorConfig.breakdownFees)
-        }
-
-        const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token) ?? []
-
-        if (blacklistedTokensForChain.length > 0) {
-          for (const token of blacklistedTokensForChain) {
-            dailyFees.removeTokenBalance(token)
-            dailyRevenue.removeTokenBalance(token)
-            dailySupplySideRevenue.removeTokenBalance(token)
-          }
         }
 
         return {
