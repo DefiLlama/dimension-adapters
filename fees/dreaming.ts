@@ -37,7 +37,7 @@ async function fetchBuilderReferrals(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
-    [CHAIN.LYRA]: { fetch: fetchBuilderReferrals, start: '2025-11-29', deadFrom: '2026-10-05T23:59:59Z' }, // that venue's chain shut down with its v3 cutover
+    [CHAIN.LYRA]: { fetch: fetchBuilderReferrals, start: '2025-11-29', deadFrom: '2026-10-05' }, // that venue's chain shut down with its v3 cutover
     [CHAIN.DERIVE_V3]: { fetch: fetchBuilderReferrals, start: '2026-10-06' },
   },
   methodology: {
