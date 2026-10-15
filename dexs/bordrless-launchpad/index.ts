@@ -1,21 +1,26 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { breakdownMethodology, fetchBordrless } from "../../helpers/bordrless";
 
-// Bordrless's indexer of its own programs (source: https://github.com/BordrlessDex/bordrless-sdk). Amounts
-// are raw base units by mint; bridged SOL is told as SOL.
-const fetch = async (options: FetchOptions) => {
-  const data = await httpGet(`https://bordrless.app/api/stats/defillama?start=${options.startTimestamp}&end=${options.endTimestamp}`);
-  const dailyVolume = options.createBalances();
-  for (const [mint, raw] of Object.entries(data.launchpad.volume as Record<string, string>)) dailyVolume.add(mint, Number(raw));
-  return { dailyVolume };
+const fetch = async (options: FetchOptions) => fetchBordrless(options, "launchpad");
+
+const methodology = {
+  Volume: "Sum of trades on the Bordrless launchpad bonding curve, before a coin graduates.",
+  Fees: "Every fee traders pay on trades on the Bordrless launchpad bonding curve, before a coin graduates: the protocol fee, LP fee, coin creator fee and holder reward fee.",
+  UserFees: "Every fee traders pay on Bordrless launchpad bonding curve trades: the protocol fee, LP fee, coin creator fee and holder reward fee.",
+  Revenue: "The protocol fee, paid to the Bordrless treasury.",
+  ProtocolRevenue: "Half of the protocol fee, kept by the treasury.",
+  HoldersRevenue: "Half of the protocol fee, spent buying back $BORDR.",
+  SupplySideRevenue: "Fees paid to liquidity providers, coin creators and coin holders.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: { [CHAIN.SOLANA]: { fetch, start: "2026-10-08" } },
-  methodology: { Volume: "Sum of trades on the Bordrless launchpad bonding curve, before a coin graduates." },
+  dependencies: [Dependencies.ALLIUM],
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
