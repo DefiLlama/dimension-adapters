@@ -46,9 +46,11 @@ export async function audit(options: FetchOptions, policy: Inputs = inputs, sour
 }
 
 export function hourlyStart(options: Pick<FetchOptions, 'startTimestamp' | 'endTimestamp'>) {
-  // runAdapter.ts at f455526 uses end - 1 - 3600 as the hourly start. Remove its
-  // one-second overlap; already-correct [start,end) callers are unchanged.
-  return options.startTimestamp + (options.endTimestamp - options.startTimestamp === 3601 ? 1 : 0);
+  // runAdapter.ts uses end - 1 - windowSize as the start for both hourly and
+  // daily runs. Remove that one-second overlap; exact [start,end) callers stay
+  // unchanged, and daily runs fit the public referral API's 24-hour limit.
+  const duration = options.endTimestamp - options.startTimestamp;
+  return options.startTimestamp + (duration === 3601 || duration === 86401 ? 1 : 0);
 }
 
 const fetch = async (options: FetchOptions) => {
