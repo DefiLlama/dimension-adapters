@@ -21,6 +21,7 @@ const DEV_FEE =
   "event DevFeeCharged(uint256 indexed tradeId, address indexed trader, uint256 amount)";
 const ORACLE_FEE =
   "event OracleFeeCharged(address indexed trader, uint16 pairIndex, uint256 oracleFee)";
+const ORACLE_FEE_IN_USDC_BLOCK = 48117123;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -41,7 +42,11 @@ const fetch = async (options: FetchOptions) => {
   // one trading fee, charged once; where it went is the split below
   await add(CALLBACKS, DEV_FEE, "amount", dailyRevenue, METRIC.TRADING_FEES);
   // charged by DomfiTrading when the order is queued, not by the callback
-  await add(TRADING, ORACLE_FEE, "oracleFee", dailyRevenue, "Oracle Fee");
+  const oracleLogs = await options.getLogs({ target: TRADING, eventAbi: ORACLE_FEE, onlyArgs: false });
+  for (const log of oracleLogs) {
+    if (log.blockNumber < ORACLE_FEE_IN_USDC_BLOCK) dailyRevenue.addGasToken(log.args.oracleFee, "Oracle Fee");
+    else dailyRevenue.add(ADDRESSES.base.USDC, log.args.oracleFee, "Oracle Fee");
+  }
 
   dailyFees.addBalances(dailyRevenue);
   dailyFees.addBalances(dailySupplySideRevenue);
@@ -70,7 +75,7 @@ const adapter: SimpleAdapter = {
     Fees: {
       [METRIC.TRADING_FEES]: "Maker and taker fees, charged on collateral x leverage at open and at close, where closing is a quarter of opening on every pair.",
       [METRIC.LIQUIDATION_FEES]: "Up to 25% of collateral on a liquidation, paid to the vault.",
-      "Oracle Fee": "The oracle fee, from OracleFeeCharged on DomfiTrading, which charges it when the order is queued. DomfiPairsStorage sets the rate and returns a flat 0.10 USDC on every pair.",
+      "Oracle Fee": "The oracle fee, from OracleFeeCharged on DomfiTrading, which charges it when the order is queued. DomfiPairsStorage sets the rate and returns a flat 0.10 USDC on every pair; before the 2 July 2026 upgrade it was 0.00003 ETH paid with the order.",
     },
     Revenue: {
       [METRIC.TRADING_FEES]: "The treasury's half of every maker and taker fee, from DevFeeCharged.",
