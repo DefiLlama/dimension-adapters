@@ -27,7 +27,10 @@ const POOL_MANAGERS = [
   },
 ];
 
-// Pools excluded as wash volume.
+// Pools excluded as wash volume: fee-0 pools with third-party hooks whose volume is out of line with their liquidity.
+//   0x20edb0d8...  USDC / 0xa407...  hook 0x61A8beabc4D1c5846d71C39dCf42B6fAaC76DB26
+//   0x9bea96ab...  wINJ / USDC       hook 0x0ccA26F289d4fFBf94670d0F9D8883ced95442Be
+//   0xaa206e63...  wINJ / USDC       hook 0x7A6176940264236307AEC515868e15174afE8a2b
 const BLACKLIST_POOL_IDS = new Set([
   "0x20edb0d8499e57195d8cc4aff2176b2a21557db8850cab9cf96388d703844a16",
   "0x9bea96ab2176706bd868c4d5bbeef3b4f6c1f10d2638a127001f944660442e0e",
@@ -88,10 +91,16 @@ const fetch = async (options: FetchOptions) => {
       const fee = BigInt(log.fee);
       const protocolFee = BigInt(log.protocolFee);
 
-      // addOneToken counts one side of the swap (the core asset if there is one) and takes the absolute value
+      // volume: addOneToken counts one side of the swap (the core asset if there is one) and takes the absolute value
       addOneToken({ chain: options.chain, balances: dailyVolume, token0: currency0, amount0, token1: currency1, amount1 });
-      addOneToken({ chain: options.chain, balances: swapFees, token0: currency0, amount0: (amount0 * fee) / FEE_DENOMINATOR, token1: currency1, amount1: (amount1 * fee) / FEE_DENOMINATOR });
-      addOneToken({ chain: options.chain, balances: protocolFees, token0: currency0, amount0: (amount0 * protocolFee) / FEE_DENOMINATOR, token1: currency1, amount1: (amount1 * protocolFee) / FEE_DENOMINATOR });
+
+      // fees are charged on the input leg, the negative amount in the Swap event (swapper's perspective)
+      const inputIsToken0 = amount0 < 0n;
+      const inputAmount = inputIsToken0 ? -amount0 : -amount1;
+      if (inputAmount <= 0n) return;
+      const inputToken = inputIsToken0 ? currency0 : currency1;
+      swapFees.add(inputToken, ((inputAmount * fee) / FEE_DENOMINATOR).toString());
+      protocolFees.add(inputToken, ((inputAmount * protocolFee) / FEE_DENOMINATOR).toString());
     });
   }
 
@@ -113,7 +122,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Swap volume in Choice v2 pools on Injective EVM (concentrated-liquidity and liquidity-book pools), counted from the pool managers' Swap events. Excludes three pools identified as wash volume, and Choice v1 (CosmWasm) pools.",
   Fees: "Swap fees paid by traders on Choice v2 pools. Fees taken by third-party pool hooks, such as the Sprout launchpad hook, are not included.",
-  UserFees: "Swap fees paid by traders on Choice v2 pools, charged on top of the swap amount.",
   Revenue: "The share of swap fees that Choice's fee controllers send to the protocol treasury. It is 0 while the protocol fee is switched off.",
   ProtocolRevenue: "The share of swap fees that Choice's fee controllers send to the protocol treasury. It is 0 while the protocol fee is switched off.",
   SupplySideRevenue: "Swap fees paid to liquidity providers, which is all swap fees minus the protocol share.",
@@ -121,7 +129,6 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: { [METRIC.SWAP_FEES]: "Swap fees charged on Choice v2 pools." },
-  UserFees: { [METRIC.SWAP_FEES]: "Swap fees paid by traders on Choice v2 pools." },
   Revenue: { [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees set by the Choice fee controllers." },
   ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: "Protocol share of swap fees set by the Choice fee controllers." },
   SupplySideRevenue: { [METRIC.LP_FEES]: "Swap fees remaining after the protocol share, paid to liquidity providers." },
