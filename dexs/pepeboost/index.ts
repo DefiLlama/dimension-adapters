@@ -1,81 +1,62 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { queryAllium } from '../../helpers/allium';
 import { CHAIN } from '../../helpers/chains';
-import { queryDuneSql } from '../../helpers/dune';
 
-const chainMapping: Record<string, string> = {
-  [CHAIN.ETHEREUM]: 'Ethereum',
-  [CHAIN.SOLANA]: 'Solana',
-  [CHAIN.BSC]: 'BSC',
-};
+// PepeBoost fee receiver, same identification as the Dune spellbook model pepe_boost_solana.bot_trades
+// https://github.com/duneanalytics/spellbook/blob/main/dbt_subprojects/solana/models/_sector/dex/bot_trades/solana/platforms/pepe_boost_solana_bot_trades.sql
+const FEE_WALLET = 'G9PhF9C9H83mAjjkdJz4MDqkufiTPMJkx7TnKE1kFyCp';
 
-interface VolumeRow {
-  blockchain: string;
-  total_volume: number;
-}
-
-const prefetch = async (options: FetchOptions) => {
-  const now = Date.now();
-  const tenHoursAgo = now - (10 * 60 * 60 * 1000);
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-    throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
-  }
-
-  return queryDuneSql(options, `
-    WITH trades AS (
-      SELECT
-        'Ethereum' AS blockchain,
-        amount_usd
-      FROM pepeboost_ethereum.bot_trades
-      WHERE is_last_trade_in_transaction = true
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
-
-      UNION ALL
-
-      SELECT
-        'BSC' AS blockchain,
-        amount_usd
-      FROM query_4945136 -- pepeboost_bnb.bot_trades
-      WHERE isLastTradeInTransaction = true
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
-
-      UNION ALL
-
-      SELECT
-        'Solana' AS blockchain,
-        amount_usd
-      FROM pepe_boost_solana.bot_trades
-      WHERE is_last_trade_in_transaction = true
-        AND block_time >= from_unixtime(${options.startTimestamp})
-        AND block_time < from_unixtime(${options.endTimestamp})
-    )
-    SELECT
-      blockchain,
-      COALESCE(SUM(amount_usd), 0) AS total_volume
-    FROM trades
-    GROUP BY blockchain
-  `);
-};
+// Allium solana.dex.trades lands ~98% of a window's USD volume within 12h of block time (p99 ~33h)
+const INDEXING_DELAY = 12 * 60 * 60;
 
 const fetch = async (options: FetchOptions) => {
-  const blockchain = chainMapping[options.chain];
-  const result = (options.preFetchedResults || []) as VolumeRow[];
-  const chainVolume = result.find((row) => row.blockchain === blockchain)?.total_volume || 0;
+  if (options.endTimestamp > Date.now() / 1e3 - INDEXING_DELAY) {
+    throw new Error('End timestamp is less than 12 hours ago, skipping due to Allium indexing delay');
+  }
 
-  return { dailyVolume: chainVolume };
+  const timeRange = (alias: string) =>
+    `${alias}.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND ${alias}.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
+
+  // Bot trades are swaps in transactions that pay SOL to the PepeBoost fee wallet.
+  // dex.trades is hop-level: keep only the last hop of each top-level instruction.
+  const [row] = await queryAllium(`
+    WITH fee_txs AS (
+      SELECT DISTINCT tr.txn_id
+      FROM solana.assets.transfers tr
+      WHERE ${timeRange('tr')}
+        AND tr.to_address = '${FEE_WALLET}'
+        AND tr.transfer_type = 'sol_transfer'
+        AND tr.signer <> '${FEE_WALLET}'
+    ),
+    bot_trades AS (
+      SELECT t.usd_amount
+      FROM solana.dex.trades t
+      JOIN fee_txs f ON t.txn_id = f.txn_id
+      WHERE ${timeRange('t')}
+        AND t.sender_address <> '${FEE_WALLET}'
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY t.txn_id, t.instruction_index
+        ORDER BY COALESCE(t.inner_instruction_index, -1) DESC
+      ) = 1
+    )
+    SELECT COUNT(*) AS trades, SUM(usd_amount) AS volume
+    FROM bot_trades
+  `);
+  if (!row) throw new Error(`No PepeBoost volume row for ${options.startTimestamp}-${options.endTimestamp}`);
+
+  return { dailyVolume: Number(row.trades) > 0 ? row.volume : 0 };
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  dependencies: [Dependencies.DUNE],
-  prefetch,
+  version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   fetch,
-  methodology: {
-    Volume: 'Total USD trading volume of swaps routed through PepeBoost bot.',
-  },
-  chains: [CHAIN.ETHEREUM, CHAIN.SOLANA, CHAIN.BSC],
+  chains: [CHAIN.SOLANA],
   start: '2024-01-06',
+  methodology: {
+    Volume: 'USD volume of swaps executed through the PepeBoost trading bot on Solana, identified by the PepeBoost fee payment in the same transaction.',
+  },
   isExpensiveAdapter: true,
   doublecounted: true,
 };
