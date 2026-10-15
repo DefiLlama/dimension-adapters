@@ -1,6 +1,6 @@
 import { Chain } from "../../adapters/types";
 import axios from "axios";
-import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 /**
@@ -12,6 +12,11 @@ import { CHAIN } from "../../helpers/chains";
  *
  * Pool addresses and types are fetched from napier-api to dynamically
  * detect which pools exist on each chain.
+ *
+ * Volume is the target-token (yield-bearing token) leg of each swap,
+ * converted to the underlying asset with the market resolver's scale()
+ * at the end of the period:  assets = targetAmount * scale / 1e18
+ * (scale already accounts for the target/asset decimals).
  */
 
 const CURVE_POOL_ABI = {
@@ -22,9 +27,21 @@ const TOKI_HOOK_ABI = {
   hookSwapEvent: "event HookSwap(bytes32 indexed poolId, address indexed sender, int128 amount0, int128 amount1, uint128 hookLPfeeAmount0, uint128 hookLPfeeAmount1)",
 };
 
+const ABI = {
+  // TokiPoolToken: the TOKI_HOOK market's `pool.address` is this ERC20 LP token,
+  // not the hook. HookSwap is emitted by the hook it points to.
+  i_hook: "function i_hook() view returns (address)",
+  // PrincipalToken -> its resolver; resolver.scale() = target -> asset rate (1e18 based)
+  i_resolver: "function i_resolver() view returns (address)",
+  scale: "function scale() view returns (uint256)",
+};
+
+// Curve TwoCrypto pools hold the target token at index 0 and the PT at index 1.
+const CURVE_TARGET_INDEX = 0n;
+
 interface Market {
-  chainId: number;
-  metadata: { address: string };
+  chainId?: number;
+  metadata: { address: string; chainId?: number };
   pool: {
     address: string;
     poolId?: string;
@@ -38,110 +55,78 @@ interface Market {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? "https://api-v2.napier.finance";
 
-async function fetchMarkets(api: any) {
-  const url = `${API_BASE_URL}/v1/market?chainIds=${api.chainId!}`;
+async function fetchMarkets(chainId: number): Promise<Market[]> {
+  const url = `${API_BASE_URL}/v1/market?chainIds=${chainId}`;
   const res = await axios.get<Market[]>(url);
-
-
   if (!Array.isArray(res.data)) {
-    throw new Error(`Napier API returned non-array payload for chainId ${api.chainId}`);
+    throw new Error(`Napier API returned non-array payload for chainId ${chainId}`);
   }
-
-  const curvePools: string[] = [];
-  const poolToMarket = new Map<string, Market>();
-  let tokiHookAddress: string | null = null;
-  const poolIdToMarket = new Map<string, Market>();
-
-  for (const market of res.data) {
-    if (!market.pool?.address) continue;
-    const poolAddress = market.pool.address;
-    poolToMarket.set(poolAddress.toLowerCase(), market);
-
-    if (market.pool.poolType === "TOKI_HOOK" && market.pool.poolId) {
-      tokiHookAddress = poolAddress;
-      poolIdToMarket.set(market.pool.poolId.toLowerCase(), market);
-    } else if (market.pool.poolType === "CURVE_TWO_CRYPTO") {
-      curvePools.push(poolAddress);
-    }
-  }
-
-  return { curvePools, tokiHookAddress, poolIdToMarket, poolToMarket };
+  return res.data.filter((m) => m.pool?.address && Number(m.chainId ?? m.metadata?.chainId ?? chainId) === chainId);
 }
 
 const fetch = async (options: FetchOptions) => {
-    const { getLogs, createBalances } = options;
-    const { curvePools, tokiHookAddress, poolIdToMarket, poolToMarket } = await fetchMarkets(options.api);
-    const dailyVolume = createBalances();
+  const { api, getLogs, createBalances } = options;
+  const dailyVolume = createBalances();
+  const markets = await fetchMarkets(api.chainId!);
+  if (markets.length === 0) return { dailyVolume };
 
-    // Track Curve TwoCrypto pool volume via TokenExchange events
-    if (curvePools.length > 0) {
-      const curveExchangeEvents = await getLogs({
-        targets: curvePools,
-        eventAbi: CURVE_POOL_ABI.tokenExchangeEvent,
-        flatten: false,
-      });
+  // target -> asset rate per market, at the end of the period
+  const resolvers = await api.multiCall({ abi: ABI.i_resolver, calls: markets.map((m) => m.metadata.address), permitFailure: true });
+  const scales = await api.multiCall({ abi: ABI.scale, calls: resolvers.map((r: string | null) => r ?? "0x0000000000000000000000000000000000000000"), permitFailure: true });
 
-      for (let i = 0; i < curvePools.length; i++) {
-        const poolAddress = curvePools[i].toLowerCase();
-        const market = poolToMarket.get(poolAddress);
-        if (!market) continue;
-
-        const events = curveExchangeEvents[i];
-        if (!events || events.length === 0) continue;
-
-        const assetToken = market.tokens.assetToken.address;
-        const assetDecimals = market.tokens.assetToken.decimals;
-        const targetDecimals = market.tokens.targetToken.decimals;
-
-        for (const event of events) {
-          const soldId = event.sold_id;
-          const boughtId = event.bought_id;
-          const tokensSold = event.tokens_sold;
-          const tokensBought = event.tokens_bought;
-
-          // Target token is always token index 1 in the Curve pool
-          let targetAmount: bigint;
-          if (soldId === 1n) {
-            targetAmount = tokensSold;
-          } else if (boughtId === 1n) {
-            targetAmount = tokensBought;
-          } else {
-            continue;
-          }
-
-          // Convert target token amount to asset token terms for pricing
-          const assetAmount = targetAmount * BigInt(10 ** assetDecimals) / BigInt(10 ** targetDecimals);
-          dailyVolume.add(assetToken, assetAmount);
-        }
-      }
+  const addTarget = (market: Market, i: number, targetAmount: bigint) => {
+    const scale = scales[i];
+    if (scale) {
+      dailyVolume.add(market.tokens.assetToken.address, targetAmount * BigInt(scale) / 10n ** 18n);
+    } else {
+      // no resolver answer: count the target token itself (priced by DefiLlama when listed)
+      dailyVolume.add(market.tokens.targetToken.address, targetAmount);
     }
-
-    // Track TokiHook (Uniswap V4) pool volume via HookSwap events
-    // tokiHookAddress is the singleton contract derived from the API response (pool.address for TOKI_HOOK markets)
-    if (tokiHookAddress && poolIdToMarket.size > 0) {
-      const hookSwapEvents = await getLogs({
-        target: tokiHookAddress,
-        eventAbi: TOKI_HOOK_ABI.hookSwapEvent,
-      });
-
-      for (const event of hookSwapEvents) {
-        const market = poolIdToMarket.get(event.poolId.toLowerCase());
-        if (!market) continue;
-
-        const assetToken = market.tokens.assetToken.address;
-        const assetDecimals = market.tokens.assetToken.decimals;
-        const targetDecimals = market.tokens.targetToken.decimals;
-        const absAmount0 = event.amount0 < 0n ? -event.amount0 : event.amount0;
-        const assetAmount = absAmount0 * BigInt(10 ** assetDecimals) / BigInt(10 ** targetDecimals);
-        dailyVolume.add(assetToken, assetAmount);
-      }
-    }
-
-    return { dailyVolume };
   };
 
+  // Curve TwoCrypto pools: TokenExchange per pool
+  const curve = markets.map((m, i) => ({ m, i })).filter(({ m }) => m.pool!.poolType === "CURVE_TWO_CRYPTO");
+  if (curve.length > 0) {
+    const curveEvents = await getLogs({
+      targets: curve.map(({ m }) => m.pool!.address),
+      eventAbi: CURVE_POOL_ABI.tokenExchangeEvent,
+      flatten: false,
+    });
+    curve.forEach(({ m, i }, k) => {
+      for (const event of curveEvents[k] ?? []) {
+        let targetAmount: bigint;
+        if (BigInt(event.sold_id) === CURVE_TARGET_INDEX) targetAmount = BigInt(event.tokens_sold);
+        else if (BigInt(event.bought_id) === CURVE_TARGET_INDEX) targetAmount = BigInt(event.tokens_bought);
+        else continue;
+        addTarget(m, i, targetAmount);
+      }
+    });
+  }
+
+  // TokiHook (Uniswap V4) pools: HookSwap on each distinct hook, matched by poolId.
+  // currency0 of a Toki pool is the target token, so |amount0| is the target leg.
+  const toki = markets.map((m, i) => ({ m, i })).filter(({ m }) => m.pool!.poolType === "TOKI_HOOK" && m.pool!.poolId);
+  if (toki.length > 0) {
+    const hooks: (string | null)[] = await api.multiCall({ abi: ABI.i_hook, calls: toki.map(({ m }) => m.pool!.address), permitFailure: true });
+    const byPoolId = new Map<string, { m: Market; i: number }>();
+    toki.forEach((x) => byPoolId.set(x.m.pool!.poolId!.toLowerCase(), x));
+    const distinctHooks = [...new Set(hooks.filter((h): h is string => !!h).map((h) => h.toLowerCase()))];
+    if (distinctHooks.length > 0) {
+      const hookSwapEvents = await getLogs({ targets: distinctHooks, eventAbi: TOKI_HOOK_ABI.hookSwapEvent });
+      for (const event of hookSwapEvents) {
+        const x = byPoolId.get(String(event.poolId).toLowerCase());
+        if (!x) continue;
+        const amount0 = BigInt(event.amount0);
+        addTarget(x.m, x.i, amount0 < 0n ? -amount0 : amount0);
+      }
+    }
+  }
+
+  return { dailyVolume };
+};
+
 const methodology = {
-  Volume: "Aggregates trading volume from Napier AMM pools by tracking on-chain swap events. Supports Curve AMM (TwoCrypto) pools via TokenExchange events and Napier AMM (TokiHook/Uniswap V4) pools via HookSwap events.",
+  Volume: "Aggregates trading volume from Napier AMM pools by tracking on-chain swap events: TokenExchange on Curve AMM (TwoCrypto) pools and HookSwap on the Napier AMM (TokiHook/Uniswap V4) hook each pool points to. Each swap is counted once, on its yield-bearing token leg, converted to the underlying asset with the market resolver's rate.",
 };
 
 const chainConfig: Record<Chain, { start: string, deadFrom?: string }> = {
