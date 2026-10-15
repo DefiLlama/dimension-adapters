@@ -8,6 +8,10 @@ const xaut = '0x68749665FF8D2d112Fa859AA293F07A622782F38'
 const MINT_EVENT = 'event Mint (address indexed _destination, uint256 _amount)'
 const REDEEM_EVENT = 'event Redeem (uint256 _amount)'
 
+const TETHER_TREASURY = new Set([
+    '0x5754284f345afc66a98fbb0a0afe71e0f007b949',
+])
+
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const [mintLogs, redeemLogs] = await Promise.all([
@@ -20,7 +24,8 @@ const fetch = async (options: FetchOptions) => {
             target: xaut
         })
     ])
-    mintLogs.concat(redeemLogs).forEach((log) => {
+    const customerMints = mintLogs.filter((log) => !TETHER_TREASURY.has(log._destination.toLowerCase()));
+    customerMints.concat(redeemLogs).forEach((log) => {
         const fee = Number(log._amount) * 0.0025;
         dailyFees.add(xaut, fee);
     });
