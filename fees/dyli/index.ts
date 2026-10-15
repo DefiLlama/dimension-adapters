@@ -24,7 +24,7 @@ const VENDING_MACHINES = [
 
 // DYLI migrated at noon New York time on October 13, 2026 (16:00 UTC).
 const MIGRATION_TIMESTAMP = 1791907200;
-const CHAIN_CONFIG = {
+const CHAIN_CONFIG : any = {
   [CHAIN.ABSTRACT]: {
     usdc: ADDRESSES.abstract.USDC,
     main: MAIN_CONTRACT,
@@ -265,7 +265,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: {
-    [CHAIN.ABSTRACT]: { fetch, start: "2025-10-05" },
+    [CHAIN.ABSTRACT]: { fetch, start: "2025-10-05", deadFrom: "2026-10-14" },
     [CHAIN.BASE]: { fetch, start: "2026-10-13" },
   },
   methodology,
