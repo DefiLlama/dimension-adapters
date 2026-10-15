@@ -37,6 +37,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.KATANA],
   start: '2025-10-16',
+  deadFrom: '2026-05-08', // no trades on the Kensei contract after 2026-05-07
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 }
