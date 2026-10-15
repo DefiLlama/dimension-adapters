@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
         )
         GROUP BY trader
     )
-    SELECT COUNT_IF(first_ts >= TO_TIMESTAMP_NTZ(${options.startTimestamp})) AS new_users
+    SELECT COUNT(CASE WHEN first_ts >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) THEN 1 END) AS new_users
     FROM first_seen
     `;
 
