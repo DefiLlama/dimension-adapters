@@ -1,6 +1,7 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { queryDuneSql } from "../helpers/dune";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 
 // Tracks claw machine plays and BidRouter trades (swaps + marketplace).
@@ -192,9 +193,9 @@ const fetchBidRouterVolume = async (
 
 // --- Solana ---
 //
-// Beezie on Solana runs its own Anchor programs, so there are no equivalent
-// events to read. Both cuts are paid on-chain to dedicated fee wallets that
-// receive nothing else, so each is read straight off its wallet.
+// Beezie on Solana runs its own Anchor programs. The swap fee is read from the
+// claw program's BuybackExecuted event; the marketplace cut is paid to
+// dedicated fee wallets that receive nothing else, so it is read off those.
 //
 // Note there is no Claw Machine Fees line on Solana: unlike Base, no cut is
 // taken at pull time. The full play price goes to a hot wallet and ~96% of it
@@ -204,9 +205,37 @@ const fetchBidRouterVolume = async (
 
 const SOLANA_USDC = ADDRESSES.solana.USDC;
 
-// 600 bps buyback fee, configured identically on every claw machine
-// (Machine.fee_bps / fee_wallets). Charged when a player swaps a won card back.
-const SOLANA_CLAW_FEE_WALLET = "EXj5URFQ1kWrWEbHJpK4kURvzrtA1dtCgCFrUG6Sx8ty";
+// 600 bps buyback fee (Machine.fee_bps), charged when a player swaps a won card
+// back. The fee stays in the claw's centralized pool wallet, which also funds the
+// payout, so no wallet receives it: each buyback's BuybackExecuted event
+// (emit_cpi) carries it as total_fee_amount. Borsh layout after the 8-byte Anchor
+// event tag and 8-byte discriminator: buyback_id u64, machine_id u64, user (32),
+// nft_mints Vec<Pubkey> (u32 length at byte 65, then 32 each), collection (32),
+// manager_wallet (32), gross u64, net u64, total_fee u64, payment_mint (32).
+const SOLANA_CLAW_PROGRAM = "BZCjgSRmWWGijSDrSBEzx47Yx9WTvqrhWCff5kVA7VsM";
+const BUYBACK_EXECUTED_EVENT = "0xe445a52e51cb9a1d966d9d0a7c1826bd";
+
+const fetchSolanaSwapFees = async (options: FetchOptions) => {
+  const rows = await queryDuneSql(
+    options,
+    `
+    WITH buybacks AS (
+      SELECT
+        data,
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 65, 4))) AS BIGINT) * 32 AS mints_len
+      FROM solana.instruction_calls
+      WHERE executing_account = '${SOLANA_CLAW_PROGRAM}'
+        AND tx_success
+        AND bytearray_substring(data, 1, 16) = ${BUYBACK_EXECUTED_EVENT}
+        AND TIME_RANGE
+    )
+    SELECT COALESCE(SUM(CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 149 + mints_len, 8))) AS DOUBLE)), 0) AS fee
+    FROM buybacks
+    WHERE bytearray_substring(data, 157 + mints_len, 32) = from_base58('${SOLANA_USDC}')
+  `
+  );
+  return rows[0]?.fee ?? 0;
+};
 
 // Beezie's cut of a secondary sale, totalling 600 bps - matching Base. The
 // beezie_marketplace program takes no fee itself; it settles the Metaplex Core
@@ -229,12 +258,7 @@ const fetchSolana = async (options: FetchOptions) => {
   // Restricted to USDC: every Beezie settlement on Solana is USDC, so anything
   // else arriving in these wallets is a stray transfer rather than revenue.
   const swapFees = options.createBalances();
-  await getSolanaReceived({
-    options,
-    balances: swapFees,
-    targets: [SOLANA_CLAW_FEE_WALLET],
-    mints: [SOLANA_USDC],
-  });
+  swapFees.add(SOLANA_USDC, await fetchSolanaSwapFees(options));
 
   const marketplaceFees = options.createBalances();
   await getSolanaReceived({
@@ -292,7 +316,7 @@ const breakdownMethodology = {
     "Claw Machine Fees":
       "5% of play price per pull (V1: on-chain commission field; V2: Played.amount x 5%) - the non-refundable cut after a SWAP-back. Ended 2026-07-23 when ClawMachineV3 moved the cut to swap-back time; not charged on Solana either, where the claw likewise takes its cut on the swap",
     "Swap Fees":
-      "6% of the buyback value when a user swaps a won item back - through BidRouter on Base (funded by the claw finance wallet since V3), or paid to the claw program's fee wallet on Solana",
+      "6% of the buyback value when a user swaps a won item back - through BidRouter on Base (funded by the claw finance wallet since V3), or kept in the claw's centralized pool on Solana and read from the BuybackExecuted event",
     "Marketplace Fees":
       "6% on every P2P collectible sale through BidRouter; on Solana, the same 6% paid by the Core royalties plugin, split across Beezie's platform-fee and creator wallets",
   },
@@ -318,12 +342,13 @@ const adapter: Adapter = {
   fetch,
   adapter: {
     ...config,
-    // Own fetch - Solana reads fee wallets rather than EVM events, so it does
-    // not use `config` or the shared `fetch`. Starts at the first fee received,
-    // not the first play: earlier plays produced no fee to report.
+    // Own fetch - Solana reads its own program events and fee wallets rather
+    // than EVM events, so it does not use `config` or the shared `fetch`.
+    // Starts at the first fee charged, not the first play: earlier plays
+    // produced no fee to report.
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-07-06" },
   },
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
 };
 
