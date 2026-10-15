@@ -3,7 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getSolanaReceived } from "../../helpers/token";
 
-// Ethereum: Nullmask shielded pool (proxy)
+// EVM: Nullmask shielded pool (proxy), same address on every chain
 const POOL = "0xd64EF1417EB047ed0b54736a5a41F01178C391c6";
 const ProtocolFeeCharged = "event ProtocolFeeCharged(uint8 indexed kind, bytes32 indexed ref, address indexed token, uint256 amount)";
 
@@ -14,7 +14,7 @@ const REWARDS_DISTRIBUTOR = "HuBMeYW3aDn8BH65fo8xxbP4oiexyup8udzKyccgi8Ga"; // S
 
 const HOLDER_REWARDS = "MASK Holder Rewards";
 
-const fetchEthereum = async (options: FetchOptions) => {
+const fetchPool = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   // kind 0 = deposit (0.5%), kind 1 = withdrawal (0.5%). Relayer gas compensation is not a protocol fee and is not emitted here.
   const logs = await options.getLogs({ target: POOL, eventAbi: ProtocolFeeCharged });
@@ -37,15 +37,18 @@ const fetchSolana = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch: fetchEthereum, start: "2026-10-01" },
+    [CHAIN.ETHEREUM]: { fetch: fetchPool, start: "2026-10-01" },
+    [CHAIN.BASE]: { fetch: fetchPool, start: "2026-10-07" },
+    [CHAIN.BSC]: { fetch: fetchPool, start: "2026-10-12" },
+    [CHAIN.ROBINHOOD]: { fetch: fetchPool, start: "2026-10-14" },
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-23" },
   },
   dependencies: [Dependencies.ALLIUM],
   pullHourly: true,
   methodology: {
-    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
   },
   breakdownMethodology: {
     Fees: {
