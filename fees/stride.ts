@@ -84,6 +84,7 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   runAtCurrTime: true,
+  deadFrom: '2026-10-12', // wind down
 };
 
 export default adapter;
