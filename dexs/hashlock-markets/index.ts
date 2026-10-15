@@ -25,12 +25,16 @@
  * public hashlock and claimed with the secret once it is out normally lands after the reveal; a copy
  * claimed faster from the mempool can still be picked, and then its amount counts (see known limits).
  * Claims and fundings are read over a 3-day lookback (the protocol's timelocks are 24h and 4h by default);
- * a leg funded earlier is not counted.
+ * a leg funded earlier is not counted. A secret is revealed only once both legs are funded, so the claim
+ * that revealed a counted leg's secret is inside the lookback too, but it can sit on an escrow funded before
+ * it: claim() has no deadline (an escrow pays out until someone refunds it). TRON and Solana claims are read
+ * from the whole pool / program; on EVM, Claimed is read from every clone the factory created that shares a
+ * hashlock with a leg funded inside the lookback, however old the clone.
  *
  * Known limits: an escrow is permissionless, so someone can fund and claim their own escrow (wash volume
- * that costs them gas and locks their own funds, as on any on-chain venue); a first claim more than 3 days
- * before a later one is not seen; Solana's blockTime is an estimate, so a same-second race with another
- * chain can be ordered either way.
+ * that costs them gas and locks their own funds, as on any on-chain venue); an escrow funded after its
+ * secret was revealed more than 3 days earlier counts as a trade of its own; Solana's blockTime is an
+ * estimate, so a same-second race with another chain can be ordered either way.
  *
  * Fees: the protocol fee is paid by the taker on top of the escrowed amount when a leg is funded, goes to
  * the company treasury and is not refunded. Read from FeeCollected (EVM, TRON) and the fee field of Funded
@@ -46,8 +50,10 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { base58Encode, getTransaction, solanaRpc } from "../../helpers/solana";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const FACTORY = "0xa9B6a64837259034E949787B5d17Bfa46304ff71"; // same address on every chain in EVM_CHAINS
+const FACTORY_START = "2026-10-05"; // the factory's deployment day on every chain in EVM_CHAINS
 const TRON_POOL = sdk.util.tronToEvmAddress("TE97fe1beR5nRZzjixi4azE36qWcHEWmNj");
 const SOLANA_PROGRAM = "7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc";
 const EVM_CHAINS: string[] = [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ROBINHOOD];
@@ -63,11 +69,11 @@ const ABI = {
 };
 
 // token null = the chain's native coin
-type Leg = { token: string | null; amount: bigint; timelock: number };
+type Leg = { token: string | null; amount: bigint };
 // ts: block time in seconds; order: block (or slot) and log index, for claims in the same second
 type Claim = { chain: string; leg: string; hashlock: string; ts: number; order: [number, number] };
 
-const ZERO_EVM = "0x0000000000000000000000000000000000000000";
+const ZERO_EVM = ADDRESSES.null;
 const ZERO_SOL = "11111111111111111111111111111111"; // Pubkey::default(), the program's mint for native SOL
 const lc = (s: any) => String(s).toLowerCase();
 const sha256 = (b: Buffer) => "0x" + createHash("sha256").update(b).digest("hex");
@@ -98,7 +104,7 @@ function ownEvents(logs: string[] = []): Buffer[] {
 }
 
 type SolEvent =
-  | { kind: "funded"; escrow: string; leg: Leg; fee: bigint }
+  | { kind: "funded"; escrow: string; hashlock: string; leg: Leg; fee: bigint }
   | { kind: "claimed"; escrow: string; hashlock: string };
 
 function decodeSolana(b: Buffer): SolEvent | null {
@@ -107,8 +113,8 @@ function decodeSolana(b: Buffer): SolEvent | null {
     // escrow 32 | swap_id 16 | hashlock 32 | recipient 32 | funder 32 | mint 32 | amount u64 | timelock i64 | fee u64
     const mint = base58Encode(d.subarray(144, 176));
     return {
-      kind: "funded", escrow: base58Encode(d.subarray(0, 32)), fee: d.readBigUInt64LE(192),
-      leg: { token: mint === ZERO_SOL ? null : mint, amount: d.readBigUInt64LE(176), timelock: Number(d.readBigInt64LE(184)) },
+      kind: "funded", escrow: base58Encode(d.subarray(0, 32)), hashlock: "0x" + d.subarray(48, 80).toString("hex"),
+      fee: d.readBigUInt64LE(192), leg: { token: mint === ZERO_SOL ? null : mint, amount: d.readBigUInt64LE(176) },
     };
   }
   if (b.subarray(0, 8).equals(SOL_CLAIMED)) {
@@ -153,16 +159,20 @@ async function solanaSignatures(from: number, to: number) {
 // Every chain at once, because whether a claim is a trade's first depends on the other chains' claims.
 // runAdapter's hourly window is [start, end] with start = end - 3601, so this run owns (start, end): the
 // next run starts at end - 1.
-async function prefetch(options: FetchOptions) {
+async function prefetch(options: FetchOptions): Promise<any> {
   const { startTimestamp: start, endTimestamp: end } = options;
   const from = start - LOOKBACK;
   const owns = (ts: number) => ts > start && ts < end;
   // Block lookup by time can land minutes early, so events are read 10 minutes past the window and kept or
   // dropped by their own time; capped a minute behind now for the current hour.
   const until = Math.min(end + 600, Math.floor(Date.now() / 1000) - 60);
-  const legs = new Map<string, Leg>(); // `${chain}:${leg id}`
+  const legs = new Map<string, Leg>(); // `${chain}:${leg id}`, legs funded inside the lookback
+  const hashlocks = new Set<string>(); // of those legs
   const claims: Claim[] = [];
-  const addLeg = (chain: string, id: string, leg: Leg) => legs.set(`${chain}:${id}`, leg);
+  const addLeg = (chain: string, id: string, hashlock: string, leg: Leg) => {
+    legs.set(`${chain}:${id}`, leg);
+    hashlocks.add(lc(hashlock));
+  };
 
   // EVM and TRON logs carry a block number; their time comes from the block.
   const withTime = async (chain: string, logs: any[], toClaim: (l: any) => Omit<Claim, "ts" | "order">) => {
@@ -182,17 +192,17 @@ async function prefetch(options: FetchOptions) {
     }
   };
 
+  // Every clone since the factory's deployment: an older one can hold the reveal of a leg funded inside the lookback.
+  const clones: Record<string, any[]> = {};
   for (const chain of EVM_CHAINS) {
-    const created = await sdk.getEventLogs({ chain, target: FACTORY, eventAbi: ABI.SwapCreated, fromTimestamp: from, toTimestamp: until, onlyArgs: true });
-    for (const e of created) addLeg(chain, lc(e.clone), { token: evmToken(e.token), amount: BigInt(e.amount), timelock: Number(e.timelock) });
-    if (!created.length) continue;
-    // Claimed is read only from clones this factory created: a look-alike event elsewhere never counts.
-    const claimed = await sdk.getEventLogs({ chain, targets: created.map((e: any) => e.clone), eventAbi: ABI.EvmClaimed, fromTimestamp: from, toTimestamp: until, onlyArgs: false, flatten: true });
-    await withTime(chain, claimed, (l) => ({ chain, leg: lc(l.address), hashlock: sha256(hexBytes(l.args.secret)) }));
+    clones[chain] = await sdk.getEventLogs({ chain, target: FACTORY, eventAbi: ABI.SwapCreated, fromTimestamp: Date.parse(FACTORY_START) / 1000, toTimestamp: until, onlyArgs: false });
+    const fromBlock = await options.getBlock(from, chain, {});
+    for (const { blockNumber, args: e } of clones[chain])
+      if (Number(blockNumber) >= fromBlock) addLeg(chain, lc(e.clone), e.hashlock, { token: evmToken(e.token), amount: BigInt(e.amount) });
   }
 
   const funded = await sdk.getEventLogs({ chain: CHAIN.TRON, target: TRON_POOL, eventAbi: ABI.TronFunded, fromTimestamp: from, toTimestamp: until, onlyArgs: true });
-  for (const e of funded) addLeg(CHAIN.TRON, lc(e.swapId), { token: tronToken(e.token), amount: BigInt(e.amount), timelock: Number(e.timelock) });
+  for (const e of funded) addLeg(CHAIN.TRON, lc(e.swapId), e.hashlock, { token: tronToken(e.token), amount: BigInt(e.amount) });
   const tronClaimed = await sdk.getEventLogs({ chain: CHAIN.TRON, target: TRON_POOL, eventAbi: ABI.TronClaimed, fromTimestamp: from, toTimestamp: until, onlyArgs: false });
   await withTime(CHAIN.TRON, tronClaimed, (l) => ({ chain: CHAIN.TRON, leg: lc(l.args.swapId), hashlock: sha256(hexBytes(l.args.secret)) }));
 
@@ -203,10 +213,19 @@ async function prefetch(options: FetchOptions) {
   if (errors.length) throw errors[0];
   for (const { s, events } of results) events.forEach((e, i) => {
     if (e.kind === "funded") {
-      addLeg(CHAIN.SOLANA, e.escrow, e.leg);
+      addLeg(CHAIN.SOLANA, e.escrow, e.hashlock, e.leg);
       if (owns(s.blockTime) && e.fee > 0n) solanaFees.push({ token: e.leg.token, fee: e.fee });
     } else claims.push({ chain: CHAIN.SOLANA, leg: e.escrow, hashlock: e.hashlock, ts: s.blockTime, order: [s.slot, i] });
   });
+
+  // After every chain's fundings, so the hashlocks are known. Claimed is read only from clones this factory
+  // created: a look-alike event elsewhere never counts.
+  for (const chain of EVM_CHAINS) {
+    const targets = clones[chain].filter((l) => hashlocks.has(lc(l.args.hashlock))).map((l) => l.args.clone);
+    if (!targets.length) continue;
+    const claimed = await sdk.getEventLogs({ chain, targets, eventAbi: ABI.EvmClaimed, fromTimestamp: from, toTimestamp: until, onlyArgs: false, flatten: true });
+    await withTime(chain, claimed, (l) => ({ chain, leg: lc(l.address), hashlock: sha256(hexBytes(l.args.secret)) }));
+  }
 
   // The first claim of each hashlock is the reveal; it counts in the run that owns its time.
   const first = new Map<string, Claim>();
@@ -287,9 +306,9 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
   adapter: {
-    [CHAIN.ETHEREUM]: { start: "2026-10-05" },
-    [CHAIN.BASE]: { start: "2026-10-05" },
-    [CHAIN.ROBINHOOD]: { start: "2026-10-05" },
+    [CHAIN.ETHEREUM]: { start: FACTORY_START },
+    [CHAIN.BASE]: { start: FACTORY_START },
+    [CHAIN.ROBINHOOD]: { start: FACTORY_START },
     [CHAIN.TRON]: { start: "2026-10-07" },
     [CHAIN.SOLANA]: { start: "2026-10-05" },
   },
