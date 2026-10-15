@@ -29,6 +29,16 @@ const isExternalTransfer = (log: any) => {
   return !INTERNAL_ADDRESSES.has(sender);
 };
 
+// Direct-settlement payments are per API call — $0.01 to $7.00 per Mycelia's
+// published endpoint pricing (https://myceliasignal.com/llms.txt). Cap single
+// transfers at 10 USDC so pass-throughs that only transit the wallet are not
+// booked as fees — e.g. the 2026-09-10 $13.8k exchange withdrawal forwarded
+// out 82 seconds later (issue #9892). Raw USDC units (6 decimals).
+const MAX_DIRECT_TRANSFER_USDC = 10e6;
+
+const isDirectSettlementTransfer = (log: any) =>
+  isExternalTransfer(log) && Number(log.value) <= MAX_DIRECT_TRANSFER_USDC;
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
@@ -37,7 +47,9 @@ const fetch = async (options: FetchOptions) => {
       options,
       token: coreAssets.base.USDC,
       target: receiver.address,
-      logFilter: isExternalTransfer,
+      logFilter: receiver === RECEIVERS.direct
+        ? isDirectSettlementTransfer
+        : isExternalTransfer,
     });
 
     dailyFees.addBalances(received, receiver.label);
@@ -53,7 +65,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "USDC payments received for Mycelia oracle API calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to two protocol-controlled wallets: (1) the direct settlement wallet for payments via the Mycelia-operated x402 proxy (full gross), and (2) the Orbis marketplace payout wallet, which receives weekly payouts representing 80% of revenue from Orbis-mediated traffic (Orbis retains 20% as a facilitator fee). Transfers where the sender is one of the two Mycelia-controlled wallets are excluded (self-sends and cross-wallet internal transfers).",
+  Fees: "USDC payments received for Mycelia oracle API calls. Each Mycelia API request requires a per-call USDC payment on Base. The adapter tracks USDC Transfer events on Base to two protocol-controlled wallets: (1) the direct settlement wallet for payments via the Mycelia-operated x402 proxy (full gross), and (2) the Orbis marketplace payout wallet, which receives weekly payouts representing 80% of revenue from Orbis-mediated traffic (Orbis retains 20% as a facilitator fee). Transfers where the sender is one of the two Mycelia-controlled wallets are excluded (self-sends and cross-wallet internal transfers). On the direct settlement wallet, single transfers above 10 USDC are excluded as well, since the most expensive endpoint costs $7.00 per call and larger inbound transfers are pass-throughs transiting the wallet, not API fees.",
   Revenue: "100% of fees accrue to the protocol treasury. There is no supply-side, LP, integrator, or token-holder revenue split.",
   ProtocolRevenue: "Same as Revenue — all USDC payments accumulate in the protocol-operated receiver wallets.",
   UserFees: "Same as Fees — every payment is made directly by an end user (human or autonomous agent) per API call.",
