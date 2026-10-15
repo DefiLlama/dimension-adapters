@@ -288,8 +288,8 @@ async function fetch(options: FetchOptions) {
 const methodology = {
   Volume: "Settled trade volume. Each trade is counted once, at the first claim of its hashlock (the claim that reveals the secret, ordered by block time across chains), at that leg's escrowed amount; refunded legs and unsettled trades are not counted. A trade with a Bitcoin leg is counted through its other leg.",
   Fees: "Protocol fee paid by the taker when a leg is funded, on top of the escrowed amount (FeeCollected on EVM and TRON, the fee field of Funded on Solana). It is not refunded.",
-  Revenue: "All protocol fees go to the Hashlock Markets treasury.",
-  ProtocolRevenue: "All protocol fees go to the Hashlock Markets treasury.",
+  Revenue: "All protocol fees (Fees paid by the taker when a leg is funded) go to the Hashlock Markets treasury.",
+  ProtocolRevenue: "All protocol fees (Fees paid by the taker when a leg is funded) go to the Hashlock Markets treasury.",
 };
 
 const breakdownMethodology = {
