@@ -3,9 +3,17 @@
 // Router source and event ABI:
 // https://github.com/KyberNetwork/ks-dex-aggregation-router-v2-sc/blob/954cba76592896132c54900cc7cf82242615d1bb/src/MetaAggregationRouterV2.sol
 // Base verified deployment/code: https://basescan.org/address/0x6131B5fae19EA4f9D964eAc0408E4408b66337b5#code
-import type { FetchOptions, SimpleAdapter } from '../adapters/types';
+import type {
+  BaseAdapterChainConfig,
+  FetchOptions,
+  SimpleAdapter,
+} from '../adapters/types';
 import { getProvider } from '@defillama/sdk';
 import { Interface, keccak256 } from 'ethers';
+// KyberSwap's native-token sentinel and default recipient, defined in the
+// pinned MetaAggregationRouterV2 source linked above (ETH_ADDRESS / swap).
+const NATIVE_TOKEN = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 /** Normalized evidence, independent of viem/ethers and usable by both adapters. */
 export type KyberEvidence = {
   chainId: number;
@@ -61,6 +69,7 @@ export type KyberVerification =
 const same = (a: string | null, b: string) =>
   a?.toLowerCase() === b.toLowerCase();
 const uint = (s: string) => /^(0|[1-9][0-9]{0,77})$/.test(s);
+/** Verify one direct swap against canonical, finalized transaction evidence. */
 export function attributeKyber(e: KyberEvidence): KyberVerification {
   const exclude = (reason: string): KyberVerification => ({
     status: 'excluded',
@@ -107,10 +116,9 @@ export function attributeKyber(e: KyberEvidence): KyberVerification {
     BigInt(s.received) < BigInt(e.input.minimum)
   )
     return exclude('invalid-amounts');
-  const native = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
   if (
     !uint(e.value) ||
-    (s.tokenIn.toLowerCase() === native
+    (s.tokenIn.toLowerCase() === NATIVE_TOKEN
       ? BigInt(e.value) !== BigInt(e.input.amount)
       : BigInt(e.value) !== 0n)
   )
@@ -131,38 +139,54 @@ export function attributeKyber(e: KyberEvidence): KyberVerification {
     },
   };
 }
-
-
-type Deployment = {
+type Deployment = BaseAdapterChainConfig & {
   chainId: number;
   router: string;
   codeHash: string;
   inputs: string[];
 };
-const deployments: Record<string, Deployment> = {
+// No start date is guessed; add one when the first eligible activity is known.
+const chainConfig: Record<string, Deployment> = {
   base: {
     chainId: 8453,
     router: '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5',
     codeHash:
       '0x99590941aab8e1eaf2ceb825abf64b6956e82ce41e8966d7e320846905db85e3',
     inputs: [
-      '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      NATIVE_TOKEN,
+      // WETH: https://basescan.org/token/0x4200000000000000000000000000000000000006
       '0x4200000000000000000000000000000000000006',
+      // USDC: https://basescan.org/token/0x833589fcd6edb6e08f4c7c32d4f71b54bda02913
       '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
+      // cbBTC: https://basescan.org/token/0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf
       '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf',
+      // AERO: https://basescan.org/token/0x940181a94a35a4569e4529a3cdfb74e38fd98631
       '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
+      // VIRTUAL: https://basescan.org/token/0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b
       '0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b',
+      // wstETH: https://basescan.org/token/0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452
       '0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452',
+      // cbETH: https://basescan.org/token/0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22
       '0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22',
+      // EURC: https://basescan.org/token/0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42
       '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42',
+      // DAI: https://basescan.org/token/0x50c5725949a6f0c72e6c4a641f24049a917db0cb
       '0x50c5725949a6f0c72e6c4a641f24049a917db0cb',
+      // USDS: https://basescan.org/token/0x820c137fa70c8691f0e44dc420a5e53c168921dc
       '0x820c137fa70c8691f0e44dc420a5e53c168921dc',
+      // GHO: https://basescan.org/token/0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee
       '0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee',
+      // USDe: https://basescan.org/token/0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34
       '0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34',
+      // weETH: https://basescan.org/token/0x04c0599ae5a44757c0af6f9ec3b93da8976c150a
       '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a',
+      // ezETH: https://basescan.org/token/0x2416092f143378750bb29b79ed961ab195cceea5
       '0x2416092f143378750bb29b79ed961ab195cceea5',
+      // tBTC: https://basescan.org/token/0x236aa50979d5f3de3bd1eeb40e81137f22ab794b
       '0x236aa50979d5f3de3bd1eeb40e81137f22ab794b',
+      // BRETT: https://basescan.org/token/0x532f27101965dd16442e59d40670faf5ebb142e4
       '0x532f27101965dd16442e59d40670faf5ebb142e4',
+      // DEGEN: https://basescan.org/token/0x4ed4e862860bed51a9570b96d89af5e1b0efefed
       '0x4ed4e862860bed51a9570b96d89af5e1b0efefed',
     ],
   },
@@ -172,6 +196,7 @@ const abi = new Interface([
   'event ClientData(bytes clientData)',
   'event Swapped(address sender,address srcToken,address dstToken,address dstReceiver,uint256 spentAmount,uint256 returnAmount)',
 ]);
+/** Classify public router metadata; unrelated/non-JSON payloads are not HSR. */
 function sourceOf(data: string): string {
   if (!/^0x[0-9a-f]*$/i.test(data) || data.length > 8194) return '';
   try {
@@ -185,6 +210,8 @@ function sourceOf(data: string): string {
       ? body.Source
       : '';
   } catch {
+    // ClientData is arbitrary third-party bytes, not a guaranteed JSON API.
+    // Rejecting this payload must not abort other integrators' hourly volume.
     return '';
   }
 }
@@ -210,8 +237,9 @@ type RawTransaction = {
   value: bigint | string;
   blockHash: string;
 };
+/** Sum eligible input amounts once; unavailable proof fails the whole window. */
 async function fetch(options: FetchOptions) {
-  const config = deployments[options.chain];
+  const config = chainConfig[options.chain];
   if (!config) throw Error('Unsupported HSR chain');
   const provider = getProvider(options.chain);
   let finalized = await provider.getBlock('finalized');
@@ -316,7 +344,10 @@ async function fetch(options: FetchOptions) {
         tokenOut: execution.desc.dstToken,
         amount: execution.desc.amount.toString(),
         minimum: execution.desc.minReturnAmount.toString(),
-        recipient: execution.desc.dstReceiver,
+        // Direct calls only: Kyber's msg.sender default is the tx sender.
+        recipient: same(execution.desc.dstReceiver, ZERO_ADDRESS)
+          ? tx.from
+          : execution.desc.dstReceiver,
       },
       events,
       clientEvents,
@@ -333,7 +364,7 @@ async function fetch(options: FetchOptions) {
     const record = proof.record;
     // Only the explicitly configured input-asset subset is measured.
     if (!config.inputs.includes(record.tokenIn)) continue;
-    if (record.tokenIn === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
+    if (record.tokenIn === NATIVE_TOKEN)
       dailyVolume.addGasToken(record.amountIn, 'KyberSwap-tagged swaps');
     else
       dailyVolume.add(
@@ -348,7 +379,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   doublecounted: true,
-  adapter: Object.fromEntries(Object.keys(deployments).map((chain) => [chain, {}])),
+  adapter: chainConfig,
   fetch,
   methodology: {
     Volume:
