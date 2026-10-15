@@ -122,9 +122,7 @@ const fetch = async (options: FetchOptions) => {
       target: ZRO_BUYBACK_WALLET,
       tokens: [ZRO_TOKEN],
     });
-    const buybackHolders = buyback.clone(1, METRIC.TOKEN_BUY_BACK);
-    dailyRevenue.addBalances(buybackHolders);
-    dailyHoldersRevenue.addBalances(buybackHolders);
+    dailyHoldersRevenue.addBalances(buyback, METRIC.TOKEN_BUY_BACK);
   }
 
   return {
@@ -143,7 +141,7 @@ const adapter: Adapter = {
   adapter: config,
   methodology: {
     Fees: "Native token fees paid by users for cross-chain messaging, summed from ExecutorFeePaid and DVNFeePaid events on SendUln302 (V2 default) and SendUln301 (V1-compat through V2 endpoints) across supported chains.",
-    Revenue: "ZRO buybacks funded by Stargate ecosystem allocation routed to LayerZero Foundation. LayerZero takes a 0% protocol take rate on messaging fees.",
+    Revenue: "LayerZero takes a 0% protocol take rate on messaging fees, so revenue is 0. ZRO buybacks are counted under holders revenue.",
     ProtocolRevenue: "LayerZero takes a 0% protocol take rate on messaging fees.",
     HoldersRevenue: "ZRO buybacks distributed to ZRO holders.",
     SupplySideRevenue: "Approximately 100% of messaging fees flow to DVNs and Executors that secure and deliver cross-chain messages.",
@@ -152,9 +150,6 @@ const adapter: Adapter = {
     Fees: {
       'DVN_FEES': "Native token fees paid to required and optional DVNs that verify cross-chain messages.",
       'EXECUTOR_FEES': "Native token fees paid to Executors that deliver and execute messages on the destination chain.",
-    },
-    Revenue: {
-      [METRIC.TOKEN_BUY_BACK]: "ZRO bought back using Stargate ecosystem revenue.",
     },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: "ZRO bought back and distributed to holders.",
