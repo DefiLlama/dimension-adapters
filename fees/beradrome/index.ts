@@ -95,8 +95,8 @@ async function addHoldersRevenue(options: FetchOptions, balances: Balances) {
       "event Distributed(bytes indexed valPubkey, uint64 indexed nextTimestamp, address indexed receiver, uint256 amount)",
     topics: [
       DISTRIBUTED_TOPIC_0,
-      null as any,
-      null as any,
+      null,
+      null,
       ethers.zeroPadValue(BERADROME_REWARD_VAULT, 32),
     ],
   });

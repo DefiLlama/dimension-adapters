@@ -75,7 +75,7 @@ const fetch = async (options: FetchOptions) => {
   const refundTxs = new Set(refunds.map((l: any) => l.transactionHash.toLowerCase()));
 
   for (const [htlc, token] of htlcs) {
-    const locks = await options.getLogs({ target: token, eventAbi: TRANSFER, topics: [TRANSFER_TOPIC, null as any, pad(htlc)] });
+    const locks = await options.getLogs({ target: token, eventAbi: TRANSFER, topics: [TRANSFER_TOPIC, null, pad(htlc)] });
     const releases = await options.getLogs({ target: token, eventAbi: TRANSFER, topics: [TRANSFER_TOPIC, pad(htlc)], onlyArgs: false });
     for (const l of locks) {
       if (l.from.toLowerCase() === SOLVER) continue;

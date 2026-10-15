@@ -16,7 +16,7 @@ const fetch = async (options: FetchOptions) => {
   // 1. Buy: User transfers USDT to Market (Inflow)
   const logsIn = await getLogs({
     target: BSC_USDT,
-    topics: [TRANSFER_TOPIC, null as any, topic0_address(MARKET_CONTRACT)],
+    topics: [TRANSFER_TOPIC, null, topic0_address(MARKET_CONTRACT)],
     eventAbi: TRANSFER_EVENT,
     onlyArgs: true,
   });
@@ -24,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   // 2. Sell: Market transfers USDT to User (Outflow)
   const logsOut = await getLogs({
     target: BSC_USDT,
-    topics: [TRANSFER_TOPIC, topic0_address(MARKET_CONTRACT), null as any],
+    topics: [TRANSFER_TOPIC, topic0_address(MARKET_CONTRACT), null],
     eventAbi: TRANSFER_EVENT,
     onlyArgs: true,
   });

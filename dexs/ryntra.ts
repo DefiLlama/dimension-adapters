@@ -260,7 +260,7 @@ const fetchArc = async (options: FetchOptions) => {
   // trader sent the Adapter.
   const circleFees: any[] = await options.getLogs({
     target: CIRCLE_FEE_COLLECTOR,
-    topics: [CIRCLE_FEE_TOPIC, null as any, zeroPadValue(ARC_FEE_RECIPIENT, 32)],
+    topics: [CIRCLE_FEE_TOPIC, null, zeroPadValue(ARC_FEE_RECIPIENT, 32)],
     entireLog: true,
   });
   const circleTxs = new Map<string, string>(); // tx -> fee token (the swap's input)
@@ -285,7 +285,7 @@ const fetchArc = async (options: FetchOptions) => {
     const transfers: any[] = await options.getLogs({
       targets: circleTokens.map((token) => (token === usdc ? ARC_USDC_SYSTEM : token)),
       eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, zeroPadValue(CIRCLE_ADAPTER, 32)],
+      topics: [TRANSFER_TOPIC, null, zeroPadValue(CIRCLE_ADAPTER, 32)],
       onlyArgs: false,
     });
     const inputs = new Map<string, { index: number; token: string; amount: bigint }>();
