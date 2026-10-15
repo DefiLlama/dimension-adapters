@@ -25,6 +25,9 @@ const fetch = async (options: FetchOptions) => {
     if (Number(log.tradeType) !== 0 || BigInt(log.accountId1) === BigInt(log.accountId2)) continue;
     const market = markets.get(log.symbol);
     if (!market) throw new Error(`Koo market metadata missing for settled symbol ${log.symbol}`);
+    if (typeof market.type !== 'string' || !market.type.trim()
+      || typeof market.priceModel !== 'string' || !market.priceModel.trim())
+      throw new Error(`Koo market classification missing for settled symbol ${log.symbol}`);
     // Initially track the independently verified linear-perpetual slice only.
     // Power contracts and market-share/event products are not mixed into this notional.
     if (market.type !== 'PERPETUAL' || market.priceModel !== 'LINEAR') continue;
