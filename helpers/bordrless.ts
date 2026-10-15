@@ -1,6 +1,7 @@
 import { FetchOptions } from "../adapters/types";
 import { queryAllium } from "./allium";
 import { base58Decode, base58Encode, findProgramAddress, getAccountBuffers } from "./solana";
+import ADDRESSES from "./coreAssets.json";
 
 // Bordrless (https://bordrless.app) program ids, from https://github.com/BordrlessDex/bordrless-sdk
 // (packages/shared/src/programs.ts). Trades settle in Bordrless's own token program, not SPL, so they
@@ -22,7 +23,7 @@ const CURVE_FINALIZED = "98e0564468df3953";
 // Bridged assets are wrapper mints PDA(["wrapped", underlying]) under the bridge, backed 1:1 by its vaults
 // (https://bordrless.app/api/stats/defillama/vaults); amounts in them are counted as the underlying.
 const BRIDGED_UNDERLYINGS = [
-  "So11111111111111111111111111111111111111112", // SOL, the quote of every launch
+  ADDRESSES.solana.SOL,
   "6Mix12LiHrQFojaQEnfPUC65Qkwd6X4Y5Qg93oFbordr", // $BORDR
 ];
 
