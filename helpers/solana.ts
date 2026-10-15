@@ -29,6 +29,7 @@ export const getAccounts = svm.getAccounts
 export const getMultipleAccounts = svm.getAccounts
 export const getAccountInfo = svm.getAccountInfo
 export const getAccountBuffer = svm.getAccountBuffer
+export const getAccountBuffers = svm.getAccountBuffers
 export const getSignaturesForAddress = svm.getSignaturesForAddress
 export const getTransaction = svm.getTransaction
 
