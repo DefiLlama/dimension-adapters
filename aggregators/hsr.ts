@@ -260,6 +260,8 @@ async function fetch(options: FetchOptions) {
       continue;
     const calldata = tx.data ?? tx.input;
     if (!calldata) throw Error('Missing transaction calldata');
+    // A copied public tag on an unsupported call is outside this metric.
+    if (calldata.slice(0, 10).toLowerCase() !== abi.getFunction('swap')!.selector) continue;
     const call = abi.parseTransaction({ data: calldata });
     if (!call || call.name !== 'swap')
       throw Error('Unsupported HSR router call');
@@ -320,11 +322,16 @@ async function fetch(options: FetchOptions) {
     });
     if (proof.status === 'pending')
       throw Error('HSR receipt is not canonical/finalized');
-    if (proof.status !== 'verified')
-      throw Error('Ambiguous HSR attribution: ' + proof.reason);
+    if (proof.status === 'excluded') {
+      // Unattributable public tags cannot poison the hourly fetch. Changed code
+      // or inconsistent RPC identity/position still requires investigation.
+      if (['router-code-changed', 'wrong-transaction', 'invalid-position'].includes(proof.reason))
+        throw Error('Inconsistent HSR evidence: ' + proof.reason);
+      continue;
+    }
     const record = proof.record;
-    if (!config.inputs.includes(record.tokenIn))
-      throw Error('HSR input asset not covered by checked registry');
+    // Only the explicitly configured input-asset subset is measured.
+    if (!config.inputs.includes(record.tokenIn)) continue;
     if (record.tokenIn === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
       dailyVolume.addGasToken(record.amountIn, 'KyberSwap-tagged swaps');
     else
@@ -344,7 +351,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Volume:
-      'Finalized direct KyberSwap router swaps with exact ClientData.Source=hsr; actual input spent counted once. Direct-DEX HSR routes and smart-wallet/multicall transactions excluded. Public source tag is not cryptographic website identity. Volume overlaps KyberSwap/underlying DEX volume.',
+      'Finalized direct KyberSwap router swaps with exact ClientData.Source=hsr; actual input spent counted once. Direct-DEX HSR routes, unsupported input assets and smart-wallet/multicall transactions excluded. Public source tag is not cryptographic website identity. Volume overlaps KyberSwap/underlying DEX volume.',
   },
   breakdownMethodology: {
     Volume: {
