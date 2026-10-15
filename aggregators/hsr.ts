@@ -213,7 +213,11 @@ async function fetch(options: FetchOptions) {
   const config = deployments[options.chain];
   if (!config) throw Error('Unsupported HSR chain');
   const provider = getProvider(options.chain);
-  const finalized = await provider.getBlock('finalized');
+  let finalized = await provider.getBlock('finalized');
+  // SDK RPC rotation may return a stale finalized head. Retry bounded fresh reads;
+  // never turn an interval not covered by finalized evidence into a zero row.
+  for (let retry = 0; retry < 2 && (!finalized || finalized.timestamp < options.endTimestamp); retry++)
+    finalized = await provider.getBlock('finalized');
   if (!finalized || finalized.timestamp < options.endTimestamp)
     throw Error('Requested interval is not finalized');
   const dailyVolume = options.createBalances();
