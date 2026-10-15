@@ -335,10 +335,9 @@ const breakdownMethodology = {
 // --- Adapter Export ---
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1,
   methodology,
   breakdownMethodology,
-  pullHourly: true,
   fetch,
   adapter: {
     ...config,

@@ -286,8 +286,7 @@ const fetchSolana = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   adapter: {
     // [CHAIN.FLOW]: {
     // 	start: '2025-01-04',
