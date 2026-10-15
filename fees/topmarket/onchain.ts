@@ -2,7 +2,7 @@ import { ChainApi, getProvider } from '@defillama/sdk';
 import { Interface, keccak256 } from 'ethers';
 import { FetchOptions } from '../../adapters/types';
 import { Context, events, Log, lower, order, requestKey, winKey, Win } from './accounting';
-import { BEACON, BEACON_BLOCK, BOX_FACTORY, BOX_FACTORY_BLOCK, MARKET, MARKET_BLOCK, NFT_FACTORY, NFT_FACTORY_BLOCK, TOKEN_BEACON, TOKEN_BEACON_BLOCK, TOKEN_BOX_FACTORY, TOKEN_FACTORY_VERSION, TOKEN_POOL, TOKEN_POOL_BLOCK, ZERO } from './config';
+import { BEACON, BEACON_BLOCK, BOX_FACTORY, BOX_FACTORY_BLOCK, INDEXED_ID_BATCH_SIZE, MARKET, MARKET_BLOCK, MAX_LOG_BLOCK_RANGE, NFT_FACTORY, NFT_FACTORY_BLOCK, TOKEN_BEACON, TOKEN_BEACON_BLOCK, TOKEN_BOX_FACTORY, TOKEN_FACTORY_VERSION, TOKEN_POOL, TOKEN_POOL_BLOCK, ZERO } from './config';
 
 const winAbi = 'function wins(uint256) view returns(address winner,address collection,uint256 tokenId,uint256 price,address staker,uint64 deadline,bool settled,bool paramsSnapshotted,uint16 snapBuybackDiscountBps,uint16 snapProfitShareBps)';
 // Filled only from BaseScan-verified TopMarketNFT runtime bytecode. NFT contracts are
@@ -15,8 +15,7 @@ export const nftCodeHashes = new Set([
 ]);
 
 type OriginName = 'Won' | 'DrawRequested' | 'AuctionCreated';
-// Fetch only missing linked origins, preserving each emitter's ID namespace.
-// Bounded OR-topic batches avoid downloading every historical monetary event hourly.
+/** Batch only missing origins by emitter/source namespace, avoiding repeated full-history monetary scans. */
 export function missingOriginBatches(name: OriginName, idField: string, references: Log[], logs: Log[]) {
   // Include the source active at DrawRequested / Won / refund time. The complete
   // slow configuration history is already loaded; ID equality alone is unsafe.
@@ -39,11 +38,13 @@ export function missingOriginBatches(name: OriginName, idField: string, referenc
   const batches: { target: string; ids: string[] }[] = [];
   for (const [target, values] of missing) {
     const ids = [...values];
-    for (let i = 0; i < ids.length; i += 100) batches.push({ target, ids: ids.slice(i, i + 100) });
+    for (let i = 0; i < ids.length; i += INDEXED_ID_BATCH_SIZE)
+      batches.push({ target, ids: ids.slice(i, i + INDEXED_ID_BATCH_SIZE) });
   }
   return batches;
 }
 
+/** Load bounded activity and its historical configuration, origins and staker evidence; missing evidence fails closed. */
 export async function loadContext(options: FetchOptions, referralSources: { address: string; blockNumber: number }[] = []): Promise<Context> {
   const toBlock = await options.getToBlock(), fromBlock = await options.getFromBlock();
   if (!Number.isSafeInteger(fromBlock) || !Number.isSafeInteger(toBlock)) throw new Error('TopMarket: missing block bounds');
@@ -51,6 +52,7 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
   if (!provider) throw new Error('TopMarket: RPC unavailable');
   const logs: Log[] = [];
   const api = new ChainApi({ chain: options.chain, block: toBlock });
+  /** Decode one readable event ABI while preserving emitter, transaction and execution position. */
   async function get(name: keyof typeof events, targets: string[], startBlock: number, cacheInCloud = false, ids?: string[], indexed?: any[]) {
     if (!targets.length || startBlock > toBlock) return [];
     const iface = new Interface([events[name]]);
@@ -59,7 +61,7 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
     const topics = indexed || ids ? iface.encodeFilterTopics(fragment, indexed ?? [ids]) as string[] : undefined;
     // Base RPCs can cap queries at 100,000 blocks; leave room for SDK padding.
     const raw = await options.getLogs({ targets, eventAbi: events[name], fromBlock: startBlock,
-      toBlock, maxBlockRange: 90_000, onlyArgs: false, entireLog: true, parseLog: true, cacheInCloud, ...(topics ? { topics } : {}) });
+      toBlock, maxBlockRange: MAX_LOG_BLOCK_RANGE, onlyArgs: false, entireLog: true, parseLog: true, cacheInCloud, ...(topics ? { topics } : {}) });
     return raw.filter((l: any) => Number(l.blockNumber) >= startBlock && Number(l.blockNumber) <= toBlock).map((l: any): Log => {
       const blockNumber = Number(l.blockNumber), logIndex = Number(l.logIndex ?? l.index);
       if (!l.args || !l.address || !l.transactionHash || l.removed || !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex))
@@ -72,16 +74,20 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
     });
   }
 
+  /** Scan a bounded emitter once for several readable event ABIs, then strictly decode each matching log. */
   async function scanEvents(names: (keyof typeof events)[], target: string, startBlock: number, cacheInCloud = false) {
     if (startBlock > toBlock) return [];
     const configuration = new Set(['Upgraded', 'FeeBpsUpdated', 'FeeRecipientUpdated', 'BoxFeeRecipientUpdated', 'TreasuryUpdated', 'JackpotSet', 'RandomnessSourceSet']);
     if (cacheInCloud && names.some(n => !configuration.has(n))) throw new Error('TopMarket: cannot cloud-cache monetary event scan');
     const fragments = names.map(name => ({ name, iface: new Interface([events[name]]) }));
     const byTopic = new Map(fragments.map(f => [f.iface.getEvent(events[f.name].match(/event (\w+)/)![1])!.topicHash, f]));
-    // One OR-topic scan per emitter. Only explicit configuration histories may
-    // use cloud caching; monetary batches remain window-bounded and uncached.
-    const raw = await options.getLogs({ target, topics: [[...byTopic.keys()]] as any,
-      fromBlock: startBlock, toBlock, maxBlockRange: 90_000, entireLog: true, parseLog: false, cacheInCloud });
+    // The SDK's getLogParams constructs Interface([eventAbi]) for a single event;
+    // it has no readable multi-event ABI input. Derive topics from the readable
+    // events above and decode strictly below, keeping ONE RPC scan per emitter
+    // instead of multiplying it by the event count. No hand-written topic hashes.
+    // Only configuration histories are cloud-cached; monetary scans never are.
+    const raw = await options.getLogs({ targets: [target], topics: [[...byTopic.keys()]] as any,
+      fromBlock: startBlock, toBlock, maxBlockRange: MAX_LOG_BLOCK_RANGE, entireLog: true, parseLog: false, cacheInCloud });
     return raw.filter((l:any) => Number(l.blockNumber) >= startBlock && Number(l.blockNumber) <= toBlock).map((l:any):Log => {
       const decoder = byTopic.get(l.topics?.[0]), parsed = decoder?.iface.parseLog(l);
       const blockNumber = Number(l.blockNumber), logIndex = Number(l.logIndex ?? l.index);
@@ -109,6 +115,7 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
       throw new Error('TopMarket: referral source outside included deployment scope');
     referralBoxes.add(address);
   }
+  /** Fetch only historical IDs referenced by the window, using each deployment's event layout. */
   async function loadOrigins(name: OriginName, idField: string, references: Log[]) {
     for (const { target, ids } of missingOriginBatches(name, idField, references, logs)) {
       const start = target === MARKET ? MARKET_BLOCK : createdAt.get(target);
@@ -167,9 +174,6 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
       const history = upgrades.filter(l => order(l, creation) < 0);
       if (!history.length || history.some(l => lower(l.args.implementation) !== TOKEN_FACTORY_VERSION))
         throw new Error('TopMarket: unverified nonstandard factory creation history');
-      const initialApi = new ChainApi({ chain: options.chain, block: creation.blockNumber });
-      if (lower(await initialApi.call({ target: TOKEN_BOX_FACTORY, abi: 'address:beacon' })) !== TOKEN_BEACON)
-        throw new Error('TopMarket: unexpected nonstandard factory beacon');
     }
   }
   for (const block of new Set(activeCreations.map(l => l.blockNumber))) {
@@ -182,6 +186,10 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
     addresses.forEach((address, i) => { boxes[address] = { token: lower(tokens[i]), treasury: lower(treasuries[i]), feeRecipient: lower(recipients[i]), jackpot: lower(jackpots[i]) }; });
     const nonstandard = addresses.filter(a => tokenTargets.includes(a));
     if (nonstandard.length) {
+      // All boxes created at this block share one historical factory read. Do
+      // not deduplicate across blocks: later configuration may differ.
+      const [beacon] = await initialApi.multiCall({ abi: 'address:beacon', calls: [TOKEN_BOX_FACTORY] });
+      if (lower(beacon) !== TOKEN_BEACON) throw new Error('TopMarket: unexpected nonstandard factory beacon');
       const pools = await initialApi.multiCall({ abi: 'address:stakingPool', calls: nonstandard });
       nonstandard.forEach((address, i) => {
         if (lower(pools[i]) !== TOKEN_POOL) throw new Error(`TopMarket: unverified nonstandard staking pool ${pools[i]}`);
@@ -212,9 +220,9 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
     }
     for (const [collection, values] of cardIds) {
       const ids = [...values];
-      for (let i = 0; i < ids.length; i += 100)
+      for (let i = 0; i < ids.length; i += INDEXED_ID_BATCH_SIZE)
         for (const name of ['TokenStaked', 'TokenUnstaked', 'CardLocked', 'LockRescued', 'CardSettledKeep', 'CardSettledReturn'] as const)
-          logs.push(...await get(name, [TOKEN_POOL], TOKEN_POOL_BLOCK, false, undefined, [collection, ids.slice(i, i + 100)]));
+          logs.push(...await get(name, [TOKEN_POOL], TOKEN_POOL_BLOCK, false, undefined, [collection, ids.slice(i, i + INDEXED_ID_BATCH_SIZE)]));
     }
   }
   const tradedNfts = new Set<string>([

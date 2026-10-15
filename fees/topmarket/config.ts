@@ -33,6 +33,15 @@ export const ASSET_SAFE = '0x394d3f699e0082fe9c4970f0e3c2de248ea21eed';
 export const PROTOCOL_STAKERS = new Set([ASSET_SAFE, TREASURY]);
 export const ZERO = '0x0000000000000000000000000000000000000000';
 export const USDC = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'; // Verified Base settlement token, 6 decimals
+// BPS_DENOMINATOR and MAX_FEE_BPS in the verified Marketplace implementation;
+// the cap is a validation bound, not the actual fee rate (read from history).
+// https://basescan.org/address/0xbcb3745a6c7e85d38bce1d828214be60cea734a6#code
+export const BPS_DENOMINATOR = 10_000n;
+export const MAX_MARKET_FEE_BPS = 1_000n;
+// Adapter query budgets, not protocol limits: bound indexed OR filters and stay
+// below the tested Base RPC's 100,000-block cap, including SDK boundary padding.
+export const INDEXED_ID_BATCH_SIZE = 100;
+export const MAX_LOG_BLOCK_RANGE = 90_000;
 // Jackpot is outside this card-sales/Marketplace release. Exclude the draw fee
 // only when the historical feeRecipient is this verified pot; a hook alone does
 // not divert the payment. Deposits, prizes, credits and sweeps are not counted.

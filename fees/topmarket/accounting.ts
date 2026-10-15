@@ -1,4 +1,4 @@
-import { BEACON, BOX_VERSIONS, EXCLUDED_JACKPOT, Inputs, MARKET, MARKET_VERSIONS, PROTOCOL_STAKERS, REFERRAL_COVERAGE_END, TOKEN_BEACON, TOKEN_BOX_VERSIONS, TOKEN_POOL, TOKEN_POOL_VERSION, TREASURY, USDC, ZERO } from './config';
+import { BEACON, BOX_VERSIONS, BPS_DENOMINATOR, EXCLUDED_JACKPOT, Inputs, MARKET, MARKET_VERSIONS, MAX_MARKET_FEE_BPS, PROTOCOL_STAKERS, REFERRAL_COVERAGE_END, TOKEN_BEACON, TOKEN_BOX_VERSIONS, TOKEN_POOL, TOKEN_POOL_VERSION, TREASURY, USDC, ZERO } from './config';
 
 // Human-readable ABIs from verified Marketplace.sol and BlindBox.sol, not the stale
 // integration wins() ABI. Amounts always remain integer token base units.
@@ -69,30 +69,38 @@ export interface Entry {
   // Diagnostic entitlement, not an additional fee or cash-flow entry.
   supplierPayout?: { staker: string; amount: bigint; classification: 'protocol' | 'supplier' };
 }
+/** Normalize chain identifiers for case-insensitive joins. */
 export const lower = (s: string) => s.toLowerCase();
+/** Identify one Base event independently of query ranges or overlapping scans. */
 export const eventId = (l: Log) => `base:${lower(l.address)}:${lower(l.transactionHash)}:${l.logIndex}`;
+/** Scope win IDs to their issuing box. */
 export const winKey = (box: string, id: any) => `${lower(box)}:${id}`;
+/** Scope request IDs to both box and randomness source, which may reuse IDs. */
 export const requestKey = (box: string, source: string, id: any) => `${lower(box)}:${lower(source)}:${id}`;
+/** Order events by execution position, including changes within the same block. */
 export const order = (a: Log, b: Log) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
+/** Parse unsigned token amounts without converting through floating-point numbers. */
 const uint = (value: any): bigint => {
   const s = String(value);
   if (!/^\d+$/.test(s)) throw new Error(`TopMarket: invalid unsigned integer ${s}`);
   return BigInt(s);
 };
+/** Fail on missing historical evidence instead of fabricating a zero or current value. */
 const requireValue = <T>(v: T | undefined, message: string): T => {
   if (v === undefined) throw new Error(`TopMarket: ${message}`);
   return v;
 };
 
-// A false snapshot flag uses the live rate, including when the stored snapshot is zero.
-// Verified current/initial deployments set it true; the legacy branch is source-tested.
+/** Use a recorded auction snapshot, including zero; only an absent snapshot uses the live rate. */
 export const auctionFeeBps = (snapshot: bigint | undefined, live: bigint) => snapshot ?? live;
 
+/** Reject post-activation windows when no verified final-referral ledger was provided. */
 export function assertReferralCoverage(end: number) {
   if (end > REFERRAL_COVERAGE_END)
     throw new Error('TopMarket: live referral accrual/reversal coverage missing from 2026-10-10T09:06:15Z; revenue must not assume zero referral payouts');
 }
 
+/** Combine ordered on-chain entries with separately verified referral settlement obligations. */
 export function reconstruct(context: Context, policy: Inputs, start: number, end: number, referrals?: Entry[]) {
   if (referrals === undefined) assertReferralCoverage(end);
   const result = reconstructOnchain(context, policy, start, end);
@@ -103,9 +111,7 @@ export function reconstruct(context: Context, policy: Inputs, start: number, end
   return result;
 }
 
-// Diagnostic only: return verifiable chain amounts while explicitly retaining the
-// missing-referral blocker. balances() rejects unresolved results, so this cannot
-// turn a partial chain audit into a public Revenue metric.
+/** Reconstruct historical chain flows; retain missing-referral blockers so partial audits cannot publish Revenue. */
 export function reconstructOnchain(context: Context, policy: Inputs, start: number, end: number) {
   if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start >= end)
     throw new Error('TopMarket: invalid [startTimestamp,endTimestamp)');
@@ -158,6 +164,7 @@ export function reconstructOnchain(context: Context, policy: Inputs, start: numb
   const sourceChanges = new Set(logs.filter(l => l.name === 'RandomnessSourceSet')
     .map(l => `${lower(l.address)}:${lower(l.transactionHash)}`));
   const usedPoolSettlements = new Set<string>();
+  /** Resolve a nonstandard card's beneficiary from its exact historical stake/lock/settlement round. */
   function tokenWin(l: Log, origin: Log): Win {
     const pool = boxes[lower(l.address)].stakingPool;
     if (pool !== TOKEN_POOL) throw new Error(`TopMarket: unverified TokenStakingPool ${pool}`);
@@ -313,8 +320,8 @@ export function reconstructOnchain(context: Context, policy: Inputs, start: numb
       collection(nft);
       if (lower(token) === ZERO && !version.native) throw new Error(`TopMarket: native settlement in ERC20-only Marketplace ${eventId(l)}`);
       if (lower(seller) === lower(buyer)) continue; // Observable self-trades are not card sales.
-      if (feeRate > 1000n) throw new Error(`TopMarket: fee exceeds verified contract cap ${feeRate}`); // MAX_FEE_BPS
-      const fee = amount * feeRate / 10000n; // BPS_DENOMINATOR in verified Marketplace.sol
+      if (feeRate > MAX_MARKET_FEE_BPS) throw new Error(`TopMarket: fee exceeds verified contract cap ${feeRate}`);
+      const fee = amount * feeRate / BPS_DENOMINATOR;
       if (fee > 0n && recipient !== TREASURY) throw new Error(`TopMarket: unclassified fee recipient ${recipient}`);
       add(l, token, 'Marketplace Trading Fees', amount, fee);
     }

@@ -20,6 +20,7 @@ const revenueDescriptions = {
   'Marketplace Revenue To Protocol': 'Per-trade fees at the effective on-chain rate less finalized referral commissions; seller principal excluded.',
 };
 
+/** Convert complete raw-token entries into labeled metrics, rejecting partial attribution. */
 export function balances(options: FetchOptions, result: ReturnType<typeof reconstruct>) {
   if (result.unresolved.length) throw new Error(`TopMarket: revenue attribution missing:\n${result.unresolved.join('\n')}`);
   const dailyFees = options.createBalances(), dailyVolume = options.createBalances();
@@ -35,8 +36,7 @@ export function balances(options: FetchOptions, result: ReturnType<typeof recons
   return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyVolume, dailyUserFees: dailyFees.clone(), dailyProtocolRevenue: dailyRevenue.clone() };
 }
 
-// This diagnostic entry point runs the SAME accounting on an explicitly selected mainnet
-// audit window. Historical staker entitlement is resolved by the chain ledger.
+/** Run the same chain and referral accounting for a fetch or an explicitly selected audit window. */
 export async function audit(options: FetchOptions, policy: Inputs = inputs, source = loadReferrals) {
   const referrals = await source(options.startTimestamp, options.endTimestamp); // Coverage before expensive RPC.
   const context = await loadContext(options, referrals.filter(r => r.source_type === 'pack_purchase')
@@ -45,6 +45,7 @@ export async function audit(options: FetchOptions, policy: Inputs = inputs, sour
   return { context, ...reconstruct(context, policy, options.startTimestamp, options.endTimestamp, entries) };
 }
 
+/** Remove only the official runner's extra overlap second; preserve exact caller windows. */
 export function hourlyStart(options: Pick<FetchOptions, 'startTimestamp' | 'endTimestamp'>) {
   // runAdapter.ts uses end - 1 - windowSize as the start for both hourly and
   // daily runs. Remove that one-second overlap; exact [start,end) callers stay
@@ -53,6 +54,7 @@ export function hourlyStart(options: Pick<FetchOptions, 'startTimestamp' | 'endT
   return options.startTimestamp + (duration === 3601 || duration === 86401 ? 1 : 0);
 }
 
+/** Fetch complete hourly metrics using the runner's normalized half-open time window. */
 const fetch = async (options: FetchOptions) => {
   return balances(options, await audit({ ...options, startTimestamp: hourlyStart(options) }));
 };
@@ -65,11 +67,10 @@ const adapter: SimpleAdapter = {
   fetch,
   allowNegativeValue: true, // Cross-day refunds/buybacks/supplier obligations can exceed that window's sales.
   methodology: {
-    Fees: 'Standard and nonstandard paid Gacha sales less fees historically routed to Jackpot, refunds and player card buybacks, plus Marketplace trading fees at the effective on-chain rate; includes real internal-test activity from deployment and excludes Shipping, Jackpot flows and unverified product versions.',
+    Fees: 'User-paid standard and nonstandard Gacha sales less fees historically routed to Jackpot, refunds and player card buybacks, plus user-paid Marketplace trading fees at the effective on-chain rate; includes real internal-test activity from deployment and excludes Shipping, Jackpot flows and unverified product versions.',
     Revenue: 'Gacha payments net of Jackpot contributions, refunds, player buybacks, user-staker proceeds and finalized referral commissions, plus Marketplace fees net of finalized referral commissions; Jackpot income/payouts and procurement/operating costs are not included.',
     SupplySideRevenue: 'Keep proceeds and Recycle profit shares owed to historical user stakers, plus Gacha and Marketplace referral commissions recognized once at final settlement; platform-staker allocations, pending referral estimates and later withdrawals are excluded.',
     ProtocolRevenue: 'Gacha payments after Jackpot contributions, refunds, player buybacks, user-staker allocations and finalized referral commissions, plus Marketplace fees after finalized referral commissions; excludes Jackpot income/payouts and governance-token holder distributions, while platform-staker allocations remain internal.',
-    UserFees: 'Amounts paid for Gacha draws less fees routed to Jackpot, established refunds and player card buybacks, plus Marketplace trading fees; excludes seller principal and Jackpot payouts.',
     Volume: 'Gross paid Gacha sales, including the fee routed to Jackpot, plus final Marketplace trades, reversing the original gross payment on draw refunds; buybacks, Jackpot payouts/deposits, Shipping, listings, bids and withdrawals add no Volume, and this secondary metric does not create an independent Volume listing.',
   },
   breakdownMethodology: {
