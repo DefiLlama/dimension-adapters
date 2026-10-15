@@ -33,6 +33,13 @@ export const ASSET_SAFE = '0x394d3f699e0082fe9c4970f0e3c2de248ea21eed';
 export const PROTOCOL_STAKERS = new Set([ASSET_SAFE, TREASURY]);
 export const ZERO = '0x0000000000000000000000000000000000000000';
 export const USDC = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913'; // Verified Base settlement token, 6 decimals
+// Jackpot is outside this card-sales/Marketplace release. Exclude the draw fee
+// only when the historical feeRecipient is this verified pot; a hook alone does
+// not divert the payment. Deposits, prizes, credits and sweeps are not counted.
+// Wiring enabled at block 52588273 (2026-10-14):
+// https://basescan.org/tx/0x06c10b25ed3a46abd5f0f95ee3f35128db6789ce3e5cc2e40ac32345d390baba
+// https://basescan.org/address/0x1e4f2f043ac26ec57e0ae2430946d7784b295547#code
+export const EXCLUDED_JACKPOT = '0x1e4f2f043ac26ec57e0ae2430946d7784b295547';
 
 // Verified deployed Marketplace implementations snapshot auction fees at creation.
 // The first deployment is NOT a pre-snapshot implementation. See each BaseScan source.

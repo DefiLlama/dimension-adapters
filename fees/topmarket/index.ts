@@ -6,7 +6,7 @@ import { loadContext } from './onchain';
 import { loadReferrals, referralEntries } from './referrals';
 
 const feeDescriptions = {
-  'Gacha Fees': 'Actual paid draw payments including fees, less established refunds/rescues and player card buybacks; recognized at the economic event, including deferred payouts.',
+  'Gacha Fees': 'Actual paid draw payments less fees routed to the excluded Jackpot, established refunds/rescues and player card buybacks; recognized at the economic event, including deferred payouts.',
   'Marketplace Trading Fees': 'Per-trade floor(amount * effective feeBps / 10000); seller proceeds excluded.',
 };
 const supplierDescriptions = {
@@ -16,7 +16,7 @@ const supplierDescriptions = {
   'Gacha Recycle To Suppliers': 'Recycle profit share owed to the historical user staker; excludes player buyback and internal platform-staker allocations.',
 };
 const revenueDescriptions = {
-  'Gacha Revenue To Protocol': 'Draw payments after refunds, player buybacks, external supplier Keep proceeds, Recycle shares and finalized referral commissions.',
+  'Gacha Revenue To Protocol': 'Draw payments after excluded Jackpot contributions, refunds, player buybacks, external supplier Keep proceeds, Recycle shares and finalized referral commissions.',
   'Marketplace Revenue To Protocol': 'Per-trade fees at the effective on-chain rate less finalized referral commissions; seller principal excluded.',
 };
 
@@ -65,12 +65,12 @@ const adapter: SimpleAdapter = {
   fetch,
   allowNegativeValue: true, // Cross-day refunds/buybacks/supplier obligations can exceed that window's sales.
   methodology: {
-    Fees: 'Standard and nonstandard Gacha paid draw payments including fees, minus established refunds and player card buybacks, plus Marketplace trading fees at the effective on-chain rate. Standard paid excludes fee; nonstandard paid already includes fee. Real activity is included from contract deployment, including internal testing. Shipping, Jackpot and unverified product versions are outside this adapter scope.',
-    Revenue: 'Gacha payments net of refunds, player buybacks, user-staker proceeds and finalized referral commissions, plus Marketplace fees net of finalized referral commissions; procurement and operating costs are not deducted.',
+    Fees: 'Standard and nonstandard paid Gacha sales less fees historically routed to Jackpot, refunds and player card buybacks, plus Marketplace trading fees at the effective on-chain rate; includes real internal-test activity from deployment and excludes Shipping, Jackpot flows and unverified product versions.',
+    Revenue: 'Gacha payments net of Jackpot contributions, refunds, player buybacks, user-staker proceeds and finalized referral commissions, plus Marketplace fees net of finalized referral commissions; Jackpot income/payouts and procurement/operating costs are not included.',
     SupplySideRevenue: 'Keep proceeds and Recycle profit shares owed to historical user stakers, plus Gacha and Marketplace referral commissions recognized once at final settlement; platform-staker allocations, pending referral estimates and later withdrawals are excluded.',
-    ProtocolRevenue: 'Gacha payments after refunds, player buybacks, user-staker allocations and finalized referral commissions, plus Marketplace fees after finalized referral commissions; platform-staker allocations remain internal and no governance-token holder distribution is included.',
-    UserFees: 'Amounts paid for Gacha draws including fees exactly once, net of established refunds and player card buybacks, plus Marketplace trading fees; seller principal is excluded.',
-    Volume: 'Paid Gacha sales plus final Marketplace trades. A refund/rescue reverses the original gross payment Volume: standard paid + fee, nonstandard paid. Buybacks, Shipping, listings, bids and withdrawals add no Volume. This secondary metric does not create an independent Volume listing.',
+    ProtocolRevenue: 'Gacha payments after Jackpot contributions, refunds, player buybacks, user-staker allocations and finalized referral commissions, plus Marketplace fees after finalized referral commissions; excludes Jackpot income/payouts and governance-token holder distributions, while platform-staker allocations remain internal.',
+    UserFees: 'Amounts paid for Gacha draws less fees routed to Jackpot, established refunds and player card buybacks, plus Marketplace trading fees; excludes seller principal and Jackpot payouts.',
+    Volume: 'Gross paid Gacha sales, including the fee routed to Jackpot, plus final Marketplace trades, reversing the original gross payment on draw refunds; buybacks, Jackpot payouts/deposits, Shipping, listings, bids and withdrawals add no Volume, and this secondary metric does not create an independent Volume listing.',
   },
   breakdownMethodology: {
     Fees: feeDescriptions,

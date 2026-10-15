@@ -1,4 +1,4 @@
-import { BEACON, BOX_VERSIONS, Inputs, MARKET, MARKET_VERSIONS, PROTOCOL_STAKERS, REFERRAL_COVERAGE_END, TOKEN_BEACON, TOKEN_BOX_VERSIONS, TOKEN_POOL, TOKEN_POOL_VERSION, TREASURY, USDC, ZERO } from './config';
+import { BEACON, BOX_VERSIONS, EXCLUDED_JACKPOT, Inputs, MARKET, MARKET_VERSIONS, PROTOCOL_STAKERS, REFERRAL_COVERAGE_END, TOKEN_BEACON, TOKEN_BOX_VERSIONS, TOKEN_POOL, TOKEN_POOL_VERSION, TREASURY, USDC, ZERO } from './config';
 
 // Human-readable ABIs from verified Marketplace.sol and BlindBox.sol, not the stale
 // integration wins() ABI. Amounts always remain integer token base units.
@@ -236,12 +236,17 @@ export function reconstructOnchain(context: Context, policy: Inputs, start: numb
       if (!inWindow(l) || excluded(l)) continue;
       if (!verifiedBox) throw new Error(`TopMarket: unverified monetary BlindBox version ${nonstandard ? tokenBoxVersion : boxVersion}`);
       if (uint(a.paid) > 0n && lower(box.treasury) !== TREASURY) throw new Error(`TopMarket: unclassified Gacha treasury ${box.treasury}`);
-      if (lower(box.jackpot) !== ZERO || (uint(a.fee) > 0n && lower(box.feeRecipient) !== TREASURY))
+      if (![ZERO, EXCLUDED_JACKPOT].includes(lower(box.jackpot)) ||
+        (uint(a.fee) > 0n && ![TREASURY, EXCLUDED_JACKPOT].includes(lower(box.feeRecipient))))
         throw new Error(`TopMarket: Jackpot/external fee allocation requires verified wiring at ${eventId(l)}`);
       if (nonstandard && uint(a.fee) > uint(a.paid)) throw new Error(`TopMarket: fee exceeds gross payment ${eventId(l)}`);
       const paid = uint(a.paid) + (nonstandard ? 0n : uint(a.fee));
       if (paid === 0n) throw new Error(`TopMarket: free draw outside phase-1 scope ${eventId(l)}`);
-      add(l, box.token, 'Gacha Pack Sales', paid, paid);
+      // Gross card-sales Volume is unchanged. This excluded product's fee is
+      // neither card Fees nor supplier revenue; its prizes are also out of scope.
+      // Replayed recipient changes preserve fees collected before/after rewiring.
+      const jackpotFee = lower(box.feeRecipient) === EXCLUDED_JACKPOT ? uint(a.fee) : 0n;
+      add(l, box.token, 'Gacha Pack Sales', paid, paid - jackpotFee);
     } else if (box && l.name === 'Won') {
       const key = winKey(address, a.winId);
       if (wins.has(key)) throw new Error(`TopMarket: duplicate win ${key}`);
