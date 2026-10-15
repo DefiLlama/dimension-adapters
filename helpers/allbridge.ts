@@ -137,10 +137,10 @@ export interface SolLock {
   feeDecimals: number;
 }
 
-async function solRpc(method: string, params: any[]): Promise<any> {
+async function solRpc(method: string, params: any[], rpcs: string[] = SOL_RPCS): Promise<any> {
   const body = { jsonrpc: '2.0', id: 1, method, params };
   let lastErr: any = null;
-  for (const rpc of SOL_RPCS) {
+  for (const rpc of rpcs) {
     try {
       const res: any = await postURL(rpc, body);
       if (res.error) throw new Error(`solana ${method}: ${JSON.stringify(res.error).slice(0, 200)}`);
@@ -156,7 +156,10 @@ export async function getSolanaLocks(startTimestamp: number, endTimestamp: numbe
   for (;;) {
     const params: any = { limit: 1000 };
     if (before) params.before = before;
-    const sigs: any[] = await solRpc('getSignaturesForAddress', [SOL_BRIDGE_PROGRAM, params]);
+    // Discovery runs on mainnet-beta ONLY: publicnode truncates program
+    // history, and a short list would look complete (false zeros). A failure
+    // here throws instead of falling back. getTransaction keeps the fallback.
+    const sigs: any[] = await solRpc('getSignaturesForAddress', [SOL_BRIDGE_PROGRAM, params], [SOL_RPCS[0]]);
     if (!sigs.length) break;
     let oldest = Infinity;
     for (const s of sigs) {
@@ -278,6 +281,11 @@ export async function getNearLocks(startTimestamp: number, endTimestamp: number)
     }
     throw new Error(`allbridge near: page failed after retries: ${lastErr?.message ?? lastErr}`);
   };
+  // Grouped across ALL pages (not per page): a lock receipt and its
+  // callback_create_lock receipt live in different blocks and can land on
+  // different 50-row pages or different sides of an hourly boundary.
+  // Per-receipt timestamps are kept; the window selects on the LOCK receipt.
+  const byTx = new Map<string, Array<{ bt: number; receiver: string; actions: any[] }>>();
   for (;;) {
     const url = `${NEARBLOCKS_API}/account/${NEAR_BRIDGE}/txns?limit=50` + (cursor ? `&cursor=${cursor}` : '');
     const page: any = await getPage(url);
@@ -287,39 +295,39 @@ export async function getNearLocks(startTimestamp: number, endTimestamp: number)
     if (!txns.length) break;
     cursor = page.cursor;
     let oldest = Infinity;
-    // group actions by tx: lock args (token) + callback_create_lock (amount/fee)
-    const byTx = new Map<string, any[]>();
     for (const t of txns) {
       const bt = Math.floor(Number(t.block_timestamp) / 1e9);
       if (!bt) continue;
       oldest = Math.min(oldest, bt);
-      if (bt < startTimestamp || bt >= endTimestamp) continue;
       if (!byTx.has(t.transaction_hash)) byTx.set(t.transaction_hash, []);
-      byTx.get(t.transaction_hash)!.push(t);
-    }
-    for (const [, receipts] of byTx) {
-      let tokenAddr: string | undefined;
-      let amount: string | undefined;
-      let fee: string | undefined;
-      for (const r of receipts) {
-        if (r.receiver_account_id !== NEAR_BRIDGE) continue;
-        for (const a of r.actions ?? []) {
-          if (a.action !== 'FUNCTION_CALL') continue;
-          const args = typeof a.args === 'string' ? JSON.parse(a.args) : (a.args ?? {});
-          if (a.method === 'lock') tokenAddr = args.lock_args?.token_address;
-          if (a.method === 'callback_create_lock') {
-            amount = args.create_lock_args?.amount;
-            fee = args.fee;
-          }
-        }
-      }
-      if (!amount || !tokenAddr) continue;
-      const known = NEAR_TOKENS[tokenAddr];
-      if (!known) throw new Error(`allbridge near: unknown token ${tokenAddr}`);
-      locks.push({ amount: BigInt(amount), token: known.id, decimals: known.decimals, feeAmount: BigInt(fee ?? '0') });
+      byTx.get(t.transaction_hash)!.push({ bt, receiver: t.receiver_account_id, actions: t.actions ?? [] });
     }
     if (oldest < startTimestamp) break;
     if (!cursor) break;
+  }
+  for (const [, receipts] of byTx) {
+    let lockBt: number | undefined;
+    let tokenAddr: string | undefined;
+    let amount: string | undefined;
+    let fee: string | undefined;
+    for (const r of receipts) {
+      if (r.receiver !== NEAR_BRIDGE) continue;
+      for (const a of r.actions) {
+        if (a.action !== 'FUNCTION_CALL') continue;
+        const args = typeof a.args === 'string' ? JSON.parse(a.args) : (a.args ?? {});
+        if (a.method === 'lock') { tokenAddr = args.lock_args?.token_address; lockBt = r.bt; }
+        if (a.method === 'callback_create_lock') {
+          amount = args.create_lock_args?.amount;
+          fee = args.fee;
+        }
+      }
+    }
+    if (lockBt === undefined || lockBt < startTimestamp || lockBt >= endTimestamp) continue;
+    // An in-window lock without its callback is missing data: throw, never skip.
+    if (!amount || !tokenAddr) throw new Error(`allbridge near: lock without callback in window (lock ts ${lockBt})`);
+    const known = NEAR_TOKENS[tokenAddr];
+    if (!known) throw new Error(`allbridge near: unknown token ${tokenAddr}`);
+    locks.push({ amount: BigInt(amount), token: known.id, decimals: known.decimals, feeAmount: BigInt(fee ?? '0') });
   }
   return locks;
 }
@@ -460,7 +468,11 @@ export async function getWavesLocks(startTimestamp: number, endTimestamp: number
     if (oldest / 1000 > startTimestamp) throw new Error('allbridge waves: lifetime exceeds single batch, paging needed');
   }
   for (const t of rows) {
-    if (t.type !== 16 || (t.call?.function) !== 'lock') continue;
+    // Waves keeps failed InvokeScripts on-chain (applicationStatus
+    // "script_execution_failed"); their payments never move. dApp check keeps
+    // out foreign lock invokes that merely involve the bridge address.
+    if (t.type !== 16 || t.dApp !== WAVES_BRIDGE || t.call?.function !== 'lock') continue;
+    if (t.applicationStatus && t.applicationStatus !== 'succeeded') continue;
     const bt = Math.floor(t.timestamp / 1000);
     if (bt < startTimestamp || bt >= endTimestamp) continue;
     for (const p of t.payment ?? []) {
