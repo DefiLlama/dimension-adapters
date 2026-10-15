@@ -75,7 +75,6 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: feeDescriptions,
-    UserFees: feeDescriptions,
     Revenue: revenueDescriptions,
     ProtocolRevenue: revenueDescriptions,
     SupplySideRevenue: supplierDescriptions,

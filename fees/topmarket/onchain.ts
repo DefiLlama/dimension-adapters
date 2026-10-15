@@ -64,39 +64,30 @@ export async function loadContext(options: FetchOptions, referralSources: { addr
       toBlock, maxBlockRange: MAX_LOG_BLOCK_RANGE, onlyArgs: false, entireLog: true, parseLog: true, cacheInCloud, ...(topics ? { topics } : {}) });
     return raw.filter((l: any) => Number(l.blockNumber) >= startBlock && Number(l.blockNumber) <= toBlock).map((l: any): Log => {
       const blockNumber = Number(l.blockNumber), logIndex = Number(l.logIndex ?? l.index);
-      if (!l.args || !l.address || !l.transactionHash || l.removed || !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex))
+      if (!l.args || !l.address || !targets.includes(lower(l.address)) || !l.transactionHash || l.removed || !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex))
         throw new Error(`TopMarket: incomplete/removed ${name} log`);
       const args: Record<string, any> = {};
       // The SDK returns ethers Results; get named arguments without losing bigint values.
-      fragment.inputs.forEach((input, i) => { args[input.name] = String(l.args[i] ?? l.args[input.name]); });
+      fragment.inputs.forEach((input, i) => {
+        const value = l.args[i] ?? l.args[input.name];
+        if (value === undefined || value === null) throw new Error(`TopMarket: missing ${name}.${input.name}`);
+        args[input.name] = String(value);
+      });
       const canonicalName = ({ TokenDrawRequested: 'DrawRequested', TokenWon: 'Won', TokenWinRecycled: 'WinRecycled' } as Record<string, string>)[name] ?? name;
       return { name: canonicalName, address: lower(l.address), blockNumber, logIndex, transactionHash: lower(l.transactionHash), args };
     });
   }
 
-  /** Scan a bounded emitter once for several readable event ABIs, then strictly decode each matching log. */
+  /** Query each readable event ABI sequentially, preserving strict metadata checks and execution order. */
   async function scanEvents(names: (keyof typeof events)[], target: string, startBlock: number, cacheInCloud = false) {
     if (startBlock > toBlock) return [];
     const configuration = new Set(['Upgraded', 'FeeBpsUpdated', 'FeeRecipientUpdated', 'BoxFeeRecipientUpdated', 'TreasuryUpdated', 'JackpotSet', 'RandomnessSourceSet']);
     if (cacheInCloud && names.some(n => !configuration.has(n))) throw new Error('TopMarket: cannot cloud-cache monetary event scan');
-    const fragments = names.map(name => ({ name, iface: new Interface([events[name]]) }));
-    const byTopic = new Map(fragments.map(f => [f.iface.getEvent(events[f.name].match(/event (\w+)/)![1])!.topicHash, f]));
-    // The SDK's getLogParams constructs Interface([eventAbi]) for a single event;
-    // it has no readable multi-event ABI input. Derive topics from the readable
-    // events above and decode strictly below, keeping ONE RPC scan per emitter
-    // instead of multiplying it by the event count. No hand-written topic hashes.
-    // Only configuration histories are cloud-cached; monetary scans never are.
-    const raw = await options.getLogs({ targets: [target], topics: [[...byTopic.keys()]] as any,
-      fromBlock: startBlock, toBlock, maxBlockRange: MAX_LOG_BLOCK_RANGE, entireLog: true, parseLog: false, cacheInCloud });
-    return raw.filter((l:any) => Number(l.blockNumber) >= startBlock && Number(l.blockNumber) <= toBlock).map((l:any):Log => {
-      const decoder = byTopic.get(l.topics?.[0]), parsed = decoder?.iface.parseLog(l);
-      const blockNumber = Number(l.blockNumber), logIndex = Number(l.logIndex ?? l.index);
-      if (!decoder || !parsed || lower(l.address) !== lower(target) || l.removed || !l.transactionHash ||
-        !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex)) throw new Error('TopMarket: incomplete grouped log');
-      const name = ({ TokenDrawRequested: 'DrawRequested', TokenWon: 'Won', TokenWinRecycled: 'WinRecycled' } as Record<string,string>)[decoder.name] ?? decoder.name;
-      return {name,address:lower(l.address),blockNumber,logIndex,transactionHash:lower(l.transactionHash),
-        args:Object.fromEntries(parsed.fragment.inputs.map((input,i)=>[input.name,String(parsed.args[i])]))};
-    });
+    // Use the SDK's readable eventAbi decoder; await each query to avoid a burst
+    // of parallel requests. Only slow configuration histories may use cloud cache.
+    const result: Log[] = [];
+    for (const name of names) result.push(...await get(name, [target], startBlock, cacheInCloud));
+    return result.sort(order);
   }
 
   const standardCreations = await get('BoxCreated', [BOX_FACTORY], BOX_FACTORY_BLOCK, true);
