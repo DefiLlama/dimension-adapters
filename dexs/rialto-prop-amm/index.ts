@@ -3,7 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 
 // Verified Robinhood deployment and event definitions:
 // https://robinhoodchain.blockscout.com/address/0xC94135b63772b91D79d0A2DaAb2a8801f32359bD
-const RIALTO_ROUTER = '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD';
+const RIALTO_ROUTERS = [
+  '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD',
+  '0xb63cEcf4Aa3F0E31bD58496b2487e9CE3521b8b3',
+];
 
 const routeActionEvent = 'event RouteActionExecuted( uint256 indexed hopIndex, uint8 kind, address indexed pool, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)';
 // RouteActionKind.RawCall in the verified RialtoRouter deployment above.
@@ -45,7 +48,7 @@ async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
 
   const routeActionLogs = await options.getLogs({
-    target: RIALTO_ROUTER,
+    targets: RIALTO_ROUTERS,
     eventAbi: routeActionEvent,
   });
 
