@@ -296,6 +296,59 @@ const addSafeInflowsFromIndexer = async (options: FetchOptions, safe: string, er
   if (native.length && native[0].amount !== "0") balances.addGasToken(native[0].amount, TREASURY_RECEIVED);
 };
 
+// Same filter as the getLogs in fetchSupplySide (quote-token Transfers sent by the splitters),
+// run on ClickHouse: the indexer /logs endpoint resets the connection on ~475 hot quote-token
+// targets (WBNB, USDT, ...). Returns per-token buckets aligned with erc20Quotes, like flatten: false.
+const getSplitterTransfersFromIndexer = async (options: FetchOptions, erc20Quotes: string[], splitters: string[]) => {
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+  const shortList = [...new Set(erc20Quotes.map(shortAddrOf))].map((a) => `'${a}'`).join(",");
+  const addressList = erc20Quotes.map((a) => `'${a}'`).join(",");
+  const fromList = splitters.map((a) => `'${padAddress(a)}'`).join(",");
+  const rows = await queryClickhouse<any>(`
+    SELECT
+      address AS token,
+      transaction_hash AS transactionHash,
+      concat('0x', substring(topic1, 27, 40)) AS "from",
+      concat('0x', substring(topic2, 27, 40)) AS "to",
+      toString(reinterpretAsUInt256(reverse(unhex(substring(data, 3, 64))))) AS value
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_address IN (${shortList})
+      AND short_topic0 = '${TRANSFER_TOPIC0.substring(0, 10)}'
+      AND address IN (${addressList})
+      AND topic0 = '${TRANSFER_TOPIC0}'
+      AND topic1 IN (${fromList})
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+  `);
+  return erc20Quotes.map((token) => rows.filter((row: any) => row.token === token));
+};
+
+// DispatchExecuted market/dividend amounts summed per tax token server-side, instead of decoding
+// thousands of logs per hour on BSC. taxToken is topic1; data: feeAmount | marketAmount | dividendAmount
+const getDispatchTotalsFromIndexer = async (options: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+  return queryClickhouse<any>(`
+    SELECT
+      concat('0x', substring(topic1, 27, 40)) AS taxToken,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 67, 64)))))) AS marketAmount,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 131, 64)))))) AS dividendAmount
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_topic0 = '${DISPATCH_EXECUTED_TOPIC.substring(0, 10)}'
+      AND topic0 = '${DISPATCH_EXECUTED_TOPIC}'
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+    GROUP BY taxToken
+  `);
+};
+
 const fetchSupplySide = async (
   options: FetchOptions,
   config: (typeof chainConfig)[string],
@@ -309,7 +362,7 @@ const fetchSupplySide = async (
   },
 ) => {
   const { erc20Quotes, quoteTokens, resolveQuotes, dailyFees, dailySupplySideRevenue } = params;
-  const { wrappedNative } = config;
+  const { wrappedNative, useIndexer } = config;
 
   const addSupplySide = (token: string, amount: any, label: string) => {
     if (token === NATIVE_TOKEN) {
@@ -330,13 +383,15 @@ const fetchSupplySide = async (
       entireLog: true,
       parseLog: true,
     }),
-    options.getLogs({
-      noTarget: true,
-      eventAbi: eventAbis.dispatchExecuted,
-      topics: [DISPATCH_EXECUTED_TOPIC],
-      entireLog: true,
-      parseLog: true,
-    }),
+    useIndexer
+      ? getDispatchTotalsFromIndexer(options)
+      : options.getLogs({
+        noTarget: true,
+        eventAbi: eventAbis.dispatchExecuted,
+        topics: [DISPATCH_EXECUTED_TOPIC],
+        entireLog: true,
+        parseLog: true,
+      }),
   ]);
 
   if (beneficiaryLogs.length) {
@@ -345,14 +400,16 @@ const fetchSupplySide = async (
 
     if (splitters.length && erc20Quotes.length) {
       const fromTopic = splitters.length === 1 ? padAddress(splitters[0]) : splitters.map(padAddress);
-      const transferLogs = await options.getLogs({
-        targets: erc20Quotes,
-        eventAbi: eventAbis.transfer,
-        topics: [TRANSFER_TOPIC0, fromTopic as any, null],
-        flatten: false,
-        // need transactionHash to join payouts to their token, args alone is not enough
-        onlyArgs: false,
-      });
+      const transferLogs = useIndexer
+        ? await getSplitterTransfersFromIndexer(options, erc20Quotes, splitters)
+        : await options.getLogs({
+          targets: erc20Quotes,
+          eventAbi: eventAbis.transfer,
+          topics: [TRANSFER_TOPIC0, fromTopic as any, null],
+          flatten: false,
+          // need transactionHash to join payouts to their token, args alone is not enough
+          onlyArgs: false,
+        });
 
       transferLogs.forEach((tokenLogs: any[], i: number) => {
         const token = erc20Quotes[i];
