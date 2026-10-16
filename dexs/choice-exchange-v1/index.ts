@@ -171,7 +171,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(1),
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue: dailySupplySideRevenue.clone(1, LABEL_TO_LPS),
@@ -181,7 +180,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Value traded on Choice v1 liquidity pools on Injective, counted on the input side of each swap; Choice v2 pools are a separate listing.",
   Fees: "Swap fees paid by traders on Choice v1 pools, which is 0.3% of the swap output.",
-  UserFees: "Swap fees paid by traders on Choice v1 pools, which is 0.3% of the swap output.",
   Revenue: "The third of the swap fees kept by the protocol: half goes to the Choice treasury multisig and half to the Injective burn auction.",
   ProtocolRevenue: "One sixth of each swap fee, sent to the Choice treasury multisig.",
   SupplySideRevenue: "Two thirds of each swap fee, which stays in the pool and goes to liquidity providers.",
