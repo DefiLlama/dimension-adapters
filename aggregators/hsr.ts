@@ -10,10 +10,11 @@ import type {
 } from '../adapters/types';
 import { getProvider } from '@defillama/sdk';
 import { Interface, keccak256 } from 'ethers';
-// KyberSwap's native-token sentinel and default recipient, defined in the
-// pinned MetaAggregationRouterV2 source linked above (ETH_ADDRESS / swap).
-const NATIVE_TOKEN = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+import ADDRESSES from '../helpers/coreAssets.json';
+// KyberSwap's native-token sentinel (ETH_ADDRESS) and default recipient (zero
+// address), defined in the pinned MetaAggregationRouterV2 source linked above.
+const NATIVE_TOKEN = ADDRESSES.GAS_TOKEN_2;
+const ZERO_ADDRESS = ADDRESSES.null;
 /** Normalized evidence, independent of viem/ethers and usable by both adapters. */
 export type KyberEvidence = {
   chainId: number;
@@ -154,32 +155,23 @@ const chainConfig: Record<string, Deployment> = {
       '0x99590941aab8e1eaf2ceb825abf64b6956e82ce41e8966d7e320846905db85e3',
     inputs: [
       NATIVE_TOKEN,
-      // WETH: https://basescan.org/token/0x4200000000000000000000000000000000000006
-      '0x4200000000000000000000000000000000000006',
-      // USDC: https://basescan.org/token/0x833589fcd6edb6e08f4c7c32d4f71b54bda02913
-      '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-      // cbBTC: https://basescan.org/token/0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf
-      '0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf',
-      // AERO: https://basescan.org/token/0x940181a94a35a4569e4529a3cdfb74e38fd98631
-      '0x940181a94a35a4569e4529a3cdfb74e38fd98631',
+      ADDRESSES.base.WETH,
+      ADDRESSES.base.USDC,
+      ADDRESSES.base.cbBTC,
+      ADDRESSES.base.AERO,
+      ADDRESSES.base.wstETH,
+      ADDRESSES.base.cbETH,
+      ADDRESSES.base.DAI,
+      ADDRESSES.base.USDe,
+      ADDRESSES.base.weETH,
       // VIRTUAL: https://basescan.org/token/0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b
       '0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b',
-      // wstETH: https://basescan.org/token/0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452
-      '0xc1cba3fcea344f92d9239c08c0568f6f2f0ee452',
-      // cbETH: https://basescan.org/token/0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22
-      '0x2ae3f1ec7f1f5012cfeab0185bfc7aa3cf0dec22',
       // EURC: https://basescan.org/token/0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42
       '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42',
-      // DAI: https://basescan.org/token/0x50c5725949a6f0c72e6c4a641f24049a917db0cb
-      '0x50c5725949a6f0c72e6c4a641f24049a917db0cb',
       // USDS: https://basescan.org/token/0x820c137fa70c8691f0e44dc420a5e53c168921dc
       '0x820c137fa70c8691f0e44dc420a5e53c168921dc',
       // GHO: https://basescan.org/token/0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee
       '0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee',
-      // USDe: https://basescan.org/token/0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34
-      '0x5d3a1ff2b6bab83b63cd9ad0787074081a52ef34',
-      // weETH: https://basescan.org/token/0x04c0599ae5a44757c0af6f9ec3b93da8976c150a
-      '0x04c0599ae5a44757c0af6f9ec3b93da8976c150a',
       // ezETH: https://basescan.org/token/0x2416092f143378750bb29b79ed961ab195cceea5
       '0x2416092f143378750bb29b79ed961ab195cceea5',
       // tBTC: https://basescan.org/token/0x236aa50979d5f3de3bd1eeb40e81137f22ab794b
@@ -188,7 +180,7 @@ const chainConfig: Record<string, Deployment> = {
       '0x532f27101965dd16442e59d40670faf5ebb142e4',
       // DEGEN: https://basescan.org/token/0x4ed4e862860bed51a9570b96d89af5e1b0efefed
       '0x4ed4e862860bed51a9570b96d89af5e1b0efefed',
-    ],
+    ].map((a) => a.toLowerCase()), // compared against lowercased Swapped srcToken
   },
 };
 const abi = new Interface([
