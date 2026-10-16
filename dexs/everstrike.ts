@@ -102,9 +102,7 @@ const getDailyVolume = (candles: OhlcvCandle[], endMs: number) => {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  let startTimestamp = options.startTimestamp;
-  // Dimension's daily window includes an extra second before UTC midnight.
-  if (options.endTimestamp - startTimestamp === DAY_SECONDS + 1) startTimestamp += 1;
+  let startTimestamp = options.startOfDay;
 
   const startMs = startTimestamp * 1000;
   const endMs = options.endTimestamp * 1000;
