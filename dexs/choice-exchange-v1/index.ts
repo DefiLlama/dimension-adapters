@@ -40,19 +40,6 @@ async function withFallback<T>(urls: string[], call: (url: string) => Promise<T>
   throw lastError;
 }
 
-// memoize a promise per key; a failed call is dropped so it can be retried
-function memo<T>(cache: Map<string, Promise<T>>, key: string, call: () => Promise<T>): Promise<T> {
-  let hit = cache.get(key);
-  if (!hit) {
-    hit = call().catch((e) => {
-      cache.delete(key);
-      throw e;
-    });
-    cache.set(key, hit);
-  }
-  return hit;
-}
-
 const encode = (msg: Record<string, unknown>) => encodeURIComponent(Buffer.from(JSON.stringify(msg)).toString("base64"));
 
 async function fetchPairs(): Promise<string[]> {
@@ -69,9 +56,19 @@ async function fetchPairs(): Promise<string[]> {
   return pairs;
 }
 
-// pairs are only ever added (a pair created after the window has no swap in it), so one lookup per process is enough
-const pairsCache = new Map<string, Promise<string[]>>();
-const getPairs = () => memo(pairsCache, "pairs", fetchPairs);
+// pairs are only ever added, so a list fetched after a window ended holds every pair that can have a swap in that window:
+// it is reused for windows that ended before it was fetched (backfills, local tests) and refreshed for newer windows.
+// The 60s margin covers clock skew between this machine and block time.
+let pairsCache: { fetchedAt: number; pairs: Promise<string[]> } | undefined;
+const getPairs = (windowEndMs: number): Promise<string[]> => {
+  if (pairsCache && pairsCache.fetchedAt >= windowEndMs + 60_000) return pairsCache.pairs;
+  const entry = { fetchedAt: Date.now(), pairs: fetchPairs() };
+  pairsCache = entry;
+  entry.pairs.catch(() => {
+    if (pairsCache === entry) pairsCache = undefined; // a failed lookup is not kept
+  });
+  return entry.pairs;
+};
 
 // explorer timestamps look like "2026-10-15 23:02:30.363 +0000 UTC"
 const txMs = (timestamp: string): number => {
@@ -146,8 +143,8 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`Choice v1: explorer has only indexed until ${new Date(indexedUntil).toISOString()}, window ends ${new Date(toMs).toISOString()}`);
   }
 
-  const pairs = await getPairs();
-  await PromisePool.withConcurrency(3)
+  const pairs = await getPairs(toMs);
+  const { errors } = await PromisePool.withConcurrency(3)
     .for(pairs)
     .process(async (pair) => {
       const swaps = await getPairSwaps(pair, fromMs, toMs);
@@ -159,6 +156,8 @@ const fetch = async (options: FetchOptions) => {
         addToken(burnFees, s.ask_asset, BigInt(s.burn_amount));
       }
     });
+  // PromisePool collects failures instead of throwing: a failed pair must not become partial totals
+  if (errors.length) throw errors[0].raw ?? errors[0];
 
   const dailyFees = swapFees.clone(1, LABEL_SWAP_FEES);
   const dailyProtocolRevenue = treasuryFees.clone(1, LABEL_TO_TREASURY);
