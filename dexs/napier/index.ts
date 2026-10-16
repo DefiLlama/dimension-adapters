@@ -96,7 +96,7 @@ const fetch = async (options: FetchOptions) => {
       for (const event of curveEvents[k] ?? []) {
         let targetAmount: bigint;
         if (BigInt(event.sold_id) === CURVE_TARGET_INDEX) targetAmount = BigInt(event.tokens_sold);
-        else if (BigInt(event.bought_id) === CURVE_TARGET_INDEX) targetAmount = BigInt(event.tokens_bought);
+        else if (BigInt(event.bought_id) === CURVE_TARGET_INDEX) targetAmount = BigInt(event.tokens_bought) + BigInt(event.fee); // tokens_bought is net of the fee, which Curve reports in the bought token
         else continue;
         addTarget(m, i, targetAmount);
       }
@@ -107,18 +107,17 @@ const fetch = async (options: FetchOptions) => {
   // currency0 of a Toki pool is the target token, so |amount0| is the target leg.
   const toki = markets.map((m, i) => ({ m, i })).filter(({ m }) => m.pool!.poolType === "TOKI_HOOK" && m.pool!.poolId);
   if (toki.length > 0) {
-    const hooks: (string | null)[] = await api.multiCall({ abi: ABI.i_hook, calls: toki.map(({ m }) => m.pool!.address), permitFailure: true });
+    // no permitFailure: a market whose hook cannot be read must fail the run, not report zero volume
+    const hooks: string[] = await api.multiCall({ abi: ABI.i_hook, calls: toki.map(({ m }) => m.pool!.address) });
     const byPoolId = new Map<string, { m: Market; i: number }>();
     toki.forEach((x) => byPoolId.set(x.m.pool!.poolId!.toLowerCase(), x));
-    const distinctHooks = [...new Set(hooks.filter((h): h is string => !!h).map((h) => h.toLowerCase()))];
-    if (distinctHooks.length > 0) {
-      const hookSwapEvents = await getLogs({ targets: distinctHooks, eventAbi: TOKI_HOOK_ABI.hookSwapEvent });
-      for (const event of hookSwapEvents) {
-        const x = byPoolId.get(String(event.poolId).toLowerCase());
-        if (!x) continue;
-        const amount0 = BigInt(event.amount0);
-        addTarget(x.m, x.i, amount0 < 0n ? -amount0 : amount0);
-      }
+    const distinctHooks = [...new Set(hooks.map((h) => h.toLowerCase()))];
+    const hookSwapEvents = await getLogs({ targets: distinctHooks, eventAbi: TOKI_HOOK_ABI.hookSwapEvent });
+    for (const event of hookSwapEvents) {
+      const x = byPoolId.get(String(event.poolId).toLowerCase());
+      if (!x) continue;
+      const amount0 = BigInt(event.amount0);
+      addTarget(x.m, x.i, amount0 < 0n ? -amount0 : amount0);
     }
   }
 
