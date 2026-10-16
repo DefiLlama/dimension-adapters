@@ -24,32 +24,31 @@ const chainConfig: any = {
 	[CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
 
-const prefetch = async (options: FetchOptions) => {
-	return await queryDuneSql(options, `
-		SELECT 
-			blockchain,
-			SUM(amount_usd) as dailyVolume
-		FROM dex_aggregator.trades
-		WHERE tx_hash IN (
-			SELECT DISTINCT hash FROM evms.transactions 
-			WHERE
-				block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time < FROM_UNIXTIME(${options.endTimestamp})
-				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
-		)
-		GROUP BY 1
-	`);
-};
+// Dune chains read from dex_aggregator.trades; robinhood is not in it and is read from dex.trades below
+const duneAggregatorChains = Object.values(chainConfig)
+	.map((c: any) => c.dune_chain)
+	.filter((c: string) => c !== 'solana' && c !== 'robinhood')
+const duneChainList = [...duneAggregatorChains, 'robinhood'].map((c) => `'${c}'`).join(', ')
 
-const fetchRobinhood = async (options: FetchOptions) => {
-	const results = await queryDuneSql(options, `
+const prefetch = async (options: FetchOptions) => {
+	const timeRange = (column: string) => `${column} >= FROM_UNIXTIME(${options.startTimestamp}) AND ${column} < FROM_UNIXTIME(${options.endTimestamp})`
+	return await queryDuneSql(options, `
 		WITH opensea_txs AS (
-			SELECT DISTINCT hash
+			SELECT DISTINCT blockchain, hash
 			FROM evms.transactions
-			WHERE blockchain = 'robinhood'
-				AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+			WHERE blockchain IN (${duneChainList})
+				AND ${timeRange('block_time')}
 				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
+		),
+		aggregator_volume AS (
+			SELECT
+				blockchain,
+				SUM(amount_usd) AS dailyVolume
+			FROM dex_aggregator.trades
+			WHERE blockchain IN (${duneAggregatorChains.map((c) => `'${c}'`).join(', ')})
+				AND ${timeRange('block_time')}
+				AND tx_hash IN (SELECT hash FROM opensea_txs)
+			GROUP BY 1
 		),
 		robinhood_trades AS (
 			SELECT
@@ -58,25 +57,27 @@ const fetchRobinhood = async (options: FetchOptions) => {
 				t.token_sold_address,
 				t.amount_usd
 			FROM dex.trades t
-			INNER JOIN opensea_txs os ON t.tx_hash = os.hash
+			INNER JOIN opensea_txs os ON t.tx_hash = os.hash AND os.blockchain = 'robinhood'
 			WHERE t.blockchain = 'robinhood'
-				AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
+				AND ${timeRange('t.block_time')}
+		),
+		robinhood_volume AS (
+			SELECT
+				'robinhood' AS blockchain,
+				SUM(t.amount_usd) AS dailyVolume
+			FROM robinhood_trades t
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM robinhood_trades prior_leg
+				WHERE prior_leg.tx_hash = t.tx_hash
+					AND prior_leg.token_bought_address = t.token_sold_address
+			)
 		)
-		SELECT SUM(t.amount_usd) AS dailyVolume
-		FROM robinhood_trades t
-		WHERE NOT EXISTS (
-			SELECT 1
-			FROM robinhood_trades prior_leg
-			WHERE prior_leg.tx_hash = t.tx_hash
-				AND prior_leg.token_bought_address = t.token_sold_address
-		)
+		SELECT blockchain, dailyVolume FROM aggregator_volume
+		UNION ALL
+		SELECT blockchain, dailyVolume FROM robinhood_volume
 	`);
-
-	return {
-		dailyVolume: results[0]?.dailyVolume || 0,
-	}
-}
+};
 
 const fetchSolana = async (options: FetchOptions) => {
 	const dailyFees = await getSolanaReceived({
@@ -93,9 +94,6 @@ const fetchSolana = async (options: FetchOptions) => {
 const fetch = async (options: FetchOptions) => {
 	if (options.chain === CHAIN.SOLANA) {
 		return await fetchSolana(options)
-	}
-	if (options.chain === CHAIN.ROBINHOOD) {
-		return await fetchRobinhood(options)
 	}
 	const results = options.preFetchedResults || [];
 	const chainData = results.find(
