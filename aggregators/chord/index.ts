@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { isCoreAsset } from "../../helpers/prices";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 // ChordRouter (UUPS proxy, ex-NullRouter): the same address on every chain Chord is deployed on.
 // Source: https://github.com/getchordlabs/chord/blob/main/contracts/src/NullRouter.sol (event in contracts/src/interfaces/INullRouter.sol)
@@ -14,7 +15,7 @@ const CHORD_ROUTER = "0x1b1fee89a381e595fe6536b99ba91f3e16e9601a";
 // feeAmount is taken in tokenOut, so the gross output is amountOut + feeAmount.
 const SWAP_EVENT = "event Swap(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 feeAmount, address referrer)";
 
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 // start = UTC day of the router's first Swap event on that chain; the comment gives the proxy's deploy block
 const chainConfig: Record<string, { start: string }> = {
