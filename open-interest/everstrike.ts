@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -19,7 +19,7 @@ interface Ticker {
   mark_price?: number | string | null;
 }
 
-const fetch = async (_options: FetchOptions) => {
+const fetch = async () => {
   const pairsResponse = (await fetchURL(`${API_BASE}/pairs`)) as PairsResponse;
   if (pairsResponse?.code !== 200 || !pairsResponse.result || typeof pairsResponse.result !== "object") {
     throw new Error("Everstrike pairs API returned an invalid response");
