@@ -177,10 +177,10 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Spot trades placed through cro.trade on Cronos.',
-  Fees: 'All trading fees paid by users on cro.trade spot trades.',
-  UserFees: 'All trading fees paid by users on cro.trade spot trades.',
-  Revenue: 'All trading fees.',
+  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
+  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos, measured from the fee each trade pays on-chain. Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
+  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos.",
+  Revenue: 'All trading fees; no share goes to liquidity providers.',
   ProtocolRevenue: 'None, all trading fees go to CRONUS holders.',
   HoldersRevenue: 'All trading fees go to CRONUS holders through buybacks: distributed to holders before 2026-09-22, burned since.',
 }
