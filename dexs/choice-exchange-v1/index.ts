@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { PromisePool } from "@supercharge/promise-pool";
-import { httpGet } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit, httpGet } from "../../utils/fetchURL";
 
 // Choice v1: terraswap-style CosmWasm AMM on Injective. Choice v2 (Injective EVM) is the separate choice-exchange listing.
 // Source and addresses: https://github.com/choice-exchange/choice_exchange (deployed_contracts.md)
@@ -14,8 +14,6 @@ const FACTORY = "inj1k9lcqtn3y92h4t3tdsu7z8qx292mhxhgsssmxg";
 // They are kept here so the adapter can be rebuilt if the explorer API disappears.
 const LCDS = ["https://sentry.lcd.injective.network", "https://lcd.injective.network"];
 // Injective explorer API (public indexer; the tendermint rpc keeps about a day of history, this keeps all of it).
-// GET v2/contractTxs/{contract}?from=&to= (unix ms) lists the txs that involve a contract in that range, newest first,
-// about 20 per page; paging.next holds the tokens of the following pages. Wide ranges time out, hourly windows do not.
 const EXPLORERS = ["https://sentry.explorer.grpc-web.injective.network/api/explorer"];
 const MAX_PAGES = 200;
 
@@ -93,7 +91,7 @@ async function getPairSwaps(pair: string, fromMs: number, toMs: number) {
   const range = `from=${fromMs - 1000}&to=${toMs + 1000}`;
   let query = `${pair}?${range}`;
   for (let page = 0; page < MAX_PAGES; page++) {
-    const res = await withFallback(EXPLORERS, (base) => httpGet(`${base}/v2/contractTxs/${query}`));
+    const res = await withFallback(EXPLORERS, (base) => fetchURLAutoHandleRateLimit(`${base}/v2/contractTxs/${query}`));
     if (!res || typeof res !== "object" || !res.paging) throw new Error(`Choice v1: malformed explorer response for ${pair}`);
     const txs: any[] = res.data ?? []; // an empty range comes back without "data"
     let oldest = Infinity;
@@ -160,38 +158,40 @@ const fetch = async (options: FetchOptions) => {
   if (errors.length) throw errors[0].raw ?? errors[0];
 
   const dailyFees = swapFees.clone(1, LABEL_SWAP_FEES);
-  const dailyProtocolRevenue = treasuryFees.clone(1, LABEL_TO_TREASURY);
-  const dailyRevenue = dailyProtocolRevenue.clone(1);
-  dailyRevenue.addBalances(burnFees.clone(1, LABEL_TO_BURN));
-  const dailySupplySideRevenue = swapFees.clone(1);
-  dailySupplySideRevenue.subtract(treasuryFees);
-  dailySupplySideRevenue.subtract(burnFees);
+  const dailyRevenue = treasuryFees.clone(1, LABEL_TO_TREASURY);
+  const dailyProtocolRevenue = dailyRevenue.clone(1);
+  const lpFees = swapFees.clone(1);
+  lpFees.subtract(treasuryFees);
+  lpFees.subtract(burnFees);
+  const dailySupplySideRevenue = lpFees.clone(1, LABEL_TO_LPS);
+  // the burn auction burns INJ, so that share benefits INJ holders, not Choice: it is a cost, not protocol revenue
+  dailySupplySideRevenue.addBalances(burnFees.clone(1, LABEL_TO_BURN));
 
   return {
     dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailySupplySideRevenue: dailySupplySideRevenue.clone(1, LABEL_TO_LPS),
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
   Volume: "Value traded on Choice v1 liquidity pools on Injective, counted on the input side of each swap; Choice v2 pools are a separate listing.",
   Fees: "Swap fees paid by traders on Choice v1 pools, which is 0.3% of the swap output.",
-  Revenue: "The third of the swap fees kept by the protocol: half goes to the Choice treasury multisig and half to the Injective burn auction.",
+  Revenue: "One sixth of each swap fee, kept by the protocol in the Choice treasury multisig.",
   ProtocolRevenue: "One sixth of each swap fee, sent to the Choice treasury multisig.",
-  SupplySideRevenue: "Two thirds of each swap fee, which stays in the pool and goes to liquidity providers.",
+  SupplySideRevenue: "Five sixths of each swap fee: two thirds stays in the pool for liquidity providers and one sixth goes to the Injective burn auction, which burns INJ.",
 };
 
 const breakdownMethodology = {
   Fees: { [LABEL_SWAP_FEES]: "Swap fees paid by traders on Choice v1 pools." },
-  Revenue: {
-    [LABEL_TO_TREASURY]: "One sixth of each swap fee, sent to the Choice treasury multisig.",
-    [LABEL_TO_BURN]: "One sixth of each swap fee, sent to the Injective burn auction.",
-  },
+  Revenue: { [LABEL_TO_TREASURY]: "One sixth of each swap fee, sent to the Choice treasury multisig." },
   ProtocolRevenue: { [LABEL_TO_TREASURY]: "One sixth of each swap fee, sent to the Choice treasury multisig." },
-  SupplySideRevenue: { [LABEL_TO_LPS]: "Two thirds of each swap fee, left in the pool for liquidity providers." },
+  SupplySideRevenue: {
+    [LABEL_TO_LPS]: "Two thirds of each swap fee, left in the pool for liquidity providers.",
+    [LABEL_TO_BURN]: "One sixth of each swap fee, sent to the Injective burn auction, which burns INJ.",
+  },
 };
 
 const adapter: SimpleAdapter = {
