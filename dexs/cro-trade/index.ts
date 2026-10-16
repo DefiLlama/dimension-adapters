@@ -177,28 +177,28 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Spot trades routed through cro.trade on Cronos (DEX swaps, launchpad bonding-curve trades and Cronos Launch trade accounts), counted once per trade at full notional, derived from the fixed 0.9% cro.trade fee each trade pays on-chain.',
-  Fees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
-  UserFees: 'The 0.9% fee cro.trade charges on every spot trade routed through its contracts on Cronos.',
-  Revenue: 'All trading fees are kept by cro.trade (no share goes to liquidity providers). Spot referral payouts are made off-chain from another venue and are not deducted.',
-  ProtocolRevenue: 'No trading fees are kept by the protocol: they all go to CRONUS holders.',
-  HoldersRevenue: 'All trading fees. Until 2026-09-22 they went to the fee wallet, which bought CRONUS and distributed 100% of it to holders through the revenue share contract; since then they go to the CronusBurner contract, which buys CRONUS on the market and burns it.',
+  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
+  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos, measured from the fee each trade pays on-chain. Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
+  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos.",
+  Revenue: 'All trading fees; no share goes to liquidity providers.',
+  ProtocolRevenue: 'None, all trading fees go to CRONUS holders.',
+  HoldersRevenue: 'All trading fees go to CRONUS holders through buybacks: distributed to holders before 2026-09-22, burned since.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.Fees]: 'The 0.9% fee on each spot trade routed by cro.trade, taken in CRO or in the input token.',
+    [LABELS.Fees]: 'Trading fees paid by users on cro.trade spot trades.',
   },
   UserFees: {
-    [LABELS.Fees]: 'The 0.9% fee on each spot trade routed by cro.trade, taken in CRO or in the input token.',
+    [LABELS.Fees]: 'Trading fees paid by users on cro.trade spot trades.',
   },
   Revenue: {
-    [LABELS.ToRevShare]: 'Trading fees sent to the fee wallet and distributed 100% to CRONUS holders as revenue share (until 2026-09-22).',
-    [LABELS.ToBuyback]: 'Trading fees sent to the CronusBurner contract to buy back and burn CRONUS (since 2026-09-22).',
+    [LABELS.ToRevShare]: 'Trading fees used for CRONUS buybacks distributed to holders (before 2026-09-22).',
+    [LABELS.ToBuyback]: 'Trading fees used for CRONUS buybacks that are burned (since 2026-09-22).',
   },
   HoldersRevenue: {
-    [LABELS.RevShare]: 'Trading fees used to buy CRONUS and distribute 100% of it to holders through the revenue share contract (until 2026-09-22).',
-    [LABELS.Buyback]: 'Trading fees sent to the CronusBurner contract, which buys CRONUS and burns it (since 2026-09-22).',
+    [LABELS.RevShare]: 'CRONUS bought back and distributed to holders (before 2026-09-22).',
+    [LABELS.Buyback]: 'CRONUS bought back and burned (since 2026-09-22).',
   },
 }
 
