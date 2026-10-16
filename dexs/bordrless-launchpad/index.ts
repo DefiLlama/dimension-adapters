@@ -8,7 +8,7 @@ const methodology = {
   Volume: "Sum of trades on the Bordrless launchpad bonding curve, before a coin graduates.",
   Fees: "Every fee traders pay on trades on the Bordrless launchpad bonding curve, before a coin graduates: the protocol fee, LP fee, coin creator fee and holder reward fee.",
   UserFees: "Every fee traders pay on Bordrless launchpad bonding curve trades: the protocol fee, LP fee, coin creator fee and holder reward fee.",
-  Revenue: "The protocol fee, paid to the Bordrless treasury.",
+  Revenue: "The protocol fee, paid to the Bordrless treasury: half is kept, half buys back $BORDR.",
   ProtocolRevenue: "Half of the protocol fee, kept by the treasury.",
   HoldersRevenue: "Half of the protocol fee, spent buying back $BORDR.",
   SupplySideRevenue: "Fees paid to liquidity providers, coin creators and coin holders.",
