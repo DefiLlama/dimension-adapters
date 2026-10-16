@@ -45,6 +45,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetch,
       start: '2024-11-07',
+      // api.rate-x.io is the only source and its own route 53 nameservers now answer REFUSED, so
+      // no day can be fetched or refetched. RateX moved to Mooncake, listed separately.
+      deadFrom: '2026-10-14',
     },
   }
 };
