@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: BAL_TOKEN,
     eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
-    topics: [TRANSFER_TOPIC, null as any, padAddress(AURA_COLLECTOR)],
+    topics: [TRANSFER_TOPIC, null, padAddress(AURA_COLLECTOR)],
   });
 
   logs.forEach((log: any) => {

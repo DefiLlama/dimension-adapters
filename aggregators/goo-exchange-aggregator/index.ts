@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
   const feeTransfers = feeTokens.length ? await options.getLogs({
     targets: feeTokens,
     eventAbi: TRANSFER,
-    topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(TREASURY, 32)],
+    topics: [TRANSFER_TOPIC, null, ethers.zeroPadValue(TREASURY, 32)],
     entireLog: true,
     parseLog: true,
   }) : []

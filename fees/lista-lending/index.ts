@@ -254,7 +254,7 @@ const fetch = async (options: FetchOptions) => {
           options.getLogs({
             target: relayerTokens[i],
             eventAbi: abis.Transfer,
-            topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(r.relayer, 32)],
+            topics: [TRANSFER_TOPIC, null, ethers.zeroPadValue(r.relayer, 32)],
           })
         )
       ),

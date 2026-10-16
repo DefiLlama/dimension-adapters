@@ -168,7 +168,7 @@ const fetchEvm = async (options: FetchOptions) => {
     const feesSplitLogs = await options.getLogs({
       noTarget: true,
       eventAbi: deployment.feesSplitEvent,
-      topics: [eventTopic0(deployment.feesSplitEvent), null as any, ethers.zeroPadValue(deployment.vault, 32)],
+      topics: [eventTopic0(deployment.feesSplitEvent), null, ethers.zeroPadValue(deployment.vault, 32)],
       onlyArgs: false,
     });
 

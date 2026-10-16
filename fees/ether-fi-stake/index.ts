@@ -73,7 +73,7 @@ const getSsvRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: SSV,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
   })
   // Transfers from the dedicated fee recipient are 100% protocol;
   // everything else has an 80% protocol cut (4/5 in integer math).
@@ -88,7 +88,7 @@ const getObolRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: OBOL,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   })
   return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
@@ -106,12 +106,12 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: ADDRESSES.ethereum.EETH, //eETH as WETH
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
   const logs2 = await options.getLogs({
     target: EIGEN,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
 
   const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);

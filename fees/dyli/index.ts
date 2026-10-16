@@ -135,7 +135,7 @@ const fetch = async (originalOptions: FetchOptions) => {
     const logs = await Promise.all(SERVICE_FEE_TARGETS.map((target) => options.getLogs({
       target: USDC,
       eventAbi: TRANSFER_EVENT,
-      topics: [ERC20_INTERFACE.getEvent("Transfer")!.topicHash, null as any, zeroPadValue(target, 32)],
+      topics: [ERC20_INTERFACE.getEvent("Transfer")!.topicHash, null, zeroPadValue(target, 32)],
       onlyArgs: false,
       parseLog: true,
     })));

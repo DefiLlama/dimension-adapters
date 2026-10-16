@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
   // LI.FI: integrator fees credited to the TRNCH Safe in the LI.FI FeeCollector, and fees the LI.FI
   // FeeForwarders send straight to it. LI.FI's own cut (_lifiFee, other recipients) is not TRNCH's.
   const [collected, forwarded] = await Promise.all([
-    options.getLogs({ target: LifiFeeCollectors[CHAIN.ROBINHOOD].id, eventAbi: FeeCollectedEvent, topics: [FEES_COLLECTED_TOPIC, null as any, padAddress(TRNCH_TREASURY_SAFE)], maxBlockRange: 100000 }),
+    options.getLogs({ target: LifiFeeCollectors[CHAIN.ROBINHOOD].id, eventAbi: FeeCollectedEvent, topics: [FEES_COLLECTED_TOPIC, null, padAddress(TRNCH_TREASURY_SAFE)], maxBlockRange: 100000 }),
     options.getLogs({ targets: getFeeForwarders(options.chain), eventAbi: FeesForwardedEvent, maxBlockRange: 100000 }),
   ]);
   for (const log of collected) {

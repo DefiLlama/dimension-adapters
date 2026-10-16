@@ -348,7 +348,7 @@ const fetchSupplySide = async (
       const transferLogs = await options.getLogs({
         targets: erc20Quotes,
         eventAbi: eventAbis.transfer,
-        topics: [TRANSFER_TOPIC0, fromTopic as any, null as any],
+        topics: [TRANSFER_TOPIC0, fromTopic as any, null],
         flatten: false,
         // need transactionHash to join payouts to their token, args alone is not enough
         onlyArgs: false,
