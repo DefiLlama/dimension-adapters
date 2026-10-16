@@ -2,6 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 const endpoint = sdk.graph.modifyEndpoint('5CBKsDihF7KeBrNX4bgtb4tVFqy41PguVm88zBGpd4Hi');
 
@@ -10,7 +11,7 @@ const FEE_DENOMINATOR: Record<string, number> = {
   '0xc6b7ee49d386bae4fd501f2d2f8d18828f1f6285': 100000, // NomiswapStableFactory
 };
 const Q112 = 2n ** 112n;
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const ZERO_ADDRESS = ADDRESSES.null;
 
 async function getPairVolumes(block: number) {
   const volumes: Record<string, { factory: string, volumeUSD: number }> = {};
@@ -68,6 +69,7 @@ async function fetch(options: FetchOptions) {
 
 const adapters: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch,
@@ -79,7 +81,7 @@ const adapters: SimpleAdapter = {
     Fees: "Swap fees paid by traders: each pair's volume times its on-chain swapFee (0.1% on most constant-product pairs, 0.3% on NMX pairs, 0.004-0.006% on stable pairs).",
     UserFees: "All swap fees are paid by traders.",
     Revenue: "Protocol share of swap fees, minted as LP tokens to the factory feeTo address: 70% on most pairs, about 100% on NMX pairs.",
-    ProtocolRevenue: "All revenue goes to the factory feeTo address.",
+    ProtocolRevenue: "All revenue (protocol share of swap fees) goes to the factory feeTo address.",
     SupplySideRevenue: "Swap fees left in the pools for liquidity providers: 30% on most pairs, about 0% on NMX pairs.",
   },
   breakdownMethodology: {
