@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -6,8 +5,8 @@ import { CHAIN } from "../helpers/chains";
 // Robinhood Chain, part of PFWA. Source: https://github.com/MirakoolDev/sherwood
 // Every exact-input swap in a game pool pays 5% of its ETH side (FEE_BPS = 500) into the current round's pot, logged
 // as PotFunded. A Flip move pays its Dice Protocol randomness fee out of the pot (FlipRequested; the fee is the Dice
-// contract's getFeeV2(provider, FLIP_CALLBACK_GAS = 200000) in that block, the same call the hook makes). When a round
-// ends what is left in its pot is split by fixed shares (constants in the hook's settle function):
+// contract's getFeeV2(provider, FLIP_CALLBACK_GAS = 200000), the same call the hook makes, read at the window's end
+// block). When a round ends what is left in its pot is split by fixed shares (constants in the hook's settle function):
 //   Season 1 (Sherwood.sol, ETH/$PFWA pool): 50/20/10% to the top three players, 10% buys back and burns $PFWA,
 //     10% rolls over into the next round.
 //   Season 2 (SherwoodV2.sol, ETH/$IMD pool): 40/20/10% to the top three and 8% to the King of the Hill, 10% buys back
@@ -30,7 +29,6 @@ const FLIP_CALLBACK_GAS = 200000; // FLIP_CALLBACK_GAS in both hooks
 
 type Uint = bigint | string | number;
 type PotFundedArgs = { round: Uint; amount: Uint; fromSell: boolean };
-type FlipLog = { blockNumber: number | string };
 
 const L = {
   POT_FEES: "Pot Fees",
@@ -42,23 +40,24 @@ const L = {
   PFWA_BURN: "PFWA Buyback And Burn",
 };
 
-// The Dice fees the hook paid out of its pot for the window's flips: getFeeV2 on the hook's Dice contract at each
-// flip's block.
-async function diceFees(options: FetchOptions, hook: string, flips: FlipLog[]): Promise<bigint> {
-  if (!flips.length) return 0n;
+// The Dice fees each hook paid out of its pot for the window's flips: the flip count times getFeeV2 on the hook's Dice
+// contract, read once at the window's end block. The fee is a setting that only changes when Dice's provider or owner
+// re-prices it (0.000025 ETH at every 6-hourly sample from 2026-10-08 to 2026-10-16), so it is not read per flip.
+async function diceFeesByHook(options: FetchOptions, flipLogsByHook: unknown[][]): Promise<bigint[]> {
+  const totals = HOOKS.map(() => 0n);
+  // only hooks with flips: a hook read before it was deployed reverts (Season 2 deployed after the adapter's start)
+  const flipping = HOOKS.map((_, i) => i).filter((i) => flipLogsByHook[i].length);
+  if (!flipping.length) return totals;
   // both are immutables of the hook
-  const dice: string = await options.api.call({ target: hook, abi: "address:dice" });
-  const provider: string = await options.api.call({ target: hook, abi: "address:diceProvider" });
-  let total = 0n;
-  for (const flip of flips) {
-    const call = { target: dice, abi: "function getFeeV2(address provider, uint32 gasLimit) view returns (uint128)", params: [provider, FLIP_CALLBACK_GAS] };
-    // sdk.api2.abi.call keeps the flip's block (options.api.call replaces it with the window's end block). Nodes
-    // without that block's state fall back to the window's end block.
-    const atFlip: Uint | null = await sdk.api2.abi.call({ chain: options.chain, ...call, block: Number(flip.blockNumber), permitFailure: true });
-    const fee: Uint = atFlip ?? (await options.api.call(call));
-    total += BigInt(fee);
-  }
-  return total;
+  const hooks = flipping.map((i) => HOOKS[i].hook);
+  const dices: string[] = await options.api.multiCall({ abi: "address:dice", calls: hooks });
+  const providers: string[] = await options.api.multiCall({ abi: "address:diceProvider", calls: hooks });
+  const fees: Uint[] = await options.api.multiCall({
+    abi: "function getFeeV2(address provider, uint32 gasLimit) view returns (uint128)",
+    calls: flipping.map((_, j) => ({ target: dices[j], params: [providers[j], FLIP_CALLBACK_GAS] })),
+  });
+  flipping.forEach((i, j) => (totals[i] = BigInt(fees[j]) * BigInt(flipLogsByHook[i].length)));
+  return totals;
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -68,19 +67,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
 
   const targets = HOOKS.map(({ hook }) => hook);
-  const [potLogsByHook, flipLogsByHook]: [PotFundedArgs[][], FlipLog[][]] = await Promise.all([
+  const [potLogsByHook, flipLogsByHook]: [PotFundedArgs[][], unknown[][]] = await Promise.all([
     options.getLogs({ targets, eventAbi: POT_FUNDED, flatten: false }),
-    options.getLogs({ targets, eventAbi: FLIP_REQUESTED, flatten: false, onlyArgs: false }),
+    options.getLogs({ targets, eventAbi: FLIP_REQUESTED, flatten: false }),
   ]);
+  const diceByHook = await diceFeesByHook(options, flipLogsByHook);
 
   for (let i = 0; i < HOOKS.length; i++) {
-    const { hook, rolloverBps, pfwaBurnBps, imdBurnBps } = HOOKS[i];
+    const { rolloverBps, pfwaBurnBps, imdBurnBps } = HOOKS[i];
     const fees = potLogsByHook[i].reduce((sum, log) => sum + BigInt(log.amount), 0n);
     if (fees === 0n && !flipLogsByHook[i].length) continue;
     // Season 2 only lets a flip go ahead when its own buy paid at least the Dice fee into the pot; in Season 1 the fee
     // (0.000025 ETH so far) is well under the 0.00005 ETH a minimum buy pays. The cap keeps the split non-negative if a
     // Dice fee ever came out of earlier pot money.
-    const dice = await diceFees(options, hook, flipLogsByHook[i]);
+    const dice = diceByHook[i];
     const toDice = dice < fees ? dice : fees;
     const settled = fees - toDice; // what is left for the round's settlement
     const toPfwaBurn = (settled * BigInt(pfwaBurnBps)) / 10000n;
@@ -129,7 +129,7 @@ const breakdownMethodology = {
     [L.PFWA_BURN]: "The pot share that buys back and burns $PFWA: 10% in Season 1, 7% in Season 2, of the pot fees left after Dice fees, counted when the swap pays the fee.",
   },
   SupplySideRevenue: {
-    [L.TO_DICE]: "The Dice Protocol randomness fee each Flip move pays out of the pot (getFeeV2 at the flip's block).",
+    [L.TO_DICE]: "The Dice Protocol randomness fee each Flip move pays out of the pot (Dice's getFeeV2, read at the end of the period).",
     [L.TO_WINNERS]: "The round's prizes: 50/20/10% to the top three in Season 1; 40/20/10% to the top three and 8% to the King of the Hill in Season 2. Referral cuts, forfeited and unclaimed prizes stay within the players' pots.",
     [L.TO_NEXT_ROUND]: "The share that rolls into the next round's pot (10% in Season 1, 5% in Season 2).",
     [L.TO_IMD_BURN]: "Season 2 only: the 10% that buys back and burns $IMD, the game pool's token (not PFWA's).",

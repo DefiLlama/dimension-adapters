@@ -6,10 +6,12 @@ import { FetchOptions } from "../adapters/types";
 //   v1 factory 0x2502aB7E69dDb3157683A82E603360Ada9B6E647, outcome token implementation 0x3e90a0217e4fbbf9567f175d74a123a5769bc845
 //   v2 factory 0x7B38e940Cd649bc0C701c42eE1A6ceff75584afa, outcome token implementation 0x913d53e2fc37f3b4a2b67ee7c089b827054455b8
 // Shared by the pfwa-markets adapters (dexs, fees, open-interest, active-users).
-// firstBlock: the block of the factory's first market. Windows ending before it skip the factory, which may not exist yet.
-export const PFWA_MARKET_FACTORIES: { factory: string; version: 1 | 2; firstBlock: number }[] = [
-  { factory: "0x2502aB7E69dDb3157683A82E603360Ada9B6E647", version: 1, firstBlock: 24074745 }, // 2026-07-31
-  { factory: "0x7B38e940Cd649bc0C701c42eE1A6ceff75584afa", version: 2, firstBlock: 50512948 }, // 2026-08-31
+// firstMarketTimestamp: the time of the factory's first market. Windows ending before it skip the factory, which may not
+// exist yet. Gated on the first market rather than the deployment because Robinhood block-by-timestamp lookups can be
+// ~3 minutes off, and the v2 factory deployed only 314s before its first market.
+export const PFWA_MARKET_FACTORIES: { factory: string; version: 1 | 2; firstMarketTimestamp: number }[] = [
+  { factory: "0x2502aB7E69dDb3157683A82E603360Ada9B6E647", version: 1, firstMarketTimestamp: 1785490627 }, // 2026-07-31 09:37:07 UTC, block 24074745 (deployed 2026-07-29 23:28:15, block 22848798)
+  { factory: "0x7B38e940Cd649bc0C701c42eE1A6ceff75584afa", version: 2, firstMarketTimestamp: 1788143871 }, // 2026-08-31 02:37:51 UTC, block 50512948 (deployed 2026-08-31 02:32:37, block 50509822)
 ];
 
 // Wallets PFWA itself trades and creates markets from. Their buys, sells and paid market creations are the protocol's
@@ -45,12 +47,11 @@ export type PfwaMarketToken = { factory: string; version: 1 | 2; marketId: numbe
 export type PfwaTokenLog<A> = { token: string; info: PfwaMarketToken; transactionHash: string; blockNumber: number; args: A };
 
 /**
- * The factories that exist by the end of the window (`firstBlock` <= the window's end block). Reading a factory before
- * it was deployed reverts, so windows that end earlier skip it.
+ * The factories that have a market by the end of the window (`firstMarketTimestamp` <= `toTimestamp`). Reading a factory
+ * before it was deployed reverts, so windows that end earlier skip it.
  */
-export async function getPfwaLiveFactories(options: FetchOptions) {
-  const toBlock = await options.getToBlock();
-  return PFWA_MARKET_FACTORIES.filter(({ firstBlock }) => toBlock >= firstBlock);
+export function getPfwaLiveFactories(options: FetchOptions) {
+  return PFWA_MARKET_FACTORIES.filter(({ firstMarketTimestamp }) => options.toTimestamp >= firstMarketTimestamp);
 }
 
 /**
@@ -60,14 +61,14 @@ export async function getPfwaLiveFactories(options: FetchOptions) {
  */
 export async function getPfwaMarketTokens(options: FetchOptions): Promise<Record<string, PfwaMarketToken>> {
   const tokens: Record<string, PfwaMarketToken> = {};
-  const factories = await getPfwaLiveFactories(options);
+  const factories = getPfwaLiveFactories(options);
   const counts: Uint[] = await options.api.multiCall({ abi: "uint256:marketCount", calls: factories.map(({ factory }) => factory) });
-  for (let i = 0; i < factories.length; i++) {
-    const { factory, version } = factories[i];
-    const ids = Array.from({ length: Number(counts[i]) }, (_, id) => id);
-    const lists: string[][] = await options.api.multiCall({ target: factory, abi: "function getOptionTokenAddresses(uint256) view returns (address[])", calls: ids });
-    lists.forEach((list, marketId) => list.forEach((token) => (tokens[token.toLowerCase()] = { factory, version, marketId })));
-  }
+  const markets: PfwaMarketToken[] = factories.flatMap(({ factory, version }, i) => Array.from({ length: Number(counts[i]) }, (_, marketId) => ({ factory, version, marketId })));
+  const lists: string[][] = await options.api.multiCall({
+    abi: "function getOptionTokenAddresses(uint256) view returns (address[])",
+    calls: markets.map(({ factory, marketId }) => ({ target: factory, params: [marketId] })),
+  });
+  lists.forEach((list, i) => list.forEach((token) => (tokens[token.toLowerCase()] = markets[i])));
   return tokens;
 }
 

@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -18,8 +17,8 @@ import ADDRESSES from "../helpers/coreAssets.json";
 //   amount * protocolBps / 10000 to the factory's protocolRecipient and holds the rest until the account claims it.
 //   protocolBps is immutable in the factory, so the split is computed from each Funded event as it accrues.
 // - Launch fees: the Credence fee each launcher charges on top of Pons' own launch fee (credenceFee / launchFee), kept
-//   in the launcher until its owner withdraws it. The owner can change the fee (CredenceFeeSet / LaunchFeeSet), so it
-//   is read at each launch's block.
+//   in the launcher until its owner withdraws it. The owner can change the fee (CredenceFeeSet / LaunchFeeSet); it is
+//   read at the window's end block.
 // Not fees: the bet's winnings coming home and the meme tokens they buy back and burn (they are the bet's outcome).
 // The $PFWA buyback is counted at the fee source (20% of the creator fees as they are collected), not from the harvests:
 // a harvest spends 20% of whatever WETH the vault holds, which can include WETH that is not fees (the v2 vaults have
@@ -28,13 +27,14 @@ import ADDRESSES from "../helpers/coreAssets.json";
 const PFWA_SHARE_BPS = 2000n; // 20% of a token vault's creator fees buys and burns $PFWA (PFWA_FEE_SPLIT_BPS / PFWA_SPLIT_BPS)
 const WETH = ADDRESSES.robinhood.WETH;
 
-// firstBlock: a block by which the contract existed (its first vault or launch, or its constructor's event). Windows
-// ending earlier skip it.
-const VAULT_FACTORIES: { factory: string; kind: "v1" | "v2" | "creator"; firstBlock: number }[] = [
-  { factory: "0x17d0f24ADbD613C046eB25c0cc054333c5481F05", kind: "v1", firstBlock: 56562702 }, // CredenceVaultFactory, 2026-09-07
-  { factory: "0x099684533Dc729457650AB2424811AF9c79032D8", kind: "v2", firstBlock: 67351602 }, // CredenceVaultFactoryV2, 2026-09-19
-  { factory: "0xD9e709c55Ce2680B99E982Ce1AAb24890dD39D55", kind: "v2", firstBlock: 65764888 }, // 18 Sep 2026 v2 rehearsal factory, retired (one vault)
-  { factory: "0xade0E3e0218d53A89E607F312DB9CeA2DFcC5D10", kind: "creator", firstBlock: 75935164 }, // CreatorFeeVaultFactory, 2026-09-29
+// firstVaultTimestamp: the time of the factory's first vault. Windows ending earlier skip it, since listing the vaults
+// of a factory not deployed yet reverts. Gated on the first vault rather than the deployment because Robinhood
+// block-by-timestamp lookups can be ~3 minutes off; every factory was deployed 50+ minutes before its first vault.
+const VAULT_FACTORIES: { factory: string; kind: "v1" | "v2" | "creator"; firstVaultTimestamp: number }[] = [
+  { factory: "0x17d0f24ADbD613C046eB25c0cc054333c5481F05", kind: "v1", firstVaultTimestamp: 1788756722 }, // CredenceVaultFactory, 2026-09-07 04:52:02 UTC, block 56562702
+  { factory: "0x099684533Dc729457650AB2424811AF9c79032D8", kind: "v2", firstVaultTimestamp: 1789851952 }, // CredenceVaultFactoryV2, 2026-09-19 21:05:52 UTC, block 67391134 (deployed 19:59:45, block 67351602)
+  { factory: "0xD9e709c55Ce2680B99E982Ce1AAb24890dD39D55", kind: "v2", firstVaultTimestamp: 1789752976 }, // v2 rehearsal factory, retired (one vault), 2026-09-18 17:36:16 UTC, block 66408469 (deployed 09-17 23:35:29, block 65764888)
+  { factory: "0xade0E3e0218d53A89E607F312DB9CeA2DFcC5D10", kind: "creator", firstVaultTimestamp: 1790723752 }, // CreatorFeeVaultFactory, 2026-09-29 23:15:52 UTC, block 76043400 (deployed 20:14:58, block 75935164)
 ];
 const EVENTS = {
   feesCollected: "event FeesCollected(uint256 weth)",
@@ -45,11 +45,12 @@ const EVENTS = {
   creatorLaunched: "event CreatorTokenLaunched(address indexed token, address indexed vault, address indexed launcher, bytes32 idHash, address curve, address pairToken)",
 };
 
-// the retired rehearsal launcher (0x69CD45c4d89CA8Cfe37c2ED1F869306e031d58F9, one team rehearsal launch) is not counted
+// the retired rehearsal launcher (0x69CD45c4d89CA8Cfe37c2ED1F869306e031d58F9, one team rehearsal launch) is not counted.
+// No start gate: a launcher is read through its logs (none before it is deployed) and, per launch, its fee.
 const LAUNCHERS = [
-  { launcher: "0xdF2eBF0bc156880BbE03d8eD330B2A2431d74019", feeAbi: "uint256:credenceFee", eventAbi: EVENTS.launchedV1, firstBlock: 56562702 }, // CredenceDeployer (v1)
-  { launcher: "0x6EF3e8b1291463434850fb6ED466858A043D8525", feeAbi: "uint256:credenceFee", eventAbi: EVENTS.launchedV2, firstBlock: 67351602 }, // CredenceLauncherV2
-  { launcher: "0x0903EB2fBccf7bF9eC86b4cb2894A7a9E5Adab5c", feeAbi: "uint256:launchFee", eventAbi: EVENTS.creatorLaunched, firstBlock: 75935164 }, // CreatorLauncher
+  { launcher: "0xdF2eBF0bc156880BbE03d8eD330B2A2431d74019", feeAbi: "uint256:credenceFee", eventAbi: EVENTS.launchedV1 }, // CredenceDeployer (v1)
+  { launcher: "0x6EF3e8b1291463434850fb6ED466858A043D8525", feeAbi: "uint256:credenceFee", eventAbi: EVENTS.launchedV2 }, // CredenceLauncherV2
+  { launcher: "0x0903EB2fBccf7bF9eC86b4cb2894A7a9E5Adab5c", feeAbi: "uint256:launchFee", eventAbi: EVENTS.creatorLaunched }, // CreatorLauncher
 ];
 
 const L = {
@@ -65,10 +66,6 @@ const L = {
 };
 
 type Uint = bigint | string | number;
-type LaunchLog = { blockNumber: number | string };
-
-const listVaults = (options: FetchOptions, target: string): Promise<string[]> =>
-  options.api.fetchList({ lengthAbi: "uint256:vaultCount", itemAbi: "function allVaults(uint256) view returns (address)", target });
 
 const assetKey = (asset: string) => (asset.toLowerCase() === ADDRESSES.null ? ADDRESSES.null : asset);
 
@@ -79,18 +76,21 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const toBlock = await options.getToBlock();
-  const factories = VAULT_FACTORIES.filter(({ firstBlock }) => toBlock >= firstBlock);
-  const launchers = LAUNCHERS.filter(({ firstBlock }) => toBlock >= firstBlock);
-  const vaultLists = await Promise.all(factories.map(({ factory }) => listVaults(options, factory)));
-  const vaultsOf = (kind: string) => factories.flatMap(({ kind: k }, i) => (k === kind ? vaultLists[i] : []));
+  const factories = VAULT_FACTORIES.filter(({ firstVaultTimestamp }) => options.toTimestamp >= firstVaultTimestamp);
+  const counts = await options.api.multiCall({ abi: "uint256:vaultCount", calls: factories.map(({ factory }) => factory) });
+  const slots = factories.flatMap(({ factory, kind }, i) => Array.from({ length: Number(counts[i]) }, (_, id) => ({ factory, kind, id })));
+  const vaults: string[] = await options.api.multiCall({
+    abi: "function allVaults(uint256) view returns (address)",
+    calls: slots.map(({ factory, id }) => ({ target: factory, params: [id] })),
+  });
+  const vaultsOf = (kind: string) => vaults.filter((_, j) => slots[j].kind === kind);
   const logsOf = async <A>(targets: string[], eventAbi: string): Promise<A[]> => (targets.length ? options.getLogs({ targets, eventAbi }) : []);
 
   const [collectedV2, harvestedV1, funded, launches] = await Promise.all([
     logsOf<{ weth: Uint }>(vaultsOf("v2"), EVENTS.feesCollected),
     logsOf<{ totalWeth: Uint }>(vaultsOf("v1"), EVENTS.harvested),
     logsOf<{ asset: string; from: string; amount: Uint }>(vaultsOf("creator"), EVENTS.funded),
-    Promise.all(launchers.map(({ launcher, eventAbi }): Promise<LaunchLog[]> => options.getLogs({ target: launcher, eventAbi, onlyArgs: false }))),
+    Promise.all(LAUNCHERS.map(({ launcher, eventAbi }): Promise<unknown[]> => options.getLogs({ target: launcher, eventAbi }))),
   ]);
 
   const addCreatorFees = (weth: bigint) => {
@@ -122,17 +122,14 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // launch fees: one Credence fee per launch, at the launcher's rate in force at the launch's block
+  // launch fees: one Credence fee per launch, at the launcher's fee read at the window's end block. The owner can change
+  // it, but it has changed once since launch (CredenceLauncherV2: 0.0005 to 0.0015 ETH on 2026-09-20 18:15 UTC, with no
+  // launch in that hour), so it is not read at each launch's block.
   let launchFees = 0n;
-  for (let i = 0; i < launchers.length; i++) {
-    for (const log of launches[i]) {
-      const call = { target: launchers[i].launcher, abi: launchers[i].feeAbi };
-      // sdk.api2.abi.call keeps the launch's block (options.api.call replaces it with the window's end block). Nodes
-      // without that block's state fall back to the window's end block.
-      const atLaunch: Uint | null = await sdk.api2.abi.call({ chain: options.chain, ...call, block: Number(log.blockNumber), permitFailure: true });
-      const fee: Uint = atLaunch ?? (await options.api.call(call));
-      launchFees += BigInt(fee);
-    }
+  for (let i = 0; i < LAUNCHERS.length; i++) {
+    if (!launches[i].length) continue;
+    const fee: Uint = await options.api.call({ target: LAUNCHERS[i].launcher, abi: LAUNCHERS[i].feeAbi });
+    launchFees += BigInt(fee) * BigInt(launches[i].length);
   }
   if (launchFees > 0n) {
     dailyFees.addGasToken(launchFees, L.LAUNCH_FEES);

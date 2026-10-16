@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -15,12 +14,15 @@ import { PFWA_PROTOCOL_WALLETS, PfwaSell, getPfwaLiveFactories, getPfwaMarketTra
 //   deployment, never changed), half to the treasury and half to the market's bonus pot, which goes to the winning side
 //   at resolution. v1 markets only trade before their deadline, so every v1 sell pays it.
 // - Sell after the deadline (v2 markets, once the post-deadline grace period is over): the buy fee again, to the
-//   creator and to the treasury. feePercentage can be lowered later (factory setFeeForMarket), so it is read at the
-//   sell's block.
+//   creator and to the treasury. feePercentage can be lowered later (factory setFeeForMarket, by the market's creator
+//   or the owner, no event); it is read at the window's end block. No v2 outcome token's fee has changed since launch
+//   (6-hourly samples of all 230 tokens, 2026-08-31 to 2026-10-16).
 // - Creating a market (createMarket, not the relayer's free createRelayerMarket) costs marketCreationFee. v1 sends all
 //   of it to the treasury; v2 sends buybackBurnPercentage (in bps) of it through WETH into the 1% WETH/PFWA Uniswap v3
 //   pool and transfers the $PFWA bought to the dead address, and the rest to the treasury. Both settings can change
-//   (setCreationFee, setBuybackBurnPercentage, which emit no events), so they are read at each creation's block.
+//   (setCreationFee, setBuybackBurnPercentage, which emit no events); they are read at the window's end block. The v2
+//   creation fee changed twice (0.005 to 0.0025 ETH on 2026-09-02 20:46 UTC, to 0.001 ETH on 2026-09-10 21:19 UTC),
+//   with no paid creation earlier in either hour; buybackBurnPercentage has stayed 5000.
 // Trades and paid market creations by PFWA's own wallets are excluded (helpers/pfwa-markets.ts).
 
 const PFWA = "0xa934bA4F59070149d37A93F8A002Af79BAe35563";
@@ -32,7 +34,7 @@ const MARKET_CREATED = "event MarketCreated(uint256 indexed marketId, uint8 inde
 const toTopic = (address: string) => "0x" + address.toLowerCase().replace("0x", "").padStart(64, "0");
 
 type Uint = bigint | string | number;
-type MarketCreatedLog = { transactionHash: string; blockNumber: number | string; args: { creator: string; optionTokens: string[] } };
+type MarketCreatedLog = { transactionHash: string; args: { creator: string; optionTokens: string[] } };
 type TransferLog = { transactionHash: string; args: { from: string; to: string; value: Uint } };
 
 const L = {
@@ -48,24 +50,6 @@ const L = {
   BUYBACK: "PFWA Buyback And Burn",
 };
 
-// Reads `abi` on each (target, block) pair at that block, one multiCall per distinct block. Used for settings that can
-// change, so each event is valued with the setting in force when it happened. Keyed `${block}-${target}`.
-async function readAtBlocks(options: FetchOptions, abi: string, items: { target: string; block: number }[]): Promise<Record<string, Uint>> {
-  const byBlock: Record<number, Set<string>> = {};
-  for (const { target, block } of items) (byBlock[block] = byBlock[block] || new Set()).add(target.toLowerCase());
-  const out: Record<string, Uint> = {};
-  for (const [block, targetSet] of Object.entries(byBlock)) {
-    const targets = [...targetSet];
-    // sdk.api2.abi.multiCall keeps `block` (options.api.multiCall replaces it with the window's end block). Nodes
-    // without that block's state fall back to the window's end block.
-    const atBlock: (Uint | null)[] = await sdk.api2.abi.multiCall({ chain: options.chain, abi, calls: targets, block: Number(block), permitFailure: true });
-    const missing = targets.filter((_, i) => atBlock[i] === null);
-    const latest: Uint[] = missing.length ? await options.api.multiCall({ abi, calls: missing }) : [];
-    targets.forEach((target, i) => (out[`${block}-${target}`] = atBlock[i] ?? latest[missing.indexOf(target)]));
-  }
-  return out;
-}
-
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -73,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const live = await getPfwaLiveFactories(options);
+  const live = getPfwaLiveFactories(options);
   const factories = live.map(({ factory }) => factory);
   const v2Factory = live.find(({ version }) => version === 2)?.factory; // only v2 buys back $PFWA
   const { buys, sells } = await getPfwaMarketTrades(options);
@@ -132,11 +116,13 @@ const fetch = async (options: FetchOptions) => {
     if (expiration <= options.startTimestamp) return true;
     return expiration < options.endTimestamp && sell.blockNumber >= deadlineBlock[expiration];
   };
-  const lateSells = sells.filter(isAfterDeadline);
-  const feeAtSell = await readAtBlocks(options, "uint256:feePercentage", lateSells.map((s) => ({ target: s.token, block: s.blockNumber })));
+  const lateTokens = [...new Set(sells.filter(isAfterDeadline).map((s) => s.token))];
+  const lateFees: Uint[] = await options.api.multiCall({ abi: "uint256:feePercentage", calls: lateTokens });
+  const lateFeeOf: Record<string, bigint> = {};
+  lateTokens.forEach((token, i) => (lateFeeOf[token] = BigInt(lateFees[i])));
   for (const sell of sells) {
     if (isAfterDeadline(sell)) {
-      const share = (sell.ethReceived * BigInt(feeAtSell[`${sell.blockNumber}-${sell.token}`])) / 1000n;
+      const share = (sell.ethReceived * lateFeeOf[sell.token]) / 1000n;
       addTradingFee(sell.token, share, share);
     } else {
       const penalty = (sell.ethReceived * sellSettings[sell.token].sellFee) / 1000n;
@@ -150,24 +136,24 @@ const fetch = async (options: FetchOptions) => {
 
   // market creation fees: createMarket names the caller as the creator of the outcome tokens, while
   // createRelayerMarket (free, relayer only) names the treasury, so a market paid for its creation when the two match
-  const paid: { factory: string; version: 1 | 2; block: number; tx: string }[] = [];
+  const paid: { factory: string; version: 1 | 2; tx: string }[] = [];
   marketCreations.forEach((logs, i) => {
     for (const log of logs) {
       const creator = String(log.args.creator).toLowerCase();
       if (creatorOf[String(log.args.optionTokens[0]).toLowerCase()] !== creator) continue; // relayer market, no fee
       if (PFWA_PROTOCOL_WALLETS.has(creator)) continue;
-      paid.push({ factory: factories[i], version: live[i].version, block: Number(log.blockNumber), tx: String(log.transactionHash).toLowerCase() });
+      paid.push({ factory: factories[i], version: live[i].version, tx: String(log.transactionHash).toLowerCase() });
     }
   });
-  const [creationFeeAt, buybackBpsAt] = await Promise.all([
-    readAtBlocks(options, "uint256:marketCreationFee", paid.map(({ factory, block }) => ({ target: factory, block }))),
-    readAtBlocks(options, "uint256:buybackBurnPercentage", paid.filter(({ version }) => version === 2).map(({ factory, block }) => ({ target: factory, block }))),
-  ]);
+  const paidFactories = [...new Set(paid.map(({ factory }) => factory))];
+  const creationFees: Uint[] = await options.api.multiCall({ abi: "uint256:marketCreationFee", calls: paidFactories });
+  const creationFeeOf: Record<string, bigint> = {};
+  paidFactories.forEach((factory, i) => (creationFeeOf[factory] = BigInt(creationFees[i])));
+  const buybackBps = paid.some(({ version }) => version === 2) ? BigInt(await options.api.call({ target: v2Factory!, abi: "uint256:buybackBurnPercentage" })) : 0n;
   const paidCreationTxs = new Set<string>();
-  for (const { factory, version, block, tx } of paid) {
-    const key = `${block}-${factory.toLowerCase()}`;
-    const creationFee = BigInt(creationFeeAt[key]);
-    const toBuyback = version === 2 ? (creationFee * BigInt(buybackBpsAt[key])) / 10000n : 0n;
+  for (const { factory, version, tx } of paid) {
+    const creationFee = creationFeeOf[factory];
+    const toBuyback = version === 2 ? (creationFee * buybackBps) / 10000n : 0n;
     if (version === 2) paidCreationTxs.add(tx);
     dailyFees.addGasToken(creationFee, L.CREATION_FEES);
     dailyRevenue.addGasToken(creationFee - toBuyback, L.CREATION_FEES_TO_PROTOCOL);
