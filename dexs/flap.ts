@@ -170,23 +170,30 @@ const getTradesFromIndexer = async (options: FetchOptions, portal: string): Prom
   return { volumeByToken, quoteByToken, quoteTokens };
 };
 
-// Full taxToken → quoteToken map for SupplySide (all TokenQuoteSet, not only traded).
-const getQuoteMapFromIndexer = async (options: FetchOptions, portal: string): Promise<Record<string, string>> => {
+// taxToken → quoteToken for the given tokens only. TokenQuoteSet is emitted once at creation, so no
+// time filter is needed; scanning the whole portal history instead returns millions of rows per slice.
+const getQuoteMapForTokens = async (options: FetchOptions, portal: string, tokens: string[]): Promise<Record<string, string>> => {
   const chainId = Number(options.api.chainId);
   const target = portal.toLowerCase();
-  const rows = await queryClickhouse<any>(`
-    SELECT
-      concat('0x', substring(data, 27, 40)) AS token,
-      concat('0x', substring(data, 91, 40)) AS quote
-    FROM evm_indexer.logs
-    PREWHERE chain = ${chainId}
-      AND short_address = '${shortAddrOf(target)}'
-      AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
-      AND address = '${target}'
-      AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
-  `, undefined, { max_query_size: 4194304 });
   const quoteByToken: Record<string, string> = {};
-  rows.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  const unique = uniqueLower(tokens);
+  const CHUNK = 10000;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const tokenList = unique.slice(i, i + CHUNK).map((token) => `'${token.slice(2)}'`).join(",");
+    const rows = await queryClickhouse<any>(`
+      SELECT
+        concat('0x', substring(data, 27, 40)) AS token,
+        concat('0x', substring(data, 91, 40)) AS quote
+      FROM evm_indexer.logs
+      PREWHERE chain = ${chainId}
+        AND short_address = '${shortAddrOf(target)}'
+        AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+        AND address = '${target}'
+        AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+        AND substring(data, 27, 40) IN (${tokenList})
+    `, undefined, { max_query_size: 4194304 });
+    rows.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  }
   return quoteByToken;
 };
 
@@ -295,11 +302,13 @@ const fetchSupplySide = async (
   params: {
     erc20Quotes: string[];
     quoteTokens: Record<string, string>;
+    // Indexer chains: quotes for the window's tax tokens are looked up on demand.
+    resolveQuotes?: (taxTokens: string[]) => Promise<Record<string, string>>;
     dailyFees: ReturnType<FetchOptions["createBalances"]>;
     dailySupplySideRevenue: ReturnType<FetchOptions["createBalances"]>;
   },
 ) => {
-  const { erc20Quotes, quoteTokens, dailyFees, dailySupplySideRevenue } = params;
+  const { erc20Quotes, quoteTokens, resolveQuotes, dailyFees, dailySupplySideRevenue } = params;
   const { wrappedNative } = config;
 
   const addSupplySide = (token: string, amount: any, label: string) => {
@@ -373,11 +382,19 @@ const fetchSupplySide = async (
     });
   }
 
+  let supplyQuotes = quoteTokens;
+  if (resolveQuotes && dispatchLogs.length) {
+    const taxTokens = dispatchLogs
+      .map((log: any) => String((log.args ?? log).taxToken ?? "").toLowerCase())
+      .filter(Boolean);
+    supplyQuotes = { ...quoteTokens, ...(await resolveQuotes(taxTokens)) };
+  }
+
   dispatchLogs.forEach((log: any) => {
     const args = log.args ?? log;
     const taxToken = String(args.taxToken ?? "").toLowerCase();
     if (!taxToken) return;
-    const quote = resolveQuoteToken(taxToken, quoteTokens, wrappedNative);
+    const quote = resolveQuoteToken(taxToken, supplyQuotes, wrappedNative);
     if (!quote) return;
     const marketAmount = args.marketAmount;
     const dividendAmount = args.dividendAmount;
@@ -429,13 +446,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   dailyRevenue.addBalances(dailyFees);
   dailyProtocolRevenue.addBalances(dailyFees);
 
-  const supplyQuoteMap = useIndexer
-    ? await getQuoteMapFromIndexer(options, portal)
-    : quoteByToken;
-
   await fetchSupplySide(options, config, {
     erc20Quotes,
-    quoteTokens: supplyQuoteMap,
+    quoteTokens: quoteByToken,
+    resolveQuotes: useIndexer ? (taxTokens) => getQuoteMapForTokens(options, portal, taxTokens) : undefined,
     dailyFees,
     dailySupplySideRevenue,
   });
