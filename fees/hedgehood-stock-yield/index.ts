@@ -22,21 +22,16 @@ const EPOCH = 'tuple(uint64 lockedAt,uint64 expiry,uint64 settledAt,uint256 stoc
 const ABI = {
   quotedLocked: 'event QuotedLocked(uint256 indexed epoch, address indexed buyer, bytes32 quoteDigest, uint256 premium, uint256 fee)',
   quotedVoided: 'event QuotedVoided(uint256 indexed epoch, address indexed buyer, uint256 refund, bytes32 reasonHash)',
-  quotedEpochSettled: 'event QuotedEpochSettled(uint256 indexed epoch, address indexed buyer, uint256 price, uint256 buyerStock, uint256 premium, uint256 fee)',
   epochSettled: 'event EpochSettled(uint256 indexed epoch, bytes32 indexed digest, int256 netPnl, uint256 stockDebit, uint256 debitPrice)',
   getEpoch: `function getEpoch(uint256) view returns (${EPOCH})`,
 };
 
-const LABELS = {
-  premiums: 'Covered-call premiums net of option payouts',
-  deskFee: 'Desk fee on option premiums',
-  depositors: 'Covered-call premiums to depositors net of option payouts',
-};
+const LABEL = 'Desk fee on option premiums';
 
+// Only the desk's fee is reported as fees. The premium itself is the buyer's payment for the option, carried by
+// depositors against the risk of the call settling in the money, so it is premium volume (options adapter), not fees.
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   // Sales are recognized when their void window closes, so they come from the window one VOID_WINDOW earlier.
   const blocks = await Promise.all([
     options.getFromBlock(),
@@ -53,61 +48,32 @@ async function fetch(options: FetchOptions) {
 
   for (const { vault, desk } of VAULTS) {
     if (saleFromBlock > toBlock) break; // before deployment
-    const [sales, voids, settlements, reported] = await Promise.all([
+    const [sales, voids, reported] = await Promise.all([
       saleFromBlock <= saleToBlock ? options.getLogs({ target: desk, eventAbi: ABI.quotedLocked, fromBlock: saleFromBlock, toBlock: saleToBlock }) : [],
-      // A void comes at most VOID_WINDOW after its sale, so every void of those sales is in this range, as is any
-      // void settled in this window.
+      // A void comes at most VOID_WINDOW after its sale, so every void of those sales is in this range.
       options.getLogs({ target: desk, eventAbi: ABI.quotedVoided, fromBlock: saleFromBlock, toBlock }),
-      fromBlock <= toBlock ? options.getLogs({ target: vault, eventAbi: ABI.quotedEpochSettled, fromBlock, toBlock }) : [],
       fromBlock <= toBlock ? options.getLogs({ target: vault, eventAbi: ABI.epochSettled, fromBlock, toBlock }) : [],
     ]);
-    const refunds = new Map(voids.map((log: any) => [String(log.epoch), BigInt(log.refund)]));
+    const voided = new Set(voids.map((log: any) => String(log.epoch)));
 
-    // The premium is paid into the vault at the sale and the desk fee is fixed then. A voided sale refunds 90% of
-    // the premium to the buyer, charges no fee, and depositors keep the rest.
+    // The desk fee is fixed at the sale as a share of the gross premium and paid to the Safe at settlement. A voided
+    // sale charges no fee.
     for (const sale of sales) {
-      const premium = BigInt(sale.premium);
-      const refund = refunds.get(String(sale.epoch));
-      const fee = refund === undefined ? BigInt(sale.fee) : 0n;
-      const kept = premium - (refund ?? 0n);
-      dailyFees.add(USDG, kept, LABELS.premiums);
-      dailyRevenue.add(USDG, fee, LABELS.deskFee);
-      dailySupplySideRevenue.add(USDG, kept - fee, LABELS.depositors);
+      if (voided.has(String(sale.epoch))) continue;
+      dailyFees.add(USDG, BigInt(sale.fee), LABEL);
     }
 
-    // At expiry a call in the money pays the buyer stock worth its intrinsic value, out of depositors' stock.
-    // A void also settles the epoch through the desk, with no payout.
-    const settled = settlements.filter((log: any) => !refunds.has(String(log.epoch)));
-    if (settled.length) {
-      const epochs = await options.api.multiCall({ target: vault, abi: ABI.getEpoch, calls: settled.map((log: any) => log.epoch) });
-      epochs.forEach((e: any, i: number) => {
-        const premium = BigInt(settled[i].premium);
-        const netPnl = BigInt(e.netPnl); // premium - intrinsic payout
-        const payout = premium - netPnl;
-        if (BigInt(e.settledAt) === 0n || payout < 0n || BigInt(e.feePaid) + BigInt(e.userNetPnl) !== netPnl)
-          throw new Error(`Stock Yield: epoch ${settled[i].epoch} of ${vault} does not settle as premium - payout`);
-        if (payout === 0n) return; // out of the money
-        dailyFees.add(USDG, -payout, LABELS.premiums);
-        dailySupplySideRevenue.add(USDG, -payout, LABELS.depositors);
-      });
-    }
-
-    // An epoch nobody bought a call for is closed with a zero settleEpoch. A call sold outside the desk (only if the
-    // Safe replaces the desk-only BrokerVaultDeskOperator) has no premium at the sale; its premium less payout is
-    // reported at this settlement and counted then. Loss coverage the operator adds is a subsidy, not fees.
+    // A call sold outside the desk (only if the Safe replaces the desk-only BrokerVaultDeskOperator) has no desk
+    // sale; the fee the operator reports at settlement is counted then.
     if (reported.length) {
       const epochs = await options.api.multiCall({ target: vault, abi: ABI.getEpoch, calls: reported.map((log: any) => log.epoch) });
       epochs.forEach((e: any) => {
-        const netPnl = BigInt(e.netPnl);
         const fee = BigInt(e.feePaid);
-        if (netPnl === 0n && fee === 0n) return;
-        dailyFees.add(USDG, netPnl, LABELS.premiums);
-        dailyRevenue.add(USDG, fee, LABELS.deskFee);
-        dailySupplySideRevenue.add(USDG, netPnl - fee, LABELS.depositors);
+        if (fee !== 0n) dailyFees.add(USDG, fee, LABEL);
       });
     }
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
 }
 
 const adapter: SimpleAdapter = {
@@ -116,27 +82,20 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: '2026-10-10',
   fetch,
-  // A call settling in the money pays the buyer at expiry, days after its premium was recognized: that period's fees
-  // and supply-side revenue are negative.
-  allowNegativeValue: true,
   methodology: {
-    Fees: "Premiums the vault earns selling a weekly call, recognized one hour after each sale when the Safe can no longer void it (net of the 90% refunded if it did), minus the value of the stock the buyer receives when a call settles in the money at expiry. A call sold outside the desk (not possible with the current operator) is counted at settlement, from the premium less payout the operator reports.",
-    Revenue: "The desk's fee on each sale's gross premium (20% at launch), fixed at the sale and recognized with it; paid to the HedgeHood treasury Safe at settlement. No fee is charged on a voided sale.",
-    ProtocolRevenue: "The same desk fee, paid to the HedgeHood treasury Safe.",
-    SupplySideRevenue: "Each sale's premium after the desk fee (or after the refund, if voided), recognized with the sale, minus the payout to the option buyer at expiry: what depositors gain or lose, paid as USDG rewards or deducted from their stock.",
+    Fees: "The desk's fee on the gross premium of each weekly call the vault sells (20% at launch), fixed at the sale and recognized one hour later when the Safe can no longer void the sale; a voided sale charges no fee. The premium itself is not counted as fees: it is the buyer's payment for the option, which depositors carry against the risk of the call settling in the money (see the options adapter's premium volume). A call sold outside the desk (not possible with the current operator) counts the fee the operator reports at settlement.",
+    Revenue: "All of the desk fee, paid to the HedgeHood treasury Safe at settlement.",
+    ProtocolRevenue: "All of the desk fee, paid to the HedgeHood treasury Safe at settlement.",
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.premiums]: 'Premium paid by the option buyer for each sale (QuotedLocked.premium), less the refund if the sale was voided (QuotedVoided.refund), one hour after the sale; minus the intrinsic value paid to the buyer in stock when a call settles in the money (premium - getEpoch.netPnl). A call sold outside the desk counts its reported premium less payout (getEpoch.netPnl) at settlement.',
+      [LABEL]: 'Desk fee fixed at each sale (QuotedLocked.fee), zero if the sale was voided (QuotedVoided); for a call sold outside the desk, the fee recorded at settlement (getEpoch.feePaid).',
     },
     Revenue: {
-      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided; for a call sold outside the desk, the fee recorded at settlement (getEpoch.feePaid).',
+      [LABEL]: 'The same desk fee, paid to the HedgeHood treasury Safe.',
     },
     ProtocolRevenue: {
-      [LABELS.deskFee]: 'Desk fee on gross premium fixed at each sale (QuotedLocked.fee), zero if the sale was voided; for a call sold outside the desk, the fee recorded at settlement (getEpoch.feePaid).',
-    },
-    SupplySideRevenue: {
-      [LABELS.depositors]: "Premium kept by the vault less the desk fee, credited to depositors as USDG rewards at settlement; minus the intrinsic value paid to the option buyer out of depositors' stock when a call settles in the money.",
+      [LABEL]: 'The same desk fee, paid to the HedgeHood treasury Safe.',
     },
   },
 };
