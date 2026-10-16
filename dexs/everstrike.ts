@@ -165,11 +165,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
-  // A 24h candle must be fetched once per day rather than summed across hourly pulls.
-  pullHourly: false,
+  // The API only exposes 24-hour candles, so fetch fixed UTC daily windows.
   // All 332 market keys return a daily row from this date; 2025-02-01 returned no BTC row.
   start: "2025-03-01",
   methodology: {
