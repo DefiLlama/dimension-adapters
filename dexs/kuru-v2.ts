@@ -2,13 +2,14 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { formatAddress } from "../utils/utils";
 
-// Kuru v2 ERC-1967 proxies on Monad (chain 143), deployment source commit bcf0b7c.
-// SpotRouter was deployed at block 112776229 (2026-10-12).
-const ACCOUNT_CORE = "0xA0Ba2f08c04C13190ad5dC74542ddc05C59AB516";
-const SPOT_ROUTER = "0x7d08A7B163aadfA9FA8AEdFb40F41c0874376f7D";
-const START_BLOCK = 112776229;
+// Kuru v2 ERC-1967 proxies on Monad (chain 143), deployed 15 Oct 2026.
+// https://gist.github.com/devblixt/0093a81e9fc21b6c96e74ac3d3eb08e9
+// First market registered at block 113639072.
+const ACCOUNT_CORE = "0x264123a9B96Cc1193944cC25C188f1bD3dFa670e";
+const SPOT_ROUTER = "0xBdDF3556701B7ECca5d69416CFfd7F86D37E52b3";
+const START_BLOCK = 113639072;
 
-// Fee rates are in parts per 10^7 (7000 = 0.07%): https://kuru-testnet-docs.mintlify.site/deployments/testnet
+// Fee units are parts per 10^7. Charged rates come from each fill, not a hardcoded schedule.
 const PPS = 10_000_000n;
 // Maker-flags bit set on the last fill of a taker match.
 const MATCH_END = 0x04;
@@ -167,7 +168,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  start: "2026-10-12",
+  start: "2026-10-15",
   chains: [CHAIN.MONAD],
   methodology,
   breakdownMethodology,
