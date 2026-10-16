@@ -13,12 +13,12 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  BridgeVolume:
+  Volume:
     "Value bridged through Confluence on the source chain, from Confluence's public stats API: USDC sent with Circle CCTP (counted once Circle's attestation data confirms the burn) plus the USD value of cross-chain routes executed through Relay that Relay reported as successful. Same-chain swaps, Arc to Arc payments and fees are not included.",
 };
 
 const breakdownMethodology = {
-  BridgeVolume: {
+  Volume: {
     "Circle CCTP bridges": "Native USDC burned on the source chain and minted on the destination chain with Circle CCTP, routed by Confluence.",
     "Relay cross-chain routes": "Cross-chain routes executed by Relay's solvers, routed by Confluence, at the USD value Relay reported.",
   },
