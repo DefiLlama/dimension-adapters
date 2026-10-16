@@ -35,6 +35,8 @@ const pubkey = (key: string) => Buffer.from(base58Decode(key));
 const holding = (mint: string, owner: string) => pda(["holding", pubkey(mint), pubkey(owner)], TOKEN_PROGRAM);
 const underlyingOf: Record<string, string> = Object.fromEntries(BRIDGED_UNDERLYINGS.map((u) => [pda(["wrapped", pubkey(u)], BRIDGE_PROGRAM), u]));
 const told = (mint: string) => underlyingOf[mint] ?? mint;
+const launch = (base: string) => pda(["launch", pubkey(base)], LAUNCH_PROGRAM);
+const kit = (base: string) => pda(["kit", pubkey(base)], KIT_PROGRAM);
 
 type Delta = { holding: string; amount: bigint };
 type Swap = {
@@ -101,7 +103,7 @@ async function getSwaps(options: FetchOptions) {
 // base_mint at 11, quote_mint at 43, then the optional hook program (tag at 171, key at 172)
 async function getPools(addresses: string[]) {
   const buffers = await getAccountBuffers({ chain: "solana", accounts: addresses });
-  const pools: Record<string, { base: string; quote: string; isLaunch: boolean; creatorHolding: string; holderHolding: string }> = {};
+  const pools: Record<string, { base: string; quote: string; isLaunch: boolean; creatorAccounts: Set<string>; holderAccounts: Set<string> }> = {};
   addresses.forEach((address, i) => {
     const data = buffers[i];
     if (!data) throw new Error(`Bordrless pool ${address} not found`);
@@ -111,9 +113,12 @@ async function getPools(addresses: string[]) {
       base,
       quote,
       isLaunch: data.readUInt8(171) === 1 && base58Encode(data.subarray(172, 204)) === LAUNCH_PROGRAM,
-      // a launch's creator fee accrues in the launch's quote holding, its holder rewards in the kit's reward vault
-      creatorHolding: holding(quote, pda(["launch", pubkey(base)], LAUNCH_PROGRAM)),
-      holderHolding: holding(quote, pda(["kit", pubkey(base)], KIT_PROGRAM)),
+      // A launch's creator fee accrues in the launch's quote holding, its holder rewards in the kit's reward vault.
+      // Since the native-SOL migration (2026-10-15) a native launch holds them as SOL on the launch account and the
+      // kit config; Swapped still names the holdings, and the accounts themselves are matched too, as Bordrless's
+      // own indexer does (launchSwapCutsOf in @bordrless/sdk).
+      creatorAccounts: new Set([holding(quote, launch(base)), launch(base)]),
+      holderAccounts: new Set([holding(quote, kit(base)), kit(base)]),
     };
   });
   return pools;
@@ -162,10 +167,10 @@ export async function fetchBordrless(options: FetchOptions, market: BordrlessMar
     // Creator and holder fees are the hook's cuts on the quote side: from the input on a buy, the output on a sell.
     // Cuts to other holdings (custom hooks on pools the launchpad did not create) are not Bordrless fees.
     for (const delta of swap.buy ? swap.deltasIn : swap.deltasOut) {
-      if (delta.holding === pool.creatorHolding) {
+      if (pool.creatorAccounts.has(delta.holding)) {
         add(dailyFees, quote, delta.amount, "Trading Fees");
         add(dailySupplySideRevenue, quote, delta.amount, "Creator Fees To Coin Creators");
-      } else if (delta.holding === pool.holderHolding) {
+      } else if (pool.holderAccounts.has(delta.holding)) {
         add(dailyFees, quote, delta.amount, "Trading Fees");
         add(dailySupplySideRevenue, quote, delta.amount, "Holder Reward Fees To Coin Holders");
       }
@@ -179,7 +184,7 @@ export const breakdownMethodology = {
   Fees: {
     "Trading Fees": "Every fee traders pay on a trade: the Bordrless protocol fee, the LP fee kept by the pool, the fee the coin's creator set and the fee the coin sets aside for its holders.",
   },
-  Revenue: { "Trading Fees To Protocol": "The protocol fee, paid to the Bordrless treasury." },
+  Revenue: { "Trading Fees To Protocol": "The protocol fee, paid to the Bordrless treasury: half is kept, half buys back $BORDR." },
   ProtocolRevenue: { "Trading Fees To Treasury": "Half of the protocol fee, kept by the treasury." },
   HoldersRevenue: { "BORDR Buy Back": "Half of the protocol fee, spent buying back $BORDR." },
   SupplySideRevenue: {
