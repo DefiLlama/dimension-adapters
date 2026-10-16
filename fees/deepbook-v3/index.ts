@@ -1,11 +1,15 @@
 import { FetchOptions, SimpleAdapter, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
+import { httpPost } from "../../utils/fetchURL";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 // https://github.com/MystenLabs/deepbookv3/tree/main/packages/deepbook/sources
 const ORDER_FILLED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::order_info::OrderFilled";
-const POOL_CREATED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::pool::PoolCreated<%";
+const POOL_CREATED = "0x2c8d603bc51326b8c13cef9dd07031a408a48dddb541963357661df5d3204809::pool::PoolCreated";
+// first DeepBook v3 pool (DEEP/SUI), created 2024-10-10: if it is missing the pool list is incomplete
+const FIRST_POOL = "0xe9aecf5859310f8b596fbe8488222a7fb15a55003455c9f42d1b60fab9cca9ba";
 // DEEP and SUI are valued from their own USDC books, the deepest venue for each, as that day's
 // traded quote/base ratio - the query has no other USD reference.
 const DEEP_USDC_POOL = "0xf948981b806057580f91622417534f491da5f61aeaf33d0ed8e69fd5691c95ce";
@@ -19,20 +23,58 @@ const METRICS = {
   REFERRAL_FEES: "Referral Fees To Referrers",
 };
 
-const stableQuoteFilter = (field: string) => `
-  ${field} LIKE '%::usdc::%'
-  OR ${field} LIKE '%::usdt::%'
-  OR ${field} LIKE '%::ausd::%'
-  OR ${field} LIKE '%::fdusd::%'
-  OR ${field} LIKE '%::sui_usde::%'
-  OR ${field} LIKE '%::usdsui::%'
-  OR ${field} LIKE '%::iusd::%'
-`;
+const STABLE_QUOTE_MODULES = ["usdc", "usdt", "ausd", "fdusd", "sui_usde", "usdsui", "iusd"];
+
+type PoolQuote = { pool_id: string; quote_kind: "SUI" | "STABLE" | "UNKNOWN"; qdec: number };
+
+// Every pool ever created, from its PoolCreated<Base, Quote> event (DeepBook pools are permissionless, so the
+// indexer's /get_pools lists only a fraction of them). Read from the Sui GraphQL RPC instead of Dune, where it
+// was a scan of the full sui.events history on every run.
+const getPoolQuotes = async (): Promise<PoolQuote[]> => {
+  const query = `query ($after: String) {
+    events(first: 50, after: $after, filter: { type: "${POOL_CREATED}" }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { contents { type { repr } json } }
+    }
+  }`;
+  const pools: PoolQuote[] = [];
+  let after: string | null = null;
+  do {
+    const { data, errors } = await httpPost(getEnv("SUI_GRAPH_RPC"), { query, variables: { after } });
+    if (errors) throw new Error(`DeepBook v3: Sui GraphQL error ${JSON.stringify(errors)}`);
+    for (const node of data.events.nodes) {
+      const match = node.contents.type.repr.match(/PoolCreated<.+,\s*(.+)>$/);
+      if (!match) throw new Error(`DeepBook v3: unexpected PoolCreated type ${node.contents.type.repr}`);
+      // GraphQL pads addresses to 32 bytes, Dune and coreAssets use the short form (0x2::sui::SUI)
+      const quoteType = match[1].replace(/^0x0+(?=[0-9a-f])/i, "0x").toLowerCase();
+      const quoteModule = quoteType.split("::")[1];
+      const isSui = quoteType === ADDRESSES.sui.SUI.toLowerCase();
+      pools.push({
+        pool_id: node.contents.json.pool_id,
+        quote_kind: isSui ? "SUI" : STABLE_QUOTE_MODULES.includes(quoteModule) ? "STABLE" : "UNKNOWN",
+        qdec: isSui ? 9 : 6,
+      });
+    }
+    after = data.events.pageInfo.hasNextPage ? data.events.pageInfo.endCursor : null;
+  } while (after);
+
+  if (!pools.some((pool) => pool.pool_id === FIRST_POOL))
+    throw new Error("DeepBook v3: Sui GraphQL returned an incomplete PoolCreated history");
+  return pools;
+};
+
+// Dune's sui.events keeps receiving fills for a few hours after a day closes, so recent windows are skipped until it catches up
+const INDEXING_DELAY = 10 * 60 * 60;
 
 const fetch = async (options: FetchOptions) => {
+  if (options.endTimestamp > Date.now() / 1e3 - INDEXING_DELAY) {
+    throw new Error("End timestamp is less than 10 hours ago, skipping due to Dune indexing delay");
+  }
+
   const start = options.startTimestamp;
   const end = options.endTimestamp;
-  const stableQuote = stableQuoteFilter("quote_type");
+  const poolQuotes = await getPoolQuotes();
+  const poolValues = poolQuotes.map(({ pool_id, quote_kind, qdec }) => `('${pool_id}', '${quote_kind}', ${qdec})`).join(",\n        ");
 
   const query = `
     WITH order_fills AS (
@@ -53,19 +95,9 @@ const fetch = async (options: FetchOptions) => {
         AND e.date BETWEEN CAST(from_unixtime(${start}) AS date) AND CAST(from_unixtime(${end}) AS date)
     ),
 
-    pool AS (
-      SELECT
-        pool_id,
-        CASE WHEN quote_type = '${ADDRESSES.sui.SUI.toLowerCase()}' THEN 'SUI' WHEN ${stableQuote} THEN 'STABLE' ELSE 'UNKNOWN' END AS quote_kind,
-        CASE WHEN quote_type = '${ADDRESSES.sui.SUI.toLowerCase()}' THEN 9 ELSE 6 END AS qdec
-      FROM (
-        SELECT
-          json_extract_scalar(event_json, '$.pool_id') AS pool_id,
-          lower(max(regexp_extract(event_type, ', (.+?)>', 1))) AS quote_type
-        FROM sui.events
-        WHERE event_type LIKE '${POOL_CREATED}' AND date >= date '2024-10-01'
-        GROUP BY 1
-      ) t
+    pool (pool_id, quote_kind, qdec) AS (
+      VALUES
+        ${poolValues}
     ),
 
     burns AS (
