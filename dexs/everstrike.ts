@@ -4,16 +4,27 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 const API_BASE = "https://api.everstrike.io";
-// Bound slow requests so one market cannot hang the entire adapter run.
+// Local fail-fast limit; the API documents request-rate limits but no timeout.
 const REQUEST_TIMEOUT_MS = 10000;
+// Local cap on in-flight requests; starts are paced to the documented API rate below.
 const API_CONCURRENCY = 8;
-// Everstrike REST docs specify a 20 requests/second limit:
+// Everstrike REST docs specify 20 requests/second (50ms); add 5ms of headroom:
 // https://registry.scalar.com/@default-team-2onip/apis/everstrike-rest-api/latest
 const API_REQUEST_INTERVAL_MS = 55;
 const OHLCV_INTERVAL = "24h";
+// One 24-hour candle is expected for each UTC daily window.
 const OHLCV_LIMIT = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_SECONDS = DAY_MS / 1000;
+
+interface Pair {
+  category?: string;
+}
+
+interface PairsResponse {
+  code: number;
+  result: Record<string, Pair>;
+}
 
 interface OhlcvCandle {
   close_time?: number | string;
@@ -28,15 +39,24 @@ interface OhlcvResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const getMarkets = (payload: unknown): string[] => {
+const isUnlistedPerpetualFuture = (market: string) =>
+  market.endsWith("_PERP") && !/(?:CALL|PUT)\d*_PERP$|AVG_PERP$/.test(market);
+
+const getMarkets = (payload: unknown, pairs: Record<string, Pair>): string[] => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Everstrike ticker returned an invalid payload");
   }
 
-  const markets = Object.entries(payload as Record<string, unknown>);
-  if (markets.length === 0) throw new Error("Everstrike ticker returned no markets");
+  const markets = Object.entries(payload as Record<string, unknown>).filter(([market]) => {
+    const pair = pairs[market];
+    if (pair) return pair.category === "future";
 
-  // Keep empty ticker entries: some markets are absent from /pairs but still have OHLCV history.
+    // /ticker retains removed futures; keep plain *_PERP keys, but exclude options and
+    // AVG products whose historical category is unavailable from /pairs.
+    return isUnlistedPerpetualFuture(market);
+  });
+  if (markets.length === 0) throw new Error("Everstrike ticker returned no perpetual futures");
+
   for (const [market, ticker] of markets) {
     if (!ticker || typeof ticker !== "object" || Array.isArray(ticker)) {
       throw new Error(`Everstrike ticker returned an invalid row for ${market}`);
@@ -97,8 +117,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     throw new Error("Everstrike expects a UTC daily time window");
   }
 
+  const pairs = (await httpGet(`${API_BASE}/pairs`, { timeout: REQUEST_TIMEOUT_MS })) as PairsResponse;
+  if (pairs?.code !== 200 || !pairs.result || typeof pairs.result !== "object" || Array.isArray(pairs.result)) {
+    throw new Error("Everstrike pairs API returned an invalid response");
+  }
+
   const ticker = await httpGet(`${API_BASE}/ticker`, { timeout: REQUEST_TIMEOUT_MS });
-  const markets = getMarkets(ticker);
+  const markets = getMarkets(ticker, pairs.result);
 
   // The API documents a 20 request/second limit; space starts slightly beyond 50ms.
   let nextRequestAt = 0;
@@ -113,6 +138,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         const query = new URLSearchParams({
           pair: market,
           start: String(startMs),
+          // Keep the inclusive API end inside Dimension's [startMs, endMs) daily window.
           end: String(endMs - 1),
           interval: OHLCV_INTERVAL,
           limit: String(OHLCV_LIMIT),
