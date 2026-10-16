@@ -2,6 +2,7 @@ import { Chain } from "../../adapters/types";
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 /**
  * Napier Finance Volume Adapter
@@ -41,6 +42,7 @@ const CURVE_TARGET_INDEX = 0n;
 
 interface Market {
   chainId?: number;
+  createdAtTimestamp: string;
   metadata: { address: string; chainId?: number };
   pool: {
     address: string;
@@ -55,24 +57,28 @@ interface Market {
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? "https://api-v2.napier.finance";
 
-async function fetchMarkets(chainId: number): Promise<Market[]> {
+async function fetchMarkets(chainId: number, endTimestamp: number): Promise<Market[]> {
   const url = `${API_BASE_URL}/v1/market?chainIds=${chainId}`;
   const res = await axios.get<Market[]>(url);
   if (!Array.isArray(res.data)) {
     throw new Error(`Napier API returned non-array payload for chainId ${chainId}`);
   }
-  return res.data.filter((m) => m.pool?.address && Number(m.chainId ?? m.metadata?.chainId ?? chainId) === chainId);
+  return res.data.filter((m) =>
+    m.pool?.address
+    && Number(m.chainId ?? m.metadata?.chainId ?? chainId) === chainId
+    && Number(m.createdAtTimestamp) < endTimestamp
+  );
 }
 
 const fetch = async (options: FetchOptions) => {
   const { api, getLogs, createBalances } = options;
   const dailyVolume = createBalances();
-  const markets = await fetchMarkets(api.chainId!);
+  const markets = await fetchMarkets(api.chainId!, options.endTimestamp);
   if (markets.length === 0) return { dailyVolume };
 
   // target -> asset rate per market, at the end of the period
   const resolvers = await api.multiCall({ abi: ABI.i_resolver, calls: markets.map((m) => m.metadata.address), permitFailure: true });
-  const scales = await api.multiCall({ abi: ABI.scale, calls: resolvers.map((r: string | null) => r ?? "0x0000000000000000000000000000000000000000"), permitFailure: true });
+  const scales = await api.multiCall({ abi: ABI.scale, calls: resolvers.map((r: string | null) => r ?? ADDRESSES.null), permitFailure: true });
 
   const addTarget = (market: Market, i: number, targetAmount: bigint) => {
     const scale = scales[i];
