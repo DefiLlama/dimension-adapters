@@ -40,7 +40,6 @@ const fetch = async (options: FetchOptions) => {
     const swaps: any[] = await options.getLogs({ targets: FEE_ADAPTERS, eventAbi: SERVICE_FEE_PAID });
     for (const log of swaps) {
       dailyFees.add(log.token, log.serviceFee, "Swap service fees");
-      dailyProtocolRevenue.add(log.token, log.serviceFee, "Swap service fees");
     }
   }
   // Relay fees are collected by the protocol-operated relays; swap fees go to the treasury Safe.
