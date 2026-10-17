@@ -32,18 +32,19 @@ async function fetch(options: FetchOptions) {
   const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
 
   if (fromBlock <= toBlock) {
-    for (const { vault, desk, stock } of VAULTS) {
-      // Every call the vault sells is an EpochLocked; a desk sale also emits QuotedLocked, with its premium, in the
-      // same transaction.
-      const [sales, locks] = await Promise.all([
-        options.getLogs({ target: desk, eventAbi: ABI.quotedLocked, fromBlock, toBlock }),
-        options.getLogs({ target: vault, eventAbi: ABI.epochLocked, fromBlock, toBlock }),
-      ]);
-      for (const lock of locks) dailyNotionalVolume.add(stock, lock.coveredStock);
-      // The vault's operator is the desk-only BrokerVaultDeskOperator. A call sold through the operator's own lockEpoch
-      // (only if the Safe replaces it) has no premium at the sale, so it counts toward notional only.
-      for (const sale of sales) dailyPremiumVolume.add(USDG, sale.premium);
-    }
+    // Every call the vault sells is an EpochLocked; a desk sale also emits QuotedLocked, with its premium, in the
+    // same transaction.
+    const [sales, locks] = await Promise.all([
+      options.getLogs({ targets: VAULTS.map(({ desk }) => desk), eventAbi: ABI.quotedLocked, fromBlock, toBlock }),
+      // One list per vault, in VAULTS order, so each lock is valued in its vault's stock
+      options.getLogs({ targets: VAULTS.map(({ vault }) => vault), eventAbi: ABI.epochLocked, fromBlock, toBlock, flatten: false }),
+    ]);
+    locks.forEach((vaultLocks: any[], i: number) => {
+      for (const lock of vaultLocks) dailyNotionalVolume.add(VAULTS[i].stock, lock.coveredStock);
+    });
+    // The vault's operator is the desk-only BrokerVaultDeskOperator. A call sold through the operator's own lockEpoch
+    // (only if the Safe replaces it) has no premium at the sale, so it counts toward notional only.
+    for (const sale of sales) dailyPremiumVolume.add(USDG, sale.premium);
   }
   return { dailyNotionalVolume, dailyPremiumVolume };
 }

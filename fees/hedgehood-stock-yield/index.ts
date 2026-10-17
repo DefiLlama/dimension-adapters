@@ -46,32 +46,37 @@ async function fetch(options: FetchOptions) {
   const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
   const saleFromBlock = Math.max(previousSaleBlock + 1, DEPLOYMENT_BLOCK);
 
-  for (const { vault, desk } of VAULTS) {
-    if (saleFromBlock > toBlock) break; // before deployment
-    const [sales, voids, reported] = await Promise.all([
-      saleFromBlock <= saleToBlock ? options.getLogs({ target: desk, eventAbi: ABI.quotedLocked, fromBlock: saleFromBlock, toBlock: saleToBlock }) : [],
-      // A void comes at most VOID_WINDOW after its sale, so every void of those sales is in this range.
-      options.getLogs({ target: desk, eventAbi: ABI.quotedVoided, fromBlock: saleFromBlock, toBlock }),
-      fromBlock <= toBlock ? options.getLogs({ target: vault, eventAbi: ABI.epochSettled, fromBlock, toBlock }) : [],
-    ]);
-    const voided = new Set(voids.map((log: any) => String(log.epoch)));
+  const desks = VAULTS.map(({ desk }) => desk);
+  const vaults = VAULTS.map(({ vault }) => vault);
+  // One list of logs per target, in VAULTS order; an empty range (before deployment) has none.
+  const getLogs = (targets: string[], eventAbi: string, fromBlock: number, toBlock: number): Promise<any[][]> =>
+    fromBlock <= toBlock ? options.getLogs({ targets, eventAbi, fromBlock, toBlock, flatten: false }) : Promise.resolve(targets.map(() => []));
+  const [sales, voids, reported] = await Promise.all([
+    getLogs(desks, ABI.quotedLocked, saleFromBlock, saleToBlock),
+    // A void comes at most VOID_WINDOW after its sale, so every void of those sales is in this range.
+    getLogs(desks, ABI.quotedVoided, saleFromBlock, toBlock),
+    getLogs(vaults, ABI.epochSettled, fromBlock, toBlock),
+  ]);
 
-    // The desk fee is fixed at the sale as a share of the gross premium and paid to the Safe at settlement. A voided
-    // sale charges no fee.
-    for (const sale of sales) {
+  // The desk fee is fixed at the sale as a share of the gross premium and paid to the Safe at settlement. A voided
+  // sale charges no fee. Epoch ids are per vault, so a void only cancels a sale of the same desk.
+  sales.forEach((deskSales, i) => {
+    const voided = new Set(voids[i].map((log: any) => String(log.epoch)));
+    for (const sale of deskSales) {
       if (voided.has(String(sale.epoch))) continue;
       dailyFees.add(USDG, BigInt(sale.fee), LABEL);
     }
+  });
 
-    // A call sold outside the desk (only if the Safe replaces the desk-only BrokerVaultDeskOperator) has no desk
-    // sale; the fee the operator reports at settlement is counted then.
-    if (reported.length) {
-      const epochs = await options.api.multiCall({ target: vault, abi: ABI.getEpoch, calls: reported.map((log: any) => log.epoch) });
-      epochs.forEach((e: any) => {
-        const fee = BigInt(e.feePaid);
-        if (fee !== 0n) dailyFees.add(USDG, fee, LABEL);
-      });
-    }
+  // A call sold outside the desk (only if the Safe replaces the desk-only BrokerVaultDeskOperator) has no desk
+  // sale; the fee the operator reports at settlement is counted then.
+  const calls = reported.flatMap((logs, i) => logs.map((log: any) => ({ target: vaults[i], params: [log.epoch] })));
+  if (calls.length) {
+    const epochs = await options.api.multiCall({ abi: ABI.getEpoch, calls });
+    epochs.forEach((e: any) => {
+      const fee = BigInt(e.feePaid);
+      if (fee !== 0n) dailyFees.add(USDG, fee, LABEL);
+    });
   }
   return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
 }
@@ -84,8 +89,8 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology: {
     Fees: "The desk's fee on the gross premium of each weekly call the vault sells (20% at launch), fixed at the sale and recognized one hour later when the Safe can no longer void the sale; a voided sale charges no fee. The premium itself is not counted as fees: it is the buyer's payment for the option, which depositors carry against the risk of the call settling in the money (see the options adapter's premium volume). A call sold outside the desk (not possible with the current operator) counts the fee the operator reports at settlement.",
-    Revenue: "All of the desk fee, paid to the HedgeHood treasury Safe at settlement.",
-    ProtocolRevenue: "All of the desk fee, paid to the HedgeHood treasury Safe at settlement.",
+    Revenue: "All of the desk fee on the gross premium of each weekly call the vault sells, paid to the HedgeHood treasury Safe at settlement.",
+    ProtocolRevenue: "All of the desk fee on the gross premium of each weekly call the vault sells, paid to the HedgeHood treasury Safe at settlement.",
   },
   breakdownMethodology: {
     Fees: {
