@@ -1,121 +1,186 @@
-import { CHAIN } from "../../helpers/chains";
-import { Chain, FetchResultVolume, SimpleAdapter, FetchOptions } from '../../adapters/types';
-import { BRIDGE, SENT_ABI, tokenFromSourceAddress, getStacksLocks, getSolanaLocks, getNearLocks, getTezosLocks, getStellarLocks, getWavesLocks } from "../../helpers/allbridge";
+import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
+import { queryAllium } from '../../helpers/allium';
+import { CHAIN } from '../../helpers/chains';
+import ADDRESSES from '../../helpers/coreAssets.json';
 
-// Allbridge Classic documents a 0.3% transfer fee; Sent.amount is net of it, so gross volume reverses the fee.
-// 1003/1000 is the existing integer approximation used to gross up the 0.3% fee.
-// https://docs.allbridge.io
-const GROSS_UP_NUM = 1003n;
-const GROSS_UP_DENOM = 1000n;
+const EVM_BRIDGE = '0xBBbD1BbB4f9b936C3604906D7592A644071dE884'
+// emitted by lock()/lockBase(); amount is what gets bridged after the fee, in the local token's decimals
+const SENT_EVENT = 'event Sent(bytes4 tokenSource, bytes32 tokenSourceAddress, address sender, bytes32 indexed recipient, uint256 amount, uint128 indexed lockId, bytes4 destination)'
+const TOKEN_SOURCE_MAP_ABI = 'function tokenSourceMap(bytes4, bytes32) view returns (address)'
+const TRANSFER_EVENT = 'event Transfer(address indexed from, address indexed to, uint256 value)'
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+const ZERO_ADDRESS = ADDRESSES.null
 
-const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
-  const dailyVolume = options.createBalances();
-  if (options.chain === CHAIN.STACKS) {
-    // Stacks source-chain outflow = successful `lock` calls on the bridge
-    // (unlock calls are the receive side and must not be counted).
-    // The locked amount is what the trader put in, i.e. gross by definition.
-    const locks = await getStacksLocks(options.startTimestamp, options.endTimestamp);
-    // addCGToken takes whole-token units (not base units): aeUSDC 6dp.
-    // Daily legs move thousands at most, far below 2^53, so the division is exact.
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
+// current Stacks bridge (deployed 2024-02-19) and the legacy one it replaced
+const STACKS_BRIDGES = ['SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.bridge', 'SP31MH65V85NDTM30FJBKP4JNC39HR1ZX3CRW9Z97.bridge']
+
+const chainConfig: Record<string, { start: string }> = {
+  [CHAIN.ETHEREUM]: { start: '2021-11-13' },
+  [CHAIN.BSC]: { start: '2021-11-13' },
+  [CHAIN.POLYGON]: { start: '2021-11-10' },
+  [CHAIN.AVAX]: { start: '2021-11-13' },
+  [CHAIN.FANTOM]: { start: '2021-11-21' },
+  [CHAIN.CELO]: { start: '2021-11-13' },
+  [CHAIN.STACKS]: { start: '2023-07-27' },
+  // Disabled from 2026-08-31: these chains were only served by stats.a11bd.net, which went offline, and have no on-chain source here yet.
+  // Solana, Near and Stellar are still live on Allbridge Classic (about 2% of volume over Jun-Aug 2026).
+  // [CHAIN.SOLANA]: { start: '2021-11-10' },
+  // [CHAIN.NEAR]: { start: '2022-02-01' },
+  // [CHAIN.STELLAR]: { start: '2022-12-30' },
+  // The chains below are no longer in Allbridge Classic's network list and had no volume from Oct 2025 to Aug 2026.
+  // [CHAIN.TERRA]: { start: '2021-12-09' },
+  // [CHAIN.AURORA]: { start: '2021-12-14' },
+  // [CHAIN.HECO]: { start: '2021-11-13' }, // returned no data since 2025-03-16
+  // [CHAIN.FUSE]: { start: '2022-01-01' },
+  // [CHAIN.HARMONY]: { start: '2022-01-01' },
+  // [CHAIN.TEZOS]: { start: '2022-06-05' },
+  // [CHAIN.KLAYTN]: { start: '2022-08-15' },
+  // [CHAIN.WAVES]: { start: '2022-09-15' },
+}
+
+const txHashOf = (log: any): string => (log.transactionHash ?? log.transaction_hash).toLowerCase()
+
+async function fetchEvmSends(options: FetchOptions) {
+  const volume = options.createBalances()
+  const fees = options.createBalances()
+
+  const sentLogs = await options.getLogs({ target: EVM_BRIDGE, eventAbi: SENT_EVENT, onlyArgs: false })
+  if (!sentLogs.length) return { volume, fees }
+
+  // Sent names the token by its origin chain and address, tokenSourceMap resolves the token on this chain
+  const tokenKeys = [...new Set(sentLogs.map((log: any) => `${log.args.tokenSource}:${log.args.tokenSourceAddress}`))]
+  const localTokens: string[] = await options.api.multiCall({
+    target: EVM_BRIDGE,
+    abi: TOKEN_SOURCE_MAP_ABI,
+    calls: tokenKeys.map((key) => ({ params: key.split(':') })),
+  })
+  const tokenByKey: Record<string, string> = {}
+  tokenKeys.forEach((key, i) => { tokenByKey[key] = localTokens[i] })
+
+  for (const log of sentLogs) {
+    const token = tokenByKey[`${log.args.tokenSource}:${log.args.tokenSourceAddress}`]
+    // a token removed from the bridge before the window end no longer resolves and cannot be priced
+    if (token === ZERO_ADDRESS) {
+      console.error(`allbridge-classic: unresolved token ${log.args.tokenSource}:${log.args.tokenSourceAddress} on ${options.chain}, tx ${txHashOf(log)}`)
+      continue
+    }
+    volume.add(token, log.args.amount)
   }
-  if (options.chain === CHAIN.SOLANA) {
-    // Solana source-chain outflow = largest inner SPL transfer of each Lock
-    // invocation (smaller ones are the fee legs). Whole-token units, as above.
-    const locks = await getSolanaLocks(options.startTimestamp, options.endTimestamp);
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
+
+  // lock() sends the fee from the user to feeCollector in the same call; feeCollector also receives relayer unlock fees,
+  // so only transfers inside Send transactions are kept. lockBase() pays the fee in the native coin, which emits no log.
+  const feeCollector: string = await options.api.call({ target: EVM_BRIDGE, abi: 'address:feeCollector' })
+  const sendTxs = new Set(sentLogs.map(txHashOf))
+  const feeTokens = [...new Set(Object.values(tokenByKey).filter((token) => token !== ZERO_ADDRESS))]
+  const transferLogs = await options.getLogs({
+    targets: feeTokens,
+    eventAbi: TRANSFER_EVENT,
+    topics: [TRANSFER_TOPIC, null as any, '0x' + feeCollector.slice(2).toLowerCase().padStart(64, '0')],
+    onlyArgs: false,
+    flatten: false,
+  })
+  transferLogs.forEach((logs: any[], i: number) => {
+    logs.filter((log) => sendTxs.has(txHashOf(log))).forEach((log) => fees.add(feeTokens[i], log.args.value))
+  })
+
+  return { volume, fees }
+}
+
+async function fetchStacksSends(options: FetchOptions) {
+  const volume = options.createBalances()
+  const fees = options.createBalances()
+  const bridges = STACKS_BRIDGES.map((bridge) => `'${bridge}'`).join(', ')
+
+  // lock() moves the fee from the user to the fee collector and the rest to the bridge (wrapped tokens burn on that transfer)
+  // later_txs guards against Allium ingestion lag: an empty window only counts once later Stacks transactions are indexed
+  const rows: { later_txs: number; token: string | null; kind: string | null; amount: string | null }[] = await queryAllium(`
+    WITH lock_events AS (
+      SELECT
+        SPLIT_PART(e.event_contents:asset:asset_id::string, '::', 1) AS token,
+        CASE
+          WHEN e.event_contents:asset:asset_event_type::string = 'burn'
+            OR e.event_contents:asset:recipient::string IN (${bridges}) THEN 'locked'
+          WHEN e.event_contents:asset:asset_event_type::string = 'transfer' THEN 'fee'
+        END AS kind,
+        e.event_contents:asset:amount::number AS amount
+      FROM stacks.raw.events e
+      JOIN stacks.raw.transactions t ON e.tx_id = t.tx_id
+      WHERE e.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND e.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND t.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND t.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND t.tx_status = 'success'
+        AND t.canonical
+        AND t.tx_contents:contract_call:contract_id::string IN (${bridges})
+        AND t.tx_contents:contract_call:function_name::string = 'lock'
+        AND e.event_type = 'fungible_token_asset'
+    ),
+    ingested AS (
+      SELECT COUNT(*) AS later_txs
+      FROM stacks.raw.transactions
+      WHERE burn_block_time >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp + 6 * 3600})
+    )
+    SELECT i.later_txs, l.token, l.kind, SUM(l.amount)::string AS amount
+    FROM ingested i
+    LEFT JOIN lock_events l ON l.kind IS NOT NULL
+    GROUP BY 1, 2, 3
+  `)
+
+  if (!rows.length || !Number(rows[0].later_txs)) throw new Error(`allbridge-classic: Allium has no Stacks transactions after ${options.endTimestamp} yet`)
+
+  for (const { token, kind, amount } of rows) {
+    if (!token || !amount) continue
+    if (kind === 'locked') volume.add(token, amount)
+    else fees.add(token, amount)
   }
-  if (options.chain === CHAIN.NEAR) {
-    // Near source-chain outflow = lock amounts from callback_create_lock.
-    const locks = await getNearLocks(options.startTimestamp, options.endTimestamp);
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
+
+  return { volume, fees }
+}
+
+const fetch = async (options: FetchOptions) => {
+  const { volume, fees } = options.chain === CHAIN.STACKS ? await fetchStacksSends(options) : await fetchEvmSends(options)
+
+  return {
+    dailyVolume: volume,
+    dailyFees: fees.clone(1, 'Bridge Fees'),
+    dailyRevenue: fees.clone(0.2, 'Bridge Fees'),
+    dailyProtocolRevenue: fees.clone(0.2, 'Bridge Fees'),
+    dailySupplySideRevenue: fees.clone(0.8, 'Bridge Fees'),
   }
-  if (options.chain === CHAIN.TEZOS) {
-    // Tezos outflow dead since 2022 (verified): correctly reports zero.
-    // Any future lock throws inside getTezosLocks (unmapped pricing).
-    const locks = await getTezosLocks(options.startTimestamp, options.endTimestamp);
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
-  }
-  if (options.chain === CHAIN.STELLAR) {
-    // Stellar source-chain outflow = deposits TO the bridge account.
-    const locks = await getStellarLocks(options.startTimestamp, options.endTimestamp);
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
-  }
-  if (options.chain === CHAIN.WAVES) {
-    // Waves source-chain outflow = lock invokes with attached payment.
-    const locks = await getWavesLocks(options.startTimestamp, options.endTimestamp);
-    for (const lock of locks) dailyVolume.addCGToken(lock.token, Number(lock.amount) / 10 ** lock.decimals);
-    return { dailyVolume };
-  }
-  const logs = await options.getLogs({ target: BRIDGE, eventAbi: SENT_ABI });
-  for (const log of logs) {
-    // Sent.amount is net of the fee (observed: 4,999 USDC bridged + 1 USDC fee
-    // on 0x7a89f9...6642f9), so volume adds the fee back to report gross
-    // (dexs rule); kept in integer math, no float dust
-    const gross = options.chain === CHAIN.ETHEREUM
-      ? log.amount
-      : (BigInt(log.amount) * GROSS_UP_NUM) / GROSS_UP_DENOM;
-    const token = tokenFromSourceAddress(log.tokenSourceAddress);
-    if (token) dailyVolume.add(token, gross);
-    else dailyVolume.addGasToken(gross);
-  }
-  return { dailyVolume };
-};
+}
 
 const methodology = {
-  Volume: "Bridged amount of every Allbridge Classic transfer on the source chain, read from on-chain Sent events (EVM) and bridge lock calls, deposits and invokes (Stacks, Solana, Near, Tezos, Stellar, Waves).",
+  Volume: "Value of tokens sent through the Allbridge Classic bridge, counted once on the source chain at the amount bridged after the fee. Transfers sent from Solana, Near and Stellar are not tracked since 2026-08-31.",
+  Fees: "Bridge fee users pay in the transferred token on each send from the source chain. Sends from Solana, Near and Stellar are not tracked since 2026-08-31.",
+  Revenue: "20% of the bridge fees collected on sends, kept by the protocol.",
+  ProtocolRevenue: "Protocol receives 20% of the collected bridge fee.",
+  SupplySideRevenue: "80% of the collected bridge fee is used for rewards to the stakers",
 };
 
-// On-chain rebuild 2026-10: the legacy stats API (stats.a11bd.net) went dark,
-// freezing this series at 2026-08-30. Legs rebuilt from bridge logs (EVM,
-// one shared bridge address) and bridge calls/APIs (non-EVM, see below).
-// Starts are gap-fill guards (not earliest-data dates): pre-2026-08-30 history
-// stays exactly as the legacy API recorded it and must not be recomputed.
-// Sunset chains (Terra/Harmony/Heco) commented out: history frozen.
-// Every other Classic chain is now live (Waves was the last gap).
-// Klaytn/Aurora/Fuse joined 2026-10-15: pool 0xBBbD... verified deployed on
-// all three (eth_getCode, public RPCs); same Sent event as the live EVM legs.
-// Stacks joined 2026-10-15: lock calls via the public Hiro API.
-// Solana joined 2026-10-15: Lock invocations via public RPC, instruction level.
-// Stellar joined 2026-10-15: deposits TO the bridge via public Horizon.
-// Near joined 2026-10-15: lock callbacks via the public NearBlocks API.
-// Tezos joined 2026-10-15: lock_asset via TzKT (outflow dead since 2022).
-// Waves joined 2026-10-15: lock invokes via nodes API (dApp found via the
-// abUSDC issuer trail; no public doc lists it).
-const chains: Chain[] = [
-  CHAIN.ETHEREUM,
-  CHAIN.BSC,
-  CHAIN.POLYGON,
-  CHAIN.AVAX,
-  CHAIN.CELO,
-  CHAIN.FANTOM,
-  CHAIN.STACKS,
-  CHAIN.SOLANA,
-  CHAIN.NEAR,
-  CHAIN.TEZOS,
-  CHAIN.KLAYTN,
-  CHAIN.AURORA,
-  CHAIN.FUSE,
-  CHAIN.STELLAR,
-  CHAIN.WAVES,
-  // [CHAIN.TERRA]: chain sunset; history frozen
-  // [CHAIN.HARMONY]: chain sunset; history frozen
-  // [CHAIN.HECO]: skipped before too; history frozen
-];
-const start = '2026-08-30';
+const breakdownMethodology = {
+  Fees: {
+    "Bridge Fees": "Fees charged to users for each cross-chain token transfer on the source chain.",
+  },
+  Revenue: {
+    "Bridge Fees": "20% of bridge fees kept by the protocol.",
+  },
+  ProtocolRevenue: {
+    "Bridge Fees": "20% of bridge fees collected by the protocol treasury.",
+  },
+  SupplySideRevenue: {
+    "Bridge Fees": "80% of bridge fees distributed as rewards to stakers who provide liquidity.",
+  },
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains,
-  start,
+  adapter: chainConfig,
+  dependencies: [Dependencies.ALLIUM],
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter;
