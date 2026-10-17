@@ -66,11 +66,12 @@ const fetch = async (options: FetchOptions) => {
         SELECT liquidity_pool_address AS pool, token1_vault AS vault, token1_address AS mint FROM pool_info WHERE liquidity_pool_address IN (SELECT pool FROM pool_volume)
       ),
       vault_bal AS (
-        SELECT token_account, mint, usd_amount
-        FROM solana.assets.balances_daily
-        WHERE date >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-          AND date < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        SELECT token_account, mint, usd_balance AS usd_amount
+        FROM solana.assets.balances
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
+          AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
           AND token_account IN (SELECT vault FROM pool_vaults)
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY token_account ORDER BY block_slot DESC, txn_index DESC) = 1
       ),
       pool_tvl AS (
         SELECT
