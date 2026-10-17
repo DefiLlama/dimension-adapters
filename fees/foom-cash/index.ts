@@ -31,6 +31,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
+  deadFrom: "2026-03-02",
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2025-07-01' },
     [CHAIN.BASE]: { start: '2025-05-28' },
