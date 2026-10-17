@@ -99,7 +99,7 @@ const fetch = async (options: FetchOptions) => {
   if (batchFees) {
     const row = options.preFetchedResults.find((r: any) => r.chain === getAlliumChain(options.chain));
     if (!row) throw new Error(`revoke-cash: no batch revoke fee row for ${options.chain}`);
-    dailyFees.addUSDValue(Number(row.fees_usd || 0), 'Batch Revoke Fees');
+    dailyFees.addUSDValue(Number(row.fees_usd || 0), 'Batch Revoke');
   }
 
   const tokens = SUBSCRIPTION_TOKENS[options.chain];
@@ -110,7 +110,7 @@ const fetch = async (options: FetchOptions) => {
       tokens,
       logFilter: (log) => !TREASURY_BRIDGE_SOLVERS.includes(log.from) && !REVOKE_WALLETS.includes(log.from),
     });
-    dailyFees.add(subscriptions, 'Premium Subscription Fees');
+    dailyFees.add(subscriptions, 'Premium Subscription');
   }
 
   return {
@@ -134,16 +134,16 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      'Batch Revoke Fees': 'Fixed $1.50 fee per batch revoke paid by free users in the native token, except on chains where a sponsor covers it.',
-      'Premium Subscription Fees': 'Yearly Revoke Premium ($99) and Ultimate ($199) payments in USDC and USDT.',
+      'Batch Revoke': 'Fixed $1.50 fee per batch revoke paid by free users in the native token, except on chains where a sponsor covers it.',
+      'Premium Subscription': 'Yearly Revoke Premium ($99) and Ultimate ($199) payments in USDC and USDT.',
     },
     Revenue: {
-      'Batch Revoke Fees': 'Batch revoke fees kept by Revoke.cash.',
-      'Premium Subscription Fees': 'Subscription payments kept by Revoke.cash.',
+      'Batch Revoke': 'Batch revoke fees kept by Revoke.cash.',
+      'Premium Subscription': 'Subscription payments kept by Revoke.cash.',
     },
     ProtocolRevenue: {
-      'Batch Revoke Fees': 'Batch revoke fees sent to the fees.revoke.eth wallet.',
-      'Premium Subscription Fees': 'Subscription payments sent to the subscriptions.revoke.eth wallet.',
+      'Batch Revoke': 'Batch revoke fees sent to the fees.revoke.eth wallet.',
+      'Premium Subscription': 'Subscription payments sent to the subscriptions.revoke.eth wallet.',
     },
   },
 };
