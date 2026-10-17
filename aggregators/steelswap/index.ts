@@ -11,7 +11,7 @@ const API = "https://api.steelswap.io/api/v2/defillama/aggregators";
 
 const fetch = async (options: FetchOptions) => {
   const res = await httpGet(`${API}?startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}`);
-  const volume = Number(res.dailyVolume);
+  const volume = res.dailyVolume == null ? NaN : Number(res.dailyVolume);
   if (!Number.isFinite(volume)) throw new Error(`steelswap: no volume in ${JSON.stringify(res)}`);
   const dailyVolume = options.createBalances();
   dailyVolume.addUSDValue(volume);
