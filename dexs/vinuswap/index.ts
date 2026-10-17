@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
@@ -16,7 +17,7 @@ const V1_POOLS = [
 // v1.1 factory
 const FACTORY = '0xd74dEe1C78D5C58FbdDe619b707fcFbAE50c3EEe'
 
-const fetch = async ({ getLogs, createBalances, api, chain }: FetchOptions) => {
+const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
   // VinuSwap is based on a variant of Uniswap v3, but the uniswap v3 helper doesn't work here
   const dailyVolume = createBalances();
 
@@ -29,8 +30,10 @@ const fetch = async ({ getLogs, createBalances, api, chain }: FetchOptions) => {
 
   const pools = [...V1_POOLS, ...poolCreationLogs.map(log => log.pool)]
 
-  const token0s = await api.multiCall({ abi: 'address:token0', calls: pools })
-  const token1s = await api.multiCall({ abi: 'address:token1', calls: pools })
+  // pool tokens are immutable: read them at the latest block, since rpc.vinuchain.org prunes historical state
+  const latestApi = new ChainApi({ chain })
+  const token0s = await latestApi.multiCall({ abi: 'address:token0', calls: pools })
+  const token1s = await latestApi.multiCall({ abi: 'address:token1', calls: pools })
 
 
   await Promise.all(pools.map(async (pool, idx) => {
