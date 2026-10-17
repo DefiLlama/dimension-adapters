@@ -80,6 +80,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "On-chain settled volume of the Renegade v1 and v2 darkpools: the input-token transfers into the darkpool in settlement transactions (txs that move tokens both into and out of the darkpool). When both sides settle publicly only the USDC leg is counted. Fully private (internal) matches move no tokens on-chain and are not visible.",
   },
+  deadFrom: "2026-04-20",
 };
 
 export default adapter;
