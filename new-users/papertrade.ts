@@ -13,8 +13,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: "2026-10-06", // first accounts funded 2026-10-07; one day earlier because refill windows begin a second before the day
