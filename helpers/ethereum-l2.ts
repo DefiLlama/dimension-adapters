@@ -208,6 +208,11 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		return { dailyFees, dailyRevenue };
 	}
 
+	const DUNE_LAG_HOURS: Record<string, number> = { [CHAIN.ABSTRACT]: 24 };
+	const lagHours = DUNE_LAG_HOURS[options.chain];
+	if (lagHours && Date.now() / 1000 < options.endTimestamp + lagHours * 3600)
+		throw new Error(`${chainName}: gas.fees lands ~${lagHours}h late on Dune, not querying a window that ended less than ${lagHours}h ago`);
+
 	// --- Fallback: chains not in evm_indexer (abstract, boba, mantle,
 	// zora-chain, manta, lyra, starknet, ...). Keeps the original Dune-only
 	// behavior verbatim. Heavier than the hybrid path but covers chains the
@@ -216,6 +221,8 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		l2_fees_cte AS (
 		SELECT
 			COUNT(*) AS l2_tx_count,
+			COUNT(DISTINCT date_trunc('hour', block_time)) AS l2_hours,
+			MAX(block_time) AS l2_last_block_time,
 			SUM(tx_fee) AS l2_fees,
 			SUM(tx_fee_usd) AS l2_fees_usd
 		FROM gas.fees
@@ -238,6 +245,8 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		)
 		SELECT
 			COALESCE((SELECT l2_tx_count FROM l2_fees_cte), 0) AS l2_tx_count,
+			COALESCE((SELECT l2_hours FROM l2_fees_cte), 0) AS l2_hours,
+			(SELECT l2_last_block_time FROM l2_fees_cte) AS l2_last_block_time,
 			COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) AS total_fee,
 			(COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) - (
 				COALESCE((SELECT l1_calldata_cost FROM l1_fees_cte), 0) +
@@ -259,6 +268,10 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	// whose transactions genuinely cost nothing, which stays a legitimate zero.
 	if (!Number(feesResult?.[0]?.l2_tx_count))
 		throw new Error(`${chainName}: gas.fees returned no transactions for this window, refusing to report it as zero fees`);
+
+	const expectedHours = Math.floor((options.endTimestamp - options.startTimestamp) / 3600);
+	if (lagHours && Number(feesResult[0].l2_hours) < expectedHours)
+		throw new Error(`${chainName}: gas.fees covers ${feesResult[0].l2_hours} of ${expectedHours} hours in this window (last row at ${feesResult[0].l2_last_block_time}), Dune has not caught up yet`);
 
 	const dailyFees = options.createBalances();
 	const dailyRevenue = options.createBalances();
