@@ -29,7 +29,6 @@ const SERVICE_FEE_PAID =
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   for (const [pool, asset] of Object.entries(POOLS)) {
     const flows: any[] = await options.getLogs({ target: pool, eventAbi: PUBLIC_FLOW });
@@ -46,7 +45,7 @@ const fetch = async (options: FetchOptions) => {
   }
   // Relay fees are collected by the protocol-operated relays; swap fees go to the treasury Safe.
   // There are no LPs, so every fee is protocol revenue.
-  return { dailyFees, dailyRevenue: dailyFees, dailyUserFees: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -57,7 +56,6 @@ const adapter: SimpleAdapter = {
   start: "2026-10-17",
   methodology: {
     Fees: "Relay fees paid by users on private withdrawals, transfers and holder exits (30 bps plus a fixed gas quote), and the immutable 30 bps service fee on private swaps through the fee route adapters. Ragequit is free.",
-    UserFees: "Identical to Fees: every fee is paid by the end user out of the amount moved.",
     Revenue: "All fees. Lincoln has no liquidity providers or token holders sharing fees.",
     ProtocolRevenue: "Swap service fees are paid to the treasury Safe; relay fees accrue to the protocol-operated relays.",
   },
