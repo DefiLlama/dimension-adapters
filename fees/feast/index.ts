@@ -2,7 +2,6 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPositionedLogArgs } from "../../helpers/logs";
 import { METRIC } from "../../helpers/metrics";
-import { FEAST_HOOK } from "../../dexs/feast";
 
 // Feast (https://feast.meme): every coin trades in a PancakeSwap Infinity pool attached to the Feast
 // hook, which takes 1% of each swap on the quote leg (a Binance tokenized stock or WBNB) and splits it
@@ -15,6 +14,7 @@ const FIRST_COIN_BLOCK = 127031147;
 // FEAST, the platform coin, is launched by the factory's Genesis event (block 127750229,
 // tx 0x2c6b5892c5f03e72f016689491f9166f60c43521f1e4f3ee02902aad837abc31) into this FEAST/WBNB pool
 const FEAST_POOL_ID = "0x58fbbd6ee5e1588979fac56f68cb10dbcfad04764facd33bb1080f4d2f80f8c0";
+const FEAST_HOOK = "0xABFB955e4582f49dc741DCf5354fbB0edaD0A7c5";
 
 const COIN_CREATED_EVENT = "event CoinCreated(address indexed coin, address indexed creator, address indexed quote, bytes32 poolId, uint256 supply, uint16 selfBurnBps, uint16 referrerBps, bytes32 metadataHash)";
 const FEE_ACCRUED_EVENT = "event FeeAccrued(bytes32 indexed poolId, uint256 amount)";
