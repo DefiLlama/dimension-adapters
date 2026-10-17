@@ -4,9 +4,8 @@ import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 
 // Papertrade liquidations are a hard bust: the full isolated margin is forfeited and margin cannot be added after open
-// (https://docs.papertrade.xyz/#/learn/liquidations). The Liquidated event carries no margin field, but the 2% liquidation
-// fee is charged on that margin, so margin = (stakerFee + devFee) / 0.02. Checked against the open event's margin on
-// 36 of 36 liquidated positions.
+// (https://docs.papertrade.xyz/#/learn/liquidations). The Liquidated event carries no margin field, but the liquidation
+// fee is charged on that margin, so margin = (stakerFee + devFee) / liquidationFeeRate. Checked against the open event's
 const EXCHANGE = "0x6cd5661646289fb6e65ea5c032310fded797d0a2"; // HyperEVM
 const LIQUIDATED = "event Liquidated(uint256 indexed positionId, address indexed user, uint64 markPrice, uint64 bustPrice, bool fromQueuedBalance, uint256 stakerFee, uint256 devFee)";
 
@@ -24,7 +23,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyCollateralLiquidated = options.createBalances();
-  dailyCollateralLiquidated.addUSDValue(Number(feeWei * 50n / 10n ** 12n) / 1e6); // fee words are USD with 18 decimals, margin = fee * 50
+  if (feeWei > 0n) {
+    const rate = BigInt(await new sdk.ChainApi({ chain: CHAIN.HYPERLIQUID, block: toBlock }).call({ target: EXCHANGE, abi: "uint256:liquidationFeeRate" }));
+    dailyCollateralLiquidated.addUSDValue(Number(feeWei * 10n ** 18n / rate / 10n ** 12n) / 1e6); // fee words are USD with 18 decimals
+  }
   return { dailyCollateralLiquidated };
 };
 
@@ -35,7 +37,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN], // same as fees/papertrade.ts: positions are synthetic bets against the house, events are read from HyperEVM
   start: "2026-10-09",
   methodology: {
-    CollateralLiquidated: "Margin forfeited by liquidated BTC and ETH positions, in USD. Liquidation forfeits the full isolated margin, derived from the 2% liquidation fee in the Exchange contract's Liquidated events. Liquidated notional is not reported, for the same reason volume is not listed (up to 1000x synthetic leverage).",
+    CollateralLiquidated: "USD margin forfeited by liquidated BTC and ETH positions: a liquidation takes the position's whole isolated margin. Liquidated notional is not reported.",
   },
 };
 
