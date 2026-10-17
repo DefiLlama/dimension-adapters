@@ -1,18 +1,22 @@
 // DefiLlama fees/revenue adapter — Lincoln Protocol (Robinhood Chain).
-// Destination: DefiLlama/dimension-adapters  fees/lincoln-protocol/index.ts
-// STATUS: DRAFT. Addresses are placeholders until the mainnet deployment manifest exists.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// pool address -> asset (ZERO = native ETH). Fill from config/phase2-mainnet-deployed.json.
+// pool address -> asset it custodies (zero address = native ETH); contract release v0.1.0-rc.3
 const POOLS: Record<string, string> = {
-  // "0x...eth-pool": "0x0000000000000000000000000000000000000000",
-  // "0x...usdg-pool": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+  "0xF9c767CAb9B9A7dE8Dd959967269787880267ab2": "0x0000000000000000000000000000000000000000", // ETH
+  "0x5Cd4c081eb747406DAb66e22004324600f1928C9": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", // USDG
+  "0x4C8BAEb78b032EA3610E0F5D4C8B5Bb4fF5995f7": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", // NVDA
+  "0x8a29Db84A20B0A3CA528FAE0F69F50FfD39c6C39": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C", // SPY
+  "0xA2078e02A631ae9218DBAa84987a24741bD24d10": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35", // META
+  "0xE8c619705B7452c2281cA8fA675a355846D34BFE": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d", // TSLA
+  "0x31Bd720527D9875b444c0946c5795351a56d9d8B": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3", // GOOGL
+  "0xd4375275F5FA231e238c9FF1237A8e8666Be6B62": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68", // QQQ
+  "0x207Dc4DD4E40Ab280dF9eC10CD5Edf04685e9d88": "0xec262a75e413fAfD0dF80480274532C79D42da09", // MSTR
 };
 // Fee route adapters (one per direction, immutable 30 bps to the Safe treasury).
-const FEE_ADAPTERS: string[] = [
-  // "0x...usdg-to-nvda-adapter",
-];
+// Fee route adapters are not deployed yet (2026-10-17); add their addresses here once they are.
+const FEE_ADAPTERS: string[] = [];
 
 // PrivacyPool events (core rc.3 ABI). `fee` is paid by the user out of the public amount.
 const PUBLIC_FLOW =
@@ -50,7 +54,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  // start: "2026-MM-DD", // mainnet deployment date
+  start: "2026-10-17",
   methodology: {
     Fees: "Relay fees paid by users on private withdrawals, transfers and holder exits (30 bps plus a fixed gas quote), and the immutable 30 bps service fee on private swaps through the fee route adapters. Ragequit is free.",
     UserFees: "Identical to Fees: every fee is paid by the end user out of the amount moved.",
