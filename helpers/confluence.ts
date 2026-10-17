@@ -107,7 +107,7 @@ interface StatsResponse {
  * Fetches one UTC day of stats for every chain in a single request (used as `prefetch`).
  * Throws when the API has no entry for the day, rather than reporting zeros.
  */
-export async function fetchConfluenceDay(options: FetchOptions): Promise<ConfluenceDay> {
+export async function fetchConfluenceDay(options: FetchOptions): Promise<any> {
   const res: StatsResponse = await fetchURL(`${STATS_URL}?from=${options.dateString}&to=${options.dateString}`);
   const day = res.days.find((d) => d.date === options.dateString);
   if (!day) throw new Error(`Confluence stats API returned no data for ${options.dateString}`);
