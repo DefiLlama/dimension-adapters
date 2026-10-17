@@ -15,8 +15,27 @@ const POOLS: Record<string, string> = {
   "0x207Dc4DD4E40Ab280dF9eC10CD5Edf04685e9d88": "0xec262a75e413fAfD0dF80480274532C79D42da09", // MSTR
 };
 // Fee route adapters (one per direction, immutable 30 bps to the Safe treasury).
-// Fee route adapters are not deployed yet (2026-10-17); add their addresses here once they are.
-const FEE_ADAPTERS: string[] = [];
+// Eighteen immutable 30 bps fee route adapters (deployed 2026-10-17, treasury = guardian Safe).
+const FEE_ADAPTERS: string[] = [
+  "0x51BdAdcDC1B8B6Ed0EDe948EE4Ba1b1F48D22106", // uniswap-eth-to-usdg
+  "0xf4E0376E185177EbF38773fEA3F46089733cB029", // uniswap-usdg-to-eth
+  "0xf75881f178D15fF44cC4B00dAdcEbCD5e04a9296", // up-eth-to-usdg
+  "0xF6d233367c3Adfa45047571BAAfBB1b3864c8eA8", // up-usdg-to-eth
+  "0x39c340f193C2f6D4131A9537f005Da3385d0e0fB", // uniswap-usdg-to-nvda
+  "0x829eC924A39A110B0Ea59fcDD1164a2EE6d25f42", // uniswap-nvda-to-usdg
+  "0x804a2f51a04c4c552FB03743409BCbA0C6485D92", // uniswap-usdg-to-spy
+  "0xDcD5b12c1dC1FfdC58045Fe306305Da705af00d9", // uniswap-spy-to-usdg
+  "0x7a8454953CC392b5Ce2E267Dc0570D4D1bC65490", // uniswap-usdg-to-meta
+  "0xA755940ca05Da17580982767607E42C801b7a897", // uniswap-meta-to-usdg
+  "0xbF542B7195Eb402671aA30cED94114e0557ac1d5", // uniswap-usdg-to-tsla
+  "0x3DaE2c98EB758685325417fc615e8980263970B3", // uniswap-tsla-to-usdg
+  "0xa3eF05228fC562a7610B3d038B990f53de582862", // uniswap-usdg-to-googl
+  "0xaC082BB3e0C4A6852516f25DBe0d85aB546F834A", // uniswap-googl-to-usdg
+  "0x10B002942c1dcf6E93951dC85b9A41D3dA30B690", // uniswap-usdg-to-qqq
+  "0x23C932B0B8C879D0D982353411D8e6Ba3Bac3aaa", // uniswap-qqq-to-usdg
+  "0xb7e36f25FfDaFAbcB28DdE863C97C8ad7dC57bc2", // uniswap-usdg-to-mstr
+  "0x784a20CAC13Bedcc885AEb0c3B052644582Df2F1", // uniswap-mstr-to-usdg
+];
 
 // PrivacyPool events (core rc.3 ABI). `fee` is paid by the user out of the public amount.
 const PUBLIC_FLOW =
