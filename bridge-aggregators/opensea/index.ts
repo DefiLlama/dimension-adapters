@@ -22,19 +22,23 @@ const chainConfig: Record<string, any> = {
     [CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
 
+const duneChainList = Object.values(chainConfig).map((c) => `'${c.dune_chain}'`).join(', ')
+
 const prefetch = async (options: FetchOptions) => {
 	return await queryDuneSql(options, `
         WITH opensea_txs AS (
             SELECT DISTINCT tx.hash, tx.blockchain
             FROM evms.transactions tx
-            WHERE varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
+            WHERE tx.blockchain IN (${duneChainList})
+                AND varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
                 AND tx.block_time >= FROM_UNIXTIME(${options.startTimestamp})
                 AND tx.block_time < FROM_UNIXTIME(${options.endTimestamp})
         ),
         dex_txs AS (
             SELECT tx_hash, blockchain
             FROM dex_aggregator.trades
-            WHERE block_time >= FROM_UNIXTIME(${options.startTimestamp})
+            WHERE blockchain IN (${duneChainList})
+                AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
                 AND block_time < FROM_UNIXTIME(${options.endTimestamp})
 
             UNION ALL
@@ -61,7 +65,8 @@ const prefetch = async (options: FetchOptions) => {
         FROM tokens.transfers t
         INNER JOIN filtered_bridge_txs fb
             ON t.tx_hash = fb.hash AND t.blockchain = fb.blockchain
-        WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+        WHERE t.blockchain IN (${duneChainList})
+            AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
             AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
         GROUP BY 1
 	`);

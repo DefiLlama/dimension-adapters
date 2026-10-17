@@ -161,7 +161,7 @@ const fetchFees = async (options: FetchOptions) => {
     targets: targets[options.chain],
     tokens: tokens[options.chain],
     toAddressFilter: targets[options.chain],
-    fromAddressFilter: fromAdddesses[options.chain] ?? [],
+    fromAdddesses: fromAdddesses[options.chain] ?? [],
     balances: dailyFees,
   });
   const fees_percet = options.createBalances()
@@ -171,7 +171,7 @@ const fetchFees = async (options: FetchOptions) => {
       targets: targets_type_percent[options.chain] ?? [],
       tokens: tokens_type_percent[options.chain] ?? [],
       toAddressFilter: targets_type_percent[options.chain] ?? [],
-      fromAddressFilter: fromAdddesses_type_percent[options.chain] ?? [],
+      fromAdddesses: fromAdddesses_type_percent[options.chain] ?? [],
       balances: fees_percet,
     });
   }

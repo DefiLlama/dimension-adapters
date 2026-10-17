@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   adapter: {
     [CHAIN.CHAIN_GLOBAL]: { fetch, start: "2026-08-18" },
-    [CHAIN.AMADEUS]: { fetch, start: "2026-10-03" },
+    [CHAIN.AMADEUS]: { fetch, start: "2026-09-28" },
   },
   methodology: {
     ActiveUsers: "Global: distinct Amahub identities with a product action (trade, agent run, skill or chat) or a completed quest during the UTC day; daily check-ins and app visits are excluded. Amadeus: distinct wallets that signed an Amahub action on the Amadeus chain that UTC day (a successful AMA transfer to the Amahub hub key). A wallet active on Amadeus is usually also an Amahub identity, so the two are not additive.",

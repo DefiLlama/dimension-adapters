@@ -27,13 +27,13 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailyUserFees = createBalances();
 
-  if (chain == 'BSC') {
+  if (chain === CHAIN.BSC) {
     (await getLogs({
       target: address_reward[chain],
       eventAbi: event_paid_stream,
     })).map((e: any) => {
       // check if it is cake address
-      if (e.token === ADDRESSES.bsc.CAKE) {
+      if (e._token.toLowerCase() === ADDRESSES.bsc.CAKE) {
         dailyFees.add(e._token, e._feeAmount, METRIC.STAKING_REWARDS);
       }
     })

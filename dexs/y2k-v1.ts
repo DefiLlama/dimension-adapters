@@ -15,7 +15,7 @@ const fetch: any = async ({ api, getLogs, createBalances, }: FetchOptions): Prom
   const vaults = (await api.fetchList({ lengthAbi: abis.marketIndex, itemAbi: abis.getVaults, target: vault_factory })).flat()
   const dailyVolume = createBalances()
   const logs_deposit = await getLogs({ targets: vaults, eventAbi: event_deposit, })
-  logs_deposit.forEach((log: any) => dailyVolume.add(WETH, log.amount))
+  logs_deposit.forEach((log: any) => dailyVolume.add(WETH, log.assets))
 
   return { dailyVolume, };
 };

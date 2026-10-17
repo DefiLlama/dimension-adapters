@@ -1,61 +1,41 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { fetchBuilderCodeRevenue } from "../helpers/hyperliquid";
+import { fetchBuilderCodeDataV2 } from "../helpers/hyperliquid-v2";
 
 // Kinetiq Markets routes orders through two production builder codes, one per client. Both are
 // Kinetiq-operated and their fees accrue to Kinetiq; tracking only the web one understates revenue.
-const KINETIQ_MARKETS_BUILDER_ADDRESSES = [
+// This is the perps listing, spot trades through the same codes are in dexs/kinetiq-interface-spot.ts.
+export const KINETIQ_MARKETS_BUILDER_ADDRESSES = [
   '0x42f3226007290b02c5a0b15bccbb1ba6df04f992', // markets.xyz web
   '0x2af94a24e1f744a8e251b4996283ffb4657e915d', // markets.xyz mobile
 ];
 
-// Hyperliquid only publishes a builder_fills CSV for days on which the builder had fills, and the
-// helper turns the resulting 403 into an error. A day with no fills is a genuine zero, not a
-// failure, so it is logged and skipped rather than taking down the whole day's fetch (which would
-// also drop the other builder).
-const NO_DATA_ERROR = 'Builder fee data is not available';
-
-const builderCodeRevenue = async (options: FetchOptions, builder_address: string, market?: 'hip3', hip3DeployerId?: string) => {
-  try {
-    return await fetchBuilderCodeRevenue({ options, builder_address, market, hip3DeployerId });
-  } catch (error: any) {
-    if (!String(error?.message).includes(NO_DATA_ERROR)) throw error;
-    console.error(`kinetiq-interface: no builder fills for ${builder_address} on ${options.dateString}`);
-    return { dailyVolume: options.createBalances(), dailyFees: options.createBalances() };
-  }
-};
-
 const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
+  const { dailyVolume, dailyFees: builderFees } = await fetchBuilderCodeDataV2({ options, builderAddresses: KINETIQ_MARKETS_BUILDER_ADDRESSES, market: 'perps' });
+
   const dailyFees = options.createBalances();
-
-  for (const builder_address of KINETIQ_MARKETS_BUILDER_ADDRESSES) {
-    const { dailyVolume: builderVolume, dailyFees: builderFees } = await builderCodeRevenue(options, builder_address);
-
-    dailyVolume.add(builderVolume);
-    dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
-  }
-
+  dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
   const dailyRevenue = dailyFees.clone(1, 'Builder Code Fees To Kinetiq');
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
 const adapter: SimpleAdapter = {
+  version: 1, // the indexer serves daily summaries
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-12-16',
   doublecounted: true,
   methodology: {
-    Volume: "Trading volume routed through the Kinetiq Markets interface's builder codes on Hyperliquid perps. Trades on Kinetiq's own HIP-3 markets are excluded here because Kinetiq Markets already counts them.",
-    Fees: "Builder-code fees paid by users trading on Hyperliquid through the Kinetiq Markets interface.",
-    Revenue: "Builder-code fees, retained entirely by Kinetiq.",
-    ProtocolRevenue: "Same as Revenue - retained by Kinetiq.",
+    Volume: "Hyperliquid perps volume routed through the Kinetiq Markets interface's builder codes, including trades on HIP-3 markets.",
+    Fees: "Builder-code fees paid by users trading Hyperliquid perps through the Kinetiq Markets interface.",
+    Revenue: "Builder-code fees on Hyperliquid perps trades, retained entirely by Kinetiq.",
+    ProtocolRevenue: "Builder-code fees on Hyperliquid perps trades, all sent to Kinetiq.",
   },
   breakdownMethodology: {
     Fees: {

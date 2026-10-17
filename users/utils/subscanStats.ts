@@ -10,19 +10,19 @@ type ChainConfig = {
 
 const subscanStatsChains: Record<string, ChainConfig> = {
   polkadot: { chain: CHAIN.POLKADOT, subscanName: "polkadot" },
-  pendulum: { chain: CHAIN.PENDULUM, subscanName: "pendulum" },
+  // pendulum: { chain: CHAIN.PENDULUM, subscanName: "pendulum" }, // network dropped from subscan
   peaq: { chain: CHAIN.PEAQ, subscanName: "peaq" },
-  neuroweb: { chain: CHAIN.NEUROWEB, subscanName: "neuroweb" },
+  // neuroweb: { chain: CHAIN.NEUROWEB, subscanName: "neuroweb" }, // network dropped from subscan
   mythos: { chain: CHAIN.MYTHOS, subscanName: "mythos" },
   moonbeam: { chain: CHAIN.MOONBEAM, subscanName: "moonbeam" },
-  karura: { chain: CHAIN.KARURA, subscanName: "karura" },
+  // karura: { chain: CHAIN.KARURA, subscanName: "karura" }, // network dropped from subscan
   kusama: { chain: CHAIN.KUSAMA, subscanName: "kusama" },
-  hydration: { chain: CHAIN.HYDRADX, subscanName: "hydration" },
+  // hydration: { chain: CHAIN.HYDRADX, subscanName: "hydration" }, // network dropped from subscan
   robonomics: { chain: CHAIN.ROBONOMICS, subscanName: "robonomics" },
   darwinia: { chain: CHAIN.DARWINIA, subscanName: "darwinia" },
   bifrost: { chain: CHAIN.BIFROST, subscanName: "bifrost" },
   moonriver: { chain: CHAIN.MOONRIVER, subscanName: "moonriver" },
-  acala: { chain: CHAIN.ACALA, subscanName: "acala" },
+  // acala: { chain: CHAIN.ACALA, subscanName: "acala" }, // network dropped from subscan
   "space-and-time": { chain: CHAIN.SPACE_AND_TIME, subscanName: "sxt" },
 };
 

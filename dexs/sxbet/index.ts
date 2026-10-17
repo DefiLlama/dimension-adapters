@@ -47,6 +47,7 @@ const adapter: SimpleAdapter = {
     // volume data begins 2020-09-23 but the revenue series has gaps until 2020-12-06
     start: '2020-12-07',
     methodology,
+    deadFrom: '2026-08-27', // migration to v3
 };
 
 export default adapter;

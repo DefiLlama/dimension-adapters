@@ -19,6 +19,8 @@ const breakdownMethodology = {
 
 const correctedTotalRevenues: Record<string, number> = {
   '2026-06-04': 114.49, //api wrongly returns 0 vs 114.49 (previous day) and 113 (next day)
+  '2026-10-08': 124.51, //api returns 210.47: an ~86 ETH claim is counted in both total_claimed (118.66) and total_eth_transferred (88.11); counted once it is 3.70 + 32.70 + 88.11, vs 124.54 (previous day) and 124.39 (next day)
+  '2026-10-14': 124.73, //api returns 212.71: total_eth_transferred is 175.97, exactly double the ~88 ETH it reads on the surrounding days (87.82 / 87.88); counted once it is 4.04 + 32.70 + 87.99, vs 124.51 (previous day) and 124.67 (next day)
 }
 
 const fetchCumulativeData = async (dateStr: string) => {

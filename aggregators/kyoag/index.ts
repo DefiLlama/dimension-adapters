@@ -113,7 +113,7 @@ const fetch = async ({ createBalances, getLogs, chain }: FetchOptions) => {
 
     const [transferLogs, depositLogs] = await Promise.all([
       getLogs({
-        topics: [TRANSFER_TOPIC, null as any, padded],
+        topics: [TRANSFER_TOPIC, null, padded],
         noTarget: true,
         eventAbi:
           "event Transfer(address indexed from, address indexed to, uint256 value)",

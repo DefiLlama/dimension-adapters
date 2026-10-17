@@ -1,4 +1,3 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -22,15 +21,8 @@ const fetch = async (options: FetchOptions) => {
                 quote_mint AS quoteMint
             FROM
                 pumpdotfun_solana.pump_amm_evt_createpoolevent
-            WHERE
-                quote_mint IN (
-                    '${ADDRESSES.solana.SOL}',
-                    'mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So',
-                    '${ADDRESSES.solana.USDC}',
-                    '${ADDRESSES.solana.USDT}',
-                    '${ADDRESSES.solana.PUMP}',
-                    'DEkqHyPN7GMRJ5cArtQFAWefqbZb33Hyf6s5iCwjEonT'
-                )
+            -- no quote filter: Custom Pairs (https://pump.fun/docs/custom-pairs) allow many quote assets; fees are
+            -- summed per quote mint and priced by DefiLlama, so a quote we cannot price adds nothing
         ),
         sells AS (
             SELECT

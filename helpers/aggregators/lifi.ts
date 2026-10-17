@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
-import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 type IContract = {
@@ -14,9 +14,19 @@ type IContract = {
   }
 }
 
-interface LifiTransfer {
+export interface LifiFeeCost {
+  name: string;
+  amount: string;
+  token: {
+    address: string;
+    chainId: number;
+  };
+}
+
+export interface LifiTransfer {
   transactionId: string;
   status: string;
+  substatus?: string;
   sending: {
     amountUSD: string;
     chainId: number;
@@ -28,6 +38,7 @@ interface LifiTransfer {
   metadata: {
     integrator: string;
   };
+  feeCosts?: LifiFeeCost[];
 }
 
 interface LifiResponse {
@@ -54,7 +65,8 @@ export const LifiDiamonds: IContract = {
   [CHAIN.MOONBEAM]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     chainId: '1284',
-    start: '2022-10-18'
+    start: '2022-10-18',
+    deadFrom: '2026-10-14',
   },
   [CHAIN.MOONRIVER]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
@@ -101,7 +113,8 @@ export const LifiDiamonds: IContract = {
     start: '2025-02-12'
   },
   [CHAIN.INK]: {
-    id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+    // deployments/ink.json (0x1231deb6... has no code on Ink)
+    id: '0x864b314D4C5a0399368609581d3E8933a63b9232',
     chainId: '57073',
     start: '2025-01-22'
   },
@@ -192,11 +205,11 @@ export const LifiDiamonds: IContract = {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2024-05-17'
   },
-  [CHAIN.BOBA]: {
-    id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    chainId: '288',
-    start: '2022-10-21'
-  },
+  // [CHAIN.BOBA]: {
+  //   id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  //   chainId: '288',
+  //   start: '2022-10-21',
+  // },
   [CHAIN.FUSE]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     chainId: '122',
@@ -279,21 +292,21 @@ export const LifiDiamonds: IContract = {
     chainId: '55244',
     start: '2025-04-16'
   },
-  [CHAIN.LENS]: {
-    id: '0xF3B20515d9B193531c48E47c18aF16d1e5d28f9a',
-    chainId: '232',
-    start: '2025-04-21'
-  },
+  // [CHAIN.LENS]: {
+  //   id: '0xF3B20515d9B193531c48E47c18aF16d1e5d28f9a',
+  //   chainId: '232',
+  //   start: '2025-04-21',
+  // },
   [CHAIN.XDC]: {
     id: '0x055d4612Ec74aD799C6cB4dF72C0Ab8dbDBCBAfa',
     chainId: '50',
     start: '2025-05-19'
   },
-  [CHAIN.BOB]: {
-    id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
-    chainId: '60808',
-    start: '2025-05-21'
-  },
+  // [CHAIN.BOB]: {
+  //   id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
+  //   chainId: '60808',
+  //   start: '2025-05-21',
+  // },
   [CHAIN.FLARE]: {
     id: '0x198FC70Dfe05E755C81e54bd67Bff3F729344B9b',
     chainId: '14',
@@ -352,7 +365,7 @@ export const LIFI_API_CHAINS = [
 // LI.FI dropped support for these chains: they are absent from li.quest/v1/chains and the analytics
 // API answers 400, which burned 3 retries per chain on every run. They stay in LifiDiamonds and
 // LIFI_API_CHAINS so their history is preserved and getLogs (unreliable on all four) is not used.
-const LIFI_UNSUPPORTED_CHAINS: string[] = [
+export const LIFI_UNSUPPORTED_CHAINS: string[] = [
   CHAIN.TAIKO, CHAIN.SWELLCHAIN, CHAIN.SUPERPOSITION, CHAIN.SOPHON,
 ]
 
@@ -572,8 +585,23 @@ const MAX_TRANSFER_USD = 50_000_000;
 const REQUEST_GAP_MS = 300;
 let requestQueue: Promise<any> = Promise.resolve();
 
+const MAX_RETRIES = 5;
+
+const fetchLifi = async (url: string): Promise<any> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await httpGet(url);
+    } catch (error: any) {
+      const status = Number(String(error?.message).match(/status code (\d+)/)?.[1]);
+      if ((status >= 400 && status < 500 && status !== 429) || attempt >= MAX_RETRIES) throw error;
+      const retryInSeconds = Number(String(error?.axiosError).match(/retry in (\d+) second/)?.[1]);
+      await sleep(status === 429 ? ((retryInSeconds || 60) + 1) * 1000 : 5000);
+    }
+  }
+};
+
 const queuedFetch = (url: string): Promise<any> => {
-  const result = requestQueue.then(() => fetchURLAutoHandleRateLimit(url));
+  const result = requestQueue.then(() => fetchLifi(url));
   requestQueue = result.catch(() => undefined).then(() => sleep(REQUEST_GAP_MS));
   return result;
 };
@@ -631,4 +659,32 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, start: number, endTim
   }
 
   return totalValue;
+};
+
+// DONE transfers sent in [start, endTime) by `integrators`, from `chain` or all chains
+export const fetchTransfersFromLIFIAPI = async (start: number, endTime: number, integrators: string[], chain?: Chain): Promise<LifiTransfer[]> => {
+  if (chain && LIFI_UNSUPPORTED_CHAINS.includes(chain)) return [];
+
+  const transfers: LifiTransfer[] = [];
+  let nextCursor: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      fromTimestamp: start.toString(),
+      toTimestamp: endTime.toString(),
+      status: 'DONE',
+      integrator: integrators.join(','),
+      limit: '1000'
+    });
+    if (chain) params.append('fromChain', LifiDiamonds[chain].chainId ?? LifiDiamonds[chain].id);
+    if (nextCursor) params.append('next', nextCursor);
+
+    const response = await queuedFetch(`https://li.quest/v2/analytics/transfers?${params}`) as LifiResponse;
+    if (!Array.isArray(response?.data)) throw new Error(`LI.FI analytics API returned no transfers for ${chain ?? 'all chains'}`);
+
+    transfers.push(...response.data.filter((tx) => tx.status === 'DONE' && tx.sending.timestamp >= start && tx.sending.timestamp < endTime));
+    nextCursor = response.hasNext ? response.next : undefined;
+  } while (nextCursor);
+
+  return transfers;
 };

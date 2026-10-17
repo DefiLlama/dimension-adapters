@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { queryHyperliquidIndexerV2 } from "../helpers/hyperliquid-v2";
 
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
@@ -14,9 +15,9 @@ async function fetch(options: FetchOptions) {
     perpFees = result.dailyPerpFees.clone(hlpShare)
     spotFees = result.dailySpotFees.clone(hlpShare)
   } else {
-    const result = await queryHyperliquidIndexer(options);
+    const result = await queryHyperliquidIndexerV2(options);
     perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
-    spotFees = result.dailySpotRevenue.clone(hlpShare)
+    spotFees = result.dailySpotHyperliquidRevenue.clone(hlpShare)
   }
 
   dailyFees.add(perpFees, 'Perp Fees')
@@ -30,7 +31,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% of perp and spot trading revenue (excluding builders and unit revenue) share for HLP.",
+  Fees: "1% of perp and spot trading revenue (after builder code fees, maker rebates, HIP-3 deployer and unit revenue) share for HLP.",
   SupplySideRevenue: 'All fees share of HLP are distributed to vaults suppliers.',
   Revenue: "No revenue.",
 }

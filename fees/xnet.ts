@@ -361,7 +361,7 @@ const adapter: SimpleAdapter = {
       "Carriers pay XNET for mobile data offloaded onto WiFi. Until settlement arrives, Fees are conservatively accrued from measured daily offload. Closed unsettled months use XNET's official monthly projection and newer days use a conservative API-GB rate. Carrier payments typically settle about two months later, and historical accrual is reconciled to the amount actually paid.",
 
     Revenue:
-      "Carrier WiFi offload Fees retained within XNET after payments to operators that elect fiat compensation under XIP-13.1.",
+      "Carriers pay XNET for mobile data offloaded onto WiFi. Until settlement arrives, Fees are conservatively accrued from measured daily offload. Closed unsettled months use XNET's official monthly projection and newer days use a conservative API-GB rate. Carrier payments typically settle about two months later, and historical accrual is reconciled to the amount actually paid.",
 
     SupplySideRevenue:
       "Passed XIP-13.1 lets designated operators choose fiat instead of token distributions. Their 75% operator cash share is Supply-Side Revenue and is attributed to the service month reconciled by the carrier settlement that funds the payout, preserving the observed NET60+ settlement cadence.",

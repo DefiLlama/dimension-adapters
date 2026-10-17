@@ -3,7 +3,16 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
+// The query used to LEFT JOIN legacy AMM trade logs to dune.fergmolina.result_polymarket_gamma_api, which was deleted
+// from Dune in 2026-10. That join could repeat AMM rows, so days with Polymarket AMM trades can't be reproduced and must
+// not be refilled. The last trade on a USDC.e FPMM over Polymarket's ConditionalTokens was 2025-04-07
+// (tx 0x899639bffa2cc5dcdcbf30c938946fe85ad4e870bc9fcc24c5c0ba7b3a6b149c), so later days match the stored history.
+const LEGACY_AMM_CUTOFF = '2025-04-08'
+
 const fetch = async (options: FetchOptions) => {
+  if (options.dateString < LEGACY_AMM_CUTOFF)
+    throw new Error(`polymarket: days before ${LEGACY_AMM_CUTOFF} include legacy AMM volume and can no longer be refilled, see the comment above LEGACY_AMM_CUTOFF`)
+
   // https://dune.com/queries/4172945
   const data: any[] = await queryDuneSql(options, `
     with markets AS (
@@ -13,41 +22,6 @@ const fetch = async (options: FetchOptions) => {
             polymarketfactory_polygon.FixedProductMarketMakerFactory_evt_FixedProductMarketMakerCreation
         WHERE
             collateralToken = 0x2791bca1f2de4661ed88a30c99a7a9449aa84174
-    ),
-    unnested_data AS (
-        SELECT 
-            TRY_CAST(json_each.value AS JSON) AS market
-        FROM 
-            dune.fergmolina.result_polymarket_gamma_api,  
-            UNNEST(TRY_CAST(json_parse(json_data) AS array(json))) AS json_each(value)
-    ),
-    market_data as (
-        SELECT distinct
-            JSON_EXTRACT_SCALAR(market, '$.question') AS question,
-            JSON_EXTRACT_SCALAR(market, '$.conditionId') AS condition_id,
-            JSON_EXTRACT_SCALAR(market, '$.slug') AS slug,
-            JSON_EXTRACT_SCALAR(market, '$.icon') AS icon,
-            JSON_EXTRACT_SCALAR(market, '$.description') AS description,
-            CASE WHEN from_hex(JSON_EXTRACT_SCALAR(market, '$.marketMakerAddress')) <> 0x THEN from_hex(JSON_EXTRACT_SCALAR(market, '$.marketMakerAddress')) END AS market_maker_address,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.new') AS BOOLEAN) AS new,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.archived') AS BOOLEAN) AS archived,
-            JSON_EXTRACT_SCALAR(market, '$.questionID') AS question_id,
-            CAST(JSON_EXTRACT_SCALAR(market, '$.restricted') as varchar) AS restricted,
-            CAST(JSON_EXTRACT_SCALAR(event.value, '$.negRisk') as boolean) AS neg_risk,
-            ltrim(outcome.value) AS outcome,
-            ltrim(clobTokenId.value) AS clob_token_id,
-            JSON_EXTRACT_SCALAR(event.value, '$.title') AS event_title,
-            JSON_EXTRACT_SCALAR(event.value, '$.slug') AS event_slug
-        FROM 
-            unnested_data
-            , UNNEST(split(REPLACE(REPLACE(REPLACE(TRY_CAST(JSON_EXTRACT(market, '$.outcomes') AS varchar),'"',''),']',''),'[',''),',')) WITH ORDINALITY AS outcome(value, outcome_ordinality)
-            , UNNEST(split(REPLACE(REPLACE(REPLACE(TRY_CAST(JSON_EXTRACT(market, '$.clobTokenIds') AS varchar),'"',''),']',''),'[',''),',')) WITH ORDINALITY AS clobTokenId(value, clobToken_ordinality)
-            , UNNEST(TRY_CAST(JSON_EXTRACT(market, '$.events') AS ARRAY(JSON))) AS event(value)
-
-        WHERE outcome_ordinality = clobToken_ordinality
-    ),
-    polymarket_market_data as (
-        select * from market_data
     )
     SELECT
         SUM(volume_usd) AS total_volume_usd,
@@ -112,7 +86,6 @@ const fetch = async (options: FetchOptions) => {
             bytearray_to_uint256(substr(pl.DATA, 65, 96)) / 1e6 as notional_volume
         from
             polygon.logs pl
-            left join polymarket_market_data md on pl.contract_address = md.market_maker_address
         where
             pl.topic0 in (
                 0x4f62630f51608fc8a7603a9391a5101e58bd7c276139366fc107dc3b67c3dcf8,

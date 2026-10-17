@@ -1,25 +1,25 @@
-import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
 
-const LEDGER_STATS_URL = "https://api.stellar.expert/explorer/public/ledger/ledger-stats";
-
+// stellar.expert's ledger-stats `accounts` is the live account count, so its daily difference nets out
+// account_merge deletions and goes negative on mass-merge days. Count account creations instead:
+// the account_created effect is emitted only by a successful create_account operation.
 const fetch = async (options: FetchOptions) => {
-  const stats = await fetchURL(LEDGER_STATS_URL);
-  if (!stats?.length) throw new Error("Missing Stellar ledger stats data");
+  assertDuneSolanaIndexed(options);
 
-  const today = stats.find((item) => item.ts === options.startOfDay);
-  const yesterday = stats.find((item) => item.ts === options.startOfDay - 86400);
+  const query = `
+    select count(distinct address) as new_users
+    from stellar.history_effects
+    where closed_at_date = date '${options.dateString}'
+      and type_string = 'account_created'
+  `;
 
-  if (!today) {
-    throw new Error(`No Stellar ledger stats found for date ${options.dateString}`);
-  }
-  if (!yesterday) {
-    throw new Error(`No Stellar ledger stats found for day before ${options.dateString}`);
-  }
+  const [row] = await queryDuneSql(options, query);
 
   return {
-    dailyNewUsers: today.accounts - yesterday.accounts,
+    dailyNewUsers: Number(row.new_users),
   };
 };
 
@@ -27,8 +27,13 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.STELLAR],
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
   start: "2015-10-01",
+  methodology: {
+    NewUsers: "Distinct Stellar accounts created by a successful create_account operation during the UTC day. Accounts deleted and later re-created are counted again on the day they are re-created.",
+  },
 };
 
 export default adapter;

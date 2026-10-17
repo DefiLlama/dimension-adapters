@@ -25,6 +25,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 1,
+    deadFrom: '2026-06-29', // sole source mclmm-api.stabble.org NXDOMAIN, series frozen since 2026-06-28; stabble.org frontend also unreachable ($135k remnant TVL tracked on-chain separately)
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2025-12-12',

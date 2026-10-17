@@ -72,9 +72,13 @@ export type FetchGetLogsOptions = {
   skipCacheRead?: boolean,
   skipCache?: boolean,
   skipIndexer?: boolean,
-  topics?: string[],
+  onlyIndexer?: boolean,
+  topics?: (string | null)[],
   noTarget?: boolean,
   parseLog?: boolean,
+  allowParseFailure?: boolean,
+  processor?: (logs: any[]) => Promise<void> | void,
+  debugMode?: boolean,
 }
 
 export type FetchV2 = (

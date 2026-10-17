@@ -130,7 +130,7 @@ const fetch = async (options: FetchOptions) => {
     const relayFeeLogs = await options.getLogs({
       target: wnt,
       eventAbi: TRANSFER_ABI,
-      topics: [TRANSFER_TOPIC, null as any, padAddress(relayFeeAddress)],
+      topics: [TRANSFER_TOPIC, null, padAddress(relayFeeAddress)],
       onlyArgs: false,
     })
     // Only transfers from GMX's own relay routers are relay fees. A router can only act while it holds GMX's

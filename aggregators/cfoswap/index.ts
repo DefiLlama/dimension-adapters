@@ -3,9 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
 const CFO_ROUTER = '0xf4f7b6400DB5D121194BdA173d8b8727B295207F';
-const USDT = ADDRESSES.bsc.USDT;
 
-const eventAbi = "event MiningNotified(address indexed trader, uint256 volumeUSDT18, address indexed referrer, uint256 notifiedMask)";
+const eventAbi = "event OrderRecord(address fromToken, address toToken, address sender, uint256 fromAmount, uint256 returnAmount)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -14,7 +13,8 @@ const fetch = async (options: FetchOptions) => {
     eventAbi,
   });
   logs.forEach((log: any) => {
-    dailyVolume.add(USDT, log.volumeUSDT18);
+    if (log.toToken.toLowerCase() === ADDRESSES.GAS_TOKEN_2) dailyVolume.addGasToken(log.returnAmount);
+    else dailyVolume.add(log.toToken, log.returnAmount);
   });
   return { dailyVolume };
 };
@@ -26,7 +26,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BSC],
   start: '2026-09-24',
   methodology: {
-    Volume: 'Volume is calculated from MiningNotified events emitted by CfoRouter, which records the USD-normalized volume (volumeUSDT18) of each swap.'
+    Volume: 'Volume is the output token amount each swap delivered, read from the returnAmount of OrderRecord events emitted by CfoRouter. The declared input amount is not used because the router does not check it against the tokens it pulls.'
   }
 };
 

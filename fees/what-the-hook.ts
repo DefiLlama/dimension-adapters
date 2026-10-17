@@ -39,14 +39,17 @@ import { METRIC } from "../helpers/metrics";
 // while the hook distributed in 3,455 transactions over the same blocks: the
 // two are disjoint, and none of this income is reported by any other event.
 //
-// So a split outside a hook transaction is booked as a distribution of its
-// own — the profit it captured is Fees, wthProtocolAmount is Revenue, and the
-// rest is the partner's, which pays the trader, the trigger pool and its own
-// treasury out of it. A split that names a transaction and a currency the
-// hook also reported is the same money said twice, and is dropped: that
-// transaction is read from the hook's own events exactly as it always was.
-// Only the hook's own executor for the integration could emit such a split,
-// and it carries the ProtocolRevenue event the reading above already uses.
+// So a split is booked as a distribution of its own — the profit it captured
+// is Fees, wthProtocolAmount is Revenue, and the rest is the partner's, which
+// pays the trader, the trigger pool and its own treasury out of it. That holds
+// inside a hook transaction too. Between 5 and 8 October 2026 six of the
+// integration's splits landed in a transaction the hook also distributed in,
+// in the same currency, and in each the treasury was paid the split's share
+// apart from the hook's: two arbitrages, two incomes. Only a split emitted by
+// the hook's own executor for the integration could repeat money the reading
+// above already counts, because that executor also emits the ProtocolRevenue
+// it uses; such a split alone is dropped where the hook distributed in the
+// same transaction and currency.
 //
 // The executor that changed the split was deployed at block 52850943. No rule
 // keys off that number: before it there are no ProtocolRevenue events and the
@@ -60,9 +63,41 @@ import { METRIC } from "../helpers/metrics";
 // to the donations into WTH's own pools and nothing else. The event's own
 // swapper/LP fields are not used for the split: the hook still reports the
 // split it was deployed with, not the one the executor pays.
+//
+// On 4 October 2026 a second hook went live (v2, block 79751029) beside the
+// first, which keeps running. The v2 hook emits no distribution event itself:
+// each of its executors emits ProfitCurrencyDistribute, and there the two
+// amounts are the ones the executor pays out — the swapper's cashback and the
+// LPs' share. The treasury's share (ProtocolRevenue), a referral
+// (ReferralRewarded) and an integrating partner's cut (PartnerRevenue) are
+// paid on top of them, so on a v2 distribution every leg is added rather than
+// taken out of a total: Fees is the sum of the legs. Checked on chain up to
+// block 89108115 (15 October 2026): the 10,491 such events carry no other
+// currency than ETH, WETH and USDG, and the USDG ones are USDG amounts (the
+// largest 248 USDG), not a wei amount mislabelled.
+//
+// Since 13 October 2026 the v2 executor is shared with DELTA, whose own hook,
+// on its own pools, names the same executor. A distribution started in a
+// DELTA pool is paid by the same executor in the same shape and pays What The
+// Hook's treasury the same ProtocolRevenue, with DELTA's cut as
+// PartnerRevenue — paid beside the treasury's share, not out of it. It is
+// counted the way the HOOKR integration's arbitrage is: the treasury's share
+// is Revenue, the partner's cut and the rest are supply-side.
+//
+// And since 7 October 2026 a recapture executor for the HOOKR integration
+// states each recapture in one ProfitRecaptured event: the treasury's share,
+// which is What The Hook's, and the share it assigns to the hook of the pool
+// it names. A recapture is an arbitrage of its own and counts in full, also
+// in a transaction where the hook distributed in the same currency — 155 of
+// the first 2,206 did, and in every one the treasury was paid the
+// recapture's share apart from the hook's.
 
 // https://robinhoodchain.blockscout.com/address/0xc52fc52698479e42f0da9a8a75296ec3871454c0
 const HOOK = "0xc52fc52698479e42f0da9a8a75296ec3871454c0";
+// The v2 hook, live 4 October 2026 at block 79751029 —
+// 0x58a6ef29ddcdb064a72b550a78d84a8e065994c0. It emits no distribution
+// event; its distributions are read from its executors, V2_EXECUTORS below.
+// https://robin.etherscan.io/address/0x58A6eF29ddCdb064A72b550a78D84a8e065994C0
 // v4 uses the zero address for native ETH; the pools settle in WETH and USDG.
 // The hook reports a WETH-pool distribution in WETH while the executor pays
 // the treasury and the pools in native ETH out of the same profit, so the two
@@ -142,6 +177,33 @@ const EXECUTORS = [
 ];
 const EXECUTOR_SET = new Set(EXECUTORS);
 
+// Every executor of the v2 hook. Each one emits ProfitCurrencyDistribute
+// itself, with the amounts it actually paid, and pays ProtocolRevenue,
+// ReferralRewarded and PartnerRevenue on top. Kept apart from EXECUTORS: the
+// first hook's reading subtracts its executors' legs from the hook's total,
+// this one adds them, and a transaction can carry both. Only an address in
+// this list counts — an event signature does not authenticate its emitter —
+// so a new generation has to be appended here, or its distributions stop
+// being counted. The hook's executor() names the live one.
+const V2_EXECUTORS = [
+  // https://robin.etherscan.io/address/0xBc1E2bB1f1b6c99dc0C194797076589C4F328bed
+  "0xbc1e2bb1f1b6c99dc0c194797076589c4f328bed", // gen-14, 2026-10-04 to 10-06
+  // https://robin.etherscan.io/address/0x79179D07038c8131E0776746B271c6e69B65a6e3
+  "0x79179d07038c8131e0776746b271c6e69b65a6e3", // gen-15, 2026-10-06 to 10-09
+  // https://robin.etherscan.io/address/0x47A8a386Ec5D83B535899E73e4efF40dCaec21D3
+  "0x47a8a386ec5d83b535899e73e4eff40dcaec21d3", // gen-16, 2026-10-09 to 10-10
+  // https://robin.etherscan.io/address/0x867E78Db593F0E783370cC75eBE162Cb5B83877B
+  "0x867e78db593f0e783370cc75ebe162cb5b83877b", // gen-17, 2026-10-10 to 10-13
+  // https://robin.etherscan.io/address/0x150776A8c3baa8B22b49d40694b22b9C1D6FdB3C
+  "0x150776a8c3baa8b22b49d40694b22b9c1d6fdb3c", // minutes on 2026-10-13, thirteen distributions
+  // gen-18, from 2026-10-13 (first distribution at block 87527285): the v2
+  // hook's executor and DELTA's, and the first to emit PartnerRevenue
+  // https://robin.etherscan.io/address/0xF2Ca86F11d46b8b1DE41974012052d93ef2785aC
+  "0xf2ca86f11d46b8b1de41974012052d93ef2785ac",
+];
+const V2_EXECUTOR_SET = new Set(V2_EXECUTORS);
+const ALL_EXECUTORS = [...EXECUTORS, ...V2_EXECUTORS];
+
 // The addresses whose ArbitrageProfitSplit counts, and no others. An event
 // signature does not authenticate its emitter, and this one names its own
 // payout to the protocol: an unchecked reading would let anybody inflate
@@ -167,19 +229,37 @@ const SPLIT_EMITTERS = [
 ];
 const SPLIT_EMITTER_SET = new Set(SPLIT_EMITTERS);
 
+// The HOOKR integration's recapture executor, which states each recapture in
+// a ProfitRecaptured event instead: the treasury's share and the share it
+// assigns to the hook of the pool it names. First recapture at block
+// 82583663, on 7 October 2026. Checked the same way as the split emitters,
+// for the same reason.
+// https://robin.etherscan.io/address/0x4B4c16681401454140a9dBca55e5c186BBE8D728
+const RECAPTURE_EMITTERS = ["0x4b4c16681401454140a9dbca55e5c186bbe8d728"];
+const RECAPTURE_EMITTER_SET = new Set(RECAPTURE_EMITTERS);
+
 // Every signature below was checked against the topics the deployed contracts
 // actually emit:
 //   ProfitCurrencyDistribute 0x7b1f2ac966718a4fe501511d1cdc7d0671a76732a9213ee292a41bffdd8051fa
 //   Donate                   0x29ef05caaff9404b7cb6d1c0e9bbae9eaa7ab2541feba1a9c4248594c08156cb
 //   ProtocolRevenue          0x72a888fd93a6302c4cb123dfe9b12b97a7188a0c3f5a2d917802936032538848
 //   ArbitrageProfitSplit     0x65c47530703d4eca41f937917aa3f3a7a33c3d85bfb8bc9ebaaaf27f8b57ef6a
-// ReferralRewarded is taken from the executor's interface; no pool has a
-// referral configured yet, so it has not been observed on chain.
+//   ReferralRewarded         0xb2dee5f49e7a09a5d7c95cd4dd5dc6410eea65d4e14519d6d3a6e14c8cf0e0e9
+//   PartnerRevenue           0x50d1447fe9b73d791ca8ae27721bf7f49cae6112b8ef3098c1f974d6611b2d6a
+//   ProfitRecaptured         0x3e2f33c038395a3bf434490726de692ff4f95f953e9d92e972eb35733a3707ca
+// ReferralRewarded is emitted by the v2 executors only; the first hook's
+// executors carry it in their interface and have never emitted it.
 const profitDistributeAbi =
   "event ProfitCurrencyDistribute(address indexed recipient, address indexed currency, uint256 swapperAmount, uint256 lpAmount)";
 const donateAbi = "event Donate(bytes32 indexed id, address indexed sender, uint256 amount0, uint256 amount1)";
 const protocolRevenueAbi = "event ProtocolRevenue(address indexed token, uint256 amount)";
 const referralRewardedAbi = "event ReferralRewarded(address indexed token, address indexed recipient, uint256 amount)";
+// A v2 executor's payment to an integrating partner whose pool started the
+// arbitrage — DELTA's cut, so far.
+const partnerRevenueAbi = "event PartnerRevenue(address indexed recipient, address indexed token, uint256 amount)";
+// One recapture: the treasury's share and the share of the pool's hook.
+const profitRecapturedAbi =
+  "event ProfitRecaptured(bytes32 indexed poolId, address indexed currency, uint256 treasuryAmount, uint256 hookAmount)";
 // The whole split of one arbitrage, stated by the contract that ran it. The
 // five payout legs sum to totalProfit in all 252 emitted so far, and every one
 // of them was paid in native ETH.
@@ -257,17 +337,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // 1. what the hook captured — this is Fees, and the set of transactions
   //    every other event is joined to. The currency the hook names is the one
   //    everything in that transaction is booked in.
+  //
+  //    Read from the first hook and every v2 executor in one list and sorted
+  //    by emitter: the first hook's events go to that reading, a v2
+  //    executor's to the v2 one.
   const totals = ledger();
   const bookedIn = new Map<string, Map<string, string>>();
-  const pcdLogs = await getLogs({ target: HOOK, eventAbi: profitDistributeAbi, ...logOptions });
+  // v2: what the executor declared it paid, per transaction and currency
+  const v2Cash: { currency: string; amount: bigint }[] = [];
+  const v2Lp: { currency: string; amount: bigint }[] = [];
+  const v2Txs = new Set<string>();
+  const pcdLogs = await getLogs({ targets: [HOOK, ...V2_EXECUTORS], eventAbi: profitDistributeAbi, ...logOptions });
   for (const log of pcdLogs) {
     const tx = low(log.transactionHash);
     if (EXCLUDED_TX.has(tx)) continue;
+    const emitter = low(log.address);
     const currency = low(log.args.currency);
-    put(totals, tx, currency, big(log.args.swapperAmount) + big(log.args.lpAmount));
-    const names = bookedIn.get(tx) ?? new Map<string, string>();
-    if (!names.has(family(currency))) names.set(family(currency), currency);
-    bookedIn.set(tx, names);
+    if (emitter === HOOK) {
+      put(totals, tx, currency, big(log.args.swapperAmount) + big(log.args.lpAmount));
+      const names = bookedIn.get(tx) ?? new Map<string, string>();
+      if (!names.has(family(currency))) names.set(family(currency), currency);
+      bookedIn.set(tx, names);
+    } else if (V2_EXECUTOR_SET.has(emitter)) {
+      v2Txs.add(tx);
+      v2Cash.push({ currency, amount: big(log.args.swapperAmount) });
+      v2Lp.push({ currency, amount: big(log.args.lpAmount) });
+    }
   }
 
   // 2. the treasury's share and the referral share, emitted by the executor
@@ -275,44 +370,85 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   //    and only inside a transaction the hook distributed in; no leg may
   //    exceed what the hook reported for that transaction and currency.
   //
-  //    The emitter is checked on the log rather than passed as `targets`,
-  //    which the SDK fans out into one request per address: ten executors
-  //    across two events is twenty requests for a single hourly slot, and the
-  //    public RPCs start answering 429 long before the day is done. The log's
-  //    own address is the emitter, so this authenticates exactly as well for
-  //    a tenth of the traffic.
+  //    Every executor is passed as `targets` — the log indexer takes the
+  //    whole list in one query — and the log's own address is checked again,
+  //    because a filter asked of a node is not a proof.
+  //
+  //    A v2 executor's legs are kept apart: they are paid on top of what it
+  //    declared, inside a transaction it distributed in, each in the currency
+  //    it was paid in — nothing is taken out of anything, so a leg in another
+  //    currency than the declared one needs no price to stay exact.
   const retained = ledger();
   const referred = ledger();
   const fromExecutor = (log: any) => EXECUTOR_SET.has(low(log.address));
-  for (const log of await getLogs({ noTarget: true, eventAbi: protocolRevenueAbi, ...logOptions })) {
+  const fromV2 = (log: any) => V2_EXECUTOR_SET.has(low(log.address)) && v2Txs.has(low(log.transactionHash));
+  const v2Prot: { currency: string; amount: bigint }[] = [];
+  const v2Ref: { currency: string; amount: bigint }[] = [];
+  const v2Partner: { currency: string; amount: bigint }[] = [];
+  const v2RefPaid = new Map<string, number>();
+  for (const log of await getLogs({ targets: ALL_EXECUTORS, eventAbi: protocolRevenueAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
+    if (fromV2(log)) {
+      v2Prot.push({ currency: low(log.args.token), amount: big(log.args.amount) });
+      continue;
+    }
     if (!totals.has(tx) || !fromExecutor(log)) continue;
     put(retained, tx, low(log.args.token), big(log.args.amount));
   }
-  for (const log of await getLogs({ noTarget: true, eventAbi: referralRewardedAbi, ...logOptions })) {
+  for (const log of await getLogs({ targets: ALL_EXECUTORS, eventAbi: referralRewardedAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
+    if (fromV2(log)) {
+      const currency = low(log.args.token);
+      v2Ref.push({ currency, amount: big(log.args.amount) });
+      const key = `${tx}|${family(currency)}|${big(log.args.amount)}|${low(log.args.recipient)}`;
+      v2RefPaid.set(key, (v2RefPaid.get(key) ?? 0) + 1);
+      continue;
+    }
     if (!totals.has(tx) || !fromExecutor(log)) continue;
     put(referred, tx, low(log.args.token), big(log.args.amount));
   }
+  // one payment reported under both events is counted once: a
+  // PartnerRevenue naming the same transaction, currency, amount and
+  // recipient as a ReferralRewarded is already counted there. None has so far.
+  for (const log of await getLogs({ targets: V2_EXECUTORS, eventAbi: partnerRevenueAbi, ...logOptions })) {
+    if (!fromV2(log)) continue;
+    const currency = low(log.args.token);
+    const key = `${low(log.transactionHash)}|${family(currency)}|${big(log.args.amount)}|${low(log.args.recipient)}`;
+    const said = v2RefPaid.get(key) ?? 0;
+    if (said > 0) {
+      v2RefPaid.set(key, said - 1);
+      continue;
+    }
+    v2Partner.push({ currency, amount: big(log.args.amount) });
+  }
 
-  // 2b. the splits. A split that names a transaction and a currency the hook
-  //     also distributed in is the same money said twice: the hook's own
-  //     events are the authority there and steps 2 to 4 read them, so it is
-  //     dropped. The currency matters as much as the transaction — a hook
+  // 2b. the splits: each an arbitrage of the integration's own, booked in
+  //     step 5, including one in a transaction the hook also distributed in —
+  //     the treasury is paid the split's share apart from the hook's there.
+  //     Only a split from the hook's own executor for the integration is
+  //     dropped where the hook distributed in the same transaction and
+  //     currency, since that executor's ProtocolRevenue is already read in
+  //     step 2. The currency matters as much as the transaction — a hook
   //     distribution in USDG says nothing about a split paid in ETH in the
-  //     same receipt, and dropping that one would lose it. Everything else is
-  //     an arbitrage of the integration's own, booked in step 5; thirty-nine
-  //     of the 213 transactions so far carry more than one split, so they
-  //     accumulate rather than replace.
+  //     same receipt. Thirty-nine of the first 213 transactions carried more
+  //     than one split, so they accumulate rather than replace.
   const ownSplits: { currency: string; total: bigint; kept: bigint }[] = [];
   for (const log of await getLogs({ targets: SPLIT_EMITTERS, eventAbi: arbitrageProfitSplitAbi, ...logOptions })) {
     const tx = low(log.transactionHash);
+    const emitter = low(log.address);
     // the query already asks for these emitters; the log's own address is
     // checked again because a filter asked of a node is not a proof
-    if (!SPLIT_EMITTER_SET.has(low(log.address))) continue;
+    if (!SPLIT_EMITTER_SET.has(emitter)) continue;
     const currency = low(log.args.profitCurrency);
-    if (totals.get(tx)?.has(family(currency))) continue;
+    if (EXECUTOR_SET.has(emitter) && totals.get(tx)?.has(family(currency))) continue;
     ownSplits.push({ currency, total: big(log.args.totalProfit), kept: big(log.args.wthProtocolAmount) });
+  }
+  // the recaptures: each one an arbitrage of its own whose treasury share is
+  // paid by itself, so every one counts, whatever else the transaction carries
+  const recaptures: { currency: string; kept: bigint; handed: bigint }[] = [];
+  for (const log of await getLogs({ targets: RECAPTURE_EMITTERS, eventAbi: profitRecapturedAbi, ...logOptions })) {
+    if (!RECAPTURE_EMITTER_SET.has(low(log.address))) continue;
+    recaptures.push({ currency: low(log.args.currency), kept: big(log.args.treasuryAmount), handed: big(log.args.hookAmount) });
   }
 
   // 3. what went to liquidity providers: the PoolManager's Donate events sent
@@ -392,32 +528,56 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     add(dailySupplySideRevenue, currency, total - protocol, LABEL.toPartners);
   }
 
+  // 6. the v2 hook's distributions: every leg the executor paid, each in its
+  //    own currency. Fees is their sum, so Fees still equals Revenue plus
+  //    supply-side exactly.
+  const both = (currency: string, amount: bigint, bal: any, label: string) => {
+    add(dailyFees, currency, amount, LABEL.captured);
+    add(bal, currency, amount, label);
+  };
+  for (const { currency, amount } of v2Cash) both(currency, amount, dailySupplySideRevenue, LABEL.toTraders);
+  for (const { currency, amount } of v2Lp) both(currency, amount, dailySupplySideRevenue, LABEL.toLPs);
+  for (const { currency, amount } of v2Prot) {
+    both(currency, amount, dailyRevenue, LABEL.toProtocol);
+    add(dailyProtocolRevenue, currency, amount, LABEL.toProtocol);
+  }
+  for (const { currency, amount } of v2Ref) both(currency, amount, dailySupplySideRevenue, LABEL.toReferrers);
+  for (const { currency, amount } of v2Partner) both(currency, amount, dailySupplySideRevenue, LABEL.toPartners);
+
+  // 7. the HOOKR integration's recaptures: the treasury's share is Revenue,
+  //    the share assigned to the pool's hook is the partner's
+  for (const { currency, kept, handed } of recaptures) {
+    both(currency, kept, dailyRevenue, LABEL.toProtocol);
+    add(dailyProtocolRevenue, currency, kept, LABEL.toProtocol);
+    both(currency, handed, dailySupplySideRevenue, LABEL.toPartners);
+  }
+
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyUserFees };
 };
 
 const methodology = {
-  Fees: "The arbitrage profit the hook realises and distributes, summed from the ProfitCurrencyDistribute event the hook emits on every distribution, plus the profit the HOOKR integration reports in its own ArbitrageProfitSplit event. The hook closes the price gap a swap opens between connected pools within the same transaction, so this is value recaptured from MEV rather than a fee charged to anyone.",
-  Revenue: "The share of that profit retained by the protocol treasury: the executor's ProtocolRevenue event (90% on WTH's own pools, 40% on pools that integrate WTH, since 2 September 2026) plus any profit donated into WTH's own pools, which was the treasury's income before that event existed. On an arbitrage run by the HOOKR integration it is the wthProtocolAmount leg of the ArbitrageProfitSplit event, a tenth of that profit so far.",
+  Fees: "The arbitrage profit the hook realises and distributes, summed from the ProfitCurrencyDistribute event the first hook emits on every distribution; for the v2 hook (since 4 October 2026), every leg its executor pays — the swapper's cashback and the LPs' share it declares in ProfitCurrencyDistribute, plus the ProtocolRevenue, ReferralRewarded and PartnerRevenue it pays on top, including on the DELTA integration that shares the executor; plus the profit the HOOKR integration reports in its own ArbitrageProfitSplit and ProfitRecaptured events. The hook closes the price gap a swap opens between connected pools within the same transaction, so this is value recaptured from MEV rather than a fee charged to anyone.",
+  Revenue: "The share of that profit retained by the protocol treasury: the executor's ProtocolRevenue event (90% on WTH's own pools, 40% on pools that integrate WTH, since 2 September 2026; on the v2 hook's distributions and on the DELTA integration's, paid on top of the declared amounts) plus any profit donated into WTH's own pools, which was the treasury's income before that event existed. On an arbitrage run by the HOOKR integration it is the wthProtocolAmount leg of the ArbitrageProfitSplit event, and on a recapture the treasuryAmount of the ProfitRecaptured event.",
   ProtocolRevenue: "Same as Revenue — nothing is distributed to token holders on chain.",
-  SupplySideRevenue: "Everything not retained: the cashback paid to the trader whose swap created the opportunity, the profit donated to the liquidity providers of integrating pools, any referral share paid to an integrating partner, and, on an arbitrage run by the HOOKR integration, the whole of the profit the protocol did not keep — the partner pays the trader, the trigger pool and its own treasury out of it.",
+  SupplySideRevenue: "Everything not retained: the cashback paid to the trader whose swap created the opportunity, the profit donated to the liquidity providers of integrating pools, any referral share paid to an integrating partner, an integrating partner's cut (PartnerRevenue — DELTA's, on arbitrage started in its pools), and, on an arbitrage run by the HOOKR integration, the whole of the profit the protocol did not keep — the partner pays the trader, the trigger pool and its own treasury out of it; on a recapture, the hookAmount the event assigns to the pool's hook.",
   UserFees: "Zero. Users are not charged by the hook; a swapper receives cashback rather than paying anything.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL.captured]: "Arbitrage profit captured by the hook when a swap moves one pool away from a connected pool, closed out in the same transaction, together with the profit an integrating partner's own arbitrage reports in its ArbitrageProfitSplit event.",
+    [LABEL.captured]: "Arbitrage profit captured by the hook when a swap moves one pool away from a connected pool, closed out in the same transaction — on the v2 hook, every leg its executor pays — together with the profit an integrating partner's own arbitrage reports in its ArbitrageProfitSplit or ProfitRecaptured event.",
   },
   Revenue: {
-    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of an ArbitrageProfitSplit, plus profit donated into WTH's own pools.",
+    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of an ArbitrageProfitSplit, the treasuryAmount of a ProfitRecaptured, plus profit donated into WTH's own pools.",
   },
   ProtocolRevenue: {
-    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of an ArbitrageProfitSplit, plus profit donated into WTH's own pools.",
+    [LABEL.toProtocol]: "Retained by the protocol treasury: the executor's ProtocolRevenue event, the wthProtocolAmount leg of an ArbitrageProfitSplit, the treasuryAmount of a ProfitRecaptured, plus profit donated into WTH's own pools.",
   },
   SupplySideRevenue: {
     [LABEL.toTraders]: "Cashback paid to the trader whose swap created the arbitrage opportunity.",
     [LABEL.toLPs]: "Donated to the liquidity providers of the integrating pool the profit was taken from.",
-    [LABEL.toReferrers]: "Referral share paid to the partner that integrated the pool, where one is configured.",
-    [LABEL.toPartners]: "Profit handed to an integrating partner on an arbitrage it ran itself — the whole of what the protocol did not keep. The partner pays the trader's cashback, the trigger pool's liquidity providers and its own treasury out of it.",
+    [LABEL.toReferrers]: "Referral share paid to the referrer configured for the pool, where one is.",
+    [LABEL.toPartners]: "Profit handed to an integrating partner: on an arbitrage it ran itself, the whole of what the protocol did not keep (the partner pays the trader's cashback, the trigger pool's liquidity providers and its own treasury out of it); on a recapture, the hookAmount the event assigns to the pool's hook; and the PartnerRevenue a v2 executor pays a partner whose pool started the arbitrage (DELTA).",
   },
 };
 

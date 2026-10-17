@@ -61,16 +61,21 @@ WITH
             AND p_sol.contract_address = FROM_BASE58('So11111111111111111111111111111111111111112')
             AND p_sol.timestamp >= FROM_UNIXTIME({{start}})
             AND p_sol.timestamp < FROM_UNIXTIME({{end}})
-        LEFT JOIN solana.transactions t
-            ON a.tx_id = t.id
-            AND a.block_date = t.block_date
-            AND t.block_date >= FROM_UNIXTIME({{start}})
-            AND t.block_date < FROM_UNIXTIME({{end}})
         WHERE a.block_date >= date('2025-08-01')
             AND a.block_date >= FROM_UNIXTIME({{start}})
             AND a.block_date < FROM_UNIXTIME({{end}})
             AND (a.address = '5eosrve6LktMZgVNszYzebgmmC7BjLK8NoWyRQtcmGTF' OR a.address = 'GSyXx6WRm2o6Qu4RWxTH17swLZKpTKQdQTS2uGcus1NF')
-            AND any_match(t.account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
+            AND a.address_prefix IN ('5e', 'GS')
+            -- transactions that include the Tip Payment program, found through account_activity (pruned by
+            -- address_prefix) instead of scanning a full day of solana.transactions for account_keys
+            AND a.tx_id IN (
+                SELECT tx_id
+                FROM solana.account_activity
+                WHERE block_date >= FROM_UNIXTIME({{start}})
+                    AND block_date < FROM_UNIXTIME({{end}})
+                    AND address = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt'
+                    AND address_prefix = 'T1'
+            )
     )
 SELECT
     -- raw jitoSOL amount, priced in the adapter: dune amount_usd is null before 2024 so usd_amt

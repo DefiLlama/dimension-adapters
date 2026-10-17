@@ -3,11 +3,64 @@ import fetchURL from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 import { CHAIN } from './chains';
 
+// Data API v1 is retired on 2026-10-24: https://docs.polymarket.com/migrate/data-api-v1-to-v2
+// v2 wraps the rows in `data`, uses snake_case fields and a YYYY-MM-DD `date`. It is not paginated
+// and serves only the latest 90 daily buckets (`limit` max 90), so older days cannot be fetched.
+const BUILDERS_VOLUME_URL = 'https://data-api.polymarket.com/v2/builders/volume?interval=day&limit=90'
+
+// One row of the v2 builders volume series (data-api.polymarket.com/v2/docs).
+type BuilderVolumeRow = {
+  date: string
+  builder_name: string
+  volume: number
+}
+
+const BUILDER_TRADES_URL = 'https://clob.polymarket.com/builder/trades'
+
+async function getBuilderTrades(builderCode: string, fromTimestamp: number, toTimestamp: number) {
+  const trades: any[] = []
+  const seen = new Set<string>()
+  let cursor: string | undefined
+  do {
+    const url = `${BUILDER_TRADES_URL}?builder_code=${builderCode}&before=${toTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`
+    const { data, next_cursor } = await fetchURL(url)
+    for (const trade of data) {
+      const matchTime = Number(trade.matchTime)
+      if (matchTime < fromTimestamp || matchTime >= toTimestamp || seen.has(trade.id)) continue
+      seen.add(trade.id)
+      trades.push(trade)
+    }
+    const oldest = data[data.length - 1]
+    if (!oldest || Date.parse(oldest.createdAt) / 1e3 < fromTimestamp - 60) break
+    cursor = next_cursor
+    await sleep(500)
+  } while (cursor && cursor !== 'LTE=')
+  return trades
+}
+
+/**
+ * Daily volume of one Polymarket builder for the day that starts at `options.startOfDay` (UTC).
+ *
+ * - `dailyNotionalVolume`: Polymarket's own daily volume for `builder` (in shares), from Data API v2
+ *   `/v2/builders/volume`, matched on the day and the builder name.
+ * - `dailyVolume` (only when `builderCode` is given): the USD size of the builder's attributed CLOB trades that day.
+ *
+ * Supported range: v2 serves only the latest 90 daily buckets, so only about the last 90 days can be fetched.
+ * Two different errors:
+ * - a day older than the oldest bucket returned throws `Polymarket builder volume is only served from <oldest>, ...`
+ *   (the data exists upstream but is out of reach; nothing should be written for that day);
+ * - a day inside the range with no row for the builder throws `No volume data found for <builder> on <day>`
+ *   (the builder had no attributed volume that day).
+ */
 export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
 
-  const data = await fetchURL('https://data-api.polymarket.com/v1/builders/volume?timePeriod=DAY')
-  const dateString = (new Date(options.startOfDay * 1000).toISOString()).replace('.000Z', 'Z' )
-  const volume = data.find((item: any) => item.dt === dateString && item.builder === builder)
+  const { data }: { data: BuilderVolumeRow[] } = await fetchURL(BUILDERS_VOLUME_URL)
+  const dateString = new Date(options.startOfDay * 1000).toISOString().slice(0, 10)
+  const oldestDate: string | undefined = data.reduce((oldest: string | undefined, item) => !oldest || item.date < oldest ? item.date : oldest, undefined)
+  if (oldestDate && dateString < oldestDate) {
+    throw new Error(`Polymarket builder volume is only served from ${oldestDate}, cannot fetch ${builder} on ${dateString}`);
+  }
+  const volume = data.find((item) => item.date === dateString && item.builder_name === builder)
 
   if (!volume) {
     throw new Error(`No volume data found for ${builder} on ${dateString}`);
@@ -16,19 +69,13 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCo
   const result: FetchResult = { dailyNotionalVolume: volume.volume };
 
   // USD (cash) volume: sum sizeUsdc across the builder's attributed trades,
-  // paging the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
+  // from the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
   if (builderCode) {
     const dailyVolume = options.createBalances();
-    let cursor: string | undefined;
-    do {
-      const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
-      const tradesData = await fetchURL(url);
-      for (const trade of tradesData.data) {
-        dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
-      }
-      cursor = tradesData.next_cursor;
-      await sleep(500);
-    } while (cursor && cursor !== 'LTE=');
+    const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
+    for (const trade of trades) {
+      dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
+    }
     result.dailyVolume = dailyVolume;
   }
 
@@ -56,23 +103,20 @@ export function polymarketBuilderExports({ builder, start, builderCode }: { buil
 export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { options: FetchOptions, builderCode: string }) {
   const dailyFees = options.createBalances();
 
-  let cursor: string | undefined;
-  do {
-    const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
-    const tradesData = await fetchURL(url);
-    for (const trade of tradesData.data) {
-      dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
-    }
-    cursor = tradesData.next_cursor;
-    await sleep(500);
-  } while (cursor && cursor !== 'LTE=');
+  const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
+  for (const trade of trades) {
+    dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
+  }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
-export function polymarketV2BuilderFeesExports({ builderCode, builderName, start }: { builderCode: string, builderName: string, start: string }) {
+export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean }) {
   const fetch = async (options: FetchOptions) => {
-    return await fetchPolymarketV2BuilderFees({ options, builderCode });
+    const res = await fetchPolymarketV2BuilderFees({ options, builderCode });
+    if (!revenueToHolders) return res;
+    // all builder fees go to the builder's token holders
+    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: res.dailyFees };
   }
 
   const adapter: SimpleAdapter = {
@@ -85,7 +129,9 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
     methodology: {
       Fees: `Builder fees received by ${builderName} from trades on Polymarket v2`,
       Revenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
+      ...(revenueToHolders
+        ? { ProtocolRevenue: `No builder fees are kept by ${builderName}`, HoldersRevenue: `Builder fees received by ${builderName}, all distributed to its token holders` }
+        : { ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2` }),
     },
     breakdownMethodology: {
       Fees: {
@@ -94,9 +140,9 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
       Revenue: {
         'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
       },
-      ProtocolRevenue: {
-        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      },
+      ...(revenueToHolders
+        ? { HoldersRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName}, all distributed to its token holders` } }
+        : { ProtocolRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2` } }),
     }
   }
 

@@ -44,6 +44,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.OPTIMISM]: { start: "2025-07-17" },
     [CHAIN.POLYGON]: { start: "2025-07-18" },
     [CHAIN.ETHEREUM]: { start: "2025-07-21" },
+    [CHAIN.ARC]: { start: "2026-05-26" },
   },
   methodology,
   breakdownMethodology,

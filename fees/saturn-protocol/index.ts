@@ -16,7 +16,7 @@ const PERFORMANCE_FEE_BPS = 1000;
 const STAKERS_REVENUE_BPS = 1000; // Saturn returns 10% of revenue to sUSDat holders
 // STRC backing left sUSDat.strcBalance for the STRC mirror module and the STRCon module.
 // https://saturncredit.gitbook.io/saturn-docs/solution
-const STRCON_MIGRATION = 1790812800; // 2026-10-01 00:00:00 UTC
+const STRCON_MIGRATION = 1790780327; // 2026-09-30 14:58:47 UTC, block 26091045
 
 const METRICS = {
     STRC_PRICE_FLUCTUATIONS: "Effect of STRC price fluctuations",
@@ -70,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
         }
     }
 
-    const postMigration = options.startTimestamp >= STRCON_MIGRATION;
+    const postMigration = options.toTimestamp >= STRCON_MIGRATION;
 
     const [strcBalanceBackingSUSDat, usdatBalanceBackingSUSDat, usdatTotalSupply] = await Promise.all([
         postMigration

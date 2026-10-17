@@ -70,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
         options.getLogs({
             noTarget: true,
             eventAbi: Transfer,
-            topics: [TRANSFER_TOPIC, ethers.zeroPadValue(TREASURY, 32), null as any],
+            topics: [TRANSFER_TOPIC, ethers.zeroPadValue(TREASURY, 32), null],
             entireLog: true,
             parseLog: true,
             onlyArgs: false
