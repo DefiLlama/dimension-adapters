@@ -2,16 +2,14 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getPositionedLogArgs } from "../../helpers/logs";
 import { METRIC } from "../../helpers/metrics";
-import { EXCLUDED_PAYERS, FEAST_HOOK } from "../../dexs/feast";
+import { FEAST_HOOK } from "../../dexs/feast";
 
 // Feast (https://feast.meme): every coin trades in a PancakeSwap Infinity pool attached to the Feast
 // hook, which takes 1% of each swap on the quote leg (a Binance tokenized stock or WBNB) and splits it
 // once, at accrual, into fixed per-pool shares (FeastHook._bank). The split is mirrored here per fee.
 // Factory: https://bscscan.com/address/0x1003b54659F5e31A7391fEBE824A137e8CDa90da
-// Fee ledger: https://bscscan.com/address/0xDbc80A945e67579fF23a7D9E1c658AE4C966C637
 // Platform sink: https://bscscan.com/address/0x59BA4f39Ce8a405d1C08979680f051c17dC8BBFB
 const FACTORY = "0x1003b54659F5e31A7391fEBE824A137e8CDa90da";
-const LEDGER = "0xDbc80A945e67579fF23a7D9E1c658AE4C966C637";
 // first CoinCreated (2026-10-11): nothing is launched before it
 const FIRST_COIN_BLOCK = 127031147;
 // FEAST, the platform coin, is launched by the factory's Genesis event (block 127750229,
@@ -22,7 +20,6 @@ const COIN_CREATED_EVENT = "event CoinCreated(address indexed coin, address inde
 const FEE_ACCRUED_EVENT = "event FeeAccrued(bytes32 indexed poolId, uint256 amount)";
 const REFERRAL_CREDITED_EVENT = "event ReferralCredited(bytes32 indexed poolId, address indexed referrer, uint256 amount)";
 const LP_FEES_COLLECTED_EVENT = "event LpFeesCollected(bytes32 indexed poolId, uint256 quoteCollected)";
-const FEES_RECORDED_EVENT = "event FeesRecorded(uint256 indexed week, address indexed quote, address indexed payer, address creator, address referrer, uint256 amount)";
 
 // FeastConstants: shares are basis points of the fee itself. The platform share is a constant; the
 // self-burn (0-50%) and referrer (0-30%) shares are set per pool in CoinCreated and have no setter.
@@ -45,12 +42,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const [coinLogs, feeLogs, referralLogs, lpFeeLogs, recordLogs] = await Promise.all([
+  const [coinLogs, feeLogs, referralLogs, lpFeeLogs] = await Promise.all([
     options.getLogs({ target: FACTORY, eventAbi: COIN_CREATED_EVENT, fromBlock: FIRST_COIN_BLOCK, cacheInCloud: true }),
     getPositionedLogArgs(options, { target: FEAST_HOOK, eventAbi: FEE_ACCRUED_EVENT }),
     getPositionedLogArgs(options, { target: FEAST_HOOK, eventAbi: REFERRAL_CREDITED_EVENT }),
     getPositionedLogArgs(options, { target: FEAST_HOOK, eventAbi: LP_FEES_COLLECTED_EVENT }),
-    getPositionedLogArgs(options, { target: LEDGER, eventAbi: FEES_RECORDED_EVENT }),
   ]);
 
   const pools: Record<string, { quote: string; creator: string; selfBurnBps: bigint }> = {};
@@ -59,11 +55,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // Log indexes are block-wide, and the events of one fee are emitted back to back: FeeAccrued, then
-  // ReferralCredited if the trade was referred, then the ledger's FeesRecorded (or, for LP fees, LpFeesCollected)
+  // ReferralCredited if the trade was referred (or, for LP fees, LpFeesCollected)
   const position = (log: any, offset = 0) => `${log.blockNumber}:${log.logIndex + offset}`;
   const referrals = new Map(referralLogs.map((log) => [position(log), log]));
   const lpFees = new Map(lpFeeLogs.map((log) => [position(log), log]));
-  const records = new Map(recordLogs.map((log) => [position(log), log]));
 
   for (const fee of feeLogs) {
     const poolId = fee.poolId.toLowerCase();
@@ -78,10 +73,6 @@ const fetch = async (options: FetchOptions) => {
 
     const referral = referrals.get(position(fee, 1));
     const commission = referral && referral.poolId.toLowerCase() === poolId ? BigInt(referral.amount) : 0n;
-
-    // the ledger records who paid the fee (tx.origin); fees paid by the team's own trading bot are self-trading
-    const record = records.get(position(fee, commission > 0n ? 2 : 1));
-    if (record && BigInt(record.amount) === amount && EXCLUDED_PAYERS.has(record.payer.toLowerCase())) continue;
 
     const selfBurn = (amount * pool.selfBurnBps) / BPS;
     const platform = (amount * PLATFORM_BPS) / BPS;
@@ -121,7 +112,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The 1% fee the Feast hook takes on every buy and sell of a Feast coin, paid in the coin's quote asset (a Binance tokenized stock or BNB). Excludes the PancakeSwap Infinity LP fee, the one-off 1% fee on the FEAST token sale, and fees paid by the Feast team's own trading-bot wallets.",
+  Fees: "The 1% fee the Feast hook takes on every buy and sell of a Feast coin, paid in the coin's quote asset (a Binance tokenized stock or BNB). Excludes the PancakeSwap Infinity LP fee and the one-off 1% fee on the FEAST token sale.",
   UserFees: "The 1% fee traders pay on every buy and sell of a Feast coin.",
   Revenue: "The 20% platform share of every fee, plus the self-burn and creator shares of fees in the FEAST/BNB pool, all of which are used to buy and burn the FEAST platform token.",
   ProtocolRevenue: "No part of the fee goes to a team treasury: the platform share is used only to buy and burn FEAST.",
