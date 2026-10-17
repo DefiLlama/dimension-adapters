@@ -5,27 +5,37 @@ import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
 
 // LCX Liberty DEX: a non-custodial DEX aggregator by LCX Liberty Labs Inc. (LCX USA).
-// One router proxy at the same address on every chain; it emits `Swapped` once per settled swap.
+// Two router proxies, each at one address on every chain it serves: the first on Ethereum, Base,
+// Arbitrum and OP Mainnet, the second on Robinhood Chain, BNB Chain, Polygon and Avalanche
+// (live 12 Oct 2026). Both emit the same `Swapped` event once per settled swap.
 // No fee is taken on the swap, so no fees or revenue are reported.
-const ROUTER = "0x0000000000b1ae06c96aB73FF4360d7AeAaB56F0";
+const ROUTER_1 = "0x0000000000b1ae06c96aB73FF4360d7AeAaB56F0";
+const ROUTER_2 = "0x0000000000654902B6Ed6cC240cc81CB4c4a3dff";
+const NEW_CHAINS_START = "2026-10-12";
+
+const chainConfig: Record<string, { router: string; wrapped: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { router: ROUTER_1, wrapped: ADDRESSES.ethereum.WETH, start: "2026-09-10" },
+  [CHAIN.BASE]: { router: ROUTER_1, wrapped: ADDRESSES.optimism.WETH_1, start: "2026-09-10" },
+  [CHAIN.ARBITRUM]: { router: ROUTER_1, wrapped: ADDRESSES.arbitrum.WETH, start: "2026-09-10" },
+  [CHAIN.OPTIMISM]: { router: ROUTER_1, wrapped: ADDRESSES.optimism.WETH_1, start: "2026-09-10" },
+  [CHAIN.ROBINHOOD]: { router: ROUTER_2, wrapped: ADDRESSES.robinhood.WETH, start: NEW_CHAINS_START },
+  [CHAIN.BSC]: { router: ROUTER_2, wrapped: ADDRESSES.bsc.WBNB, start: NEW_CHAINS_START },
+  [CHAIN.POLYGON]: { router: ROUTER_2, wrapped: ADDRESSES.polygon.WMATIC_2, start: NEW_CHAINS_START },
+  [CHAIN.AVAX]: { router: ROUTER_2, wrapped: ADDRESSES.avax.WAVAX, start: NEW_CHAINS_START },
+};
 const EVENT_SWAPPED = "event Swapped(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, address recipient)";
 
-// Native ETH is reported as the zero address; price it as the chain's wrapped ETH.
+// The chain's native gas token is reported as the zero address; price it as the chain's wrapped native token.
 const NATIVE = ADDRESSES.null;
-const WRAPPED: Record<string, string> = {
-  [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
-  [CHAIN.BASE]: ADDRESSES.optimism.WETH_1,
-  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
-  [CHAIN.OPTIMISM]: ADDRESSES.optimism.WETH_1,
-};
 
 async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
+  const { router, wrapped } = chainConfig[chain];
   const blacklisted = getDefaultDexTokensBlacklisted(chain);
   const isBlacklisted = (token: string) => blacklisted.includes(formatAddress(token));
-  const priced = (token: string) => (formatAddress(token) === NATIVE ? WRAPPED[chain] : token);
+  const priced = (token: string) => (formatAddress(token) === NATIVE ? wrapped : token);
 
   const dailyVolume = createBalances();
-  const logs = await getLogs({ targets: [ROUTER], eventAbi: EVENT_SWAPPED });
+  const logs = await getLogs({ targets: [router], eventAbi: EVENT_SWAPPED });
   logs
     .filter((log: any) => !isBlacklisted(log.tokenIn) && !isBlacklisted(log.tokenOut))
     .forEach((log: any) => dailyVolume.add(priced(log.tokenOut), log.amountOut));
@@ -37,10 +47,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  start: "2026-09-10",
-  chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.OPTIMISM],
+  adapter: chainConfig,
   methodology: {
-    Volume: "Sum of the output amount of every Swapped event emitted by the LCX Liberty router (0x0000000000b1ae06c96aB73FF4360d7AeAaB56F0) on each chain; native ETH is priced as the chain's wrapped ETH. No fee is charged on swaps, so no fees or revenue are reported.",
+    Volume: "Sum of the output amount of every Swapped event emitted by the LCX Liberty routers: 0x0000000000b1ae06c96aB73FF4360d7AeAaB56F0 on Ethereum, Base, Arbitrum and OP Mainnet, and 0x0000000000654902B6Ed6cC240cc81CB4c4a3dff on Robinhood Chain, BNB Chain, Polygon and Avalanche. The native gas token is priced as the chain's wrapped native token. No fee is charged on swaps, so no fees or revenue are reported.",
   },
 };
 
