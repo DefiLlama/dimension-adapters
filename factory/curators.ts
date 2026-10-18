@@ -197,8 +197,11 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ARC]: {
         // Morpho V2 vault, listed directly: no Morpho vault factory is configured for arc.
         // api.morpho.org names its curator "Galaxy Curation".
-        morphoV2: ['0x8E357432CC12ff425c36432F312968aEb16112AF'], // Galaxy USDC
-        start: '2026-06-12', // vault deployment
+        morphoV2: [
+          '0x8E357432CC12ff425c36432F312968aEb16112AF', // Galaxy USDC
+          '0x389abDf4355e0cF4f19298179991705a98f21c18', // Galaxy EURC
+        ],
+        start: '2026-06-12', // Galaxy USDC deployment
       },
     },
   },
