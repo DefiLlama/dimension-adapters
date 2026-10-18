@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "../factory/registry";
 import { CHAIN } from "./chains";
 import { addTokensReceived, nullAddress } from "./token";
@@ -27,7 +27,7 @@ export const getLiquityV2LogAdapter: any = ({
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
     const dailySupplySideRevenue = createBalances()
-    
+
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
@@ -43,12 +43,12 @@ export const getLiquityV2LogAdapter: any = ({
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
     const borrowInterest = await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], fromAdddesses: [nullAddress] })
-    
+
     dailyFees.add(borrowInterest, METRIC.BORROW_INTEREST)
-    
+
     // share of borrow interest to stability pools
     dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
-    
+
     // share of borrow interest to Protocol Incentivized Liquidity
     if (revenueRatio && revenueRatio > 0) {
       dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
@@ -69,7 +69,7 @@ export const getLiquityV2LogAdapter: any = ({
       const collateralToken = tokens[i]
       logs.forEach((log: any) => {
         dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee)
-        
+
         // v2 redemption fees are distributed to borrowers
         dailySupplySideRevenue.add(collateralToken, log._ETHFee, METRICS.RedemptionFeeToBorrowers)
       })
@@ -86,7 +86,7 @@ export const getLiquityV2LogAdapter: any = ({
     })
 
 
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue  }
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue }
   }
   return fetch
 }
@@ -94,7 +94,7 @@ export const getLiquityV2LogAdapter: any = ({
 type LiquityV2Config = {
   collateralRegistry: string,
   stableTokenAbi?: string,
-  
+
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
   stabilityPoolRatio?: number;
   revenueRatio?: number;
@@ -192,7 +192,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       target: borrowerOperator,
       eventAbi: borrowingEvent,
     })
-    
+
     const ETHGainWithdrawnLogs = await getLogs({
       target: stabilityPool,
       eventAbi: ETHGainWithdrawn,
@@ -234,7 +234,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
         dailySupplySideRevenue.addGasToken(BigInt(logs['_collGasCompensation']), METRICS.GasCompensation)
       }
     })
-    
+
     // count liquidation gain to supplyside: collateral gained by stability pool depositors minus the
     // stablecoin they burned. Net the two in USD so a day with heavy stablecoin losses cannot push the
     // stablecoin balance negative (the validator rejects negative per-token values).
@@ -315,32 +315,32 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>, overrides?: Par
 
 
 const v2ExportsConfig = {
-  felix:{
+  felix: {
     [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
   },
-  mustang:{
+  mustang: {
     [CHAIN.SAGA]: { collateralRegistry: '0xF39bdCfB55374dDb0948a28af00b6474A566Ac22', stabilityPoolRatio: 1, start: '2025-11-28' }
   },
-  nerite:{
+  nerite: {
     [CHAIN.ARBITRUM]: { collateralRegistry: '0x7f7fbc2711c0d6e8ef757dbb82038032dd168e68', stabilityPoolRatio: 1, start: '2025-07-11' }
   },
-  "orki-finance":{
+  "orki-finance": {
     [CHAIN.SWELLCHAIN]: { collateralRegistry: '0xce9f80a0dcd51fb3dd4f0d6bec3afdcaea10c912', stabilityPoolRatio: 1, start: '2025-05-13' }
   },
-  "quill-fi":{
+  "quill-fi": {
     [CHAIN.SCROLL]: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
   },
-  "defi-dollar-cdp":{
+  "defi-dollar-cdp": {
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }
   },
-  "ebisu-ebusd":{
+  "ebisu-ebusd": {
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-06-05' },
     [CHAIN.PLASMA]: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-10-15' },
   },
-  "enosys-loans":{
+  "enosys-loans": {
     [CHAIN.FLARE]: { collateralRegistry: '0x9474206bc035D03d142264fd9913d1D51246d3AC', stabilityPoolRatio: 1, start: '2025-12-09' }
   },
-  "base-dollar":{
+  "base-dollar": {
     [CHAIN.BASE]: { collateralRegistry: '0x7551ebfc8340b7f91874942be9c653733d4fb04f', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2026-08-01' }
   },
 }
@@ -352,6 +352,7 @@ const v1Entries: Record<string, any> = {
       redemptionEvent: 'event Redemption(uint256 _attemptedTHUSDAmount, uint256 _actualTHUSDAmount, uint256 _collateralSent, uint256 _ETHFee)',
       borrowingEvent: 'event THUSDBorrowingFeePaid(address indexed _borrower, uint256 _LUSDFee)',
       stableCoin: '0xCFC5bD99915aAa815401C5a41A927aB7a38d29cf',
+      collateralCoin: '0x18084fbA666a33d37592fA2633fD49a74DD93a88', // tBTC
       protocolRevenuePercentage: 100,
     },
   },
@@ -385,6 +386,7 @@ const v1Entries: Record<string, any> = {
       redemptionEvent: 'event Redemption(uint256 _attemptedUSCAmount, uint256 _actualUSCAmount, uint256 _CollSent, uint256 _ETHFee)',
       borrowingEvent: 'event USCBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)',
       stableCoin: '0xD42E078ceA2bE8D03cd9dFEcC1f0d28915Edea78',
+      collateralCoin: '0x7a7c9db510ab29a2fc362a4c34260becb5ce3446', // CDCETH
       holderRevenuePercentage: 100,
     },
   },
@@ -392,6 +394,7 @@ const v1Entries: Record<string, any> = {
     [CHAIN.PULSECHAIN]: {
       troveManager: '0x118b7CF595F6476a18538EAF4Fbecbf594338B39',
       stableCoin: '0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408',
+      collateralCoin: '0x95b303987a60c71504d99aa1b13b4da07b0790ab', // PLSX
       holderRevenuePercentage: 100,
     },
   },
@@ -399,6 +402,7 @@ const v1Entries: Record<string, any> = {
     [CHAIN.PULSECHAIN]: {
       troveManager: '0xC2D0720721d48cE85e20Dc9E01B8449D7eDd14CE',
       stableCoin: '0x1fe0319440a672526916c232eaee4808254bdb00',
+      collateralCoin: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', // HEX
       holderRevenuePercentage: 100,
     },
   },
@@ -445,3 +449,88 @@ Object.entries(v1Entries).forEach(([protocolName, entry]: [string, any]) => {
 })
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
+
+// Liquidations
+// V1 TroveManager: _liquidatedColl excludes the gas compensation and the recovery-mode surplus returned to the borrower,
+// so collateral seized = _liquidatedColl + _collGasCompensation
+// V2 TroveManager: trove collateral = gas compensation + sent to SP + redistributed + surplus (claimable by the borrower),
+// so collateral seized = _collGasCompensation + _collSentToSP + _collRedistributed
+const liquidationsMethodology = {
+  CollateralLiquidated: 'Collateral seized from liquidated troves (sent to the stability pool, redistributed to other troves, and paid as gas compensation), excluding any surplus returned to the borrower, from TroveManager Liquidation events.',
+}
+
+function liquityV1LiquidationsExports(config: IJSON<LiquityV1Config>, overrides?: Partial<SimpleAdapter>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).forEach(([chain, chainConfig]) => {
+    exportObject[chain] = {
+      fetch: async (options: FetchOptions) => {
+        const dailyCollateralLiquidated = options.createBalances()
+        const logs = await options.getLogs({ target: chainConfig.troveManager, eventAbi: LiquidationEvent })
+        logs.forEach((log: any) => {
+          const seized = BigInt(log._liquidatedColl) + BigInt(log._collGasCompensation)
+          if (chainConfig.collateralCoin) dailyCollateralLiquidated.add(chainConfig.collateralCoin, seized)
+          else dailyCollateralLiquidated.addGasToken(seized)
+        })
+        return { dailyCollateralLiquidated }
+      },
+      start: chainConfig.start,
+    }
+  })
+  return { adapter: exportObject, version: 2, pullHourly: true, start: overrides?.start, methodology: liquidationsMethodology } as SimpleAdapter
+}
+
+const getLiquityV2LiquidationsFetch = (collateralRegistries: { address: string, fromTimestamp?: number }[]) => async (options: FetchOptions) => {
+  const dailyCollateralLiquidated = options.createBalances()
+  for (const { address, fromTimestamp } of collateralRegistries) {
+    if (fromTimestamp && options.startTimestamp < fromTimestamp) continue
+    const troves = await options.api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: address })
+    const logs = await options.getLogs({
+      targets: troves,
+      eventAbi: 'event Liquidation(uint256 _debtOffsetBySP, uint256 _debtRedistributed, uint256 _boldGasCompensation, uint256 _collGasCompensation, uint256 _collSentToSP, uint256 _collRedistributed, uint256 _collSurplus, uint256 _L_ETH, uint256 _L_boldDebt, uint256 _price)',
+      flatten: false,
+    })
+    const branchesWithLogs = troves.map((_: string, i: number) => i).filter((i: number) => logs[i].length)
+    if (!branchesWithLogs.length) continue
+    const tokens = await options.api.multiCall({ abi: 'function getToken(uint256) view returns (address)', target: address, calls: branchesWithLogs })
+    branchesWithLogs.forEach((branch: number, j: number) => {
+      logs[branch].forEach((log: any) => {
+        dailyCollateralLiquidated.add(tokens[j], BigInt(log._collGasCompensation) + BigInt(log._collSentToSP) + BigInt(log._collRedistributed))
+      })
+    })
+  }
+  return { dailyCollateralLiquidated }
+}
+
+function liquityV2LiquidationsExports(config: IJSON<{ collateralRegistries: { address: string, fromTimestamp?: number }[], start?: string }>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).forEach(([chain, { collateralRegistries, start }]) => {
+    exportObject[chain] = { fetch: getLiquityV2LiquidationsFetch(collateralRegistries), start }
+  })
+  return { adapter: exportObject, version: 2, pullHourly: true, methodology: liquidationsMethodology } as SimpleAdapter
+}
+
+const liquidationProtocols = {} as any;
+Object.entries(v2ExportsConfig).forEach(([protocolName, config]) => {
+  const chains: IJSON<{ collateralRegistries: { address: string }[], start?: string }> = {}
+  Object.entries(config).forEach(([chain, { collateralRegistry, start }]: [string, any]) => {
+    chains[chain] = { collateralRegistries: [{ address: collateralRegistry }], start }
+  })
+  liquidationProtocols[protocolName] = liquityV2LiquidationsExports(chains)
+})
+// fees/liquity-v2.ts: original deployment plus the redeployment live from 2025-05-18
+liquidationProtocols['liquity-v2'] = liquityV2LiquidationsExports({
+  [CHAIN.ETHEREUM]: {
+    collateralRegistries: [{ address: '0xd99dE73b95236F69A559117ECD6F519Af780F3f7' }, { address: '0xf949982b91c8c61e952b3ba942cbbfaef5386684', fromTimestamp: 1747526400 }],
+    start: '2025-01-24',
+  },
+})
+Object.entries(v1Entries).forEach(([protocolName, entry]: [string, any]) => {
+  if (entry.chainConfig) {
+    const { chainConfig, ...overrides } = entry
+    liquidationProtocols[protocolName] = liquityV1LiquidationsExports(chainConfig, overrides)
+  } else {
+    liquidationProtocols[protocolName] = liquityV1LiquidationsExports(entry)
+  }
+})
+
+export const liquidations = createFactoryExports(liquidationProtocols);

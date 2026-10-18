@@ -194,6 +194,15 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
         morphoVaultV2Owners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
       },
+      [CHAIN.ARC]: {
+        // Morpho V2 vault, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names its curator "Galaxy Curation".
+        morphoV2: [
+          '0x8E357432CC12ff425c36432F312968aEb16112AF', // Galaxy USDC
+          '0x389abDf4355e0cF4f19298179991705a98f21c18', // Galaxy EURC
+        ],
+        start: '2026-06-12', // Galaxy USDC deployment
+      },
     },
   },
   "hakutora": {
@@ -250,6 +259,12 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: [
           '0xbA75546ACD56b3a9142f94F179b03970eE4283Fd', // initial owner — Keyrock V1/V2 vaults
         ],
+      },
+      [CHAIN.ARC]: {
+        // Morpho V2 vault, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names its curator "Keyrock".
+        morphoV2: ['0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123'], // Keyrock Prime USDC
+        start: '2026-08-10', // vault deployment
       },
     },
   },
@@ -545,6 +560,18 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ROBINHOOD]: {
         morphoVaultV2Owners: ['0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a', '0xE9c34c8Fe2d8452807eA13148b3F52b91354eA04'],
         start: '2026-05-29',
+      },
+      [CHAIN.ARC]: {
+        // Morpho V2 vaults, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names "Steakhouse Financial" as curator of 0xbeef0016 and 0xbeef00be;
+        // 0xbeef0007 carries no curator label there, but its curator() is one of the addresses the
+        // API lists for Steakhouse Financial. Same three vaults as the TVL adapter on arc.
+        morphoV2: [
+          '0xbeef0007d5A04246F5382957035Df34f7e82102e', // Steakhouse Prime USDC
+          '0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298', // Steakhouse Prime USDC
+          '0xbeef00be37BdE921BAE06fad223125BAB16c41D1', // Steakhouse Prime EURC
+        ],
+        start: '2026-06-03', // first vault deployment (0xbeef0007)
       },
     },
   },
