@@ -45,16 +45,18 @@ const config: Record<
     start: "2026-01-06",
     paymentTokens: [ADDRESSES.base.USDC], // USDC
   },
+  // Flow disabled: it reported $0 every day while its getLogs scans 429'd the
+  // public Flow RPCs. The V1 machines emit Played.commission = 0 on every play
   // Flow's RPCs cap eth_getLogs at 10k blocks, so the initial factory scan is
   // ~6,200 sequential calls — cacheInCloud makes that a one-time cost.
-  [CHAIN.FLOW]: {
-    factory: "0xde545660B5EeA686286b578F7491C7E5CEeaf895",
-    factoryStartBlock: 12572646,
-    bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
-    version: "v1",
-    start: "2024-11-01",
-    paymentTokens: [ADDRESSES.flow.WFLOW], // PYUSD
-  },
+  // [CHAIN.FLOW]: {
+  //   factory: "0xde545660B5EeA686286b578F7491C7E5CEeaf895",
+  //   factoryStartBlock: 12572646,
+  //   bidRouter: "0x00ccDBFc51a30f01A1Ea5FC3208e2f5Ed5Fc7660",
+  //   version: "v1",
+  //   start: "2024-11-01",
+  //   paymentTokens: [ADDRESSES.flow.WFLOW], // PYUSD
+  // },
 };
 
 // --- Fetch Logic ---
