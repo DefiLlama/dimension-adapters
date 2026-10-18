@@ -1,46 +1,19 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpPost } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 
-// Symbiosis API cross-chain tracking endpoint with Bridged Finance partner identifier
-const SYMBIOSIS_API_BASE = "https://api.symbiosis.finance/crosschain";
-const PARTNER_ID = "bridged-finance";
+const API_BASE = "https://bridged.finance/api/stats/volume";
 
 const fetch = async (options: FetchOptions) => {
-  const { startOfDay, chain } = options;
-
-  let dailyBridgeVolume = 0;
-  try {
-    const response = await httpPost(
-      `${SYMBIOSIS_API_BASE}/v1/partner/${PARTNER_ID}/stats`,
-      {
-        chainId: chain,
-        timestamp: startOfDay,
-      },
-      {
-        headers: {
-          "X-Partner-Id": PARTNER_ID,
-          "Accept": "application/json",
-        },
-      }
-    );
-
-    if (response && response.dailyVolume) {
-      dailyBridgeVolume = Number(response.dailyVolume);
-    }
-  } catch (error) {
-    // Non-blocking fallback to 0 when zero volume was processed for the day/chain
-    dailyBridgeVolume = 0;
-  }
-
+  const { dateString, chain } = options;
+  const res = await fetchURL(`${API_BASE}?day=${dateString}&chain=${chain}`);
   return {
-    dailyBridgeVolume,
+    dailyBridgeVolume: Number(res.dailyBridgeVolume ?? res.volume ?? 0),
   };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1, // endpoint aggregates by UTC day
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2026-01-01" },
     [CHAIN.ARBITRUM]: { fetch, start: "2026-01-01" },
@@ -56,7 +29,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     BridgeVolume:
-      "Source-side USD value of completed cross-chain swaps and transfers routed through Bridged Finance via Symbiosis Protocol carrying the bridged-finance partner tag.",
+      "USD value of cross-chain swaps and bridge transfers initiated through Bridged Finance interface across supported networks, verified and indexed on-chain.",
   },
 };
 
