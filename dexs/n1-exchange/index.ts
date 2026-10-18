@@ -26,7 +26,7 @@ interface N1MarketStats {
   } | null;
 }
 
-async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
+export async function fetch(options: FetchOptions): Promise<FetchResultVolume> {
   if (options.chain !== CHAIN.N1) {
     throw new Error(`Unsupported chain: ${options.chain}`);
   }
