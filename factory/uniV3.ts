@@ -2,102 +2,11 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 import { FetchOptions } from "../adapters/types";
-import { ChainApi } from "@defillama/sdk";
-import { addOneToken } from "../helpers/prices";
-import { getPositionedLogArgs } from "../helpers/logs";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const protocolFeesSwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint128 protocolFeesToken0, uint128 protocolFeesToken1)'
 const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)'
-
-// Voltage's verified Community Vault; algebraFee is a share of community fees, not volume.
-// https://explorer.fuse.io/address/0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E
-const VOLTAGE_VAULT = '0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E'
-// ALGEBRA_FEE_DENOMINATOR in the verified AlgebraCommunityVault.sol; 1,000 means 100%.
-// https://explorer.fuse.io/address/0x410698C399A0DB5D9dFbE31f22E53b479DF0Ee7E?tab=contract
-const VOLTAGE_ALGEBRA_FEE_DENOMINATOR = 1000
-const voltageAlgebraFeeEvent = 'event AlgebraFee(uint16 newAlgebraFee)'
-
-/**
- * Allocates existing swap fees to LPs, Algebra and Voltage on an accrual basis.
- * Replays vault share changes in swap order while preserving gross fees and volume.
- */
-async function voltageV4Breakdown({ pairObject, dailyVolume, dailyFees, fetchOptions: options, pairs, allLogs, fees, communityFees, missingFeePools }: any) {
-  const revenue = options.createBalances()
-  const supplySide = options.createBalances()
-  const feeInputs = options.createBalances()
-  const response = () => ({
-    dailyVolume,
-    dailyFees: dailyFees.clone(1, 'Token Swap Fees'),
-    dailyRevenue: revenue,
-    dailyProtocolRevenue: revenue.clone(),
-    dailySupplySideRevenue: supplySide,
-    // Observed collector distributions do not establish fee-funded holder income.
-    dailyHoldersRevenue: 0,
-  })
-  if (!allLogs.some((logs: any[]) => logs.length)) return response()
-
-  const readShare = async (api: ChainApi) => {
-    const value = Number(await api.call({ target: VOLTAGE_VAULT, abi: 'uint16:algebraFee' }))
-    if (!Number.isInteger(value) || value < 0 || value > VOLTAGE_ALGEBRA_FEE_DENOMINATOR) throw new Error('Invalid Voltage Algebra fee share')
-    return value / VOLTAGE_ALGEBRA_FEE_DENOMINATOR
-  }
-  const closingShare = await readShare(options.api)
-  const changes = await getPositionedLogArgs(options, { target: VOLTAGE_VAULT, eventAbi: voltageAlgebraFeeEvent })
-  if (changes.some(change => !Number.isSafeInteger(change.blockNumber) || !Number.isSafeInteger(change.logIndex) || change.logIndex < 0)) throw new Error('Invalid Voltage share-change position')
-  changes.sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
-
-  const addSplit = (pair: string, log: any, algebraShare: number) => {
-    const communityShare = communityFees[pair]
-    if (missingFeePools.has(pair.toLowerCase()) || !Number.isFinite(fees[pair])) throw new Error(`Missing Voltage fee for ${pair}`)
-    if (!Number.isFinite(communityShare) || communityShare < 0 || communityShare > 1) throw new Error(`Missing or invalid Voltage community fee for ${pair}`)
-    const [token0, token1] = pairObject[pair]
-    // Same token side and hourly fee rate as the existing gross-fee calculation.
-    const { token, amount } = addOneToken({ chain: options.chain, balances: feeInputs, token0, token1,
-      amount0: log.amount0.toString() * fees[pair], amount1: log.amount1.toString() * fees[pair] })
-    revenue.add(token, amount * communityShare * (1 - algebraShare), 'Swap Fees To Voltage')
-    supplySide.add(token, amount * (1 - communityShare), 'Swap Fees To LPs')
-    supplySide.add(token, amount * communityShare * algebraShare, 'Swap Fees To Algebra')
-  }
-
-  if (!changes.length) {
-    allLogs.forEach((logs: any[], i: number) => logs.forEach(log => addSplit(pairs[i], log, closingShare)))
-    return response()
-  }
-
-  // Governance changes apply at their exact on-chain position, including same-block swaps.
-  const fromBlock = await options.getFromBlock()
-  if (!Number.isSafeInteger(fromBlock) || fromBlock < 1) throw new Error('Invalid Voltage opening block')
-  const openingApi = new ChainApi({ chain: options.chain, block: fromBlock - 1 })
-  let share = await readShare(openingApi)
-  const rawLogs = await options.getLogs({ targets: pairs, eventAbi: algebraV3SwapEvent, flatten: false, onlyArgs: false })
-  if (rawLogs.length !== allLogs.length) throw new Error('Voltage swap target count mismatch')
-  const swaps = rawLogs.flatMap((logs: any[], i: number) => {
-    if (logs.length !== allLogs[i].length) throw new Error('Voltage swap metadata count mismatch')
-    return logs.map((log, index) => {
-      const blockNumber = Number(log.blockNumber ?? log.block_number ?? log.block)
-      const logIndex = Number(log.logIndex ?? log.log_index ?? log.index)
-      if (!log.args || !Number.isSafeInteger(blockNumber) || !Number.isSafeInteger(logIndex) || logIndex < 0) throw new Error('Missing Voltage swap position')
-      if (log.args.amount0.toString() !== allLogs[i][index].amount0.toString() || log.args.amount1.toString() !== allLogs[i][index].amount1.toString()) throw new Error('Voltage swap arguments mismatch')
-      return { pair: pairs[i], args: log.args, blockNumber, logIndex }
-    })
-  }).sort((a: any, b: any) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
-  const before = (a: any, b: any) => a.blockNumber < b.blockNumber || (a.blockNumber === b.blockNumber && a.logIndex < b.logIndex)
-  const changeShare = (change: any) => {
-    const value = Number(change.newAlgebraFee)
-    if (!Number.isInteger(value) || value < 0 || value > VOLTAGE_ALGEBRA_FEE_DENOMINATOR) throw new Error('Invalid Voltage Algebra fee event')
-    return value / VOLTAGE_ALGEBRA_FEE_DENOMINATOR
-  }
-  let index = 0
-  for (const swap of swaps) {
-    while (index < changes.length && before(changes[index], swap)) share = changeShare(changes[index++])
-    addSplit(swap.pair, swap.args, share)
-  }
-  while (index < changes.length) share = changeShare(changes[index++])
-  if (share !== closingShare) throw new Error('Voltage Algebra fee replay does not match closing state')
-  return response()
-}
 
 const configs: Record<string, Record<string, any>> = {
   "bdex-v3": {
@@ -525,6 +434,10 @@ const configs: Record<string, Record<string, any>> = {
   "parityswap-v3": {
     [CHAIN.ROBINHOOD]: { factory: "0xd479E71C45aEB1E846A7B549c346D62fE77B39bA", start: "2026-07-20", userFeesRatio: 1, revenueRatio: 1 / 4, protocolRevenueRatio: 1 / 4 },
   },
+  "ouro-dex-v3": {
+    // every pool has feeProtocol 4/4 (1/4 of swap fees to the protocol)
+    [CHAIN.ROBINHOOD]: { factory: "0x9a8442cb89fE713ce7C2f22852e61fBFFeE97EcF", start: "2026-09-26", userFeesRatio: 1, revenueRatio: 1 / 4, protocolRevenueRatio: 1 / 4 },
+  },
   'sheriff-v3': { 
     [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
   },
@@ -545,6 +458,18 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ARC]: {
       factory: '0x5bfBCeb73d39F722B1cB83fD2F11736b28c1Be6d',
       start: '2026-09-16',
+    },
+  },
+  "morFi": {
+    // Algebra Integral fork on Morph; moved off subgraph.morfi.io (stalls indexing). Factory from TVL registry uniswapV3.js.
+    // Pools have no fee() method: fee and community (protocol) fee are read from globalState().
+    [CHAIN.MORPH]: {
+      factory: '0x1be404c921ef85537233ef2be251a27583072861', start: '2024-10-29', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent,
+      userFeesRatio: 1, algebraCommunityFee: true, holdersRevenueRatio: 0,
+      getRevenueRatio: ({ communityFeeRatio }: any) => {
+        if (communityFeeRatio === undefined) throw new Error('morFi: could not read pool community fee')
+        return { _revenueRatio: communityFeeRatio, _protocolRevenueRatio: communityFeeRatio }
+      },
     },
   },
 }
@@ -756,9 +681,6 @@ const startMap: Record<string, string | number> = {
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
 const feesConfigs: Record<string, Record<string, any>> = {
-  'voltage-v4': {
-    [CHAIN.FUSE]: { ...configs['voltage-v4'][CHAIN.FUSE], algebraCommunityFee: true, customLogic: voltageV4Breakdown },
-  },
   "thick": {
     [CHAIN.FANTOM]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
     [CHAIN.ARBITRUM]: { factory: '0xE6dA85feb3B4E0d6AEd95c41a125fba859bB9d24' },
@@ -816,34 +738,6 @@ for (const [name, config] of Object.entries(feesConfigs)) {
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (startMap[name] !== undefined) (adapter as any).start = startMap[name]
   feesProtocols[name] = adapter
-}
-
-// Keep the factory's discovery, pool filtering, volume and hourly fee calculation.
-const voltageFetch = feesProtocols['voltage-v4'].adapter[CHAIN.FUSE].fetch
-feesProtocols['voltage-v4'].adapter[CHAIN.FUSE].fetch = async (options: FetchOptions) => {
-  const result = await voltageFetch(options)
-  // The generic helper returns before customLogic when no pools pass its filter.
-  if (result.dailyRevenue !== undefined) return result
-  return { ...result, dailyRevenue: options.createBalances(), dailyProtocolRevenue: options.createBalances(),
-    dailySupplySideRevenue: options.createBalances(), dailyHoldersRevenue: 0 }
-}
-feesProtocols['voltage-v4'].skipBreakdownValidation = false
-feesProtocols['voltage-v4'].methodology = {
-  Volume: 'Swap volume from Voltage V4 pools using the existing token-side policy.',
-  Fees: 'Swap fees using each pool\'s fee() at the hourly window end.',
-  Revenue: 'Accrued pool community fees net of the Community Vault\'s historical Algebra share.',
-  ProtocolRevenue: 'The Voltage share of accrued community fees; no claim-date accounting.',
-  SupplySideRevenue: 'Swap fees allocated to LPs plus Algebra\'s share of community fees.',
-  HoldersRevenue: 'Zero under the current scope: observed collector distributions do not establish fee-funded holder income.',
-}
-feesProtocols['voltage-v4'].breakdownMethodology = {
-  Fees: { 'Token Swap Fees': feesProtocols['voltage-v4'].methodology.Fees },
-  Revenue: { 'Swap Fees To Voltage': feesProtocols['voltage-v4'].methodology.Revenue },
-  ProtocolRevenue: { 'Swap Fees To Voltage': feesProtocols['voltage-v4'].methodology.ProtocolRevenue },
-  SupplySideRevenue: {
-    'Swap Fees To LPs': 'Swap fees less the pool community share read at the hourly window end.',
-    'Swap Fees To Algebra': 'The historical Algebra allocation of pool community fees, replaying vault share changes in the window.',
-  },
 }
 
 protocols['bdex-v3'].breakdownMethodology = {

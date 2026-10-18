@@ -339,7 +339,6 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
     const communityFees: IJSON<number> = {}
-    const missingFeePools = new Set<string>()
 
     if (!chain) throw new Error('Wrong version?')
 
@@ -366,10 +365,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
       if (isAlgebraV3) {
         let _fees = await api.multiCall({ abi: 'function fee() view returns (uint24)', calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _fees.forEach((fee: any, i: number) => {
-          if (fee != null) fees[logs[i].pool] = fee / 1e6
-          else missingFeePools.add(logs[i].pool.toLowerCase())
-        })
+        _fees.forEach((fee: any, i: number) => { if (fee != null) fees[logs[i].pool] = fee / 1e6 })
       }
       if (isAlgebraV2) {
         let _states = await api.multiCall({ abi: 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint16 timepointIndex, uint16 communityFeeToken0, uint16 communityFeeToken1, bool unlocked)', calls: logs.map((log: any) => log.pool), permitFailure: true })
@@ -383,7 +379,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           ? 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee)'
           : 'function globalState() view returns (uint160 price, int24 tick, uint16 feeZto, uint16 feeOtz, uint16 timepointIndex, uint16 communityFee)'
         const _states = await api.multiCall({ abi, calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _states.forEach((state: any, i: number) => { if (state != null) communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR })
+        _states.forEach((state: any, i: number) => {
+          if (state == null) return
+          communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR
+          // some Integral pools have no fee() method; the current fee is the 3rd globalState field
+          if (isAlgebraV3 && !fees[logs[i].pool]) fees[logs[i].pool] = Number(state.fee) / 1e6
+        })
       }
     } else if (Array.isArray(pools)) {
 
@@ -497,7 +498,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     })
 
     if (customLogic) {
-      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions, pairs, allLogs, fees, communityFees, missingFeePools })
+      return customLogic({ pairObject, dailyVolume, dailyFees: swapFees, filteredPairs, fetchOptions })
     }
 
     const dailyFees = swapFees.clone(1, 'Token Swap Fees')
