@@ -7,8 +7,12 @@ const API_BASE = "https://bridged.finance/api/stats/volume";
 const fetch = async (options: FetchOptions) => {
   const { dateString, chain } = options;
   const res = await fetchURL(`${API_BASE}?day=${dateString}&chain=${chain}`);
+  const dailyBridgeVolume = res.dailyBridgeVolume ?? res.volume;
+  if (dailyBridgeVolume === undefined || dailyBridgeVolume === null) {
+    throw new Error(`Failed to retrieve volume for ${chain} on ${dateString}`);
+  }
   return {
-    dailyBridgeVolume: Number(res.dailyBridgeVolume ?? res.volume ?? 0),
+    dailyBridgeVolume: Number(dailyBridgeVolume),
   };
 };
 
@@ -30,7 +34,7 @@ const adapter: SimpleAdapter = {
   start: "2026-01-01",
   doublecounted: true,
   methodology: {
-    BridgeVolume:
+    Volume:
       "USD value of cross-chain swaps and bridge transfers initiated through Bridged Finance interface across supported networks, verified and indexed on-chain.",
   },
 };
