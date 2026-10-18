@@ -27,7 +27,7 @@ export const getLiquityV2LogAdapter: any = ({
     const dailyFees = createBalances()
     const dailyRevenue = createBalances()
     const dailySupplySideRevenue = createBalances()
-    
+
     const troves = await api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: collateralRegistry })
     const activePools = await api.multiCall({ abi: 'address:activePool', calls: troves })
     const stableCoin = await api.call({ abi: stableTokenAbi, target: collateralRegistry })
@@ -43,12 +43,12 @@ export const getLiquityV2LogAdapter: any = ({
     interestRouters = [...new Set(interestRouters.map(i => i.toLowerCase()))]
 
     const borrowInterest = await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], fromAdddesses: [nullAddress] })
-    
+
     dailyFees.add(borrowInterest, METRIC.BORROW_INTEREST)
-    
+
     // share of borrow interest to stability pools
     dailySupplySideRevenue.add(borrowInterest.clone(stabilityPoolRatio), METRICS.BorrowInterestToStabilityPools)
-    
+
     // share of borrow interest to Protocol Incentivized Liquidity
     if (revenueRatio && revenueRatio > 0) {
       dailyRevenue.add(borrowInterest.clone(revenueRatio), METRICS.ProtocolIncentivizedLiquidity)
@@ -69,7 +69,7 @@ export const getLiquityV2LogAdapter: any = ({
       const collateralToken = tokens[i]
       logs.forEach((log: any) => {
         dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee)
-        
+
         // v2 redemption fees are distributed to borrowers
         dailySupplySideRevenue.add(collateralToken, log._ETHFee, METRICS.RedemptionFeeToBorrowers)
       })
@@ -86,7 +86,7 @@ export const getLiquityV2LogAdapter: any = ({
     })
 
 
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue  }
+    return { dailyFees, dailyRevenue, dailySupplySideRevenue }
   }
   return fetch
 }
@@ -94,7 +94,7 @@ export const getLiquityV2LogAdapter: any = ({
 type LiquityV2Config = {
   collateralRegistry: string,
   stableTokenAbi?: string,
-  
+
   // borrow interests are share to stability pool and Protocol Incentivized Liquidity
   stabilityPoolRatio?: number;
   revenueRatio?: number;
@@ -192,7 +192,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       target: borrowerOperator,
       eventAbi: borrowingEvent,
     })
-    
+
     const ETHGainWithdrawnLogs = await getLogs({
       target: stabilityPool,
       eventAbi: ETHGainWithdrawn,
@@ -234,7 +234,7 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
         dailySupplySideRevenue.addGasToken(BigInt(logs['_collGasCompensation']), METRICS.GasCompensation)
       }
     })
-    
+
     // count liquidation gain to supplyside: collateral gained by stability pool depositors minus the
     // stablecoin they burned. Net the two in USD so a day with heavy stablecoin losses cannot push the
     // stablecoin balance negative (the validator rejects negative per-token values).
@@ -315,32 +315,32 @@ export function liquityV1Exports(config: IJSON<LiquityV1Config>, overrides?: Par
 
 
 const v2ExportsConfig = {
-  felix:{
+  felix: {
     [CHAIN.HYPERLIQUID]: { collateralRegistry: '0x9De1e57049c475736289Cb006212F3E1DCe4711B', stableTokenAbi: "address:feUSDToken", stabilityPoolRatio: 1, start: '2025-03-14' }
   },
-  mustang:{
+  mustang: {
     [CHAIN.SAGA]: { collateralRegistry: '0xF39bdCfB55374dDb0948a28af00b6474A566Ac22', stabilityPoolRatio: 1, start: '2025-11-28' }
   },
-  nerite:{
+  nerite: {
     [CHAIN.ARBITRUM]: { collateralRegistry: '0x7f7fbc2711c0d6e8ef757dbb82038032dd168e68', stabilityPoolRatio: 1, start: '2025-07-11' }
   },
-  "orki-finance":{
+  "orki-finance": {
     [CHAIN.SWELLCHAIN]: { collateralRegistry: '0xce9f80a0dcd51fb3dd4f0d6bec3afdcaea10c912', stabilityPoolRatio: 1, start: '2025-05-13' }
   },
-  "quill-fi":{
+  "quill-fi": {
     [CHAIN.SCROLL]: { collateralRegistry: '0xcc4f29f9d1b03c8e77fc0057a120e2c370d6863d', stabilityPoolRatio: 1, start: '2025-01-23' }
   },
-  "defi-dollar-cdp":{
+  "defi-dollar-cdp": {
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x1ec9287465ef04a7486779e81370c15624c939e8', stabilityPoolRatio: 1, start: '2025-07-04' }
   },
-  "ebisu-ebusd":{
+  "ebisu-ebusd": {
     [CHAIN.ETHEREUM]: { collateralRegistry: '0x5e159fAC2D137F7B83A12B9F30ac6aB2ba6d45E7', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-06-05' },
     [CHAIN.PLASMA]: { collateralRegistry: '0x602096a2f43b43d11dcb3713702dda963c45adc6', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2025-10-15' },
   },
-  "enosys-loans":{
+  "enosys-loans": {
     [CHAIN.FLARE]: { collateralRegistry: '0x9474206bc035D03d142264fd9913d1D51246d3AC', stabilityPoolRatio: 1, start: '2025-12-09' }
   },
-  "base-dollar":{
+  "base-dollar": {
     [CHAIN.BASE]: { collateralRegistry: '0x7551ebfc8340b7f91874942be9c653733d4fb04f', stabilityPoolRatio: 0.25, revenueRatio: 0.75, start: '2026-08-01' }
   },
 }
@@ -484,16 +484,17 @@ const getLiquityV2LiquidationsFetch = (collateralRegistries: { address: string, 
   for (const { address, fromTimestamp } of collateralRegistries) {
     if (fromTimestamp && options.startTimestamp < fromTimestamp) continue
     const troves = await options.api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: address })
-    const activePools = await options.api.multiCall({ abi: 'address:activePool', calls: troves })
-    const tokens = await options.api.multiCall({ abi: 'address:collToken', calls: activePools })
     const logs = await options.getLogs({
       targets: troves,
       eventAbi: 'event Liquidation(uint256 _debtOffsetBySP, uint256 _debtRedistributed, uint256 _boldGasCompensation, uint256 _collGasCompensation, uint256 _collSentToSP, uint256 _collRedistributed, uint256 _collSurplus, uint256 _L_ETH, uint256 _L_boldDebt, uint256 _price)',
       flatten: false,
     })
-    logs.forEach((troveLogs: any[], i: number) => {
-      troveLogs.forEach((log: any) => {
-        dailyCollateralLiquidated.add(tokens[i], BigInt(log._collGasCompensation) + BigInt(log._collSentToSP) + BigInt(log._collRedistributed))
+    const branchesWithLogs = troves.map((_: string, i: number) => i).filter((i: number) => logs[i].length)
+    if (!branchesWithLogs.length) continue
+    const tokens = await options.api.multiCall({ abi: 'function getToken(uint256) view returns (address)', target: address, calls: branchesWithLogs })
+    branchesWithLogs.forEach((branch: number, j: number) => {
+      logs[branch].forEach((log: any) => {
+        dailyCollateralLiquidated.add(tokens[j], BigInt(log._collGasCompensation) + BigInt(log._collSentToSP) + BigInt(log._collRedistributed))
       })
     })
   }
