@@ -58,6 +58,15 @@ const BORING_VAULTS: Record<string, { vault: string; share: number }[]> = {
   ],
 }
 
+// Morpho V2 vaults curated by Sentora on chains CHAIN_MAP does not map, so the API lists none for
+// them. api.morpho.org names "Sentora" as the curator of each.
+const MORPHO_VAULTS: Record<string, string[]> = {
+  [CHAIN.TEMPO]: [
+    '0x9a044AE05E5e6290DcF56afd69548565e957a626', // Sentora pathUSD
+    '0x0D136e26B4D9e4836fc5cb202baeb49Cb6f5df48', // Sentora OUSD Main
+  ],
+}
+
 // EtherFi supervised-loan Loan Managers (weETH collateral on Morpho, borrowing PYUSD/RLUSD).
 // Not exposed in the Sentora API; addresses provided by Sentora. Kraken supervised loans are
 // already captured via their BoringVault accountant above.
@@ -430,7 +439,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     .filter(v => v.protocol === protocol && (!technology || v.technology === technology))
     .map(v => v.address)
 
-  await accrueMorpho(options, balances, byProtocol('morpho', 'erc4626'))
+  await accrueMorpho(options, balances, [...byProtocol('morpho', 'erc4626'), ...(MORPHO_VAULTS[options.chain] ?? [])])
   await accrueEuler(options, balances, byProtocol('eulerv2', 'erc4626'))
   await accrueUpshift(options, balances, byProtocol('sentora', 'upshift_financial'))
   await accrueBoring(options, balances, BORING_VAULTS[options.chain])
@@ -494,6 +503,7 @@ const adapter: Adapter = {
     [CHAIN.ETHEREUM]: { fetch, start: '2024-09-25' },
     [CHAIN.INK]: { fetch, start: '2025-09-15' },
     [CHAIN.SOLANA]: { fetch, start: '2025-11-01' },
+    [CHAIN.TEMPO]: { fetch, start: '2026-05-06' }, // Sentora pathUSD deployment
   },
   // Losses and negative perf accruals are recorded; without this a net-negative day would
   // error out and record nothing, hiding the loss instead of booking it.
