@@ -72,6 +72,13 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2026-06-16',
     },
+    // Morpho V2; listed explicitly (no Morpho vault factory is configured for arc)
+    [CHAIN.ARC]: {
+      morphoV2: [
+        '0xdECcd53BE5453215821184824B519E04C7e00bC7', // Gauntlet USDC Prime
+      ],
+      start: '2026-06-11',
+    },
     // Morpho V2; listed explicitly (helper-deployed, not owner-discoverable)
     [CHAIN.TEMPO]: {
       morphoV2: [
