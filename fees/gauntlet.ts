@@ -170,15 +170,6 @@ const fetchSolana = async (options: FetchOptions) => {
 // Get curator export for EVM chains and combine with Solana
 const curatorExport = getCuratorExport(curatorConfig);
 
-// need to convert adapter v2 to adapter v1
-for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
-  (curatorExport.adapter as any)[chain] = {
-    fetch: async (options: FetchOptions) => {
-      return await (adapter as any).fetch(options);
-    }
-  }
-}
-
 const adapter: SimpleAdapter = {
   version: 1,
   breakdownMethodology: curatorExport.breakdownMethodology,
