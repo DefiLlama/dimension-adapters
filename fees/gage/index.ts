@@ -126,9 +126,12 @@ const fetch = async (options: FetchOptions) => {
     for (const { log, asset } of await logsByAsset(options, fillRouters, eventAbi)) addFloorShare(floor, asset, log.executionFee, LABEL.EXECUTION_FEE);
   }
   for (const { log, asset } of await logsByAsset(options, fillRouters, EVENTS.staleFeesSwept)) addFloorShare(floor, asset, log.amount, LABEL.EXECUTION_FEE);
-  // Partner vaults are listed by their factory, which did not exist before its generation: a failed count is none.
-  const counts = await options.toApi.multiCall({ abi: "uint256:count", calls: U.intent.map((g) => g.factory), permitFailure: true });
-  const vaultCalls = U.intent.flatMap((g, i) => Array.from({ length: Number(counts[i] ?? 0) }, (_, index) => ({ target: g.factory, params: [index], asset: g.asset })));
+  // Partner vaults are listed by their factory. A factory deployed after the window lists none; a failed count on a
+  // deployed one fails the fetch, so the period is retried rather than booked without that factory's vaults.
+  const toBlock = await options.getToBlock();
+  const factories = U.intent.filter((g) => g.startBlock <= toBlock);
+  const counts = factories.length ? await options.toApi.multiCall({ abi: "uint256:count", calls: factories.map((g) => g.factory) }) : [];
+  const vaultCalls = factories.flatMap((g, i) => Array.from({ length: Number(counts[i]) }, (_, index) => ({ target: g.factory, params: [index], asset: g.asset })));
   const partnerVaults = vaultCalls.length ? await options.toApi.multiCall({ abi: "function vaults(uint256) view returns (address)", calls: vaultCalls.map(({ target, params }) => ({ target, params })) }) : [];
   const partners = partnerVaults.map((address: string, i: number) => ({ address, asset: vaultCalls[i].asset }));
   for (const { log, asset } of await logsByAsset(options, partners, EVENTS.profitReported)) {
