@@ -175,7 +175,9 @@ for (const [chain, adapter] of Object.entries(curatorExport.adapter as any)) {
   (curatorExport.adapter as any)[chain] = {
     fetch: async (options: FetchOptions) => {
       return await (adapter as any).fetch(options);
-    }
+    },
+    // keep each chain's configured start; without it the wrapped chains have no start date
+    start: (adapter as any).start,
   }
 }
 
