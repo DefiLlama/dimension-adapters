@@ -6,6 +6,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
 const QUAY_PROGRAM = 'QUayE6nexQWYNZAEqfN8FxoNwQDSu3CAzT2qq9J1ArG';
 
@@ -30,6 +31,7 @@ const fetch = async (options: FetchOptions) => {
             and t.inner_instruction_index = coalesce(s.inner_instruction_index, -1) + 1
         where TIME_RANGE
     `;
+    assertDuneSolanaIndexed(options);
     const data = await queryDuneSql(options, query);
 
     return {
