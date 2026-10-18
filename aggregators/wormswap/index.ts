@@ -6,8 +6,11 @@ import { addTokensReceived } from "../../helpers/token";
 // Public app configuration: https://wormswap.finance/swap
 // Router deployment: https://bscscan.com/tx/0x1ee007745a97b3586bed37b84357262d8b320c1c9c06e3f8f0b6d0a83a60e115
 const ROUTER = "0x532bd585ddb129ea50b0938995d3ac3184c4f1bc";
+// Router's feeDistributor(): https://bscscan.com/address/0x532bd585ddb129ea50b0938995d3ac3184c4f1bc#readContract
 const FEE_DISTRIBUTOR = "0x66f87b4125b314a8abd26abca7b43da045700eb5";
+// BSC WBNB: https://bscscan.com/token/0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c
 const WRAPPED_NATIVE = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c";
+// Router's native-BNB sentinel in SwapExecuted: https://bscscan.com/address/0x532bd585ddb129ea50b0938995d3ac3184c4f1bc#code
 const NATIVE = "0x0000000000000000000000000000000000000000";
 
 const SWAP_EXECUTED =
@@ -16,19 +19,59 @@ const NATIVE_FEE_RECEIVED = "event NativeFeeReceived(address indexed source, uin
 const FEES_LABEL = "Swap and BNB Wrapping Fees";
 const BURN_LABEL = "Fees Allocated to TANUKI Buybacks and Burns";
 
+/** Match a successful router charge to its collector receipts by transaction and asset. */
 function feeKey(log: any, token: string): string {
   const hash = log.transactionHash ?? log.transaction_hash;
   if (!hash) throw new Error("WormSwap: a fee-matching log is missing its transaction hash");
   return `${hash.toLowerCase()}:${token.toLowerCase()}`;
 }
 
+/** Correct a nearest-block estimate to the last block at or before the timestamp. */
+async function lastBlockAtOrBefore(options: FetchOptions, timestamp: number, guess: number): Promise<number> {
+  if (!Number.isSafeInteger(timestamp) || timestamp < 0)
+    throw new Error("WormSwap: invalid window timestamp");
+
+  /** Fail on unavailable headers rather than persisting a partial window as zero. */
+  const readBlock = async (height: number) => {
+    if (!Number.isSafeInteger(height) || height < 0)
+      throw new Error("WormSwap: invalid boundary block");
+    const block = await options.api.provider.getBlock(height);
+    if (!block || block.number !== height || !Number.isSafeInteger(block.timestamp))
+      throw new Error(`WormSwap: unavailable boundary block ${height}`);
+    return block;
+  };
+
+  let low = await readBlock(guess);
+  let high = low;
+  // Bracket in either direction, then bisect. A lookup can be hundreds of
+  // blocks away; exponential steps avoid one RPC request per missed block.
+  for (let step = 1; high.timestamp <= timestamp; step *= 2) {
+    low = high;
+    high = await readBlock(low.number + step);
+  }
+  for (let step = 1; low.timestamp > timestamp; step *= 2) {
+    high = low;
+    if (low.number === 0) throw new Error("WormSwap: window predates genesis");
+    low = await readBlock(Math.max(0, high.number - step));
+  }
+  while (high.number - low.number > 1) {
+    const block = await readBlock(Math.floor((low.number + high.number) / 2));
+    if (block.timestamp <= timestamp) low = block;
+    else high = block;
+  }
+  return low.number;
+}
+
+/** Collect one trade leg and actual protocol fee receipts for the requested window. */
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const creditedFees = options.createBalances();
-  // RPC log ranges include both endpoints. Exclude the previous window's
-  // closing block so adjacent hourly pulls cannot count the same event twice.
-  const fromBlock = (await options.getFromBlock()) + 1;
-  const toBlock = await options.getToBlock();
+  // The runner supplies the second before the opening interval as fromTimestamp.
+  // Resolve exact (fromTimestamp, toTimestamp] bounds before adding one to the
+  // lower block. Nearest-block estimates alone may skip a first/gapped pull's
+  // first trade or include the next interval; equal-timestamp blocks stay together.
+  const fromBlock = (await lastBlockAtOrBefore(options, options.fromTimestamp, await options.getFromBlock())) + 1;
+  const toBlock = await lastBlockAtOrBefore(options, options.toTimestamp, await options.getToBlock());
   const nominalFees = new Map<string, bigint>();
   const receipts = new Map<string, bigint>();
   const feeTokens = new Set<string>();
@@ -84,6 +127,8 @@ async function fetch(options: FetchOptions) {
       // Verified payer -> immutable fee collector only, restricted to successful
       // swap txs. ERC20 Transfer values capture transfer-tax deductions, unlike
       // SwapExecuted.fee, which is the nominal amount sent by the router.
+      // These receipts are gross WormSwap fees before protocol allocations:
+      // an external token's transfer tax is not WormSwap revenue or a supplier cut.
       await addTokensReceived({
         options: { ...options, getLogs },
         balances: creditedFees,
@@ -125,7 +170,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // routed trades also settle on the underlying PancakeSwap pools
   methodology: {
     Volume: "Completed swaps routed by WormSwap, counted once using the received input before its router fee; the received output is used when only that leg is a core asset, and BNB/WBNB wrapping is excluded.",
-    Fees: "Net user-paid swap and BNB/WBNB wrapping fees credited to WormSwap's fee distributor, excluding token transfer taxes, underlying DEX fees, Arena payments and donations.",
+    Fees: "User-paid swap and BNB/WBNB wrapping fees actually credited to WormSwap's fee distributor before protocol allocations, excluding external token transfer taxes, underlying DEX fees, Arena payments and donations.",
     Revenue: "Net swap and wrapping fee receipts retained by WormSwap and allocated entirely to TANUKI buybacks and burns, with no supplier or referral share.",
     HoldersRevenue: "Net swap and wrapping fee receipts earmarked for TANUKI buybacks and burns, recognized when received rather than again when the burn batch executes.",
     ProtocolRevenue: "WormSwap allocates none of its net router fee receipts to a discretionary treasury; all are reserved for TANUKI buybacks and burns.",
