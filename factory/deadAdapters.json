@@ -483,6 +483,93 @@
         "runAtCurrTime": false
       }
     },
+    "haiku": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "aggregators/haiku",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "prefetch": "_f",
+        "chains": [
+          "ethereum",
+          "base",
+          "arbitrum",
+          "sonic",
+          "berachain",
+          "bsc",
+          "hyperliquid",
+          "polygon",
+          "optimism",
+          "unichain",
+          "sei",
+          "avax",
+          "scroll",
+          "katana",
+          "apechain",
+          "xdai",
+          "wc"
+        ],
+        "isExpensiveAdapter": true,
+        "dependencies": [
+          "dune"
+        ],
+        "deadFrom": "2026-09-21",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f"
+          },
+          "base": {
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "fetch": "_f"
+          },
+          "sonic": {
+            "fetch": "_f"
+          },
+          "berachain": {
+            "fetch": "_f"
+          },
+          "bsc": {
+            "fetch": "_f"
+          },
+          "hyperliquid": {
+            "fetch": "_f"
+          },
+          "polygon": {
+            "fetch": "_f"
+          },
+          "optimism": {
+            "fetch": "_f"
+          },
+          "unichain": {
+            "fetch": "_f"
+          },
+          "sei": {
+            "fetch": "_f"
+          },
+          "avax": {
+            "fetch": "_f"
+          },
+          "scroll": {
+            "fetch": "_f"
+          },
+          "katana": {
+            "fetch": "_f"
+          },
+          "apechain": {
+            "fetch": "_f"
+          },
+          "xdai": {
+            "fetch": "_f"
+          },
+          "wc": {
+            "fetch": "_f"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "hop-aggregator": {
       "modulePath": "-",
       "codePath": "dead/aggregators/hop-aggregator",
@@ -3278,6 +3365,22 @@
         "runAtCurrTime": true
       }
     },
+    "caviarnine-orderbook": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/caviarnine-orderbook.ts",
+      "module": {
+        "adapter": {
+          "radixdlt": {
+            "fetch": "_f",
+            "start": "2023-10-31",
+            "runAtCurrTime": true,
+            "deadFrom": "2026-08-31"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": true
+      }
+    },
     "caviarnine-simplepool": {
       "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
       "codePath": "dexs/caviarnine-simplepool.ts",
@@ -4318,6 +4421,21 @@
         "runAtCurrTime": false
       }
     },
+    "gaspump": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/gaspump",
+      "module": {
+        "version": 2,
+        "deadFrom": "2026-09-03",
+        "adapter": {
+          "ton": {
+            "fetch": "_f",
+            "start": "2024-08-31"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "glyph-exchange": {
       "commit": "79df3bd74a7bab0e7f6358ec4b7d9c6991da159b",
       "codePath": "dexs/glyph-exchange",
@@ -4856,6 +4974,30 @@
           "aptos": {
             "fetch": "_f",
             "start": "2024-09-12"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "kensei": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/kensei",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "katana"
+        ],
+        "start": "2025-10-16",
+        "deadFrom": "2026-05-08",
+        "dependencies": [
+          "dune"
+        ],
+        "isExpensiveAdapter": true,
+        "adapter": {
+          "katana": {
+            "fetch": "_f",
+            "start": "2025-10-16"
           }
         },
         "runAtCurrTime": false
@@ -5487,6 +5629,50 @@
         "runAtCurrTime": false
       }
     },
+    "lyra": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/lyra",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "lyra"
+        ],
+        "start": "2023-12-15",
+        "deadFrom": "2026-10-06",
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2023-12-15"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "lyra-v2-spot": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/lyra-v2-spot.ts",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "fetch": "_f",
+        "chains": [
+          "lyra"
+        ],
+        "start": "2024-07-12",
+        "deadFrom": "2026-10-06",
+        "methodology": {
+          "Volume": "Spot trading volume on Derive v2."
+        },
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2024-07-12"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "makiswap": {
       "modulePath": "-",
       "codePath": "dead/dexs/makiswap",
@@ -5716,6 +5902,182 @@
           }
         },
         "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "metric": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/metric",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "pullHourly": true,
+        "adapter": {
+          "ethereum": {
+            "start": "2026-02-23",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 24521317,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2026-04-05",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 42570144,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2026-02-17",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 435210755,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "bsc": {
+            "start": "2026-02-23",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 82964761,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "avax": {
+            "start": "2026-02-23",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 78822864,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "polygon": {
+            "start": "2026-02-23",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 83380134,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "megaeth": {
+            "start": "2026-02-23",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 9083666,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "hyperliquid": {
+            "start": "2026-03-26",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 30774348,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "monad": {
+            "start": "2026-03-30",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 64807339,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          },
+          "robinhood": {
+            "start": "2026-07-14",
+            "factories": [
+              {
+                "address": "0xe22F9fc0f04486dE25ed6CF1800a4a47aFD82e0C",
+                "fromBlock": 9477535,
+                "events": {
+                  "swapEvent": "event Swap(address sender, address recipient, bool exactInput, int128 amount0Delta, int128 amount1Delta, int16 newTick, uint104 newPositionInBin)",
+                  "poolCreatedEvent": "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
+                  "poolField": "pool",
+                  "swapAmounts": "_f"
+                }
+              }
+            ],
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "Volume": "Sum of all input token amounts from Swap events across every pool created by Metric. Pools are discovered on-chain from factory contract's PoolCreated event."
+        },
+        "deadFrom": "2026-10-07",
         "runAtCurrTime": false
       }
     },
@@ -6645,6 +7007,27 @@
         "runAtCurrTime": true
       }
     },
+    "rate-x": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/rate-x",
+      "module": {
+        "version": 2,
+        "methodology": {
+          "Fees": "Trading fees charged on leveraged yield token trades (1% of trading volume). Additional fees include PT management fees (5% of ST accrued yield), yield position fees (5% of yields generated), and expiry fees (2% annualized on unclaimed tokens after 14 days).",
+          "Revenue": "50% of trading fees collected as protocol revenue. Protocol also receives PT management fees, yield position fees, and expiry fees.",
+          "ProtocolRevenue": "50% of trading fees collected as protocol revenue. Protocol also receives PT management fees, yield position fees, and expiry fees.",
+          "SupplySideRevenue": "50% of trading fees are distributed to LPs."
+        },
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2024-11-07",
+            "deadFrom": "2026-10-14"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "reax-one-dex": {
       "modulePath": "-",
       "codePath": "dead/dexs/reax-one-dex",
@@ -6657,6 +7040,30 @@
             "start": "2023-07-18"
           }
         },
+        "runAtCurrTime": false
+      }
+    },
+    "renegade-fi": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/renegade-fi",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "fetch": "_f",
+        "adapter": {
+          "arbitrum": {
+            "start": "2024-09-03",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2025-05-29",
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "Volume": "On-chain settled volume of the Renegade v1 and v2 darkpools: the input-token transfers into the darkpool in settlement transactions (txs that move tokens both into and out of the darkpool). When both sides settle publicly only the USDC leg is counted. Fully private (internal) matches move no tokens on-chain and are not visible."
+        },
+        "deadFrom": "2026-04-20",
         "runAtCurrTime": false
       }
     },
@@ -6957,6 +7364,22 @@
         "runAtCurrTime": false
       }
     },
+    "sharpe-dex": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/sharpe-dex",
+      "module": {
+        "version": 2,
+        "deadFrom": "2025-04-13",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-04-01"
+          }
+        },
+        "runAtCurrTime": true
+      }
+    },
     "shell-protocol": {
       "commit": "907a33a21a905e24de53272e391f73b262898e8b",
       "codePath": "dexs/shell-protocol",
@@ -7217,6 +7640,64 @@
         "runAtCurrTime": true
       }
     },
+    "stabble-clmm": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/stabble-clmm",
+      "module": {
+        "version": 1,
+        "deadFrom": "2026-06-29",
+        "fetch": "_f",
+        "chains": [
+          "solana"
+        ],
+        "start": "2025-12-12",
+        "adapter": {
+          "solana": {
+            "fetch": "_f",
+            "start": "2025-12-12"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "standard-spot": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/standard-spot",
+      "module": {
+        "adapter": {
+          "somnia": {
+            "fetch": "_f",
+            "methodology": {
+              "Volume": "This is the total volume of all trades on the exchange.",
+              "Fees": "Trading fees paid by users.",
+              "UserFees": "Trading fees paid by users.",
+              "Revenue": "Fees from users.",
+              "SupplySideRevenue": "No supply side revenue. This is a P2P onchain CLOB exchange. Every trade is a match between two users as supplier and taker."
+            },
+            "start": "2025-08-31"
+          }
+        },
+        "version": 2,
+        "pullHourly": true,
+        "deadFrom": "2026-09-06",
+        "runAtCurrTime": false
+      }
+    },
+    "steamm": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/steamm.ts",
+      "module": {
+        "version": 2,
+        "deadFrom": "2026-10-05",
+        "adapter": {
+          "sui": {
+            "fetch": "_f",
+            "start": "2025-02-16"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "surfone": {
       "modulePath": "-",
       "codePath": "dead/dexs/surfone",
@@ -7381,6 +7862,35 @@
         "runAtCurrTime": false
       }
     },
+    "sxbet": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/sxbet",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "sxr"
+        ],
+        "start": "2020-12-07",
+        "methodology": {
+          "Volume": "Total amount staked on bets matched each day. Every bet is funded by two people whose stakes are pooled into a single payout, so both stakes are counted — they are separate money, not the same money counted twice.",
+          "Fees": "SX Bet takes no commission on single bets. On parlays it takes 5% of the winner's profit, charged to whichever side wins — market makers pay it too when they win, and losing bets pay nothing. The exchange charged no commission at all between 29 February 2024 and 1 October 2025, and used an earlier fee schedule before that; both are reflected here as reported by the exchange.",
+          "Revenue": "Equal to fees, because none of the commission is shared with anyone else.",
+          "SupplySideRevenue": "Zero. Market makers get no share of the commission — they profit from the bets they win. The USDC maker rewards programme is a separate incentive budget, not a cut of fees.",
+          "HoldersRevenue": "Through 2025 the collected commission was spent buying SX tokens on the open market.",
+          "ProtocolRevenue": "From January 2026 the collected commission is sent to the team's treasury instead of funding token buybacks.",
+          "OpenInterest": "Total amount staked on bets that have been matched but not yet settled. The exchange only publishes this as a current figure, so it reflects the latest snapshot rather than the state on a past date."
+        },
+        "deadFrom": "2026-08-27",
+        "adapter": {
+          "sxr": {
+            "fetch": "_f",
+            "start": "2020-12-07"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "synfutures-v1": {
       "commit": "907a33a21a905e24de53272e391f73b262898e8b",
       "codePath": "dexs/synfutures-v1",
@@ -7542,6 +8052,21 @@
           }
         },
         "runAtCurrTime": false
+      }
+    },
+    "tearex": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/tearex",
+      "module": {
+        "adapter": {
+          "sei": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "deadFrom": "2026-05-30",
+        "version": 1,
+        "runAtCurrTime": true
       }
     },
     "tegro": {
@@ -8176,6 +8701,22 @@
         "runAtCurrTime": false
       }
     },
+    "web3world": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "dexs/web3world",
+      "module": {
+        "adapter": {
+          "venom": {
+            "fetch": "_f",
+            "runAtCurrTime": true,
+            "start": "2024-04-15"
+          }
+        },
+        "version": 1,
+        "deadFrom": "2026-10-01",
+        "runAtCurrTime": true
+      }
+    },
     "xei": {
       "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
       "codePath": "dexs/xei",
@@ -8389,6 +8930,59 @@
         },
         "methodology": {
           "Fees": "Tokens trading and launching fees paid by users."
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "aave-labs": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/aave-labs.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "start": "2025-05-21",
+        "chains": [
+          "ethereum",
+          "base",
+          "arbitrum",
+          "xdai"
+        ],
+        "deadFrom": "2025-12-28",
+        "methodology": {
+          "Fees": "All swap fees from Aave frontend using CowSwap integration.",
+          "UserFees": "Users pay 0.15%-0.25% per swap while swap tokens using Aave frontend.",
+          "Revenue": "All swap fees are collected as revenue.",
+          "ProtocolRevenue": "All revenue is collected by Aave Labs.",
+          "HoldersRevenue": "No revenue share to AAVE token holders."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "CowSwap Partner Fees": "Swap fees from CowSwap frontedn integration."
+          },
+          "Revenue": {
+            "CowSwap Partner Fees": "Swap fees from CowSwap frontedn integration."
+          },
+          "ProtocolRevenue": {
+            "CowSwap Partner Fees": "Swap fees from CowSwap frontedn integration."
+          }
+        },
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2025-05-21"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2025-05-21"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2025-05-21"
+          },
+          "xdai": {
+            "fetch": "_f",
+            "start": "2025-05-21"
+          }
         },
         "runAtCurrTime": false
       }
@@ -8618,6 +9212,46 @@
         "runAtCurrTime": false
       }
     },
+    "aries-markets": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/aries-markets",
+      "module": {
+        "version": 1,
+        "chains": [
+          "aptos"
+        ],
+        "fetch": "_f",
+        "start": "2025-06-15",
+        "methodology": {
+          "Fees": "Interest paid by borrowers across all Aries lending markets.",
+          "Revenue": "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio.",
+          "SupplySideRevenue": "Interest distributed to lenders who supply assets (the remainder of each market's interest).",
+          "ProtocolRevenue": "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Borrow Interest": "Interest accrued from borrowers across all reserves, calculated from each reserve daily borrow APR and total borrowed amount"
+          },
+          "Revenue": {
+            "Protocol Fees": "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio."
+          },
+          "ProtocolRevenue": {
+            "Protocol Fees": "Protocol's share of borrow interest, set per market by each reserve's reserve_ratio."
+          },
+          "SupplySideRevenue": {
+            "Borrow Interest": "Interest distributed to lenders who supply assets (the remainder of each market's interest)."
+          }
+        },
+        "deadFrom": "2026-08-25",
+        "adapter": {
+          "aptos": {
+            "fetch": "_f",
+            "start": "2025-06-15"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "ascent-v2": {
       "modulePath": "-",
       "codePath": "dead/fees/ascent-v2.ts",
@@ -8830,6 +9464,75 @@
             "start": "2023-06-22"
           }
         },
+        "runAtCurrTime": false
+      }
+    },
+    "betswirl": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/betswirl",
+      "module": {
+        "version": 2,
+        "fetch": "_f",
+        "adapter": {
+          "bsc": {
+            "start": "2022-07-27",
+            "fetch": "_f"
+          },
+          "polygon": {
+            "start": "2022-07-27",
+            "fetch": "_f"
+          },
+          "avax": {
+            "start": "2022-07-27",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2022-07-27",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2024-11-04",
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "UserFees": "The player is charged of the fee when a bet is won. Or the PvP game prize pool.",
+          "Fees": "All fees (called «house edge» from 2.4% to 4% of the payout) comes from the player's bet. The fee has several allocations: Bank, Partner, Affiliate, Dividends, Treasury, and Team. The house edge on PvP games is from 3.5% to 7% allocated to Dividends, Host, Affiliate, Treasury and Team.",
+          "Revenue": "Dividends, Treasury and Team fee allocations.",
+          "ProtocolRevenue": "Treasury and Team fee allocations.",
+          "HoldersRevenue": "Dividends fee allocations.",
+          "SupplySideRevenue": "Bank and Partner fee allocations, or Host allocation on PvP games."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Token holder dividends": "Dividends distributed to token holders",
+            "Bank fees": "Fees to house bank providing betting liquidity",
+            "Partner fees": "Fees to platform partners",
+            "Treasury allocation": "Fees allocated to protocol treasury",
+            "Team allocation": "Fees allocated to core team",
+            "Affiliate fees": "Fees to affiliates who refer users",
+            "PvP game host fees": "Fees to PvP game hosts"
+          },
+          "Revenue": {
+            "Treasury allocation": "Fees allocated to protocol treasury",
+            "Team allocation": "Fees allocated to core team",
+            "Token holder dividends": "Dividends distributed to token holders"
+          },
+          "ProtocolRevenue": {
+            "Treasury allocation": "Fees allocated to protocol treasury",
+            "Team allocation": "Fees allocated to core team"
+          },
+          "HoldersRevenue": {
+            "Token holder dividends": "Dividends distributed to token holders"
+          },
+          "SupplySideRevenue": {
+            "Bank fees": "Fees to house bank providing betting liquidity",
+            "Partner fees": "Fees to platform partners",
+            "Affiliate fees": "Fees to affiliates who refer users",
+            "PvP game host fees": "Fees to PvP game hosts"
+          }
+        },
+        "deadFrom": "2026-03-23",
         "runAtCurrTime": false
       }
     },
@@ -9166,6 +9869,22 @@
         "runAtCurrTime": true
       }
     },
+    "caviarnine-shape-liquidity": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/caviarnine-shape-liquidity.ts",
+      "module": {
+        "version": 1,
+        "adapter": {
+          "radixdlt": {
+            "fetch": "_f",
+            "start": "2023-11-05",
+            "runAtCurrTime": true,
+            "deadFrom": "2026-08-31"
+          }
+        },
+        "runAtCurrTime": true
+      }
+    },
     "chopcorp": {
       "commit": "79df3bd74a7bab0e7f6358ec4b7d9c6991da159b",
       "codePath": "fees/chopcorp",
@@ -9294,6 +10013,32 @@
           "polygon": {
             "fetch": "_f",
             "start": "2023-03-29"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "csc": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/csc.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "csc"
+        ],
+        "start": "2021-06-25",
+        "methodology": {
+          "Fees": "Fees paid by users for transactions on the CSC chain",
+          "Revenue": "No revenue, as transactions fees aren't burnt",
+          "HoldersRevenue": "No holdersrevenue, as transactions fees aren't burnt"
+        },
+        "protocolType": "chain",
+        "deadFrom": "2026-09-29",
+        "adapter": {
+          "csc": {
+            "fetch": "_f",
+            "start": "2021-06-25"
           }
         },
         "runAtCurrTime": false
@@ -9909,6 +10654,30 @@
         "runAtCurrTime": false
       }
     },
+    "foom-cash": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/foom-cash",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "deadFrom": "2026-03-02",
+        "adapter": {
+          "ethereum": {
+            "start": "2025-07-01",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2025-05-28",
+            "fetch": "_f"
+          }
+        },
+        "methodology": {
+          "Fees": "All daily protocol fees: a 1% Generator fee, a 4% Investor fee, and all relayer fees from both official and third-party relayers.",
+          "Revenue": "Protocol's retained fees: the 1% Generator fee, the 4% Investor fee, and fees earned by the official relayer."
+        },
+        "runAtCurrTime": false
+      }
+    },
     "forge": {
       "modulePath": "-",
       "codePath": "dead/fees/forge.ts",
@@ -9919,6 +10688,57 @@
           "evmos": {
             "fetch": "_f",
             "start": "2023-04-03"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "furucombo": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/furucombo",
+      "module": {
+        "methodology": {
+          "Fees": "Fees paid by users for using Furucombo services.",
+          "Revenue": "All fees are revenue."
+        },
+        "version": 2,
+        "deadFrom": "2026-06-24",
+        "adapter": {
+          "ethereum": {
+            "fetch": "_f",
+            "start": "2022-08-30"
+          },
+          "polygon": {
+            "fetch": "_f",
+            "start": "2022-08-30"
+          },
+          "arbitrum": {
+            "fetch": "_f",
+            "start": "2022-10-21"
+          },
+          "optimism": {
+            "fetch": "_f",
+            "start": "2022-10-21"
+          },
+          "avax": {
+            "fetch": "_f",
+            "start": "2022-10-21"
+          },
+          "metis": {
+            "fetch": "_f",
+            "start": "2023-06-20"
+          },
+          "fantom": {
+            "fetch": "_f",
+            "start": "2023-03-03"
+          },
+          "base": {
+            "fetch": "_f",
+            "start": "2023-11-18"
+          },
+          "xdai": {
+            "fetch": "_f",
+            "start": "2023-11-18"
           }
         },
         "runAtCurrTime": false
@@ -9945,6 +10765,24 @@
           }
         },
         "deadFrom": "2026-02-22",
+        "runAtCurrTime": false
+      }
+    },
+    "gaspump": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/gaspump",
+      "module": {
+        "version": 2,
+        "deadFrom": "2026-09-02",
+        "adapter": {
+          "ton": {
+            "fetch": "_f",
+            "start": "2024-08-31"
+          }
+        },
+        "methodology": {
+          "Fees": "Tokens trading and launching fees paid by users."
+        },
         "runAtCurrTime": false
       }
     },
@@ -10175,6 +11013,109 @@
             "start": "2024-02-02"
           }
         },
+        "runAtCurrTime": false
+      }
+    },
+    "haiku": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/haiku",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "methodology": {
+          "Fees": "All fees paid by users for swap and bridge tokens via Haiku.",
+          "Revenue": "Fees are distributed to Haiku.",
+          "ProtocolRevenue": "Fees are distributed to Haiku."
+        },
+        "fetch": "_f",
+        "adapter": {
+          "ethereum": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "base": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "sonic": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "berachain": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "bsc": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-05-19",
+            "fetch": "_f"
+          },
+          "hyperliquid": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-06-24",
+            "fetch": "_f"
+          },
+          "polygon": {
+            "id": "0x2d1f05273292378A8CE938628dA7D8bDbCA4D9FF",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "optimism": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "unichain": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "sei": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "avax": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "scroll": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "katana": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "apechain": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "xdai": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          },
+          "wc": {
+            "id": "0x24aC999FF132B32c5b3956973b6213B0d07eB2C7",
+            "start": "2025-09-01",
+            "fetch": "_f"
+          }
+        },
+        "deadFrom": "2026-09-21",
         "runAtCurrTime": false
       }
     },
@@ -10963,6 +11904,21 @@
         "runAtCurrTime": false
       }
     },
+    "levvy-fi": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/levvy-fi",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "cardano": {
+            "fetch": "_f",
+            "start": "2023-10-11"
+          }
+        },
+        "deadFrom": "2026-07-07",
+        "runAtCurrTime": false
+      }
+    },
     "levvy-fi-tokens": {
       "commit": "907a33a21a905e24de53272e391f73b262898e8b",
       "codePath": "fees/levvy-fi-tokens",
@@ -11134,6 +12090,99 @@
         },
         "deadFrom": "2023-12-31",
         "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "lyra-v2": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/lyra-v2.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "lyra"
+        ],
+        "start": "2023-11-01",
+        "deadFrom": "2026-10-06",
+        "methodology": {
+          "Fees": "Gross trading fees charged to users across Derive markets (makerFees + takerFees) from stats-api.derive.xyz/fees over the requested period.",
+          "Revenue": "Equal to Fees (gross trading fees subtracting rebates).",
+          "UserFees": "Equal to Fees (fees paid by traders).",
+          "ProtocolRevenue": "Equal to Fees (gross trading fees subtracting rebates)."
+        },
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2023-11-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "lyra-v2-options": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/lyra-v2-options.ts",
+      "module": {
+        "version": 1,
+        "fetch": "_f",
+        "chains": [
+          "lyra"
+        ],
+        "start": "2023-11-01",
+        "deadFrom": "2026-10-06",
+        "methodology": {
+          "Fees": "Gross trading fees charged to users across Derive markets (makerFees + takerFees) from stats-api.derive.xyz/fees over the requested period.",
+          "Revenue": "Equal to Fees (gross trading fees subtracting rebates).",
+          "UserFees": "Equal to Fees (fees paid by traders).",
+          "ProtocolRevenue": "Equal to Fees (gross trading fees subtracting rebates)."
+        },
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2023-11-01"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "lyra-v2-spot": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/lyra-v2-spot.ts",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "fetch": "_f",
+        "chains": [
+          "lyra"
+        ],
+        "start": "2024-07-12",
+        "deadFrom": "2026-10-06",
+        "methodology": {
+          "Fees": "Trading fees and builder fees paid on Derive spot trades.",
+          "UserFees": "Trading fees and builder fees paid on Derive spot trades.",
+          "Revenue": "Trading fees minus maker rebates.",
+          "ProtocolRevenue": "Trading fees minus maker rebates.",
+          "SupplySideRevenue": "Maker rebates and builder fees."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Trading Fees": "Trading fees on spot trades.",
+            "Builder Fees": "Fees set by third-party apps on the orders they submit."
+          },
+          "Revenue": {
+            "Trading Fees Net Of Rebates": "Trading fees minus maker rebates."
+          },
+          "SupplySideRevenue": {
+            "Maker Rebates": "Rebates paid to market makers.",
+            "Builder Fees To Builders": "Builder fees paid to the apps that set them."
+          }
+        },
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2024-07-12"
+          }
+        },
         "runAtCurrTime": false
       }
     },
@@ -11362,6 +12411,32 @@
           "era": {
             "fetch": "_f",
             "start": "2023-03-31"
+          }
+        },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "meso-finance": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/meso-finance.ts",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "aptos"
+        ],
+        "start": "2024-09-28",
+        "methodology": {
+          "Fees": "Interest paid by borrowers",
+          "Revenue": "Protocol fees + interest share of protocol fees",
+          "ProtocolRevenue": "Protocol fees going to meso treasury",
+          "SupplySideRevenue": "Interest earned by lenders"
+        },
+        "deadFrom": "2026-07-28",
+        "adapter": {
+          "aptos": {
+            "fetch": "_f",
+            "start": "2024-09-28"
           }
         },
         "version": 1,
@@ -12454,6 +13529,46 @@
         "runAtCurrTime": false
       }
     },
+    "robin": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/robin.ts",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "fetch": "_f",
+        "chains": [
+          "robinhood"
+        ],
+        "start": "2026-08-20",
+        "methodology": {
+          "Fees": "Name registration and renewal fees for .robin names (annual rentals, plus temporary Dutch-auction premiums on recently expired names), paid in ETH or USDG or ROBIN.",
+          "Revenue": "Same as fees: 100% of registration and renewal costs accrue to the protocol treasury (a 2-of-3 Safe). There are no third-party fee splits.",
+          "ProtocolRevenue": "Same as revenue (100% of registration and renewal costs) — all fees accrue to the protocol treasury."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Name registration fees": "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+            "Name renewal fees": "Cost paid to renew .robin names, in ETH or USDG or ROBIN."
+          },
+          "ProtocolRevenue": {
+            "Name registration fees": "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+            "Name renewal fees": "Cost paid to renew .robin names, in ETH or USDG or ROBIN."
+          },
+          "Revenue": {
+            "Name registration fees": "Cost paid to register .robin names (base cost plus any temporary premium on recently expired names), in ETH or USDG or ROBIN.",
+            "Name renewal fees": "Cost paid to renew .robin names, in ETH or USDG or ROBIN."
+          }
+        },
+        "deadFrom": "2026-09-10",
+        "adapter": {
+          "robinhood": {
+            "fetch": "_f",
+            "start": "2026-08-20"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "rollup-finace": {
       "modulePath": "-",
       "codePath": "dead/fees/rollup-finace.ts",
@@ -12466,6 +13581,49 @@
         },
         "deadFrom": "2024-09-31",
         "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "royco": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/royco.ts",
+      "module": {
+        "version": 2,
+        "pullHourly": true,
+        "deadFrom": "2026-08-07",
+        "methodology": {
+          "Fees": "Total incentive/reward amount were committed by Incentive Providers.",
+          "SupplySideRevenue": "The amount of incentive/reward goes to Action Providers and Frontend Providers.",
+          "Revenue": "The amount of incentive/reward goes to Royco Protocol.",
+          "ProtocolRevenue": "The amount of incentive/reward goes to Royco Protocol."
+        },
+        "fetch": "_f",
+        "adapter": {
+          "ethereum": {
+            "start": "2024-12-2",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2024-11-24",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2024-12-23",
+            "fetch": "_f"
+          },
+          "corn": {
+            "start": "2024-12-2",
+            "fetch": "_f"
+          },
+          "sonic": {
+            "start": "2025-01-15",
+            "fetch": "_f"
+          },
+          "hyperliquid": {
+            "start": "2024-12-2",
+            "fetch": "_f"
+          }
+        },
         "runAtCurrTime": false
       }
     },
@@ -12537,6 +13695,38 @@
         }
       }
     },
+    "steamm": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/steamm",
+      "module": {
+        "version": 2,
+        "deadFrom": "2026-10-05",
+        "adapter": {
+          "sui": {
+            "fetch": "_f",
+            "start": "2025-02-16"
+          }
+        },
+        "methodology": {
+          "Fees": "Total fees paid from swaps",
+          "Revenue": "The portion of the total fees going to the STEAMM treasury",
+          "ProtocolRevenue": "The portion of the total fees going to the STEAMM treasury",
+          "SupplySideRevenue": "The portion of the total fees going to LPs"
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "STEAMM Swap Fees": "Total swap fees paid by users"
+          },
+          "Revenue": {
+            "STEAMM Swap Fees To Protocol": "The portion of the total fees going to the STEAMM treasury"
+          },
+          "SupplySideRevenue": {
+            "STEAMM Swap Fees To LPs": "The portion of the total fees going to LPs"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
     "step-finance": {
       "commit": "b3b8b456dece9cfeb9092f3aee7a0538175904fe",
       "codePath": "fees/step-finance",
@@ -12563,6 +13753,91 @@
           }
         },
         "runAtCurrTime": false
+      }
+    },
+    "stride": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/stride.ts",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "cosmos",
+          "celestia",
+          "osmosis",
+          "juno",
+          "terra",
+          "evmos",
+          "injective",
+          "islm",
+          "dydx",
+          "band",
+          "stargaze"
+        ],
+        "methodology": {
+          "Fees": "Gross staking rewards earned by all native tokens delegated through Stride: the delegated balance per host zone times that chain's staking APR.",
+          "Revenue": "Stride keeps a 10% commission on the staking rewards.",
+          "SupplySideRevenue": "The remaining 90% of staking rewards accrue to stToken holders through redemption-rate appreciation."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "Staking Rewards": "Total host-chain staking rewards earned on tokens liquid staked through Stride (100% of rewards)."
+          },
+          "Revenue": {
+            "Protocol Fees": "10% commission Stride charges on staking rewards."
+          },
+          "SupplySideRevenue": {
+            "Staking Rewards": "90% of staking rewards passed to stToken holders via redemption-rate appreciation."
+          }
+        },
+        "runAtCurrTime": true,
+        "deadFrom": "2026-10-12",
+        "adapter": {
+          "cosmos": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "celestia": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "osmosis": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "juno": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "terra": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "evmos": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "injective": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "islm": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "dydx": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "band": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "stargaze": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
       }
     },
     "substanceX": {
@@ -12605,6 +13880,51 @@
           "sui": {
             "fetch": "_f",
             "start": "2024-09-25"
+          }
+        },
+        "runAtCurrTime": false
+      }
+    },
+    "sundaeswap": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/sundaeswap",
+      "module": {
+        "version": 1,
+        "chains": [
+          "cardano"
+        ],
+        "fetch": "_f",
+        "start": "2022-01-20",
+        "deadFrom": "2026-10-01",
+        "methodology": {
+          "Fees": "The total trading fees paid by users, excluding L1 transaction fees. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
+          "Revenue": "A fixed ADA cost per transaction that is collected by the protocol. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
+          "SupplySideRevenue": "A percentage cut on all trading volume, paid to Liquidity Providers. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
+          "ProtocolRevenue": "The share of the fixed ADA cost per transaction kept by the treasury: 85% since May 2024, 100% before. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
+          "HoldersRevenue": "The share of the fixed ADA cost per transaction going to holders: 15% since May 2024, 0% before. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded."
+        },
+        "breakdownMethodology": {
+          "Fees": {
+            "LP Fees": "A percentage cut on all trading volume, paid to Liquidity Providers",
+            "Protocol Fees": "A fixed ADA cost per transaction that is collected by the protocol"
+          },
+          "Revenue": {
+            "Protocol Fees": "A fixed ADA cost per transaction that is collected by the protocol"
+          },
+          "SupplySideRevenue": {
+            "LP Fees To LPs": "A percentage cut on all trading volume, paid to Liquidity Providers"
+          },
+          "ProtocolRevenue": {
+            "Protocol Fees To Treasury": "The share of protocol fees kept by the treasury"
+          },
+          "HoldersRevenue": {
+            "Protocol Fees To Holders": "The share of protocol fees going to holders"
+          }
+        },
+        "adapter": {
+          "cardano": {
+            "fetch": "_f",
+            "start": "2022-01-20"
           }
         },
         "runAtCurrTime": false
@@ -12893,6 +14213,30 @@
         "runAtCurrTime": false
       }
     },
+    "tarot": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/tarot.ts",
+      "module": {
+        "fetch": "_f",
+        "chains": [
+          "fantom",
+          "optimism"
+        ],
+        "runAtCurrTime": true,
+        "deadFrom": "2023-08-18",
+        "adapter": {
+          "fantom": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          },
+          "optimism": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
+      }
+    },
     "thetis-market": {
       "modulePath": "-",
       "codePath": "dead/fees/thetis-market.ts",
@@ -12967,6 +14311,53 @@
             "start": "2024-02-05"
           }
         },
+        "version": 1,
+        "runAtCurrTime": false
+      }
+    },
+    "unidex": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/unidex.ts",
+      "module": {
+        "fetch": "_f",
+        "methodology": {
+          "Fees": "Fees collected from user trading fees",
+          "Revenue": "Fees going to the treasury + holders",
+          "ProtocolRevenue": "Fees going to the treasury + holders",
+          "HoldersRevenue": "Fees going to the token holders",
+          "SupplySideRevenue": "Fees going to liquidity providers of the protocol"
+        },
+        "adapter": {
+          "optimism": {
+            "start": "2023-06-22",
+            "fetch": "_f"
+          },
+          "era": {
+            "start": "2023-06-22",
+            "fetch": "_f"
+          },
+          "arbitrum": {
+            "start": "2023-06-22",
+            "fetch": "_f"
+          },
+          "base": {
+            "start": "2023-06-22",
+            "fetch": "_f"
+          },
+          "fantom": {
+            "start": "2023-06-22",
+            "fetch": "_f"
+          },
+          "metis": {
+            "start": "2023-06-27",
+            "fetch": "_f"
+          },
+          "evmos": {
+            "start": "2023-11-16",
+            "fetch": "_f"
+          }
+        },
+        "deadFrom": "2024-09-20",
         "version": 1,
         "runAtCurrTime": false
       }
@@ -13164,6 +14555,22 @@
           }
         },
         "deadFrom": "2024-10-01",
+        "runAtCurrTime": false
+      }
+    },
+    "yamfore": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "fees/yamfore.ts",
+      "module": {
+        "version": 2,
+        "adapter": {
+          "cardano": {
+            "fetch": "_f",
+            "start": "2024-10-14",
+            "methodology": "Fees collected from loan creation fees, interest accured is not yet calculated."
+          }
+        },
+        "deadFrom": "2025-08-25",
         "runAtCurrTime": false
       }
     },
@@ -13425,6 +14832,25 @@
         "runAtCurrTime": false
       }
     },
+    "derive-options": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "open-interest/derive-options.ts",
+      "module": {
+        "chains": [
+          "lyra"
+        ],
+        "fetch": "_f",
+        "runAtCurrTime": true,
+        "deadFrom": "2026-10-06",
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
+      }
+    },
     "drift-trade": {
       "commit": "79df3bd74a7bab0e7f6358ec4b7d9c6991da159b",
       "codePath": "open-interest/drift-trade.ts",
@@ -13504,6 +14930,25 @@
           }
         },
         "runAtCurrTime": false
+      }
+    },
+    "lyra-v2": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "open-interest/lyra-v2.ts",
+      "module": {
+        "chains": [
+          "lyra"
+        ],
+        "fetch": "_f",
+        "runAtCurrTime": true,
+        "deadFrom": "2026-10-06",
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "runAtCurrTime": true
+          }
+        },
+        "version": 1
       }
     },
     "satori-oi": {
@@ -13621,6 +15066,21 @@
             "fetch": "_f"
           }
         },
+        "runAtCurrTime": false
+      }
+    },
+    "lyra-v2": {
+      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
+      "codePath": "options/lyra-v2",
+      "module": {
+        "deadFrom": "2026-10-06",
+        "adapter": {
+          "lyra": {
+            "fetch": "_f",
+            "start": "2023-12-15"
+          }
+        },
+        "version": 1,
         "runAtCurrTime": false
       }
     },
