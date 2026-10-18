@@ -1,5 +1,5 @@
 import ADDRESSES from './coreAssets.json'
-import { BaseAdapter, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "../factory/registry";
 import { CHAIN } from "./chains";
 import { addTokensReceived, nullAddress } from "./token";
@@ -449,3 +449,87 @@ Object.entries(v1Entries).forEach(([protocolName, entry]: [string, any]) => {
 })
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);
+
+// Liquidations
+// V1 TroveManager: _liquidatedColl excludes the gas compensation and the recovery-mode surplus returned to the borrower,
+// so collateral seized = _liquidatedColl + _collGasCompensation
+// V2 TroveManager: trove collateral = gas compensation + sent to SP + redistributed + surplus (claimable by the borrower),
+// so collateral seized = _collGasCompensation + _collSentToSP + _collRedistributed
+const liquidationsMethodology = {
+  CollateralLiquidated: 'Collateral seized from liquidated troves (sent to the stability pool, redistributed to other troves, and paid as gas compensation), excluding any surplus returned to the borrower, from TroveManager Liquidation events.',
+}
+
+function liquityV1LiquidationsExports(config: IJSON<LiquityV1Config>, overrides?: Partial<SimpleAdapter>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).forEach(([chain, chainConfig]) => {
+    exportObject[chain] = {
+      fetch: async (options: FetchOptions) => {
+        const dailyCollateralLiquidated = options.createBalances()
+        const logs = await options.getLogs({ target: chainConfig.troveManager, eventAbi: LiquidationEvent })
+        logs.forEach((log: any) => {
+          const seized = BigInt(log._liquidatedColl) + BigInt(log._collGasCompensation)
+          if (chainConfig.collateralCoin) dailyCollateralLiquidated.add(chainConfig.collateralCoin, seized)
+          else dailyCollateralLiquidated.addGasToken(seized)
+        })
+        return { dailyCollateralLiquidated }
+      },
+      start: chainConfig.start,
+    }
+  })
+  return { adapter: exportObject, version: 2, pullHourly: true, start: overrides?.start, methodology: liquidationsMethodology } as SimpleAdapter
+}
+
+const getLiquityV2LiquidationsFetch = (collateralRegistries: { address: string, fromTimestamp?: number }[]) => async (options: FetchOptions) => {
+  const dailyCollateralLiquidated = options.createBalances()
+  for (const { address, fromTimestamp } of collateralRegistries) {
+    if (fromTimestamp && options.startTimestamp < fromTimestamp) continue
+    const troves = await options.api.fetchList({ lengthAbi: 'totalCollaterals', itemAbi: 'getTroveManager', target: address })
+    const activePools = await options.api.multiCall({ abi: 'address:activePool', calls: troves })
+    const tokens = await options.api.multiCall({ abi: 'address:collToken', calls: activePools })
+    const logs = await options.getLogs({
+      targets: troves,
+      eventAbi: 'event Liquidation(uint256 _debtOffsetBySP, uint256 _debtRedistributed, uint256 _boldGasCompensation, uint256 _collGasCompensation, uint256 _collSentToSP, uint256 _collRedistributed, uint256 _collSurplus, uint256 _L_ETH, uint256 _L_boldDebt, uint256 _price)',
+      flatten: false,
+    })
+    logs.forEach((troveLogs: any[], i: number) => {
+      troveLogs.forEach((log: any) => {
+        dailyCollateralLiquidated.add(tokens[i], BigInt(log._collGasCompensation) + BigInt(log._collSentToSP) + BigInt(log._collRedistributed))
+      })
+    })
+  }
+  return { dailyCollateralLiquidated }
+}
+
+function liquityV2LiquidationsExports(config: IJSON<{ collateralRegistries: { address: string, fromTimestamp?: number }[], start?: string }>) {
+  const exportObject: BaseAdapter = {}
+  Object.entries(config).forEach(([chain, { collateralRegistries, start }]) => {
+    exportObject[chain] = { fetch: getLiquityV2LiquidationsFetch(collateralRegistries), start }
+  })
+  return { adapter: exportObject, version: 2, pullHourly: true, methodology: liquidationsMethodology } as SimpleAdapter
+}
+
+const liquidationProtocols = {} as any;
+Object.entries(v2ExportsConfig).forEach(([protocolName, config]) => {
+  const chains: IJSON<{ collateralRegistries: { address: string }[], start?: string }> = {}
+  Object.entries(config).forEach(([chain, { collateralRegistry, start }]: [string, any]) => {
+    chains[chain] = { collateralRegistries: [{ address: collateralRegistry }], start }
+  })
+  liquidationProtocols[protocolName] = liquityV2LiquidationsExports(chains)
+})
+// fees/liquity-v2.ts: original deployment plus the redeployment live from 2025-05-18
+liquidationProtocols['liquity-v2'] = liquityV2LiquidationsExports({
+  [CHAIN.ETHEREUM]: {
+    collateralRegistries: [{ address: '0xd99dE73b95236F69A559117ECD6F519Af780F3f7' }, { address: '0xf949982b91c8c61e952b3ba942cbbfaef5386684', fromTimestamp: 1747526400 }],
+    start: '2025-01-24',
+  },
+})
+Object.entries(v1Entries).forEach(([protocolName, entry]: [string, any]) => {
+  if (entry.chainConfig) {
+    const { chainConfig, ...overrides } = entry
+    liquidationProtocols[protocolName] = liquityV1LiquidationsExports(chainConfig, overrides)
+  } else {
+    liquidationProtocols[protocolName] = liquityV1LiquidationsExports(entry)
+  }
+})
+
+export const liquidations = createFactoryExports(liquidationProtocols);
