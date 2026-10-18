@@ -14,18 +14,20 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1, // endpoint aggregates by UTC day
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: "2026-01-01" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2026-01-01" },
-    [CHAIN.BASE]: { fetch, start: "2026-01-01" },
-    [CHAIN.BSC]: { fetch, start: "2026-01-01" },
-    [CHAIN.POLYGON]: { fetch, start: "2026-01-01" },
-    [CHAIN.OPTIMISM]: { fetch, start: "2026-01-01" },
-    [CHAIN.AVAX]: { fetch, start: "2026-01-01" },
-    [CHAIN.SOLANA]: { fetch, start: "2026-01-01" },
-    [CHAIN.LINEA]: { fetch, start: "2026-01-01" },
-    [CHAIN.SCROLL]: { fetch, start: "2026-01-01" },
-  },
+  fetch,
+  chains: [
+    CHAIN.ETHEREUM,
+    CHAIN.ARBITRUM,
+    CHAIN.BASE,
+    CHAIN.BSC,
+    CHAIN.POLYGON,
+    CHAIN.OPTIMISM,
+    CHAIN.AVAX,
+    CHAIN.SOLANA,
+    CHAIN.LINEA,
+    CHAIN.SCROLL,
+  ],
+  start: "2026-01-01",
   doublecounted: true,
   methodology: {
     BridgeVolume:
