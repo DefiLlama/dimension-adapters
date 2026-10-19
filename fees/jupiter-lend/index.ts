@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
-import { queryDuneSql } from "../../helpers/dune";
+import { fetchJupLendDailyRows } from "../../helpers/juplend";
 
 // Jupiter Lend runs on Fluid infra as two instances tagged by `instance_name`
 // in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) market
@@ -20,28 +20,7 @@ const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (ro
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
-  // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
-  //   start: options.startTimestamp,
-  //   end: options.endTimestamp
-  // });
-  const sql = `
-    select
-        day
-      , instance_name
-      , sum(borrow_fees_usd) as daily_fees_usd
-      , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
-      , sum(day_revenue_usd) as daily_revenue_usd
-    from dune."jupiter".result_juplend_historical_tvl_by_token_mv
-    where day >= FROM_UNIXTIME(${options.startTimestamp})
-        and day < FROM_UNIXTIME(${options.endTimestamp})
-    group by 1, 2
-    order by day desc
-  `
-  const data: any[] = await queryDuneSql(options, sql);
-
-  if (!data || data.length === 0) {
-    throw new Error(`No JupLend data returned from Dune for day starting ${new Date(options.startTimestamp * 1000).toISOString()}`);
-  }
+  const data: any[] = await fetchJupLendDailyRows(options);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
