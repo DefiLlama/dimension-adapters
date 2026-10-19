@@ -141,7 +141,7 @@ async function fetch(options: FetchOptions) {
     // platform when a launch names no referrer, in which case that seat's 10% is protocol revenue,
     // not supply side. The seat starts with the holder in the pool's beneficiary list and follows
     // every UpdateBeneficiary that moves it, replayed in chain order up to each payout.
-    const pools: string[] = (await options.getLogs({ target: module, topics: [INTEGRATOR_SET_TOPIC, null as any, null as any, pad(safe)], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true }))
+    const pools: string[] = (await options.getLogs({ target: module, topics: [INTEGRATOR_SET_TOPIC, null, null, pad(safe)], fromBlock: d.fromBlock, entireLog: true, cacheInCloud: true }))
       .map((l: any) => l.topics[1].toLowerCase());
     const ours = new Set(pools);
     const order = (l: any) => Number(l.blockNumber) * 1e6 + Number(l.logIndex);
@@ -186,7 +186,7 @@ async function fetch(options: FetchOptions) {
     // A collect that releases a beneficiary seat held by the Safe itself also moves module -> Safe;
     // those transactions are not the integrator's and are left out (the seat is counted at trade time;
     // every platform seat is the fee claimer's since 2026-09-14).
-    const seatTxs = new Set((await options.getLogs({ target: module, topics: [RELEASE_TOPIC, null as any, pad(safe)], entireLog: true }))
+    const seatTxs = new Set((await options.getLogs({ target: module, topics: [RELEASE_TOPIC, null, pad(safe)], entireLog: true }))
       .map((l: any) => l.transactionHash.toLowerCase()));
     // Emitted by the fee token (WETH on sells, the launched token on buys), so there is no contract list to pass as targets.
     const payouts = await options.getLogs({ noTarget: true, topics: [TRANSFER_TOPIC, pad(module), pad(safe)], entireLog: true });

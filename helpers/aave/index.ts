@@ -37,6 +37,7 @@ const LiquidityIndexDecimals = BigInt(1e27);
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
 const HIGH_RESERVE_FACTOR = 0.99;
+const FULL_UTILIZATION = 0.99;
 
 // The stuck-markets cache records one entry per pool, whose value names the
 // offending reserves in a fixed shape: "SYMBOL: reason", several of them joined
@@ -135,6 +136,20 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     permitFailure: true,
   })
 
+  const highReserveFactorIndexes = pool.version === 1 ? [] : reserveFactors
+    .map((reserveFactor, reserveIndex) => ({ reserveFactor: reserveFactor / PercentageMathDecimals, reserveIndex }))
+    .filter(({ reserveFactor }) => reserveFactor >= HIGH_RESERVE_FACTOR && reserveFactor < 1)
+    .map(({ reserveIndex }) => reserveIndex)
+  const normalizedVariableDebtIndexes = new Map<number, { before: bigint, after: bigint }>()
+  if (highReserveFactorIndexes.length > 0) {
+    const calls = highReserveFactorIndexes.map(reserveIndex => reservesList[reserveIndex])
+    const before = await options.fromApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    const after = await options.toApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    highReserveFactorIndexes.forEach((reserveIndex, i) => {
+      normalizedVariableDebtIndexes.set(reserveIndex, { before: BigInt(before[i]), after: BigInt(after[i]) })
+    })
+  }
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     if (skipReserveIndexes.has(reserveIndex)) continue
@@ -179,8 +194,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       // Reserves frozen with a reserve factor just under 100% (aave v2 uses 99.99%) leave suppliers
       // almost nothing, so backing interest out of the liquidity index divides by (1 - reserveFactor)
       // and multiplies any liquidity index growth by up to 10,000x. Read the interest off the debt instead.
-      const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
-      const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
+
+      const totalDebt = BigInt(reserveDataBefore[reserveIndex].totalStableDebt) + totalVariableDebt
+      if (totalLiquidity === 0n || Number(totalDebt) / Number(totalLiquidity) >= FULL_UTILIZATION) continue
+
+      const { before: reserveVariableBorrowIndexBefore, after: reserveVariableBorrowIndexAfter } = normalizedVariableDebtIndexes.get(reserveIndex)!
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
       if (growthVariableBorrowIndex <= 0n || reserveVariableBorrowIndexBefore === 0n) continue
 

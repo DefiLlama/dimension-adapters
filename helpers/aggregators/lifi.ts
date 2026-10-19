@@ -1,6 +1,6 @@
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
-import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
 
 type IContract = {
@@ -65,7 +65,8 @@ export const LifiDiamonds: IContract = {
   [CHAIN.MOONBEAM]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     chainId: '1284',
-    start: '2022-10-18'
+    start: '2022-10-18',
+    deadFrom: '2026-10-14',
   },
   [CHAIN.MOONRIVER]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
@@ -204,11 +205,11 @@ export const LifiDiamonds: IContract = {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2024-05-17'
   },
-  [CHAIN.BOBA]: {
-    id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
-    chainId: '288',
-    start: '2022-10-21'
-  },
+  // [CHAIN.BOBA]: {
+  //   id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+  //   chainId: '288',
+  //   start: '2022-10-21',
+  // },
   [CHAIN.FUSE]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     chainId: '122',
@@ -291,21 +292,21 @@ export const LifiDiamonds: IContract = {
     chainId: '55244',
     start: '2025-04-16'
   },
-  [CHAIN.LENS]: {
-    id: '0xF3B20515d9B193531c48E47c18aF16d1e5d28f9a',
-    chainId: '232',
-    start: '2025-04-21'
-  },
+  // [CHAIN.LENS]: {
+  //   id: '0xF3B20515d9B193531c48E47c18aF16d1e5d28f9a',
+  //   chainId: '232',
+  //   start: '2025-04-21',
+  // },
   [CHAIN.XDC]: {
     id: '0x055d4612Ec74aD799C6cB4dF72C0Ab8dbDBCBAfa',
     chainId: '50',
     start: '2025-05-19'
   },
-  [CHAIN.BOB]: {
-    id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
-    chainId: '60808',
-    start: '2025-05-21'
-  },
+  // [CHAIN.BOB]: {
+  //   id: '0x452Cf1B8597E6319Cd21abd847312bF17E26d8d1',
+  //   chainId: '60808',
+  //   start: '2025-05-21',
+  // },
   [CHAIN.FLARE]: {
     id: '0x198FC70Dfe05E755C81e54bd67Bff3F729344B9b',
     chainId: '14',
@@ -358,7 +359,8 @@ export const LIFI_API_CHAINS = [
   CHAIN.BITCOIN, CHAIN.SOLANA, CHAIN.SUI, CHAIN.SEI, CHAIN.ROOTSTOCK,
   CHAIN.TAIKO, CHAIN.FLARE, CHAIN.XDC,
   // low-volume chains not on the DefiLlama logs indexer: routed via API to avoid flaky RPC getLogs
-  CHAIN.MOONBEAM, CHAIN.FRAXTAL, CHAIN.CELO, CHAIN.LISK, CHAIN.APECHAIN, CHAIN.INK, CHAIN.MANTLE, CHAIN.METIS, CHAIN.BOBA, CHAIN.FUSE, CHAIN.CRONOS, CHAIN.GRAVITY, CHAIN.KLAYTN, CHAIN.PLUME, CHAIN.IMX, CHAIN.WC, CHAIN.SWELLCHAIN, CHAIN.ETHERLINK, CHAIN.SUPERPOSITION, CHAIN.LENS, CHAIN.BOB, CHAIN.RONIN, CHAIN.VANA, CHAIN.SOPHON, CHAIN.PLASMA, CHAIN.FLOW, CHAIN.HEMI, CHAIN.STABLE,
+  // CHAIN.BOBA, CHAIN.LENS, CHAIN.BOB: commented out like their LifiDiamonds entries
+  CHAIN.MOONBEAM, CHAIN.FRAXTAL, CHAIN.CELO, CHAIN.LISK, CHAIN.APECHAIN, CHAIN.INK, CHAIN.MANTLE, CHAIN.METIS, CHAIN.FUSE, CHAIN.CRONOS, CHAIN.GRAVITY, CHAIN.KLAYTN, CHAIN.PLUME, CHAIN.IMX, CHAIN.WC, CHAIN.SWELLCHAIN, CHAIN.ETHERLINK, CHAIN.SUPERPOSITION, CHAIN.RONIN, CHAIN.VANA, CHAIN.SOPHON, CHAIN.PLASMA, CHAIN.FLOW, CHAIN.HEMI, CHAIN.STABLE,
 ]
 
 // LI.FI dropped support for these chains: they are absent from li.quest/v1/chains and the analytics
@@ -584,8 +586,23 @@ const MAX_TRANSFER_USD = 50_000_000;
 const REQUEST_GAP_MS = 300;
 let requestQueue: Promise<any> = Promise.resolve();
 
+const MAX_RETRIES = 5;
+
+const fetchLifi = async (url: string): Promise<any> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await httpGet(url);
+    } catch (error: any) {
+      const status = Number(String(error?.message).match(/status code (\d+)/)?.[1]);
+      if ((status >= 400 && status < 500 && status !== 429) || attempt >= MAX_RETRIES) throw error;
+      const retryInSeconds = Number(String(error?.axiosError).match(/retry in (\d+) second/)?.[1]);
+      await sleep(status === 429 ? ((retryInSeconds || 60) + 1) * 1000 : 5000);
+    }
+  }
+};
+
 const queuedFetch = (url: string): Promise<any> => {
-  const result = requestQueue.then(() => fetchURLAutoHandleRateLimit(url));
+  const result = requestQueue.then(() => fetchLifi(url));
   requestQueue = result.catch(() => undefined).then(() => sleep(REQUEST_GAP_MS));
   return result;
 };

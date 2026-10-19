@@ -1,5 +1,9 @@
 import { ethers } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import {
+  FetchGetLogsOptions,
+  FetchOptions,
+  SimpleAdapter,
+} from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 // 1inch Aqua (https://github.com/1inch/aqua): LPs quote from their own wallets;
@@ -113,15 +117,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // Full-history Shipped scan (cached): every fee rate lives in the strategy
-  // registered at ship time. Also used below to exclude ship-registration
-  // Pushed runs from the day's fills - same separation as the volume adapter.
+  // The window's Shipped logs are only used to exclude ship-registration
+  // Pushed runs from the fills - same separation as the volume adapter.
   const [shippedLogs, pushedLogs] = await Promise.all([
     options.getLogs({
       target: AQUA_ROUTER,
       eventAbi: SHIPPED_ABI,
-      fromBlock: chainConfig[options.chain].routerDeployBlock,
-      cacheInCloud: true,
       entireLog: true,
       parseLog: true,
     }),
@@ -132,16 +133,6 @@ const fetch = async (options: FetchOptions) => {
       parseLog: true,
     }),
   ]);
-
-  const feeByStrategyHash = new Map<
-    string,
-    { flat: bigint; protocol: bigint }
-  >();
-  shippedLogs.forEach((log: any) => {
-    const fees = decodeStrategyFees(log.args.strategy);
-    if (fees)
-      feeByStrategyHash.set(String(log.args.strategyHash).toLowerCase(), fees);
-  });
 
   // ship() emits Shipped, then one Pushed per token with no external call in
   // between, so its Pushed run occupies strictly consecutive log indices for
@@ -159,9 +150,42 @@ const fetch = async (options: FetchOptions) => {
       shipRegistrationPushes.add(`${txPrefix}-${index}`);
     }
   });
+  const fills = pushedLogs.filter(
+    (log: any) => !shipRegistrationPushes.has(positionOf(log)),
+  );
+  if (!fills.length)
+    return {
+      dailyFees,
+      dailySupplySideRevenue,
+      dailyRevenue,
+      dailyProtocolRevenue,
+    };
 
-  pushedLogs.forEach((log: any) => {
-    if (shipRegistrationPushes.has(positionOf(log))) return;
+  const filledStrategyHashes = new Set<string>(
+    fills.map((log: any) => String(log.args.strategyHash).toLowerCase()),
+  );
+  const feeByStrategyHash = new Map<
+    string,
+    { flat: bigint; protocol: bigint }
+  >();
+  await options.getLogs({
+    target: AQUA_ROUTER,
+    eventAbi: SHIPPED_ABI,
+    fromBlock: chainConfig[options.chain].routerDeployBlock,
+    cacheInCloud: true,
+    onlyArgs: true,
+    collect: false,
+    processor: (logs: any[]) =>
+      logs.forEach(({ strategyHash, strategy }: any) => {
+        const hash = String(strategyHash).toLowerCase();
+        if (!filledStrategyHashes.has(hash) || feeByStrategyHash.has(hash))
+          return;
+        const fees = decodeStrategyFees(strategy);
+        if (fees) feeByStrategyHash.set(hash, fees);
+      }),
+  } as FetchGetLogsOptions);
+
+  fills.forEach((log: any) => {
     const fees = feeByStrategyHash.get(
       String(log.args.strategyHash).toLowerCase(),
     );

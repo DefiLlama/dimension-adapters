@@ -74,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
     const transfers = await options.getLogs({
       noTarget: true,
       eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(filler, 32)],
+      topics: [TRANSFER_TOPIC, null, ethers.zeroPadValue(filler, 32)],
       entireLog: true,
       parseLog: true,
     });

@@ -2,6 +2,7 @@ import request from "graphql-request";
 import { Dependencies, type FetchOptions, type SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { queryDuneSql } from "../helpers/dune";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 
 const graphUrl = "https://indexer.beezie.io/";
@@ -197,31 +198,63 @@ const fetchBase = async (options: FetchOptions) => {
 // BidRouter hop to read. Volume comes from two places:
 //
 // 1. Claw plays — every play transfers USDC to the claw factory's
-//    `centralized_pool_wallet`, which receives nothing else. Verified against
-//    mainnet: 10 inflow transfers totalling 75.00 USDC against 10 recorded
-//    plays worth $75.00, and 4 transfers totalling 25.00 against 4 plays worth
-//    $25.00 — inflow count matches play count exactly.
+//    `centralized_pool_wallet`. Verified against mainnet: 10 inflow transfers
+//    totalling 75.00 USDC against 10 recorded plays worth $75.00, and 4
+//    transfers totalling 25.00 against 4 plays worth $25.00 — inflow count
+//    matches play count exactly. The buyback fee stays in the pool as a
+//    pool-to-pool transfer, so transfers sent by the pool itself are excluded.
 //
-// 2. Swaps and marketplace sales — these have NO fixed recipient to read. A
-//    buyback pays the user directly from the pool wallet, and a sale pays the
-//    seller directly, both arbitrary wallets. But each charges a known 600bps
-//    fee to a dedicated wallet, so the traded value is recovered from the fee.
-//    Exact arithmetic rather than an estimate, though it does assume the rate
-//    stays 600bps — if the claw's `Machine.fee_bps` or the Core royalty
-//    percentage is ever retuned, this must be retuned with it.
+// 2. Swaps — a buyback pays the user directly from the pool wallet, so there is
+//    no recipient to read. Each buyback's BuybackExecuted event (emit_cpi)
+//    carries the gross swap value, read straight from the event.
+//
+// 3. Marketplace sales — a sale pays the seller directly, an arbitrary wallet,
+//    but charges a known 600bps royalty to dedicated wallets, so the traded
+//    value is recovered from it. Exact arithmetic rather than an estimate,
+//    though it assumes the rate stays 600bps — if the Core royalty percentage is
+//    ever retuned, this must be retuned with it.
 
 const SOLANA_USDC = ADDRESSES.solana.USDC;
 
 const SOLANA_CLAW_POOL_WALLET = "3K3MmyppnUDhd2o7qSYL8fmcw44f9gm4MdweFr1kF1xY";
+const SOLANA_CLAW_POOL_USDC_ACCOUNT =
+  "6a8h8nwXrvsJMPFbHqaQEQqZ18FzvsJzBiXj2SdTzB4C";
 
-// 600 bps total on both paths: the claw's buyback fee, and the Core royalties
-// plugin's platform + creator split on a marketplace sale.
-const SOLANA_FEE_BPS = 600;
-const SOLANA_FEE_WALLETS = [
-  "EXj5URFQ1kWrWEbHJpK4kURvzrtA1dtCgCFrUG6Sx8ty", // claw buyback fee
+// BuybackExecuted borsh layout after the 8-byte Anchor event tag and 8-byte
+// discriminator: buyback_id u64, machine_id u64, user (32), nft_mints
+// Vec<Pubkey> (u32 length at byte 65, then 32 each), collection (32),
+// manager_wallet (32), gross u64, net u64, total_fee u64, payment_mint (32).
+const SOLANA_CLAW_PROGRAM = "BZCjgSRmWWGijSDrSBEzx47Yx9WTvqrhWCff5kVA7VsM";
+const BUYBACK_EXECUTED_EVENT = "0xe445a52e51cb9a1d966d9d0a7c1826bd";
+
+// The Core royalties plugin's platform + creator split on a marketplace sale.
+const SOLANA_MARKETPLACE_FEE_BPS = 600;
+const SOLANA_MARKETPLACE_FEE_WALLETS = [
   "ppUYoqfCmntA9MBtH5PjD1HS3WQQUw58PmpzbNA4e4p", // marketplace platform fee
   "DVNnFArZavoagFdyHyEYH9gmRRoma2vLW5dsy8Y2q9WR", // marketplace creator fee
 ];
+
+const fetchSolanaSwapVolume = async (options: FetchOptions) => {
+  const rows = await queryDuneSql(
+    options,
+    `
+    WITH buybacks AS (
+      SELECT
+        data,
+        CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 65, 4))) AS BIGINT) * 32 AS mints_len
+      FROM solana.instruction_calls
+      WHERE executing_account = '${SOLANA_CLAW_PROGRAM}'
+        AND tx_success
+        AND bytearray_substring(data, 1, 16) = ${BUYBACK_EXECUTED_EVENT}
+        AND TIME_RANGE
+    )
+    SELECT COALESCE(SUM(CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(data, 133 + mints_len, 8))) AS DOUBLE)), 0) AS gross
+    FROM buybacks
+    WHERE bytearray_substring(data, 157 + mints_len, 32) = from_base58('${SOLANA_USDC}')
+  `
+  );
+  return rows[0]?.gross ?? 0;
+};
 
 const fetchSolana = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -233,23 +266,27 @@ const fetchSolana = async (options: FetchOptions) => {
     balances: dailyVolume,
     targets: [SOLANA_CLAW_POOL_WALLET],
     mints: [SOLANA_USDC],
+    blacklists: [SOLANA_CLAW_POOL_WALLET, SOLANA_CLAW_POOL_USDC_ACCOUNT],
   });
 
-  const fees = options.createBalances();
+  dailyVolume.add(SOLANA_USDC, await fetchSolanaSwapVolume(options));
+
+  const marketplaceFees = options.createBalances();
   await getSolanaReceived({
     options,
-    balances: fees,
-    targets: SOLANA_FEE_WALLETS,
+    balances: marketplaceFees,
+    targets: SOLANA_MARKETPLACE_FEE_WALLETS,
     mints: [SOLANA_USDC],
   });
-  dailyVolume.addBalances(fees.clone(10_000 / SOLANA_FEE_BPS));
+  dailyVolume.addBalances(
+    marketplaceFees.clone(10_000 / SOLANA_MARKETPLACE_FEE_BPS)
+  );
 
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   adapter: {
     // [CHAIN.FLOW]: {
     // 	start: '2025-01-04',
@@ -265,7 +302,7 @@ const adapter: SimpleAdapter = {
     },
   },
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
 };
 
 export default adapter;

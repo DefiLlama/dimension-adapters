@@ -57,6 +57,8 @@ const fetch = async (options: FetchOptions) => {
           MIN(m.account_second_position) AS second_pos
         FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
         JOIN easya_partner_configs epc ON m.account_config = epc.config
+        -- a pool migrates after its config exists, so nothing before the launch date can match
+        WHERE m.call_block_date >= DATE '${LAUNCH_DATE}'
         GROUP BY 1, 2, 3
       ),
       -- Liquidity permanently locked at migration. Kickstart's position is
@@ -69,6 +71,7 @@ const fetch = async (options: FetchOptions) => {
                     WHEN l.position = m.first_pos THEN 'first' ELSE 'unmatched' END AS pos_kind
         FROM meteora_solana.cp_amm_evt_evtpermanentlockposition l
         JOIN migrated_pools m ON l.pool = m.account_pool AND l.evt_tx_id = m.migration_tx
+        WHERE l.evt_block_date >= DATE '${LAUNCH_DATE}'
       ),
       pool_locked AS (
         SELECT pool, locked_total,
@@ -94,6 +97,7 @@ const fetch = async (options: FetchOptions) => {
         FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
         JOIN easya_partner_configs c ON s.config = c.config
         WHERE s.evt_executing_account = '${DBC_PROGRAM}'
+          AND s.evt_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE) AND s.evt_block_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
           AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
       ),
@@ -115,6 +119,7 @@ const fetch = async (options: FetchOptions) => {
         JOIN migrated_pools m ON lc.pool = m.account_pool
         WHERE lc.evt_tx_id <> m.migration_tx
           AND CAST(lc.change_type AS INT) IN (0, 1)
+          AND lc.evt_block_date >= DATE '${LAUNCH_DATE}'
           AND lc.evt_block_time < from_unixtime(${options.endTimestamp})
       ),
       damm_day_swaps AS (
@@ -125,7 +130,8 @@ const fetch = async (options: FetchOptions) => {
                CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
         FROM meteora_solana.cp_amm_evt_evtswap s
         JOIN migrated_pools m ON s.pool = m.account_pool
-        WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
+        WHERE s.evt_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE) AND s.evt_block_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
+          AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
           AND s.evt_block_time >= m.migrated_at
 
@@ -138,7 +144,8 @@ const fetch = async (options: FetchOptions) => {
                CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0))
         FROM meteora_solana.cp_amm_evt_evtswap2 s
         JOIN migrated_pools m ON s.pool = m.account_pool
-        WHERE s.evt_block_time >= from_unixtime(${options.startTimestamp})
+        WHERE s.evt_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE) AND s.evt_block_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)
+          AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
           AND s.evt_block_time <  from_unixtime(${options.endTimestamp})
           AND s.evt_block_time >= m.migrated_at
       ),

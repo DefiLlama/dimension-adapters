@@ -2,6 +2,14 @@ import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
+import { getFees } from './ethereum-l2';
+
+// OP-stack SequencerFeeVault, L1FeeVault, BaseFeeVault predeploys
+const OP_STACK_FEE_VAULTS = [
+  '0x4200000000000000000000000000000000000011',
+  '0x420000000000000000000000000000000000001a',
+  '0x4200000000000000000000000000000000000019',
+]
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
@@ -97,7 +105,7 @@ export const chainConfigMap: any = {
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
   [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
-  [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/' },
+  [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/', opStackFeeVaults: true }, // Conduit RPC-only explorer, no stats API
   [CHAIN.NEON]: { CGToken: 'neon', explorer: 'https://neon.blockscout.com/' },
   [CHAIN.SHAPE]: { CGToken: 'ethereum', explorer: 'https://shapescan.xyz/' },
   [CHAIN.JOC]: { CGToken: 'japan-open-chain', explorer: 'https://explorer.japanopenchain.org/' },
@@ -105,7 +113,7 @@ export const chainConfigMap: any = {
   [CHAIN.EXSAT]: { CGToken: 'bitcoin', explorer: 'https://scan.exsat.network/' },
   [CHAIN.CROSS]: { CGToken: 'cross-2', explorer: 'https://www.crossscan.io/' },
   [CHAIN.NUMBERS]: { CGToken: 'numbers-protocol', explorer: 'https://mainnet.num.network/' },
-  [CHAIN.ORDERLY]: { CGToken: 'ethereum', explorer: 'https://explorer.orderly.network/' },
+  [CHAIN.ORDERLY]: { CGToken: 'ethereum', explorer: 'https://explorer.orderly.network/', opStackFeeVaults: true }, // Conduit RPC-only explorer, no stats API
   [CHAIN.BITGERT]: { CGToken: 'bitrise-token', explorer: 'https://brisescan.com/' },
   [CHAIN.PROM]: { CGToken: 'prometeus', explorer: 'https://promscan.io/' },
   [CHAIN.UNIT0]: { CGToken: 'unit0', explorer: 'https://explorer.unit0.dev/' },
@@ -145,7 +153,7 @@ export const chainConfigMap: any = {
   [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
   [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
   [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
-  [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', allStatsApi: 'https://b3.calderaexplorer.xyz/stats', start: '2024-07-30' },
+  [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', start: '2024-07-30', opStackFeeVaults: true }, // blockscout.b3.fun 404s and the caldera stats host no longer resolves
   [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
   [CHAIN.EDEN]: { explorer: 'https://eden.blockscout.com', CGToken: 'celestia', allStatsApi: 'https://eden.blockscout.com/stats-service', start: '2026-01-16', burnRatio: 0 },
 }
@@ -164,12 +172,33 @@ export function blockscoutFeeAdapter2(chain: string) {
   let { url, CGToken, explorer, start, allStatsApi, requestConfig, deadFrom, } = config
   if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
+
+  if (config.opStackFeeVaults) {
+    // explorer has no stats API anymore (e.g. Conduit RPC-only explorers): read the OP-stack fee vaults on-chain
+    return {
+      version: 2,
+      pullHourly: true,
+      deadFrom,
+      fetch: async (options: FetchOptions) => {
+        const dailyFees = await getFees(options, { feeVaults: OP_STACK_FEE_VAULTS })
+        if (config.burnRatio !== undefined && config.burnRatio !== null) {
+          const dailyRevenue = dailyFees.clone(config.burnRatio)
+          return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue }
+        }
+        return { dailyFees }
+      },
+      chains: [[chain, { start }]],
+      protocolType: ProtocolType.CHAIN,
+    } as Adapter
+  }
+
   const adapter: Adapter = {
     version: 1,
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async ({ chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async (options: FetchOptions) => {
+          const { chain, createBalances, startOfDay, } = options
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined

@@ -25,7 +25,7 @@ const fetch = async ({ createBalances, getLogs, chain, api }: FetchOptions) => {
   const allLogs = await Promise.all(
     routerAddresses.map((routerAddress) =>
       getLogs({
-        topics: [SWAP_TOPIC, null as any, zeroPadValue(routerAddress, 32)],
+        topics: [SWAP_TOPIC, null, zeroPadValue(routerAddress, 32)],
         noTarget: true,
         entireLog: true,
       })

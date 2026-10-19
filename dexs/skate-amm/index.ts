@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import asyncRetry from "async-retry";
 
 const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.ETHEREUM]: { id: 1, start: '2025-03-24' },
@@ -45,7 +46,8 @@ const fetch = async (options: FetchOptions) => {
     // v1 winding down (its stats endpoint now returns empty); v2 carries live
     // data. Sum both so historical v1 volume and current v2 volume both count.
     for (const skateDataApi of skateDataApis) {
-      const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
+      // api.skatechain.org answers HTTP 500 (wrapping an nginx 503) above ~4-5 req/s; hourly runs fire every slice at once
+      const tokenVolumeInfo = await asyncRetry(() => httpGet(skateDataApi, tokenVolume_options), { retries: 5, minTimeout: 2000, factor: 2, randomize: true });
       if(!tokenVolumeInfo.success) {
         throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
       }

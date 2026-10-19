@@ -6,10 +6,10 @@ import { queryHyperliquidIndexerV2 } from "../../helpers/hyperliquid-v2";
 
 const methodology = {
   Volume: "Track trading volume on all perps markets (including HIP-3 markets), excluding all spot markets volume.",
-  Fees: "Include perps trading fees on crypto and HIP-3 deployed markets + builders fees, excluding all spot fees.",
-  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",
+  Fees: "Include perps trading fees on crypto and HIP-3 deployed markets + builders fees, plus Hyperliquid's 90% share of cost-adjusted reserve yield from AQAv2 stablecoin deployers since 27 Aug 2026, excluding all spot fees.",
+  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026.",
   ProtocolRevenue: "Protocol doesn't keep any fees.",
-  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees.",
+  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026.",
   SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3% + fees for builders.",
 }
 

@@ -186,7 +186,11 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 			queryDuneSql(options, buildL1FeesDuneQuery(rollupName, options.startTimestamp, options.endTimestamp)) as Promise<any[]>,
 		]);
 
-		const l2FeesWei = BigInt(l2FeesRows?.[0]?.l2_fees_wei ?? '0');
+		// same distinction as the fallback below: no row back is a failed read, not a free chain
+		if (!l2FeesRows?.length || l2FeesRows[0]?.l2_fees_wei == null)
+			throw new Error(`${chainName}: the indexer returned no row for this window, refusing to report it as zero fees`);
+
+		const l2FeesWei = BigInt(l2FeesRows[0].l2_fees_wei);
 		const l1Calldata = Number(l1FeesRows?.[0]?.l1_calldata_native) || 0;
 		const l1Blob     = Number(l1FeesRows?.[0]?.l1_blob_native)     || 0;
 		const l1Verify   = Number(l1FeesRows?.[0]?.l1_verify_native)   || 0;
@@ -204,6 +208,11 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		return { dailyFees, dailyRevenue };
 	}
 
+	const DUNE_LAG_HOURS: Record<string, number> = { [CHAIN.ABSTRACT]: 24 };
+	const lagHours = DUNE_LAG_HOURS[options.chain];
+	if (lagHours && Date.now() / 1000 < options.endTimestamp + lagHours * 3600)
+		throw new Error(`${chainName}: gas.fees lands ~${lagHours}h late on Dune, not querying a window that ended less than ${lagHours}h ago`);
+
 	// --- Fallback: chains not in evm_indexer (abstract, boba, mantle,
 	// zora-chain, manta, lyra, starknet, ...). Keeps the original Dune-only
 	// behavior verbatim. Heavier than the hybrid path but covers chains the
@@ -211,6 +220,9 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	const query = `WITH
 		l2_fees_cte AS (
 		SELECT
+			COUNT(*) AS l2_tx_count,
+			COUNT(DISTINCT date_trunc('hour', block_time)) AS l2_hours,
+			MAX(block_time) AS l2_last_block_time,
 			SUM(tx_fee) AS l2_fees,
 			SUM(tx_fee_usd) AS l2_fees_usd
 		FROM gas.fees
@@ -232,6 +244,9 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 			AND name = '${rollupName}'
 		)
 		SELECT
+			COALESCE((SELECT l2_tx_count FROM l2_fees_cte), 0) AS l2_tx_count,
+			COALESCE((SELECT l2_hours FROM l2_fees_cte), 0) AS l2_hours,
+			(SELECT l2_last_block_time FROM l2_fees_cte) AS l2_last_block_time,
 			COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) AS total_fee,
 			(COALESCE((SELECT l2_fees FROM l2_fees_cte), 0) - (
 				COALESCE((SELECT l1_calldata_cost FROM l1_fees_cte), 0) +
@@ -247,6 +262,16 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
     `;
 
 	const feesResult: any[] = await queryDuneSql(options, query);
+
+	// SUM over no rows is NULL and the COALESCE above turns that into 0, so a chain that falls out
+	// of gas.fees would publish a zero day rather than fail. The count separates that from a chain
+	// whose transactions genuinely cost nothing, which stays a legitimate zero.
+	if (!Number(feesResult?.[0]?.l2_tx_count))
+		throw new Error(`${chainName}: gas.fees returned no transactions for this window, refusing to report it as zero fees`);
+
+	const expectedHours = Math.floor((options.endTimestamp - options.startTimestamp) / 3600);
+	if (lagHours && Number(feesResult[0].l2_hours) < expectedHours)
+		throw new Error(`${chainName}: gas.fees covers ${feesResult[0].l2_hours} of ${expectedHours} hours in this window (last row at ${feesResult[0].l2_last_block_time}), Dune has not caught up yet`);
 
 	const dailyFees = options.createBalances();
 	const dailyRevenue = options.createBalances();

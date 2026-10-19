@@ -201,21 +201,6 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 0,
     },
   },
-  "morFi": {
-    graphUrls: {
-      [CHAIN.MORPH]: "https://subgraph.morfi.io/subgraphs/name/morfi/core",
-    },
-    start: '2024-10-29',
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
-    feesPercent: {
-      type: "fees",
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
-      UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
-    },
-  },
   "morpheus": {
     graphUrls: {
       [CHAIN.ROBINHOOD]: "https://api.goldsky.com/api/public/project_cm8pwdzcow9bu01xm6gdhatu4/subgraphs/analytics/v1.0.0/gn",

@@ -133,9 +133,8 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
   return dailyValues
 };
 
-const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string[]): Promise<Balances> => {
+const getVaultT1UncollectedRevenues = (createBalances: CreateBalances, vaultDatas: any[]): Balances => {
   const dailyRevenue = createBalances();
-  const vaultDatas = await (await getVaultsT1Resolver(api)).getVaultEntireData(vaults);
   if (!vaultDatas.length) return dailyRevenue
 
   for (const [_index, vault] of vaultDatas.entries()) {
@@ -200,12 +199,16 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   const vaults: string[] = await (await getVaultsT1Resolver(api)).getAllVaultsAddresses();
   if (!vaults.length) return dailyRevenue
 
-  const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] =
+  const [vaultDatasFrom, vaultDatasTo, vaultCollected] =
   await Promise.all([
-    getVaultT1UncollectedRevenues(fromApi, createBalances, vaults),
-    getVaultT1UncollectedRevenues(api, createBalances, vaults),
+    (await getVaultsT1Resolver(fromApi)).getVaultEntireData(vaults),
+    (await getVaultsT1Resolver(api)).getVaultEntireData(vaults),
     getVaultT1CollectedRevenues(api, createBalances, getLogs, vaults),
   ]);
+
+  const failedAtEitherEnd = (i: number) => (vaultDatasFrom.length && !vaultDatasFrom[i]) || (vaultDatasTo.length && !vaultDatasTo[i]);
+  const vaultUncollectedBalancesFrom = getVaultT1UncollectedRevenues(createBalances, vaultDatasFrom.filter((_: any, i: number) => !failedAtEitherEnd(i)));
+  const vaultUncollectedBalancesTo = getVaultT1UncollectedRevenues(createBalances, vaultDatasTo.filter((_: any, i: number) => !failedAtEitherEnd(i)));
 
   vaultUncollectedBalancesTo.addBalances(vaultCollected)
   vaultUncollectedBalancesTo.subtract(vaultUncollectedBalancesFrom);

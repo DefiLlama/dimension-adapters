@@ -188,6 +188,8 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
+  // Royco V1 recipe subgraphs were deleted (arbitrum, base) or stopped indexing; no fees since 2025-09-07 (Royco V2 is the live product).
+  deadFrom: '2026-08-07',
   methodology,
   fetch,
   adapter: {

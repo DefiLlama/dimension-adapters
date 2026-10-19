@@ -14,7 +14,13 @@ const DEFAULTS: any = {
   TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
   TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
   ETLK_RPC: 'https://node.mainnet.etherlink.com',
-  ETLK_ARCHIVAL_RPC: 'https://node.mainnet.etherlink.com', // the explorer proxy rate-limits hourly fee reads
+  // eth_getLogs: sentio serves 1,000-block ranges, the smallest chunk the SDK splits down to (999). node.mainnet.etherlink.com
+  // and ankr cap ranges at 500 blocks, thirdweb at 112, and the explorer proxy 429s, so ~2,800-block hourly windows failed.
+  ETLK_ARCHIVAL_RPC: 'https://etherlink.rpc.sentio.xyz,https://rpc.sentio.xyz/etherlink',
+  // plasma is not on the logs indexer, and concurrent adapters exhausted every SDK default with 429s. onfinality 429s every request and
+  // tatum allows 5 req/min (100-block getLogs), so both are dropped. rpc.plasma.to: archive, 25 req/s, 10,000-block getLogs;
+  // tenderly: archive, getLogs has no block cap (20k results); thirdweb: archive, 1,000-block getLogs; swiftnodes: 2 req/s demo plan
+  PLASMA_WHITELISTED_RPC: 'https://rpc.plasma.to,https://plasma.gateway.tenderly.co,https://9745.rpc.thirdweb.com,https://rpc.swiftnodes.io/rpc/plasma',
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc-mainnet.campnetwork.xyz',
@@ -64,9 +70,12 @@ const DEFAULTS: any = {
   ARC_MULTICALL_CHUNK_SIZE: '50',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
+  STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head
   RONIN_RPC: 'https://ronin.gateway.tenderly.co,https://gateway.tenderly.co/public/ronin',
   RSK_RPC: 'https://rootstock.blockscout.com/api/eth-rpc', // the rsk hosts in providers.json have no eth_getLogs, this blockscout proxy does
+  GENSYN_RPC: 'https://gensyn-mainnet.explorer.alchemy.com/api/eth-rpc', // blockscout eth-rpc proxy
   SHIDO_RPC: 'https://shidoscan.net/api/eth-rpc',
+  BITCICHAIN_RPC: 'https://rpc.bitci.com', // chainId 1907; the sdk only knows this chain as "bitci"
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)
@@ -101,6 +110,8 @@ export const ENV_KEYS = new Set([
   'SUI_RPC',
   'OKX_API_KEY',
   'ALCHEMIX_KEY',
+  'RELAY_API_KEY',
+  'CCIP_API_KEY',
   'ALCHEMIX_SECRET',
   'STARBASE_API_KEY',
   'ENSO_API_KEY',

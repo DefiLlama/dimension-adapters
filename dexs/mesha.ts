@@ -29,7 +29,7 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       target: USDG,
       eventAbi: TRANSFER_ABI,
-      topics: [TRANSFER_TOPIC, null as any, asTopic(POOL)],
+      topics: [TRANSFER_TOPIC, null, asTopic(POOL)],
       entireLog: true,
       parseLog: true,
     }),

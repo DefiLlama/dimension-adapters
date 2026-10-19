@@ -1,45 +1,39 @@
-import { gql, GraphQLClient } from "graphql-request";
+import { gql, request } from "graphql-request";
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const getDailyVolume = () => {
-  return gql`
-    query NetworkVolumeQuery($after: Cursor, $fees: Boolean!, $type: SnapshotType, $from: Int, $to: Int) {
-        entities: networkSnapshots(after: $after, orderBy: TIMESTAMP_DESC, filter: {and: [{type: {equalTo: $type}}, {timestamp: {lessThanOrEqualTo: $to}}, {timestamp: {greaterThanOrEqualTo: $from}}]}) {
-        nodes {
-          timestamp
-          volumeUSD @skip(if: $fees)
-          fees @include(if: $fees)
-        }
-      }
-  }`
-}
+const endpoint = "https://pi.soramitsu.io/graphql";
 
-const graphQLClient = new GraphQLClient("https://api.subquery.network/sq/sora-xor/sora-prod");
-const getGQLClient = () => {
-  return graphQLClient
-}
+const INDEXER_HISTORY_START = 1780272000; // 2026-06-01
 
-interface IGraphResponse {
-  timestamp: number;
-  volumeUSD: string;
-}
+const query = gql`
+  query daySnapshot($id: String!) {
+    networkSnapshots(filter: { id: { equalTo: $id } }) {
+      nodes { flowAggregation flowBucketStart flowBucketEnd volumeUSD }
+    }
+  }`;
 
 const fetch = async (options: FetchOptions) => {
-  const value = {fees: false,after: "", type: "DAY", from: 1673136000, to: options.startOfDay }
-  const historicalVolume: IGraphResponse[] = (await getGQLClient().request(getDailyVolume(), value)).entities.nodes;
-  const dailyVolume = historicalVolume
-    .find(dayItem => dayItem.timestamp === options.startOfDay)?.volumeUSD
+  const { startOfDay, dateString } = options;
+  if (startOfDay < INDEXER_HISTORY_START) throw new Error("Polkaswap indexer has no reliable volume before 2026-06-01");
 
-  return {
-    dailyVolume: dailyVolume,
-  };
-}
+  const { networkSnapshots } = await request(endpoint, query, { id: `network-all-DAY-${startOfDay}` });
+  const day = networkSnapshots.nodes[0];
+  // CALENDAR = exact flow over the whole UTC day
+  if (day?.flowAggregation !== "CALENDAR" || day.flowBucketStart !== startOfDay || day.flowBucketEnd !== startOfDay + 86400 || typeof day.volumeUSD !== "string")
+    throw new Error(`Polkaswap indexer has no complete day snapshot for ${dateString}`);
+
+  return { dailyVolume: Number(day.volumeUSD) };
+};
 
 const adapter: SimpleAdapter = {
+  version: 1,
   fetch,
   chains: [CHAIN.SORA],
   start: '2023-01-08',
+  methodology: {
+    Volume: "Daily network volume from Polkaswap's indexer: each executed liquidityProxy exchange valued at the larger of its input and output USD amounts.",
+  },
 };
 
 export default adapter;

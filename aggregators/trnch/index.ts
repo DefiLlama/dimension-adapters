@@ -62,7 +62,7 @@ export type RouterFeePayment = { hash: string; router: FeeRouter; from: string; 
 // (KyberSwap pulls an input-side fee straight from the trader, and its swaps are identified by ClientData).
 export async function getRouterFeePayments(options: FetchOptions): Promise<RouterFeePayment[]> {
   const [tokenIn, ethIn] = await Promise.all([
-    options.getLogs({ noTarget: true, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, null as any, padAddress(TRNCH_TREASURY_SAFE)], entireLog: true, maxBlockRange: 30000 }),
+    options.getLogs({ noTarget: true, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, null, padAddress(TRNCH_TREASURY_SAFE)], entireLog: true, maxBlockRange: 30000 }),
     options.getLogs({ target: TRNCH_TREASURY_SAFE, eventAbi: SafeReceivedEvent, entireLog: true }),
   ]);
   const byTx = new Map<string, { token: string; amount: bigint; payer: string }[]>();

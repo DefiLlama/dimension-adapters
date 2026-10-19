@@ -15,6 +15,29 @@ type BuilderVolumeRow = {
   volume: number
 }
 
+const BUILDER_TRADES_URL = 'https://clob.polymarket.com/builder/trades'
+
+async function getBuilderTrades(builderCode: string, fromTimestamp: number, toTimestamp: number) {
+  const trades: any[] = []
+  const seen = new Set<string>()
+  let cursor: string | undefined
+  do {
+    const url = `${BUILDER_TRADES_URL}?builder_code=${builderCode}&before=${toTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`
+    const { data, next_cursor } = await fetchURL(url)
+    for (const trade of data) {
+      const matchTime = Number(trade.matchTime)
+      if (matchTime < fromTimestamp || matchTime >= toTimestamp || seen.has(trade.id)) continue
+      seen.add(trade.id)
+      trades.push(trade)
+    }
+    const oldest = data[data.length - 1]
+    if (!oldest || Date.parse(oldest.createdAt) / 1e3 < fromTimestamp - 60) break
+    cursor = next_cursor
+    await sleep(500)
+  } while (cursor && cursor !== 'LTE=')
+  return trades
+}
+
 /**
  * Daily volume of one Polymarket builder for the day that starts at `options.startOfDay` (UTC).
  *
@@ -46,19 +69,13 @@ export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCo
   const result: FetchResult = { dailyNotionalVolume: volume.volume };
 
   // USD (cash) volume: sum sizeUsdc across the builder's attributed trades,
-  // paging the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
+  // from the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
   if (builderCode) {
     const dailyVolume = options.createBalances();
-    let cursor: string | undefined;
-    do {
-      const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
-      const tradesData = await fetchURL(url);
-      for (const trade of tradesData.data) {
-        dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
-      }
-      cursor = tradesData.next_cursor;
-      await sleep(500);
-    } while (cursor && cursor !== 'LTE=');
+    const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
+    for (const trade of trades) {
+      dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
+    }
     result.dailyVolume = dailyVolume;
   }
 
@@ -86,16 +103,10 @@ export function polymarketBuilderExports({ builder, start, builderCode }: { buil
 export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { options: FetchOptions, builderCode: string }) {
   const dailyFees = options.createBalances();
 
-  let cursor: string | undefined;
-  do {
-    const url = `https://clob.polymarket.com/builder/trades?builder_code=${builderCode}&after=${options.startTimestamp}&before=${options.endTimestamp}${cursor ? `&next_cursor=${cursor}` : ''}`;
-    const tradesData = await fetchURL(url);
-    for (const trade of tradesData.data) {
-      dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
-    }
-    cursor = tradesData.next_cursor;
-    await sleep(500);
-  } while (cursor && cursor !== 'LTE=');
+  const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
+  for (const trade of trades) {
+    dailyFees.addUSDValue(Number(trade.builderFee || 0), 'Polymarket Builder Fees');
+  }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }

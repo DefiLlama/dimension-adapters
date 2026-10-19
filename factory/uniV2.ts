@@ -15,6 +15,9 @@ const configs: Record<string, Record<string, any>> = {
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
     [CHAIN.BOT_CHAIN]: { factory: '0x117115f3B72C8d1989178089A67D0C26f8EE0AA3', start: '2026-06-02', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   },
+  "melegaswap": {
+    [CHAIN.BSC]: { factory: '0xb7E5848e1d0CB457f2026670fCb9BbdB7e9E039C', start: '2022-08-10', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "ebisus-bay-dex": {
     [CHAIN.CRONOS]: {
       factory: '0x5f1d751f447236f486f4268b883782897a902379',
@@ -37,6 +40,14 @@ const configs: Record<string, Record<string, any>> = {
   },
   "megaswap": {
     [CHAIN.MEGAETH]: { factory: '0x72B94fA9F854Da1bCCD03F3bAB54cF60C32193F3' },
+  },
+  "energiswap": {
+    // uniV2 fork on Energi; graph.energi.network no longer resolves. Factory from TVL registry uniswapV2.js.
+    [CHAIN.ENERGI]: { factory: '0x875aDBaF8109c9CC9AbCC708a42607F573f594E4' },
+  },
+  "glide-finance": {
+    // uniV2 fork on Elastos; api.glidefinance.io subgraph stopped indexing. Factory from TVL registry uniswapV2.js.
+    [CHAIN.ELASTOS]: { factory: '0xaAbe38153b25f0d4b2bDa620f67059B3a45334e5', start: '2021-10-29' },
   },
   "heliswap": {
     // uniV2 fork on Hedera, replaces dead GraphQL backend
@@ -882,6 +893,14 @@ const methodologyMap: Record<string, any> = {
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
   },
+  "melegaswap": {
+    Volume: 'Swap volume from MelegaSwap V2 liquidity pairs on BNB Smart Chain.',
+    Fees: 'A 0.3% fee is charged on each swap.',
+    UserFees: 'Users pay the 0.3% swap fee.',
+    Revenue: 'The factory fee recipient is disabled, so the protocol receives no swap-fee revenue.',
+    ProtocolRevenue: 'The factory fee recipient is disabled, so protocol revenue is zero.',
+    SupplySideRevenue: 'Swap fees accrue to liquidity providers.',
+  },
   "sonevibe": {
     Volume: "Volume is calculated from Swap events on VibeSwap pairs created by the VibeFactory.",
     Fees: "Each swap pays a 0.25% fee.",
@@ -1511,13 +1530,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     totalVolume: "totalVolumeUSD",
     start: '2021-05-19',
   },
-  "energiswap": {
-    endpoints: {
-      [CHAIN.ENERGI]: "https://graph.energi.network/http/subgraphs/name/energi/energiswap",
-    },
-    factoriesName: "energiswapFactories",
-    totalVolume: "totalVolumeUSD",
-  },
   "fathom-dex": {
     endpoints: {
       [CHAIN.XDC]: "https://xinfin-graph.fathom.fi/subgraphs/name/dex-subgraph",
@@ -1540,13 +1552,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
       [CHAIN.FUNCTIONX]: "https://graph-node.functionx.io/subgraphs/name/subgraphFX2",
     },
     factoriesName: "fxswapFactories",
-  },
-  "glide-finance": {
-    endpoints: {
-      [CHAIN.ELASTOS]: "https://api.glidefinance.io/subgraphs/name/glide/exchange",
-    },
-    factoriesName: "glideFactories",
-    start: '2021-10-29',
   },
   "hercules": {
     endpoints: {
@@ -1806,6 +1811,14 @@ protocols['bdex-v2'].breakdownMethodology = {
   Revenue: { 'Protocol fees': methodologyMap['bdex-v2'].Revenue },
   ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v2'].ProtocolRevenue },
   SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v2'].SupplySideRevenue },
+}
+
+protocols['melegaswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'The 0.3% fee charged on each token swap.' },
+  UserFees: { 'Trading fees': 'The full 0.3% swap fee paid by users.' },
+  Revenue: { 'Protocol fees': 'Protocol-retained swap fees; zero while the factory fee recipient is disabled.' },
+  ProtocolRevenue: { 'Protocol fees': 'Protocol-retained swap fees; zero while the factory fee recipient is disabled.' },
+  SupplySideRevenue: { 'LP fees': 'Swap fees accruing to liquidity providers.' },
 }
 
 protocols['sonevibe'].breakdownMethodology = {

@@ -49,7 +49,7 @@ const fetchFees = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     targets: deals,
     eventAbi: "event DealFundsWithdrawn (address indexed token, address indexed to, uint256 amount)",
-    topics: [DEAL_FUNDS_WITHDRAWN_TOPIC, null as any, ethers.zeroPadValue(ECHO_FEE_RECEIVER, 32)],
+    topics: [DEAL_FUNDS_WITHDRAWN_TOPIC, null, ethers.zeroPadValue(ECHO_FEE_RECEIVER, 32)],
     fromBlock,
     toBlock,
     entireLog: true,

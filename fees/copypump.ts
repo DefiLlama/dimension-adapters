@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "The service fee copypump charges on every copied buy and sell, collected as a USDC transfer to the copypump treasury and counted on the day it is collected (the collector batches fees per user, so a fee can land the day after its trade).",
   UserFees: "The service fees copypump charges on every copied buy and sell, collected as a USDC transfer to the copypump treasury and counted on the day it is collected (the collector batches fees per user, so a fee can land the day after its trade).",
-  SupplySideRevenue: "The cost copypump pays on users' behalf: the SOL spent by the copypump fee payer, which co-signs every copied trade and pays its signature fee, priority fee and the rent of the token accounts the route creates. Priced at the daily SOL price.",
+  SupplySideRevenue: "The cost copypump pays on users' behalf: the SOL the copypump fee payer loses co-signing every copied trade (signature fee, priority fee, rent of the token accounts the route creates), net of the rent it recovers when the emptied accounts are closed back to it. Priced at the daily SOL price.",
   Revenue: "Fees minus the fee payer cost: what copypump keeps. The 'app revenue, after gas' figure on copypumpfun.com/data.",
   ProtocolRevenue: "Fees minus the fee payer cost: what copypump keeps.",
 };
@@ -59,7 +59,7 @@ const breakdownMethodology = {
     [SERVICE_FEE]: "Every USDC transfer into the copypump treasury on Solana.",
   },
   SupplySideRevenue: {
-    [FEE_PAYER_COST]: "SOL that left the fee payer's account in the transactions it signed (fees and rent, net of rent returned in the same transaction). Transactions where its balance went up are its top-ups from the treasury and are excluded; failed transactions are included since their fee is paid. Priced with the daily SOL price.",
+    [FEE_PAYER_COST]: "SOL the fee payer lost in the transactions it signed: fees and the rent of the token accounts it creates, net of the rent it gets back when copypump closes the emptied accounts to it (since 2026-10-13). Its top-ups from the treasury are co-signed by the treasury and excluded; failed transactions are included since their fee is paid. Priced with the daily SOL price.",
   },
   Revenue: {
     [SERVICE_FEE]: "The service fee net of the fee payer cost of the same day: what copypump keeps.",
@@ -79,8 +79,10 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
-  // the fee payer's cost is paid on the day of the trade while the service fee can be collected
-  // the day after: a quiet day following a busy one can show a cost above its fees
+  // the fee payer's cost is paid on the day of the trade while the service fee can be collected the
+  // day after, so a quiet day after a busy one can show a cost above its fees; and the rent it
+  // advanced comes back on later days (accounts closed back to it), so the cost itself can be
+  // negative on a day
   allowNegativeValue: true,
 };
 

@@ -42,15 +42,17 @@ WITH
       AND to_owner = '${TREASURY_SOL}'
       AND token_mint_address = '${USDC_SOL}'
   ),
-  -- SOL that LEFT the fee payer's account in its own transactions (signature and priority fees,
-  -- rent of the token accounts it creates). A transaction where its balance went UP is a top-up
-  -- (SOL sent from the treasury) and is not a cost. Failed transactions still pay their fee.
+  -- SOL the fee payer LOST in its own transactions: signature and priority fees plus the rent of
+  -- the token accounts it creates, net of the rent it gets back (since 2026-10-13 copypump closes
+  -- the emptied token accounts back to the fee payer, so a day can be negative when rent advanced
+  -- on earlier days comes back). Its top-ups (SOL from the treasury) are co-signed by the treasury
+  -- and excluded. Failed transactions still pay their fee.
   gas_native AS (
-    SELECT SUM(CASE WHEN pre_balances[1] > post_balances[1]
-                    THEN CAST(pre_balances[1] AS DOUBLE) - CAST(post_balances[1] AS DOUBLE) ELSE 0 END) / 1e9 AS sol
+    SELECT SUM(CAST(pre_balances[1] AS DOUBLE) - CAST(post_balances[1] AS DOUBLE)) / 1e9 AS sol
     FROM solana.transactions
     WHERE PARTITION_RANGE AND TIME_RANGE
       AND signer = '${FEE_PAYER_SOL}'
+      AND NOT contains(signers, '${TREASURY_SOL}')
   ),
   px AS (
     SELECT max_by(price, timestamp) AS price FROM prices.day

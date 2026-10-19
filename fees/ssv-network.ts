@@ -75,7 +75,7 @@ const fetchLegacy = async (options: FetchOptions) => {
   const burnLogs = await getLogs({
     target: SSV_TOKEN,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: [TRANSFER_TOPIC, null as any, PADDED_BURN_ADDRESS],
+    topics: [TRANSFER_TOPIC, null, PADDED_BURN_ADDRESS],
   });
   for (const log of burnLogs) {
     dailyHoldersRevenue.add(SSV_TOKEN, log.value, "Token Burns");

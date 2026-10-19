@@ -25,6 +25,7 @@ const adapter: Adapter = {
     Revenue: 'All fees are revenue.',
   },
   version: 2,
+  deadFrom: '2026-06-24',
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch(1),

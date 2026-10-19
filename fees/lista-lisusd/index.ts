@@ -209,21 +209,11 @@ const fetch = async (options: FetchOptions) => {
     ],
   });
 
-  // USDT staking profit - venusAdaptor. The claimed profit's recipient migrated from the old
-  // treasury to the Ops Safe (~monthly claim), so query both: old treasury keeps historical days
-  // correct, Ops Safe captures the current revenue that was previously being missed.
-  const venusAdaptorTopic =
-    "0x000000000000000000000000f76d9cfd08df91491680313b1a5b44307129cda9";
-  const usdtStakingProfit = [
-    ...(await options.getLogs({
-      target: usdt,
-      topics: [transferHash, venusAdaptorTopic, oldTreasury],
-    })),
-    ...(await options.getLogs({
-      target: usdt,
-      topics: [transferHash, venusAdaptorTopic, opsSafe],
-    })),
-  ];
+  // USDT staking profit - venusAdaptor's Harvest events, the interest it pays to its fee receiver
+  const usdtStakingProfit = await options.getLogs({
+    target: "0xf76d9cfd08df91491680313b1a5b44307129cda9",
+    eventAbi: "event Harvest(address account, uint256 amount)",
+  });
 
   // veLista Auto Compound Fee - VeListaAutoCompounder
   const veListaAutoCompoundFee = await options.getLogs({
@@ -318,7 +308,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(lisUSD, Number(log.data), PSM_CONVERT_FEE);
   });
   [...usdtStakingProfit].forEach((log) => {
-    dailyFees.add(usdt, Number(log.data), USDT_STAKING_PROFIT);
+    dailyFees.add(usdt, log.amount, USDT_STAKING_PROFIT);
   });
   [...validatorRewardsListaDAOCredit].forEach((log) => {
     dailyFees.add(bnb, Number(log.value), VALIDATOR_REWARDS);

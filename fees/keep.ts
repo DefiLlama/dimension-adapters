@@ -39,8 +39,7 @@ const RH_PROJECT_CREATED =
 const RH_FUNDING_RELEASED =
   "event FundingReleased(uint8 indexed stage, uint256 platformAmount, uint256 projectAmount)";
 const RH_SETTLED_SUCCESS =
-  // KeepLaunchpadV4 emits the LP amount as uint256 (not uint128).
-  "event SettledSuccess(uint256 platformAmount, uint256 projectAmount, uint256 liquidityLocked)";
+  "event SettledSuccess(uint256 platformAmount, uint256 projectAmount, uint128 liquidityLocked)";
 const RH_SETTLED_FAILURE =
   "event SettledFailure(uint256 platformAmount, uint256 projectAmount)";
 const RH_HARVESTED =
@@ -77,6 +76,10 @@ const PROGRAM_DEPLOYMENT = "2026-06-14";
  */
 const getKeepFees = async (options: FetchOptions) => {
   const programs = KEEP_PROGRAMS.map((program) => `'${program}'`).join(", ");
+  const programPrefixes = [...new Set(KEEP_PROGRAMS.map((program) => program.slice(0, 2)))].map((prefix) => `'${prefix}'`).join(", ");
+  // Dune partitions solana tables by block_date and clusters instruction_calls by executing_account_prefix:
+  // TIME_RANGE (block_time) and outer_executing_account alone prune neither, so each scan carries both bounds
+  const dayPartition = `block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE) AND block_date <= CAST(from_unixtime(${options.endTimestamp}) AS DATE)`;
   const rows = await queryDuneSql(options, `
     WITH events AS (
       SELECT DISTINCT i.tx_id, substr(log_message, 15) AS payload
@@ -84,6 +87,9 @@ const getKeepFees = async (options: FetchOptions) => {
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success = TRUE
         AND i.outer_executing_account IN (${programs})
+        AND i.executing_account IN (${programs})
+        AND i.executing_account_prefix IN (${programPrefixes})
+        AND i.${dayPartition}
         AND TIME_RANGE
         AND starts_with(log_message, 'Program data: ')
     ),
@@ -92,6 +98,7 @@ const getKeepFees = async (options: FetchOptions) => {
       FROM tokens_solana.transfers
       WHERE token_mint_address = '${USDC}'
         AND outer_executing_account IN (${programs})
+        AND ${dayPartition}
         AND TIME_RANGE
     ),
     staged_fee_txs AS (
@@ -112,6 +119,9 @@ const getKeepFees = async (options: FetchOptions) => {
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success = TRUE
         AND i.outer_executing_account IN (${programs})
+        AND i.executing_account IN (${programs})
+        AND i.executing_account_prefix IN (${programPrefixes})
+        AND i.block_date >= DATE '${PROGRAM_DEPLOYMENT}'
         AND i.block_time >= TIMESTAMP '${PROGRAM_DEPLOYMENT}'
         AND starts_with(log_message, 'Program data: ${PROJECT_CREATED_PREFIX}')
     )
