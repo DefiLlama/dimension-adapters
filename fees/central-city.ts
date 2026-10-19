@@ -17,7 +17,12 @@ const FEE_ROUTER = "0xA5f89AE25c87C21a8E2B03aaBf398A880d9be81B";
 // 100 USDC cap instead of 0.10 USDC; Central City sends payments above 0.10 USDC through it.
 // Deployed at block 52767258 (2026-10-18). Verified source: https://basescan.org/address/0xb1945a2af160e84e34f7c0fb0e4dd94fd4c0af0d#code
 const FEE_ROUTER_2 = "0xb1945a2af160e84e34f7c0fb0e4dd94fd4c0af0d";
-const FEE_ROUTERS = [FEE_ROUTER, FEE_ROUTER_2];
+// CentralCityFeeRouter3 on Base: the same fee, treasury, token and FeeCharged event (kind 1, fee included),
+// settled with two USDC transferWithAuthorization legs (seller share and fee) signed by the payer, so each
+// payment is also a standard x402-style USDC transfer. 100 USDC cap. Deployed at block 52804453
+// (2026-10-19). Verified source: https://basescan.org/address/0xe807a76385ec3d76d17ab955091c12329d0a1403#code
+const FEE_ROUTER_3 = "0xe807a76385ec3d76d17ab955091c12329d0a1403";
+const FEE_ROUTERS = [FEE_ROUTER, FEE_ROUTER_2, FEE_ROUTER_3];
 const USDC = ADDRESSES.base.USDC;
 
 // One event per collected fee, emitted in the call that moves the fee to the treasury: gross = the
