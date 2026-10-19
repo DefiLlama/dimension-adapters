@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getEnv } from "../helpers/env";
@@ -28,7 +29,7 @@ const RELAY_CHAINS: Record<number, string> = {
 const USD_PRICED = new Set([1337, 8253038, 537724, 224235520, 9286185]);
 const SOLANA = 792703809;
 const SOL_NATIVE = "11111111111111111111111111111111";
-const WSOL = "So11111111111111111111111111111111111111112";
+const WSOL = ADDRESSES.solana.SOL;
 
 type Leg = { currency: { chainId: number; address: string }; amount: string; amountUsd?: string };
 type RelayRequest = {

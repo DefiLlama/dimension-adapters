@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -93,25 +94,25 @@ export const chainConfig: Record<string, ChainSettings> = {
     // Named rather than discovered: the public nodes on this chain do not serve
     // the factory's PluginCreated history. Factory 0x9caa8f20b7ce0bd2d97f614a473a68ba6140970d, deploy block 56928287.
     pools: [
-      ["0x019b44755d79df3f75611c1c98a60ceba3632fc0", "0x12e605bc104e93b45e1ad99f9e555f659051c2bb", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d"],
-      ["0x160fd9592585890bbcee2a9dc92a496d0958a17a", "0x12e605bc104e93b45e1ad99f9e555f659051c2bb", "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3"],
-      ["0x19228319d394d871e78e428286418c5df3b9d857", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d", "0xe7cd86e13ac4309349f30b3435a9d337750fc82d"],
-      ["0x1e806f18638e2e89ab42e94a9a619ffec203b84b", "0x1502fa4be69d526124d453619276faccab275d3d", "0xad552a648c74d49e10027ab8a618a3ad4901c5be"],
-      ["0x26796ccb9867757cedbd62a5a9e0fa73bec8ca3b", "0x657097cc15fdec9e383db8628b57ea4a763f2ba0", "0xe7cd86e13ac4309349f30b3435a9d337750fc82d"],
-      ["0x2a91d9296ee2fe4139b49c7071b2f29f59a9f9ae", "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3", "0xad552a648c74d49e10027ab8a618a3ad4901c5be"],
+      ["0x019b44755d79df3f75611c1c98a60ceba3632fc0", ADDRESSES.flare.sFLR, ADDRESSES.flare.WFLR],
+      ["0x160fd9592585890bbcee2a9dc92a496d0958a17a", ADDRESSES.flare.sFLR, "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3"],
+      ["0x19228319d394d871e78e428286418c5df3b9d857", ADDRESSES.flare.WFLR, ADDRESSES.flare.USDT0],
+      ["0x1e806f18638e2e89ab42e94a9a619ffec203b84b", "0x1502fa4be69d526124d453619276faccab275d3d", ADDRESSES.flare.FXRP],
+      ["0x26796ccb9867757cedbd62a5a9e0fa73bec8ca3b", "0x657097cc15fdec9e383db8628b57ea4a763f2ba0", ADDRESSES.flare.USDT0],
+      ["0x2a91d9296ee2fe4139b49c7071b2f29f59a9f9ae", "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3", ADDRESSES.flare.FXRP],
       ["0x321621bf87037ff2f6438530b5f0f11c8837ad22", "0x0988c6ba244a90c07a917ebe609eb3264be716ff", "0x657097cc15fdec9e383db8628b57ea4a763f2ba0"],
-      ["0x3df8071169743c2de79ec0864fc2d8ed744cb37a", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d", "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3"],
-      ["0x488d13f980609a38565cc8bddc6987f069c65749", "0x1502fa4be69d526124d453619276faccab275d3d", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d"],
-      ["0x54b971682f4438ebd0c3ff4dcba67fb7e16b9de4", "0x0988c6ba244a90c07a917ebe609eb3264be716ff", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d"],
-      ["0x5cb9513643a02ef838f64302e3e889914ed3445b", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d", "0x657097cc15fdec9e383db8628b57ea4a763f2ba0"],
-      ["0x66050ed5ae1a455faf707b740ec63485cf105153", "0xd8bf1d2720e9ffd01a2f9a2efc3e101a05b852b4", "0xfbda5f676cb37624f28265a144a48b0d6e87d3b6"],
+      ["0x3df8071169743c2de79ec0864fc2d8ed744cb37a", ADDRESSES.flare.WFLR, "0x4c18ff3c89632c3dd62e796c0afa5c07c4c1b2b3"],
+      ["0x488d13f980609a38565cc8bddc6987f069c65749", "0x1502fa4be69d526124d453619276faccab275d3d", ADDRESSES.flare.WFLR],
+      ["0x54b971682f4438ebd0c3ff4dcba67fb7e16b9de4", "0x0988c6ba244a90c07a917ebe609eb3264be716ff", ADDRESSES.flare.WFLR],
+      ["0x5cb9513643a02ef838f64302e3e889914ed3445b", ADDRESSES.flare.WFLR, "0x657097cc15fdec9e383db8628b57ea4a763f2ba0"],
+      ["0x66050ed5ae1a455faf707b740ec63485cf105153", "0xd8bf1d2720e9ffd01a2f9a2efc3e101a05b852b4", ADDRESSES.flare.USDC_e],
       ["0x79af232ae7ccd460439af3515022c10f5509d9f8", "0x1502fa4be69d526124d453619276faccab275d3d", "0x26a1fab310bd080542dc864647d05985360b16a5"],
-      ["0x927485d88a66253c63af9163dca5f21c25a57393", "0xad552a648c74d49e10027ab8a618a3ad4901c5be", "0xe7cd86e13ac4309349f30b3435a9d337750fc82d"],
-      ["0x9f6c46f190351275e47d7ad8d3f2c9487569211e", "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d", "0xad552a648c74d49e10027ab8a618a3ad4901c5be"],
-      ["0xbfe5eafd86cf270cf0ecca07f4fd0de67ee8bcfb", "0x1502fa4be69d526124d453619276faccab275d3d", "0xe7cd86e13ac4309349f30b3435a9d337750fc82d"],
-      ["0xc39659c230b5420b571c40457c73acf4b8939aac", "0x12e605bc104e93b45e1ad99f9e555f659051c2bb", "0xad552a648c74d49e10027ab8a618a3ad4901c5be"],
-      ["0xdcea6d3d7ca3b67c02d2b242a9037f8afe613c27", "0xe7cd86e13ac4309349f30b3435a9d337750fc82d", "0xfbda5f676cb37624f28265a144a48b0d6e87d3b6"],
-      ["0xea17e8634ce3a1dcea776df65b740772d43576a5", "0x12e605bc104e93b45e1ad99f9e555f659051c2bb", "0xd8bf1d2720e9ffd01a2f9a2efc3e101a05b852b4"],
+      ["0x927485d88a66253c63af9163dca5f21c25a57393", ADDRESSES.flare.FXRP, ADDRESSES.flare.USDT0],
+      ["0x9f6c46f190351275e47d7ad8d3f2c9487569211e", ADDRESSES.flare.WFLR, ADDRESSES.flare.FXRP],
+      ["0xbfe5eafd86cf270cf0ecca07f4fd0de67ee8bcfb", "0x1502fa4be69d526124d453619276faccab275d3d", ADDRESSES.flare.USDT0],
+      ["0xc39659c230b5420b571c40457c73acf4b8939aac", ADDRESSES.flare.sFLR, ADDRESSES.flare.FXRP],
+      ["0xdcea6d3d7ca3b67c02d2b242a9037f8afe613c27", ADDRESSES.flare.USDT0, ADDRESSES.flare.USDC_e],
+      ["0xea17e8634ce3a1dcea776df65b740772d43576a5", ADDRESSES.flare.sFLR, "0xd8bf1d2720e9ffd01a2f9a2efc3e101a05b852b4"],
     ],
   },
   [CHAIN.POLYGON]: {
@@ -137,10 +138,10 @@ export const chainConfig: Record<string, ChainSettings> = {
     // Named rather than discovered: the public nodes on this chain do not serve
     // the factory's PluginCreated history. Factory 0x672bb0a1ac120cb61ecdc6d2c3aa1e042f0eb941, deploy block 22852414.
     pools: [
-      ["0x4e13c7fd28fe96fa5992e7df7d882358629de03a", "0x4200000000000000000000000000000000000006", "0xba9986d2381edf1da03b0b9c1f8b00dc4aacc369"],
-      ["0x88deb61d597bf26b643293570f5952e2adc01157", "0x0555e30da8f98308edb960aa94c0db47230d2b9c", "0x4200000000000000000000000000000000000006"],
-      ["0xd8b3fbc6ab2bfab6e31a770643e40451050e9ce4", "0x13a82039af463ae967b105e4961e1a121fe543f3", "0x4200000000000000000000000000000000000006"],
-      ["0xeaae7128976870fc43545c09685fc14706bfb87d", "0x2cae934a1e84f693fbb78ca5ed3b0a6893259441", "0xcb46843fe775eec8499ccf18fb48b915a3dae207"],
+      ["0x4e13c7fd28fe96fa5992e7df7d882358629de03a", ADDRESSES.optimism.WETH_1, ADDRESSES.soneium.USDC],
+      ["0x88deb61d597bf26b643293570f5952e2adc01157", ADDRESSES.bsc.WBTC, ADDRESSES.optimism.WETH_1],
+      ["0xd8b3fbc6ab2bfab6e31a770643e40451050e9ce4", "0x13a82039af463ae967b105e4961e1a121fe543f3", ADDRESSES.optimism.WETH_1],
+      ["0xeaae7128976870fc43545c09685fc14706bfb87d", ADDRESSES.soneium.ASTAR, "0xcb46843fe775eec8499ccf18fb48b915a3dae207"],
     ],
   },
   [CHAIN.SOMNIA]: {
@@ -160,7 +161,7 @@ export const chainConfig: Record<string, ChainSettings> = {
     // Named rather than discovered: the public nodes on this chain do not serve
     // the factory's PluginCreated history. Factory 0x7b4553a35d3020064cb464a8d75a4735ffda15bd, deploy block 307452276.
     pools: [
-      ["0xe5467be8b8db6b074904134e8c1a581f5565e2c3", "0x046ede9564a72571df6f5e44d0405360c0f4dcab", "0x28bec7e30e6faee657a03e19bf1128aad7632a00"],
+      ["0xe5467be8b8db6b074904134e8c1a581f5565e2c3", ADDRESSES.somnia.WSOMI, ADDRESSES.somnia.USDC],
     ],
   },
   [CHAIN.ROBINHOOD]: {

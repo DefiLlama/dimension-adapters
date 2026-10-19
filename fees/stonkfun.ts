@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -44,7 +45,7 @@ const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 const NATIVE_SOL = "So11111111111111111111111111111111111111111";
-const WSOL = "So11111111111111111111111111111111111111112";
+const WSOL = ADDRESSES.solana.SOL;
 
 // Each leg is priced from Dune trades in its hour, falling back to the whole day and then the week before.
 // An hour price needs at least $100 of trades. Pricing ignores trades more than 10x away from the token's

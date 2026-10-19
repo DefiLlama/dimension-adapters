@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 
@@ -31,7 +32,7 @@ const fetch = async (options: FetchOptions) => {
       api.multiCall({ abi: abis.dec, calls, permitFailure: true }),
     ])
     missing.forEach((ilk, i) => {
-      if (gems[i] && gems[i] !== '0x0000000000000000000000000000000000000000') ilkInfo[ilk] = { gem: gems[i], dec: Number(decs[i]) }
+      if (gems[i] && gems[i] !== ADDRESSES.null) ilkInfo[ilk] = { gem: gems[i], dec: Number(decs[i]) }
     })
   }
 

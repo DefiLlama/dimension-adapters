@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
@@ -24,10 +25,10 @@ const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 // feeRecipient()). Every non-maker stable transfer from a filler in a fill tx goes here.
 const TREASURY = "0x51727a09b55d56bf8f3cbe61f460327330aecba4";
 const onchainConfig: Record<string, { reactor: string; stable: string; feeRecipient: string; start: string }> = {
-  [CHAIN.ETHEREUM]: { reactor: "0x26a1aedaa26affc4fd9f910acfca754a31bc43c6", stable: "0xdac17f958d2ee523a2206206994597c13d831ec7", feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
-  [CHAIN.BSC]: { reactor: "0xe03261c0436db575f92f09eddf3591e2566b7d97", stable: "0x55d398326f99059ff775485246999027b3197955", feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
-  [CHAIN.POLYGON]: { reactor: "0xf3ffcf21e621552cfccc724b965e901cdf0d83fe", stable: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
-  [CHAIN.BASE]: { reactor: "0xeb5a29f869ff084b3fce18d3487a38a56fedc59e", stable: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", feeRecipient: "0xd1e220544c21136811ae0400eb04a390ca05f58e", start: "2026-06-07" }, // USDC
+  [CHAIN.ETHEREUM]: { reactor: "0x26a1aedaa26affc4fd9f910acfca754a31bc43c6", stable: ADDRESSES.ethereum.USDT, feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
+  [CHAIN.BSC]: { reactor: "0xe03261c0436db575f92f09eddf3591e2566b7d97", stable: ADDRESSES.bsc.USDT, feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
+  [CHAIN.POLYGON]: { reactor: "0xf3ffcf21e621552cfccc724b965e901cdf0d83fe", stable: ADDRESSES.polygon.USDT, feeRecipient: TREASURY, start: "2026-06-07" }, // USDT
+  [CHAIN.BASE]: { reactor: "0xeb5a29f869ff084b3fce18d3487a38a56fedc59e", stable: ADDRESSES.base.USDC, feeRecipient: "0xd1e220544c21136811ae0400eb04a390ca05f58e", start: "2026-06-07" }, // USDC
 };
 
 const topicAddress = (topic: string) => `0x${topic.slice(26)}`.toLowerCase();

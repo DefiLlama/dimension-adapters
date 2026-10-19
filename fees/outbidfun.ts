@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // outbidfun.lol — fees, revenue & volume adapter.
 //
 // outbidfun.lol (https://outbidfun.lol) is a token launchpad on Robinhood Chain (chainId 4663).
@@ -101,7 +102,7 @@ const registered = async (options: FetchOptions): Promise<Record<Kind, Registere
   return contracts;
 };
 // How RevenueRouter's RevenueReceived names native ETH.
-const ETHER = "0x0000000000000000000000000000000000000000";
+const ETHER = ADDRESSES.null;
 // Coin fee shares are in basis points.
 const BPS = 10_000n;
 // Uniswap V3 fee tiers are in hundredths of a basis point.

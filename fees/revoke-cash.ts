@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getAlliumChain, queryAllium } from "../helpers/allium";
@@ -31,12 +32,12 @@ const MAX_BATCH_FEE_USD = 5;
 
 // Premium payments are accepted in USDC and USDT on these chains (packages/core/lib/premium/payment-config.ts)
 const SUBSCRIPTION_TOKENS: Record<string, string[]> = {
-  [CHAIN.ETHEREUM]: ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', '0xdAC17F958D2ee523a2206206994597C13D831ec7'],
-  [CHAIN.BSC]: ['0x8AC76a51cc950d9822D68b83Fe1Ad97B32Cd580d', '0x55d398326f99059fF775485246999027B3197955'],
-  [CHAIN.POLYGON]: ['0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'],
-  [CHAIN.BASE]: ['0x833589fCD6eDb6E08f4c7C32D4f71b54bDa02913', '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2'],
-  [CHAIN.OPTIMISM]: ['0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85', '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58'],
-  [CHAIN.ARBITRUM]: ['0xaf88d065e77c8cC2239327C5EDb3A432268e5831', '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'],
+  [CHAIN.ETHEREUM]: [ADDRESSES.ethereum.USDC, ADDRESSES.ethereum.USDT],
+  [CHAIN.BSC]: [ADDRESSES.bsc.USDC, ADDRESSES.bsc.USDT],
+  [CHAIN.POLYGON]: [ADDRESSES.polygon.USDC_CIRCLE, ADDRESSES.polygon.USDT],
+  [CHAIN.BASE]: [ADDRESSES.base.USDC, ADDRESSES.base.USDT],
+  [CHAIN.OPTIMISM]: [ADDRESSES.optimism.USDC_CIRCLE, ADDRESSES.optimism.USDT],
+  [CHAIN.ARBITRUM]: [ADDRESSES.arbitrum.USDC_CIRCLE, ADDRESSES.arbitrum.USDT],
 };
 
 // batchFees: whether users pay the batch revoke fee there. Optimism and Monad sponsor the fee

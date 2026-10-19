@@ -150,7 +150,7 @@ const fetchSolana = async (options: FetchOptions) => {
 // system event and the 6-decimal ERC-20 one). Swaps priced off chain by Relay pay Ryntra's fee to Relay's off-chain
 // balance and are not counted here.
 const ARC_FEE_RECIPIENT = "0x4480dcf81d177a4295b4ff32393ebeda35bb02e2";
-const ARC_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const ARC_NATIVE = ADDRESSES.GAS_TOKEN_2;
 const ARC_USDC_SYSTEM = "0xfffffffffffffffffffffffffffffffffffffffe"; // logs native USDC movements, 18 decimals (EIP-7708)
 const ARC_CORE = [ADDRESSES.arc.USDC, ADDRESSES.arc.EURC, ADDRESSES.arc.WETH, ADDRESSES.arc.cirBTC].map((a) => a.toLowerCase());
 const CIRCLE_ADAPTER = "0x7fb8c7260b63934d8da38af902f87ae6e284a845";

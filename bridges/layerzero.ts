@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
@@ -13,7 +14,7 @@ import * as sdk from "@defillama/sdk";
 // Tron and Sei: the same events from Allium's raw logs (SDK getLogs can't scan tron by topic and is disabled for sei).
 // Solana and Aptos: LayerZero OFT sends and receipts from Allium's crosschain.bridges.transfers, priced from the token and
 // raw amount (Aptos only has outbound rows there).
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 // RPCs that cap eth_getLogs ranges: etherlink rejects more than 500 blocks
 const MAX_BLOCK_RANGE: Record<string, number> = { [CHAIN.ETHERLINK]: 480 };
 const ALLIUM_CHAINS: Record<string, string> = { [CHAIN.SOLANA]: "solana", [CHAIN.APTOS]: "aptos" };

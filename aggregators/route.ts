@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { Interface } from 'ethers';
 import { CHAIN } from '../helpers/chains';
@@ -176,7 +177,7 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
       // Three historical buys used Route executors, not the Pons-router pool registry.
       if (earlyExecutorBuybacks.has(entry.transactionHash)) {
         if (log.sender.toLowerCase() !== devWallet || log.recipient.toLowerCase() !== devWallet ||
-            log.tokenIn.toLowerCase() !== '0x0000000000000000000000000000000000000000' ||
+            log.tokenIn.toLowerCase() !== ADDRESSES.null ||
             log.tokenOut.toLowerCase() !== routeToken) throw new Error('Unexpected historical executor buyback');
         addBuyback(log.amountIn.toString());
       }
@@ -256,7 +257,7 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
 // Route's Arc executor (first swap September 16) charges no Route fee: volume only.
 // https://arcscan.app/address/0x33C65bA72B023BF6B207D7B62275630cA433AFB8
 const arcExecutor = '0x33c65ba72b023bf6b207d7b62275630ca433afb8';
-const arcUsdc = '0x3600000000000000000000000000000000000000';
+const arcUsdc = ADDRESSES.arc.USDC;
 export const arcExecuted = 'event Executed(address indexed sender,address indexed recipient,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)';
 export const fetchArc = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();

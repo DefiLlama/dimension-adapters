@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 import { DUNE_DEX_BLACKLIST_TABLE, getDefaultDexTokensBlacklisted, getDexTokensBlacklisted } from "../../helpers/lists";
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 // Uniswap Trading API volume (https://developers.uniswap.org/docs/trading/overview), two legs:
 //  1. UniswapX orders: Fill logs on the reactors, valued from the swapper -> filler input transfer in the fill tx.
@@ -26,7 +27,7 @@ const chainConfig: Record<string, { start: string; dune: string; wnative: string
   [CHAIN.ETHEREUM]: {
     start: "2023-07-27",
     dune: "ethereum",
-    wnative: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+    wnative: ADDRESSES.ethereum.WETH,
     reactors: [
       "0x6000da47483062A0D734Ba3dc7576Ce6A0B645C4", // ExclusiveDutchOrderReactor
       "0x00000011F84B9aa48e5f8aA8B9897600006289Be", // V2DutchOrderReactor
@@ -36,7 +37,7 @@ const chainConfig: Record<string, { start: string; dune: string; wnative: string
   [CHAIN.ARBITRUM]: {
     start: "2024-05-25",
     dune: "arbitrum",
-    wnative: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+    wnative: ADDRESSES.arbitrum.WETH,
     reactors: [
       "0x1bd1aAdc9E230626C44a139d7E70d842749351eb", // V2DutchOrderReactor
       "0xB274d5F4b833b61B340b654d600A864fB604a87c", // V3DutchOrderReactor
@@ -45,7 +46,7 @@ const chainConfig: Record<string, { start: string; dune: string; wnative: string
   [CHAIN.BASE]: {
     start: "2024-08-14",
     dune: "base",
-    wnative: "0x4200000000000000000000000000000000000006",
+    wnative: ADDRESSES.optimism.WETH_1,
     reactors: [
       "0x000000001Ec5656dcdB24D90DFa42742738De729", // PriorityOrderReactor
       "0x000000008a8330B5d1F43A62Bf4C673A49f27ba0", // V3DutchOrderReactor
@@ -54,18 +55,18 @@ const chainConfig: Record<string, { start: string; dune: string; wnative: string
   [CHAIN.UNICHAIN]: {
     start: "2025-01-28",
     dune: "unichain",
-    wnative: "0x4200000000000000000000000000000000000006",
+    wnative: ADDRESSES.optimism.WETH_1,
     reactors: [
       "0x00000006021a6Bce796be7ba509bbba71e956e37", // PriorityOrderReactor
       "0x000000005aF66799D1a6317714D66800f9CA1406", // V3DutchOrderReactor
     ],
   },
-  [CHAIN.BSC]: { start: "2025-10-21", dune: "bnb", wnative: "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", reactors: ["0x00000000a55e50C71b70Db3C8B58749cd1E18eB2"] },
-  [CHAIN.POLYGON]: { start: "2025-10-22", dune: "polygon", wnative: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270" },
-  [CHAIN.OPTIMISM]: { start: "2025-10-31", dune: "optimism", wnative: "0x4200000000000000000000000000000000000006" },
-  [CHAIN.AVAX]: { start: "2025-11-01", dune: "avalanche_c", wnative: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7", reactors: ["0x00000000862cCF095823fc7576Fa6C7e6b7385ef"] },
-  [CHAIN.MONAD]: { start: "2025-11-20", dune: "monad", wnative: "0x3bd359c1119da7da1d913d1c4d2b7c461115433a", reactors: ["0x000000000Ac008F7e07210CFb6648e40249232c2"] },
-  [CHAIN.ROBINHOOD]: { start: "2026-06-11", dune: "robinhood", wnative: "0x0bd7d308f8e1639fab988df18a8011f41eacad73", reactors: ["0x000000007A1C8e570011EeDF86A2A35593013cBA"] },
+  [CHAIN.BSC]: { start: "2025-10-21", dune: "bnb", wnative: ADDRESSES.bsc.WBNB, reactors: ["0x00000000a55e50C71b70Db3C8B58749cd1E18eB2"] },
+  [CHAIN.POLYGON]: { start: "2025-10-22", dune: "polygon", wnative: ADDRESSES.polygon.WMATIC_2 },
+  [CHAIN.OPTIMISM]: { start: "2025-10-31", dune: "optimism", wnative: ADDRESSES.optimism.WETH_1 },
+  [CHAIN.AVAX]: { start: "2025-11-01", dune: "avalanche_c", wnative: ADDRESSES.avax.WAVAX, reactors: ["0x00000000862cCF095823fc7576Fa6C7e6b7385ef"] },
+  [CHAIN.MONAD]: { start: "2025-11-20", dune: "monad", wnative: ADDRESSES.monad.WMON, reactors: ["0x000000000Ac008F7e07210CFb6648e40249232c2"] },
+  [CHAIN.ROBINHOOD]: { start: "2026-06-11", dune: "robinhood", wnative: ADDRESSES.robinhood.WETH, reactors: ["0x000000007A1C8e570011EeDF86A2A35593013cBA"] },
 };
 
 // One query for every chain, one row per chain. For each tagged tx the Uniswap legs are read in event order with

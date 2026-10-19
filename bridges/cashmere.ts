@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
@@ -8,8 +9,8 @@ import { httpGet } from "../utils/fetchURL";
 // USD on NEAR Intents native-asset routes (600xxx domains), e.g. Base ETH -> Ethereum USDC reports 3.81 in / 3.51 out.
 // Domain ids from bridges-server's Cashmere adapter (src/adapters/cashmere/types.ts).
 const API = "https://kapi.cashmere.exchange/transactionsmainnet";
-const USDC = "ethereum:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
-const USDT = "ethereum:0xdac17f958d2ee523a2206206994597c13d831ec7";
+const USDC = "ethereum:" + ADDRESSES.ethereum.USDC;
+const USDT = "ethereum:" + ADDRESSES.ethereum.USDT;
 
 const domainToChain: Record<number, string> = {
   // Circle CCTP domains (USDC)

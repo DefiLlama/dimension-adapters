@@ -1,3 +1,4 @@
+import ADDRESSES from './coreAssets.json'
 import { httpGet } from '../utils/fetchURL'
 
 // Published Morph Tachyon precompile addresses for a future on-chain fallback:

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
@@ -30,8 +31,8 @@ const CHAINS: Record<string, { name: string; chain: string }> = {
   "65000": { name: "hypercore", chain: CHAIN.HYPERLIQUID }, // HyperCore, booked with HyperEVM under hyperliquid
 };
 const HYPERCORE = "65000"; // HyperCore token amounts are not chain-priceable, the explorer's USD price is used
-const NATIVE = "0x0000000000000000000000000000000000000000"; // native token on every chain, SOL included
-const WSOL = "So11111111111111111111111111111111111111112";
+const NATIVE = ADDRESSES.null; // native token on every chain, SOL included
+const WSOL = ADDRESSES.solana.SOL;
 const SKIPPED_STATUS = /REFUND|FAIL|EXPIRE|CANCEL/;
 
 type Swap = {

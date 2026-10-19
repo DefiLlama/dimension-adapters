@@ -11,7 +11,7 @@ import { addOneToken } from "../../helpers/prices";
 const NORDSTERN_GUARD = '0x603206D6105217DD972E4Ab30676A220CA393346' // Nordstern AggregatorGuard on Robinhood Chain (Sourcify exact match)
 const TREASURY = '0xB50f029A7004f87B13CBCefb7f21c0A91CbD1bA0' // Goo Exchange treasury Safe, the interface fee recipient
 const GOO = '0x6572eade9fb17f4027baf92feac222b9aa746bd0' // no DefiLlama price yet, so its trades are valued by the other side
-const NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+const NATIVE = ADDRESSES.GAS_TOKEN_2
 const MAX_FEE_PERCENT = 1n // the app's fee is 0.1%; a larger transfer to the treasury is not an interface fee
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const AGGREGATED_TRADE = 'event AggregatedTrade(uint16 indexed id, address indexed user, address tokenIn, address tokenOut, address executor, uint256 amountIn, uint256 amountOut, uint256 minAmountOut)'

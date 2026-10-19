@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getConfig } from "../helpers/cache";
@@ -10,7 +11,7 @@ import { httpGet } from "../utils/fetchURL";
 const REGISTRY = "https://cdn.jsdelivr.net/npm/@hyperlane-xyz/registry@latest/dist/warpRouteConfigs.js";
 const SENT = "event SentTransferRemote(uint32 indexed destination, bytes32 indexed recipient, uint256 amount)";
 const RECEIVED = "event ReceivedTransferRemote(uint32 indexed origin, bytes32 indexed recipient, uint256 amount)";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+const NULL_ADDRESS = ADDRESSES.null;
 
 // Hyperlane registry chain name -> DefiLlama chain. EVM chains with warp route volume (September 2026).
 // Not covered: Paradex/Starknet, Solana, Cosmos and other non-EVM routers; krown, subtensor, carrchain and

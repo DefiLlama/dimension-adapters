@@ -1,9 +1,10 @@
+import ADDRESSES from '../coreAssets.json'
 // Release 9 deployment supplied by FAZE, September 13, 2026.
 // Verified sources: https://explorer.arc.io/address/<address>?tab=contract
 export const CURVE = '0x6A62919ccbf0c19e0C4e084F986b582b4492dDA4';
 export const HOOK = '0x47e7936ae9891e61C5123db720593c05dE7120cc';
 export const START_BLOCK = 20561244;
-export const NATIVE = '0x0000000000000000000000000000000000000000';
+export const NATIVE = ADDRESSES.null;
 export const FAZE = '0x394d38f807ee0027a182216f5e67a15ae441fa2e';
 export const ABI = {
   "Bought": "event Bought(address indexed token, address indexed buyer, uint256 ethGross, uint256 fee, uint256 tokensOut, uint256 ethReserve, uint256 tokenReserve)",

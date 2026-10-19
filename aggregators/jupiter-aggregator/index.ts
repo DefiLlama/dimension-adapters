@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
@@ -15,9 +16,9 @@ const JUP6 = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
 
 // Mints whose minute price is trusted to value a hop, preferred over the other side.
 const MAJOR_MINTS = [
-  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
-  'So11111111111111111111111111111111111111112', // wSOL
+  ADDRESSES.solana.USDC, // USDC
+  ADDRESSES.solana.USDT, // USDT
+  ADDRESSES.solana.SOL, // wSOL
 ];
 
 const eventsQuery = (options: FetchOptions) => `
