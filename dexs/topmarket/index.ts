@@ -7,6 +7,11 @@ import { id, zeroPadValue } from "ethers";
 import { ChainApi } from "@defillama/sdk";
 
 const USDC = ADDRESSES.base.USDC;
+// Base Mainnet network identifier: https://docs.base.org/base-chain/api-reference/ethereum-json-rpc-api/eth_chainId
+const BASE_CHAIN_ID = 8453;
+// Native Base USDC decimals(), verified on-chain:
+// https://basescan.org/address/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913#readProxyContract
+const USDC_DECIMALS = 6;
 const MARKET = "0xf20658ec88403e9a26d77fb95e91c1248d9818ea";
 const BOX_FACTORY = "0x0e218eddfed2b6e482d2989d05c6db0ee41db2f2"; // creates BlindBox boxes
 const TOKEN_BOX_FACTORY = "0x8f142f5bbc4061df7c84b4990ce9081e4acd4abf"; // creates TokenBlindBox boxes
@@ -55,6 +60,9 @@ const LABELS = {
 // Referral commissions are settled off-chain; TopMarket publishes each settled credit with the Base tx/log
 // of the purchase it came from. The feed serves at most 24h per request and pages by cursor.
 const REFERRAL_API = "https://api.top.market/api/defillama/referrals";
+// Adapter-local HTTP budget, not a protocol parameter: allow 10 seconds per page
+// and propagate timeouts so missing commissions never become zero revenue costs.
+const REFERRAL_TIMEOUT_MS = 10_000;
 
 async function getReferrals(options: FetchOptions) {
   // The runner's fromTimestamp is the previous window's final second.
@@ -64,8 +72,8 @@ async function getReferrals(options: FetchOptions) {
   const seen = new Set<string>();
   let cursor = "";
   while (true) {
-    const page = await httpGet(`${REFERRAL_API}?from=${from}&to=${to}${cursor}`, { timeout: 10000 });
-    if (page?.schema !== "topmarket-referrals-v1" || page.chain_id !== 8453 || page.recognition !== "settled_at" ||
+    const page = await httpGet(`${REFERRAL_API}?from=${from}&to=${to}${cursor}`, { timeout: REFERRAL_TIMEOUT_MS });
+    if (page?.schema !== "topmarket-referrals-v1" || page.chain_id !== BASE_CHAIN_ID || page.recognition !== "settled_at" ||
       page.from_timestamp !== from || page.to_timestamp !== to || page.coverage?.complete !== true ||
       page.coverage.revision !== "settled-v1" || !(page.coverage.from_timestamp <= from) ||
       !(page.coverage.through_timestamp >= to) || !Array.isArray(page.entries))
@@ -73,8 +81,8 @@ async function getReferrals(options: FetchOptions) {
     for (const row of page.entries) {
       if (!/^r_[0-9a-f]{32}$/.test(row.event_id) || seen.has(row.event_id) ||
         !Number.isSafeInteger(row.settled_at) || row.settled_at < from || row.settled_at >= to ||
-        row.chain_id !== 8453 || row.entry_type !== "credit" || row.token?.toLowerCase() !== USDC.toLowerCase() ||
-        row.decimals !== 6 || !/^[1-9][0-9]*$/.test(row.amount_raw) ||
+        row.chain_id !== BASE_CHAIN_ID || row.entry_type !== "credit" || row.token?.toLowerCase() !== USDC.toLowerCase() ||
+        row.decimals !== USDC_DECIMALS || !/^[1-9][0-9]*$/.test(row.amount_raw) ||
         !["pack_purchase", "marketplace_trade", "auction_trade"].includes(row.source_type))
         throw new Error("TopMarket: invalid or duplicate referral settlement");
       const previous = rows.at(-1);
