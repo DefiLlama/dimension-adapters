@@ -468,9 +468,9 @@ const adapter: SimpleAdapter = {
   adapter: {},
   prefetch,
   methodology: {
-    Volume: 'Swap volume, excluding wash trading (pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed) and phantom swaps settled with no tokens changing hands (a transaction round-tripping through one pool, or adding and removing the liquidity it swaps against).',
-    Fees: 'Swap fees paid by users, excluding wash trading and phantom swaps settled with no tokens changing hands.',
-    UserFees: 'Swap fees paid by users, excluding wash trading and phantom swaps settled with no tokens changing hands.',
+    Volume: 'Swap volume, excluding wash trading and swaps settled with no tokens changing hands.',
+    Fees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    UserFees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
