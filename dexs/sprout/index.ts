@@ -37,26 +37,30 @@ const fetch = async (options: FetchOptions) => {
   const toBlock = await getBlock(options.toTimestamp);
   const api = new ChainApi({ chain: options.chain, block: toBlock });
 
-  for (const core of CORES) {
-    const buys = await options.getLogs({ target: core, eventAbi: ABI.buy, fromBlock, toBlock });
-    const sells = await options.getLogs({ target: core, eventAbi: ABI.sell, fromBlock, toBlock });
-    const trades = [
-      ...buys.map((log) => ({ launchId: String(log.launchId), amount: log.pairIn })),
-      ...sells.map((log) => ({ launchId: String(log.launchId), amount: log.pairOutGross })),
-    ];
-    if (!trades.length) continue;
+  // launch ids are per core, so keep the logs grouped by core (flatten: false returns one array per target)
+  const buys = await options.getLogs({ targets: CORES, eventAbi: ABI.buy, fromBlock, toBlock, flatten: false });
+  const sells = await options.getLogs({ targets: CORES, eventAbi: ABI.sell, fromBlock, toBlock, flatten: false });
+  const trades = CORES.flatMap((core, i) => [
+    ...buys[i].map((log: any) => ({ core, launchId: String(log.launchId), amount: log.pairIn })),
+    ...sells[i].map((log: any) => ({ core, launchId: String(log.launchId), amount: log.pairOutGross })),
+  ]);
 
-    // every launch trades against one pair asset (wINJ, USDC, SAI or SPROUT)
-    const launchIds = [...new Set(trades.map((trade) => trade.launchId))];
-    const pairAssets = await api.multiCall({ target: core, abi: ABI.getLaunchPairAsset, calls: launchIds });
-    const pairAssetByLaunch: Record<string, string> = {};
-    launchIds.forEach((id, i) => {
-      if (!pairAssets[i] || pairAssets[i] === ADDRESSES.null) throw new Error(`Sprout: no pair asset for launch ${id} on ${core}`);
-      pairAssetByLaunch[id] = pairAssets[i];
-    });
+  // every launch trades against one pair asset (wINJ, USDC, SAI or SPROUT)
+  const launchKeys = [...new Set(trades.map((trade) => `${trade.core}:${trade.launchId}`))];
+  const pairAssets = await api.multiCall({
+    abi: ABI.getLaunchPairAsset,
+    calls: launchKeys.map((key) => {
+      const [target, launchId] = key.split(":");
+      return { target, params: [launchId] };
+    }),
+  });
+  const pairAssetByLaunch: Record<string, string> = {};
+  launchKeys.forEach((key, i) => {
+    if (!pairAssets[i] || pairAssets[i] === ADDRESSES.null) throw new Error(`Sprout: no pair asset for launch ${key}`);
+    pairAssetByLaunch[key] = pairAssets[i];
+  });
 
-    trades.forEach((trade) => dailyVolume.add(pairAssetByLaunch[trade.launchId], trade.amount));
-  }
+  trades.forEach((trade) => dailyVolume.add(pairAssetByLaunch[`${trade.core}:${trade.launchId}`], trade.amount));
 
   return { dailyVolume };
 };
