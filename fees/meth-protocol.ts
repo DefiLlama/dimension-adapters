@@ -75,6 +75,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.addGasToken(totalRewards, METRIC.STAKING_REWARDS);
     dailyRevenue.addGasToken(protocolRevenue, METRIC.STAKING_REWARDS);
     dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
+  } else if (rateDelta < 0n) {
+    // Exchange-rate decrease represents realized validator losses (slashing/penalties), borne fully by mETH holders; no protocol fee on losses.
+    const loss = (shareSupply * rateDelta) / ONE_ETHER;
+    dailyFees.addGasToken(loss, METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.addGasToken(loss, METRIC.STAKING_REWARDS);
   }
 
   return {
@@ -94,6 +99,8 @@ const adapter: Adapter = {
       start: '2023-10-07',
     },
   },
+  // mETH exchange rate can decrease on realized validator losses (slashing/penalties)
+  allowNegativeValue: true,
   methodology: {
     Fees: 'Total validator fees and rewards earned from staked ETH on consensus and execution layers.',
     Revenue: 'Protocol fee share of staking rewards allocated to the mETH Protocol Treasury based on on-chain fee basis points.',
