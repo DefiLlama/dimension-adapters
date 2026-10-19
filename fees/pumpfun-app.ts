@@ -14,7 +14,9 @@ const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 // Platform Fee (https://pump.fun/docs/fees): 0.45% of web/mobile app trades (0.40% with a
 // referral code), paid in SOL or USDC to this wallet since 2026-10-16. The wallet also receives
 // plain treasury transfers and swaps its own SOL, so only inflows inside a trade tx not signed by
-// the wallet are counted.
+// the wallet are counted. pump.fun pays the whole fee back to users as Callout and referral rewards
+// from this same wallet, so it is all supply side; only the fee amount is counted, not the total
+// payouts, which also include treasury-funded rewards.
 const PLATFORM_FEE_WALLET = 'BNrYNyQZhdGRs8Rvi98WGTjhxab2wFTdGtVjW72RGyh4'
 const NATIVE_SOL = 'So11111111111111111111111111111111111111111' // tokens_solana.transfers id for native SOL
 
@@ -137,8 +139,7 @@ const fetch = async (options: FetchOptions) => {
     const mint = normalizeQuoteMint(row.mint)
     if (row.venue === 'platform') {
       dailyFees.add(mint, row.protocol_fee, LABEL.PlatformFee)
-      dailyRevenue.add(mint, row.protocol_fee, LABEL.PlatformFee)
-      dailyProtocolRevenue.add(mint, row.protocol_fee, LABEL.PlatformFee)
+      dailySupplySideRevenue.add(mint, row.protocol_fee, LABEL.PlatformFee)
       continue
     }
     const isBonding = row.venue === 'bonding'
@@ -173,16 +174,15 @@ const breakdownMethodology = {
     [LABEL.PumpSwapCreatorFee]: 'PumpSwap coin-creator fee on app trades.',
   },
   Revenue: {
-    [LABEL.PlatformFee]: 'Platform Fee on web and mobile app trades, kept by pump.fun.',
     [LABEL.PumpFunProtocolFee]: "Pump's slice of bonding-curve trade fees on app trades, kept by the protocol.",
     [LABEL.PumpSwapProtocolFee]: 'PumpSwap protocol fee on app trades, kept by the protocol.',
   },
   ProtocolRevenue: {
-    [LABEL.PlatformFee]: 'Platform Fee on web and mobile app trades, kept by pump.fun.',
     [LABEL.PumpFunProtocolFee]: "Pump's slice of bonding-curve trade fees on app trades, kept by the protocol.",
     [LABEL.PumpSwapProtocolFee]: 'PumpSwap protocol fee on app trades, kept by the protocol.',
   },
   SupplySideRevenue: {
+    [LABEL.PlatformFee]: 'Platform Fee paid back to users as Callout and referral rewards.',
     [LABEL.PumpFunCreatorFee]: 'Bonding-curve creator fees paid out to coin creators.',
     [LABEL.PumpFunCashback]: 'Cashback returned to traders/holders of Cashback Coins.',
     [LABEL.PumpSwapLpFee]: 'PumpSwap fees paid to liquidity providers.',
@@ -201,9 +201,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   methodology: {
     Fees: 'Platform Fee on pump.fun web and mobile app trades, plus pump.fun bonding-curve and PumpSwap trade fees on mobile app trades.',
-    Revenue: 'Platform Fee plus the pump.fun and PumpSwap protocol fees on app trades.',
-    ProtocolRevenue: 'Platform Fee plus the pump.fun and PumpSwap protocol fees on app trades.',
-    SupplySideRevenue: 'Creator and cashback slices of bonding-curve fees plus PumpSwap LP and creator fees on app trades.',
+    Revenue: 'pump.fun and PumpSwap protocol fees on mobile app trades.',
+    ProtocolRevenue: 'pump.fun and PumpSwap protocol fees on mobile app trades.',
+    SupplySideRevenue: 'Platform Fee paid back to users as rewards, plus creator, cashback and LP fees on mobile app trades.',
   },
 }
 
