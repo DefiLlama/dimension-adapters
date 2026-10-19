@@ -70,6 +70,7 @@ const formatError = (error: unknown) => (error instanceof Error ? error.message 
 const getLogFrom = (log: any) => normalize(log.from ?? log.from_address ?? log.args?.from);
 const getLogTo = (log: any) => normalize(log.to ?? log.to_address ?? log.args?.to);
 
+/** Add full settled marketplace volume and only DYLI's commission to fees. */
 const addMarketplaceLogs = (
   logs: any[],
   dailyVolume: any,
@@ -199,6 +200,7 @@ const fetch = async (originalOptions: FetchOptions) => {
 
   dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
   dailyFees.add(cardSales, CARD_SALES);
+  // Net card buybacks from fees, per the original maintainer review; see README.md.
   dailyFees.add(cardBuybacks, CARD_BUYBACK_SPENDS);
 
   addMarketplaceLogs(listingBoughtLogs, dailyVolume, dailyFees, USDC);

@@ -80,6 +80,18 @@ test("retains a customer bridge payment", async t => {
   assert.equal(exclude(bridgeLog), false);
 });
 
+test("rejects a proof for another destination before inspecting otherwise valid internal funding", async t => {
+  const sourceReads = t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [sourceReceipt(wallet)] as any);
+  for (const patch of [
+    { transactionHash: sourceHash }, { chainId: 2741 }, { recipient: user },
+  ]) {
+    const request = t.mock.method(axios, "get", async () => ({ data: { ...bridgeProof, ...patch } }));
+    await assert.rejects(excludeInternalBridges(options, [bridgeLog], internal), /does not match the transfer/);
+    request.mock.restore();
+  }
+  assert.equal(sourceReads.mock.callCount(), 0);
+});
+
 test("rejects missing or non-internal source receipts instead of guessing", async t => {
   t.mock.method(axios, "get", async () => ({ data: bridgeProof }));
   const missing = t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [null]);

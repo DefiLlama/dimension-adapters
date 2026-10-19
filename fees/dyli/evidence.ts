@@ -17,6 +17,7 @@ const sourceChains: Record<number, { chain: string; usdc: string }> = {
 };
 const HASH = /^0x[\da-f]{64}$/i;
 
+/** Fetch USDC receipts for the configured payment wallets, retaining transaction metadata. */
 export async function getPaymentLogs(options: FetchOptions, usdc: string, targets: string[]) {
   const logs = await Promise.all(targets.map((target) => options.getLogs({
     target: usdc,
@@ -28,6 +29,11 @@ export async function getPaymentLogs(options: FetchOptions, usdc: string, target
   return logs.flat();
 }
 
+/**
+ * Exclude internal bridges using the endpoint's exact source-to-deposit binding,
+ * then independently verify source funding. See ./bridge-evidence.md for the
+ * public endpoint contract and archived migration provenance.
+ */
 export async function excludeInternalBridges(options: FetchOptions, logs: any[], internal: Set<string>) {
   const excluded = new Set<string>();
   const seen = new Set<string>();
@@ -45,6 +51,8 @@ export async function excludeInternalBridges(options: FetchOptions, logs: any[],
         data.chainId !== (options.chain === "base" ? 8453 : 2741) || typeof data.internalTransfer !== "boolean")
       throw new Error("DYLI bridge evidence does not match the transfer");
     if (!data.internalTransfer) continue;
+    // The endpoint binds this source to the destination tuple checked above.
+    // The receipt/transaction checks below establish ownership, not that binding.
     const source = sourceChains[data.sourceChainId];
     if (!source || !HASH.test(data.sourceTransactionHash)) throw new Error("DYLI bridge source is missing");
     const [receipt] = await getTxReceiptsWithRetry(source.chain, [data.sourceTransactionHash]);
@@ -67,6 +75,7 @@ export async function excludeInternalBridges(options: FetchOptions, logs: any[],
   return (log: any) => excluded.has(`${String(log.transactionHash).toLowerCase()}:${String(log.args.to).toLowerCase()}`);
 }
 
+/** Sum verified Stripe goods amounts only after matching evidence to onchain Bought events. */
 export async function getStripePackSales(options: FetchOptions, boughtLogs: any[], internal: Set<string>) {
   const candidates = boughtLogs.filter(log => Number(log.args.paymentMode) === 1 && BigInt(log.args.grossAmount) > 0n
     && !internal.has(String(log.args.user).toLowerCase()));
