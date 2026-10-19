@@ -50,6 +50,7 @@ const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const PUMP_CREATE = "0x181ec828051c0777"; // pump.fun create
 const PUMP_CREATE_V2 = "0xd6904cec5f8b31b4"; // pump.fun create_v2
 const NATIVE = ADDRESSES.solana.SOL; // the planting fee is paid in lamports, 9 decimals
+const NATIVE_TRANSFER = "So11111111111111111111111111111111111111111"; // how tokens_solana.transfers marks native transfers
 
 // Anchor event discriminators: sha256("event:<Name>")[0..8]
 const SETTLED = "0xe8d228118e7c91ee";
@@ -152,16 +153,15 @@ const fetch = async (options: FetchOptions) => {
         AND ${dayPartition}
         AND TIME_RANGE
       UNION ALL
-      -- the planting fee: the treasury's native inflow in a transaction that creates a coin on pump.fun
-      SELECT a.block_time, 'planting_fee', '${NATIVE}', CAST(a.balance_change AS DOUBLE)
-      FROM solana.account_activity a
-      WHERE a.address = '${TREASURY}'
-        AND a.token_mint_address IS NULL
-        AND a.balance_change > 0
-        AND a.tx_success
-        AND a.${dayPartition}
+      -- the planting fee: a native transfer to the treasury in a transaction that creates a coin on pump.fun
+      SELECT block_time, 'planting_fee', '${NATIVE}', CAST(amount AS DOUBLE)
+      FROM tokens_solana.transfers
+      WHERE action = 'transfer'
+        AND token_mint_address IN ('${NATIVE_TRANSFER}', '${NATIVE}')
+        AND to_owner = '${TREASURY}'
+        AND ${dayPartition}
         AND TIME_RANGE
-        AND a.tx_id IN (
+        AND tx_id IN (
           SELECT tx_id
           FROM solana.instruction_calls
           WHERE executing_account = '${PUMP_PROGRAM}'
