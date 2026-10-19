@@ -1,63 +1,81 @@
-import * as sdk from "@defillama/sdk";
+import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 
-// docs: https://docs.mantle.xyz/meth/components/smart-contracts/staking-meth
-// mETH treasury takes 10%: https://etherscan.io/address/0x1766be66fBb0a1883d41B4cfB0a533c5249D3b82#readProxyContract#F5
+// Docs: https://docs.mantle.xyz/meth/components/smart-contracts/staking-meth
+// Staking contract calculates mETHToETH exchange rate based on totalControlled:
+// https://etherscan.io/address/0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f
+const stakingContract = "0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f";
 
-const mETH = '0xe3cBd06D7dadB3F4e6557bAb7EdD924CD1489E8f'
-const ExecutionRewardsVault = '0xd6e4aa932147a3fe5311da1b67d9e73da06f9cef'
+// mETH ERC20 token:
+// https://etherscan.io/token/0xd5F7838F5C461fefF7FE49ea5ebaF7728bB0ADfa
+const mETHToken = "0xd5F7838F5C461fefF7FE49ea5ebaF7728bB0ADfa";
 
+// ReturnsAggregator contract manages protocol fee basis points (default 1000 = 10%):
+// https://etherscan.io/address/0x1766be66fBb0a1883d41B4cfB0a533c5249D3b82
+const returnsAggregator = "0x1766be66fBb0a1883d41B4cfB0a533c5249D3b82";
+
+const abi = {
+  mETHToETH: "function mETHToETH(uint256) view returns (uint256)",
+  feesBasisPoints: "uint16:feesBasisPoints",
+};
+
+const ONE_ETHER = 10n ** 18n;
+const BPS_DENOMINATOR = 10000n;
+
+/**
+ * Accrual-based fee fetcher for mETH Protocol (Mantle LSP), adhering to DefiLlama LST guidelines:
+ * - Computes total yield generated from exchange-rate growth (mETHToETH) scaled by share supply (mETH totalSupply).
+ * - Because net returns compound into mETH after the protocol fee deduction (feesBasisPoints, 10%),
+ *   the exchange rate growth represents the net supply-side reward (90%).
+ * - Gross staking rewards (dailyFees) are grossed up: totalRewards = supplySideRewards * 10000 / (10000 - feesBasisPoints).
+ * - Protocol revenue is the 10% fee: protocolRevenue = totalRewards - supplySideRewards.
+ * - All calculations use exact BigInt arithmetic to eliminate floating-point truncation.
+ */
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const ONE = (1e18).toString()
-  const exchangeRateBefore = await options.fromApi.call({
-    target: mETH,
-    abi: 'function mETHToETH(uint256) view returns (uint256)',
-    params: [ONE],
-  })
-  const exchangeRateAfter = await options.toApi.call({
-    target: mETH,
-    abi: 'function mETHToETH(uint256) view returns (uint256)',
-    params: [ONE],
-  })
-  const totalSupply = await options.api.call({
-    target: mETH,
-    abi: 'uint256:totalControlled',
-  })
+  const [feesBasisPointsRaw, rateStartRaw, rateEndRaw, shareSupplyRaw] = await Promise.all([
+    options.api.call({
+      target: returnsAggregator,
+      abi: abi.feesBasisPoints,
+    }),
+    options.fromApi.call({
+      target: stakingContract,
+      abi: abi.mETHToETH,
+      params: [ONE_ETHER.toString()],
+    }),
+    options.api.call({
+      target: stakingContract,
+      abi: abi.mETHToETH,
+      params: [ONE_ETHER.toString()],
+    }),
+    options.api.call({
+      target: mETHToken,
+      abi: "function totalSupply() view returns (uint256)",
+    }),
+  ]);
 
-  // fees distributed to mETH holders are deducted by 10% protocol fees
-  // it was 90% of total rewards earned from ETH staking
-  const df = totalSupply * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+  const feesBasisPoints = BigInt(feesBasisPointsRaw);
+  const rateStart = BigInt(rateStartRaw);
+  const rateEnd = BigInt(rateEndRaw);
+  const shareSupply = BigInt(shareSupplyRaw);
 
-  // MEV and execution rewards
-  let mevRewards = 0
-  const transactions = await sdk.indexer.getTransactions({
-    chain: options.chain,
-    transactionType: 'to',
-    addresses: [ExecutionRewardsVault],
-    from_block: Number(options.fromApi.block),
-    to_block: Number(options.toApi.block),
-  })
-  if (transactions) {
-    for (const tx of transactions) {
-      mevRewards += Number(tx.value)
-    }
+  const rateDelta = rateEnd - rateStart;
+  if (rateDelta > 0n) {
+    // Net yield distributed to mETH holders (supply-side revenue)
+    const supplySideRewards = (shareSupply * rateDelta) / ONE_ETHER;
+    // Gross up: supply-side represents (10000 - feesBasisPoints) of total staking yield
+    const stakerBps = BPS_DENOMINATOR - feesBasisPoints;
+    const totalRewards = (supplySideRewards * BPS_DENOMINATOR) / stakerBps;
+    const protocolRevenue = totalRewards - supplySideRewards;
+
+    dailyFees.addGasToken(totalRewards, METRIC.STAKING_REWARDS);
+    dailyRevenue.addGasToken(protocolRevenue, METRIC.STAKING_REWARDS);
+    dailySupplySideRevenue.addGasToken(supplySideRewards, METRIC.STAKING_REWARDS);
   }
-  
-  const dfExcludeMev = df - mevRewards;
-  
-  dailyFees.addGasToken(dfExcludeMev, METRIC.STAKING_REWARDS)
-  dailyRevenue.addGasToken(dfExcludeMev * 0.1, METRIC.STAKING_REWARDS)
-  dailySupplySideRevenue.addGasToken(dfExcludeMev * 0.9, METRIC.STAKING_REWARDS)
-
-  dailyFees.addGasToken(mevRewards, METRIC.MEV_REWARDS)
-  dailyRevenue.addGasToken(mevRewards * 0.1, METRIC.MEV_REWARDS)
-  dailySupplySideRevenue.addGasToken(mevRewards * 0.9, METRIC.MEV_REWARDS)
 
   return {
     dailyFees,
@@ -65,11 +83,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailySupplySideRevenue,
     dailyProtocolRevenue: dailyRevenue,
     dailyHoldersRevenue: 0,
-  }
+  };
 }
 
 const adapter: Adapter = {
-  pullHourly: true,
   version: 2,
   adapter: {
     [CHAIN.ETHEREUM]: {
@@ -78,33 +95,26 @@ const adapter: Adapter = {
     },
   },
   methodology: {
-    Fees: 'Total validators fees and rewards from staked ETH.',
-    Revenue: '10% staking rewards are charged by mETH Protocol Treasury.',
-    SupplySideRevenue: '90% staking rewards are distributed to mETH holders.',
-    ProtocolRevenue: '10% staking rewards are charged by mETH Protocol Treasury.',
+    Fees: 'Total validator fees and rewards earned from staked ETH on consensus and execution layers.',
+    Revenue: 'Protocol fee share of staking rewards allocated to the mETH Protocol Treasury based on on-chain fee basis points.',
+    SupplySideRevenue: 'Net staking rewards distributed to mETH holders.',
+    ProtocolRevenue: 'Protocol fee share of staking rewards allocated to the mETH Protocol Treasury based on on-chain fee basis points.',
     HoldersRevenue: 'No revenue share to COOK token holders.',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators.',
-      [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
+      [METRIC.STAKING_REWARDS]: 'Total ETH rewards generated from staked ETH on consensus and execution layers.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to Mantle.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to Mantle.',
+      [METRIC.STAKING_REWARDS]: 'Protocol fee share of ETH staking rewards allocated to the treasury.',
     },
     ProtocolRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to Mantle.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to Mantle.',
+      [METRIC.STAKING_REWARDS]: 'Protocol fee share of ETH staking rewards allocated to the treasury.',
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to stakers.',
-      [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
+      [METRIC.STAKING_REWARDS]: 'Net ETH staking rewards distributed to mETH holders.',
     },
   },
-  // sometime rate negative hourly and back to positive in the next hour
-  // we run afapter houly so this should be allowed
-  allowNegativeValue: true,
 };
 
 export default adapter;
