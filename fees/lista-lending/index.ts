@@ -48,14 +48,19 @@ const API_CHAIN: Record<string, string> = {
 // USDT and forwards to the treasury multisig — it is NOT used to buy back LISTA, confirmed with the
 // Lista contract team), so we move it from SupplySideRevenue to ProtocolRevenue. Fees are unchanged
 // (a re-classification, not new income). MoolahVaultAccount only moves lisUSD to its whitelisted
-// recipients through claimYield, so a lisUSD Transfer out of it equals the YieldPaid amount. The other
-// whitelisted leg (LisUSDPoolSet / sLisUSD savers) is third-party supply and stays supply-side. Lumpy
-// per day (a claim realises yield accrued over many prior days) but conserved cumulatively.
+// recipients through claimYield, so a lisUSD Transfer out of it equals the YieldPaid amount. Both
+// whitelisted legs are the DAO's yield: the revenue recipient, and LisUSDPoolSet, where the claim pays
+// part of the sLisUSD savings interest (a larger part on days ListaRevenueDistributor's lisUSD falls
+// short of its target cost).
+// That savings interest is already deducted from revenue as "sLisUSD Savings Cost" in lista-lisusd
+// (totalSupply * ΔgetRate), so leaving the pool leg on the supply side here would deduct it a second
+// time. Lumpy per day (a claim realises yield accrued over many prior days) but conserved cumulatively.
 const MOOLAH_VAULT_ACCOUNT: Record<string, string> = {
   [CHAIN.BSC]: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652",
 };
 const LISUSD_BSC = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const DAO_YIELD_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // DAO position-yield recipient -> swapped to USDT, forwarded to treasury (NOT a LISTA buy-back)
+const LISUSD_POOL_SET_BSC = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf"; // sLisUSD savings pool, funded from the same claim
 const VAULT_PAGE_SIZE = 100;
 const vaultListUrl = (chain: string, page: number) =>
   `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${VAULT_PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${API_CHAIN[chain]}`;
@@ -283,19 +288,19 @@ const fetch = async (options: FetchOptions) => {
   // ---- DAO lending-position yield: reclassify from supply-side to protocol revenue ----
   const moolahVaultAccount = MOOLAH_VAULT_ACCOUNT[chain];
   if (moolahVaultAccount) {
-    const daoYieldToTreasury = options.createBalances();
+    const daoYield = options.createBalances();
     await addTokensReceived({
       options,
-      target: DAO_YIELD_RECIPIENT_BSC,
+      targets: [DAO_YIELD_RECIPIENT_BSC, LISUSD_POOL_SET_BSC],
       fromAddressFilter: moolahVaultAccount,
       tokens: [LISUSD_BSC],
-      balances: daoYieldToTreasury,
+      balances: daoYield,
     });
     // The DAO's own position yield kept by the protocol -> ProtocolRevenue; remove it from the
     // supply side. It is not a LISTA buy-back, so it is NOT holders revenue. Fees stay the same.
-    dailyRevenue.addBalances(daoYieldToTreasury, METRIC.BORROW_INTEREST);
-    dailyProtocolRevenue.addBalances(daoYieldToTreasury, METRIC.BORROW_INTEREST);
-    dailySupplySideRevenue.addBalances(daoYieldToTreasury.clone(-1), METRIC.BORROW_INTEREST);
+    dailyRevenue.addBalances(daoYield, METRIC.BORROW_INTEREST);
+    dailyProtocolRevenue.addBalances(daoYield, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.addBalances(daoYield.clone(-1), METRIC.BORROW_INTEREST);
   }
 
   return {
@@ -308,8 +313,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Total borrow interest paid by borrowers across all Moolah markets, including the fixed interest (and late penalties) paid on fixed-term markets.",
-  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee + the fixed-term InterestRelayer fee) plus the DAO's own MoolahVault position yield that the protocol keeps as revenue.",
-  ProtocolRevenue: "Market protocol fee (interest × market fee), the fee the fixed-term InterestRelayers skim off the fixed interest before it reaches suppliers, the management fee on self-operated MoolahVaults, and the DAO's own MoolahVault position yield kept by the protocol (routed to the treasury as USDT, not a LISTA buy-back).",
+  Revenue: "Lista's protocol cut (market protocol fee + MoolahVault management fee + the fixed-term InterestRelayer fee) plus the DAO's own MoolahVault position yield that the protocol keeps as revenue (sent to the treasury or used to fund the sLisUSD savings pool).",
+  ProtocolRevenue: "Market protocol fee (interest × market fee), the fee the fixed-term InterestRelayers skim off the fixed interest before it reaches suppliers, the management fee on self-operated MoolahVaults, and the DAO's own MoolahVault position yield kept by the protocol (routed to the treasury as USDT, not a LISTA buy-back, or paid into the sLisUSD savings pool, whose cost lista-lisusd deducts).",
   SupplySideRevenue: "Borrow interest (variable and fixed-term) distributed to third-party suppliers/lenders, net of Lista's protocol cut and net of the DAO's own position yield reclassified to protocol revenue.",
 };
 
