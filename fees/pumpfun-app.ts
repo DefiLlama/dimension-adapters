@@ -11,7 +11,15 @@ import { queryDuneSql } from "../helpers/dune";
 // not counted; the PUMP buyback (holders revenue) stays in the parent adapter only.
 const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 
+// Platform Fee (https://pump.fun/docs/fees): 0.45% of web/mobile app trades (0.40% with a
+// referral code), paid in SOL or USDC to this wallet since 2026-10-16. The wallet also receives
+// plain treasury transfers and swaps its own SOL, so only inflows inside a trade tx not signed by
+// the wallet are counted.
+const PLATFORM_FEE_WALLET = 'BNrYNyQZhdGRs8Rvi98WGTjhxab2wFTdGtVjW72RGyh4'
+const NATIVE_SOL = 'So11111111111111111111111111111111111111111' // tokens_solana.transfers id for native SOL
+
 const LABEL = {
+  PlatformFee: 'Platform Fees',
   PumpFunProtocolFee: 'Pump Fun Protocol Fees',
   PumpFunCreatorFee: 'Pump Fun Creator Fees',
   PumpFunCashback: 'Pump Fun Cashback',
@@ -81,10 +89,43 @@ const fetch = async (options: FetchOptions) => {
         JOIN app_tx a ON e.evt_tx_id = a.tx_id
         JOIN pools p ON e.pool = p.pool
         GROUP BY 1
+    ),
+    platform_in AS (
+        SELECT tx_id, token_mint_address, amount
+        FROM tokens_solana.transfers
+        WHERE to_owner = '${PLATFORM_FEE_WALLET}'
+          AND tx_signer <> '${PLATFORM_FEE_WALLET}'
+          AND token_mint_address IN ('${NATIVE_SOL}', '${ADDRESSES.solana.SOL}', '${ADDRESSES.solana.USDC}')
+          AND block_time >= TIMESTAMP '2026-10-16'
+          AND TIME_RANGE
+    ),
+    platform AS (
+        SELECT
+            CASE WHEN token_mint_address = '${NATIVE_SOL}' THEN '${ADDRESSES.solana.SOL}' ELSE token_mint_address END AS mint,
+            CAST(SUM(amount) AS double) AS platform_fee
+        FROM platform_in
+        WHERE tx_id IN (
+            SELECT tx_id FROM solana.instruction_calls
+            WHERE TIME_RANGE
+              AND tx_success
+              AND tx_id IN (SELECT tx_id FROM platform_in)
+              AND executing_account NOT IN (
+                  '11111111111111111111111111111111',
+                  'ComputeBudget111111111111111111111111111111',
+                  'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+                  'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
+                  'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+                  'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+                  'Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo'
+              )
+        )
+        GROUP BY 1
     )
     SELECT 'bonding' AS venue, mint, protocol_fee, creator_fee, cashback, CAST(0 AS double) AS lp_fee FROM bonding
     UNION ALL
     SELECT 'pumpswap' AS venue, mint, protocol_fee, creator_fee, CAST(0 AS double) AS cashback, lp_fee FROM amm
+    UNION ALL
+    SELECT 'platform' AS venue, mint, platform_fee AS protocol_fee, CAST(0 AS double) AS creator_fee, CAST(0 AS double) AS cashback, CAST(0 AS double) AS lp_fee FROM platform
   `)
 
   const dailyFees = options.createBalances()
@@ -94,6 +135,12 @@ const fetch = async (options: FetchOptions) => {
 
   for (const row of rows) {
     const mint = normalizeQuoteMint(row.mint)
+    if (row.venue === 'platform') {
+      dailyFees.add(mint, row.protocol_fee, LABEL.PlatformFee)
+      dailyRevenue.add(mint, row.protocol_fee, LABEL.PlatformFee)
+      dailyProtocolRevenue.add(mint, row.protocol_fee, LABEL.PlatformFee)
+      continue
+    }
     const isBonding = row.venue === 'bonding'
     const protocolLabel = isBonding ? LABEL.PumpFunProtocolFee : LABEL.PumpSwapProtocolFee
     const creatorLabel = isBonding ? LABEL.PumpFunCreatorFee : LABEL.PumpSwapCreatorFee
@@ -117,6 +164,7 @@ const fetch = async (options: FetchOptions) => {
 
 const breakdownMethodology = {
   Fees: {
+    [LABEL.PlatformFee]: 'Platform Fee of 0.45% (0.40% with a referral code) on pump.fun web and mobile app trades.',
     [LABEL.PumpFunProtocolFee]: "Pump's 0.95% slice of bonding-curve trade fees on trades placed through the pump.fun app.",
     [LABEL.PumpFunCreatorFee]: 'Coin-creator slice (0.30%) of bonding-curve trade fees on app trades.',
     [LABEL.PumpFunCashback]: 'Cashback Coins slice (0.30%, mutually exclusive with the creator slice per coin) of bonding-curve trade fees on app trades.',
@@ -125,10 +173,12 @@ const breakdownMethodology = {
     [LABEL.PumpSwapCreatorFee]: 'PumpSwap coin-creator fee on app trades.',
   },
   Revenue: {
+    [LABEL.PlatformFee]: 'Platform Fee on web and mobile app trades, kept by pump.fun.',
     [LABEL.PumpFunProtocolFee]: "Pump's slice of bonding-curve trade fees on app trades, kept by the protocol.",
     [LABEL.PumpSwapProtocolFee]: 'PumpSwap protocol fee on app trades, kept by the protocol.',
   },
   ProtocolRevenue: {
+    [LABEL.PlatformFee]: 'Platform Fee on web and mobile app trades, kept by pump.fun.',
     [LABEL.PumpFunProtocolFee]: "Pump's slice of bonding-curve trade fees on app trades, kept by the protocol.",
     [LABEL.PumpSwapProtocolFee]: 'PumpSwap protocol fee on app trades, kept by the protocol.',
   },
@@ -145,14 +195,14 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2026-05-21', // first tx of the app program
-  doublecounted: true, // app fees are already counted in the parent pumpdotfun / pump-swap listings
+  doublecounted: true, // bonding-curve/PumpSwap fees are already counted in the parent pumpdotfun / pump-swap listings (the Platform Fee is not)
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   breakdownMethodology,
   methodology: {
-    Fees: 'Pump.fun bonding-curve and PumpSwap trade fees generated by trades placed through the official pump.fun mobile app (transactions invoking the app program). Already counted in the parent pump.fun and PumpSwap listings.',
-    Revenue: "Pump's protocol slice of bonding-curve fees plus the PumpSwap protocol fee on app trades.",
-    ProtocolRevenue: "Pump's protocol slice of bonding-curve fees plus the PumpSwap protocol fee on app trades. The PUMP buyback (holders revenue) stays in the parent adapter only.",
+    Fees: 'Platform Fee on pump.fun web and mobile app trades, plus pump.fun bonding-curve and PumpSwap trade fees on mobile app trades.',
+    Revenue: 'Platform Fee plus the pump.fun and PumpSwap protocol fees on app trades.',
+    ProtocolRevenue: 'Platform Fee plus the pump.fun and PumpSwap protocol fees on app trades.',
     SupplySideRevenue: 'Creator and cashback slices of bonding-curve fees plus PumpSwap LP and creator fees on app trades.',
   },
 }
