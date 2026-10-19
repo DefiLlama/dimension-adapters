@@ -17,8 +17,9 @@ purchases do not receive an extra sale entry, since their crypto receipts are
 already counted. Buybacks and refunds remain expenses for both payment methods.
 
 The same endpoint provides Relay origin evidence. Internal bridge receipts are
-excluded only after verifying a source-chain USDC transfer from a DYLI-controlled
-address. Customer-funded bridge payments remain eligible. Missing or inconsistent
+excluded only after verifying a confirmed source-chain USDC transfer or a
+positive native-token transfer from a DYLI-controlled address. Gas costs alone
+are not bridge funding. Customer-funded bridge payments remain eligible. Missing or inconsistent
 evidence fails the fetch rather than publishing partial totals.
 
 After deployment, refill Base from 2026-10-13 and Abstract from 2026-10-13. The

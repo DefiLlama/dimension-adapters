@@ -63,7 +63,7 @@ const bridgeLog = { transactionHash: hash, args: {
 const bridgeProof = { version: 1, chainId: 8453, transactionHash: hash, recipient: wallet,
   internalTransfer: true, sourceChainId: 2741, sourceTransactionHash: sourceHash };
 const transfers = new Interface(["event Transfer(address indexed from,address indexed to,uint256 value)"]);
-const sourceReceipt = (from: string) => ({ logs: [{ address: ADDRESSES.abstract.USDC,
+const sourceReceipt = (from: string) => ({ status: 1, logs: [{ address: ADDRESSES.abstract.USDC,
   ...transfers.encodeEventLog(transfers.getEvent("Transfer")!, [from, user, 700000000n]) }] });
 
 test("excludes a treasury bridge only after checking its onchain source", async t => {
@@ -86,5 +86,23 @@ test("rejects missing or non-internal source receipts instead of guessing", asyn
   await assert.rejects(excludeInternalBridges(options, [bridgeLog], internal), /receipt is missing/);
   missing.mock.restore();
   t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [sourceReceipt(user)] as any);
+  t.mock.method(receipts, "getTransactionsWithRetry", async () => [{ from: user, value: 100n }] as any);
   await assert.rejects(excludeInternalBridges(options, [bridgeLog], internal), /not an internal/);
+});
+
+test("verifies internal native-ETH bridge funding without treating gas alone as funding", async t => {
+  t.mock.method(axios, "get", async () => ({ data: bridgeProof }));
+  t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [{ status: 1, logs: [] }] as any);
+  const funded = t.mock.method(receipts, "getTransactionsWithRetry", async () => [{ from: wallet, value: 50000000000000000n }] as any);
+  const excluded = await excludeInternalBridges(options, [bridgeLog], internal);
+  assert.equal(excluded(bridgeLog), true);
+  funded.mock.restore();
+  t.mock.method(receipts, "getTransactionsWithRetry", async () => [{ from: wallet, value: 0n }] as any);
+  await assert.rejects(excludeInternalBridges(options, [bridgeLog], internal), /not an internal/);
+});
+
+test("does not accept a reverted source transaction", async t => {
+  t.mock.method(axios, "get", async () => ({ data: bridgeProof }));
+  t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [{ ...sourceReceipt(wallet), status: 0 }] as any);
+  await assert.rejects(excludeInternalBridges(options, [bridgeLog], internal), /transaction failed/);
 });

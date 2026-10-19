@@ -2,7 +2,7 @@ import axios from "axios";
 import { Interface, zeroPadValue } from "ethers";
 import { FetchOptions } from "../../adapters/types";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
+import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 
 // Public evidence contains transaction hashes and amounts, never Stripe/customer identifiers.
 const EVIDENCE_API = "https://www.dyli.io/api/public/defillama";
@@ -49,11 +49,18 @@ export async function excludeInternalBridges(options: FetchOptions, logs: any[],
     if (!source || !HASH.test(data.sourceTransactionHash)) throw new Error("DYLI bridge source is missing");
     const [receipt] = await getTxReceiptsWithRetry(source.chain, [data.sourceTransactionHash]);
     if (!receipt) throw new Error("DYLI bridge source receipt is missing");
-    const fundedByDyli = receipt.logs.some((sourceLog: any) => {
+    if (Number(receipt.status) !== 1) throw new Error("DYLI bridge source transaction failed");
+    let fundedByDyli = receipt.logs.some((sourceLog: any) => {
       if (String(sourceLog.address).toLowerCase() !== source.usdc.toLowerCase()) return false;
       const parsed = transfers.parseLog(sourceLog);
       return parsed && internal.has(String(parsed.args.from).toLowerCase()) && BigInt(parsed.args.value) > 0n;
     });
+    // Some treasury bridges send native ETH and receive USDC on the destination chain.
+    if (!fundedByDyli) {
+      const [transaction] = await getTransactionsWithRetry(source.chain, [data.sourceTransactionHash]);
+      if (!transaction) throw new Error("DYLI bridge source transaction is missing");
+      fundedByDyli = internal.has(String(transaction.from).toLowerCase()) && BigInt(transaction.value) > 0n;
+    }
     if (!fundedByDyli) throw new Error("DYLI bridge source is not an internal transfer");
     excluded.add(key);
   }
