@@ -31,6 +31,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { METRIC } from "../../helpers/metrics";
 
 const VAULT_PROGRAM = "A9zFnNZpVjBbcE1SAPY92Z6H7WhicysLNPYPpDz15UxF";
 const GUARD_PROGRAM = "GzMQc5VQGggFnicdAKc7MmkQV3dn3i12ux9dbLKqzy6F";
@@ -56,7 +57,7 @@ const LABELS = {
   ACCOUNT_FEES: "Zcash Account Fees",
   TO_TREASURY: "Coin Trading Fees To Treasury",
   ACCOUNT_TO_TREASURY: "Zcash Account Fees To Treasury",
-  BUYBACK: "$SAPLING Buyback And Burn",
+  BUYBACK: METRIC.TOKEN_BUY_BACK, // "Token Buy Back": $SAPLING bought and burned
   LIQUIDITY: "$SAPLING/ZEC Liquidity",
   TO_DEPLOYERS: "Coin Trading Fees To Deployers",
   TO_COIN_HOLDERS: "Coin Trading Fees To Coin Holders",
