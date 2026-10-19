@@ -471,6 +471,11 @@ const configs: Record<string, Record<string, any>> = {
         return { _revenueRatio: communityFeeRatio, _protocolRevenueRatio: communityFeeRatio }
       },
     },
+    "vetrade-v3": {
+      [CHAIN.VECHAIN]: {
+        factory: "0xc2faf0f48fb7763b28e6f7e415c50b360cc1a096",
+        start: "2026-10-11",
+      },
   },
 }
 
