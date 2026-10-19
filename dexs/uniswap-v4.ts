@@ -60,7 +60,7 @@ import { queryDune } from "../helpers/dune";
 import { getDexTokensBlacklisted } from "../helpers/lists";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  getEstablishedTokens, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
+  getEstablishedTokens, getPhantomSwapKeys, phantomSwapKey, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
   WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
@@ -81,6 +81,7 @@ interface IPool {
 }
 
 const SwapEvent = 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)';
+const ModifyLiquidityEvent = 'event ModifyLiquidity(bytes32 indexed id, address indexed sender, int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt)';
 const FunctionPoolKeys = 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)';
 
 const Configs: Record<string, IUniswapConfig> = {
@@ -357,15 +358,19 @@ async function fetch(options: FetchOptions) {
   }
 
   if (config.source === 'LOGS') {
-    const events = await sdk.getEventLogs({
+    const logParams = {
       chain: options.chain,
       target: config.poolManager,
-      eventAbi: SwapEvent,
       fromBlock: Number(options.fromApi.block),
       toBlock: Number(options.toApi.block),
       maxBlockRange: 10000,
-      onlyArgs: true,
-    });
+      onlyArgs: false, // tx hash needed to group a tx's swaps per pool
+    };
+    const swapLogs = await sdk.getEventLogs({ ...logParams, eventAbi: SwapEvent });
+    const liquidityLogs = await sdk.getEventLogs({ ...logParams, eventAbi: ModifyLiquidityEvent });
+    // swaps the singleton settled with no tokens changing hands - see getPhantomSwapKeys
+    const phantom = getPhantomSwapKeys(swapLogs, liquidityLogs);
+    const events = swapLogs.filter(log => !phantom.has(phantomSwapKey(log))).map(log => log.args);
 
     if (events.length > 0) {
       const skipPools = new Set((config.blacklistPoolIds ?? []).map(i => i.toLowerCase()))
@@ -463,9 +468,9 @@ const adapter: SimpleAdapter = {
   adapter: {},
   prefetch,
   methodology: {
-    Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
-    Fees: 'Swap fees paid by users.',
-    UserFees: 'Swap fees paid by users.',
+    Volume: 'Swap volume, excluding wash trading (pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed) and phantom swaps settled with no tokens changing hands (a transaction round-tripping through one pool, or adding and removing the liquidity it swaps against).',
+    Fees: 'Swap fees paid by users, excluding wash trading and phantom swaps settled with no tokens changing hands.',
+    UserFees: 'Swap fees paid by users, excluding wash trading and phantom swaps settled with no tokens changing hands.',
     Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
