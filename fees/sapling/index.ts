@@ -28,6 +28,7 @@
 // Each event is valued at its own minute (prices.minute). An event without a minute price is passed as a token
 // amount and priced by DefiLlama.
 
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -44,6 +45,11 @@ const SAPLING = "BZFYNPeQAEW3HWQ4DNsTVahC1n4ZjTgn6jB2nnBbB96W"; // $SAPLING, 6 d
 const REWARDS_ZEC_ACCOUNT = "DEpWQpqcuDv1QDp6X3nGjukmGBh2kts4NEhxQHXR3Feh"; // ZEC account of the rewards wallet
 const TREASURY = "FauKh2enCxjqMDaEEmo3qMmA9toxyZPFvPhGEZNMzChr"; // vault Config treasury
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+// Planting fee: a flat transfer to the treasury in the same transaction that creates the coin on pump.fun
+const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+const PUMP_CREATE = "0x181ec828051c0777"; // pump.fun create
+const PUMP_CREATE_V2 = "0xd6904cec5f8b31b4"; // pump.fun create_v2
+const NATIVE = ADDRESSES.solana.SOL; // the planting fee is paid in lamports, 9 decimals
 
 // Anchor event discriminators: sha256("event:<Name>")[0..8]
 const SETTLED = "0xe8d228118e7c91ee";
@@ -55,6 +61,8 @@ const ORDER_RAN = "0xacee3cc1d2df2b50";
 const LABELS = {
   COIN_FEES: "Coin Trading Fees",
   ACCOUNT_FEES: "Zcash Account Fees",
+  PLANTING_FEES: "Coin Planting Fees",
+  PLANTING_TO_TREASURY: "Coin Planting Fees To Treasury",
   TO_TREASURY: "Coin Trading Fees To Treasury",
   ACCOUNT_TO_TREASURY: "Zcash Account Fees To Treasury",
   BUYBACK: METRIC.TOKEN_BUY_BACK, // "Token Buy Back": $SAPLING bought and burned
@@ -73,6 +81,7 @@ const PARTS: Record<string, [string | null, string, "supply" | "protocol" | "hol
   coin_holders: [LABELS.COIN_FEES, LABELS.TO_COIN_HOLDERS, "revenue"],
   holder_rewards: [null, LABELS.HOLDER_REWARDS, "paid"],
   account_fee: [LABELS.ACCOUNT_FEES, LABELS.ACCOUNT_TO_TREASURY, "protocol"],
+  planting_fee: [LABELS.PLANTING_FEES, LABELS.PLANTING_TO_TREASURY, "protocol"],
 };
 
 // little endian u64 at a 1-based byte offset of the event data
@@ -142,19 +151,39 @@ const fetch = async (options: FetchOptions) => {
         AND to_owner <> '${TREASURY}'
         AND ${dayPartition}
         AND TIME_RANGE
+      UNION ALL
+      -- the planting fee: the treasury's native inflow in a transaction that creates a coin on pump.fun
+      SELECT a.block_time, 'planting_fee', '${NATIVE}', CAST(a.balance_change AS DOUBLE)
+      FROM solana.account_activity a
+      WHERE a.address = '${TREASURY}'
+        AND a.token_mint_address IS NULL
+        AND a.balance_change > 0
+        AND a.tx_success
+        AND a.${dayPartition}
+        AND TIME_RANGE
+        AND a.tx_id IN (
+          SELECT tx_id
+          FROM solana.instruction_calls
+          WHERE executing_account = '${PUMP_PROGRAM}'
+            AND executing_account_prefix = '${PUMP_PROGRAM.slice(0, 2)}'
+            AND tx_success = TRUE
+            AND ${dayPartition}
+            AND TIME_RANGE
+            AND varbinary_substring(data, 1, 8) IN (${PUMP_CREATE}, ${PUMP_CREATE_V2})
+        )
     ),
     minute_prices AS (
       SELECT contract_address, timestamp, price
       FROM prices.minute
       WHERE blockchain = 'solana'
-        AND contract_address IN (from_base58('${ZEC}'), from_base58('${SAPLING}'))
+        AND contract_address IN (from_base58('${ZEC}'), from_base58('${SAPLING}'), from_base58('${NATIVE}'))
         AND timestamp >= date_trunc('minute', from_unixtime(${options.startTimestamp}))
         AND timestamp < from_unixtime(${options.endTimestamp})
     )
     SELECT
       p.part,
       p.token,
-      SUM(IF(pr.price IS NULL, 0, p.amount / power(10, IF(p.token = '${ZEC}', 8, 6)) * pr.price)) AS usd,
+      SUM(IF(pr.price IS NULL, 0, p.amount / power(10, CASE p.token WHEN '${ZEC}' THEN 8 WHEN '${SAPLING}' THEN 6 ELSE 9 END) * pr.price)) AS usd,
       SUM(IF(pr.price IS NULL, p.amount, 0)) AS unpriced_amount
     FROM parts p
     LEFT JOIN minute_prices pr
@@ -195,9 +224,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, plus Sapling's fee on buys, plantings and sales made from a Zcash account.",
-  Revenue: "The part of the 2% coin trading fee that does not go to deployers: treasury, $SAPLING buyback and burn, $SAPLING/ZEC liquidity, and the deployer share of coins whose deployer chose holder rewards, plus the Zcash account fee.",
-  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the Zcash account fee.",
+  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account.",
+  Revenue: "The part of the 2% coin trading fee that does not go to deployers: treasury, $SAPLING buyback and burn, $SAPLING/ZEC liquidity, and the deployer share of coins whose deployer chose holder rewards, plus the planting fee and the Zcash account fee.",
+  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee.",
   HoldersRevenue: "Holder rewards paid in ZEC to the holders of Sapling coins, valued when paid, plus the 50% of the 2% coin trading fee that buys and burns $SAPLING and adds $SAPLING/ZEC liquidity with the LP tokens burned.",
   SupplySideRevenue: "40% of the 2% coin trading fee goes to each coin's deployer or a wallet they choose.",
 };
@@ -206,9 +235,11 @@ const breakdownMethodology = {
   Fees: {
     [LABELS.COIN_FEES]: "The 2% fee on every buy and sell of a coin launched on Sapling, collected and split on chain by the Sapling vault program.",
     [LABELS.ACCOUNT_FEES]: "Sapling's fee on a buy, planting or sale made from a Zcash account.",
+    [LABELS.PLANTING_FEES]: "The flat fee paid to the Sapling treasury when a coin is planted, in the same transaction that creates the coin.",
   },
   Revenue: {
     [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury.",
+    [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
     [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING).",
     [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to $SAPLING/ZEC liquidity with the LP tokens burned (held in a vault per coin before 2026-10-02, then moved into the same liquidity).",
@@ -216,6 +247,7 @@ const breakdownMethodology = {
   },
   ProtocolRevenue: {
     [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury.",
+    [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
   },
   HoldersRevenue: {
