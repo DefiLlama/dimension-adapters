@@ -57,7 +57,7 @@ test("fails on an unavailable payment evidence endpoint", async t => {
   await assert.rejects(getStripePackSales(options, [bought], internal), /unavailable/);
 });
 
-const bridgeLog = { transactionHash: hash, args: {
+const bridgeLog = { transactionHash: hash, logIndex: 0, args: {
   from: "0xf70da97812cb96acdf810712aa562db8dfa3dbef", to: wallet, value: 688210687n,
 } };
 const bridgeProof = { version: 1, chainId: 8453, transactionHash: hash, recipient: wallet,
@@ -72,6 +72,32 @@ test("excludes a treasury bridge only after checking its onchain source", async 
   const exclude = await excludeInternalBridges(options, [bridgeLog], internal);
   assert.equal(exclude(bridgeLog), true);
   assert.equal(exclude({ ...bridgeLog, transactionHash: sourceHash }), false);
+  assert.equal(exclude({ ...bridgeLog, args: { ...bridgeLog.args, from: user } }), false);
+  assert.equal(exclude({ ...bridgeLog, logIndex: 1 }), false);
+});
+
+test("keeps a customer payment in the same transaction and normalizes index aliases", async t => {
+  const request = t.mock.method(axios, "get", async () => ({ data: bridgeProof }));
+  t.mock.method(receipts, "getTxReceiptsWithRetry", async () => [sourceReceipt(wallet)] as any);
+  const customer = { ...bridgeLog, logIndex: 1, args: { ...bridgeLog.args, from: user } };
+  const exclude = await excludeInternalBridges(options, [bridgeLog, customer, { ...bridgeLog }], internal);
+  assert.equal(exclude(customer), false);
+  assert.equal(exclude({ ...bridgeLog, logIndex: undefined, index: 0 }), true);
+  assert.equal(exclude({ ...bridgeLog, logIndex: "0x0" }), true);
+  assert.equal(exclude({ ...bridgeLog, logIndex: "0" }), true);
+  assert.equal(request.mock.callCount(), 1);
+});
+
+test("fails closed on distinct Relay logs sharing a transaction and recipient", async t => {
+  const request = t.mock.method(axios, "get", async () => { throw Error("unexpected request"); });
+  await assert.rejects(excludeInternalBridges(options, [bridgeLog, { ...bridgeLog, logIndex: 1 }], internal), /cannot distinguish multiple Relay transfers/);
+  assert.equal(request.mock.callCount(), 0);
+});
+
+test("requires a valid Relay log identity instead of falling back to a transaction-wide key", async () => {
+  for (const logIndex of [undefined, null, "", "garbage", -1, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(excludeInternalBridges(options, [{ ...bridgeLog, logIndex }], internal), /log index is missing or invalid/);
+  }
 });
 
 test("retains a customer bridge payment", async t => {

@@ -17,6 +17,17 @@ const sourceChains: Record<number, { chain: string; usdc: string }> = {
 };
 const HASH = /^0x[\da-f]{64}$/i;
 
+/** Identify one Relay transfer using normalized SDK/RPC log-index metadata. */
+function bridgeTransferKey(log: any) {
+  const sender = String(log.args.from).toLowerCase();
+  if (sender !== RELAY_SOLVER) return undefined;
+  const rawIndex = log.logIndex ?? log.index;
+  const index = typeof rawIndex === "number" ? rawIndex
+    : typeof rawIndex === "string" && /^(?:\d+|0x[\da-f]+)$/i.test(rawIndex) ? Number(rawIndex) : NaN;
+  if (!Number.isSafeInteger(index) || index < 0) throw new Error("DYLI bridge transfer log index is missing or invalid");
+  return `${String(log.transactionHash).toLowerCase()}:${sender}:${String(log.args.to).toLowerCase()}:${index}`;
+}
+
 /** Fetch USDC receipts for the configured payment wallets, retaining transaction metadata. */
 export async function getPaymentLogs(options: FetchOptions, usdc: string, targets: string[]) {
   const logs = await Promise.all(targets.map((target) => options.getLogs({
@@ -36,14 +47,22 @@ export async function getPaymentLogs(options: FetchOptions, usdc: string, target
  */
 export async function excludeInternalBridges(options: FetchOptions, logs: any[], internal: Set<string>) {
   const excluded = new Set<string>();
-  const seen = new Set<string>();
+  const candidates = new Map<string, { hash: string; recipient: string }>();
+  const byDestination = new Map<string, string>();
   for (const log of logs) {
-    if (String(log.args.from).toLowerCase() !== RELAY_SOLVER) continue;
+    const key = bridgeTransferKey(log);
+    if (!key) continue;
     const hash = String(log.transactionHash).toLowerCase();
     const recipient = String(log.args.to).toLowerCase();
-    const key = `${hash}:${recipient}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const destination = `${hash}:${recipient}`;
+    // Evidence is transaction/recipient-scoped, so it cannot attribute two distinct
+    // Relay logs for that same destination. Do not reuse one proof for both.
+    const previous = byDestination.get(destination);
+    if (previous && previous !== key) throw new Error("DYLI bridge evidence cannot distinguish multiple Relay transfers");
+    byDestination.set(destination, key);
+    candidates.set(key, { hash, recipient });
+  }
+  for (const [key, { hash, recipient }] of candidates) {
     const { data } = await axios.get(EVIDENCE_API, {
       params: { chainId: options.chain === "base" ? 8453 : 2741, transactionHash: hash, recipient }, timeout: 30000,
     });
@@ -72,7 +91,10 @@ export async function excludeInternalBridges(options: FetchOptions, logs: any[],
     if (!fundedByDyli) throw new Error("DYLI bridge source is not an internal transfer");
     excluded.add(key);
   }
-  return (log: any) => excluded.has(`${String(log.transactionHash).toLowerCase()}:${String(log.args.to).toLowerCase()}`);
+  return (log: any) => {
+    const key = bridgeTransferKey(log);
+    return key !== undefined && excluded.has(key);
+  };
 }
 
 /** Sum verified Stripe goods amounts only after matching evidence to onchain Bought events. */

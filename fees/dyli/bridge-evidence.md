@@ -76,6 +76,14 @@ source chain and a confirmed source receipt, and verifies a positive USDC
 transfer or native-token transfer from a DYLI-controlled address in that origin
 transaction. A reverted transaction or gas spending alone does not qualify.
 
+An exclusion identifies only one transfer: transaction hash, Relay sender,
+recipient and log index. Customer transfers sharing the transaction and recipient
+are not excluded. The SDK's `logIndex` and `index` aliases are normalized, including
+index zero; a missing or invalid Relay log index fails the fetch. Duplicate copies
+of the same transfer share one lookup. If two distinct Relay logs share the same
+transaction and recipient, the transaction-scoped endpoint cannot distinguish
+them: the adapter fails rather than applying one origin proof to both.
+
 This second step establishes DYLI ownership of the already-bound source funding.
 Neither sender ownership nor an arbitrary source outflow replaces the endpoint's
 binding guarantee. The adapter deliberately does not require source/destination
