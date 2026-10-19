@@ -10,7 +10,9 @@ const USDC = ADDRESSES.base.USDC;
 const MARKET = "0xf20658ec88403e9a26d77fb95e91c1248d9818ea";
 const BOX_FACTORY = "0x0e218eddfed2b6e482d2989d05c6db0ee41db2f2"; // creates BlindBox boxes
 const TOKEN_BOX_FACTORY = "0x8f142f5bbc4061df7c84b4990ce9081e4acd4abf"; // creates TokenBlindBox boxes
-const FACTORY_START_BLOCK = 50636771; // BOX_FACTORY deployment, the TOKEN_BOX_FACTORY came later
+const FACTORY_START_BLOCK = 50636771; // BOX_FACTORY deployment
+// https://basescan.org/tx/0xe68d82a4b1c3390420fb5cb312faaa27c5e1c775a2550dec64525a487a9bb51a
+const TOKEN_FACTORY_START_BLOCK = 52098220;
 const TOKEN_POOL = "0x28b6d82ce27ca6be2c343c593eec44075ebc797d"; // TokenStakingPool, pays TokenBlindBox stakers
 
 const PLATFORM_STAKERS = new Set([
@@ -150,15 +152,24 @@ const fetch = async (options: FetchOptions) => {
     getLogs: params => sourceGetLogs({ fromBlock, ...params }) };
   const { api, createBalances, getLogs } = options;
   const created: Record<string, number> = {};
-  const getBoxes = async (factory: string) =>
-    (await getLogs({ target: factory, eventAbi: EVENTS.BoxCreated, fromBlock: FACTORY_START_BLOCK, cacheInCloud: true, onlyArgs: false }))
-      .map((log: any) => {
-        const box = log.args.box.toLowerCase();
-        created[box] = position(log).blockNumber;
-        return box;
-      });
-  const standardBoxes = new Set(await getBoxes(BOX_FACTORY));
-  const boxes = [...standardBoxes, ...await getBoxes(TOKEN_BOX_FACTORY)];
+  const toBlock = await options.getToBlock();
+  const getBoxes = async (factory: string, deployedAt: number): Promise<string[]> => {
+    if (toBlock < deployedAt) return [];
+    // Both factories retain every created box in an append-only registry.
+    // https://basescan.org/address/0x5d8ca6dd45a029e0c45f0e82a5aba9ac379d88cf#code
+    // https://basescan.org/address/0xb770dc0c6d46b76a8c7c3db0cf2d101a82c7a7d1#code
+    // Read it at this window's closing block, not latest; daily runs must not
+    // require deployment-era logs from public RPCs with pruned log history.
+    const boxes: string[] = await api.fetchList({ target: factory,
+      lengthAbi: "uint256:boxCount", itemAbi: "function boxAt(uint256) view returns (address)" });
+    // Only creations inside this window can coincide with a setting change
+    // replayed by addressAt; older boxes need no creation-history scan.
+    for (const log of await getLogs({ target: factory, eventAbi: EVENTS.BoxCreated, onlyArgs: false }))
+      created[log.args.box.toLowerCase()] = position(log).blockNumber;
+    return boxes.map(box => box.toLowerCase());
+  };
+  const standardBoxes = new Set(await getBoxes(BOX_FACTORY, FACTORY_START_BLOCK));
+  const boxes = [...standardBoxes, ...await getBoxes(TOKEN_BOX_FACTORY, TOKEN_FACTORY_START_BLOCK)];
 
   const tokens = await api.multiCall({ abi: "address:settlementToken", calls: boxes });
   const feeRecipientAt = await addressAt(options, boxes, "address:feeRecipient", EVENTS.FeeRecipientUpdated, "newRecipient", created);
