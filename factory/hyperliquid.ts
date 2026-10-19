@@ -32,6 +32,17 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "hypurrtrade": {
+    addresses: ["0x0e024a4fad828e8f976fdccbeeaab72d4205be3c"],
+    start: "2026-10-01",
+    methodology: {
+      Volume: "Perps trading volume routed through the HypurrTrade terminal on Hyperliquid.",
+      Fees: "Builder fees paid by users on perps trades routed through HypurrTrade (0.05% until 2026-10-08, 0.1% since); excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "ditto-perps": {
     // Public Hyperliquid builder attribution; the daily indexer counts every tagged fill.
     // Scope/fields: https://hl-indexer.llama.rip/llms.txt (builder daily summaries).
