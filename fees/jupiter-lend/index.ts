@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
 // Jupiter Lend runs on Fluid infra as two instances tagged by `instance_name`
 // in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) market
@@ -18,30 +19,32 @@ const ETHENA_METRICS = {
 const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCase().includes('ethena');
 const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> => {
+  assertDuneSolanaIndexed(options);
 
-  // const sql = getSqlFromFile("helpers/queries/jupiter-lend.sql", {
-  //   start: options.startTimestamp,
-  //   end: options.endTimestamp
-  // });
   const sql = `
     select
-        day
+        day >= FROM_UNIXTIME(${options.endTimestamp}) as after_window
       , instance_name
       , sum(borrow_fees_usd) as daily_fees_usd
       , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
       , sum(day_revenue_usd) as daily_revenue_usd
     from dune."jupiter".result_juplend_historical_tvl_by_token_mv
     where day >= FROM_UNIXTIME(${options.startTimestamp})
-        and day < FROM_UNIXTIME(${options.endTimestamp})
+        and day < FROM_UNIXTIME(${options.endTimestamp + 86400})
     group by 1, 2
-    order by day desc
   `
-  const data: any[] = await queryDuneSql(options, sql);
+  const rows: any[] = await queryDuneSql(options, sql);
+  const dayRows = rows.filter((row) => !row.after_window);
 
-  if (!data || data.length === 0) {
-    throw new Error(`No JupLend data returned from Dune for day starting ${new Date(options.startTimestamp * 1000).toISOString()}`);
-  }
+  if (!dayRows.length) throw new Error(`No JupLend data returned from Dune for ${options.dateString}`);
+  if (dayRows.length === rows.length) throw new Error(`JupLend Dune MV has not refreshed past ${options.dateString}, its row may be partial`);
+
+  return dayRows;
+};
+
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+  const data = await queryJupLendRows(options);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -95,7 +98,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
-  start: '2025-07-24',
+  start: '2025-08-05',
   dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
