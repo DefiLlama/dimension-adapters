@@ -1,10 +1,11 @@
-import { Interface, zeroPadValue } from "ethers";
+import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
+import { excludeInternalBridges, getPaymentLogs, getStripePackSales } from "./evidence";
 
 // DYLI production contracts on Abstract; source is DYLI's live production config.
 const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
@@ -53,6 +54,9 @@ const LISTING_BOUGHT =
 const BID_ACCEPTED =
   "event BidAccepted(uint256 bidId, uint256 tokenId, address seller, address buyer, uint64 amount, uint128 pricePerItem)";
 const ORDER_ACCEPTED = "event OrderAccepted(uint256 indexed orderId, address indexed accepter)";
+// Base Gacha records both crypto and card/prepaid purchases in Bought.
+// https://basescan.org/address/0x2f28a653fFfFe4698838BC695c1354023C7b46D2#code
+const BOUGHT = "event Bought(address indexed user, uint256 indexed machineId, bytes32 indexed paymentReference, uint8 paymentMode, uint256 pullCount, uint256 targetBlock, uint256 grossAmount, uint256 onchainCost)";
 
 // Current DYLI production fees; source is DYLI's live production config.
 const MARKETPLACE_FEE_BPS = 500n; // 5% secondary marketplace fee.
@@ -101,12 +105,28 @@ const fetch = async (originalOptions: FetchOptions) => {
     dailyProtocolRevenue: dailyFees.clone(),
   });
 
-  if (isBase ? originalOptions.endTimestamp < MIGRATION_TIMESTAMP : originalOptions.startTimestamp >= MIGRATION_TIMESTAMP)
+  if (isBase && originalOptions.endTimestamp < MIGRATION_TIMESTAMP)
     return result();
 
   const [originalFromBlock, originalToBlock] = await Promise.all([
     originalOptions.getFromBlock(), originalOptions.getToBlock(),
   ]);
+  // Warehouse payments can still arrive on Abstract after contract activity moved to Base.
+  if (!isBase && originalToBlock >= config.migrationBlock) {
+    const vaultOptions: FetchOptions = {
+      ...originalOptions,
+      getFromBlock: async () => Math.max(originalFromBlock, config.migrationBlock),
+      getLogs: (params) => originalOptions.getLogs({ ...params,
+        fromBlock: Math.max(originalFromBlock, config.migrationBlock), toBlock: originalToBlock }),
+    };
+    const logs = await getPaymentLogs(vaultOptions, USDC, [VAULT_PAYMENT_WALLET]);
+    const isInternalBridge = await excludeInternalBridges(vaultOptions, logs, INTERNAL_ADDRESSES);
+    for (const log of logs) {
+      if (!isExternalSender(log) || isInternalBridge(log)) continue;
+      dailyFees.add(USDC, log.args.value, METRIC.SERVICE_FEES);
+      dailyVolume.add(USDC, log.args.value);
+    }
+  }
   const fromBlock = isBase ? Math.max(originalFromBlock, config.migrationBlock) : originalFromBlock;
   const toBlock = isBase ? originalToBlock : Math.min(originalToBlock, config.migrationBlock - 1);
   if (fromBlock > toBlock) return result();
@@ -127,37 +147,38 @@ const fetch = async (originalOptions: FetchOptions) => {
   const settlementTxs = new Set(
     [...listingBoughtLogs, ...bidAcceptedLogs, ...orderAcceptedLogs].map((log) => log.transactionHash?.toLowerCase()).filter(Boolean),
   );
+  const boughtLogs = isBase ? await options.getLogs({
+    target: config.vendingMachines[0], eventAbi: BOUGHT, onlyArgs: false, parseLog: true,
+  }) : [];
 
   const getServiceFeeInflows = async () => {
     if (!isBase) return addTokensReceived({ options, targets: SERVICE_FEE_TARGETS, token: USDC, logFilter: isExternalSender });
     const balances = options.createBalances();
     // Base commissions go directly from users to the payment wallet; count them under trading fees once.
-    const logs = await Promise.all(SERVICE_FEE_TARGETS.map((target) => options.getLogs({
-      target: USDC,
-      eventAbi: TRANSFER_EVENT,
-      topics: [ERC20_INTERFACE.getEvent("Transfer")!.topicHash, null, zeroPadValue(target, 32)],
-      onlyArgs: false,
-      parseLog: true,
-    })));
-    for (const log of logs.flat()) {
+    const logs = await getPaymentLogs(options, USDC, SERVICE_FEE_TARGETS);
+    const isInternalBridge = await excludeInternalBridges(options, logs, INTERNAL_ADDRESSES);
+    for (const log of logs) {
       const isCommission = getLogTo(log) === normalize(PLATFORM_WALLET)
         && settlementTxs.has(log.transactionHash?.toLowerCase());
-      if (isExternalSender(log) && !isCommission)
+      if (isExternalSender(log) && !isCommission && !isInternalBridge(log))
         balances.add(USDC, log.args.value);
     }
     return balances;
   };
 
+  const getCardSaleInflows = async () => {
+    if (!isBase) return addTokensReceived({ options, targets: config.vendingMachines, token: USDC, logFilter: isExternalSender });
+    const sales = options.createBalances();
+    for (const log of boughtLogs) {
+      if (!INTERNAL_ADDRESSES.has(String(log.args.user).toLowerCase())) sales.add(USDC, log.args.onchainCost);
+    }
+    sales.add(USDC, await getStripePackSales(options, boughtLogs, INTERNAL_ADDRESSES));
+    return sales;
+  };
+
   const [serviceFeeInflows, cardSaleInflows, cardBuybackOutflows] = await Promise.all([
     getServiceFeeInflows(),
-    addTokensReceived({
-      options,
-      targets: config.vendingMachines,
-      token: USDC,
-      logFilter: (log) => {
-        return isExternalSender(log);
-      },
-    }),
+    getCardSaleInflows(),
     addTokensReceived({
       options,
       fromAdddesses: config.vendingMachines,
@@ -233,9 +254,9 @@ const fetch = async (originalOptions: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Onchain USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, plus marketplace and P2P trade settlement volume.",
+    "USDC payments into DYLI mint, vending-machine, platform-wallet, vault-payment, and batchRedeem paths, plus verified Stripe-funded Base Gacha purchases and marketplace/P2P settlement volume. Internal treasury bridges and vending-machine funding are excluded.",
   Fees:
-    "Onchain USDC collected by DYLI contracts and payment wallets after subtracting vending-machine card buybacks, plus 5% marketplace fees. P2P fees are calculated as 2.5% of accepted trade USDC volume on Abstract and measured from USDC paid to the DYLI platform wallet in accepted trades on Base. Abstract is tracked before October 13, 2026 at 16:00 UTC; Base is tracked from that time onward. Stripe/card payments are excluded.",
+    "USDC service payments and Gacha sales, including verified Stripe-funded Base purchases, after subtracting vending-machine buybacks and refunds, plus 5% marketplace fees. Base crypto sales use Bought.onchainCost; Stripe sales are matched to onchain Bought events using public payment evidence. P2P fees are 2.5% of volume on Abstract and actual platform-wallet commissions on Base. Contracts switch from Abstract to Base on October 13, 2026 at 16:00 UTC; Abstract vault-payment receipts remain tracked afterward. Other offchain sales are excluded.",
   Revenue: "Onchain USDC fees and payment flows retained by DYLI.",
   ProtocolRevenue: "Onchain USDC fees and payment flows retained by DYLI.",
 };
@@ -243,19 +264,19 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet, vault-payment, and batchRedeem fee paths.",
-    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales).",
-    [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks).",
+    [CARD_SALES]: "Crypto pack purchases and verified Stripe-funded Base purchases, matched to Bought events without counting prepaid crypto receipts twice.",
+    [CARD_BUYBACK_SPENDS]: "USDC paid for vending-machine buybacks and refunds, including payouts from Stripe-funded purchases.",
     [METRIC.TRADING_FEES]: "5% of secondary marketplace volume; P2P fees are 2.5% of accepted trade USDC volume on Abstract and the USDC paid to the DYLI platform wallet in accepted trades on Base.",
   },
   Revenue: {
     [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
+    [CARD_SALES]: "Crypto and verified Stripe-funded Base pack purchases retained by DYLI before buybacks and refunds.",
     [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
     [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
   },
   ProtocolRevenue: {
     [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    [CARD_SALES]: "USDC spent by users on card packs (vending-machine sales) retained by DYLI.",
+    [CARD_SALES]: "Crypto and verified Stripe-funded Base pack purchases retained by DYLI before buybacks and refunds.",
     [CARD_BUYBACK_SPENDS]: "USDC spent by the protocol on card buybacks (vending-machine buybacks) spent by DYLI.",
     [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
   },
@@ -265,7 +286,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: {
-    [CHAIN.ABSTRACT]: { fetch, start: "2025-10-05", deadFrom: "2026-10-14" },
+    [CHAIN.ABSTRACT]: { fetch, start: "2025-10-05" },
     [CHAIN.BASE]: { fetch, start: "2026-10-13" },
   },
   methodology,
