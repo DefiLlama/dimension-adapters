@@ -350,22 +350,26 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {})) {
           stuckReasons[poolAddress.toLowerCase()] = reason;
         }
-        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const insolventReasons: Record<string, unknown> = {};
+        for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {})) {
+          insolventReasons[poolAddress.toLowerCase()] = reason;
+        }
 
         for (const pool of config.pools) {
           const poolAddress = pool.lendingPoolProxy.toLowerCase();
+          const skipped = new Set<string>();
 
-          // Insolvency stays pool-level. A backing gap or unrepayable debt is a
-          // statement about the market as a whole, not about one reserve's rate.
-          if (insolventMarkets.includes(poolAddress)) continue;
-
-          let skipReserveSymbols: Array<string> | undefined;
-          if (poolAddress in stuckReasons) {
-            skipReserveSymbols = parseStuckReserveSymbols(stuckReasons[poolAddress]);
-            // No parseable symbols means we cannot tell which reserves are stuck,
-            // so fall back to dropping the pool the way this did before.
-            if (!skipReserveSymbols.length) continue;
+          // Both lists name their offending reserves in the same "SYMBOL: reason" shape, so drop
+          // those reserves and keep the rest of the pool. A reason we cannot read still drops the
+          // whole pool, which is what both lists did before.
+          for (const reason of [insolventReasons[poolAddress], stuckReasons[poolAddress]]) {
+            if (reason === undefined) continue;
+            const symbols = parseStuckReserveSymbols(reason);
+            if (!symbols.length) { skipped.clear(); break; }
+            symbols.forEach(symbol => skipped.add(symbol));
           }
+          if ((poolAddress in insolventReasons || poolAddress in stuckReasons) && !skipped.size) continue;
+          const skipReserveSymbols = skipped.size ? [...skipped] : undefined;
 
           await getPoolFees(pool, options, {
             dailyFees,
