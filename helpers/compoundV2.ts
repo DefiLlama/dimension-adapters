@@ -3,6 +3,7 @@ import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/typ
 import * as sdk from "@defillama/sdk";
 import { METRIC } from './metrics';
 import { cache } from "@defillama/sdk";
+import { collectNamedSymbols } from './insolventMarkets';
 
 const LiquidateBorrowEvent = 'event LiquidateBorrow(address liquidator, address borrower, uint256 repayAmount, address cTokenCollateral, uint256 seizeTokens)'
 
@@ -15,18 +16,63 @@ const comptrollerABI = {
   totalSupply: "uint256:totalSupply",
 };
 
+const emptyResult = (options: FetchOptions) => ({
+  dailyFees: options.createBalances(),
+  dailyRevenue: options.createBalances(),
+  dailyProtocolRevenue: options.createBalances(),
+  dailyHoldersRevenue: options.createBalances(),
+  dailySupplySideRevenue: options.createBalances(),
+})
+
+// Resolves the symbols the cache names to cToken addresses on this comptroller. Matches the
+// underlying's symbol first and the cToken's own symbol second, so a market whose underlying is the
+// chain's native token is still found. Returns undefined when any named symbol has no match.
+async function resolveMarketsBySymbol(market: string, namedSymbols: Array<string>, { api }: FetchOptions): Promise<Array<string> | undefined> {
+  const markets: Array<string> = await api.call({ target: market, abi: comptrollerABI.getAllMarkets })
+  const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true })
+  const underlyingSymbols = await api.multiCall({
+    calls: underlyings.map((underlying: string, index: number) => underlying ?? markets[index]),
+    abi: 'string:symbol',
+    permitFailure: true,
+  })
+  const marketSymbols = await api.multiCall({ calls: markets, abi: 'string:symbol', permitFailure: true })
+
+  const wanted = new Set(namedSymbols.map(symbol => symbol.trim().toLowerCase()))
+  const matched = new Set<string>()
+  const listedMarkets: Array<string> = []
+  markets.forEach((cToken, index) => {
+    for (const symbol of [underlyingSymbols[index], marketSymbols[index]]) {
+      const normalised = typeof symbol === 'string' ? symbol.trim().toLowerCase() : ''
+      if (normalised && wanted.has(normalised)) {
+        listedMarkets.push(String(cToken).toLowerCase())
+        matched.add(normalised)
+        return
+      }
+    }
+  })
+  if (matched.size !== wanted.size) {
+    const unmatched = [...wanted].filter(symbol => !matched.has(symbol))
+    sdk.log(`compoundV2: ${market} could not match listed market symbol(s) ${unmatched.join(', ')}, skipping the whole comptroller`)
+    return undefined
+  }
+  return listedMarkets
+}
+
 export async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
   dailyFees,
   dailyRevenue,
   abis = {},
+  blacklists = [],
 }: {
   dailyFees?: sdk.Balances,
   dailyRevenue?: sdk.Balances,
-  abis?: any
+  abis?: any,
+  blacklists?: Array<string>
 }) {
   if (!dailyFees) dailyFees = createBalances()
   if (!dailyRevenue) dailyRevenue = createBalances()
-  const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  let markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  markets = markets.filter((m: string) => (!blacklists.length || !blacklists.includes(String(m).toLowerCase())))
   const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
   underlyings.forEach((underlying, index) => {
     if (!underlying) underlyings[index] = ADDRESSES.null
@@ -153,18 +199,37 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
       fetch: (async (options: FetchOptions) => {
         const compoundInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/compound.json`;
         const insolventMarketsDetails = await cache.readCache(compoundInsolventMarketsCacheKey, { readFromR2Cache: true });
-        const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
-        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const reasons = ['stuck', 'insolvent'].map(section => {
+          const listed = (insolventMarketsDetails[section] ?? {})?.[options.chain] ?? {};
+          const key = Object.keys(listed).find(item => item.toLowerCase() === market.toLowerCase());
+          return key === undefined ? undefined : listed[key];
+        });
 
-        if (stuckMarkets.includes(market.toLowerCase()) || insolventMarkets.includes(market.toLowerCase())) {
-          return { dailyFees: options.createBalances(), dailyRevenue: options.createBalances(), dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: options.createBalances(), dailySupplySideRevenue: options.createBalances() }
+        let blacklists = exportOptions?.blacklists ?? [];
+        if (reasons.some(reason => reason !== undefined)) {
+          // The cache names the offending cToken's underlying in a "SYMBOL: reason" shape, so drop
+          // those markets and keep the rest of the comptroller. A reason we cannot read, or a symbol
+          // we cannot find on this comptroller, still drops everything, as this did before.
+          const namedSymbols = collectNamedSymbols(reasons);
+          if (!namedSymbols?.length) return emptyResult(options);
+          // A listed comptroller published zeros before this, so a failure to work out which of its
+          // markets to drop has to keep publishing zeros rather than turn into a hard failure.
+          let listedMarkets: Array<string> | undefined;
+          try {
+            listedMarkets = await resolveMarketsBySymbol(market, namedSymbols, options);
+          } catch (e: any) {
+            sdk.log(`compoundV2: ${options.chain} ${market} could not be read to resolve its listed markets (${e?.message}), skipping the whole comptroller`);
+            return emptyResult(options);
+          }
+          if (!listedMarkets) return emptyResult(options);
+          blacklists = [...blacklists, ...listedMarkets];
         }
 
         const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
           ? await getFeesUseExchangeRates(market, options, {
-            blacklists: exportOptions.blacklists,
+            blacklists,
           }) 
-          : await getFees(market, options, {})
+          : await getFees(market, options, { blacklists })
         const dailyProtocolRevenue = exportOptions && exportOptions.protocolRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.protocolRevenueRatio) : undefined
         const dailyHoldersRevenue = exportOptions && exportOptions.holdersRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.holdersRevenueRatio) : undefined
         const dailySupplySideRevenue = options.createBalances()
