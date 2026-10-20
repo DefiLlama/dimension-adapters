@@ -109,27 +109,31 @@ const fetch = async (options: FetchOptions) => {
   // incoming: successfully dispatched messages, decoded from their relayer transactions
   const dispatchedV1 = await options.getLogs({ target: GATEWAY, eventAbi: DISPATCHED_V1, entireLog: true, parseLog: true });
   const dispatchedV2 = await options.getLogs({ target: GATEWAY, eventAbi: DISPATCHED_V2, entireLog: true, parseLog: true });
-  const failedV2 = await options.getLogs({ target: GATEWAY, eventAbi: COMMAND_FAILED_V2 });
-  const okV1 = new Set(dispatchedV1.filter((l: any) => l.args.success).map((l: any) => String(l.args.messageID).toLowerCase()));
-  const okV2 = new Set(dispatchedV2.filter((l: any) => l.args.success).map((l: any) => String(l.args.nonce)));
-  const failedCommands = new Set(failedV2.map((l: any) => `${l.nonce}-${l.index}`));
+  const failedV2 = await options.getLogs({ target: GATEWAY, eventAbi: COMMAND_FAILED_V2, entireLog: true, parseLog: true });
+  // keyed by transaction: a relayer batch can carry a submit for a message already dispatched by another relayer, which
+  // fails inside the batch (allowFailure) while the batch succeeds; only the transaction that dispatched it counts it
+  const txKey = (l: any, id: any) => `${String(l.transactionHash).toLowerCase()}-${String(id).toLowerCase()}`;
+  const okV1 = new Set(dispatchedV1.filter((l: any) => l.args.success).map((l: any) => txKey(l, l.args.messageID)));
+  const okV2 = new Set(dispatchedV2.filter((l: any) => l.args.success).map((l: any) => txKey(l, l.args.nonce)));
+  const failedCommands = new Set(failedV2.map((l: any) => txKey(l, `${l.args.nonce}-${l.args.index}`)));
   const txHashes = [...new Set([...dispatchedV1, ...dispatchedV2].map((l: any) => l.transactionHash))];
   const txs = await getTransactionsWithRetry(CHAIN.ETHEREUM, txHashes);
 
   for (const [i, tx] of txs.entries()) {
     if (!tx) throw new Error(`snowbridge: transaction ${txHashes[i]} not found`);
+    const inTx = { transactionHash: txHashes[i] };
     for (const data of gatewayCalls(tx)) {
       const selector = data.slice(0, 10), args = "0x" + data.slice(10);
       if (selector === SUBMIT_V1) {
         const [message] = coder.decode([MESSAGE_V1], args);
-        if (!okV1.has(String(message.id).toLowerCase())) continue;
+        if (!okV1.has(txKey(inTx, message.id))) continue;
         const transfer = v1Transfer(Number(message.command), message.params);
         if (transfer) { incoming.push(transfer); dailyIncomingTxCount++; }
       } else if (selector === SUBMIT_V2) {
         const [message] = coder.decode([MESSAGE_V2], args);
-        if (!okV2.has(String(message.nonce))) continue;
+        if (!okV2.has(txKey(inTx, message.nonce))) continue;
         const transfers = [...message.commands]
-          .map((c: any, index: number) => failedCommands.has(`${message.nonce}-${index}`) ? null : v2Transfer(Number(c.kind), c.payload))
+          .map((c: any, index: number) => failedCommands.has(txKey(inTx, `${message.nonce}-${index}`)) ? null : v2Transfer(Number(c.kind), c.payload))
           .filter(Boolean) as Transfer[];
         if (transfers.length) { incoming.push(...transfers); dailyIncomingTxCount++; }
       }

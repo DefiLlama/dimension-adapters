@@ -9,6 +9,7 @@ import { queryClickhouse } from "../helpers/indexer";
 // their input data, so every successful transaction to the maker counts); ERC20 moves are Transfer events.
 // https://memebridge.xyz
 const MAKER = "0x623777cc098c6058a46cf7530f45150ff6a8459d";
+const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const NATIVE_TXS = `
   SELECT lower(from_address) AS from_address, lower(to_address) AS to_address, toString(value) AS value
@@ -40,11 +41,15 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // skip mints to and burns from the maker, and maker-to-maker transfers (returned by both queries)
+  const notUser = new Set([MAKER, NULL_ADDRESS]);
   for (const row of await getWalletTransfers(options, { wallets: [MAKER] }, "in")) {
+    if (notUser.has(row.from_address.toLowerCase())) continue;
     dailyOutgoingVolume.add(row.token, row.value);
     dailyOutgoingTxCount++;
   }
   for (const row of await getWalletTransfers(options, { wallets: [MAKER] }, "out")) {
+    if (notUser.has(row.to_address.toLowerCase())) continue;
     dailyIncomingVolume.add(row.token, row.value);
     dailyIncomingTxCount++;
   }
