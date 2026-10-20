@@ -173,14 +173,101 @@ const fetchRevShareDirect = async (options: FetchOptions) => {
 	};
 };
 
+const splitAtBoundary = async (
+	options: FetchOptions,
+	boundaryTs: number,
+	preFetch: (opts: FetchOptions) => Promise<any>,
+	postFetch: (opts: FetchOptions) => Promise<any>,
+) => {
+	const getBlockSafe = async (ts: number) => {
+		if (typeof options.getBlock === "function") {
+			return options.getBlock(ts, options.chain, {});
+		}
+		return options.getFromBlock();
+	};
+
+	let boundaryBlock: number | undefined;
+	try {
+		boundaryBlock = await getBlockSafe(boundaryTs);
+	} catch {
+		boundaryBlock = undefined;
+	}
+
+	const preOptions: FetchOptions = {
+		...options,
+		endTimestamp: boundaryTs,
+		toTimestamp: boundaryTs - 1,
+		getToBlock: async () => (boundaryBlock ? boundaryBlock - 1 : options.getToBlock()),
+		getLogs: (params: any) =>
+			options.getLogs({
+				...params,
+				toBlock: boundaryBlock
+					? params.toBlock
+						? Math.min(params.toBlock, boundaryBlock - 1)
+						: boundaryBlock - 1
+					: params.toBlock,
+			}),
+	};
+
+	const postOptions: FetchOptions = {
+		...options,
+		startTimestamp: boundaryTs,
+		fromTimestamp: boundaryTs,
+		getFromBlock: async () => (boundaryBlock ? boundaryBlock : options.getFromBlock()),
+		getLogs: (params: any) =>
+			options.getLogs({
+				...params,
+				fromBlock: boundaryBlock
+					? params.fromBlock
+						? Math.max(params.fromBlock, boundaryBlock)
+						: boundaryBlock
+					: params.fromBlock,
+			}),
+	};
+
+	const [resPre, resPost] = await Promise.all([preFetch(preOptions), postFetch(postOptions)]);
+
+	const merge = (key: string) => {
+		const balances = options.createBalances();
+		if (resPre && resPre[key]) balances.addBalances(resPre[key]);
+		if (resPost && resPost[key]) balances.addBalances(resPost[key]);
+		return balances;
+	};
+
+	return {
+		dailyVolume: merge("dailyVolume"),
+		dailyFees: merge("dailyFees"),
+		dailyRevenue: merge("dailyRevenue"),
+		dailyProtocolRevenue: merge("dailyProtocolRevenue"),
+		dailyHoldersRevenue: merge("dailyHoldersRevenue"),
+	};
+};
+
 const fetch = async (options: FetchOptions) => {
-	const timestamp = options.startTimestamp ?? options.startOfDay;
-	if (timestamp < RECEIVER_MIGRATION_TIMESTAMP) {
+	const startTimestamp = options.startTimestamp ?? options.startOfDay;
+	const endTimestamp = options.endTimestamp ?? (startTimestamp + 86400);
+
+	// Case 1: Entirely within Legacy era (prior to Oct 1, 2026)
+	if (endTimestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
 		return fetchLegacy(options);
 	}
-	if (timestamp < REVSHARE_MIGRATION_TIMESTAMP) {
+
+	// Case 2: Crossing the Oct 1, 2026 receiver migration boundary
+	if (startTimestamp < RECEIVER_MIGRATION_TIMESTAMP && endTimestamp > RECEIVER_MIGRATION_TIMESTAMP) {
+		return splitAtBoundary(options, RECEIVER_MIGRATION_TIMESTAMP, fetchLegacy, fetchOctoberTreasury);
+	}
+
+	// Case 3: Entirely within October Treasury era (Oct 1 to Oct 19, 2026)
+	if (endTimestamp <= REVSHARE_MIGRATION_TIMESTAMP) {
 		return fetchOctoberTreasury(options);
 	}
+
+	// Case 4: Crossing the Oct 20, 2026 RevShare direct push boundary
+	if (startTimestamp < REVSHARE_MIGRATION_TIMESTAMP && endTimestamp > REVSHARE_MIGRATION_TIMESTAMP) {
+		return splitAtBoundary(options, REVSHARE_MIGRATION_TIMESTAMP, fetchOctoberTreasury, fetchRevShareDirect);
+	}
+
+	// Case 5: Entirely within current Automated RevShare era (Oct 20, 2026 onward)
 	return fetchRevShareDirect(options);
 };
 
@@ -214,8 +301,8 @@ const adapter: SimpleAdapter = {
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
 			"Legacy Tax Revenue": "Pre-migration ARB INC token tax before the holder allocation.",
-			"Kyber Swap Revenue": "Post-migration swap fees retained by the protocol.",
-			"Kyber Limit Order Revenue": "Post-migration limit-order fees retained by the protocol.",
+			"Kyber Swap Revenue": "Swap fees retained by the protocol.",
+			"Kyber Limit Order Revenue": "Limit-order fees retained by the protocol.",
 			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds before the holder allocation.",
 		},
 		ProtocolRevenue: {
