@@ -104,7 +104,7 @@ export const chainConfigMap: any = {
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
-  [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
+  [CHAIN.BITKUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
   [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/', opStackFeeVaults: true }, // Conduit RPC-only explorer, no stats API
   [CHAIN.NEON]: { CGToken: 'neon', explorer: 'https://neon.blockscout.com/' },
   [CHAIN.SHAPE]: { CGToken: 'ethereum', explorer: 'https://shapescan.xyz/' },
@@ -130,7 +130,7 @@ export const chainConfigMap: any = {
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
   [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/', allStatsApi: 'https://stats-api-explorer.rollux.com' }, // legacy totalfees returns null
   [CHAIN.TAC]: { CGToken: 'tac', explorer: 'https://explorer.tac.build/' },
-  [CHAIN.ENDURANCE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
+  [CHAIN.ACE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
   [CHAIN.SWAN]: { CGToken: 'ethereum', explorer: 'https://mainnet-explorer.swanchain.io/' },
   [CHAIN.BITCICHAIN]: { CGToken: 'bitcicoin', explorer: 'https://v3.bitciexplorer.com/' },
   [CHAIN.PERENNIAL]: { CGToken: 'ethereum', explorer: 'https://explorer.perennial.foundation/' },
