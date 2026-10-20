@@ -144,9 +144,10 @@ async function fetchBridgeChain(options: FetchOptions, { events = [], transfers 
 const getArg = (args: any, path: string): any => path.split(".").reduce((value, key) => value?.[key], args);
 
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
-type WalletTransfer = { token: string; value: any; from_address: string; to_address: string };
+export type WalletTransfer = { token: string; value: any; from_address: string; to_address: string };
 
-async function getWalletTransfers(options: FetchOptions, { wallets, tokens }: BridgeTransfers, transferType: "in" | "out"): Promise<WalletTransfer[]> {
+/** ERC20 transfers into ("in") or out of ("out") the wallets in the window: the log indexer where it covers the chain, Transfer logs otherwise. */
+export async function getWalletTransfers(options: FetchOptions, { wallets, tokens }: BridgeTransfers, transferType: "in" | "out"): Promise<WalletTransfer[]> {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
 
   if (sdk.indexer.isIndexerEnabled(options.chain))
