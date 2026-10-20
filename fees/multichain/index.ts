@@ -24,7 +24,8 @@ const fetch = async (_options: FetchOptions) => {
 const adapter: Adapter = {
   version: 1,
   fetch,
-  chains: ['anyswap'],
+  // The API reports aggregate fees across all supported chains.
+  chains: [CHAIN.CHAIN_GLOBAL],
   runAtCurrTime: true,
 }
 
