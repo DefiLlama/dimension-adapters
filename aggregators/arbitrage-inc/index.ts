@@ -179,33 +179,20 @@ const splitAtBoundary = async (
 	preFetch: (opts: FetchOptions) => Promise<any>,
 	postFetch: (opts: FetchOptions) => Promise<any>,
 ) => {
-	const getBlockSafe = async (ts: number) => {
-		if (typeof options.getBlock === "function") {
-			return options.getBlock(ts, options.chain, {});
-		}
-		return options.getFromBlock();
-	};
-
-	let boundaryBlock: number | undefined;
-	try {
-		boundaryBlock = await getBlockSafe(boundaryTs);
-	} catch {
-		boundaryBlock = undefined;
-	}
+	const boundaryBlock: number =
+		typeof options.getBlock === "function"
+			? await options.getBlock(boundaryTs, options.chain, {})
+			: await options.getFromBlock();
 
 	const preOptions: FetchOptions = {
 		...options,
 		endTimestamp: boundaryTs,
 		toTimestamp: boundaryTs - 1,
-		getToBlock: async () => (boundaryBlock ? boundaryBlock - 1 : options.getToBlock()),
+		getToBlock: async () => boundaryBlock - 1,
 		getLogs: (params: any) =>
 			options.getLogs({
 				...params,
-				toBlock: boundaryBlock
-					? params.toBlock
-						? Math.min(params.toBlock, boundaryBlock - 1)
-						: boundaryBlock - 1
-					: params.toBlock,
+				toBlock: params.toBlock ? Math.min(params.toBlock, boundaryBlock - 1) : boundaryBlock - 1,
 			}),
 	};
 
@@ -213,15 +200,11 @@ const splitAtBoundary = async (
 		...options,
 		startTimestamp: boundaryTs,
 		fromTimestamp: boundaryTs,
-		getFromBlock: async () => (boundaryBlock ? boundaryBlock : options.getFromBlock()),
+		getFromBlock: async () => boundaryBlock,
 		getLogs: (params: any) =>
 			options.getLogs({
 				...params,
-				fromBlock: boundaryBlock
-					? params.fromBlock
-						? Math.max(params.fromBlock, boundaryBlock)
-						: boundaryBlock
-					: params.fromBlock,
+				fromBlock: params.fromBlock ? Math.max(params.fromBlock, boundaryBlock) : boundaryBlock,
 			}),
 	};
 
