@@ -73,8 +73,8 @@ export async function getDeriveBuybacks(options: FetchOptions) {
       target: COW_SETTLEMENT,
       eventAbi: COW_TRADE,
       extraTopics: [zeroPadValue(owner, 32)],
-      fromTimestamp: options.startTimestamp - 600,
-      toTimestamp: options.endTimestamp + 600,
+      fromTimestamp: options.startTimestamp - 60,
+      toTimestamp: options.endTimestamp + 60,
       onlyArgs: false,
     });
     for (const log of logs) {
