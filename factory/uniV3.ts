@@ -444,6 +444,11 @@ const configs: Record<string, Record<string, any>> = {
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
+  "communityv3": {
+    // unmodified Uniswap V3 deployment (https://communityv3.org); factory owner burned to address(0) in
+    // tx 0xa38a059cde03947573e4c9a5858ffecf076d3e4318a7c77d81659649c415635c, so feeProtocol can never be set => 100% of swap fees to LPs
+    [CHAIN.ETHEREUM]: { factory: '0x00a38533c68327aBE0Cc265436e036066E2D6B38', start: '2026-09-03', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "brownfi-clamm": {
     [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
   },
@@ -491,6 +496,14 @@ const methodologyMap: Record<string, any> = {
     Fees: "Users pay each pool's configured fee tier on every swap.",
     UserFees: "Equals total swap fees paid by users.",
     Revenue: "No protocol fee is taken, all swap fees go to liquidity providers.",
+    ProtocolRevenue: "No protocol fee is taken.",
+    SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
+  "communityv3": {
+    Volume: "Swap volume from all CommunityV3 pools deployed via the factory on Ethereum.",
+    Fees: "Users pay each pool's configured fee tier (0.01% to 5%) on every swap.",
+    UserFees: "Equals total swap fees paid by users.",
+    Revenue: "No protocol fee is taken: the factory owner is burned, so feeProtocol can never be turned on.",
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
   },
@@ -746,6 +759,14 @@ protocols['bdex-v3'].breakdownMethodology = {
   Revenue: { 'Protocol fees': methodologyMap['bdex-v3'].Revenue },
   ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v3'].ProtocolRevenue },
   SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v3'].SupplySideRevenue },
+}
+
+protocols['communityv3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['communityv3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['communityv3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['communityv3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['communityv3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['communityv3'].SupplySideRevenue },
 }
 
 // Keep the first RH deployment's history and residual activity after the den15 migration.
