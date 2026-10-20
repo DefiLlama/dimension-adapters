@@ -2,13 +2,57 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ChainApi } from '@defillama/sdk'
 import BigNumber from 'bignumber.js'
-import { daoShare, interestAmounts, matchLiquidationRepay, readDaoShare } from './v3'
+import { daoShare, interestAmounts, matchLiquidationRepay, readDaoShare, readBaseInterestIndexes } from './v3'
 import adapter from './index'
 import * as discovery from './discovery'
 
 const dao = '0xDAO'
 const curator = '0xCurator'
 const split = (share: number) => ({ initialized: true, receivers: [dao, curator], proportions: [share, 10000 - share] })
+
+test('Etherlink reconstructs historical indexes across a rate change without calling the time-dependent getter', async () => {
+  // Historical storage and block timestamps from the CI failure's two snapshots.
+  const snapshots = [
+    { block: 55976305, timestamp: 1792401412, stored: '1022835401728191605122305846', rate: '15942411169798828657142857', updated: '1790580377' },
+    { block: 56057860, timestamp: 1792487912, stored: '1023779633087640732914512117', rate: '11993859079633825514285714', updated: '1792406480' },
+  ]
+  const indexes: string[] = []
+  for (const snapshot of snapshots) {
+    const api = {
+      chain: 'etlk', getBlock: async () => snapshot.block,
+      provider: { getBlock: async (block: number) => { assert.equal(block, snapshot.block); return { timestamp: snapshot.timestamp } } },
+      multiCall: async ({ abi, calls }: any) => {
+        assert.deepEqual(calls, ['pool'])
+        const values: Record<string, string> = {
+          'uint256:baseInterestIndexLU': snapshot.stored,
+          'uint256:baseInterestRate': snapshot.rate,
+          'uint256:lastBaseInterestUpdate': snapshot.updated,
+        }
+        assert.ok(abi in values, `Unexpected time-dependent call: ${abi}`)
+        return [values[abi]]
+      },
+    }
+    indexes.push((await readBaseInterestIndexes(api as any, ['pool']))[0])
+  }
+  assert.deepEqual(indexes, ['1023777012553897735843891839', '1023811339997779365446155092'])
+  assert.ok(interestAmounts('1000000', indexes[0], indexes[1], 0, 2000).markup.gt(0))
+})
+
+test('Etherlink missing deployments remain distinct from incomplete historical reads', async () => {
+  const api = {
+    chain: 'etlk', getBlock: async () => 10,
+    provider: { getBlock: async () => ({ timestamp: 1000 }) },
+    multiCall: async (_args: any): Promise<any[]> => [null],
+  }
+  assert.deepEqual(await readBaseInterestIndexes(api as any, ['pool'], true), [null])
+  await assert.rejects(readBaseInterestIndexes(api as any, ['pool']), /Missing historical/)
+  api.multiCall = async ({ abi }: any) => [abi === 'uint256:baseInterestIndexLU' ? '100' : null]
+  await assert.rejects(readBaseInterestIndexes(api as any, ['pool'], true), /Missing historical/)
+  api.multiCall = async ({ abi }: any) => [abi === 'uint256:lastBaseInterestUpdate' ? '1001' : '100']
+  await assert.rejects(readBaseInterestIndexes(api as any, ['pool']), /Invalid Gearbox index timestamp/)
+  api.provider.getBlock = async () => { throw new Error('archive unavailable') }
+  await assert.rejects(readBaseInterestIndexes(api as any, ['pool']), /archive unavailable/)
+})
 
 test('base and quota interest receive the CM markup without treating markup as lender income', () => {
   const result = interestAmounts('1000', '100', '110', '50', 1000)

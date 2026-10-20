@@ -38,10 +38,35 @@ export async function readDaoShare(api: ChainApi, treasury: string, token: strin
 }
 
 export function interestAmounts(borrowed: string, indexStart: string, indexEnd: string, quota: BigNumber.Value, feeBps: string | number) {
-  if (bn(indexStart).lte(0) || bn(indexEnd).lt(indexStart)) throw new Error('Invalid Gearbox interest index')
+  if (bn(indexStart).lte(0) || bn(indexEnd).lt(indexStart)) throw new Error(`Invalid Gearbox interest index: ${indexStart} -> ${indexEnd}`)
   const base = bn(borrowed).times(bn(indexEnd).minus(indexStart)).div(indexStart)
   const interest = base.plus(quota)
   return { interest, markup: interest.times(feeBps).div(BPS) }
+}
+
+export async function readBaseInterestIndexes(api: ChainApi, pools: string[], permitFailure = false) {
+  if (api.chain !== 'etlk')
+    return api.multiCall({ abi: 'uint256:baseInterestIndex', calls: pools, permitFailure })
+
+  // Etherlink eth_call uses current time even at historical blocks. Reproduce
+  // PoolV3._calcBaseInterestIndex from stored fields and the actual block time.
+  // https://github.com/Gearbox-protocol/core-v3/blob/main/contracts/pool/PoolV3.sol
+  const stored = await api.multiCall({ abi: 'uint256:baseInterestIndexLU', calls: pools, permitFailure })
+  const rates = await api.multiCall({ abi: 'uint256:baseInterestRate', calls: pools, permitFailure })
+  const updated = await api.multiCall({ abi: 'uint256:lastBaseInterestUpdate', calls: pools, permitFailure })
+  const blockNumber = await api.getBlock()
+  const block = await api.provider.getBlock(blockNumber)
+  if (!block) throw new Error(`Missing Etherlink block: ${blockNumber}`)
+  const ray = 10n ** 27n
+  return pools.map((pool, i) => {
+    if (permitFailure && stored[i] == null && rates[i] == null && updated[i] == null) return null
+    if (stored[i] == null || rates[i] == null || updated[i] == null)
+      throw new Error(`Missing historical Gearbox index fields: ${pool} at ${blockNumber}`)
+    const elapsed = BigInt(block.timestamp) - BigInt(updated[i])
+    if (elapsed < 0n) throw new Error(`Invalid Gearbox index timestamp: ${pool} at ${blockNumber}`)
+    const growth = BigInt(rates[i]) * elapsed / BigInt(YEAR)
+    return (BigInt(stored[i]) * (ray + growth) / ray).toString()
+  })
 }
 
 function addIncome(balances: FeeBalances, token: string, lenderInterest: BigNumber, treasuryIncome: BigNumber, share: number, source: string) {
@@ -81,7 +106,7 @@ async function poolStart(options: FetchOptions, pool: string, initialIndex: stri
   const block = await provider.getBlock(high)
   if (!block) throw new Error(`Missing Gearbox deployment block: ${high}`)
   const api = new ChainApi({ chain: options.chain, block: high })
-  return { index: await api.call({ target: pool, abi: 'uint256:baseInterestIndex' }), timestamp: block.timestamp }
+  return { index: (await readBaseInterestIndexes(api, [pool]))[0], timestamp: block.timestamp }
 }
 
 export async function processV3Services(options: FetchOptions, balances: FeeBalances, services: IGearboxService[]) {
@@ -93,8 +118,8 @@ export async function processV3Services(options: FetchOptions, balances: FeeBala
   const treasuries: string[] = await api.multiCall({ abi: 'address:treasury', calls: pools })
   const versions = await api.multiCall({ abi: 'uint256:version', calls: pools })
   const managers: string[][] = await api.multiCall({ abi: 'function creditManagers() view returns (address[])', calls: pools })
-  const indexes = await api.multiCall({ abi: 'uint256:baseInterestIndex', calls: pools })
-  const initialIndexes = await options.fromApi.multiCall({ abi: 'uint256:baseInterestIndex', calls: pools, permitFailure: true })
+  const indexes = await readBaseInterestIndexes(api, pools)
+  const initialIndexes = await readBaseInterestIndexes(options.fromApi, pools, true)
   const quotas = await api.multiCall({ abi: 'uint256:quotaRevenue', calls: pools })
   const managerCalls = managers.flatMap((cms, i) => cms.map(cm => ({ target: pools[i], params: [cm] })))
   const debts = await api.multiCall({ abi: 'function creditManagerBorrowed(address) view returns (uint256)', calls: managerCalls })
