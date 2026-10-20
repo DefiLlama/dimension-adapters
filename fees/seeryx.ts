@@ -33,14 +33,21 @@ export async function fetchDay(options: FetchOptions): Promise<Day> {
 const fetch = async (options: FetchOptions) => {
   const d = await fetchDay(options);
   // fees that stand: what takers paid less what was given back on fills the program refused
-  const dailyFees = d.takerFees - d.returned;
-  const dailyRevenue = d.earned;
+  const takerFees = d.takerFees - d.returned;
+  // what the exchange kept; the rest (the maker rebates) is the residual, so fees = revenue + supply side holds exactly
+  const toProtocol = d.earned;
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(takerFees, "Taker Fees");
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(toProtocol, "Taker Fees To Protocol");
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(takerFees - toProtocol, "Maker Rebates");
   return {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: dailyFees - dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
@@ -57,6 +64,23 @@ const adapter: SimpleAdapter = {
     Revenue: "What the exchange kept: taker fees less the maker rebates and less the fees returned on refused fills. Collected into the Fees account of the Seeryx program on Solana.",
     ProtocolRevenue: "All revenue goes to the protocol; there is no token.",
     SupplySideRevenue: "Maker rebates: 20% of each fill's taker fee is paid to the maker whose resting order it filled.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Taker Fees": "Taker fees of every fill (7% x price x (1 - price) per share), less the fees returned on fills the program refused.",
+    },
+    UserFees: {
+      "Taker Fees": "The same taker fees: takers are the only users who pay.",
+    },
+    Revenue: {
+      "Taker Fees To Protocol": "The part of the taker fees the exchange kept after the maker rebates and the returned fees, collected into the Fees account of the Seeryx program.",
+    },
+    ProtocolRevenue: {
+      "Taker Fees To Protocol": "All revenue goes to the protocol; there is no token.",
+    },
+    SupplySideRevenue: {
+      "Maker Rebates": "20% of each fill's taker fee, paid to the maker whose resting order it filled.",
+    },
   },
 };
 
