@@ -12,6 +12,7 @@ const API_URL = "https://api.loanmeme.io/api/graphql";
 const chainConfig: Record<string, { networkId: string; start: string }> = {
   [CHAIN.ETHEREUM]: { networkId: "EVM:1", start: "2026-10-01" },
   [CHAIN.BSC]: { networkId: "EVM:56", start: "2026-10-13" },
+  [CHAIN.SOLANA]: { networkId: "SOLANA:1399811149", start: "2026-10-20" }, // the API's Solana chain id: 0x536f6c4d, "SolM" in ASCII
 };
 
 // share of every fee set aside for $LOAN buybacks once the token launches; the rest goes to the treasury.
