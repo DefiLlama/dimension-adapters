@@ -17,7 +17,6 @@ import { queryAllium } from "../helpers/allium";
 const BPS = 10_000n;
 const STAKERS_SHARE_BPS = 8_000n; // 80% to sUSDu holders (deposited into the staking contract)
 const TREASURY_SHARE_BPS = 1_000n; // 10% to treasury / platform operations
-const INSURANCE_SHARE_BPS = 1_000n; // 10% to the Insurance Fund
 
 const LABELS = {
   YIELD: "Net Strategy Yield",
@@ -61,7 +60,7 @@ const getSolanaStakerYield = async (options: FetchOptions): Promise<bigint> => {
       AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint = '${SOLANA.usdu}'
       AND from_address = '${SOLANA.rewardDistributor}'
-      AND to_address = '${SOLANA.stakePoolUsduAccount}'
+      AND token_acc_to = '${SOLANA.stakePoolUsduAccount}'
   `;
   const rows = await queryAllium(query);
   if (!rows || rows.length === 0) throw new Error("Unitas: Allium returned no row for Solana reward transfers");
@@ -78,7 +77,7 @@ const fetch = async (options: FetchOptions) => {
   // Observed: 80% share. Derived from the documented split: gross yield, treasury and insurance shares
   const grossYield = (stakerYield * BPS) / STAKERS_SHARE_BPS;
   const treasuryYield = (grossYield * TREASURY_SHARE_BPS) / BPS;
-  const insuranceYield = (grossYield * INSURANCE_SHARE_BPS) / BPS;
+  const insuranceYield = grossYield - stakerYield - treasuryYield; //10% to insurance
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
