@@ -30,10 +30,10 @@ const chainConfig: any = {
       historicalVolume: historicalVolumeStarknet,
       markets: 'https://api.starknet.extended.exchange/api/v1/info/markets',
     },
-    deadFrom: 1795305600 //2026-11-22
+    deadFrom: 1792627200 //2026-10-22
   },
   [CHAIN.ARC]: {
-    start: '2026-11-22',
+    start: '2026-10-22',
     endpoints: {
       historicalVolume: historicalVolumeArc,
       markets: 'https://api.starknet.extended.exchange/api/v1/info/markets',
