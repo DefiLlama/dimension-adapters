@@ -14,8 +14,11 @@ import fetchURL from "../../utils/fetchURL";
  * - Reads daily fee data from napier-api /v1/market/daily-fees endpoint (1 API call per chain)
  * - The API accepts a timestamp and returns fees for the UTC day containing that timestamp
  * - Fees include: issuance, performance, redemption, post-settlement, and AMM swap fees
- * - Splits between curator (supply side) and protocol based on splitFeePercentage
- * - Fee events are sporadic (fire on yield collection, not daily) — $0 on quiet days is expected
+ * - AMM swap fees: TokiHook reserves part of each swap fee (reserveFeePct) for curator and
+ *   protocol; the rest goes to LPs (supply side, dailyLpFeeInUsd). Curve pool fees go to LPs.
+ * - PT/YT fees and the TokiHook reserve are split between curator (supply side) and protocol
+ *   by the market's fee split ratio
+ * - PT/YT fee events are sporadic (fire on yield collection, not daily) — $0 on quiet days is expected
  */
 
 interface DailyFeeEntry {
@@ -24,6 +27,7 @@ interface DailyFeeEntry {
   dailyFeeInUsd: number;
   dailyCuratorFeeInUsd: number;
   dailyProtocolFeeInUsd: number;
+  dailyLpFeeInUsd?: number;
 }
 
 const API_BASE_URL = process.env.NAPIER_API_URL ?? 'https://api-v2.napier.finance';
@@ -46,6 +50,7 @@ const fetch = async (options: FetchOptions) => {
     if (entry.dailyFeeInUsd > 0) {
       dailyFees.addUSDValue(entry.dailyFeeInUsd, "Yield & swap fees");
       dailySupplySideRevenue.addUSDValue(entry.dailyCuratorFeeInUsd, "Yield & swap fees to curators");
+      dailySupplySideRevenue.addUSDValue(entry.dailyLpFeeInUsd ?? 0, "Swap fees to LPs");
       dailyRevenue.addUSDValue(entry.dailyProtocolFeeInUsd, "Protocol/DAO share of yield & swap fees");
     }
   }
@@ -59,21 +64,22 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total fees including AMM trading fees (from Napier AMM/TokiHook swaps) and PT/YT fees (issuance, redemption, performance). Fee events fire on yield collection, not daily.",
-  Revenue: "Protocol/DAO share of fees based on the Curator-Protocol fee distribution ratio, defined by Napier governance.",
-  ProtocolRevenue: "Protocol/DAO share of curator fees based on the Curator-Protocol fee distribution ratio.",
-  SupplySideRevenue: "Curator's share of fees based on the LP-Curator fee distribution ratio.",
+  Fees: "Total fees paid by users: AMM swap fees (Napier Curve pools and TokiHook pools, the whole swap fee including the part reserved for curators and protocol) and PT/YT fees (issuance, redemption, performance). PT/YT fee events fire on yield collection, not daily.",
+  Revenue: "Protocol/DAO share of PT/YT fees and of the TokiHook swap fee reserve, based on the Curator-Protocol fee split ratio.",
+  ProtocolRevenue: "Protocol/DAO share of PT/YT fees and of the TokiHook swap fee reserve, based on the Curator-Protocol fee split ratio.",
+  SupplySideRevenue: "Swap fees paid to AMM LPs, plus the curator's share of PT/YT fees and of the TokiHook swap fee reserve.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Yield & swap fees": "Daily fees from PT/YT operations (issuance, redemption, performance) and AMM swap fees, priced using DeFiLlama historical prices.",
+    "Yield & swap fees": "Daily fees from PT/YT operations (issuance, redemption, performance) and the whole AMM swap fee, priced using DeFiLlama historical prices.",
   },
   Revenue: {
-    "Protocol/DAO share of yield & swap fees": "Protocol/DAO share of yield and swap fees based on the fee distribution ratio.",
+    "Protocol/DAO share of yield & swap fees": "Protocol/DAO share of PT/YT fees and of the TokiHook swap fee reserve, based on the fee split ratio.",
   },
   SupplySideRevenue: {
-    "Yield & swap fees to curators": "Curator's share of yield and swap fees.",
+    "Yield & swap fees to curators": "Curator's share of PT/YT fees and of the TokiHook swap fee reserve.",
+    "Swap fees to LPs": "LP share of AMM swap fees: on TokiHook pools the part not reserved for curators and protocol; on Curve pools the whole pool fee, which includes Curve's own admin fee.",
   },
 };
 
