@@ -116,8 +116,36 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const methodology = {
+  Fees: 'Total yields from deposited assets in all curated vaults.',
+  Revenue: 'Performance fees retained by vault curators from vault yields.',
+  ProtocolRevenue: 'Performance fees retained by vault curators from vault yields.',
+  SupplySideRevenue: 'Net vault yields distributed to vault depositors/investors.',
+};
+
+const breakdownMethodology = {
+  Fees: {
+    'Assets Yields': 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
+  },
+  Revenue: {
+    'Assets Yields': 'Portion of interest yields retained by vault curators as performance fees',
+  },
+  ProtocolRevenue: {
+    'Assets Yields': 'Portion of interest yields retained by vault curators as performance fees',
+  },
+  SupplySideRevenue: {
+    'Assets Yields': 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
+  },
+};
+
 const adapter: Adapter = {
   version: 2,
+  // The curator helper derives fees from daily vault share-price growth; hourly runs overcount the daily fee.
+  pullHourly: false,
+  // Vault share prices can fall, so a loss day is valid; the curator helper already allows negatives.
+  allowNegativeValue: true,
+  methodology,
+  breakdownMethodology,
   adapter: Object.fromEntries(allChains.map(chain => [chain, { start: k3Vaults[chain]?.start ?? eulerDaoMigratedVaults[chain]?.start }])),
   fetch,
 };
