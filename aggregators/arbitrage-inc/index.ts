@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 import { ethers } from "ethers";
 
-
 // Dedicated BSC swap fee receiver activated in the October 1, 2026 receiver migration.
 // This address is used only for protocol swap fees (0.5% fee rate).
 const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
