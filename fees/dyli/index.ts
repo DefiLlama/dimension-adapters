@@ -1,11 +1,12 @@
-import { Interface } from "ethers";
+import { PromisePool } from "@supercharge/promise-pool";
+import { Interface, zeroPadValue } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
+import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
-import { excludeInternalBridges, getPaymentLogs, getStripePackSales } from "./evidence";
+import { httpGet } from "../../utils/fetchURL";
 
 // DYLI production contracts on Abstract; source is DYLI's live production config.
 const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
@@ -27,6 +28,7 @@ const VENDING_MACHINES = [
 const MIGRATION_TIMESTAMP = 1791907200;
 const CHAIN_CONFIG : any = {
   [CHAIN.ABSTRACT]: {
+    chainId: 2741,
     usdc: ADDRESSES.abstract.USDC,
     main: MAIN_CONTRACT,
     marketplace: MARKETPLACE,
@@ -36,6 +38,7 @@ const CHAIN_CONFIG : any = {
     migrationBlock: 87554869,
   },
   [CHAIN.BASE]: {
+    chainId: 8453,
     usdc: ADDRESSES.base.USDC,
     // DYLI Base production config; contract source links are listed beside each address.
     main: "0xc9376Fc32bFdbDb039Cc86542F0974d61D127a2A", // https://basescan.org/address/0xc9376Fc32bFdbDb039Cc86542F0974d61D127a2A
@@ -45,6 +48,16 @@ const CHAIN_CONFIG : any = {
     // First block at/after the cutoff: https://basescan.org/block/52558927
     migrationBlock: 52558927,
   },
+};
+
+// DYLI's public payment-evidence endpoint (Stripe sales and Relay bridge origins); returns tx hashes and amounts only.
+const EVIDENCE_API = "https://www.dyli.io/api/public/defillama";
+// Relay solver: https://docs.relay.link/references/api/api_resources/contract-addresses
+const RELAY_SOLVER = "0xf70da97812cb96acdf810712aa562db8dfa3dbef";
+const BRIDGE_SOURCE_CHAINS: Record<number, { chain: string; usdc: string }> = {
+  1: { chain: CHAIN.ETHEREUM, usdc: ADDRESSES.ethereum.USDC },
+  2741: { chain: CHAIN.ABSTRACT, usdc: ADDRESSES.abstract.USDC },
+  8453: { chain: CHAIN.BASE, usdc: ADDRESSES.base.USDC },
 };
 
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
@@ -65,10 +78,81 @@ const BPS_DENOMINATOR = 10_000n;
 const CARD_SALES = "Card Sales";
 const CARD_BUYBACK_SPENDS = "Card Buyback Spends";
 
-const normalize = (address?: string) => address?.toLowerCase();
+const normalize = (address?: string | null) => address?.toLowerCase();
 const formatError = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const getLogFrom = (log: any) => normalize(log.from ?? log.from_address ?? log.args?.from);
 const getLogTo = (log: any) => normalize(log.to ?? log.to_address ?? log.args?.to);
+
+const getPaymentLogs = async (options: FetchOptions, usdc: string, targets: string[]) =>
+  (await Promise.all(targets.map((target) => options.getLogs({
+    target: usdc,
+    eventAbi: TRANSFER_EVENT,
+    topics: [ERC20_INTERFACE.getEvent("Transfer")!.topicHash, null as any, zeroPadValue(target, 32)],
+    onlyArgs: false,
+    parseLog: true,
+  })))).flat();
+
+const getInternalBridges = async (chainId: number, logs: any[], internal: Set<string | undefined>) => {
+  // Evidence lookups run concurrently; any failure fails the fetch.
+  const { results } = await PromisePool.withConcurrency(5)
+    .for(logs.filter((log) => normalize(log.args.from) === RELAY_SOLVER))
+    .handleError((error) => { throw error })
+    .process(async (log: any) => {
+      const transactionHash = log.transactionHash.toLowerCase();
+      const recipient = normalize(log.args.to);
+      const data = await httpGet(EVIDENCE_API, { params: { chainId, transactionHash, recipient }, timeout: 30000 });
+      if (data.transactionHash !== transactionHash || data.recipient !== recipient || typeof data.internalTransfer !== "boolean")
+        throw new Error(`DYLI bridge evidence does not match ${transactionHash}`);
+      if (!data.internalTransfer) return;
+      const source = BRIDGE_SOURCE_CHAINS[data.sourceChainId];
+      if (!source) throw new Error(`DYLI bridge source chain ${data.sourceChainId} is not supported`);
+      return { log, source, sourceHash: data.sourceTransactionHash };
+    });
+
+  // Source receipts and transactions are fetched in one batch per source chain.
+  const bySourceChain: Record<string, any[]> = {};
+  for (const bridge of results) if (bridge) (bySourceChain[bridge.source.chain] ??= []).push(bridge);
+  const internalBridges = new Set<any>();
+  await Promise.all(Object.values(bySourceChain).map(async (bridges) => {
+    const { chain, usdc } = bridges[0].source;
+    const hashes = bridges.map((bridge) => bridge.sourceHash);
+    const [receipts, txs] = await Promise.all([getTxReceiptsWithRetry(chain, hashes), getTransactionsWithRetry(chain, hashes)]);
+    bridges.forEach((bridge, i) => {
+      const receipt = receipts[i], tx = txs[i];
+      const fundedWithUsdc = receipt?.logs.some((sourceLog: any) => normalize(sourceLog.address) === normalize(usdc)
+        && internal.has(normalize(ERC20_INTERFACE.parseLog(sourceLog)?.args.from)));
+      const fundedWithEth = internal.has(normalize(tx?.from)) && BigInt(tx?.value ?? 0) > 0n;
+      if (Number(receipt?.status) !== 1 || !(fundedWithUsdc || fundedWithEth))
+        throw new Error(`DYLI bridge source ${bridge.sourceHash} was not funded by DYLI`);
+      internalBridges.add(bridge.log);
+    });
+  }));
+  return internalBridges;
+};
+
+const getStripeSales = async (options: FetchOptions, boughtLogs: any[], internal: Set<string | undefined>) => {
+  const pending = new Map(boughtLogs
+    .filter((log) => Number(log.args.paymentMode) === 1 && BigInt(log.args.grossAmount) > 0n && !internal.has(normalize(log.args.user)))
+    .map((log) => [String(log.args.paymentReference).toLowerCase(), log]));
+  let amount = 0n;
+  if (!pending.size) return amount;
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // The endpoint caps a request at one day of Base blocks (2s block time).
+  for (let from = fromBlock; from <= toBlock; from += 43200) {
+    const to = Math.min(toBlock, from + 43199);
+    const data = await httpGet(EVIDENCE_API, { params: { chainId: 8453, fromBlock: from, toBlock: to }, timeout: 30000 });
+    if (data.complete !== true || !Array.isArray(data.stripeSales)) throw new Error("Incomplete DYLI Stripe evidence");
+    for (const sale of data.stripeSales) {
+      const log = pending.get(sale.paymentReference);
+      const recognized = BigInt(sale.recognizedAmount);
+      if (!log || sale.transactionHash !== log.transactionHash.toLowerCase() || recognized < 0n || recognized > BigInt(log.args.grossAmount))
+        throw new Error(`DYLI Stripe sale ${sale.paymentReference} does not match a Bought event`);
+      pending.delete(sale.paymentReference); // each purchase counts once
+      amount += recognized;
+    }
+  }
+  return amount;
+};
 
 /** Add full settled marketplace volume and only DYLI's commission to fees. */
 const addMarketplaceLogs = (
@@ -114,16 +198,14 @@ const fetch = async (originalOptions: FetchOptions) => {
   ]);
   // Warehouse payments can still arrive on Abstract after contract activity moved to Base.
   if (!isBase && originalToBlock >= config.migrationBlock) {
-    const vaultOptions: FetchOptions = {
+    const vaultFromBlock = Math.max(originalFromBlock, config.migrationBlock);
+    const logs = await getPaymentLogs({
       ...originalOptions,
-      getFromBlock: async () => Math.max(originalFromBlock, config.migrationBlock),
-      getLogs: (params) => originalOptions.getLogs({ ...params,
-        fromBlock: Math.max(originalFromBlock, config.migrationBlock), toBlock: originalToBlock }),
-    };
-    const logs = await getPaymentLogs(vaultOptions, USDC, [VAULT_PAYMENT_WALLET]);
-    const isInternalBridge = await excludeInternalBridges(vaultOptions, logs, INTERNAL_ADDRESSES);
+      getLogs: (params) => originalOptions.getLogs({ ...params, fromBlock: vaultFromBlock, toBlock: originalToBlock }),
+    }, USDC, [VAULT_PAYMENT_WALLET]);
+    const internalBridges = await getInternalBridges(config.chainId, logs, INTERNAL_ADDRESSES);
     for (const log of logs) {
-      if (!isExternalSender(log) || isInternalBridge(log)) continue;
+      if (!isExternalSender(log) || internalBridges.has(log)) continue;
       dailyFees.add(USDC, log.args.value, METRIC.SERVICE_FEES);
       dailyVolume.add(USDC, log.args.value);
     }
@@ -157,11 +239,11 @@ const fetch = async (originalOptions: FetchOptions) => {
     const balances = options.createBalances();
     // Base commissions go directly from users to the payment wallet; count them under trading fees once.
     const logs = await getPaymentLogs(options, USDC, SERVICE_FEE_TARGETS);
-    const isInternalBridge = await excludeInternalBridges(options, logs, INTERNAL_ADDRESSES);
+    const internalBridges = await getInternalBridges(config.chainId, logs, INTERNAL_ADDRESSES);
     for (const log of logs) {
       const isCommission = getLogTo(log) === normalize(PLATFORM_WALLET)
         && settlementTxs.has(log.transactionHash?.toLowerCase());
-      if (isExternalSender(log) && !isCommission && !isInternalBridge(log))
+      if (isExternalSender(log) && !isCommission && !internalBridges.has(log))
         balances.add(USDC, log.args.value);
     }
     return balances;
@@ -171,9 +253,9 @@ const fetch = async (originalOptions: FetchOptions) => {
     if (!isBase) return addTokensReceived({ options, targets: config.vendingMachines, token: USDC, logFilter: isExternalSender });
     const sales = options.createBalances();
     for (const log of boughtLogs) {
-      if (!INTERNAL_ADDRESSES.has(String(log.args.user).toLowerCase())) sales.add(USDC, log.args.onchainCost);
+      if (!INTERNAL_ADDRESSES.has(normalize(log.args.user))) sales.add(USDC, log.args.onchainCost);
     }
-    sales.add(USDC, await getStripePackSales(options, boughtLogs, INTERNAL_ADDRESSES));
+    sales.add(USDC, await getStripeSales(options, boughtLogs, INTERNAL_ADDRESSES));
     return sales;
   };
 
@@ -200,7 +282,6 @@ const fetch = async (originalOptions: FetchOptions) => {
 
   dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
   dailyFees.add(cardSales, CARD_SALES);
-  // Net card buybacks from fees, per the original maintainer review; see README.md.
   dailyFees.add(cardBuybacks, CARD_BUYBACK_SPENDS);
 
   addMarketplaceLogs(listingBoughtLogs, dailyVolume, dailyFees, USDC);
