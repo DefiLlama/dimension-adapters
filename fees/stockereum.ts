@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import { httpGet } from "../utils/fetchURL";
 
 // Stockereum - a launchpad on Ethereum where every token opens in a Uniswap v4
 // pool quoted in a tokenized stock, ETH (WETH) or USDC. The pool's liquidity is
@@ -23,12 +24,14 @@ import { METRIC } from "../helpers/metrics";
 //
 // https://stockereum.com
 
+const GRADUATIONS_API = "https://stockereum.com/api/graduations";
+
 const TRADE_EVENT =
   "event Trade(bytes32 indexed poolId, address indexed trader, address indexed referrer, bool isBuy, uint256 amountIn, uint256 amountOut, uint256 feeAmount, bytes32 comment)";
 
 const FEE_DENOMINATOR = 1_000_000n;
 
-type Launch = { quote: string; creatorShare: (gross: bigint, fee: bigint) => bigint; toHolders: boolean };
+type Launch = { token: string; quote: string; creatorShare: (gross: bigint, fee: bigint) => bigint; toHolders: boolean };
 
 type Hook = {
   address: string;
@@ -43,6 +46,7 @@ const HOOKS: Hook[] = [
     getLaunchAbi:
       "function getLaunch(bytes32 poolId) view returns ((address token, address creator, address quote, uint64 openedAt, bool quoteIsCurrency0, bool pendingDevBuy, address devBuyer, int24 tickLower, int24 tickUpper, uint128 liquidity))",
     toLaunch: (l: any) => ({
+      token: l.token.toLowerCase(),
       quote: l.quote,
       // creator gets half of the normal 1% fee (NORMAL_FEE = 10_000 ppm, CREATOR_SHARE_BPS = 5_000)
       creatorShare: (gross: bigint, fee: bigint) => {
@@ -62,6 +66,7 @@ const HOOKS: Hook[] = [
       // platformFeeFor: 0.5% of the trade below a 2% fee, 1% from 2% up
       const platformPpm = feePpm >= 20_000n ? 10_000n : 5_000n;
       return {
+        token: l.token.toLowerCase(),
         quote: l.quote,
         creatorShare: (gross: bigint) => (gross * (feePpm - platformPpm)) / FEE_DENOMINATOR,
         toHolders: Boolean(l.feesToHolders),
@@ -76,6 +81,16 @@ const LABEL = {
   toTokenHolders: "Swap Fees To Launched Token Holders",
 };
 
+const getGraduationBlocks = async (): Promise<Record<string, number>> => {
+  const { tokens } = await httpGet(GRADUATIONS_API);
+  const blocks: Record<string, number> = {};
+  for (const t of tokens) {
+    if (!t.graduated) continue;
+    blocks[t.token.toLowerCase()] = t.graduatedBlock ? Number(t.graduatedBlock) : 0;
+  }
+  return blocks;
+};
+
 const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getLogs } = options;
   const dailyVolume = createBalances();
@@ -83,11 +98,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
 
-  for (const hook of HOOKS) {
-    const trades = await getLogs({ target: hook.address, eventAbi: TRADE_EVENT });
+  const tradesByHook = await getLogs({
+    targets: HOOKS.map((h) => h.address),
+    eventAbi: TRADE_EVENT,
+    onlyArgs: false,
+    flatten: false,
+  });
+
+  const graduationBlocks = await getGraduationBlocks()
+
+  for (const [i, hook] of HOOKS.entries()) {
+    const trades: any[] = tradesByHook[i];
     if (!trades.length) continue;
 
-    const poolIds = [...new Set(trades.map((t: any) => t.poolId as string))];
+    const poolIds = [...new Set(trades.map((t: any) => t.args.poolId as string))];
     const launches = await api.multiCall({
       target: hook.address,
       abi: hook.getLaunchAbi,
@@ -96,7 +120,7 @@ const fetch = async (options: FetchOptions) => {
     const byPool: Record<string, Launch> = {};
     poolIds.forEach((id, i) => { byPool[id] = hook.toLaunch(launches[i]); });
 
-    for (const t of trades) {
+    for (const { args: t, blockNumber } of trades) {
       const launch = byPool[t.poolId];
       const fee = BigInt(t.feeAmount);
       const gross = t.isBuy ? BigInt(t.amountIn) : BigInt(t.amountOut) + fee;
@@ -104,7 +128,8 @@ const fetch = async (options: FetchOptions) => {
       if (creator > fee) creator = fee;
       const platform = fee - creator;
 
-      dailyVolume.add(launch.quote, gross);
+      const graduatedAt = graduationBlocks?.[launch.token];
+      if (graduatedAt === undefined || Number(blockNumber) <= graduatedAt) dailyVolume.add(launch.quote, gross);
       dailyFees.add(launch.quote, fee, METRIC.SWAP_FEES);
       dailyRevenue.add(launch.quote, platform, LABEL.toPlatform);
       dailySupplySideRevenue.add(launch.quote, creator, launch.toHolders ? LABEL.toTokenHolders : LABEL.toCreators);
@@ -122,8 +147,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "The quote side (tokenized stock, ETH or USDC) of every swap in a Stockereum launch pool: the gross amount paid in on buys and the gross amount paid out before the fee on sells.",
-  Fees: "The fee the Stockereum hook charges on every swap, in the quote currency, from the hook's Trade event: 1% on v2 launches, 1%, 2% or 3% (chosen by the creator) on v3 launches, plus the anti-snipe rate in the first moments after a launch.",
+  Volume: "The quote side (tokenized stock, ETH or USDC) of swaps in a Stockereum launch pool until the launch graduates, when its pool holds 4 ETH worth of quote: the gross amount paid in on buys and the gross amount paid out before the fee on sells. Trading after graduation is not counted.",
+  Fees: "The fee the Stockereum hook charges on every swap, in the quote currency, from the hook's Trade event: 1% on v2 launches, 1%, 2% or 3% (chosen by the creator) on v3 launches, plus the anti-snipe rate in the first moments after a launch. Includes trades after graduation, since the token keeps trading in the same pool and paying the fee.",
   UserFees: "Traders pay the whole swap fee.",
   Revenue: "The platform's share of the swap fee: half of the normal 1% on v2, 0.5% of the trade on 1% v3 launches and 1% of the trade on 2% and 3% v3 launches, plus any anti-snipe excess.",
   ProtocolRevenue: "The platform's share of the swap fee.",
