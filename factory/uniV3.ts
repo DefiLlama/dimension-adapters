@@ -477,6 +477,12 @@ const configs: Record<string, Record<string, any>> = {
       },
     },
   },
+  "vetrade-v3": {
+    [CHAIN.VECHAIN]: {
+      factory: "0xc2faf0f48fb7763b28e6f7e415c50b360cc1a096",
+      start: "2026-10-11",
+    },
+  },
 }
 
 const methodologyMap: Record<string, any> = {
