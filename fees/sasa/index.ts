@@ -15,8 +15,9 @@ import { METRIC } from "../../helpers/metrics";
 // every 30 minutes for coins that traded) and each collection emits
 //   FeesCollected(coin, quoteFees, coinFees)
 // on the builder; the builder then sends 70% to sasa's fee vault and 30% to the coin's side (its
-// creator, or buy-and-burn when the creator chose buybacks). The same split applies to the
-// coin-side fees, which are not priced here (meme coins), so the figures are a lower bound.
+// creator, or buy-and-burn when the creator chose buybacks). The same 70/30 split applies to the
+// coin-side fees (paid in the launched coin on sells); they are added under the coin's own
+// address and count only where the coin has a price.
 //
 // Two builder generations run side by side (v7 and v8); both are counted.
 // Deployments: https://github.com/neuronaicoin/neuron-fun/tree/main/contracts-v7/deployments
@@ -44,18 +45,24 @@ const fetch = async (options: FetchOptions) => {
 
   const logs = await options.getLogs({ targets: builders, eventAbi: FEES_COLLECTED });
   for (const log of logs) {
-    const fee = BigInt(log.quoteFees);
-    if (fee === 0n) continue;
-    const toCoinSide = (fee * CREATOR_SIDE_BPS) / BPS;
-    const toSasa = fee - toCoinSide;
-    if (quote) {
-      dailyFees.add(quote, fee, METRIC.SWAP_FEES);
-      dailyRevenue.add(quote, toSasa, "Swap Fees to sasa");
-      dailySupplySideRevenue.add(quote, toCoinSide, "Swap Fees to Creators and Buybacks");
-    } else {
-      dailyFees.addGasToken(fee, METRIC.SWAP_FEES);
-      dailyRevenue.addGasToken(toSasa, "Swap Fees to sasa");
-      dailySupplySideRevenue.addGasToken(toCoinSide, "Swap Fees to Creators and Buybacks");
+    // quote side (ETH / BNB / USDC) and coin side (the launched coin), both split 70 / 30
+    const sides: [string | undefined, bigint][] = [
+      [quote, BigInt(log.quoteFees)],
+      [log.coin, BigInt(log.coinFees)],
+    ];
+    for (const [token, fee] of sides) {
+      if (fee === 0n) continue;
+      const toCoinSide = (fee * CREATOR_SIDE_BPS) / BPS;
+      const toSasa = fee - toCoinSide;
+      if (token) {
+        dailyFees.add(token, fee, METRIC.SWAP_FEES);
+        dailyRevenue.add(token, toSasa, "Swap Fees to sasa");
+        dailySupplySideRevenue.add(token, toCoinSide, "Swap Fees to Creators and Buybacks");
+      } else {
+        dailyFees.addGasToken(fee, METRIC.SWAP_FEES);
+        dailyRevenue.addGasToken(toSasa, "Swap Fees to sasa");
+        dailySupplySideRevenue.addGasToken(toCoinSide, "Swap Fees to Creators and Buybacks");
+      }
     }
   }
 
@@ -69,7 +76,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Swap fees of the pools sasa creates for every coin, in the pool's quote asset (ETH, BNB or USDC), counted when sasa's builder collects them. Fees paid in the meme coin itself are not priced.",
+  Fees: "Swap fees of the pools sasa creates for every coin, counted when sasa's builder collects them: the quote-asset side (ETH, BNB or USDC) and the coin side (in the launched coin, valued where the coin has a price).",
   UserFees: "Traders pay the pool's swap fee on every buy and sell.",
   Revenue: "70% of the collected swap fees, sent to sasa's fee vault.",
   ProtocolRevenue: "70% of the collected swap fees, sent to sasa's fee vault.",
@@ -78,7 +85,10 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Swap fees of sasa-created Uniswap V4 / PancakeSwap Infinity pools, quote-asset side, as collected by the builder (FeesCollected).",
+    [METRIC.SWAP_FEES]: "Swap fees of sasa-created Uniswap V4 / PancakeSwap Infinity pools, both sides, as collected by the builder (FeesCollected).",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Swap fees traders pay on every buy and sell in sasa-created pools.",
   },
   Revenue: {
     "Swap Fees to sasa": "70% of collected swap fees, sent to sasa's fee vault.",
