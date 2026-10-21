@@ -118,8 +118,8 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Total yields from deposited assets in all curated vaults.',
-  Revenue: 'Performance fees retained by vault curators from vault yields.',
-  ProtocolRevenue: 'Performance fees retained by vault curators from vault yields.',
+  Revenue: 'Interest fees retained by vault curators from vault yields.',
+  ProtocolRevenue: 'Interest fees retained by vault curators from vault yields.',
   SupplySideRevenue: 'Net vault yields distributed to vault depositors/investors.',
 };
 
@@ -128,10 +128,10 @@ const breakdownMethodology = {
     'Assets Yields': 'Interest yields generated from deposited assets in all curated vaults, including both curator fees and depositor yields',
   },
   Revenue: {
-    'Assets Yields': 'Portion of interest yields retained by vault curators as performance fees',
+    'Assets Yields': 'Portion of interest yields retained by vault curators as interest fees',
   },
   ProtocolRevenue: {
-    'Assets Yields': 'Portion of interest yields retained by vault curators as performance fees',
+    'Assets Yields': 'Portion of interest yields retained by vault curators as interest fees',
   },
   SupplySideRevenue: {
     'Assets Yields': 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
