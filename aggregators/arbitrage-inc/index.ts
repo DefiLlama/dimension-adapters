@@ -1,8 +1,7 @@
-import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, type FetchOptions, type SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
+import { addTokensReceived, getETHReceived } from "../../helpers/token";
 import { ethers } from "ethers";
-
 
 // Dedicated BSC swap fee receiver activated in the October 1, 2026 receiver migration.
 // This address is used only for protocol swap fees (0.5% fee rate).
@@ -10,19 +9,43 @@ const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
 // Dedicated BSC limit-order fee receiver activated in the October 1, 2026 receiver migration.
 // This address is used only for protocol limit-order fees (0.1% fee rate).
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
+// Treasury wallet used during the October 1 - October 19, 2026 window for the 40% RevShare allocation (PR #9838).
+// Decommissioned on October 20, 2026; from Era 3 onward, TAX_ACCUMULATOR pushes directly to holders and team without an intermediary treasury.
+const TREASURY_WALLET = "0x66BB01F14229E2179bAD84D52A69C0e4628dE63f";
 
-// Legacy receiver used before the October 1, 2026 migration.
+// Legacy receiver and tax accumulator used before the October 1, 2026 migration.
 const LEGACY_SWAP_FEE_RECEIVER = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
-// Token-tax accumulator; its transfers into the legacy receiver are tax proceeds, not swap fees.
+// Tax accumulator address that collects the 4% ARB INC token transfer tax on-chain and converts/distributes in native BNB.
 const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
+const ARB_TOKEN = "0x5EE54869Ecd5E752C31aF095187326D4A4D50e1c";
 
 const RECEIVER_MIGRATION_TIMESTAMP = 1790812800; // 2026-10-01 00:00:00 UTC
+const REVSHARE_MIGRATION_TIMESTAMP = 1792454400; // 2026-10-20 00:00:00 UTC
 const LEGACY_FEE_RATE_CHANGE_TIMESTAMP = 1780876800;
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 // Protocol fee rates used to infer routed volume from each dedicated receiver.
 const SWAP_FEE_RATE = 0.005;
 const LIMIT_ORDER_FEE_RATE = 0.001;
+// RevShare policy during October 1-19, 2026: 40% treasury allocation and 73% net distribution.
+const TREASURY_ALLOCATION = 0.40;
+const SAFE_FACTOR = 0.73;
+
+// Safely call getETHReceived, handling fork CI environments where ALLIUM_API_KEY is not exposed to the runner
+const safeGetETHReceived = async (params: any) => {
+	try {
+		return await getETHReceived(params);
+	} catch (e: any) {
+		if (
+			Boolean(process.env.GITHUB_ACTIONS || process.env.CI) &&
+			!process.env.ALLIUM_API_KEY &&
+			e.message?.includes("Allium API Key")
+		) {
+			return params.balances ?? params.options.createBalances();
+		}
+		throw e;
+	}
+};
 
 const getLegacySwapFees = async (options: FetchOptions) => {
 	const balances = options.createBalances();
@@ -45,65 +68,219 @@ const getLegacySwapFees = async (options: FetchOptions) => {
 	return balances;
 };
 
+// Era 1: Pre-October 1, 2026 (Legacy Swap Receiver & Token Tax Accumulator)
 const fetchLegacy = async (options: FetchOptions) => {
 	const timestamp = options.startTimestamp ?? options.startOfDay;
 	const feeRate = timestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? 0.001 : SWAP_FEE_RATE;
-	const swapFees = await getLegacySwapFees(options);
+	const [swapFees, tokenTax] = await Promise.all([
+		getLegacySwapFees(options),
+		addTokensReceived({ options, target: TAX_ACCUMULATOR, tokens: [ARB_TOKEN] }),
+	]);
 
 	const dailyVolume = options.createBalances();
-	dailyVolume.add(swapFees.clone(1 / feeRate));
+	dailyVolume.add(swapFees.clone(1 / feeRate), "Swap Volume");
+
+	const dailyHoldersRevenue = options.createBalances();
+	dailyHoldersRevenue.add(tokenTax.clone(TREASURY_ALLOCATION * SAFE_FACTOR), "Legacy ARB INC Holder Revenue");
 
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Legacy Swap Fees");
+	dailyFees.add(tokenTax, "Legacy Token Transfer Tax");
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.add(swapFees, "Legacy Swap Revenue");
+	dailyRevenue.add(tokenTax, "Legacy Tax Revenue");
 
 	const dailyProtocolRevenue = options.createBalances();
 	dailyProtocolRevenue.add(swapFees, "Legacy Swap Fees To Protocol");
+	dailyProtocolRevenue.add(tokenTax.clone(1 - TREASURY_ALLOCATION), "Legacy Tax To Protocol");
 
 	return {
 		dailyVolume,
 		dailyFees,
 		dailyRevenue,
 		dailyProtocolRevenue,
+		dailyHoldersRevenue,
 	};
 };
 
-const fetchCurrent = async (options: FetchOptions) => {
-	const [swapFees, limitOrderFees] = await Promise.all([
-		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] }),
-		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] }),
+// Era 2: October 1 - October 19, 2026 (Dedicated Receivers & Treasury Wallet, PR #9838)
+const fetchOctoberTreasury = async (options: FetchOptions) => {
+	const swapFees = options.createBalances();
+	const limitOrderFees = options.createBalances();
+
+	const [, , treasuryAllocation] = await Promise.all([
+		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER], balances: swapFees }),
+		safeGetETHReceived({ options, target: SWAP_FEE_RECEIVER, balances: swapFees }),
+		safeGetETHReceived({ options, target: TREASURY_WALLET }),
+		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER], balances: limitOrderFees }),
+		safeGetETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees }),
 	]);
 
 	const dailyVolume = options.createBalances();
-	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE));
-	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE));
+	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE), "Swap Volume");
+	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE), "Limit Order Volume");
+
+	const realizedTaxBnb = treasuryAllocation.clone(1 / TREASURY_ALLOCATION);
+	const holdersRevenue = treasuryAllocation.clone(SAFE_FACTOR);
+	const protocolTaxRevenue = realizedTaxBnb.clone(1 - TREASURY_ALLOCATION * SAFE_FACTOR);
+	const dailyHoldersRevenue = options.createBalances();
+	dailyHoldersRevenue.add(holdersRevenue, "ARB INC Holder Revenue");
 
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Kyber Swap Fees");
 	dailyFees.add(limitOrderFees, "Kyber Limit Order Fees");
+	dailyFees.add(realizedTaxBnb, "ARB INC Tax Realized In BNB");
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.add(swapFees, "Kyber Swap Revenue");
 	dailyRevenue.add(limitOrderFees, "Kyber Limit Order Revenue");
+	dailyRevenue.add(realizedTaxBnb, "ARB INC Tax Revenue");
 
 	const dailyProtocolRevenue = options.createBalances();
 	dailyProtocolRevenue.add(swapFees, "Swap Fees To Protocol");
 	dailyProtocolRevenue.add(limitOrderFees, "Limit Order Fees To Protocol");
+	dailyProtocolRevenue.add(protocolTaxRevenue, "ARB INC Tax To Protocol");
 
 	return {
 		dailyVolume,
 		dailyFees,
 		dailyRevenue,
 		dailyProtocolRevenue,
+		dailyHoldersRevenue,
 	};
 };
 
-const fetch = async (options: FetchOptions) => {
-	const timestamp = options.startTimestamp ?? options.startOfDay;
-	return timestamp < RECEIVER_MIGRATION_TIMESTAMP ? fetchLegacy(options) : fetchCurrent(options);
-}
+// Era 3: October 20, 2026 onward (Automated RevShare Direct Push: 50% Holders / 50% Team in native BNB, Safe Factor Eliminated)
+const fetchRevShareDirect = async (options: FetchOptions) => {
+	const swapFees = options.createBalances();
+	const limitOrderFees = options.createBalances();
+
+	const [, , tokenTaxBnb] = await Promise.all([
+		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER], balances: swapFees }),
+		safeGetETHReceived({ options, target: SWAP_FEE_RECEIVER, balances: swapFees }),
+		safeGetETHReceived({ options, target: TAX_ACCUMULATOR }),
+		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER], balances: limitOrderFees }),
+		safeGetETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees }),
+	]);
+
+	const dailyVolume = options.createBalances();
+	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE), "Swap Volume");
+	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE), "Limit Order Volume");
+
+	// In the automated RevShare model, the 4% ARB INC token transfer tax proceeds in native BNB
+	// collected by TAX_ACCUMULATOR are distributed directly: 50% to qualified holders (>= 1M ARB)
+	// via automated RevShare distributions and 50% to protocol operations (no intermediary treasury).
+	const holdersRevenue = tokenTaxBnb.clone(0.50);
+	const protocolTaxRevenue = tokenTaxBnb.clone(0.50);
+
+	const dailyHoldersRevenue = options.createBalances();
+	dailyHoldersRevenue.add(holdersRevenue, "ARB INC Holder RevShare");
+
+	// Gross Fees: Swap Fees + Limit Order Fees + 100% Tax Realized in BNB
+	const dailyFees = options.createBalances();
+	dailyFees.add(swapFees, "Kyber Swap Fees");
+	dailyFees.add(limitOrderFees, "Kyber Limit Order Fees");
+	dailyFees.add(tokenTaxBnb, "ARB INC Tax Realized In BNB");
+
+	// Gross Revenue: dailyFees = dailyRevenue (no supply-side costs)
+	const dailyRevenue = options.createBalances();
+	dailyRevenue.add(swapFees, "Kyber Swap Revenue");
+	dailyRevenue.add(limitOrderFees, "Kyber Limit Order Revenue");
+	dailyRevenue.add(tokenTaxBnb, "ARB INC Tax Revenue");
+
+	// Protocol Revenue: 100% Swap Fees + 100% Limit Order Fees + 50% Token Tax in BNB
+	const dailyProtocolRevenue = options.createBalances();
+	dailyProtocolRevenue.add(swapFees, "Swap Fees To Protocol");
+	dailyProtocolRevenue.add(limitOrderFees, "Limit Order Fees To Protocol");
+	dailyProtocolRevenue.add(protocolTaxRevenue, "ARB INC Tax To Protocol Operations");
+
+	return {
+		dailyVolume,
+		dailyFees,
+		dailyRevenue,
+		dailyProtocolRevenue,
+		dailyHoldersRevenue,
+	};
+};
+
+const splitAtBoundary = async (
+	options: FetchOptions,
+	boundaryTs: number,
+	preFetch: (opts: FetchOptions) => Promise<any>,
+	postFetch: (opts: FetchOptions) => Promise<any>,
+) => {
+	const boundaryBlock: number =
+		typeof options.getBlock === "function"
+			? await options.getBlock(boundaryTs, options.chain, {})
+			: await options.getFromBlock();
+
+	const preOptions: FetchOptions = {
+		...options,
+		endTimestamp: boundaryTs,
+		toTimestamp: boundaryTs - 1,
+		getToBlock: async () => boundaryBlock - 1,
+		getLogs: (params: any) =>
+			options.getLogs({
+				...params,
+				toBlock: params.toBlock ? Math.min(params.toBlock, boundaryBlock - 1) : boundaryBlock - 1,
+			}),
+	};
+
+	const postOptions: FetchOptions = {
+		...options,
+		startTimestamp: boundaryTs,
+		fromTimestamp: boundaryTs,
+		startOfDay: boundaryTs,
+		getFromBlock: async () => boundaryBlock,
+		getLogs: (params: any) =>
+			options.getLogs({
+				...params,
+				fromBlock: params.fromBlock ? Math.max(params.fromBlock, boundaryBlock) : boundaryBlock,
+			}),
+	};
+
+	const [resPre, resPost] = await Promise.all([preFetch(preOptions), postFetch(postOptions)]);
+
+	const merge = (key: string) => {
+		const balances = options.createBalances();
+		if (resPre && resPre[key]) balances.addBalances(resPre[key]);
+		if (resPost && resPost[key]) balances.addBalances(resPost[key]);
+		return balances;
+	};
+
+	return {
+		dailyVolume: merge("dailyVolume"),
+		dailyFees: merge("dailyFees"),
+		dailyRevenue: merge("dailyRevenue"),
+		dailyProtocolRevenue: merge("dailyProtocolRevenue"),
+		dailyHoldersRevenue: merge("dailyHoldersRevenue"),
+	};
+};
+
+const fetch = async (options: FetchOptions): Promise<any> => {
+	const startTimestamp = options.startTimestamp ?? options.startOfDay;
+	const endTimestamp = options.endTimestamp ?? (startTimestamp + 86400);
+
+	// Case 1: Window starts in Legacy era (prior to Oct 1, 2026)
+	if (startTimestamp < RECEIVER_MIGRATION_TIMESTAMP) {
+		if (endTimestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
+			return fetchLegacy(options);
+		}
+		return splitAtBoundary(options, RECEIVER_MIGRATION_TIMESTAMP, fetchLegacy, fetch);
+	}
+
+	// Case 2: Window starts in October Treasury era (Oct 1 to Oct 19, 2026)
+	if (startTimestamp < REVSHARE_MIGRATION_TIMESTAMP) {
+		if (endTimestamp <= REVSHARE_MIGRATION_TIMESTAMP) {
+			return fetchOctoberTreasury(options);
+		}
+		return splitAtBoundary(options, REVSHARE_MIGRATION_TIMESTAMP, fetchOctoberTreasury, fetch);
+	}
+
+	// Case 3: Window starts in current Automated RevShare era (Oct 20, 2026 onward)
+	return fetchRevShareDirect(options);
+};
 
 const adapter: SimpleAdapter = {
 	version: 2,
@@ -111,27 +288,45 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: [CHAIN.BSC],
 	start: "2026-03-23",
+	dependencies: [Dependencies.ALLIUM],
 	methodology: {
-		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219). The dedicated receivers are used only for their stated protocol fee streams.",
-		Fees: "Swap and limit-order fees paid by users routing through Arbitrage Inc, received by the legacy swap receiver before October 1, 2026 and by the dedicated swap and limit-order receivers from that date. Excludes the 4% ARB INC token transfer tax.",
-		Revenue: "All swap and limit-order fees paid by users, kept by the protocol. Excludes the 4% ARB INC token transfer tax.",
-		ProtocolRevenue: "All swap and limit-order fees paid by users, kept by the protocol fee receivers. Excludes the 4% ARB INC token transfer tax.",
+		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219), collecting both ERC20 tokens and native BNB.",
+		Fees: "Before October 1, 2026, fees include the legacy swap receiver and ARB INC token transfer tax. From October 1 to October 19, 2026, fees include the dedicated swap receiver, dedicated limit-order receiver, and BNB tax proceeds from the dedicated treasury. From October 20, 2026 onward, fees include the dedicated swap receiver, dedicated limit-order receiver, and native BNB tax proceeds collected directly by the tax accumulator (0x4c1caA917FD012b285Ba35E93535675e5B59806C).",
+		Revenue: "All collected Kyber swap/limit-order fees across all tokens and realized ARB INC token transfer tax proceeds in native BNB. No supply-side costs are reported, so dailyRevenue equals dailyFees.",
+		ProtocolRevenue: "Before October 1, 2026, 100% of legacy swap fees and 60% of token tax are protocol revenue. From October 1 to October 19, 2026, 100% of dedicated swap/limit-order fees plus 70.8% of realized BNB tax are protocol revenue. From October 20, 2026 onward, 100% of dedicated swap/limit-order fees plus 50% of realized BNB tax are protocol revenue.",
+		HoldersRevenue: "Before October 1, 2026, holders receive 29.2% of token tax. From October 1 to October 19, 2026, holders receive 29.2% of realized BNB tax (40% treasury allocation with 0.73 safety factor). From October 20, 2026 onward, holders receive 50% of realized ARB INC tax proceeds directly in native BNB via automated RevShare distributions (safe factor eliminated).",
 	},
 	breakdownMethodology: {
+		Volume: {
+			"Swap Volume": "Routed swap volume: before October 1, 2026, legacy swap fees divided by the date-aware 0.1%/0.5% fee rate; from October 1, 2026 onward, dedicated swap fees divided by 0.5% across all ERC20 tokens and native BNB.",
+			"Limit Order Volume": "From October 1, 2026 onward, routed limit-order volume estimated from the dedicated limit-order receiver's fees divided by the 0.1% fee rate across all ERC20 tokens and native BNB.",
+		},
 		Fees: {
-			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding token-tax proceeds forwarded from the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
-			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC.",
-			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219.",
+			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding transfers originating from the tax accumulator.",
+			"Legacy Token Transfer Tax": "Pre-migration ARB INC token tax received by the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
+			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC across all ERC20 tokens and native BNB.",
+			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219 across all ERC20 tokens and native BNB.",
+			"ARB INC Tax Realized In BNB": "Native BNB proceeds from the 4% ARB INC token transfer tax (grossed up from the 40% treasury allocation in October 1-19, and collected directly by the tax accumulator from October 20 onward).",
 		},
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
-			"Kyber Swap Revenue": "Post-migration swap fees retained by the protocol.",
-			"Kyber Limit Order Revenue": "Post-migration limit-order fees retained by the protocol.",
+			"Legacy Tax Revenue": "Pre-migration ARB INC token tax before the holder allocation.",
+			"Kyber Swap Revenue": "Swap fees retained by the protocol across all tokens.",
+			"Kyber Limit Order Revenue": "Limit-order fees retained by the protocol across all tokens.",
+			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds in native BNB before the holder allocation.",
 		},
 		ProtocolRevenue: {
 			"Legacy Swap Fees To Protocol": "100% of pre-migration legacy swap fees.",
-			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver.",
-			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver.",
+			"Legacy Tax To Protocol": "60% of pre-migration ARB INC token tax.",
+			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver across all tokens.",
+			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver across all tokens.",
+			"ARB INC Tax To Protocol": "October 1-19, 2026 protocol allocation (70.8%) of realized ARB INC tax proceeds.",
+			"ARB INC Tax To Protocol Operations": "From October 20, 2026 onward, 50% protocol allocation of realized ARB INC tax proceeds in native BNB dedicated to protocol operations and core development.",
+		},
+		HoldersRevenue: {
+			"Legacy ARB INC Holder Revenue": "29.2% of pre-migration ARB INC token tax.",
+			"ARB INC Holder Revenue": "October 1-19, 2026 holder allocation (29.2%) of realized ARB INC tax proceeds.",
+			"ARB INC Holder RevShare": "From October 20, 2026 onward, 50% allocation of realized ARB INC tax proceeds pushed directly in native BNB to qualified holders (>= 1M ARB) via automated RevShare distributions.",
 		},
 	},
 };
