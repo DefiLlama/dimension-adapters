@@ -49,6 +49,13 @@ const getLegacySwapFees = async (options: FetchOptions) => {
 		balances.add(log.address, value);
 	});
 
+	await getETHReceived({
+		options,
+		target: LEGACY_SWAP_FEE_RECEIVER,
+		notFromSenders: [TAX_ACCUMULATOR],
+		balances,
+	});
+
 	return balances;
 };
 
@@ -90,10 +97,15 @@ const fetchLegacy = async (options: FetchOptions) => {
 
 // Era 2: October 1 - October 19, 2026 (Dedicated Receivers & Treasury Wallet)
 const fetchOctoberTreasury = async (options: FetchOptions) => {
-	const [swapFees, limitOrderFees, treasuryAllocation] = await Promise.all([
-		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] }),
-		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] }),
+	const swapFees = options.createBalances();
+	const limitOrderFees = options.createBalances();
+
+	const [, , treasuryAllocation] = await Promise.all([
+		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER], balances: swapFees }),
+		getETHReceived({ options, target: SWAP_FEE_RECEIVER, balances: swapFees }),
 		getETHReceived({ options, target: TREASURY_WALLET }),
+		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER], balances: limitOrderFees }),
+		getETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees }),
 	]);
 
 	const dailyVolume = options.createBalances();
@@ -130,39 +142,49 @@ const fetchOctoberTreasury = async (options: FetchOptions) => {
 	};
 };
 
-// Era 3: October 20, 2026 onward (Automated RevShare Direct Push: 50% Holders / 50% Team, Safe Factor Eliminated)
+// Era 3: October 20, 2026 onward (Automated RevShare Direct Push: 50% Holders / 50% Team in native BNB, Safe Factor Eliminated)
 const fetchRevShareDirect = async (options: FetchOptions) => {
-	const [swapFees, limitOrderFees, tokenTax] = await Promise.all([
-		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] }),
-		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] }),
-		addTokensReceived({ options, target: TAX_ACCUMULATOR, tokens: [ARB_TOKEN] }),
+	const swapFees = options.createBalances();
+	const limitOrderFees = options.createBalances();
+
+	const [, , treasuryAllocation] = await Promise.all([
+		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER], balances: swapFees }),
+		getETHReceived({ options, target: SWAP_FEE_RECEIVER, balances: swapFees }),
+		getETHReceived({ options, target: TREASURY_WALLET }),
+		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER], balances: limitOrderFees }),
+		getETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees }),
 	]);
 
 	const dailyVolume = options.createBalances();
 	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE), "Swap Volume");
 	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE), "Limit Order Volume");
 
-	// 50% of the 4% ARB INC token transfer tax is pushed directly to qualified holders (>= 1M ARB) via RevShare
-	const dailyHoldersRevenue = options.createBalances();
-	dailyHoldersRevenue.add(tokenTax.clone(0.50), "ARB INC Holder RevShare");
+	// In the automated RevShare model, the 4% ARB INC token transfer tax proceeds in native BNB
+	// are split 50% directly to qualified holders (>= 1M ARB) via RevShare and 50% to protocol operations.
+	const realizedTaxBnb = treasuryAllocation.clone(1 / 0.50);
+	const holdersRevenue = treasuryAllocation.clone(1.0);
+	const protocolTaxRevenue = realizedTaxBnb.clone(0.50);
 
-	// Gross Fees: Swap Fees + Limit Order Fees + 100% Token Tax
+	const dailyHoldersRevenue = options.createBalances();
+	dailyHoldersRevenue.add(holdersRevenue, "ARB INC Holder RevShare");
+
+	// Gross Fees: Swap Fees + Limit Order Fees + 100% Tax Realized in BNB
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Kyber Swap Fees");
 	dailyFees.add(limitOrderFees, "Kyber Limit Order Fees");
-	dailyFees.add(tokenTax, "ARB INC Token Transfer Tax");
+	dailyFees.add(realizedTaxBnb, "ARB INC Tax Realized In BNB");
 
 	// Gross Revenue: dailyFees = dailyRevenue (no supply-side costs)
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.add(swapFees, "Kyber Swap Revenue");
 	dailyRevenue.add(limitOrderFees, "Kyber Limit Order Revenue");
-	dailyRevenue.add(tokenTax, "ARB INC Tax Revenue");
+	dailyRevenue.add(realizedTaxBnb, "ARB INC Tax Revenue");
 
-	// Protocol Revenue: 100% Swap Fees + 100% Limit Order Fees + 50% Token Tax for Operations/Development
+	// Protocol Revenue: 100% Swap Fees + 100% Limit Order Fees + 50% Token Tax in BNB
 	const dailyProtocolRevenue = options.createBalances();
 	dailyProtocolRevenue.add(swapFees, "Swap Fees To Protocol");
 	dailyProtocolRevenue.add(limitOrderFees, "Limit Order Fees To Protocol");
-	dailyProtocolRevenue.add(tokenTax.clone(0.50), "ARB INC Tax To Protocol Operations");
+	dailyProtocolRevenue.add(protocolTaxRevenue, "ARB INC Tax To Protocol Operations");
 
 	return {
 		dailyVolume,
@@ -262,44 +284,43 @@ const adapter: SimpleAdapter = {
 	start: "2026-03-23",
 	dependencies: [Dependencies.ALLIUM],
 	methodology: {
-		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219). The dedicated receivers are used only for their stated protocol fee streams.",
-		Fees: "Before October 1, 2026, fees include the legacy swap receiver and ARB INC token transfer tax. From October 1 to October 19, 2026, fees include the dedicated swap receiver, dedicated limit-order receiver, and BNB tax proceeds from the dedicated treasury. From October 20, 2026 onward, fees include the dedicated swap receiver, dedicated limit-order receiver, and the 4% ARB INC token transfer tax received by the tax accumulator (0x4c1caA917FD012b285Ba35E93535675e5B59806C).",
-		Revenue: "All collected Kyber swap/limit-order fees and ARB INC token transfer tax proceeds. No supply-side costs are reported, so dailyRevenue equals dailyFees.",
-		ProtocolRevenue: "Before October 1, 2026, 100% of legacy swap fees and 60% of token tax are protocol revenue. From October 1 to October 19, 2026, 100% of dedicated swap/limit-order fees plus 70.8% of realized BNB tax are protocol revenue. From October 20, 2026 onward, 100% of dedicated swap/limit-order fees plus 50% of the ARB INC token tax are protocol revenue.",
-		HoldersRevenue: "Before October 1, 2026, holders receive 29.2% of token tax. From October 1 to October 19, 2026, holders receive 29.2% of realized BNB tax (40% treasury allocation with 0.73 safety factor). From October 20, 2026 onward, holders receive 50% of the ARB INC token transfer tax directly on-chain via automated RevShare distributions (safe factor eliminated, treasury intermediary decommissioned).",
+		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219), collecting both ERC20 tokens and native BNB.",
+		Fees: "Before October 1, 2026, fees include the legacy swap receiver and ARB INC token transfer tax. From October 1 to October 19, 2026, fees include the dedicated swap receiver, dedicated limit-order receiver, and BNB tax proceeds from the dedicated treasury. From October 20, 2026 onward, fees include the dedicated swap receiver, dedicated limit-order receiver, and native BNB tax proceeds realized from the 4% ARB INC token transfer tax.",
+		Revenue: "All collected Kyber swap/limit-order fees across all tokens and realized ARB INC token transfer tax proceeds in native BNB. No supply-side costs are reported, so dailyRevenue equals dailyFees.",
+		ProtocolRevenue: "Before October 1, 2026, 100% of legacy swap fees and 60% of token tax are protocol revenue. From October 1 to October 19, 2026, 100% of dedicated swap/limit-order fees plus 70.8% of realized BNB tax are protocol revenue. From October 20, 2026 onward, 100% of dedicated swap/limit-order fees plus 50% of realized BNB tax are protocol revenue.",
+		HoldersRevenue: "Before October 1, 2026, holders receive 29.2% of token tax. From October 1 to October 19, 2026, holders receive 29.2% of realized BNB tax (40% treasury allocation with 0.73 safety factor). From October 20, 2026 onward, holders receive 50% of realized ARB INC tax proceeds directly in native BNB via automated RevShare distributions (safe factor eliminated).",
 	},
 	breakdownMethodology: {
 		Volume: {
-			"Swap Volume": "Routed swap volume: before October 1, 2026, legacy swap fees divided by the date-aware 0.1%/0.5% fee rate; from October 1, 2026 onward, dedicated swap fees divided by 0.5%.",
-			"Limit Order Volume": "From October 1, 2026 onward, routed limit-order volume estimated from the dedicated limit-order receiver's fees divided by the 0.1% fee rate.",
+			"Swap Volume": "Routed swap volume: before October 1, 2026, legacy swap fees divided by the date-aware 0.1%/0.5% fee rate; from October 1, 2026 onward, dedicated swap fees divided by 0.5% across all ERC20 tokens and native BNB.",
+			"Limit Order Volume": "From October 1, 2026 onward, routed limit-order volume estimated from the dedicated limit-order receiver's fees divided by the 0.1% fee rate across all ERC20 tokens and native BNB.",
 		},
 		Fees: {
 			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding transfers originating from the tax accumulator.",
 			"Legacy Token Transfer Tax": "Pre-migration ARB INC token tax received by the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
-			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC.",
-			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219.",
-			"ARB INC Tax Realized In BNB": "October 1-19, 2026 native BNB received by the dedicated treasury 0x66BB01F14229E2179bAD84D52A69C0e4628dE63f, grossed up from its 40% allocation.",
-			"ARB INC Token Transfer Tax": "Post-migration 4% transfer tax on ARB INC token transfers received by the accumulator address 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
+			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC across all ERC20 tokens and native BNB.",
+			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219 across all ERC20 tokens and native BNB.",
+			"ARB INC Tax Realized In BNB": "Native BNB proceeds from the 4% ARB INC token transfer tax grossed up to 100% of realized tax (40% treasury allocation in October 1-19, 50% allocation from October 20 onward).",
 		},
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
 			"Legacy Tax Revenue": "Pre-migration ARB INC token tax before the holder allocation.",
-			"Kyber Swap Revenue": "Swap fees retained by the protocol.",
-			"Kyber Limit Order Revenue": "Limit-order fees retained by the protocol.",
-			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds before the holder allocation.",
+			"Kyber Swap Revenue": "Swap fees retained by the protocol across all tokens.",
+			"Kyber Limit Order Revenue": "Limit-order fees retained by the protocol across all tokens.",
+			"ARB INC Tax Revenue": "Post-migration realized ARB INC tax proceeds in native BNB before the holder allocation.",
 		},
 		ProtocolRevenue: {
 			"Legacy Swap Fees To Protocol": "100% of pre-migration legacy swap fees.",
 			"Legacy Tax To Protocol": "60% of pre-migration ARB INC token tax.",
-			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver.",
-			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver.",
+			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver across all tokens.",
+			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver across all tokens.",
 			"ARB INC Tax To Protocol": "October 1-19, 2026 protocol allocation (70.8%) of realized ARB INC tax proceeds.",
-			"ARB INC Tax To Protocol Operations": "Post-migration 50% protocol allocation of ARB INC token tax dedicated to protocol operations and core development.",
+			"ARB INC Tax To Protocol Operations": "From October 20, 2026 onward, 50% protocol allocation of realized ARB INC tax proceeds in native BNB dedicated to protocol operations and core development.",
 		},
 		HoldersRevenue: {
 			"Legacy ARB INC Holder Revenue": "29.2% of pre-migration ARB INC token tax.",
 			"ARB INC Holder Revenue": "October 1-19, 2026 holder allocation (29.2%) of realized ARB INC tax proceeds.",
-			"ARB INC Holder RevShare": "Post-migration 50% allocation of ARB INC token tax pushed directly to qualified holders (>= 1M ARB) via RevShare every 24 hours.",
+			"ARB INC Holder RevShare": "From October 20, 2026 onward, 50% allocation of realized ARB INC tax proceeds pushed directly in native BNB to qualified holders (>= 1M ARB) via automated RevShare distributions.",
 		},
 	},
 };
