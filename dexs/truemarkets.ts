@@ -104,7 +104,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
       if (noPoolId && noPoolId !== ZERO_BYTES32) v4PoolIds.push(noPoolId.toLowerCase())
     })
 
-    const uniqueV4PoolIds = [...new Set(v4PoolIds)]
+    const v4PoolIdSet = new Set(v4PoolIds)
+    const uniqueV4PoolIds = [...v4PoolIdSet]
 
     if (uniqueV4PoolIds.length > 0) {
       const v4SwapLogs: any[] = []
@@ -115,10 +116,15 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
           target: UNISWAP_V4_POOL_MANAGER,
           topics: [SWAP_TOPIC_V4, uniqueV4PoolIds.slice(i, i + POOL_ID_CHUNK)] as any,
           eventAbi: ABI.SwapV4,
+          // The indexer drops an OR'd topic1 list and returns every v4 swap on Base (and answers 414
+          // once the list is long), so the pool-id filter goes to the RPC, which applies it.
+          skipIndexer: true,
         })
         logs.forEach((log: any) => {
+          const poolId = String(log.id).toLowerCase()
+          if (!v4PoolIdSet.has(poolId)) return
           v4SwapLogs.push(log)
-          tradedPoolIds.add(String(log.id).toLowerCase())
+          tradedPoolIds.add(poolId)
         })
       }
 
@@ -137,9 +143,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const v4TydPos: Record<string, 0 | 1> = {}
         tradedPoolIdList.forEach((poolId, i) => {
-          if (poolConfigs[i]) {
-            v4TydPos[poolId] = poolConfigs[i].currency0.toLowerCase() === TYD_TOKEN ? 0 : 1
-          }
+          const poolKey = poolConfigs[i]
+          if (!poolKey) return
+          if (poolKey.currency0.toLowerCase() === TYD_TOKEN) v4TydPos[poolId] = 0
+          else if (poolKey.currency1.toLowerCase() === TYD_TOKEN) v4TydPos[poolId] = 1
         })
 
         v4SwapLogs.forEach((log: any) => {
@@ -190,8 +197,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         // Build stablecoin position map for active pools only
         const v3StablePos: Record<string, 0 | 1> = {}
         activePools.forEach((pool: string) => {
-          const token0 = pairObject[pool][0].toLowerCase()
-          v3StablePos[pool] = token0 === TYD_TOKEN || token0 === USDC ? 0 : 1
+          const [token0, token1] = pairObject[pool].map((token: string) => token.toLowerCase())
+          if (token0 === TYD_TOKEN || token0 === USDC) v3StablePos[pool] = 0
+          else if (token1 === TYD_TOKEN || token1 === USDC) v3StablePos[pool] = 1
         })
 
         const v3SwapLogs = await options.getLogs({
@@ -218,7 +226,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
 const methodology = {
   Volume:
-    'Volume is calculated from Swap events on TrueMarkets prediction market pools, enumerated from the active markets on TruthMarketManager. V1 markets use Uniswap V3 pools (USDC pairs), V2 markets use Uniswap V4 pools (TYD pairs). Only the stablecoin side of swaps is counted.',
+    'Volume is calculated from Swap events on TrueMarkets prediction market pools, enumerated from the active markets on TruthMarketManager. V1 markets use Uniswap V3 pools (USDC pairs), V2 markets use Uniswap V4 pools (TYD pairs). Only the stablecoin side of swaps is counted; pools quoted in the outcome token of another market are skipped.',
   Fees: 'Trading fees are tracked via PoolFeeTracked events from the FeeCollector contracts (V4 pools only; one per hook generation). Launchpad protocol fees (charged on proposal graduation and Live-phase withdrawals) are tracked via TYD transfers from the Launchpad to the fee receiver.',
   Revenue: 'All the trading fees (v4 pools only) and launchpad fees are considered revenue.',
   ProtocolRevenue: 'All the trading fees (v4 pools only) and launchpad fees are considered protocol revenue.',
