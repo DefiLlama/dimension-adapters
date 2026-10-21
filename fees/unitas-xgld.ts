@@ -19,6 +19,7 @@
 
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { ChainApi } from "@defillama/sdk";
 
 // Documented split of net strategy yield, in basis points (Unitas docs, "Protocol Revenue" page)
 const BPS = 10_000n;
@@ -55,18 +56,20 @@ const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: BSC.exchangeRateProvider,
     eventAbi: EXCHANGE_RATE_UPDATED_EVENT,
+    onlyArgs: false,
   });
 
   // The rate is updated roughly every 8 hours, so most hourly windows have no update and correctly return 0
   if (logs.length > 0) {
-    const rateIncrease = logs.reduce(
-      (sum: bigint, log: any) => sum + BigInt(log.newRate.toString()) - BigInt(log.oldRate.toString()),
-      0n
-    );
+    let holderYield = 0n;
 
-    const supply = BigInt(await options.api.call({ target: BSC.xgld, abi: "erc20:totalSupply" }));
-
-    const holderYield = (supply * rateIncrease) / RATE_PRECISION;
+    for (const log of logs) {
+      const args = log.args ?? log;
+      const rateIncrease: bigint = BigInt(args.newRate.toString()) - BigInt(args.oldRate.toString());
+      const api = new ChainApi({ chain: options.chain, block: Number(log.blockNumber) });
+      const supply: bigint = BigInt(await api.call({ target: BSC.xgld, abi: "erc20:totalSupply" }));
+      holderYield += (supply * rateIncrease) / RATE_PRECISION;
+    }
 
     // Observed: 80% holder share. Derived from the documented split: gross yield, treasury and insurance shares.
     const grossYield = (holderYield * BPS) / HOLDERS_SHARE_BPS;
