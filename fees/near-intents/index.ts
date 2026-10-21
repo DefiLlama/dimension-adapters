@@ -47,7 +47,7 @@ const fetch = async (options: FetchOptions) => {
   const query = `
     WITH fee_wallets AS (SELECT wallet FROM ${FEE_WALLETS}),
     gross AS (
-      SELECT SUM(fee) AS fees_usd FROM (
+      SELECT SUM(fee) AS fees_usd, COUNT(*) AS fee_rows FROM (
         SELECT CAST(amount_fee AS double) AS fee
         FROM dune.near.dataset_near_intents_protocol_fees
         WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
@@ -75,11 +75,13 @@ const fetch = async (options: FetchOptions) => {
     )
     SELECT
       COALESCE((SELECT fees_usd FROM gross), 0) AS fees_usd,
+      (SELECT fee_rows FROM gross) AS fee_rows,
       COALESCE((SELECT SUM(amt) FROM moves WHERE wallet = '${FRONTEND_WALLET}'), 0) AS frontend_near,
       COALESCE((SELECT SUM(amt) FROM moves WHERE wallet <> '${FRONTEND_WALLET}'), 0) AS other_near
   `;
 
   const res = await queryDuneSql(options, query);
+  if (!res[0]?.fee_rows) throw new Error(`near-intents: the dune fee datasets have no rows for ${options.dateString} yet`);
   const fees_usd = res[0]?.fees_usd ?? 0;
   const frontend_near = res[0]?.frontend_near ?? 0;
   const other_near = res[0]?.other_near ?? 0;
