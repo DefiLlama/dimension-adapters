@@ -27,6 +27,16 @@ const GOO_DEV_FUND_LABEL = 'Swap Fees To Development Fund'
 const GOO_LP_LABEL = 'Swap Fees To LPs'
 const GOO_POL_LABEL = 'Swap Fees To Protocol-Owned Liquidity'
 
+// The protocol's satellite pools: private pools of its own liquidity (held by the treasury Safe) that only its arbitrage
+// contract trades, against these pools and outside markets. Every profit is paid to the satellite profit splitter, which
+// sends 12.5% to the fee jar (auctioned for GOO, which is burned), 12.5% to the development fund and 75% to a compounder that
+// adds it to the Safe's satellite positions: all of it is the protocol's.
+const SATELLITE_SPLITTER = '0x44Ea9b1c9e62EC040b08b2197B3C84f6600596e6'
+const SATELLITE_PROFITS_LABEL = 'Satellite Arbitrage Profits'
+const SATELLITE_BURN_LABEL = 'Satellite Arbitrage Profits To GOO Buyback And Burn'
+const SATELLITE_DEV_FUND_LABEL = 'Satellite Arbitrage Profits To Development Fund'
+const SATELLITE_TREASURY_LABEL = 'Satellite Arbitrage Profits To Treasury'
+
 const abi = {
   poolCreated: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
   swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
@@ -36,6 +46,7 @@ const abi = {
   ticks: 'function ticks(int24) view returns (uint128 liquidityGross, int128 liquidityNet, uint256 feeGrowthOutside0X128, uint256 feeGrowthOutside1X128, int56 tickCumulativeOutside, uint160 secondsPerLiquidityOutsideX128, uint32 secondsOutside, bool initialized)',
   balanceOf: 'function balanceOf(address) view returns (uint256)',
   tokenOfOwnerByIndex: 'function tokenOfOwnerByIndex(address, uint256) view returns (uint256)',
+  distributed: 'event Distributed(address indexed token, uint256 toJar, uint256 toDevFund, uint256 toCompounder)',
   positions: 'function positions(uint256) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)',
 }
 
@@ -127,7 +138,19 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = createBalances()
   const dailyHoldersRevenue = createBalances()
   const dailyProtocolRevenue = createBalances()
-  const result = () => ({ dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(1), dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue })
+  const dailyUserFees = createBalances()
+  const result = () => ({ dailyVolume, dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue })
+
+  // satellite arbitrage profit: protocol revenue that no user pays as a fee
+  for (const { token, toJar, toDevFund, toCompounder } of await getLogs({ target: SATELLITE_SPLITTER, eventAbi: abi.distributed })) {
+    dailyFees.add(token, BigInt(toJar) + BigInt(toDevFund) + BigInt(toCompounder), SATELLITE_PROFITS_LABEL)
+    dailyRevenue.add(token, toJar, SATELLITE_BURN_LABEL)
+    dailyHoldersRevenue.add(token, toJar, SATELLITE_BURN_LABEL)
+    dailyRevenue.add(token, toDevFund, SATELLITE_DEV_FUND_LABEL)
+    dailyProtocolRevenue.add(token, toDevFund, SATELLITE_DEV_FUND_LABEL)
+    dailyRevenue.add(token, toCompounder, SATELLITE_TREASURY_LABEL)
+    dailyProtocolRevenue.add(token, toCompounder, SATELLITE_TREASURY_LABEL)
+  }
 
   const pools = await getPools(chain)
   // the same wash-trading guard the shared uniV3 helper applies: pools with too little priced liquidity are left out
@@ -160,6 +183,7 @@ const fetch = async (options: FetchOptions) => {
       const protocolFee = protocolDenominator > 0n ? swapFee / protocolDenominator : 0n
       const toJar = protocolFee / 2n
       dailyFees.add(token, swapFee, METRIC.SWAP_FEES)
+      dailyUserFees.add(token, swapFee, METRIC.SWAP_FEES)
       dailyRevenue.add(token, toJar, GOO_BURN_LABEL)
       dailyHoldersRevenue.add(token, toJar, GOO_BURN_LABEL)
       dailyRevenue.add(token, protocolFee - toJar, GOO_DEV_FUND_LABEL)
@@ -182,27 +206,38 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "Total swap volume on goo exchange pools.",
-  Fees: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in.",
+  Fees: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in, plus the arbitrage profit of the protocol's satellite pools.",
   UserFees: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in.",
-  Revenue: "The protocol fee (each pool's share of the swap fee, read from the pool: 1/4 on every pool since launch), plus the LP fees earned by protocol-owned liquidity.",
-  ProtocolRevenue: "Half of the protocol fee, paid to the development fund, plus the LP fees earned by the protocol's own positions (its POL vaults and treasury Safe).",
-  HoldersRevenue: "Half of the protocol fee, sent to a fee jar that auctions it for GOO and burns the GOO.",
+  Revenue: "The protocol fee (each pool's share of the swap fee, read from the pool: 1/4 on every pool since launch), the LP fees earned by protocol-owned liquidity, and all satellite arbitrage profit.",
+  ProtocolRevenue: "Half of the protocol fee, paid to the development fund, the LP fees earned by the protocol's own positions (its POL vaults and treasury Safe), and 87.5% of satellite arbitrage profit (12.5% to the development fund, 75% compounded into the treasury's satellite positions).",
+  HoldersRevenue: "Half of the protocol fee and 12.5% of satellite arbitrage profit, sent to a fee jar that auctions it for GOO and burns the GOO.",
   SupplySideRevenue: "Swap fees less the protocol fee, earned by outside liquidity providers.",
 }
 
 const breakdownMethodology = {
-  Fees: { [METRIC.SWAP_FEES]: methodology.Fees },
+  Fees: {
+    [METRIC.SWAP_FEES]: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in.",
+    [SATELLITE_PROFITS_LABEL]: 'Arbitrage profit made through the protocol\'s satellite pools, as the satellite profit splitter pays it out.',
+  },
   UserFees: { [METRIC.SWAP_FEES]: methodology.UserFees },
   Revenue: {
     [GOO_BURN_LABEL]: 'Half of the protocol fee, sent to a fee jar that auctions it for GOO and burns the GOO.',
     [GOO_DEV_FUND_LABEL]: 'Half of the protocol fee, paid to the development fund.',
     [GOO_POL_LABEL]: 'LP fees earned by the protocol\'s own positions: liquidity times the fee growth inside each position\'s range over the period.',
+    [SATELLITE_BURN_LABEL]: '12.5% of satellite arbitrage profit, sent to the fee jar, which auctions it for GOO and burns the GOO.',
+    [SATELLITE_DEV_FUND_LABEL]: '12.5% of satellite arbitrage profit, paid to the development fund.',
+    [SATELLITE_TREASURY_LABEL]: '75% of satellite arbitrage profit, compounded into the treasury Safe\'s satellite positions.',
   },
   ProtocolRevenue: {
     [GOO_DEV_FUND_LABEL]: 'Half of the protocol fee, paid to the development fund.',
     [GOO_POL_LABEL]: 'LP fees earned by positions held by the protocol\'s POL vaults and treasury Safe.',
+    [SATELLITE_DEV_FUND_LABEL]: '12.5% of satellite arbitrage profit, paid to the development fund.',
+    [SATELLITE_TREASURY_LABEL]: '75% of satellite arbitrage profit, compounded into the treasury Safe\'s satellite positions.',
   },
-  HoldersRevenue: { [GOO_BURN_LABEL]: methodology.HoldersRevenue },
+  HoldersRevenue: {
+    [GOO_BURN_LABEL]: 'Half of the protocol fee, sent to a fee jar that auctions it for GOO and burns the GOO.',
+    [SATELLITE_BURN_LABEL]: '12.5% of satellite arbitrage profit, sent to the fee jar, which auctions it for GOO and burns the GOO.',
+  },
   SupplySideRevenue: { [GOO_LP_LABEL]: methodology.SupplySideRevenue },
 }
 
