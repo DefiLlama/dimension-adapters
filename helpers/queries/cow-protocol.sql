@@ -43,19 +43,20 @@ day_selector as (
     where coalesce(a.date, b.date) = (select start_date from day_selector)
 )
 , fees_per_chain as (
+    -- fct_fees carries blockchain/block_time itself, so no join to fct_trades: that table can lag
+    -- days behind fct_fees (2026-10-19 missing from fct_trades on 10-21), and the join added nothing
+    -- (identical per-chain sums and row counts on 2025-07-15, 2026-09-21, 2026-10-18)
     select
-        date_trunc('day', t.block_time) as date
-        , t.blockchain as chain
-        , sum(f.protocol_fee_eth) as protocol_fee_revenue
-        , sum(f.partner_fee_partner_cut_eth) as partner_fee_partner_revenue
-        , sum(f.partner_fee_cow_cut_eth) as partner_fee_cow_revenue
-    from dune.cowprotocol.fct_trades as t
-    left join dune.cowprotocol.fct_fees as f
-        on t.tx_hash = f.tx_hash
-        and t.order_uid = f.order_uid
+        date_trunc('day', block_time) as date
+        , blockchain as chain
+        , sum(protocol_fee_eth) as protocol_fee_revenue
+        , sum(partner_fee_partner_cut_eth) as partner_fee_partner_revenue
+        , sum(partner_fee_cow_cut_eth) as partner_fee_cow_revenue
+    from dune.cowprotocol.fct_fees
     where
-        date_trunc('day', t.block_time) = from_unixtime({{start}})
-        and t.blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'bnb', 'lens')
+        block_time >= (select start_date from day_selector)
+        and block_time < date_add('day', 1, (select start_date from day_selector))
+        and blockchain in ('ethereum', 'gnosis', 'base', 'arbitrum', 'avalanche_c', 'polygon', 'bnb', 'lens')
     group by 1, 2
 )
 , fees_all_chains as (
