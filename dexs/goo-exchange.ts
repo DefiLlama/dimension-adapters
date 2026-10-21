@@ -1,4 +1,4 @@
-import { cache } from '@defillama/sdk';
+import { cache, ChainApi } from '@defillama/sdk';
 import { ethers } from 'ethers';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
@@ -71,13 +71,16 @@ async function getPools(chain: string): Promise<Record<string, Pool>> {
 // LP fees earned over the window by the positions the protocol's own contracts hold, per pool and token: liquidity times
 // the growth of the fee per unit of liquidity inside the position's range, from the window's first block to its last.
 async function getProtocolOwnedLpFees(options: FetchOptions, pools: Record<string, Pool>, counted: Set<string>) {
-  const { api, fromApi } = options
+  const { api, chain } = options
   const poolByKey: Record<string, string> = {}
   for (const [pool, { token0, token1, fee }] of Object.entries(pools)) poolByKey[poolKey(token0, token1, fee)] = pool
 
   const owed: Record<string, [bigint, bigint]> = {}
-  // the window that opens before the position manager existed has no protocol-owned position to measure
-  if ((await options.getFromBlock()) < POSITION_MANAGER_BLOCK) return owed
+  // The state the window starts from is the end of the block before its first one, where the previous window ended.
+  // The window that opens before the position manager existed has no protocol-owned position to measure.
+  const startBlock = (await options.getFromBlock()) - 1
+  if (startBlock < POSITION_MANAGER_BLOCK) return owed
+  const startApi = new ChainApi({ chain, block: startBlock })
 
   // The positions the owners held at both edges of the window, read strictly: a missing historical state fails the window
   // instead of passing for positions minted during it.
@@ -87,13 +90,13 @@ async function getProtocolOwnedLpFees(options: FetchOptions, pools: Record<strin
     if (!calls.length) return []
     return (await chainApi.multiCall({ target: POSITION_MANAGER, abi: abi.tokenOfOwnerByIndex, calls })).map(String)
   }
-  const [heldAtEnd, heldAtStart] = await Promise.all([heldAt(api), heldAt(fromApi)])
+  const [heldAtEnd, heldAtStart] = await Promise.all([heldAt(api), heldAt(startApi)])
   const atStart = new Set(heldAtStart)
   const tokenIds = heldAtEnd.filter((id) => atStart.has(id))
   if (!tokenIds.length) return owed
   const [positionsTo, positionsFrom] = await Promise.all([
     api.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds }),
-    fromApi.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds }),
+    startApi.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds }),
   ])
 
   // a position counts only when it held liquidity through the window: a younger one's ticks may not exist at the start
@@ -133,7 +136,7 @@ async function getProtocolOwnedLpFees(options: FetchOptions, pools: Record<strin
       return [inside(global0s[i], 'feeGrowthOutside0X128'), inside(global1s[i], 'feeGrowthOutside1X128')]
     })
   }
-  const [insideFrom, insideTo] = await Promise.all([insideAt(fromApi), insideAt(api)])
+  const [insideFrom, insideTo] = await Promise.all([insideAt(startApi), insideAt(api)])
   live.forEach((p: any, i: number) => {
     const sum = owed[p.pool] ?? [0n, 0n]
     owed[p.pool] = [0, 1].map((t) => sum[t] + (p.liquidity * wrap(insideTo[i][t] - insideFrom[i][t])) / Q128) as [bigint, bigint]
