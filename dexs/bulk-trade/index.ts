@@ -46,7 +46,14 @@ const fetch = async (options: FetchOptions) => {
       .process(async symbol => {
         const candles: unknown = await fetchURL(
           `${API_URL}/klines?symbol=${encodeURIComponent(symbol)}&interval=1m&startTime=${startTime}&endTime=${endTime}`,
-        )
+        ).catch(async error => {
+          // A ranged klines query answers HTTP 500 instead of [] for a market that has no candles at
+          // all yet (PAPER-USD sat in exchangeInfo before its first trade, absent from /stats)
+          const history: unknown = await fetchURL(`${API_URL}/klines?symbol=${encodeURIComponent(symbol)}&interval=1d`)
+          if (Array.isArray(history) && !history.length)
+            return []
+          throw error
+        })
         if (!Array.isArray(candles))
           throw new Error(`BULK ${symbol} candle response is invalid`)
 
