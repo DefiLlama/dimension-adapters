@@ -5,13 +5,22 @@ import { addOneToken } from '../../helpers/prices';
 import { formatAddress } from '../../utils/utils';
 import PromisePool from "@supercharge/promise-pool";
 
-// Aero Lite: Aerodrome's Slipstream deployment on Arc. Separate listing from
-// dexs/aerodrome-slipstream because Arc pools use a dynamic fee that moves several
-// times a day (a single fee() snapshot per window misprices earlier swaps) and no
-// Voter/gauge system is deployed yet (factory.voter() is the zero address), so all
-// swap fees go to LPs.
-const FACTORY = '0xb89Df768aF2CFE637ceB352c587Fe8edAf491d03'
-const FACTORY_DEPLOY_BLOCK = 21068653
+// Aero Lite: the Slipstream (concentrated liquidity) deployment of Aero, the merged
+// Aerodrome + Velodrome protocol. Separate listing from dexs/aerodrome-slipstream because
+// these pools use a dynamic fee that moves several times a day (a single fee() snapshot per
+// window misprices earlier swaps) and no gauges are registered yet (every pool's gaugeFees()
+// is zero and CLFactory.getUnstakedFee is 0), so all swap fees go to LPs.
+// The CL factory is deployed on every launch chain; only Arc has pools so far.
+const CONFIG: Record<string, { factory: string; fromBlock: number; start: string }> = {
+  // fromBlock = factory deployment block (sourcify); start = its date
+  [CHAIN.ARC]: { factory: '0xb89Df768aF2CFE637ceB352c587Fe8edAf491d03', fromBlock: 20968879, start: '2026-09-15' },
+  [CHAIN.BASE]: { factory: '0xC6bdE6e9F0CD71013E5FcF2dAAE2fA1c71Bb2F25', fromBlock: 52691540, start: '2026-10-16' },
+  [CHAIN.OPTIMISM]: { factory: '0xf3384180f1F99Ff4448e836b7773e7B7A2D1fa3b', fromBlock: 158287133, start: '2026-10-16' },
+  [CHAIN.ARBITRUM]: { factory: '0x2f1ea2c2dEf80FCa460c0dcF205C281a8116834b', fromBlock: 515450473, start: '2026-10-16' },
+  [CHAIN.ETHEREUM]: { factory: '0xAbD524b6f8dAae68314Ad2fD7698cb65b4f8D398', fromBlock: 26206676, start: '2026-10-16' },
+  [CHAIN.INK]: { factory: '0xAbD524b6f8dAae68314Ad2fD7698cb65b4f8D398', fromBlock: 58674934, start: '2026-10-16' },
+  [CHAIN.ROBINHOOD]: { factory: '0xAbD524b6f8dAae68314Ad2fD7698cb65b4f8D398', fromBlock: 90275986, start: '2026-10-16' },
+}
 const FEE_SAMPLE_STEP = 1000 // blocks; fee() is resampled once per step and applied to the swaps in it
 
 const POOL_CREATED = 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)'
@@ -21,17 +30,20 @@ const fetch = async (options: FetchOptions) => {
   const { api, createBalances, getLogs, getToBlock, chain } = options
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
+  const { factory, fromBlock } = CONFIG[chain]
   const toBlock = await getToBlock()
 
   const blacklist = new Set(getDefaultDexTokensBlacklisted(chain))
   const pools: Record<string, { token0: string; token1: string }> = {}
-  const created = await getLogs({ target: FACTORY, fromBlock: FACTORY_DEPLOY_BLOCK, toBlock, eventAbi: POOL_CREATED, cacheInCloud: true })
+  const created = await getLogs({ target: factory, fromBlock, toBlock, eventAbi: POOL_CREATED, cacheInCloud: true })
   for (const { token0, token1, pool } of created) {
     if (blacklist.has(formatAddress(token0)) || blacklist.has(formatAddress(token1))) continue
     pools[pool.toLowerCase()] = { token0, token1 }
   }
+  const targets = Object.keys(pools)
+  if (!targets.length) return { dailyVolume, dailyFees, dailyRevenue: 0, dailySupplySideRevenue: dailyFees.clone() }
 
-  const swaps = await getLogs({ targets: Object.keys(pools), eventAbi: SWAP, onlyArgs: false })
+  const swaps = await getLogs({ targets, eventAbi: SWAP, onlyArgs: false })
 
   // group swaps by fee-sample block, then read each pool's fee() once per group
   const groups: Record<number, any[]> = {}
@@ -60,9 +72,9 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Swap volume on Aero Lite concentrated liquidity pools on Arc, counting one side of each swap.',
+  Volume: 'Swap volume on Aero Lite concentrated liquidity pools, counting one side of each swap.',
   Fees: 'Swap fees paid by traders, using each pool\'s on-chain fee rate resampled every 1000 blocks since the rate adjusts dynamically.',
-  Revenue: 'Zero: no Voter/veAERO gauge system is deployed on Arc yet, so no fees are redirected away from LPs.',
+  Revenue: 'Zero: no gauges are registered for these pools yet, so no fees are redirected away from LPs.',
   SupplySideRevenue: 'All swap fees, paid to liquidity providers.',
 }
 
@@ -74,11 +86,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ARC],
-  start: '2026-09-16',
   methodology,
   breakdownMethodology,
+  adapter: Object.fromEntries(Object.entries(CONFIG).map(([chain, { start }]) => [chain, { fetch, start }])),
 }
 
 export default adapter
