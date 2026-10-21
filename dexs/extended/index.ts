@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const historicalVolumeEth = (dateTime: string) => `https://api.extended.exchange/api/v1/exchange/stats/trading?fromDate=${dateTime}&toDate=${dateTime}`
 const historicalVolumeStarknet = (dateTime: string) => `https://api.starknet.extended.exchange/api/v1/exchange/stats/trading?fromDate=${dateTime}&toDate=${dateTime}`
+const historicalVolumeArc = (dateTime: string) => `https://api.starknet.extended.exchange/api/v1/exchange/stats/trading?fromDate=${dateTime}&toDate=${dateTime}`
 
 interface IVolumeall {
   tradingVolume: string;
@@ -27,6 +28,14 @@ const chainConfig: any = {
     start: '2025-08-10',
     endpoints: {
       historicalVolume: historicalVolumeStarknet,
+      markets: 'https://api.starknet.extended.exchange/api/v1/info/markets',
+    },
+    deadFrom: 1795305600 //2026-11-22
+  },
+  [CHAIN.ARC]: {
+    start: '2026-11-22',
+    endpoints: {
+      historicalVolume: historicalVolumeArc,
       markets: 'https://api.starknet.extended.exchange/api/v1/info/markets',
     },
   }
