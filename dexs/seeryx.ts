@@ -22,8 +22,6 @@ type Day = {
   earned: number;      // USDC: what the exchange kept (taker fees - rebates - returned)
 };
 
-const EMPTY: Day = { day: "", volume: 0, trades: 0, traders: 0, takerFees: 0, makerRebates: 0, returned: 0, earned: 0 };
-
 const fetch = async (options: FetchOptions) => {
   const day = options.dateString;
   const { days } = await fetchURL(`${API}?from=${day}&to=${day}`);
