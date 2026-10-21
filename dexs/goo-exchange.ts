@@ -14,6 +14,7 @@ import { filterPools } from '../helpers/uniswap';
 // protocol, so that part is revenue, not a cost. It is measured per position from the pool's fee growth over the window.
 const FACTORY = '0x221A6239E40709792b0d4bdc140fA36158CD41C7'
 const POSITION_MANAGER = '0xdc504c2DE9C26846AfdAC56385673B039c2e27cb'
+const POSITION_MANAGER_BLOCK = 73267041 // its deployment (Sourcify): no position exists before it
 const PROTOCOL_OWNERS = [
   '0x90E440da768C7Fa8a6A71c7A7C1270e069C92887', // POL vault: owned by the treasury Safe, withdraws only to it
   '0x7Ff08E6bF203c99CAC450773b3424c6b683Ad011', // pilot POL vault: owned by the treasury Safe, withdraws only to it
@@ -74,22 +75,32 @@ async function getProtocolOwnedLpFees(options: FetchOptions, pools: Record<strin
   const poolByKey: Record<string, string> = {}
   for (const [pool, { token0, token1, fee }] of Object.entries(pools)) poolByKey[poolKey(token0, token1, fee)] = pool
 
-  const balances = await api.multiCall({ target: POSITION_MANAGER, abi: abi.balanceOf, calls: PROTOCOL_OWNERS })
-  const ownerIndexes = PROTOCOL_OWNERS.flatMap((owner, i) => Array.from({ length: Number(balances[i]) }, (_, j) => ({ params: [owner, j] })))
   const owed: Record<string, [bigint, bigint]> = {}
-  if (!ownerIndexes.length) return owed
-  const tokenIds = await api.multiCall({ target: POSITION_MANAGER, abi: abi.tokenOfOwnerByIndex, calls: ownerIndexes })
+  // the window that opens before the position manager existed has no protocol-owned position to measure
+  if ((await options.getFromBlock()) < POSITION_MANAGER_BLOCK) return owed
+
+  // The positions the owners held at both edges of the window, read strictly: a missing historical state fails the window
+  // instead of passing for positions minted during it.
+  const heldAt = async (chainApi: any): Promise<string[]> => {
+    const counts = await chainApi.multiCall({ target: POSITION_MANAGER, abi: abi.balanceOf, calls: PROTOCOL_OWNERS })
+    const calls = PROTOCOL_OWNERS.flatMap((owner, i) => Array.from({ length: Number(counts[i]) }, (_, j) => ({ params: [owner, j] })))
+    if (!calls.length) return []
+    return (await chainApi.multiCall({ target: POSITION_MANAGER, abi: abi.tokenOfOwnerByIndex, calls })).map(String)
+  }
+  const [heldAtEnd, heldAtStart] = await Promise.all([heldAt(api), heldAt(fromApi)])
+  const atStart = new Set(heldAtStart)
+  const tokenIds = heldAtEnd.filter((id) => atStart.has(id))
+  if (!tokenIds.length) return owed
   const [positionsTo, positionsFrom] = await Promise.all([
     api.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds }),
-    // a position minted during the window doesn't exist at its start
-    fromApi.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds, permitFailure: true }),
+    fromApi.multiCall({ target: POSITION_MANAGER, abi: abi.positions, calls: tokenIds }),
   ])
 
   // a position counts only when it held liquidity through the window: a younger one's ticks may not exist at the start
   const live = positionsTo
     .map((position: any, i: number) => {
       const to = BigInt(position.liquidity)
-      const from = BigInt(positionsFrom[i]?.liquidity ?? 0)
+      const from = BigInt(positionsFrom[i].liquidity)
       return {
         pool: poolByKey[poolKey(position.token0, position.token1, position.fee)],
         tickLower: Number(position.tickLower),
