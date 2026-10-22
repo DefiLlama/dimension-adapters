@@ -25,7 +25,7 @@ const adapter: SimpleAdapter = {
   // First successful FlowRouter Swap event: block 24335437, 2026-07-31 16:52:32 UTC.
   start: '2026-07-31',
   methodology: {
-    Volume: "Actual input amounts from successful FlowRouter Swap events on Robinhood Chain, counted once per swap. Native ETH is priced as the chain's gas token. Downstream venue fills and swap outputs are not added. Fees and revenue are outside this volume-only adapter.",
+    Volume: "Value of the tokens users sell in swaps routed through FlowRouter on Robinhood Chain, counted once per swap.",
   },
 };
 
