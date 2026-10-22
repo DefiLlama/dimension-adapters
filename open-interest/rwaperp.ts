@@ -23,7 +23,7 @@ const fetch = async (_options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.ORDERLY],
+  chains: [CHAIN.XLAYER],
   runAtCurrTime: true,
   start: "2026-08-19",
 };
