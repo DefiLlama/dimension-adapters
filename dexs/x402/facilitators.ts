@@ -18,6 +18,7 @@ export const facilitators: Record<string, string[]> = {
         "0x15e2e2da7539ef1f652aa3c1d6142a535aa3d7ea",
         // centralcity
         "0xc8d6bac2ff7182d22c4f316bfff9f713261a6cec",
+        "0x64e8ffb436a236da487d1c20ff2548a70cf82c13",
         // codenut
         "0x8d8Fa42584a727488eeb0E29405AD794a105bb9b",
         "0x87aF99356d774312B73018b3B6562e1aE0e018C9",
