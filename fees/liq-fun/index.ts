@@ -11,13 +11,18 @@ const STATS = "https://relay.liq.fun/stats";
 const fetch = async (options: FetchOptions) => {
   const s = await httpGet(`${STATS}?from=${options.startTimestamp}&to=${options.endTimestamp}`);
   const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(s.winHaircutUsd, "Win Haircut");
-  dailyFees.addUSDValue(s.winFeeUsd, "Win Fee");
+  const dailyUserFees = options.createBalances();
+  for (const b of [dailyFees, dailyUserFees]) {
+    b.addUSDValue(s.winHaircutUsd, "Win Haircut");
+    b.addUSDValue(s.winFeeUsd, "Win Fee");
+  }
   // feesUsd is the protocol's two fees together: the win fee and 2% of losses.
+  // The loss fee comes out of what the LP pool receives, not on top of the
+  // trader's loss, so it is a fee to the protocol and not one traders pay.
   dailyFees.addUSDValue(Math.max(0, s.feesUsd - s.winFeeUsd), "Loss Fee");
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
   };
@@ -30,8 +35,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: "2026-10-12",
   methodology: {
-    Fees: "Charges paid by traders: on profitable closes an impact haircut on the gain and a 2% fee on the gain after the haircut; on losing closes and liquidations a 2% fee on the margin lost, taken by the protocol from what the LP pool receives.",
-    UserFees: "Same as fees: all of it is paid by traders.",
+    Fees: "On profitable closes, an impact haircut on the gain and a 2% fee on the gain after the haircut; on losing closes and liquidations, a 2% fee on the margin lost, taken by the protocol from what the LP pool receives.",
+    UserFees: "The haircut and the win fee on profitable closes. The loss fee is not included: it comes out of the LP pool's receipt, not on top of the trader's loss.",
     Revenue: "All fees are kept: the haircut stays in the protocol-owned LP pool and the win fee goes to the protocol.",
     ProtocolRevenue: "All fees are kept by the protocol.",
   },
