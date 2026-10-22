@@ -249,6 +249,7 @@ const AaveNonBuybackTransferAddresses = [
 ]
 
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
+const CowSettlement = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // Chainlink SVR (Smart Value Recapture) distribution Safe. Captures MEV from
 // Aave V3 Ethereum liquidations via Flashbots MEV-Share and forwards 100%
@@ -387,7 +388,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    const nonBuybackTransferAddresses = new Set(AaveNonBuybackTransferAddresses.map((a) => a.toLowerCase()))
+    const treasuryCollector = chainConfig[options.chain].treasuryCollector
+    const nonBuybackTransferAddresses = new Set([...AaveNonBuybackTransferAddresses, AaveBuyBackTreasury, treasuryCollector].map((a) => a.toLowerCase()))
     const buybackReceived = await addTokensReceived({
       options,
       tokens: [ADDRESSES.ethereum.AAVE],
@@ -395,6 +397,13 @@ const fetch = async (options: FetchOptions) => {
       logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase()),
     })
     dailyHoldersRevenue.addBalances(buybackReceived, METRIC.TOKEN_BUY_BACK)
+    const collectorBuybacks = await addTokensReceived({
+      options,
+      tokens: [ADDRESSES.ethereum.AAVE],
+      target: treasuryCollector,
+      fromAdddesses: [CowSettlement],
+    })
+    dailyHoldersRevenue.addBalances(collectorBuybacks, METRIC.TOKEN_BUY_BACK)
 
     // Chainlink SVR — MEV recapture from Aave V3 Ethereum liquidations.
     // The Chainlink SVR distributor Safe forwards 100% of recaptured value
