@@ -3,15 +3,14 @@ import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../../helpers/token";
 import { ethers } from "ethers";
 
-// Dedicated closed protocol wallets for exclusive protocol operations.
-// No personal, team or unrelated transactions are routed through these EOAs/wallets:
+// Protocol wallets by migration era:
 // - SWAP_FEE_RECEIVER: Dedicated BSC swap fee receiver (0.5% fee rate) activated on October 1, 2026.
 const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
 // - LIMIT_ORDER_FEE_RECEIVER: Dedicated BSC limit-order fee receiver (0.1% fee rate) activated on October 1, 2026.
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
 // - TREASURY_WALLET: Dedicated treasury EOA used solely during October 1-19, 2026 for the 40% allocation (PR #9838).
 const TREASURY_WALLET = "0x66BB01F14229E2179bAD84D52A69C0e4628dE63f";
-// - TAX_ACCUMULATOR: Dedicated closed accumulator wallet that handles exclusively native BNB RevShare proceeds.
+// - TAX_ACCUMULATOR: Handled ARB_TOKEN transfers in legacy era; from October 20, 2026 onward, operates as a dedicated closed accumulator handling exclusively native BNB RevShare distributions (50% holders, 50% team operations).
 const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
 
 // Legacy receiver used before the October 1, 2026 migration.
@@ -88,6 +87,8 @@ const fetchLegacy = async (options: FetchOptions) => {
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.add(swapFees, "Legacy Swap Revenue");
+	dailyRevenue.add(tokenTax.clone(1 - TREASURY_ALLOCATION), "Legacy Tax To Protocol");
+	dailyRevenue.add(tokenTax.clone(TREASURY_ALLOCATION * SAFE_FACTOR), "Legacy ARB INC Holder Revenue");
 
 	const dailyProtocolRevenue = options.createBalances();
 	dailyProtocolRevenue.add(swapFees, "Legacy Swap Fees To Protocol");
