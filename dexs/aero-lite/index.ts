@@ -164,7 +164,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Swap volume on Aero Slipstream (concentrated liquidity) pools, counting one side of each swap.',
-  Fees: 'Swap fees paid by traders, plus incentives (Liquidity Payments) that projects pay to sAERO holders.',
+  Fees: 'Swap fees paid by traders, plus incentives (Liquidity Payments, formerly bribes) that projects pay to the protocol to attract AERO Rewards to their pools.',
   Revenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
   HoldersRevenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
   SupplySideRevenue: 'Swap fees kept by fee-earning liquidity providers, and all fees of the original Aero Lite pools on Arc, which have no gauges.',
@@ -173,15 +173,15 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     'Token Swap Fees': 'Swap fees paid by traders.',
-    [LIQUIDITY_PAYMENTS]: 'Incentives that projects pay to sAERO holders allocating to a pool, counted as they stream. Excludes incentives funded by Aero itself.',
+    [LIQUIDITY_PAYMENTS]: 'Incentives (formerly bribes) that projects pay to the protocol for a pool, counted as the protocol streams them out. Excludes incentives funded by Aero itself.',
   },
   Revenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity plus the protocol share of fee-earning liquidity fees, distributed to sAERO holders.',
-    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects, streamed to sAERO holders allocating to the pool.',
+    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   HoldersRevenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity plus the protocol share of fee-earning liquidity fees, distributed to sAERO holders.',
-    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects, streamed to sAERO holders allocating to the pool.',
+    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   SupplySideRevenue: { 'Token Swap Fees': 'Swap fees kept by fee-earning liquidity providers.' },
 }
