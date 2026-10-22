@@ -60,11 +60,11 @@ const PUMP_CREATES = ["181ec828051c0777", "d6904cec5f8b31b4"]; // pump.fun creat
 // Robinhood Chain deployment (2026-10-20): Sapling's fee splitter, and the holder rewards contract that a coin's payee can be
 const RH_SPLITTER = "0x8c0F2F294F9a00ECCFbE778b9cD65B7C3C0aEf59";
 const RH_HOLDERS_REWARDS = "0x2c6e71cFE1E642B35C0c50C005D28769d76F3473";
-const RH_USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"; // the quote of Sapling coins on Robinhood Chain, 6 decimals
+const RH_USDG = ADDRESSES.robinhood.USDG; // the quote of Sapling coins on Robinhood Chain, 6 decimals
 const RH_SPLITTER_BLOCK = 93643376; // the splitter's deployment block
 const RH_SPLIT_EVENT = "event Split(address indexed coin, uint256 amount, uint256 liquidity, uint256 rootstock, uint256 treasury, uint256 payee)";
 const RH_PAYEE_CHANGED_EVENT = "event PayeeChanged(address indexed coin, address payee)";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null
 
 // Anchor event discriminators, sha256("event:<Name>")[0..8], and payload sizes in bytes
 const EVENT = {
