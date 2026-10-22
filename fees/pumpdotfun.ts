@@ -79,7 +79,8 @@ const PUMP_FUN_MIGRATOR = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg'
 // 2026-10-16 (first fee tx 2zHNmxmLAesNqGUkvPZgHidagwxDvKeP4KYR1j9icBX5Sr21YKHCdvUcw9rHh8wSDXfiP4BVD3euBKYYdi8Y5KUk
 // at 00:47 UTC; the docs say 17 Oct). The fee wallets also receive plain treasury transfers, swap
 // their own SOL and sweep to each other, so only inflows not signed by a fee wallet, in a tx that
-// runs one of TRADE_PROGRAMS, count. The referrer's cut is not split on-chain per trade (it is paid
+// has a dex_solana.trades row, count. Conditional orders are the exception: the fee is paid in its
+// own tx by PUMP_ORDER_PROGRAM out of the order vault. The referrer's cut is not split on-chain per trade (it is paid
 // later from the pooled rewards wallet), so it cannot be separated and is not deducted. The 50%
 // buyback policy covers bonding-curve, PumpSwap and Terminal revenue only, so the fee is all
 // protocol revenue.
@@ -89,14 +90,8 @@ const PLATFORM_FEE_WALLETS = [
   'KfHbT5Jrr5SV3CDkQVCLiSNWyVv5DmuVaCzbAHrzMFQ', // from 2026-10-19 20:17 UTC, sweeps USDC to the rewards wallet
 ]
 const NATIVE_SOL = 'So11111111111111111111111111111111111111111' // tokens_solana.transfers id for native SOL
-const TRADE_PROGRAMS = [
-  '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB', // pump.fun mobile app program
-  '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P', // pump.fun bonding curve
-  'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA', // PumpSwap
-  'Dsug6JqUcLJaTJCx7ufPREeHjnMakmVEAYSi5oaAEnzK', // pump.fun program, same upgrade authority (7gZufwwA...) as the bonding curve
-  'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4', // Jupiter v6, app trades in non-pump tokens
-  'DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH', // DFlow, app trades in non-pump tokens
-]
+// pump.fun conditional-order program, same upgrade authority (7gZufwwA...) as the bonding curve
+const PUMP_ORDER_PROGRAM = 'Dsug6JqUcLJaTJCx7ufPREeHjnMakmVEAYSi5oaAEnzK'
 
 const LABEL = {
   PumpFunPlatformFee: 'Pump Fun Platform Fees',
@@ -149,7 +144,7 @@ async function addPlatformFees(options: FetchOptions, dailyFees: any, dailyReven
   if (options.dateString < PLATFORM_FEE_START) return
   const rows = await queryDuneSql(options, `
     WITH fee_in AS (
-      SELECT tx_id, token_mint_address, amount
+      SELECT tx_id, token_mint_address, amount, outer_executing_account
       FROM tokens_solana.transfers
       WHERE to_owner IN (${PLATFORM_FEE_WALLETS.map(a => `'${a}'`).join(', ')})
         AND tx_signer NOT IN (${PLATFORM_FEE_WALLETS.map(a => `'${a}'`).join(', ')})
@@ -160,13 +155,8 @@ async function addPlatformFees(options: FetchOptions, dailyFees: any, dailyReven
       CASE WHEN token_mint_address = '${NATIVE_SOL}' THEN '${ADDRESSES.solana.SOL}' ELSE token_mint_address END AS mint,
       CAST(SUM(amount) AS double) AS amount
     FROM fee_in
-    WHERE tx_id IN (
-      SELECT tx_id FROM solana.instruction_calls
-      WHERE TIME_RANGE
-        AND tx_success
-        AND tx_id IN (SELECT tx_id FROM fee_in)
-        AND executing_account IN (${TRADE_PROGRAMS.map(p => `'${p}'`).join(', ')})
-    )
+    WHERE outer_executing_account = '${PUMP_ORDER_PROGRAM}'
+      OR tx_id IN (SELECT tx_id FROM dex_solana.trades WHERE TIME_RANGE AND tx_id IN (SELECT tx_id FROM fee_in))
     GROUP BY 1
   `, { extraUIDKey: 'pump-platform-fee' })
   for (const { mint, amount } of rows) {
