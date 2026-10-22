@@ -85,7 +85,7 @@ const v2Collectors = [
 ];
 // The partner fee (bps of the gross output, on top of Route's fee) goes to the integrating partner's
 // wallet, converted to USDG in the same swap when possible. It is the partner's income, not Route's:
-// reported as supply-side, like builder fees. feeAmount is in the swap's tokenOut.
+// reported as supply-side, like builder fees, at the amount actually paid (paidToken/paidAmount).
 const partnerFee = 'event PartnerFee(address indexed partner,address indexed tokenOut,uint256 feeAmount,address paidToken,uint256 paidAmount)';
 // Builder executors call the engines above, whose Swapped events already carry the volume.
 // Their own Route fee and integrator fee are only reported in BuilderSettled.
@@ -234,8 +234,9 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   for (const log of partnerFees) {
     // paidAmount 0: the partner fee could not be paid and stayed with the order.
     if (BigInt(log.paidAmount) === 0n) continue;
-    dailyFees.add(log.tokenOut, log.feeAmount, 'Partner Fees');
-    dailySupplySideRevenue.add(log.tokenOut, log.feeAmount, 'Partner Fees');
+    // Count what the partner actually received: USDG when converted in the swap, else the fee asset.
+    dailyFees.add(log.paidToken, log.paidAmount, 'Partner Fees');
+    dailySupplySideRevenue.add(log.paidToken, log.paidAmount, 'Partner Fees');
   }
   const builderSettlements = await options.getLogs({ toBlock, targets: builderExecutors, eventAbi: builderSettled });
   for (const log of builderSettlements) {
