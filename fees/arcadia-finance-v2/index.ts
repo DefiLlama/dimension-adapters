@@ -107,6 +107,21 @@ const ASSET_MANAGERS = [
   "0xbA1D0c99c261F94b9C8b52465890Cca27dd993Bd", // Rebalancer Uniswap V3
   "0x01EDaF0067a10D18c88D2876c0A85Ee0096a5Ac0", // Rebalancer Uniswap V4
 
+  // --- V2.2.0 ---
+  "0xd772812Ba8AeFBd4F2126E82e2D08a66856D0261", // Compounder Metadex CL
+  "0x3BfDff5365F325032aaDB685a580e06D61e68a42", // Compounder Slipstream V1
+  "0x0cB0f495d51Ab55296368b21BEfEd0f34a8904f0", // Compounder Slipstream V2
+  "0xA9FBC5006E7a670C5024aD8C5bdCde26ecC1B866", // Compounder Slipstream V3
+  "0x164485C1602608edC714cFC358439D7FCb256358", // Compounder Uniswap V3
+  "0x81a125ea6F34921b221EeFE8e74aA505CB325de7", // Compounder Uniswap V4
+  "0x9EA47b9db58970Ab5Ea686a5CaC3e80ec652d755", // Rebalancer Metadex CL
+  "0x923c71a9Ff5f68d734669e149F674cC26EF13838", // Rebalancer Slipstream V1
+  "0x39A5c1e3c2dE5B20095e9f943B2A025117f80d7A", // Rebalancer Slipstream V2
+  "0xCA33d4EEd62a3AE9a94f33c0e166DfA2a02aD347", // Rebalancer Slipstream V3
+  "0xe786c6C70bb0Ea6E81Ba59aE51aC794c54e5B202", // Rebalancer Uniswap V3
+  "0x91c406f72875D9e2d211CEd69559B4eC0fD2Bfb3", // Rebalancer Uniswap V4
+  "0x0367C284b58d3531947c182C1aF203177Cc4D6ed", // Yield Claimer Metadex CL
+
   // --- CoW Swappers ---
   // Ordered oldest to newest. The address-book keys do not follow that order:
   // V1.1.1, the newest, is stored under COW_SWAPPER_V1 while the two older ones
@@ -117,9 +132,11 @@ const ASSET_MANAGERS = [
   "0xb988a32DeF54821Dde0D7382e8a74f1BE4da1f23", // CoW Swapper V1.1.1 (current)
 ];
 
-// ActionTarget used by manual (non-automated) front-end account actions. It emits
-// `FeesPaid` (distinct event/signature from the asset managers' `FeePaid`).
+// ActionTarget and ActionManager (proxies) used by manual (non-automated) front-end
+// account actions. Both emit `FeesPaid` (distinct event/signature from the asset
+// managers' `FeePaid`); the ActionManager does not route through the ActionTarget.
 const ACTION_TARGET = "0xa48D4201030C09CEA82f5B0955b9C837699D3c32";
+const ACTION_MANAGER = "0x0d2C7E0F6A3933c89e4Ea6569363cb2Ac1313191";
 
 // https://docs.arcadia.finance/protocol/fees
 const INTEREST_TREASURY_SHARE = 15n; // 15%
@@ -214,10 +231,11 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(feePaid.asset, feePaid.amount, METRIC.PERFORMANCE_FEES);
   };
 
-  // Manual (non-automated) front-end action fees collected by the ActionTarget.
+  // Manual (non-automated) front-end action fees collected by the ActionTarget and the ActionManager.
   const feesPaidLogs = await options.getLogs({
-    target: ACTION_TARGET,
+    targets: [ACTION_TARGET, ACTION_MANAGER],
     eventAbi: FEES_PAID_EVENT,
+    flatten: true,
   });
 
   for (const feesPaid of feesPaidLogs) {
