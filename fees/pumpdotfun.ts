@@ -75,15 +75,19 @@ const MAYHEM_FEE_WALLET = 'GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS'
 const PUMP_FUN_MIGRATOR = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg'
 
 // Platform Fee (https://pump.fun/docs/fees): 0.45% of pump.fun web and mobile app trades (0.40%
-// with a referral code), sent by the app as its own transfer of SOL or USDC to this wallet since
+// with a referral code), sent by the app as its own transfer of SOL or USDC to a fee wallet since
 // 2026-10-16 (first fee tx 2zHNmxmLAesNqGUkvPZgHidagwxDvKeP4KYR1j9icBX5Sr21YKHCdvUcw9rHh8wSDXfiP4BVD3euBKYYdi8Y5KUk
-// at 00:47 UTC; the docs say 17 Oct). The wallet also receives plain treasury transfers and swaps
-// its own SOL, so only inflows not signed by the wallet, in a tx that runs one of TRADE_PROGRAMS,
-// count. The referrer's cut is not split on-chain per trade (it is paid later from this pooled
-// rewards wallet), so it cannot be separated and is not deducted. The 50% buyback policy covers
-// bonding-curve, PumpSwap and Terminal revenue only, so the fee is all protocol revenue.
+// at 00:47 UTC; the docs say 17 Oct). The fee wallets also receive plain treasury transfers, swap
+// their own SOL and sweep to each other, so only inflows not signed by a fee wallet, in a tx that
+// runs one of TRADE_PROGRAMS, count. The referrer's cut is not split on-chain per trade (it is paid
+// later from the pooled rewards wallet), so it cannot be separated and is not deducted. The 50%
+// buyback policy covers bonding-curve, PumpSwap and Terminal revenue only, so the fee is all
+// protocol revenue.
 const PLATFORM_FEE_START = '2026-10-16'
-const PLATFORM_FEE_WALLET = 'BNrYNyQZhdGRs8Rvi98WGTjhxab2wFTdGtVjW72RGyh4'
+const PLATFORM_FEE_WALLETS = [
+  'BNrYNyQZhdGRs8Rvi98WGTjhxab2wFTdGtVjW72RGyh4', // 2026-10-16 to 2026-10-19 20:17 UTC, also the rewards wallet
+  'KfHbT5Jrr5SV3CDkQVCLiSNWyVv5DmuVaCzbAHrzMFQ', // from 2026-10-19 20:17 UTC, sweeps USDC to the rewards wallet
+]
 const NATIVE_SOL = 'So11111111111111111111111111111111111111111' // tokens_solana.transfers id for native SOL
 const TRADE_PROGRAMS = [
   '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB', // pump.fun mobile app program
@@ -147,8 +151,8 @@ async function addPlatformFees(options: FetchOptions, dailyFees: any, dailyReven
     WITH fee_in AS (
       SELECT tx_id, token_mint_address, amount
       FROM tokens_solana.transfers
-      WHERE to_owner = '${PLATFORM_FEE_WALLET}'
-        AND tx_signer <> '${PLATFORM_FEE_WALLET}'
+      WHERE to_owner IN (${PLATFORM_FEE_WALLETS.map(a => `'${a}'`).join(', ')})
+        AND tx_signer NOT IN (${PLATFORM_FEE_WALLETS.map(a => `'${a}'`).join(', ')})
         AND token_mint_address IN ('${NATIVE_SOL}', '${ADDRESSES.solana.SOL}', '${ADDRESSES.solana.USDC}')
         AND TIME_RANGE
     )
