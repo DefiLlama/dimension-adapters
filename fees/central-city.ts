@@ -39,12 +39,29 @@ const SERVICE_FEES_TO_TREASURY = "Service Fees To Treasury";
 // that DefiLlama's x402 listing (dexs/x402) can count.
 const KIND_INCLUDED = 1;
 
+// Blocks per getLogs request (Base: ~2 s blocks, so about 10 minutes).
+const BLOCKS_PER_REQUEST = 300;
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
 
-  const logs = await options.getLogs({ targets: FEE_ROUTERS, eventAbi: FEE_CHARGED_EVENT });
+  // Busy hours hold tens of thousands of FeeCharged events: each router is read in block chunks, so
+  // no single request carries a huge answer.
+  const fromBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  const logs: any[] = [];
+  for (const target of FEE_ROUTERS)
+    for (let start = fromBlock; start <= toBlock; start += BLOCKS_PER_REQUEST)
+      logs.push(
+        ...(await options.getLogs({
+          target,
+          eventAbi: FEE_CHARGED_EVENT,
+          fromBlock: start,
+          toBlock: Math.min(toBlock, start + BLOCKS_PER_REQUEST - 1),
+        })),
+      );
   for (const log of logs) {
     dailyFees.add(USDC, log.fee, METRIC.SERVICE_FEES);
     dailyRevenue.add(USDC, log.fee, SERVICE_FEES_TO_TREASURY);
