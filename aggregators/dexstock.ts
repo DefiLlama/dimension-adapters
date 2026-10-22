@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import fetchURL from "../utils/fetchURL";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 // Dexstock (https://dexstock.app) is a trading app for tokenized stocks on Robinhood Chain. It
 // holds no funds and has no router of its own: each trade is filled by Uniswap (a classic swap
@@ -19,7 +20,7 @@ import fetchURL from "../utils/fetchURL";
 // against USDG), otherwise on what the wallet sent. Doublecounted: the same swaps are counted
 // by the Uniswap and Arcus listings.
 const TRADES_API = "https://prwslspbpmguosxvnwwf.supabase.co/functions/v1/defillama-trades";
-const USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
 const topicToAddress = (topic: string) => ("0x" + topic.slice(26)).toLowerCase();
