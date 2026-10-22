@@ -22,27 +22,46 @@ const USDC = ADDRESSES.solana.USDC;
 
 const quoted = (values: string[]) => values.map((value) => `'${value}'`).join(", ");
 
-const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
-  const window = (column: string) => `${column} >= from_unixtime(${startTimestamp}) AND ${column} < from_unixtime(${endTimestamp})`;
-  return `
-    WITH
-    -- Every pool Ryntra Launch created, with the creator's share of the trading fee its config sets.
+// Every pool Ryntra Launch created, with the creator's share of the trading fee its config sets.
+const LAUNCHES_CTE = `
     launches AS (
       SELECT p.pool, CAST(JSON_EXTRACT_SCALAR(c.config_parameters, '$.ConfigParameters.creator_trading_fee_percentage') AS BIGINT) AS creator_percent
       FROM meteora_solana.dynamic_bonding_curve_evt_evtinitializepool p
       JOIN meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2 c ON c.config = p.config
       WHERE p.config IN (${quoted(LAUNCH_CONFIGS)})
         AND p.evt_tx_signer = '${LAUNCH_POOL_PAYER}'
-        AND p.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
-        AND c.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
-    ),
-    -- The Meteora DAMM v2 pool each launch graduated into: token A the launched token, token B USDC.
-    graduated AS (
-      SELECT account_pool AS pool, account_base_mint AS base_mint
-      FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
-      WHERE account_virtual_pool IN (SELECT pool FROM launches)
-        AND call_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
-    ),
+        AND p.evt_block_date >= DATE '${CONFIGS_CREATED}' AND p.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
+        AND c.evt_block_date >= DATE '${CONFIGS_CREATED}' AND c.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
+    )`;
+
+type GraduatedPool = { pool: string; base_mint: string };
+
+// The Meteora DAMM v2 pool each launch graduated into before the window ends (token A the launched token, token B
+// USDC). Read first, in a small query of its own: the DAMM v2 swap, call and position-fee tables are the bulk of the
+// main query's cost and are only scanned when a launch has graduated. A pool that graduates after the window has no
+// trades or claims in it.
+const graduatedQuery = ({ endTimestamp }: FetchOptions) => `
+    WITH ${LAUNCHES_CTE}
+    SELECT DISTINCT account_pool AS pool, account_base_mint AS base_mint
+    FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
+    WHERE account_virtual_pool IN (SELECT pool FROM launches)
+      AND call_block_date >= DATE '${CONFIGS_CREATED}' AND call_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
+      AND call_block_time < from_unixtime(${endTimestamp})
+  `;
+
+const query = ({ startTimestamp, endTimestamp }: FetchOptions, graduatedPools: GraduatedPool[]) => {
+  const hasGraduated = graduatedPools.length > 0;
+  const graduatedValues = graduatedPools.map(({ pool, base_mint }) => `('${pool}', '${base_mint}')`).join(", ");
+  // Dune partitions the decoded Solana tables by evt_block_date / call_block_date: the block_time bound alone scans
+  // every partition, so each window also bounds the date column next to it
+  const window = (column: string) => {
+    const dateColumn = column.replace(/_block_time$/, "_block_date");
+    return `${dateColumn} >= CAST(from_unixtime(${startTimestamp}) AS DATE) AND ${dateColumn} <= CAST(from_unixtime(${endTimestamp}) AS DATE)
+      AND ${column} >= from_unixtime(${startTimestamp}) AND ${column} < from_unixtime(${endTimestamp})`;
+  };
+  return `
+    WITH ${LAUNCHES_CTE},
+    ${hasGraduated ? `graduated (pool, base_mint) AS (VALUES ${graduatedValues}),` : ""}
     -- Every swap on those curves and graduated pools, from its EvtSwap2 (both swap and swap2 emit it), with the
     -- referral token account its instruction named. Instruction and event are paired in order within the same outer
     -- instruction.
@@ -52,12 +71,12 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
         trade_direction, swap_result
       FROM meteora_solana.dynamic_bonding_curve_evt_evtswap2
       WHERE pool IN (SELECT pool FROM launches) AND ${window("evt_block_time")}
-      UNION ALL
+      ${hasGraduated ? `UNION ALL
       SELECT 'graduated', evt_tx_id, pool, evt_outer_instruction_index,
         ROW_NUMBER() OVER (PARTITION BY evt_tx_id, pool, evt_outer_instruction_index ORDER BY evt_inner_instruction_index),
         trade_direction, swap_result
       FROM meteora_solana.cp_amm_evt_evtswap2
-      WHERE pool IN (SELECT pool FROM graduated) AND ${window("evt_block_time")}
+      WHERE pool IN (SELECT pool FROM graduated) AND ${window("evt_block_time")}` : ""}
     ),
     calls AS (
       SELECT tx_id, pool, outer_ix, referral,
@@ -70,14 +89,14 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
         SELECT call_tx_id, account_pool, call_outer_instruction_index, call_inner_instruction_index, account_referral_token_account
         FROM meteora_solana.dynamic_bonding_curve_call_swap2
         WHERE account_pool IN (SELECT pool FROM launches) AND ${window("call_block_time")}
-        UNION ALL
+        ${hasGraduated ? `UNION ALL
         SELECT call_tx_id, account_pool, call_outer_instruction_index, call_inner_instruction_index, account_referral_token_account
         FROM meteora_solana.cp_amm_call_swap
         WHERE account_pool IN (SELECT pool FROM graduated) AND ${window("call_block_time")}
         UNION ALL
         SELECT call_tx_id, account_pool, call_outer_instruction_index, call_inner_instruction_index, account_referral_token_account
         FROM meteora_solana.cp_amm_call_swap2
-        WHERE account_pool IN (SELECT pool FROM graduated) AND ${window("call_block_time")}
+        WHERE account_pool IN (SELECT pool FROM graduated) AND ${window("call_block_time")}` : ""}
       )
     ),
     swaps AS (
@@ -100,7 +119,7 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
       SELECT 'migration_fees' AS metric, '${USDC}' AS mint, CAST(fee AS BIGINT) AS amount
       FROM meteora_solana.dynamic_bonding_curve_evt_evtwithdrawmigrationfee
       WHERE pool IN (SELECT pool FROM launches) AND flag = 0 AND ${window("evt_block_time")}
-      UNION ALL
+      ${hasGraduated ? `UNION ALL
       SELECT 'position_fees', g.base_mint, CAST(f.fee_a_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
@@ -109,7 +128,7 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
       SELECT 'position_fees', '${USDC}', CAST(f.fee_b_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
-      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}
+      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}` : ""}
     )
     -- Volume is the curve's only: after graduation it is Meteora DAMM v2's, which lists it.
     SELECT 'volume' AS metric, '${USDC}' AS mint, CAST(SUM(quote_volume) AS VARCHAR) AS amount FROM swaps WHERE market = 'curve'
@@ -149,7 +168,8 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   assertDuneSolanaIndexed(options);
-  const rows: { metric: string; mint: string; amount: string | null }[] = await queryDuneSql(options, query(options));
+  const graduatedPools: GraduatedPool[] = await queryDuneSql(options, graduatedQuery(options));
+  const rows: { metric: string; mint: string; amount: string | null }[] = await queryDuneSql(options, query(options, graduatedPools));
   const total = (metric: string) => BigInt(rows.find((row) => row.metric === metric)?.amount ?? 0);
 
   const dailyVolume = options.createBalances();

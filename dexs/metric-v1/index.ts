@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { getMetricFactoriesAdapter, MetricEvents, MetricFactoriesChainConfig, MetricFactory } from "../metric/utils";
+import { getMetricFactoriesAdapter, MetricEvents, MetricFactoriesChainConfig, MetricFactory } from "./utils";
 
 // Both generations share the PoolCreated layout (the newer one only renamed a
 // few fields), so the same ABI decodes either factory's events.

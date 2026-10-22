@@ -93,6 +93,44 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
   return established;
 }
 
+// Uniswap v4 flash accounting lets one transaction add liquidity, swap through it
+// and remove it again with the deltas cancelling, so the PoolManager emits Swap
+// logs for tokens nobody holds: a 1-tick position in a freshly minted token
+// paired with ETH/USDC, "swapped" for $100M+ with zero value sent and no real
+// token moving (optimism 0xc4a48a865abad9390c0718e1b9374f327ba47a17b4cb356346ab2c0066b4d7d4:
+// 178k ETH of Swap logs, tx value 0, only the fake token transferred). The cheaper
+// variant keeps a pre-funded fake-token position in a fee-0 pool and round-trips
+// through it inside one tx. Both leave the same fingerprint inside one tx and one
+// pool: the swaps net to ~0 on both tokens, or liquidity was both added and
+// removed. Such groups are dropped. Cost: ~0.1% of organic volume (a same-tx
+// round trip through one pool has no legitimate use; JIT hooks that add and
+// remove around a user's swap are negligible). Keyed by tx hash + pool id.
+export function getPhantomSwapKeys(swaps: any[], liquidityMods: any[]): Set<string> {
+  const abs = (x: bigint) => x < 0n ? -x : x
+  const groups: Record<string, { n: number; net0: bigint; gross0: bigint; net1: bigint; gross1: bigint }> = {}
+  for (const log of swaps) {
+    const g = groups[phantomSwapKey(log)] ??= { n: 0, net0: 0n, gross0: 0n, net1: 0n, gross1: 0n }
+    const a0 = BigInt(String(log.args.amount0)), a1 = BigInt(String(log.args.amount1))
+    g.n++; g.net0 += a0; g.gross0 += abs(a0); g.net1 += a1; g.gross1 += abs(a1)
+  }
+  const liquidity: Record<string, { add?: boolean; remove?: boolean }> = {}
+  for (const log of liquidityMods) {
+    const l = liquidity[phantomSwapKey(log)] ??= {}
+    if (BigInt(String(log.args.liquidityDelta)) > 0n) l.add = true; else l.remove = true
+  }
+  const phantom = new Set<string>()
+  for (const [key, g] of Object.entries(groups)) {
+    // |net| <= 1% of gross on both tokens: the fee is all that fails to cancel
+    const roundTrip = g.n >= 2 && abs(g.net0) * 100n <= g.gross0 && abs(g.net1) * 100n <= g.gross1
+    if (roundTrip || (liquidity[key]?.add && liquidity[key]?.remove)) phantom.add(key)
+  }
+  return phantom
+}
+
+export function phantomSwapKey(log: any): string {
+  return `${log.transactionHash}:${log.args.id}`.toLowerCase()
+}
+
 // Fail fast above 10% failed balance calls to tolerate isolated RPC errors without
 // reporting a mostly-failed batch of pools as legitimately empty. See PR #8565 for the
 // original all-or-nothing precedent this threshold replaces.

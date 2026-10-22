@@ -32,6 +32,32 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "arx-perps": {
+    // ARX team-confirmed builder; official site: https://arx.trade / https://x.com/ARX_TRADE
+    // First real fills confirmed by the team: 2026-10-02 (UTC).
+    // Archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x2165f1023f7584d0ba251808895e3011fcbbd9c7/20261002.csv.lz4
+    // Legacy ARX builder addresses are intentionally excluded from this listing.
+    addresses: ["0x2165f1023f7584d0ba251808895e3011fcbbd9c7"],
+    start: "2026-10-02",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades carrying ARX's builder code, including HIP-3 perpetual markets; excludes spot trades and legacy ARX builder addresses.",
+      Fees: "Actual builder-code fees paid on Hyperliquid perpetual trades carrying ARX's builder code; excludes Hyperliquid exchange trading fees and legacy ARX builder addresses.",
+      Revenue: "Builder-code fees received by ARX on Hyperliquid perpetual trades, before any subsequent referral payouts from ARX's treasury.",
+      ProtocolRevenue: "Builder-code fees received by ARX on Hyperliquid perpetual trades, before any subsequent referral payouts from ARX's treasury.",
+    },
+    breakdownFees: true,
+  },
+  "hypurrtrade": {
+    addresses: ["0x0e024a4fad828e8f976fdccbeeaab72d4205be3c"],
+    start: "2026-10-01",
+    methodology: {
+      Volume: "Perps trading volume routed through the HypurrTrade terminal on Hyperliquid.",
+      Fees: "Builder fees paid by users on perps trades routed through HypurrTrade (0.05% until 2026-10-08, 0.1% since); excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "ditto-perps": {
     // Public Hyperliquid builder attribution; the daily indexer counts every tagged fill.
     // Scope/fields: https://hl-indexer.llama.rip/llms.txt (builder daily summaries).

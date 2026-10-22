@@ -46,6 +46,10 @@ const configs: Record<string, Config> = {
   "hover": {
     chains: { [CHAIN.KAVA]: { comptroller: "0x3A4Ec955a18eF6eB33025599505E7d404a4d59eC", start: '2023-11-24' } },
   },
+  "kinetixdao": {
+    chains: { [CHAIN.BITKUB]: { comptroller: "0xc5DD9f1cE32f19C0a76a924F681914A8D10E8008", start: '2026-10-09' } },
+    options: { start: { [CHAIN.BITKUB]: '2026-10-09' }, protocolRevenueRatio: 1, holdersRevenueRatio: 0 },
+  },
   "machfi": {
     chains: { [CHAIN.SONIC]: { comptroller: "0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730", start: '2025-01-01' } },
     options: { protocolRevenueRatio: 1 },

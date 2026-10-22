@@ -7,7 +7,7 @@ import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
 import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
-import { handleBribeToken } from "../aerodrome/utils";
+import { bribesEnded, handleBribeToken, legacyRevenueExports, LOCKED_GAUGE_FEES } from "../aerodrome/utils";
 
 const CONFIG = {
   factories: [
@@ -275,19 +275,14 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Unstaked-LP Fees')
   })
 
-  const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
-  const dailyRevenue = fetchOptions.createBalances()
+  const { dailyBribesRevenue } = bribesEnded(fetchOptions) ? { dailyBribesRevenue: createBalances() } : await getBribes(fetchOptions, bribeSet)
 
   dailyFees.add(dailyBribesRevenue, 'External Bribes Rewards')
-  dailyRevenue.add(dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake')
-  dailyRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
-  dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
   
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
+    ...legacyRevenueExports(fetchOptions, dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake', dailyBribesRevenue, 'External Bribes Revenue'),
     dailySupplySideRevenue,
   }
 }
@@ -297,28 +292,33 @@ const prefetch: any = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
-  Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
-  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
-  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue.",
+  Volume: 'Swap volume on Aerodrome Slipstream (concentrated liquidity) pools, excluding wash trading.',
+  Fees: 'Swap fees paid by traders, plus bribes deposited for veAERO voters until voting ended with the Aero upgrade on 2026-10-22.',
+  Revenue: 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, and bribes, paid to veAERO voters, plus those staked-liquidity fees locked in the gauges since their last fee distribution on 2026-10-15.',
+  HoldersRevenue: 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity until the gauges last distributed fees on 2026-10-15, plus bribes until voting ended on 2026-10-22, all paid to veAERO voters.',
+  ProtocolRevenue: 'Swap fees of liquidity staked in gauges, plus the cut taken from unstaked liquidity, since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
+  SupplySideRevenue: 'Swap fees kept by liquidity providers that do not stake in a gauge, after the unstaked fee cut.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Token Swap Fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
-    'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Token Swap Fees': 'Swap fees paid by traders.',
+    'External Bribes Rewards': 'Bribes deposited for veAERO voters, until voting ended on 2026-10-22.',
   },
   Revenue: {
-    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
-    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+    [LOCKED_GAUGE_FEES]: 'The same fees since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   HoldersRevenue: {
-    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
-    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+  },
+  ProtocolRevenue: {
+    [LOCKED_GAUGE_FEES]: 'Swap fees of liquidity staked in gauges plus the cut taken from unstaked liquidity, since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   SupplySideRevenue: {
-    'Unstaked-LP Fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
+    'Unstaked-LP Fees': 'Swap fees kept by liquidity providers that do not stake in a gauge, after the unstaked fee cut.',
   },
 }
 
