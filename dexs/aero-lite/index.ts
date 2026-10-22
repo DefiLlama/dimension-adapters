@@ -135,7 +135,7 @@ const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, daily
     const { token0, token1 } = pools[pool]
     // the tape discards pre-seeded values on a pool's first swap, so it counts from zero until then
     const startTape = Number(start[pool]?.tape.lastSwapTimestamp ?? 0) > 0 ? start[pool].tape : null
-    const tapeFee = (t: any, k: number) => t ? BigInt(t[`cumulativeFee${k}`]) : 0n
+    const tapeFee = (t: any, k: number) => Number(t?.lastSwapTimestamp ?? 0) > 0 ? BigInt(t[`cumulativeFee${k}`]) : 0n
     ;[token0, token1].forEach((token, k) => {
       const fee = tapeFee(tapeEnd[i], k) - tapeFee(startTape, k)
       if (fee <= 0n) return
