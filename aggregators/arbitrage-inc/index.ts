@@ -3,20 +3,19 @@ import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../../helpers/token";
 import { ethers } from "ethers";
 
-// Dedicated BSC swap fee receiver activated in the October 1, 2026 receiver migration.
-// This address is used only for protocol swap fees (0.5% fee rate).
+// Dedicated closed protocol wallets for exclusive protocol operations.
+// No personal, team or unrelated transactions are routed through these EOAs/wallets:
+// - SWAP_FEE_RECEIVER: Dedicated BSC swap fee receiver (0.5% fee rate) activated on October 1, 2026.
 const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
-// Dedicated BSC limit-order fee receiver activated in the October 1, 2026 receiver migration.
-// This address is used only for protocol limit-order fees (0.1% fee rate).
+// - LIMIT_ORDER_FEE_RECEIVER: Dedicated BSC limit-order fee receiver (0.1% fee rate) activated on October 1, 2026.
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
-// Treasury wallet used during the October 1 - October 19, 2026 window for the 40% RevShare allocation (PR #9838).
-// Decommissioned on October 20, 2026; from Era 3 onward, TAX_ACCUMULATOR pushes directly to holders and team without an intermediary treasury.
+// - TREASURY_WALLET: Dedicated treasury EOA used solely during October 1-19, 2026 for the 40% allocation (PR #9838).
 const TREASURY_WALLET = "0x66BB01F14229E2179bAD84D52A69C0e4628dE63f";
-
-// Legacy receiver and tax accumulator used before the October 1, 2026 migration.
-const LEGACY_SWAP_FEE_RECEIVER = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
-// Tax accumulator address that collects the 4% ARB INC token transfer tax on-chain and converts/distributes in native BNB.
+// - TAX_ACCUMULATOR: Dedicated closed accumulator wallet that handles exclusively native BNB RevShare proceeds.
 const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
+
+// Legacy receiver used before the October 1, 2026 migration.
+const LEGACY_SWAP_FEE_RECEIVER = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
 const ARB_TOKEN = "0x5EE54869Ecd5E752C31aF095187326D4A4D50e1c";
 
 const RECEIVER_MIGRATION_TIMESTAMP = 1790812800; // 2026-10-01 00:00:00 UTC
@@ -86,11 +85,9 @@ const fetchLegacy = async (options: FetchOptions) => {
 
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Legacy Swap Fees");
-	dailyFees.add(tokenTax, "Legacy Token Transfer Tax");
 
 	const dailyRevenue = options.createBalances();
 	dailyRevenue.add(swapFees, "Legacy Swap Revenue");
-	dailyRevenue.add(tokenTax, "Legacy Tax Revenue");
 
 	const dailyProtocolRevenue = options.createBalances();
 	dailyProtocolRevenue.add(swapFees, "Legacy Swap Fees To Protocol");
@@ -292,13 +289,11 @@ const adapter: SimpleAdapter = {
 		},
 		Fees: {
 			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding transfers originating from the tax accumulator.",
-			"Legacy Token Transfer Tax": "Pre-migration ARB INC token tax received by the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
 			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC across all received tokens.",
 			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219 across all received tokens.",
 		},
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
-			"Legacy Tax Revenue": "Pre-migration ARB INC token tax before the holder allocation.",
 			"Kyber Swap Revenue": "Swap fees retained by the protocol across all tokens.",
 			"Kyber Limit Order Revenue": "Limit-order fees retained by the protocol across all tokens.",
 			"ARB INC Tax Revenue": "October 1-19 realized tax proceeds before the holder allocation.",
