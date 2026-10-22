@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
-import { addOneToken } from '../helpers/prices';
+import { addOneToken, isCoreAsset } from '../helpers/prices';
 import { filterPools } from '../helpers/uniswap';
 
 // goo exchange (https://goo.exchange/docs/): stock uniV3 pools, CREATE2'd by a separate pool deployer; PoolCreated is emitted by the factory.
@@ -21,6 +21,12 @@ const PROTOCOL_OWNERS = [
   '0xB50f029A7004f87B13CBCefb7f21c0A91CbD1bA0', // treasury Safe
 ]
 const Q128 = 1n << 128n
+const Q192 = 1n << 192n
+// GOO has had a coins price only since its CoinGecko listing (2026-10-16), so every GOO amount is valued in WETH at the main
+// GOO/WETH pool's price at the window's end: the same for every day, before and after the listing.
+const GOO = '0x6572eade9fb17f4027baf92feac222b9aa746bd0'
+const WETH = '0x0bd7d308f8e1639fab988df18a8011f41eacad73'
+const MAIN_POOL = '0x841f00216A273641eD583916e668e24b4A89d1e7' // GOO/WETH 1%, token0 WETH, token1 GOO
 const MOD = 1n << 256n
 
 const GOO_BURN_LABEL = 'Swap Fees To GOO Buyback And Burn'
@@ -155,15 +161,25 @@ const fetch = async (options: FetchOptions) => {
   const dailyUserFees = createBalances()
   const result = () => ({ dailyVolume, dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue })
 
+  // WETH per GOO from the main pool (GOO per WETH = sqrtPrice² / 2^192); it doesn't exist in the first hours, when nothing traded
+  const main = await api.call({ target: MAIN_POOL, abi: abi.slot0, permitFailure: true })
+  const gooToWeth = (amount: bigint) => {
+    if (!main) throw new Error('goo-exchange: no GOO/WETH price for a GOO amount')
+    const sqrtPrice = BigInt(main.sqrtPriceX96)
+    return (amount * Q192) / (sqrtPrice * sqrtPrice)
+  }
+  const book = (balances: any, token: string, amount: any, label: string) =>
+    token.toLowerCase() === GOO ? balances.add(WETH, gooToWeth(BigInt(amount)), label) : balances.add(token, amount, label)
+
   // satellite arbitrage profit: protocol revenue that no user pays as a fee
   for (const { token, toJar, toDevFund, toCompounder } of await getLogs({ target: SATELLITE_SPLITTER, eventAbi: abi.distributed })) {
-    dailyFees.add(token, BigInt(toJar) + BigInt(toDevFund) + BigInt(toCompounder), SATELLITE_PROFITS_LABEL)
-    dailyRevenue.add(token, toJar, SATELLITE_BURN_LABEL)
-    dailyHoldersRevenue.add(token, toJar, SATELLITE_BURN_LABEL)
-    dailyRevenue.add(token, toDevFund, SATELLITE_DEV_FUND_LABEL)
-    dailyProtocolRevenue.add(token, toDevFund, SATELLITE_DEV_FUND_LABEL)
-    dailyRevenue.add(token, toCompounder, SATELLITE_TREASURY_LABEL)
-    dailyProtocolRevenue.add(token, toCompounder, SATELLITE_TREASURY_LABEL)
+    book(dailyFees, token, BigInt(toJar) + BigInt(toDevFund) + BigInt(toCompounder), SATELLITE_PROFITS_LABEL)
+    book(dailyRevenue, token, toJar, SATELLITE_BURN_LABEL)
+    book(dailyHoldersRevenue, token, toJar, SATELLITE_BURN_LABEL)
+    book(dailyRevenue, token, toDevFund, SATELLITE_DEV_FUND_LABEL)
+    book(dailyProtocolRevenue, token, toDevFund, SATELLITE_DEV_FUND_LABEL)
+    book(dailyRevenue, token, toCompounder, SATELLITE_TREASURY_LABEL)
+    book(dailyProtocolRevenue, token, toCompounder, SATELLITE_TREASURY_LABEL)
   }
 
   const pools = await getPools(chain)
@@ -188,7 +204,12 @@ const fetch = async (options: FetchOptions) => {
     const lp: [bigint, bigint] = [0n, 0n]
     for (const { amount0, amount1 } of swaps[i]) {
       const amounts = [BigInt(amount0), BigInt(amount1)]
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: amounts[0], amount1: amounts[1] })
+      // a GOO pool's volume is its other side when that is a core asset, otherwise its GOO side valued in WETH
+      const gooSide = token0 === GOO ? 0 : token1 === GOO ? 1 : -1
+      if (gooSide >= 0 && !isCoreAsset(chain, gooSide === 0 ? token1 : token0)) {
+        const gooAmount = amounts[gooSide] < 0n ? -amounts[gooSide] : amounts[gooSide]
+        dailyVolume.add(WETH, gooToWeth(gooAmount))
+      } else addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: amounts[0], amount1: amounts[1] })
       // the swap fee is charged on the input token: the side the pool received
       const side = amounts[0] > 0n ? 0 : 1
       if (amounts[side] <= 0n) continue
@@ -196,12 +217,12 @@ const fetch = async (options: FetchOptions) => {
       const swapFee = (amounts[side] * fee) / 1_000_000n
       const protocolFee = protocolDenominator > 0n ? swapFee / protocolDenominator : 0n
       const toJar = protocolFee / 2n
-      dailyFees.add(token, swapFee, METRIC.SWAP_FEES)
-      dailyUserFees.add(token, swapFee, METRIC.SWAP_FEES)
-      dailyRevenue.add(token, toJar, GOO_BURN_LABEL)
-      dailyHoldersRevenue.add(token, toJar, GOO_BURN_LABEL)
-      dailyRevenue.add(token, protocolFee - toJar, GOO_DEV_FUND_LABEL)
-      dailyProtocolRevenue.add(token, protocolFee - toJar, GOO_DEV_FUND_LABEL)
+      book(dailyFees, token, swapFee, METRIC.SWAP_FEES)
+      book(dailyUserFees, token, swapFee, METRIC.SWAP_FEES)
+      book(dailyRevenue, token, toJar, GOO_BURN_LABEL)
+      book(dailyHoldersRevenue, token, toJar, GOO_BURN_LABEL)
+      book(dailyRevenue, token, protocolFee - toJar, GOO_DEV_FUND_LABEL)
+      book(dailyProtocolRevenue, token, protocolFee - toJar, GOO_DEV_FUND_LABEL)
       lp[side] += swapFee - protocolFee
     }
 
@@ -209,9 +230,9 @@ const fetch = async (options: FetchOptions) => {
     const own = owned[pool] ?? [0n, 0n]
     ;[token0, token1].forEach((token, t) => {
       const toProtocol = own[t] < lp[t] ? own[t] : lp[t]
-      dailyRevenue.add(token, toProtocol, GOO_POL_LABEL)
-      dailyProtocolRevenue.add(token, toProtocol, GOO_POL_LABEL)
-      dailySupplySideRevenue.add(token, lp[t] - toProtocol, GOO_LP_LABEL)
+      book(dailyRevenue, token, toProtocol, GOO_POL_LABEL)
+      book(dailyProtocolRevenue, token, toProtocol, GOO_POL_LABEL)
+      book(dailySupplySideRevenue, token, lp[t] - toProtocol, GOO_LP_LABEL)
     })
   })
 
@@ -219,7 +240,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: "Total swap volume on goo exchange pools.",
+  Volume: "Total swap volume on goo exchange pools. GOO amounts are valued in WETH at the GOO/WETH pool's price at the end of each hour (GOO has a coins price only since 2026-10-16).",
   Fees: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in, plus the arbitrage profit of the protocol's satellite pools.",
   UserFees: "Swap fees paid by users at each pool's fee tier, in the token each swap paid in.",
   Revenue: "The protocol fee (each pool's share of the swap fee, read from the pool: 1/4 on every pool since launch), the LP fees earned by protocol-owned liquidity, and all satellite arbitrage profit.",
