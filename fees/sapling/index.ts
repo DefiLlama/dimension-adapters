@@ -32,6 +32,12 @@
 //
 // Before 2026-10-02 the 25% liquidity share was held in a vault per coin (to_vault, to_overflow); those vaults were
 // then moved into the same $SAPLING/ZEC liquidity. From 2026-10-02 the share goes there directly (ToLiquidity).
+//
+// Robinhood Chain: Sapling plants native Pons coins through its venue (0xFdc8f5a657073829f1cAC5e2488519Ed3B463dbF),
+// which sets Sapling's splitter as each coin's creator fee recipient with a 2% creator tax. Pons pays the splitter the
+// 2% tax plus the creator's 70% of its 1% fee, in USDG, through its fee escrow. The splitter emits one Split event per
+// collection with the exact amount for each destination (liquidity, rootstock, treasury, payee), and the adapter reads
+// those. Split events for coin 0x0 carry fees the escrow held before a sweep tied them to a coin.
 
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
@@ -50,6 +56,15 @@ const TREASURY = "FauKh2enCxjqMDaEEmo3qMmA9toxyZPFvPhGEZNMzChr"; // vault Config
 // coin on pump.fun
 const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const PUMP_CREATES = ["181ec828051c0777", "d6904cec5f8b31b4"]; // pump.fun create, create_v2: sha256("global:<name>")[0..8]
+
+// Robinhood Chain deployment (2026-10-20): Sapling's fee splitter, and the holder rewards contract that a coin's payee can be
+const RH_SPLITTER = "0x8c0F2F294F9a00ECCFbE778b9cD65B7C3C0aEf59";
+const RH_HOLDERS_REWARDS = "0x2c6e71cFE1E642B35C0c50C005D28769d76F3473";
+const RH_USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"; // the quote of Sapling coins on Robinhood Chain, 6 decimals
+const RH_SPLITTER_BLOCK = 93643376; // the splitter's deployment block
+const RH_SPLIT_EVENT = "event Split(address indexed coin, uint256 amount, uint256 liquidity, uint256 rootstock, uint256 treasury, uint256 payee)";
+const RH_PAYEE_CHANGED_EVENT = "event PayeeChanged(address indexed coin, address payee)";
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // Anchor event discriminators, sha256("event:<Name>")[0..8], and payload sizes in bytes
 const EVENT = {
@@ -71,12 +86,13 @@ const LABELS = {
   LIQUIDITY: "$SAPLING/ZEC Liquidity",
   TO_DEPLOYERS: "Coin Trading Fees To Deployers",
   TO_COIN_HOLDERS: "Coin Trading Fees To Coin Holders",
+  TO_UNATTRIBUTED_PAYEES: "Coin Trading Fees To Deployers Or Coin Holders",
 };
 
 const events = (program: string, event: { discriminator: string; size: number }) =>
   `FROM program_events WHERE program = '${program}' AND STARTSWITH(data, '${event.discriminator}') AND LENGTH(data) = ${2 * event.size}`;
 
-const fetch = async (options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
   const [row] = await queryAllium(`${programEventsSql([VAULT_PROGRAM, GUARD_PROGRAM], options)},
   settled AS (
     -- Settled: to_treasury u64 @48 | to_vault u64 @56 | to_overflow u64 @64 | buyback_sapling u64 @72 | to_deployer u64 @80 | holders u8 @88
@@ -160,17 +176,49 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
+const fetchRobinhood = async (options: FetchOptions) => {
+  const [splits, payeeChanges] = await Promise.all([
+    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_SPLIT_EVENT }),
+    // every coin's payee since the splitter's deployment: the holders choice is permanent, a deployer's payee may change
+    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_PAYEE_CHANGED_EVENT, fromBlock: RH_SPLITTER_BLOCK, toBlock: await options.getToBlock(), cacheInCloud: true }),
+  ]);
+  const payeeOf: Record<string, string> = {};
+  for (const log of payeeChanges) payeeOf[String(log.coin).toLowerCase()] = String(log.payee).toLowerCase();
+
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  for (const log of splits) {
+    const coin = String(log.coin).toLowerCase();
+    dailyFees.add(RH_USDG, log.amount, LABELS.COIN_FEES);
+    dailyRevenue.add(RH_USDG, log.treasury, LABELS.TO_TREASURY);
+    dailyProtocolRevenue.add(RH_USDG, log.treasury, LABELS.TO_TREASURY);
+    dailyRevenue.add(RH_USDG, log.rootstock, LABELS.BUYBACK);
+    dailyHoldersRevenue.add(RH_USDG, log.rootstock, LABELS.BUYBACK);
+    dailyRevenue.add(RH_USDG, log.liquidity, LABELS.LIQUIDITY);
+    dailyHoldersRevenue.add(RH_USDG, log.liquidity, LABELS.LIQUIDITY);
+    const payeeLabel = coin === ZERO_ADDRESS ? LABELS.TO_UNATTRIBUTED_PAYEES
+      : payeeOf[coin] === RH_HOLDERS_REWARDS.toLowerCase() ? LABELS.TO_COIN_HOLDERS : LABELS.TO_DEPLOYERS;
+    dailySupplySideRevenue.add(RH_USDG, log.payee, payeeLabel);
+  }
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
+};
+
 const methodology = {
-  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account.",
+  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee on every buy and sell of a coin planted through Sapling, both paid to Sapling's splitter.",
   Revenue: "The part of the 2% coin trading fee Sapling keeps (10% treasury, 25% $SAPLING buyback and burn, 25% $SAPLING/ZEC liquidity), plus the planting fee and the Zcash account fee.",
   ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee.",
   HoldersRevenue: "50% of the 2% coin trading fee: 25% buys and burns $SAPLING, and 25% goes to the $SAPLING/ZEC pool on PumpSwap, where about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it.",
-  SupplySideRevenue: "40% of the 2% coin trading fee, paid to each coin's deployer, a wallet they choose, or the holders of that coin as holder rewards.",
+  SupplySideRevenue: "40% of the 2% coin trading fee, paid to each coin's deployer, a wallet they choose, or the holders of that coin as holder rewards (on Robinhood Chain, 40% of what reaches Sapling's splitter).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.COIN_FEES]: "The 2% fee on every buy and sell of a coin launched on Sapling, collected and split on chain by the Sapling vault program.",
+    [LABELS.COIN_FEES]: "The 2% fee on every buy and sell of a coin launched on Sapling, collected and split on chain by the Sapling vault program. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee, paid to Sapling's splitter and split there.",
     [LABELS.ACCOUNT_FEES]: "Sapling's fee on a buy, planting or sale made from a Zcash account.",
     [LABELS.PLANTING_FEES]: "The flat fee paid to the Sapling treasury when a coin is planted, in the same transaction that creates the coin.",
   },
@@ -193,15 +241,18 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [LABELS.TO_DEPLOYERS]: "40% of the 2% coin trading fee, paid to the coin's deployer or a wallet they choose.",
     [LABELS.TO_COIN_HOLDERS]: "40% of the 2% coin trading fee of coins whose deployer chose holder rewards, paid in ZEC to the holders of that coin.",
+    [LABELS.TO_UNATTRIBUTED_PAYEES]: "On Robinhood Chain, the 40% share of fees Pons's escrow held before a sweep tied them to a coin, paid later to that coin's deployer or holders.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.SOLANA],
-  start: "2026-09-25",
+  adapter: {
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-25" },
+    // the first Sapling coin was planted on Robinhood Chain on 2026-10-21
+    [CHAIN.ROBINHOOD]: { fetch: fetchRobinhood, start: "2026-10-21" },
+  },
   dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
