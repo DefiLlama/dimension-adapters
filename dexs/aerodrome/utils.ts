@@ -1,4 +1,46 @@
 import * as sdk from '@defillama/sdk';
+import { FetchOptions } from '../../adapters/types';
+import { CHAIN } from '../../helpers/chains';
+
+// Aero upgrade (https://aero.xyz/aero-upgrade/): Aerodrome and Velodrome merged into Aero at
+// 2026-10-22 00:00 UTC. The legacy pools keep trading on every chain, but their gauges stopped
+// passing swap fees to voters before that. Last fee distribution per chain (latest gauge
+// periodFinish minus one week; on Base and Optimism the last ClaimFees/CollectFees landed at
+// 2026-10-15 00:07 UTC). Fees earned by staked liquidity after it were never distributed: they stay
+// locked in the gauges, all killed for the upgrade on 2026-10-21 23:38-23:41 UTC, which the Aero
+// Foundation plans to reactivate to reclaim them, so from then on they count as protocol revenue.
+const VOTER_FEES_END: Record<string, string> = {
+  [CHAIN.BASE]: '2026-10-15',
+  [CHAIN.OPTIMISM]: '2026-10-15',
+  [CHAIN.INK]: '2026-10-15',
+  [CHAIN.UNICHAIN]: '2026-09-24',
+  [CHAIN.FRAXTAL]: '2026-09-24',
+  [CHAIN.SONEIUM]: '2026-09-24',
+  [CHAIN.CELO]: '2026-09-24',
+  [CHAIN.LISK]: '2026-07-16',
+  [CHAIN.MODE]: '2026-06-18',
+}
+// Voting, and with it bribes, ran until the upgrade.
+const AERO_LAUNCH = 1792627200 // 2026-10-22 00:00 UTC
+export const LOCKED_GAUGE_FEES = 'Staked-LP Fees Locked In Deactivated Gauges'
+export const bribesEnded = (options: FetchOptions) => options.endTimestamp > AERO_LAUNCH
+const voterFeesEnded = (options: FetchOptions) => {
+  const end = VOTER_FEES_END[options.chain]
+  return !!end && options.endTimestamp > Date.parse(end) / 1000
+}
+
+// Revenue exports of a legacy adapter: the staked-liquidity fee share goes to voters until the
+// chain's last fee distribution and to protocol revenue (locked) after it; bribes stay with voters.
+export const legacyRevenueExports = (options: FetchOptions, stakedFees: sdk.Balances, stakedFeesLabel: string, bribes?: sdk.Balances, bribesLabel?: string) => {
+  const holders = options.createBalances()
+  const locked = options.createBalances()
+  if (voterFeesEnded(options)) locked.add(stakedFees, LOCKED_GAUGE_FEES)
+  else holders.add(stakedFees, stakedFeesLabel)
+  if (bribes && bribesLabel) holders.add(bribes, bribesLabel)
+  const revenue = holders.clone()
+  revenue.add(locked)
+  return { dailyRevenue: revenue, dailyHoldersRevenue: holders, dailyProtocolRevenue: locked }
+}
 
 // ---------------------------------------------------------------------------
 // Aero Ignition pre-launch token pricing

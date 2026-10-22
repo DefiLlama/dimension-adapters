@@ -1,6 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { legacyRevenueExports, LOCKED_GAUGE_FEES } from "../aerodrome/utils";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 
@@ -146,8 +147,7 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue,
+    ...legacyRevenueExports(fetchOptions, dailyHoldersRevenue, 'Swap Fees To Voters'),
     dailySupplySideRevenue,
   }
 }
@@ -157,8 +157,9 @@ const adapters: SimpleAdapter = {
   pullHourly: true,
   methodology: {
     Fees: 'Total swap fees paid by users.',
-    Revenue: 'The share of swap fees that goes to veVELO voters: everything earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity.',
-    HoldersRevenue: 'The share of swap fees that goes to veVELO voters: everything earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity.',
+    Revenue: 'The share of swap fees earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity: paid to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains), locked in the gauges after that.',
+    HoldersRevenue: 'The share of swap fees that went to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains): everything earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity.',
+    ProtocolRevenue: 'The same share of swap fees since the gauges last distributed fees ahead of the Aero upgrade, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
     SupplySideRevenue: 'The share of swap fees kept by liquidity providers who have not staked their position in a gauge, after the rake.',
   },
   breakdownMethodology: {
@@ -166,10 +167,14 @@ const adapters: SimpleAdapter = {
       'Token Swap Fees': 'Total swap fees paid by users.',
     },
     Revenue: {
-      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters.',
+      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters until the gauges last distributed fees ahead of the Aero upgrade.',
+      [LOCKED_GAUGE_FEES]: 'The same fees since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
     },
     HoldersRevenue: {
-      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters.',
+      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters until the gauges last distributed fees ahead of the Aero upgrade.',
+    },
+    ProtocolRevenue: {
+      [LOCKED_GAUGE_FEES]: 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
     },
     SupplySideRevenue: {
       'Swap Fees To Unstaked LPs': 'Fees earned by liquidity that is not staked in a gauge, net of the rake, which stays with the position owner.',

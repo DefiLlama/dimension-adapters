@@ -5,6 +5,7 @@ import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { METRIC } from '../../helpers/metrics';
 import { addOneToken } from '../../helpers/prices';
 import { formatAddress } from '../../utils/utils';
+import { addIncentives, getGauges, LIQUIDITY_PAYMENTS, LIQUIDITY_PAYMENTS_TO_HOLDERS } from './incentives';
 
 // Aero volatile and stable pools, live 2026-10-21. Same factory addresses on every chain,
 // listed at https://app.aero.xyz/docs/security/
@@ -24,25 +25,18 @@ const chainConfig: Record<string, { fromBlock: number; start: string }> = {
   [CHAIN.ARC]: { fromBlock: 26684462, start: '2026-10-21' },
 }
 
+const SWAP_FEES_TO_HOLDERS = 'Swap Fees To sAERO Holders'
 const POOL_CREATED = 'event PoolCreated(address indexed token0, address indexed token1, address pool, uint256)'
 const SWAP = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
 const FEES = 'event Fees(address indexed sender, uint256 amount0, uint256 amount1)'
 const CLAIM = 'event Claim(address indexed caller, address indexed account, address indexed recipient, uint256 amount0, uint256 amount1)'
 const PENDING_FEES = 'function pendingFees(address) view returns (uint256 amount0, uint256 amount1)'
 
-// pool -> gauge for every gauge in the FactoryRegistry
-const getGauges = async (api: sdk.ChainApi) => {
-  const registry = await api.call({ target: POOL_FACTORIES[0], abi: 'address:factoryRegistry' })
-  const gaugeFactories: string[] = await api.call({ target: registry, abi: 'address[]:gaugeFactories' })
-  const gauges: string[] = (await api.multiCall({ target: registry, abi: 'function factoryToGauges(address) view returns (address[])', calls: gaugeFactories })).flat()
-  const pools: string[] = await api.multiCall({ target: registry, abi: 'function gaugeToTarget(address) view returns (address)', calls: gauges })
-  return new Map(pools.map((pool, i) => [pool.toLowerCase(), gauges[i].toLowerCase()]))
-}
-
 // Verified source V3/src/pools/Pool.sol: each swap emits Fees with the exact fee charged
-// (MEV tax included). Gauges custody staked LP tokens, so the staked share of fees accrues
-// to the gauge inside the pool: voters get the growth of pool.pendingFees(gauge) plus what
-// the gauge claimed (Claim with account = gauge); unstaked LPs keep the rest.
+// (MEV tax included). AERO-earning deposits are staked in the gauge, which custodies the LP
+// tokens, so their share of fees accrues to the gauge inside the pool: sAERO holders get the
+// growth of pool.pendingFees(gauge) plus what the gauge claimed (Claim with account = gauge);
+// fee-earning LPs keep the rest. Incentive programs: see ./incentives.
 // Window-start state is read at fromBlock - 1 because logs include fromBlock.
 const fetch = async (options: FetchOptions) => {
   const { api, chain, createBalances, getLogs, getFromBlock, getToBlock } = options
@@ -62,10 +56,11 @@ const fetch = async (options: FetchOptions) => {
   const targets = Object.keys(pools)
 
   if (targets.length) {
-    const [swaps, feeLogs, claims] = await Promise.all([
+    const [swaps, feeLogs, claims, gauges] = await Promise.all([
       getLogs({ targets, eventAbi: SWAP, onlyArgs: false }),
       getLogs({ targets, eventAbi: FEES, onlyArgs: false }),
       getLogs({ targets, eventAbi: CLAIM, onlyArgs: false }),
+      getGauges(api, POOL_FACTORIES[0]),
     ])
     for (const log of swaps) {
       const { token0, token1 } = pools[log.address.toLowerCase()]
@@ -82,8 +77,7 @@ const fetch = async (options: FetchOptions) => {
 
     // pendingFees of an address that held no LP is 0, so a gauge or pool created inside
     // the window starts from zero
-    const gauges = await getGauges(api)
-    const staked = [...gauges].filter(([pool]) => poolFees[pool])
+    const staked = [...gauges].filter(([pool]) => poolFees[pool]).map(([pool, { gauge }]) => [pool, gauge])
     const stakedAtStart = staked.filter(([pool]) => pools[pool].block < fromBlock)
     const startApi = new sdk.ChainApi({ chain, block: fromBlock - 1 })
     const [pendingEnd, pendingStart] = await Promise.all([
@@ -91,28 +85,30 @@ const fetch = async (options: FetchOptions) => {
       startApi.multiCall({ abi: PENDING_FEES, calls: stakedAtStart.map(([pool, gauge]) => ({ target: pool, params: [gauge] })) }),
     ])
     const start = Object.fromEntries(stakedAtStart.map(([pool], i) => [pool, pendingStart[i]]))
-    const toVoters: Record<string, number[]> = {}
+    const toHolders: Record<string, number[]> = {}
     staked.forEach(([pool], i) => {
-      toVoters[pool] = [0, 1].map((k) => Number(pendingEnd[i][`amount${k}`]) - Number(start[pool]?.[`amount${k}`] ?? 0))
+      toHolders[pool] = [0, 1].map((k) => Number(pendingEnd[i][`amount${k}`]) - Number(start[pool]?.[`amount${k}`] ?? 0))
     })
     for (const log of claims) {
       const pool = log.address.toLowerCase()
-      if (!toVoters[pool] || log.args.account.toLowerCase() !== gauges.get(pool)) continue
-      toVoters[pool][0] += Number(log.args.amount0)
-      toVoters[pool][1] += Number(log.args.amount1)
+      if (!toHolders[pool] || log.args.account.toLowerCase() !== gauges.get(pool)?.gauge) continue
+      toHolders[pool][0] += Number(log.args.amount0)
+      toHolders[pool][1] += Number(log.args.amount1)
     }
 
     for (const [pool, fees] of Object.entries(poolFees)) {
       const { token0, token1 } = pools[pool]
       ;[token0, token1].forEach((token, k) => {
         if (!fees[k]) return
-        // the per-LP fee index rounds down, keep the voters' share within the fee
-        const revenue = Math.min(Math.max(toVoters[pool]?.[k] ?? 0, 0), fees[k])
+        // the per-LP fee index rounds down, keep the holders' share within the fee
+        const revenue = Math.min(Math.max(toHolders[pool]?.[k] ?? 0, 0), fees[k])
         dailyFees.add(token, fees[k], METRIC.SWAP_FEES)
-        if (revenue > 0) dailyRevenue.add(token, revenue, 'Swap Fees To Voters')
+        if (revenue > 0) dailyRevenue.add(token, revenue, SWAP_FEES_TO_HOLDERS)
         if (revenue < fees[k]) dailySupplySideRevenue.add(token, fees[k] - revenue, METRIC.LP_FEES)
       })
     }
+
+    await addIncentives(options, [...gauges].filter(([pool]) => pools[pool]).map(([, { rewards }]) => rewards), { dailyFees, dailyRevenue })
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(), dailySupplySideRevenue }
@@ -120,17 +116,26 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Swap volume on Aero volatile and stable pools.',
-  Fees: 'Swap fees paid by traders.',
-  Revenue: 'Swap fees earned by liquidity staked in gauges, distributed to AERO voters.',
-  HoldersRevenue: 'Swap fees earned by liquidity staked in gauges, distributed to AERO voters.',
-  SupplySideRevenue: 'Swap fees earned by liquidity providers that do not stake in a gauge.',
+  Fees: 'Swap fees paid by traders, plus incentives (Liquidity Payments) that projects pay to sAERO holders.',
+  Revenue: 'Swap fees earned by AERO-earning liquidity and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
+  HoldersRevenue: 'Swap fees earned by AERO-earning liquidity and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
+  SupplySideRevenue: 'Swap fees kept by fee-earning liquidity providers.',
 }
 
 const breakdownMethodology = {
-  Fees: { [METRIC.SWAP_FEES]: 'Swap fees paid by traders.' },
-  Revenue: { 'Swap Fees To Voters': 'Swap fees earned by liquidity staked in gauges, distributed to AERO voters.' },
-  HoldersRevenue: { 'Swap Fees To Voters': 'Swap fees earned by liquidity staked in gauges, distributed to AERO voters.' },
-  SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees earned by liquidity providers that do not stake in a gauge.' },
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Swap fees paid by traders.',
+    [LIQUIDITY_PAYMENTS]: 'Incentives that projects pay to sAERO holders allocating to a pool, counted as they stream. Excludes incentives funded by Aero itself.',
+  },
+  Revenue: {
+    [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity, distributed to sAERO holders.',
+    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects, streamed to sAERO holders allocating to the pool.',
+  },
+  HoldersRevenue: {
+    [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity, distributed to sAERO holders.',
+    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects, streamed to sAERO holders allocating to the pool.',
+  },
+  SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees kept by fee-earning liquidity providers.' },
 }
 
 const adapter: SimpleAdapter = {
