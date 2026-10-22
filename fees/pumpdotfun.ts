@@ -22,13 +22,13 @@ import { queryAllium } from '../helpers/allium';
 //   * Fallback (<  2025-11-05): wallet inflows from solana.account_activity (Dune
 //                               query 4313339). Pump's slice only; creator slice is
 //                               extrapolated via getCreatorFeeRatio.
-//   * Buyback figure for HoldersRevenue: fees.pump.fun/api/buybacks (off-chain).
+//   * Buyback figure for HoldersRevenue: PUMP bought by the buyback wallets (on-chain).
 //
 // Revenue split rationale:
 //   * ProtocolRevenue is pump's slice * era ratio (getProtocolRevenueRatio). We don't
-//     subtract the API buyback because that buyback aggregates across pump.fun + PumpSwap
+//     subtract the buyback because it is funded by pump.fun + PumpSwap
 //     + Terminal — subtracting it from this adapter alone would over-attribute.
-//   * HoldersRevenue is the API buyback as-is. It won't sum exactly with ProtocolRevenue
+//   * HoldersRevenue is the full buyback as-is. It won't sum exactly with ProtocolRevenue
 //     to give Revenue, and that's intentional: child adapters don't report HoldersRevenue.
 //
 // Mayhem-mode trades zero out the fee columns on TradeEvent, so they're invisible to the
@@ -62,7 +62,7 @@ function getCreatorFeeRatio(timestamp: number): number {
 }
 
 // Fraction of pump's slice the protocol keeps (vs sending to the PUMP buyback).
-// Era-based on purpose; see header comment for why we don't use the API buyback figure.
+// Era-based on purpose; see header comment for why we don't subtract the buyback.
 function getProtocolRevenueRatio(timestamp: number): number {
   if (timestamp < BUYBACK_START_TS) return 1     // pre-buyback: 100% protocol
   if (timestamp < BURN_POLICY_TS)   return 0     // 2025-07-14+: 100% to buyback
@@ -139,28 +139,42 @@ async function addMayhemFees(options: FetchOptions, dailyFees: any, dailyRevenue
 
 const PUMP_TOKEN_MINT = ADDRESSES.solana.PUMP
 const PUMP_TOKEN_DECIMALS = 6;
-const BURN_WALLETS = ['99mRw3EzdJZWEUjgp1nrU4WeHsukUBjbh7gYE7pm4F3c', '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM']
+// Wallets that buy PUMP on the market for the buyback (https://pump.fun/pump-token). Their
+// daily PUMP inflows match the page's daily tokens bought to the token from 2025-07-15.
+const BUYBACK_WALLETS = [
+  '3vkpy5YHqnqJTnA5doWTpcgKyZiYsaXYzYM9wm8s3WTi', // 2025-07-15 to 2025-07-18
+  '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE', // 2025-07-20 to 2025-08-19
+  '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx', // 2025-08-20 to 2025-11-11
+  '99mRw3EzdJZWEUjgp1nrU4WeHsukUBjbh7gYE7pm4F3c', // from 2025-11-11, also burns
+  '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM', // from 2026-03-09, also burns
+]
+// Bought PUMP was parked here until the burn policy started, so moves from it are not buys.
+const PUMP_BUYBACK_HOLDING_WALLET = 'G8CcfRffqZWHSAQJXLDfwbAkGE95SddUqVXnTrL4kqjm'
 
-const fetchPumpBuybacksAllium = async (options: FetchOptions) => {
+// Buybacks are counted when PUMP is bought, not when it is burned: before 2026-04-28 the
+// bought PUMP was held, so burns would miss most of the history.
+const fetchPumpBoughtAllium = async (options: FetchOptions) => {
+  const internal = [...BUYBACK_WALLETS, PUMP_BUYBACK_HOLDING_WALLET].map(a => `'${a}'`).join(',')
   const query = `
     SELECT
-      COALESCE(SUM(raw_amount) / 1e${PUMP_TOKEN_DECIMALS}, 0) AS pump_burnt
+      COALESCE(SUM(raw_amount) / 1e${PUMP_TOKEN_DECIMALS}, 0) AS pump_bought
     FROM solana.assets.transfers
     WHERE mint = '${PUMP_TOKEN_MINT}'
-      AND from_address IN (${BURN_WALLETS.map(a => `'${a}'`).join(',')})
-      AND type IN ('burn', 'burnChecked')
+      AND to_address IN (${BUYBACK_WALLETS.map(a => `'${a}'`).join(',')})
+      AND from_address NOT IN (${internal})
+      AND type IN ('transfer', 'transferChecked')
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND block_timestamp <  TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
   const data = await queryAllium(query);
-  return data[0].pump_burnt;
+  return data[0].pump_bought;
 }
 
 // Primary path (>= 2025-11-05): per-trade fee columns straight from the decoded event.
 // Grouped by quote_mint so USDC-quoted pairs (introduced ~2026-05) are attributed in the
 // correct token. quote_mint may be NULL on older rows / pre-IDL-update data → treat as SOL.
 async function fetchFromTradeEvents(options: FetchOptions) {
-  const [rows, pumpBurnt] = await Promise.all([
+  const [rows, pumpBought] = await Promise.all([
     queryDuneSql(options, `
       SELECT
         quote_mint,
@@ -172,7 +186,7 @@ async function fetchFromTradeEvents(options: FetchOptions) {
         AND evt_block_time <  from_unixtime(${options.endTimestamp})
       GROUP BY quote_mint
     `, { extraUIDKey: 'pump-trade-events' }),
-    fetchPumpBuybacksAllium(options),
+    fetchPumpBoughtAllium(options),
   ])
 
   const feeRows: FeeRow[] = (rows ?? []).map((r: any) => ({
@@ -182,7 +196,7 @@ async function fetchFromTradeEvents(options: FetchOptions) {
     cashback:   +(r.cashback    ?? 0),
   }))
 
-  return buildBalances(options, feeRows, pumpBurnt)
+  return buildBalances(options, feeRows, pumpBought)
 }
 
 // Fallback path (< 2025-11-05): pump_evt_tradeevent isn't populated, so we read pump's
@@ -197,7 +211,7 @@ async function fetchFromDune(options: FetchOptions) {
   const excludeAddresses = [...PUMP_FEE_EXCLUDE_TX_ADDRESSES, ...PUMP_FEE_RECIPIENTS, PUMP_FUN_MIGRATOR].map(a => `'${a}'`).join(',')
   const relevantAddresses = [...new Set([...PUMP_FEE_EXCLUDE_TX_ADDRESSES, ...PUMP_FEE_RECIPIENTS, PUMP_FUN_MIGRATOR])].map(a => `'${a}'`).join(',')
 
-  const [pumpFeeRows, pumpBurnt] = await Promise.all([
+  const [pumpFeeRows, pumpBought] = await Promise.all([
     queryDuneSql(options, `
       WITH fee_transactions AS (
         SELECT
@@ -217,7 +231,7 @@ async function fetchFromDune(options: FetchOptions) {
       FROM fee_transactions
       WHERE fee_inflow > 0
     `, { extraUIDKey: 'pump-fees' }),
-    fetchPumpBuybacksAllium(options),
+    fetchPumpBoughtAllium(options),
   ])
 
   const pumpFee       = (pumpFeeRows?.[0]?.total_sol_revenue ?? 0) * 1e9
@@ -227,7 +241,7 @@ async function fetchFromDune(options: FetchOptions) {
   return buildBalances(
     options,
     [{ mint: ADDRESSES.solana.SOL, pumpFee, creatorFee, cashback: 0, graduationFee }],
-    pumpBurnt,
+    pumpBought,
   )
 }
 
@@ -248,14 +262,14 @@ function normalizeQuoteMint(mint: string | null | undefined): string {
 // Mapping rules:
 //   pump slice      → Fees + Revenue (always),
 //                     ProtocolRevenue * era ratio, HoldersRevenue * (1 - era ratio in spirit)
-//                     [we use API buyback for Holders instead — see header]
+//                     [we use the on-chain buyback for Holders instead, see header]
 //   creator slice   → Fees + SupplySideRevenue (paid out to coin creators)
 //   cashback slice  → Fees + SupplySideRevenue (paid back to traders/holders of the coin)
 //   mayhem inflows  → Fees + Revenue + ProtocolRevenue (no splits)
 async function buildBalances(
   options: FetchOptions,
   feeRows: FeeRow[],
-  pumpBurnt: number,
+  pumpBought: number,
 ) {
   const dailyFees             = options.createBalances()
   const dailyRevenue          = options.createBalances()
@@ -288,7 +302,7 @@ async function buildBalances(
     }
   }
 
-  if (pumpBurnt > 0) dailyHoldersRevenue.addCGToken("pump-fun", pumpBurnt, METRIC.TOKEN_BUY_BACK)
+  if (pumpBought > 0) dailyHoldersRevenue.addCGToken("pump-fun", pumpBought, METRIC.TOKEN_BUY_BACK)
 
   // Mayhem-mode fees (off-event; captured from wallet inflows). 100% protocol.
   await addMayhemFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
