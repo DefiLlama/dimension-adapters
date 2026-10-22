@@ -140,11 +140,14 @@ const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, daily
 
   targets.forEach((pool, i) => {
     const { token0, token1 } = pools[pool]
-    // the tape discards pre-seeded values on a pool's first swap, so it counts from zero until then
-    const startTape = Number(start[pool]?.tape.lastSwapTimestamp ?? 0) > 0 ? start[pool].tape : null
+    // registering a pool seeds the tape (cumulativeFee0 = 1, CLPoolTape._initializePool) and its first
+    // swap discards the seed, so a snapshot counts as zero until that first swap
+    const swapped = (t: any) => Number(t?.lastSwapTimestamp ?? 0) > 0 ? t : null
+    const startTape = swapped(start[pool]?.tape)
+    const endTape = swapped(tapeEnd[i])
     const tapeFee = (t: any, k: number) => t ? BigInt(t[`cumulativeFee${k}`]) : 0n
     ;[0, 1].forEach((k) => {
-      const fee = tapeFee(tapeEnd[i], k) - tapeFee(startTape, k)
+      const fee = tapeFee(endTape, k) - tapeFee(startTape, k)
       if (fee <= 0n) return
       const toHolders = BigInt(gaugeEnd[i][`token${k}`]) - BigInt(start[pool]?.gauge[`token${k}`] ?? 0) + (collected[pool]?.[k] ?? 0n)
       // the pool and the tape round the fee separately, keep the holders' share within it
