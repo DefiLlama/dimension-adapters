@@ -3,9 +3,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { METRIC } from '../../helpers/metrics';
-import { addOneToken } from '../../helpers/prices';
 import { formatAddress } from '../../utils/utils';
-import { addBribes, BRIBES, BRIBES_TO_HOLDERS, getGauges } from './bribes';
+import { addBribes, addPoolFee, addVolume, BRIBES, BRIBES_TO_HOLDERS, getGauges, newFlow, SwapFlow } from './utils';
 
 // Aero volatile and stable pools, live 2026-10-21. Same factory addresses on every chain,
 // listed at https://app.aero.xyz/docs/security/
@@ -36,7 +35,7 @@ const PENDING_FEES = 'function pendingFees(address) view returns (uint256 amount
 // (MEV tax included). AERO-earning deposits are staked in the gauge, which custodies the LP
 // tokens, so their share of fees accrues to the gauge inside the pool: sAERO holders get the
 // growth of pool.pendingFees(gauge) plus what the gauge claimed (Claim with account = gauge);
-// fee-earning LPs keep the rest. Bribes: see ./bribes. Amounts stay bigint (raw token units).
+// fee-earning LPs keep the rest. Bribes and pricing: see ./utils. Amounts stay bigint (raw units).
 // Window-start state is read at fromBlock - 1 because logs include fromBlock.
 const fetch = async (options: FetchOptions) => {
   const { api, chain, createBalances, getLogs, getFromBlock, getToBlock } = options
@@ -64,11 +63,15 @@ const fetch = async (options: FetchOptions) => {
     ])
     // net amount per token: a flash swap that borrows and repays the same token only adds its fee
     const net = (a: bigint, b: bigint) => (a > b ? a - b : b - a)
+    const flows: Record<string, SwapFlow> = {}
     for (const log of swaps) {
-      const { token0, token1 } = pools[log.address.toLowerCase()]
-      const amount0 = net(BigInt(log.args.amount0In), BigInt(log.args.amount0Out))
-      const amount1 = net(BigInt(log.args.amount1In), BigInt(log.args.amount1Out))
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+      const pool = log.address.toLowerCase()
+      const { token0, token1 } = pools[pool]
+      const [in0, in1, out0, out1] = [log.args.amount0In, log.args.amount1In, log.args.amount0Out, log.args.amount1Out].map(BigInt)
+      addVolume(dailyVolume, chain, [token0, token1], [net(in0, out0), net(in1, out1)])
+      const flow = flows[pool] ??= newFlow()
+      if (in0 > 0n && out1 > 0n) { flow.in[0] += in0; flow.outOther[0] += out1 }
+      if (in1 > 0n && out0 > 0n) { flow.in[1] += in1; flow.outOther[1] += out0 }
     }
     const poolFees: Record<string, bigint[]> = {}
     for (const log of feeLogs) {
@@ -100,15 +103,17 @@ const fetch = async (options: FetchOptions) => {
 
     for (const [pool, fees] of Object.entries(poolFees)) {
       const { token0, token1 } = pools[pool]
-      ;[token0, token1].forEach((token, k) => {
+      ;[0, 1].forEach((k) => {
         const fee = fees[k]
         if (!fee) return
         // the per-LP fee index rounds down, keep the holders' share within the fee
         const share = toHolders[pool]?.[k] ?? 0n
         const revenue = share < 0n ? 0n : share > fee ? fee : share
-        dailyFees.add(token, fee, METRIC.SWAP_FEES)
-        if (revenue > 0n) dailyRevenue.add(token, revenue, SWAP_FEES_TO_HOLDERS)
-        if (revenue < fee) dailySupplySideRevenue.add(token, fee - revenue, METRIC.LP_FEES)
+        addPoolFee(chain, [token0, token1], k, flows[pool] ?? newFlow(), [
+          [dailyFees, fee, METRIC.SWAP_FEES],
+          [dailyRevenue, revenue, SWAP_FEES_TO_HOLDERS],
+          [dailySupplySideRevenue, fee - revenue, METRIC.LP_FEES],
+        ])
       })
     }
 
@@ -120,24 +125,24 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Swap volume on Aero volatile and stable pools.',
-  Fees: 'Swap fees paid by traders, plus bribes that projects pay to the protocol to attract AERO Rewards to their pools.',
-  Revenue: 'Swap fees earned by AERO-earning liquidity and bribes paid by projects, all distributed to sAERO holders. Excludes bribes funded by Aero itself.',
-  HoldersRevenue: 'Swap fees earned by AERO-earning liquidity and bribes paid by projects, all distributed to sAERO holders. Excludes bribes funded by Aero itself.',
+  Fees: 'Swap fees paid by traders, plus bribes paid to the protocol to attract AERO Rewards to pools.',
+  Revenue: 'Swap fees earned by AERO-earning liquidity and bribes, all distributed to sAERO holders.',
+  HoldersRevenue: 'Swap fees earned by AERO-earning liquidity and bribes, all distributed to sAERO holders.',
   SupplySideRevenue: 'Swap fees kept by fee-earning liquidity providers.',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: 'Swap fees paid by traders.',
-    [BRIBES]: 'Bribes (Aero calls them Liquidity Payments) that projects pay to the protocol for a pool, counted as the protocol streams them out. Excludes bribes funded by Aero itself.',
+    [BRIBES]: 'Bribes (Aero calls them Liquidity Payments) paid to the protocol for a pool, counted as the protocol streams them out.',
   },
   Revenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity, distributed to sAERO holders.',
-    [BRIBES_TO_HOLDERS]: 'Bribes paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
+    [BRIBES_TO_HOLDERS]: 'Bribes paid to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   HoldersRevenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity, distributed to sAERO holders.',
-    [BRIBES_TO_HOLDERS]: 'Bribes paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
+    [BRIBES_TO_HOLDERS]: 'Bribes paid to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees kept by fee-earning liquidity providers.' },
 }

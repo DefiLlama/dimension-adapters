@@ -1,5 +1,6 @@
 import * as sdk from '@defillama/sdk'
 import { FetchOptions } from '../../adapters/types'
+import { isCoreAsset } from '../../helpers/prices'
 
 // Shared by dexs/aero-v2 (basic pools) and dexs/aero-lite (Slipstream pools).
 
@@ -8,14 +9,55 @@ import { FetchOptions } from '../../adapters/types'
 export const BRIBES = 'External Bribes Rewards'
 export const BRIBES_TO_HOLDERS = 'External Bribes Revenue'
 
-// Bribe programs funded by Aero itself are spending, not revenue:
-const PROTOCOL_CREATORS = new Set([
-  // protocol governance multisig: holds every pool factory, CL factory and pool tape admin role on all 7 chains
-  '0x42255e3c2d0b71a0b006243148fdf1a71d054ce0',
-  // Aero Foundation liquid incentive budget (Base): held the Aerodrome-era incentive AERO and upgraded it
-  // (29.2M) at launch, which https://aero.xyz/aero-upgrade/ says funds the launch incentives
-  '0x7269de76188e6597444d0859c4e5c336d3c39ddb',
+// AERO (Base) and xAERO (each chain's receipt token, redeemable 1:1) have no price feed yet. The
+// upgrade converted Aerodrome AERO 1:1 (https://aero.xyz/aero-upgrade/), so both are valued at the
+// Aerodrome AERO price. Addresses: https://app.aero.xyz/docs/security/
+const AERODROME_AERO = 'base:0x940181a94A35A4569E4529A3CDfB74e38FD98631'
+const AERO_TOKENS = new Set([
+  'base:0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee', // AERO
+  'base:0x6cdda0e730744dc6ff67654b35350adad05ecee7', // xAERO
+  'optimism:0xbdeaea5205d16f34cb40038052d91235d87b4c54',
+  'arbitrum:0x436a085b2751cb87db270ffa66f8d698f87bec82',
+  'ethereum:0x9e148c5716b5aadcfd3b71ceae9ee7a9e22c29e2',
+  'ink:0x9e148c5716b5aadcfd3b71ceae9ee7a9e22c29e2',
+  'robinhood:0x9e148c5716b5aadcfd3b71ceae9ee7a9e22c29e2',
+  'arc:0x20077cc0d5e385a0fe9c91bbc7dc744f51559307',
 ])
+const isAero = (chain: string, token: string) => AERO_TOKENS.has(`${chain}:${token.toLowerCase()}`)
+// a token we know how to value: a core asset, or AERO/xAERO through the Aerodrome AERO price
+const isKnown = (chain: string, token: string) => isCoreAsset(chain, token) || isAero(chain, token)
+
+export const addAmount = (balances: sdk.Balances, chain: string, token: string, amount: bigint, label?: string) => {
+  if (isAero(chain, token)) balances.add(AERODROME_AERO, amount, { label, skipChain: true })
+  else balances.add(token, amount, label)
+}
+
+// The side a pool is valued on: a core asset first, then AERO/xAERO, else token1 (as addOneToken).
+const valueSide = (chain: string, tokens: string[]) =>
+  isCoreAsset(chain, tokens[0]) ? 0 : isCoreAsset(chain, tokens[1]) ? 1 : isAero(chain, tokens[0]) ? 0 : 1
+
+// Volume counts one side of each swap: amounts[k] is the swap's (absolute) amount of token k.
+export const addVolume = (balances: sdk.Balances, chain: string, tokens: string[], amounts: bigint[]) => {
+  const k = valueSide(chain, tokens)
+  addAmount(balances, chain, tokens[k], amounts[k])
+}
+
+// Per pool, per input token k: total input of token k and output of the other token on those swaps.
+export type SwapFlow = { in: bigint[]; outOther: bigint[] }
+export const newFlow = (): SwapFlow => ({ in: [0n, 0n], outOther: [0n, 0n] })
+
+// Adds a fee paid in token k and its split. A fee in a token we cannot value (a launch token, say) is
+// moved to the pool's other token when that one is known, at the rate of the swaps paying it
+// (fee / input * output), so it still counts.
+export const addPoolFee = (chain: string, tokens: string[], k: number, flow: SwapFlow, parts: [sdk.Balances, bigint, string][]) => {
+  const o = 1 - k
+  const convert = !isKnown(chain, tokens[k]) && isKnown(chain, tokens[o]) && flow.in[k] > 0n
+  for (const [balances, amount, label] of parts) {
+    if (amount <= 0n) continue
+    if (convert) addAmount(balances, chain, tokens[o], amount * flow.outOther[k] / flow.in[k], label)
+    else addAmount(balances, chain, tokens[k], amount, label)
+  }
+}
 
 const PRECISION = 10n ** 18n // ProtocolConstants.PRECISION: program rate = amount * PRECISION / duration
 const PROGRAM = 'function incentive(uint256) view returns ((address token, uint256 amount, uint256 rate, uint48 start, uint48 end, address creator))'
@@ -79,9 +121,10 @@ const allocatedSeconds = async (api: sdk.ChainApi, spans: { rewards: string; s: 
 
 // Bribe programs stream amount / duration per second to the sAERO holders allocating to the pool
 // (verified source: V3/src/rewards/IncentiveStreaming.sol). Counted as they stream, without the
-// seconds the creator can sweep back and without programs funded by Aero itself.
+// seconds the creator can sweep back. Programs funded by Aero itself count too: they carry value
+// over from the legacy pools to the sAERO holders.
 export const addBribes = async (options: FetchOptions, rewardsContracts: string[], { dailyFees, dailyRevenue }: any) => {
-  const { api } = options
+  const { api, chain } = options
   if (!rewardsContracts.length) return
   // runner windows are [startTimestamp + 1, endTimestamp)
   const from = options.startTimestamp + 1, to = options.endTimestamp
@@ -90,15 +133,16 @@ export const addBribes = async (options: FetchOptions, rewardsContracts: string[
   // program ids start at 1
   const calls = rewardsContracts.flatMap((target, i) => Array.from({ length: Number(counts[i]) }, (_, k) => ({ target, params: [k + 1] })))
   const spans = (await api.multiCall({ abi: PROGRAM, calls }))
-    .map((p: any, i: number) => ({ token: p.token, rate: p.rate, creator: p.creator.toLowerCase(), rewards: calls[i].target, s: Math.max(from, Number(p.start)), e: Math.min(to, Number(p.end)) }))
-    .filter((p: any) => p.s < p.e && !PROTOCOL_CREATORS.has(p.creator))
+    .map((p: any, i: number) => ({ token: p.token, rate: p.rate, rewards: calls[i].target, s: Math.max(from, Number(p.start)), e: Math.min(to, Number(p.end)) }))
+    .filter((p: any) => p.s < p.e)
   if (!spans.length) return
 
   const seconds = await allocatedSeconds(api, spans)
   spans.forEach((p: any, i: number) => {
     const amount = BigInt(p.rate) * BigInt(seconds[i]) / PRECISION
     if (amount <= 0n) return
-    dailyFees.add(p.token, amount, BRIBES)
-    dailyRevenue.add(p.token, amount, BRIBES_TO_HOLDERS)
+    addAmount(dailyFees, chain, p.token, amount, BRIBES)
+    addAmount(dailyRevenue, chain, p.token, amount, BRIBES_TO_HOLDERS)
   })
 }
+
