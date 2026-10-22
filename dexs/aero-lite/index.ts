@@ -5,7 +5,7 @@ import { getDefaultDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
 import { formatAddress } from '../../utils/utils';
 import PromisePool from "@supercharge/promise-pool";
-import { addIncentives, getGauges, LIQUIDITY_PAYMENTS, LIQUIDITY_PAYMENTS_TO_HOLDERS } from '../aero-v2/incentives';
+import { addBribes, BRIBES, BRIBES_TO_HOLDERS, getGauges } from '../aero-v2/bribes';
 
 const SWAP_FEES_TO_HOLDERS = 'Swap Fees To sAERO Holders'
 
@@ -88,15 +88,17 @@ const addLitePools = async (options: FetchOptions, { dailyVolume, dailyFees, dai
 // CL pool tape: cumulativeFee is the full fee, MEV tax included (cumulativeMevFee is only
 // the MEV part of it, so it is not added again). The sAERO holders' share (fees of AERO-earning
 // liquidity staked in gauges plus the cut on fee-earning liquidity fees) accrues in
-// pool.gaugeFees() until the gauge collects it (CollectFees). Incentive programs: see
-// ../aero-v2/incentives.
+// pool.gaugeFees() until the gauge collects it (CollectFees). Bribes: see ../aero-v2/bribes.
+// Amounts stay bigint (raw token units).
 // The tape only records pools its owner registered (allowedCaller); unregistered pools
 // get volume but no fees (at launch: 8 of 412 Base pools, none with a gauge, ~$1/day).
 // Window-start state is read at fromBlock - 1 because logs include fromBlock.
 const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue }: any) => {
-  const { api, getLogs, getFromBlock, chain } = options
+  const { api, getLogs, getFromBlock, getToBlock, chain } = options
   const { factory, fromBlock: factoryFromBlock } = chainConfig[chain]
-  const fromBlock = await getFromBlock()
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()])
+  // Arc's history starts with Aero Lite, before this factory existed
+  if (toBlock < factoryFromBlock) return
   const pools = await getPools(options, factory, factoryFromBlock)
   const targets = Object.keys(pools)
   if (!targets.length) return
@@ -111,11 +113,11 @@ const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, daily
     const { token0, token1 } = pools[log.address.toLowerCase()]
     addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.args.amount0, amount1: log.args.amount1 })
   }
-  const collected: Record<string, number[]> = {}
+  const collected: Record<string, bigint[]> = {}
   for (const log of collects) {
-    const c = collected[log.address.toLowerCase()] ??= [0, 0]
-    c[0] += Number(log.args.amount0)
-    c[1] += Number(log.args.amount1)
+    const c = collected[log.address.toLowerCase()] ??= [0n, 0n]
+    c[0] += BigInt(log.args.amount0)
+    c[1] += BigInt(log.args.amount1)
   }
 
   // pools created inside the window start from zero
@@ -133,21 +135,21 @@ const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, daily
     const { token0, token1 } = pools[pool]
     // the tape discards pre-seeded values on a pool's first swap, so it counts from zero until then
     const startTape = Number(start[pool]?.tape.lastSwapTimestamp ?? 0) > 0 ? start[pool].tape : null
-    const tapeFee = (t: any, k: number) => t ? Number(t[`cumulativeFee${k}`]) : 0
+    const tapeFee = (t: any, k: number) => t ? BigInt(t[`cumulativeFee${k}`]) : 0n
     ;[token0, token1].forEach((token, k) => {
       const fee = tapeFee(tapeEnd[i], k) - tapeFee(startTape, k)
-      if (fee <= 0) return
-      const toHolders = Number(gaugeEnd[i][`token${k}`]) - Number(start[pool]?.gauge[`token${k}`] ?? 0) + (collected[pool]?.[k] ?? 0)
+      if (fee <= 0n) return
+      const toHolders = BigInt(gaugeEnd[i][`token${k}`]) - BigInt(start[pool]?.gauge[`token${k}`] ?? 0) + (collected[pool]?.[k] ?? 0n)
       // the pool and the tape round the fee separately, keep the holders' share within it
-      const revenue = Math.min(Math.max(toHolders, 0), fee)
+      const revenue = toHolders < 0n ? 0n : toHolders > fee ? fee : toHolders
       dailyFees.add(token, fee, 'Token Swap Fees')
-      if (revenue > 0) dailyRevenue.add(token, revenue, SWAP_FEES_TO_HOLDERS)
+      if (revenue > 0n) dailyRevenue.add(token, revenue, SWAP_FEES_TO_HOLDERS)
       if (revenue < fee) dailySupplySideRevenue.add(token, fee - revenue, 'Token Swap Fees')
     })
   })
 
   const gauges = await getGauges(api, factory)
-  await addIncentives(options, [...gauges].filter(([pool]) => pools[pool]).map(([, { rewards }]) => rewards), { dailyFees, dailyRevenue })
+  await addBribes(options, [...gauges].filter(([pool]) => pools[pool]).map(([, { rewards }]) => rewards), { dailyFees, dailyRevenue })
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -164,24 +166,24 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Swap volume on Aero Slipstream (concentrated liquidity) pools, counting one side of each swap.',
-  Fees: 'Swap fees paid by traders, plus incentives (Liquidity Payments, formerly bribes) that projects pay to the protocol to attract AERO Rewards to their pools.',
-  Revenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
-  HoldersRevenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and incentives paid by projects, all distributed to sAERO holders. Excludes incentives funded by Aero itself.',
+  Fees: 'Swap fees paid by traders, plus bribes that projects pay to the protocol to attract AERO Rewards to their pools.',
+  Revenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and bribes paid by projects, all distributed to sAERO holders. Excludes bribes funded by Aero itself.',
+  HoldersRevenue: 'Swap fees earned by AERO-earning liquidity, the protocol share of fee-earning liquidity fees and bribes paid by projects, all distributed to sAERO holders. Excludes bribes funded by Aero itself.',
   SupplySideRevenue: 'Swap fees kept by fee-earning liquidity providers, and all fees of the original Aero Lite pools on Arc, which have no gauges.',
 }
 
 const breakdownMethodology = {
   Fees: {
     'Token Swap Fees': 'Swap fees paid by traders.',
-    [LIQUIDITY_PAYMENTS]: 'Incentives (formerly bribes) that projects pay to the protocol for a pool, counted as the protocol streams them out. Excludes incentives funded by Aero itself.',
+    [BRIBES]: 'Bribes (Aero calls them Liquidity Payments) that projects pay to the protocol for a pool, counted as the protocol streams them out. Excludes bribes funded by Aero itself.',
   },
   Revenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity plus the protocol share of fee-earning liquidity fees, distributed to sAERO holders.',
-    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
+    [BRIBES_TO_HOLDERS]: 'Bribes paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   HoldersRevenue: {
     [SWAP_FEES_TO_HOLDERS]: 'Swap fees earned by AERO-earning liquidity plus the protocol share of fee-earning liquidity fees, distributed to sAERO holders.',
-    [LIQUIDITY_PAYMENTS_TO_HOLDERS]: 'Incentives paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
+    [BRIBES_TO_HOLDERS]: 'Bribes paid by projects to the protocol, distributed to sAERO holders allocating to the pool.',
   },
   SupplySideRevenue: { 'Token Swap Fees': 'Swap fees kept by fee-earning liquidity providers.' },
 }

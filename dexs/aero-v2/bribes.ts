@@ -3,10 +3,12 @@ import { FetchOptions } from '../../adapters/types'
 
 // Shared by dexs/aero-v2 (basic pools) and dexs/aero-lite (Slipstream pools).
 
-export const LIQUIDITY_PAYMENTS = 'Liquidity Payments'
-export const LIQUIDITY_PAYMENTS_TO_HOLDERS = 'Liquidity Payments To sAERO Holders'
+// Aero calls bribes Liquidity Payments (and Launch Payments when funded at a token launch, same
+// contract). Same labels as the legacy Aerodrome adapters, so the Aero family breaks down the same way.
+export const BRIBES = 'External Bribes Rewards'
+export const BRIBES_TO_HOLDERS = 'External Bribes Revenue'
 
-// Incentive programs funded by Aero itself are spending, not revenue:
+// Bribe programs funded by Aero itself are spending, not revenue:
 const PROTOCOL_CREATORS = new Set([
   // protocol governance multisig: holds every pool factory, CL factory and pool tape admin role on all 7 chains
   '0x42255e3c2d0b71a0b006243148fdf1a71d054ce0',
@@ -75,11 +77,10 @@ const allocatedSeconds = async (api: sdk.ChainApi, spans: { rewards: string; s: 
   })
 }
 
-// Incentive programs (Liquidity Payments; Launch Payments use the same contract) stream amount /
-// duration per second to the sAERO holders allocating to the pool (verified source:
-// V3/src/rewards/IncentiveStreaming.sol). Counted as they stream, without the seconds the creator
-// can sweep back and without programs funded by Aero itself.
-export const addIncentives = async (options: FetchOptions, rewardsContracts: string[], { dailyFees, dailyRevenue }: any) => {
+// Bribe programs stream amount / duration per second to the sAERO holders allocating to the pool
+// (verified source: V3/src/rewards/IncentiveStreaming.sol). Counted as they stream, without the
+// seconds the creator can sweep back and without programs funded by Aero itself.
+export const addBribes = async (options: FetchOptions, rewardsContracts: string[], { dailyFees, dailyRevenue }: any) => {
   const { api } = options
   if (!rewardsContracts.length) return
   // runner windows are [startTimestamp + 1, endTimestamp)
@@ -97,7 +98,7 @@ export const addIncentives = async (options: FetchOptions, rewardsContracts: str
   spans.forEach((p: any, i: number) => {
     const amount = BigInt(p.rate) * BigInt(seconds[i]) / PRECISION
     if (amount <= 0n) return
-    dailyFees.add(p.token, amount, LIQUIDITY_PAYMENTS)
-    dailyRevenue.add(p.token, amount, LIQUIDITY_PAYMENTS_TO_HOLDERS)
+    dailyFees.add(p.token, amount, BRIBES)
+    dailyRevenue.add(p.token, amount, BRIBES_TO_HOLDERS)
   })
 }

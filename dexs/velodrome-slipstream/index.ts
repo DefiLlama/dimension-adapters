@@ -212,6 +212,7 @@ const adapters: SimpleAdapter = {
     [CHAIN.SWELLCHAIN]: {
       fetch,
       start: '2025-02-25',
+      deadFrom: '2026-06-30', // swellchain stopped operations, same as dexs/velodrome-v2
     },
     [CHAIN.CELO]: {
       fetch,
