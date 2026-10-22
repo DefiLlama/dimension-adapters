@@ -56,12 +56,6 @@ const DEFAULTS: any = {
   FLARE_ARCHIVAL_RPC: 'https://rpc.ankr.com/flare',
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
-  // Default public Unichain endpoints reject a one-hour eth_getLogs (free-tier
-  // quota, archive lock, 429, or a cap below ~3,600 blocks). These two serve
-  // the full hour. The parallel caps keep the hourly test from bursting them.
-  UNICHAIN_WHITELISTED_RPC: 'https://mainnet.unichain.org,https://unichain.gateway.tenderly.co',
-  UNICHAIN_RPC_MAX_PARALLEL: '10',
-  UNICHAIN_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
