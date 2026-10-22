@@ -41,6 +41,7 @@
 
 import { ethers } from "ethers";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { ChainApi } from "@defillama/sdk";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -69,8 +70,9 @@ const RH_PAYEE_CHANGED_EVENT = "event PayeeChanged(address indexed coin, address
 // plant(), and the Zcash account fee, sent by a Sapling account contract when it runs a paid buy or planting
 const RH_TREASURY = "0x6D8546abe42F447DeFa19C36409B42e6C955CDB6";
 const RH_VENUE = "0xFdc8f5a657073829f1cAC5e2488519Ed3B463dbF";
-// Sapling accounts are clones made by the account factory 0xcc53f533F543aF4A4026C0483Da1a63B9E590422; every paid order an
-// account runs ends with the account's own Executed event, in the same transaction as its account fee transfer
+// Sapling accounts are clones made by the account factory; every paid order an account runs ends with the account's own
+// Executed event, in the same transaction as its account fee transfer
+const RH_ACCOUNT_FACTORY = "0xcc53f533F543aF4A4026C0483Da1a63B9E590422";
 const RH_EXECUTED_EVENT = "event Executed(bytes32 indexed orderHash, uint8 action, uint64 nonce, address relayer)";
 const RH_TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
 const RH_PLANTED_EVENT = "event Planted(address indexed coin, address indexed by, address payee, string name, string symbol, uint256 launchFee)";
@@ -245,7 +247,13 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
   const senders = [...new Set(toTreasury.map((t: any) => String(t.args.from).toLowerCase()))].filter((f) => f !== RH_SPLITTER.toLowerCase());
   const executed = senders.length ? await options.getLogs({ targets: senders, eventAbi: RH_EXECUTED_EVENT, onlyArgs: false }) : [];
-  const accountTxs = new Set(executed.map((e: any) => `${e.transactionHash}:${String(e.address).toLowerCase()}`));
+  // only senders the account factory registered count: any contract could emit an Executed event of the same shape.
+  // isAccount is set once, when the factory creates the account, and never cleared, so the latest state answers for any
+  // past window (the default Robinhood Chain RPC keeps no historical state)
+  const emitters = [...new Set(executed.map((e: any) => String(e.address).toLowerCase()))];
+  const registered = emitters.length ? await new ChainApi({ chain: options.chain }).multiCall({ target: RH_ACCOUNT_FACTORY, abi: "function isAccount(address) view returns (bool)", calls: emitters }) : [];
+  const accounts = new Set(emitters.filter((_, i) => registered[i] === true));
+  const accountTxs = new Set(executed.filter((e: any) => accounts.has(String(e.address).toLowerCase())).map((e: any) => `${e.transactionHash}:${String(e.address).toLowerCase()}`));
   for (const t of toTreasury) {
     const from = String(t.args.from).toLowerCase();
     if (from === RH_SPLITTER.toLowerCase()) continue;
