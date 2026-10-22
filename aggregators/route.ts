@@ -190,7 +190,7 @@ export const fetchRouteSwaps = async (options: FetchOptions, toBlock: number) =>
   for (const entry of v2Settlements) {
     const log = entry.args;
     const tx = entry.transactionHash.toLowerCase();
-    if (zapTxs.has(tx)) continue;
+    if (zapTxs.has(tx) && entry.address.toLowerCase() === routeEntry) continue;
     swapTxs.add(tx);
     if (!isVolumeExcluded(log.sender, log.recipient)) dailyVolume.add(log.tokenOut, log.grossAmountOut);
   }
