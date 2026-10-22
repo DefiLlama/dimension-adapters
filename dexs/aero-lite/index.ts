@@ -82,9 +82,12 @@ const addLitePools = async (options: FetchOptions, { dailyVolume, dailyFees, dai
 
 // Aero CL pools (verified source: CLPool.sol, DynamicSwapFeeHook.sol). A hook sets the fee
 // of each swap, so fee() is only the base rate; the hook records every swap's fee on the
-// CL pool tape as cumulativeFee (dynamic fee) + cumulativeMevFee (MEV tax). The voters'
-// share (fees of liquidity staked in gauges plus the cut on unstaked liquidity fees)
-// accrues in pool.gaugeFees() until the gauge collects it (CollectFees).
+// CL pool tape: cumulativeFee is the full fee, MEV tax included (cumulativeMevFee is only
+// the MEV part of it, so it is not added again). The voters' share (fees of liquidity
+// staked in gauges plus the cut on unstaked liquidity fees) accrues in pool.gaugeFees()
+// until the gauge collects it (CollectFees).
+// The tape only records pools its owner registered (allowedCaller); unregistered pools
+// get volume but no fees (at launch: 8 of 412 Base pools, none with a gauge, ~$1/day).
 // Window-start state is read at fromBlock - 1 because logs include fromBlock.
 const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue }: any) => {
   const { api, getLogs, getFromBlock, chain } = options
@@ -126,7 +129,7 @@ const addV3Pools = async (options: FetchOptions, { dailyVolume, dailyFees, daily
     const { token0, token1 } = pools[pool]
     // the tape discards pre-seeded values on a pool's first swap, so it counts from zero until then
     const startTape = Number(start[pool]?.tape.lastSwapTimestamp ?? 0) > 0 ? start[pool].tape : null
-    const tapeFee = (t: any, k: number) => t ? Number(t[`cumulativeFee${k}`]) + Number(t[`cumulativeMevFee${k}`]) : 0
+    const tapeFee = (t: any, k: number) => t ? Number(t[`cumulativeFee${k}`]) : 0
     ;[token0, token1].forEach((token, k) => {
       const fee = tapeFee(tapeEnd[i], k) - tapeFee(startTape, k)
       if (fee <= 0) return
