@@ -1,31 +1,35 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { httpPost } from "../utils/fetchURL";
 
-// https://orderly.network/docs/build-on-omnichain/restful-api/public/get-market-volume-by-builder
-const URL =
-  "https://api.orderly.org/v1/public/futures_market?broker_id=rwaperp_xyz";
+// Docs: https://orderly.network/docs/build-on-omnichain/public-info-api/platform/platform-positions
+const URL = "https://api.orderly.org/v1/public/query";
+const BROKER_ID = "rwaperp_xyz";
 
-const fetch = async (_options: FetchOptions) => {
-  const data = await fetchURL(URL);
+const fetch = async () => {
+  const { success, data } = await httpPost(URL, { type: "platformPositions", broker_id: BROKER_ID, limit: 1 });
+  if (!success || !data) throw new Error(`Orderly platformPositions failed for broker ${BROKER_ID}`);
 
-  const openInterestAtEnd = data.data.rows.reduce(
-    (acc: number, market: any) => {
-      return (
-        acc + Number(market.open_interest || 0) * Number(market.mark_price || 0)
-      );
-    },
-    0,
-  );
+  const longOpenInterestAtEnd = Number(data.total_long_notional);
+  const shortOpenInterestAtEnd = Number(data.total_short_notional);
+  if (!Number.isFinite(longOpenInterestAtEnd) || !Number.isFinite(shortOpenInterestAtEnd))
+    throw new Error(`Orderly platformPositions returned non-numeric totals for broker ${BROKER_ID}`);
 
-  return { openInterestAtEnd };
+  // Counterparties mostly sit on other brokers, so this broker's longs and shorts do not
+  // net to one side of each contract; both sides held by its users are counted.
+  const openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+
+  return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.XLAYER],
+  chains: [CHAIN.ORDERLY],
   runAtCurrTime: true,
-  start: "2026-08-19",
+  doublecounted: true, // orderly perps
+  methodology: {
+    OpenInterest: "USD notional of all open long and short perpetual positions held by accounts registered through the RWA Perp interface on Orderly Network.",
+  },
 };
 
 export default adapter;
