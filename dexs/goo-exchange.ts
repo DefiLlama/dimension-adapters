@@ -27,6 +27,7 @@ const Q192 = 1n << 192n
 const GOO = '0x6572eade9fb17f4027baf92feac222b9aa746bd0'
 const WETH = '0x0bd7d308f8e1639fab988df18a8011f41eacad73'
 const MAIN_POOL = '0x841f00216A273641eD583916e668e24b4A89d1e7' // GOO/WETH 1%, token0 WETH, token1 GOO
+const MAIN_POOL_BLOCK = 73338473 // its PoolCreated block: nothing traded before it
 const MOD = 1n << 256n
 
 const GOO_BURN_LABEL = 'Swap Fees To GOO Buyback And Burn'
@@ -161,10 +162,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyUserFees = createBalances()
   const result = () => ({ dailyVolume, dailyFees, dailyUserFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue })
 
-  // WETH per GOO from the main pool (GOO per WETH = sqrtPrice² / 2^192); it doesn't exist in the first hours, when nothing traded
-  const main = await api.call({ target: MAIN_POOL, abi: abi.slot0, permitFailure: true })
+  // WETH per GOO from the main pool (GOO per WETH = sqrtPrice² / 2^192), read strictly once it exists; before it, nothing traded
+  const main = (await options.getToBlock()) >= MAIN_POOL_BLOCK ? await api.call({ target: MAIN_POOL, abi: abi.slot0 }) : null
   const gooToWeth = (amount: bigint) => {
-    if (!main) throw new Error('goo-exchange: no GOO/WETH price for a GOO amount')
+    if (!main) throw new Error('goo-exchange: a GOO amount before the GOO/WETH pool existed')
     const sqrtPrice = BigInt(main.sqrtPriceX96)
     return (amount * Q192) / (sqrtPrice * sqrtPrice)
   }
