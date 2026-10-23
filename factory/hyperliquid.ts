@@ -32,6 +32,21 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "perpex": {
+    // Perpex (perpex.co, by Celebit Ltd) builder code, attached to Hyperliquid orders placed through the web, iOS and
+    // Android apps, including copy-trading orders: 0.10% of eligible filled notional, published at https://perpex.co/fees.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x495a2c91b4173d979150ba108e2d80ce0145a7de"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-03-14",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Perpex, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Perpex; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by Perpex.",
+      ProtocolRevenue: "Builder code fees collected by Perpex.",
+    },
+    breakdownFees: true,
+  },
   "arx-perps": {
     // ARX team-confirmed builder; official site: https://arx.trade / https://x.com/ARX_TRADE
     // First real fills confirmed by the team: 2026-10-02 (UTC).
