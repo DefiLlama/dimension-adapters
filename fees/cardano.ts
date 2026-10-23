@@ -1,31 +1,33 @@
-// Source: https://cexplorer.io/
-
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { blockfrost } from "../helpers/cardano";
 import { httpGet } from "../utils/fetchURL";
+
+const BLOCKS_PAGE_SIZE = 100
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
 
-  const data = await httpGet('https://api-mainnet-stage.cexplorer.io/v1/analytics/rate?display=sum_fee', {
-    headers: {
-      'content-type': 'application/json',
-      'accept': 'application/json',
-      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    },
-  })
+  const [fromBlock, toBlock] = await Promise.all([
+    sdk.chains.cardano.getBlockAtTimestamp({ timestamp: options.startTimestamp - 1 }),
+    sdk.chains.cardano.getBlockAtTimestamp({ timestamp: options.endTimestamp - 1 }),
+  ])
+  const blockCount = toBlock.number - fromBlock.number
+  const pages = await Promise.all(Array.from({ length: Math.ceil(blockCount / BLOCKS_PAGE_SIZE) }, (_, i) =>
+    blockfrost(`/blocks/${fromBlock.number}/next?count=${BLOCKS_PAGE_SIZE}&page=${i + 1}`)
+  ))
+  const blocks = pages.flat().filter((block: any) => block.height <= toBlock.number)
+  if (blocks.length !== blockCount) {
+    throw Error(`Expected ${blockCount} cardano blocks at ${options.dateString}, got ${blocks.length}`)
+  }
 
   const treasuryCut = (await httpGet(
     `https://api.koios.rest/api/v1/epoch_params?order=epoch_no.desc&limit=1&select=epoch_no,treasury_growth_rate`
   ))[0]?.treasury_growth_rate
 
-  const df = data.data.data.find((item: any) => item.date === options.dateString)
-  
-  if (!df) {
-    throw Error(`No cardano fees data found at ${options.dateString}`)
-  }
-
-  dailyFees.addCGToken('cardano', df.stat.sum_fee / 1e6)
+  const fees = blocks.reduce((sum: bigint, block: any) => sum + BigInt(block.fees ?? 0), 0n)
+  dailyFees.addCGToken('cardano', Number(fees) / 1e6)
 
   // 2022-01-01
   const dailyRevenue = options.startOfDay >= 1577836800 ? dailyFees.clone(treasuryCut) : 0;
