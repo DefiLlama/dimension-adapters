@@ -89,6 +89,23 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
 
+  "fiatbear-perps": {
+    // FiatBear (fiatbear.com) non-custodial Hyperliquid copy-trading app. The builder code is attached to copied
+    // orders placed through the user's agent wallet. Disclosed fee: 5 bps (0.05%) of copied notional, approved by the
+    // user's main wallet: https://app.fiatbear.com/security
+    // Verifiable: POST https://api.hyperliquid.xyz/info {"type":"referral","user":"0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"} (builderRewards)
+    addresses: ["0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"],
+    // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232/20260716.csv.lz4
+    start: "2026-07-16",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) copied through FiatBear, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on trades copied through FiatBear; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by FiatBear on copied trades.",
+      ProtocolRevenue: "Builder code fees collected by FiatBear on copied trades.",
+    },
+    breakdownFees: true,
+  },
+
   "kokoah-perps": {
     // Kokoah (kokoah.com) builder code, attached to every Hyperliquid order placed through the app. The app's API
     // publishes the address and fee: https://api.kokoah.com/v1/public-config (`builder`).
