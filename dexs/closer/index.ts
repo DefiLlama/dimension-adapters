@@ -79,11 +79,11 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: 'Cash volume: USDC collateral paid by traders on BUYs and received on SELLs (gross_amount of every successful settle_fill instruction). Counts the trader side only; the house counterparty leg is not counted.',
-    Fees: 'Trading fee charged on BUY fills, read from the fee field of the on-chain FillEvent. SELLs and settlements carry no fee.',
-    UserFees: 'Same as Fees: the BUY trading fee is paid by traders.',
-    Revenue: 'All trading fees are retained by the protocol treasury; there are no LPs or token holders to share with.',
-    ProtocolRevenue: 'All trading fees are retained by the protocol treasury.',
+    Volume: 'DEX Volume: Cash volume: USDC collateral paid by traders on BUYs and received on SELLs (gross_amount of every successful settle_fill instruction). Counts the trader side only; the house counterparty leg is not counted. Volume follows the live match calendar, so days with no live fixtures show zero by design.',
+    Fees: 'On-chain BUY fee from FillEvent (SELLs and settlements are fee-free).',
+    UserFees: 'On-chain BUY fee from FillEvent, paid by traders (SELLs and settlements are fee-free).',
+    Revenue: '100% protocol revenue — no LPs, no token, no revenue share.',
+    ProtocolRevenue: '100% protocol revenue — no LPs, no token, no revenue share.',
   },
   breakdownMethodology: {
     Fees: { [METRIC.TRADING_FEES]: 'Fee charged on BUY fills (ceil(gross * fee_bps / 10000), currently 1.5%).' },
