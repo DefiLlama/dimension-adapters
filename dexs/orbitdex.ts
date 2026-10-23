@@ -22,6 +22,12 @@ const fetch = async (options: FetchOptions) => {
     `${ORDERLY_API}/md/volume/builder/daily_stats?broker_id=${BROKER_ID}`
   );
 
+  // An empty response means the API failed or returned no data at all — throw so the
+  // adapter fails loudly rather than silently reporting 0 for every historical date.
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error(`Empty daily_stats response for broker ${BROKER_ID}`);
+  }
+
   // Match the row whose ISO date resolves to the requested UTC day (options.dateString = "YYYY-MM-DD").
   const record = rows.find(
     (r) => new Date(r.date).toISOString().split("T")[0] === options.dateString
