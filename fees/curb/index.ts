@@ -15,6 +15,7 @@ const LAUNCH_REGISTRY = "0x86e9a01F3959A96469051AE1a73D5C09b0BaC110";
 const FEE_HOOK = "0xF85Ce05c2Ba8533d79f009fd3A3c8517aaBda0cC";
 const GRADUATOR = "0xA9865e07Ce4EC0cCf7A521B98640031285C92712";
 const DEPLOY_BLOCK = 52662669; // first transaction of the deployment run, 2026-10-16 01:38 UTC
+const DEPLOY_TIMESTAMP = 1792114685; // timestamp of DEPLOY_BLOCK (2026-10-16 01:38:05 UTC)
 
 // The platform recipient (treasury Safe) the hook was deployed with. Every launch freezes the recipient in force
 // when it was created, so a later change adds an address rather than replacing this one; see PlatformRecipientUpdated.
@@ -58,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
 
   // The registry has no code before the deployment, so a window that ends before it (the first hour of the start
   // day) has nothing to read and reports zeros.
-  if ((await options.getToBlock()) < DEPLOY_BLOCK)
+  if (options.endTimestamp < DEPLOY_TIMESTAMP)
     return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 
   // Every launch and the asset it trades in. The registry's launcher list is append-only (no removal), one
