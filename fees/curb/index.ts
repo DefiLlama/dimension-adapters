@@ -29,11 +29,8 @@ const CURVE_BUY =
   "event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax)";
 const CURVE_SELL =
   "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax)";
-// FeeHook, once per taxed pool swap: `base` is the quote-side gross amount (the whole input on a buy, the gross
-// output on a sell). Each non-zero leg of the tax is announced first, by recipient, as FeePaidDirect (paid out in the
-// swap) or FeeAccrued (recorded as owed - always on WETH pools); both are emitted only inside a swap.
-const FEE_CHARGED =
-  "event FeeCharged(bytes32 indexed poolId, address indexed quoteToken, uint256 base, uint256 platformAmount, uint256 creatorAmount)";
+// FeeHook, per taxed pool swap: each non-zero leg of the tax, by recipient, as FeePaidDirect (paid out in the swap)
+// or FeeAccrued (recorded as owed - always on WETH pools); both are emitted only inside a swap.
 const FEE_PAID_DIRECT = "event FeePaidDirect(address indexed to, address indexed token, uint256 amount)";
 const FEE_ACCRUED = "event FeeAccrued(address indexed to, address indexed token, uint256 amount)";
 const PLATFORM_RECIPIENT_UPDATED = "event PlatformRecipientUpdated(address indexed previous, address indexed next)";
@@ -138,15 +135,14 @@ const fetch = async (options: FetchOptions) => {
   for (const log of buys) addCurveTrade(log, true);
   for (const log of sells) addCurveTrade(log, false);
 
-  // ---- Graduated pools (Uniswap v4 + FeeHook). Volume from FeeCharged; the tax split from its legs, by recipient:
-  // the platform leg always goes to the launch's frozen platform recipient (a treasury address), the creator leg to
-  // the creator, to the treasury for a treasury-created launch, or to the launch's distributor once it shares.
-  const [charges, paidDirect, accrued] = await Promise.all([
-    options.getLogs({ target: FEE_HOOK, eventAbi: FEE_CHARGED }),
+  // ---- Graduated pools (Uniswap v4 + FeeHook). No volume: these swaps are Uniswap v4 volume, already counted by
+  // the Uniswap v4 adapter. The tax split from its legs, by recipient: the platform leg always goes to the launch's
+  // frozen platform recipient (a treasury address), the creator leg to the creator, to the treasury for a
+  // treasury-created launch, or to the launch's distributor once it shares.
+  const [paidDirect, accrued] = await Promise.all([
     options.getLogs({ target: FEE_HOOK, eventAbi: FEE_PAID_DIRECT }),
     options.getLogs({ target: FEE_HOOK, eventAbi: FEE_ACCRUED }),
   ]);
-  for (const log of charges) dailyVolume.add(log.quoteToken, log.base);
   for (const log of [...paidDirect, ...accrued]) {
     const to = log.to.toLowerCase();
     dailyFees.add(log.token, log.amount, LABELS.POOL_TAX);
@@ -166,11 +162,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Gross quote-asset value of every buy and sell on CURB bonding curves (CurveBuy quoteIn; CurveSell quoteOut + fee + tax) plus every taxed swap in graduated Uniswap v4 pools (FeeHook FeeCharged base: the whole input on a buy, the gross output on a sell).",
+  Volume: "Gross quote-asset value of every buy and sell on CURB bonding curves (CurveBuy quoteIn; CurveSell quoteOut + fee + tax). Trading in graduated Uniswap v4 pools is excluded: it is counted by the Uniswap v4 adapter.",
   Fees: "The trading tax (1%-5%, set per launch) paid on every curve and graduated-pool trade, in the quote asset. The pools' 0.05% Uniswap v4 LP fee is not included: it is earned by the pool's liquidity and already counted by the Uniswap v4 adapter.",
   UserFees: "Traders pay the whole trading tax. Launching costs gas only.",
   Revenue: "The platform's share of the tax (0.50% of the trade at deployment, frozen into each launch), plus the creator share of launches whose creator wallet is the treasury ($CURB).",
-  ProtocolRevenue: "All revenue goes to the treasury Safe.",
+  ProtocolRevenue: "The platform's share of the tax on both venues, plus the creator share of treasury-created launches ($CURB), paid to the treasury Safe.",
   SupplySideRevenue: "The rest of the tax: to the launch's creator, or to the launch's own token holders through its distributor once holder sharing is on.",
 };
 
