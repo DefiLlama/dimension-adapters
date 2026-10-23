@@ -14,6 +14,7 @@ export type ArbitrumBridgeConfig = {
   // The WETH gateway's retryables move the ETH of WETH deposits, which are counted as WETH sent to the gateway.
   wethGatewayAlias: string;
   start: string;
+  excludedTokens?: string[]; // mispriced or fake tokens moved through the gateways, skipped entirely
 };
 
 // Bridge message kinds
@@ -60,17 +61,18 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
 
   // Token deposits and withdrawals: transfers into and out of the gateway escrows, skipping moves between them
   const escrows = new Set(config.escrows.map((e) => e.toLowerCase()));
+  const excluded = new Set((config.excludedTokens ?? []).map((t) => t.toLowerCase()));
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
   const deposits = await sdk.indexer.getTokenTransfers({ chain: options.chain, targets: config.escrows, transferType: "in", fromBlock, toBlock });
   const withdrawals = await sdk.indexer.getTokenTransfers({ chain: options.chain, targets: config.escrows, transferType: "out", fromBlock, toBlock });
   for (const t of deposits) {
-    if (escrows.has(t.from_address.toLowerCase())) continue;
+    if (escrows.has(t.from_address.toLowerCase()) || excluded.has(t.token.toLowerCase())) continue;
     dailyOutgoingVolume.add(t.token, t.value);
     dailyOutgoingTxCount++;
   }
   for (const t of withdrawals) {
-    if (escrows.has(t.to_address.toLowerCase())) continue;
+    if (escrows.has(t.to_address.toLowerCase()) || excluded.has(t.token.toLowerCase())) continue;
     dailyIncomingVolume.add(t.token, t.value);
     dailyIncomingTxCount++;
   }

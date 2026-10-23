@@ -438,7 +438,15 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     },
   },
   "pnetwork": {
-    [CHAIN.ETHEREUM]: { start: "2023-10-30", transfers: { wallets: ["0xe396757ec7e6ac7c8e5abe7285dde47b98f22db8", "0x112334f50cb6efcff4e35ae51a022dbe41a48135"] } },
+    [CHAIN.ETHEREUM]: {
+      start: "2023-10-30",
+      transfers: {
+        wallets: ["0xe396757ec7e6ac7c8e5abe7285dde47b98f22db8", "0x112334f50cb6efcff4e35ae51a022dbe41a48135"],
+        // low-confidence prices on tokens moved by the billion on 2024-03-31:
+        // R-TENSOR 0xd829… (996M tokens, $48.5M) and AiLAYER 0xf41a… (12B tokens, $6M)
+        filter: (row: any) => !["0xd829fc7d8de417a5a684d934d5dc981d86395d8a", "0xf41a94f7e87ef728b3f6ba434376b5f7f543c4d3"].includes(String(row.token).toLowerCase()),
+      },
+    },
     [CHAIN.BSC]: { start: "2023-11-01", transfers: { wallets: ["0x76c96b2b3cf96ee305c759a7cd985eaa67634dfc"] } },
   },
   // Meson pool contract, same address on every chain
