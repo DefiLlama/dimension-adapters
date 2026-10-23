@@ -32,6 +32,7 @@ const FEES_TO_BUYBACK = "Trading Fees To Launched Token Buyback And Burn";
 const FEES_TO_LIQUIDITY = "Trading Fees To Launched Token Locked Liquidity";
 
 const BPS = 10000n;
+const LOG_BLOCK_RANGE = 10000;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -41,13 +42,16 @@ const fetch = async (options: FetchOptions) => {
 
   // Every launch up to the end of this window, from the launch contract's own events (cached; the list only grows).
   const toBlock = await options.getToBlock();
-  const launches = (await options.getLogs({ target: PORTAL, eventAbi: LAUNCHED, fromBlock: PORTAL_DEPLOY_BLOCK, toBlock, cacheInCloud: true }))
+  // Read in 10,000-block ranges: Arc's public RPCs refuse wider eth_getLogs requests (checked 2026-09-28).
+  const launches = (await options.getLogs({ target: PORTAL, eventAbi: LAUNCHED, fromBlock: PORTAL_DEPLOY_BLOCK, toBlock, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE }))
     .filter((l: any) => !TEAM_TEST_COINS.has(String(l.token).toLowerCase()));
   if (!launches.length) return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 
   const hooks = launches.map((l: any) => l.hook);
   const escrows = launches.map((l: any) => l.escrow);
-  // Each escrow records its paired asset and split once, at launch; they never change.
+  // Each escrow records its paired asset and split once, at launch; they never change. A failed read is
+  // allowed here only so an escrow with no fees in this window cannot fail the run; one that has fees
+  // must have every setting (checked below).
   const read = (abi: string) => options.api.multiCall({ abi, calls: escrows, permitFailure: true });
   const quotes = await read("address:quoteAsset");
   const platform = await read("uint256:platformBps");
@@ -59,11 +63,17 @@ const fetch = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({ targets: hooks, eventAbi: QUOTE_FEE_TAKEN, flatten: false });
 
   feeLogs.forEach((logs: any[], i: number) => {
+    if (!logs.length) return;
+    // A missing setting is unknown, not zero: fail rather than book the team's share or a lane as something else.
+    const settings = [quotes[i], platform[i], creator[i], dividend[i], burn[i], liquidity[i]];
+    if (settings.some((v) => v === null || v === undefined))
+      throw new Error(`Phlece escrow ${escrows[i]} (hook ${hooks[i]}): could not read its paired asset or split`);
     const quote = quotes[i];
-    if (!quote || !logs.length) return;
-    const platformBps = BigInt(platform[i] ?? 0);
-    const lanes = [creator[i], dividend[i], burn[i], liquidity[i]].map((v) => BigInt(v ?? 0));
-    const laneTotal = lanes.reduce((a, b) => a + b, 0n) || BPS;
+    const platformBps = BigInt(platform[i]);
+    const lanes = [creator[i], dividend[i], burn[i], liquidity[i]].map((v) => BigInt(v));
+    // The escrow refuses a split whose four lanes do not add up to 10,000 bps (PhlecePayoutEscrow constructor).
+    if (platformBps >= BPS || lanes.reduce((a, b) => a + b, 0n) !== BPS)
+      throw new Error(`Phlece escrow ${escrows[i]}: unexpected split (platform ${platformBps}, lanes ${lanes.join("/")})`);
     for (const log of logs) {
       const fee = BigInt(log.fee);
       const surcharge = BigInt(log.surcharge);
@@ -74,7 +84,7 @@ const fetch = async (options: FetchOptions) => {
         const rest = fee - toTreasury;
         dailyRevenue.add(quote, toTreasury, FEES_TO_TREASURY);
         dailyProtocolRevenue.add(quote, toTreasury, FEES_TO_TREASURY);
-        const [c, d, b] = lanes.map((bps) => (rest * bps) / laneTotal);
+        const [c, d, b] = lanes.map((bps) => (rest * bps) / BPS);
         dailySupplySideRevenue.add(quote, c, FEES_TO_CREATORS);
         dailySupplySideRevenue.add(quote, d, FEES_TO_HOLDERS);
         dailySupplySideRevenue.add(quote, b, FEES_TO_BUYBACK);
