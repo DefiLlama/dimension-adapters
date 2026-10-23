@@ -2,6 +2,8 @@
 // gain and a 2% fee on the gain after it), plus the protocol's 2% cut of what
 // losing closes and liquidations pay into the LP pool. The LP pool is
 // protocol-owned (nobody can deposit into it), so everything is revenue.
+// Deposits sit on Solana, but trades settle off-chain on the protocol's own
+// server, so fees are attributed to off_chain.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -32,7 +34,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true, // the endpoint answers any from/to window
   fetch,
-  chains: [CHAIN.SOLANA],
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-12",
   methodology: {
     Fees: "On profitable closes, an impact haircut on the gain and a 2% fee on the gain after the haircut; on losing closes and liquidations, a 2% fee on the margin lost, taken by the protocol from what the LP pool receives.",
@@ -45,6 +47,10 @@ const adapter: SimpleAdapter = {
       "Win Haircut": "Impact haircut on the gain of a profitable close, sized by the price move; kept by the protocol-owned LP pool.",
       "Win Fee": "2% of the gain after the haircut on a profitable close.",
       "Loss Fee": "2% of the margin lost on a losing close or liquidation.",
+    },
+    UserFees: {
+      "Win Haircut": "Impact haircut on the gain of a profitable close, paid by the trader.",
+      "Win Fee": "2% of the gain after the haircut on a profitable close, paid by the trader.",
     },
     Revenue: {
       "Win Haircut": "Kept by the protocol-owned LP pool.",
