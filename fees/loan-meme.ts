@@ -64,8 +64,9 @@ const fetch = async (options: FetchOptions) => {
   let sum = new BigNumber(0);
   for (const { field, label } of FEE_SOURCES) {
     const amount = value(field);
-    dailyFees.addUSDValue(amount.toFixed(), label);
-    dailyRevenue.addUSDValue(amount.toFixed(), `${label} To Protocol`);
+    // USD amounts must be numbers: the SDK treats string balances as integer token units.
+    dailyFees.addUSDValue(amount.toNumber(), label);
+    dailyRevenue.addUSDValue(amount.toNumber(), `${label} To Protocol`);
     sum = sum.plus(amount);
   }
   if (!sum.eq(total)) throw new Error(`Loan Meme API: fee breakdown does not match totalUsd on ${options.dateString}`);
