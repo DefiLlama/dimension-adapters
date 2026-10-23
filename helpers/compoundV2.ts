@@ -212,15 +212,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
           // we cannot find on this comptroller, still drops everything, as this did before.
           const namedSymbols = collectNamedSymbols(reasons);
           if (!namedSymbols?.length) return emptyResult(options);
-          // A listed comptroller published zeros before this, so a failure to work out which of its
-          // markets to drop has to keep publishing zeros rather than turn into a hard failure.
-          let listedMarkets: Array<string> | undefined;
-          try {
-            listedMarkets = await resolveMarketsBySymbol(market, namedSymbols, options);
-          } catch (e: any) {
-            sdk.log(`compoundV2: ${options.chain} ${market} could not be read to resolve its listed markets (${e?.message}), skipping the whole comptroller`);
-            return emptyResult(options);
-          }
+          const listedMarkets = await resolveMarketsBySymbol(market, namedSymbols, options);
           if (!listedMarkets) return emptyResult(options);
           blacklists = [...blacklists, ...listedMarkets];
         }
