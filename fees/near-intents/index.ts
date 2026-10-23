@@ -35,6 +35,9 @@ import { queryDuneSql } from "../../helpers/dune";
 // Date NEAR began using captured Intents revenue to buy back $NEAR
 const BUYBACK_START = '2026-02-23';
 
+const FEE_FLOOR_START = '2025-08-01';
+const MIN_FEE_BPS = 2;
+
 const FRONTEND_WALLET = 'fefundsadmin.sputnik-dao.near'; // NEAR front-end fund ("fe")
 // All of NEAR's revenue wallets (NEAR's own dune query 6740088)
 const FEE_WALLETS = `(VALUES
@@ -57,6 +60,11 @@ const fetch = async (options: FetchOptions) => {
         WHERE CAST(from_iso8601_timestamp(date_at) AS DATE) = DATE '${options.dateString}'
       )
     ),
+    volume AS (
+      SELECT SUM(CAST(volume_amount_usd AS DOUBLE)) AS volume_usd
+      FROM dune.near.dataset_near_intents_metrics
+      WHERE date_at = '${options.dateString}'
+    ),
     moves AS (
       SELECT receipt_receiver_account_id AS wallet, CAST(action_transfer_deposit AS DOUBLE) / 1e24 AS amt
       FROM near.actions
@@ -76,6 +84,7 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       COALESCE((SELECT fees_usd FROM gross), 0) AS fees_usd,
       (SELECT fee_rows FROM gross) AS fee_rows,
+      COALESCE((SELECT volume_usd FROM volume), 0) AS volume_usd,
       COALESCE((SELECT SUM(amt) FROM moves WHERE wallet = '${FRONTEND_WALLET}'), 0) AS frontend_near,
       COALESCE((SELECT SUM(amt) FROM moves WHERE wallet <> '${FRONTEND_WALLET}'), 0) AS other_near
   `;
@@ -83,6 +92,9 @@ const fetch = async (options: FetchOptions) => {
   const res = await queryDuneSql(options, query);
   if (!res[0]?.fee_rows) throw new Error(`near-intents: the dune fee datasets have no rows for ${options.dateString} yet`);
   const fees_usd = res[0]?.fees_usd ?? 0;
+  const volume_usd = res[0]?.volume_usd ?? 0;
+  if (options.dateString >= FEE_FLOOR_START && fees_usd < volume_usd * MIN_FEE_BPS / 1e4)
+    throw new Error(`near-intents: fees are ${(fees_usd / volume_usd * 1e4).toFixed(2)}bp of the day's $${Math.round(volume_usd)} volume on ${options.dateString}, the dune fee datasets are behind the metrics dataset`);
   const frontend_near = res[0]?.frontend_near ?? 0;
   const other_near = res[0]?.other_near ?? 0;
   const revenue_near = frontend_near + other_near;
