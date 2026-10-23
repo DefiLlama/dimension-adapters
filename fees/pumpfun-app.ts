@@ -9,6 +9,7 @@ import { queryDuneSql } from "../helpers/dune";
 // bonding-curve + PumpSwap trade fees on those trades, doublecounted with the parent
 // pumpdotfun / pump-swap listings. Mayhem-mode trades zero their fee columns and are
 // not counted; the PUMP buyback (holders revenue) stays in the parent adapter only.
+// Solana only: the app fee on EVM trades routed through Relay is settled off-chain.
 const APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 
 const LABEL = {
