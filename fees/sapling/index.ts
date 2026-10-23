@@ -39,6 +39,7 @@
 // collection with the exact amount for each destination (liquidity, rootstock, treasury, payee), and the adapter reads
 // those. Split events for coin 0x0 carry fees the escrow held before a sweep tied them to a coin.
 
+import { ethers } from "ethers";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -64,6 +65,16 @@ const RH_USDG = ADDRESSES.robinhood.USDG; // the quote of Sapling coins on Robin
 const RH_SPLITTER_BLOCK = 93643376; // the splitter's deployment block
 const RH_SPLIT_EVENT = "event Split(address indexed coin, uint256 amount, uint256 liquidity, uint256 rootstock, uint256 treasury, uint256 payee)";
 const RH_PAYEE_CHANGED_EVENT = "event PayeeChanged(address indexed coin, address payee)";
+// Fees paid straight to the treasury in USDG, with no event of their own: the planting fee, pulled by the venue in
+// plant(), and the Zcash account fee, sent by a Sapling account contract when it runs a paid buy or planting
+const RH_TREASURY = "0x6D8546abe42F447DeFa19C36409B42e6C955CDB6";
+const RH_VENUE = "0xFdc8f5a657073829f1cAC5e2488519Ed3B463dbF";
+// Sapling accounts are clones made by the account factory 0xcc53f533F543aF4A4026C0483Da1a63B9E590422; every paid order an
+// account runs ends with the account's own Executed event, in the same transaction as its account fee transfer
+const RH_EXECUTED_EVENT = "event Executed(bytes32 indexed orderHash, uint8 action, uint64 nonce, address relayer)";
+const RH_TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
+const RH_PLANTED_EVENT = "event Planted(address indexed coin, address indexed by, address payee, string name, string symbol, uint256 launchFee)";
+const logIndexOf = (log: any) => Number(log.logIndex ?? log.index);
 const ZERO_ADDRESS = ADDRESSES.null
 
 // Anchor event discriminators, sha256("event:<Name>")[0..8], and payload sizes in bytes
@@ -74,6 +85,10 @@ const EVENT = {
   SaplingConverted: { discriminator: "AFC36889823E28C0", size: 96 },
   OrderRan: { discriminator: "ACEE3CC1D2DF2B50", size: 137 },
 };
+// Vault instructions that emit none of the events above, so truncated logs lose nothing when a transaction only calls
+// these: declare_payee, sha256("global:declare_payee")[0..8], run when a coin is planted, records the coin's payee and
+// emits PayeeDeclared only (e.g. 5Y4g37rRVYyMjQSrB2bXGFcfsaNMboxzx15CzWNwN3kbGtJHkisZB1jifpKpxub2JN818pAZaFBiwH3NWr29BwP4)
+const QUIET_INSTRUCTIONS = { [VAULT_PROGRAM]: ["33434476f180c41b"] };
 
 const LABELS = {
   COIN_FEES: "Coin Trading Fees",
@@ -93,7 +108,7 @@ const events = (program: string, event: { discriminator: string; size: number })
   `FROM program_events WHERE program = '${program}' AND STARTSWITH(data, '${event.discriminator}') AND LENGTH(data) = ${2 * event.size}`;
 
 const fetchSolana = async (options: FetchOptions) => {
-  const [row] = await queryAllium(`${programEventsSql([VAULT_PROGRAM, GUARD_PROGRAM], options)},
+  const [row] = await queryAllium(`${programEventsSql([VAULT_PROGRAM, GUARD_PROGRAM], options, QUIET_INSTRUCTIONS)},
   settled AS (
     -- Settled: to_treasury u64 @48 | to_vault u64 @56 | to_overflow u64 @64 | buyback_sapling u64 @72 | to_deployer u64 @80 | holders u8 @88
     SELECT ${u64("data", 48)} AS to_treasury, ${u64("data", 56)} + ${u64("data", 64)} AS to_liquidity,
@@ -178,12 +193,19 @@ const fetchSolana = async (options: FetchOptions) => {
 
 const fetchRobinhood = async (options: FetchOptions) => {
   const [splits, payeeChanges] = await Promise.all([
-    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_SPLIT_EVENT }),
-    // every coin's payee since the splitter's deployment: the holders choice is permanent, a deployer's payee may change
-    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_PAYEE_CHANGED_EVENT, fromBlock: RH_SPLITTER_BLOCK, toBlock: await options.getToBlock(), cacheInCloud: true }),
+    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_SPLIT_EVENT, onlyArgs: false }),
+    // every coin's payee history since the splitter's deployment, so each split takes the payee in force at its own position
+    options.getLogs({ target: RH_SPLITTER, eventAbi: RH_PAYEE_CHANGED_EVENT, fromBlock: RH_SPLITTER_BLOCK, toBlock: await options.getToBlock(), cacheInCloud: true, onlyArgs: false }),
   ]);
-  const payeeOf: Record<string, string> = {};
-  for (const log of payeeChanges) payeeOf[String(log.coin).toLowerCase()] = String(log.payee).toLowerCase();
+  const position = (log: any) => Number(log.blockNumber) * 1e6 + Number(log.logIndex ?? log.index);
+  const payeeHistory: Record<string, { at: number, payee: string }[]> = {};
+  for (const log of payeeChanges) (payeeHistory[String(log.args.coin).toLowerCase()] ??= []).push({ at: position(log), payee: String(log.args.payee).toLowerCase() });
+  for (const history of Object.values(payeeHistory)) history.sort((a, b) => a.at - b.at);
+  const payeeAt = (coin: string, at: number) => {
+    let payee: string | undefined;
+    for (const change of payeeHistory[coin] ?? []) { if (change.at < at) payee = change.payee; else break; }
+    return payee;
+  };
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -191,7 +213,7 @@ const fetchRobinhood = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const log of splits) {
+  for (const { args: log, ...split } of splits as any[]) {
     const coin = String(log.coin).toLowerCase();
     dailyFees.add(RH_USDG, log.amount, LABELS.COIN_FEES);
     dailyRevenue.add(RH_USDG, log.treasury, LABELS.TO_TREASURY);
@@ -201,18 +223,48 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailyRevenue.add(RH_USDG, log.liquidity, LABELS.LIQUIDITY);
     dailyHoldersRevenue.add(RH_USDG, log.liquidity, LABELS.LIQUIDITY);
     const payeeLabel = coin === ZERO_ADDRESS ? LABELS.TO_UNATTRIBUTED_PAYEES
-      : payeeOf[coin] === RH_HOLDERS_REWARDS.toLowerCase() ? LABELS.TO_COIN_HOLDERS : LABELS.TO_DEPLOYERS;
+      : payeeAt(coin, position(split)) === RH_HOLDERS_REWARDS.toLowerCase() ? LABELS.TO_COIN_HOLDERS : LABELS.TO_DEPLOYERS;
     dailySupplySideRevenue.add(RH_USDG, log.payee, payeeLabel);
+  }
+
+  // USDG paid to the treasury, read from logs only (the public RPC keeps no historical state): the splitter's own
+  // transfers are already counted above; in a planting, the last transfer from the planter before the Planted event is
+  // the planting fee; a transfer from a sender that emits Executed in the same transaction is a Sapling account's fee;
+  // transfers from anyone else are not fees
+  const [toTreasury, plantings] = await Promise.all([
+    options.getLogs({ target: RH_USDG, eventAbi: RH_TRANSFER_EVENT, topics: [ethers.id("Transfer(address,address,uint256)"), null as any, ethers.zeroPadValue(RH_TREASURY, 32)], onlyArgs: false }),
+    options.getLogs({ target: RH_VENUE, eventAbi: RH_PLANTED_EVENT, onlyArgs: false }),
+  ]);
+  const plantingFeeLogs = new Set<string>();
+  for (const planted of plantings) {
+    const by = String(planted.args.by).toLowerCase();
+    const last = toTreasury
+      .filter((t: any) => t.transactionHash === planted.transactionHash && logIndexOf(t) < logIndexOf(planted) && String(t.args.from).toLowerCase() === by)
+      .sort((x: any, y: any) => logIndexOf(y) - logIndexOf(x))[0];
+    if (last) plantingFeeLogs.add(`${last.transactionHash}:${logIndexOf(last)}`);
+  }
+  const senders = [...new Set(toTreasury.map((t: any) => String(t.args.from).toLowerCase()))].filter((f) => f !== RH_SPLITTER.toLowerCase());
+  const executed = senders.length ? await options.getLogs({ targets: senders, eventAbi: RH_EXECUTED_EVENT, onlyArgs: false }) : [];
+  const accountTxs = new Set(executed.map((e: any) => `${e.transactionHash}:${String(e.address).toLowerCase()}`));
+  for (const t of toTreasury) {
+    const from = String(t.args.from).toLowerCase();
+    if (from === RH_SPLITTER.toLowerCase()) continue;
+    const [source, destination] = plantingFeeLogs.has(`${t.transactionHash}:${logIndexOf(t)}`) ? [LABELS.PLANTING_FEES, LABELS.PLANTING_TO_TREASURY]
+      : accountTxs.has(`${t.transactionHash}:${from}`) ? [LABELS.ACCOUNT_FEES, LABELS.ACCOUNT_TO_TREASURY] : [null, null];
+    if (!source || !destination) continue;
+    dailyFees.add(RH_USDG, t.args.value, source);
+    dailyRevenue.add(RH_USDG, t.args.value, destination);
+    dailyProtocolRevenue.add(RH_USDG, t.args.value, destination);
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee on every buy and sell of a coin planted through Sapling, both paid to Sapling's splitter.",
-  Revenue: "The part of the 2% coin trading fee Sapling keeps (10% treasury, 25% $SAPLING buyback and burn, 25% $SAPLING/ZEC liquidity), plus the planting fee and the Zcash account fee.",
-  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee.",
-  HoldersRevenue: "50% of the 2% coin trading fee: 25% buys and burns $SAPLING, and 25% goes to the $SAPLING/ZEC pool on PumpSwap, where about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it.",
+  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee on every buy and sell of a coin planted through Sapling, both paid to Sapling's splitter, plus the planting fee and the Zcash account fee, paid in USDG to the treasury.",
+  Revenue: "The part of the 2% coin trading fee Sapling keeps (10% treasury, 25% $SAPLING buyback and burn, 25% $SAPLING/ZEC liquidity), plus the planting fee and the Zcash account fee. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
+  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
+  HoldersRevenue: "50% of the 2% coin trading fee: 25% buys and burns $SAPLING, and 25% goes to the $SAPLING/ZEC pool on PumpSwap, where about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
   SupplySideRevenue: "40% of the 2% coin trading fee, paid to each coin's deployer, a wallet they choose, or the holders of that coin as holder rewards (on Robinhood Chain, 40% of what reaches Sapling's splitter).",
 };
 
@@ -223,24 +275,24 @@ const breakdownMethodology = {
     [LABELS.PLANTING_FEES]: "The flat fee paid to the Sapling treasury when a coin is planted, in the same transaction that creates the coin.",
   },
   Revenue: {
-    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury.",
+    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter.",
     [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
-    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING).",
-    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity).",
+    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter.",
   },
   ProtocolRevenue: {
-    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury.",
+    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter.",
     [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
   },
   HoldersRevenue: {
-    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING).",
-    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity).",
+    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter.",
   },
   SupplySideRevenue: {
-    [LABELS.TO_DEPLOYERS]: "40% of the 2% coin trading fee, paid to the coin's deployer or a wallet they choose.",
-    [LABELS.TO_COIN_HOLDERS]: "40% of the 2% coin trading fee of coins whose deployer chose holder rewards, paid in ZEC to the holders of that coin.",
+    [LABELS.TO_DEPLOYERS]: "40% of the 2% coin trading fee, paid to the coin's deployer or a wallet they choose. On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.TO_COIN_HOLDERS]: "40% of the 2% coin trading fee of coins whose deployer chose holder rewards, paid in ZEC to the holders of that coin. On Robinhood Chain the share is of what reaches Sapling's splitter.",
     [LABELS.TO_UNATTRIBUTED_PAYEES]: "On Robinhood Chain, the 40% share of fees Pons's escrow held before a sweep tied them to a coin, paid later to that coin's deployer or holders.",
   },
 };
