@@ -16,6 +16,7 @@ interface VolumeRangeResponse {
   endTs: number;
   venue: string | null;
   volumeUsd: string;
+  liquidationVolumeUsd: string;
   tradeCount: number;
   platformFeesUsd: string;
   builderFeesUsd: string;
@@ -46,7 +47,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyVolume.addUSDValue(parseUsd(response.volumeUsd, "volumeUsd"));
+  const volume = parseUsd(response.volumeUsd, "volumeUsd");
+  const liquidationVolume = parseUsd(response.liquidationVolumeUsd, "liquidationVolumeUsd");
+  if (liquidationVolume > volume) {
+    throw new Error("Imperial volume API returned more liquidation volume than total volume");
+  }
+
+  dailyVolume.addUSDValue(volume - liquidationVolume);
   dailyFees.addUSDValue(platformFees, METRIC.TRADING_FEES);
   dailyFees.addUSDValue(builderFees, BUILDER_FEES);
   dailyRevenue.addUSDValue(platformFees, METRIC.TRADING_FEES);
@@ -69,7 +76,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-16",
   methodology: {
     Volume:
-      "Notional size of every trader fill on Imperial's perp markets (opens, increases, closes and liquidations), indexed from Imperial's Solana program and served by the Imperial stats API. Each fill counts once.",
+      "Notional size of every trader fill on Imperial's perp markets (opens, increases and closes; liquidation fills are excluded), indexed from Imperial's Solana program and served by the Imperial stats API. Each fill counts once.",
     Fees: "Imperial's 1 bps trading fee on every open and close, plus any builder fee an integrator adds to orders it submits.",
     Revenue: "Imperial's 1 bps trading fee.",
     ProtocolRevenue: "Imperial's 1 bps trading fee, all kept by the protocol treasury.",
