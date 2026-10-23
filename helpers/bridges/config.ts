@@ -299,6 +299,20 @@ export const polygonPosBridge = (start?: string): BridgeChainConfig => {
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Alcor Bridge: lock/mint between EVM chains and Antelope, with Telos as the hub. One AlcorVault per EVM
+// chain locks every asset (the zero address is the native coin); Telos light clients prove deposits there,
+// and the vault releases withdrawals once Telos is proved back to it. Released `amount` is what the
+// recipient gets, `fee` goes to whoever delivered the proof. https://telos.alcor.exchange/api/bridge/docs/bot
+// ---------------------------------------------------------------------------------------------------
+export const alcorBridge = (vault: string, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event Deposit(address indexed token, address indexed from, uint256 amount, uint64 canonical, uint64 telosTo, uint64 nonce, address refundTo, uint64 fillFee, uint64 filler, bytes memo)", targets: [vault], direction: "outgoing", tokenArg: "token", amountArg: "amount" },
+    { eventAbi: "event Released(uint64 indexed id, address indexed token, address indexed to, uint256 amount, address feeTo, uint256 fee)", targets: [vault], direction: "incoming", tokenArg: "token", amountArg: "amount" },
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
 // Allbridge Classic: lock/burn deposits arrive as transfers into the bridge, unlocks/mints emit Received.
 // Same bridge address on every chain. https://docs-classic.allbridge.io
 // ---------------------------------------------------------------------------------------------------

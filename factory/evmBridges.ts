@@ -2,7 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { BridgeChainConfig, bridgeExport } from "../helpers/bridges";
 import {
-  agglayerBridge, allbridgeClassicBridge, anubisBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, connextBridge, coreBitcoinBridge,
+  agglayerBridge, alcorBridge, allbridgeClassicBridge, anubisBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, connextBridge, coreBitcoinBridge,
   crossCurveBridge, crowdSwapBridge, eclipseBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
@@ -725,6 +725,12 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     [CHAIN.BASE]: wanBridge("0x2715aa7156634256ae75240c2c5543814660cd04", "2025-07-01"),
     [CHAIN.BLAST]: wanBridge("0xc21e5553c8dddf2e4a93e5bedbae436d4291f603", "2025-07-03"),
     [CHAIN.LINEA]: wanBridge("0xffb876bd5bee99e992cac826a04396002f5f4a65", "2025-07-06"),
+  },
+  // one-sided: only the EVM vaults are tracked, the Antelope leg is attributed server-side (destinationChain: telos)
+  "alcor-bridge": {
+    [CHAIN.ETHEREUM]: alcorBridge("0x3e447d533321ad6a8412f97034ac295a9ff8d858", "2026-09-29"),
+    [CHAIN.BSC]: alcorBridge("0x53F18eaa8Bf8099b5bA21Bb7E11ed311b677690e", "2026-10-03"),
+    [CHAIN.POLYGON]: alcorBridge("0x15bbd21148f98c4daeb30450eb05666f7859993d", "2026-10-07"),
   },
   // one-sided (destinationChain: aurora)
   "rainbow-bridge": {
