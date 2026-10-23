@@ -1,6 +1,6 @@
 import { CHAIN } from "./chains";
 import { getEnv } from "./env";
-import { httpGet } from "../utils/fetchURL";
+import axios from "axios";
 
 // Relay cross-chain requests from Relay's API, shared by bridges/relay and fees/relay.
 // https://docs.relay.link/references/api/get-requests
@@ -33,15 +33,17 @@ export const getRelayApiKey = () => {
 
 export const getRelayPage = async (url: string, apiKey: string) => {
   for (let attempt = 0; ; attempt++) {
-    try {
-      const page = await httpGet(url, { headers: { "x-api-key": apiKey } });
-      if (!Array.isArray(page?.requests)) throw new Error("relay: unexpected API response");
-      return page;
-    } catch (e: any) {
-      const status = e?.axiosError?.response?.status ?? e?.response?.status;
-      // rate limits and server errors are retried with backoff, anything else is a real failure
-      if (attempt >= RETRY_DELAYS_MS.length || !(status === 429 || status >= 500)) throw e;
-      await sleep(RETRY_DELAYS_MS[attempt]);
+    // axios directly so the HTTP status is visible (httpGet drops it); dropped connections resolve to the Error
+    const res = await axios.get(url, { headers: { "x-api-key": apiKey }, validateStatus: () => true }).catch((e) => e as Error);
+    if (!(res instanceof Error) && res.status === 200) {
+      if (!Array.isArray(res.data?.requests)) throw new Error("relay: unexpected API response");
+      return res.data;
     }
+    // rate limits, server errors and dropped connections are retried with backoff, anything else is a real failure
+    const retryable = res instanceof Error || res.status === 429 || res.status >= 500;
+    // rethrow only the message: axios errors carry the request headers, including the API key
+    if (!retryable || attempt >= RETRY_DELAYS_MS.length)
+      throw new Error(`relay: ${res instanceof Error ? res.message : `HTTP ${res.status} ${JSON.stringify(res.data)}`}`);
+    await sleep(RETRY_DELAYS_MS[attempt]);
   }
 };

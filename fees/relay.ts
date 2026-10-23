@@ -80,6 +80,8 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   prefetch: prefetch as any,
+  // fees only until the integrator revenue share can be deducted (see the note on the commented-out revenue labels)
+  skipBreakdownValidation: true,
   chains: [...new Set(Object.values(RELAY_CHAINS))],
   // the API returns no fees for ~90-98% of requests from 2025-12-08 to 2026-04-23, and no platform fees before 2025-05
   start: "2026-04-24",
