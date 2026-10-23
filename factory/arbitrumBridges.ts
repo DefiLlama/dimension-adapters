@@ -19,6 +19,10 @@ const configs: Record<string, ArbitrumBridgeConfig> = {
     ],
     wethGatewayAlias: "0xea3123e9d9911199a6711321d1277285e6d4f3ec", // alias of 0xd92023E9d9911199a6711321D1277285e6d4e2db
     start: "2022-10-17", // first day the old bridges server recorded Arbitrum volume
+    excludedTokens: [
+      // DPX on Ethereum: 400M deposited on 2026-04-15 against a real DPX supply of ~500k (Ethereum supply is now 400.5M, freshly minted), priced at the Arbitrum DPX price
+      "0xEec2bE5c91ae7f8a338e1e5f3b5DE49d07AfdC81",
+    ],
   },
   // https://docs.robinhood.com/chain/protocol-contracts/
   "robinhood-bridge": {

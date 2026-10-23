@@ -52,6 +52,12 @@ const chainMap: Record<string, string> = {
   noble: CHAIN.NOBLE,
 };
 
+// Fake tokens that Allium prices anyway, excluded by their canonical token address
+const EXCLUDED_TOKENS = [
+  "0x55b0faf9818074716f622453abc296839d559120", // "X20 USD" on BSC, 1T supply: 1B moved BSC -> Ethereum on 2025-07-03, priced at $1.0B
+  "0x5b2af7fd27e2ea14945c82dd254c79d3ed34685e", // JEFE on Fantom: one transfer of 1.5e17 units Optimism -> Fantom on 2023-10-11, priced at $64.6M
+];
+
 type PairRow = { source_chain: string; destination_chain: string; usd: string; txs: string };
 
 const prefetch = async (options: FetchOptions): Promise<PairRow[]> => {
@@ -66,6 +72,7 @@ const prefetch = async (options: FetchOptions): Promise<PairRow[]> => {
       and token_chain_name is not null and token_chain_name != ''
       and token_symbol is not null
       and token_usd_amount is not null
+      and coalesce(lower(token_address), '') not in (${EXCLUDED_TOKENS.map((t) => `'${t}'`).join(", ")})
     group by source_chain, destination_chain
   `);
   // Wormhole never has a window with no transfers; an empty result means the table has not caught up
