@@ -32,7 +32,6 @@ const FEES_TO_BUYBACK = "Trading Fees To Launched Token Buyback And Burn";
 const FEES_TO_LIQUIDITY = "Trading Fees To Launched Token Locked Liquidity";
 
 const BPS = 10000n;
-const LOG_BLOCK_RANGE = 10000;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -42,8 +41,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Every launch up to the end of this window, from the launch contract's own events (cached; the list only grows).
   const toBlock = await options.getToBlock();
-  // Read in 10,000-block ranges: Arc's public RPCs refuse wider eth_getLogs requests (checked 2026-09-28).
-  const launches = (await options.getLogs({ target: PORTAL, eventAbi: LAUNCHED, fromBlock: PORTAL_DEPLOY_BLOCK, toBlock, cacheInCloud: true, maxBlockRange: LOG_BLOCK_RANGE }))
+  const launches = (await options.getLogs({ target: PORTAL, eventAbi: LAUNCHED, fromBlock: PORTAL_DEPLOY_BLOCK, toBlock, cacheInCloud: true }))
     .filter((l: any) => !TEAM_TEST_COINS.has(String(l.token).toLowerCase()));
   if (!launches.length) return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 
