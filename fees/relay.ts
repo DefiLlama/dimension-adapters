@@ -13,7 +13,8 @@ const APP_FEES = "App Fees";
 // const PLATFORM_FEES_TO_RELAY = "Platform Fees To Relay";
 // const APP_FEES_TO_INTEGRATORS = "App Fees To Integrators";
 
-// An hour is ~170 pages at ~2.5s each, too slow sequentially: page 5-minute slices in parallel (~8 pages/s, no 429s in testing)
+// An hour is ~170 pages at ~2.5s each, too slow sequentially: page 5-minute slices in parallel.
+// 12 workers was the fastest tested (~10 pages/s, no 429s); 6 ran at ~5/s and 24 at ~7/s with doubled latency.
 const SLICE_SECONDS = 300;
 const CONCURRENCY = 12;
 
