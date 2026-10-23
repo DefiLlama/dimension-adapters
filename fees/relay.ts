@@ -23,7 +23,7 @@ const CONCURRENCY = 12;
 
 type RelayRequest = {
   data?: {
-    route?: { actual?: { origin?: { inputCurrency?: { amountUsd?: string } } } };
+    route?: { actual?: Record<"origin" | "destination", { inputCurrency?: { amountUsd?: string }; outputCurrency?: { amountUsd?: string } } | undefined> };
     fees?: { currency?: { chainId: number }; actual?: { platform?: { usd?: string }; swap?: { usd?: string } } } | null;
     appFees?: { currency?: { chainId: number }; actual?: { amountUsd?: string | null }[] } | null;
   };
@@ -58,10 +58,18 @@ const prefetch = async (options: FetchOptions): Promise<FeeTotals> => {
         // appFees[].amountUsd, not fees.actual.app.usd: the latter is mispriced on some tokens (a $0.003 fee read as $1.17M)
         const appUsd = (data?.appFees?.actual ?? []).reduce((sum, fee) => sum + Number(fee.amountUsd ?? 0), 0);
 
+        const route = data?.route?.actual;
+        const inUsd = Number(route?.origin?.inputCurrency?.amountUsd);
+        const outUsd = Number((route?.destination?.outputCurrency ?? route?.origin?.outputCurrency)?.amountUsd);
+
         // fees above the amount the user sent are bad data (mostly inputs the API has no USD price for): skip the request
-        if (platformUsd + swapUsd + appUsd > Number(data?.route?.actual?.origin?.inputCurrency?.amountUsd)) continue;
+        if (platformUsd + swapUsd + appUsd > inUsd) continue;
         add(totals.platform, feeChainId, platformUsd);
-        add(totals.swap, feeChainId, swapUsd);
+        // swap is measured against the API's own token prices, which break on long-tail tokens (a memecoin input priced at
+        // $5.4M that sold for $138 reported a $5.4M swap cost): count it only when what the user sent and received are
+        // within 2x of each other, and never above what the user actually lost
+        const pricesAgree = outUsd >= inUsd / 2 && inUsd >= outUsd / 2;
+        add(totals.swap, feeChainId, pricesAgree ? Math.min(swapUsd, Math.max(0, inUsd - outUsd)) : 0);
         add(totals.app, data?.appFees?.currency?.chainId, appUsd);
       }
       continuation = page.continuation;
@@ -108,7 +116,7 @@ const adapter: SimpleAdapter = {
     Fees: {
       [PLATFORM_FEES]: "Relay's service fee for routing, solving and settling across chains, partly shared with integrators.",
       [APP_FEES]: "Fees integrating apps add on top of the Relay quote, paid to those apps.",
-      [SWAP_COSTS]: "Cost of facilitating cross-asset and cross-chain swaps, including asset rebalancing.",
+      [SWAP_COSTS]: "Cost of facilitating cross-asset and cross-chain swaps, including asset rebalancing. Excludes trades with unreliable token prices.",
     },
     // Revenue: {
     //   [PLATFORM_FEES_TO_RELAY]: "Relay's own fee, kept by Relay.",
