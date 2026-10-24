@@ -49,9 +49,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
-  fetch,
-  chains: [CHAIN.EDGEX],
-  start: '2024-08-06',
+  adapter: {
+    // v1 api is gone (meta endpoint now serves the web app); same cutoff as the v1 fee leg in fees/edgex (#9109), volume continues in dexs/edgeX-v2
+    [CHAIN.EDGEX]: { fetch, start: '2024-08-06', deadFrom: '2026-08-15' },
+  },
 };
 
 export default adapter;
