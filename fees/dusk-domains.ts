@@ -130,8 +130,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "DUSK paid to register and renew .dusk names (including premium pricing on new names) and the 2.5% marketplace fee on name sales, from the vault contract's fee_received events.",
   SupplySideRevenue: "The referrer's share of a fee, credited in the vault for the referrer to claim: 20% of a registration's base price and 10% of a renewal since launch on 21 Oct 2026, capped at 30% of any fee by the vault.",
-  Revenue: "Fees minus referral shares, kept by the vault as protocol funds.",
-  ProtocolRevenue: "Same as Revenue.",
+  Revenue: "Fees (DUSK paid to register and renew .dusk names (including premium pricing on new names) and the 2.5% marketplace fee on name sales) minus referral shares, kept by the vault as protocol funds.",
+  ProtocolRevenue: "Fees (DUSK paid to register and renew .dusk names (including premium pricing on new names) and the 2.5% marketplace fee on name sales).",
 };
 
 const breakdownMethodology = {
