@@ -38,7 +38,8 @@ const fetch = async (options: FetchOptions) => {
         TRY_CAST(regexp_extract(cd.val_decoded, '"total_borrowed"\\},"val":\\{"i128":"(-?[0-9]+)"', 1) AS DOUBLE) AS total_borrowed,
         TRY_CAST(regexp_extract(cd.val_decoded, '"total_d_tokens"\\},"val":\\{"i128":"(-?[0-9]+)"', 1) AS DOUBLE) AS total_d_tokens,
         TRY_CAST(regexp_extract(cd.val_decoded, '"take_rate_bps"\\},"val":\\{"u32":([0-9]+)', 1) AS DOUBLE) AS take_rate_bps,
-        TRY_CAST(regexp_extract(cd.val_decoded, '"operation_fees_sum"\\},"val":\\{"i128":"(-?[0-9]+)"', 1) AS DOUBLE) AS operation_fees_sum
+        TRY_CAST(regexp_extract(cd.val_decoded, '"operation_fees_sum"\\},"val":\\{"i128":"(-?[0-9]+)"', 1) AS DOUBLE) AS operation_fees_sum,
+        TRY_CAST(regexp_extract(cd.val_decoded, '"take_rate_fees_sum"\\},"val":\\{"i128":"(-?[0-9]+)"', 1) AS DOUBLE) AS take_rate_fees_sum
       FROM stellar.contract_data cd
       WHERE cd.contract_id IN (${MARKETS.map((m) => `'${m}'`).join(", ")})
         AND cd.closed_at < DATE '${options.dateString}' + interval '1' day
@@ -46,7 +47,7 @@ const fetch = async (options: FetchOptions) => {
     ),
 
     prior AS (
-      SELECT closed_at, ledger_sequence, market, pool, token, total_borrowed, total_d_tokens, take_rate_bps, operation_fees_sum
+      SELECT closed_at, ledger_sequence, market, pool, token, total_borrowed, total_d_tokens, take_rate_bps, operation_fees_sum, take_rate_fees_sum
       FROM (
         SELECT
           *,
@@ -58,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
     ),
 
     window_rows AS (
-      SELECT closed_at, ledger_sequence, market, pool, token, total_borrowed, total_d_tokens, take_rate_bps, operation_fees_sum
+      SELECT closed_at, ledger_sequence, market, pool, token, total_borrowed, total_d_tokens, take_rate_bps, operation_fees_sum, take_rate_fees_sum
       FROM snapshots
       WHERE closed_at >= DATE '${options.dateString}'
       UNION ALL
@@ -72,15 +73,24 @@ const fetch = async (options: FetchOptions) => {
         LAG(CASE WHEN total_d_tokens > 0 THEN total_borrowed / total_d_tokens END)
           OVER (PARTITION BY market, pool ORDER BY closed_at, ledger_sequence) AS prev_d_price,
         LAG(total_d_tokens) OVER (PARTITION BY market, pool ORDER BY closed_at, ledger_sequence) AS prev_d_tokens,
-        LAG(operation_fees_sum) OVER (PARTITION BY market, pool ORDER BY closed_at, ledger_sequence) AS prev_operation_fees_sum
+        LAG(operation_fees_sum) OVER (PARTITION BY market, pool ORDER BY closed_at, ledger_sequence) AS prev_operation_fees_sum,
+        LAG(take_rate_fees_sum) OVER (PARTITION BY market, pool ORDER BY closed_at, ledger_sequence) AS prev_take_rate_fees_sum
       FROM window_rows
       WHERE token IS NOT NULL
     ),
 
+    -- A pool whose last debt is repaid has no d-token price left; its final accrual is
+    -- recovered from the take-rate bucket, which grows by interest * take_rate on accrual.
     accrued AS (
       SELECT
         token,
-        GREATEST(COALESCE(prev_d_tokens, 0) * GREATEST(d_price - COALESCE(prev_d_price, d_price), 0), 0) AS interest_raw,
+        CASE
+          WHEN d_price IS NOT NULL
+            THEN GREATEST(COALESCE(prev_d_tokens, 0) * GREATEST(d_price - COALESCE(prev_d_price, d_price), 0), 0)
+          WHEN COALESCE(prev_d_tokens, 0) > 0 AND COALESCE(take_rate_bps, 0) > 0
+            THEN GREATEST(take_rate_fees_sum - COALESCE(prev_take_rate_fees_sum, take_rate_fees_sum), 0) * 10000 / take_rate_bps
+          ELSE 0
+        END AS interest_raw,
         COALESCE(take_rate_bps, 0) AS take_rate_bps,
         GREATEST(COALESCE(operation_fees_sum, 0) - COALESCE(prev_operation_fees_sum, operation_fees_sum, 0), 0) AS operation_fees_raw
       FROM ordered
@@ -106,12 +116,12 @@ const fetch = async (options: FetchOptions) => {
 
     if (interest > 0) {
       dailyFees.add(token, interest, METRIC.BORROW_INTEREST);
-      dailyRevenue.add(token, takeRate, METRIC.BORROW_INTEREST);
-      dailySupplySideRevenue.add(token, interest - takeRate, METRIC.BORROW_INTEREST);
+      dailyRevenue.add(token, takeRate, "Borrow Interest To Treasury");
+      dailySupplySideRevenue.add(token, interest - takeRate, "Borrow Interest To Lenders");
     }
     if (operationFees > 0) {
-      dailyFees.add(token, operationFees, METRIC.DEPOSIT_WITHDRAW_FEES);
-      dailyRevenue.add(token, operationFees, METRIC.DEPOSIT_WITHDRAW_FEES);
+      dailyFees.add(token, operationFees, "Operation Fees");
+      dailyRevenue.add(token, operationFees, "Operation Fees To Treasury");
     }
   });
 
@@ -126,8 +136,13 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Interest paid by Alula borrowers plus operation fees on deposits, withdrawals, borrows, repayments and collateral moves.",
   Revenue: "The take rate on borrower interest (set per pool) plus operation fees, paid to the protocol and its insurance fund.",
-  ProtocolRevenue: "Same as Revenue: the take rate and operation fees go to the protocol's beneficiaries.",
+  ProtocolRevenue: "The take rate on borrower interest (set per pool) plus operation fees, paid to the protocol and its insurance fund.",
   SupplySideRevenue: "Borrower interest net of the take rate, earned by lenders.",
+};
+
+const treasuryBreakdown = {
+  "Borrow Interest To Treasury": "The pool's take rate share of borrower interest, paid to the protocol and its insurance fund.",
+  "Operation Fees To Treasury": "Operation fees on deposits, withdrawals, borrows, repayments and collateral moves, paid to the protocol and its insurance fund.",
 };
 
 const adapter: SimpleAdapter = {
@@ -140,15 +155,13 @@ const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: "Interest accrued on Alula loans, from the growth of each pool's d-token price.",
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Operation fees charged on deposits, withdrawals, borrows, repayments and collateral moves.",
+      [METRIC.BORROW_INTEREST]: "Interest accrued on Alula loans, from the growth of each pool's d-token price (from the take-rate bucket when a pool's last debt is repaid).",
+      "Operation Fees": "Operation fees charged on deposits, withdrawals, borrows, repayments and collateral moves.",
     },
-    Revenue: {
-      [METRIC.BORROW_INTEREST]: "The pool's take rate share of borrower interest.",
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "Operation fees retained by the protocol.",
-    },
+    Revenue: treasuryBreakdown,
+    ProtocolRevenue: treasuryBreakdown,
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: "Borrower interest after the take rate, paid to lenders.",
+      "Borrow Interest To Lenders": "Borrower interest after the take rate, paid to lenders.",
     },
   },
 };
