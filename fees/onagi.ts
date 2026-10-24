@@ -90,7 +90,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Platform fees paid in USDG on every trade made in Onagi (transfers into the Onagi fee vault), plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events). Platform fees include a small reimbursement for network gas that Onagi pays on behalf of users, which is not separated on chain.",
-  UserFees: "Same as Fees, all paid by traders.",
+  UserFees: "Platform fees paid in USDG on every trade made in Onagi, plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events).",
   Revenue: "Platform fees plus the creator share of ONAGI token swap fees that Pons credits to Onagi.",
   SupplySideRevenue: "The Pons protocol and Pons buyback share of ONAGI token swap fees, not kept by Onagi.",
   HoldersRevenue: "75% of revenue: 50% is paid to eligible ONAGI holders in USDG and 25% buys ONAGI and sends it to the burn address. Computed from Onagi's published split.",
