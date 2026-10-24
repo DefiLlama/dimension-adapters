@@ -75,6 +75,11 @@ export const getFetch = (versions: SundaeVersion[]) => async (options: FetchOpti
   const allPools = data?.pools?.popular;
   if (!allPools?.length) throw new Error("Sundae API returned no pools");
   const pools = allPools.filter((pool: any) => versions.includes(pool.version));
+  // `popular` ranks across every version, so a version can fall out of the top 50 entirely. That
+  // is an unreadable day rather than a day without fees, so it has to throw instead of publishing
+  // the empty balances the loops below would leave.
+  if (!pools.length)
+    throw new Error(`Sundae API returned none of ${versions.join(", ")} among its ${allPools.length} listed pools`);
 
   for (const pool of pools) {
     for (const tick of pool.ticks?.rich ?? []) {
@@ -168,6 +173,11 @@ export const getVolumeFetch = (versions: SundaeVersion[]) => async (options: Fet
   const allPools = data?.pools?.popular;
   if (!allPools?.length) throw new Error("Sundae API returned no pools");
   const pools = allPools.filter((pool: any) => versions.includes(pool.version));
+  // `popular` ranks across every version, so a version can fall out of the top 50 entirely. That
+  // is an unreadable day rather than a day without fees, so it has to throw instead of publishing
+  // the empty balances the loops below would leave.
+  if (!pools.length)
+    throw new Error(`Sundae API returned none of ${versions.join(", ")} among its ${allPools.length} listed pools`);
 
   for (const pool of pools) {
     for (const tick of pool.ticks?.rich ?? []) {
