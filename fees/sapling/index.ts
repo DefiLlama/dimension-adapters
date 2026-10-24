@@ -41,7 +41,6 @@
 
 import { ethers } from "ethers";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { ChainApi } from "@defillama/sdk";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
@@ -230,10 +229,9 @@ const fetchRobinhood = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(RH_USDG, log.payee, payeeLabel);
   }
 
-  // USDG paid to the treasury, read from logs only (the public RPC keeps no historical state): the splitter's own
-  // transfers are already counted above; in a planting, the last transfer from the planter before the Planted event is
-  // the planting fee; a transfer from a sender that emits Executed in the same transaction is a Sapling account's fee;
-  // transfers from anyone else are not fees
+  // USDG paid to the treasury: the splitter's own transfers are already counted above; in a planting, the last transfer
+  // from the planter before the Planted event is the planting fee; a transfer from a sender that emits Executed in the
+  // same transaction is a Sapling account's fee; transfers from anyone else are not fees
   const [toTreasury, plantings] = await Promise.all([
     options.getLogs({ target: RH_USDG, eventAbi: RH_TRANSFER_EVENT, topics: [ethers.id("Transfer(address,address,uint256)"), null as any, ethers.zeroPadValue(RH_TREASURY, 32)], onlyArgs: false }),
     options.getLogs({ target: RH_VENUE, eventAbi: RH_PLANTED_EVENT, onlyArgs: false }),
@@ -248,11 +246,9 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
   const senders = [...new Set(toTreasury.map((t: any) => String(t.args.from).toLowerCase()))].filter((f) => f !== RH_SPLITTER.toLowerCase());
   const executed = senders.length ? await options.getLogs({ targets: senders, eventAbi: RH_EXECUTED_EVENT, onlyArgs: false }) : [];
-  // only senders the account factory registered count: any contract could emit an Executed event of the same shape.
-  // isAccount is set once, when the factory creates the account, and never cleared, so the latest state answers for any
-  // past window (the default Robinhood Chain RPC keeps no historical state)
+  // only senders the account factory registered count: any contract could emit an Executed event of the same shape
   const emitters = [...new Set(executed.map((e: any) => String(e.address).toLowerCase()))];
-  const registered = emitters.length ? await new ChainApi({ chain: options.chain }).multiCall({ target: RH_ACCOUNT_FACTORY, abi: "function isAccount(address) view returns (bool)", calls: emitters }) : [];
+  const registered = emitters.length ? await options.api.multiCall({ target: RH_ACCOUNT_FACTORY, abi: "function isAccount(address) view returns (bool)", calls: emitters }) : [];
   const accounts = new Set(emitters.filter((_, i) => registered[i] === true));
   const accountTxs = new Set(executed.filter((e: any) => accounts.has(String(e.address).toLowerCase())).map((e: any) => `${e.transactionHash}:${String(e.address).toLowerCase()}`));
   for (const t of toTreasury) {
