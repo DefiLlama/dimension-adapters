@@ -130,6 +130,7 @@ const adapter: SimpleAdapter = {
   start: "2026-10-22",
   methodology,
   breakdownMethodology,
+  doublecounted: true, // pons
 };
 
 export default adapter;
