@@ -71,7 +71,8 @@ const RH_PAYEE_CHANGED_EVENT = "event PayeeChanged(address indexed coin, address
 const RH_TREASURY = "0x6D8546abe42F447DeFa19C36409B42e6C955CDB6";
 const RH_VENUE = "0xFdc8f5a657073829f1cAC5e2488519Ed3B463dbF";
 // Sapling accounts are clones made by the account factory; every paid order an account runs ends with the account's own
-// Executed event, in the same transaction as its account fee transfer
+// Executed event, in the same transaction as its account fee transfer. Address: the factory of Sapling's Robinhood Chain
+// deployment (2026-10-20), which every Sapling account's factory() returns
 const RH_ACCOUNT_FACTORY = "0xcc53f533F543aF4A4026C0483Da1a63B9E590422";
 const RH_EXECUTED_EVENT = "event Executed(bytes32 indexed orderHash, uint8 action, uint64 nonce, address relayer)";
 const RH_TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
