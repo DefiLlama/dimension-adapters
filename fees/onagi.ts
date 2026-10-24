@@ -159,10 +159,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ROBINHOOD]: { start: "2026-10-22" },
-    [CHAIN.POLYGON]: { start: "2026-10-22" },
-  },
+  chains: [CHAIN.ROBINHOOD, CHAIN.POLYGON],
+  start: "2026-10-22",
   methodology,
   breakdownMethodology,
   doublecounted: true, // pons
