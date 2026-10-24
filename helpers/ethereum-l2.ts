@@ -322,5 +322,64 @@ const l2FeesDuneProtocols: Record<string, Adapter> = {
 	}),
 };
 
-export const protocolList = Object.keys(l2FeesDuneProtocols);
-export const getAdapter = (name: string) => l2FeesDuneProtocols[name];
+// OP-stack chains read from their fee vaults on the L2, with the sequencer's L1 spend (batch inbox
+// or batcher/proposer wallets on Ethereum, via Allium) subtracted from revenue. See L2FeesFetcher.
+type L2FeeVaultConfig = {
+	chain: string;
+	start: string;
+	ethereumWallets: string[];
+	feeVaults?: string[];
+	gasToken?: string;
+	methodology?: Record<string, string>;
+	allowNegativeValue?: boolean;
+};
+
+const l2FeeVaultConfigs: Record<string, L2FeeVaultConfig> = {
+	'ink': {
+		chain: CHAIN.INK, start: '2024-12-20',
+		// batch inbox from the superchain registry (rotation-proof, unlike the genesis batcher EOA
+		// 0x500d7Ea6... this previously pointed at, which stopped submitting and zeroed the revenue metric)
+		ethereumWallets: ['0x005969bf0EcbF6eDB6C47E5e94693b1C3651Be97'],
+		methodology: {
+			Fees: 'Transaction fees paid by users',
+			Revenue: 'Total revenue on Ink, calculated by subtracting the L1 Batch Costs from the total gas fees',
+		},
+	},
+	'manta': {
+		chain: CHAIN.MANTA, start: '2023-09-09',
+		ethereumWallets: ['0x30c789674ad3b458886bbc9abf42eee19ea05c1d', '0xAEbA8e2307A22B6824a9a7a39f8b016C357Cd1Fe'],
+		allowNegativeValue: true, // sequencer fees
+	},
+	'polynomial': {
+		chain: CHAIN.POLYNOMIAL, start: '2024-08-25',
+		ethereumWallets: [
+			'0x0bd57e83B5E0f9eCD84d559bB58e1EcFEEdD2565', // BATCH INBOX (superchain registry; rotation-proof)
+			'0x5DA28F0186051a9F7b9eE2553FFdc165EB0A6714', // PROPOSER (genesis, inactive since rotation)
+			'0x67a44CE38627F46F20b1293960559eD85Dd194F1', // BATCHER (genesis, inactive since rotation)
+		],
+	},
+	'soneium': {
+		chain: CHAIN.SONEIUM, start: '2024-12-29',
+		ethereumWallets: ['0x6776BE80dBAda6A02B5F2095cF13734ac303B8d1'],
+		methodology: {
+			Fees: 'Transaction fees paid by users',
+			Revenue: 'Total revenue on Soneium, calculated by subtracting the L1 Batch Costs from the total gas fees',
+		},
+	},
+};
+
+const l2FeeVaultProtocols: Record<string, Adapter> = {};
+for (const [name, { chain, start, ethereumWallets, feeVaults, gasToken, methodology, allowNegativeValue }] of Object.entries(l2FeeVaultConfigs)) {
+	l2FeeVaultProtocols[name] = {
+		version: 2,
+		adapter: { [chain]: { fetch: L2FeesFetcher({ ethereumWallets, feeVaults, gasToken }), start } },
+		protocolType: ProtocolType.CHAIN,
+		...(methodology ? { methodology } : {}),
+		...(allowNegativeValue ? { allowNegativeValue } : {}),
+	};
+}
+
+const l2FeesProtocols: Record<string, Adapter> = { ...l2FeesDuneProtocols, ...l2FeeVaultProtocols };
+
+export const protocolList = Object.keys(l2FeesProtocols);
+export const getAdapter = (name: string) => l2FeesProtocols[name];
