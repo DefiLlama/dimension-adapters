@@ -114,6 +114,13 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // read treats a ~2% real day as a ~34% fee print (~$108k/day on ~$341k TVL).
     vault: '0x214B47C50057eFaa7adc1B1C2608C3751Cd77D78',
     from: '2026-03-22',
+  }, {
+    // Euler eUSDC-47 (ex-DAO vault, curated by AlphaGrowth since the 2026-05-06 sunset) - lent
+    // against YU / PT-YU collateral that the vault oracle still prices at $1 while YU trades ~$0.01.
+    // Cash is 0 since 2025-11-12 and borrows only compound at the 60% max rate with no repayments
+    // (2.63M -> 4.65M USDC), so its ~$13k/day of interest is unpayable bad-debt accrual.
+    vault: '0x481D4909D7ca2eb27c4975f08dCE07DBeF0d3Fa7',
+    from: '2025-11-12',
   }],
   [CHAIN.BASE]: [{
     // Apostro Resolv USDC (aprUSDC) - same Resolv freeze as the ethereum twin. Share price
