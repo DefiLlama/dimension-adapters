@@ -33,6 +33,8 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
   "cro-trade-predict": { builder: "crotrade", start: "2026-06-03", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4" },
   "whalidate": { builder: "Whalidate", start: "2026-10-01", builderCode: "0x7043f01555796d800d711fd807cbb367bd260d85ba45b052ac472b1e049d596f" },
+  // Onagi's builder fees are in fees/onagi.ts (pooled with its other fees and split the same way)
+  "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean }> = {
