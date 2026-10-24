@@ -67,13 +67,13 @@ const fetch = async (options: FetchOptions) => {
     aeroPoolSet.add(pool)
   })
 
-  const swapLogs = await getLogs({
-    noTarget: true,
+  const swapLogs = poolAddresses.length ? await getLogs({
+    targets: poolAddresses,
     fromBlock,
     toBlock,
     eventAbi: eventAbis.event_swap,
     entireLog: true,
-  })
+  }) : []
   swapLogs.forEach((log: any) => {
     const pool = (log.address || log.source).toLowerCase()
     if (!aeroPoolSet.has(pool)) return;
