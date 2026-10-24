@@ -26,6 +26,7 @@ type TransactionLike = {
   hash?: string;
   maxFeePerGas?: bigint | number | string | { toString: () => string };
   maxPriorityFeePerGas?: bigint | number | string | { toString: () => string };
+  nonce?: bigint | number | string | { toString: () => string };
   type?: bigint | number | string | { toString: () => string };
 };
 
@@ -62,6 +63,8 @@ export type EvmChainMetricConfig = {
 export type EvmChainFeesConfig = EvmChainMetricConfig & {
   revenueShare: number;
   supplySideRevenueShare?: number;
+  holdersRevenueShare?: number;
+  protocolRevenueShare?: number;
   CGToken?: string; // price fees via this coingecko id when the sdk has no gas token mapping for the chain
 };
 
@@ -73,6 +76,8 @@ type BlockRange = {
 const BLOCK_RECEIPTS_METHOD = "eth_getBlockReceipts";
 const CHAIN_REVENUE_LABEL = "Transaction Gas Fees To Chain";
 const SUPPLY_SIDE_REVENUE_LABEL = "Transaction Gas Fees To Supply Side";
+const HOLDERS_REVENUE_LABEL = "Transaction Gas Fees Burned";
+const PROTOCOL_REVENUE_LABEL = "Transaction Gas Fees To Treasury";
 const DEFAULT_BLOCK_CHUNK_SIZE = 500;
 const DEFAULT_BLOCK_CONCURRENCY = 8;
 const DEFAULT_TX_RECEIPT_CONCURRENCY = 20;
@@ -91,6 +96,7 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  */
 export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainFeesConfig> = {
   core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500, revenueShare: 1 },
+  "bifrost-network": { chain: CHAIN.BFC, start: "2026-10-18", blockChunkSize: 500, revenueShare: 1, holdersRevenueShare: 0.5, protocolRevenueShare: 0.5 },
 };
 
 const baseMethodology = {
@@ -317,8 +323,15 @@ async function hydrateReceiptsBatchIfNeeded(config: EvmChainMetricConfig, receip
  */
 export async function fetchEvmChainMetricsFromOptions(options: FetchOptions, config: EvmChainMetricConfig): Promise<EvmChainMetrics> {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  assertValidBlockRange(config.chain, fromBlock, toBlock);
-  return fetchEvmChainMetrics({ ...config, fromBlock, toBlock });
+  const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+  if (!range) return toPublicMetrics(emptyMetricsAccumulator());
+  return fetchEvmChainMetrics({ ...config, ...range });
+}
+
+function getWindowBlockRange(chain: string, fromBlock: any, toBlock: any): BlockRange | undefined {
+  assertValidBlockRange(chain, fromBlock, toBlock);
+  if (fromBlock === toBlock) return undefined;
+  return { fromBlock: fromBlock + 1, toBlock };
 }
 
 /**
@@ -356,6 +369,18 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
         response.dailySupplySideRevenue = dailySupplySideRevenue;
       }
 
+      if (isPositiveShare(config.holdersRevenueShare)) {
+        const dailyHoldersRevenue = options.createBalances();
+        addGasFeeShare(dailyHoldersRevenue, metrics.totalFeesWei, config.holdersRevenueShare, HOLDERS_REVENUE_LABEL, config.CGToken);
+        response.dailyHoldersRevenue = dailyHoldersRevenue;
+      }
+
+      if (isPositiveShare(config.protocolRevenueShare)) {
+        const dailyProtocolRevenue = options.createBalances();
+        addGasFeeShare(dailyProtocolRevenue, metrics.totalFeesWei, config.protocolRevenueShare, PROTOCOL_REVENUE_LABEL, config.CGToken);
+        response.dailyProtocolRevenue = dailyProtocolRevenue;
+      }
+
       return response;
     },
   };
@@ -366,6 +391,12 @@ function getMethodology(config: EvmChainFeesConfig) {
 
   if (isPositiveShare(config.supplySideRevenueShare)) {
     methodology.SupplySideRevenue = `Configured ${formatShare(config.supplySideRevenueShare)} share of transaction gas fees paid to supply-side participants.`;
+  }
+  if (isPositiveShare(config.holdersRevenueShare)) {
+    methodology.HoldersRevenue = `${formatShare(config.holdersRevenueShare)} of transaction gas fees paid by users, burned.`;
+  }
+  if (isPositiveShare(config.protocolRevenueShare)) {
+    methodology.ProtocolRevenue = `${formatShare(config.protocolRevenueShare)} of transaction gas fees paid by users, sent to the chain treasury.`;
   }
 
   return methodology;
@@ -380,6 +411,16 @@ function getBreakdownMethodology(config: EvmChainFeesConfig) {
   if (isPositiveShare(config.supplySideRevenueShare)) {
     breakdownMethodology.SupplySideRevenue = {
       [SUPPLY_SIDE_REVENUE_LABEL]: "Configured share of transaction gas fees paid to supply-side participants.",
+    };
+  }
+  if (isPositiveShare(config.holdersRevenueShare)) {
+    breakdownMethodology.HoldersRevenue = {
+      [HOLDERS_REVENUE_LABEL]: "Configured share of transaction gas fees burned.",
+    };
+  }
+  if (isPositiveShare(config.protocolRevenueShare)) {
+    breakdownMethodology.ProtocolRevenue = {
+      [PROTOCOL_REVENUE_LABEL]: "Configured share of transaction gas fees sent to the chain treasury.",
     };
   }
 
@@ -418,13 +459,46 @@ export function createEvmChainUsersFetcher(config: EvmChainMetricConfig) {
       getBlock(endTimestamp - 1, config.chain),
     ]);
 
-    assertValidBlockRange(config.chain, fromBlock, toBlock);
-
-    const metrics = await fetchEvmChainMetrics({ ...config, fromBlock, toBlock });
+    const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+    const metrics = range ? await fetchEvmChainMetrics({ ...config, ...range }) : toPublicMetrics(emptyMetricsAccumulator());
     return [{
       usercount: metrics.activeUsers,
       txcount: metrics.transactionCount,
     }];
+  };
+}
+
+/**
+ * Creates a new-users fetcher counting distinct senders whose first transaction (nonce 0) lands in the window.
+ * Receipts carry no nonce, so this scans full blocks instead of reusing the receipt metrics.
+ */
+export function createEvmChainNewUsersFetcher(config: EvmChainMetricConfig) {
+  return async (startTimestamp: number, endTimestamp: number) => {
+    const [fromBlock, toBlock] = await Promise.all([
+      getBlock(startTimestamp, config.chain),
+      getBlock(endTimestamp - 1, config.chain),
+    ]);
+
+    const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+    const newUsers = new Set<string>();
+    const { errors } = await PromisePool
+      .withConcurrency(config.batchConcurrency ?? DEFAULT_BATCH_CONCURRENCY)
+      .for(range ? makeBlockChunks(range.fromBlock, range.toBlock, config.blockChunkSize) : [])
+      .process(async (chunk) => {
+        const blocks: number[] = [];
+        for (let block = chunk.fromBlock; block <= chunk.toBlock; block++) blocks.push(block);
+
+        const rpcBlocks = await sendFirstRpcBatch(config, "eth_getBlockByNumber", blocks.map((block) => [toHex(block), true]));
+        rpcBlocks.forEach((rpcBlock, index) => {
+          for (const tx of getBlockTransactions(config, blocks[index], rpcBlock)) {
+            if (typeof tx === "string") throw new Error(`${config.chain}: eth_getBlockByNumber returned hashes instead of transactions for block ${blocks[index]}`);
+            if (tx.from && toBigInt(tx.nonce, "nonce") === 0n) newUsers.add(tx.from.toLowerCase());
+          }
+        });
+      });
+
+    if (errors.length) throw getPoolError(errors);
+    return [{ usercount: newUsers.size }];
   };
 }
 
@@ -934,6 +1008,15 @@ function assertValidRevenueAllocation(config: EvmChainFeesConfig) {
   }
   if (toShareUnits(config.revenueShare) + toShareUnits(config.supplySideRevenueShare ?? 0) > SHARE_PRECISION) {
     throw new Error(`${config.chain}: revenueShare and supplySideRevenueShare cannot exceed 1`);
+  }
+  for (const key of ["holdersRevenueShare", "protocolRevenueShare"] as const) {
+    const share = config[key];
+    if (share !== undefined && (!Number.isFinite(share) || share < 0 || share > 1)) {
+      throw new Error(`${config.chain}: ${key} must be a number between 0 and 1`);
+    }
+  }
+  if (toShareUnits(config.holdersRevenueShare ?? 0) + toShareUnits(config.protocolRevenueShare ?? 0) > toShareUnits(config.revenueShare)) {
+    throw new Error(`${config.chain}: holdersRevenueShare and protocolRevenueShare cannot exceed revenueShare`);
   }
 }
 

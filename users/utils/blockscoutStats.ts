@@ -1,4 +1,4 @@
-import { httpGet, proxiedFetch } from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
 // Some Blockscout stats hosts sit behind Cloudflare and 403 datacenter IPs
@@ -12,7 +12,6 @@ type ChainConfig = {
   version: 1 | 2;
   start?: string;
   deadFrom?: string;
-  proxied?: boolean;
 };
 
 const blockscoutStatsChains: Record<string, ChainConfig> = {
@@ -84,7 +83,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
   gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
   lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
-  "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1, proxied: true }, // stats host answers residential IPs (even with no User-Agent) but 403s the server
+  // "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 }, // stats host 403s our servers (routing it through the shared proxy did not help) and newAccounts counts receive-only addresses; moved to RPC metrics in helpers/evmChainFees.ts
   // b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" }, // stats host and explorers offline
   degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2, start: "2024-03-10" },
   robinhood: { chain: CHAIN.ROBINHOOD, baseUrl: "https://robinhoodchain.blockscout.com", version: 2, start: "2026-04-30" },
@@ -93,8 +92,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
 async function fetchLine(config: ChainConfig, line: string, date: string) {
   const path = config.version === 1 ? "/api/v1/lines" : "/stats-service/api/v1/lines";
   const baseUrl = (config.statsUrl ?? config.baseUrl).replace(/\/$/, "");
-  const url = `${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`;
-  const data = config.proxied ? await proxiedFetch(url) : await httpGet(url, { headers });
+  const data = await httpGet(`${baseUrl}${path}/${line}?from=${date}&to=${date}&resolution=DAY`, { headers });
   const entry = data.chart.find((item: any) => item.date === date);
   if (!entry) throw new Error(`No Blockscout ${line} data for ${config.chain} on ${date}`);
   return Number(entry.value);
