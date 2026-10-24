@@ -61,10 +61,17 @@ const EXPLOITER = "0xd9773325282874d18cb83f1fe50f14c39750b2ee";
 
 // Polymarket wallets that pay builder fees (pUSD) and rewards (USDC.e). Builder
 // fees are already counted from the builder-trades API, so if these payouts ever
-// reach the treasury they must not be counted again as service fees.
+// reach the treasury they must not be counted again as service fees. Sample
+// payouts below all go to Polycool's builder wallet 0x8622ab1d9972f00019da60d777a3c020c7de9f73.
 const POLYMARKET_PAYERS = [
+  // daily builder fee payout (pUSD) since 2026-06-17, e.g. 149.12 pUSD on 2026-10-24:
+  // https://polygonscan.com/tx/0x9374fe87bc5655ec385f532436cb0feaede3800e9962c82aef3dcd5030009d2b
   "0xacec560fe65386b66afb95ec3e0c6e559c7e0582",
+  // earlier builder fee payout hot wallet (pUSD), until 2026-06-16; also listed in fees/frenflow.ts.
+  // e.g. 282.11 pUSD: https://polygonscan.com/tx/0xa07e46fb96d7662559a6a2d6f37fc16fabb6b19198f0defc3d5eafd05e33e21b
   "0xd7a0535cd4349145ac47693803988d59c015d4ba",
+  // builder rewards (USDC.e), e.g. 357.36 USDC.e on 2026-10-20:
+  // https://polygonscan.com/tx/0x4b47d79c6259059d973123db3f922474df517e0cbc87d2cd1f85055e549c6efc
   "0xd15fe25ed0dba12fe05e7029c88b10c25e8880e3",
 ];
 
