@@ -31,7 +31,7 @@ interface OneWayLendingFactory {
   blacklists?: Array<string>;
 }
 
-const OneWayLendingFactories: {[key: string]: OneWayLendingFactory} = {
+export const OneWayLendingFactories: {[key: string]: OneWayLendingFactory} = {
   [CHAIN.ETHEREUM]: {
     address: '0xeA6876DDE9e3467564acBeE1Ed5bac88783205E0',
     start: '2024-03-14',
