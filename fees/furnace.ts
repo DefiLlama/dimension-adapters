@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 // Furnace (https://furnace.cash): a pump.fun launchpad where each coin's pump.fun creator fees are locked to the coin
 // itself. pump.fun fee sharing sends 100% of a coin's creator fees to a vault PDA of the furnace_vault program, and
@@ -39,10 +40,12 @@ const LABELS = {
 };
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   // instruction_calls is partitioned by block_date and clustered by executing_account_prefix: both bounds prune the scan
   const query = `
     WITH swept AS (
-      SELECT DISTINCT i.tx_id, from_base64(substr(log_message, 15)) AS p
+      SELECT DISTINCT i.tx_id, try(from_base64(substr(log_message, 15))) AS p
       FROM solana.instruction_calls i
       CROSS JOIN UNNEST(i.log_messages) AS logs(log_message)
       WHERE i.tx_success = TRUE
