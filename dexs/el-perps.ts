@@ -8,7 +8,8 @@ import ADDRESSES from "../helpers/coreAssets.json";
 // Fee split, from ElcasPerpsBook._cutFees: hub.perpsProtocolBps() of every open / close fee accrues to the platform
 // (FeeAccrued to address(0), later claimProtocol → the hub's fee address), the market's creatorShareBps accrues to its
 // creator (FeeAccrued to the creator), the rest stays in the market's LP vault; borrow goes to the LP vault in full.
-const HUB = "0xBd65EE837e57D5060013cbE8bAc8a6d0F8037f45";
+// ElcasMarketsHub v1, then the V2 hubs: the launchpad's (books its game reserve opens for launched tokens) and the public one
+const HUBS = ["0xBd65EE837e57D5060013cbE8bAc8a6d0F8037f45", "0x9DB90Cf484614C3424a49B0cB0b6E5cA7b6a850F", "0xB7eF17054fb9541dd9Bc58E932Af116d11f2fD3f"];
 const ZERO = ADDRESSES.null;
 
 const OPENED = "event PositionOpened(uint256 indexed id, uint256 indexed market, address indexed owner, bool isLong, uint256 collateral, uint256 size, int24 entryTick, uint256 fee)";
@@ -36,20 +37,27 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const tokens: string[] = await options.api.call({ abi: "address[]:allPerpsTokens", target: HUB });
+  // every hub's books, with that hub's platform share (perpsProtocolBps)
+  const tokens: string[] = [], books: string[] = [], bpsOf: number[] = [];
+  // (a hub not deployed yet at the window's block reads as empty)
+  const hubBps = await options.api.multiCall({ abi: "uint16:perpsProtocolBps", calls: HUBS, permitFailure: true });
+  const lists = await options.api.multiCall({ abi: "address[]:allPerpsTokens", calls: HUBS, permitFailure: true });
+  for (let h = 0; h < HUBS.length; h++) {
+    const t: string[] = lists[h] ?? [];
+    if (!t.length) continue;
+    const b: string[] = await options.api.multiCall({ abi: "function perpsBook(address) view returns (address)", target: HUBS[h], calls: t });
+    tokens.push(...t); books.push(...b); bpsOf.push(...t.map(() => Number(hubBps[h])));
+  }
   if (!tokens.length) return { dailyVolume, openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
-  const books: string[] = await options.api.multiCall({ abi: "function perpsBook(address) view returns (address)", target: HUB, calls: tokens });
 
-  const [openedByBook, closedByBook, decreasedByBook, accruedByBook, markets, protocolBpsRaw] = await Promise.all([
+  const [openedByBook, closedByBook, decreasedByBook, accruedByBook, markets] = await Promise.all([
     options.getLogs({ targets: books, eventAbi: OPENED, flatten: false }),
     options.getLogs({ targets: books, eventAbi: CLOSED, flatten: false }),
     options.getLogs({ targets: books, eventAbi: DECREASED, onlyArgs: false, flatten: false }),
     options.getLogs({ targets: books, eventAbi: ACCRUED, onlyArgs: false, flatten: false }),
     // open interest at the end of the window: every market's long + short size (a stock metric, read once)
     options.toApi.multiCall({ abi: MARKETS, calls: books.map((target) => ({ target, params: [0, 1000] })) }),
-    options.api.call({ abi: "uint16:perpsProtocolBps", target: HUB }),
   ]);
-  const protocolBps = Number(protocolBpsRaw);
 
   const closedCalls: { target: string; params: any[] }[] = [];
   const closedTokens: string[] = [];
@@ -58,6 +66,7 @@ const fetch = async (options: FetchOptions) => {
 
   books.forEach((book, i) => {
     const token = tokens[i];
+    const protocolBps = bpsOf[i];
     let trading = 0n, protocol = 0n, creators = 0n;
     for (const l of openedByBook[i] ?? []) {
       dailyVolume.add(token, l.size);
