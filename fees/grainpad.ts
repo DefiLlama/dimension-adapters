@@ -5,6 +5,7 @@
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from "../helpers/metrics";
 
 // Grainpad's LaunchLab platform config, published on https://grainpad.fun/docs#verification.
@@ -20,6 +21,8 @@ const START = "2026-09-29";
 type Row = { kind: string; mint: string; raw_amount: string };
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   const rows = (await queryDuneSql(
     options,
     `
