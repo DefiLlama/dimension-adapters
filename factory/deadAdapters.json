@@ -13885,51 +13885,6 @@
         "runAtCurrTime": false
       }
     },
-    "sundaeswap": {
-      "commit": "c6dbda42d2466dd673b7432a4ff16dc38d1132e1",
-      "codePath": "fees/sundaeswap",
-      "module": {
-        "version": 1,
-        "chains": [
-          "cardano"
-        ],
-        "fetch": "_f",
-        "start": "2022-01-20",
-        "deadFrom": "2026-10-01",
-        "methodology": {
-          "Fees": "The total trading fees paid by users, excluding L1 transaction fees. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
-          "Revenue": "A fixed ADA cost per transaction that is collected by the protocol. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
-          "SupplySideRevenue": "A percentage cut on all trading volume, paid to Liquidity Providers. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
-          "ProtocolRevenue": "The share of the fixed ADA cost per transaction kept by the treasury: 85% since May 2024, 100% before. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded.",
-          "HoldersRevenue": "The share of the fixed ADA cost per transaction going to holders: 15% since May 2024, 0% before. Only the 50 largest SundaeSwap pools by current TVL (across all versions) are counted, and the same current set is used for past dates, so pools that were large in the past but are not in today's top 50 are excluded."
-        },
-        "breakdownMethodology": {
-          "Fees": {
-            "LP Fees": "A percentage cut on all trading volume, paid to Liquidity Providers",
-            "Protocol Fees": "A fixed ADA cost per transaction that is collected by the protocol"
-          },
-          "Revenue": {
-            "Protocol Fees": "A fixed ADA cost per transaction that is collected by the protocol"
-          },
-          "SupplySideRevenue": {
-            "LP Fees To LPs": "A percentage cut on all trading volume, paid to Liquidity Providers"
-          },
-          "ProtocolRevenue": {
-            "Protocol Fees To Treasury": "The share of protocol fees kept by the treasury"
-          },
-          "HoldersRevenue": {
-            "Protocol Fees To Holders": "The share of protocol fees going to holders"
-          }
-        },
-        "adapter": {
-          "cardano": {
-            "fetch": "_f",
-            "start": "2022-01-20"
-          }
-        },
-        "runAtCurrTime": false
-      }
-    },
     "surfone": {
       "modulePath": "-",
       "codePath": "dead/fees/surfone",
