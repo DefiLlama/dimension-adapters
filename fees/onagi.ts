@@ -2,6 +2,7 @@ import { id } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // Onagi: trading app with an AI agent on Robinhood Chain (https://onagi.si).
 // Two income sources, pooled together and split the same way:
@@ -10,7 +11,7 @@ import { addTokensReceived } from "../helpers/token";
 //    read from the ONAGI curve and its graduated pool, like the hedge-pons adapter.
 // Docs: https://onagi.si/docs , live split and payout ledger: https://onagi.si/data/cycles.json
 const FEE_VAULT = "0xe2f197bA0D1C0864b86FA36186c0c80B57f54F49";
-const USDG = "0x5fc5360d0400a0fd4f2af552add042d716f1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 
 const ONAGI_CURVE = "0xD312Cb6E1bE47BfB71CC33AdBd1233DA6Bc3D246";
 const PONS_HOOK = "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044";
