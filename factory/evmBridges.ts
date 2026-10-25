@@ -320,6 +320,16 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     [CHAIN.KATANA]: agglayerBridge("2025-09-23"),
     // xlayer, ternoa: no recorded volume
   },
+  // one-sided (destinationChain: mezo)
+  "mezo-bridge": {
+    [CHAIN.ETHEREUM]: {
+      start: "2025-05-06", // first AssetsLocked
+      events: [
+        { eventAbi: "event AssetsLocked(uint256 indexed sequenceNumber, address indexed recipient, address indexed token, uint256 amount)", targets: ["0xF6680EA3b480cA2b72D96ea13cCAF2cFd8e6908c"], direction: "outgoing", tokenArg: "token", amountArg: "amount" },
+        { eventAbi: "event AssetsUnlockConfirmed(uint256 indexed unlockSequenceNumber, bytes indexed recipient, address indexed token, uint256 amount, uint8 chain)", targets: ["0xF6680EA3b480cA2b72D96ea13cCAF2cFd8e6908c"], direction: "incoming", tokenArg: "token", amountArg: "amount" },
+      ],
+    },
+  },
   // one-sided (destinationChain: eclipse)
   "eclipse-bridge": {
     [CHAIN.ETHEREUM]: eclipseBridge("2025-02-13"),
