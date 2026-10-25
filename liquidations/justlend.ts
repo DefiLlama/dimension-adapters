@@ -5,13 +5,12 @@ import { CHAIN } from '../helpers/chains'
 import { fetchURLAutoHandleRateLimit } from '../utils/fetchURL'
 
 // JustLend is a Compound V2 fork. The repaid jToken emits
-// LiquidateBorrow(liquidator, borrower, repayAmount, cTokenCollateral, seizeTokens),
-// seizeTokens being in units of the collateral jToken.
+// LiquidateBorrow(liquidator, borrower, repayAmount, cTokenCollateral, seizeTokens).
+// seizeTokens is in collateral jToken.
 const comptroller = 'TGjYzgCyPobsNS9n6WcbdLVR9dH7mWqFx7'
 const jTRX = 'TE2RzoSV3wFK99w6J9UnnZ4vLfXYoxvRwP'
 const endpoint = 'https://api.trongrid.io'
 
-const { tronToEvmAddress } = sdk.util
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // TronGrid caps a response at 200 events, page with the fingerprint cursor (same as fees/justlend)
@@ -31,42 +30,29 @@ const getLiquidations = async (market: string, minTimestampMs: number, maxTimest
     const data = res.data ?? []
     events = events.concat(data)
     fingerprint = res.meta?.fingerprint
-    if (!fingerprint || !data.length) break
+    if (!fingerprint || !data.length) return events
     await delay(2500)
   }
-  return events
+  throw new Error(`justlend: more than 200 pages of LiquidateBorrow events on ${market}`)
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
 
-  // Tron RPCs only answer calls at the latest block, so options.api (pinned to the window) cannot be used,
-  // and seized jTokens are converted at today's exchange rate
   const api = new sdk.ChainApi({ chain: options.chain })
   const markets: string[] = (await api.call({ abi: 'address[]:getAllMarkets', target: comptroller })).map(sdk.tron.unhexifyTarget)
+  const liquidationIncentive = BigInt(await api.call({ abi: 'uint256:liquidationIncentiveMantissa', target: comptroller }))
   const tokenMarkets = markets.filter(m => m !== jTRX)
-  const [underlyings, exchangeRates] = await Promise.all([
-    api.multiCall({ abi: 'address:underlying', calls: tokenMarkets }),
-    api.multiCall({ abi: 'uint256:exchangeRateStored', calls: markets }),
-  ])
-
-  const collateral: Record<string, { underlying: string, exchangeRate: bigint }> = {}
-  markets.forEach((market, i) => {
-    const underlying = market === jTRX ? ADDRESSES.tron.WTRX : sdk.tron.unhexifyTarget(underlyings[tokenMarkets.indexOf(market)])
-    collateral[tronToEvmAddress(market).toLowerCase()] = { underlying, exchangeRate: BigInt(exchangeRates[i]) }
-  })
+  const underlyings: string[] = await api.multiCall({ abi: 'address:underlying', calls: tokenMarkets })
 
   // max_block_timestamp is inclusive, stop 1ms short so a block on the boundary is not counted in two windows
   const minTimestampMs = options.fromTimestamp * 1000
   const maxTimestampMs = options.toTimestamp * 1000 - 1
   for (const market of markets) {
+    const underlying = market === jTRX ? ADDRESSES.tron.WTRX : sdk.tron.unhexifyTarget(underlyings[tokenMarkets.indexOf(market)])
     const events = await getLiquidations(market, minTimestampMs, maxTimestampMs)
-    for (const { result } of events) {
-      const seized = collateral[result.cTokenCollateral.toLowerCase()]
-      if (!seized) throw new Error(`justlend: unknown collateral jToken ${result.cTokenCollateral}`)
-      // exchangeRateStored is scaled by 1e18
-      dailyCollateralLiquidated.add(seized.underlying, (BigInt(result.seizeTokens) * seized.exchangeRate) / BigInt(1e18))
-    }
+    for (const { result } of events)
+      dailyCollateralLiquidated.add(underlying, (BigInt(result.repayAmount) * liquidationIncentive) / BigInt(1e18))
     await delay(2500)
   }
 
@@ -78,9 +64,9 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.TRON],
-  start: '2023-11-19',
+  start: '2020-12-08',
   methodology: {
-    CollateralLiquidated: 'Total USD value of collateral seized in JustLend LiquidateBorrow events, converted from jToken units to the underlying with exchangeRateStored.',
+    CollateralLiquidated: 'Total USD value of collateral seized in JustLend liquidations, valued as the debt repaid by the liquidator plus the 8% liquidation incentive.',
   },
 }
 
