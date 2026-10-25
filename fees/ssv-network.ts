@@ -111,7 +111,8 @@ const fetchOnchain = async (options: FetchOptions) => {
   let networkFeesWei = BigInt(0);
   for (const log of feeLogs) networkFeesWei += BigInt(log.newFeesWei);
 
-  const raw = await options.toApi.provider.getStorage(SSV_NETWORK, LAST_OPERATOR_ID_SLOT, toBlock);
+  // The id counter only increases; future ids have zero historical earnings.
+  const raw = await options.toApi.provider.getStorage(SSV_NETWORK, LAST_OPERATOR_ID_SLOT, "latest");
   const lastOperatorId = Number(BigInt(raw));
   if (!Number.isSafeInteger(lastOperatorId) || lastOperatorId <= 0 || lastOperatorId >= 1_000_000)
     throw new Error("Invalid SSV last operator id");

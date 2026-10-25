@@ -11,13 +11,14 @@ function fixture() {
   const before = ['500', '900', '0'];
   const after = ['580', '0', '45'];
   const fromApi = {
-    multiCall: async () => before,
+    multiCall: async ({ calls }: { calls: { params: number[] }[] }) =>
+      calls.map(call => before[call.params[0] - 1] ?? '0'),
   };
   const toApi = {
-    provider: { getStorage: async () => '0x03' },
-    multiCall: async ({ abi }: { abi: string }) => abi.includes('getOperatorById')
+    provider: { getStorage: async (_target: string, _slot: string, _block?: number | string) => '0x03' },
+    multiCall: async ({ abi, calls }: { abi: string, calls: { params: number[] }[] }) => abi.includes('getOperatorById')
       ? [{ fee: '1', validatorCount: '1' }, { fee: '0', validatorCount: '0' }, { fee: '1', validatorCount: '1' }]
-      : after,
+      : calls.map(call => after[call.params[0] - 1] ?? '0'),
   };
   const logRequests: FetchGetLogsOptions[] = [];
   const options = {
@@ -79,6 +80,16 @@ test('fails when operator discovery cannot be read instead of using a fixed id l
   const { options, toApi } = fixture();
   toApi.provider.getStorage = async () => { throw new Error('storage read failed'); };
   await assert.rejects(fetch(options), /storage read failed/);
+});
+
+test('discovers ids from latest storage without counting operators added after the window', async () => {
+  const { options, toApi } = fixture();
+  toApi.provider.getStorage = async (_target, _slot, block) => {
+    assert.equal(block, 'latest', 'operator discovery must not require historical storage');
+    return '0x05';
+  };
+  const result = await fetch(options);
+  assert.equal(amount(result.dailySupplySideRevenue), 175n);
 });
 
 test('rejects a negative ETH accrual after adding withdrawals', async () => {
