@@ -1,42 +1,62 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { queryEvents } from '../helpers/sui'
+import { getCheckpointAtTimestamp, graphqlCall } from '../helpers/sui'
 
-// Emitted by lending_market::liquidate. withdraw_amount is the gross amount of the collateral reserve's ctokens taken from
-// the obligation; protocol_fee_amount and liquidator_bonus_amount are carved out of it, so they are not added on top.
-const LiquidateEvent = '0xf95b06141ed4a174f239417323bde3f209b972f5930d8521ea38a52aff3a6ddf::lending_market::LiquidateEvent'
+const SUILEND = '0xf95b06141ed4a174f239417323bde3f209b972f5930d8521ea38a52aff3a6ddf'
 
-type LiquidateEventData = {
-  withdraw_reserve_id: string
-  withdraw_coin_type: { name: string }
-  withdraw_amount: string
+const LiquidateEvent = `${SUILEND}::lending_market::LiquidateEvent`
+const ReserveAssetDataEvent = `${SUILEND}::reserve::ReserveAssetDataEvent`
+
+const LENDING_MARKETS = new Set([
+  '0x84030d26d85eaa7035084a057f2f11f701b7e2e4eda87551becbc7c97505ece1', // LendingMarket<suilend::MAIN_POOL>
+  '0x8a8d8e138a28de1c637d0b0955e621b017da7010de388db5a18493eca99c5e82', // LendingMarket<Matrixdock_gold::MATRIXDOCK_GOLD>
+])
+
+type EventPage = {
+  pageInfo: { hasNextPage: boolean; endCursor: string | null }
+  nodes: { contents: { type: { repr: string }; json: any } }[]
 }
 
-const ReserveAssetDataEvent = '0xf95b06141ed4a174f239417323bde3f209b972f5930d8521ea38a52aff3a6ddf::reserve::ReserveAssetDataEvent'
+const EVENT_PAGE = 'pageInfo { hasNextPage endCursor } nodes { contents { type { repr } json } }'
 
-type ReserveAssetData = { reserve_id: string; supply_amount: { value: string }; ctoken_supply: string }
+// liquidate() withdraws the ctokens through reserve::withdraw_ctokens, which logs the withdraw reserve's state in the same
+// transaction, so the ratio is the one the liquidation settled at. It is supply_amount (a Decimal scaled by 1e18) / ctoken_supply.
+async function getCtokenRatio(digest: string, page: EventPage, reserveId: string): Promise<[bigint, bigint]> {
+  while (true) {
+    const r = page.nodes.find(e => e.contents.type.repr === ReserveAssetDataEvent && e.contents.json.reserve_id === reserveId)
+    if (r) return [BigInt(r.contents.json.supply_amount.value), BigInt(r.contents.json.ctoken_supply) * 10n ** 18n]
+    if (!page.pageInfo.hasNextPage) throw new Error(`suilend: no ReserveAssetDataEvent for reserve ${reserveId} in tx ${digest}`)
+    const data = await graphqlCall(`query ($digest: String!, $after: String) {
+      transaction(digest: $digest) { effects { events(first: 50, after: $after) { ${EVENT_PAGE} } } }
+    }`, { digest, after: page.pageInfo.endCursor })
+    page = data.transaction.effects.events
+  }
+}
 
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
-  const events = await queryEvents<LiquidateEventData>({ eventType: LiquidateEvent, options })
-  if (!events.length) return { dailyCollateralLiquidated }
 
-  // liquidate() withdraws the ctokens through reserve::withdraw_ctokens, which logs the withdraw reserve's state in the same
-  // transaction, so every liquidated reserve has a ReserveAssetDataEvent in the window. Its ctoken ratio is
-  // supply_amount (a Decimal scaled by 1e18) / ctoken_supply; within one window it only moves by accrued interest.
-  const ratios: Record<string, [bigint, bigint]> = {}
-  const reserveData = await queryEvents<ReserveAssetData>({ eventType: ReserveAssetDataEvent, options })
-  for (const r of reserveData) {
-    if (BigInt(r.ctoken_supply) > 0n) ratios[r.reserve_id] = [BigInt(r.supply_amount.value), BigInt(r.ctoken_supply) * 10n ** 18n]
+  const { sequenceNumber } = await getCheckpointAtTimestamp(options.startTimestamp - 1)
+  let after: string | null = null
+  while (true) {
+    const { events } = await graphqlCall(`query ($after: String) {
+      events(first: 50, after: $after, filter: { type: "${LiquidateEvent}", afterCheckpoint: ${sequenceNumber} }) {
+        pageInfo { hasNextPage endCursor }
+        nodes { timestamp contents { json } transaction { digest effects { events(first: 50) { ${EVENT_PAGE} } } } }
+      }
+    }`, { after })
+
+    for (const node of events.nodes) {
+      if (Date.parse(node.timestamp) / 1e3 >= options.endTimestamp) return { dailyCollateralLiquidated }
+      const e = node.contents.json
+      if (!LENDING_MARKETS.has(e.lending_market_id)) continue
+      const [supply, ctokenSupply] = await getCtokenRatio(node.transaction.digest, node.transaction.effects.events, e.withdraw_reserve_id)
+      dailyCollateralLiquidated.add('0x' + e.withdraw_coin_type, (BigInt(e.withdraw_amount) * supply) / ctokenSupply)
+    }
+
+    if (!events.pageInfo.hasNextPage) return { dailyCollateralLiquidated }
+    after = events.pageInfo.endCursor
   }
-
-  for (const e of events) {
-    const ratio = ratios[e.withdraw_reserve_id]
-    if (!ratio) throw new Error(`suilend: no ReserveAssetDataEvent for reserve ${e.withdraw_reserve_id} in the window`)
-    dailyCollateralLiquidated.add('0x' + e.withdraw_coin_type.name, (BigInt(e.withdraw_amount) * ratio[0]) / ratio[1])
-  }
-
-  return { dailyCollateralLiquidated }
 }
 
 const adapter: SimpleAdapter = {
@@ -46,7 +66,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   start: '2024-03-08',
   methodology: {
-    CollateralLiquidated: 'Collateral taken from obligations in LiquidateEvent, converted from the reserve\'s ctokens to the underlying coin at the reserve\'s ctoken ratio. Includes the liquidator bonus and the protocol liquidation fee, both of which are paid out of the seized collateral.',
+    CollateralLiquidated: 'Collateral taken from obligations in Suilend\'s main and Matrixdock gold markets, converted from the reserve\'s ctokens to the underlying coin at the ctoken ratio of the liquidation. Includes the liquidator bonus and the protocol liquidation fee, both of which are paid out of the seized collateral.',
   },
 }
 
