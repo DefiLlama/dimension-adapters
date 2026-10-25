@@ -1,7 +1,7 @@
 import { ethers } from 'ethers'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
-import { getConfig } from '../helpers/cache'
+import { getMarkets } from '../fees/inverse-finance'
 
 // Inverse Finance FiRM: one Market contract per collateral, borrowers' collateral sits in per-user escrows.
 // Market.liquidate pays liquidatorReward (collateral units, incentive included) from the escrow to the liquidator,
@@ -9,12 +9,6 @@ import { getConfig } from '../helpers/cache'
 const LiquidateEvent = 'event Liquidate(address indexed account, address indexed liquidator, uint256 repaidDebt, uint256 liquidatorReward)'
 const TransferEvent = 'event Transfer(address indexed from, address indexed to, uint256 value)'
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-
-// same market list as fees/inverse-finance
-const getMarkets = async (): Promise<{ address: string, collateral: string, startingBlock: number }[]> => {
-  const data = await getConfig('inverse-finance/markets', 'https://www.inverse.finance/api/defillama/simple-market-list')
-  return data.markets
-}
 
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
@@ -29,20 +23,28 @@ const fetch = async (options: FetchOptions) => {
 
   const govs: string[] = await options.api.multiCall({ abi: 'address:gov', calls: liquidated.map(m => m.address) })
 
-  for (const [i, market] of liquidated.entries()) {
-    for (const log of market.logs) dailyCollateralLiquidated.add(market.collateral, log.args.liquidatorReward)
+  const feeLegs: Record<string, { collaterals: Set<string>, keys: Set<string> }> = {}
+  liquidated.forEach((market, i) => {
+    const collateral = market.collateral.toLowerCase()
+    const leg = feeLegs[govs[i].toLowerCase()] ??= { collaterals: new Set(), keys: new Set() }
+    leg.collaterals.add(collateral)
+    for (const log of market.logs) {
+      dailyCollateralLiquidated.add(collateral, log.args.liquidatorReward)
+      leg.keys.add(`${collateral}-${log.transactionHash.toLowerCase()}`)
+    }
+  })
 
-    // the liquidation fee is whatever collateral reached gov inside the liquidation transactions
-    const liquidationTxs = new Set(market.logs.map(log => log.transactionHash.toLowerCase()))
+  for (const [gov, { collaterals, keys }] of Object.entries(feeLegs)) {
     const feeTransfers = await options.getLogs({
-      target: market.collateral,
+      targets: [...collaterals],
       eventAbi: TransferEvent,
-      topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(govs[i], 32)],
+      topics: [TRANSFER_TOPIC, null as any, ethers.zeroPadValue(gov, 32)],
       entireLog: true,
       parseLog: true,
     })
     for (const transfer of feeTransfers) {
-      if (liquidationTxs.has(transfer.transactionHash.toLowerCase())) dailyCollateralLiquidated.add(market.collateral, transfer.args.value)
+      const collateral = transfer.address.toLowerCase()
+      if (keys.has(`${collateral}-${transfer.transactionHash.toLowerCase()}`)) dailyCollateralLiquidated.add(collateral, transfer.args.value)
     }
   }
 
