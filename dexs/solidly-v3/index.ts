@@ -34,6 +34,7 @@ const fetch = async (options:FetchOptions) => {
     factory: configs[options.chain].factory,
     revenueRatio: 0.2,
     holdersRevenueRatio: 0.2,
+    feeFromSlot0: true,
   })(options);
 }
 
