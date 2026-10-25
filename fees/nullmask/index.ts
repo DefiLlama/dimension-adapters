@@ -21,6 +21,7 @@ const PROTOCOL_FEE_CHARGED = "0xb9c92d1cb5b6292f"; // kind u8, reference [32], a
 const TOKEN_FEE_CHARGED = "0xd8ca51d5a79a0916"; // mint pubkey, kind u8, reference [32], amount u64
 
 const HOLDER_REWARDS = "MASK Holder Rewards";
+const CHECK_FEES = "Deposit Check Fees";
 
 const fetchPool = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -48,6 +49,12 @@ const getSolanaPoolFees = async (options: FetchOptions) => {
         THEN '${ADDRESSES.solana.SOL}'
         ELSE to_base58(varbinary_substring(data, 17, 32))
       END AS mint,
+      bytearray_to_bigint(
+        CASE WHEN varbinary_substring(data, 9, 8) = ${PROTOCOL_FEE_CHARGED}
+          THEN varbinary_substring(data, 17, 1)
+          ELSE varbinary_substring(data, 49, 1)
+        END
+      ) AS kind,
       SUM(CAST(bytearray_to_bigint(varbinary_reverse(
         CASE WHEN varbinary_substring(data, 9, 8) = ${PROTOCOL_FEE_CHARGED}
           THEN varbinary_substring(data, 50, 8)
@@ -55,7 +62,7 @@ const getSolanaPoolFees = async (options: FetchOptions) => {
         END
       )) AS DECIMAL(38, 0))) AS amount
     FROM events
-    GROUP BY 1
+    GROUP BY 1, 2
   `);
   return rows;
 };
@@ -64,7 +71,7 @@ const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const poolFees = await getSolanaPoolFees(options);
-  poolFees.forEach((row: any) => dailyFees.add(row.mint, row.amount, METRIC.DEPOSIT_WITHDRAW_FEES));
+  poolFees.forEach((row: any) => dailyFees.add(row.mint, row.amount, Number(row.kind) === 2 ? CHECK_FEES : METRIC.DEPOSIT_WITHDRAW_FEES));
 
   const received = await getSolanaReceived({
     options,
@@ -77,7 +84,8 @@ const fetchSolana = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  // version 1: the Solana pool fees come from Dune, which runs once per day
+  version: 1,
   adapter: {
     [CHAIN.ETHEREUM]: { fetch: fetchPool, start: "2026-10-01" },
     [CHAIN.BASE]: { fetch: fetchPool, start: "2026-10-07" },
@@ -86,24 +94,26 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-23" },
   },
   dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
-  pullHourly: true,
   methodology: {
-    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.5% protocol fee charged on shielded pool deposits and withdrawals (ProtocolFeeCharged events on EVM; ProtocolFeeCharged and TokenFeeCharged events of the Solana program, including check fees). Relayer gas compensation is excluded.",
+      [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.5% protocol fee charged on shielded pool deposits and withdrawals (ProtocolFeeCharged events on EVM; ProtocolFeeCharged and TokenFeeCharged events of the Solana program, kind 0 and 1). Relayer gas compensation is excluded.",
+      [CHECK_FEES]: "Solana: fee charged for the AML check of a deposit that is refused or cancelled (ProtocolFeeCharged and TokenFeeCharged events, kind 2).",
       [HOLDER_REWARDS]: "ZEC rewards received by the Nullmask team wallet from the StonkFun rewards distributor for holding MASK. Other ZEC transfers to the wallet are excluded.",
     },
     Revenue: {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "All shielded pool protocol fees.",
       [HOLDER_REWARDS]: "All ZEC rewards received by the team wallet.",
+      [CHECK_FEES]: "All deposit check fees.",
     },
     ProtocolRevenue: {
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "All shielded pool protocol fees.",
       [HOLDER_REWARDS]: "All ZEC rewards received by the team wallet.",
+      [CHECK_FEES]: "All deposit check fees.",
     },
   },
 };
