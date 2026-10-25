@@ -111,12 +111,23 @@ export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { o
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
-export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean }) {
+// revenueToHolders: all builder fees go to the builder's token holders.
+// holdersRevenueRatio: only that share goes to token holders (e.g. 0.75), the builder keeps the rest.
+export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders, holdersRevenueRatio }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean, holdersRevenueRatio?: number }) {
+  const holdersRatio = revenueToHolders ? 1 : holdersRevenueRatio ?? 0;
+  const percent = (ratio: number) => `${Math.round(ratio * 10000) / 100}%`;
+  const feesText = `Builder fees received by ${builderName} from trades on Polymarket v2`;
+  const protocolRevenueText = holdersRatio === 0 ? feesText
+    : holdersRatio === 1 ? `No builder fees are kept by ${builderName}`
+    : `${percent(1 - holdersRatio)} of builder fees received by ${builderName}, kept by ${builderName}`;
+  const holdersRevenueText = holdersRatio === 1 ? `Builder fees received by ${builderName}, all distributed to its token holders`
+    : `${percent(holdersRatio)} of builder fees received by ${builderName}, distributed to its token holders`;
+
   const fetch = async (options: FetchOptions) => {
     const res = await fetchPolymarketV2BuilderFees({ options, builderCode });
-    if (!revenueToHolders) return res;
-    // all builder fees go to the builder's token holders
-    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue: options.createBalances(), dailyHoldersRevenue: res.dailyFees };
+    if (!holdersRatio) return res;
+    const dailyProtocolRevenue = holdersRatio === 1 ? options.createBalances() : res.dailyFees.clone(1 - holdersRatio);
+    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue, dailyHoldersRevenue: res.dailyFees.clone(holdersRatio) };
   }
 
   const adapter: SimpleAdapter = {
@@ -127,22 +138,20 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
     start,
     doublecounted: true,
     methodology: {
-      Fees: `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      Revenue: `Builder fees received by ${builderName} from trades on Polymarket v2`,
-      ...(revenueToHolders
-        ? { ProtocolRevenue: `No builder fees are kept by ${builderName}`, HoldersRevenue: `Builder fees received by ${builderName}, all distributed to its token holders` }
-        : { ProtocolRevenue: `Builder fees received by ${builderName} from trades on Polymarket v2` }),
+      Fees: feesText,
+      Revenue: feesText,
+      ProtocolRevenue: protocolRevenueText,
+      ...(holdersRatio ? { HoldersRevenue: holdersRevenueText } : {}),
     },
     breakdownMethodology: {
       Fees: {
-        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+        'Polymarket Builder Fees': feesText,
       },
       Revenue: {
-        'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2`,
+        'Polymarket Builder Fees': feesText,
       },
-      ...(revenueToHolders
-        ? { HoldersRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName}, all distributed to its token holders` } }
-        : { ProtocolRevenue: { 'Polymarket Builder Fees': `Builder fees received by ${builderName} from trades on Polymarket v2` } }),
+      ...(holdersRatio < 1 ? { ProtocolRevenue: { 'Polymarket Builder Fees': protocolRevenueText } } : {}),
+      ...(holdersRatio ? { HoldersRevenue: { 'Polymarket Builder Fees': holdersRevenueText } } : {}),
     }
   }
 
