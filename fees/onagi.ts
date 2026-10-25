@@ -6,9 +6,11 @@ import ADDRESSES from "../helpers/coreAssets.json";
 
 // Onagi: trading app with an AI agent on Robinhood Chain (https://onagi.si).
 // Two income sources, pooled together and split the same way:
-// 1. Platform fees: every trade made in Onagi pays its fee in USDG into one fee vault contract.
+// 1. Platform fees: every token and stock token trade made in Onagi pays its fee in USDG into one fee vault contract.
 // 2. ONAGI token fees: the creator share of Pons V2 fees on ONAGI trades (paired with native ETH),
 //    read from the ONAGI curve and its graduated pool, like the hedge-pons adapter.
+// Onagi's perps and prediction market fees go into the same pool and split; they are tracked with their volume
+// in dexs/onagi-perps.ts and under onagi-predict in factory/polymarket.ts.
 // Docs: https://onagi.si/docs , live split and payout ledger: https://onagi.si/data/cycles.json
 const FEE_VAULT = "0xe2f197bA0D1C0864b86FA36186c0c80B57f54F49";
 const USDG = ADDRESSES.robinhood.USDG;
@@ -89,8 +91,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Platform fees paid in USDG on every trade made in Onagi (transfers into the Onagi fee vault), plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events). Platform fees include a small reimbursement for network gas that Onagi pays on behalf of users, which is not separated on chain.",
-  UserFees: "Platform fees paid in USDG on every trade made in Onagi, plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events).",
+  Fees: "Platform fees paid in USDG on every token and stock token trade made in Onagi (transfers into the Onagi fee vault), plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events). Platform fees include a small reimbursement for network gas that Onagi pays on behalf of users, which is not separated on chain.",
+  UserFees: "Platform fees paid in USDG on every token and stock token trade made in Onagi, plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events).",
   Revenue: "Platform fees plus the creator share of ONAGI token swap fees that Pons credits to Onagi.",
   SupplySideRevenue: "The Pons protocol and Pons buyback share of ONAGI token swap fees, not kept by Onagi.",
   HoldersRevenue: "75% of revenue: 50% is paid to eligible ONAGI holders in USDG and 25% buys ONAGI and sends it to the burn address. Computed from Onagi's published split.",
@@ -99,7 +101,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.PLATFORM_FEES]: "USDG fees paid into the Onagi fee vault on every trade, including gas reimbursement.",
+    [LABELS.PLATFORM_FEES]: "USDG fees paid into the Onagi fee vault on every token and stock token trade, including gas reimbursement.",
     [LABELS.ONAGI_TOKEN_FEES]: "protocolAmount + buybackAmount + creatorAmount from FeesSwept on the ONAGI curve and PoolFeesSwept for the ONAGI pool, in ETH.",
   },
   UserFees: {
