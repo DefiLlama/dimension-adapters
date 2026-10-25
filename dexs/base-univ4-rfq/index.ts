@@ -1,67 +1,67 @@
-// Archivo listo para Pull Request en:
-// https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/base-univ4-rfq/index.ts
-
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// Live UniswapV4RFQHook contract on Base Mainnet (8453)
+// Verified source: https://basescan.org/address/0xd72CD1d46bA05479583fbB561B558f133BA98088#code
 const HOOK_ADDRESS = "0xd72CD1d46bA05479583fbB561B558f133BA98088";
-const POOL_MANAGER = "0x498581fF718922c3f8e6A244956aF099B2652b2b";
 
-// Evento Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)
-const SWAP_EVENT_ABI =
-  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint128 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
-
-// Evento ERC20 Transfer para contabilizar el volumen liquidado por el Hook en Base Mainnet
-const TRANSFER_EVENT_ABI =
-  "event Transfer(address indexed from, address indexed to, uint256 value)";
-
-const TOKENS = [
-  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC
-  "0x4200000000000000000000000000000000000006", // WETH
-  "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", // cbBTC
-  "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22", // cbETH
-  "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452", // wstETH
-  "0x940181a94A35A4569E4529A3CDfB74e38FD98631", // AERO
-  "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42", // EURC
-];
+// Event emitted on each atomic RFQ swap execution on Base Mainnet
+const RFQ_SWAP_EVENT_ABI =
+  "event RFQSwapExecuted(bytes32 indexed quoteId, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 finalPromisedUserOut, uint256 kyberActualOut, uint256 netProfit)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  for (const token of TOKENS) {
-    const logs = await options.getLogs({
-      target: token,
-      eventAbi: TRANSFER_EVENT_ABI,
-      topics: [
-        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-        null as any,
-        "0x000000000000000000000000" + HOOK_ADDRESS.slice(2).toLowerCase(),
-      ],
-    });
+  // Query completed RFQ swap events directly from the Hook contract on Base
+  const logs = await options.getLogs({
+    target: HOOK_ADDRESS,
+    eventAbi: RFQ_SWAP_EVENT_ABI,
+  });
 
-    for (const log of logs) {
-      dailyVolume.add(token, log.value);
-      // 30 bps fee
-      dailyFees.add(token, (BigInt(log.value) * 30n) / 10000n);
+  for (const log of logs) {
+    const tokenIn = log.tokenIn;
+    const tokenOut = log.tokenOut;
+    const amountIn = BigInt(log.amountIn);
+    const netProfit = BigInt(log.netProfit);
+
+    // Swap volume: input leg of the completed swap
+    dailyVolume.add(tokenIn, amountIn);
+
+    // 30 bps swap fee charged to user relative to oracle quote
+    dailyFees.add(tokenIn, (amountIn * 30n) / 10000n);
+
+    // Realized filler arbitrage profit sent to treasury in tokenOut
+    if (netProfit > 0n) {
+      dailyRevenue.add(tokenOut, netProfit);
     }
   }
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
+};
+
+const methodology = {
+  Volume: "Input amount of atomic RFQ swaps executed through the Uniswap v4 Hook on Base Mainnet.",
+  Fees: "Fixed 30 bps swap fee applied to user input relative to Chainlink oracle rates.",
+  UserFees: "Swap fees paid by users (30 bps).",
+  Revenue: "Realized filler arbitrage profit (netProfit) in tokenOut transferred directly to the protocol treasury.",
+  ProtocolRevenue: "Net filler profit retained by the protocol treasury.",
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: "2026-10-18",
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.BASE],
+  fetch,
+  start: "2026-10-18",
+  methodology,
 };
 
 export default adapter;
