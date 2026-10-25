@@ -371,7 +371,7 @@ const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, ad
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
@@ -487,6 +487,19 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       })
     }
 
+    if (feeFromSlot0) {
+      const slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint24 fee, bool unlocked)'
+      const _slots = await api.multiCall({ abi: slot0Abi, calls: pairs, permitFailure: true })
+      const retryIndexes = pairs.map((_: string, i: number) => i).filter((i: number) => _slots[i] == null)
+      if (retryIndexes.length) {
+        const _retries = await api.multiCall({ abi: slot0Abi, calls: retryIndexes.map((i: number) => pairs[i]), permitFailure: true })
+        retryIndexes.forEach((i: number, j: number) => { _slots[i] = _retries[j] })
+      }
+      const unread = pairs.filter((_: string, i: number) => _slots[i] == null)
+      if (unread.length) throw new Error(`slot0 unreadable on ${unread.length} of ${pairs.length} pools, the fee in the pool creation log is a tick spacing and cannot be used instead: first ${unread[0]}`)
+      _slots.forEach((slot: any, i: number) => { fees[pairs[i]] = Number(slot.fee) / 1e6 })
+    }
+
     const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
 
     allLogs.map((logs: any, index) => {
@@ -592,6 +605,7 @@ type UniV3Config = {
   customLogic?: any,
   isAlgebraV3?: boolean,
   isAlgebraV2?: boolean,
+  feeFromSlot0?: boolean,
   userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,
