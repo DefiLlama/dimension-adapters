@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
     tokenTaxes.add(SHADOW_TOKEN_CONTRACT, log.amount)
   }
 
-  const iface = new ethers.Interface([eventAbis.event_poolCreated, eventAbis.event_swap])
+  const iface = new ethers.Interface([eventAbis.event_poolCreated])
 
   const pairObject: IJSON<string[]> = {}
   const cacheKey = `tvl-adapter-cache/cache/logs/${chain}/${CONFIG.factory.toLowerCase()}.json`
@@ -55,16 +55,12 @@ const fetch = async (options: FetchOptions) => {
   const poolAddresses = Object.keys(filteredPools)
   const fees = await api.multiCall({ abi: 'uint256:fee',  calls: poolAddresses })
   const slot0s = await api.multiCall({ abi: abis.slot0, calls: poolAddresses })
-  const aeroPoolSet = new Set()
-  const poolInfoMap = {} as any
-  poolAddresses.forEach((pair, index) => {
-    const pool = pair.toLowerCase()
+  const poolInfos = poolAddresses.map((pair, index) => {
     const fee = fees[index] / 1e6
     // share of the swap fee taken from LPs; the rest accrues to them via feeGrowthGlobal
     const protocolShare = Number(slot0s[index].feeProtocol) / 100
-    const hasGauge = poolsWithGaugesSet.has(pool)
-    poolInfoMap[pool] = { tokens: pairObject[pair], fee, protocolShare, hasGauge }
-    aeroPoolSet.add(pool)
+    const hasGauge = poolsWithGaugesSet.has(pair.toLowerCase())
+    return { tokens: pairObject[pair], fee, protocolShare, hasGauge }
   })
 
   const swapLogs = poolAddresses.length ? await getLogs({
@@ -72,23 +68,22 @@ const fetch = async (options: FetchOptions) => {
     fromBlock,
     toBlock,
     eventAbi: eventAbis.event_swap,
-    entireLog: true,
+    flatten: false,
   }) : []
-  swapLogs.forEach((log: any) => {
-    const pool = (log.address || log.source).toLowerCase()
-    if (!aeroPoolSet.has(pool)) return;
-    const { tokens, fee, protocolShare, hasGauge } = poolInfoMap[pool]
+  swapLogs.forEach((logs: any[], index: number) => {
+    const { tokens, fee, protocolShare, hasGauge } = poolInfos[index]
     const [token0, token1] = tokens
-    const parsedLog = iface.parseLog(log)
-    const amount0 = Number(parsedLog!.args.amount0)
-    const amount1 = Number(parsedLog!.args.amount1)
-    const fee0 = amount0 * fee
-    const fee1 = amount1 * fee
-    addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
-    addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * (1 - protocolShare), amount1: fee1 * (1 - protocolShare) })
-    // gauged pools stream their protocol share to voters, ungauged ones to the treasury
-    const protocolShareBalances = hasGauge ? holdersRevenue : protocolRevenue
-    addOneToken({ chain, balances: protocolShareBalances, token0, token1, amount0: fee0 * protocolShare, amount1: fee1 * protocolShare })
+    logs.forEach((log: any) => {
+      const amount0 = Number(log.amount0)
+      const amount1 = Number(log.amount1)
+      const fee0 = amount0 * fee
+      const fee1 = amount1 * fee
+      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 })
+      addOneToken({ chain, balances: supplySideRevenue, token0, token1, amount0: fee0 * (1 - protocolShare), amount1: fee1 * (1 - protocolShare) })
+      // gauged pools stream their protocol share to voters, ungauged ones to the treasury
+      const protocolShareBalances = hasGauge ? holdersRevenue : protocolRevenue
+      addOneToken({ chain, balances: protocolShareBalances, token0, token1, amount0: fee0 * protocolShare, amount1: fee1 * protocolShare })
+    })
   })
 
   const dailyFees = createBalances()
