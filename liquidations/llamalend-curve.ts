@@ -9,6 +9,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(Object.entries(OneWayLendingFactories).map(([chain, { start }]) => [chain, { fetch, start }])),
   methodology: {
     CollateralLiquidated: 'Collateral and borrowed token taken from the borrower\'s LLAMMA position in Controller Liquidate events (hard liquidations). Self-liquidations, where the borrower closes their own loan, are excluded. Soft liquidation inside LLAMMA is not counted.',
