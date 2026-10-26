@@ -1,17 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import ADDRESSES from "../../helpers/coreAssets.json";
+import { addOneToken } from "../../helpers/prices";
 
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
-const USDC = ADDRESSES.base.USDC.toLowerCase();
+const BYZANLINK_SOURCE = "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"; // Byzanlink source
 
-// "byzanlink" on earlier trades, then the dedicated KyberSwap client id
-const BYZANLINK_SOURCES = ["byzanlink", "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"];
-
-const isByzanlink = (clientData: string) => {
-  const data = Buffer.from(clientData.slice(2), "hex").toString();
-  return BYZANLINK_SOURCES.some((source) => data.includes(`"Source":"${source}"`));
-};
+const isByzanlink = (clientData: string) => Buffer.from(clientData.slice(2), "hex").toString().includes(`"Source":"${BYZANLINK_SOURCE}"`);
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -34,9 +28,8 @@ const fetch = async (options: FetchOptions) => {
         continue;
       }
       if (pending && isByzanlink(log.args.clientData)) {
-        // counted on the USDC leg
-        if (pending.srcToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.spentAmount, "KyberSwap");
-        else if (pending.dstToken.toLowerCase() === USDC) dailyVolume.add(USDC, pending.returnAmount, "KyberSwap");
+        // counted once per swap, on the core-asset leg when there is one
+        addOneToken({ balances: dailyVolume, token0: pending.srcToken, amount0: pending.spentAmount, token1: pending.dstToken, amount1: pending.returnAmount, label: "KyberSwap" });
       }
       pending = null;
     }
@@ -52,7 +45,7 @@ const adapter: SimpleAdapter = {
   start: "2026-10-07",
   doublecounted: true, // executed by the KyberSwap router
   methodology: {
-    Volume: "USDC value of tokenized stock buys and sells made on Byzanlink, routed through KyberSwap on Base.",
+    Volume: "Value of tokenized stock buys and sells made on Byzanlink, routed through KyberSwap on Base, priced on one side of each swap.",
   },
   breakdownMethodology: {
     Volume: {
