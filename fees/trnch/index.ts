@@ -5,9 +5,9 @@ import { FeeCollectedEvent, FeesForwardedEvent, getFeeForwarders } from "../lifi
 import { FeeRouter, getRouterFeePayments, normalizeToken, padAddress, TRNCH_START, TRNCH_TREASURY_SAFE } from "../../aggregators/trnch";
 
 // TRNCH charges an integrator fee on top of the routers' own fees. Fee grid set server-side by TRNCH
-// (src/lib/swap/fees.ts, FEE_BPS, capped at 1.5%): 0.5% on a single swap, 1% on a swap of a token picked
-// from the TRNCH Heat ranking, 1% on a basket (several swaps signed at once), 1.5% on a basket built from
-// the Heat ranking, 1% on LI.FI bridges. All fees are paid to the TRNCH treasury Safe.
+// (capped at 1.5%): 0.5% on a single swap, 1% on a swap of a token picked from the TRNCH Heat ranking,
+// 1% on a basket (several swaps signed at once, Heat basket included), 1% on LI.FI bridges, 0.5% on swaps
+// built through the TRNCH Bot API and its MCP server for AI agents. All fees are paid to the TRNCH treasury Safe.
 
 const FEES_COLLECTED_TOPIC = '0x28a87b6059180e46de5fb9ab35eb043e8fe00ab45afcc7789e3934ecbbcde3ea';
 
@@ -61,7 +61,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: TRNCH_START,
   methodology: {
-    Fees: 'Integrator fee TRNCH adds to swaps and bridges made on TRNCH (0.5% on a single swap, 1% on a swap of a token from the TRNCH Heat ranking or on a basket of swaps, 1.5% on a basket built from the Heat ranking, 1% on bridges), paid to the TRNCH treasury Safe through LI.FI, KyberSwap, 0x and Uniswap. Router and DEX fees are excluded.',
+    Fees: 'Integrator fee TRNCH adds to swaps and bridges made on TRNCH (0.5% on a single swap, 1% on a swap of a token from the TRNCH Heat ranking or on a basket of swaps, 1% on bridges, 0.5% on swaps built through the TRNCH Bot API and MCP server for AI agents), paid to the TRNCH treasury Safe through LI.FI, KyberSwap, 0x and Uniswap. Router and DEX fees are excluded.',
     UserFees: 'Users pay the full TRNCH integrator fee.',
     Revenue: 'All integrator fees received by the TRNCH treasury Safe are kept by TRNCH.',
     ProtocolRevenue: 'All integrator fees go to the TRNCH treasury.',
