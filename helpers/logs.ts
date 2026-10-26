@@ -24,14 +24,16 @@ export async function getPositionedLogArgs(
 ): Promise<PositionedLogArgs[]> {
   const logs = await options.getLogs({ ...params, onlyArgs: false });
 
-  return logs.map((log: any) => {
-    const blockNumber = Number(log?.blockNumber ?? log?.block_number ?? log?.block);
-    const logIndex = Number(log?.logIndex ?? log?.log_index ?? log?.index);
+  return logs.map(toPositionedLogArgs);
+}
 
-    if (!log?.args || !Number.isFinite(blockNumber) || !Number.isFinite(logIndex)) {
-      throw new Error("getPositionedLogArgs: decoded log is missing blockNumber, logIndex, or args");
-    }
+export function toPositionedLogArgs(log: any): PositionedLogArgs {
+  const blockNumber = Number(log?.blockNumber ?? log?.block_number ?? log?.block);
+  const logIndex = Number(log?.logIndex ?? log?.log_index ?? log?.index);
 
-    return { ...log.args, blockNumber, logIndex };
-  });
+  if (!log?.args || !Number.isFinite(blockNumber) || !Number.isFinite(logIndex)) {
+    throw new Error("getPositionedLogArgs: decoded log is missing blockNumber, logIndex, or args");
+  }
+
+  return { ...log.args, blockNumber, logIndex };
 }
