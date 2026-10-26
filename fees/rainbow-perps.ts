@@ -11,6 +11,9 @@ const BUILDER_ADDRESSES = ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"];
 const BUILDER_FEES = "Hyperliquid Builder Code Fees";
 const REFERRAL_FEES = "Hyperliquid Referral Fees";
 
+// First day present in the referral table; before it the table legitimately has no row.
+const REFERRAL_START = "2026-01-13";
+
 // One row per day, keyed on block_date (midnight UTC); fee_usd is already in USD.
 const REFERRAL_SQL = (options: FetchOptions) => `
   SELECT SUM(fee_usd) AS fees
@@ -28,7 +31,14 @@ const fetch = async (options: FetchOptions) => {
   const fees = options.createBalances();
   fees.add(dailyFees, BUILDER_FEES);
 
+  // SUM without GROUP BY always returns one row, null when the day is absent. The table is
+  // filled a day at a time and has run up to two days behind, so a null day on or after
+  // REFERRAL_START means "not loaded yet", not "no referrals" - fail instead of storing a
+  // silent undercount, the way the Hyperliquid indexer rejects a partial day.
   const [row] = await queryDuneSql(options, REFERRAL_SQL(options));
+  if (row?.fees == null && options.dateString >= REFERRAL_START) {
+    throw new Error(`rainbow-perps: referral table has no row for ${options.dateString}`);
+  }
   fees.addUSDValue(Number(row?.fees ?? 0), REFERRAL_FEES);
 
   return {
