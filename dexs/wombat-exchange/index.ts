@@ -1,5 +1,4 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
-import * as sdk from '@defillama/sdk'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
@@ -177,9 +176,7 @@ async function fetch(options: FetchOptions) {
   const supplySideRevenue = createBalances();
   const protocolRevenue = createBalances();
 
-  const perPoolLogs = await Promise.all(
-    pools.map((pool) => getLogs({ target: pool, eventAbi: swapAbi }))
-  );
+  const perPoolLogs = await getLogs({ targets: pools, eventAbi: swapAbi, flatten: false });
   const activePools = pools.filter((_, index) => perPoolLogs[index].length > 0)
   const poolRates = new Map<string, { haircutRate: number, lpDividendRatio: number }>()
   if (activePools.length) {
@@ -212,7 +209,7 @@ async function fetch(options: FetchOptions) {
 
   const logBribeFailure = (step: string, error: unknown) => {
     const message = error instanceof Error ? error.message : String(error)
-    sdk.log(`wombat-exchange: ${step} failed on ${chain}: ${message}`)
+    api.log(`wombat-exchange: ${step} failed on ${chain}: ${message}`)
     return []
   }
 
