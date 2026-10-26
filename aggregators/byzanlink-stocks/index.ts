@@ -42,7 +42,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
-  start: "2026-10-07",
+  start: "2026-10-21",
   doublecounted: true, // executed by the KyberSwap router
   methodology: {
     Volume: "Value of tokenized stock buys and sells made on Byzanlink, routed through KyberSwap on Base, priced on one side of each swap.",
