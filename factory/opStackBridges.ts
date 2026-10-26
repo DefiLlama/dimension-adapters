@@ -83,6 +83,47 @@ const configs: Record<string, OpStackBridgeConfig> = {
     bridge: "0xeb9bf100225c214Efc3E7C651ebbaDcF85177607",
     start: "2026-10-11", // first day the old bridges server recorded Soneium volume
   },
+  "zora-bridge": {
+    name: "Zora",
+    portal: "0x1a0ad011913A150f69f6A19DF447A0CfD9551054",
+    bridge: "0x3e2Ea9B92B7E48A52296fD261dc26fd995284631",
+    start: "2023-06-13",
+  },
+  "megaeth-bridge": {
+    name: "MegaETH",
+    portal: "0x7f82f57F0Dd546519324392e408b01fcC7D709e8",
+    bridge: "0x0ca3a2fbc3d770b578223fbb6b062fa875a2ee75",
+    start: "2025-11-10",
+  },
+  "bob-bridge": {
+    name: "BOB",
+    portal: "0x8AdeE124447435fE03e3CD24dF3f4cAE32E65a3E",
+    bridge: "0x3F6cE1b36e5120BBc59D0cFe8A5aC8b6464ac1f7",
+    start: "2024-04-11",
+    escrows: [
+      "0x091dF5E1284E49fA682407096aD34cfD42B95B72", // OssifiableProxy, Lido-style wstETH token bridge
+      "0x450D55a4B4136805B0e5A6BB59377c71FC4FaCBb", // second StandardBridge (L1ChugSplashProxy) with its own L2 counterpart
+    ],
+  },
+  "shape-bridge": {
+    name: "Shape",
+    portal: "0xEB06fFa16011B5628BaB98E29776361c83741dd3",
+    bridge: "0x62Edd5f4930Ea92dCa3fB81689bDD9b9d076b57B",
+    start: "2024-08-07",
+  },
+  "hemi-bridge": {
+    name: "Hemi",
+    portal: "0x39a0005415256B9863aFE2d55Edcf75ECc3A4D7e",
+    bridge: "0x5eaa10F99e7e6D177eF9F74E519E319aa49f191e",
+    start: "2024-10-14",
+  },
+  "boba-bridge": {
+    name: "Boba",
+    portal: "0x7B02D13904D8e6E0f0Efaf756aB14Cb0FF21eE7e",
+    bridge: "0xdc1664458d2f0B6090bEa60A8793A4E66c2F1c00",
+    start: "2021-08-13", // first ETHDepositInitiated on the legacy bridge
+    portalFrom: "2024-04-16", // first TransactionDeposited, after Boba's move to Bedrock
+  },
 };
 
 const protocols: Record<string, any> = {};
