@@ -90,8 +90,9 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS_TO_SOLVERS);
 
   // null, not omitted: runAdapter fills a missing dailyRevenue with fees - supply side, which here would be the full
-  // platform fee including the undisclosed integrator share. null skips that and is not stored.
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue: null };
+  // platform fee including the undisclosed integrator share. null skips that and is not stored (cast: the result type
+  // has no null).
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue: null as any };
 };
 
 const adapter: SimpleAdapter = {
