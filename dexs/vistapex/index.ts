@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 
 const STATS_URL = "https://api.perps.vistapex.io/v1/stats/volume";
 const USDC_DECIMALS = 1e6;
@@ -16,8 +16,10 @@ interface StatsResponse {
 const fetch = async (options: FetchOptions) => {
   const fromMs = options.startTimestamp * 1000;
   const toMs = options.endTimestamp * 1000;
-  const stats: StatsResponse = await httpGet(`${STATS_URL}?from_ms=${fromMs}&to_ms=${toMs}`);
+  const stats: StatsResponse = await fetchURLAutoHandleRateLimit(`${STATS_URL}?from_ms=${fromMs}&to_ms=${toMs}`);
 
+  if (stats.volume == null || stats.fees == null)
+    throw new Error(`Invalid Vistapex stats response: ${JSON.stringify(stats)}`);
   const volume = Number(stats.volume) / USDC_DECIMALS;
   const fees = Number(stats.fees) / USDC_DECIMALS;
   if (!Number.isFinite(volume) || !Number.isFinite(fees))
@@ -56,12 +58,10 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.AVAX]: {
-      fetch,
-      start: "2026-10-20",
-    },
-  },
+  pullHourly: true,
+  chains: [CHAIN.AVAX],
+  fetch,
+  start: "2026-10-20",
   methodology,
   breakdownMethodology,
 };
