@@ -9,9 +9,9 @@ import { getRelayApiKey, getRelayPage, RELAY_CHAINS, RELAY_REQUESTS_API } from "
 const PLATFORM_FEES = "Platform Fees (Relay + Integrator Share)";
 const APP_FEES = "Integrator App Fees";
 const SWAP_COSTS = "Swap Costs";
-// Revenue is not reported: qualifying integrators get a revenue share of 0-67% of the platform fee depending on pair
-// type and their trailing 30-day volume tier (see the fees doc above), and the API does not report it per request.
-// The site shows that share as an unknown Cost of Revenue row (defillama-app offchainCosts.ts).
+// Revenue is the full platform fee, an upper bound: qualifying integrators get a revenue share of 0-67% of it
+// depending on pair type and their trailing 30-day volume tier (see the fees doc above), and the API does not report
+// it per request. The site shows that share as an unknown Cost of Revenue row (defillama-app offchainCosts.ts).
 const APP_FEES_TO_INTEGRATORS = "App Fees To Integrators";
 const SWAP_COSTS_TO_LPS = "Swap Costs To Liquidity Providers";
 
@@ -82,17 +82,16 @@ const fetch = async (options: FetchOptions) => {
   const { platform, app, swap }: FeeTotals = options.preFetchedResults;
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   dailyFees.addUSDValue(platform[options.chain] ?? 0, PLATFORM_FEES);
   dailyFees.addUSDValue(app[options.chain] ?? 0, APP_FEES);
   dailyFees.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS);
   dailySupplySideRevenue.addUSDValue(app[options.chain] ?? 0, APP_FEES_TO_INTEGRATORS);
   dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS_TO_LPS);
+  dailyRevenue.addUSDValue(platform[options.chain] ?? 0, PLATFORM_FEES);
 
-  // null, not omitted: runAdapter fills a missing dailyRevenue with fees - supply side, which here would be the full
-  // platform fee including the undisclosed integrator share. null skips that and is not stored (cast: the result type
-  // has no null).
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue: null as any };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
 };
 
 const adapter: SimpleAdapter = {
@@ -100,14 +99,14 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   prefetch: prefetch as any,
-  // no revenue: Relay's integrator share of the platform fee is undisclosed, so fees != supply side + revenue
-  skipBreakdownValidation: true,
   chains: [...new Set(Object.values(RELAY_CHAINS))],
   // the API returns no fees for ~90-98% of requests from 2025-12-08 to 2026-04-23, and no platform fees before 2025-05
   start: "2026-04-24",
   methodology: {
     Fees: "Platform fees, integrator app fees and swap costs paid by users on Relay bridges and swaps, excluding execution costs (network gas).",
     SupplySideRevenue: "App fees paid to the integrators that add them, and swap costs paid to liquidity providers. Excludes the integrator revenue share of the platform fee, which Relay does not disclose.",
+    Revenue: "Platform fees. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
+    ProtocolRevenue: "Platform fees kept by Relay. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
   },
   breakdownMethodology: {
     Fees: {
@@ -118,6 +117,12 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: {
       [APP_FEES_TO_INTEGRATORS]: "Fees an integrator adds on top of the Relay quote, paid to that integrator.",
       [SWAP_COSTS_TO_LPS]: "Swap costs paid to the liquidity providers that fill cross-asset and cross-chain swaps.",
+    },
+    Revenue: {
+      [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
+    },
+    ProtocolRevenue: {
+      [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
     },
   },
 };
