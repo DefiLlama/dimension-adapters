@@ -28,15 +28,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const tokens: string[] = [], books: string[] = [];
   // (a hub not deployed yet at the window's block reads as empty)
   const lists = await options.api.multiCall({ abi: "address[]:allPredictTokens", calls: HUBS, permitFailure: true });
-  for (let h = 0; h < HUBS.length; h++) {
-    const t: string[] = lists[h] ?? [];
-    if (!t.length) continue;
-    const b: string[] = await options.api.multiCall({ abi: "function predictBook(address) view returns (address)", target: HUBS[h], calls: t });
-    tokens.push(...t); books.push(...b);
-  }
+  const calls = HUBS.flatMap((hub, h) => (lists[h] ?? []).map((token: string) => ({ target: hub, params: [token] })));
+  const tokens: string[] = calls.map(c => c.params[0]);
+  const books: string[] = await options.api.multiCall({ abi: "function predictBook(address) view returns (address)", calls });
   const [settled, bounties, accrued] = await Promise.all([
     options.getLogs({ targets: books, eventAbi: SETTLED, flatten: false }),
     options.getLogs({ targets: books, eventAbi: BOUNTY, flatten: false }),

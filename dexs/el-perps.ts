@@ -37,18 +37,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  // every hub's books, with that hub's platform share (perpsProtocolBps)
-  const tokens: string[] = [], books: string[] = [], bpsOf: number[] = [];
   // (a hub not deployed yet at the window's block reads as empty)
   const hubBps = await options.api.multiCall({ abi: "uint16:perpsProtocolBps", calls: HUBS, permitFailure: true });
   const lists = await options.api.multiCall({ abi: "address[]:allPerpsTokens", calls: HUBS, permitFailure: true });
-  for (let h = 0; h < HUBS.length; h++) {
-    const t: string[] = lists[h] ?? [];
-    if (!t.length) continue;
-    const b: string[] = await options.api.multiCall({ abi: "function perpsBook(address) view returns (address)", target: HUBS[h], calls: t });
-    tokens.push(...t); books.push(...b); bpsOf.push(...t.map(() => Number(hubBps[h])));
-  }
+  // every hub's books, with that hub's platform share (perpsProtocolBps)
+  const calls = HUBS.flatMap((hub, h) => (lists[h] ?? []).map((token: string) => ({ target: hub, params: [token] })));
+  const tokens: string[] = calls.map(c => c.params[0]);
+  const bpsOf: number[] = calls.map(c => Number(hubBps[HUBS.indexOf(c.target)]));
   if (!tokens.length) return { dailyVolume, openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  const books: string[] = await options.api.multiCall({ abi: "function perpsBook(address) view returns (address)", calls });
 
   const [openedByBook, closedByBook, decreasedByBook, accruedByBook, markets] = await Promise.all([
     options.getLogs({ targets: books, eventAbi: OPENED, flatten: false }),

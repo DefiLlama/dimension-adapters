@@ -1,3 +1,4 @@
+import { util } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -29,7 +30,9 @@ const FACTORIES_V5 = [
   "0x10e02DD0F131Cbb55a97fef5b724541B8A6b378C", "0x6751dD9ADBCE7913Fea529FDe5E561422D017725", "0x553220711d5683205a2644a77755Ba6f7E34b31b",
   "0x25Ac8B77B8e32B1eA9C431127679e4Ff11eC4FA4", "0x7C7ad1370a26E1a7e67A778E9C9820637f76BC1d", "0x796d695569520BE3963CB620A3a3c53b92B606a4",
   "0x64D84eAcEdEe214995d1b30febD8720131DAEE9f", "0x2935fDb03C2F4f4fb32D29032F46357706519268", "0x6dFF48299Ac1Ff559DcEdDDf28AF3B1e5140c6A4",
-  // V6 game factories (CasinoHubV6 0x66DF90B6B074f7c49906c2bB0A8E5bf3773879d0 — the launchpad's rooms and every new room)
+];
+// V6 game factories (CasinoHubV6 0x66DF90B6B074f7c49906c2bB0A8E5bf3773879d0 — the launchpad's rooms and every new room)
+const FACTORIES_V6 = [
   "0x55190a1B037dD5dA29031A18D18ECf1Ea77f13E3", "0x3f9367C890e814c90d500b0e8723E8aE5dd6B99F", "0xBb175854C08cB7D18217C2F67Aaf235F421D94d3",
   "0xa7Ce2300509c68F0Eca46CbdAa7ea83fA01932D3", "0xF330BFcceE1b36338dD7e9556679979Bf75FEAd7", "0xB6BBA1643290632E88eDDE60BF4b9bD6670FcEF9",
   "0x08a24d597A748b9BEE85EEcD215c903af7BB231b", "0x3c397832A08Bb0AaDD9DE604B2dB1642BbfE1a7D", "0x83Ba15145eB74bF54c0bEdd1C8D3Be9509a2B600",
@@ -38,6 +41,9 @@ const FACTORIES_V5 = [
   "0x69EeAB0020EbD064AFAA8e35D0E64f6b8a2842b4", "0xa17bF3952C23c19e9B0c3F017eBACa3006216fFd", "0x542bb8E1f9Ed0E0a523910B18843f5da22711D2F",
   "0x5bffd94d0AE1d2fC9C78f5909f43dF700552029c", "0xf7EdFECB155E4065C7F8684820B21503098b05B8",
 ];
+const FACTORIES = [...FACTORIES_V5, ...FACTORIES_V6];
+const V5_LIVE_BLOCK = 75800030;
+const V6_LIVE_BLOCK = 96781938;
 const GET_GAMES = "function getGames(uint256 offset, uint256 limit) view returns (tuple(address gameAddress, address owner, address creator, address token, string tokenLogoUrl, string betName, uint256 createdAt)[])";
 const PLATFORM = "event PlatformFeeCollected(uint256 amount)";
 const CREATOR = "event CreatorFeeCollected(uint256 amount)";
@@ -61,18 +67,28 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  // permitFailure: a factory deployed after the window has no code yet
-  const totals: number[] = await options.api.multiCall({ abi: "uint256:getTotalGames", calls: FACTORIES_V5, permitFailure: true });
+  const toBlock = await options.getToBlock();
+  const totals: number[] = await options.api.multiCall({ abi: "uint256:getTotalGames", calls: FACTORIES, permitFailure: true });
+  FACTORIES.forEach((f, i) => {
+    if (totals[i] == null && toBlock >= (i < FACTORIES_V5.length ? V5_LIVE_BLOCK : V6_LIVE_BLOCK)) throw new Error(`getTotalGames failed on factory ${f} at block ${toBlock}`);
+  });
   const calls: any[] = [];
-  FACTORIES_V5.forEach((f, i) => { for (let o = 0; o < Number(totals[i] ?? 0); o += 200) calls.push({ target: f, params: [o, 200] }); });
+  FACTORIES.forEach((f, i) => { for (let o = 0; o < Number(totals[i] ?? 0); o += 200) calls.push({ target: f, params: [o, 200] }); });
   const rooms: any[] = (await options.api.multiCall({ abi: GET_GAMES, calls })).flat();
   const targets = rooms.map((r) => r.gameAddress);
-  // a room created inside the window has no code at its first block: its counters start from 0
-  const lpB = await options.fromApi.multiCall({ abi: "uint128:totalFeesCollected", calls: targets, permitFailure: true });
+  const fromTime = await util.getTimestamp(await options.getFromBlock(), options.chain);
+  const existed = rooms.map((r) => Number(r.createdAt) < fromTime);
+  const existing = targets.filter((_, i) => existed[i]);
+  const atFrom = async (abi: string) => {
+    const values = await options.fromApi.multiCall({ abi, calls: existing });
+    let k = 0;
+    return existed.map((e) => (e ? values[k++] : 0));
+  };
+  const lpB = await atFrom("uint128:totalFeesCollected");
   const lpA = await options.toApi.multiCall({ abi: "uint128:totalFeesCollected", calls: targets });
-  const plB = await options.fromApi.multiCall({ abi: "uint128:pendingPlatformFees", calls: targets, permitFailure: true });
+  const plB = await atFrom("uint128:pendingPlatformFees");
   const plA = await options.toApi.multiCall({ abi: "uint128:pendingPlatformFees", calls: targets });
-  const crB = await options.fromApi.multiCall({ abi: "uint128:pendingCreatorFees", calls: targets, permitFailure: true });
+  const crB = await atFrom("uint128:pendingCreatorFees");
   const crA = await options.toApi.multiCall({ abi: "uint128:pendingCreatorFees", calls: targets });
   const plPaid = await options.getLogs({ targets, eventAbi: PLATFORM, flatten: false });
   const crPaid = await options.getLogs({ targets, eventAbi: CREATOR, flatten: false });
@@ -80,10 +96,10 @@ const fetch = async (options: FetchOptions) => {
   const sum = (logs: any[]) => (logs ?? []).reduce((s: bigint, l: any) => s + BigInt(l.amount), 0n);
   rooms.forEach((r, i) => {
     const t = r.token;
-    const lp = BigInt(lpA[i]) - BigInt(lpB[i] ?? 0) - sum(donated[i]);
+    const lp = BigInt(lpA[i]) - BigInt(lpB[i]) - sum(donated[i]);
     // pending fees grow with bets and drop when paid out: accrued in the window = change of pending + paid in the window
-    const platform = BigInt(plA[i]) - BigInt(plB[i] ?? 0) + sum(plPaid[i]);
-    const creator = BigInt(crA[i]) - BigInt(crB[i] ?? 0) + sum(crPaid[i]);
+    const platform = BigInt(plA[i]) - BigInt(plB[i]) + sum(plPaid[i]);
+    const creator = BigInt(crA[i]) - BigInt(crB[i]) + sum(crPaid[i]);
     dailyFees.add(t, lp + platform + creator, L.fees);
     dailySupplySideRevenue.add(t, lp, L.lpToStakers);
     dailyRevenue.add(t, platform, L.platformToBurn);
