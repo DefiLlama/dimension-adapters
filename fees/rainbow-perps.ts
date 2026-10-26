@@ -21,7 +21,16 @@ const REFERRAL_SQL = (options: FetchOptions) => `
   WHERE block_date = DATE '${options.dateString}'
 `;
 
+// Both sources need the day to be over: the Hyperliquid indexer rejects a partial day and the
+// referral table is written a day at a time. DefiLlama retries a failed day, so bail out before
+// either request rather than spend a Dune query on a retry that cannot produce the full number.
+const SETTLE_AFTER_MS = 4 * 60 * 60 * 1000;
+
 const fetch = async (options: FetchOptions) => {
+  if (Date.now() < options.endTimestamp * 1000 + SETTLE_AFTER_MS) {
+    throw new Error(`rainbow-perps: ${options.dateString} settles at 04:00 UTC the next day`);
+  }
+
   const { dailyVolume, dailyFees } = await fetchBuilderCodeDataV2({
     options,
     builderAddresses: BUILDER_ADDRESSES,
