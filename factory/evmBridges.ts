@@ -174,8 +174,8 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     [CHAIN.METIS]: synapseBridge({ bridge: "0x06Fea8513FF03a0d3f61324da709D4cf06F42A5c" }, "2023-10-13"),
     [CHAIN.MOONBEAM]: synapseBridge({ bridge: "0x84A420459cd31C3c34583F67E0f0fB191067D32f" }, "2023-06-25"),
     [CHAIN.MOONRIVER]: synapseBridge({ bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE" }, "2023-06-25"),
-    [CHAIN.SCROLL]: synapseBridge({ bridge: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2024-06-22"),
-    [CHAIN.LINEA]: synapseBridge({ bridge: "0x34F52752975222d5994C206cE08C1d5B329f24dD" }, "2024-08-06"),
+    [CHAIN.SCROLL]: synapseBridge({ rfq: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2024-06-22"),
+    [CHAIN.LINEA]: synapseBridge({ rfq: "0x34F52752975222d5994C206cE08C1d5B329f24dD" }, "2024-08-06"),
   },
   "symbiosis": {
     [CHAIN.ETHEREUM]: symbiosisBridge({ portal: "0xb8f275fBf7A959F4BCE59999A2EF122A099e81A8", synthesis: "0xD7c3DF25683871d18BC838E4F619126442Dd38B3" }, "2023-06-14"),
