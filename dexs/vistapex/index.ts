@@ -59,7 +59,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  chains: [CHAIN.AVAX],
+  chains: [CHAIN.OFF_CHAIN],
   fetch,
   start: "2026-10-20",
   methodology,
