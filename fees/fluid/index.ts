@@ -53,6 +53,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: {
       fetch: fetchSolana,
       start: '2025-08-05',
+      // JupLend revenue share moved to fees/fluid-juplend from 2026-10-25: its Dune MV lags ~2 days and
+      // the not-ready throw was holding back every EVM chain of this adapter. History up to 2026-10-24 stays here.
+      deadFrom: '2026-10-24',
     }
   },
   methodology: {
