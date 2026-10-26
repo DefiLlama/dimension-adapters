@@ -1,4 +1,3 @@
-import { util } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -76,8 +75,7 @@ const fetch = async (options: FetchOptions) => {
   FACTORIES.forEach((f, i) => { for (let o = 0; o < Number(totals[i] ?? 0); o += 200) calls.push({ target: f, params: [o, 200] }); });
   const rooms: any[] = (await options.api.multiCall({ abi: GET_GAMES, calls })).flat();
   const targets = rooms.map((r) => r.gameAddress);
-  const fromTime = await util.getTimestamp(await options.getFromBlock(), options.chain);
-  const existed = rooms.map((r) => Number(r.createdAt) < fromTime);
+  const existed = rooms.map((r) => Number(r.createdAt) < options.fromTimestamp);
   const existing = targets.filter((_, i) => existed[i]);
   const atFrom = async (abi: string) => {
     const values = await options.fromApi.multiCall({ abi, calls: existing });
