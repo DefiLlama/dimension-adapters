@@ -1,7 +1,7 @@
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-// Some Blockscout stats hosts (e.g. Bifrost) sit behind Cloudflare and 403 datacenter IPs
+// Some Blockscout stats hosts sit behind Cloudflare and 403 datacenter IPs
 // unless a browser User-Agent is sent.
 const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
@@ -26,7 +26,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   cross: { chain: CHAIN.CROSS, baseUrl: "https://www.crossscan.io", version: 2 },
   doma: { chain: CHAIN.DOMA, baseUrl: "https://explorer.doma.xyz", version: 2 },
   earnm: { chain: CHAIN.EARNM, baseUrl: "https://earnm-mainnet.explorer.alchemy.com", version: 2 },
-  endurance: { chain: CHAIN.ENDURANCE, baseUrl: "https://explorer-endurance.fusionist.io", version: 2 },
+  endurance: { chain: CHAIN.ACE, baseUrl: "https://explorer-endurance.fusionist.io", version: 2 },
   energyweb: { chain: CHAIN.ENERGYWEB, baseUrl: "https://explorer.energyweb.org", version: 2 },
   eni: { chain: CHAIN.ENI, baseUrl: "https://scan.eniac.network", version: 1 },
   ethereumclassic: { chain: CHAIN.ETHEREUM_CLASSIC, baseUrl: "https://etc.blockscout.com", version: 2,  },
@@ -46,7 +46,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   "immutablex": { chain: CHAIN.IMX, baseUrl: "https://explorer.immutable.com", version: 2 },
   ink: { chain: CHAIN.INK, baseUrl: "https://explorer.inkonchain.com", version: 2 },
   "iota_evm": { chain: CHAIN.IOTAEVM, baseUrl: "https://explorer.evm.iota.org", version: 2 },
-  kub: { chain: CHAIN.KUB, baseUrl: "https://www.kubscan.com", version: 1 },
+  kub: { chain: CHAIN.BITKUB, baseUrl: "https://www.kubscan.com", version: 1 },
   lightlink: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io", version: 2 },
   lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com", version: 2 },
   lumia: { chain: CHAIN.LUMIA, baseUrl: "https://explorer.lumia.org", version: 2 },
@@ -83,7 +83,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
   gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
   lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
-  "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 },
+  // "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 }, // stats host 403s our servers (routing it through the shared proxy did not help) and newAccounts counts receive-only addresses; moved to RPC metrics in helpers/evmChainFees.ts
   // b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" }, // stats host and explorers offline
   degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2, start: "2024-03-10" },
   robinhood: { chain: CHAIN.ROBINHOOD, baseUrl: "https://robinhoodchain.blockscout.com", version: 2, start: "2026-04-30" },

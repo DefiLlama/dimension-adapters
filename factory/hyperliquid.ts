@@ -32,6 +32,47 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "perpex": {
+    // Perpex (perpex.co, by Celebit Ltd) builder code, attached to Hyperliquid orders placed through the web, iOS and
+    // Android apps, including copy-trading orders: 0.10% of eligible filled notional, published at https://perpex.co/fees.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x495a2c91b4173d979150ba108e2d80ce0145a7de"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-03-14",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Perpex, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Perpex; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by Perpex.",
+      ProtocolRevenue: "Builder code fees collected by Perpex.",
+    },
+    breakdownFees: true,
+  },
+  "arx-perps": {
+    // ARX team-confirmed builder; official site: https://arx.trade / https://x.com/ARX_TRADE
+    // First real fills confirmed by the team: 2026-10-02 (UTC).
+    // Archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x2165f1023f7584d0ba251808895e3011fcbbd9c7/20261002.csv.lz4
+    // Legacy ARX builder addresses are intentionally excluded from this listing.
+    addresses: ["0x2165f1023f7584d0ba251808895e3011fcbbd9c7"],
+    start: "2026-10-02",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades carrying ARX's builder code, including HIP-3 perpetual markets; excludes spot trades and legacy ARX builder addresses.",
+      Fees: "Actual builder-code fees paid on Hyperliquid perpetual trades carrying ARX's builder code; excludes Hyperliquid exchange trading fees and legacy ARX builder addresses.",
+      Revenue: "Builder-code fees received by ARX on Hyperliquid perpetual trades, before any subsequent referral payouts from ARX's treasury.",
+      ProtocolRevenue: "Builder-code fees received by ARX on Hyperliquid perpetual trades, before any subsequent referral payouts from ARX's treasury.",
+    },
+    breakdownFees: true,
+  },
+  "hypurrtrade": {
+    addresses: ["0x0e024a4fad828e8f976fdccbeeaab72d4205be3c"],
+    start: "2026-10-01",
+    methodology: {
+      Volume: "Perps trading volume routed through the HypurrTrade terminal on Hyperliquid.",
+      Fees: "Builder fees paid by users on perps trades routed through HypurrTrade (0.05% until 2026-10-08, 0.1% since); excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder fees collected by HypurrTrade from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "ditto-perps": {
     // Public Hyperliquid builder attribution; the daily indexer counts every tagged fill.
     // Scope/fields: https://hl-indexer.llama.rip/llms.txt (builder daily summaries).
@@ -59,6 +100,23 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Hyperliquid builder code fees paid by users on trades placed through Auspex; excludes Hyperliquid's own trading fees.",
       Revenue: "Builder code fees collected by Auspex. Referral rewards Auspex later pays out from its treasury are not deducted.",
       ProtocolRevenue: "Builder code fees collected by Auspex. Referral rewards Auspex later pays out from its treasury are not deducted.",
+    },
+    breakdownFees: true,
+  },
+
+  "fiatbear-perps": {
+    // FiatBear (fiatbear.com) non-custodial Hyperliquid copy-trading app. The builder code is attached to copied
+    // orders placed through the user's agent wallet. Disclosed fee: 5 bps (0.05%) of copied notional, approved by the
+    // user's main wallet: https://app.fiatbear.com/security
+    // Verifiable: POST https://api.hyperliquid.xyz/info {"type":"referral","user":"0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"} (builderRewards)
+    addresses: ["0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"],
+    // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232/20260716.csv.lz4
+    start: "2026-07-16",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) copied through FiatBear, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on trades copied through FiatBear; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by FiatBear on copied trades.",
+      ProtocolRevenue: "Builder code fees collected by FiatBear on copied trades.",
     },
     breakdownFees: true,
   },
@@ -678,15 +736,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "rainbow-perps": {
+  // rainbow-perps is a standalone adapter (fees/rainbow-perps.ts), only the spot market is listed here
+  "rainbow-spot": {
     addresses: ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"],
     start: "2025-09-15",
     breakdownFees: true,
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
+    market: "spot",
   },
   "supercexy": {
     addresses: ["0x0000000bfbf4c62c43c2e71ef0093f382bf7a7b4"],
@@ -1501,7 +1556,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
   "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
-  "rainbow-spot": { builder: "rainbow-perps", market: "spot", start: "2025-09-15" },
   "sendai-outcome": { builder: "sendai-perps", market: "outcome", start: "2026-05-02" },
   "sendai-spot": { builder: "sendai-perps", market: "spot", start: "2026-04-15" },
   "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },

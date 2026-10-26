@@ -52,7 +52,7 @@ const RESERVES: Record<string, string[]> = {
     '0x5dd1a7a369e8273371d2dbf9d83356057088082c', // FT
     '0xf7d85ec4e7710f71992752eac2111312e73e9c9c', // ftUSD (CREATE2 same address as Sonic)
     ADDRESSES.ethereum.WSTETH, // wstETH
-    '0xf939e0a03fb07f59a73314e73794be0e57ac1b4e', // crvUSD
+    ADDRESSES.ethereum.CRVUSD, // crvUSD
     ADDRESSES.ethereum.USDe, // USDe
     '0x0655977feb2f289a4ab78af67bab0d17aab84367', // scrvUSD
     ADDRESSES.ethereum.USDG, // USDG
@@ -64,9 +64,9 @@ const RESERVES: Record<string, string[]> = {
     ADDRESSES.bsc.WBNB, // WBNB
     ADDRESSES.bsc.FDUSD, // FDUSD
     '0x77734e70b6e88b4d82fe632a168edf6e700912b6', // asBNB
-    '0x2170ed0880ac9a755fd29b2688956bd959f933f8', // ETH
+    ADDRESSES.bsc.ETH, // ETH
     ADDRESSES.bsc.BTCB, // BTCB
-    '0xa2e3356610840701bdf5611a53974510ae27e2e1', // wBETH
+    ADDRESSES.bsc.wBETH, // wBETH
     '0x205812cdbed920aff76c6580abd681a46d11efc7', // QQQB
   ],
 }

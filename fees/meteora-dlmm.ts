@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
@@ -23,7 +24,7 @@ const REFERRAL_STAKING_DISTRIBUTORS = [
 ];
 // USDC paid out by an unlisted distributor above this is either a new cycle (add it) or another project's drop
 const UNLISTED_DISTRIBUTOR_ALERT_USDC = 1_000;
-const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const USDC_MINT = ADDRESSES.solana.USDC;
 const REFERRAL_STAKING_CLAIMS_START = '2026-09-10'; // first cycle became claimable
 const REFERRAL_STAKING_REWARDS = 'Referral Staking Rewards';
 

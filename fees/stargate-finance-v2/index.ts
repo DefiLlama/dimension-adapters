@@ -121,7 +121,7 @@ const contracts: IAddress = {
     "0xCc0587aeBDa397146cc828b445dB130a94486e74"
   ],
   [CHAIN.CORE]: [
-    "0x2f6f07CDcf3588944Bf4C42aC74ff24bF56e7590",
+    ADDRESSES.fuse.WETH_3,
     "0x45f1A95A4D3f3836523F5c83673c797f4d4d263B",
   ],
   [CHAIN.DOMA]: [

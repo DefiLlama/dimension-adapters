@@ -19,11 +19,21 @@ interface TonLstExportConfigs {
 //   stack[0]  : input slice echoed back by the runtime
 //   stack[3]  : total_balance         (TON accounted by the pool, in nanoton)
 //   stack[12] : governance_fee        (share of pool profit sent to governance,
-//                                      encoded as a 24-bit fraction of 2**24)
-//   stack[14] : supply                (number of pool jettons issued)
+//                                      encoded as a 24-bit fraction of 2**24;
+//                                      stack[13] in the newer layout)
+//   stack[14] : supply                (number of pool jettons issued;
+//                                      stack[18] in the newer layout)
 const STACK_TOTAL_BALANCE = 3;
-const STACK_GOVERNANCE_FEE = 12;
-const STACK_SUPPLY = 14;
+// The getter has two layouts, told apart by length (the echoed input slice
+// included): 31 values in the original contract (Tonstakers, Stakee), and 35
+// in its newer version (KTON), which adds instant_withdrawal_fee,
+// accrued_governance_fee, disbalance_tolerance and
+// credit_start_prior_elections_end before supply. total_balance is at the
+// same place in both.
+const STACK_LAYOUTS: Record<number, { governanceFee: number; supply: number }> = {
+  31: { governanceFee: 12, supply: 14 },
+  35: { governanceFee: 13, supply: 18 },
+};
 const GOVERNANCE_FEE_DENOM = 2 ** 24; // per the 24-bit encoding in the spec
 
 interface PoolSnapshot {
@@ -53,9 +63,13 @@ async function fetchPoolSnapshot(blockNumber: number, poolAddress: string): Prom
   });
   const data = await response.json();
   const stack = data.result.stack;
+  const layout = STACK_LAYOUTS[stack.length];
+  if (!layout) {
+    throw new Error(`Unknown get_pool_full_data layout: ${stack.length} values`);
+  }
   const totalBalance = parseInt(stack[STACK_TOTAL_BALANCE][1], 16);
-  const supply = parseInt(stack[STACK_SUPPLY][1], 16);
-  const governanceFeeRaw = parseInt(stack[STACK_GOVERNANCE_FEE][1], 16);
+  const supply = parseInt(stack[layout.supply][1], 16);
+  const governanceFeeRaw = parseInt(stack[layout.governanceFee][1], 16);
   return {
     totalBalance,
     supply,

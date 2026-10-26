@@ -10,9 +10,14 @@ const MULTI_SWAP_EVENT = 'event MultiSwap(address indexed sender, address indexe
 // First MultiSwapRouter version (Dec 2025), before the router fee existed.
 const LEGACY_MULTI_SWAP_EVENT = 'event MultiSwap(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)';
 
-// Immutable feeCollector of every router below: the vfat.io fee collector, the
-// same address that receives Sickle service fees (feeCollector() on each router).
-const FEE_COLLECTOR = '0xd4627ecb405b64448ee6b07dcf860bf55590c83d';
+// feeCollector() on every fee-charging router below returns one of these two
+// addresses. A swap sent by either address is that collector converting fees
+// it already received, so it is left out of volume and fees. The pre-fee
+// routers have no feeCollector; the same sender check applies to them.
+const FEE_COLLECTORS = new Set([
+  '0xd4627ecb405b64448ee6b07dcf860bf55590c83d',
+  '0x19ed284c58ca6077a4a243755bbed90dc35942d4',
+]);
 
 // Tokens the DefiLlama price feed overvalues by orders of magnitude; the other
 // side of the swap is counted instead.
@@ -34,7 +39,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x96c64d2f4709355033130c92e70f8aae36f3fa1b', // deployed 2026-05-06
       '0xa452df37e4f845c15f49489486a9b4e8323bd7c4', // deployed 2026-05-16
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23, current
+      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23
+      '0x86e567339bcdca56a530d0ab9f34c43599a7952f', // current
     ],
     // Pre-fee MultiSwapRouter version emitting the 5-field MultiSwap event
     legacyRouters: [
@@ -48,7 +54,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x4763ebb49b5f6c3990e1976d34e4fb75b1d78fd9', // deployed 2026-05-06
       '0x917c50722872672628a456f2ab011554f0198be4', // deployed 2026-05-15
       '0xc1f60ba6aea2ed02e5b77e7f29ead500f50f368e', // deployed 2026-08-06
-      '0x9b910603111ece21e3ff78bd8c692c60c87ccbcf', // deployed 2026-08-23, current
+      '0x9b910603111ece21e3ff78bd8c692c60c87ccbcf', // deployed 2026-08-23
+      '0xf0415331d5ead904655714b15ace19034ba5ecaa', // current
     ],
     // Pre-fee MultiSwapRouter version emitting the 5-field MultiSwap event
     legacyRouters: [
@@ -61,7 +68,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x76384443b91a576809dfc2cdc0f7ae8f3148147a', // deployed 2026-02-06
       '0x52897097f0318b88c60bf82601ea620654cd7ad7', // deployed 2026-05-06
       '0xc5542dceaf587de894d8c2f957cb06e134d9668d', // deployed 2026-05-15
-      '0x3e579af59c68b19550f3210367f0fd3d1c784266', // deployed 2026-08-23, current
+      '0x3e579af59c68b19550f3210367f0fd3d1c784266', // deployed 2026-08-23
+      '0xcc2a3efe1754725fda473f9899c2f690ad10cdbd', // current
     ],
   },
   [CHAIN.INK]: {
@@ -71,7 +79,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xace729eeaef6bb911d2227053260645cfb8fc17b', // deployed 2026-05-04
       '0x400b2d19abd0883a80945c82492393d3c0bba104', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0x33dfe2d685ce830dafc35c56d08de188af5035fe', // deployed 2026-08-23, current
+      '0x33dfe2d685ce830dafc35c56d08de188af5035fe', // deployed 2026-08-23
+      '0x30cd07c7ed366b17590306398c66d62f400ef7a5', // current
     ],
   },
   [CHAIN.FRAXTAL]: {
@@ -81,7 +90,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x76fb09f9077a6e0deb4edde76f9e36dd625dd487', // deployed 2026-05-07
       '0x0eb29e143df4e658419df23a2f09af3714ddb08a', // deployed 2026-05-16
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x0aba9bcca7b50ecfd2c6f5ba8360f09c7d6d953a', // deployed 2026-08-23, current
+      '0x0aba9bcca7b50ecfd2c6f5ba8360f09c7d6d953a', // deployed 2026-08-23
+      '0x51d801577b161083a9cea1514b9e66ad4fae785a', // current
     ],
   },
   [CHAIN.UNICHAIN]: {
@@ -91,7 +101,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x1732e3ebc63e8d7c5d32ba8e9bd40982c21e320f', // deployed 2026-05-06
       '0x6f3e8f5a93dbcc9b0ded259068aa29e9c5bc3fe3', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0x7351633d56663f2861907a573e8d4f67828ae330', // deployed 2026-08-23, current
+      '0x7351633d56663f2861907a573e8d4f67828ae330', // deployed 2026-08-23
+      '0x0f4cc28f6733574f2a5934a0a9e22b72982ac5db', // current
     ],
   },
   [CHAIN.SONEIUM]: {
@@ -101,7 +112,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xdf70bbcf26dfa446f0f492ec0fe054966e316916', // deployed 2026-05-04
       '0xfd2d0de5a902d19b3823d31f1bce9d8f70d850e7', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x0aba9bcca7b50ecfd2c6f5ba8360f09c7d6d953a', // deployed 2026-08-23, current
+      '0x0aba9bcca7b50ecfd2c6f5ba8360f09c7d6d953a', // deployed 2026-08-23
+      '0xea744bccc17d763c43bfd6dc975809a09e852564', // current
     ],
   },
   [CHAIN.MODE]: {
@@ -110,7 +122,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x74547dd2bd05c8ad55a98272db37fcd4f2220283', // deployed 2026-02-06
       '0x5a72c0f4bf7f3ddf1370780d405e29149b128a04', // deployed 2026-05-06
       '0x428ef7e95888fac6b4fc6a192ed6074281edd75c', // deployed 2026-05-15
-      '0x6906b7cab8e565ada6b34282314b21fb51163ff8', // deployed 2026-08-23, current
+      '0x6906b7cab8e565ada6b34282314b21fb51163ff8', // deployed 2026-08-23
+      '0x05782733e80a345b3ef6cac6c87ec603c9482399', // current
     ],
   },
   [CHAIN.CELO]: {
@@ -120,7 +133,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x5a25167c72fea35986740e6b6104c70e6505cd3e', // deployed 2026-05-07
       '0x8bb9065f3c00f6cfb42ce41e0168632f00548289', // deployed 2026-05-15
       '0x4b2118ea66a18e433aa53e48e718dbfb81dc55f0', // deployed 2026-08-06
-      '0x66ae3bfa3082b7ddd828386a20fe4d44376e8967', // deployed 2026-08-24, current
+      '0x66ae3bfa3082b7ddd828386a20fe4d44376e8967', // deployed 2026-08-24
+      '0x0c4842d9ee1f9b7e224fc53da406fd7251b50185', // current
     ],
   },
   [CHAIN.OPTIMISM]: {
@@ -130,8 +144,9 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xab19608881742dcbc03f94f802bde1a34833d6a6', // deployed 2026-05-06
       '0x8513e5b96ad29b51441d88c0370187c028a4b1f1', // deployed 2026-05-16
       '0xcd3b677f642a857453257fdbd6f17a4b4902027e', // deployed 2026-08-06
-      '0x36f89be8cef366a97129c7d18cfcaf860ba9ff7c', // deployed 2026-08-12, current
-      '0x745c4638e5d0f54dc99658dea7d8d5bf46083443', // deployed 2026-08-23, current
+      '0x36f89be8cef366a97129c7d18cfcaf860ba9ff7c', // deployed 2026-08-12
+      '0x745c4638e5d0f54dc99658dea7d8d5bf46083443', // deployed 2026-08-23
+      '0x65ebdbd053f6af62f7c9d78d498be4acf73a72c7', // current
     ],
   },
   [CHAIN.BSC]: {
@@ -141,7 +156,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x716415a309e673c9c34e4de92909bdc628f775d0', // deployed 2026-05-06
       '0xf65d68ecae6e592c078c2c7bc018df896d259c07', // deployed 2026-05-15
       '0xc1f60ba6aea2ed02e5b77e7f29ead500f50f368e', // deployed 2026-08-05
-      '0xdf6ebfdf5fb2911ab1dbba3daa60a8ae870ee506', // deployed 2026-08-23, current
+      '0xdf6ebfdf5fb2911ab1dbba3daa60a8ae870ee506', // deployed 2026-08-23
+      '0x0b2b243101085e43fe157b1361023b86b7c8cefb', // current
     ],
   },
   [CHAIN.HYPERLIQUID]: {
@@ -151,7 +167,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xb051f35a2b629ab6f9cd8ff2776caf8c0d800307', // deployed 2026-05-06
       '0xf152172a4af1096c953e087e671b682b434158cf', // deployed 2026-05-16
       '0xc1f60ba6aea2ed02e5b77e7f29ead500f50f368e', // deployed 2026-08-06
-      '0x8ac1697061e6016b7d1f15e93e2f231cc6c86bdb', // deployed 2026-08-23, current
+      '0x8ac1697061e6016b7d1f15e93e2f231cc6c86bdb', // deployed 2026-08-23
+      '0xe4e4681f962557d428710572ff0d939c5b6cfddb', // current
     ],
   },
   [CHAIN.METAL]: {
@@ -168,8 +185,9 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x4f025aba4887631a6d601ae3156bf53568f5a5fd', // deployed 2026-05-08
       '0x84676ee313cd7c7b85869b208d2effb7af136f8a', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-12, current
-      '0x9b910603111ece21e3ff78bd8c692c60c87ccbcf', // deployed 2026-08-23, current
+      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-12
+      '0x9b910603111ece21e3ff78bd8c692c60c87ccbcf', // deployed 2026-08-23
+      '0xc368c8dfd90f793ecf9a6f227d3dc5c09a62777b', // current
     ],
   },
   [CHAIN.ETHEREUM]: {
@@ -179,8 +197,9 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xf852516daec5d29be4e2925104ab499369735741', // deployed 2026-05-06
       '0xb6d55b223e55bd3ebf3a08a7da6bbebdfe49a2c1', // deployed 2026-05-16
       '0xcd3b677f642a857453257fdbd6f17a4b4902027e', // deployed 2026-08-06
-      '0x79c9d85fa916d2d52677eb29f0c6793eb2ed39d2', // deployed 2026-08-12, current
-      '0xbe8c6f9f284c7cfe0264a5365e14b169300147d3', // deployed 2026-08-23, current
+      '0x79c9d85fa916d2d52677eb29f0c6793eb2ed39d2', // deployed 2026-08-12
+      '0xbe8c6f9f284c7cfe0264a5365e14b169300147d3', // deployed 2026-08-23
+      '0xd06f88e9795c722508558924014841aa0ef88f08', // current
     ],
   },
   [CHAIN.SONIC]: {
@@ -190,7 +209,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xd51a36e079bc3cfa9163b6ca40b7e796257fcc97', // deployed 2026-05-08
       '0x0998943d5caec304658b7af3b4367e134c73a8c1', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x5328244d451d2a523d03d92b6c103bf0652eddb1', // deployed 2026-08-23, current
+      '0x5328244d451d2a523d03d92b6c103bf0652eddb1', // deployed 2026-08-23
+      '0xe10c0a0a0f118055f30f1882fa55da8241d06bcf', // current
     ],
   },
   [CHAIN.BASE]: {
@@ -199,9 +219,10 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xf33ff09dcbd11ecc69abe074fbde99ba7376526c', // deployed 2026-03-06
       '0x8e5ebbb98382dbdfb42167c61c8d1e1015c7d73b', // deployed 2026-05-08
       '0x7424c3e944a9ab9710ead57e66ce56137adc657e', // deployed 2026-05-16
-      '0x3e2040b9b5eebf7c43e8801ca366502c35af62ae', // deployed 2026-06-17, current
+      '0x3e2040b9b5eebf7c43e8801ca366502c35af62ae', // deployed 2026-06-17
       '0xcf70cc22f8de1bd36e56b8184ff771f1bb93d82a', // deployed 2026-08-05
-      '0xb7647612839c242ea035886dcf014e9bf58086a7', // deployed 2026-08-23, current
+      '0xb7647612839c242ea035886dcf014e9bf58086a7', // deployed 2026-08-23
+      '0x42046ff86b306958edb349b3edcaedc638b73123', // current
     ],
   },
   [CHAIN.AVAX]: {
@@ -211,8 +232,9 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xedce63dc020450a5a813b522e591495216839004', // deployed 2026-05-08
       '0xf6e2d130407c12a8390d70f4879c0edfe36d92c7', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0xff64600c95143714cb054e463868d642c0311af8', // deployed 2026-08-12, current
-      '0xc540c0c69876e9941a6c308c30a4321af72d57bf', // deployed 2026-08-23, current
+      '0xff64600c95143714cb054e463868d642c0311af8', // deployed 2026-08-12
+      '0xc540c0c69876e9941a6c308c30a4321af72d57bf', // deployed 2026-08-23
+      '0x393a84e6a9c83181e48300c07c2cf9f3556ef09d', // current
     ],
   },
   [CHAIN.POLYGON]: {
@@ -221,7 +243,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0x6fa6a0aa93732c735b6088a8dfcded60e8f23dbe', // deployed 2026-05-06
       '0x7badae0bf1b3b758478cb4dd94be5aeccd03804f', // deployed 2026-05-16
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x770b7b081e9546042b3f4aa3a233d587e9336b54', // deployed 2026-08-23, current
+      '0x770b7b081e9546042b3f4aa3a233d587e9336b54', // deployed 2026-08-23
+      '0x745c4638e5d0f54dc99658dea7d8d5bf46083443', // current
     ],
   },
   [CHAIN.WC]: {
@@ -230,7 +253,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xb9e44309bf986c71223be157ad88ddf5d4e75bc2', // deployed 2026-05-06
       '0x02427335676a5bef943eb20b73caaae08936e46c', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23, current
+      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23
+      '0xff1ef26289602e79c0ad8f79579573c28af110b2', // current
     ],
   },
   [CHAIN.PLASMA]: {
@@ -239,7 +263,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xff844443c7837869e9861d1051fd32b23e14460d', // deployed 2026-05-06
       '0xd34d1328103d9cf65037aaa7e736f74b8f878dd2', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23, current
+      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23
+      '0x29b3c9ad9524e5aaed50d8ec18ec752c3e896ffc', // current
     ],
   },
   [CHAIN.CRONOS]: {
@@ -247,7 +272,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
     routers: [
       '0x76fe032c942c03cc4d4d0d527ef2686cfc414b2f', // deployed 2026-05-08
       '0xaf0ee4d542e29dd7d271b43f8a2d3b40a12622b6', // deployed 2026-05-16
-      '0xff64600c95143714cb054e463868d642c0311af8', // deployed 2026-08-23, current
+      '0xff64600c95143714cb054e463868d642c0311af8', // deployed 2026-08-23
+      '0xdf6ebfdf5fb2911ab1dbba3daa60a8ae870ee506', // current
     ],
   },
   [CHAIN.PULSECHAIN]: {
@@ -256,30 +282,34 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
       '0xc5542dceaf587de894d8c2f957cb06e134d9668d', // deployed 2026-05-08
       '0xba38483d78d56e63248e876bf59c01601b8f6ba5', // deployed 2026-05-16
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x4bff9c589ab4f7a8ae41e0f804ff362791512f2f', // deployed 2026-08-23, current
+      '0x4bff9c589ab4f7a8ae41e0f804ff362791512f2f', // deployed 2026-08-23
+      '0xf1debff97a67dc253eb8136064c00c581b8b3ada', // current
     ],
   },
   [CHAIN.BERACHAIN]: {
     start: '2026-05-15',
     routers: [
       '0xaf0ee4d542e29dd7d271b43f8a2d3b40a12622b6', // deployed 2026-05-15
-      '0x8cbec5c723f5bf6292da2ad354d35c35b25a863d', // deployed 2026-08-23, current
+      '0x8cbec5c723f5bf6292da2ad354d35c35b25a863d', // deployed 2026-08-23
+      '0x33dfe2d685ce830dafc35c56d08de188af5035fe', // current
     ],
   },
   [CHAIN.LINEA]: {
     start: '2026-05-17',
     routers: [
       '0x0e1044f8b4f9d7cf370d9f723613a4099a3bc311', // deployed 2026-05-15
-      '0x468430a96df9389448e65052d2cd68374e9d2e39', // deployed 2026-06-17, current
+      '0x468430a96df9389448e65052d2cd68374e9d2e39', // deployed 2026-06-17
       '0xcd3b677f642a857453257fdbd6f17a4b4902027e', // deployed 2026-08-06
-      '0x33dfe2d685ce830dafc35c56d08de188af5035fe', // deployed 2026-08-23, current
+      '0x33dfe2d685ce830dafc35c56d08de188af5035fe', // deployed 2026-08-23
+      '0xfba0ece93fc0b8841b0f699b7309eed0e89e2f45', // current
     ],
   },
   [CHAIN.MEGAETH]: {
     start: '2026-05-19',
     routers: [
       '0x23eb5ce64769b969b58f008154d396957a7ade3b', // deployed 2026-05-16
-      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23, current
+      '0xffbab3d0cb829ce4eed26c6202d8fc92949f028e', // deployed 2026-08-23
+      '0xf1debff97a67dc253eb8136064c00c581b8b3ada', // current
     ],
   },
   [CHAIN.HEMI]: {
@@ -287,7 +317,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
     routers: [
       '0xb616435169538d4749351765bf050354e5030262', // deployed 2026-05-16
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0x67afb7733bc70607d9bac244ee3feedc98c195df', // deployed 2026-08-23, current
+      '0x67afb7733bc70607d9bac244ee3feedc98c195df', // deployed 2026-08-23
+      '0x7a96800aad89ab0d6590a9f11270fd132fa110de', // current
     ],
   },
   [CHAIN.MANTLE]: {
@@ -295,7 +326,8 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
     routers: [
       '0x564dde51c3e4725542fceebf38d60f5d3068dae1', // deployed 2026-05-15
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-05
-      '0x8e3203f717e3c4f1ad5cf90dae9781a260b91bd8', // deployed 2026-08-23, current
+      '0x8e3203f717e3c4f1ad5cf90dae9781a260b91bd8', // deployed 2026-08-23
+      '0xdeb68ff2158952c2a0b0e80145c3321c840c8d6c', // current
     ],
   },
   [CHAIN.PEAQ]: {
@@ -303,27 +335,31 @@ const chainConfig: Record<string, { start: string; routers: string[]; legacyRout
     routers: [
       '0x478ec7641ee72df36d5ae2767b264b4a00a57103', // deployed 2026-06-03
       '0x366f9012725af9fe05663122f086ebf68126b777', // deployed 2026-08-14
-      '0xf5475038c7dcad66cf0ad1e0ad22df0d67ef8841', // deployed 2026-08-23, current
+      '0xf5475038c7dcad66cf0ad1e0ad22df0d67ef8841', // deployed 2026-08-23
+      '0x1c73c169838ede3ab131ec289c35069c63f49274', // current
     ],
   },
   [CHAIN.ROBINHOOD]: {
     start: '2026-07-08',
     routers: [
       '0xa8281d411b9ad6bc3ba3fde6d4b1631fcafda45d', // deployed 2026-07-07
-      '0x3a7bc0cccd02762b0d4f3e2276e25597d68bcd77', // deployed 2026-08-23, current
+      '0x3a7bc0cccd02762b0d4f3e2276e25597d68bcd77', // deployed 2026-08-23
+      '0x6394354c7470f27630fb3da310f37685c1261325', // current
     ],
   },
   [CHAIN.SCROLL]: {
     start: '2026-08-17',
     routers: [
       '0x7941808b1d3f76786aa66b72d74989310995afbd', // deployed 2026-08-06
-      '0x7842a6620b749e5d148edd368bc90759b7369187', // deployed 2026-08-23, current
+      '0x7842a6620b749e5d148edd368bc90759b7369187', // deployed 2026-08-23
+      '0x0f4cc28f6733574f2a5934a0a9e22b72982ac5db', // current
     ],
   },
   [CHAIN.ARC]: {
     start: '2026-09-16',
     routers: [
-      '0x854a12e23dcb12e89eba6322a246f0e5de8bc087', // deployed 2026-09-16, current
+      '0x854a12e23dcb12e89eba6322a246f0e5de8bc087', // deployed 2026-09-16
+      '0x141645785a860c708f269b9ac74b2fd7aacc07ec', // current
     ],
   },
 };
@@ -352,15 +388,15 @@ const fetch = async (options: FetchOptions) => {
       eventAbi: LEGACY_MULTI_SWAP_EVENT,
     });
     for (const log of legacyLogs) {
-      if (log.sender.toLowerCase() === FEE_COLLECTOR) continue;
+      if (FEE_COLLECTORS.has(log.sender.toLowerCase())) continue;
       addVolume(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut);
     }
   }
 
   for (const log of logs) {
-    // The fee collector converting fees it already collected is vfat treasury
-    // management, not user volume, and its fee is paid to itself.
-    if (log.sender.toLowerCase() === FEE_COLLECTOR) continue;
+    // A fee collector converting fees it already collected is not user volume,
+    // and that fee is paid to itself.
+    if (FEE_COLLECTORS.has(log.sender.toLowerCase())) continue;
     // amountOut is net of the fee, so the gross output is amountOut + feeAmount.
     addVolume(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut + log.feeAmount);
     if (mispriced.has(log.tokenOut.toLowerCase())) continue;
@@ -378,7 +414,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: 'Input amount of every swap routed through the vfat SwapRouter contracts, including swaps made by vfat Sickle smart wallets during zaps, rebalances and compounds. Excludes swaps by the vfat fee collector.',
+  Volume: 'Input amount of every swap routed through the vfat SwapRouter contracts, including swaps made by vfat Sickle smart wallets during zaps, rebalances and compounds. Excludes swaps sent by a vfat fee collector.',
   Fees: 'The router fee (1 basis point of the output amount) paid by users on every swap.',
   UserFees: 'The router fee (1 basis point of the output amount) paid by users on every swap.',
   Revenue: 'All router fees go to the vfat.io fee collector.',

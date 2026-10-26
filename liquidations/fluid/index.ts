@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { nullAddress } from '../../helpers/token'
 import { getVaultsResolver } from '../../fees/fluid/fees'
@@ -14,7 +15,7 @@ const abis = {
   LogWithdrawColInOneToken: 'event LogWithdrawColInOneToken(uint256 shares, uint256 token0Amt, uint256 token1Amt)',
 }
 
-const NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+const NATIVE = ADDRESSES.GAS_TOKEN_2
 const token = (t: string) => t.toLowerCase() === NATIVE ? nullAddress : t
 
 const fetch = async (options: FetchOptions) => {

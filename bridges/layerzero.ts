@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
@@ -13,7 +14,7 @@ import * as sdk from "@defillama/sdk";
 // Tron and Sei: the same events from Allium's raw logs (SDK getLogs can't scan tron by topic and is disabled for sei).
 // Solana and Aptos: LayerZero OFT sends and receipts from Allium's crosschain.bridges.transfers, priced from the token and
 // raw amount (Aptos only has outbound rows there).
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 // RPCs that cap eth_getLogs ranges: etherlink rejects more than 500 blocks
 const MAX_BLOCK_RANGE: Record<string, number> = { [CHAIN.ETHERLINK]: 480 };
 const ALLIUM_CHAINS: Record<string, string> = { [CHAIN.SOLANA]: "solana", [CHAIN.APTOS]: "aptos" };
@@ -24,6 +25,13 @@ const RAW_LOG_CHAINS: Record<string, { table: string; address: string }> = {
 };
 const OFT_SENT = "event OFTSent(bytes32 indexed guid, uint32 dstEid, address indexed fromAddress, uint256 amountSentLD, uint256 amountReceivedLD)";
 const OFT_RECEIVED = "event OFTReceived(bytes32 indexed guid, uint32 srcEid, address indexed toAddress, uint256 amountReceivedLD)";
+
+// Tokens whose transfers are skipped entirely, keyed by chain (lowercase addresses)
+const EXCLUDED_TOKENS: Record<string, string[]> = {
+  // WPAY: 4.46B (45% of its 10B supply) moved Polygon -> Arc by one address in 7 txs on 2026-10-02, priced at $3.8B
+  [CHAIN.POLYGON]: ["0x7abe9edf5c544a04da83e9110cf46dbc4759170c"],
+  [CHAIN.ARC]: ["0xa83a7be150d97b77c4ad96742ea38ab7c8e13782"],
+};
 
 type OftTransfer = { oapp: string; amount: string };
 
@@ -40,9 +48,13 @@ const addOftTransfers = async (options: FetchOptions, sent: OftTransfer[], recei
   // tron returns base58 token addresses, which are case-sensitive; only hex addresses are lowercased
   oapps.forEach((oapp, i) => { const token = tokens[i] ? String(tokens[i]) : oapp; tokenOf[oapp] = token.startsWith("0x") ? token.toLowerCase() : token; });
 
-  for (const t of sent) dailyOutgoingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
-  for (const t of received) dailyIncomingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
-  return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount: sent.length, dailyIncomingTxCount: received.length };
+  const excluded = new Set(EXCLUDED_TOKENS[options.chain] ?? []);
+  const keep = (t: OftTransfer) => !excluded.has(tokenOf[t.oapp]);
+  const sentKept = sent.filter(keep);
+  const receivedKept = received.filter(keep);
+  for (const t of sentKept) dailyOutgoingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
+  for (const t of receivedKept) dailyIncomingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
+  return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount: sentKept.length, dailyIncomingTxCount: receivedKept.length };
 };
 
 const fetchEvm = async (options: FetchOptions) => {

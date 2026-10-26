@@ -2,6 +2,7 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
 import { addOneToken } from "../helpers/prices";
+import ADDRESSES from '../helpers/coreAssets.json'
 
 /**
  * Latch Protocol - swap volume, swap fees and the LP/protocol split.
@@ -406,7 +407,7 @@ const sameSplit = (a: Split, b: Split) =>
 const PIPS = 1_000_000n;
 
 /** How native currency appears in a pool key. */
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 /**
  * The (token0, amount0, token1, amount1) to hand `addOneToken` for one swap.

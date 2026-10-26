@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../../helpers/getTxReceipts";
@@ -23,8 +24,8 @@ export const TRNCH_INTEGRATOR = 'trnch';
 // first TRNCH-tagged swap on-chain: 2026-09-22 (UTC), none on 2026-09-21
 export const TRNCH_START = '2026-09-22';
 
-const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-const KYBER_NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+const NULL_ADDRESS = ADDRESSES.null;
+const KYBER_NATIVE = ADDRESSES.GAS_TOKEN_2;
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const LifiSwapEvent = 'event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)';

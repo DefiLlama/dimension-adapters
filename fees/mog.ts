@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -14,7 +15,7 @@ const WIN_SETTLED = "event WinSettled(uint16 indexed mkt, address indexed owner,
 const BUILDER_ACCRUED = "event BuilderAccrued(address indexed builder, uint256 amount)";
 const MOG_TOKEN = "0x45c94a25d951d652c2d09e9f6f7d6c0d75dd8d23";
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+const NULL_ADDRESS = ADDRESSES.null;
 const FILLED = "event Filled(uint16 indexed mkt, uint64 indexed posId, address indexed owner, uint8 side, uint128 m, uint128 r, uint128 fillMark, uint64 nonce)";
 const FILLED_TERMS = "event FilledTerms(uint16 indexed mkt, uint64 indexed posId, uint128 downLevel, uint128 upLevel, bool near, uint16 lev, uint256 kWad)";
 const CLOSED = "event Closed(uint16 indexed mkt, uint64 indexed closeId, uint64 indexed posId, uint64 nonce, uint128 sliceM, uint128 sliceR, uint128 remainderM)";

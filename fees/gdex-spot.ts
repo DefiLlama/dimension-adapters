@@ -39,7 +39,7 @@ const SOL_TREASURY = "HLY8UNd7jmvtJuAz3q2MgJ7qF3QedDvoeUbnK5FZsUxS";
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const KYBER_FEE_EVENT = "event Fee(address token, uint256 totalAmount, uint256 totalFee, address[] recipients, uint256[] amounts, bool isBps)";
 // KyberSwap's placeholder for the chain's native coin in the Fee event.
-const KYBER_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const KYBER_NATIVE = ADDRESSES.GAS_TOKEN_2;
 
 // Per chain: GDEX treasury (fee receiver set on every KyberSwap route request) and start = first KyberSwap fee
 // paid to it. Sample swap per chain, with the Fee event paying the treasury.

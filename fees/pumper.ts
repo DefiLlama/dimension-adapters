@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -43,7 +44,7 @@ const BOUGHT_EVENT = "event Bought(address indexed token, address indexed buyer,
 const SOLD_EVENT = "event Sold(address indexed token, address indexed seller, uint256 tokensIn, uint256 quoteOut)";
 const TAX_NOTIFIED_EVENT = "event TaxNotified(address indexed token, address indexed hook, uint256 amount)";
 
-const USDT0 = "0x779ded0c9e1022225f8e0630b35a9b54be713736";
+const USDT0 = ADDRESSES.xlayer.USDT0;
 const WGUSDT = "0x817997ca8394e26cce3de3a076a4889b27dbf9de";
 // WgUSDT is an 18dp 1:1 wrapper of USDT0 (6dp): report it as USDT0.
 const asUsdt0 = (quote: string, amount: number): [string, number] =>

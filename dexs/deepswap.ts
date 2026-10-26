@@ -4,7 +4,7 @@
 // Docs: https://docs.deepliquidity.fun/docs
 //
 // Each swap reports its fee split by recipient in the program's own events, so no rate is assumed.
-// The events are read from the transactions' log messages on Allium (see dexs/deep-launchpad.ts).
+// The events are read from the transactions' log messages on Allium (see helpers/alliumSolanaEvents.ts).
 // Event layouts: https://github.com/Deep-Liquidity/deep-sdk (docs/INTEGRATORS.md, section 5).
 import ADDRESSES from "../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -12,7 +12,8 @@ import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 import { METRIC } from "../helpers/metrics";
 import { base58Encode } from "../helpers/solana";
-import { assertComplete, FEE_VAULT_WSOL, GRADUATION_PAYER, programEventsSql, u64, u8 } from "./deep-launchpad";
+import { assertComplete, programEventsSql, u64, u8 } from "../helpers/alliumSolanaEvents";
+import { FEE_VAULT_WSOL, GRADUATION_PAYER, vaultTransfersSql } from "./deep-launchpad";
 
 const DEEP_AMM_PROGRAM = "HCrCy6bzHhZ1b6bXwQAucEFkKXyzYMh3hgAR8UPrYSEP";
 
@@ -33,6 +34,7 @@ const LABEL = {
 
 const fetch = async (options: FetchOptions) => {
   const rows = await queryAllium(`${programEventsSql(DEEP_AMM_PROGRAM, options)},
+  ${vaultTransfersSql(options)},
   swaps AS (
     -- a swap emits one SwapEvent and one SwapFeesV1 from the same call
     SELECT s.data AS swap, f.data AS fees

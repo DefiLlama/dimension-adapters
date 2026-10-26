@@ -35,15 +35,76 @@ const VELO_KITE_LABEL = "VELO / KITE Rewards";
 const AERO_LABEL = "AERO Rewards";
 const CRV_OETH_FXN_REWARDS_LABEL = "CRV / OETH / FXN Rewards";
 const UNIV3_LABEL = "UniV3 LP Fees";
+const AERO_LP_LABEL = "Aero LP Fees";
 const MET_DISTRIBUTION_LABEL = "MET Distribution";
 const TREASURY_REVENUE_LABEL = "Revenue To Treasury";
 
 type InflowEntry = {
   label: string;
-  target: string;
+  targets: string[];
   tokens: string[];
-  fromAddressFilter?: string;        // include only transfers from this sender
+  fromAddresses?: string[];          // include only transfers from these senders
   excludeFromAddresses?: string[];   // drop transfers whose sender is in this list (post-fetch)
+};
+
+// Treasury wallets that LP in Aero pools and receive the gauge rewards (list from the Metronome team).
+const LP_WALLETS: Record<string, string[]> = {
+  [CHAIN.BASE]: [
+    "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+    "0xb3983cDdBa4B127960A4cDD531AB989264509e23",
+    "0xaddf8d3731b7cc1ea12a686619819667077662da",
+  ],
+  [CHAIN.OPTIMISM]: [
+    "0x91ecADB8EF5DACc6156fFC036aCF6295eAb7A545",
+    "0xb3983cDdBa4B127960A4cDD531AB989264509e23",
+  ],
+  [CHAIN.ETHEREUM]: [
+    "0xd1de3f9cd4ae2f23da941a67ca4c739f8dd9af33",
+    "0xCE3187216B39ED222319D877956aC6b2eF1961E9",
+  ],
+};
+
+// Aero gauges pay xAERO (per-chain ReceiptToken), priced by DefiLlama on all three chains.
+const XAERO: Record<string, string> = {
+  [CHAIN.BASE]: "0x6CdDa0E730744DC6fF67654B35350Adad05EceE7",
+  [CHAIN.OPTIMISM]: "0xbdEaeA5205d16f34Cb40038052d91235D87B4C54",
+  [CHAIN.ETHEREUM]: "0x9e148C5716b5aAdCFD3B71cEAE9EE7a9e22C29E2",
+};
+
+// Aero pools the treasury LPs in. Unstaked positions keep the trading fees; staked ones pay them
+// to the gauge and earn xAERO instead (EXTRA_INFLOWS). CL fees are pool Collect minus Burn in the
+// same tx, so withdrawn principal is not counted; basic pools pay fees out of their poolFees() contract.
+// tokens = [token0(), token1()] of the pool, hardcoded because the pools do not exist on older blocks.
+const BASE_MSUSD = "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d";
+const BASE_MSETH = "0x7Ba6F01772924a82D9626c126347A28299E98c98";
+const OP_MSUSD = "0x9dAbAE7274D28A45F0B65Bf8ED201A5731492ca0";
+const OP_MSETH = "0x1610e3c85dd44Af31eD7f33a63642012Dca0C5A5";
+const AERO_POOLS: Record<string, { pool: string; tokens: string[]; label: string; poolFees?: string }[]> = {
+  [CHAIN.BASE]: [
+    { pool: "0x8845126640B36df1D24bf3dF9B2903fD4c730FE6", tokens: [BASE_MSUSD, BASE_MSETH], label: METBASIS_LABEL }, // msUSD/msETH CL200 (old Slipstream, retired)
+    { pool: "0x00145e8Fc9F06a0b71bd57fEfBF451ec1dB9D69f", tokens: [BASE_MSUSD, BASE_MSETH], label: METBASIS_LABEL }, // msUSD/msETH CL200 (Slipstream, migrating out)
+    { pool: "0x883E9C376F4119F9c475b3E80aF4002f00f6964a", tokens: [BASE_MSUSD, BASE_MSETH], label: METBASIS_LABEL }, // msUSD/msETH CL200
+    { pool: "0xbAC7394c3C4b2D188d4180275ef6Dd629f4C56fF", tokens: [BASE_MSUSD, ADDRESSES.base.USDC], label: AERO_LP_LABEL }, // msUSD/USDC CL50
+    { pool: "0x34b6D0C67db6ddEb231e6FeE78558B89157C5e7A", tokens: [ADDRESSES.base.WETH, BASE_MSETH], label: AERO_LP_LABEL }, // WETH/msETH CL50
+    { pool: "0xdD2A5DAc93e62c27Fe0A3236d22FCEa29E19c62C", tokens: [BASE_MSUSD, ADDRESSES.base.USDC], label: AERO_LP_LABEL, poolFees: "0x1ECEc131904bf9C976265bD8adf2B4450468dd04" }, // msUSD/USDC stable
+    { pool: "0x45ADCE4be5f602273c6E883a4C94133309aF1D09", tokens: [ADDRESSES.base.WETH, BASE_MSETH], label: AERO_LP_LABEL, poolFees: "0x0Db118B52dd4a762DB096BB0bC0B0d0bcB621198" }, // WETH/msETH stable
+  ],
+  [CHAIN.OPTIMISM]: [
+    { pool: "0x09eC750a7d6F051049B7ED33dE204752831C4b7A", tokens: [OP_MSETH, OP_MSUSD], label: METBASIS_LABEL }, // msETH/msUSD CL50
+    { pool: "0x12e078Cc562d5c422563e217c81324AAEfC3bC91", tokens: [ADDRESSES.optimism.USDC_CIRCLE, OP_MSUSD], label: AERO_LP_LABEL, poolFees: "0x13Cc7cbcFbEBCF2b710CeF9414Ff93E155E33911" }, // USDC/msUSD stable
+    { pool: "0xB02cCECebBC7415F8A557112a51e42a22f0c4B33", tokens: [OP_MSETH, ADDRESSES.optimism.WETH_1], label: AERO_LP_LABEL, poolFees: "0xaFc2D589773969eb78efFf88227101b85ecFb362" }, // msETH/WETH stable
+    { pool: "0xA3f9eB1D0d89D1f023b14DC81C260521C6a59783", tokens: [ADDRESSES.optimism.USDC_CIRCLE, OP_MSUSD], label: AERO_LP_LABEL, poolFees: "0x6Aa738cf2D2B0F95Ec78b3d85cC908BC82289424" }, // USDC/msUSD volatile
+    { pool: "0xc4Ad7946c97607D205b99CAC6fc9466038C15d3C", tokens: [ADDRESSES.optimism.USDC, OP_MSUSD], label: AERO_LP_LABEL, poolFees: "0x9010964d4C1dEeD2Afd2F95967a397Ea9363C721" }, // USDC.e/msUSD stable
+  ],
+  [CHAIN.ETHEREUM]: [
+    { pool: "0xf4eCde659EA8A84f10955d26E2910ABDfF484e81", tokens: ["0x64351fC9810aDAd17A690E4e1717Df5e7e085160", ADDRESSES.ethereum.WETH], label: AERO_LP_LABEL }, // msETH/WETH CL10
+    { pool: "0x434C4FFb0b91158e16d10D76A2D5CfC52Dd9Ce56", tokens: [ADDRESSES.ethereum.USDC, "0xab5eB14c09D416F0aC63661E57EDB7AEcDb9BEfA"], label: AERO_LP_LABEL }, // USDC/msUSD CL1
+  ],
+};
+
+const CL_POOL_ABIS = {
+  collect: "event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)",
+  burn: "event Burn(address indexed owner, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount, uint256 amount0, uint256 amount1)",
 };
 
 // Per-entry labeling matches the protocol's revenue buckets:
@@ -55,69 +116,90 @@ const EXTRA_INFLOWS: Record<string, InflowEntry[]> = {
   [CHAIN.OPTIMISM]: [
     {
       label: METBASIS_LABEL,
-      target: "0xb3983cDdBa4B127960A4cDD531AB989264509e23",
+      targets: ["0xb3983cDdBa4B127960A4cDD531AB989264509e23"],
       tokens: ["0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db"], // VELO from MetBasis gauge
-      fromAddressFilter: "0x7DD72EF1f023ac5c2F4Cedcb278f4bfb2Bb60CbE",
+      fromAddresses: ["0x7DD72EF1f023ac5c2F4Cedcb278f4bfb2Bb60CbE"],
     },
     {
       label: VELO_KITE_LABEL,
-      target: "0x91ecADB8EF5DACc6156fFC036aCF6295eAb7A545",
+      targets: ["0x91ecADB8EF5DACc6156fFC036aCF6295eAb7A545"],
       tokens: [
         "0x9560e827aF36c94D2Ac33a39bCE1Fe78631088Db", // VELO
         "0xf467C7d5a4A9C4687fFc7986aC6aD5A4c81E1404", // KITE
       ],
       excludeFromAddresses: ["0x7DD72EF1f023ac5c2F4Cedcb278f4bfb2Bb60CbE"], // exclude MetBasis gauge
     },
+    {
+      label: METBASIS_LABEL,
+      targets: LP_WALLETS[CHAIN.OPTIMISM],
+      tokens: [XAERO[CHAIN.OPTIMISM]],
+      fromAddresses: ["0x609fF8c52654c04cB451aaAA657027D272366352"], // msETH/msUSD CL50 gauge
+    },
+    {
+      label: AERO_LABEL,
+      targets: LP_WALLETS[CHAIN.OPTIMISM],
+      tokens: [XAERO[CHAIN.OPTIMISM]],
+      fromAddresses: [
+        "0xfF7bA47015C308e793a5521Fba385C103Ba3aD7E", // USDC/msUSD stable gauge
+        "0x77eaf4905d8AFCa133529Ed95A933Fc37755Fe21", // msETH/WETH stable gauge
+      ],
+    },
   ],
   [CHAIN.BASE]: [
     {
       // Old MetBasis msUSD/msETH gauge (retired; kept for history).
       label: METBASIS_LABEL,
-      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      targets: ["0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6"],
       tokens: [ADDRESSES.base.AERO], // AERO from MetBasis gauge
-      fromAddressFilter: "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765",
+      fromAddresses: ["0x019a8a996B6cb2e2e12fe95997FA9ef733c99765"],
     },
     {
-      // New MetBasis msUSD/msETH gauge, live since the pool migration.
+      // Second MetBasis msUSD/msETH gauge (old Aerodrome, migrating out).
       label: METBASIS_LABEL,
-      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      targets: ["0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6"],
       tokens: [ADDRESSES.base.AERO], // AERO from MetBasis gauge
-      fromAddressFilter: "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514",
-    },
-    {
-      // Old MetBasis msUSD/msETH pool (retired; kept for history).
-      label: METBASIS_LABEL,
-      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
-      tokens: [
-        "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d", // msUSD
-        "0x7Ba6F01772924a82D9626c126347A28299E98c98", // msETH
-      ],
-      fromAddressFilter: "0x8845126640B36df1D24bf3dF9B2903fD4c730FE6",
-    },
-    {
-      // New MetBasis msUSD/msETH pool, live since the pool migration.
-      label: METBASIS_LABEL,
-      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
-      tokens: [
-        "0x526728DBc96689597F85ae4cd716d4f7fCcBAE9d", // msUSD
-        "0x7Ba6F01772924a82D9626c126347A28299E98c98", // msETH
-      ],
-      fromAddressFilter: "0x00145e8Fc9F06a0b71bd57fEfBF451ec1dB9D69f",
+      fromAddresses: ["0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514"],
     },
     {
       label: AERO_LABEL,
-      target: "0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6",
+      targets: ["0x3b06D40f1a7AD2D936B5F11A161e84DD637945B6"],
       tokens: [ADDRESSES.base.AERO], // AERO
       excludeFromAddresses: [
         "0x019a8a996B6cb2e2e12fe95997FA9ef733c99765", // old MetBasis gauge
         "0xdf2bd73E1aB97CecCc583466c86C95d2eD1c1514", // new MetBasis gauge
       ],
     },
+    {
+      label: METBASIS_LABEL,
+      targets: LP_WALLETS[CHAIN.BASE],
+      tokens: [XAERO[CHAIN.BASE]],
+      fromAddresses: ["0x5c7974887d29Ad70aEf991Dc4D5eD51a60d108a9"], // msUSD/msETH CL200 gauge
+    },
+    {
+      label: AERO_LABEL,
+      targets: LP_WALLETS[CHAIN.BASE],
+      tokens: [XAERO[CHAIN.BASE]],
+      fromAddresses: [
+        "0x58c012eC3Dd4d44aF2415A111EFfF69f879fe0F6", // msUSD/USDC CL50 gauge
+        "0xeb009555fd7aF2C5B841f7Ad9b737f5c4703Cd6A", // msUSD/USDC stable gauge
+        "0x165781eeAeff7658076F0b73A0C44a4D111b3534", // WETH/msETH CL50 gauge
+        "0xe932a09566A17d0d3EAbeE0C47544c6488Ea7fBe", // WETH/msETH stable gauge
+      ],
+    },
   ],
   [CHAIN.ETHEREUM]: [
     {
+      label: AERO_LABEL,
+      targets: LP_WALLETS[CHAIN.ETHEREUM],
+      tokens: [XAERO[CHAIN.ETHEREUM]],
+      fromAddresses: [
+        "0xeDF492e1Ab2C343654A1aebf5c6F1Ca21663dfF7", // msETH/WETH CL10 gauge
+        "0xA51c114bCdf70A3AFdE9D8879f012Cc5f58e7BEc", // USDC/msUSD CL1 gauge
+      ],
+    },
+    {
       label: CRV_OETH_FXN_REWARDS_LABEL,
-      target: "0xCE3187216B39ED222319D877956aC6b2eF1961E9",
+      targets: ["0xCE3187216B39ED222319D877956aC6b2eF1961E9"],
       tokens: [
         ADDRESSES.ethereum.CRV, // CRV
         "0x856c4Efb76C1D1AE02e20CEB03A2A6a08b0b8dC3", // OETH
@@ -193,13 +275,53 @@ const BLACKLISTED_TXS: Record<string, Set<string>> = {
   ]),
 };
 
-// logFilter excluding blacklisted txs. Handles both the indexer (`transaction_hash`)
-// and the getLogs fallback (`transactionHash`) field names.
-function txBlacklistFilter(chain: string): ((log: any) => boolean) | undefined {
-  const blacklist = BLACKLISTED_TXS[chain];
-  if (!blacklist?.size) return undefined;
+// logFilter excluding blacklisted txs and synths coming back from the treasury's own Aero LP
+// positions (principal or LP fees, the latter counted under the pool label). Handles both the
+// indexer (`transaction_hash`) and the getLogs fallback (`transactionHash`) field names.
+function synthInflowFilter(chain: string): (log: any) => boolean {
+  const blacklist = BLACKLISTED_TXS[chain] ?? new Set();
+  const lpSenders = new Set((AERO_POOLS[chain] ?? []).flatMap((p) => p.poolFees ? [p.pool, p.poolFees] : [p.pool]).map((a) => a.toLowerCase()));
   return (log: any) =>
-    !blacklist.has(String(log.transaction_hash ?? log.transactionHash ?? "").toLowerCase());
+    !blacklist.has(String(log.transaction_hash ?? log.transactionHash ?? "").toLowerCase()) &&
+    !lpSenders.has(String(log.from).toLowerCase());
+}
+
+async function addAeroLpFees(options: FetchOptions, dailyFees: ReturnType<FetchOptions["createBalances"]>) {
+  const pools = AERO_POOLS[options.chain];
+  if (!pools) return;
+  const wallets = LP_WALLETS[options.chain];
+  const walletSet = new Set(wallets.map((a) => a.toLowerCase()));
+  const clIdx = pools.map((p, i) => (p.poolFees ? -1 : i)).filter((i) => i >= 0);
+  if (clIdx.length) {
+    const targets = clIdx.map((i) => pools[i].pool);
+    const [collectLogs, burnLogs] = await Promise.all([
+      options.getLogs({ targets, eventAbi: CL_POOL_ABIS.collect, onlyArgs: false, flatten: false }),
+      options.getLogs({ targets, eventAbi: CL_POOL_ABIS.burn, onlyArgs: false, flatten: false }),
+    ]);
+    clIdx.forEach((poolIdx, j) => {
+      const key = (l: any) => `${l.transactionHash}-${l.args.tickLower}-${l.args.tickUpper}`;
+      const burned = new Map<string, [bigint, bigint]>();
+      for (const l of burnLogs[j]) {
+        const [b0, b1] = burned.get(key(l)) ?? [0n, 0n];
+        burned.set(key(l), [b0 + BigInt(l.args.amount0), b1 + BigInt(l.args.amount1)]);
+      }
+      for (const l of collectLogs[j]) {
+        if (!walletSet.has(String(l.args.recipient).toLowerCase())) continue;
+        const [b0, b1] = burned.get(key(l)) ?? [0n, 0n];
+        const fee0 = BigInt(l.args.amount0) - b0;
+        const fee1 = BigInt(l.args.amount1) - b1;
+        const { tokens, label } = pools[poolIdx];
+        if (fee0 > 0n) dailyFees.add(tokens[0], fee0, label);
+        if (fee1 > 0n) dailyFees.add(tokens[1], fee1, label);
+      }
+    });
+  }
+
+  for (const p of pools) {
+    if (!p.poolFees) continue;
+    const fees = await addTokensReceived({ options, tokens: p.tokens, targets: wallets, fromAddressFilter: p.poolFees });
+    dailyFees.addBalances(fees, p.label);
+  }
 }
 
 async function fetchUniV3Fees(options: FetchOptions): Promise<Record<string, ReturnType<FetchOptions["createBalances"]>>> {
@@ -313,7 +435,7 @@ const fetch = async (options: FetchOptions) => {
       options,
       tokens: SYNTHS[options.chain],
       targets: [TREASURY[options.chain]],
-      logFilter: txBlacklistFilter(options.chain),
+      logFilter: synthInflowFilter(options.chain),
     });
     synthInflows.subtract(amoBalances);
     synthInflows.subtract(swapFees);
@@ -324,17 +446,14 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addBalances(amoBalances, AMO_LABEL);
 
   for (const group of (EXTRA_INFLOWS[options.chain] ?? [])) {
-    const baseParams: any = { options, tokens: group.tokens, targets: [group.target] };
-    if (group.fromAddressFilter) baseParams.fromAddressFilter = group.fromAddressFilter;
-
-    const totals = await addTokensReceived(baseParams);
+    const totals = await addTokensReceived({ options, tokens: group.tokens, targets: group.targets, fromAdddesses: group.fromAddresses });
 
     if (group.excludeFromAddresses?.length) {
       for (const excluded of group.excludeFromAddresses) {
         const dup = await addTokensReceived({
           options,
           tokens: group.tokens,
-          targets: [group.target],
+          targets: group.targets,
           fromAddressFilter: excluded,
         });
         totals.subtract(dup);
@@ -343,6 +462,8 @@ const fetch = async (options: FetchOptions) => {
 
     dailyFees.addBalances(totals, group.label);
   }
+
+  await addAeroLpFees(options, dailyFees);
 
   const uniV3ByLabel = await fetchUniV3Fees(options);
   for (const [label, bal] of Object.entries(uniV3ByLabel)) {
@@ -377,8 +498,8 @@ const adapter: SimpleAdapter = {
   fetch,
   allowNegativeValue: true, // protocol revenue nets out MET distributions, which land monthly in lumps (~$47k on 2026-09-09) far above daily fees
   methodology: {
-    Fees:"Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/VELO/KITE/CRV/OETH/FXN) and UniV3 fees on treasury-owned positions.",
-    Revenue: "Same as Fees.",
+    Fees:"Synth interest and swap fees minted to the Metronome treasury, AMO harvest profits, MetBasis LP fees, other LP rewards (AERO/xAERO/VELO/KITE/CRV/OETH/FXN), and UniV3 and Aero LP fees on treasury-owned positions.",
+    Revenue: "All synth interest, swap fees, AMO profits, LP fees and LP rewards earned by the Metronome treasury.",
     ProtocolRevenue: "Revenue minus the MET distributed to holders; negative on distribution days.",
     HoldersRevenue: "MET distributed to holders.",
   },
@@ -387,8 +508,9 @@ const adapter: SimpleAdapter = {
       [SYNTH_INTEREST_LABEL]: "Interest on user debt (msUSD/msBTC 2%, msETH 1%).",
       [SYNTH_SWAP_FEES_LABEL]: "Fees on synth-to-synth swaps.",
       [AMO_LABEL]: "AMO harvest profits.",
-      [METBASIS_LABEL]: "MetBasis LP rewards on Base/OP/Plasma (AERO, VELO, msUSD/msETH).",
-      [AERO_LABEL]: "AERO rewards to the Base treasury (excl. MetBasis).",
+      [METBASIS_LABEL]: "MetBasis (msUSD/msETH) pool rewards and trading fees on Base/OP/Plasma (AERO, xAERO, VELO, msUSD/msETH).",
+      [AERO_LABEL]: "AERO and xAERO gauge rewards to the Base, OP and Ethereum treasury wallets (excl. MetBasis).",
+      [AERO_LP_LABEL]: "Trading fees on unstaked treasury positions in Aero pools other than MetBasis (CL fees net of withdrawn liquidity).",
       [VELO_KITE_LABEL]: "VELO/KITE rewards to the Optimism treasury (excl. MetBasis).",
       [CRV_OETH_FXN_REWARDS_LABEL]: "CRV/OETH/FXN rewards to the Ethereum treasury.",
       [UNIV3_LABEL]: "Ethereum UniV3 LP fees, net of same-tx liquidity withdrawals.",

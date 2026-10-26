@@ -867,7 +867,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: "0x98e19A533FadB2C9853983772E4e7aa09a1478e0", fees: 0.003, revenueRatio: 0.16, start: "2025-07-26" },
   },
   "catnip": {
-    [CHAIN.ROBINHOOD]: { factory: "0x002EC9782d70f4e79396c58964D4691cA648FB49", fees: 0.003, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-14" }
+    // 0.3% swap fee; feeTo is set to the NIP maker, and AlleyPair._mintFee mints it 1/3 of fee growth
+    // (denominator rootK * 2 + rootKLast), which the maker converts to NIP for the xNIP vault (Catnip Cache)
+    [CHAIN.ROBINHOOD]: { factory: "0x002EC9782d70f4e79396c58964D4691cA648FB49", fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 0, holdersRevenueRatio: 1 / 3, start: "2026-07-14" }
   },
   "sheriff-v2": {
     [CHAIN.ROBINHOOD]: { factory: "0x10F7D1eF77f58181484936170430DF13539C5162", fees: 0.005, revenueRatio: 0.3, protocolRevenueRatio: 0.3, start: "2026-07-03" }

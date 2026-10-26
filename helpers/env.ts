@@ -51,9 +51,7 @@ const DEFAULTS: any = {
   // songbird-api.flare.network, rpc.au.cc and thirdweb now answer "missing trie node" even 100 blocks back, tatum gates eth_call behind a paid plan, sgb.ftso.com.au times out
   SONGBIRD_RPC: 'https://songbird-explorer.flare.network/api/eth-rpc,https://songbird-api.flare.network/ext/C/rpc',
   SONGBIRD_ARCHIVAL_RPC: 'https://rpc.au.cc/songbird,https://songbird-explorer.flare.network/api/eth-rpc', // for getLogs: rpc.au.cc handles 5000-block ranges uncapped, blockscout proxy as fallback (caps at 1000 logs)
-  // keyless ankr: historical state (eth_call 17M blocks back) and eth_getLogs over 5000-block ranges with no result cap.
-  FLARE_RPC: 'https://rpc.ankr.com/flare',
-  FLARE_ARCHIVAL_RPC: 'https://rpc.ankr.com/flare',
+  FLARE_WHITELISTED_RPC: 'https://rpc.ankr.com/flare,https://flare.rpc.thirdweb.com',
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
@@ -64,10 +62,6 @@ const DEFAULTS: any = {
   ARC_RPC: 'https://rpc.drpc.mainnet.arc.io,https://rpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io',
   ARC_RPC_CHAIN_ID: '5042',
   ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io,https://rpc.nodeflare.app/arc/public', // public archive fallbacks; use <=100k-block log ranges
-  // Arc is not in the SDK Multicall3 deployment map; canonical Multicall3 is deployed there.
-  ARC_RPC_MULTICALL: '0xcA11bde05977b3631167028862bE2a173976CA11',
-  ARC_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
-  ARC_MULTICALL_CHUNK_SIZE: '50',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
   STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head

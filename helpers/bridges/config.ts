@@ -91,7 +91,7 @@ export const circleGatewayBridge = (domain: number, start?: string): BridgeChain
 // native, CCTP v2 and non-EVM bridge contracts only emit on the source chain. No transaction emits both ActionSource and a
 // bridge event (checked on Ethereum and BSC). https://docs.interport.fi
 // ---------------------------------------------------------------------------------------------------
-const INTERPORT_NATIVE = { "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": ADDRESSES.null };
+const INTERPORT_NATIVE = { [ADDRESSES.GAS_TOKEN_2]: ADDRESSES.null };
 const INTERPORT_TOKEN_AMOUNT = "(address token, uint256 amount)[] tokenAmounts";
 export type InterportContracts = {
   actionExecutor?: string; ccipToken?: string; ccipV2?: string; ccipBacked?: string; cctpV2?: string; nonEvm?: string;
@@ -299,6 +299,20 @@ export const polygonPosBridge = (start?: string): BridgeChainConfig => {
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Alcor Bridge: lock/mint between EVM chains and Antelope, with Telos as the hub. One AlcorVault per EVM
+// chain locks every asset (the zero address is the native coin); Telos light clients prove deposits there,
+// and the vault releases withdrawals once Telos is proved back to it. Released `amount` is what the
+// recipient gets, `fee` goes to whoever delivered the proof. https://telos.alcor.exchange/api/bridge/docs/bot
+// ---------------------------------------------------------------------------------------------------
+export const alcorBridge = (vault: string, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event Deposit(address indexed token, address indexed from, uint256 amount, uint64 canonical, uint64 telosTo, uint64 nonce, address refundTo, uint64 fillFee, uint64 filler, bytes memo)", targets: [vault], direction: "outgoing", tokenArg: "token", amountArg: "amount" },
+    { eventAbi: "event Released(uint64 indexed id, address indexed token, address indexed to, uint256 amount, address feeTo, uint256 fee)", targets: [vault], direction: "incoming", tokenArg: "token", amountArg: "amount" },
+  ],
+});
+
+// ---------------------------------------------------------------------------------------------------
 // Allbridge Classic: lock/burn deposits arrive as transfers into the bridge, unlocks/mints emit Received.
 // Same bridge address on every chain. https://docs-classic.allbridge.io
 // ---------------------------------------------------------------------------------------------------
@@ -320,7 +334,7 @@ const omnibridgeEvents = (mediator: string): BridgeEvent[] => [
   { eventAbi: "event TokensBridged(address indexed token, address indexed recipient, uint256 value, bytes32 indexed messageId)", targets: [mediator], direction: "incoming", tokenArg: "token", amountArg: "value" },
 ];
 // the xDai bridge invests idle DAI in sDAI; those moves are not user transfers
-const SDAI = "0x83f20f44975d03b1b09e64809b757c47f942beea";
+const SDAI = ADDRESSES.ethereum.SDAI;
 
 export const gnosisBridgeEthereum = (start?: string): BridgeChainConfig => ({
   start,
@@ -338,8 +352,8 @@ export const gnosisBridgeGnosis = (start?: string): BridgeChainConfig => {
     events: [
       ...omnibridgeEvents("0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d"),
       // native xDAI, priced as WXDAI
-      { eventAbi: "event UserRequestForSignature(address recipient, uint256 value)", targets: xdaiHome, direction: "outgoing", fixedToken: "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d", amountArg: "value" },
-      { eventAbi: "event AffirmationCompleted(address recipient, uint256 value, bytes32 transactionHash)", targets: xdaiHome, direction: "incoming", fixedToken: "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d", amountArg: "value" },
+      { eventAbi: "event UserRequestForSignature(address recipient, uint256 value)", targets: xdaiHome, direction: "outgoing", fixedToken: ADDRESSES.xdai.WXDAI, amountArg: "value" },
+      { eventAbi: "event AffirmationCompleted(address recipient, uint256 value, bytes32 transactionHash)", targets: xdaiHome, direction: "incoming", fixedToken: ADDRESSES.xdai.WXDAI, amountArg: "value" },
     ],
   };
 };
@@ -362,7 +376,7 @@ export const xswapBridge = (start?: string): BridgeChainConfig => {
 // Aori: Deposit locks the order's input on the source chain, Withdraw releases balances on the
 // destination. Native gas token is reported as 0xEeee...EEeE. https://docs.aori.io
 // ---------------------------------------------------------------------------------------------------
-const AORI_NATIVE = { "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": ADDRESSES.null };
+const AORI_NATIVE = { [ADDRESSES.GAS_TOKEN_2]: ADDRESSES.null };
 export const aoriBridge = (contract: string, start?: string): BridgeChainConfig => ({
   start,
   events: [
@@ -414,7 +428,7 @@ export const eclipseBridge = (start?: string): BridgeChainConfig => {
 // ---------------------------------------------------------------------------------------------------
 // Core Bitcoin Bridge, BTC.b on Avalanche. https://core.app/bridge
 export const coreBitcoinBridge = (start?: string): BridgeChainConfig => {
-  const btcb = "0x152b9d0FdC40C096757F570A51E494bd4b943E50";
+  const btcb = ADDRESSES.avax.BTC_b;
   return {
     start,
     events: [
@@ -428,7 +442,7 @@ export const coreBitcoinBridge = (start?: string): BridgeChainConfig => {
 // https://docs.threshold.network/applications/tbtc-v2
 export const thresholdTbtcBridge = (start?: string): BridgeChainConfig => {
   const vault = ["0x9C070027cdC9dc8F82416B2e5314E11DFb4FE3CD"];
-  const tbtc = "0x18084fbA666a33d37592fA2633fD49a74DD93a88";
+  const tbtc = ADDRESSES.ethereum.tBTC;
   return {
     start,
     events: [
@@ -530,7 +544,7 @@ export const zkBridge = (contracts: [string, Record<number, string>][], start?: 
 // bridges (yBridge-routed requests are skipped, its own events count them). Native is 0xEeee...EEeE.
 // https://docs.xy.finance/smart-contract/addresses
 // ---------------------------------------------------------------------------------------------------
-const XY_NATIVE = { "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": ADDRESSES.null };
+const XY_NATIVE = { [ADDRESSES.GAS_TOKEN_2]: ADDRESSES.null };
 export const xyBridge = (contracts: { yBridge: string; router: string }, start?: string): BridgeChainConfig => ({
   start,
   events: [

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
@@ -12,7 +13,7 @@ const ISMP_HOST = "0x620128E2B19193d6Bd244a3AC8D3bBa0541B19c3";
 const HANDLER = "0x2a18AB35DEa43474882E05A661e2F20fe89c0535";
 const INTENT_GATEWAY = "0xAe041F7B0CB581876832830baeB6a2Aa2a3C9716";
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const TOKEN_INFO = "tuple(bytes32 token, uint256 amount)[]";
 

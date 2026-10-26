@@ -352,7 +352,7 @@ const v1Entries: Record<string, any> = {
       redemptionEvent: 'event Redemption(uint256 _attemptedTHUSDAmount, uint256 _actualTHUSDAmount, uint256 _collateralSent, uint256 _ETHFee)',
       borrowingEvent: 'event THUSDBorrowingFeePaid(address indexed _borrower, uint256 _LUSDFee)',
       stableCoin: '0xCFC5bD99915aAa815401C5a41A927aB7a38d29cf',
-      collateralCoin: '0x18084fbA666a33d37592fA2633fD49a74DD93a88', // tBTC
+      collateralCoin: ADDRESSES.ethereum.tBTC, // tBTC
       protocolRevenuePercentage: 100,
     },
   },
@@ -394,7 +394,7 @@ const v1Entries: Record<string, any> = {
     [CHAIN.PULSECHAIN]: {
       troveManager: '0x118b7CF595F6476a18538EAF4Fbecbf594338B39',
       stableCoin: '0xeb6b7932da20c6d7b3a899d5887d86dfb09a6408',
-      collateralCoin: '0x95b303987a60c71504d99aa1b13b4da07b0790ab', // PLSX
+      collateralCoin: ADDRESSES.pulse.PLSX, // PLSX
       holderRevenuePercentage: 100,
     },
   },
@@ -402,7 +402,7 @@ const v1Entries: Record<string, any> = {
     [CHAIN.PULSECHAIN]: {
       troveManager: '0xC2D0720721d48cE85e20Dc9E01B8449D7eDd14CE',
       stableCoin: '0x1fe0319440a672526916c232eaee4808254bdb00',
-      collateralCoin: '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39', // HEX
+      collateralCoin: ADDRESSES.pulse.HEX, // HEX
       holderRevenuePercentage: 100,
     },
   },

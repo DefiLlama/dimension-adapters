@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { Interface } from 'ethers';
 import { CHAIN } from '../helpers/chains';
@@ -61,7 +62,14 @@ const partnerExecutor = '0xe057c06010d6bbe1a8eb371ab8ffdf4024379d60';
 // record of both v2 volume (gross output) and Route fees. The October 1 executor pays its fee to
 // the treasury Safe; the flywheel and partner executors pay it into the 60/5/35 revenue manager
 // (its buybacks are counted from the manager's Executed events below, not here).
+// RouteEntry (October 7, 2026): the permanent spender. route.fun and partner keys settle through it
+// since October 18-20, 2026, with the same Settled/PartnerFee ABI; its Route fees go to the 60/5/35
+// manager through FeeSinkModule 0xD3Cd…8909. Zap-ins also emit Settled (in the vault asset).
+// https://repo.sourcify.dev/4663/0x15dBb64b42EABe52A6ddc377e966F408756815BE
+const routeEntry = '0x15dbb64b42eabe52a6ddc377e966f408756815be';
+const zapEvent = 'event Zap(address indexed vault,bool deposit,uint256 assets,uint256 shares)';
 const v2Collectors = [
+  routeEntry,
   // Route v2 flywheel executor, used by route.fun and partner keys since October 6, 2026.
   // https://repo.sourcify.dev/4663/0x2cDD127B79290Af1c32a64fE3E2f69A8F8c7211B
   '0x2cdd127b79290af1c32a64fe3e2f69a8f8c7211b',
@@ -77,7 +85,7 @@ const v2Collectors = [
 ];
 // The partner fee (bps of the gross output, on top of Route's fee) goes to the integrating partner's
 // wallet, converted to USDG in the same swap when possible. It is the partner's income, not Route's:
-// reported as supply-side, like builder fees. feeAmount is in the swap's tokenOut.
+// reported as supply-side, like builder fees, at the amount actually paid (paidToken/paidAmount).
 const partnerFee = 'event PartnerFee(address indexed partner,address indexed tokenOut,uint256 feeAmount,address paidToken,uint256 paidAmount)';
 // Builder executors call the engines above, whose Swapped events already carry the volume.
 // Their own Route fee and integrator fee are only reported in BuilderSettled.
@@ -152,9 +160,46 @@ const poolManager = '0x8366a39cc670b4001a1121b8f6a443a643e40951';
 const poolSwap = 'event Swap(bytes32 indexed id,address indexed sender,int128 amount0,int128 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick,uint24 fee)';
 const poolSwapTopics = new Interface([poolSwap]).encodeFilterTopics('Swap', [routePool]) as string[];
 
+// Completed swaps, counted once per trade: volume and the set of swap transactions.
+export const fetchRouteSwaps = async (options: FetchOptions, toBlock: number) => {
+  const dailyVolume = options.createBalances();
+  const swapTxs = new Set<string>();
+  const executorBuybacks: bigint[] = [];
+  for (const eventAbi of swapEvents) {
+    const logs = await options.getLogs({ toBlock, targets: engines, eventAbi, onlyArgs: false });
+    for (const entry of logs) {
+      const log = entry.args;
+      // Wrappers emit the final swap as well as their inner engine. Count only the outer one.
+      // The tiered collector is NOT in engines: it emits Settled, so its engine swap counts once.
+      if (engines.includes(log.sender.toLowerCase())) continue;
+      swapTxs.add(entry.transactionHash.toLowerCase());
+      if (!isVolumeExcluded(log.sender, log.recipient)) addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
+      // Three historical buys used Route executors, not the Pons-router pool registry.
+      if (earlyExecutorBuybacks.has(entry.transactionHash)) {
+        if (log.sender.toLowerCase() !== devWallet || log.recipient.toLowerCase() !== devWallet ||
+            log.tokenIn.toLowerCase() !== ADDRESSES.null ||
+            log.tokenOut.toLowerCase() !== routeToken) throw new Error('Unexpected historical executor buyback');
+        executorBuybacks.push(BigInt(log.amountIn.toString()));
+      }
+    }
+  }
+  // Vault deposits/withdrawals (zaps) are not swaps: their Settled is fee accounting only.
+  const zaps = await options.getLogs({ toBlock, target: routeEntry, eventAbi: zapEvent, onlyArgs: false });
+  const zapTxs = new Set(zaps.map((log: any) => log.transactionHash.toLowerCase()));
+  const v2Settlements = await options.getLogs({ toBlock, targets: v2Collectors, eventAbi: settled, onlyArgs: false });
+  for (const entry of v2Settlements) {
+    const log = entry.args;
+    const tx = entry.transactionHash.toLowerCase();
+    const emitter = String(entry.address ?? entry.source ?? '').toLowerCase();
+    if (zapTxs.has(tx) && emitter === routeEntry) continue;
+    swapTxs.add(tx);
+    if (!isVolumeExcluded(log.sender, log.recipient)) dailyVolume.add(log.tokenOut, log.grossAmountOut);
+  }
+  return { dailyVolume, swapTxs, executorBuybacks, v2Settlements: v2Settlements.map((entry: any) => entry.args) };
+};
+
 // Capital allocation is retained separately; it is not a supported DefiLlama income metric.
 export const fetchRouteAccounting = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -165,23 +210,8 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   const fromBlock = await options.getFromBlock();
   // SDK log ranges are inclusive; adjacent hourly pulls share their boundary block.
   const toBlock = (await options.getToBlock()) - 1;
-  for (const eventAbi of swapEvents) {
-    const logs = await options.getLogs({ toBlock, targets: engines, eventAbi, onlyArgs: false });
-    for (const entry of logs) {
-      const log = entry.args;
-      // Wrappers emit the final swap as well as their inner engine. Count only the outer one.
-      // The tiered collector is NOT in engines: it emits Settled, so its engine swap counts once.
-      if (engines.includes(log.sender.toLowerCase())) continue;
-      if (!isVolumeExcluded(log.sender, log.recipient)) addOneToken({ balances: dailyVolume, token0: log.tokenIn, amount0: log.amountIn, token1: log.tokenOut, amount1: log.amountOut });
-      // Three historical buys used Route executors, not the Pons-router pool registry.
-      if (earlyExecutorBuybacks.has(entry.transactionHash)) {
-        if (log.sender.toLowerCase() !== devWallet || log.recipient.toLowerCase() !== devWallet ||
-            log.tokenIn.toLowerCase() !== '0x0000000000000000000000000000000000000000' ||
-            log.tokenOut.toLowerCase() !== routeToken) throw new Error('Unexpected historical executor buyback');
-        addBuyback(log.amountIn.toString());
-      }
-    }
-  }
+  const { dailyVolume, swapTxs, executorBuybacks, v2Settlements } = await fetchRouteSwaps(options, toBlock);
+  executorBuybacks.forEach(addBuyback);
   const oldFees = await options.getLogs({ toBlock, targets: engines, eventAbi: feePaid });
   const currentFees = await options.getLogs({ toBlock, targets: collectors, eventAbi: settled });
   const integratedFees = await options.getLogs({ toBlock, targets: integratedFeeExecutors, eventAbi: outputFee });
@@ -197,16 +227,17 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
     dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
     dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
   }
-  const v2Settlements = await options.getLogs({ toBlock, targets: v2Collectors, eventAbi: settled });
   for (const log of v2Settlements) {
-    if (!isVolumeExcluded(log.sender, log.recipient)) dailyVolume.add(log.tokenOut, log.grossAmountOut);
     dailyFees.add(log.tokenOut, log.feeAmount, 'Swap Fees');
     dailyRevenue.add(log.tokenOut, log.feeAmount, 'Swap Fees To Route');
   }
-  const partnerFees = await options.getLogs({ toBlock, target: partnerExecutor, eventAbi: partnerFee });
+  const partnerFees = await options.getLogs({ toBlock, targets: [partnerExecutor, routeEntry], eventAbi: partnerFee });
   for (const log of partnerFees) {
-    dailyFees.add(log.tokenOut, log.feeAmount, 'Partner Fees');
-    dailySupplySideRevenue.add(log.tokenOut, log.feeAmount, 'Partner Fees');
+    // paidAmount 0: the partner fee could not be paid and stayed with the order.
+    if (BigInt(log.paidAmount) === 0n) continue;
+    // Count what the partner actually received: USDG when converted in the swap, else the fee asset.
+    dailyFees.add(log.paidToken, log.paidAmount, 'Partner Fees');
+    dailySupplySideRevenue.add(log.paidToken, log.paidAmount, 'Partner Fees');
   }
   const builderSettlements = await options.getLogs({ toBlock, targets: builderExecutors, eventAbi: builderSettled });
   for (const log of builderSettlements) {
@@ -250,13 +281,13 @@ export const fetchRouteAccounting = async (options: FetchOptions) => {
   const dailyProtocolRevenue = dailyRevenue.clone();
   dailyProtocolRevenue.addGasToken((-buybackEth).toString(), METRIC.TOKEN_BUY_BACK);
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue, dailyCapitalAllocation };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue, dailyCapitalAllocation, dailyTransactionsCount: swapTxs.size };
 };
 
 // Route's Arc executor (first swap September 16) charges no Route fee: volume only.
 // https://arcscan.app/address/0x33C65bA72B023BF6B207D7B62275630cA433AFB8
 const arcExecutor = '0x33c65ba72b023bf6b207d7b62275630ca433afb8';
-const arcUsdc = '0x3600000000000000000000000000000000000000';
+const arcUsdc = ADDRESSES.arc.USDC;
 export const arcExecuted = 'event Executed(address indexed sender,address indexed recipient,address tokenIn,address tokenOut,uint256 amountIn,uint256 amountOut)';
 export const fetchArc = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -278,7 +309,7 @@ const adapter: SimpleAdapter = {
   fetch: async (options) => {
     if (options.chain === CHAIN.ARC) return fetchArc(options);
     // Only export supported income/volume dimensions; LP funding is not holder income.
-    const { dailyCapitalAllocation, ...incomeAndVolume } = await fetchRouteAccounting(options);
+    const { dailyCapitalAllocation, dailyTransactionsCount, ...incomeAndVolume } = await fetchRouteAccounting(options);
     return incomeAndVolume;
   },
   adapter: {
@@ -287,7 +318,7 @@ const adapter: SimpleAdapter = {
   },
   allowNegativeValue: true, // Buybacks can use revenue collected in an earlier period.
   methodology: {
-    Volume: 'Completed swaps through every Route settlement generation (original engines, fee collectors and provider executors, builder integrations and the Route v2 executors: the October 1, 2026 executor, the flywheel executor route.fun and partners use since October 6, and the partner executor), counted once per trade, including integrations and treasury trades but excluding quotes, individual pool hops and swaps sent from or to wallet 0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d, which Route excludes from its own reported volume.',
+    Volume: 'Completed swaps through every Route settlement generation (original engines, fee collectors and provider executors, builder integrations and the Route v2 executors: the October 1, 2026 executor, the flywheel executor route.fun and partners used from October 6, the partner executor, and RouteEntry, which route.fun and partners use since October 18-20), counted once per trade, including integrations and treasury trades but excluding quotes, individual pool hops, RouteEntry vault zaps (deposits/withdrawals, not swaps) and swaps sent from or to wallet 0xd5d7c80c9f8ddd278526a2e46f0a57275fa6116d, which Route excludes from its own reported volume.',
     Fees: 'Actual Route swap fees (including builder-integration and Route v2 swaps), integrator fees on builder swaps, partner fees on partner-executor swaps, and ROUTE creator fees from its original bonding curve and Pons pool, excluding gas, other providers\' fees, API subscriptions, private transfers and cross-chain fees.',
     Revenue: 'Swap fees and ROUTE creator fees earned by Route, counted once before buybacks and treasury spending; integrator fees paid to builders and partner fees paid to partners are excluded.',
     ProtocolRevenue: 'Tracked revenue less revenue-funded ROUTE buybacks, which may spend receipts from earlier days; LP funding is a separate capital allocation, not a revenue deduction.',

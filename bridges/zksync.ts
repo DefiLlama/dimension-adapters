@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -8,8 +9,8 @@ import { CHAIN } from "../helpers/chains";
 // https://docs.zksync.io/zk-stack/zk-chain-addresses
 const NATIVE_TOKEN_VAULT = "0xbeD1EB542f9a5aA6419Ff3deb921A372681111f6";
 const ERA_CHAIN_ID = 324;
-const ETH_SENTINEL = "0x0000000000000000000000000000000000000001";
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const ETH_SENTINEL = ADDRESSES.linea.WETH_1;
+const NATIVE = ADDRESSES.null;
 
 const fetch = async (options: FetchOptions) => {
   const dailyOutgoingVolume = options.createBalances();

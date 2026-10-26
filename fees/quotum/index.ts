@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 // Published deployment and economics: https://quotum.org/docs#contracts
 const SINK = "0x42AbC7b64eD47dB6899b4F01Aa6c765c600a53a2";
-const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
+const NVDA = ADDRESSES.robinhood.NVDA;
 const CLAIMED = "event Claimed(uint256 nvda, uint256 ops)";
 const FORWARDED = "event Forwarded(uint256 nvda)";
 const BURNED = "event Burned(uint64 indexed session, uint256 usd, uint256 nvdaIn, uint256 tokens, uint256 twap)";

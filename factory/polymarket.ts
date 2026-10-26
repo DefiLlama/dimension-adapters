@@ -33,9 +33,10 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
   "cro-trade-predict": { builder: "crotrade", start: "2026-06-03", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4" },
   "whalidate": { builder: "Whalidate", start: "2026-10-01", builderCode: "0x7043f01555796d800d711fd807cbb367bd260d85ba45b052ac472b1e049d596f" },
+  "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
 };
 
-const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean }> = {
+const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
   "polygun": { builderName: "Polygun", builderCode: "0xd625c78659cda77fc5e1b2c2657ec4ecc9187ec82fbc4a2300337269332c046b", start: "2026-04-28" },
   "bullpen": { builderName: "Bullpen", builderCode: "0x2a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", start: "2026-04-21" },
   "evplusai": { builderName: "EvplusAI", builderCode: "0xb8d6bf0c9ec3c806c30fcb0e8da931f2940a5141cf420394c4b1d82ae7c6d415", start: "2026-04-28" },
@@ -49,6 +50,9 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "smartx": { builderName: "SmartX", builderCode: "0x58d3820045831c879b218ec64514dc191eebadf31a4641670293fddf542643c3", start: "2026-04-28" },
   "virae": { builderName: "Virae.ai", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc", start: "2026-04-28" },
   "cro-trade-predict": { builderName: "crotrade", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4", start: "2026-06-03", revenueToHolders: true },
+  // Onagi pools these with its other fees (fees/onagi.ts, dexs/onagi-perps.ts) and splits all of it the same way:
+  // 50% USDG payouts to ONAGI holders + 25% ONAGI buyback and burn, 25% treasury (split.*Bps in https://onagi.si/data/cycles.json)
+  "onagi-predict": { builderName: "Onagi", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f", start: "2026-10-22", holdersRevenueRatio: 0.75 },
 }
 
 const dexsProtocols: Record<string, any> = {};

@@ -4,16 +4,18 @@ import { METRIC } from "../helpers/metrics";
 import { ChainApi } from "@defillama/sdk";
 
 /**
- * Umbrae runs two AMM designs on Base:
+ * Umbrae runs two AMM designs:
  *
- *  - DLMM: a Liquidity Book style discrete-bin concentrated-liquidity AMM. Two
- *    generations are live. The original factory is now paused for trading (its
- *    pairs remain open for LP withdrawals) but carries the protocol's swap
- *    history, so it stays in the adapter for backfill. The v2 factory takes
- *    current traffic. Both implementations emit the same `SwapDetailed` event.
- *  - DAMM: a dynamic-fee constant-product AMM.
+ *  - DLMM: a Liquidity Book style discrete-bin concentrated-liquidity AMM. On
+ *    Base two generations are live. The original factory is now paused for
+ *    trading (its pairs remain open for LP withdrawals) but carries the
+ *    protocol's swap history, so it stays in the adapter for backfill. The v2
+ *    factory takes current traffic. Robinhood Chain runs the same DLMM v2
+ *    contracts from its own factory. All implementations emit the same
+ *    `SwapDetailed` event.
+ *  - DAMM: a dynamic-fee constant-product AMM (Base only).
  *
- * All three factories expose the same enumeration surface
+ * All factories expose the same enumeration surface
  * (`allPairsLength()` / `allPairs(uint256)`) and their pairs expose
  * `tokenX()` / `tokenY()`.
  */
@@ -25,14 +27,32 @@ import { ChainApi } from "@defillama/sdk";
 // https://basescan.org/address/0x17Da44dcbdffD8c715be7A368E19F252C2940Fee#code
 // https://basescan.org/address/0x9DBB9289d0D75508b5D8EE01FfE4eb7c412F733b#code
 // https://basescan.org/address/0xD14322b444415d78DBBF646BB369Ec325a1aCD5c#code
-// Deployment blocks are the factories' creation transactions on Basescan.
-const DLMM_FACTORIES = [
-  { factory: "0x17Da44dcbdffD8c715be7A368E19F252C2940Fee", fromBlock: 43528312 }, // original deployment (paused for trading, LP withdrawals only)
-  { factory: "0x9DBB9289d0D75508b5D8EE01FfE4eb7c412F733b", fromBlock: 50392460 }, // v2
-];
-const DAMM_FACTORIES = [
-  { factory: "0xD14322b444415d78DBBF646BB369Ec325a1aCD5c", fromBlock: 45693740 }, // v4
-];
+// https://robinscan.io/address/0xea3a13d8734b53A322181885E8c6C3D82FFb3A02
+// Base deployment blocks are the factories' creation transactions on Basescan.
+// The Robinhood Chain block is the first block at which the factory has code.
+type Factory = { factory: string; fromBlock: number };
+type ChainConfig = { dlmmFactories: Factory[]; dammFactories: Factory[]; u1LockVault?: string };
+
+const config: Record<string, ChainConfig> = {
+  [CHAIN.BASE]: {
+    dlmmFactories: [
+      { factory: "0x17Da44dcbdffD8c715be7A368E19F252C2940Fee", fromBlock: 43528312 }, // original deployment (paused for trading, LP withdrawals only)
+      { factory: "0x9DBB9289d0D75508b5D8EE01FfE4eb7c412F733b", fromBlock: 50392460 }, // v2
+    ],
+    dammFactories: [
+      { factory: "0xD14322b444415d78DBBF646BB369Ec325a1aCD5c", fromBlock: 45693740 }, // v4
+    ],
+    // Immutable U1TokenLockVault; RewardsAdded credits WETH to U1 lockers.
+    // https://basescan.org/address/0xf771F202e8B49612e83f18B68D6b268765A40F72#code
+    u1LockVault: "0xf771F202e8B49612e83f18B68D6b268765A40F72",
+  },
+  [CHAIN.ROBINHOOD]: {
+    dlmmFactories: [
+      { factory: "0xea3a13d8734b53A322181885E8c6C3D82FFb3A02", fromBlock: 88948093 }, // v2, deployed 2026-10-15
+    ],
+    dammFactories: [],
+  },
+};
 
 // DLMM reports the fee split on every swap, so no rate needs to be assumed:
 // `totalFee` == `protocolFee` + `lpFee`, all denominated in the swap's INPUT
@@ -55,10 +75,6 @@ const abi = {
   lpFees: "uint256:lpFeesAccumulated",
 };
 
-// Immutable U1TokenLockVault; RewardsAdded credits WETH to U1 lockers.
-// https://basescan.org/address/0xf771F202e8B49612e83f18B68D6b268765A40F72#code
-const U1_LOCK_VAULT = "0xf771F202e8B49612e83f18B68D6b268765A40F72";
-
 const SWAP_FEES_TO_LPS = "Swap Fees To LPs";
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
 const LOCKER_REWARDS = "U1 Locker Distributions";
@@ -74,7 +90,7 @@ type ClaimLog = { blockNumber: number; logIndex: number; args: { amount: bigint;
  */
 async function listPairs(
   api: ChainApi,
-  factories: { factory: string; fromBlock: number }[],
+  factories: Factory[],
   block: number,
 ): Promise<string[]> {
   const deployed = factories.filter((f) => block >= f.fromBlock);
@@ -102,8 +118,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     throw new Error("Umbrae: invalid block window");
   // SDK log bounds are inclusive. Exclude the previous window's final block.
   const logWindow = { fromBlock: fromBlock + 1, toBlock };
-  const dlmmPairs = await listPairs(options.api, DLMM_FACTORIES, toBlock);
-  const dammPairs = await listPairs(options.api, DAMM_FACTORIES, toBlock);
+  const { dlmmFactories, dammFactories, u1LockVault } = config[options.chain];
+  const dlmmPairs = await listPairs(options.api, dlmmFactories, toBlock);
+  const dammPairs = await listPairs(options.api, dammFactories, toBlock);
 
   // ---------------------------------------------------------------- DLMM ----
   if (dlmmPairs.length) {
@@ -135,7 +152,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const feeToken = await options.api.multiCall({ abi: abi.feeToken, calls: dammPairs });
     const protocolFees = await options.api.multiCall({ abi: abi.protocolFees, calls: dammPairs });
     const lpFees = await options.api.multiCall({ abi: abi.lpFees, calls: dammPairs });
-    const oldPairs = await listPairs(options.fromApi, DAMM_FACTORIES, fromBlock);
+    const oldPairs = await listPairs(options.fromApi, dammFactories, fromBlock);
     const oldFeeToken = await options.fromApi.multiCall({ abi: abi.feeToken, calls: oldPairs });
     const oldProtocolFees = await options.fromApi.multiCall({ abi: abi.protocolFees, calls: oldPairs });
     const oldLpFees = await options.fromApi.multiCall({ abi: abi.lpFees, calls: oldPairs });
@@ -199,13 +216,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     });
   }
 
-  const rewards = await options.getLogs({ target: U1_LOCK_VAULT, eventAbi: "event RewardsAdded(address indexed funder, uint256 amount, uint256 newRewardIndex)", ...logWindow });
-  if (rewards.length) {
-    const rewardToken = await options.api.call({ target: U1_LOCK_VAULT, abi: "address:rewardToken" });
-    for (const reward of rewards) {
-      dailyFees.add(rewardToken, reward.amount, LOCKER_REWARDS);
-      dailyRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
-      dailyHoldersRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+  // ------------------------------------------------- U1 locker rewards ----
+  if (u1LockVault) {
+    const rewards = await options.getLogs({ target: u1LockVault, eventAbi: "event RewardsAdded(address indexed funder, uint256 amount, uint256 newRewardIndex)", ...logWindow });
+    if (rewards.length) {
+      const rewardToken = await options.api.call({ target: u1LockVault, abi: "address:rewardToken" });
+      for (const reward of rewards) {
+        dailyFees.add(rewardToken, reward.amount, LOCKER_REWARDS);
+        dailyRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+        dailyHoldersRevenue.add(rewardToken, reward.amount, LOCKER_REWARDS);
+      }
     }
   }
 
@@ -222,11 +242,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const methodology = {
   Volume:
-    "Sum of the input amount of every swap on Umbrae's DLMM (Liquidity Book style concentrated liquidity) and DAMM (dynamic-fee constant product) pools on Base. Pools are enumerated on chain from their factories and volume is read from each pool's swap events.",
+    "Sum of the input amount of every swap on Umbrae's DLMM (Liquidity Book style concentrated liquidity) pools on Base and Robinhood Chain and DAMM (dynamic-fee constant product) pools on Base. Pools are enumerated on chain from their factories and volume is read from each pool's swap events.",
   Fees: "Swap fees on the listed DLMM and DAMM factories plus WETH credited to U1 lockers. Excludes aggregator, keeper, flash-loan and liquidity-composition fees. DLMM uses SwapDetailed; DAMM uses changes in protocol and LP fee accumulators plus claims, in each historical fee token.",
   Revenue: "The protocol's share of swap fees accruing to the fee recipient, plus WETH credited to U1 lockers (including external funding).",
   ProtocolRevenue: "Gross protocol swap-fee share accruing to the fee treasury.",
-  HoldersRevenue: "Actual WETH distributions credited to U1 lockers by RewardsAdded, including external funding. Counted in Fees and Revenue at funding time, not again when users claim. No fixed forwarding percentage is assumed.",
+  HoldersRevenue: "Actual WETH distributions credited to U1 lockers (Base) by RewardsAdded, including external funding. Counted in Fees and Revenue at funding time, not again when users claim. No fixed forwarding percentage is assumed.",
   SupplySideRevenue: "The share of swap fees that accrues to liquidity providers.",
   UserFees: "Swap fees paid by traders. Locker distributions are not user fees.",
 };
@@ -257,9 +277,16 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.BASE],
-  start: "2026-03-18", // Base block 43528312, first DLMM factory deployment
+  adapter: {
+    [CHAIN.BASE]: {
+      fetch,
+      start: "2026-03-18", // Base block 43528312, first DLMM factory deployment
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch,
+      start: "2026-10-15", // Robinhood Chain block 88948093, DLMM v2 factory deployment
+    },
+  },
   methodology,
   breakdownMethodology,
 };

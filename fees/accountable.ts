@@ -376,6 +376,10 @@ const fetch = async (options: FetchOptions) => {
       `Accountable: no feeManager for ${strategies[orphan]} on ${options.chain}, refusing to book its yield as fee-free`,
     );
 
+  // Not tracked: the credit strategies' establishment fee, paid in the asset on
+  // repayment through `FeeManager.collect` and kept in full by the protocol.
+  // No live vault sets one (`establishmentFee` is 0 on all of them as of
+  // 2026-10-19), so it books nothing today.
   if (active.length) {
     const fmCall = (abi: string, extra?: boolean) =>
       toApi.multiCall({
@@ -579,27 +583,26 @@ const fetch = async (options: FetchOptions) => {
 
     // Grouped by `log.address` rather than by call index: `getLogs` does not
     // align its result with the target array, and indexing it would attribute
-    // one strategy's mints to another.
-    const mintedShares: Record<string, bigint> = {};
+    // one strategy's mints to another. Within a strategy, grouped by recipient:
+    // the recipient is what tells the treasury's share from the manager's.
+    const pricedMintedByRecipient: Record<string, Record<string, bigint>> = {};
     for (const log of mintLogs || []) {
-      const key = log.address.toLowerCase();
-      mintedShares[key] = (mintedShares[key] || 0n) + BigInt(log.args.shares);
+      const strategyKey = log.address.toLowerCase();
+      const recipientKey = (log.args.recipient as string).toLowerCase();
+      pricedMintedByRecipient[strategyKey] ??= {};
+      pricedMintedByRecipient[strategyKey][recipientKey] =
+        (pricedMintedByRecipient[strategyKey][recipientKey] || 0n) +
+        BigInt(log.args.shares);
     }
-    const minted = priced.map(
-      (i) => mintedShares[strategies[i].toLowerCase()] || 0n,
+    const minted = priced.map((i) =>
+      Object.values(pricedMintedByRecipient[strategies[i].toLowerCase()] || {})
+        .reduce((sum, s) => sum + s, 0n),
     );
-
-    const pricedFmCall = (abi: string, extra?: boolean) =>
-      toApi.multiCall({
-        abi,
-        calls: priced.map((i) => ({
-          target: feeManagers[i],
-          params: (extra === undefined
-            ? [strategies[i]]
-            : [strategies[i], extra]) as any,
-        })),
-        permitFailure: true,
-      });
+    const pricedTreasuries = await toApi.multiCall({
+      abi: abis.treasury,
+      calls: priced.map((i) => feeManagers[i]),
+      permitFailure: true,
+    });
 
     const openAssets = await fromApi.multiCall({
       abi: abis.convertToAssets,
@@ -625,10 +628,6 @@ const fetch = async (options: FetchOptions) => {
       })),
       permitFailure: true,
     });
-    const pricedPerfFees = await pricedFmCall(abis.performanceFee);
-    const pricedSplits = await pricedFmCall(abis.managerSplit, true);
-    const pricedLegacySplits = await pricedFmCall(abis.managerSplitLegacy);
-
     priced.forEach((_, k) => {
       const token = assetAddrs[k];
       if (!token)
@@ -642,31 +641,43 @@ const fetch = async (options: FetchOptions) => {
         throw new Error(
           `Accountable: could not read the opening supply of ${pricedVaults[k]} on ${options.chain}`,
         );
-      if (pricedPerfFees[k] === null)
-        throw new Error(
-          `Accountable: could not read the performance fee of ${strategies[priced[k]]} on ${options.chain}`,
-        );
-      // Only one of the two `managerSplit` overloads exists per generation, so
-      // one null is expected here and two are a failed read.
-      if (pricedSplits[k] === null && pricedLegacySplits[k] === null)
-        throw new Error(
-          `Accountable: could not read the manager split of ${strategies[priced[k]]} on ${options.chain}`,
-        );
-
       const depositors = big(closeAssets[k]) - big(openAssets[k]);
       const gross = depositors + big(mintedAssets[k]);
 
-      // The fee is booked as it accrues, from the rates the FeeManager holds
-      // for the strategy, rather than when it crystallizes into minted shares.
-      // The minted shares are therefore not authoritative for the split: a
-      // looping vault can run for weeks against a configured performance fee
-      // and manager split without minting once, and attributing from the mints
-      // alone would report no revenue for it at all. Deriving both from the
-      // rates also keeps this path on the same accrual basis as the credit one.
-      const fee = (gross * big(pricedPerfFees[k])) / FEE_DENOMINATOR;
-      const split = big(pricedSplits[k] ?? pricedLegacySplits[k]);
-      const manager = (fee * split) / FEE_DENOMINATOR;
-      book(token, gross, manager, fee - manager, METRIC.ASSETS_YIELDS);
+      // The fee is booked from the shares the strategy actually minted, not
+      // from `gross * performanceFee`. The performance fee is only charged on
+      // the share price above the high-water mark (`peakSharePrice`), and the
+      // management fee is charged on total assets regardless of performance,
+      // so a rate applied to the day's NAV change would book a fee on a
+      // recovery below the peak, a negative fee on a down day, and no
+      // management fee at all. Every accrual (NAV publish, deposit, redeem
+      // request) mints both fees straight to the manager and the treasury, so
+      // the mints are the exact amount charged; a window with no mint charged
+      // nothing. Fixed-term strategies also land on this path but pay their
+      // fees in the asset through `FeeManager.collect` on each interest
+      // payment rather than as minted shares, so their fees are not tracked
+      // here; none is live as of 2026-10-19.
+      const totalShares = minted[k];
+      if (totalShares === 0n) {
+        book(token, gross, 0n, 0n, METRIC.ASSETS_YIELDS);
+        return;
+      }
+      if (mintedAssets[k] === null)
+        throw new Error(
+          `Accountable: could not convert minted fee shares to assets for ${strategies[priced[k]]} on ${options.chain}`,
+        );
+      const treasury = (pricedTreasuries[k] || "").toLowerCase();
+      if (!treasury)
+        throw new Error(
+          `Accountable: could not read the treasury of feeManager ${feeManagers[priced[k]]} on ${options.chain}, refusing to attribute a real fee mint for ${strategies[priced[k]]}`,
+        );
+      const byRecipient =
+        pricedMintedByRecipient[strategies[priced[k]].toLowerCase()] || {};
+      const protocolShares = byRecipient[treasury] || 0n;
+      const mintedValue = big(mintedAssets[k]);
+      const protocol = (mintedValue * protocolShares) / totalShares;
+      const manager = mintedValue - protocol;
+      book(token, gross, manager, protocol, METRIC.ASSETS_YIELDS);
     });
   }
 

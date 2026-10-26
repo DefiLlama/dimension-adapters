@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { queryEvents } from '../../helpers/sui';
 
 // https://github.com/interest-protocol/interest-stable-swap-sdk/blob/main/src/interest-stable-swap-sdk/constants.ts
 const STABLE_SWAP_PACKAGE = '0x50052aca3d7b971bd9824e1bb151748d03870adfe3ba06dce384d2a77297c719';
-const WAL = '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL';
+const WAL = ADDRESSES.sui.WAL;
 // pool state: fee = 0.1% of amount out, admin_fee = 20% of fee
 const ADMIN_FEE_SHARE = 0.2;
 
