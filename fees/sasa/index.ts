@@ -1,7 +1,8 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { getSolanaReceived } from "../../helpers/token";
 
 // sasa (https://sasapad.fun): a meme coin launchpad where one coin launches on several chains at
 // once (Base, BNB Chain, Robinhood Chain, Arc) and races for five minutes; the chain that raises
@@ -20,6 +21,11 @@ import { METRIC } from "../../helpers/metrics";
 // address and count only where the coin has a price.
 //
 // Two builder generations run side by side (v7 and v8); both are counted.
+//
+// Solana: coins launched from sasa use Solana's standard launch curve with its creator fee shared
+// 50/50 between sasa's treasury and the coin's creator (a fee sharing config set in the launch
+// transaction). sasa's keeper pays both halves out about every 30 minutes, so the SOL the treasury
+// receives is sasa's half; the creators' half is the same amount.
 // Deployments: https://github.com/neuronaicoin/neuron-fun/tree/main/contracts-v7/deployments
 
 const FEES_COLLECTED = "event FeesCollected(address indexed coin, uint256 quoteFees, uint256 coinFees)";
@@ -37,7 +43,30 @@ const CONFIG: Record<string, { builders: string[]; quote?: string }> = {
   [CHAIN.ARC]: { builders: [V7_BUILDER, "0x5B76474ffe524f04f3522d7121471311C743ae58"], quote: ADDRESSES.arc.USDC },
 };
 
+// sasa's Solana treasury: receives sasa's 50% of the creator fees of every Solana coin launched on sasa
+const SOLANA_TREASURY = "6dVUEkpietj9geevYmc7VNS2uC7xux3oQSNdCzD21xdY";
+
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const received = await getSolanaReceived({ options, target: SOLANA_TREASURY, mints: [ADDRESSES.solana.SOL] });
+  // the creators receive the same amount as sasa (50/50 split)
+  dailyFees.addBalances(received, METRIC.CREATOR_FEES);
+  dailyFees.addBalances(received, METRIC.CREATOR_FEES);
+  dailyRevenue.addBalances(received, "Creator Fees to sasa");
+  dailySupplySideRevenue.addBalances(received, "Creator Fees to Creators");
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+};
+
 const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
   const { builders, quote } = CONFIG[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -76,28 +105,33 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Swap fees of the pools sasa creates for every coin, counted when sasa's builder collects them: the quote-asset side (ETH, BNB or USDC) and the coin side (in the launched coin, valued where the coin has a price).",
-  UserFees: "Traders pay the pool's swap fee on every buy and sell.",
-  Revenue: "70% of the collected swap fees, sent to sasa's fee vault.",
-  ProtocolRevenue: "70% of the collected swap fees, sent to sasa's fee vault.",
-  SupplySideRevenue: "30% of the collected swap fees, sent to each coin's creator, or used to buy back and burn the coin when its creator chose buybacks.",
+  Fees: "EVM chains: swap fees of the pools sasa creates for every coin, counted when sasa's builder collects them: the quote-asset side (ETH, BNB or USDC) and the coin side (in the launched coin, valued where the coin has a price). Solana: the creator fees of coins launched on sasa (both halves).",
+  UserFees: "Traders pay the pool's swap fee (EVM) or the launch curve's creator fee (Solana) on every buy and sell.",
+  Revenue: "EVM: 70% of the collected swap fees, sent to sasa's fee vault. Solana: sasa's 50% of the creator fees, received by its treasury.",
+  ProtocolRevenue: "EVM: 70% of the collected swap fees, sent to sasa's fee vault. Solana: sasa's 50% of the creator fees, received by its treasury.",
+  SupplySideRevenue: "EVM: 30% of the collected swap fees, sent to each coin's creator, or used to buy back and burn the coin when its creator chose buybacks. Solana: the creators' 50% of the creator fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "Swap fees of sasa-created Uniswap V4 / PancakeSwap Infinity pools, both sides, as collected by the builder (FeesCollected).",
+    [METRIC.CREATOR_FEES]: "Solana: creator fees of coins launched on sasa, shared 50/50 between sasa and the coin's creator.",
   },
   UserFees: {
     [METRIC.SWAP_FEES]: "Swap fees traders pay on every buy and sell in sasa-created pools.",
+    [METRIC.CREATOR_FEES]: "Solana: the creator fee traders pay on every buy and sell of a coin launched on sasa.",
   },
   Revenue: {
     "Swap Fees to sasa": "70% of collected swap fees, sent to sasa's fee vault.",
+    "Creator Fees to sasa": "Solana: sasa's 50% of the creator fees, received by its treasury.",
   },
   ProtocolRevenue: {
     "Swap Fees to sasa": "70% of collected swap fees, sent to sasa's fee vault.",
+    "Creator Fees to sasa": "Solana: sasa's 50% of the creator fees, received by its treasury.",
   },
   SupplySideRevenue: {
     "Swap Fees to Creators and Buybacks": "30% of collected swap fees, sent to the coin's creator or used for its buy-and-burn.",
+    "Creator Fees to Creators": "Solana: the creators' 50% of the creator fees.",
   },
 };
 
@@ -110,7 +144,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { start: "2026-10-17" },
     [CHAIN.ROBINHOOD]: { start: "2026-10-17" },
     [CHAIN.ARC]: { start: "2026-10-17" },
+    [CHAIN.SOLANA]: { start: "2026-10-24" },
   },
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
   doublecounted: true, // the same swap fees are also attributed to Uniswap V4 / PancakeSwap
