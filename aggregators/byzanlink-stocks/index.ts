@@ -2,12 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Byzanlink stock trades are routed through KyberSwap with source "byzanlink", written to the router's ClientData event
-// sample: https://basescan.org/tx/0xb308f1dd3be481b8ab9ef162a5def8eabc3755c63e8671f8532247fef36acb1e#eventlog
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const USDC = ADDRESSES.base.USDC.toLowerCase();
 
-const isByzanlink = (clientData: string) => Buffer.from(clientData.slice(2), "hex").toString().includes('"Source":"byzanlink"');
+// "byzanlink" on earlier trades, then the dedicated KyberSwap client id
+const BYZANLINK_SOURCES = ["byzanlink", "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"];
+
+const isByzanlink = (clientData: string) => {
+  const data = Buffer.from(clientData.slice(2), "hex").toString();
+  return BYZANLINK_SOURCES.some((source) => data.includes(`"Source":"${source}"`));
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
