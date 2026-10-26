@@ -2,19 +2,18 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getRelayApiKey, getRelayPage, RELAY_CHAINS, RELAY_REQUESTS_API } from "../helpers/relay";
 
-// Fee fields: https://docs.relay.link/references/api/api_core_concepts/fees#fees-in-the-api
-// platform = service fee for routing, solving and settling across chains; app = fee the integrator adds on top of the
-// quote, paid to the integrator; swap = cost of facilitating cross-asset and cross-chain swaps, including asset rebalancing.
-// execution (cost to execute and settle on the destination chain) is not counted.
-const PLATFORM_FEES = "Platform Fees";
-const APP_FEES = "App Fees";
+// Fee names follow the Relay docs: https://docs.relay.link/references/api/api_core_concepts/fees
+// platform = flat bps fee for the Relay API gateway; app = fee the integrator adds on top of the quote, paid to the
+// integrator; swap = payments to liquidity providers for cross-asset and cross-chain swaps.
+// execution (network gas on the origin and destination chain) is not counted.
+const PLATFORM_FEES = "Platform Fees (Relay + Integrator Share)";
+const APP_FEES = "Integrator App Fees";
 const SWAP_COSTS = "Swap Costs";
-// Revenue and supply side are disabled: integrators get a revenue share of 0-67% of the platform fee depending on
-// pair type and their trailing 30-day volume tier (see the fees doc above), and the API does not report it per
-// request, so platform fees overstate what Relay keeps. Re-enable once the share can be deducted.
-// const PLATFORM_FEES_TO_RELAY = "Platform Fees To Relay";
-// const APP_FEES_TO_INTEGRATORS = "App Fees To Integrators";
-// const SWAP_COSTS_TO_SOLVERS = "Swap Costs To Solvers";
+// Revenue is the full platform fee, an upper bound: qualifying integrators get a revenue share of 0-67% of it
+// depending on pair type and their trailing 30-day volume tier (see the fees doc above), and the API does not report
+// it per request. The site shows that share as an unknown Cost of Revenue row (defillama-app offchainCosts.ts).
+const APP_FEES_TO_INTEGRATORS = "App Fees To Integrators";
+const SWAP_COSTS_TO_LPS = "Swap Costs To Liquidity Providers";
 
 // An hour is ~170 pages at ~2.5s each, too slow sequentially: page 5-minute slices in parallel.
 // 12 workers was the fastest tested (~10 pages/s, no 429s); 6 ran at ~5/s and 24 at ~7/s with doubled latency.
@@ -82,18 +81,17 @@ const prefetch = async (options: FetchOptions): Promise<FeeTotals> => {
 const fetch = async (options: FetchOptions) => {
   const { platform, app, swap }: FeeTotals = options.preFetchedResults;
   const dailyFees = options.createBalances();
-  // const dailyRevenue = options.createBalances();
-  // const dailySupplySideRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   dailyFees.addUSDValue(platform[options.chain] ?? 0, PLATFORM_FEES);
   dailyFees.addUSDValue(app[options.chain] ?? 0, APP_FEES);
   dailyFees.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS);
-  // dailyRevenue.addUSDValue(platform[options.chain] ?? 0, PLATFORM_FEES_TO_RELAY);
-  // dailySupplySideRevenue.addUSDValue(app[options.chain] ?? 0, APP_FEES_TO_INTEGRATORS);
-  // dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS_TO_SOLVERS);
+  dailySupplySideRevenue.addUSDValue(app[options.chain] ?? 0, APP_FEES_TO_INTEGRATORS);
+  dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS_TO_LPS);
+  dailyRevenue.addUSDValue(platform[options.chain] ?? 0, PLATFORM_FEES);
 
-  // return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
-  return { dailyFees };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
 };
 
 const adapter: SimpleAdapter = {
@@ -101,33 +99,31 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   prefetch: prefetch as any,
-  // fees only until the integrator revenue share can be deducted (see the note on the commented-out revenue labels)
-  skipBreakdownValidation: true,
   chains: [...new Set(Object.values(RELAY_CHAINS))],
   // the API returns no fees for ~90-98% of requests from 2025-12-08 to 2026-04-23, and no platform fees before 2025-05
   start: "2026-04-24",
   methodology: {
-    Fees: "Relay platform fees, app fees and swap costs paid by users on Relay bridges and swaps, excluding execution costs. Revenue is not reported because Relay shares part of its platform fee with integrators and the API does not report that share.",
-    // Revenue: "Relay platform fees minus the share paid to integrators.",
-    // ProtocolRevenue: "Relay platform fees minus the share paid to integrators, kept by Relay.",
-    // SupplySideRevenue: "App fees and the platform fee share paid to integrators, and swap costs paid to solvers.",
+    Fees: "Platform fees, integrator app fees and swap costs paid by users on Relay bridges and swaps, excluding execution costs (network gas).",
+    SupplySideRevenue: "App fees paid to the integrators that add them, and swap costs paid to liquidity providers. Excludes the integrator revenue share of the platform fee, which Relay does not disclose.",
+    Revenue: "Platform fees. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
+    ProtocolRevenue: "Platform fees kept by Relay. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
   },
   breakdownMethodology: {
     Fees: {
-      [PLATFORM_FEES]: "Relay's service fee for routing, solving and settling across chains, partly shared with integrators.",
-      [APP_FEES]: "Fees integrating apps add on top of the Relay quote, paid to those apps.",
-      [SWAP_COSTS]: "Cost of facilitating cross-asset and cross-chain swaps, including asset rebalancing. Excludes trades with unreliable token prices.",
+      [PLATFORM_FEES]: "Flat basis point fee for using the Relay API and relay.link. Relay keeps it, minus a 0-67% revenue share paid to qualifying integrators that Relay does not disclose.",
+      [APP_FEES]: "Fees an integrator adds on top of the Relay quote, paid to that integrator.",
+      [SWAP_COSTS]: "Payments to liquidity providers for cross-asset and cross-chain swaps. Excludes trades with unreliable token prices.",
     },
-    // Revenue: {
-    //   [PLATFORM_FEES_TO_RELAY]: "Relay's own fee, kept by Relay.",
-    // },
-    // ProtocolRevenue: {
-    //   [PLATFORM_FEES_TO_RELAY]: "Relay's own fee, kept by Relay.",
-    // },
-    // SupplySideRevenue: {
-    //   [APP_FEES_TO_INTEGRATORS]: "Fees integrating apps add on top of the Relay quote, paid to those apps.",
-    //   [SWAP_COSTS_TO_SOLVERS]: "Swap costs kept by the solver that fills the request.",
-    // },
+    SupplySideRevenue: {
+      [APP_FEES_TO_INTEGRATORS]: "Fees an integrator adds on top of the Relay quote, paid to that integrator.",
+      [SWAP_COSTS_TO_LPS]: "Swap costs paid to the liquidity providers that fill cross-asset and cross-chain swaps.",
+    },
+    Revenue: {
+      [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
+    },
+    ProtocolRevenue: {
+      [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
+    },
   },
 };
 
