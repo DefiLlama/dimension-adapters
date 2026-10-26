@@ -70,6 +70,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'curve',
     'subscan',
     'polymarket:fees',
+    'papertrade:fees',
   ],
   'dexs': [
     'injectiveBigQuery',
@@ -92,6 +93,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'duneSolanaDex',
     'joeLiquidityBook',
     'curve',
+    // 'papertrade', // builder volume is not listed yet, see factory/papertrade.ts
   ],
   'aggregators': [],
   'open-interest': [
