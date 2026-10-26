@@ -16,6 +16,12 @@ export const KYBER_ROUTER = '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5';
 export const ZEROX_ALLOWANCE_HOLDER = '0x0000000000001fF3684f28c67538d4D072C22734';
 // Uniswap Universal Router, returned by the Uniswap Trading API on Robinhood Chain
 export const UNISWAP_UNIVERSAL_ROUTER = '0x8876789976dEcBfCbBbe364623C63652db8C0904';
+// Uniswap Universal Router returned by the Uniswap Trading API since 2026-10-25, e.g. 0x99275bef793fb2453f573008e5d818f6127f7b22ec0402cb2c95bbf5ae5695b6
+export const UNISWAP_UNIVERSAL_ROUTER_2 = '0x204FAca1764B154221e35c0d20aBb3c525710498';
+// SushiSwap RedSnwapper, `to` of TRNCH swaps routed through the Sushi swap API, e.g. 0x2373b2fe98ff375e266b38c77abc4f517e964494da073d382cd6196fe41ffd4c
+export const SUSHI_ROUTER = '0x8E6fD69A77e88ee20Ba4B4fBd59DfCDA3EC0E98A';
+// 1inch router returned by the 1inch Classic Swap API on Robinhood Chain, e.g. 0xc7993ba0ced5ca1f5265c5327768253b2af96397ae4e1b952eb59a4b701d3b44
+export const ONEINCH_ROUTER = '0x5A705DE8982235a7fa45bB83dCaCf03a211389C7';
 // TRNCH treasury Safe (SafeL2 v1.5.0): the fee recipient TRNCH passes to every router
 export const TRNCH_TREASURY_SAFE = '0xe1F2aBa69cfD0C6973d037426D4391FE64b2Fc2e';
 
@@ -36,11 +42,14 @@ const SafeReceivedEvent = 'event SafeReceived(address indexed sender, uint256 va
 
 // Routers whose swaps carry no TRNCH id on-chain: a swap is attributed to TRNCH when the transaction sent to
 // the router pays a fee to the TRNCH treasury Safe in the same transaction.
-export type FeeRouter = 'kyberswap' | '0x' | 'uniswap';
+export type FeeRouter = 'kyberswap' | '0x' | 'uniswap' | 'sushiswap' | '1inch';
 export const FEE_ROUTERS: Record<string, FeeRouter> = {
   [KYBER_ROUTER.toLowerCase()]: 'kyberswap',
   [ZEROX_ALLOWANCE_HOLDER.toLowerCase()]: '0x',
   [UNISWAP_UNIVERSAL_ROUTER.toLowerCase()]: 'uniswap',
+  [UNISWAP_UNIVERSAL_ROUTER_2.toLowerCase()]: 'uniswap',
+  [SUSHI_ROUTER.toLowerCase()]: 'sushiswap',
+  [ONEINCH_ROUTER.toLowerCase()]: '1inch',
 };
 
 export const padAddress = (address: string) => '0x' + address.slice(2).toLowerCase().padStart(64, '0');
@@ -58,8 +67,8 @@ export type RouterFeePayment = { hash: string; router: FeeRouter; from: string; 
 // ERC-20: Transfer to the Safe (any token, so no target list; the public RPC caps address-less queries at
 // 30k blocks). ETH: SafeReceived, emitted by the Safe on every native transfer it receives.
 // Payments to the Safe from any other transaction (LI.FI fee claims, own-wallet transfers) are ignored here.
-// 0x and Uniswap take the integrator fee out of the swap and the router contract (0x Settler, Universal Router)
-// pays it, so on those routers a payment made by the transaction sender's own wallet is not a fee and is ignored
+// 0x, Uniswap, SushiSwap and 1inch take the integrator fee out of the swap and a router contract (0x Settler,
+// Universal Router, Sushi's fee wrapper, 1inch router) pays it, so on those routers a payment made by the transaction sender's own wallet is not a fee and is ignored
 // (KyberSwap pulls an input-side fee straight from the trader, and its swaps are identified by ClientData).
 export async function getRouterFeePayments(options: FetchOptions): Promise<RouterFeePayment[]> {
   const [tokenIn, ethIn] = await Promise.all([
@@ -91,6 +100,8 @@ export async function getRouterFeePayments(options: FetchOptions): Promise<Route
   });
   return payments;
 }
+
+const ROUTER_LABELS: Record<FeeRouter, string> = { kyberswap: 'KyberSwap', '0x': '0x', uniswap: 'Uniswap', sushiswap: 'SushiSwap', '1inch': '1inch' };
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -133,7 +144,7 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 0x and Uniswap: swaps that pay the TRNCH fee, counted on the swap input only: the ETH value of the
+  // 0x, Uniswap, SushiSwap and 1inch: swaps that pay the TRNCH fee, counted on the swap input only: the ETH value of the
   // transaction, or else the first ERC-20 transfer out of the trader's wallet (AllowanceHolder / Permit2 pull),
   // never a transfer to the treasury Safe
   // (KyberSwap fee payments are skipped here: those swaps are already counted from ClientData)
@@ -144,7 +155,7 @@ const fetch = async (options: FetchOptions) => {
       const receipt: any = receipts[i];
       if (!receipt) throw new Error(`trnch: receipt ${payment.hash} not found`);
       if (Number(receipt.status) !== 1) return;
-      const label = payment.router === '0x' ? '0x' : 'Uniswap';
+      const label = ROUTER_LABELS[payment.router];
       if (payment.value > 0n) {
         dailyVolume.add(NULL_ADDRESS, payment.value, label);
         return;
@@ -164,18 +175,20 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  doublecounted: true, // every TRNCH swap is executed by LI.FI, KyberSwap, 0x or Uniswap contracts, already listed
+  doublecounted: true, // every TRNCH swap is executed by LI.FI, KyberSwap, 0x, Uniswap, SushiSwap or 1inch contracts, already listed
   chains: [CHAIN.ROBINHOOD],
   start: TRNCH_START,
   methodology: {
-    Volume: 'Volume of swaps made on TRNCH and routed through LI.FI, KyberSwap, 0x or Uniswap on Robinhood Chain, counted on the token the trader sells. LI.FI swaps are identified by the TRNCH integrator id in LiFiGenericSwapCompleted, KyberSwap swaps by the TRNCH source in the router ClientData event, 0x and Uniswap swaps by the TRNCH integrator fee paid to the TRNCH treasury Safe in the same transaction. Bridges are excluded.',
+    Volume: 'Volume of swaps made on TRNCH (website, Bot API and MCP server for AI agents) and routed through LI.FI, KyberSwap, 0x, Uniswap, SushiSwap or 1inch on Robinhood Chain, counted on the token the trader sells. LI.FI swaps are identified by the TRNCH integrator id in LiFiGenericSwapCompleted, KyberSwap swaps by the TRNCH source in the router ClientData event, 0x, Uniswap, SushiSwap and 1inch swaps by the TRNCH integrator fee paid to the TRNCH treasury Safe in the same transaction. Bridges are excluded.',
   },
   breakdownMethodology: {
     Volume: {
       'LI.FI': 'Swaps routed through the LI.FI diamond with the TRNCH integrator id.',
       'KyberSwap': 'Swaps routed through the KyberSwap MetaAggregationRouterV2 with the TRNCH client source.',
       '0x': 'Swaps routed through the 0x AllowanceHolder that pay the TRNCH integrator fee.',
-      'Uniswap': 'Swaps routed through the Uniswap Universal Router that pay the TRNCH integrator fee.',
+      'Uniswap': 'Swaps routed through the Uniswap Universal Routers that pay the TRNCH integrator fee.',
+      'SushiSwap': 'Swaps routed through the SushiSwap RedSnwapper that pay the TRNCH integrator fee.',
+      '1inch': 'Swaps routed through the 1inch router that pay the TRNCH integrator fee.',
     },
   },
 };
