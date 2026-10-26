@@ -11,6 +11,7 @@ const DEFAULTS: any = {
   // eth_getLogs: full archive, 10,000-block ranges. evm.cronos.org caps ranges at 2,000 blocks, so hourly windows fell
   // back to a random SDK RPC, and cronos-evm-rpc.publicnode.com is pruned: it answers older ranges with [] instead of an error.
   CRONOS_ARCHIVAL_RPC: 'https://cronos.rpc.sentio.xyz',
+  INJECTIVE_ARCHIVAL_RPC: 'https://sentry.evm-rpc.injective.network',
   TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
   TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
   ETLK_RPC: 'https://node.mainnet.etherlink.com',
