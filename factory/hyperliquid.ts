@@ -736,15 +736,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "rainbow-perps": {
+  // rainbow-perps is a standalone adapter (fees/rainbow-perps.ts), only the spot market is listed here
+  "rainbow-spot": {
     addresses: ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"],
     start: "2025-09-15",
     breakdownFees: true,
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
+    market: "spot",
   },
   "supercexy": {
     addresses: ["0x0000000bfbf4c62c43c2e71ef0093f382bf7a7b4"],
@@ -1559,7 +1556,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
   "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
-  "rainbow-spot": { builder: "rainbow-perps", market: "spot", start: "2025-09-15" },
   "sendai-outcome": { builder: "sendai-perps", market: "outcome", start: "2026-05-02" },
   "sendai-spot": { builder: "sendai-perps", market: "spot", start: "2026-04-15" },
   "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },
