@@ -73,7 +73,7 @@ function isTransient(e: unknown): boolean {
  * The public endpoint sits behind a proxy that intermittently returns 502/522 under load, so each
  * read is retried with a backoff before the error is allowed to fail the run.
  */
-async function aleoGet(path: string, attempt = 0): Promise<unknown> {
+export async function aleoGet(path: string, attempt = 0): Promise<unknown> {
   try {
     // axios rather than fetchURL: fetchURL rejects a falsy body, and `null` is the node's normal
     // answer for a mapping key that has no entry, which is a value here and not a failure.
