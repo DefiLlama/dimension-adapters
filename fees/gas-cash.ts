@@ -2,6 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import { PositionedLogArgs, toPositionedLogArgs } from "../helpers/logs";
 
 // Gas ($GAS, https://www.gas.cash) is a game on Robinhood Chain. $GAS trades against the USO Stock Token in a
 // Doppler-launched Uniswap v4 pool. The pool's fees (a swap tax taken by the Doppler Rehype hook, plus a share of
@@ -35,7 +36,13 @@ const GAS721 = "0x4815ce655aC4F32b0DeF08A26D8181D4c338bA90";
 const EARLY_VAULT = "0x8A890f77Beee8438908a2A790058e7AC39605b87";
 // Prize pool: pays players their USO claims. It was the receiver's `vault` until the splitter was wired in. The
 // team sells the $GAS it receives into USO by hand (e.g. tx 0x1126a3b4172f23678c0a7123bece4921f9a7fe1e027ee250b2c4be74571cba89).
-const PRIZE_POOL = "0xdE597816a8473C059C846B77EE4ABaC8EbaB1770";
+const LEGACY_PRIZE_POOL = "0xdE597816a8473C059C846B77EE4ABaC8EbaB1770";
+// The prize-pool wallet rotated on 2026-10-22 at 07:13:14 UTC; the receiver, splitter and 75/25 split stayed the same.
+// setLegs emitted LegsUpdated at block 94930730, log index 9. Preserve the old destination for historical refills.
+// https://robinhoodchain.blockscout.com/tx/0xdd786773837b835242dfdfc5fc83f9166ea29e9ab687990ccf6cb888b8ee7c6d
+const PRIZE_POOL = "0xd3F3E252B79260E95Ad7DFb311FFFBd90f81ab78";
+const PRIZE_POOL_ROTATION_BLOCK = 94930730;
+const PRIZE_POOL_ROTATION_LOG_INDEX = 9;
 // Buybacks wallet: takes the splitter's 25% leg and the buyback share of every car sale. Buybacks are made by
 // hand; none had been made as of 2026-09-24 (the wallet had never sent a transaction).
 const BUYBACKS = "0x18eD3E25Fb4786EA60021E2e9A2Da0A52602f503";
@@ -78,15 +85,21 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
 
   const [[receiverForwards, splitterForwards], bought, repaired] = await Promise.all([
-    options.getLogs({ targets: [FEE_RECEIVER, FEE_SPLITTER], eventAbi: EVENTS.Forwarded, flatten: false }),
+    options.getLogs({ targets: [FEE_RECEIVER, FEE_SPLITTER], eventAbi: EVENTS.Forwarded, flatten: false, onlyArgs: false }),
     options.getLogs({ target: GAS721, eventAbi: EVENTS.Bought, onlyArgs: false }),
     options.getLogs({ target: GAS721, eventAbi: EVENTS.Repaired }),
   ]);
 
   // Pool fees are counted once, where they leave our contracts for a final wallet: the receiver's forwards straight
   // to the prize pool (before the splitter existed) and the splitter's forwards to its legs.
-  const addPoolFee = (token: string, amount: bigint, to: string) => {
-    if (to === PRIZE_POOL.toLowerCase()) {
+  const addPoolFee = (log: PositionedLogArgs) => {
+    const { token } = log;
+    const amount = BigInt(log.amount);
+    const to = String(log.to).toLowerCase();
+    const afterRotation = log.blockNumber > PRIZE_POOL_ROTATION_BLOCK ||
+      (log.blockNumber === PRIZE_POOL_ROTATION_BLOCK && log.logIndex > PRIZE_POOL_ROTATION_LOG_INDEX);
+    const prizePool = afterRotation ? PRIZE_POOL : LEGACY_PRIZE_POOL;
+    if (to === prizePool.toLowerCase()) {
       dailyFees.add(token, amount, LABELS.PoolFees);
       dailySupplySideRevenue.add(token, amount, LABELS.PoolFeesToPrizePool);
     } else if (to === BUYBACKS.toLowerCase()) {
@@ -98,16 +111,17 @@ const fetch = async (options: FetchOptions) => {
       throw new Error(`gas-cash: unknown fee destination ${to}`);
     }
   };
-  for (const log of receiverForwards) {
+  for (const rawLog of receiverForwards) {
+    const log = toPositionedLogArgs(rawLog);
     const to = String(log.to).toLowerCase();
     // Skipped: the splitter's own forwards count this money when it pays its legs.
     if (to === FEE_SPLITTER.toLowerCase()) continue;
     // Skipped on purpose: the launch sniper tax forwarded to the team wallet during the 15-minute tax decay.
     if (to === EARLY_VAULT.toLowerCase()) continue;
-    addPoolFee(log.token, BigInt(log.amount), to);
+    addPoolFee(log);
   }
   for (const log of splitterForwards) {
-    addPoolFee(log.token, BigInt(log.amount), String(log.to).toLowerCase());
+    addPoolFee(toPositionedLogArgs(log));
   }
 
   // Car sales, paid in $GAS: the whole price is revenue. The buyback share was burned before the upgrade block and
