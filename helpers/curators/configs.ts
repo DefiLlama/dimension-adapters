@@ -21,6 +21,13 @@ export const ABI = {
     proxyList: 'function proxyList(uint256) view returns (address)',
     creator: 'address:creator',
   },
+  aaveV4Hub: {
+    getAssetCount: 'uint256:getAssetCount',
+    getAssetUnderlyingAndDecimals: 'function getAssetUnderlyingAndDecimals(uint256) view returns (address, uint8)',
+    getAssetConfig: 'function getAssetConfig(uint256) view returns (tuple(address feeReceiver, uint16 liquidityFee, address irStrategy, address reinvestmentController))',
+    getAssetAccruedFees: 'function getAssetAccruedFees(uint256) view returns (uint256)',
+    MintFeeShares: 'event MintFeeShares(uint256 indexed assetId, address indexed feeReceiver, uint256 shares, uint256 assets)',
+  },
 }
 
 export const MorphoConfigs: any = {

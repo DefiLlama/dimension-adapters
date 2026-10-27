@@ -8,7 +8,7 @@ import { getExcludedAssets, getExcludedVaults } from "../morphoExclusions";
 const KAMINO_API = 'https://api.kamino.finance';
 const YEAR_SECS = 365 * 24 * 60 * 60;
 
-const METRICS = {
+export const METRICS = {
   // use this label for all yield sources if breakdownFees was not set
   AssetYields: 'Assets Yields',
   
@@ -27,6 +27,10 @@ const METRICS = {
   KaminoYieldsToSuppliers: 'Kamino Yields Distributed To Supliers',
   KaminoPerformanceFee: 'Kamino Performance Fees',
   KaminoManagementFee: 'Kamino Management Fees',
+  AaveV4Yields: 'Aave V4 Yields',
+  AaveV4YieldsToSuppliers: 'Aave V4 Yields Distributed To Suppliers',
+  AaveV4HubFee: 'Aave V4 Hub Fees',
+  AaveV4HubFeeToAave: 'Aave V4 Hub Fees To Aave DAO',
 }
 
 export interface CuratorConfig {
@@ -50,8 +54,17 @@ export interface CuratorConfig {
       // Kamino kvault addresses (Solana). Curated vaults are attributed by
       // vaultAdminAuthority off-chain; only the confirmed addresses are listed.
       kaminoVaults?: Array<string>;
+
+      // Aave V4 hubs curated externally. `share` is the curator's cut of the hub's liquidity fee,
+      // the rest of the fee goes to the Aave DAO (e.g. 0.5 for Sentora's hub, per the ARFC)
+      aaveV4Hubs?: Array<AaveV4Hub>;
     }
   }
+}
+
+export interface AaveV4Hub {
+  hub: string;
+  share: number;
 }
 
 interface Balances {
@@ -460,6 +473,65 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
   }
 }
 
+// Aave V4 hubs. Same accounting as fees/aave-v4.ts: the hub's liquidity fee over the window is the
+// growth of getAssetAccruedFees plus the fees minted to the fee receiver (MintFeeShares), and the
+// borrow interest is that fee grossed up by liquidityFee. The curator keeps `share` of the fee, the
+// Aave DAO the rest; suppliers get the interest net of the fee. Assets with a 0% liquidity fee are
+// skipped, their interest cannot be derived from the fee.
+export async function getAaveV4HubFee(options: FetchOptions, balances: Balances, hubs: Array<AaveV4Hub>, breakdownFees?: boolean) {
+  // permitFailure: hubs revert before they are deployed, those are skipped
+  const assetCounts = await options.fromApi.multiCall({
+    abi: ABI.aaveV4Hub.getAssetCount,
+    calls: hubs.map(item => item.hub),
+    permitFailure: true,
+  })
+  const calls = hubs.flatMap((item, i) => Array.from({ length: Number(assetCounts[i] ?? 0) }, (_, assetId) => ({ target: item.hub, params: [assetId] })))
+  if (!calls.length) return
+
+  const underlyings = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetUnderlyingAndDecimals, calls })
+  const assetConfigs = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetConfig, calls })
+  const feesBefore = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetAccruedFees, calls })
+  const feesAfter = await options.toApi.multiCall({ abi: ABI.aaveV4Hub.getAssetAccruedFees, calls })
+  const mintLogsByHub = await options.getLogs({
+    targets: hubs.map(item => item.hub),
+    eventAbi: ABI.aaveV4Hub.MintFeeShares,
+    flatten: false,
+  })
+
+  const mintedByKey: Record<string, bigint> = {}
+  mintLogsByHub.forEach((logs: Array<any>, i: number) => {
+    for (const log of logs) {
+      const key = `${hubs[i].hub.toLowerCase()}-${Number(log.assetId)}`
+      mintedByKey[key] = (mintedByKey[key] || 0n) + BigInt(log.assets)
+    }
+  })
+  const shareOf = new Map(hubs.map(item => [item.hub.toLowerCase(), item.share]))
+
+  for (let i = 0; i < calls.length; i++) {
+    const liquidityFee = BigInt(assetConfigs[i].liquidityFee)
+    if (liquidityFee === 0n) continue
+
+    const hub = calls[i].target.toLowerCase()
+    const hubFee = BigInt(feesAfter[i]) - BigInt(feesBefore[i]) + (mintedByKey[`${hub}-${calls[i].params[0]}`] || 0n)
+    if (hubFee <= 0n) continue
+
+    const token = underlyings[i][0]
+    const interest = hubFee * 10000n / liquidityFee
+    const curatorFee = hubFee * BigInt(Math.round((shareOf.get(hub) ?? 0) * 1e4)) / 10000n
+
+    if (breakdownFees) {
+      balances.dailyFees.add(token, interest, METRICS.AaveV4Yields)
+      balances.dailyRevenue.add(token, curatorFee, METRICS.AaveV4HubFee)
+      balances.dailySupplySideRevenue.add(token, interest - hubFee, METRICS.AaveV4YieldsToSuppliers)
+      balances.dailySupplySideRevenue.add(token, hubFee - curatorFee, METRICS.AaveV4HubFeeToAave)
+    } else {
+      balances.dailyFees.add(token, interest, METRICS.AssetYields)
+      balances.dailyRevenue.add(token, curatorFee, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(token, interest - curatorFee, METRICS.AssetYields)
+    }
+  }
+}
+
 async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
   const vaultInfo = await getVaultERC4626Info(options, vaults, true)
   const vaultPerformanceFeeRates = await options.api.multiCall({
@@ -523,6 +595,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
       [METRICS.KaminoYields]: 'Interest yields generated from deposited assets in Kamino kvaults',
       [METRICS.KaminoManagementFee]: 'Management fees charged on assets deposited in Kamino kvaults',
+      [METRICS.AaveV4Yields]: 'Borrow interest paid on curated Aave V4 hubs',
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
@@ -531,12 +604,15 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
       [METRICS.KaminoPerformanceFee]: 'Performance fees charged from Kamino kvaults',
       [METRICS.KaminoManagementFee]: 'Management fees charged from Kamino kvaults',
+      [METRICS.AaveV4HubFee]: 'Curator share of the liquidity fee charged on curated Aave V4 hubs',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
       [METRICS.MorphoYieldsToSuppliers]: 'Interest yields generated from deposited assets in Morpho distributed to suppliers',
       [METRICS.EulerYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
       [METRICS.KaminoYieldsToSuppliers]: 'Interest yields from Kamino kvaults distributed to suppliers',
+      [METRICS.AaveV4YieldsToSuppliers]: 'Borrow interest on curated Aave V4 hubs distributed to suppliers after the liquidity fee',
+      [METRICS.AaveV4HubFeeToAave]: 'Aave DAO share of the liquidity fee charged on curated Aave V4 hubs',
     },
   }
   const exportObject: BaseAdapter = {}
@@ -585,6 +661,9 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         }
         if (vaults.kaminoVaults && vaults.kaminoVaults.length > 0) {
           await getKaminoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.kaminoVaults, curatorConfig.breakdownFees)
+        }
+        if (vaults.aaveV4Hubs && vaults.aaveV4Hubs.length > 0) {
+          await getAaveV4HubFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.aaveV4Hubs, curatorConfig.breakdownFees)
         }
 
         const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token) ?? []
