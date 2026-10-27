@@ -116,6 +116,10 @@ const configs: Record<string, OpStackBridgeConfig> = {
     portal: "0x39a0005415256B9863aFE2d55Edcf75ECc3A4D7e",
     bridge: "0x5eaa10F99e7e6D177eF9F74E519E319aa49f191e",
     start: "2024-10-14",
+    excludedSenders: [
+      // 3/5 Safe holding HEMI supply, bridges it to Hemi in 0.5-1B batches (e.g. 1B HEMI on 2026-08-21, tx 0xee056e17328610b07cc6bb0034ed2fddf51adf238757448e8e9ddfd7326cbd25)
+      "0x694fA0816999Da16E8783C0f5cDE68c13a33C4e6",
+    ],
   },
   "boba-bridge": {
     name: "Boba",
