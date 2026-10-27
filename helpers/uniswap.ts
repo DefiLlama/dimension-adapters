@@ -509,7 +509,17 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       changeLogs.forEach((logs: any[], i: number) => {
         if (!logs?.length) return
         const pair = pairs[i]
-        const changes = logs.map(toPositionedLogArgs).sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
+        const positions = new Set()
+        const changes = logs.map(toPositionedLogArgs)
+          .filter((change: any) => {
+            const position = `${change.blockNumber}:${change.logIndex}`
+            if (positions.has(position)) return false
+            positions.add(position)
+            return true
+          })
+          .sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
+        const chained = changes.every((change: any, j: number) => j === 0 || Number(change.feeOld) === Number(changes[j - 1].feeNew))
+        if (!chained) return
         if (Number(changes[changes.length - 1].feeNew) / 1e6 !== fees[pair]) return
         feeTimelines[pair] = [
           { blockNumber: -1, logIndex: -1, fee: Number(changes[0].feeOld) / 1e6 },
