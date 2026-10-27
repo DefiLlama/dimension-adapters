@@ -169,6 +169,11 @@ const adapter: SimpleAdapter = {
     skipBreakdownValidation: true, // no revenue attribution breakdown
 	methodology,
 	breakdownMethodology,
+	unknownBreakdownMethodology: {
+		SupplySideRevenue: {
+			'Maker Rebates': 'Makers earn rebates of up to 0.013% of volume, tiered on their 30-day maker market share, credited to internal accounts rather than paid onchain.',
+		},
+	},
 }
 
 export default adapter

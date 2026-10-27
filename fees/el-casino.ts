@@ -12,15 +12,9 @@ import { CHAIN } from "../helpers/chains";
 // out inside the window. V6 rooms (CasinoGameBaseV6, CasinoHubV6 0x66DF90B6B074f7c49906c2bB0A8E5bf3773879d0) keep the same
 // counters; their platform fee goes to the ElcasBurner, which also swaps it to $ELCAS and burns it.
 //
-// EL-Casino Launchpad (ElcasLaunchpad 0xAeB56aEdA96d56d43Eee63658397BAC3f950B6be, live 2026-10-24): every launch token
-// trades in its own TOKEN/WETH 1 % Uniswap V3 pool whose liquidity the launchpad owns. collect(token) pulls the pool's
-// fees and splits them in three (FeesCollected: tokens/weth = the whole collect, creatorTokens/creatorWeth = a third):
-//   · the token's creator
-//   · the token's games: the ElcasGameReserve 0xEFe0E7cFb9897Cc0A6EC49100342490E59a2Fbf3 donates it to the token's
-//     casino rooms and perps / predict books (their stakers)
-//   · the ElcasBurner 0xB652489Fd7c54fae145AFa91300BE1c31832988f, which sells it for ETH, buys $ELCAS and burns it
 // A V6 room's donate() also raises its totalFeesCollected, so donations (Donated) are taken out of the rooms' counters
-// below: the reserve's share is counted once, as launchpad pool fees, when collected.
+// below. The EL-Casino Launchpad's game reserve donates its third of the launch tokens' pool fees this way; those fees
+// are counted by the separate el-casino-launchpad adapter (until 2026-10-26 they were counted here).
 const FACTORIES_V5 = [
   "0x5B9dF3831d50af1b02AE0bdF3061C744C45087b0", "0xbf976d1b6efF1B047f8aE2A5d6259D689b4A536B", "0x4E83A441F280fE9a07DeB88a4a3F4D14Bf5400Eb",
   "0x9b5037eF17598Ff5B6C16d6a9e027c72897828eB", "0x08A9DF94F9C5DE378A283cC4a44Da09909CE3Ab6", "0xCa6F1bE59C06EA6E14412A387eD5f3bCb71B2248",
@@ -47,19 +41,12 @@ const GET_GAMES = "function getGames(uint256 offset, uint256 limit) view returns
 const PLATFORM = "event PlatformFeeCollected(uint256 amount)";
 const CREATOR = "event CreatorFeeCollected(uint256 amount)";
 const DONATED = "event Donated(address indexed from, uint256 amount)";
-const LAUNCHPAD = "0xAeB56aEdA96d56d43Eee63658397BAC3f950B6be";
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
-const FEES_COLLECTED = "event FeesCollected(address indexed token, uint256 tokens, uint256 weth, uint256 creatorTokens, uint256 creatorWeth)";
 
 const L = {
   fees: "Bet Fees",
   lpToStakers: "Bet Fees To Room Stakers",
   platformToBurn: "Platform Fees To ELCAS Buyback And Burn",
   creatorToCreators: "Creator Fees To Room Creators",
-  launchFees: "Launchpad Pool Fees",
-  launchToCreators: "Launchpad Pool Fees To Token Creators",
-  launchToGames: "Launchpad Pool Fees To Game Stakers",
-  launchToBurn: "Launchpad Pool Fees To ELCAS Buyback And Burn",
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -103,19 +90,6 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue.add(t, platform, L.platformToBurn);
     dailySupplySideRevenue.add(t, creator, L.creatorToCreators);
   });
-  // launchpad pool fees, in the launch token and in WETH: a third each to the creator, the games and the burn
-  const collects = await options.getLogs({ target: LAUNCHPAD, eventAbi: FEES_COLLECTED });
-  const split = (t: string, total: bigint, creator: bigint) => {
-    const burn = (total - creator) / 2n;
-    dailyFees.add(t, total, L.launchFees);
-    dailySupplySideRevenue.add(t, creator, L.launchToCreators);
-    dailySupplySideRevenue.add(t, total - creator - burn, L.launchToGames);
-    dailyRevenue.add(t, burn, L.launchToBurn);
-  };
-  collects.forEach((c: any) => {
-    split(c.token, BigInt(c.tokens), BigInt(c.creatorTokens));
-    split(WETH, BigInt(c.weth), BigInt(c.creatorWeth));
-  });
   return { dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
 
@@ -126,30 +100,25 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: "2026-09-27",
   methodology: {
-    Fees: "Fees charged on bets in every V5 and V6 room (the room stakers' fee, the platform fee and the room creator's fee), plus the 1% Uniswap V3 pool fees of every EL-Casino Launchpad token, counted when the launchpad collects them.",
-    UserFees: "Fees charged on bets and the launchpad tokens' 1% pool fees paid by traders.",
-    Revenue: "The platform fee on bets, sent to the ElcasTreasury (V5) or the ElcasBurner (V6), and the platform's third of the launchpad pool fees, sent to the ElcasBurner.",
-    HoldersRevenue: "The ElcasTreasury / ElcasBurner swaps the platform fee and the platform's third of the launchpad pool fees to $ELCAS and burns it.",
-    SupplySideRevenue: "The fee kept by each room's pool for its stakers, the fee paid to each room's creator, and the thirds of the launchpad pool fees paid to the token's creator and donated to the token's rooms and markets (their stakers).",
+    Fees: "Fees charged on bets in every V5 and V6 room: the room stakers' fee, the platform fee and the room creator's fee.",
+    UserFees: "Fees charged on bets, paid by players.",
+    Revenue: "The platform fee on bets, sent to the ElcasTreasury (V5) or the ElcasBurner (V6).",
+    HoldersRevenue: "The ElcasTreasury / ElcasBurner swaps the platform fee to $ELCAS and burns it.",
+    SupplySideRevenue: "The fee kept by each room's pool for its stakers and the fee paid to each room's creator.",
   },
   breakdownMethodology: {
     Fees: {
       [L.fees]: "Fees charged on each bet: the room stakers' fee, the platform fee and the room creator's fee.",
-      [L.launchFees]: "1% fee of every trade in a launchpad token's Uniswap V3 pool, collected by the launchpad.",
     },
     Revenue: {
       [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6), which buys and burns $ELCAS.",
-      [L.launchToBurn]: "A third of the launchpad pool fees, sent to the ElcasBurner, which buys and burns $ELCAS.",
     },
     HoldersRevenue: {
       [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6), which buys and burns $ELCAS.",
-      [L.launchToBurn]: "A third of the launchpad pool fees, sent to the ElcasBurner, which buys and burns $ELCAS.",
     },
     SupplySideRevenue: {
       [L.lpToStakers]: "Fee kept by the room's pool, owned by its stakers (donations to the room are not counted here).",
       [L.creatorToCreators]: "Fee paid to the room's creator.",
-      [L.launchToCreators]: "A third of the launchpad pool fees, paid to the token's creator.",
-      [L.launchToGames]: "A third of the launchpad pool fees, donated by the ElcasGameReserve to the token's casino rooms and perps / predict books (their stakers).",
     },
   },
 };

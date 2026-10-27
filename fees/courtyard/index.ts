@@ -1,6 +1,7 @@
 import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const registry = '0x251be3a17af4892035c37ebf5890f4a4d889dcad'
 
@@ -63,6 +64,13 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.POLYGON],
   methodology,
+  unknownBreakdownMethodology: {
+    Fees: {
+      'Card-Paid Pack Sales':
+        'Since May 2026 packs can also be paid by card through Stripe, alone or with USDC. The card amount is settled offchain, so these sales and the buybacks of the cards they minted are not included.',
+    },
+    ...PHYSICAL_CARD_COSTS,
+  },
 };
 
 export default adapter;

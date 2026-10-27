@@ -2,6 +2,7 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryAllium } from "../../helpers/allium";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -115,6 +116,7 @@ const adapter: SimpleAdapter = {
   start: '2025-03-16',
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   pullHourly: true,
   allowNegativeValue: true,
 }

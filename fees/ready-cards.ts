@@ -3,6 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 import { METRIC } from "../helpers/metrics";
+import { PHYSICAL_CARD_COSTS } from "../helpers/physicalCards";
 
 const READY_CARDS_TREASURY = "bvT9KFrAqmRpnb6AsuaJzdVKEVuT5jAVYt3N5CyGvkV";
 const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
@@ -189,6 +190,7 @@ const adapter: SimpleAdapter = {
     allowNegativeValue: true,
     methodology,
     breakdownMethodology,
+    unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

@@ -1,6 +1,7 @@
 import fetchURL from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const cardz_fees_url = "https://app.cardz.game/api/cardz/defifees";
 
@@ -72,6 +73,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "Revenue allocated to suppliers/partners (currently 0).",
   },
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

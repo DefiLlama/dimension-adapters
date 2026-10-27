@@ -138,9 +138,10 @@ const synapseRfqEvents = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event BridgeRelayed(bytes32 indexed transactionId, address indexed relayer, address indexed to, uint32 originChainId, address originToken, address destToken, uint256 originAmount, uint256 destAmount, uint256 chainGasAmount)", targets, direction: "incoming", tokenArg: "destToken", amountArg: "destAmount" },
 ];
 
-export const synapseBridge = (contracts: { bridge: string; rfq?: string }, start?: string): BridgeChainConfig => ({
+// Linea and Scroll only have the FastBridge, no SynapseBridge
+export const synapseBridge = (contracts: { bridge?: string; rfq?: string }, start?: string): BridgeChainConfig => ({
   start,
-  events: [...synapseBridgeEvents([contracts.bridge]), ...(contracts.rfq ? synapseRfqEvents([contracts.rfq]) : [])],
+  events: [...(contracts.bridge ? synapseBridgeEvents([contracts.bridge]) : []), ...(contracts.rfq ? synapseRfqEvents([contracts.rfq]) : [])],
 });
 
 // ---------------------------------------------------------------------------------------------------

@@ -184,6 +184,12 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.OFF_CHAIN],
     methodology,
     breakdownMethodology,
+    unknownBreakdownMethodology: {
+        SupplySideRevenue: {
+            'Maker Rebates (Tiered)': 'Makers get a rebate set by their maker volume in the prior month, credited at each fill. Per-trader volumes are not public.',
+            'Taker Volume Rebates': 'Takers get back 0-30% of the taker fees they paid, set by their volume in the prior month and paid weekly. Per-trader volumes are not public.',
+        },
+    },
     skipBreakdownValidation: true,
 }
 

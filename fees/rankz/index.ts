@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 // Rankz (rankz.fun): physical graded-card gacha on Robinhood Chain.
 // Users buy crate opens in USDG through the VendingMachine, which splits
@@ -109,6 +110,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-03",
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true, //buybacks can exceed sales
 };
 
