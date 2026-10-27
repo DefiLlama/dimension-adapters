@@ -72,7 +72,7 @@ export type RouterFeePayment = { hash: string; router: FeeRouter; from: string; 
 // (KyberSwap pulls an input-side fee straight from the trader, and its swaps are identified by ClientData).
 export async function getRouterFeePayments(options: FetchOptions): Promise<RouterFeePayment[]> {
   const [tokenIn, ethIn] = await Promise.all([
-    options.getLogs({ noTarget: true, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, null, padAddress(TRNCH_TREASURY_SAFE)], entireLog: true, maxBlockRange: 30000 }),
+    options.getLogs({ noTarget: true, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, null, padAddress(TRNCH_TREASURY_SAFE)], entireLog: true, maxBlockRange: 30000, allowParseFailure: true }),
     options.getLogs({ target: TRNCH_TREASURY_SAFE, eventAbi: SafeReceivedEvent, entireLog: true }),
   ]);
   const byTx = new Map<string, { token: string; amount: bigint; payer: string }[]>();
@@ -82,7 +82,12 @@ export async function getRouterFeePayments(options: FetchOptions): Promise<Route
     list.push({ token: normalizeToken(token), amount: BigInt(amount), payer: String(payer).toLowerCase() });
     byTx.set(key, list);
   };
-  for (const log of tokenIn) push(log.transactionHash, log.address, log.args.value, log.args.from);
+  for (const log of tokenIn) {
+    // ERC-721 Transfers (tokenId indexed, 4 topics) share topic0 and do not decode, e.g. the ERC-8004 AgentIdentity
+    // NFT 0x8004a169 sent to the Safe in 0x2f93878779401d584d432a71f2e2c7a1e44254cde6ba6322922745df90cc778b
+    if (!log.args) continue;
+    push(log.transactionHash, log.address, log.args.value, log.args.from);
+  }
   for (const log of ethIn) push(log.transactionHash, NULL_ADDRESS, log.args.value, log.args.sender);
   if (!byTx.size) return [];
 
