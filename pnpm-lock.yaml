@@ -12,8 +12,8 @@ importers:
         specifier: ^1.15.0
         version: 1.15.0
       '@defillama/sdk':
-        specifier: 5.0.242
-        version: 5.0.242(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+        specifier: 5.0.244
+        version: 5.0.244(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
       '@supercharge/promise-pool':
         specifier: ^3.1.0
         version: 3.2.0
@@ -336,8 +336,8 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@defillama/sdk@5.0.242':
-    resolution: {integrity: sha512-dDODx5N6hN3zBViMd5Pr8HS2+SGC774g4xQTaQLukP8cPOkCkYVfpLPm++WpeSpPCwgFcd4S9B1sxvJhfkXkTA==}
+  '@defillama/sdk@5.0.244':
+    resolution: {integrity: sha512-c3pxyQvsFPGkUvbTWWzMD2bXbP8T331E3Zucj1DLFbGGbiEs1jMDTTN0yHQ4EI4qAAzGSk9IPMpMue8OjKPQww==}
     peerDependencies:
       '@solana/web3.js': '>=1.73.0'
     peerDependenciesMeta:
@@ -2149,7 +2149,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@defillama/sdk@5.0.242(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)':
+  '@defillama/sdk@5.0.244(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)':
     dependencies:
       '@aws-sdk/client-s3': 3.913.0
       '@elastic/elasticsearch': 8.19.1(supports-color@7.2.0)
