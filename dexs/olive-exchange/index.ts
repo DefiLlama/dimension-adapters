@@ -1,37 +1,41 @@
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { pubkey, queryOliveEvents, readCustodies, START } from "../../fees/olive-exchange/shared";
+import { noTpSlColumns, pubkey, queryOliveEvents, readCustodies, sizeTpSlFills, START, tpSlRowsSql } from "../../fees/olive-exchange/shared";
 
-// Perpetual and expiry-future volume: every fill counts once at its execution spot price (opens, limit fills,
-// closes, liquidations and expiry settlements), so a position opened and closed counts twice, as on Olive's own
-// Exchange Data page. Futures are valued at spot, not at their future price.
+// Perpetual and expiry-future volume: every trader fill counts once at its execution spot price (opens, limit
+// fills, closes, take-profit and stop-loss fills), so a position opened and closed counts twice. Liquidations
+// and expiry settlements are not trades and are left out. Futures are valued at spot, not at their future price.
 const fetch = async (options: FetchOptions) => {
   const rows = await queryOliveEvents(options, [
-    'PerpPositionOpened', 'LimitOrderExecuted', 'PerpPositionClosed', 'PositionLiquidated', 'FuturePositionOpened',
-    'LimitFutureOrderExecuted', 'FuturePositionClosed', 'FuturePositionSettled', 'FuturePositionLiquidated',
+    'PerpPositionOpened', 'LimitOrderExecuted', 'PerpPositionClosed', 'FuturePositionOpened',
+    'LimitFutureOrderExecuted', 'FuturePositionClosed', 'TpSlOrderExecuted',
   ], `
     fills AS (
       -- quantity in raw units of the market's underlying token, spot in USD × 1e6 per pricing unit
-      SELECT 'Perpetuals' AS product, custody, base_quantity_native AS quantity, entry_spot_price AS spot FROM PerpPositionOpened
-      UNION ALL SELECT 'Perpetuals', custody, base_quantity_native, execution_spot_price FROM LimitOrderExecuted
-      UNION ALL SELECT 'Perpetuals', custody, closed_base_quantity_native, current_spot_price FROM PerpPositionClosed
-      UNION ALL SELECT 'Perpetuals', custody, base_quantity_native, liquidation_trigger_spot_price FROM PositionLiquidated
-      UNION ALL SELECT 'Expiry Futures', custody, base_quantity_native, entry_spot_price FROM FuturePositionOpened
-      UNION ALL SELECT 'Expiry Futures', custody, base_quantity_native, execution_spot_price FROM LimitFutureOrderExecuted
-      UNION ALL SELECT 'Expiry Futures', custody, closed_base_quantity_native, current_spot_price FROM FuturePositionClosed
-      UNION ALL SELECT 'Expiry Futures', custody, settled_base_quantity_native, settlement_spot_price FROM FuturePositionSettled
-      UNION ALL SELECT 'Expiry Futures', custody, liquidated_base_quantity_native, liquidation_trigger_spot_price FROM FuturePositionLiquidated
+      SELECT custody, base_quantity_native AS quantity, entry_spot_price AS spot FROM PerpPositionOpened
+      UNION ALL SELECT custody, base_quantity_native, execution_spot_price FROM LimitOrderExecuted
+      UNION ALL SELECT custody, closed_base_quantity_native, current_spot_price FROM PerpPositionClosed
+      UNION ALL SELECT custody, base_quantity_native, entry_spot_price FROM FuturePositionOpened
+      UNION ALL SELECT custody, base_quantity_native, execution_spot_price FROM LimitFutureOrderExecuted
+      UNION ALL SELECT custody, closed_base_quantity_native, current_spot_price FROM FuturePositionClosed
     )`, `
-    SELECT product, custody, SUM(quantity * spot)::VARCHAR AS quantity_spot FROM fills GROUP BY product, custody
+    SELECT custody AS fill_custody, SUM(quantity * spot)::VARCHAR AS quantity_spot, ${noTpSlColumns} FROM fills GROUP BY custody
+    UNION ALL ${tpSlRowsSql([0, 2], 'NULL, NULL')}
   `);
 
+  // TP/SL fills record the share of the position they closed: their size comes from the position's history
+  const tpSlFills = await sizeTpSlFills(options, rows);
+  const volumes = [
+    ...rows.filter((row) => row.fill_custody).map((row) => ({ custody: row.fill_custody, quantitySpot: BigInt(row.quantity_spot) })),
+    ...tpSlFills.map((fill) => ({ custody: fill.custody, quantitySpot: fill.quantity * fill.spot })),
+  ];
+
   const dailyVolume = options.createBalances();
-  const filled = rows.filter((row) => row.custody);
   // a custody's decimals are its pricing decimals: the mint decimals, plus n for pools priced per 10^n tokens
-  const custodies = await readCustodies(filled.map((row) => pubkey(row.custody)));
-  for (const row of filled) {
-    const { decimals } = custodies[pubkey(row.custody)];
-    dailyVolume.addUSDValue(Number(row.quantity_spot) / 10 ** decimals / 1e6, row.product);
+  const custodies = await readCustodies(volumes.map((volume) => pubkey(volume.custody)));
+  for (const volume of volumes) {
+    const { decimals } = custodies[pubkey(volume.custody)];
+    dailyVolume.addUSDValue(Number(volume.quantitySpot) / 10 ** decimals / 1e6);
   }
   return { dailyVolume };
 };
@@ -44,13 +48,7 @@ const adapter: SimpleAdapter = {
   start: START,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Volume: "Notional of every perpetual and expiry-future fill (opens, limit fills, closes, liquidations and expiry settlements) at its execution spot price, read from the program's events. Take-profit and stop-loss fills are not included: their event does not record the size filled (none has happened yet).",
-  },
-  breakdownMethodology: {
-    Volume: {
-      Perpetuals: "Perpetual position fills.",
-      'Expiry Futures': "Expiry-future position fills, valued at spot.",
-    },
+    Volume: "Notional of every perpetual and expiry-future trade (opens, limit fills, closes, take-profit and stop-loss fills) at its execution spot price, read from the program's events. Liquidations and expiry settlements are not counted. A take-profit or stop-loss fill records the share of the position it closed; its size is taken from the position's earlier events.",
   },
 };
 
