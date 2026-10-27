@@ -33,11 +33,14 @@ const fetch = async (options: FetchOptions) => {
       UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), ${notional('remaining_quantity', 'entry_spot_price')} FROM ChooserConverted
     ),
     premium_rows AS (
-      -- premiums buyers paid, USD × 1e6
+      -- premiums buyers paid and premiums the pool paid for contracts sold back, before fees, USD × 1e6
       SELECT IFF(option_type = 1, 'Put Options', 'Call Options') AS product, remaining_premium_total_usd AS premium_usd FROM OptionPositionOpened
       UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), remaining_premium_total_usd FROM LimitOptionOrderExecuted
+      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), close_premium_usd FROM OptionPositionClosed
       UNION ALL SELECT 'Chooser Options', remaining_premium_total_usd FROM ChooserPositionOpened
       UNION ALL SELECT 'Chooser Options', remaining_premium_total_usd FROM LimitChooserOrderExecuted
+      UNION ALL SELECT 'Chooser Options', close_value_usd FROM ChooserPositionClosed
+      UNION ALL SELECT 'Chooser Options', close_value_usd FROM ChooserTpSlOrderExecuted
     )`, `
     SELECT 'notional' AS metric, product, SUM(notional_usd)::VARCHAR AS usd, ${noTpSlColumns} FROM notional_rows GROUP BY product
     UNION ALL SELECT 'premium', product, SUM(premium_usd)::VARCHAR, ${noTpSlColumns} FROM premium_rows GROUP BY product
@@ -57,7 +60,10 @@ const fetch = async (options: FetchOptions) => {
   for (const fill of await sizeTpSlFills(options, rows)) {
     const isPut = fill.optionType === 1;
     const price = isPut && fill.strike !== undefined ? fill.strike : fill.spot;
-    dailyNotionalVolume.addUSDValue(Number(fill.quantity * price) / 1e12, isPut ? 'Put Options' : 'Call Options');
+    const product = isPut ? 'Put Options' : 'Call Options';
+    dailyNotionalVolume.addUSDValue(Number(fill.quantity * price) / 1e12, product);
+    // the trigger fires on the premium: contracts sold × premium per contract
+    dailyPremiumVolume.addUSDValue(Number(fill.quantity * fill.executedPrice) / 1e12, product);
   }
   return { dailyNotionalVolume, dailyPremiumVolume };
 };
@@ -71,7 +77,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     NotionalVolume: "Notional of every option and chooser trade: market and limit buys, sell-backs, exercises, expiry settlements, chooser conversions, and take-profit and stop-loss sells, at the execution spot price (puts at their strike). A take-profit or stop-loss sell records the share of the position it sold; the contracts sold are taken from the position's earlier events.",
-    PremiumVolume: "Premiums buyers paid for options and chooser options (market and limit buys).",
+    PremiumVolume: "Premiums of option and chooser trades before fees: what buyers paid (market and limit buys) and what the pool paid for contracts sold back (sell-backs and take-profit and stop-loss sells).",
   },
   breakdownMethodology: {
     NotionalVolume: {
@@ -80,9 +86,9 @@ const adapter: SimpleAdapter = {
       'Chooser Options': "Chooser option trades (a chooser becomes a call or a put on its choice date), valued at spot.",
     },
     PremiumVolume: {
-      'Call Options': "Premiums paid for call options.",
-      'Put Options': "Premiums paid for put options.",
-      'Chooser Options': "Premiums paid for chooser options.",
+      'Call Options': "Premiums of call option buys and sell-backs.",
+      'Put Options': "Premiums of put option buys and sell-backs.",
+      'Chooser Options': "Premiums of chooser option buys and sell-backs.",
     },
   },
 };
