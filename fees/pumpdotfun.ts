@@ -74,7 +74,7 @@ const MAYHEM_FEE_WALLET = 'GesfTA3X2arioaHp8bbKdjG9vJtskViWACZoYvxp4twS'
 // Pump.fun migrator wallet: moves graduated bonding-curve liquidity to Raydium.
 const PUMP_FUN_MIGRATOR = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg'
 
-// Platform Fee (https://pump.fun/docs/fees): 0.45% of pump.fun web and mobile app trades (0.40%
+// App Fee, the docs' Platform Fee (https://pump.fun/docs/fees): 0.45% of pump.fun web and mobile app trades (0.40%
 // with a referral code), sent by the app as its own transfer of SOL or USDC to a fee wallet since
 // 2026-10-16 (first fee tx 2zHNmxmLAesNqGUkvPZgHidagwxDvKeP4KYR1j9icBX5Sr21YKHCdvUcw9rHh8wSDXfiP4BVD3euBKYYdi8Y5KUk
 // at 00:47 UTC; the docs say 17 Oct). The fee wallets also receive plain treasury transfers, swap
@@ -83,7 +83,8 @@ const PUMP_FUN_MIGRATOR = '39azUYFWPz3VHgKCf3VChUwbpURdCHRxjWVowf5jUJjg'
 // own tx by PUMP_ORDER_PROGRAM out of the order vault. The referrer's cut is not split on-chain per trade (it is paid
 // later from the pooled rewards wallet), so it cannot be separated and is not deducted. The 50%
 // buyback policy covers bonding-curve, PumpSwap and Terminal revenue only, so the fee is all
-// protocol revenue.
+// protocol revenue. Fees on mobile app trades (txs running PUMP_APP_PROGRAM) go to the pumpfun-app
+// listing, this adapter keeps the rest (web trades and conditional orders).
 const PLATFORM_FEE_START = '2026-10-16'
 const PLATFORM_FEE_WALLETS = [
   'BNrYNyQZhdGRs8Rvi98WGTjhxab2wFTdGtVjW72RGyh4', // 2026-10-16 to 2026-10-19 20:17 UTC, also the rewards wallet
@@ -92,9 +93,11 @@ const PLATFORM_FEE_WALLETS = [
 const NATIVE_SOL = 'So11111111111111111111111111111111111111111' // tokens_solana.transfers id for native SOL
 // pump.fun conditional-order program, same upgrade authority (7gZufwwA...) as the bonding curve
 const PUMP_ORDER_PROGRAM = 'Dsug6JqUcLJaTJCx7ufPREeHjnMakmVEAYSi5oaAEnzK'
+// pump.fun mobile app program, wraps every mobile app swap (web trades never call it)
+const PUMP_APP_PROGRAM = '6Vo3245eszAb5wuqEMw8mGdbfRUdKbHhDHP5LcaGuTAB'
 
 const LABEL = {
-  PumpFunPlatformFee: 'Pump Fun Platform Fees',
+  PumpFunAppFee:      'Pump Fun App Fees',
   PumpFunProtocolFee: 'Pump Fun Protocol Fees',
   PumpFunMayhemFee:   'Pump Fun Mayhem Fees',
   PumpFunCreatorFee:  'Pump Fun Creator Fees',
@@ -139,10 +142,11 @@ async function addMayhemFees(options: FetchOptions, dailyFees: any, dailyRevenue
   dailyProtocolRevenue.addBalances(labeled)
 }
 
-// Platform Fee: SOL/USDC inflows to the fee wallet inside trade txs, 100% protocol.
-async function addPlatformFees(options: FetchOptions, dailyFees: any, dailyRevenue: any, dailyProtocolRevenue: any) {
-  if (options.dateString < PLATFORM_FEE_START) return
-  const rows = await queryDuneSql(options, `
+// App Fee: SOL/USDC inflows to the fee wallet inside trade txs, split by whether the tx ran the
+// mobile app program (shared with fees/pumpfun-app.ts).
+export async function queryAppFees(options: FetchOptions, mobileApp: boolean): Promise<{ mint: string, amount: number }[]> {
+  if (options.dateString < PLATFORM_FEE_START) return []
+  return queryDuneSql(options, `
     WITH fee_in AS (
       SELECT tx_id, token_mint_address, amount, outer_executing_account
       FROM tokens_solana.transfers
@@ -151,18 +155,29 @@ async function addPlatformFees(options: FetchOptions, dailyFees: any, dailyReven
         AND token_mint_address IN ('${NATIVE_SOL}', '${ADDRESSES.solana.SOL}', '${ADDRESSES.solana.USDC}')
         AND TIME_RANGE
     )
+    , trades AS (
+      -- mobile app swaps are CPI'd from the app program, so it is the trade_source
+      SELECT tx_id, MAX(IF(trade_source = '${PUMP_APP_PROGRAM}', 1, 0)) AS is_app
+      FROM dex_solana.trades
+      WHERE TIME_RANGE AND tx_id IN (SELECT tx_id FROM fee_in)
+      GROUP BY 1
+    )
     SELECT
-      CASE WHEN token_mint_address = '${NATIVE_SOL}' THEN '${ADDRESSES.solana.SOL}' ELSE token_mint_address END AS mint,
-      CAST(SUM(amount) AS double) AS amount
-    FROM fee_in
-    WHERE outer_executing_account = '${PUMP_ORDER_PROGRAM}'
-      OR tx_id IN (SELECT tx_id FROM dex_solana.trades WHERE TIME_RANGE AND tx_id IN (SELECT tx_id FROM fee_in))
+      CASE WHEN f.token_mint_address = '${NATIVE_SOL}' THEN '${ADDRESSES.solana.SOL}' ELSE f.token_mint_address END AS mint,
+      CAST(SUM(f.amount) AS double) AS amount
+    FROM fee_in f
+    LEFT JOIN trades t ON f.tx_id = t.tx_id
+    WHERE (f.outer_executing_account = '${PUMP_ORDER_PROGRAM}' OR t.tx_id IS NOT NULL)
+      AND COALESCE(t.is_app, 0) = ${mobileApp ? 1 : 0}
     GROUP BY 1
-  `, { extraUIDKey: 'pump-platform-fee' })
-  for (const { mint, amount } of rows) {
-    dailyFees.add(mint, amount, LABEL.PumpFunPlatformFee)
-    dailyRevenue.add(mint, amount, LABEL.PumpFunPlatformFee)
-    dailyProtocolRevenue.add(mint, amount, LABEL.PumpFunPlatformFee)
+  `, { extraUIDKey: mobileApp ? 'pump-app-fee-mobile' : 'pump-app-fee-web' })
+}
+
+async function addAppFees(options: FetchOptions, dailyFees: any, dailyRevenue: any, dailyProtocolRevenue: any) {
+  for (const { mint, amount } of await queryAppFees(options, false)) {
+    dailyFees.add(mint, amount, LABEL.PumpFunAppFee)
+    dailyRevenue.add(mint, amount, LABEL.PumpFunAppFee)
+    dailyProtocolRevenue.add(mint, amount, LABEL.PumpFunAppFee)
   }
 }
 
@@ -353,7 +368,7 @@ async function buildBalances(
 
   // Mayhem-mode fees (off-event; captured from wallet inflows). 100% protocol.
   await addMayhemFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
-  await addPlatformFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
+  await addAppFees(options, dailyFees, dailyRevenue, dailyProtocolRevenue)
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
 }
@@ -373,10 +388,10 @@ const breakdownMethodology = {
     [LABEL.PumpFunCashback]: 'Cashback Coins slice — paid by traders; same 0.30% slot as the creator fee, mutually exclusive per coin (Cashback Coins from Feb 2026).',
     [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees collected at the Mayhem program fee wallet.',
     [LABEL.PumpFunGraduationFee]: 'Fees received by Pump.fun fee wallets from the token graduation during bonding-curve to Raydium migrations.',
-    [LABEL.PumpFunPlatformFee]: 'Platform Fee of 0.45% (0.40% with a referral code) on trades placed through the pump.fun web and mobile app, since 16 October 2026.',
+    [LABEL.PumpFunAppFee]: '0.45% app fee on pump.fun website trades, since 16 October 2026.',
   },
   Revenue: {
-    [LABEL.PumpFunPlatformFee]: 'Platform Fee on pump.fun web and mobile app trades, kept by pump.fun.',
+    [LABEL.PumpFunAppFee]: '0.45% app fee on pump.fun website trades.',
     [LABEL.PumpFunProtocolFee]: "Pump's slice of the bonding-curve trade fee — kept by the protocol.",
     [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees (no creator/buyback split — 100% protocol).',
     [LABEL.PumpFunGraduationFee]: 'Graduation fees kept by the protocol when tokens migrate from Pump.fun bonding curves to Raydium.',
@@ -385,7 +400,7 @@ const breakdownMethodology = {
     [LABEL.PumpFunProtocolFee]: "Pump's slice kept by the protocol after the buyback share (100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28).",
     [LABEL.PumpFunMayhemFee]: 'Mayhem-mode fees.',
     [LABEL.PumpFunGraduationFee]: 'Graduation fees kept by the protocol.',
-    [LABEL.PumpFunPlatformFee]: 'Platform Fee on pump.fun web and mobile app trades, kept by pump.fun.',
+    [LABEL.PumpFunAppFee]: '0.45% app fee on pump.fun website trades.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: 'PUMP bought back on the market by pump.fun buyback wallets (funded by all pump products).',
@@ -406,9 +421,9 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true,
   breakdownMethodology,
   methodology: {
-    Fees: "Bonding-curve trade fees paid by users (pump's slice + creator/cashback slice), graduation fees, Mayhem-mode fees, and the Platform Fee on pump.fun web and mobile app trades.",
-    Revenue: "Pump's slice of the bonding-curve trade fee plus graduation fees, Mayhem-mode fees and the Platform Fee.",
-    ProtocolRevenue: "Pump's slice kept by the protocol after the buyback share, plus 100% of graduation fees, Mayhem fees and the Platform Fee. Era-based split: 100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28.",
+    Fees: "Bonding-curve trade fees paid by users (pump's slice + creator/cashback slice), graduation fees, Mayhem-mode fees, and the app fee on pump.fun website trades.",
+    Revenue: "Pump's slice of the bonding-curve trade fee plus graduation fees, Mayhem-mode fees and the website app fee.",
+    ProtocolRevenue: "Pump's slice kept by the protocol after the buyback share, plus 100% of graduation fees, Mayhem fees and the website app fee. Era-based split: 100% pre-2025-07-14, 0% from 2025-07-14, 50% from 2026-04-28.",
     HoldersRevenue: "PUMP bought back on the market by pump.fun buyback wallets (funded by all pump products, so it won't sum exactly with ProtocolRevenue here).",
     SupplySideRevenue: "Creator fees paid out to coin creators and cashback returned to traders/holders of the coin.",
   },
