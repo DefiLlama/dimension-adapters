@@ -125,6 +125,11 @@ const adapter: SimpleAdapter = {
       [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
     },
   },
+  unknownBreakdownMethodology: {
+    SupplySideRevenue: {
+      'Platform Fee Revenue Share To Integrators': "Relay pays qualifying integrators a revenue share of 0-67% of its platform fee, depending on the swap type and their 30-day volume. Relay does not report the amount, so it cannot be measured.",
+    },
+  },
 };
 
 export default adapter;
