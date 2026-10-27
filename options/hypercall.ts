@@ -7,6 +7,7 @@ import { httpGet, httpPost } from "../utils/fetchURL";
 const TRADES_API = "https://api.hypercall.xyz/trades";
 const PAGE_SIZE = 1000;
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 type HypercallTrade = {
   trade_id: number;
@@ -32,15 +33,15 @@ async function getTrades(fromMs: number, toMs: number): Promise<HypercallTrade[]
 // Hypercall underlyings trade as Hyperliquid perps: BTC/ETH on the main dex, equities and indices on trade.xyz (HIP-3)
 const hyperliquidCoin = (underlying: string) => (["BTC", "ETH"].includes(underlying) ? underlying : `xyz:${underlying}`);
 
-async function getHourlyCandles(underlying: string, fromMs: number, toMs: number): Promise<Candle[]> {
-  const coin = hyperliquidCoin(underlying);
-  const candles: Candle[] = await httpPost("https://api.hyperliquid.xyz/info", {
+// Hyperliquid only serves the latest 5000 candles per interval (~208 days of 1h, ~13 years of 1d):
+// https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint#candle-snapshot
+const getCandles = async (underlying: string, interval: "1h" | "1d", fromMs: number, toMs: number): Promise<Candle[]> =>
+  (await httpPost("https://api.hyperliquid.xyz/info", {
     type: "candleSnapshot",
-    req: { coin, interval: "1h", startTime: fromMs - HOUR_MS, endTime: toMs },
-  });
-  if (!candles?.length) throw new Error(`Hypercall: no Hyperliquid candles for ${coin}`);
-  return candles;
-}
+    req: { coin: hyperliquidCoin(underlying), interval, startTime: fromMs, endTime: toMs },
+  })) ?? [];
+
+const findCandle = (candles: Candle[], timestamp: number) => candles.find((c) => c.t <= timestamp && timestamp <= c.T);
 
 const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
@@ -50,13 +51,19 @@ const fetch = async (options: FetchOptions) => {
 
   const trades = await getTrades(fromMs, toMs);
   const underlyings = [...new Set(trades.map((t) => t.symbol.split("-")[0]))];
-  const candles: Record<string, Candle[]> = {};
-  for (const underlying of underlyings) candles[underlying] = await getHourlyCandles(underlying, fromMs, toMs);
+  const hourly: Record<string, Candle[]> = {};
+  const daily: Record<string, Candle[]> = {};
+  for (const underlying of underlyings) hourly[underlying] = await getCandles(underlying, "1h", fromMs - HOUR_MS, toMs);
 
   for (const trade of trades) {
     const underlying = trade.symbol.split("-")[0];
-    const candle = candles[underlying].find((c) => c.t <= trade.timestamp && trade.timestamp <= c.T);
-    if (!candle) throw new Error(`Hypercall: no ${underlying} candle for trade ${trade.trade_id}`);
+    let candle = findCandle(hourly[underlying], trade.timestamp);
+    if (!candle) {
+      // hourly candles for this hour have aged out (refills older than ~208 days), price off the daily open instead
+      daily[underlying] ??= await getCandles(underlying, "1d", fromMs - DAY_MS, toMs);
+      candle = findCandle(daily[underlying], trade.timestamp);
+    }
+    if (!candle) throw new Error(`Hypercall: no ${hyperliquidCoin(underlying)} candle for trade ${trade.trade_id}`);
     const size = Number(trade.size);
     dailyNotionalVolume.addUSDValue(size * Number(candle.o));
     dailyPremiumVolume.addUSDValue(size * Number(trade.price));
@@ -72,7 +79,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HYPERLIQUID],
   start: "2026-06-01", // mainnet launch, first trade 2026-06-01T19:55Z
   methodology: {
-    NotionalVolume: "Contracts traded on Hypercall times the underlying price, taken as the open of the Hyperliquid 1h candle (BTC/ETH perps, trade.xyz perps for equities and indices) containing the trade. Each fill is counted once.",
+    NotionalVolume: "Contracts traded on Hypercall times the underlying price, taken as the open of the Hyperliquid 1h candle (BTC/ETH perps, trade.xyz perps for equities and indices) containing the trade, or of the 1d candle once hourly candles are no longer served. Each fill is counted once.",
     PremiumVolume: "Contracts traded on Hypercall times the option premium paid. Each fill is counted once.",
   },
 };
