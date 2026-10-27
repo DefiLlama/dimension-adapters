@@ -61,25 +61,24 @@ async function firstHeightAtOrAfter(ts: number, lo: number, hi: number) {
 }
 
 // Each run would otherwise page the pool's events from its first one: the archive pages a contract's events
-// forward only, with no height filter. So the adapter keeps checkpoints in DefiLlama's cache: for each full page it
-// has read, the cursor the archive returned at the page's end and the page's last event. A run resumes from the
-// last checkpoint before its window. To make sure the cursor still means the same place (an archive rebuilt from
-// scratch would number its rows differently), it first re-reads that page and compares its last event; if it
-// differs, the checkpoints are dropped and the run pages from the start.
+// forward only, with no height filter. So the adapter keeps checkpoints in DefiLlama's cache: at the end of each
+// full page it has read, the cursor the archive returned, the height of the page's last event and the first event
+// after it. A run resumes from the last checkpoint before its window, once a one-event read shows the cursor still
+// leads to that same event (an archive rebuilt from scratch would number its rows differently); if it doesn't, the
+// checkpoints are dropped and the run pages from the start.
 // Events come in archive order, which is block order: each page's events are at or above the previous page's.
-type Checkpoint = { prev: string | null; cursor: string; id: number; hash: string; height: number };
+type Checkpoint = { cursor: string; height: number; next?: { id: number; hash: string } };
 const CACHE_KEY = "sozu-pool-event-pages";
 
-async function eventsPage(cursor: string | null) {
-  const res = await query(`query { finalizedEvents(contractId: "${POOL}", limit: ${PAGE_SIZE}${cursor ? `, cursor: "${cursor}"` : ""}) { json } }`);
+async function eventsPage(cursor: string | null, limit = PAGE_SIZE) {
+  const res = await query(`query { finalizedEvents(contractId: "${POOL}", limit: ${limit}${cursor ? `, cursor: "${cursor}"` : ""}) { json } }`);
   return res.finalizedEvents.json;
 }
 
-// Whether a checkpoint's cursor still ends the same page: re-read that page and compare its last event.
+// Whether a checkpoint's cursor still leads to the event it led to when it was saved.
 async function stillValid(checkpoint: Checkpoint) {
-  const page = await eventsPage(checkpoint.prev);
-  const last = page.events[page.events.length - 1];
-  return page.events.length === PAGE_SIZE && page.endCursor === checkpoint.cursor && last.id === checkpoint.id && last.block_hash === checkpoint.hash;
+  const first = (await eventsPage(checkpoint.cursor, 1)).events[0];
+  return first?.id === checkpoint.next?.id && first?.block_hash === checkpoint.next?.hash;
 }
 
 // Event data is the rkyv archive of the pool's event. The root object is written last, so its fixed-size fields
@@ -142,20 +141,28 @@ const fetch = async (options: FetchOptions) => {
 
   // Start from the last checkpoint before the window, or from the pool's first event.
   let cursor: string | null = null;
-  const start = checkpoints.filter((c) => c.height < fromHeight).pop();
+  const start = checkpoints.filter((c) => c.next && c.height < fromHeight).pop();
   if (start && (await stillValid(start))) cursor = start.cursor;
   else if (start) [checkpoints, changed] = [[], true];
-  const known = new Set(checkpoints.map((c) => c.cursor));
+  const byCursor = new Map(checkpoints.map((c) => [c.cursor, c]));
 
   // Events come oldest first; stop paging once past the window.
   let pastWindow = false;
   while (!pastWindow) {
     const page: any = await eventsPage(cursor);
+    const first = page.events[0];
     const last = page.events[page.events.length - 1];
-    // Only a full page keeps its end: a partial one gains events later, and re-reading it wouldn't match.
-    if (page.events.length === PAGE_SIZE && !known.has(page.endCursor)) {
-      checkpoints.push({ prev: cursor, cursor: page.endCursor, id: last.id, hash: last.block_hash, height: last.block_height });
-      known.add(page.endCursor);
+    // The first event after a checkpoint is what later runs check its cursor against.
+    const from = cursor === null ? undefined : byCursor.get(cursor);
+    if (from && !from.next && first) {
+      from.next = { id: first.id, hash: first.block_hash };
+      changed = true;
+    }
+    // A full page's end becomes a checkpoint.
+    if (page.events.length === PAGE_SIZE && !byCursor.has(page.endCursor)) {
+      const checkpoint = { cursor: page.endCursor, height: last.block_height };
+      checkpoints.push(checkpoint);
+      byCursor.set(checkpoint.cursor, checkpoint);
       changed = true;
     }
     for (const event of page.events) {
@@ -179,7 +186,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (changed) {
-    checkpoints.sort((a, b) => a.height - b.height || a.id - b.id);
+    checkpoints.sort((a, b) => a.height - b.height);
     await setCache(CACHE_KEY, CHAIN.DUSK, { checkpoints });
   }
   return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
