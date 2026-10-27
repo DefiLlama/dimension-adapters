@@ -8,6 +8,7 @@ import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../ada
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
 import { ethers } from "ethers";
+import { toPositionedLogArgs } from "./logs";
 
 const ZERO_ADDRESS = ADDRESSES.null;
 
@@ -371,14 +372,16 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
+const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
+    const feeTimelines: IJSON<{ blockNumber: number, logIndex: number, fee: number }[]> = {}
     const communityFees: IJSON<number> = {}
 
     if (!chain) throw new Error('Wrong version?')
@@ -501,16 +504,40 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       const unread = pairs.filter((_: string, i: number) => _slots[i] == null)
       if (unread.length) throw new Error(`slot0 unreadable on ${unread.length} of ${pairs.length} pools, the fee in the pool creation log is a tick spacing and cannot be used instead: first ${unread[0]}`)
       _slots.forEach((slot: any, i: number) => { fees[pairs[i]] = Number(slot.fee) / 1e6 })
+
+      const changeLogs = await getLogs({ targets: pairs, eventAbi: feeChangeEvent, flatten: false, onlyArgs: false })
+      changeLogs.forEach((logs: any[], i: number) => {
+        if (!logs?.length) return
+        const pair = pairs[i]
+        const changes = logs.map(toPositionedLogArgs).sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
+        if (Number(changes[changes.length - 1].feeNew) / 1e6 !== fees[pair]) return
+        feeTimelines[pair] = [
+          { blockNumber: -1, logIndex: -1, fee: Number(changes[0].feeOld) / 1e6 },
+          ...changes.map((change: any) => ({ blockNumber: change.blockNumber, logIndex: change.logIndex, fee: Number(change.feeNew) / 1e6 })),
+        ]
+      })
     }
 
-    const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
+    const hasFeeTimelines = Object.keys(feeTimelines).length > 0
+    const feeAt = (timeline: { blockNumber: number, logIndex: number, fee: number }[], blockNumber: number, logIndex: number) => {
+      let fee = timeline[0].fee
+      for (const change of timeline.slice(1)) {
+        if (change.blockNumber > blockNumber || (change.blockNumber === blockNumber && change.logIndex > logIndex)) break
+        fee = change.fee
+      }
+      return fee
+    }
 
-    allLogs.map((logs: any, index) => {
-      if (!logs.length) return;
+    const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines ? { onlyArgs: false } : {}) })
+
+    allLogs.map((rawLogs: any, index) => {
+      if (!rawLogs.length) return;
       const pair = pairs[index]
       if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
+      const logs = hasFeeTimelines ? rawLogs.map(toPositionedLogArgs) : rawLogs
       const [token0, token1] = pairObject[pair]
       const feeTier = fees[pair]
+      const feeTimeline = feeTimelines[pair]
 
       let pairRevenueRatio = revenueRatio;
       let pairProtocolRevenueRatio = protocolRevenueRatio;
@@ -532,8 +559,9 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       }
 
       logs.forEach((log: any) => {
+        const swapFeeTier = feeTimeline ? feeAt(feeTimeline, log.blockNumber, log.logIndex) : feeTier
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-        const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * feeTier, amount1: log.amount1.toString() * feeTier })
+        const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * swapFeeTier, amount1: log.amount1.toString() * swapFeeTier })
 
         if (pairRevenueRatio || pairRevenueRatio === 0) {
           revenueEnabled = true;
@@ -609,6 +637,7 @@ type UniV3Config = {
   isAlgebraV3?: boolean,
   isAlgebraV2?: boolean,
   feeFromSlot0?: boolean,
+  feeChangeEvent?: string,
   userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,
