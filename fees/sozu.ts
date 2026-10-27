@@ -210,8 +210,7 @@ const adapter: SimpleAdapter = {
   start: "2025-11-15",
   methodology,
   breakdownMethodology,
-  // One run a day keeps requests to the public Dusk node low.
-  pullHourly: false,
+  pullHourly: true,
 };
 
 export default adapter;
