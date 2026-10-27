@@ -51,6 +51,8 @@ const fetch = async ({ getLogs, chain, createBalances }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // ELFi Protocol ceased operations on 2026-08-31 04:00 UTC (notice on https://www.elfi.xyz)
+  deadFrom: '2026-09-01',
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch,
