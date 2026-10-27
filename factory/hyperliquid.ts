@@ -419,6 +419,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     extraReturnFields: { dailyHoldersRevenue: "0" },
   },
+  "entryx": {
+    addresses: ["0x3b9e208e3890fb54a1b4d4129bee0da90ce87d1e"],
+    start: "2026-10-25",
+    methodology: {
+      Fees: "Trading fees paid by users for perps placed through Entryx.",
+      Revenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
+    },
+  },
   "phantom-perps": {
     addresses: ["0xb84168cf3be63c6b8dad05ff5d755e97432ff80b"],
     start: "2025-07-08",
