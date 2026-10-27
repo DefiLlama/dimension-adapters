@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Aero revenue it feeds (aero-v2, aero-lite).
+
 import * as sdk from '@defillama/sdk'
 import { FetchOptions } from '../../adapters/types'
 import { isCoreAsset } from '../../helpers/prices'

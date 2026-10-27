@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// Trueo markets depend on the Uniswap and Aero revenue it feeds (uniswap-v2/v3/v4, aerodrome, aerodrome-slipstream, velodrome-v2).
+
 import ADDRESSES from './coreAssets.json'
 
 import { Balances, ChainApi, cache, coins } from "@defillama/sdk";

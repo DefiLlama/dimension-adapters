@@ -281,6 +281,8 @@ const configs: Record<string, Record<string, any>> = {
   "wardenswap": {
     [CHAIN.BSC]: { factory: '0x3657952d7bA5A0A4799809b5B6fdfF9ec5B46293', start: '2021-06-23' },
   },
+  // Changes to this entry require further approval before merging: a Trueo market depends on the
+  // Velodrome V1 revenue fees/velodrome derives from it.
   "velodrome": {
     [CHAIN.OPTIMISM]: { factory: '0x25CbdDb98b35ab1FF77413456B31EC81A6B6B746', fees: 0.0005, stableFees: 0.0002, start: '2023-02-23' },
   },

@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Papertrade revenue it feeds (fees/papertrade.ts).
+
 import { FetchOptions } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 
