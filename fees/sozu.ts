@@ -16,7 +16,6 @@ import { httpPost } from "../utils/fetchURL";
 // available; the events carry the same amounts.
 // https://duskscan.net/contract/6fdfdc713a18fc6ca2ad20eb2b4a3305a935ef47d6a872d9a4df8bc9fd9d169e
 const POOL = "6fdfdc713a18fc6ca2ad20eb2b4a3305a935ef47d6a872d9a4df8bc9fd9d169e";
-const POOL_FIRST_EVENT_HEIGHT = 2693535; // the pool's first deposit, 2025-11-15
 
 // Public Dusk node; the archive GraphQL serves finalized contract events.
 const GRAPHQL = "https://nodes.dusk.network/on/graphql/query";
@@ -36,7 +35,7 @@ async function query(body: string) {
 const timestamps: Record<number, number> = {};
 // Block timestamps for `heights`, read in one request (GraphQL aliases) and kept for the run.
 async function blockTimestamps(heights: number[]) {
-  const missing = heights.filter((h) => timestamps[h] === undefined);
+  const missing = [...new Set(heights)].filter((h) => timestamps[h] === undefined);
   if (missing.length) {
     const res = await query(`query { ${missing.map((h) => `h${h}: block(height: ${h}) { header { timestamp } }`).join(" ")} }`);
     for (const h of missing) timestamps[h] = res[`h${h}`].header.timestamp;
@@ -44,42 +43,18 @@ async function blockTimestamps(heights: number[]) {
   return heights.map((h) => timestamps[h]);
 }
 
-// Lowest height in [lo, hi] whose block timestamp is >= ts (hi if none is). Each request reads up to 64 heights
-// spread over the range and narrows it to the gap between two of them, so ~4 requests cover all of Dusk's history.
-async function firstHeightAtOrAfter(ts: number, lo: number, hi: number) {
-  while (lo < hi) {
-    const step = Math.ceil((hi - lo) / 64);
-    const probes: number[] = [];
-    for (let h = lo; h < hi; h += step) probes.push(h);
-    const times = await blockTimestamps(probes);
-    const i = times.findIndex((t) => t >= ts);
-    if (i === 0) return lo;
-    if (i === -1) lo = probes[probes.length - 1] + 1;
-    else [lo, hi] = [probes[i - 1] + 1, probes[i]];
-  }
-  return lo;
-}
-
 // Each run would otherwise page the pool's events from its first one: the archive pages a contract's events
-// forward only, with no height filter. So the adapter keeps checkpoints in DefiLlama's cache: at the end of each
-// full page it has read, the cursor the archive returned, the height of the page's last event and the first event
-// after it. A run resumes from the last checkpoint before its window, once a one-event read shows the cursor still
-// leads to that same event (an archive rebuilt from scratch would number its rows differently); if it doesn't, the
-// checkpoints are dropped and the run pages from the start.
-// Events come in archive order, which is block order: each page's events are at or above the previous page's.
-type Checkpoint = { cursor: string; height: number; next?: { id: number; hash: string } };
+// forward only, with no height or time filter. So the adapter keeps checkpoints in DefiLlama's cache: at the end of
+// each full page it has read, the cursor the archive returned, the block time of the page's last event and the
+// first event after it. A run resumes from the last checkpoint before its window, if the cursor still leads to that
+// same event (an archive rebuilt from scratch would number its rows differently); if it doesn't, the checkpoints
+// are dropped and the run pages from the start.
+// Events come in archive order, which is block order, so their block times only go up.
+type Checkpoint = { cursor: string; time: number; next?: { id: number; hash: string } };
 const CACHE_KEY = "sozu-pool-event-pages";
 
-async function eventsPage(cursor: string | null, limit = PAGE_SIZE) {
-  const res = await query(`query { finalizedEvents(contractId: "${POOL}", limit: ${limit}${cursor ? `, cursor: "${cursor}"` : ""}) { json } }`);
-  return res.finalizedEvents.json;
-}
-
-// Whether a checkpoint's cursor still leads to the event it led to when it was saved.
-async function stillValid(checkpoint: Checkpoint) {
-  const first = (await eventsPage(checkpoint.cursor, 1)).events[0];
-  return first?.id === checkpoint.next?.id && first?.block_hash === checkpoint.next?.hash;
-}
+const eventsPage = (cursor: string | null) =>
+  `finalizedEvents(contractId: "${POOL}", limit: ${PAGE_SIZE}${cursor ? `, cursor: "${cursor}"` : ""}) { json }`;
 
 // Event data is the rkyv archive of the pool's event. The root object is written last, so its fixed-size fields
 // sit at fixed offsets from the END of the buffer (out-of-line data such as the provisioner list comes first).
@@ -124,50 +99,52 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Only count finalized blocks; fail rather than undercount a window that isn't fully finalized yet.
-  const pair = (await query("query { lastBlockPair { json } }")).lastBlockPair.json;
-  const finalized = pair.last_finalized_block[0];
-  if ((await blockTimestamps([finalized]))[0] < options.endTimestamp)
-    throw new Error(`sozu: window ends after the last finalized block ${finalized}`);
-
-  // The runner's window is [end - 1 - size, end), so startTimestamp is the last second of the previous
-  // window. Starting at the next second counts a block on that second in one window only.
-  const fromHeight = await firstHeightAtOrAfter(options.startTimestamp + 1, POOL_FIRST_EVENT_HEIGHT, finalized);
-  const toHeight = await firstHeightAtOrAfter(options.endTimestamp, fromHeight, finalized);
-
   const cached = (await getCache(CACHE_KEY, CHAIN.DUSK)).checkpoints;
   let checkpoints: Checkpoint[] = Array.isArray(cached) ? cached : [];
   let changed = false;
 
-  // Start from the last checkpoint before the window, or from the pool's first event.
-  let cursor: string | null = null;
-  const start = checkpoints.filter((c) => c.next && c.height < fromHeight).pop();
-  if (start && (await stillValid(start))) cursor = start.cursor;
-  else if (start) [checkpoints, changed] = [[], true];
+  // The first request asks for the last finalized block and the page after the last checkpoint before the window.
+  // The runner's window is [end - 1 - size, end), so startTimestamp is the last second of the previous window: a
+  // block on that second belongs to the previous window.
+  let start = checkpoints.filter((c) => c.next && c.time <= options.startTimestamp).pop();
+  const first = await query(`query { pair: lastBlockPair { json } page: ${eventsPage(start?.cursor ?? null)} }`);
+  const finalized = first.pair.json.last_finalized_block[0];
+  let page = first.page.json;
+  if (start && (page.events[0]?.id !== start.next?.id || page.events[0]?.block_hash !== start.next?.hash)) {
+    [checkpoints, changed, start] = [[], true, undefined];
+    page = (await query(`query { page: ${eventsPage(null)} }`)).page.json;
+  }
+  let cursor = start?.cursor ?? null;
   const byCursor = new Map(checkpoints.map((c) => [c.cursor, c]));
 
   // Events come oldest first; stop paging once past the window.
-  let pastWindow = false;
-  while (!pastWindow) {
-    const page: any = await eventsPage(cursor);
-    const first = page.events[0];
-    const last = page.events[page.events.length - 1];
+  for (;;) {
+    // Block times for this page's events, read together with the last finalized block's.
+    const heights: number[] = page.events.map((e: any) => e.block_height);
+    const [finalizedTime, ...times] = await blockTimestamps([finalized, ...heights]);
+    // Only count finalized blocks; fail rather than undercount a window that isn't fully finalized yet.
+    if (finalizedTime < options.endTimestamp)
+      throw new Error(`sozu: window ends after the last finalized block ${finalized}`);
+
     // The first event after a checkpoint is what later runs check its cursor against.
     const from = cursor === null ? undefined : byCursor.get(cursor);
-    if (from && !from.next && first) {
-      from.next = { id: first.id, hash: first.block_hash };
+    if (from && !from.next && page.events.length) {
+      from.next = { id: page.events[0].id, hash: page.events[0].block_hash };
       changed = true;
     }
     // A full page's end becomes a checkpoint.
     if (page.events.length === PAGE_SIZE && !byCursor.has(page.endCursor)) {
-      const checkpoint = { cursor: page.endCursor, height: last.block_height };
+      const checkpoint = { cursor: page.endCursor, time: times[times.length - 1] };
       checkpoints.push(checkpoint);
       byCursor.set(checkpoint.cursor, checkpoint);
       changed = true;
     }
-    for (const event of page.events) {
-      if (event.block_height >= toHeight) { pastWindow = true; break; }
-      if (event.reverted || event.block_height < fromHeight) continue;
+
+    let pastWindow = false;
+    for (const [k, event] of page.events.entries()) {
+      const time = times[k];
+      if (time >= options.endTimestamp) { pastWindow = true; break; }
+      if (event.reverted || time <= options.startTimestamp) continue;
       if (event.topic === "reward") {
         const { amount, feeTotal, feePool } = decodeReward(event.data);
         dailyFees.addCGToken("dusk-network", toDusk(amount), METRIC.STAKING_REWARDS);
@@ -181,12 +158,13 @@ const fetch = async (options: FetchOptions) => {
         dailyRevenue.addCGToken("dusk-network", toDusk(fee), "Deposit Fees To Treasury");
       }
     }
-    if (!page.hasNextPage) break;
+    if (pastWindow || !page.hasNextPage) break;
     cursor = page.endCursor;
+    page = (await query(`query { page: ${eventsPage(cursor)} }`)).page.json;
   }
 
   if (changed) {
-    checkpoints.sort((a, b) => a.height - b.height);
+    checkpoints.sort((a, b) => a.time - b.time);
     await setCache(CACHE_KEY, CHAIN.DUSK, { checkpoints });
   }
   return { dailyFees, dailyUserFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
