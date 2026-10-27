@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Hyperliquid revenue it feeds (Perps, Spot, Outcomes, HLP).
+
 import { Balances } from "@defillama/sdk";
 import axios from "axios";
 import { decompressFrame } from "lz4-napi";
