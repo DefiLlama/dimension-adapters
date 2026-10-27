@@ -420,10 +420,14 @@ const builderConfigs: Record<string, BuilderConfig> = {
     extraReturnFields: { dailyHoldersRevenue: "0" },
   },
   "entryx": {
+    // Entryx (entryx.trade) builder code, attached to Hyperliquid perp orders placed through the web app: 0.05% builder fee.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards) and the public builder_fills archive,
+    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x3b9e208e3890fb54a1b4d4129bee0da90ce87d1e/20261025.csv.lz4
     addresses: ["0x3b9e208e3890fb54a1b4d4129bee0da90ce87d1e"],
+    // first day with fills in the builder_fills archive for this address
     start: "2026-10-25",
     methodology: {
-      Fees: "Trading fees paid by users for perps placed through Entryx.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps placed through Entryx (excludes Hyperliquid's own trading fees).",
       Revenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
       ProtocolRevenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
     },
