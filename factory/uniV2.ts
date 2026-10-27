@@ -511,6 +511,13 @@ const configs: Record<string, Record<string, any>> = {
   "currentx": {
     [CHAIN.MEGAETH]: { factory: '0xC60940F182F7699522970517f6d753A560546937', start: '2026-02-05', userFeesRatio: 1, revenueRatio: 0 },
   },
+  "megapump-dex": {
+    // The DEX where MegaPump (launchpad, see fees/megapump) tokens graduate: a stock uniV2 fork where only the
+    // launchpad can create pairs (https://github.com/MegaPumpETH/megapump-dex-v2). feeTo() is the zero address
+    // => 0.3% swap fee, 100% to the pool. Pairs are quoted in ETH, USDm or MEGA. Same factory as the TVL
+    // listing (registries/uniswapV2.js). Trading opens 2026-11-10 (factory deployed 2026-07-09, paused until then).
+    [CHAIN.MEGAETH]: { factory: '0x4188aDbFfBec026EdE44F2C3A7E22beDD880a46f', start: '2026-11-10', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "daoaas-swap": {
     [CHAIN.ENI]: { factory: '0x548C0E26CE90B333c07abb6d55546304D46d269d', start: '2025-06-01', userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0.5 },
   },
