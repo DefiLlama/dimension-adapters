@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const USDC_MINT = ADDRESSES.solana.USDC;
 
@@ -302,6 +303,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true, // fees from marketplace transactions can be lower than gacha buyback expenses
 }
 

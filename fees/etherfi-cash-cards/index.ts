@@ -134,7 +134,13 @@ const adapter: SimpleAdapter = {
         SupplySideRevenue: {
             [MetricLabels.CASHBACKS]: 'Cashback rewards paid to card users by external providers on Scroll',
         },
-    }
+    },
+    unknownBreakdownMethodology: {
+        SupplySideRevenue: {
+            'FX & cross-border costs': 'Paid offchain and vary by region and charge type, so the amount cannot be measured onchain.',
+            'Card issuer & network costs': 'Revenue is estimated at 1.38% of card spend. Card issuer and network (Visa) fees come out of this, plus fees ether.fi pays its card program provider, Rain. All set in private contracts and paid offchain.',
+        },
+    },
 };
 
 export default adapter;

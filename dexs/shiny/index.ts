@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 // Each payment contract replaced the one before it and emits PaymentReceived once per paid
 // order, so reading all of them over any window counts every order exactly once.
@@ -229,6 +230,7 @@ const adapter: SimpleAdapter = {
     Revenue: revenueBreakdown,
     ProtocolRevenue: revenueBreakdown,
   },
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true, // sellback payouts can exceed pack spend in the same hour
 };
 
