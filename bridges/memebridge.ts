@@ -12,7 +12,7 @@ const MAKER = "0x623777cc098c6058a46cf7530f45150ff6a8459d";
 const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const NATIVE_TXS = `
-  SELECT lower(from_address) AS from_address, lower(to_address) AS to_address, toString(value) AS value
+  SELECT lower(from_address) AS from_address, lower(to_address) AS to_address, toString(value) AS amount
   FROM evm_indexer.transactions
   WHERE chain = {chainId:UInt64}
     AND block_number >= {fromBlock:UInt32} AND block_number <= {toBlock:UInt32}
@@ -27,16 +27,16 @@ const fetch = async (options: FetchOptions) => {
   let dailyIncomingTxCount = 0;
 
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  const nativeTxs = await queryClickhouse<{ from_address: string; to_address: string; value: string }>(
+  const nativeTxs = await queryClickhouse<{ from_address: string; to_address: string; amount: string }>(
     NATIVE_TXS, { chainId: Number(options.api.chainId), fromBlock, toBlock, maker: MAKER }, undefined, { chain: options.chain },
   );
   for (const tx of nativeTxs) {
     if (tx.from_address === tx.to_address) continue;
     if (tx.to_address === MAKER) {
-      dailyOutgoingVolume.addGasToken(tx.value);
+      dailyOutgoingVolume.addGasToken(tx.amount);
       dailyOutgoingTxCount++;
     } else {
-      dailyIncomingVolume.addGasToken(tx.value);
+      dailyIncomingVolume.addGasToken(tx.amount);
       dailyIncomingTxCount++;
     }
   }
