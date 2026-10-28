@@ -191,6 +191,14 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
   };
 }
 
+// Spot fees paid in `token` net of the builder-code fees paid in it, in token units. Fees paid in a HIP-1 token go
+// to its deployer (deployerTradingFeeShare, the rest is burned), so this is a deployer's take on its own token.
+// Raw units rather than Balances: these tokens are not in CoinGeckoMaps, so the caller prices them.
+export async function queryHyperliquidSpotDeployerFeesV2(options: FetchOptions, token: string): Promise<number> {
+  const fees = await requestDaily<FeesDailyResponse>("fees", options);
+  return Number(fees.spotFees?.[token] || 0) - Number(fees.spotBuildersFees?.[token] || 0);
+}
+
 // HIP-4 outcome markets went live on mainnet on 2026-05-02
 export const HYPERLIQUID_HIP4_LAUNCH_TIME = 1777680000;
 
