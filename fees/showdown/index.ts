@@ -3,8 +3,11 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTransaction, solanaRpc } from "../../helpers/solana";
 
+// Native USDC mint on Solana: https://solscan.io/token/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+// Showdown Money Matches program: https://solscan.io/account/HaYXyyYKZDdom2khSh6xwkV7rFtEXfiS7GMZTEdPuWKo
 const MONEY_MATCHES = "HaYXyyYKZDdom2khSh6xwkV7rFtEXfiS7GMZTEdPuWKo";
+// Showdown Tournaments program: https://solscan.io/account/CZqTYLYYzLNGbivgkz4CDMEqHq9uajhrt5Ho5QTnF9Ei
 const TOURNAMENTS = "CZqTYLYYzLNGbivgkz4CDMEqHq9uajhrt5Ho5QTnF9Ei";
 const FIRST_SLOT = 456236284;
 const START_TIMESTAMP = Date.parse("2026-10-13T00:00:00Z") / 1000;
@@ -68,6 +71,7 @@ function programEvents(logs: string[], program: string): Buffer[] {
   const events: Buffer[] = [];
   const frames: string[] = [];
   for (const log of logs) {
+    if (log === "Log truncated") throw new Error("showdown: transaction logs truncated");
     const invoked = log.match(/^Program (\S+) invoke \[\d+\]$/);
     if (invoked) { frames.push(invoked[1]); continue; }
     if (/^Program \S+ (success|failed)/.test(log)) { frames.pop(); continue; }
@@ -90,64 +94,3 @@ async function totalsFromTransaction(signature: string, program: string): Promis
       if (event.length !== 121) throw new Error(`showdown: invalid MatchResolved event in ${signature}`);
       volume += 2n * event.readBigUInt64LE(88); // amount_per_player
       fees += 2n * event.readBigUInt64LE(97);   // rake_per_player
-    } else if (program === TOURNAMENTS && discriminator === TOURNAMENT_CLOSED) {
-      if (event.length !== 109) throw new Error(`showdown: invalid TournamentClosed event in ${signature}`);
-      volume += event.readBigUInt64LE(36); // total_buy_ins
-      volume += event.readBigUInt64LE(61); // sponsored
-      volume += event.readBigUInt64LE(69); // overlay
-      fees += event.readBigUInt64LE(45);   // total_rake
-    }
-  }
-  return { volume, fees };
-}
-
-async function totalsForProgram(program: string, from: number, to: number): Promise<Totals> {
-  if (from >= to) return { volume: 0n, fees: 0n };
-  const signatures = await signaturesInWindow(program, from, to);
-  const { results, errors } = await PromisePool.withConcurrency(1).for(signatures)
-    .process(signature => totalsFromTransaction(signature, program));
-  if (errors.length) throw errors[0];
-  return results.reduce((total, result) => ({
-    volume: total.volume + result.volume,
-    fees: total.fees + result.fees,
-  }), { volume: 0n, fees: 0n });
-}
-
-const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const dailyFees = options.createBalances();
-  const from = Math.max(options.startTimestamp + 1, START_TIMESTAMP);
-  const to = options.endTimestamp;
-  const matches = await totalsForProgram(MONEY_MATCHES, from, to);
-  const tournaments = await totalsForProgram(TOURNAMENTS, from, to);
-  dailyVolume.add(USDC, matches.volume, "Money Matches");
-  dailyVolume.add(USDC, tournaments.volume, "Tournaments");
-  dailyFees.add(USDC, matches.fees, "Money Matches");
-  dailyFees.add(USDC, tournaments.fees, "Tournaments");
-  return { dailyVolume, dailyFees };
-};
-
-const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  chains: [CHAIN.SOLANA],
-  start: "2026-10-13",
-  fetch,
-  skipBreakdownValidation: true,
-  methodology: {
-    Volume: "Money match stakes, tournament buy-ins, sponsorships, and guarantee overlays.",
-    Fees: "Rake collected from money matches and tournaments.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      "Money Matches": "Stakes from both players in money matches.",
-      "Tournaments": "Tournament buy-ins, sponsorships, and guarantee overlays.",
-    },
-    Fees: {
-      "Money Matches": "Rake collected from money matches.",
-      "Tournaments": "Rake collected from tournaments.",
-    },
-  },
-};
-
-export default adapter;
