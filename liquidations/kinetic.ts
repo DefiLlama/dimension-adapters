@@ -11,24 +11,37 @@ const abis = {
   exchangeRateStored: 'uint256:exchangeRateStored',
 }
 
-// same comptrollers as fees/kinetic: the core pool and the two isolated pools
+// same comptrollers as fees/kinetic: the core pool and the two isolated pools.
+// deployedAt is the creation block on the Flare explorer; a comptroller is skipped for windows before it existed.
 const comptrollers = [
-  '0x8041680Fb73E1Fe5F851e76233DCDfA0f2D2D7c8',
-  '0xDcce91d46Ecb209645A26B5885500127819BeAdd',
-  '0x15F69897E6aEBE0463401345543C26d1Fd994abB',
+  { address: '0x8041680Fb73E1Fe5F851e76233DCDfA0f2D2D7c8', deployedAt: 26963787 }, // 2024-07-16
+  { address: '0xDcce91d46Ecb209645A26B5885500127819BeAdd', deployedAt: 38815516 }, // 2025-03-16
+  { address: '0x15F69897E6aEBE0463401345543C26d1Fd994abB', deployedAt: 48017074 }, // 2025-09-23
 ]
+
+// the two native FLR markets (core kFLR and isolated isoFLR) have no underlying(); their cash equals their FLR balance
+const NATIVE_MARKETS = new Set([
+  '0xb84f771305d10607dd086b2f89712c0ced379407',
+  '0xd7291d5001693d15b6e4d56d73b5d2cd7ecfe5c6',
+])
 
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
 
-  const kTokens: string[] = (await options.api.multiCall({ abi: abis.getAllMarkets, calls: comptrollers })).flat()
-  // kFLR has no underlying() and falls back to the gas token
+  const toBlock = await options.getToBlock()
+  const active = comptrollers.filter(c => c.deployedAt <= toBlock).map(c => c.address)
+  const kTokens: string[] = (await options.api.multiCall({ abi: abis.getAllMarkets, calls: active })).flat()
   const underlyings = await options.api.multiCall({ abi: abis.underlying, calls: kTokens, permitFailure: true })
   const exchangeRates = await options.api.multiCall({ abi: abis.exchangeRateStored, calls: kTokens })
 
   const markets: Record<string, { underlying: string; exchangeRate: bigint }> = {}
   kTokens.forEach((kToken, i) => {
-    markets[kToken.toLowerCase()] = { underlying: underlyings[i] ?? ADDRESSES.null, exchangeRate: BigInt(exchangeRates[i]) }
+    let underlying = underlyings[i]
+    if (!underlying) {
+      if (!NATIVE_MARKETS.has(kToken.toLowerCase())) throw new Error(`kinetic: underlying() failed for ${kToken}`)
+      underlying = ADDRESSES.null
+    }
+    markets[kToken.toLowerCase()] = { underlying, exchangeRate: BigInt(exchangeRates[i]) }
   })
 
   const events: any[] = await options.getLogs({ targets: kTokens, eventAbi: LiquidateBorrowEvent })
