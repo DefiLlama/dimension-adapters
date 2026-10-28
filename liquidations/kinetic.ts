@@ -19,7 +19,7 @@ const comptrollers = [
   { address: '0x15F69897E6aEBE0463401345543C26d1Fd994abB', deployedAt: 48017074 }, // 2025-09-23
 ]
 
-// the two native FLR markets (core kFLR and isolated isoFLR) have no underlying(); their cash equals their FLR balance
+// the two native FLR markets (core kFLR and isolated isoFLR) have no underlying(); their collateral is native FLR, priced via the null address
 const NATIVE_MARKETS = new Set([
   '0xb84f771305d10607dd086b2f89712c0ced379407',
   '0xd7291d5001693d15b6e4d56d73b5d2cd7ecfe5c6',
@@ -44,14 +44,10 @@ const fetch = async (options: FetchOptions) => {
     markets[kToken.toLowerCase()] = { underlying, exchangeRate: BigInt(exchangeRates[i]) }
   })
 
-  // one kToken at a time: `targets` fans out 5 requests in parallel and the whitelisted Flare RPCs answer 429 under that
-  const events: any[] = []
-  for (const kToken of kTokens) {
-    events.push(...await options.getLogs({ target: kToken, eventAbi: LiquidateBorrowEvent }))
-  }
+  const events = await options.getLogs({ targets: kTokens, eventAbi: LiquidateBorrowEvent })
   for (const event of events) {
     const market = markets[event.cTokenCollateral.toLowerCase()]
-    if (!market) continue
+    if (!market) throw new Error(`kinetic: unknown collateral market ${event.cTokenCollateral}`)
     // seizeTokens is in kToken units; exchangeRateStored is scaled by 1e18
     dailyCollateralLiquidated.add(market.underlying, (BigInt(event.seizeTokens) * market.exchangeRate) / BigInt(1e18))
   }
