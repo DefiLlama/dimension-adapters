@@ -526,6 +526,14 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           ...changes.map((change: any) => ({ blockNumber: change.blockNumber, logIndex: change.logIndex, fee: Number(change.feeNew) / 1e6 })),
         ]
       })
+
+      const timelinePairs = Object.keys(feeTimelines)
+      if (timelinePairs.length) {
+        const openingSlots = await fetchOptions.fromApi.multiCall({ abi: slot0Abi, calls: timelinePairs, permitFailure: true })
+        timelinePairs.forEach((pair: string, i: number) => {
+          if (openingSlots[i] == null || Number(openingSlots[i].fee) / 1e6 !== feeTimelines[pair][0].fee) delete feeTimelines[pair]
+        })
+      }
     }
 
     const hasFeeTimelines = Object.keys(feeTimelines).length > 0
