@@ -1,4 +1,4 @@
-// Sapling, the first fully zcash-native launchpad: https://sapling.cash
+// Sapling, the first zcash-native launchpad & terminal: https://sapling.cash
 //
 // Every Sapling coin is created with its creator set to a Sapling program address, so the 2% creator fee on every
 // buy and sell of the coin is collected by Sapling and split on chain by the Sapling vault program's `settle`
