@@ -44,7 +44,11 @@ const fetch = async (options: FetchOptions) => {
     markets[kToken.toLowerCase()] = { underlying, exchangeRate: BigInt(exchangeRates[i]) }
   })
 
-  const events: any[] = await options.getLogs({ targets: kTokens, eventAbi: LiquidateBorrowEvent })
+  // one kToken at a time: `targets` fans out 5 requests in parallel and the whitelisted Flare RPCs answer 429 under that
+  const events: any[] = []
+  for (const kToken of kTokens) {
+    events.push(...await options.getLogs({ target: kToken, eventAbi: LiquidateBorrowEvent }))
+  }
   for (const event of events) {
     const market = markets[event.cTokenCollateral.toLowerCase()]
     if (!market) continue
