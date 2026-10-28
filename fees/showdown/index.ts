@@ -15,7 +15,6 @@ type Totals = { volume: bigint; fees: bigint };
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 let rpcQueue: Promise<void> = Promise.resolve();
 
-// Limit requests across concurrently running hourly windows; retry HTTP 429.
 function rpc<T>(call: () => Promise<T>): Promise<T> {
   const result = rpcQueue.then(async () => {
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -33,10 +32,10 @@ function rpc<T>(call: () => Promise<T>): Promise<T> {
   return result;
 }
 
-/** Find successful finalized signatures in [from, to). */
 async function signaturesInWindow(program: string, from: number, to: number): Promise<string[]> {
   const signatures: string[] = [];
   let before: string | undefined;
+  const blockTimes = new Map<number, number | null>();
   for (;;) {
     const page: any[] = await rpc(() => solanaRpc("getSignaturesForAddress", [
       program, { before, limit: 1000, commitment: "finalized" },
@@ -44,19 +43,29 @@ async function signaturesInWindow(program: string, from: number, to: number): Pr
     if (!Array.isArray(page)) throw new Error(`showdown: invalid signature response for ${program}`);
     for (const s of page) {
       if (s.err) continue;
-      if (typeof s.blockTime !== "number" || typeof s.slot !== "number")
-        throw new Error(`showdown: signature ${s.signature} has no blockTime or slot`);
-      if (s.slot >= FIRST_SLOT && s.blockTime >= from && s.blockTime < to) signatures.push(s.signature);
+      if (typeof s.slot !== "number") throw new Error(`showdown: signature ${s.signature} has no slot`);
+      if (s.slot < FIRST_SLOT) continue;
+      let blockTime = s.blockTime;
+      if (blockTime == null) {
+        if (!blockTimes.has(s.slot))
+          blockTimes.set(s.slot, await rpc(() => solanaRpc("getBlockTime", [s.slot])));
+        blockTime = blockTimes.get(s.slot);
+      }
+      if (typeof blockTime !== "number") {
+        console.warn(`showdown: no block time for ${s.signature} (slot ${s.slot})`);
+        continue;
+      }
+      if (blockTime >= from && blockTime < to) signatures.push(s.signature);
     }
     if (page.length < 1000) break;
     const oldest = page[page.length - 1];
-    if (oldest.slot < FIRST_SLOT || (typeof oldest.blockTime === "number" && oldest.blockTime < from)) break;
+    const oldestTime = oldest.blockTime ?? blockTimes.get(oldest.slot);
+    if (oldest.slot < FIRST_SLOT || (typeof oldestTime === "number" && oldestTime < from)) break;
     before = oldest.signature;
   }
   return signatures;
 }
 
-/** Extract Anchor events emitted by this program, excluding inner programs. */
 function programEvents(logs: string[], program: string): Buffer[] {
   const events: Buffer[] = [];
   const frames: string[] = [];
@@ -109,36 +118,38 @@ async function totalsForProgram(program: string, from: number, to: number): Prom
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const from = Math.max(options.startTimestamp + 1, START_TIMESTAMP);
   const to = options.endTimestamp;
   const matches = await totalsForProgram(MONEY_MATCHES, from, to);
   const tournaments = await totalsForProgram(TOURNAMENTS, from, to);
-  const fees = matches.fees + tournaments.fees;
-  const referrals = fees / 10n;
-  const profit = fees - referrals;
-
-  dailyVolume.add(USDC, matches.volume + tournaments.volume);
-  dailyFees.add(USDC, fees);
-  dailySupplySideRevenue.add(USDC, referrals);
-  dailyRevenue.add(USDC, profit);
-  dailyProtocolRevenue.add(USDC, profit);
-  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue };
+  dailyVolume.add(USDC, matches.volume, "Money Matches");
+  dailyVolume.add(USDC, tournaments.volume, "Tournaments");
+  dailyFees.add(USDC, matches.fees, "Money Matches");
+  dailyFees.add(USDC, tournaments.fees, "Tournaments");
+  return { dailyVolume, dailyFees };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: { [CHAIN.SOLANA]: { fetch, start: "2026-10-13" } },
+  chains: [CHAIN.SOLANA],
+  start: "2026-10-13",
+  fetch,
+  skipBreakdownValidation: true,
   methodology: {
-    Volume: "Money match stakes, tournament buy-ins, sponsorship, and guarantee overlays.",
-    Fees: "Rake collected from money matches and tournaments.",
-    SupplySideRevenue: "Referral allocation is 10% of the collected rake; paid off-chain.",
-    Revenue: "Rake after minus the referral allocation.",
+    Volume: "Money matches, tournament buy-ins, sponsorships, and guarantee overlays.",
+    Fees: "Rake collected from money matches and tournaments. Revenue is not reported because rakeback and referral distributions cannot be determined from these events.",
   },
-  breakdownMethodology: {},
+  breakdownMethodology: {
+    Volume: {
+      "Money Matches": "Money matches.",
+      "Tournaments": "Tournament buy-ins, sponsorships, and guarantee overlays.",
+    },
+    Fees: {
+      "Money Matches": "Rake from money matches.",
+      "Tournaments": "Rake from tournaments.",
+    },
+  },
 };
 
 export default adapter;
