@@ -76,8 +76,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // the feed only holds the latest rounds, so the adapter reads the trailing day at run time instead of hourly slices
-  pullHourly: false,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.OFF_CHAIN],
   runAtCurrTime: true,
