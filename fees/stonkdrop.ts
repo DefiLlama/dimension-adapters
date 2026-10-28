@@ -24,7 +24,8 @@
 // the treasury claims them: the position manager's Collect minus any DecreaseLiquidity in the same
 // window, so principal taken out of the position is not counted. DefiLlama does not price $STONKD, so
 // the STONKD half of a claim is converted to USDG at the pool's price after the last Swap log in the
-// window or, when the window saw no swap, the last Swap log before it. The price is always read from
+// window or, when the window saw no swap, the last Swap log before it, searched for back to the
+// pool's creation. The price is always read from
 // events: the chain's public RPC keeps only a few minutes of state, so a contract call at a past block
 // would fail on a historical refill. Fees left unclaimed in the pool are not counted. These LP fees are
 // also inside Uniswap v3's fees on Robinhood Chain (the pool's protocol-fee switch is on; that cut goes
@@ -45,11 +46,15 @@ const STONKD_POOL = '0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0'
 const POSITION_MANAGER = '0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3'
 // The treasury's position(s) in that pool: the full-range launch liquidity, minted with the pool.
 const TREASURY_POSITIONS = [1404166]
-// How far back to look for the pool's last swap when a window with a claim saw none. Robinhood Chain
-// produces about 9.7 blocks a second and the pool trades hundreds of times a day, so twelve hours is
-// normally enough and four days always has been; both stay under the public RPC's getLogs limits
-// (about 10M blocks and 10,000 logs per call for a single event).
-const SWAP_LOOKBACKS = [420_000, 3_350_000]
+// Where to look for the pool's last swap when a window with a claim saw none: back from the window in
+// bounded ranges, down to the block the pool was created in (PoolCreated in tx
+// 0x64aa0f477ed2d072b6d606320f17ec8c17fe69c6e860720e7cb3d55cdcc88cd8, 2026-10-07). Robinhood Chain
+// produces about 9.7 blocks a second and the pool trades hundreds of times a day, so the first range
+// (about twelve hours) is normally enough; the later ones (about four days each) stay under the public
+// RPC's getLogs limits for a single event (about 10M blocks and 10,000 logs per call).
+const STONKD_POOL_CREATED_BLOCK = 82_621_979
+const SWAP_SEARCH_FIRST_RANGE = 420_000
+const SWAP_SEARCH_RANGE = 3_350_000
 
 const abi = {
   SpinsCommitted: 'event SpinsCommitted(uint64 indexed commitmentId, address indexed player, uint64 indexed gachaConfigId, uint64 targetRound, uint64 priceTargetTimestamp, uint16 quantity, uint256 paymentAmount, uint256 reservedValueWad)',
@@ -76,7 +81,9 @@ const L = {
 const stonkdToUsdg = (stonkd: bigint, sqrtPriceX96: bigint) => (stonkd << BigInt(192)) / (sqrtPriceX96 * sqrtPriceX96)
 
 // The pool's sqrtPriceX96 after its last swap in the window; when the window saw no swap, after the
-// last swap before it, looked for in widening ranges. Event logs only: no state read at a past block.
+// last swap before it, searched for in bounded ranges back to the pool's creation. Event logs only: no
+// state read at a past block. A non-zero STONKD fee claim implies an earlier swap, so the search
+// cannot come up empty for a real claim; the throw guards the impossible case.
 async function poolSqrtPrice(options: FetchOptions): Promise<bigint> {
   const lastSwapPrice = (swaps: any[]): bigint | undefined => {
     if (!swaps.length) return
@@ -89,13 +96,15 @@ async function poolSqrtPrice(options: FetchOptions): Promise<bigint> {
 
   const windowStart = await options.getFromBlock()
   let toBlock = windowStart - 1
-  for (const lookback of SWAP_LOOKBACKS) {
-    const fromBlock = Math.max(toBlock - lookback + 1, 0)
+  let range = SWAP_SEARCH_FIRST_RANGE
+  while (toBlock >= STONKD_POOL_CREATED_BLOCK) {
+    const fromBlock = Math.max(toBlock - range + 1, STONKD_POOL_CREATED_BLOCK)
     const before = lastSwapPrice(await options.getLogs({ target: STONKD_POOL, eventAbi: abi.Swap, onlyArgs: false, fromBlock, toBlock }))
     if (before !== undefined) return before
     toBlock = fromBlock - 1
+    range = SWAP_SEARCH_RANGE
   }
-  throw new Error(`stonkdrop: no STONKD/USDG swap found before block ${windowStart} to price claimed LP fees`)
+  throw new Error(`stonkdrop: no STONKD/USDG swap between the pool's creation and block ${windowStart} to price claimed LP fees`)
 }
 
 const fetch = async (options: FetchOptions) => {
