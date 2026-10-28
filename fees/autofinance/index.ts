@@ -1,6 +1,7 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from '../../helpers/token';
 import { METRIC } from "../../helpers/metrics";
 
@@ -33,10 +34,10 @@ const CHAIN_CONFIG: Record<string, any> = {
     },
 }
 
-const ADDRESSES = {
+const config = {
     feeRedeemer: "0xD1057B6C6736bf4f5B4a850Cff02054F1f38e581",
     rewardsDistributor: "0xD69e57336377460707d579CB24f9Ba0aEDf88003",
-    tokemakToken: "0x2e9d63788249371f1DFC918a52f8d799F4a38C94"
+    tokemakToken: ADDRESSES.ethereum.TOKE
 };
 
 const ABIs = {
@@ -56,7 +57,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
 
-    const { autopools } = await fetchURL(`${AUTOFINANCE_API}/${chainId}/gen3`);
+    const { autopools } = await getConfig(`autofinance/${chainId}`, `${AUTOFINANCE_API}/${chainId}/gen3`);
     const autopoolAddresses = autopools.map((autopool: any) => autopool.id);
 
     const feeDetails = await options.api.multiCall({
@@ -100,7 +101,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const yieldForPeriod = (Number(exchangeRatesAfter[index]) - Number(exchangeRatesBefore[index])) * Number(totalSupplies[index]) / 1e18;
 
-        const managmentFeesForPeriod = Number(totalAssets[index]) * feeDetails[index].periodicFeeBps * periodWrtYear / 100;
+        const managmentFeesForPeriod = Number(totalAssets[index]) * feeDetails[index].periodicFeeBps * periodWrtYear / 10000;
 
         dailyFees.add(baseAssetId, managmentFeesForPeriod, METRIC.MANAGEMENT_FEES);
         dailyRevenue.add(baseAssetId, managmentFeesForPeriod, METRIC.MANAGEMENT_FEES);
@@ -108,7 +109,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         const currentNav = +(Number(exchangeRatesAfter[index]) / (10 ** assetDecimals[index])).toFixed(4);
         const isPositivePerformance = (currentNav > feeDetails[index].navPerShareLastFeeMark / 1e4) && (yieldForPeriod > 0);
 
-        const performanceFeesForPeriod = isPositivePerformance ? (yieldForPeriod * feeDetails[index].streamingFeeBps / 100) : 0;
+        const performanceFeesForPeriod = isPositivePerformance ? (yieldForPeriod * feeDetails[index].streamingFeeBps / 10000) : 0;
 
         dailyFees.add(baseAssetId, yieldForPeriod, METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.add(baseAssetId, yieldForPeriod, METRIC.ASSETS_YIELDS);
@@ -123,9 +124,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         await addTokensReceived({
             options,
             balances: dailyHoldersRevenue,
-            target: ADDRESSES.rewardsDistributor,
-            fromAddressFilter: ADDRESSES.feeRedeemer,
-            token: ADDRESSES.tokemakToken
+            target: config.rewardsDistributor,
+            fromAddressFilter: config.feeRedeemer,
+            token: config.tokemakToken
         });
         dailyProtocolRevenue.subtract(dailyHoldersRevenue);
     }

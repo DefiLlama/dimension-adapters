@@ -1,26 +1,21 @@
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
+import { getConfig } from "../helpers/cache";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
 
 const event_ccpt = 'event CCTPTransferSent(uint64 indexed cctpNonce,uint256 indexed chainId,address indexed recipient,uint256 amount,uint256 bonderFee)'
 const event_bond = 'event TransferSent(bytes32 indexed transferId,uint256 indexed chainId,address indexed recipient,uint256 amount,bytes32 transferNonce,uint256 bonderFee,uint256 index,uint256 amountOutMin,uint256 deadline)'
 const event_l1 = 'event TransferSentToL2(uint256 indexed chainId,address indexed recipient,uint256 amount,uint256 amountOutMin,uint256 deadline,address indexed relayer,uint256 relayerFee)'
 const event_l1_com ='event TransferFromL1Completed(address indexed recipient,uint256 amount,uint256 amountOutMin,uint256 deadline,address indexed relayer,uint256 relayerFee)'
-type IRequest = {
-    [key: string]: Promise<any>;
-}
-const requests: IRequest = {}
+let config: any = null;
 
-const fetchCacheURL = (url: string) => {
-    const key = url;
-    if (!requests[key]) {
-        requests[key] = httpGet(url);
-    }
-    return requests[key];
+const fetchCacheURL = () => {
+   if (!config)
+    config = getConfig('hop-config', 'https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
+  return config
 }
 
 const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
-    const config = await fetchCacheURL('https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
+    const config = await fetchCacheURL()
     const l1_bridges = Object.values(config.bridges).map((e: any) => e[options.chain]).filter(Boolean)
     const contract_bond: string[] = l1_bridges.map((e: any) => e.l1Bridge || e.cctpL1Bridge).filter(Boolean)
     const mapping_token = l1_bridges.map((e: any) => {
@@ -61,7 +56,7 @@ const fetchFeesL1 = async (options: FetchOptions): Promise<FetchResultV2> => {
   
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
-  const config = await fetchCacheURL('https://s3.us-west-1.amazonaws.com/assets.hop.exchange/mainnet/v1-core-config.json')
+  const config = await fetchCacheURL()
   const l2_bridges = Object.values(config.bridges).map((e: any) => e[options.chain]).filter(Boolean)
   let contract_bond: string[] = l2_bridges.map((e: any) => e.l2Bridge).filter(Boolean)
   let mapping_token = l2_bridges.map((e: any) => {
@@ -127,6 +122,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: { fetch, start: '2023-01-01' },
     [CHAIN.BASE]: { fetch, start: '2023-01-01' },

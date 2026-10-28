@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const query = `
@@ -11,7 +11,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
       SUM(gas_price * gas_used) AS gas_fees
     FROM plasma.transactions
     WHERE block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
   `;
 
   const feesResult: any[] = await queryDuneSql(options, query);

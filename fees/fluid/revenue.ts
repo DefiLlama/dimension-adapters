@@ -6,6 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 import { ABI, CONFIG_FLUID, EVENT_ABI, FLUID_METRICS, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsT1Resolver } from "./fees";
 import { httpGet } from '../../utils/fetchURL';
+import { fetch as fetchFluidDex, FLUID_DEX_START } from "../../dexs/fluid-dex";
 
 interface BuybackData {
   amount: string;
@@ -133,9 +134,8 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
   return dailyValues
 };
 
-const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string[]): Promise<Balances> => {
+const getVaultT1UncollectedRevenues = (createBalances: CreateBalances, vaultDatas: any[]): Balances => {
   const dailyRevenue = createBalances();
-  const vaultDatas = await (await getVaultsT1Resolver(api)).getVaultEntireData(vaults);
   if (!vaultDatas.length) return dailyRevenue
 
   for (const [_index, vault] of vaultDatas.entries()) {
@@ -200,12 +200,16 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   const vaults: string[] = await (await getVaultsT1Resolver(api)).getAllVaultsAddresses();
   if (!vaults.length) return dailyRevenue
 
-  const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] =
+  const [vaultDatasFrom, vaultDatasTo, vaultCollected] =
   await Promise.all([
-    getVaultT1UncollectedRevenues(fromApi, createBalances, vaults),
-    getVaultT1UncollectedRevenues(api, createBalances, vaults),
+    (await getVaultsT1Resolver(fromApi)).getVaultEntireData(vaults),
+    (await getVaultsT1Resolver(api)).getVaultEntireData(vaults),
     getVaultT1CollectedRevenues(api, createBalances, getLogs, vaults),
   ]);
+
+  const failedAtEitherEnd = (i: number) => (vaultDatasFrom.length && !vaultDatasFrom[i]) || (vaultDatasTo.length && !vaultDatasTo[i]);
+  const vaultUncollectedBalancesFrom = getVaultT1UncollectedRevenues(createBalances, vaultDatasFrom.filter((_: any, i: number) => !failedAtEitherEnd(i)));
+  const vaultUncollectedBalancesTo = getVaultT1UncollectedRevenues(createBalances, vaultDatasTo.filter((_: any, i: number) => !failedAtEitherEnd(i)));
 
   vaultUncollectedBalancesTo.addBalances(vaultCollected)
   vaultUncollectedBalancesTo.subtract(vaultUncollectedBalancesFrom);
@@ -214,12 +218,30 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   return dailyRevenue
 };
 
+// Fluid DEX swaps settle through the Liquidity Layer: the full amountIn is transferred in, but the pool only credits
+// amountIn minus the protocol cut (fee x revenueCut), so that cut stays in the Liquidity Layer and shows up in
+// getLiquidityRevenues above. dexs/fluid-dex already reports the same cut as Fluid DEX revenue, so remove it here
+// to avoid counting it twice in the parent Fluid revenue.
+const getDexSwapRevenues = async (options: FetchOptions): Promise<Balances> => {
+  const start = FLUID_DEX_START[options.chain]
+  if (!start || options.startOfDay < Date.parse(start) / 1000) return options.createBalances()
+  const { dailyRevenue } = await fetchFluidDex(options) as { dailyRevenue: Balances }
+  // dex balances are keyed by checksummed address, liquidity layer balances by lowercase; normalize so subtract() matches
+  const dexRevenues = options.createBalances()
+  Object.entries(dailyRevenue.getBalances()).forEach(([token, amount]) => dexRevenues.add(token.split(':')[1].toLowerCase(), amount))
+  return dexRevenues
+}
+
 export const getDailyRevenue = async (options: FetchOptions): Promise<Balances> => {
   const dailyRevenue = options.createBalances()
-  const [liquidityRevenues, vaultRevenues] = await Promise.all([
+  const [liquidityRevenues, vaultRevenues, dexSwapRevenues] = await Promise.all([
     getLiquidityRevenues(options),
     getVaultsT1Revenues(options),
+    getDexSwapRevenues(options),
   ]);
+
+  liquidityRevenues.subtract(dexSwapRevenues)
+  liquidityRevenues.removeNegativeBalances()
 
   dailyRevenue.addBalances(liquidityRevenues, FLUID_METRICS.BorrowInterestToTreasury)
   dailyRevenue.addBalances(vaultRevenues, FLUID_METRICS.BorrowInterestToTreasury)

@@ -1,33 +1,23 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { httpGet } from "../utils/fetchURL";
+import fetchURL from "../utils/fetchURL";
 
-const oiApi = "https://mainnet-api.monday.trade/v4/public/thirdPart/openInterest"
-
-const chainConfig: { [key: string]: any } = {
-  [CHAIN.MONAD]: { chainId: 143, start: '2025-11-25' }
-};
+// daily series behind https://stats.monday.trade
+const oiUrl = "https://files.monday.trade/monday-analytics-prod/latest/perp-open-interest.json"
 
 const fetch = async (options: FetchOptions) => {
-  const chainInfo = chainConfig[options.chain]
+  const { data } = await fetchURL(oiUrl)
+  const oiDay = data.find((i: any) => i.date === `${options.dateString}T00:00:00Z`)
+  if (!oiDay) throw new Error(`stats.monday.trade has no perp open interest for ${options.dateString}`)
 
-  const oiData = await httpGet(oiApi, {
-    params: {
-      chainId: chainInfo.chainId,
-    }
-  })
-  const oi = Number(oiData.data);
-
-
-  return { openInterestAtEnd: oi };
+  return { openInterestAtEnd: Number(oiDay.oiNotionalUsd) };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
   chains: [CHAIN.MONAD],
-  start: '2025-11-25',
-  runAtCurrTime: true,
+  start: '2026-02-05',
 };
 
 export default adapter;

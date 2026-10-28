@@ -64,7 +64,7 @@ const opOwnedFilterOut: any = {
   ]
 }
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     targets: revenueToAddresses[options.chain],
     eventAbi: 'event SafeReceived (address indexed sender, uint256 value)',
@@ -106,25 +106,23 @@ const methodology = {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   methodology,
-  adapter: {
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2023-06-01',
-    },
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-04-01',
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch,
-      start: '2025-02-01',
-    },
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: '2024-12-01',
-    },
-  }
+  fetch,
+  chains: [
+    // Base left the Superchain / OP Stack in Feb 2026 (announced ~Feb 19, 2026). The Base Fee
+    // Disburser (0x09C7bAD99688a55a2e83644BFAed09e62bDcCcBA) stopped sending revshare to the OP
+    // Collective Receiver (0x9c3631dDE5c8316bE5B7554B0CcD2631C15a9A05): last on-chain
+    // SafeReceived payment was 2026-03-01 ($154k). The disburser contract is empty since then,
+    // so on-chain zeros after that date are real zeros, not a broken feed. Sources:
+    // https://www.coindesk.com/business/2026/01/08/optimism-proposes-op-token-buybacks-using-50-of-superchain-revenue
+    // https://gov.optimism.io/t/buyback-communication-thread/10588 (departure + buyback funding drop)
+    [CHAIN.BASE, { start: '2023-06-01', deadFrom: '2026-03-02' }],
+    [CHAIN.ETHEREUM, { start: '2022-04-01' }],
+    [CHAIN.UNICHAIN, { start: '2025-02-01' }],
+    [CHAIN.SONEIUM, { start: '2024-12-01' }],
+  ],
 }
 
 export default adapter

@@ -1,7 +1,6 @@
 import { request } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const API_URL = 'https://api-v2.ashswap.io/graphql';
 
@@ -17,24 +16,19 @@ const VolumeQuery = `
 }
 `
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
   const results: IVolume = (await request(API_URL, VolumeQuery)).defillama;
   const dailyVolume = results?.totalVolumeUSD24h;
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ELROND]: {
-      fetch: fetch,
-      runAtCurrTime: true,
-      start: '2023-02-17'
-    },
-  },
+  fetch,
+  chains: [CHAIN.ELROND],
+  start: '2023-02-17',
+  runAtCurrTime: true,
 };
 
 export default adapter;

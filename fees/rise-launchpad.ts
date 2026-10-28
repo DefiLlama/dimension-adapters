@@ -27,7 +27,7 @@ const BORROW_FEES_LABEL = "Borrow Fees";
 const REVENUE_RATIO = 0.75;
 const SUPPLY_SIDE_REVENUE_RATIO = 0.25;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const url = `${ENDPOINT}?from=${options.startTimestamp}&to=${options.endTimestamp}`;
   const res: FeesResponse = await fetchURL(url);
 

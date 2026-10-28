@@ -1,4 +1,4 @@
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -25,26 +25,26 @@ const fetch = async (provider: providers, startDate: string) => {
   }
 };
 
-const fetchNearThorswapVolume = async (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
+const fetchNearThorswapVolume = async (options: FetchOptions) => {
+  const date = new Date(options.toTimestamp * 1000);
   const formattedDate = date.toISOString().split("T")[0];
   return fetch(providers.NEAR, formattedDate);
 };
 
-const fetchThorchainThorswapVolume = async (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
+const fetchThorchainThorswapVolume = async (options: FetchOptions) => {
+  const date = new Date(options.toTimestamp * 1000);
   const formattedDate = date.toISOString().split("T")[0];
   return fetch(providers.THORCHAIN, formattedDate);
 };
 
-const fetchMayachainThorswapVolume = async (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
+const fetchMayachainThorswapVolume = async (options: FetchOptions) => {
+  const date = new Date(options.toTimestamp * 1000);
   const formattedDate = date.toISOString().split("T")[0];
   return fetch(providers.MAYACHAIN, formattedDate);
 };
 
-const fetchChainflipThorswapVolume = async (timestamp: number) => {
-  const date = new Date(timestamp * 1000);
+const fetchChainflipThorswapVolume = async (options: FetchOptions) => {
+  const date = new Date(options.toTimestamp * 1000);
   const formattedDate = date.toISOString().split("T")[0];
   return fetch(providers.CHAINFLIP, formattedDate);
 };

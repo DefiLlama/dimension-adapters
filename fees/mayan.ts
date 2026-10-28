@@ -1,6 +1,5 @@
-import { FetchResultFees, SimpleAdapter } from "../adapters/types";
+import { FetchResultFees, SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import fetchURL from "../utils/fetchURL";
 
 interface ChainData {
@@ -32,6 +31,12 @@ const getChainKey = (chain: string) => {
       return 'base';
     case CHAIN.OPTIMISM:
       return 'optimism';
+    case CHAIN.MONAD:
+      return 'monad';
+    case CHAIN.HYPERLIQUID:
+      return 'hyperevm';
+    case CHAIN.SUI:
+      return 'sui';
     default:
       return '';
   }
@@ -59,58 +64,30 @@ const fetchCacheURL = (url: string) => {
   return requests[key];
 }
 
-const fetch = (chain: string) => {
-  return async (timestamp: number): Promise<FetchResultFees> => {
-    const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-    const response: ApiResponse = await fetchCacheURL('https://explorer-api.mayan.finance/v3/stats/chains-overview?timeRange=24h');
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const response: ApiResponse = await fetchCacheURL('https://explorer-api.mayan.finance/v3/stats/chains-overview?timeRange=24h');
 
-    const chainKey = getChainKey(chain);
-    const volume = fetchChainVolume(response, chainKey);
-    const dailyFees = volume * FEE_RATE;
+  const chainKey = getChainKey(options.chain);
+  const volume = fetchChainVolume(response, chainKey);
+  const dailyFees = volume * FEE_RATE;
 
-    return {
-      timestamp: dayTimestamp,
-      dailyFees,
-      dailyRevenue: dailyFees
-    };
+  return {
+    dailyFees,
+    dailyRevenue: dailyFees
   };
 };
 
 const methodology: any = {
-    Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
-    Revenue: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
+  Fees: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
+  Revenue: 'Fees are 10 basis points (0.1%) of the outbound bridge volume through Mayan WH Swap on each chain. Only source chain transactions pay fees.',
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   methodology,
   runAtCurrTime: true,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch(CHAIN.ETHEREUM),
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch: fetch(CHAIN.ARBITRUM),
-    },
-    [CHAIN.AVAX]: {
-      fetch: fetch(CHAIN.AVAX),
-    },
-    [CHAIN.BSC]: {
-      fetch: fetch(CHAIN.BSC),
-    },
-    [CHAIN.POLYGON]: {
-      fetch: fetch(CHAIN.POLYGON),
-    },
-    [CHAIN.SOLANA]: {
-      fetch: fetch(CHAIN.SOLANA),
-    },
-    [CHAIN.BASE]: {
-      fetch: fetch(CHAIN.BASE),
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch: fetch(CHAIN.OPTIMISM),
-    },
-  },
+  fetch,
+  chains: [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.AVAX, CHAIN.BSC, CHAIN.POLYGON, CHAIN.SOLANA, CHAIN.BASE, CHAIN.OPTIMISM, CHAIN.MONAD, CHAIN.HYPERLIQUID, CHAIN.SUI],
 };
 
 export default adapter;

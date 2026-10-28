@@ -30,7 +30,7 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { SanctumMetric } from "../sanctum";
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
     `
@@ -50,7 +50,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       ) 
       AND token_balance_change > 0 
       AND block_time >= from_unixtime(${options.startTimestamp}) 
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
       AND block_time < date '2025-03-17' -- date of the v2 launch
   ), 
   infv2_fees as (
@@ -70,7 +70,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
       executing_account = '5ocnV1qiCgaQR8Jb8xWnVbApfaygJ8tNoZfgPwsgx9kx' 
       and data = 0x19 -- withdrawProtocolFeesV2 discriminator
       AND block_time >= from_unixtime(${options.startTimestamp}) 
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
       AND block_time >= date '2025-03-17' -- date of the v2 launch
   )
 

@@ -33,6 +33,13 @@ export const ALLIUM_CHAIN_MAP: Record<string, string> = {
   [CHAIN.WC]: 'worldchain',
   [CHAIN.MANTA]: 'manta_pacific',
   [CHAIN.HYPERLIQUID]: 'hyperevm',
+  [CHAIN.XLAYER]: 'x_layer',
+  [CHAIN.XDC]: 'xdc_network',
+  [CHAIN.FANTOM]: 'fantom',
+  [CHAIN.HEDERA]: 'hedera',
+  [CHAIN.SANKO]: 'sanko',
+  [CHAIN.KATANA]: 'katana',
+  [CHAIN.FLYNET]: 'flynet',
 }
 
 export function getAlliumChain(chain: string): string {
@@ -124,7 +131,7 @@ async function _queryAllium(sqlQuery: string) {
     let endTime = +Date.now() / 1e3
     await elastic.addRuntimeLog({ runtime: endTime - startTime, success, metadata, })
   } catch (e) {
-    let endTime = +Date.now()
+    let endTime = +Date.now() / 1e3
     await elastic.addRuntimeLog({ runtime: endTime - startTime, success, metadata, })
     await elastic.addErrorLog({ error: (e?.toString()) as any, metadata, })
     throw e

@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import asyncRetry from "async-retry";
 
 const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.ETHEREUM]: { id: 1, start: '2025-03-24' },
@@ -15,10 +16,20 @@ const chainConfig: Record<string, { id: number, start: string }> = {
     [CHAIN.SUI]: { id: 1001, start: '2025-06-22' },
     [CHAIN.MONAD]: { id: 143, start: '2025-11-25' },
     [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-18' },
-    [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' }
+    [CHAIN.TEMPO]: { id: 4217, start: '2026-04-13' },
+    [CHAIN.ROBINHOOD]: { id: 4663, start: '2026-07-09' }
 }
 
-const skateDataApi = "https://api.skatechain.org/amm-data/pools/stats";
+// Skate AMM v2 only. v1 was retired in Aug 2026 once its liquidity was fully
+// withdrawn (every v1 pool drained to zero), so its `amm-data/pools/stats`
+// endpoint is no longer part of the protocol's supported surface.
+//
+// Historical note — v1 produced the bulk of the $548,689,421 all-time volume
+// recorded for Skate AMM up to 2026-08-06 (465 daily datapoints, 13 chains).
+// From this change onward the series reflects v2 only.
+const skateDataApis = [
+    "https://api.skatechain.org/amm-data-v2/pools/stats",
+];
 
 const fetch = async (options: FetchOptions) => {
 
@@ -32,12 +43,19 @@ const fetch = async (options: FetchOptions) => {
             endTime: options.endTimestamp,
         }
     }
-    const tokenVolumeInfo = await httpGet(skateDataApi, tokenVolume_options);
-
-    if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
-      for (const tokenInfo of tokenVolumeInfo.data) {
-          dailyVolume.add(tokenInfo.token, tokenInfo.volume);
-          dailyFees.add(tokenInfo.token, tokenInfo.fees);
+    // v1 winding down (its stats endpoint now returns empty); v2 carries live
+    // data. Sum both so historical v1 volume and current v2 volume both count.
+    for (const skateDataApi of skateDataApis) {
+      // api.skatechain.org answers HTTP 500 (wrapping an nginx 503) above ~4-5 req/s; hourly runs fire every slice at once
+      const tokenVolumeInfo = await asyncRetry(() => httpGet(skateDataApi, tokenVolume_options), { retries: 5, minTimeout: 2000, factor: 2, randomize: true });
+      if(!tokenVolumeInfo.success) {
+        throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
+      }
+      if (tokenVolumeInfo.success && tokenVolumeInfo.data) {
+        for (const tokenInfo of tokenVolumeInfo.data) {
+            dailyVolume.add(tokenInfo.token, tokenInfo.volume);
+            dailyFees.add(tokenInfo.token, tokenInfo.fees);
+        }
       }
     }
 
@@ -57,6 +75,7 @@ const adapter: SimpleAdapter = {
     version: 2,
     fetch,
     adapter: chainConfig,
+    pullHourly: true,
 }
 
 export default adapter;

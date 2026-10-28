@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.ERA]: "https://api.studio.thegraph.com/query/49418/zkmain_stats/version/latest",
@@ -26,16 +25,14 @@ interface IGraphResponse {
   }>
 }
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.ERA
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date((timestamp * 1000)))
   const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataDerivatives, {
-    id: String(dayTimestamp),
+    id: String(options.startOfDay),
     period: 'daily',
   })
 
   return {
-    timestamp: dayTimestamp,
     dailyVolume:
       dailyData.volumeStats.length == 1
         ? String(Number(Object.values(dailyData.volumeStats[0]).reduce((sum, element) => String(Number(sum) + Number(element)))) * 10 ** -30)
@@ -44,12 +41,9 @@ const fetch = async (timestamp: number) => {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.ERA]: {
-      fetch,
-      start: 1688529600,
-    }
-  }
+  fetch,
+  chains: [CHAIN.ERA],
+  start: '2023-07-05',
 }
 
 export default adapter;

@@ -25,7 +25,7 @@ function getLabel(protocol_name: string, options: any): string {
 
 const getDay = (ts: number) => new Date(ts * 1000).toISOString().split('T')[0]
 
-async function fetch(_: any, _1: any, options: FetchOptions): Promise<FetchResultFees> {
+async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   const dailyRevenue = options.createBalances()
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()

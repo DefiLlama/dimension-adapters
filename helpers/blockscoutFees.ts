@@ -1,26 +1,35 @@
-import { Adapter, ChainBlocks, FetchOptions, ProtocolType } from '../adapters/types';
+import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
+import { getFees } from './ethereum-l2';
+
+// OP-stack SequencerFeeVault, L1FeeVault, BaseFeeVault predeploys
+const OP_STACK_FEE_VAULTS = [
+  '0x4200000000000000000000000000000000000011',
+  '0x420000000000000000000000000000000000001a',
+  '0x4200000000000000000000000000000000000019',
+]
 
 export const chainConfigMap: any = {
   [CHAIN.FANTOM]: { explorer: 'https://ftmscout.com', CGToken: 'fantom', },
-  [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://stats-celo-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
+  [CHAIN.CELO]: { explorer: 'https://celo.blockscout.com', CGToken: 'celo', allStatsApi: 'https://celo.blockscout.com/stats-service', burnRatio: 0 }, // legacy totalfees returns null; old k8s-prod-2 stats host is gone
   [CHAIN.AURORA]: { explorer: 'https://aurorascan.dev', allStatsApi: 'https://stats.explorer.mainnet.aurora.dev', CGToken: 'ethereum' },
   [CHAIN.XDAI]: { explorer: 'https://blockscout.com/xdai/mainnet', CGToken: 'dai', allStatsApi: 'https://stats-gnosis-mainnet.k8s-prod-1.blockscout.com', start: '2018-11-01', burnRatio: 0 },
   [CHAIN.CANTO]: { explorer: 'https://explorer.plexnode.wtf', CGToken: 'canto', },
   [CHAIN.CRONOS]: { explorer: 'https://cronos.org/explorer', CGToken: 'crypto-com-chain', },
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
   [CHAIN.ENERGYWEB]: { explorer: 'https://explorer.energyweb.org', CGToken: 'energy-web-token', burnRatio: 0 },
-  [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://stats-immutable-mainnet.k8s.blockscout.com' },
+  [CHAIN.FLOW]: { explorer: 'https://evm.flow.com', CGToken: 'flow', allStatsApi: 'https://evm.flow.com:8080' },
+  [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://explorer.immutable.com/stats-service' },
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
-  [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://stats-etherlink-mainnet.k8s-prod-1.blockscout.com' },
+  [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://explorer.etherlink.com/stats-service' },
   [CHAIN.REDSTONE]: { explorer: 'https://explorer.redstone.xyz', CGToken: 'ethereum', allStatsApi: 'https://stats-redstone.k8s.blockscout.com' },
-  [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer' },
+  [CHAIN.SHIMMER_EVM]: { explorer: 'https://explorer.evm.shimmer.network', CGToken: 'shimmer', deadFrom: '2026-07-28' }, // ShimmerEVM sunset: explorer redirects to explorer.shimmer.network, RPCs stopped; last fees 2026-07-27
   [CHAIN.FLARE]: { explorer: 'https://flare-explorer.flare.network', CGToken: 'flare-networks' },
   [CHAIN.KARDIA]: { explorer: 'https://explorer.kardiachain.io', CGToken: 'kardiachain', deadFrom: '2026-01-15', },
   [CHAIN.ROOTSTOCK]: { explorer: 'https://rootstock.blockscout.com', CGToken: 'rootstock', allStatsApi: 'https://stats-rsk-mainnet.k8s-prod-2.blockscout.com', burnRatio: 0 },
-  [CHAIN.TELOS]: { explorer: 'https://telostx.com', CGToken: 'telos' },
+  [CHAIN.TELOS]: { explorer: 'https://www.teloscan.io', CGToken: 'telos', start: '2026-01-01' },
   // [CHAIN.]: { explorer: 'https://explorer.execution.mainnet.lukso.network', CGToken: ''},
   [CHAIN.ETHEREUM_CLASSIC]: { explorer: 'https://etc.blockscout.com', CGToken: 'ethereum-classic', },
   [CHAIN.SYSCOIN]: { explorer: 'https://explorer.syscoin.org', CGToken: 'syscoin', },
@@ -44,7 +53,7 @@ export const chainConfigMap: any = {
   [CHAIN.SEI]: { explorer: 'https://sei.blockscout.com', CGToken: 'sei-network' },
   [CHAIN.UNICHAIN]: { explorer: 'https://unichain.blockscout.com', CGToken: 'ethereum', allStatsApi: 'https://stats-uniswap-mainnet.k8s-prod-2.blockscout.com' },
   [CHAIN.LISK]: { explorer: 'https://blockscout.lisk.com', CGToken: 'ethereum', allStatsApi: 'https://stats-lisk-mainnet.k8s.blockscout.com' },
-  [CHAIN.STORY]: { explorer: 'https://www.storyscan.io', CGToken: 'story-2', allStatsApi: 'https://stats-story-mainnet.k8s-prod-3.blockscout.com', },
+  [CHAIN.STORY]: { explorer: 'https://www.datanetscan.io', CGToken: 'story-2',start: '2025-01-26', },
   [CHAIN.APECHAIN]: { explorer: 'https://apechain.calderaexplorer.xyz', CGToken: 'apecoin' },
   [CHAIN.HEMI]: { explorer: 'https://explorer.hemi.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer.hemi.xyz' },
   // [CHAIN.ZKFAIR]: { explorer: 'https://scan.zkfair.io', CGToken: 'ethereum' },
@@ -54,7 +63,7 @@ export const chainConfigMap: any = {
   [CHAIN.CHILIZ]: { explorer: 'https://scan-api.chiliz.com', CGToken: 'chiliz', start: '2025-11-02' },
   [CHAIN.SUPERPOSITION]: { explorer: 'https://explorer.superposition.so', CGToken: 'ethereum', allStatsApi: 'https://explorer-superposition-1v9rjalnat.t.conduit.xyz', },
   [CHAIN.BOB]: { explorer: 'https://explorer.gobob.xyz', CGToken: 'ethereum', allStatsApi: 'https://explorer-bob-mainnet-0.t.conduit.xyz' },
-  [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://stats-reya-mainnet.k8s-prod-3.blockscout.com' },
+  [CHAIN.REYA]: { explorer: 'https://explorer.reya.network', CGToken: 'ethereum', allStatsApi: 'https://explorer.reya.network/stats-service' },
   [CHAIN.SWELLCHAIN]: { explorer: 'https://explorer.swellnetwork.io/', CGToken: 'ethereum', allStatsApi: 'https://explorer.swellnetwork.io' },
   [CHAIN.ZORA]: { explorer: 'https://explorer.zora.co', CGToken: 'ethereum', allStatsApi: 'https://explorer.zora.co' },
   [CHAIN.WC]: { explorer: 'https://worldchain-mainnet.explorer.alchemy.com', CGToken: 'ethereum', allStatsApi: 'https://stats-alchemy-worldchain-mainnet.k8s.blockscout.com' },
@@ -77,28 +86,26 @@ export const chainConfigMap: any = {
   [CHAIN.RARI]: { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
   [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
-  [CHAIN.CAPX]: { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/" },
-  [CHAIN.SANKO]: { CGToken: 'dream-machine-token', explorer: 'https://explorer.sanko.xyz/' },
+  [CHAIN.CAPX]: { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/", deadFrom: '2026-07-31' },
+  [CHAIN.BSQUARED]: { CGToken: 'bitcoin', explorer: 'https://backend-blockscout.bsquared.network', start: '2025-07-06' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
   [CHAIN.ADVENTURE_LAYER]: { CGToken: 'adventure-gold', explorer: 'https://advlayer-mainnet.cloud.blockscout.com/' },
   [CHAIN.DERI_CHAIN]: { CGToken: 'ethereum', explorer: 'https://explorer-dchain.deri.io/' },
   [CHAIN.EARNM]: { CGToken: 'earnm', explorer: 'https://earnm-mainnet.explorer.alchemy.com/' },
   [CHAIN.EDU_CHAIN]: { CGToken: 'EDU', explorer: 'https://educhain.blockscout.com/' },
-  [CHAIN.ETHEREAL]: { CGToken: 'ethena-usde', explorer: 'https://explorer.ethereal.trade/' },
+  [CHAIN.ETHEREAL]: { CGToken: 'ethena-usde', explorer: 'https://explorer.ethereal.trade/', deadFrom: '2026-08-25' },
   [CHAIN.EVENTUM]: { CGToken: 'ethereum', explorer: 'https://explorer.evedex.com/' },
-  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/' },
-  [CHAIN.FLYNET]: { CGToken: 'F2', explorer: 'https://explorer.flynet.org/' },
+  [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/', deadFrom: '2026-05-21' },
   [CHAIN.HPP]: { CGToken: 'ethereum', explorer: 'https://explorer.hpp.io/' },
   [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
   [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/' },
-  [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/' },
+  [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/', deadFrom: '2026-05-21' },
   [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/', deadFrom: '2026-01-24' },
-  [CHAIN.TAIKO]: { CGToken: 'ethereum', explorer: 'https://blockscoutapi.mainnet.taiko.xyz', start: '2024-05-25' },
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
   [CHAIN.VANA]: { CGToken: 'vana', explorer: 'https://vanascan.io/' },
   [CHAIN.NEO_X_MAINNET]: { CGToken: "gas", explorer: "https://xexplorer.neo.org/" },
-  [CHAIN.KUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
-  [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/' },
+  [CHAIN.BITKUB]: { CGToken: 'bitkub-coin', explorer: 'https://www.kubscan.com/' },
+  [CHAIN.SSEED]: { CGToken: 'ethereum', explorer: 'https://explorer.superseed.xyz/', opStackFeeVaults: true }, // Conduit RPC-only explorer, no stats API
   [CHAIN.NEON]: { CGToken: 'neon', explorer: 'https://neon.blockscout.com/' },
   [CHAIN.SHAPE]: { CGToken: 'ethereum', explorer: 'https://shapescan.xyz/' },
   [CHAIN.JOC]: { CGToken: 'japan-open-chain', explorer: 'https://explorer.japanopenchain.org/' },
@@ -106,24 +113,24 @@ export const chainConfigMap: any = {
   [CHAIN.EXSAT]: { CGToken: 'bitcoin', explorer: 'https://scan.exsat.network/' },
   [CHAIN.CROSS]: { CGToken: 'cross-2', explorer: 'https://www.crossscan.io/' },
   [CHAIN.NUMBERS]: { CGToken: 'numbers-protocol', explorer: 'https://mainnet.num.network/' },
-  [CHAIN.ORDERLY]: { CGToken: 'ethereum', explorer: 'https://explorer.orderly.network/' },
+  [CHAIN.ORDERLY]: { CGToken: 'ethereum', explorer: 'https://explorer.orderly.network/', opStackFeeVaults: true }, // Conduit RPC-only explorer, no stats API
   [CHAIN.BITGERT]: { CGToken: 'bitrise-token', explorer: 'https://brisescan.com/' },
   [CHAIN.PROM]: { CGToken: 'prometeus', explorer: 'https://promscan.io/' },
   [CHAIN.UNIT0]: { CGToken: 'unit0', explorer: 'https://explorer.unit0.dev/' },
-  [CHAIN.GRX]: { CGToken: 'grx-chain', explorer: 'https://grxscan.io/' },
+  [CHAIN.GRX]: { CGToken: 'grx-chain', explorer: 'https://grxscan.io/', allStatsApi: 'https://stats.grxscan.io' }, // legacy totalfees returns null
   [CHAIN.ZILLIQA]: { CGToken: 'zilliqa', explorer: 'https://zilliqa.blockscout.com/' },
   [CHAIN.TOMOCHAIN]: { CGToken: 'tomochain', explorer: 'https://viction.blockscout.com/' },
   [CHAIN.SONGBIRD]: { CGToken: 'songbird', explorer: 'https://songbird-explorer.flare.network/' },
   [CHAIN.ONUS]: { CGToken: 'onus', explorer: 'https://explorer.onuschain.io/' },
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
-  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2 },
+  [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2, deadFrom: '2025-09-22' }, // legacy totalfees endpoint returns null for every date; last nonzero fees 2025-09-21
   //[CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
   [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
-  [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/' },
+  [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/', allStatsApi: 'https://stats-api-explorer.rollux.com' }, // legacy totalfees returns null
   [CHAIN.TAC]: { CGToken: 'tac', explorer: 'https://explorer.tac.build/' },
-  [CHAIN.ENDURANCE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
+  [CHAIN.ACE]: { CGToken: 'endurance', explorer: 'https://explorer-endurance.fusionist.io/' },
   [CHAIN.SWAN]: { CGToken: 'ethereum', explorer: 'https://mainnet-explorer.swanchain.io/' },
   [CHAIN.BITCICHAIN]: { CGToken: 'bitcicoin', explorer: 'https://v3.bitciexplorer.com/' },
   [CHAIN.PERENNIAL]: { CGToken: 'ethereum', explorer: 'https://explorer.perennial.foundation/' },
@@ -133,9 +140,8 @@ export const chainConfigMap: any = {
   [CHAIN.Q_PROTOCOL]: { CGToken: 'q-protocol', explorer: 'https://explorer.q.org/' },
   [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
   [CHAIN.ENI]: { CGToken: 'wrapped-egas', explorer: 'https://scan.eniac.network/' },
-  [CHAIN.MEGAETH]: { CGToken: 'ethereum', explorer: 'https://megaeth.blockscout.com/' },
-  [CHAIN.KATANA]: { CGToken: 'ethereum', explorer: 'https://explorer.katanarpc.com/' },
   [CHAIN.COTI]: { CGToken: 'coti', explorer: 'https://mainnet.cotiscan.io/' },
+  [CHAIN.MERLIN]: { CGToken: 'bitcoin', explorer: 'https://scan.merlinchain.io', start: '2024-10-03' },
   [CHAIN.MEZO]: { CGToken: 'bitcoin', explorer: 'https://api.explorer.mezo.org', start: '2025-05-06' },
   [CHAIN.WORLD_MOBILE]: { CGToken: 'world-mobile-token', explorer: 'https://explorer.worldmobile.io', start: '2025-06-01' },
   [CHAIN.RISE]: { CGToken: 'ethereum', explorer: 'https://explorer.risechain.com', start: '2026-01-01' },
@@ -144,6 +150,12 @@ export const chainConfigMap: any = {
   [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz', allStatsApi: 'https://fluentscan.xyz/node-api/proxy' },
   [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
   [CHAIN.KASPLEX]: { CGToken: 'kaspa', explorer: 'https://explorer.kasplex.org/node-api/proxy', start: '2026-03-28' },
+  [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
+  [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
+  [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
+  [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', start: '2024-07-30', opStackFeeVaults: true }, // blockscout.b3.fun 404s and the caldera stats host no longer resolves
+  [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
+  [CHAIN.EDEN]: { explorer: 'https://eden.blockscout.com', CGToken: 'celestia', allStatsApi: 'https://eden.blockscout.com/stats-service', start: '2026-01-16', burnRatio: 0 },
 }
 
 function getTimeString(timestamp: number) {
@@ -160,12 +172,33 @@ export function blockscoutFeeAdapter2(chain: string) {
   let { url, CGToken, explorer, start, allStatsApi, requestConfig, deadFrom, } = config
   if (explorer && explorer.endsWith('/')) explorer = explorer.slice(0, -1)
   if (!url && explorer) url = `${explorer}/api?module=stats&action=totalfees`
+
+  if (config.opStackFeeVaults) {
+    // explorer has no stats API anymore (e.g. Conduit RPC-only explorers): read the OP-stack fee vaults on-chain
+    return {
+      version: 2,
+      pullHourly: true,
+      deadFrom,
+      fetch: async (options: FetchOptions) => {
+        const dailyFees = await getFees(options, { feeVaults: OP_STACK_FEE_VAULTS })
+        if (config.burnRatio !== undefined && config.burnRatio !== null) {
+          const dailyRevenue = dailyFees.clone(config.burnRatio)
+          return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue }
+        }
+        return { dailyFees }
+      },
+      chains: [[chain, { start }]],
+      protocolType: ProtocolType.CHAIN,
+    } as Adapter
+  }
+
   const adapter: Adapter = {
     version: 1,
     deadFrom,
     adapter: {
       [chain]: {
-        fetch: async (_timestamp: number, _: ChainBlocks, { chain, createBalances, startOfDay, }: FetchOptions) => {
+        fetch: async (options: FetchOptions) => {
+          const { chain, createBalances, startOfDay, } = options
 
           const dateString = getTimeString(startOfDay)
           let todayData = undefined
@@ -233,12 +266,28 @@ export function blockscoutFeeAdapter2(chain: string) {
 
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
-          if (!fees || fees.result === undefined || fees.result === null) {
+          let feesWei: number | undefined = fees?.result ?? undefined
+          if ((feesWei === undefined || feesWei === null) && allStatsApi) {
+            // newer blockscout deployments return result: null from the legacy totalfees endpoint;
+            // fall back to the stats service daily txnsFee series (values are in the native coin)
+            const { chart } = await httpGet(`${allStatsApi}/api/v1/lines/txnsFee?resolution=DAY`, requestConfig)
+            const rowIndex = chart?.findIndex((c: any) => c.date === dateString) ?? -1
+            const row = rowIndex >= 0 ? chart[rowIndex] : undefined
+            if (row) {
+              // the stats service writes a 0 placeholder for days its indexer has not processed yet;
+              // a chain that paid fees in the previous week does not go to exactly 0 - throw so the refill heals it
+              const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some((c: any) => Number(c.value) > 0)
+              if (Number(row.value) === 0 && recentNonZero)
+                throw new Error(`${chain}: stats service has not computed fees for ${dateString} yet`)
+              feesWei = Number(row.value) * 1e18
+            }
+          }
+          if (feesWei === undefined || feesWei === null) {
             console.log(chain, ' Error fetching fees', fees)
             throw new Error('Error fetching fees')
           }
-          if (CGToken) dailyFees.addCGToken(CGToken, fees.result / 1e18)
-          else dailyFees.addGasToken(fees.result)
+          if (CGToken) dailyFees.addCGToken(CGToken, feesWei / 1e18)
+          else dailyFees.addGasToken(feesWei)
 
           if (config.burnRatio !== undefined && config.burnRatio !== null) {
             const dailyRevenue = dailyFees.clone(config.burnRatio);

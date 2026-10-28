@@ -14,7 +14,7 @@ const EXTENDED_BUILDER_NAMES = [
 // https://docs.miracletrade.com/integrations-and-fees
 const EXTENDED_BUILDER_FEE_RATE = 0.00035;
 
-const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({
       options,
@@ -23,7 +23,7 @@ const fetchHyperliquid = async (_a: any, _b: any, options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
-const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchExtended = async (options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({
       options,
@@ -39,7 +39,7 @@ const fetchExtended = async (_a: any, _b: any, options: FetchOptions) => {
   };
 };
 
-const fetchNado = async (_a: any, _b: any, _options: FetchOptions) => {
+const fetchNado = async (_options: FetchOptions) => {
   const response = await httpGet('https://incentives.miracletrade.com/v2/metrics?dex=nado', {
     headers: {
       'X-Api-Key': getEnv('MIRACLETRADE_API_KEY'),

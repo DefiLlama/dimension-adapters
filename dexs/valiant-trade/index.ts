@@ -9,10 +9,13 @@ const CONFIG: Record<string, { url: string, start: string }> = {
   },
 }
 
-async function fetch(_a: number, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const baseUrl = CONFIG[options.chain].url;
   const url = `${baseUrl}?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
   const data = await httpGet(url);
+
+  if (!data.totalSwaps)
+    throw new Error(`swapStat has no swaps for ${options.dateString} yet; every zero day this api has served was later backfilled with real volume`);
 
   return {
     dailyVolume: data.totalSwapVolume,

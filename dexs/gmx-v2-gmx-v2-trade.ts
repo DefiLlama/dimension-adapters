@@ -10,7 +10,7 @@ const volume_subgraphs: Record<string, string> = {
   [CHAIN.MEGAETH]: "https://gmx.squids.live/gmx-synthetics-megaeth:prod/api/graphql",
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dayTimestamp = getTimestampAtStartOfDayUTC(options.startOfDay)
   const query = gql`
     query get_volume($id: String!) {
@@ -41,7 +41,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2021-08-31', },
     [CHAIN.AVAX]: { start: '2021-12-22', },
-    [CHAIN.BOTANIX]: { start: '2025-05-30', },
+    // GMX sunset Botanix on 2026-08-01 and the chain itself shut down, the botanix squid endpoint now 404s
+    [CHAIN.BOTANIX]: { start: '2025-05-30', deadFrom: '2026-08-01', },
     [CHAIN.MEGAETH]: { start: '2026-04-08', },
   }
 }

@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
 							totalTradeVolumeUSD
 							totalFeesEarnedUSD
 						}
-						dailies(first: 1, where:{date_lte: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
+						dailies(first: 1, where:{date_lt: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
 							date
 							tradeVolumeUSD
 							swapUSD
@@ -38,6 +38,17 @@ const adapter: SimpleAdapter = {
 							swapCount
 						}
 					}`));
+        
+        if (graphData.dailies.length === 0) {
+          return {
+            dailyVolume: 0,
+            dailyFees: createBalances(),
+            dailyUserFees: createBalances(),
+            dailyRevenue: createBalances(),
+            dailyProtocolRevenue: createBalances(),
+            dailySupplySideRevenue: createBalances(),
+          }
+        }
 
 				const swap_fee_usd = Number(graphData.dailies[0].feesUSD);
 				const rev_usd = Number(graphData.dailies[0].swapCount) * 0.5;

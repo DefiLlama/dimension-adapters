@@ -1,10 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // dexs/lithos/index.ts
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
 import { CHAIN } from "../../helpers/chains";
-import PromisePool from "@supercharge/promise-pool";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 const VOLATILE_FEE = 0.0025; // 25 bps
 const STABLE_FEE = 0.0005;   // 5 bps
 const PROTOCOL_FEE_SHARE = 0.12; // 12% to treasury
@@ -106,7 +106,11 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
   const dailyProtocolRevenue = dailyFees.clone(PROTOCOL_FEE_SHARE);
   const dailySupplySideRevenue = dailyFees.clone(LP_FEE_SHARE);
   const dailyRevenue = dailyProtocolRevenue.clone(1);
-  const dailyHoldersRevenue = dailyBribesRevenue.clone(1);
+  const dailyHoldersRevenue = fetchOptions.createBalances();
+
+  dailyFees.addBalances(dailyBribesRevenue, "Bribes Rewards");
+  dailyRevenue.addBalances(dailyBribesRevenue, "Bribes Revenue");
+  dailyHoldersRevenue.addBalances(dailyBribesRevenue, "Bribes Revenue");
 
   return {
     dailyVolume,
@@ -115,7 +119,6 @@ const fetch: FetchV2 = async (fetchOptions: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyBribesRevenue,
     dailyHoldersRevenue,
   };
 };
@@ -131,6 +134,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   start: START_DATE,
   chains: [CHAIN.PLASMA],

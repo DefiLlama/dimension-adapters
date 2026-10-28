@@ -1,207 +1,178 @@
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
-import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from "../../helpers/coreAssets.json";
+
+// Machines are discovered from MachineCreated events on each hub chain's HubCoreFactory, so new machines are
+// covered without adapter changes. The other hub's factory, deployed at the same address, deploys the spoke
+// calibers that the other hub's machines run on this chain.
+const HUBS: Record<string, { factory: string; fromBlock: number; spokeFactory: { address: string; fromBlock: number }; start: string }> = {
+  [CHAIN.ETHEREUM]: {
+    factory: "0x8d28A69328561eF9F171c58996fEcB9F494e070c",
+    fromBlock: 23426666,
+    spokeFactory: { address: "0x1E1fa6F5f258b744881634216bDBc612B09C3C30", fromBlock: 25834668 },
+    start: "2025-09-29",
+  },
+  [CHAIN.BASE]: {
+    factory: "0x1E1fa6F5f258b744881634216bDBc612B09C3C30",
+    fromBlock: 50872000,
+    spokeFactory: { address: "0x8d28A69328561eF9F171c58996fEcB9F494e070c", fromBlock: 35929980 },
+    start: "2026-09-04",
+  },
+};
+
+// Makina treasury, receiving the protocol share of every machine's fees on all chains.
+const TREASURY = "0x68825baff4caedf6facc658269cf1a0491f1ba9f";
+const ZERO = ADDRESSES.null;
 
 const ABI = {
+  MachineCreated: "event MachineCreated(address indexed machine, address indexed shareToken)",
+  CaliberCreated: "event CaliberCreated(address indexed caliber, address indexed machineEndpoint)",
   FeesMinted: "event FeesMinted(uint256 amount)",
-  TotalAumUpdate: "event TotalAumUpdated(uint256 totalAum)",
-  getSharePrice: "function getSharePrice() view returns (uint256)",
-  totalSupply: "function totalSupply() view returns (uint256)",
-  decimals: "uint8:decimals",
+  Transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
+  accountingToken: "address:accountingToken",
+  hubCaliber: "address:hubCaliber",
+  feeManager: "address:feeManager",
+  convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
+  // WatermarkFeeManager
+  mgmtFeeRatePerSecond: "uint256:mgmtFeeRatePerSecond",
+  mgmtFeeReceivers: "function mgmtFeeReceivers() view returns (address[])",
+  securityModule: "address:securityModule",
 };
-
-type MachineConfig = {
-  shareToken: string;
-  accountingToken: string;
-  machine: string;
-  protocolReceiver: string; // where protocol revenue is sent, as we cannot depend on the order to be consistent
-};
-
-// modified from helpers/erc4626.ts
-async function getMachineYield({
-  options,
-  shareTokens,
-  machines,
-  assetAbi = "address:accountingToken",
-  valueAbi = "uint256:totalSupply",
-  convertAbi = "function convertToAssets(uint256) view returns (uint256)",
-}: {
-  options: FetchOptions;
-  shareTokens: string[];
-  machines: string[];
-  assetAbi?: string;
-  valueAbi?: string;
-  convertAbi?: string;
-}) {
-  const assets = await options.api.multiCall({
-    abi: assetAbi,
-    calls: machines,
-    permitFailure: true,
-  });
-  const values = await options.api.multiCall({
-    abi: valueAbi,
-    calls: shareTokens,
-    permitFailure: true,
-  });
-  const decimals = await options.api.multiCall({
-    abi: "uint8:decimals",
-    calls: shareTokens,
-    permitFailure: true,
-  });
-  const convertCalls = machines.map((machine, index) => {
-    return {
-      target: machine,
-      params: [String(10 ** Number(decimals[index]))],
-    };
-  });
-  const cumulativeIndexBefore = await options.fromApi.multiCall({
-    abi: convertAbi,
-    calls: convertCalls,
-    permitFailure: true,
-  });
-
-  const cumulativeIndexAfter = await options.toApi.multiCall({
-    abi: convertAbi,
-    calls: convertCalls,
-    permitFailure: true,
-  });
-
-  const balances = options.createBalances();
-
-  for (let i = 0; i < assets.length; i++) {
-    const token = assets[i];
-    const value = values[i];
-    const decimal = decimals[i];
-    const cumulativeIndexBeforeValue = cumulativeIndexBefore[i];
-    const cumulativeIndexAfterValue = cumulativeIndexAfter[i];
-
-    if (
-      token &&
-      value &&
-      decimal &&
-      cumulativeIndexBeforeValue &&
-      cumulativeIndexAfterValue
-    ) {
-      const totalTokenBalance = Number(value);
-      const growthCumulativeIndex =
-        Number(cumulativeIndexAfterValue) - Number(cumulativeIndexBeforeValue);
-      const growthInterest =
-        (growthCumulativeIndex * totalTokenBalance) / 10 ** Number(decimal);
-      balances.add(token, growthInterest);
-    }
-  }
-  return balances;
-}
-
-const TREASURY_ADDRESS = "0x68825BAfF4CaEDf6fAcc658269Cf1a0491F1Ba9f";
-
-const MACHINES: MachineConfig[] = [
-  {
-    shareToken: "0x1e33e98af620f1d563fcd3cfd3c75ace841204ef",
-    accountingToken: ADDRESSES.ethereum.USDC,
-    machine: "0x6b006870c83b1cd49e766ac9209f8d68763df721",
-    protocolReceiver: TREASURY_ADDRESS,
-  },
-  {
-    shareToken: "0x871ab8e36cae9af35c6a3488b049965233deb7ed",
-    accountingToken: ADDRESSES.ethereum.WETH,
-    machine: "0x0447d0ad7fd6a3409b48ecbb9ddb075c1e11d735",
-    protocolReceiver: TREASURY_ADDRESS,
-  },
-  {
-    shareToken: "0x972966bcc17f7d818de4f27dc146ef539c231bdf",
-    accountingToken: ADDRESSES.ethereum.WBTC,
-    machine: "0xfcbe132452b6caa32addd4768db8fa02af73d841",
-    protocolReceiver: TREASURY_ADDRESS,
-  },
-];
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const result = { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  for (const machine of MACHINES) {
-    // Fetch all fees minted logs
-    const feeLogs: any[] = await options.getLogs({
-      target: machine.machine,
-      eventAbi: ABI.FeesMinted,
-    });
+  const { factory, fromBlock, spokeFactory } = HUBS[options.chain];
+  const [created, spokeCalibers] = await Promise.all([
+    options.getLogs({ target: factory, fromBlock, eventAbi: ABI.MachineCreated, cacheInCloud: true }),
+    options.getLogs({ target: spokeFactory.address, fromBlock: spokeFactory.fromBlock, eventAbi: ABI.CaliberCreated, cacheInCloud: true }),
+  ]);
+  const machines: string[] = created.map((log: any) => log.machine.toLowerCase());
+  const shareTokens: string[] = created.map((log: any) => log.shareToken);
+  if (!machines.length) return result;
 
-    // Sum minted shares
-    let totalFeeShares = 0;
-    for (const log of feeLogs) {
-      totalFeeShares += Number(log.amount);
+  const [accountingTokens, hubCalibers, feeManagers, supplies, shareDecimals] = await Promise.all([
+    options.api.multiCall({ abi: ABI.accountingToken, calls: machines }),
+    options.api.multiCall({ abi: ABI.hubCaliber, calls: machines }),
+    options.toApi.multiCall({ abi: ABI.feeManager, calls: machines }),
+    options.toApi.multiCall({ abi: "erc20:totalSupply", calls: shareTokens }),
+    options.api.multiCall({ abi: "erc20:decimals", calls: shareTokens }),
+  ]);
+  const [mgmtRates, mgmtReceivers, securityModules] = await Promise.all(
+    [ABI.mgmtFeeRatePerSecond, ABI.mgmtFeeReceivers, ABI.securityModule].map((abi) =>
+      options.toApi.multiCall({ abi, calls: feeManagers, permitFailure: true })
+    )
+  );
+
+  const unitShares = shareDecimals.map((d: string) => 10n ** BigInt(d));
+  const [priceBefore, priceAfter] = await Promise.all(
+    [options.fromApi, options.toApi].map((api) =>
+      api.multiCall({ abi: ABI.convertToAssets, calls: machines.map((target, i) => ({ target, params: [unitShares[i].toString()] })), permitFailure: true })
+    )
+  );
+
+  // Machines invest in each other: shares held by Makina calibers (hub or spoke) earn yield that already shows up
+  // in the holding machine's own share price, so only externally held shares count.
+  const holders = [...hubCalibers, ...spokeCalibers.map((log: any) => log.caliber)];
+  const nestedBalances = await options.toApi.multiCall({
+    abi: "erc20:balanceOf",
+    calls: shareTokens.flatMap((target) => holders.map((holder) => ({ target, params: [holder] }))),
+  });
+
+  const [feeLogs, transferLogs] = await Promise.all([
+    options.getLogs({ targets: machines, eventAbi: ABI.FeesMinted, flatten: false, onlyArgs: false }),
+    options.getLogs({ targets: shareTokens, eventAbi: ABI.Transfer, flatten: false, onlyArgs: false }),
+  ]);
+
+  machines.forEach((machine, i) => {
+    const token = accountingTokens[i];
+    const toAssets = (shares: bigint) => {
+      if (priceAfter[i] == null) throw new Error(`makina: cannot read share price of machine ${machine}`);
+      return (shares * BigInt(priceAfter[i])) / unitShares[i];
+    };
+
+    // depositor yield, net of fees: share price growth over the period times externally held shares
+    if (priceBefore[i] != null && priceAfter[i] != null) {
+      const nested = nestedBalances.slice(i * holders.length, (i + 1) * holders.length).reduce((sum: bigint, bal: string) => sum + BigInt(bal), 0n);
+      const yieldAssets = ((BigInt(priceAfter[i]) - BigInt(priceBefore[i])) * (BigInt(supplies[i]) - nested)) / unitShares[i];
+      dailyFees.add(token, yieldAssets, METRIC.ASSETS_YIELDS);
+      dailySupplySideRevenue.add(token, yieldAssets, METRIC.ASSETS_YIELDS);
     }
 
-    const totalProtocolRevenueShares = await addTokensReceived({
-      options,
-      tokens: [machine.shareToken],
-      targets: [machine.protocolReceiver], // Treasury
-    });
+    // Fee shares are minted to the machine, then the WatermarkFeeManager transfers them out, in order: the security
+    // module fee, the management fee receivers, then the performance fee receivers (zero amounts are skipped).
+    const feeTxs = new Set(feeLogs[i].map((log: any) => log.transactionHash));
+    const securityModule = securityModules[i]?.toLowerCase();
+    // a fee manager exposing receivers but no readable rate is a failed read, not a zero rate
+    if (mgmtReceivers[i] != null && mgmtRates[i] == null) throw new Error(`makina: cannot read management fee rate of machine ${machine}`);
+    const mgmtList: string[] = Number(mgmtRates[i] ?? 0) > 0 ? (mgmtReceivers[i] ?? []).map((a: string) => a.toLowerCase()) : [];
+    const byTx: Record<string, any[]> = {};
+    for (const log of transferLogs[i]) {
+      const { from, to } = log.args;
+      if (!feeTxs.has(log.transactionHash) || from.toLowerCase() !== machine || to === ZERO) continue;
+      (byTx[log.transactionHash] = byTx[log.transactionHash] || []).push(log);
+    }
 
-    const dailyNetYield = await getMachineYield({
-      options,
-      shareTokens: [machine.shareToken],
-      machines: [machine.machine],
-    });
-    
-    dailyFees.add(dailyNetYield, METRIC.ASSETS_YIELDS);
-    dailySupplySideRevenue.add(dailyNetYield, METRIC.ASSETS_YIELDS);
+    for (const logs of Object.values(byTx)) {
+      logs.sort((a, b) => Number(a.logIndex) - Number(b.logIndex));
+      // walk the management receivers in order; the first transfer that cannot belong to them starts the performance fees
+      let next = 0;
+      let inPerf = false;
+      for (const log of logs) {
+        const to = log.args.to.toLowerCase();
+        const assets = toAssets(BigInt(log.args.value));
+        if (to === securityModule) {
+          dailyFees.add(token, assets, METRIC.MANAGEMENT_FEES);
+          dailySupplySideRevenue.add(token, assets, METRIC.STAKING_REWARDS);
+          continue;
+        }
+        const mgmtIndex = inPerf ? -1 : mgmtList.indexOf(to, next);
+        if (mgmtIndex === -1) inPerf = true;
+        else next = mgmtIndex + 1;
+        const label = inPerf ? METRIC.PERFORMANCE_FEES : METRIC.MANAGEMENT_FEES;
+        dailyFees.add(token, assets, label);
+        if (to === TREASURY) dailyRevenue.add(token, assets, label);
+        else dailySupplySideRevenue.add(token, assets, METRIC.OPERATORS_FEES);
+      }
+    }
+  });
 
-    dailyFees.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
-    dailyRevenue.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
-    dailyProtocolRevenue.add(totalProtocolRevenueShares, METRIC.PROTOCOL_FEES);
-
-    const operatorsRevenue = dailyRevenue.clone(1)
-    operatorsRevenue.subtract(dailyProtocolRevenue)
-    
-    dailyFees.addBalances(operatorsRevenue, METRIC.OPERATORS_FEES);
-    dailySupplySideRevenue.addBalances(operatorsRevenue, METRIC.OPERATORS_FEES);
-  }
-
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-  };
+  return result;
 }
 
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   allowNegativeValue: true, // vault yield can be negative
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: "2025-09-29",
-    },
-  },
+  adapter: Object.fromEntries(Object.entries(HUBS).map(([chain, { start }]) => [chain, { fetch, start }])),
   methodology: {
-    Fees: "Includes yields earned by Makina machines, performance fee and management fee",
-    Revenue: "Revenue represents protocol share of performance and management fees.",
-    ProtocolRevenue: "Protocol revenue is the Makina-controlled portion of performance and management fees.",
-    SupplySideRevenue: "Yields earned by Makina machine depositors post fee and opeators share of performance and management fees.",
+    Fees: "Yield earned by Makina machine depositors, plus the management and performance fees minted by machines.",
+    Revenue: "Makina treasury share of the management and performance fees.",
+    ProtocolRevenue: "Makina treasury share of the management and performance fees.",
+    SupplySideRevenue: "Yield earned by machine depositors after fees, plus the operators' and security module's share of the fees.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.ASSETS_YIELDS]: "Includes yields earned by Makina machines excluding protocol and operators fees.",
-      [METRIC.PROTOCOL_FEES]: "Share of management fees and protocol fees to protocol.",
-      [METRIC.OPERATORS_FEES]: "Share of management fees and protocol fees to operators.",
+      [METRIC.ASSETS_YIELDS]: "Share price growth of each machine times the shares not held by Makina calibers, net of fees.",
+      [METRIC.MANAGEMENT_FEES]: "Time-based management (and security module) fee shares minted by machines, valued at the machine share price.",
+      [METRIC.PERFORMANCE_FEES]: "Performance fee shares minted by machines on share price gains above the watermark, valued at the machine share price.",
     },
     Revenue: {
-      [METRIC.PROTOCOL_FEES]: "Share of  management fees and protocol fees to protocol.",
+      [METRIC.MANAGEMENT_FEES]: "Management fee shares transferred to the Makina treasury.",
+      [METRIC.PERFORMANCE_FEES]: "Performance fee shares transferred to the Makina treasury.",
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "Share of  management fees and protocol fees to protocol.",
+      [METRIC.MANAGEMENT_FEES]: "Management fee shares transferred to the Makina treasury.",
+      [METRIC.PERFORMANCE_FEES]: "Performance fee shares transferred to the Makina treasury.",
     },
     SupplySideRevenue: {
-      [METRIC.ASSETS_YIELDS]: "Yields earned by Makina machine depositors post fee.",
-      [METRIC.OPERATORS_FEES]: "Share of management fees and protocol fees to operators.",
+      [METRIC.ASSETS_YIELDS]: "Yield earned by machine depositors after fees.",
+      [METRIC.OPERATORS_FEES]: "Management and performance fee shares paid to machine operators.",
+      [METRIC.STAKING_REWARDS]: "Management fee shares paid to the machine's security module.",
     },
   },
 };

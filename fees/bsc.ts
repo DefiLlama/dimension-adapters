@@ -5,7 +5,7 @@ import { fetchTransactionFees } from "../helpers/getChainFees";
 import { METRIC } from "../helpers/metrics";
 
 
-async function fetch(_: any, _1: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = await fetchTransactionFees(options)
 
   // https://github.com/bnb-chain/BEPs/blob/master/BEP95.md

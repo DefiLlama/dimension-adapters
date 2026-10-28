@@ -1,6 +1,6 @@
 import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
-import { FetchResult } from "../../adapters/types";
+import { FetchResult, FetchOptions } from "../../adapters/types";
 
 export default {
     methodology: {
@@ -10,8 +10,8 @@ export default {
         [CHAIN.TON]: {
             runAtCurrTime: true,
             start: '2023-11-14',
-            fetch: async (timestamp: number): Promise<FetchResult> => {
-                const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${timestamp}`)
+            fetch: async (options: FetchOptions): Promise<FetchResult> => {
+                const response = await fetchURL(`https://api5.storm.tg/api/markets/stats?adapter=defiliama&ts=${options.toTimestamp}`)
 
                 if (!response) {
                     throw new Error('Error during API call')
@@ -19,7 +19,6 @@ export default {
 
                 return {
                     dailyVolume: parseInt(response.exchangedDailyTradingVolume) / 1e9,
-                    timestamp: timestamp,
                 }
             },
         },

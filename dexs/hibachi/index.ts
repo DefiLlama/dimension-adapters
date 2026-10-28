@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   start: '2025-06-01',
-  chains: [CHAIN.ARBITRUM, CHAIN.BASE],
+  chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.ARC],
 };
 
 export default adapter;

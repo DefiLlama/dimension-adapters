@@ -16,7 +16,7 @@ const abis = {
   assetConfig: "function assetConfig(address asset) view returns (address pool, uint256 minimumDepositAmount, uint256 vettingFeeBPS, uint256 maxRelayFeeBPS)",
 }
 
-const token = (asset: string) => asset.toLowerCase() === "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" ? ADDRESSES.null : asset;
+const token = (asset: string) => asset.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : asset;
 
 const chainConfig: Record<string, { entrypoint: string, start: string }> = {
   [CHAIN.ETHEREUM]: {

@@ -8,6 +8,10 @@ const alphaGrowthVaults: any = {
   [CHAIN.UNICHAIN]: {
     eulerVaultOwners: ['0x8d9fF30f8ecBA197fE9492A0fD92310D75d352B9'],
   },
+  [CHAIN.MONAD]: {
+    eulerVaultOwners: ["0x36639EA17c35A4639eaE371391497Cb3D02d120a"],
+    start: "2026-06-20",
+  }
 };
 
 //https://forum.euler.finance/t/sunsetting-of-dao-managed-market-and-vaults/1828

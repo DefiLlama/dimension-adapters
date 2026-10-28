@@ -1,4 +1,4 @@
-import { SimpleAdapter, FetchResultFees } from "../adapters/types";
+import { SimpleAdapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
@@ -16,7 +16,7 @@ interface PoolStatistics {
   };
 }
 
-const fetch = async (_a: number): Promise<FetchResultFees> => {
+const fetch = async (_a: FetchOptions): Promise<FetchResultFees> => {
   const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
   const index = response.findIndex(pool => pool.pool_type === 'precision');
   const dailyFees = Number(response[index].fees.usd["24h"]);

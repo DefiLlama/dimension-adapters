@@ -13,8 +13,8 @@ const fetchFees = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     totalBorrow.forEach((borrow: any) => {
         const _apy = apy.find((item: any) => item.market === borrow.market)
-        const dailyApy = _apy.apy / 100 / 365
-        const fees = Number(borrow.totalBorrow) * dailyApy
+        const dailyRate = (Number(_apy.annualInterestBips) / 10000) / 365
+        const fees = Number(borrow.totalBorrow) * dailyRate
         dailyFees.add(borrow.token, fees)
     })
     const dailyRevenue = dailyFees.clone(0.05)

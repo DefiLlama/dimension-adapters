@@ -7,7 +7,7 @@ const LIST_URL = "https://api.enzyme.finance/enzyme.enzyme.v1.EnzymeService/GetV
 const ENZYME_FEE_TRACKER = "0xe97980f1D43C4CD4F1EeF0277a2DeA7ddBc2Cd13";
 const feePaidEventAbi = "event FeePaidForVault (address indexed vaultProxy, uint256 sharesAmount, uint256 secondsPaid)";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const { vaults } = await httpPost(LIST_URL, {}, {
         headers: {

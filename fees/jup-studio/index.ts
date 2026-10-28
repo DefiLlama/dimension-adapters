@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -13,7 +14,7 @@ interface IData {
     damm_v2_fees: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
         WITH
             dbc_tokens AS (
@@ -115,9 +116,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailyHoldersRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
+        ADDRESSES.solana.SOL,
+        ADDRESSES.solana.USDC,
+        ADDRESSES.solana.JUP
     ]
     data.forEach(row => {
         if (!accepted_quote_mints.includes(row.quote_mint)) return;

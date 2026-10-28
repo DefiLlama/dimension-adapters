@@ -3,7 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains';
 import { queryDuneSql } from '../../helpers/dune';
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
 
   const query = `
     SELECT 
@@ -11,9 +11,9 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     FROM tokens_solana.transfers
     WHERE 
       block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time <= from_unixtime(${options.endTimestamp})
+      AND block_time < from_unixtime(${options.endTimestamp})
       AND to_token_account = '5xUKs45EtfwJAeGAwyvS8WbMebMPY7o334Fi9LxmtyYq'
-      AND token_mint_address = 'So11111111111111111111111111111111111111112'
+      AND token_mint_address = '${ADDRESSES.solana.SOL}'
   `
   const res = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();

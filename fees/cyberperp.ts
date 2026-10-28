@@ -136,7 +136,7 @@ const fetchEvents = async (
   }
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const { fromTimestamp, toTimestamp, createBalances } = options;
   const acc: Accumulator = {
     lp: new BigNumber(0),

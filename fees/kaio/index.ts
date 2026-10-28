@@ -12,9 +12,11 @@ const MANAGEMENT_FEE_RATES: Record<string, number> = {
     MACROx: 0.005, // https://app.rwa.xyz/assets/MACROx
     SCOPEx: 0.005, // https://app.rwa.xyz/assets/SCOPEx
     CASHx: 0.0015, // https://app.rwa.xyz/assets/CASHx
+    "MCAS-TD": 0.0075, //https://app.rwa.xyz/assets/MCAS-TD
+    "MCAS-TA": 0.0055, //https://app.rwa.xyz/assets/MCAS-TA
 };
 
-const chainConfig = {
+const chainConfig:any  = {
     [CHAIN.ETHEREUM]: "",
     [CHAIN.POLYGON]: "Polygon",
     [CHAIN.AVAX]: "Avalanche",
@@ -37,7 +39,7 @@ async function prefetch(_options: FetchOptions) {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const { assets, receipts } = options.preFetchedResults;
     if (!assets?.length) throw new Error("Missing KAIO TVL assets");
 

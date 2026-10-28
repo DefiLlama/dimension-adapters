@@ -35,7 +35,7 @@ const prefetch = async (options: FetchOptions) => {
   return await fetchURL(`${DAILY_VOLUME_URL}?date=${options.dateString}`);
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = options.preFetchedResults;
 
   const chainId = CHAIN_NAME_TO_ID[options.chain];

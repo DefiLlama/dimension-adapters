@@ -16,6 +16,11 @@ const chainMapper: Record<string, { name: string, start: string, primaryCGToken:
     [CHAIN.SUI]: { name: "sui", start: "2025-08-14", primaryCGToken: 'sui' },
     [CHAIN.SOLANA]: { name: "solana", start: "2025-08-07", primaryCGToken: 'solana' },
     [CHAIN.MONAD]: { name: "monad", start: "2025-11-24", primaryCGToken: 'monad' },
+    [CHAIN.BOTANIX]: { name: "botanix", start: "2025-06-24", primaryCGToken: 'bitcoin' },
+    [CHAIN.CITREA]: { name: "citrea", start: "2026-01-20", primaryCGToken: 'bitcoin' },
+    [CHAIN.MEGAETH]: { name: "megaeth", start: "2026-02-06", primaryCGToken: 'ethereum' },
+    [CHAIN.TRON]: { name: "tron", start: "2026-01-10", primaryCGToken: 'tron' },
+    [CHAIN.LITECOIN]: { name: "litecoin", start: "2026-01-10", primaryCGToken: 'litecoin' },
 };
 
 // Decimals for each asset key (chain:token)
@@ -38,6 +43,7 @@ const assetDecimals: Record<string, number> = {
     "hyperliquid:ubtc": 8,
     "bnbchain:btcb": 18,
     "starknet:wbtc": 8,
+    "starknet:strkbtc": 8,
     "solana:sol": 9,
     "solana:cbbtc": 8,
     "solana:usdc": 6,
@@ -114,14 +120,37 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         const response: GardenApiResponse = await fetchURL(
             `https://api.garden.finance/v2/orders?status=completed&per_page=500&page=${currentPage}`
         );
-        if (response.status !== "Ok" || !response.result.data.length) break;
+        // An empty page after the first is just the end of pagination. An empty
+        // FIRST page means the source returned nothing for the whole window, and
+        // falling through to `return { fees }` publishes a real 0 for every chain.
+        // That is what put twelve false zero-fee days in the chart between
+        // 2026-07-27 and 2026-08-07 while the endpoint was failing. Fail instead.
+        if (response.status !== "Ok" || !response.result.data.length) {
+            if (currentPage === 1) {
+                throw new Error(
+                    `garden fees: orders endpoint returned no usable data on page 1 (status ${response.status}, ${response.result?.data?.length ?? "no"} rows)`
+                );
+            }
+            break;
+        }
+
+        // Pages are newest-first, so a stale first row means paging further is
+        // pointless and would publish the same silent zeros as an empty feed.
+        if (currentPage === 1) {
+            const newestTimestamp = new Date(response.result.data[0].created_at).getTime() / 1000;
+            if (newestTimestamp < startTimestamp) {
+                throw new Error(
+                    `garden fees: freshest completed order (${response.result.data[0].created_at}) predates the requested window — the orders feed looks stale, not zero`
+                );
+            }
+        }
 
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
 
-            if (!insideDateRange && txTimestamp > endTimestamp) continue;
+            if (!insideDateRange && txTimestamp >= endTimestamp) continue;
 
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
+            if (txTimestamp < endTimestamp && txTimestamp >= startTimestamp) {
                 insideDateRange = true;
                 const { source_swap, destination_swap } = tx;
                 const sourceChain = source_swap.chain;

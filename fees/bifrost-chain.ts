@@ -5,7 +5,7 @@ let res: any;
 
 const BURN_START_DATE = "2025-11-01";
 
-const fetch = async (_: any, _1: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const startTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0]
   if (!res)
     res = fetchURL('https://dapi.bifrost.io/api/dapp/stats/overview')

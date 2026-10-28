@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getSolanaReceived } from "../helpers/token";
@@ -7,7 +8,7 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = await addTokensReceived({
       options,
       targets: ['0xcbc57e7899126f3ad47268a6505231d82b8733c8'],
-      tokens: ['0x2791bca1f2de4661ed88a30c99a7a9449aa84174'],
+      tokens: [ADDRESSES.polygon.USDC],
     });
     return {
       dailyFees,

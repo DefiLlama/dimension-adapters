@@ -3,10 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const response = await fetchURL(
-    `https://beta.bullbit.ai/services/one/v1/info/trading-data?from=${options.startTimestamp}&to=${options.endTimestamp}`
+    `https://app.bullbit.ai/services/one/v1/info/trading-data?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
 
   const todaysData = response.find((day: any) => day.date === options.startOfDay);

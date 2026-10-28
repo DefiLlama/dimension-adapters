@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -6,9 +7,9 @@ const TREASURY = "0x647128722e6aC0FDF10C1c5bEB9d37C66cE6f907";
 const FEE_BPS = 5;
 
 const INK_TOKENS = [
-  "0x4200000000000000000000000000000000000006",
-  "0x2d270e6886d130d724215a266106e6832161eaed",
-  "0x0200c29006150606b650577bbe7b6248f58470c1",
+  ADDRESSES.optimism.WETH_1,
+  ADDRESSES.ink.USDC,
+  ADDRESSES.ink.USDT0,
 ];
 
 const fetch = async (options: FetchOptions) => {

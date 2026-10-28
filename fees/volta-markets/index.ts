@@ -21,8 +21,8 @@ interface IFeeResponse {
   }>
 }
 
-const fetch = async (timestamp: number, _: any, options: FetchOptions)=> {
-  const dayTimestamp = getTimestampAtStartOfDayUTC(timestamp)
+const fetch = async (options: FetchOptions)=> {
+  const dayTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
 
   const graphQuery = gql
   `{
@@ -48,7 +48,7 @@ const fetch = async (timestamp: number, _: any, options: FetchOptions)=> {
   // 60% to holders, 40% to protocol
   return {
     dailyFees,
-    dailyUsFees: dailyFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: `${dailyFees * 0.4}`,
     dailyHoldersRevenue: `${dailyFees * 0.6}`,

@@ -3,7 +3,7 @@ import { CHAIN } from '../helpers/chains';
 import { getSolanaReceived } from '../helpers/token';
 
 // https://dune.com/adam_tehc/axiom
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const targets = [
     '6JfTobDvwuwZxZP6FR5JPmjdvQ4h4MovkEVH2FPsMSrF',
   ];

@@ -19,7 +19,7 @@ type IConfig = {
     treasury: string;
     blacklists?: Array<string>;
     airdropFunders?: Array<string>;
-    usdtAddress: string;
+    usdtAddress?: string;
   };
 };
 
@@ -87,16 +87,27 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BERACHAIN]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736"
+    usdtAddress: ADDRESSES.xlayer.USDT0
   }, 
   [CHAIN.PLASMA]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
   },
   [CHAIN.HYPERLIQUID]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
     airdropFunders: ["0xeea6F790F18563E91b18DF00B89d9f79b2E6761F"],
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
+  },
+  [CHAIN.MONAD]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.flare.USDT0
+  },
+  [CHAIN.XLAYER]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.xlayer.USDT
+  },
+  [CHAIN.ROBINHOOD]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
   }
 };
 
@@ -108,6 +119,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
+
+  if (!markets.length) {
+    return {
+      dailyFees,
+      dailyRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+      dailyHoldersRevenue: options.createBalances(),
+      dailySupplySideRevenue,
+    };
+  }
 
   const rewardTokens: string[] = (
     await api.multiCall({
@@ -230,7 +251,7 @@ const fetch = async (options: FetchOptions) => {
     fromAdddesses: sources,
   })
 
-  tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
+  if (chainConfig[chain].usdtAddress) tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress!) // ignore USDT airdrop
 
   const dailyRevenue = options.createBalances()
   dailyRevenue.addBalances(treasuryInflows, 'YT And Swap Fees')
@@ -296,7 +317,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.SONIC]: { start: '2025-02-14' },
     [CHAIN.BERACHAIN]: { start: '2025-02-07' }, 
     [CHAIN.PLASMA]: { start: '2025-09-24' },
-    [CHAIN.HYPERLIQUID]: { start: '2025-07-09' }
+    [CHAIN.HYPERLIQUID]: { start: '2025-07-09' },
+    [CHAIN.MONAD]: { start: '2026-06-19' },
+    [CHAIN.XLAYER]: { start: '2026-08-02' },
+    [CHAIN.ROBINHOOD]: { start: '2026-09-02' },
   },
   methodology,
   breakdownMethodology,

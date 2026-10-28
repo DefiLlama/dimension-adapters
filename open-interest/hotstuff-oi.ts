@@ -15,7 +15,9 @@ async function fetch(options: FetchOptions) {
     })
 
     for (const market of marketsInfo) {
-        openInterestAtEnd.addUSDValue(Number(market.open_interest) * Number(market.mark_price) * 2);
+        // no * 2: open_interest is the per-market one-sided field, same shape as every other
+        // orderbook venue we measured (lighter, dydx, hibachi all read one-sided here)
+        openInterestAtEnd.addUSDValue(Number(market.open_interest) * Number(market.mark_price));
     }
 
     return {

@@ -61,19 +61,12 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: "2026-05-04",
-    },
-  },
+  version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-05-04",
   dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
-  methodology: {
-    Volume: "Volume tracks successful Worm trades on Solana.",
-    NiotionalVolume: "Track total notional (after leverage) volume trades on Worm.",
-  },
+  isExpensiveAdapter: true
 };
 
 export default adapter;

@@ -5,7 +5,7 @@ import { CHAIN } from '../../helpers/chains';
 const sudoApi = 'https://api.zofinance.io';
 const TREASURY_FEE_PERCENTAGE = 0.25;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const {
     fee: dailyFee,
     tradingFee: dailyTradingFee,

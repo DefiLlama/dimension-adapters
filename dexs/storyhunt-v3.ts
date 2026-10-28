@@ -1,38 +1,12 @@
-import request from "graphql-request";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { uniV3Exports } from "../helpers/uniswap";
 
-const v3Endpoint = {
-  [CHAIN.STORY]: "https://app.storyhunt.xyz/api/graph",
-}
-
-async function fetch({ chain, getStartBlock, getEndBlock }: FetchOptions) {
-  const { factories: [{totalVolumeUSD}]} = await getData(await getEndBlock());
-  const { factories: [{totalVolumeUSD: totalVolumeUSDYesterday}]} = await getData(await getStartBlock());
-
-  return {
-    dailyVolume: totalVolumeUSD - totalVolumeUSDYesterday,
-  }
-
-  async function getData(block: any) {
-    const query = "query total_volume ($block: Int) { factories(block: { number: $block }) {  totalVolumeUSD }  }"
-    try {
-      const res = await request((v3Endpoint as any)[chain], query, { block });
-      return res
-    } catch (error) {
-      if ((error as any)?.response.status === 200) return (error as any).response
-      return {}
-    }
-  }
-}
-
-const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STORY]: {
-      fetch,
-    },
+// on-chain swap logs; the app.storyhunt.xyz/api/graph subgraph proxy returns 404.
+// factory from DefiLlama-Adapters registries/uniswapV3.js
+// volume only, as before: per-pool feeProtocol differs (0, 1/4, 1/5) so fees/revenue need their own review
+export default uniV3Exports({
+  [CHAIN.STORY]: {
+    factory: '0xa111dDbE973094F949D78Ad755cd560F8737B7e2',
+    customLogic: ({ dailyVolume }: any) => ({ dailyVolume }),
   },
-  version: 2
-};
-
-export default adapter;
+});

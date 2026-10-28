@@ -45,6 +45,14 @@ export const getDexResolver = async (api: ChainApi) => {
   }
 }
 
+const getVaultEntireDataSafe = async (api: ChainApi, resolver: string, abi: string, vaults: string[]) => {
+  const vaultDatas = await api.multiCall({ calls: vaults.map((vault) => ({ target: resolver, params: [vault] })), abi, permitFailure: true });
+  const failed = vaults.filter((_, i) => !vaultDatas[i]);
+  if (failed.length > vaults.length / 2) throw new Error(`fluid: getVaultEntireData failed for ${failed.length}/${vaults.length} vaults on ${api.chain} at block ${api.block}`);
+  if (failed.length) console.error(`fluid: getVaultEntireData reverted on ${api.chain} at block ${api.block}, skipping vaults: ${failed.join(', ')}`);
+  return vaultDatas;
+};
+
 export const getVaultsResolver = async (api: ChainApi) => {
   // Includes smart vaults (smart col and/or smart debt)
   const block = await api.getBlock();
@@ -79,7 +87,7 @@ export const getVaultsResolver = async (api: ChainApi) => {
 
   return {
     getAllVaultsAddresses: async () => !address ? [] : api.call({ target: address, abi: abi.getAllVaultsAddresses }),
-    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData }),
+    getVaultEntireData: async (vaults: string[]) => !address ? [] : getVaultEntireDataSafe(api, address, abi.getVaultEntireData, vaults),
   };
 };
 
@@ -129,7 +137,7 @@ export const getVaultsT1Resolver = async (api: ChainApi) => {
   }
 
   return {
-    getVaultEntireData: async (vaults: string[]) => !address ? [] : api.multiCall({ calls: vaults.map((vault) => ({ target: address, params: [vault] })), abi: abi.getVaultEntireData }),
+    getVaultEntireData: async (vaults: string[]) => !address ? [] : getVaultEntireDataSafe(api, address, abi.getVaultEntireData, vaults),
     getAllVaultsAddresses: async () => {
       let vaults = !address ? [] : await api.call({ target: address, abi: abi.getAllVaultsAddresses });
       if ( api.chain === CHAIN.ARBITRUM && block > 285530000 && address === "0x77648D39be25a1422467060e11E5b979463bEA3d") {

@@ -8,7 +8,7 @@ const config: any = {
   [CHAIN.SOON_BASE]: "https://api.soonbase.cobaltx.io/main/info",
 }
 
-const fetch = async (_: any, _1: any, { chain }: FetchOptions): Promise<FetchResult> => {
+const fetch = async ({ chain }: FetchOptions): Promise<FetchResult> => {
   const response = await fetchURL(config[chain]);
   return {
     dailyVolume: response.data.volume24,

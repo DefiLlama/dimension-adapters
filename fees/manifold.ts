@@ -13,7 +13,7 @@ const contracts: Record<string, string[]> = {
     [CHAIN.BASE]: CREATE2_CONTRACTS,
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const pre = await options.fromApi.sumTokens({
         token: nullAddress,
         owners: contracts[options.chain]

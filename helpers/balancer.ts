@@ -104,6 +104,7 @@ export function getGraphExport(graphEndpoint: string, { revenueRatio = 0 }: { re
 type BalancerFeesChainConfig = {
   vault: string;
   start: string;
+  deadFrom?: string;
   revenueRatio?: number;
   protocolRevenueRatio?: number;
   holderRevenueRatio?: number;
@@ -128,6 +129,7 @@ function balancerFeesExports(config: IJSON<BalancerFeesChainConfig>, overrides?:
         holderRevenueRatio: chainConfig.holderRevenueRatio,
       }),
       start: chainConfig.start,
+      deadFrom: chainConfig.deadFrom,
     }
   })
   return {
@@ -180,6 +182,12 @@ const balancerEntries: Record<string, any> = {
   tanukix: {
     [CHAIN.TAIKO]: { vault: '0x3251e99cEf4b9bA03a6434B767aa5Ad11ca6cc31' },
   },
+  // migrated off deleted/dying subgraphs to on-chain vault logs; vaults from DefiLlama-Adapters projects/symmetric
+  symmetric: {
+    [CHAIN.XDAI]: { vault: '0x901E0dC02f64C42F73F0Bdbf3ef21aFc96CF50be', start: '2022-06-15' },
+    [CHAIN.CELO]: { vault: '0xE9265892B5c56264d60e26451862B576814185C9', start: '2022-06-07' },
+    [CHAIN.TELOS]: { vault: '0xbccc4b4c6530F82FE309c5E845E50b5E9C89f2AD', start: '2023-11-14' },
+  },
   aequinox: {
     [CHAIN.BSC]: { vault: '0xee1c8dbfbf958484c6a4571f5fb7b99b74a54aa7' },
   },
@@ -202,7 +210,7 @@ const balancerEntries: Record<string, any> = {
     [CHAIN.ABSTRACT]: { vault: '0x48cD08ad2065e0cD2dcD56434e393D55A59a4F64' },
   },
   "wavelength-dao": {
-    [CHAIN.VELAS]: { vault: '0xa4a48dfcae6490afe9c779bf0f324b48683e488c', revenueRatio: 0.4, holderRevenueRatio: 0.3, protocolRevenueRatio: 0.1, start: '2022-10-20' },
+    [CHAIN.VELAS]: { vault: '0xa4a48dfcae6490afe9c779bf0f324b48683e488c', revenueRatio: 0.4, holderRevenueRatio: 0.3, protocolRevenueRatio: 0.1, start: '2022-10-20', deadFrom: '2024-06-25' },
   },
   'berachain-hub': {
     [CHAIN.BERACHAIN]: { vault: '0x4Be03f781C497A489E3cB0287833452cA9B9E80B', revenueRatio: 0.5, start: '2025-12-01' },

@@ -3,7 +3,7 @@ import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "./jupiter"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data: { usd_amount: number; product: string }[] = await queryAllium(`
     -- v1: All transfers to fee wallet excluding transfers from the wallet itself
     SELECT 
@@ -13,7 +13,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     WHERE t.from_address != 'H3vkQqNVWySTD4c1Y91wtoT5iwxKSVtVLfC2rD8SgwTN'
       AND t.to_address = 'H3vkQqNVWySTD4c1Y91wtoT5iwxKSVtVLfC2rD8SgwTN'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
 
     UNION ALL
 
@@ -25,7 +25,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     WHERE t.from_address = '27ZASRjinQgXKsrijKqb9xyRnH6W5KWgLSDveRghvHqc'
       AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
 
   const dailyFees = options.createBalances();

@@ -1,6 +1,7 @@
 import { CHAIN } from "../../helpers/chains"
 
 // source: https://github.com/Merit-Systems/x402scan/tree/main/packages/external/facilitators/src/facilitators
+// source: https://x402-list.com/facilitators
 // https://dune.com/queries/6054244
 
 export const facilitators: Record<string, string[]> = {
@@ -15,6 +16,8 @@ export const facilitators: Record<string, string[]> = {
         "0xd348e724e0ef36291a28dfeccf692399b0e179f8",
         // bitrefill
         "0x15e2e2da7539ef1f652aa3c1d6142a535aa3d7ea",
+        // centralcity
+        "0xc8d6bac2ff7182d22c4f316bfff9f713261a6cec",
         // codenut
         "0x8d8Fa42584a727488eeb0E29405AD794a105bb9b",
         "0x87aF99356d774312B73018b3B6562e1aE0e018C9",
@@ -46,6 +49,21 @@ export const facilitators: Record<string, string[]> = {
         "0x68a96f41ff1e9f2e7b591a931a4ad224e7c07863",
         "0x97acce27d5069544480bde0f04d9f47d7422a016",
         "0xa32ccda98ba7529705a059bd2d213da8de10d101",
+        "0x14fda13953fc30428938e6bf950d036e77214e52",
+        "0x2a89407a98a0732b7fd578c4e156b7166540eb5a",
+        "0x42dd53906b49c202e8e934b059dc019e04634b00",
+        "0x4c934c63c786157fefd990945b25ea60a0fb0205",
+        "0x59b7ebc67a3d627fabaf06768c818638452ae704",
+        "0x625d8a65134079f8faaac39a7947c73d93c6ac39",
+        "0x64cc42b1ce598e3abcfbb64df4688521ddbf1f0a",
+        "0x68efafe862d89ce66dd3d7b07d5a3747a0871164",
+        "0x772003a2e9c2ccc8af956870a37a66f64f8cec38",
+        "0x8cda367232d78c067116e3260da881d2da8ffa39",
+        "0x93f6601151ccb08f333ab4b1cccfb1e188c0be44",
+        "0xb87e1a2cc2b4643f2892768e80e41167f17c5860",
+        "0xca5e87f82b3fa093800e6ad67d621a427d79c70d",
+        "0xe72f0af4cf41356d433723547f1412ca27fbb1b8",
+        "0xe74817f4cdc15844314812b2271276e64e890fae",
         // corbits
         "0x06F0BfD2C8f36674DF5cdE852c1eeD8025C268C9",
         // daydreams
@@ -125,6 +143,8 @@ export const facilitators: Record<string, string[]> = {
         "0x103040545ac5031a11e8c03dd11324c7333a13c7",
         // virtuals
         "0x80735b3f7808e2e229ace880dbe85e80115631ca",
+        // x402.celo.org (Celo facilitator)
+        "0x0d74d5cefd2e7f24e623330ebe3d8d4cb45ffb48",
         // x402jobs
         "0x51fec16843e49b99aaf9814e525aee1756e66a62",
         // x402rs

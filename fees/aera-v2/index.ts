@@ -44,7 +44,7 @@ const ABIs = {
 
 const limit = pLimit(5);
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const { chainId } = CHAIN_CONFIG[options.chain];
     const allVaultDetails = await configPost("aera-v2","https://app.aera.finance/api/metric/v1", {
         "metric_identifier": "aera-vaults-current-tvl-by-vault-usd", "aggregation": "last"
@@ -53,7 +53,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
     const vaultsOfCurrentChain = allVaultDetails.data.filter((vaultDetails: any) => vaultDetails.label.chain == chainId);
 
-    const vaultValueMap = new Map(vaultsOfCurrentChain.map((vaultDetail: any) => [vaultDetail.label.vault_address, vaultDetail.series[0].value]));
+    const vaultValueMap = new Map(vaultsOfCurrentChain.map((vaultDetail: any) => [vaultDetail.label.vault_address.toLowerCase(), vaultDetail.series[0].value]));
 
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -66,7 +66,7 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         cacheInCloud: true,
     });
 
-    const vaults = [];
+    const vaults: any[] = [];
 
     for (const { vault } of vaultCreationLogs)
         vaults.push(vault);
@@ -92,17 +92,26 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
     });
 
     for (const [index, vaultDetail] of vaultDetails.entries()) {
-        const currentTvlInUsd = vaultValueMap.get(vaultDetail.vaultAddress) || 0;
-        const currentApy = vaultDetail.summary.apy.value;
+        const feeBefore = totalFeesBefore[index];
+        const feeAfter = totalFeesAfter[index];
+        const feePrice = feeTokenPrice[index];
+        if (feeBefore != null && feeAfter != null && feePrice != null) {
+            const totalFeesForPeriod = ((feeAfter - feeBefore) / 1e18) * (feePrice / 1e18);
+            if (Number.isFinite(totalFeesForPeriod)) {
+                dailyFees.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
+                dailyRevenue.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
+            }
+        }
 
-        const totalFeesForPeriod = ((totalFeesAfter[index] - totalFeesBefore[index]) / 1e18) * (feeTokenPrice[index] / 1e18);
+        const currentTvlInUsd = vaultValueMap.get(vaultDetail.vaultAddress.toLowerCase());
+        const currentApy = vaultDetail.summary?.external_apy?.value;
+        if (currentTvlInUsd == null || currentApy == null) continue;
+
         const totalYieldForPeriod = +currentTvlInUsd * currentApy * periodWrtYear;
-
-        dailyFees.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.addUSDValue(totalFeesForPeriod, METRIC.MANAGEMENT_FEES);
-
-        dailyFees.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
-        dailySupplySideRevenue.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
+        if (Number.isFinite(totalYieldForPeriod) && totalYieldForPeriod !== 0) {
+            dailyFees.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
+            dailySupplySideRevenue.addUSDValue(totalYieldForPeriod, METRIC.ASSETS_YIELDS);
+        }
     }
 
     return {
@@ -142,6 +151,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     runAtCurrTime: true,
+    allowNegativeValue: true, // vault external APY can be negative when strategies realize losses
 }
 
 export default adapter;

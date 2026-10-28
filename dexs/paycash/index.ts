@@ -1,6 +1,5 @@
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { httpPost } from "../../utils/fetchURL";
 
 const historicalVolumeEndpoint = "https://api.paycashswap.com/"
@@ -15,8 +14,8 @@ interface IVolumeall {
   timestamp: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayString = new Date(timestamp * 1000).toISOString().split('T')[0]
+const fetch = async (options: FetchOptions) => {
+  const dayString = new Date(options.toTimestamp * 1000).toISOString().split('T')[0]
   const historicalVolume: IVolumeall[] = (await httpPost(historicalVolumeEndpoint, requestBody))?.data.totalVolumeChart.points;
   const volumeItem = historicalVolume
     .find(dayItem => dayItem.timestamp.split('T')[0] === dayString)?.value
@@ -29,19 +28,15 @@ const fetch = async (timestamp: number) => {
   }
 
   return {
-    dailyVolume: dailyVolume,
-    timestamp: getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)),
+    dailyVolume,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.EOS]: {
-      fetch,
-      start: '2021-04-14',
-    },
-  },
+  fetch,
+  chains: [CHAIN.EOS],
+  start: '2021-04-14',
 };
 
 export default adapter;

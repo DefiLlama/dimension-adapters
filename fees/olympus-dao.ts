@@ -78,14 +78,14 @@ const CHAIN_CONFIG = {
     treasuryV2: "0x9A315BdF513367C0377FB36545857d12e85813Ef",
     treasuryMultisig: "0x245cc372C84B3645Bf0Ffe6538620B04a217988B",
     monoCooler: "0xdb591Ea2e5Db886dA872654D58f6cc584b68e7cC",
-    sUSDS: "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD",
-    sUSDe: "0x9D39A5DE30e57443BfF2A8307A4256c8797A3497",
+    sUSDS: ADDRESSES.ethereum.sUSDS,
+    sUSDe: ADDRESSES.ethereum.sUSDe,
     cdFacility: "0xEBDe552D851DD6Dfd3D360C596D3F4aF6e5F9678",
     cdLending: "0x20a3d8510f2e1176e8db4cea9883a8287a9029db", // DepositRedemptionVault
     uniV3PositionManager: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
     positionIds: [562564, 954195], // OHM/WETH, OHM/sUSDS
     ohm: "0x64aa3364F17a4D01c6f1751Fd97C2BD3D7e7f1D5",
-    usds: "0xdC035D45d973E3EC169d2276DDab16f1e407384F",
+    usds: ADDRESSES.ethereum.USDS,
     usde: ADDRESSES.ethereum.USDe,
     dai: ADDRESSES.ethereum.DAI,
   },
@@ -97,7 +97,7 @@ const CHAIN_CONFIG = {
   [CHAIN.ARBITRUM]: {
     treasury: "0x012bbf0481b97170577745d2167ee14f63e2ad4c",
     camelotV2Pool: "0x8acd42e4b5a5750b44a28c5fb50906ebff145359", // V2 LP WETH/OHM
-    weth: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    weth: ADDRESSES.arbitrum.WETH,
     ohm: "0xf0cb2dc0db5e6c66B9a70Ac27B06b878da017028",
   },
   [CHAIN.BERACHAIN]: {
@@ -146,7 +146,7 @@ const EVENTS = {
 };
 
 const ONE_SHARE = BigInt(10) ** BigInt(18);
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 // ERC-20 Transfer event topic (keccak256("Transfer(address,address,uint256)"))
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 // Zero address padded to 32 bytes for use as RPC topic filter

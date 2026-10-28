@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 const MASTER_DEPLOYER = "0xEB4B1CE03bb947Ce23ABd1403dF7C9B86004178d";
 const POOL_LOGGER = "0x002A422533cccEeA9aBF9e56e2A25d72672891bC";
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 const ABIS = {
   whitelistedFactories: "function whitelistedFactories(address factory) view returns (bool)",

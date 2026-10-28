@@ -8,8 +8,8 @@ with
         from
             ethereum.transactions t
             join ethereum.blocks b on block_number="number"
-            and b."date" >= cast(from_unixtime({{start}}) as date)
-            and b."date" < cast(from_unixtime({{end}}) as date)
+            and b."time" >= from_unixtime({{start}})
+            and b."time" < from_unixtime({{end}})
         where
             TIME_RANGE
         group by
@@ -26,8 +26,8 @@ with
         from
             ethereum.blocks b
             join ethereum.transactions t on b.number=t.block_number
-            and t.block_date >= cast(from_unixtime({{start}}) as date)
-            and t.block_date < cast(from_unixtime({{end}}) as date)
+            and t.block_time >= from_unixtime({{start}})
+            and t.block_time < from_unixtime({{end}})
             join tx_ct tc on tc.block_number=b.number
             -- join ethereum.raw_0004 r on r.blocknumber = b.number -- dont need this table if u dont need builder name info
         where
@@ -40,8 +40,8 @@ with
                     0x9FC3da866e7DF3a1c57adE1a97c9f00a70f010c8 -- titan
                 )
             )
-            and b."date" >= cast(from_unixtime({{start}}) as date)
-            and b."date" < cast(from_unixtime({{end}}) as date)
+            and b."time" >= from_unixtime({{start}})
+            and b."time" < from_unixtime({{end}})
     ),
     block_wo_eob_payment as ( -- need to sum up the cb transfer in traces
         select
@@ -51,8 +51,8 @@ with
         from
             ethereum.traces t
             join ethereum.blocks b on t.block_number=b.number
-                and b."date" >= cast(from_unixtime({{start}}) as date)
-                and b."date" < cast(from_unixtime({{end}}) as date)
+                and b."time" >= from_unixtime({{start}})
+                and b."time" < from_unixtime({{end}})
             left join block_with_eob_payment bw on bw.block_number=b.number
         where
             bw.block_number is null -- not in the blocks above
@@ -98,8 +98,8 @@ with
         FROM
             ethereum.transactions a
             left join ethereum.blocks b on block_number="number"
-                and b."date" >= cast(from_unixtime({{start}}) as date)
-                and b."date" < cast(from_unixtime({{end}}) as date)
+                and b."time" >= from_unixtime({{start}})
+                and b."time" < from_unixtime({{end}})
         where
             TIME_RANGE
         group by

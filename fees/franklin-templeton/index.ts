@@ -1,4 +1,4 @@
-import { Dependencies, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { queryDuneSql } from "../../helpers/dune";
@@ -267,7 +267,7 @@ const solanaData = async (options: any) => {
   return formatData(queryResults[0], options);
 };
 
-const fetch = async (_timestamp: any, _chainBlocks: any, options: any) => {
+const fetch = async (options: FetchOptions) => {
   const { api, chain, createBalances } = options;
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();

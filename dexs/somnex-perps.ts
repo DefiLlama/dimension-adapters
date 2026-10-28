@@ -9,7 +9,7 @@ export default {
 }
 
 
-async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
+async function fetch({ startOfDay }: FetchOptions) {
   const yesterday = startOfDay - 86400
   const endpoint = 'https://api.subgraph.somnia.network/api/public/962dcbf6-75ff-4e54-b778-6b5816c05e7d/subgraphs/somnia-perp/v1.0.0/gn'
   const query = `{
@@ -20,8 +20,13 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
     }
   }
 
-  yesterday: perpPools {
-    snap (where: { timestamp: ${yesterday}}) {
+  previous: perpPools {
+    snap (
+      first: 1,
+      where: { timestamp_lte: ${yesterday} },
+      orderBy: timestamp,
+      orderDirection: desc
+    ) {
       totalTrade
       totalFees
     }
@@ -29,16 +34,21 @@ async function fetch(_: any, _1: any, { startOfDay }: FetchOptions) {
   }`
 
   const res = await request(endpoint, query)
-  if (!res.today.length || !res.yesterday.length || res.today[0].snap.length !== 1 || res.yesterday[0].snap.length !== 1)
-    throw new Error("Error: No data")
+  // some days have 0 volume, so a snapshot may be missing; that does not mean the adapter is broken
+  if (!res.today.length || res.today[0].snap.length !== 1) {
+    return { dailyVolume: 0, dailyFees: 0, }
+  }
 
-  const volToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
-  const volYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalTrade), 0)
-  const feesToday = res.today.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
-  const feesYesterday = res.yesterday.reduce((a: number, b: any) => a + Number(b.snap[0].totalFees), 0)
+  const sumField = (pools: any[], field: 'totalTrade' | 'totalFees') =>
+    pools.reduce((total, pool) => total + (pool.snap[0] ? Number(pool.snap[0][field]) : 0), 0)
 
-  const dailyVolume = volToday - volYesterday
-  const dailyFees = feesToday - feesYesterday
+  const volToday = sumField(res.today, 'totalTrade')
+  const volPrevious = sumField(res.previous, 'totalTrade')
+  const feesToday = sumField(res.today, 'totalFees')
+  const feesPrevious = sumField(res.previous, 'totalFees')
+
+  const dailyVolume = volToday - volPrevious
+  const dailyFees = feesToday - feesPrevious
 
   return { dailyVolume, dailyFees, }
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -16,15 +17,15 @@ const config: Record<string, ChainConfig> = {
     pools: [
       {
         id: "0xebb666a5c6449b83536950b975d74deb32aca1537a501b58161a896816b04da6",
-        token: "0x4200000000000000000000000000000000000006", // ETH/USDC (AlphixLVRFee)
+        token: ADDRESSES.optimism.WETH_1, // ETH/USDC (AlphixLVRFee)
       },
       {
         id: "0x3860784278e9e481ffd0888430ab2af8f2bb1180069f31cde9e1066728bbe73b",
-        token: "0x4200000000000000000000000000000000000006", // ETH/cbBTC (AlphixLVRFee)
+        token: ADDRESSES.optimism.WETH_1, // ETH/cbBTC (AlphixLVRFee)
       },
       {
         id: "0x2d926f31a3b94ae9e0d22a0606f7684c9dbee8fcf46fae2ea68557ac1c48cb2d",
-        token: "0x4200000000000000000000000000000000000006", // ETH/ZFI (AlphixPro)
+        token: ADDRESSES.optimism.WETH_1, // ETH/ZFI (AlphixPro)
       },
       {
         id: "0xaf9168a5026bd5e398863dc1d0a0513fe21417792f9df4889571fd68d2d8cd71",
@@ -37,7 +38,7 @@ const config: Record<string, ChainConfig> = {
     pools: [
       {
         id: "0xe2c28a234aadc40f115dcc56b70a759d02a372db90dfeed19048392d942ee286",
-        token: "0xaf88d065e77c8cc2239327c5edb3a432268e5831", // USDC
+        token: ADDRESSES.arbitrum.USDC_CIRCLE, // USDC
       },
     ],
   },

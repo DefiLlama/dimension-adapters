@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 
 const OPEN_INTEREST_URL = `https://bigquery-api-636134865280.europe-west1.run.app/open_interest`;
 
-const fetch = async (_: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const openInterestRes: any = await httpGet(
     `${OPEN_INTEREST_URL}?start_date=${options.dateString}`,
   );
@@ -13,8 +13,10 @@ const fetch = async (_: number, _t: any, options: FetchOptions) => {
       "No OI data found for the given date: " + options.dateString,
     );
 
+  // total_open_interest counts both sides: the indexer openInterest it tracks is exactly 2x the sum of
+  // long positions on-chain (longs equal shorts), measured 2026-09-23 on BTC, ETH, INJ + 6 markets.
   return {
-    openInterestAtEnd: openInterestRes.total_open_interest,
+    openInterestAtEnd: openInterestRes.total_open_interest / 2,
   };
 };
 

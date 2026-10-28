@@ -3,8 +3,11 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex"
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options)
+
   const query = `
     select 
       sum(amount_usd) as daily_volume
@@ -22,7 +25,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 const TESSERA_SWAP_ADDRESS = "0x55555522005BcAE1c2424D474BfD5ed477749E3e"
 const SwapEvent = "event TesseraTrade(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, address recipient)"
 
-const fetchEvm = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetchEvm = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances()
 
   const logs = await options.getLogs({
@@ -55,6 +58,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetchEvm,
       start: '2025-11-13',
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch: fetchEvm,
+      start: '2026-09-10',
     },
   },
   dependencies: [Dependencies.DUNE],

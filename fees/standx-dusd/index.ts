@@ -13,7 +13,7 @@ const STANDX_GATEWAY: any = {
     [CHAIN.BSC]: '0x00b4F9B510893505aceFB10eC91cBC972185088e'
 };
 
-async function fetchSol(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetchSol(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -55,7 +55,7 @@ async function fetchSol(_a: any, _b: any, options: FetchOptions): Promise<FetchR
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();

@@ -2,7 +2,7 @@ import fetchURL from '../../utils/fetchURL'
 import { FetchOptions, FetchResult, ProtocolType, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains';
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const results = (await fetchURL("https://network-dashboards-api.stage.fluence.dev/api/v1/network-revenue")).accumulatedSnapshots;
 
     //Has delay in api

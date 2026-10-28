@@ -18,7 +18,7 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
-  "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" },
+  // "kodiak-perps": { broker_id: "kodiak", start: "2025-10-1" }, // moved to a standalone adapter at fees/kodiak-perps.ts
   "veax-perp": {
     broker_id: "veaxdex",
     start: "2025-10-16",
@@ -140,6 +140,56 @@ const feesConfigs: Record<string, Config> = {
     start: "2026-04-09",
     methodology: {
       Volume: "Taker volume routed through MemeMax's Orderly broker",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "primit": {
+    broker_id: "primit",
+    start: "2026-07-07",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Primit interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "rwaperp": {
+    broker_id: "rwaperp_xyz",
+    start: "2026-08-19",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the RWA Perp.xyz interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "halfmoon": {
+    broker_id: "halfmoon",
+    start: "2026-05-28",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Halfmoon interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "flipper-perps": {
+    broker_id: "flipper",
+    start: "2026-09-25",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Flipper interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "orbitdex": {
+    broker_id: "orbit",
+    start: "2026-08-03",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the OrbitDEX interface",
       Fees: "Builder Fees collected from Orderly Network",
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",

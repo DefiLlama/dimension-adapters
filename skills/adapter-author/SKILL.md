@@ -1,6 +1,6 @@
 ---
 name: adapter-author
-description: Helps coding agents author and fix DefiLlama dimension adapters in this repo. Use for fees, revenue, volume, aggregator volume, bridge-aggregator volume, derivatives, options, open interest, incentives, active/new users, normalized volume, and NFT volume. Also gates out requests that belong in `DefiLlama-Adapters` (TVL) or `defillama-server` (listing metadata).
+description: Helps coding agents author and fix DefiLlama dimension adapters in this repo. Use for fees, revenue, volume, aggregator volume, bridge-aggregator volume, derivatives, options, open interest, incentives, active/new users, normalized volume, and NFT volume. Also gates out requests that belong in `DefiLlama-Adapters` (TVL)
 ---
 
 # Adapter Author
@@ -14,7 +14,7 @@ Before editing any file, decide whether the request belongs here. `dimension-ada
 Stop and route elsewhere when:
 
 - TVL of any kind -> `DefiLlama/DefiLlama-Adapters`.
-- Listing metadata only (logo, category, description, socials, treasury, audits) -> `DefiLlama/defillama-server`.
+- Listing metadata only (logo, category, description, socials, treasury, audits) -> mail to metadata@defillama.com
 - Metric not in `whitelistedDimensionKeys`, or category folder is not core-wired (e.g. `aggregator-options`) -> ask maintainers.
 
 ## Intake
@@ -27,7 +27,7 @@ Then grill-style: one unresolved question at a time, recommend an answer when us
 
 ## Workflow
 
-1. Read `GUIDELINES.md`, `pull_request_template.md`, the relevant category `GUIDELINES.md`, and `adapters/types.ts`.
+1. Read `AGENTS.md`, `pull_request_template.md`, the relevant category `AGENTS.md`, and `adapters/types.ts`.
 2. Apply the repo-fit gate. If it fails, stop and route.
 3. Classify the category and helper/factory choice from `references/patterns.md`.
 4. Inspect representative adapters and the matching helper or factory before writing code. Reuse helpers and factories when the protocol shape matches - that is the default, not an option.

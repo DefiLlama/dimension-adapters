@@ -4,7 +4,7 @@ import { getETHReceived } from "../../helpers/token"
 
 const FEE_RECIPIENTS = ["0xdcA2e9AE8423D7B0F94D7F9FC09E698a45F3c851", "0x0a44b68783f0525e3eaAa349c90bDa884676f2C7"];
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
     const dailyFees = await getETHReceived({
         options,

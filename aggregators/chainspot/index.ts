@@ -68,7 +68,7 @@ const chainToId: Record<string, number> = {
     [CHAIN.ZKSYNC]: 324,
 };
 
-const fetch = async (_at: number, _t: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const startOfDay = options.startOfDay
     const url = `https://app.chainspot.io/api/2.0/statistic/daily-volume?chainId=${chainToId[options.chain]}&timestamp=${startOfDay * 1e3}`;
     const volume = (

@@ -27,7 +27,7 @@ export async function oreHelperCountSolBalanceDiff(options: FetchOptions, target
   return dailyFees;
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const dailyFees = await oreHelperCountSolBalanceDiff(options, '45db2FSR4mcXdSVVZbKbwojU6uYDpMyhpEi7cC8nHaWG')
 
   const dailyProtocolRevenue = dailyFees.clone(0.01);

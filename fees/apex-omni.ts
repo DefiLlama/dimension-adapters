@@ -10,7 +10,7 @@ interface IFees {
   feeOfDate: string;
 }
 
-const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const url = `https://omni.apex.exchange/api/v3/data/fee-by-date?time=${options.startOfDay * 1000}`;
   const feesData: IFees = (await httpGet(url)).data;
   if (typeof feesData?.feeOfDate !== "string") throw new Error("No fee data");
@@ -32,7 +32,7 @@ const fetch = async (_: any, _b: any, options: FetchOptions): Promise<FetchResul
 }
 
 // tracks APEX token buybacks
-// const fetchRevenue = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultFees> => {
+// const fetchRevenue = async (options: FetchOptions): Promise<FetchResultFees> => {
 //   // Buybacks are not automated, so we have to track this address for any inflows
 //   const dailyHoldersRevenue = await addTokensReceived({ options, token: TOKEN_APEX, target: BUYBACK_VAULT_ADDR})
 

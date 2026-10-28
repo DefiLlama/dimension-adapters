@@ -23,7 +23,7 @@ const chains: TChains =  {
   [CHAIN.FLOW]: 747,
 };
 
-const fetch = async (_t: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const startTimestamp = options.startOfDay - 86400;
   const endTimestamp = options.startOfDay;
   let isSuccess = true;
@@ -57,7 +57,7 @@ for (const chain in chains) {
   if (chains.hasOwnProperty(chain)) {
     adapters[chain] = {
       fetch: fetch,
-      start: 1727107200,
+      start: '2024-09-23',
     };
   };
 };

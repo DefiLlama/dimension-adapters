@@ -1,13 +1,11 @@
 import * as sdk from "@defillama/sdk";
 import { Chain } from "../adapters/types";
 import BigNumber from "bignumber.js";
-import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import request from "graphql-request";
+import { Adapter, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { FetchOptions } from "../adapters/types";
-import { METRIC } from "../helpers/metrics";
 
 const LYNX = '0x1a51b19ce03dbe0cb44c1528e34a7edd7771e9af';
 const bveLYNX = '0xe8a4c9b6a2b79fd844c9e3adbc8dc841eece557b';
@@ -28,39 +26,37 @@ const event_reward_added = 'event RewardAdded(address indexed rewardToken,uint25
 const event_gauge_created = 'event GaugeCreated(address indexed gauge, address creator,address internal_bribe,address indexed external_bribe,address indexed pool)'
 
 export const fees_bribes = async ({ getLogs, createBalances, getToBlock }: FetchOptions): Promise<sdk.Balances> => {
-  const voter = '0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5';
-  const dailyFees = createBalances()
-  const logs_geuge_created = (await getLogs({
-    target: voter,
-    fromBlock: 2207763,
-    toBlock: await getToBlock(),
-    eventAbi: event_gauge_created,
-    cacheInCloud: true,
-  }))
-  const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.external_bribe.toLowerCase());
+    const voter = '0x0B2c83B6e39E32f694a86633B4d1Fe69d13b63c5';
+    const dailyFees = createBalances()
+    const logs_geuge_created = (await getLogs({
+        target: voter,
+        fromBlock: 2207763,
+        toBlock: await getToBlock(),
+        eventAbi: event_gauge_created,
+        cacheInCloud: true,
+    }))
+    const bribes_contract: string[] = logs_geuge_created.map((e: any) => e.external_bribe.toLowerCase());
 
-  const logs = await getLogs({
-    targets: bribes_contract,
-    eventAbi: event_reward_added,
-  })
-  logs.map((e: any) => {
-    // NOTE: bveLYNX is a derivative token 1:1 to LYNX and should be counted as LYNX as it is not tracked in coingecko
-    if (e.rewardToken.toLowerCase() === bveLYNX)
-        dailyFees.add(LYNX, e.reward, 'Bribes from external protocols')
-    else
-        dailyFees.add(e.rewardToken, e.reward, 'Bribes from external protocols')
-  })
-  return dailyFees;
+    const logs = await getLogs({
+        targets: bribes_contract,
+        eventAbi: event_reward_added,
+    })
+    logs.map((e: any) => {
+        // NOTE: bveLYNX is a derivative token 1:1 to LYNX and should be counted as LYNX as it is not tracked in coingecko
+        if (e.rewardToken.toLowerCase() === bveLYNX)
+            dailyFees.add(LYNX, e.reward, 'Bribes from external protocols')
+        else
+            dailyFees.add(e.rewardToken, e.reward, 'Bribes from external protocols')
+    })
+    return dailyFees;
 }
 
 
-const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
-        const chain = fetchOptions.chain;
-        const timestamp = fetchOptions.startOfDay;
-        const todayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
-        const dateId = Math.floor(getTimestampAtStartOfDayUTC(todayTimestamp) / 86400)
-        const graphQuery = gql
-            `
+const fetch: any = async (options: FetchOptions) => {
+    const chain = options.chain;
+    const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400)
+    const graphQuery = 
+        `
                 {
                     algebraDayData(id: ${dateId}) {
                     id
@@ -69,46 +65,65 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResultFees> => {
                 }
             `;
 
-        const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
-        const dailyFeeUSD = graphRes;
-        const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
-        const dailyBribesRevenue = await fees_bribes(fetchOptions)
-        if (dailyFee === undefined) return { timestamp }
+    const graphRes: IPoolData = (await request(endpoints[chain], graphQuery)).algebraDayData;
+    const dailyFeeUSD = graphRes;
+    const dailyFee = dailyFeeUSD?.feesUSD ? new BigNumber(dailyFeeUSD.feesUSD) : undefined
+    const dailyBribesRevenue = await fees_bribes(options)
+    if (dailyFee === undefined) throw new Error("Failed to fetch daily fees for Lynex")
 
-        return {
-            timestamp,
-            dailyFees: dailyFee.toString(),
-            dailyUserFees: dailyFee.toString(),
-            dailyRevenue: dailyFee.toString(),
-            dailyHoldersRevenue: dailyFee.toString(),
-            dailyBribesRevenue
-        };
+    const dailyFees = options.createBalances()
+    const dailyUserFees = options.createBalances()
+    const dailyRevenue = options.createBalances()
+    const dailyFeeUSDValue = Number(dailyFee.toString())
+
+    dailyFees.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees');
+    dailyUserFees.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees');
+    dailyFees.add(dailyBribesRevenue, 'Bribes Rewards');
+    dailyRevenue.addUSDValue(dailyFeeUSDValue, 'Token Swap Fees To Holders');
+    dailyRevenue.add(dailyBribesRevenue, 'Bribes Revenue');
+  
+    return {
+        dailyFees,
+        dailyUserFees,
+        dailyRevenue,
+        dailyHoldersRevenue: dailyRevenue,
+        dailyProtocolRevenue: 0,
+        dailySupplySideRevenue: 0,
+    };
 }
 
 const methodology = {
-    Fees: "Swap fees paid by traders on the Lynex DEX",
-    Revenue: "All swap fees are distributed to governance token holders",
-    HoldersRevenue: "Swap fees distributed to LYNX token holders plus bribes paid by external protocols to voters"
+    Fees: "Swap fees paid by users plus bribes rewards deposited for Lynex voters.",
+    UserFees: "Swap fees paid by users.",
+    Revenue: "Swap fees and bribes revenue distributed to LYNX governance token holders.",
+    ProtocolRevenue: "No protocol revenue.",
+    HoldersRevenue: "Swap fees and bribes revenue distributed to LYNX governance token holders.",
+    SupplySideRevenue: "No supply-side revenue.",
 }
 
 const breakdownMethodology = {
     Fees: {
-        [METRIC.SWAP_FEES]: "Fees paid by users on token swaps through the Lynex DEX"
+        'Token Swap Fees': "Swap fees paid by users on Lynex swaps.",
+        'Bribes Rewards': "Bribes rewards deposited by external protocols for Lynex voters.",
+    },
+    UserFees: {
+        'Token Swap Fees': "Swap fees paid by users on Lynex swaps.",
     },
     Revenue: {
-        [METRIC.SWAP_FEES]: "All swap fees are distributed to LYNX governance token holders"
+        'Token Swap Fees To Holders': "Swap fees distributed to LYNX governance token holders.",
+        'Bribes Revenue': "Bribes revenue distributed to LYNX governance token holders.",
     },
     HoldersRevenue: {
-        [METRIC.SWAP_FEES]: "Swap fees distributed to LYNX token holders",
-        'Bribes from external protocols': "Incentive tokens paid by external protocols to LYNX voters to direct liquidity gauge emissions"
+        'Token Swap Fees To Holders': "Swap fees distributed to LYNX governance token holders.",
+        'Bribes Revenue': "Bribes revenue distributed to LYNX governance token holders.",
     }
 }
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1,
     adapter: {
         [CHAIN.LINEA]: {
-            fetch: fetch,
+            fetch,
             start: '2023-08-07',
         },
     },

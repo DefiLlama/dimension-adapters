@@ -22,7 +22,6 @@ const chainConfig: Record<string, Record<string, any>> = {
             "0xDcE26B2c78609b983cF91cCcD43E238353653b0E", // IdleCDO_clearpool_DAI
             "0xd0DbcD556cA22d3f3c142e9a3220053FD7a247BC", //Idle DAI
             "0x1f5A97fB665e295303D2F7215bA2160cc5313c8E",
-            "0xf6223C567F21E33e859ED7A045773526E9E3c2D5",
         ],
         BEST_YIELD_VAULTS: [
             "0x3fE7940616e5Bc47b0775a0dccf6237893353bB4", //DAI
@@ -59,14 +58,11 @@ const chainConfig: Record<string, Record<string, any>> = {
             "0x94e399Af25b676e7783fDcd62854221e67566b7f", // fasanara USDT
             "0x8771128e9E386DC8E4663118BB11EA3DE910e528", //portofino USDT
             "0x67D07aA415c8eC78cbF0074bE12254E55Ad43f3f", //Bastion USDT
-            "0xD2c0D848aA5AD1a4C12bE89e713E70B73211989B", //Falconx USDC
         ]
     },
     [CHAIN.POLYGON]: {
         start: '2021-05-31',
-        YIELD_TRANCHES: [
-            "0xF9E2AE779a7d25cDe46FccC41a27B8A4381d4e52", //Bastion CV
-        ],
+        YIELD_TRANCHES: [],
         BEST_YIELD_VAULTS: [
             "0x8a999F5A3546F8243205b2c0eCb0627cC10003ab", // idleDAIYield
             "0x1ee6470CD75D5686d0b2b90C0305Fa46fb0C89A1", // idleUSDCYield
@@ -81,9 +77,7 @@ const chainConfig: Record<string, Record<string, any>> = {
     },
     [CHAIN.ARBITRUM]: {
         start: "2024-11-29",
-        YIELD_TRANCHES: [
-            "0x3919396Cd445b03E6Bb62995A7a4CB2AC544245D", //bastion CV
-        ]
+        YIELD_TRANCHES: []
     }
 }
 

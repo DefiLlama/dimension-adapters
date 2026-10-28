@@ -96,7 +96,7 @@ const prefetch = async (options: FetchOptions) => {
               ON t.tx_hash    = u.tx_hash
               AND t.blockchain = u.blockchain
               AND t.block_time >= from_unixtime(${options.startTimestamp})
-              AND t.block_time <= from_unixtime(${options.endTimestamp})
+              AND t.block_time < from_unixtime(${options.endTimestamp})
         GROUP BY u.blockchain
     )
 
@@ -110,7 +110,7 @@ const prefetch = async (options: FetchOptions) => {
   return await queryDuneSql(options, query);
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = await options.preFetchedResults;
   const dailyFees = options.createBalances();
   let fees = 0;

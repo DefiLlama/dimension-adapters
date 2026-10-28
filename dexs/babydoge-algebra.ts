@@ -5,7 +5,7 @@ import { FetchOptions, } from "../adapters/types";
 export const BABYDOGE_GRAPHQL_ENDPOINT =
   "https://gateway.thegraph.com/api/9ce7bb24f9764358478f6a82c68e7ad3/subgraphs/id/9a8QustfXaMcrBcdB3rZidfLHjGa2eW1AVbUzHUQD3qb";
 
-export const fetch = async (_: number, _ctx: any, options: FetchOptions,) => {
+export const fetch = async (options: FetchOptions,) => {
   const q = `
     query {
       poolDayDatas(first: 1000 where: { date: ${options.startOfDay}}) {  id date volumeUSD feesUSD }

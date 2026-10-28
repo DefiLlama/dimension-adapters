@@ -10,7 +10,7 @@ interface IVolumeResponse {
     };
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResultVolume> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     const data: IVolumeResponse = await fetchURL(`${API_ENDPOINT}?timestamp=${options.startOfDay}`);
     return {
         dailyVolume: data.last24Hours.volumeUSD.toString(),

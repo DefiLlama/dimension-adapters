@@ -34,20 +34,20 @@ const getPlatformData = (options: FetchOptions, platform: string): PlatformData 
   return data?.platforms?.[platform];
 };
 
-const fetchHyperliquid = async(_a: any, _b: any, options: FetchOptions) => {
+const fetchHyperliquid = async(options: FetchOptions) => {
   const { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue } =
     await fetchBuilderCodeRevenue({ options, builder_address: HL_BUILDER_ADDRESS });
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
-const fetchExtended = async(_a: any, _b: any, options: FetchOptions) => {
+const fetchExtended = async(options: FetchOptions) => {
   const { dailyVolume, dailyFees } =
     await fetchBuilderData({ options, builderNames: EXTENDED_BUILDER_NAMES, builderFeeRate: FLOWBOT_FEE_RATE });
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 };
 
 const fetchFlowbotPlatform = (platform: string, feeRate?: number) => {
-  return async (_a: any, _b: any, options: FetchOptions) => {
+  return async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
     const item = getPlatformData(options, platform);
     if (item && item.volume > 0) {

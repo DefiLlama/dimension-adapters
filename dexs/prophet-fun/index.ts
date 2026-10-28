@@ -3,7 +3,7 @@ import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, type SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const URL = "https://backend.prophet.fun/business-metrics/daily-volume"
   const data = await fetchURL(URL + "?timestamp=" + options.startOfDay);
 

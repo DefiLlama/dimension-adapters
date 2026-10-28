@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://ant.fun
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -21,7 +22,7 @@ async function getFeeAddresses(): Promise<string[]> {
   }
 }
 
-const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   // Get fee addresses dynamically from API
   const feeAddresses = await getFeeAddresses();
 
@@ -32,7 +33,7 @@ const fetch: any = async (_a: any, _b: any, options: FetchOptions) => {
     options,
     targets: feeAddresses,
     blacklist_mints: [
-      'So11111111111111111111111111111111111111112',
+      ADDRESSES.solana.SOL,
     ],
   })
 

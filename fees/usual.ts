@@ -25,19 +25,22 @@ import { METRIC } from '../helpers/metrics';
  * 
  * 
  * So:
- * We count 1, 2, 3, 5, 6 as protocol revenue
- * We count 4, 7 as holder revenue
- * 
- * There is no source of revenue for supply side users - USD0 minters.
+ * We count 1, 2, 3, 5 (curator fee), 6 as protocol revenue
+ * We count 4 and the USD0 paid to USUALx lockers (7) as holder revenue; that USD0 comes out of the
+ * RWA yield already booked as protocol revenue, so it is moved from protocol to holders revenue
+ * USD0 paid to sUSD0 / USD0a stakers (7) is stablecoin-staker yield: supply side, deducted from revenue
+ * Revenue = ProtocolRevenue + HoldersRevenue
+ *
  * Rewarded USUAL tokens to USD0++ and USUALx stakers are incentive from Usual, not from RWA assets yield.
  * 
  */
 
 const methodology = {
   Fees: 'Yields from underlying assets,usual stability loan interests, total USD0 redemption fees and USD0++ early unstake fees.',
-  Revenue: 'Total fees collected by protocol, distributed to USUAL token stakers, buyback and burn.',
-  ProtocolRevenue: 'Total fees are distributed to protocol treasury.',
-  HoldersRevenue: 'Total fees are distributed to token holders, token burns',
+  Revenue: 'Fees kept by Usual (treasury and USUAL holders), excluding the USD0 paid to sUSD0 and USD0a stakers and the Euler vault interest paid to lenders.',
+  ProtocolRevenue: 'Revenue kept by the Usual treasury, net of the USD0 paid out to USUALx lockers.',
+  HoldersRevenue: 'USD0 paid to USUALx lockers from RWA yield, plus USUAL early unstake penalties distributed to USUALx stakers or burnt.',
+  SupplySideRevenue: 'USD0 paid to sUSD0 and USD0a stakers from RWA yield, and Euler vault interest paid to lenders.',
 }
 const RDMUSD0 = '0x6ec631c19372d5a9345Ec4aeED93BA9eb0A45F77'
 const DaoCollateral = '0xde6e1F680C4816446C8D515989E2358636A38b04'
@@ -185,21 +188,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyProtocolRevenue.add(USD0, feeAmount, "Early Unstake penalty")
   }
 
-  dailyRevenue.add(dailyHoldersRevenue)
-
-  for (const event of sUsd0DistributedEvents) {
-    // not added to dailyFees because USD0 is minted from RWA yield
-    dailyHoldersRevenue.add(USD0, Number(event.amount), "RWA Yield")
-  }
-
-  for (const event of usd0aDistributedEvents) {
-    // not added to dailyFees because USD0 is minted from RWA yield
-    dailyHoldersRevenue.add(USD0, Number(event.amount), "RWA Yield")
+  // the distributed USD0 is minted from RWA yield already counted in dailyFees / dailyProtocolRevenue,
+  // so it is not added to dailyFees again, only moved out of protocol revenue
+  for (const event of [...sUsd0DistributedEvents, ...usd0aDistributedEvents]) {
+    // sUSD0 / USD0a stakers hold a stablecoin, so their yield is supply side, not holders revenue
+    dailySupplySideRevenue.add(USD0, Number(event.amount), "RWA Yield To USD0 Stakers")
+    dailyProtocolRevenue.subtractToken(USD0, Number(event.amount), "RWA Yield")
   }
 
   for (const event of UsualxDistributedEvents) {
-    // not added to dailyFees because USD0 is minted from RWA yield
     dailyHoldersRevenue.add(USD0, Number(event.amount), "RWA Yield")
+    dailyProtocolRevenue.subtractToken(USD0, Number(event.amount), "RWA Yield")
   }
 
   // get fees earned by USYC
@@ -321,8 +320,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       }
    }
 
-  await getEulerVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, EULER_VAULTS)
+  // the Euler vault curator fee goes to the Usual treasury
+  await getEulerVaultFee(options, { dailyFees, dailyRevenue: dailyProtocolRevenue, dailySupplySideRevenue }, EULER_VAULTS)
   dailyRevenue.add(dailyProtocolRevenue)
+  dailyRevenue.add(dailyHoldersRevenue)
 
   return {
     dailyFees,
@@ -349,18 +350,31 @@ const adapter: Adapter = {
       [METRIC.MINT_REDEEM_FEES]: 'Redemption fees on USD0 stablecoins',
       "Early Unstake penalty": 'Includes fees for early unstake of USD0++ at floor price and the USUAL tokens committed for early unstake',
       "RWA Yield": "Usual earns fees from locked RWA assets",
-      [METRIC.LP_FEES]: "Uniswap fees earned through liquidity deployment"
+      [METRIC.LP_FEES]: "Uniswap fees earned through liquidity deployment",
+      'Assets Yields': 'Interest paid by borrowers in the Usual Euler vault',
     },
     Revenue: {
       [METRIC.MANAGEMENT_FEES]: 'Usual deployed vaults to deposit USD0++ and distribute USUAL to depositors when user withdraws, a fee is applied and a management fee is harvested on the vault.',
       [METRIC.MINT_REDEEM_FEES]: 'Redemption fees on USD0 stablecoins',
-      "RWA Yield": "Usual earns fees from locked RWA assets",
+      "RWA Yield": "RWA treasury yield minus the USD0 paid to sUSD0 and USD0a stakers",
       "Early Unstake penalty": 'Includes fees for early unstake of USD0++ at floor price and the USUAL tokens committed for early unstake',
-      [METRIC.LP_FEES]: "Uniswap fees earned through liquidity deployment"
-
+      [METRIC.LP_FEES]: "Uniswap fees earned through liquidity deployment",
+      'Assets Yields': 'Curator fee on the Usual Euler vault interest',
+    },
+    ProtocolRevenue: {
+      [METRIC.MANAGEMENT_FEES]: 'Management fees harvested on the USD0++ and USD0a vaults',
+      [METRIC.MINT_REDEEM_FEES]: 'Redemption fees on USD0 stablecoins',
+      "RWA Yield": "RWA treasury yield minus the USD0 paid to sUSD0, USD0a stakers and USUALx lockers",
+      "Early Unstake penalty": 'Fees for early unstake of USD0++ at floor price',
+      [METRIC.LP_FEES]: "Uniswap fees earned through liquidity deployment",
+      'Assets Yields': 'Curator fee on the Usual Euler vault interest',
+    },
+    SupplySideRevenue: {
+      "RWA Yield To USD0 Stakers": "USD0 distributed to sUSD0 and USD0a stakers from RWA treasury yields",
+      'Assets Yields': 'Euler vault interest paid to lenders',
     },
     HoldersRevenue: {
-      "RWA Yield": "USD0 distributed to sUSD0, USD0a stakers and USUALx lockers from RWA treasury yields",
+      "RWA Yield": "USD0 distributed to USUALx lockers from RWA treasury yields",
       "Early Unstake penalty": '33% of the USUAL tokens committed for early unstake are burnt and 67% are allocated to USUALx and USUAL',
     },
   },

@@ -1,6 +1,8 @@
+import { FetchOptions } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
+import { duneBlockchain, queryDune } from "./dune";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
@@ -11,6 +13,10 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5", //vDOT
   ],
   [CHAIN.BSC]: [
+    "0xac68931b666e086e9de380cfdb0fb5704a35dc2d", // old BNBTiger
+    "0x4c769928971548eb71a3392eaf66bedc8bef4b80", // scam BITCOIN token
+    "0xc53ca0d56c420e8f913316e84d2c492ede99c61e", // scam GROK token
+    "0xbe8d9ec5d3c9313e4af08d50b6f85af76a69a1f1", // USDB: a few wallets loop fake ATC -> USDB -> fake BTC through Uniswap v3/v4 pools (~$2.4M/day at the $1 price, Oct 2026)
     "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
     "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
     "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
@@ -61,6 +67,8 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x96fb784986284cb6d4a8da6dd50dd7e85ef38f5d",
+    "0x44F161aE29361E332dEA039DFA2F404E0bC5B5Cc",
+    "0xac531eb26ca1d21b85126de8fb87e80e09002dcf", // SAND(hacked)
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",
@@ -114,6 +122,8 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x570b1533F6dAa82814B25B62B5c7c4c55eB83947",
+    "0x1d1dd64c58518c6727a308a5216a5701afae5b07", // fake "OpenAI", $52M wash-traded in one day on aerodrome slipstream (Jul 2026), same factory as the uniswap-v4 fake-ticker pools
+    "0xac531eb26ca1d21b85126de8fb87e80e09002dcf", // SAND(hacked)
   ],
 };
 
@@ -121,6 +131,47 @@ export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain]
     ? DefaultDexTokensBlacklisted[chain].map((item) => formatAddress(item))
     : [];
+}
+
+// Shared scam/fake-token list maintained on Dune, applied on top of
+// DefaultDexTokensBlacklisted. Add new offenders there, not here:
+// https://dune.com/data/dune.zteam.dataset_dex_blacklist
+// Columns: address (varbinary, joins directly on dex.trades token columns),
+// chain (varchar Dune blockchain slug, or 'any' for every chain). For an
+// in-query filter see dexs/uniswap-v3.ts; for a client-side list use
+// getDexTokensBlacklisted below.
+export const DUNE_DEX_BLACKLIST_TABLE = 'dune.zteam.dataset_dex_blacklist';
+
+let duneDexBlacklist: Promise<Record<string, Set<string>>> | undefined;
+
+// One Dune call per process; the dataset is a few thousand rows. A failure
+// throws (and clears the cache so the next call retries) - reporting unfiltered
+// would republish scam volume as real.
+function fetchDuneDexBlacklist(options: FetchOptions): Promise<Record<string, Set<string>>> {
+  if (!duneDexBlacklist) {
+    duneDexBlacklist = queryDune('3996608', { fullQuery: `SELECT chain, address FROM ${DUNE_DEX_BLACKLIST_TABLE}` }, options, { extraUIDKey: 'dex-blacklist' })
+      .then((rows: any[]) => {
+        const byChain: Record<string, Set<string>> = {};
+        for (const row of rows) {
+          if (!row.address || !row.chain) continue;
+          (byChain[String(row.chain).toLowerCase()] ??= new Set()).add(formatAddress(row.address));
+        }
+        return byChain;
+      })
+      .catch((e) => { duneDexBlacklist = undefined; throw e; });
+  }
+  return duneDexBlacklist;
+}
+
+// DefaultDexTokensBlacklisted for the chain + the Dune dataset's 'any' rows and
+// the chain's own rows. Lowercased. Use this in adapters instead of
+// getDefaultDexTokensBlacklisted whenever a Dune dependency is acceptable.
+export async function getDexTokensBlacklisted(options: FetchOptions): Promise<Array<string>> {
+  const byChain = await fetchDuneDexBlacklist(options);
+  const tokens = new Set(getDefaultDexTokensBlacklisted(options.chain));
+  for (const token of byChain['any'] ?? []) tokens.add(token);
+  for (const token of byChain[duneBlockchain(options.chain)] ?? []) tokens.add(token);
+  return [...tokens];
 }
 
 export function getAllDexTokensBlacklisted(): Array<string> {
@@ -171,6 +222,13 @@ const ChainConfigs: { [key: string]: ChainTokenConfig } = {
     chainId: 43114,
     tokenListUrls: [
       'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/avalanche.json',
+    ],
+  },
+  [CHAIN.POLYGON]: {
+    chainId: 137,
+    tokenListUrls: [
+      'https://tokens.coingecko.com/polygon-pos/all.json',
+      'https://raw.githubusercontent.com/sushiswap/list/master/lists/token-lists/default-token-list/tokens/polygon.json',
     ],
   },
 };
@@ -368,13 +426,17 @@ interface GetTokenListsOptions {
 }
 
 async function getTokenLists(options: GetTokenListsOptions): Promise<Array<string>> {
-  const blacklisted = getDefaultDexTokensBlacklisted(CHAIN.BSC)
+  const blacklisted = getDefaultDexTokensBlacklisted(options.chain)
   const tokens = new Set();
   for (const url of options.lists) {
     const data = await getConfig(`token-list-${url}`, url);
     const items = data.tokens ? data.tokens : data;
     for (const item of items) {
       if (item.chainId === options.chainId) {
+        // token lists are remote data - drop malformed addresses (e.g. coingecko's
+        // BSC list shipped a 39-hex-char address) instead of letting one bad entry
+        // break every consumer downstream
+        if (!/^0x[0-9a-fA-F]{40}$/.test(String(item.address))) continue;
         tokens.add(formatAddress(item.address));
       }
     }

@@ -13,6 +13,7 @@ WITH position_changes AS (
     WHERE executing_account = 'PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
     AND bytearray_substring(data, 1+8, 8) = 0xf5715534d6bb9984
     AND tx_success = true
+    AND block_time <= from_unixtime({{end}})
 
     UNION ALL
 
@@ -30,6 +31,7 @@ WITH position_changes AS (
     WHERE executing_account = 'PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
     AND bytearray_substring(data, 1+8, 8) = 0xcdec3904d16a5745
     AND tx_success = true
+    AND block_time <= from_unixtime({{end}})
 
     UNION ALL
 
@@ -51,6 +53,7 @@ WITH position_changes AS (
     WHERE executing_account = 'PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
     AND bytearray_substring(data, 1+8, 8) = 0x409c2b4a6d83107f
     AND tx_success = true
+    AND block_time <= from_unixtime({{end}})
 
     UNION ALL
 
@@ -69,6 +72,7 @@ WITH position_changes AS (
     WHERE executing_account = 'PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
     AND bytearray_substring(data, 1+8, 8) = 0xabad6a19efbe3a3b
     AND tx_success = true
+    AND block_time <= from_unixtime({{end}})
 
     UNION ALL
 
@@ -87,6 +91,7 @@ WITH position_changes AS (
     WHERE executing_account = 'PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu'
     AND bytearray_substring(data, 1+8, 8) IN (0x68452084d423bf2f, 0x806547a880485654)
     AND tx_success = true
+    AND block_time <= from_unixtime({{end}})
 ),
 native_deltas AS (
     SELECT
@@ -137,4 +142,6 @@ SELECT
     position_side,
     cumulative_native_oi
 FROM cumulative_oi
+WHERE day >= date(from_unixtime({{start}}))
+AND day <= date(from_unixtime({{end}}))
 ORDER BY day, position_mint;

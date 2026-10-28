@@ -44,7 +44,7 @@ const LST_LRT_TOKENS: { [token: string]: { address: string; methods: string[]; r
   
   // Renzo
   EZETH: {
-    address: "0xbf5495Efe5DB9ce00f80364C8B423567e58d2110",
+    address: ADDRESSES.linea.rzETH,
     methods: [METHODS.RATE_PROVIDER],
     rateProvider: EZETH_RATE_PROVIDER,
   },
@@ -94,7 +94,7 @@ const LST_LRT_TOKENS: { [token: string]: { address: string; methods: string[]; r
   },
   
   LBTC: {
-    address: "0x8236a87084f8B84306f72007F36F2618A5634494",
+    address: ADDRESSES.ethereum.LBTC,
     methods: [METHODS.GET_RATE],
   },
   

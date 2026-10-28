@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 import { Chain } from "../../adapters/types";
@@ -17,8 +17,7 @@ type ChainMapId = {
 const mapChainId: ChainMapId = {
   [CHAIN.BITLAYER]: 200901
 };
-const fetch = (chain: Chain) => {
-  return async (_t: any, _b: any, { startOfDay }: any) => {
+const fetch = async ({ chain, startOfDay }: FetchOptions) => {
     const historicalVolume: IVolume[] = (await fetchURL(`${historicalVolumeEndpoint}/${mapChainId[chain]}/volume`)).data;
     const dailyVolume = historicalVolume
       .find(dayItem => getUniqStartOfTodayTimestamp(new Date(dayItem.statistics_date)) === startOfDay)?.volume
@@ -26,18 +25,11 @@ const fetch = (chain: Chain) => {
       dailyVolume: dailyVolume,
     };
   };
-}
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: Object.keys(mapChainId).reduce((acc, chain: any) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: fetch(chain as Chain),
-      }
-    }
-  }, {})
+  fetch,
+  chains: Object.keys(mapChainId) as Chain[],
 };
 
 export default adapter;

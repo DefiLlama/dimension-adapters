@@ -209,7 +209,7 @@ const fetchBuybacks = async (options: FetchOptions) => {
     eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
     topics: [
       '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', // Transfer signature
-      null as any,
+      null,
       '0x000000000000000000000000' + BUYBACK_EXECUTOR.slice(2).toLowerCase(), // to = BUYBACK_EXECUTOR
     ],
   })
@@ -233,6 +233,11 @@ const fetchBuybacks = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Must stay daily: the stETH yield component (getStethDailyYieldUsd) reads Lido's
+  // `financialsDailySnapshot(id: dateId)` daily revenue keyed by the day index. Running hourly
+  // makes all 24 slots read the same full-day supply-side revenue, over-counting ~24x.
+  // Do not set pullHourly: true here.
+  pullHourly: false,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch,

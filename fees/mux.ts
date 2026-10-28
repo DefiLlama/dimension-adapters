@@ -52,9 +52,9 @@ const computeProtocolRevenue = (fee: number) => {
   return fee * 0.3
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chainId = CHAIN_ID_CONFIG[options.chain]
-  const date = new Date(timestamp * 1000)
+  const date = new Date(options.toTimestamp * 1000)
   const dateTime = `${date.getUTCFullYear()}-${formatDate(date.getUTCMonth()+1)}-${formatDate(date.getUTCDate())}`
   const parameter = `[{"type":"date/single","value":"${dateTime}","target":["variable",["template-tag","timestamp"]],"id":"eff4a885"}]`
   const feePathUrl = `${feesDataEndpoint}?parameters=${encodeURIComponent(parameter)}&dashboard_id=2`

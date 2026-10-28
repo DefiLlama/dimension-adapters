@@ -1,5 +1,5 @@
 import { queryAllium, } from "../../helpers/allium";
-import { convertChainToAllium, isAcceptedChain } from "./convertChain";
+import { convertChain, convertChainToAllium, isAcceptedChain } from "./convertChain";
 import { ChainAddresses, ProtocolAddresses } from "./types";
 
 export async function countNewUsers(addresses: ChainAddresses, start: number, end: number) {
@@ -46,13 +46,31 @@ WITH
       t.to_address IN (${chainAddresses.map(a => `'${a.toLowerCase()}'`).join(',')})
   )
 SELECT
+  first_seen_chain,
   COUNT(*) as user_count
 FROM
   all_new_users
 WHERE
   first_seen_timestamp BETWEEN TO_TIMESTAMP_NTZ(${start}) AND TO_TIMESTAMP_NTZ(${end})
+GROUP BY
+  first_seen_chain
 `)
-  //return query[0].user_count
+}
+
+// New users are attributed to first_seen_chain: the chain of the user's
+// earliest-ever tx (across the protocol's configured chains). Each user is
+// therefore counted exactly once, so the global total is the sum of per-chain
+// counts. first_seen_chain is an Allium chain name, converted back to the
+// DefiLlama chain key the adapter's `fetch` is called with.
+export function parseNewUserResponse(query: any) {
+  const byChain: Record<string, { users: number }> = {}
+  let total = 0
+  for (const row of query) {
+    const users = Number(row.user_count) || 0
+    byChain[convertChain(row.first_seen_chain)] = { users }
+    total += users
+  }
+  return { byChain, total }
 }
 
 function gasPrice(chain: string) {

@@ -7,7 +7,7 @@ import { METRIC } from "../../helpers/metrics";
 const AllezLabsKaminoFeeEndpoint = 'https://allez-xyz--kamino-fees-api-get-fees-lifetime-kamino.modal.run';
 
 // Function to make the GET request
-const fetch = async (_: any, _tt: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dayTimestamp = options.startOfDay
     const historicalFeesRes = (await fetchURL(AllezLabsKaminoFeeEndpoint));
     const dateStr = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
@@ -60,12 +60,9 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
     version: 1,
-    adapter: {
-        [CHAIN.SOLANA]: {
-            fetch,
-            start: '2023-10-12',
-        }
-    },
+    fetch,
+    chains: [CHAIN.SOLANA],
+    start: '2023-10-12',
     methodology,
     breakdownMethodology,
     allowNegativeValue: true,

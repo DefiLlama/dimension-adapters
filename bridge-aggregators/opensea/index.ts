@@ -19,42 +19,60 @@ const chainConfig: Record<string, any> = {
 	[CHAIN.UNICHAIN]: {dune_chain: 'unichain'},
 	// [CHAIN.ZORA]: {dune_chain: 'zora'},
     [CHAIN.MONAD]: {dune_chain: 'monad'},
+    [CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
+
+const duneChainList = Object.values(chainConfig).map((c) => `'${c.dune_chain}'`).join(', ')
 
 const prefetch = async (options: FetchOptions) => {
 	return await queryDuneSql(options, `
         WITH opensea_txs AS (
             SELECT DISTINCT tx.hash, tx.blockchain
             FROM evms.transactions tx
-            WHERE varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
+            WHERE tx.blockchain IN (${duneChainList})
+                AND varbinary_substring(tx.data, varbinary_length(tx.data) - 3, 4) = from_hex('865d8597')
                 AND tx.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-                AND tx.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+                AND tx.block_time < FROM_UNIXTIME(${options.endTimestamp})
         ),
         dex_txs AS (
-            SELECT DISTINCT tx_hash
+            SELECT tx_hash, blockchain
             FROM dex_aggregator.trades
-            WHERE block_time >= FROM_UNIXTIME(${options.startTimestamp})
-                AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+            WHERE blockchain IN (${duneChainList})
+                AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+                AND block_time < FROM_UNIXTIME(${options.endTimestamp})
+
+            UNION ALL
+
+            SELECT tx_hash, blockchain
+            FROM dex.trades
+            WHERE blockchain = 'robinhood'
+                AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
+                AND block_time < FROM_UNIXTIME(${options.endTimestamp})
         ),
         filtered_bridge_txs AS (
             SELECT os.hash, os.blockchain
             FROM opensea_txs os
             WHERE NOT EXISTS (
-                SELECT 1 FROM dex_txs dt WHERE dt.tx_hash = os.hash
+                SELECT 1
+                FROM dex_txs dt
+                WHERE dt.tx_hash = os.hash
+                    AND dt.blockchain = os.blockchain
             )
         )
         SELECT
             t.blockchain,
             SUM(t.amount_usd) as dailyBridgeVolume
         FROM tokens.transfers t
-        INNER JOIN filtered_bridge_txs fb ON t.tx_hash = fb.hash
-        WHERE t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-            AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+        INNER JOIN filtered_bridge_txs fb
+            ON t.tx_hash = fb.hash AND t.blockchain = fb.blockchain
+        WHERE t.blockchain IN (${duneChainList})
+            AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
+            AND t.block_time < FROM_UNIXTIME(${options.endTimestamp})
         GROUP BY 1
 	`);
 };
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const results: Array<any> = options.preFetchedResults || [];
   const chainData = results.find(
     (item) => chainConfig[options.chain].dune_chain === item.blockchain

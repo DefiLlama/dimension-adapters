@@ -21,6 +21,13 @@ export const ABI = {
     proxyList: 'function proxyList(uint256) view returns (address)',
     creator: 'address:creator',
   },
+  aaveV4Hub: {
+    getAssetCount: 'uint256:getAssetCount',
+    getAssetUnderlyingAndDecimals: 'function getAssetUnderlyingAndDecimals(uint256) view returns (address, uint8)',
+    getAssetConfig: 'function getAssetConfig(uint256) view returns (tuple(address feeReceiver, uint16 liquidityFee, address irStrategy, address reinvestmentController))',
+    getAssetAccruedFees: 'function getAssetAccruedFees(uint256) view returns (uint256)',
+    MintFeeShares: 'event MintFeeShares(uint256 indexed assetId, address indexed feeReceiver, uint256 shares, uint256 assets)',
+  },
 }
 
 export const MorphoConfigs: any = {
@@ -103,6 +110,14 @@ export const MorphoConfigs: any = {
         fromBlock: 29092109,
       },
     ],
+  },
+  [CHAIN.PHAROS]: {
+    vaultV2Factories: [
+      {
+        address: '0x8e01ed1e1a41029b3137fce9aa880c0a54827498',
+        fromBlock: 4240410,
+      }
+    ]
   },
   [CHAIN.KATANA]: {
     vaultFactories: [
@@ -195,6 +210,14 @@ export const MorphoConfigs: any = {
       {
         address: '0x2525D453D9BA13921D5aB5D8c12F9202b0e19456',
         fromBlock: 766079,
+      },
+    ],
+  },
+  [CHAIN.ROBINHOOD]: {
+    vaultV2Factories: [
+      {
+        address: '0x0FBad98595b0186dA120E41f77C102beb49f803c',
+        fromBlock: 286,
       },
     ],
   },

@@ -1,7 +1,6 @@
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL"
-import { FetchResultVolume, SimpleAdapter } from "../../adapters/types";
+import { FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
 const metaDataEndpoint = "https://pro.edgex.exchange/api/v1/public/meta/getMetaData"
 const klineDailyEndpoint = (contractId: string, startTime: number, endTime: number) => `https://pro.edgex.exchange/api/v1/public/quote/getKline?contractId=${contractId}&klineType=DAY_1&filterBeginKlineTimeInclusive=${startTime}&filterEndKlineTimeExclusive=${endTime}&priceType=LAST_PRICE`
@@ -33,8 +32,8 @@ function parseContractIds(response: any): string[] {
 }
 
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000)) * 1000
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+  const dayTimestamp = options.startOfDay * 1000
   const toTimestamp = dayTimestamp + 60 * 60 * 24 * 1000;
   const contractIds: string[] = parseContractIds(await fetchURL(metaDataEndpoint));
   const klines: Array<any> = [];
@@ -51,10 +50,8 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
   adapter: {
-    [CHAIN.EDGEX]: {
-      fetch,
-      start: '2024-08-06',
-    },
+    // v1 api is gone (meta endpoint now serves the web app); same cutoff as the v1 fee leg in fees/edgex (#9109), volume continues in dexs/edgeX-v2
+    [CHAIN.EDGEX]: { fetch, start: '2024-08-06', deadFrom: '2026-08-15' },
   },
 };
 

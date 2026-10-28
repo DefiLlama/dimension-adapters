@@ -22,10 +22,12 @@ const fetchOpenInterest = async (options: FetchOptions) => {
   const marketInfos = res.marketInfos || [];
   const longOI = marketInfos.reduce((acc: number, m: any) => acc + Number(m.longOpenInterestUsd), 0);
   const shortOI = marketInfos.reduce((acc: number, m: any) => acc + Number(m.shortOpenInterestUsd), 0);
+  // Pool venue: every position is its own contract against the pool (longs and shorts are not
+  // matched against each other), so long + short counts each open position exactly once.
   return longOI + shortOI
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = await fetchOpenInterest(options) / (10 ** 30)
   return { openInterestAtEnd }
 }
@@ -36,7 +38,8 @@ const adapter: Adapter = {
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2021-08-31', },
     [CHAIN.AVAX]: { start: '2021-12-22', },
-    [CHAIN.BOTANIX]: { start: '2025-05-30', },
+    // GMX sunset Botanix on 2026-08-01 and the chain itself shut down, the botanix squid endpoint now 404s
+    [CHAIN.BOTANIX]: { start: '2025-05-30', deadFrom: '2026-08-01', },
     [CHAIN.MEGAETH]: { start: '2026-04-08', },
   }
 }

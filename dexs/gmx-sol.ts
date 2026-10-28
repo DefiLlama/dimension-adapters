@@ -2,7 +2,7 @@ import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const targetDate = new Date(options.startOfDay * 1000).toISOString();
 
   const query = gql`

@@ -18,8 +18,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  dailyFees.addCGToken('sui', res[0].tx_fees / 10 ** 9);
-  dailyRevenue.addCGToken('sui', res[0].storage_fee_burnt / 10 ** 9);
+  dailyFees.addCGToken('sui', res[0].tx_fees / 10 ** 9, 'Transaction Gas Fees');
+  dailyRevenue.addCGToken('sui', res[0].storage_fee_burnt / 10 ** 9, 'Transaction Storage Fees');
 
   return {
     dailyFees,
@@ -43,6 +43,18 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
   methodology,
+  start: '2024-06-01',
+  breakdownMethodology: {
+    Fees: {
+      'Transaction Gas Fees': 'Transaction fees paid by users for executing transactions on the Sui network',
+    },
+    Revenue: {
+      'Transaction Storage Fees': 'Includes non refundable storage fees that are burnt',
+    },
+    HoldersRevenue: {
+      'Transaction Storage Fees': 'Includes non refundable storage fees that are burnt',
+    },
+  }
 };
 
 export default adapter;

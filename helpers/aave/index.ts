@@ -1,10 +1,12 @@
-import { BaseAdapter, FetchOptions, IStartTimestamp, SimpleAdapter } from "../../adapters/types";
+import { BaseAdapter, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import * as sdk from "@defillama/sdk";
 import AaveAbis from './abi';
 import {decodeReserveConfig} from "./helper";
 import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
+import { cache } from "@defillama/sdk";
+import { collectNamedSymbols, parseStuckReserveSymbols } from '../insolventMarkets';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -22,7 +24,8 @@ export interface AaveLendingPoolConfig {
 }
 
 export interface AaveAdapterExportConfig {
-  start?: IStartTimestamp | number | string;
+  start?: string;
+  deadFrom?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -32,11 +35,18 @@ const PercentageMathDecimals = 1e4;
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
 
+const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
+const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
+const HIGH_RESERVE_FACTOR = 0.99;
+const FULL_UTILIZATION = 0.99;
+
+export { parseStuckReserveSymbols };
+
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
   dailySupplySideRevenue: sdk.Balances,
   dailyProtocolRevenue: sdk.Balances,
-}) {
+}, skipReserveSymbols?: Array<string>) {
   // get reserve (token) list which are supported by the lending pool
   const reservesList: Array<string> = await options.fromApi.call({
     target: pool.lendingPoolProxy,
@@ -47,6 +57,36 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   // in this case the market is not exists yet
   if (!reservesList || reservesList.length == 0) {
     return;
+  }
+
+  // Resolve the stuck-reserve symbols the cache names for this pool into reserve
+  // indexes, so only those reserves are dropped instead of the whole pool.
+  //
+  // Deliberately fails closed: if any named symbol cannot be matched to a
+  // reserve on this pool, we skip the entire pool, which is exactly what the
+  // caller did before this existed. So the worst case is the previous
+  // behaviour, never a stuck reserve slipping into the totals.
+  let skipReserveIndexes = new Set<number>()
+  if (skipReserveSymbols?.length && reservesList?.length) {
+    const symbols: Array<string | null> = await options.fromApi.multiCall({
+      abi: 'string:symbol',
+      calls: reservesList,
+      permitFailure: true,
+    })
+    const wanted = new Set(skipReserveSymbols.map(symbol => symbol.trim().toLowerCase()))
+    const matched = new Set<string>()
+    symbols.forEach((symbol, index) => {
+      const normalised = typeof symbol === 'string' ? symbol.trim().toLowerCase() : ''
+      if (normalised && wanted.has(normalised)) {
+        skipReserveIndexes.add(index)
+        matched.add(normalised)
+      }
+    })
+    if (matched.size !== wanted.size) {
+      const unmatched = [...wanted].filter(symbol => !matched.has(symbol))
+      sdk.log(`aave: ${options.chain} ${pool.lendingPoolProxy} could not match stuck reserve symbol(s) ${unmatched.join(', ')}, skipping the whole pool`)
+      return
+    }
   }
 
   // get reserve configs
@@ -76,8 +116,23 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     permitFailure: true,
   })
 
+  const highReserveFactorIndexes = pool.version === 1 ? [] : reserveFactors
+    .map((reserveFactor, reserveIndex) => ({ reserveFactor: reserveFactor / PercentageMathDecimals, reserveIndex }))
+    .filter(({ reserveFactor }) => reserveFactor >= HIGH_RESERVE_FACTOR && reserveFactor < 1)
+    .map(({ reserveIndex }) => reserveIndex)
+  const normalizedVariableDebtIndexes = new Map<number, { before: bigint, after: bigint }>()
+  if (highReserveFactorIndexes.length > 0) {
+    const calls = highReserveFactorIndexes.map(reserveIndex => reservesList[reserveIndex])
+    const before = await options.fromApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    const after = await options.toApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    highReserveFactorIndexes.forEach((reserveIndex, i) => {
+      normalizedVariableDebtIndexes.set(reserveIndex, { before: BigInt(before[i]), after: BigInt(after[i]) })
+    })
+  }
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
+    if (skipReserveIndexes.has(reserveIndex)) continue
     if (!reserveDataBefore[reserveIndex] || !reserveDataAfter[reserveIndex]) continue
     if (pool.version !== 1 && !reserveConfigs[reserveIndex]) continue
 
@@ -90,6 +145,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].availableLiquidity)
         + BigInt(reserveDataBefore[reserveIndex].totalStableDebt)
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
       totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
@@ -104,19 +160,47 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const reserveVariableBorrowIndexBefore = BigInt(reserveDataBefore[reserveIndex].variableBorrowIndex)
       const reserveVariableBorrowIndexAfter = BigInt(reserveDataAfter[reserveIndex].variableBorrowIndex)
       const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
-      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / LiquidityIndexDecimals
+      const interestAccrued = totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore
 
       balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
+    } else if (reserveFactor >= 1) {
+      // 100% reserve factor is used to deprecate/freeze reserves (e.g. superlend's insolvent reserves).
+      // The borrow index keeps growing on bad debt that will never be repaid and the treasury aTokens
+      // minted against it are unbacked, so any interest here is phantom. Skip it entirely.
+      continue
+    } else if (pool.version !== 1 && reserveFactor >= HIGH_RESERVE_FACTOR) {
+      // Reserves frozen with a reserve factor just under 100% (aave v2 uses 99.99%) leave suppliers
+      // almost nothing, so backing interest out of the liquidity index divides by (1 - reserveFactor)
+      // and multiplies any liquidity index growth by up to 10,000x. Read the interest off the debt instead.
+
+      const totalDebt = BigInt(reserveDataBefore[reserveIndex].totalStableDebt) + totalVariableDebt
+      if (totalLiquidity === 0n || Number(totalDebt) / Number(totalLiquidity) >= FULL_UTILIZATION) continue
+
+      const { before: reserveVariableBorrowIndexBefore, after: reserveVariableBorrowIndexAfter } = normalizedVariableDebtIndexes.get(reserveIndex)!
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      if (growthVariableBorrowIndex <= 0n || reserveVariableBorrowIndexBefore === 0n) continue
+
+      const interestAccrued = Number(totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore)
+      const revenueAccrued = interestAccrued * reserveFactor
+
+      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, interestAccrued - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
     } else {
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
       const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
-      
-      // contracts substract reserve/revenue from liquidity index
-      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / LiquidityIndexDecimals
+
+      const windowSeconds = options.toTimestamp - options.fromTimestamp
+
+      const periodSupplyRate = Number(growthLiquidityIndex) / Number(reserveLiquidityIndexBefore)
+      const annualizedSupplyRate = windowSeconds > 0? periodSupplyRate * SECONDS_PER_YEAR / windowSeconds : periodSupplyRate
+      if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
+
+      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
@@ -211,11 +295,11 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
           const e = Number(event.liquidatedCollateralAmount)
           const x = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].bonus / PercentageMathDecimals
           const y = reserveLiquidationConfigs[sdk.util.normalizeAddress(event.collateralAsset)].protocolFee / PercentageMathDecimals
-  
-          // protocol fees from liquidation bonus
-          const b = (e - e / x)
-          const b2 = b * y
-  
+
+          // protocol fees from liquidation bonus, if no bonus (x = 0), expect b = b2
+          const b = x > 0 ? (e - e / x) : 0
+          const b2 = x > 0 ? b * y : b
+          
           // count liquidation bonus as fees
           balances.dailyFees.add(event.collateralAsset, b, METRIC.LIQUIDATION_FEES)
   
@@ -239,12 +323,34 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         let dailyProtocolRevenue = options.createBalances()
         let dailySupplySideRevenue = options.createBalances()
 
+        const aaveInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/aave.json`;
+        const insolventMarketsDetails = await cache.readCache(aaveInsolventMarketsCacheKey, { readFromR2Cache: true });
+        // Keyed by lowercased pool address, value is the cache's reason string.
+        const stuckReasons: Record<string, unknown> = {};
+        for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {})) {
+          stuckReasons[poolAddress.toLowerCase()] = reason;
+        }
+        const insolventReasons: Record<string, unknown> = {};
+        for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {})) {
+          insolventReasons[poolAddress.toLowerCase()] = reason;
+        }
+
         for (const pool of config.pools) {
+          const poolAddress = pool.lendingPoolProxy.toLowerCase();
+
+          // Both lists name their offending reserves in the same "SYMBOL: reason" shape, so drop
+          // those reserves and keep the rest of the pool. A reason we cannot read still drops the
+          // whole pool, which is what both lists did before.
+          const listed = poolAddress in insolventReasons || poolAddress in stuckReasons;
+          const namedSymbols = collectNamedSymbols([insolventReasons[poolAddress], stuckReasons[poolAddress]]);
+          if (listed && !namedSymbols?.length) continue;
+          const skipReserveSymbols = namedSymbols?.length ? namedSymbols : undefined;
+
           await getPoolFees(pool, options, {
             dailyFees,
             dailySupplySideRevenue,
             dailyProtocolRevenue,
-          })
+          }, skipReserveSymbols)
         }
 
         return {
@@ -255,6 +361,7 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         }
       }),
       start: config.start,
+      ...(config.deadFrom ? { deadFrom: config.deadFrom } : {}),
     }
   })
   return exportObject
@@ -300,7 +407,7 @@ function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: 
   return { version: 2, adapter: aaveExport(config), ...global };
 }
 
-const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
+export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {
@@ -521,28 +628,6 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             dataProvider: '0x96086C25d13943C80Ff9a19791a40Df6aFC08328',
           },
         ],
-      },
-    },
-  },
-  'neverland': {
-    config: {
-      [CHAIN.MONAD]: {
-        start: '2025-11-23',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0x80F00661b13CC5F6ccd3885bE7b4C9c67545D585',
-            dataProvider: '0xfd0b6b6F736376F7B99ee989c749007c7757fDba',
-          },
-        ],
-      },
-    },
-    global: {
-      methodology: {
-        Fees: 'Interest paid by borrowers, flashloan fees, and liquidation fees.',
-        Revenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
-        SupplySideRevenue: 'Portion of interest distributed to lenders.',
-        ProtocolRevenue: 'Portion of fees going to Neverland protocol. veDUST holders vote to distribute 100% of revenue among: veDUST holder rewards, LP staking incentives, or DUST buybacks.',
       },
     },
   },
@@ -916,15 +1001,15 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
           },
         ],
       },
-      [CHAIN.SEI]: {
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
-            dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
-          },
-        ],
-      },
+      // [CHAIN.SEI]: {
+      //   pools: [
+      //     {
+      //       version: 3,
+      //       lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
+      //       dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
+      //     },
+      //   ],
+      // },
     },
   },
   'colend-protocol': {
@@ -1031,7 +1116,7 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
         ],
       },
       [CHAIN.MANTLE]: {
-        start: '2024-05-117',
+        start: '2024-05-17',
         pools: [
           {
             version: 3,
@@ -1163,6 +1248,7 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
     config: {
       [CHAIN.ETHERLINK]: {
         start: '2024-10-04',
+        deadFrom: '2026-08-27',
         pools: [
           {
             version: 3,
@@ -1268,6 +1354,100 @@ const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterE
             version: 3,
             lendingPoolProxy: '0xD6E69976C8Aea2A4075Bc637fE8881672FF14013',
             dataProvider: '0xb6eEF266933382661827E36fE3f936396e80166E',
+          },
+        ],
+      },
+    },
+  },
+  'purrlend': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x81D5D25ea81b72E546fC71B5bAa8B059eF0dA702',
+            dataProvider: '0xfCaE4E9Acb1E5C78aa699d43c5cc0eAC5399E754',
+          },
+        ],
+      },
+      [CHAIN.HYPERLIQUID]: {
+        start: '2025-10-27',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xb61218d3efE306f7579eE50D1a606d56bc222048',
+            dataProvider: '0xa8Ca6a4A485485910aA4023b9963Dfd2f3A5aeb0',
+          },
+        ],
+      },
+    },
+  },
+  'edel': {
+    config: {
+      [CHAIN.ETHEREUM]: {
+        start: '2026-03-13',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x3EEeB3cd20f844a578807fc457388Ceb9A67fAa6',
+            dataProvider: '0xf3A3F900151c092007FD495ABf3f0f6162A37501',
+          },
+        ],
+      },
+    },
+  },
+  'zona': {
+    config: {
+      [CHAIN.PHAROS]: {
+        start: '2026-04-28',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0xda464e68208A3083Eb65FE5c522a72AeD1C1372a',
+            dataProvider: '0xA91424C666193C2b2fb684E25dEadf03B333f49A',
+          },
+        ],
+      },
+    },
+  },
+  'kaskad': {
+    config: {
+      [CHAIN.IGRA]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x1Fc4f91E99eFDC90c4B2B8F69fE0b4BFd819a330',
+            dataProvider: '0xFEaD8E14e58ecF72B5cD585458f07523F173E2F4',
+          },
+        ],
+      },
+    },
+  },
+  'velkonix': {
+    config: {
+      [CHAIN.MEGAETH]: {
+        start: '2026-05-16',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x202FC1FEf70C8a7001f1579518e9288A547C12Ee',
+            dataProvider: '0x6da56B769B42952CACA18D37Feda3015FDB2fE67',
+          },
+        ],
+      },
+    },
+  },
+  'oter-fi': {
+    config: {
+      [CHAIN.ROBINHOOD]: {
+        start: '2026-09-04',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x127797f6dBBD03bDDA09A70a8347dcfd1CF598B9',
+            dataProvider: '0xD95D42BAd744821af78da755C6fC012f10ad1824',
           },
         ],
       },

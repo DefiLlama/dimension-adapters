@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { CHAIN } from "../../helpers/chains";
 import {
   Dependencies,
@@ -272,15 +273,15 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
   },
 
   // Re-enabled chains (previously marked as bad RPCs)
-  // [CHAIN.SEI]: {
-  //   start: "2024-01-01",
-  //   contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
-  // },
-  // [CHAIN.INJECTIVE]: {
-  //   start: "2024-06-01",
-  //   contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
-  // },
-  // [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
+  [CHAIN.SEI]: {
+    start: "2024-01-01",
+    contract: "0x2880aB155794e7179c9eE2e38200202908C17B43",
+  },
+  [CHAIN.INJECTIVE]: {
+    start: "2024-06-01",
+    contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
+  },
+  [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
 };
 
 const DEFAULT_FEE = 1n;
@@ -296,71 +297,73 @@ const APTOS_PYTH_CONTRACT =
 const NEAR_PYTH_CONTRACT = "pyth-oracle.near";
 
 // ============ ABI for fee query ============
-const SINGLE_UPDATE_FEE_ABI = "function singleUpdateFeeInWei() view returns (uint256)";
+const SINGLE_UPDATE_FEE_ABI =
+  "function singleUpdateFeeInWei() view returns (uint256)";
 
 // ============ EVM Fetch Function ============
-async function fetchEvm(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchEvm(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const config = evmChainConfig[options.chain];
 
-  if (config) {
-    const updateLogs = await options.getLogs({
-      target: config.contract,
-      eventAbi: PRICE_FEED_UPDATE_ABI,
-    });
+  try {
+    if (config) {
+      const updateLogs = await options.getLogs({
+        target: config.contract,
+        eventAbi: PRICE_FEED_UPDATE_ABI,
+      });
 
-    let updateFee = await options.api.call({
-      abi: SINGLE_UPDATE_FEE_ABI,
-      target: config.contract,
-      permitFailure: true,
-    })
+      let updateFee = await options.api.call({
+        abi: SINGLE_UPDATE_FEE_ABI,
+        target: config.contract,
+        permitFailure: true,
+      });
 
-    //Not throwing error because there are many chains and accidentally some can fail
-    if (!updateFee) {
-      updateFee = 0
+      // Default to 0 instead of throwing: with this many chains, an occasional
+      // failed fee lookup shouldn't break the whole adapter.
+      if (!updateFee) {
+        updateFee = 0;
+      }
+
+      const updateCount = updateLogs.length;
+      dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount), "Oracle Service Fees");
+      dailyRevenue.addGasToken(BigInt(updateFee) * BigInt(updateCount), "Oracle Service Fees To Pyth Treasury");
     }
-
-    const updateCount = updateLogs.length;
-    dailyFees.addGasToken(BigInt(updateFee) * BigInt(updateCount));
+  } catch (error) {
+    // Swallow errors so that a single failing chain due to bad RPC doesn't break the entire adapter.
+    // Only allowed when the adapter has too many chains
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 }
 
 // ============ Solana Fetch Function ============
-async function fetchSolana(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
-  const dailyFees = await getSolanaReceivedDune({
+async function fetchSolana(options: FetchOptions): Promise<FetchResult> {
+  const received = await getSolanaReceivedDune({
     options,
     target: SOLANA_FEE_ADDRESS,
   });
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  dailyFees.addBalances(received, "Oracle Service Fees");
+  dailyRevenue.addBalances(received, "Oracle Service Fees To Pyth Treasury");
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 }
 
 // ============ Sui Fetch Function ============
-const SUI_COIN_TYPE = "0x2::sui::SUI";
+const SUI_COIN_TYPE = ADDRESSES.sui.SUI;
 
-async function fetchSui(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchSui(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const query = `
     SELECT SUM(amount::DOUBLE) AS total_fees
@@ -373,24 +376,22 @@ async function fetchSui(
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
-    dailyFees.addCGToken("sui", res[0].total_fees / 1e9);
+    dailyFees.addCGToken("sui", res[0].total_fees / 1e9, "Oracle Service Fees");
+    dailyRevenue.addCGToken("sui", res[0].total_fees / 1e9, "Oracle Service Fees To Pyth Treasury");
   }
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 }
 
 // ============ Aptos Fetch Function ============
-const APTOS_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
+const APTOS_COIN_TYPE = ADDRESSES.aptos.APT;
 
-async function fetchAptos(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchAptos(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
   const query = `
     SELECT COALESCE(sum(amount), 0) as total_fees
@@ -403,23 +404,21 @@ async function fetchAptos(
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
-    dailyFees.addCGToken("aptos", res[0].total_fees / 1e8);
+    dailyFees.addCGToken("aptos", res[0].total_fees / 1e8, "Oracle Service Fees");
+    dailyRevenue.addCGToken("aptos", res[0].total_fees / 1e8, "Oracle Service Fees To Pyth Treasury");
   }
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   };
 }
 
 // ============ Near Fetch Function ============
-async function fetchNear(
-  _t: number,
-  _cb: any,
-  options: FetchOptions,
-): Promise<FetchResult> {
+async function fetchNear(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
   const query = `
     SELECT
       COALESCE(SUM(TRY_CAST(action_contents:deposit::STRING AS DECIMAL(38, 0))), 0) AS total_fees
@@ -432,9 +431,10 @@ async function fetchNear(
   `;
   const res = await queryAllium(query);
   if (res[0]?.total_fees) {
-    dailyFees.addCGToken("near", res[0].total_fees / 1e24);
+    dailyFees.addCGToken("near", res[0].total_fees / 1e24, "Oracle Service Fees");
+    dailyRevenue.addCGToken("near", res[0].total_fees / 1e24, "Oracle Service Fees To Pyth Treasury");
   }
-  return { dailyFees, dailyRevenue: dailyFees };
+  return { dailyFees, dailyRevenue };
 }
 
 // ============ Build Adapter ============
@@ -460,6 +460,17 @@ const adapter: SimpleAdapter = {
     Fees: "Fees paid by users to update Pyth price feeds on-chain. Fee amounts per chain are set by Pyth DAO governance via singleUpdateFeeInWei() on each contract.",
     Revenue: "All update fees accrue to the Pyth protocol treasury.",
     ProtocolRevenue: "All update fees accrue to the Pyth protocol treasury.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Oracle Service Fees": "Fees paid by users to update Pyth price feeds on-chain. Fee amounts per chain are set by Pyth DAO governance via singleUpdateFeeInWei() on each contract.",
+    },
+    Revenue: {
+      "Oracle Service Fees To Pyth Treasury": "All update fees accrue to the Pyth protocol treasury.",
+    },
+    ProtocolRevenue: {
+      "Oracle Service Fees To Pyth Treasury": "All update fees accrue to the Pyth protocol treasury.",
+    },
   },
 };
 

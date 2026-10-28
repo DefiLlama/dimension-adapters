@@ -8,7 +8,7 @@ const url: { [s: string]: string } = {
 
 const query = gql`
   query getVolume($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-    optionMarketDailyStats(where: { startTimestamp_gte: $startTimestamp, startTimestamp_lte: $endTimestamp }) {
+    optionMarketDailyStats(where: { startTimestamp_gte: $startTimestamp, startTimestamp_lt: $endTimestamp }) {
       startTimestamp
       volume
       premium

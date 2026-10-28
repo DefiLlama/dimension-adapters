@@ -1,37 +1,33 @@
-import fetchURL from "../utils/fetchURL"
+import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const marketsEndpoint = "https://api.reya.xyz/api/markets"
+// Reya trades perps on an order book now: the AMM-era /v2/marketDefinitions route was removed and
+// PassivePerpProxy.getInstantaneousPoolPrice reverts, so OI comes from Reya's market summary.
+// Docs: https://docs.reya.xyz/developers/api-reference/rest-api-reference/market-data.md
+const PERP_MARKETS_SUMMARY_ENDPOINT = "https://api.reya.xyz/v2/perpMarkets/summary";
 
-const fetch = async (_a: any) => {
-  const markets = (await fetchURL(marketsEndpoint))
+type PerpMarketSummary = {
+  symbol: string;
+  oiQty: string; // total open interest quantity (one side of the matched book), in base units
+  markPrice: string;
+};
 
-  let longOpenInterestAtEnd = 0
-  let shortOpenInterestAtEnd = 0
+const fetch = async () => {
+  const markets: PerpMarketSummary[] = await fetchURL(PERP_MARKETS_SUMMARY_ENDPOINT);
+  if (!Array.isArray(markets) || !markets.length) throw new Error("Reya perpMarkets/summary returned no markets");
 
-  for (const market of markets) {
-    if (market.isActive !== true) continue
-    longOpenInterestAtEnd += Number(market.longOI) * Number(market.markPrice)
-    shortOpenInterestAtEnd += Number(market.shortOI) * Number(market.markPrice)
-  }
+  const openInterestAtEnd = markets.reduce((sum, { oiQty, markPrice }) => sum + Number(oiQty) * Number(markPrice), 0);
 
-  return { 
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd
-  }
+  // Matched book, so no long/short split is reported: it would be this number twice.
+  return { openInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.REYA]: {
-      fetch,
-      runAtCurrTime: true,
-      start: "2024-03-20",
-    },
-  },
+  chains: [CHAIN.REYA],
+  fetch,
+  runAtCurrTime: true, // API only exposes a live snapshot
 };
 
-export default adapter; 
+export default adapter;

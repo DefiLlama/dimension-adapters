@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
@@ -10,26 +10,22 @@ interface IVolumeall {
   time: number;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
+const fetch = async (options: FetchOptions) => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
 
   const dailyVolume = historicalVolume
-    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000)) === dayTimestamp)?.volume
-  if (!dailyVolume) throw new Error(`No daily volume found for timestamp: ${dayTimestamp}`);
+    .find(dayItem => getUniqStartOfTodayTimestamp(new Date(Number(`${dayItem.time}`.split('.')[0]) * 1000)) === options.startOfDay)?.volume
+  if (!dailyVolume) throw new Error(`No daily volume found for timestamp: ${options.startOfDay}`);
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.STELLAR]: {
-      fetch,
-    },
-  },
+  fetch,
+  chains: [CHAIN.STELLAR],
+  start: '2024-03-11',
 };
 
 export default adapter;

@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -48,6 +49,33 @@ const CDOS: CDOConfig[] = [
     srt: "0xCcEd21d609CaC4A272d0c01a8FF4de9cEBc40d60",
     start: "2026-04-12",
   },
+  {
+    name: "sUSDat",
+    cdo: "0xa617763cEB808f43eC9D532cbE8C65819afb846b",
+    accounting: "0x180f7b3b807FA91EDb6e864802e4664D6Ee8Cf88",
+    strategy: "0xce7B00D1004d9ED22E702A6a7F5bBdcE7297B090",
+    jrt: "0x011e55d2b28306458e37Ca7E997C879BB25A455D",
+    srt: "0xFaa9a0e1Db9E22AE3A20B2B58a68DC24D053d066",
+    start: "2026-05-01",
+  },
+  {
+    name: "PRIME",
+    cdo: "0xff408b4843CDD4a33CD49EB2aBe057fE8D71C234",
+    accounting: "0x0e90b8971bC0aBba696641eee85b39fD986267D7",
+    strategy: "0x80187fD8e22E8951104b4Dd5E37037510CF51C9e",
+    jrt: "0xF4C91F24E20EE8ed5eda905E501A1136334C2F27",
+    srt: "0x35bFF778d3fc53a561486BF28e761428499232Eb",
+    start: "2026-05-23",
+  },
+  {
+    name: "nOPAL",
+    cdo: "0xaE212D8515BA65C719f23dBad6bF73B74d4e4edE",
+    accounting: "0xB6F3d2deF3058d4Faf07E7104DE2f69c638f2BF7",
+    strategy: "0x5aeCBb5719a9468CdCfa6673d1DDC1Cf72a5a4aA",
+    jrt: "0x1b2b8cFEF0b7B1Fad216b55fefeEb0c3349Da141",
+    srt: "0x8a646Edc4633ADBA5Ec87DedaF3Af958e268FE96",
+    start: "2026-07-09",
+  },
 ];
 
 // events 
@@ -65,6 +93,59 @@ const CONVERT_TO_ASSETS_ABI = "function convertToAssets(address token, uint256 a
 const sumLogField = (logs: any[], field: string): bigint =>
   logs.reduce<bigint>((acc, l) => acc + BigInt(l[field]), 0n);
 
+// some strategies price through an oracle and totalAssets() reverts while the
+// price is stale or the feeds disagree (PRIME StalePrice, sUSDat FeedDeviation).
+// one revert used to fail the whole hour, so the day couldn't be filled.
+// when that happens we read the NAV at the last block that doesn't revert.
+// the search only depends on the block, so the window ending at a block and the
+// one starting at it get the same NAV and nothing is lost or counted twice.
+const MAX_NAV_LOOKBACK = 2 ** 14; // ~2 days of blocks
+
+function isContractRevert(e: any): boolean {
+  const msg = String(e?.message ?? e ?? "");
+  if (/call reverted|CALL_EXCEPTION|missing revert data/i.test(msg)) return true;
+  if (msg.includes("Llama RPC error!")) {
+    const runnerLines = msg.split("\n").filter((l) => l.trim().startsWith("- host:"));
+    return runnerLines.some((l) => /execution reverted|missing revert data|CALL_EXCEPTION/i.test(l));
+  }
+  return /execution reverted/i.test(msg);
+}
+
+async function navAt(chain: string, strategy: string, block: number): Promise<bigint> {
+  const read = async (b: number): Promise<bigint | null> => {
+    try {
+      return BigInt(await new ChainApi({ chain, block: b }).call({ target: strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }));
+    } catch (e: any) {
+      // only a real revert falls back. rpc errors still throw so the hour gets retried
+      if (isContractRevert(e)) return null;
+      throw e;
+    }
+  };
+
+  const nav = await read(block);
+  if (nav !== null) return nav;
+
+  // step back in growing steps until a block reads, then narrow down to the last good one
+  let bad = block;
+  let step = 1;
+  let good = block - step;
+  let goodNav = await read(good);
+  while (goodNav === null) {
+    if (step >= MAX_NAV_LOOKBACK) throw new Error(`strata-markets: totalAssets() of ${strategy} reverts for ${step} blocks before ${block}`);
+    bad = good;
+    step *= 2;
+    good = block - step;
+    goodNav = await read(good);
+  }
+  while (bad - good > 1) {
+    const mid = Math.floor((good + bad) / 2);
+    const v = await read(mid);
+    if (v === null) bad = mid;
+    else { good = mid; goodNav = v; }
+  }
+  return goodNav;
+}
+
 async function processCDO(
   options: FetchOptions,
   cfg: CDOConfig,
@@ -73,17 +154,24 @@ async function processCDO(
   dailyProtocolRevenue: any,
   dailySupplySideRevenue: any
 ) {
-  const { fromApi, toApi, getLogs } = options;
+  const { chain, toApi, getLogs, getFromBlock, getToBlock } = options;
 
-  const [baseAsset, navStartRaw, navEndRaw, reserveBpsRaw] = await Promise.all([
+  // navStart is read at the end of fromBlock, so anything in that block is
+  // already in it. the previous window's toBlock is this window's fromBlock and
+  // getLogs includes both ends, so we start one block later. otherwise a deposit
+  // or withdrawal in the boundary block gets counted in both windows.
+  const [startBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+  // getBlock returns null if the lookup fails. null + 1 would scan from block 1
+  if (!startBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${startBlock}, ${toBlock})`);
+  const fromBlock = startBlock + 1;
+
+  const [baseAsset, navStart, navEnd, reserveBpsRaw] = await Promise.all([
     toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
-    fromApi.call({ target: cfg.strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }),
-    toApi.call({ target: cfg.strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }),
+    navAt(chain, cfg.strategy, startBlock),
+    navAt(chain, cfg.strategy, toBlock),
     toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
   ]);
 
-  const navStart = BigInt(navStartRaw);
-  const navEnd = BigInt(navEndRaw);
   const reserveBps = BigInt(reserveBpsRaw);
 
   const [
@@ -94,12 +182,12 @@ async function processCDO(
     feeAccrued,
     reserveReduced,
   ] = await Promise.all([
-    getLogs({ target: cfg.jrt, eventAbi: ERC4626_DEPOSIT }),
-    getLogs({ target: cfg.jrt, eventAbi: ERC4626_WITHDRAW }),
-    getLogs({ target: cfg.srt, eventAbi: ERC4626_DEPOSIT }),
-    getLogs({ target: cfg.srt, eventAbi: ERC4626_WITHDRAW }),
-    getLogs({ target: cfg.accounting, eventAbi: FEE_ACCRUED }),
-    getLogs({ target: cfg.cdo, eventAbi: RESERVE_REDUCED }),
+    getLogs({ target: cfg.jrt, eventAbi: ERC4626_DEPOSIT, fromBlock, toBlock }),
+    getLogs({ target: cfg.jrt, eventAbi: ERC4626_WITHDRAW, fromBlock, toBlock }),
+    getLogs({ target: cfg.srt, eventAbi: ERC4626_DEPOSIT, fromBlock, toBlock }),
+    getLogs({ target: cfg.srt, eventAbi: ERC4626_WITHDRAW, fromBlock, toBlock }),
+    getLogs({ target: cfg.accounting, eventAbi: FEE_ACCRUED, fromBlock, toBlock }),
+    getLogs({ target: cfg.cdo, eventAbi: RESERVE_REDUCED, fromBlock, toBlock }),
   ]);
 
   const inflows =
@@ -126,16 +214,21 @@ async function processCDO(
   const exitFeeToTranche = sumLogField(feeAccrued, "amountToTranche");
   const exitFeesTotal = exitFeeToReserve + exitFeeToTranche;
 
-  // we calculate this yield from the delta of strategy assets
-  // if delta is negative, the losses are absorbed by the tranches
-  // and so it's safe to set yield to 0. this doesn't mean the losses 
-  // of the strtegy are ignored. they are compensated by tranches & reserves
-  // and so the protocol yield doesn't get negative even if the strategy performs badly
-  let yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
-  if (yieldAmount < 0n) yieldAmount = 0n;
+  // we calculate this yield from the delta of strategy assets.
+  // this can be negative when the strategy marks down, which happens on the
+  // RWA-backed CDOs whose NAV follows a discrete oracle (sUSDat/STRC) rather
+  // than a monotonic exchange rate. those losses are absorbed by the tranches,
+  // so they belong in supply side revenue as a negative, not clamped away.
+  // clamping each window at zero only ever books the up moves and ratchets
+  // cumulative fees upwards, which is worse under pullHourly because a day is
+  // cut into 24 chances to discard downside instead of 1.
+  const yieldAmount = navEnd - navStart - inflows + outflowsToUsers + reserveOut;
 
+  // the reserve takes a performance fee out of yield, but does not refund it on
+  // a loss, so on a negative window the whole markdown lands on the tranches.
   const ONE = 10n ** 18n;
-  const protocolFromYield = (yieldAmount * reserveBps) / ONE;
+  const protocolFromYield =
+    yieldAmount > 0n ? (yieldAmount * reserveBps) / ONE : 0n;
   const supplyFromYield = yieldAmount - protocolFromYield;
 
   dailyFees.add(baseAsset, yieldAmount.toString());
@@ -187,7 +280,7 @@ const methodology = {
   Fees: "Includes yield generated on deposited assets and redemption fees charged by Strata.",
   Revenue: "Protocol revenue consists of performance fees (5-10%) charged by Strata on the yield generated and redemption fees paid by the users.",
   ProtocolRevenue: "Protocol revenue consists of performance and redemption fees collected by Strata, including the portion of fees shared with reserve.",
-  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche.",
+  SupplySideRevenue: "Net yield distributed to tranches (after performance fees) plus the portion of redemption fees that remain in the tranche. Goes negative on days a strategy marks down, since those losses are absorbed by the tranches.",
 };
 
 const earliestStart = CDOS.reduce(
@@ -197,10 +290,12 @@ const earliestStart = CDOS.reduce(
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: earliestStart,
   methodology,
+  allowNegativeValue: true, // strategy NAV can mark down, the loss is absorbed by the tranches
 };
 
 export default adapter;

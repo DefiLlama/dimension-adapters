@@ -1,4 +1,4 @@
-import type { SimpleAdapter } from "../../adapters/types";
+import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
 
@@ -19,12 +19,11 @@ const adapter: SimpleAdapter = {
   adapter: {
     [CHAIN.NEAR]: {
       start: "2023-04-27",
-      fetch: async (ts: any) => {
+      fetch: async (options: FetchOptions) => {
         const data = await rpc(POOLS_SERVICE_URL, "volumes_statistic", {
-          timestamp: ts,
+          timestamp: options.toTimestamp,
         });
         return {
-          timestamp: ts,
           dailyVolume: data.daily_volume,
         };
       },

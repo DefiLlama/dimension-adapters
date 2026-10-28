@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
 // https://docs.sierra.money
 const SIERRA = "0x6E6080e15f8C0010d333D8CAeEaD29292ADb78f7";
-const USDC = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E";
+const USDC = ADDRESSES.avax.USDC;
 
 const WAD = BigInt(1e6);
 

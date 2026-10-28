@@ -1,60 +1,41 @@
-import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraph/utils";
-import fetchURL from "../../utils/fetchURL";
+import {httpGet} from "../../utils/fetchURL";
 
-const BASE_URL = "https://api.hyperion.xyz/v1/graphql";
+const BASE_URL =
+  "https://api.hyperion.xyz/base/data/public/defillama/volume-fee-stat";
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000));
+// Hyperion takes a 20% protocol fee from swap fees and the remaining 80% is paid to LPs.
+const PROTOCOL_FEE_SHARE = 0.2;
 
-  const query = gql`
-    query defillamaStats($timestamp: Float!) {
-      api {
-        getVolumeFeeStat(timestamp: $timestamp) {
-          dailyFees
-        }
-      }
+const fetch = async (options: FetchOptions) => {
+  const { dailyVolume, dailyFees } = await httpGet(`${BASE_URL}?timestamp=${options.startOfDay}`,{
+    headers: {
+      'User-Agent': process.env.HYPERION_USER_AGENT
     }
-  `;
-
-  const poolList: Array<{ dailyVolumeUSD: string }> = (
-    await fetchURL(
-      `https://assets.hyperion.xyz/files/pool-list.json?t=${dayTimestamp}`
-    )
-  ).data;
-
-  const dailyVolume = poolList.reduce(
-    (acc, { dailyVolumeUSD }) => acc + Number(dailyVolumeUSD),
-    0
-  );
-
-  const variables = {
-    timestamp: dayTimestamp,
-  };
-
-  const data = await request(BASE_URL, query, variables);
-  const dailyFees = data.api.getVolumeFeeStat.dailyFees;
-  const dailyRevenue = Number(dailyFees) * 0.2;
+  });
+  const fees = Number(dailyFees);
+  const dailyProtocolRevenue = fees * PROTOCOL_FEE_SHARE;
 
   return {
-    dailyFees,
-    dailyRevenue,
     dailyVolume,
+    dailyFees: fees,
+    dailySupplySideRevenue: fees * (1 - PROTOCOL_FEE_SHARE),
+    dailyRevenue: dailyProtocolRevenue,
+    dailyProtocolRevenue,
   };
 };
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: "2025-02-04",
   methodology: {
-    Fees: "Total Fee user pays for the trades",
-    Revenue: "Revenue is calculated as 0.2% of the daily fees",
-  },
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch: fetch,
-      start: "2025-02-04",
-    },
+    Volume: "Sum of swap volume across all Hyperion concentrated-liquidity pools.",
+    Fees: "Swap fees paid by traders across all pool fee tiers.",
+    SupplySideRevenue: "80% of swap fees distributed to in-range liquidity providers.",
+    Revenue: "20% protocol fee taken from swap fees.",
+    ProtocolRevenue: "20% protocol fee taken from swap fees and sent to the Hyperion treasury.",
   },
 };
 

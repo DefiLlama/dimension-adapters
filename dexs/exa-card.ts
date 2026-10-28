@@ -10,7 +10,7 @@ const prefetch = async (options: FetchOptions) => {
   return results;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const results = options.preFetchedResults;
   
   const result = results.find((r: any) => r.chain === options.chain);

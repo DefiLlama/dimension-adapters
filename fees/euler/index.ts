@@ -98,6 +98,9 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // buy back is paid out of protocol fees, so ProtocolRevenue = Revenue - HoldersRevenue
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue, METRIC.PROTOCOL_FEES)
+
   return {
     dailyFees,
     dailyRevenue,
@@ -110,10 +113,12 @@ const fetch = async (options: FetchOptions) => {
 const adapters: Adapter = {
   version: 2,
   pullHourly: true,
+  // EUL buy backs spend protocol fees accrued over earlier days, so ProtocolRevenue is negative on buy back days
+  allowNegativeValue: true,
   methodology: {
     Fees: "Includes interest that is paid by the borrowers, protocol and curators fees.",
     Revenue: "Fees collected by Euler protocol.",
-    ProtocolRevenue: "Fees collected by Euler protocol.",
+    ProtocolRevenue: "Fees collected by Euler protocol, minus the amount used to buy back EUL tokens (negative on buy back days).",
     SupplySideRevenue: "Fees distributed to vaults lenders and curators.",
     HoldersRevenue: "Revenue used for buy back EUL tokens.",
   },
@@ -131,7 +136,7 @@ const adapters: Adapter = {
       [METRIC.CURATORS_FEES]: 'Interest share to curators.',
     },
     ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: 'Interest share to Euler protocol.',
+      [METRIC.PROTOCOL_FEES]: 'Interest share to Euler protocol, minus the amount used to buy back EUL tokens.',
     },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'Revenue used for buy back EUL tokens.',

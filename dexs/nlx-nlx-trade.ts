@@ -22,54 +22,49 @@ const contract: TChain = {
   [CHAIN.CORE]: '0x29792F84224c77e2c672213c4d942fE280D596ef',
 }
 
-const fetch = (chain: Chain) => {
-  return async ({ getLogs, }: FetchOptions) => {
+const fetch = async ({ getLogs, chain }: FetchOptions) => {
 
-    const posistion_logs: ILog[] = (await getLogs({
-      target: contract[chain],
-      topics: [topic0_ins, topic1_ins]
-    })) as ILog[];
+  const posistion_logs: ILog[] = (await getLogs({
+    target: contract[chain],
+    topics: [topic0_ins, topic1_ins]
+  })) as ILog[];
 
-    const decress_logs: ILog[] = (await getLogs({
-      target: contract[chain],
-      topics: [topic0_des, topic1_des]
-    })) as ILog[];
+  const decress_logs: ILog[] = (await getLogs({
+    target: contract[chain],
+    topics: [topic0_des, topic1_des]
+  })) as ILog[];
 
-    let hash: string[] = [];
-    const raw_des = decress_logs.map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const volume = data.slice(102 * 64, (102 * 64) + 64);
-      const key = Number('0x' + data.slice(118 * 64, (118 * 64) + 64));
-      if (key === 7) return 0;
-      hash.push(e.transactionHash);
-      // 156
-      return Number('0x' + volume) / 1e30;
-    })
+  let hash: string[] = [];
+  const raw_des = decress_logs.map((e: ILog) => {
+    const data = e.data.replace('0x', '');
+    const volume = data.slice(102 * 64, (102 * 64) + 64);
+    const key = Number('0x' + data.slice(118 * 64, (118 * 64) + 64));
+    if (key === 7) return 0;
+    hash.push(e.transactionHash);
+    // 156
+    return Number('0x' + volume) / 1e30;
+  })
 
-    const raw_in = posistion_logs.filter(e => !hash.includes(e.transactionHash)).map((e: ILog) => {
-      const data = e.data.replace('0x', '');
-      const volume = data.slice(100 * 64, (100 * 64) + 64);
-      return Number('0x' + volume) / 1e30;
-    })
+  const raw_in = posistion_logs.filter(e => !hash.includes(e.transactionHash)).map((e: ILog) => {
+    const data = e.data.replace('0x', '');
+    const volume = data.slice(100 * 64, (100 * 64) + 64);
+    return Number('0x' + volume) / 1e30;
+  })
 
-    const dailyVolume: number = [...raw_des, ...raw_in]
-      .reduce((a: number, b: number) => a + b, 0);
+  const dailyVolume: number = [...raw_des, ...raw_in]
+    .reduce((a: number, b: number) => a + b, 0);
 
-    return {
-      dailyVolume: dailyVolume,
-    }
+  return {
+    dailyVolume,
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.CORE]: {
-      fetch: fetch(CHAIN.CORE),
-      start: '2024-04-24',
-    },
-  },
+  fetch,
+  chains: [CHAIN.CORE],
+  start: '2024-04-24',
 };
 
 export default adapter;

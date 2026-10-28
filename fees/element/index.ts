@@ -82,7 +82,7 @@ const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
       dailyFees.add(log.erc20Token, fee.amount)
     }
   }
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const adapter: Adapter = {

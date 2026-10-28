@@ -43,8 +43,9 @@ const prefetch = async (options: FetchOptions) => {
       AND day < from_unixtime(${options.endTimestamp})`);
 };
 
-const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promise<FetchResultFees> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = options.preFetchedResults || [];
+  if (!stats.some((stat) => stat.unix_ts === options.startOfDay)) throw new Error(`gains-network: the dune stats table has no rows for ${options.dateString} yet`);
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
   // const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
   //   ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]
@@ -78,7 +79,7 @@ const fetch = async (_a: number, _b: ChainBlocks, options: FetchOptions): Promis
   };
 };
 
-const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
+const fetchApechain = async ({ createBalances, getLogs }: FetchOptions): Promise<FetchResultFees> => {
   // Dune does not currently support Apechain. Using events until support is added.
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -112,6 +113,8 @@ const fetchApechain = async (_a: number, _b: ChainBlocks, { createBalances, getL
 
   gTokenFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, METRIC.LP_FEES));
   referralFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, 'Referral Fees'));
+  triggerFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, METRIC.OPERATORS_FEES));
+  borrowingFee.forEach((i: any) => dailySupplySideRevenue.add(APE, i.amountCollateral, 'Borrowing Fees'));
 
   return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -156,6 +159,19 @@ const adapter: Adapter = {
       'Referral Fees': "Trading fees distributed to referrers who onboard new traders",
       [METRIC.LP_FEES]: "Fees earned by gToken vault depositors who provide trading liquidity",
       'Borrowing Fees': "Fees charged to traders for maintaining open leveraged positions",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "Share of fees going to protocol treasury and development fund",
+      [METRIC.STAKING_REWARDS]: "Share of fees distributed to GNS token stakers",
+    },
+    HoldersRevenue: {
+      [METRIC.STAKING_REWARDS]: "Fees distributed to GNS token stakers",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]: "Fees distributed to gToken vault depositors",
+      'Referral Fees': "Fees distributed to referrers",
+      [METRIC.OPERATORS_FEES]: "Fees distributed to trigger bots",
+      'Borrowing Fees': "Borrowing fees distributed to liquidity providers",
     },
   },
 };

@@ -50,12 +50,12 @@ const RangoChains: Record<string, string> = {
   [CHAIN.PLASMA]: 'PLASMA'
 };
 
-const fetch: any = async (timestamp: number, _: any, options: FetchOptions) => {
+const fetch: any = async (options: FetchOptions) => {
   const prefetchData = options.preFetchedResults
 
   let dailyVolume = 0
 
-  const date = new Date(timestamp * 1000).toISOString().split('T')[0];
+  const date = new Date(options.toTimestamp * 1000).toISOString().split('T')[0];
   for (const item of prefetchData) {
     const itemDate = item.date.split('T')[0];
     if (date === itemDate && item.bucket === RangoChains[options.chain]) {

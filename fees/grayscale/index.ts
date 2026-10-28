@@ -1,5 +1,6 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import pLimit from "p-limit";
 import { httpGet } from "../../utils/fetchURL";
 
@@ -24,7 +25,7 @@ const ROBINHOOD_API_URL = "https://bonfire.robinhood.com/instruments";
 const NASDAQ_API_URL = "https://api.nasdaq.com/api/quote";
 const headers = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36" }
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
     const durationWrtYear = (options.toTimestamp - options.fromTimestamp) / (365 * 24 * 60 * 60);
 
     const etpsInfo = await Promise.all(GRAYSCALE_ETP_IDS.map(etp => limit(() => httpGet(`${ROBINHOOD_API_URL}/${etp}/etp-details`))));
@@ -38,7 +39,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
         gross_expense_ratio: NON_ROBIHOOD_LISTED_ETPS_EXPENSE_RATIO[etp.data.symbol]
     }));
 
-    const dailyFees = etpsInfo.reduce((acc, curr) => acc + +curr.aum * +curr.gross_expense_ratio * durationWrtYear / 100, 0);
+    const feeAmount = etpsInfo.reduce((acc, curr) => acc + +curr.aum * +curr.gross_expense_ratio * durationWrtYear / 100, 0);
+    const dailyFees = options.createBalances();
+    dailyFees.addUSDValue(feeAmount, METRIC.MANAGEMENT_FEES);
 
     return {
         dailyFees,
@@ -53,10 +56,23 @@ const methodology = {
     ProtocolRevenue: "All the revenue goes to protocol"
 };
 
+const breakdownMethodology = {
+    Fees: {
+        [METRIC.MANAGEMENT_FEES]: "Management fees paid by ETP holders",
+    },
+    Revenue: {
+        [METRIC.MANAGEMENT_FEES]: "All management fees are revenue",
+    },
+    ProtocolRevenue: {
+        [METRIC.MANAGEMENT_FEES]: "All revenue goes to Grayscale",
+    },
+};
+
 const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.OFF_CHAIN],
     methodology,
+    breakdownMethodology,
     runAtCurrTime: true,
     start: "2025-12-10", //Though its easy to get historic nav, its pretty hard to get historic aum, so starts from adapter listing date
 };

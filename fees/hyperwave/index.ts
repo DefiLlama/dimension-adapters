@@ -13,9 +13,14 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addBalances(hwhlpFees);
     dailyFees.addBalances(hwhypeFees);
 
+    // Supply side is the yield paid to hwHLP/hwHYPE holders, i.e. fees minus the
+    // platform fee the protocol keeps as revenue (not the full fees).
+    const dailySupplySideRevenue = dailyFees.clone();
+    dailySupplySideRevenue.subtract(dailyRevenue);
+
     return {
         dailyFees,
-        dailySupplySideRevenue: dailyFees,
+        dailySupplySideRevenue,
         dailyRevenue: dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
     };

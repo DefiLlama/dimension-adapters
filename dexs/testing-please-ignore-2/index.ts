@@ -28,7 +28,7 @@ const breakdownMethodology = {
   },
 }
 
-async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchResultV2> {
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const { holdersShare, hlpShare } = getRevenueRatioShares(options.startOfDay)
 
   if (options.startOfDay < LLAMA_HL_INDEXER_FROM_TIME) {
@@ -87,14 +87,11 @@ async function fetch(_1: number, _: any,  options: FetchOptions): Promise<FetchR
 }
 
 const adapter: SimpleAdapter = {
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: '2024-12-23',
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2024-12-23',
-    },
-  },
 };
 
 export default adapter;

@@ -1,5 +1,5 @@
-// Holders Buybacks started from the 01 Feb, 2023 15:13:11 UTC
-// https://docs.railgun.org/wiki/rail-token/rail-active-governor-rewards
+// RAIL security rewards started from the 01 Feb, 2023 15:13:11 UTC
+// https://docs.railgun.org/wiki/rail-token/rail-security-rewards
 
 import { Chain } from "../adapters/types";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
@@ -44,19 +44,23 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
+  const dailyProtocolRevenue = dailyFees.clone()
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue)
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
+    dailyProtocolRevenue,
     dailyHoldersRevenue
   }
 }
 
 const info = {
   methodology: {
-    Fees: 'All fees paid by users using Railgun privacy services.',
-    Revenue: 'All fees collected by Railgun.',
-    HoldersRevenue: '2% of the treasury is distributed to the claiming mechanism every 2 weeks. This means that every year, ~52% of the treasury goes to stakers',
+    Fees: 'All deductions paid by users using Railgun privacy smart contracts.',
+    Revenue: 'All deductions paid by users using Railgun privacy smart contracts are collected by Railgun treasury contracts.',
+    ProtocolRevenue: 'Deductions collected by the Railgun treasury, minus the WETH and DAI it distributes to the claiming mechanism.',
+    HoldersRevenue: '4.2% (was 2% before July 29, 2026) of the treasury is distributed to the claiming mechanism every 2 weeks.',
   }
 }
 
@@ -65,6 +69,7 @@ const adapters: SimpleAdapter = {
   methodology: info.methodology,
   version: 2,
   pullHourly: true,
+  allowNegativeValue: true, // ethereum protocol revenue nets out the biweekly treasury distributions ($40k-$115k each in 2026 vs ~$10k/day of fees)
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2022-05-01', },
     [CHAIN.ARBITRUM]: { start: '2022-05-01', },

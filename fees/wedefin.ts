@@ -52,6 +52,7 @@ const fetchFees = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: Object.keys(tokens),
   fetch: fetchFees,
   methodology: {

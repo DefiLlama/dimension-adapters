@@ -1,10 +1,17 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
+import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
+import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
-import { handleBribeToken } from "./utils";
+import { bribesEnded, handleBribeToken, legacyRevenueExports, LOCKED_GAUGE_FEES } from "./utils";
 
 const CONFIG = {
   PoolFactory: '0x420DD381b31aEf6683db6B902084cB0FFECe40Da',
@@ -91,12 +98,28 @@ const getVolumeFeesAndRevenue = async (
   const dailyHoldersRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
 
-  const rawPools = await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 3200668, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true })
+  // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
+  // downstream (volume, fees, revenue splits) derives from rawPools
+  const blacklistTokens = new Set(await getDexTokensBlacklisted(fetchOptions))
+  let rawPools = (await fetchOptions.getLogs({ target: CONFIG.PoolFactory, fromBlock: 3200668, eventAbi: eventAbis.event_pool_created, onlyArgs: true, cacheInCloud: true, skipIndexer: true }))
+    .filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
+
+  // drop the day's wash-flagged pools (see getWashPools), unless every side is
+  // established (core asset or CoinGecko-listed)
+  const washPools: Set<string> = fetchOptions.preFetchedResults?.washPools ?? new Set()
+  const flagged = rawPools.filter((p: any) => washPools.has(formatAddress(p.pool)))
+  if (flagged.length) {
+    const established = await getEstablishedTokens(chain, flagged.flatMap((p: any) => [p.token0, p.token1]))
+    const drop = new Set(flagged
+      .filter((p: any) => !(established.has(formatAddress(p.token0)) && established.has(formatAddress(p.token1))))
+      .map((p: any) => formatAddress(p.pool)))
+    rawPools = rawPools.filter((p: any) => !drop.has(formatAddress(p.pool)))
+  }
 
   const fees = await api.multiCall({
     abi: abis.fees, target: CONFIG.PoolFactory, calls: rawPools.map(i => ({ params: [i.pool, i.stable] }))
   })
-  const ZERO_ADDR = '0x0000000000000000000000000000000000000000'
+  const ZERO_ADDR = ADDRESSES.null
   const gaugeForPool = rawPools.map((p: any) => poolToGauge.get(String(p.pool).toLowerCase()) ?? ZERO_ADDR)
   const [stakedBalances, totalSupplies] = await Promise.all([
     api.multiCall({
@@ -197,48 +220,64 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { poolToGauge, bribeSet } = await getGaugeMetadata(options)
   const [{ dailyVolume, dailyFees, dailyHoldersRevenue, dailySupplySideRevenue }, { dailyBribesRevenue }] = await Promise.all([
     getVolumeFeesAndRevenue(fromBlock, toBlock, options, poolToGauge),
-    getBribes(options, bribeSet),
+    bribesEnded(options) ? { dailyBribesRevenue: options.createBalances() } : getBribes(options, bribeSet),
   ])
+
+  const totalFees = options.createBalances()
+  const totalSupplySideRevenue = options.createBalances()
+  
+  totalFees.add(dailyFees, 'Token Swap Fees');
+  totalFees.add(dailyBribesRevenue, 'External Bribes Rewards');
+  totalSupplySideRevenue.add(dailySupplySideRevenue, 'Unstaked-LP Fees');
+  
   return {
-    dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    dailyFees: totalFees,
+    ...legacyRevenueExports(options, dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake', dailyBribesRevenue, 'External Bribes Revenue'),
+    dailySupplySideRevenue: totalSupplySideRevenue,
     dailyVolume,
-    dailyBribesRevenue,
   }
 }
 
+const prefetch: any = async (options: FetchOptions) => {
+  return { washPools: await getWashPools(options, { blockchain: 'base', project: 'aerodrome', version: '1' }) }
+}
+
 const methodology = {
-  Fees: "Total swap fees paid by traders. Per-pool fee rate read from PoolFactory.getFee (default sAMM 0.05%, vAMM 0.30%; customizable per pool) applied to each swap's input amount.",
-  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Fees earned by LPs staked in the gauge — forwarded to FeeVotingReward for distribution to veAERO voters. Computed per pool as fees × pool.balanceOf(gauge) / pool.totalSupply.",
-  SupplySideRevenue: "Unstaked LPs' pro-rata share of swap fees, claimable directly from the pool. Computed per pool as fees × (1 − stakedShare). Aerodrome v2 has no unstaked-LP rake module, so unstaked LPs keep 100% of their share.",
-  BribesRevenue: "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to the v2 GaugeFactory). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+  Volume: 'Swap volume on Aerodrome volatile and stable pools, excluding wash trading.',
+  Fees: 'Swap fees paid by traders, plus bribes deposited for veAERO voters until voting ended with the Aero upgrade on 2026-10-22.',
+  Revenue: 'Swap fees earned by liquidity staked in gauges and bribes, paid to veAERO voters, plus the staked-liquidity fees locked in the gauges since their last fee distribution on 2026-10-15.',
+  HoldersRevenue: 'Swap fees earned by liquidity staked in gauges until the gauges last distributed fees on 2026-10-15, plus bribes until voting ended on 2026-10-22, all paid to veAERO voters.',
+  ProtocolRevenue: 'Swap fees earned by liquidity staked in gauges since their last fee distribution on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
+  SupplySideRevenue: 'Swap fees earned by liquidity providers that do not stake in a gauge.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Swap fees': 'All swap fees paid by traders on Aerodrome v2 pools.',
+    'Token Swap Fees': 'Swap fees paid by traders.',
+    'External Bribes Rewards': 'Bribes deposited for veAERO voters, until voting ended on 2026-10-22.',
   },
   Revenue: {
-    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+    [LOCKED_GAUGE_FEES]: 'Swap fees earned by liquidity staked in gauges since their last fee distribution on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   HoldersRevenue: {
-    'Holders fees': 'Staked-LP share of swap fees, forwarded to veAERO voters via FeeVotingReward.',
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+  },
+  ProtocolRevenue: {
+    [LOCKED_GAUGE_FEES]: 'Swap fees earned by liquidity staked in gauges since their last fee distribution on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   SupplySideRevenue: {
-    'LP fees': 'Unstaked-LP pro-rata share of swap fees, claimable directly from the pool.',
-  },
-  BribesRevenue: {
-    'External bribes': "Token deposits to a pool's BribeVotingReward contract that veAERO voters claim by voting for the pool's gauge.",
+    'Unstaked-LP Fees': 'Swap fees earned by liquidity providers that do not stake in a gauge.',
   },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
+  prefetch,
   chains: [CHAIN.BASE],
   start: '2023-08-28',
   methodology,

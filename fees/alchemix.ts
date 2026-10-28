@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import type { FetchOptions, } from "../adapters/types";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -18,7 +19,7 @@ const chainConfigs: Record<string, any> = {
       '0x654e16a0b161b150F5d1C8a5ba6E7A7B7760703A', // alETH
     ],
     customAssets: {
-      [formatAddress('0x248a431116c6f6FCD5Fe1097d16d0597E24100f5')]: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      [formatAddress('0x248a431116c6f6FCD5Fe1097d16d0597E24100f5')]: ADDRESSES.arbitrum.USDC_CIRCLE,
     },
     start: '2023-07-03',
   },
@@ -28,7 +29,7 @@ const chainConfigs: Record<string, any> = {
       '0xe04Bb5B4de60FA2fBa69a93adE13A8B3B569d5B4', // alETH
     ],
     customAssets: {
-      [formatAddress('0x0A86aDbF58424EE2e304b395aF0697E850730eCD')]: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+      [formatAddress('0x0A86aDbF58424EE2e304b395aF0697E850730eCD')]: ADDRESSES.optimism.DAI,
     },
     start: '2022-09-17',
   },
@@ -36,30 +37,59 @@ const chainConfigs: Record<string, any> = {
 
 const HarvestEvent = 'event Harvest(address indexed yieldToken, uint256 minimumAmountOut, uint256 totalHarvested, uint256 credit)';
 
+// AlchemistV2 protocolFee is in basis points. Denominator is 10000.
+// https://github.com/alchemix-finance/v2-foundry/blob/master/src/AlchemistV2.sol
+const FEE_DENOMINATOR_BPS = 10000n;
+
+/**
+ * Fetches the daily fees and revenue for Alchemix V2.
+ * Harvest events report gross yield. protocolFee is read once per alchemist
+ * and applied to every harvest in the window.
+ */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   
-  const harvestLogs = await options.getLogs({
-    targets: chainConfigs[options.chain].alchemists,
-    eventAbi: HarvestEvent,
-    flatten: true,
-  })
+  const alchemists = chainConfigs[options.chain].alchemists;
+  const [harvestLogs, protocolFees] = await Promise.all([
+    options.getLogs({
+      targets: alchemists,
+      eventAbi: HarvestEvent,
+      flatten: true,
+      onlyArgs: false,
+    }),
+    options.api.multiCall({
+      abi: 'uint256:protocolFee',
+      calls: alchemists,
+    }),
+  ]);
+
+  const feeRateByAlchemist: Record<string, bigint> = {};
+  alchemists.forEach((alchemist: string, index: number) => {
+    feeRateByAlchemist[formatAddress(alchemist)] = BigInt(protocolFees[index]);
+  });
+
   for (const log of harvestLogs) {
-    const _token = formatAddress(log.yieldToken);
-    const token = chainConfigs[options.chain].customAssets && chainConfigs[options.chain].customAssets[_token] ? chainConfigs[options.chain].customAssets[_token] : _token
-    const totalYield = Number(log.totalHarvested);
+    const args = (log as any).args || log;
+    const _token = formatAddress(args.yieldToken);
+    const token = chainConfigs[options.chain].customAssets && chainConfigs[options.chain].customAssets[_token] ? chainConfigs[options.chain].customAssets[_token] : _token;
+    
+    const totalYield = BigInt(args.totalHarvested);
+    const feeRate = feeRateByAlchemist[formatAddress(log.address)];
+    
+    const protocolYield = (totalYield * feeRate) / FEE_DENOMINATOR_BPS;
+    const supplySideYield = totalYield - protocolYield;
 
     dailyFees.add(token, totalYield, METRIC.ASSETS_YIELDS);
-    dailyRevenue.add(token, totalYield * 0.1, 'Yields To Protocol');
-    dailySupplySideRevenue.add(token, totalYield * 0.9, 'Yields To Self-Repay Loans');
+    dailyRevenue.add(token, protocolYield, 'Yields To Protocol');
+    dailySupplySideRevenue.add(token, supplySideYield, 'Yields To Self-Repay Loans');
   }
   
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
     dailyHoldersRevenue: 0, // no revenue share to ALCX
   }
@@ -67,9 +97,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Alchemix generates revenue from various lending and yield optimization activities across its protocol.",
-  Revenue: "Revenue share from 10% yield collected.",
-  SupplySideRevenue: "There are 90% yield are distibuted to users/borrowers.",
-  ProtocolRevenue: "Revenue share from 10% yield collected.",
+  Revenue: "Protocol fee share from gross yield harvested.",
+  SupplySideRevenue: "Net yield distributed to users/borrowers for self-repaying loans after protocol fees.",
+  ProtocolRevenue: "Protocol fee share from gross yield harvested.",
   HoldersRevenue: "No revenue share to ALCX token holders.",
 }
 
@@ -78,18 +108,19 @@ const breakdownMethodology = {
     [METRIC.ASSETS_YIELDS]: "Alchemix generates revenue from various lending and yield optimization activities across its protocol.",
   },
   Revenue: {
-    'Yields To Protocol': 'Share of 10% all yields.',
+    'Yields To Protocol': 'Share of protocol fee on all yields.',
   },
   SupplySideRevenue: {
-    'Yields To Self-Repay Loans': 'Share of 90% all yields to borrowers for self-repay loans.',
+    'Yields To Self-Repay Loans': 'Share of all yields left to borrowers for self-repaying loans.',
   },
   ProtocolRevenue: {
-    'Yields To Protocol': 'Share of 10% all yields.',
+    'Yields To Protocol': 'Share of protocol fee on all yields.',
   },
 }
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: chainConfigs,
   methodology,
@@ -97,4 +128,3 @@ const adapter: Adapter = {
 }
 
 export default adapter;
-

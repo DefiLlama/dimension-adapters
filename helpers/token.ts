@@ -125,30 +125,25 @@ type AddTokensReceivedParams = {
  * @param params.fromAdddesses - Optional. Only count transfers from these addresses (internally creates parallel calls)
  * @param params.tokenTransform - Optional. Transform token address before adding to balances
  * @param params.fetchTokenList - Optional. If true and no tokens specified, fetches token list from Ankr
- * @param params.logFilter - Optional. Custom filter function to apply to each transfer log
+ * @param params.logFilter - Optional. Custom filter function to apply to each transfer. Every path passes the same row: lowercased from/to/token (also as from_address/to_address), value and transactionHash
  * @param params.skipIndexer - Optional. If true, skips indexer and uses getLogs directly
  * @returns Balances object with token amounts received
  */
 export async function addTokensReceived(params: AddTokensReceivedParams) {
 
+  // The indexer path reads `tokens`, so the singular `token` has to be widened
+  // before it rather than in the log fallback below: without this the filter is
+  // absent and every transfer into the target is counted at its own price.
+  if (!params.tokens && params.token) params.tokens = [params.token]
+
   if (!params.skipIndexer) {
-    for (let i = 0; i < 2; i++) {
-      // retry 2 times if failed
-      try {
-        const balances = await _addTokensReceivedIndexer(params)
-        return balances
-      } catch (e) {
-        if (i === 1) {
-          console.error('Token transfers: Failed to use indexer, falling back to logs', params.options.chain, (e as any)?.message)
-        }
-      }
-      await sleep(5);
-    }
+    const balances = await _addTokensReceivedIndexer(params)
+    if (balances) return balances
   }
 
 
 
-  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token, fromAdddesses, logFilter = () => true, } = params;
+  let { target, targets, options, balances, tokens, fromAddressFilter = null, tokenTransform = (i: string) => i, fetchTokenList = false, token, fromAdddesses, logFilter, } = params;
   const { chain, createBalances, getLogs, } = options
 
   if (!balances) balances = createBalances()
@@ -163,7 +158,6 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
     }
   }
 
-  if (!tokens && token) tokens = [token]
 
 
   if (targets?.length) {
@@ -185,7 +179,7 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
       const ankrTokens = await ankrGetTokens(target, { onlyWhitelisted: true })
       tokens = ankrTokens[ankrChainMapping[chain]] ?? []
     } else {
-      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options)
+      return getAllTransfers(fromAddressFilter, toAddressFilter, balances, tokenTransform, options, logFilter)
     }
   }
 
@@ -197,31 +191,67 @@ export async function addTokensReceived(params: AddTokensReceivedParams) {
     targets: tokens,
     flatten: false,
     noTarget: true,
+    onlyArgs: false, // decoded args alone carry no transactionHash, which tx-based logFilters need
     eventAbi: 'event Transfer (address indexed from, address indexed to, uint256 value)',
     topics: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef', fromAddressFilter as string, toAddressFilter as any],
   })
 
   logs.forEach((logs, index) => {
     const token = tokens![index]
-    logs.filter(logFilter).forEach((i: any) => balances!.add(tokenTransform(token), i.value))
+    logs.forEach((log: any) => {
+      const { from, to, value } = log.args
+      if (passesLogFilter(logFilter, { from, to, value, transactionHash: log.transactionHash }, token))
+        balances!.add(tokenTransform(token), value)
+    })
   })
   return balances
 }
 
-async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
-  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens, logFilter = () => true, } = params
-  const { createBalances, chain, getFromBlock, getToBlock } = options
-  if (!balances) balances = createBalances()
-  if (fromAdddesses && fromAdddesses.length) (fromAddressFilter as any) = fromAdddesses
-  const logs = await sdk.indexer.getTokenTransfers({
-    fromBlock: await getFromBlock(),
-    toBlock: await getToBlock(),
-    chain,
-    target, targets,
-    fromAddressFilter: fromAddressFilter as any,
-    tokens,
+// Indexer rows, decoded Transfer args and raw logs name fields differently; give logFilter
+// every spelling, lowercased, so a filter written for one path keeps filtering on the others.
+function passesLogFilter(logFilter: AddTokensReceivedParams['logFilter'], log: any, token?: string) {
+  if (!logFilter) return true
+  const from = String(log.from ?? log.from_address ?? '').toLowerCase()
+  const to = String(log.to ?? log.to_address ?? '').toLowerCase()
+  token = String(token ?? log.token ?? '').toLowerCase()
+  const txHash = log.transaction_hash ?? log.transactionHash
+  return logFilter({
+    ...log,
+    from, to, token, value: log.value,
+    from_address: from, to_address: to, fromAddress: from, toAddress: to, sender: from, address: token,
+    transaction_hash: txHash, transactionHash: txHash,
   })
-  logs.filter(logFilter).forEach((i: any) => {
+}
+
+// Returns undefined when the indexer is unavailable, so the caller falls back to getLogs.
+async function _addTokensReceivedIndexer(params: AddTokensReceivedParams) {
+  let { balances, fromAddressFilter, target, targets, options, fromAdddesses, tokenTransform = (i: string) => i, tokens, logFilter, } = params
+  const { createBalances, chain, getFromBlock, getToBlock } = options
+  if (fromAdddesses && fromAdddesses.length) (fromAddressFilter as any) = fromAdddesses
+  let logs: any[] | undefined
+  for (let i = 0; i < 2 && !logs; i++) {
+    // retry 2 times if failed
+    try {
+      logs = await sdk.indexer.getTokenTransfers({
+        fromBlock: await getFromBlock(),
+        toBlock: await getToBlock(),
+        chain,
+        target, targets,
+        fromAddressFilter: fromAddressFilter as any,
+        tokens,
+      })
+    } catch (e) {
+      if (i === 1) {
+        console.error('Token transfers: Failed to use indexer, falling back to logs', chain, (e as any)?.message)
+      }
+      await sleep(5);
+    }
+  }
+  if (!logs) return
+
+  // filtered outside the try: a logFilter that throws is an adapter bug, not an indexer failure
+  if (!balances) balances = createBalances()
+  logs.filter((log: any) => passesLogFilter(logFilter, log)).forEach((i: any) => {
     balances!.add(tokenTransform(i.token), i.value)
   })
 
@@ -309,8 +339,10 @@ async function ankrGetTokens(address: string, { onlyWhitelisted = true }: {
   }
 }
 
+const topicToAddress = (topic?: string) => topic ? '0x' + topic.slice(-40) : ''
+
 async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter: string | null,
-  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions) {
+  balances: sdk.Balances, tokenTransform: (token: string) => string, options: FetchOptions, logFilter?: (log: any) => boolean) {
   const logs = await options.getLogs({
     topics: [
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", // Transfer(address,address,uint256)
@@ -324,6 +356,8 @@ async function getAllTransfers(fromAddressFilter: string | null, toAddressFilter
 
   logs.forEach((log) => {
     if (log.data == '0x') return
+    const row = { from: topicToAddress(log.topics[1]), to: topicToAddress(log.topics[2]), value: log.data, transactionHash: log.transactionHash }
+    if (!passesLogFilter(logFilter, row, log.address)) return
     balances!.add(tokenTransform(log.address), log.data)
   })
   return balances
@@ -490,7 +524,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
     SELECT mint as token, SUM(raw_amount) as amount
     FROM solana.assets.transfers
     WHERE to_address IN (${formattedAddresses})
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ${mintsCondition}
     ${blacklistCondition}
     ${blacklist_signersCondition}
@@ -507,7 +541,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   //   SELECT mint, SUM(usd_amount * 1000000) as amount
   //   FROM solana.assets.transfers
   //   WHERE to_address IN (${formattedAddresses})
-  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   //   ${blacklistCondition}
   //   ${blacklist_signersCondition}
   //   ${blacklist_mintsCondition}
@@ -590,7 +624,7 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
     SELECT token_mint_address as mint, SUM(amount) as amount
     FROM tokens_solana.transfers
     WHERE to_owner IN (${formattedAddresses})
-    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time <= from_unixtime(${options.endTimestamp})
+    AND block_time >= from_unixtime(${options.startTimestamp}) AND block_time < from_unixtime(${options.endTimestamp})
     ${blacklistCondition}
     ${blacklist_signersCondition}
     ${blacklist_mintsCondition}
@@ -605,7 +639,7 @@ export async function getSolanaReceivedDune({ options, balances, target, targets
   //   SELECT mint, SUM(usd_amount * 1000000) as amount
   //   FROM solana.assets.transfers
   //   WHERE to_address IN (${formattedAddresses})
-  //   AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+  //   AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   //   ${blacklistCondition}
   //   ${blacklist_signersCondition}
   //   ${blacklist_mintsCondition}
@@ -675,6 +709,7 @@ export async function getETHReceived({ options, balances, target, targets = [], 
     [CHAIN.POLYGON_ZKEVM]: 'polygon_zkevm',
     [CHAIN.PLASMA]: 'plasma',
     [CHAIN.MONAD]: 'monad',
+    [CHAIN.HYPERLIQUID]: 'hyperevm',
   }
   
   // https://docs.allium.so/changelog/deprecated-schemas
@@ -701,11 +736,11 @@ export async function getETHReceived({ options, balances, target, targets = [], 
   if (chainKey) {
     query = `
       SELECT SUM(raw_amount) as value
-      FROM ${chainKey}${tableMap[options.chain] ? '.assets.${tableMap[options.chain]}' : '.assets.native_token_transfers'}
+      FROM ${chainKey}${tableMap[options.chain] ? `.assets.${tableMap[options.chain]}` : '.assets.native_token_transfers'}
       WHERE to_address in ${targetList} 
-      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
       AND transfer_type = 'value_transfer'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   } else {
     // support all EVM chain on allium now
@@ -716,13 +751,45 @@ export async function getETHReceived({ options, balances, target, targets = [], 
       FROM ${getAlliumChain(options.chain)}.raw.traces
       WHERE to_address in ${targetList} 
       AND status = 1
-      ${excludeSenders.length > 1 ? `AND from_address not in ${excludeSenderList} ` : ' '}
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      ${excludeSenders.length > 0 ? `AND from_address not in ${excludeSenderList} ` : ' '}
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       `
   }
 
   const res = await queryAllium(query)
   balances.add(nullAddress, res[0].value)
+  return balances
+}
+
+/**
+ * Track TRC20 token transfers received by one or more Tron addresses, read from Allium.
+ *
+ * Tron RPC logs only reach back about a year and older windows come back empty instead of failing,
+ * so use this over addTokensReceived whenever history has to be refillable.
+ * Automatically excludes transfers between the target addresses.
+ *
+ * @param options - FetchOptions with chain, timestamp range, etc.
+ * @param balances - Optional. Balances object to add results to
+ * @param targets - Tron addresses (base58, case sensitive) to track
+ * @param tokens - TRC20 token addresses (base58) to count
+ * @param notFromSenders - Optional. Exclude transfers from these addresses (in addition to the targets)
+ * @returns Balances object with token amounts received
+ */
+export async function getTronTokensReceived({ options, balances, targets, tokens, notFromSenders = [] }: { options: FetchOptions, balances?: sdk.Balances, targets: string[], tokens: string[], notFromSenders?: string[] }) {
+  if (!balances) balances = options.createBalances()
+  if (!targets.length || !tokens.length) throw new Error('[Tron tokens received] targets and tokens are required')
+
+  const toList = (addresses: string[]) => '( ' + [...new Set(addresses)].map(i => `'${i}'`).join(', ') + ' )'
+  const rows = await queryAllium(`
+    SELECT token_address, SUM(raw_amount) AS amount
+    FROM tron.assets.trc20_token_transfers
+    WHERE to_address IN ${toList(targets)}
+      AND from_address NOT IN ${toList(targets.concat(notFromSenders))}
+      AND token_address IN ${toList(tokens)}
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    GROUP BY 1
+  `)
+  rows.forEach((row: any) => balances!.add(row.token_address, row.amount))
   return balances
 }
 
@@ -815,7 +882,7 @@ export async function getEVMTokenTransfers(params: GetEVMTokenTransfersParams) {
     FROM crosschain.assets.transfers
     WHERE 
     chain = '${chainKey}'
-    AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `;
 
   if (toAddrs.length) {

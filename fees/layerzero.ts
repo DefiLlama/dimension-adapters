@@ -60,10 +60,12 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.MEGAETH]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2026-02-09" },
   [CHAIN.PLASMA]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2025-09-25" },
   [CHAIN.BITLAYER]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2024-04-01" },
-  [CHAIN.PLUME]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2025-06-05" },
+  [CHAIN.PLUME]: { sendLibs: ["0xFe7C30860D01e28371D40434806F4A8fcDD3A098", "0xce8358bc28dd8296Ce8cAF1CD2b44787abd65887"], start: "2025-06-05" },
   [CHAIN.KATANA]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2025-06-30" },
   [CHAIN.FLARE]: { sendLibs: ["0xe1844c5D63a9543023008D332Bd3d2e6f1FE1043", "0x15e51701F245F6D5bd0FEE87bCAf55B0841451B3"], start: "2024-09-01" },
   [CHAIN.SOPHON]: { sendLibs: ["0x01047601DB5E63b1574aae317BAd9C684E3C9056", "0xd07C30aF3Ff30D96BDc9c6044958230Eb797DDBF"], start: "2025-01-01" },
+  [CHAIN.STABLE]: { sendLibs: ["0x37aaaf95887624a363effB7762D489E3C05c2a02", "0xe1844c5D63a9543023008D332Bd3d2e6f1FE1043"], start: "2025-10-30" },
+  [CHAIN.ARC]: { sendLibs: ["0xc39161c743d0307eb9bcc9fef03eeb9dc4802de7", "0x37aaaf95887624a363effb7762d489e3c05c2a02"], start: "2026-06-01" },
   // [CHAIN.NIBIRU]: { sendLibs: ["0xd1FA2df582C6C986Ec573e1a3B0218049CF1E5c7", "0x3c4962Ff6258dcfCafD23a814237B7d6Eb712063"], start: "2025-01-01" },
   // [CHAIN.LISK]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2024-12-01" },
   // [CHAIN.REYA]: { sendLibs: ["0xC39161c743D0307EB9BCc9FEF03eeb9Dc4802de7", "0x37aaaf95887624a363effB7762D489E3C05c2a02"], start: "2024-08-01" },
@@ -128,7 +130,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
@@ -136,13 +138,13 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: config,
   methodology: {
     Fees: "Native token fees paid by users for cross-chain messaging, summed from ExecutorFeePaid and DVNFeePaid events on SendUln302 (V2 default) and SendUln301 (V1-compat through V2 endpoints) across supported chains.",
     Revenue: "ZRO buybacks funded by Stargate ecosystem allocation routed to LayerZero Foundation. LayerZero takes a 0% protocol take rate on messaging fees.",
-    ProtocolRevenue: "ZRO buybacks funded by Stargate ecosystem allocation.",
+    ProtocolRevenue: "LayerZero takes a 0% protocol take rate on messaging fees.",
     HoldersRevenue: "ZRO buybacks distributed to ZRO holders.",
     SupplySideRevenue: "Approximately 100% of messaging fees flow to DVNs and Executors that secure and deliver cross-chain messages.",
   },

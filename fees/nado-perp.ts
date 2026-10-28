@@ -149,8 +149,6 @@ const get24hrRevenue = async (
 };
 
 const fetch = async (
-  timestamp: number,
-  _: any,
   fetchOptions: FetchOptions
 ): Promise<FetchResultFees> => {
   const products = await fetchProducts(fetchOptions);
@@ -159,16 +157,25 @@ const fetch = async (
     return { dailyFees: undefined, dailyRevenue: undefined };
   }
 
-  const dailyFees = await get24hrFees(timestamp, products.perp_products, fetchOptions);
-  const dailyRevenue = await get24hrRevenue(timestamp, products.perp_products, fetchOptions);
+  const dailyFees = await get24hrFees(fetchOptions.toTimestamp, products.perp_products, fetchOptions);
+  const dailyRevenue = await get24hrRevenue(fetchOptions.toTimestamp, products.perp_products, fetchOptions);
+  const dailySupplySideRevenue = dailyFees - dailyRevenue;
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
   Fees: 'perp trading fees paid by users',
-  Revenue: 'trading fees - maker rebates goes to the protocol treasury',
-  ProtocolRevenue: 'net trading fees goes to the protocol treasury',
+  UserFees: 'perp trading fees paid by users',
+  Revenue: 'trading fees minus maker rebates; goes to the protocol treasury',
+  ProtocolRevenue: 'net trading fees that go to the protocol treasury',
+  SupplySideRevenue: 'maker rebates paid out to liquidity providers',
 }
 
 const adapter: Adapter = {

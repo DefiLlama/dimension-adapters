@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types";
 import { METRICS } from "./metrics"
 
 // Two legacy pools for GPU-financing, both using USDC as currency token
 
-const USDC = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+const USDC = ADDRESSES.arbitrum.USDC_CIRCLE;
 
 const DECODE_LOAN_RECEIPT_ABI = 'function decodeLoanReceipt(bytes calldata loanReceipt) pure returns ((uint8 version, uint256 principal, uint256 repayment, uint256 adminFee, address borrower, uint64 maturity, uint64 duration, address collateralToken, uint256 collateralTokenId, uint16 collateralWrapperContextLen, bytes collateralWrapperContext, (uint128 tick, uint128 used, uint128 pending)[] nodeReceipts))';
 

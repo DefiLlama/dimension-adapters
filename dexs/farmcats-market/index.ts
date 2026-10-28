@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -10,7 +11,7 @@ const MARKET_CONTRACTS = [
     "0xcD74363F87CD88E175e3015a9809ec944Bb0AD75",
 ];
 
-const PATH_USD = "0x20c0000000000000000000000000000000000000";
+const PATH_USD = ADDRESSES.tempo.pathUSD;
 const FEE_PERCENT = 0.01; // 1%
 
 const NFT_SOLD_EVENT = "event NFTSold(address indexed nft, uint256 indexed tokenId, address buyer, uint256 price)";

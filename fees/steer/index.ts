@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics"
 import { CHAIN } from "../../helpers/chains"
 
-const chainConfig = {
+const chainConfig:any = {
     [CHAIN.POLYGON]: {
         name: 'Polygon',
         subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-polygon/prod/gn',
@@ -20,21 +20,21 @@ const chainConfig = {
     },
     [CHAIN.BSC]: {
         name: 'Binance',
-        subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/GLDP56fPGDz3MtmhtfTkz5CxWiqiNLACVrsJ9RqQeL4U',
+        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-bsc-beta/prod/gn',
         chainId: 56,
         identifier: 'bsc',
         start: '2023-06-28',
     },
-    [CHAIN.AVAX]: {
-        name: 'Avalanche',
-        subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/GZotTj3rQJ8ZqVyodtK8TcnKcUxMgeF7mCJHGPYbu8dA',
-        chainId: 43114,
-        identifier: 'avax',
-        start: '2023-06-28',
-    },
+    // [CHAIN.AVAX]: {
+    //     name: 'Avalanche',
+    //     subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/GZotTj3rQJ8ZqVyodtK8TcnKcUxMgeF7mCJHGPYbu8dA',
+    //     chainId: 43114,
+    //     identifier: 'avax',
+    //     start: '2023-06-28',
+    // },
     [CHAIN.BASE]: {
         name: 'Base',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/prod/gn',
+        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/beta/gn',
         chainId: 8453,
         identifier: 'base',
         start: '2023-11-06',
@@ -55,25 +55,25 @@ const chainConfig = {
     },
     [CHAIN.MANTA]: {
         name: 'Manta',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-manta/prod/gn',
+        subgraphEndpoint: 'https://subgraph-archive.steer.finance/graphql/manta',
         chainId: 169,
         identifier: 'manta',
         start: '2023-12-01',
     },
     [CHAIN.MODE]: {
         name: 'Mode',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-mode/prod/gn',
+        subgraphEndpoint: 'https://subgraph-archive.steer.finance/graphql/mode',
         chainId: 34443,
         identifier: 'mode',
         start: '2024-03-24',
     },
-    [CHAIN.CELO]: {
-        name: 'Celo',
-        subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/BPaFHyfVrhv3pdjGodpQcWggAg1Bcrvc9SFc2t2BXeho',
-        chainId: 42220,
-        identifier: 'celo',
-        start: '2024-08-04'
-    },
+    // [CHAIN.CELO]: {
+    //     name: 'Celo',
+    //     subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/BPaFHyfVrhv3pdjGodpQcWggAg1Bcrvc9SFc2t2BXeho',
+    //     chainId: 42220,
+    //     identifier: 'celo',
+    //     start: '2024-08-04'
+    // },
     // 429 rpc error
     // [CHAIN.FLARE]: {
     //     name: 'Flare',
@@ -91,7 +91,7 @@ const chainConfig = {
     },
     [CHAIN.KATANA]: {
         name: 'Katana',
-        subgraphEndpoint: 'https://subgraph-proxy-server-xf2uthetka-as.a.run.app/gateway-arbitrum/D6CST1Az8c8KvMf8ktcEcWds89YVQxbKG6v8yo7FAzzM',
+        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-katana/prod/gn',
         chainId: 747474,
         identifier: 'katana',
         start: '2025-07-06',

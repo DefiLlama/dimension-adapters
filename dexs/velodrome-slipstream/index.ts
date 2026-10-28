@@ -1,6 +1,10 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { legacyRevenueExports, LOCKED_GAUGE_FEES } from "../aerodrome/utils";
 
 const sugarOld = '0x3e532BC1998584fe18e357B5187897ad0110ED3A'; // old Sugar version doesn't properly support pagination
 
@@ -51,11 +55,19 @@ interface ILog {
 const forSwaps = 'function forSwaps(uint256 _limit, uint256 _offset) view returns ((address lp, int24 type, address token0, address token1, address factory, uint256 pool_fee)[])'
 const event_swap = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
-const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<FetchResult> => {
+const poolAbis = {
+  liquidity: 'function liquidity() view returns (uint128)',
+  stakedLiquidity: 'function stakedLiquidity() view returns (uint128)',
+  unstakedFee: 'function unstakedFee() view returns (uint24)',
+}
+
+const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, getFromBlock, startOfDay, chain, getLogs } = fetchOptions
   const [fromBlock, toBlock] = await Promise.all([getFromBlock(), await api.getBlock() - 100])
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
+  const dailyHoldersRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
   const pairs: string[] = [];
   const pairInfoMap: Record<string, IForSwap> = {};
   let currentOffset = 0;
@@ -90,6 +102,22 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
   }
 
   sdk.log('velodrome pairs', pairs.length, 'all pairs', pairs.length, chain)
+
+  const [liquidity, stakedLiquidity, unstakedFee] = await Promise.all([
+    api.multiCall({ abi: poolAbis.liquidity, calls: pairs }),
+    api.multiCall({ abi: poolAbis.stakedLiquidity, calls: pairs }),
+    api.multiCall({ abi: poolAbis.unstakedFee, calls: pairs }),
+  ])
+  // kept in ppm so the split can be applied in BigInt and always add back up to the fee
+  const holdersShareppm: Record<string, bigint> = {}
+  pairs.forEach((pool, i) => {
+    const activeLiquidity = Number(liquidity[i])
+    const staked = Math.min(Number(stakedLiquidity[i]), activeLiquidity)
+    const stakedShare = activeLiquidity > 0 ? staked / activeLiquidity : 0
+    const share = stakedShare + (1 - stakedShare) * Number(unstakedFee[i]) / 1_000_000
+    holdersShareppm[pool] = BigInt(Math.round(share * 1_000_000))
+  })
+
   const targetChunkSize = 10;
   const pairChunks = sdk.util.sliceIntoChunks(pairs, targetChunkSize);
 
@@ -99,16 +127,19 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
 
     logs.forEach((logs: ILog[], idx) => {
       const pool = targets[idx];
-      
+
       if (pairInfoMap[pool]) {
         const { token1, pool_fee } = pairInfoMap[pool];
-  
+
         logs.forEach((log: any) => {
           const amount1 = Math.abs(Number(log.amount1));
-          const fee = Math.round((amount1 * Number(pool_fee)) / 1_000_000);
-  
+          const fee = BigInt(Math.round((amount1 * Number(pool_fee)) / 1_000_000));
+          const toHolders = fee * holdersShareppm[pool] / 1_000_000n;
+
           dailyVolume.add(token1, BigInt(amount1));
-          dailyFees.add(token1, BigInt(fee));
+          dailyFees.add(token1, fee, 'Token Swap Fees');
+          dailyHoldersRevenue.add(token1, toHolders, 'Swap Fees To Voters');
+          dailySupplySideRevenue.add(token1, fee - toHolders, 'Swap Fees To Unstaked LPs');
         });
       }
     });
@@ -116,11 +147,42 @@ const fetch = async (_: any, _1: any, fetchOptions: FetchOptions): Promise<Fetch
     sdk.log(`Velodrome ${chain} chunk ${chunkIndex + 1}/${pairChunks.length} processed`);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+  return {
+    dailyVolume,
+    dailyFees,
+    ...legacyRevenueExports(fetchOptions, dailyHoldersRevenue, 'Swap Fees To Voters'),
+    dailySupplySideRevenue,
+  }
 }
 
 const adapters: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Fees: 'Total swap fees paid by users.',
+    Revenue: 'The share of swap fees earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity: paid to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains), locked in the gauges after that.',
+    HoldersRevenue: 'The share of swap fees that went to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains): everything earned by liquidity staked in a gauge, plus the rake taken from unstaked liquidity.',
+    ProtocolRevenue: 'The same share of swap fees since the gauges last distributed fees ahead of the Aero upgrade, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
+    SupplySideRevenue: 'The share of swap fees kept by liquidity providers who have not staked their position in a gauge, after the rake.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      'Token Swap Fees': 'Total swap fees paid by users.',
+    },
+    Revenue: {
+      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters until the gauges last distributed fees ahead of the Aero upgrade.',
+      [LOCKED_GAUGE_FEES]: 'The same fees since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
+    },
+    HoldersRevenue: {
+      'Swap Fees To Voters': 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity, both claimable by voters until the gauges last distributed fees ahead of the Aero upgrade.',
+    },
+    ProtocolRevenue: {
+      [LOCKED_GAUGE_FEES]: 'Fees earned by gauge-staked liquidity plus the rake on unstaked liquidity since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
+    },
+    SupplySideRevenue: {
+      'Swap Fees To Unstaked LPs': 'Fees earned by liquidity that is not staked in a gauge, net of the rake, which stays with the position owner.',
+    },
+  },
   adapter: {
     [CHAIN.OPTIMISM]: {
       fetch,
@@ -153,12 +215,13 @@ const adapters: SimpleAdapter = {
     [CHAIN.SWELLCHAIN]: {
       fetch,
       start: '2025-02-25',
+      deadFrom: '2026-06-30', // swellchain stopped operations, same as dexs/velodrome-v2
     },
     [CHAIN.CELO]: {
       fetch,
       start: '2025-04-02',
     },
-  }
+  },
 }
 
 export default adapters;

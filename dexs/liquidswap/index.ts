@@ -10,7 +10,7 @@ const LIQUIDSWAP_SWAP_EVENT_PREFIXES = [
 // Existing dashboard history currently ends at 2025-10-21 from the old Pontem/Sentrio source.
 const START_DATE = "2025-10-22";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const eventFilters = LIQUIDSWAP_SWAP_EVENT_PREFIXES
     .map((prefix) => `event_type LIKE '${prefix}%'`)
     .join(" OR ");
@@ -60,12 +60,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.APTOS]: {
-      fetch,
-      start: START_DATE,
-    },
-  },
+  fetch,
+  chains: [CHAIN.APTOS],
+  start: START_DATE,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
 };

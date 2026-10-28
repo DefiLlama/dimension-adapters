@@ -13,15 +13,15 @@ Pick a category, then read the named file before writing code. This table is a r
 
 | Request | Folder / target | Required metric(s) | Inspect first |
 | --- | --- | --- | --- |
-| Protocol fees/revenue | `fees/` | `dailyFees`, `dailyRevenue` | `fees/GUIDELINES.md`, `helpers/metrics.ts`, labeled fee adapters |
-| Spot DEX volume | `dexs/` | `dailyVolume` | `dexs/GUIDELINES.md`, `helpers/uniswap.ts`, `factory/uniV2.ts`, `factory/uniV3.ts` |
-| Perp protocol volume | `dexs/` (usually) | `dailyVolume`, optional OI | `dexs/GUIDELINES.md`, perp examples in `dexs/` |
-| DEX aggregator volume | `aggregators/` | `dailyVolume` | `aggregators/GUIDELINES.md` |
-| Derivatives aggregator | `aggregator-derivatives/` | `dailyVolume`, optional OI | `aggregator-derivatives/GUIDELINES.md` |
-| Bridge aggregator | `bridge-aggregators/` | `dailyBridgeVolume` | `bridge-aggregators/GUIDELINES.md`, `helpers/aggregators/bungee.ts` |
-| Options | `options/` | `dailyNotionalVolume`, `dailyPremiumVolume` | `options/GUIDELINES.md` |
-| Open interest only | `open-interest/` | `openInterestAtEnd` | `open-interest/GUIDELINES.md` |
-| Incentives | `incentives/` | `tokenIncentives` | `incentives/GUIDELINES.md`, `adapters/types.ts` |
+| Protocol fees/revenue | `fees/` | `dailyFees`, `dailyRevenue` | `fees/AGENTS.md`, `helpers/metrics.ts`, labeled fee adapters |
+| Spot DEX volume | `dexs/` | `dailyVolume` | `dexs/AGENTS.md`, `helpers/uniswap.ts`, `factory/uniV2.ts`, `factory/uniV3.ts` |
+| Perp protocol volume | `dexs/` (usually) | `dailyVolume`, optional OI | `dexs/AGENTS.md`, perp examples in `dexs/` |
+| DEX aggregator volume | `aggregators/` | `dailyVolume` | `aggregators/AGENTS.md` |
+| Derivatives aggregator | `aggregator-derivatives/` | `dailyVolume`, optional OI | `aggregator-derivatives/AGENTS.md` |
+| Bridge aggregator | `bridge-aggregators/` | `dailyBridgeVolume` | `bridge-aggregators/AGENTS.md`, `helpers/aggregators/bungee.ts` |
+| Options | `options/` | `dailyNotionalVolume`, `dailyPremiumVolume` | `options/AGENTS.md` |
+| Open interest only | `open-interest/` | `openInterestAtEnd` | `open-interest/AGENTS.md` |
+| Incentives | `incentives/` | `tokenIncentives` | `incentives/AGENTS.md`, `adapters/types.ts` |
 | Active users | `active-users/` or `users/list.ts` factory | `dailyActiveUsers` | `users/list.ts`, `active-users/` examples |
 | New users | `users/list.ts` factory | `dailyNewUsers` | `users/list.ts`, `factory/registry.ts` |
 | Normalized volume | `factory/normalizedVolume.ts` | `dailyNormalizedVolume`, `dailyActiveLiquidity` | `factory/normalizedVolume.ts`, `factory/registry.ts` |

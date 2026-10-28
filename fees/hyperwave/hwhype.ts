@@ -181,7 +181,7 @@ export async function getHwhypeHwusdFees(options: FetchOptions): Promise<{
                         vaultRateBase;
 
                     const supplySideYield =
-                        (totalDeposited * growthRate) / vaultRateBase;
+                        (Number(totalSupplyAtUpdated) * growthRate) / vaultRateBase;
                     const totalYield =
                         supplySideYield / (1 - performanceFeeRate);
                     const protocolFee = totalYield - supplySideYield;
@@ -217,9 +217,9 @@ export async function getHwhypeHwusdFees(options: FetchOptions): Promise<{
             // platform fees changred by Veda per year of total assets in vault
             const yearInSecs = 365 * 24 * 60 * 60;
             const timespan =
-                options.toApi.timestamp && options.fromApi.timestamp
-                    ? Number(options.toApi.timestamp) -
-                      Number(options.fromApi.timestamp)
+                options.toTimestamp && options.fromTimestamp
+                    ? Number(options.toTimestamp) -
+                      Number(options.fromTimestamp)
                     : 86400;
             const platformFee =
                 (totalDeposited *

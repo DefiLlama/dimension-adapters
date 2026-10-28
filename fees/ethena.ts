@@ -47,7 +47,8 @@ const fetch = async (options: FetchOptions) => {
     target: MINT_AND_REDEEM_CONTRACT['V2'],
   });
 
-  // Mint fees is approx 0.1% but we changed it to collateral_amount - usde_amount and ignore negative values
+  // V1 only ever accepted 6-decimal stables (USDT/USDC/USDtb-pre-rebrand) so
+  // `/1e12` is safe to bake in.
   v1_logs.map((log) => {
     const fee = Number(log.collateral_amount) - (Number(log.usde_amount) / 1e12);
     if (fee > 0) {
@@ -55,12 +56,49 @@ const fetch = async (options: FetchOptions) => {
     }
   });
 
-  // Mint fees is approx 0.1%
-  v2_logs.map((log) => {
-    // 0.1% mint amount
-    const fee = (Number(log.usde_amount) / 0.999) - Number(log.usde_amount)
-    dailyMintFees.add(usde, fee, EXTRA_METRICS.MINT_FEES);
-  });
+  // V2 accepts mixed-decimal collateral (USDT/USDC/USDG = 6 dec, USDtb/USDm =
+  // 18 dec) so the V1 formula's hardcoded /1e12 doesn't generalize. The
+  // previous V2 code instead hardcoded a 0.1% rate (`usde / 0.999 - usde`)
+  // and booked it as USDe; that:
+  //   1. Assumes a fixed fee rate when Ethena V2's actual rate is per-mint
+  //      and currently ~0.05% across stable collateral (on-chain sampling
+  //      shows true fee = collateral - usde_minted, never the 0.1% baseline).
+  //   2. Books fees against USDe regardless of what the user actually paid.
+  // Switch to the same event-derived approach as V1, but read each
+  // collateral asset's decimals on-chain so the scale conversion handles
+  // 18-dec stables (USDtb, USDm) correctly.
+  if (v2_logs.length > 0) {
+    const collateralAssetsV2 = Array.from(
+      new Set<string>(v2_logs.map((log: any) => log.collateral_asset.toLowerCase())),
+    );
+    const decimalsResults: Array<any> = await options.api.multiCall({
+      abi: 'uint8:decimals',
+      calls: collateralAssetsV2,
+    });
+    const decByAsset: Record<string, number> = {};
+    collateralAssetsV2.forEach((asset, i) => {
+      const d = Number(decimalsResults[i]);
+      if (!Number.isFinite(d)) throw new Error(`ethena: invalid decimals for collateral asset ${asset}`);
+      decByAsset[asset] = d;
+    });
+
+    for (const log of v2_logs) {
+      const asset = log.collateral_asset.toLowerCase();
+      const dec = decByAsset[asset];
+      const collateral = BigInt(log.collateral_amount);
+      const usdeRaw = BigInt(log.usde_amount);
+      // Convert USDe (18-dec) into the collateral asset's decimal scale before
+      // taking the diff so the fee comes out in the asset's native units.
+      const usdeInAssetScale =
+        dec >= 18
+          ? usdeRaw * (10n ** BigInt(dec - 18))
+          : usdeRaw / (10n ** BigInt(18 - dec));
+      const fee = collateral - usdeInAssetScale;
+      if (fee > 0n) {
+        dailyMintFees.add(asset, fee, EXTRA_METRICS.MINT_FEES);
+      }
+    }
+  }
   dailyFees.addBalances(dailyMintFees, EXTRA_METRICS.MINT_FEES);
   dailyRevenue.addBalances(dailyMintFees, EXTRA_METRICS.MINT_FEES);
 

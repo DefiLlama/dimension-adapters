@@ -59,7 +59,7 @@ const fetch = async (options: FetchOptions) => {
   const rateAfter = (assetsAfter * 1e18) / supplyAfter;
 
   // Net rewards
-  const netRewards = ((rateAfter - rateBefore) * assetsBefore) / 1e18;
+  const netRewards = ((rateAfter - rateBefore) * supplyBefore) / 1e18;
 
   // Gross rewards before protocol and guardian fees
   // https://docs.puffer.fi/yield/protocol/rewards

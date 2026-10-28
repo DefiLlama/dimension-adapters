@@ -12,7 +12,7 @@ interface MarinadeAmounts {
 }
 const buybacksStart = 1757030400; // 2025-09-05
 
-const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp }: FetchOptions) => {
+const fetch = async ({ createBalances, fromTimestamp }: FetchOptions) => {
   // Amounts in SOL lamports
   const amounts: MarinadeAmounts = (await fetchURL('https://stats-api.marinade.finance/v1/integrations/defillama/fees')).liquid
   const coin = ADDRESSES.solana.SOL
@@ -46,6 +46,10 @@ const fetch = async (_a: any, _b: any, { createBalances, fromTimestamp }: FetchO
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2023-07-12', // 2023-07-12T00:00:00Z
+  runAtCurrTime: true,
   methodology: {
     // https://docs.llama.fi/list-your-project/other-dashboards/dimensions
     UserFees: 'Marinade management fee 6% on staking rewards',
@@ -54,13 +58,6 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: '50% of the revenue is collected by Marinade',
     SupplySideRevenue: 'Amount of 94% staking rewards are distributed to stakers',
     HoldersRevenue: '50% of the revenue is used on MNDE Buybacks since 2025-09-05.',
-  },
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2023-07-12', // 2023-07-12T00:00:00Z
-      runAtCurrTime: true,
-    },
   },
 }
 export default adapter

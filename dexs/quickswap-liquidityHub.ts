@@ -1,14 +1,14 @@
-
-import { FetchOptions } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const fetchLiquidityHub = async (_a: any, _: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   let dailyResult = await fetchURL(
     "https://hub.orbs.network/analytics-daily/v1",
   );
 
-  let dailyVolume = dailyResult.result.rows.find((row: any) => row.key === options.dateString)?.daily_total_calculated_value
+  // the API renamed the date field from `key` to `evt_date`
+  let dailyVolume = dailyResult.result.rows.find((row: any) => (row.evt_date ?? row.key) === options.dateString)?.daily_total_calculated_value
   if (!dailyVolume)
     throw new Error(`No data found for date ${options.dateString}`);
 
@@ -17,12 +17,11 @@ const fetchLiquidityHub = async (_a: any, _: any, options: FetchOptions) => {
   };
 }
 
-export default {
+const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.POLYGON]: {
-      fetch: fetchLiquidityHub,
-      start: '2023-09-18',
-    },
-  },
+  fetch,
+  chains: [CHAIN.POLYGON],
+  start: '2023-09-18',
 }
+
+export default adapter;

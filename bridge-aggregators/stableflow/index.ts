@@ -1,4 +1,4 @@
-import { Fetch, FetchResult, FetchV2, SimpleAdapter } from "../../adapters/types";
+import { FetchResult, FetchV2, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -45,7 +45,7 @@ const prefetch: FetchV2 = async () => {
     return res.data;
 };
 
-const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     const {
         chain: currentChainBlock,
         startTimestamp,
@@ -64,8 +64,8 @@ const fetch: Fetch = async (_timestamp, _chainBlocks, options): Promise<FetchRes
 
 const adapter: SimpleAdapter = {
     version: 1,
-    prefetch,
     fetch,
+    prefetch,
     chains: Object.keys(chainMap),
     start: "2025-10-10",
 };

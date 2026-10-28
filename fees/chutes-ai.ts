@@ -10,7 +10,7 @@ interface DailyRevenueSummary {
   sponsored_inference: number;
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   
   const url = `https://api.chutes.ai/daily_revenue_summary`;

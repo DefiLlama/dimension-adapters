@@ -5,7 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 
 const FeesAndRevenueURL = "https://www.apollox.finance/bapi/futures/v1/public/future/apx/fee/all"
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
   const { data: { alpFeeVOFor24Hour } } = await fetchURL(FeesAndRevenueURL)
   const dailyFees = options.createBalances();
@@ -35,7 +35,13 @@ const adapter: Adapter = {
   chains: [CHAIN.OFF_CHAIN],
   runAtCurrTime: true,
   methodology,
-  breakdownMethodology
+  breakdownMethodology,
+  unknownBreakdownMethodology: {
+    SupplySideRevenue: {
+      'ALP Holders Share of Fees': 'Part of the trading fees is added to the value of the ALP liquidity pool for its holders. The share is not published.',
+      'Referral Commissions': 'Referrers earn 10% of the trading fees of the users they refer (20% for approved affiliates), paid from offchain records.',
+    },
+  },
 }
 
 export default adapter;

@@ -72,95 +72,98 @@ const config: Record<string, ChainConfig> = {
   },
 };
 
+interface Snapshot {
+  id: string;
+  totalSwapVolume: string;
+}
+
 interface Data {
-  start: {
-    id: string;
-    totalSwapVolume: string;
+  _meta: {
+    block: {
+      timestamp: number;
+    };
   };
-  end: {
-    id: string;
-    totalSwapVolume: string;
-  };
+  start: Snapshot[];
+  end: Snapshot[];
 }
 
 const getVolume = async (options: FetchOptions) => {
-  const starttimestamp = options.startOfDay;
-  const endtimestamp = starttimestamp + 86400;
-  const startId = config[options.chain].id + '-' + starttimestamp;
-  const endId = config[options.chain].id + '-' + endtimestamp;
+  // A swaapSnapshot accumulates through the day its id names, so a day's volume is its own
+  // snapshot minus the previous day's. Reading the next day's snapshot shifted the series one
+  // day forward and, in production, read that snapshot while it was still filling up.
+  // Snapshots are only written on days with vault activity
+  const dayStart = options.startOfDay;
+  const { id, api } = config[options.chain];
 
   const query = gql`
   {
-      start:swaapSnapshot(id: "${startId}") {
+      _meta {
+          block {
+              timestamp
+          }
+      }
+      start:swaapSnapshots(first: 1, orderBy: timestamp, orderDirection: desc, where: { vault: "${id}", timestamp_lt: ${dayStart} }) {
           id
           totalSwapVolume
       }
-      end:swaapSnapshot(id: "${endId}") {
+      end:swaapSnapshots(first: 1, orderBy: timestamp, orderDirection: desc, where: { vault: "${id}", timestamp_lte: ${dayStart} }) {
           id
           totalSwapVolume
       }
   }
   `;
-  const url = config[options.chain].api;
-  const graphQLClient = new GraphQLClient(url, { timeout: 3000 });
+  const graphQLClient = new GraphQLClient(api, { timeout: 30000 });
   const result: Data = await graphQLClient.request(query);
-  const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0);
+  // a lagging subgraph would read as a quiet day, so wait until it has indexed past the day
+  if (result._meta.block.timestamp < dayStart + 86400)
+    throw new Error(`swaap-v2 ${options.chain} subgraph is indexed only up to ${new Date(result._meta.block.timestamp * 1000).toISOString()}`);
+  const dailyVolume = Number(result.end[0]?.totalSwapVolume || 0) - Number(result.start[0]?.totalSwapVolume || 0);
   return {
     dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
   };
 };
 
-const v2graphs = async (_t: any, _tt: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { dailyVolume } = await getVolume(options);
   return {
-    timestamp: options.startOfDay,
     dailyVolume,
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 1,
+  fetch,
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: v2graphs,
       start: '2023-07-01',
     },
     [CHAIN.POLYGON]: {
-      fetch: v2graphs,
       start: '2023-06-30',
     },
     [CHAIN.ARBITRUM]: {
-      fetch: v2graphs,
       start: '2023-10-05',
     },
     [CHAIN.OPTIMISM]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BSC]: {
-      fetch: v2graphs,
       start: '2024-05-29',
     },
     [CHAIN.BASE]: {
-      fetch: v2graphs,
       start: '2024-05-14',
     },
-    [CHAIN.MODE]: {
-      fetch: v2graphs,
-      start: '2024-05-02',
-    },
-    [CHAIN.SCROLL]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
-    [CHAIN.LINEA]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
-    [CHAIN.MANTLE]: {
-      fetch: v2graphs,
-      start: '2024-06-27',
-    },
+    // [CHAIN.MODE]: {
+    //   start: '2024-05-02',
+    // }, -> subgraph not available
+    // [CHAIN.SCROLL]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
+    // [CHAIN.LINEA]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
+    // [CHAIN.MANTLE]: {
+    //   start: '2024-06-27',
+    // }, -> subgraph not available
   },
 };
 

@@ -10,13 +10,13 @@ export function buildStablecoinAdapter(chain: string, stablecoinId: string, days
     time: string, // time of report
     circulation: number, // billions of USDC in circulation
     allocated: number, // billions in tbills + repos + money market funds (DON'T INCLUDE CASH!)
-    tbillRate: number // % interest earned in treasury bills
+    tbillRate?: number // % interest earned in treasury bills
 }[]) {
     const adapter: Adapter = {
         version: 1,
         adapter: {
             [chain]: {
-                fetch: async (_a: any, _b: any, options: FetchOptions) => {
+                fetch: async (options: FetchOptions) => {
                     const dailyFees = options.createBalances()
 
                     const FRED_API_KEY = getEnv("FRED_API_KEY");

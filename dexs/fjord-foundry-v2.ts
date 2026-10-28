@@ -15,19 +15,22 @@ const v2ChainIDs: any = {
     [CHAIN.BSC]: 56,
 };
 
-const getV2Data = async (endTimestamp: number, chainId: number) => {
+const fetch = async (options: FetchOptions) => {
+  const endTimestamp = options.toTimestamp;
+  const chainId = v2ChainIDs[options.chain];
     const dayTimestamp = getTimestampAtStartOfDayUTC(endTimestamp)
     const historicalVolume = (await fetchURL(feeEndpointV2))
 
     const chainData = historicalVolume.stats.evm.find((cd: any) => cd.chainId === chainId);
     if (!chainData) throw new Error(`Chain data not found for chainId: ${chainId}`);
 
+    // the API publishes an explicit row per day, so a 0 volume is a real quiet day, not missing data
     const dailyVolume = chainData.stats
         .find((dayItem: any) => dayItem.timestamp === dayTimestamp)?.volume;
-    if (!dailyVolume) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
+    if (dailyVolume === undefined || dailyVolume === null) throw new Error(`Daily volume not found for timestamp: ${dayTimestamp}`);
 
     return {
-        dailyVolume: dailyVolume,
+        dailyVolume,
     };
 };
 
@@ -36,7 +39,7 @@ const adapter: SimpleAdapter = {
         return {
             ...acc,
             [chain]: {
-                fetch: async (_ts: number, _chain: any, { startOfDay }: FetchOptions) => await getV2Data(startOfDay, v2ChainIDs[chain]),
+                fetch,
                 start: '2023-12-18',
             },
         }

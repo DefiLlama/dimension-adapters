@@ -1,12 +1,24 @@
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { FetchOptions } from "../../adapters/types";
 
-const fetch = async (timestamp: number) => {
-  const res = await fetchURL(`https://api.etaswap.com/v1/statistics/volume/total?timestamp=${timestamp}`);
+interface IDayStats {
+  label: string;
+  volumeHBAR: string;
+  volumeUSD: string;
+  poolFeeHBAR: string;
+  poolFeeUSD: string;
+}
+
+const fetch = async (options: FetchOptions) => {
+  // values are returned in cents of USD
+  const res: IDayStats[] = await fetchURL('https://api.etaswap.com/v1/statistics/volume');
+  const dayStats = res.find((item) => item.label === options.dateString);
+  if (!dayStats) throw new Error(`EtaSwap: no stats found for ${options.dateString}`);
 
   return {
-    dailyVolume: Number(res.volume_USD_24h) / 100,
-    dailyFees: Number(res.fee_USD_24h) / 100
+    dailyVolume: Number(dayStats.volumeUSD) / 100,
+    dailyFees: Number(dayStats.poolFeeUSD) / 100
   };
 
 };

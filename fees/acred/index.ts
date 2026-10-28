@@ -2,12 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getTokenSupply } from "../../helpers/solana";
 import * as sdk from "@defillama/sdk";
-import fetchURL from "../../utils/fetchURL";
 
 const chainConfig: any = {
     [CHAIN.ETHEREUM]: {
-        start: '2025-10-29',
-        token: '0x51C2d74017390CbBd30550179A16A1c28F7210fc',
+        // Token deployed 2025-01-08, but the RedStone NAV feed (priceFeed below)
+        // only deployed 2025-02-20, and prefetch reads latestAnswer at the day's
+        // start block; start on the first full day the feed exists to avoid reverts.
+        start: '2025-02-21',
+        // ACRED (Apollo Diversified Credit Securitize Fund) token, symbol ACRED, 6 decimals.
+        // Source: https://etherscan.io/token/0x17418038ecF73BA4026c4f428547BF099706F27B
+        token: '0x17418038ecF73BA4026c4f428547BF099706F27B',
     },
     [CHAIN.AVAX]: {
         start: '2025-01-29',
@@ -46,7 +50,6 @@ const tokenDecimals = 6;
 const REDSTONE_ORACLE_DECIMALS = 8;
 const MANAGEMENT_FEE = 0.5 / 100;
 const ONE_YEAR_IN_SECONDS = 365 * 24 * 60 * 60;
-const APTOS_API_BASE_URL = 'https://api.mainnet.aptoslabs.com'
 
 async function prefetch(options: FetchOptions) {
     const apiFrom = new sdk.ChainApi({ chain: CHAIN.ETHEREUM, timestamp: options.fromTimestamp })
@@ -71,7 +74,7 @@ async function prefetch(options: FetchOptions) {
     }
 }
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
@@ -88,8 +91,9 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
         totalSupplyAfterDecimals = totalSupply
     }
     else if (options.chain === CHAIN.APTOS) {
-        const apiResponse = await fetchURL(`${APTOS_API_BASE_URL}/v1/accounts/${tokenAddress}/resource/0x1::fungible_asset::ConcurrentSupply`)
-        totalSupplyAfterDecimals = Number(apiResponse.data.current.value) / (10 ** tokenDecimals);
+        const supply = await sdk.chains.aptos.getResource({ account: tokenAddress, type: '0x1::fungible_asset::ConcurrentSupply' })
+        if (!supply) throw new Error(`acred: no ConcurrentSupply resource at ${tokenAddress}`)
+        totalSupplyAfterDecimals = Number(supply.current.value) / (10 ** tokenDecimals);
     }
     else {
         const totalSupply = await options.api.call({

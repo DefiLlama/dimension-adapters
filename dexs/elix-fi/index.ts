@@ -24,7 +24,7 @@ function getRequest(chain: string, fromTimestamp: number, toTimestamp: number): 
   const config = elixfiConfig[chain];
   if (!config) throw new Error(`No elix.fi config for chain ${chain}`);
   const url = new URL("/sql/db", config.indexerURL);
-  
+
   url.searchParams.set(
     "sql",
     JSON.stringify({
@@ -73,17 +73,17 @@ export async function fetchElixFiMetrics(
   return data.rows || [];
 }
 
-async function fetchFunction(_a: any, _b: any, options: FetchOptions): Promise<FetchResultV2> {
+async function fetchFunction(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
   const metrics = await fetchElixFiMetrics(options.chain, options.fromTimestamp, options.toTimestamp);
-  
+
   metrics.forEach((metric) => {
     dailyVolume.add(metric.token, metric.volume);
     dailyFees.add(metric.token, metric.fee);
   });
-  
+
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
 }
 
@@ -91,7 +91,7 @@ const adapter: Adapter = {
   adapter: {
     ...Object.entries(elixfiConfig).reduce((acc, [key, config]) => {
       acc[key] = {
-        fetch:fetchFunction,
+        fetch: fetchFunction,
         start: config.start,
       };
       return acc;

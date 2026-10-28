@@ -1,11 +1,12 @@
 import request, { gql } from "graphql-request";
-import { Fetch, SimpleAdapter } from "../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-  // [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  // same stats subgraph as fees/fulcrom-finance.ts; indexes the Era Vault 0x7d5b0215EF203D0660BC37d5D09d964fd6b55a1E
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('4nAamZ3MZqSegV9CfN3fRpcu5j415JDLZJdBsn6CZX91'),
   [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 
@@ -27,47 +28,26 @@ interface IGraphResponse {
   }>;
 }
 
-const getFetch =
-  (chain: string): Fetch =>
-    async (timestamp: number) => {
-      const dayTimestamp = getUniqStartOfTodayTimestamp(
-        new Date(timestamp * 1000)
-      );
-      const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
-        id: "daily:" + String(dayTimestamp),
-        period: "daily",
-      });
-      const totalData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
-        id: "total",
-        period: "total",
-      });
-
-      return {
-        timestamp: dayTimestamp,
-        dailyVolume:
-          dailyData.volumeStats.length == 1
-            ? String(
-              Number(
-                Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-              10 ** -30
+const fetch = async (options: FetchOptions) => {
+  const chain = options.chain;
+  const dailyData: IGraphResponse = await request(endpoints[chain], historicalDataSwap, {
+    id: "daily:" + String(options.startOfDay),
+    period: "daily",
+  });
+  return {
+    dailyVolume:
+      dailyData.volumeStats.length == 1
+        ? String(
+          Number(
+            Object.values(dailyData.volumeStats[0]).reduce((sum, element) =>
+              String(Number(sum) + Number(element))
             )
-            : undefined,
-        totalVolume:
-          totalData.volumeStats.length == 1
-            ? String(
-              Number(
-                Object.values(totalData.volumeStats[0]).reduce((sum, element) =>
-                  String(Number(sum) + Number(element))
-                )
-              ) *
-              10 ** -30
-            )
-            : undefined,
-      };
-    };
+          ) *
+          10 ** -30
+        )
+        : undefined,
+  };
+};
 
 const startTimestamps: { [chain: string]: number } = {
   [CHAIN.CRONOS]: 1677470400,
@@ -80,7 +60,7 @@ const adapter: SimpleAdapter = {
     return {
       ...acc,
       [chain]: {
-        fetch: getFetch(chain),
+        fetch,
         start: startTimestamps[chain],
       },
     };

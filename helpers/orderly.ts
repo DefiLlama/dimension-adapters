@@ -21,7 +21,7 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
 
   const url = `https://api.orderly.org/md/volume/builder/daily_stats?broker_id=${broker_id}`
 
-  async function fetch(_: any, _1: any, { dateString }: FetchOptions) {
+  async function fetch({ dateString }: FetchOptions) {
     if (!statsCache[broker_id]) statsCache[broker_id] = httpGet(url).then(data => {
       const dateDataMap: any = {}
       data.forEach((i: any) => {
@@ -30,10 +30,13 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
       return dateDataMap
     })
 
-    const data = (await statsCache[broker_id])[dateString]
+    const dateDataMap = await statsCache[broker_id]
 
-    if (!data)
-      throw new Error('Data missing for date: ' + dateString)
+    if (!Object.keys(dateDataMap).length)
+      throw new Error('No daily stats returned for broker: ' + broker_id)
+
+    // the API omits days with no trading activity - a missing date is zero volume, not an error
+    const data = dateDataMap[dateString] ?? { takerVolume: 0, makerVolume: 0, builderFee: 0 }
 
     const dailyVolume = +data.takerVolume + +data.makerVolume
     const dailyFees = +data.builderFee

@@ -5,31 +5,25 @@ import {
 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
-import { getEnv } from "../helpers/env";
 
-const BASE_URL = "https://llama.astros.ag/api/third/info";
-
-const getHeaders = () => ({
-  "api-key": getEnv("ASTROS_PERP_API_KEY"),
-});
+const API_URL =
+  "https://api.astros.ag/api/contract-sub-provider/openapi/pub/defillama";
 
 const fetch = async (_: FetchOptions): Promise<FetchResultV2> => {
-  const oi = await httpGet(`${BASE_URL}/oi`, { headers: getHeaders() })
-
-  const openInterestAtEnd = oi.data.reduce(
-    (sum: number, item: any) => sum + Number(item.amount),
-    0
-  );
+  const { data } = await httpGet(API_URL);
 
   return {
-    openInterestAtEnd,
+    openInterestAtEnd: Number(data.open_interest),
   };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
-    [CHAIN.SUI]: {
+    // Off-chain order book with only a deposit contract on Sui (the audits cover the deposit
+    // contract alone and fills carry no Sui digests), so the venue is keyed as off_chain rather
+    // than Sui.
+    [CHAIN.OFF_CHAIN]: {
       fetch,
       runAtCurrTime: true,
     },

@@ -98,7 +98,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Volume: "DEX swap volume on PumpSpace (Trident V3) on Avalanche. ",
+    Volume: "DEX swap volume on AllBlue V3 (Trident) on Avalanche.",
     Fees:
         "V3 fees are computed on amountIn using each pool's swapFee() (pips where 1e6 = 100%).",
     UserFees: "Users pay V3 swapFee() per swap.",

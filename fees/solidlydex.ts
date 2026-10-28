@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { Adapter, FetchResultFees } from "../adapters/types";
+import { Adapter, FetchResultFees, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getBlock } from "../helpers/getBlock";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfNextDayUTC } from "../utils/date";
@@ -23,9 +23,9 @@ interface IQueryRange {
   today: IPair[];
 }
 
-const fetch = async (timestamp: number): Promise<FetchResultFees> => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp)
-  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(timestamp)
+const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp)
+  const yesterdaysTimestamp = getTimestampAtStartOfNextDayUTC(options.toTimestamp)
 
   const todaysBlock = (await getBlock(todaysTimestamp, 'ethereum', {}));
   const yesterdaysBlock = (await getBlock(yesterdaysTimestamp, 'ethereum', {}));
@@ -59,7 +59,6 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
     .reduce((a: number, b: IPairs) => a + ((Number(b.fee)/10**6) * Number(b.volumeUSD)), 0);
 
   return {
-    timestamp,
     dailyFees,
     dailyRevenue: dailyFees,
     dailyHoldersRevenue: dailyFees,
@@ -67,12 +66,9 @@ const fetch = async (timestamp: number): Promise<FetchResultFees> => {
   }
 }
 const adapter: Adapter = {
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch: fetch,
-      start: '2022-12-31'
-    },
-  }
+  fetch,
+  chains: [CHAIN.ETHEREUM],
+  start: '2022-12-31',
 }
 
 export default adapter;

@@ -2,15 +2,12 @@ import { Adapter, Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 
-  // Bilateral OI: max(oi_long, oi_short) * 2.
-  // Ostium is a bilateral OTC venue: every trade has a counterparty (another trader
-  // or the Liquidity Pool Vault). The vault's private hedging operations are now
-  // fully off-chain and can't be tracked directly, so trader-side notional alone
-  // understates true exposure. Taking the larger side and doubling it gives an
-  // approximation of total open exposure across both legs of the market. If/when
-  // hedging activity is reflected on-chain again, this can be revisited.
+  // OI = oi_long + oi_short. Ostium is a pool venue: every trader position has the Liquidity
+  // Pool Vault on the other side, so long + short counts each open position once (the subgraph's
+  // open trades sum to longOI/shortOI), matching how the other pool venues are reported.
+  // This replaces an earlier max(long, short) * 2 estimate of total two-legged exposure.
   const volumeRes = await queryDuneSql(options, `
     WITH orders AS (
       SELECT * FROM query_5255724
@@ -35,7 +32,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS open_interest
       FROM orders
-      WHERE executed_at <= from_unixtime(${options.endTimestamp})
+      WHERE executed_at < from_unixtime(${options.endTimestamp})
       GROUP BY 1, is_buy
     ),
     latest_oi_per_side AS (
@@ -46,16 +43,15 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
           open_interest,
           row_number() OVER (PARTITION BY is_buy ORDER BY day DESC) AS rn
         FROM oi_daily
-        WHERE day <= from_unixtime(${options.endTimestamp})
+        WHERE day < from_unixtime(${options.endTimestamp})
       )
       WHERE rn = 1
     ),
     final_oi AS (
       SELECT
-        greatest(
-          sum(IF(is_buy, open_interest, 0)),
-          sum(IF(NOT is_buy, open_interest, 0))
-        ) * 2 AS open_interest
+        (
+          sum(IF(is_buy, open_interest, 0)) + sum(IF(NOT is_buy, open_interest, 0))
+        ) AS open_interest
       FROM latest_oi_per_side
     )
     SELECT 

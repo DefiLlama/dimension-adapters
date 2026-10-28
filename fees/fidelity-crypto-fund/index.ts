@@ -39,7 +39,7 @@ async function getFundFees({ id, activeDuration }: Fund & { activeDuration: numb
   return Number(response.aum) * expenseRatio * activeDuration / ONE_YEAR_IN_SECONDS;
 }
 
-async function fetch(_timestamp: number, _chainBlocks: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   const dailyFees = options.createBalances();
   const activeFunds = funds
     .map((fund) => ({

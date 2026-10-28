@@ -2,7 +2,7 @@ import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 const { request, } = require("graphql-request");
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 export const LINKS: { [key: string]: any } = {
 	[CHAIN.SONIC]: {
@@ -14,7 +14,7 @@ const methodology = {
 	Fees: "Fees generated on each swap at a rate set by the pool.",
 };
 
-export const fetch = async (_:any, _1: any, options: FetchOptions) => {
+export const fetch = async (options: FetchOptions) => {
 	const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.startOfDay) / 86400);
 	const query = `{
     algebraDayData(id: ${dateId}) { feesUSD volumeUSD }
@@ -29,12 +29,11 @@ export const fetch = async (_:any, _1: any, options: FetchOptions) => {
 	};
 };
 
-export default {
-	adapter: {
-		[CHAIN.SONIC]: {
-			fetch,
-			start: "2024-12-07",
-		},
-	},
+const adapter: SimpleAdapter = {
+	fetch,
+	chains: [CHAIN.SONIC],
+	start: "2024-12-07",
 	methodology,
 };
+
+export default adapter;

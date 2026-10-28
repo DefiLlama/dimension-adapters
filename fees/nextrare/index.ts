@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // NextRare — TCG gacha protocol on MegaETH.
 //
 // A user buys gift cards (each = $5), opens packs by burning them, and may
@@ -23,6 +24,7 @@
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const GIFT_CARD = "0x7D7d2c07196feFBD334B127136bCA1BD8EafFBF1";
 
@@ -36,7 +38,7 @@ const VAULTS: { addr: string; deployBlock: number }[] = [
 
 const GIFT_CARD_TOKEN_ID = 1;
 const PRICE_PER_CARD_USD = 5;
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const TRANSFER_SINGLE =
     "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)";
@@ -119,6 +121,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.MEGAETH],
     start: "2026-04-06",
     methodology,
+    unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

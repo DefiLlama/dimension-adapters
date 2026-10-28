@@ -17,7 +17,7 @@ interface IFeeData {
     timestamp: number;
 }
 
-const fetch = async (_a: number, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     // Amnis Finance started charging fees on 2024-10-03
     const amnisFeeStartDate = 1727888400;
 

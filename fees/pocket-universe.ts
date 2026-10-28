@@ -26,10 +26,9 @@ const info = {
   }
 }
 
-const start = 1712710800
 const adapter: SimpleAdapter = {
   fetch, methodology: info.methodology,
-  start,
+  start: '2024-04-10',
   version: 2,
   pullHourly: true,
   chains: [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.POLYGON, CHAIN.BSC, CHAIN.OPTIMISM,],

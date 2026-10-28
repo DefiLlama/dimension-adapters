@@ -1,17 +1,19 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
 import { METRIC } from "../helpers/metrics";
+import { PHYSICAL_CARD_COSTS } from "../helpers/physicalCards";
 
 const READY_CARDS_TREASURY = "bvT9KFrAqmRpnb6AsuaJzdVKEVuT5jAVYt3N5CyGvkV";
 const MEMO_PROGRAM = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 
 const READY_MINT = "HKJHsYJHMVK5VRyHHk5GhvzY9tBAAtPvDkZfDH6RLDTd";
-const USDT_MINT = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+const USDT_MINT = ADDRESSES.solana.USDT;
 
 const PAYMENT_MINTS = [
-    "So11111111111111111111111111111111111111112", // SOL / wSOL
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
+    ADDRESSES.solana.SOL, // SOL / wSOL
+    ADDRESSES.solana.USDC, // USDC
     USDT_MINT, // USDT
 ];
 
@@ -29,7 +31,7 @@ async function getAlliumData(options: FetchOptions) {
       SELECT DISTINCT txn_id
       FROM solana.assets.transfers
       WHERE (to_address = '${READY_CARDS_TREASURY}' OR from_address = '${READY_CARDS_TREASURY}')
-        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ), token_buyback_txs AS (
       SELECT DISTINCT ready_in.txn_id
       FROM solana.assets.transfers ready_in
@@ -40,8 +42,8 @@ async function getAlliumData(options: FetchOptions) {
         AND ready_in.from_address != '${READY_CARDS_TREASURY}'
         AND payment_out.from_address = '${READY_CARDS_TREASURY}'
         AND payment_out.mint IN (${nonUsdtPaymentMints})
-        AND ready_in.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND payment_out.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND ready_in.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND ready_in.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND payment_out.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND payment_out.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ), web2_memos AS (
       SELECT
         instructions.txn_id,
@@ -53,7 +55,7 @@ async function getAlliumData(options: FetchOptions) {
       FROM solana.raw.instructions instructions
       JOIN ready_txs ON ready_txs.txn_id = instructions.txn_id
       WHERE instructions.program_id = '${MEMO_PROGRAM}'
-        AND instructions.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND instructions.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND instructions.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     )
 
     SELECT 'pack_purchases' AS category, mint AS token, COALESCE(SUM(raw_amount), 0) AS amount
@@ -61,7 +63,7 @@ async function getAlliumData(options: FetchOptions) {
     WHERE to_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${paymentMints})
       AND from_address != '${READY_CARDS_TREASURY}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY mint
 
     UNION ALL
@@ -70,7 +72,7 @@ async function getAlliumData(options: FetchOptions) {
     FROM solana.assets.transfers
     WHERE from_address = '${READY_CARDS_TREASURY}'
       AND mint = '${USDT_MINT}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
 
     UNION ALL
 
@@ -80,7 +82,7 @@ async function getAlliumData(options: FetchOptions) {
       AND mint = '${READY_MINT}'
       AND from_address != '${READY_CARDS_TREASURY}'
       AND txn_id NOT IN (SELECT txn_id FROM token_buyback_txs)
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
 
     UNION ALL
 
@@ -89,7 +91,7 @@ async function getAlliumData(options: FetchOptions) {
     WHERE from_address = '${READY_CARDS_TREASURY}'
       AND mint IN (${nonUsdtPaymentMints})
       AND txn_id IN (SELECT txn_id FROM token_buyback_txs)
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY mint
 
     UNION ALL
@@ -188,6 +190,7 @@ const adapter: SimpleAdapter = {
     allowNegativeValue: true,
     methodology,
     breakdownMethodology,
+    unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

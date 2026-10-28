@@ -49,15 +49,12 @@ const sumAllProductOpenInterests = (open_interests: IData): number => {
   for (const v of Object.values(open_interests)) {
     sum += parseInt(v);
   }
-  return sum / 1e18;
+  // Nado reports long+short summed OI, halve it for the one-sided convention
+  return sum / 1e18 / 2;
 };
 
-const fetch = async (
-  timestamp: number,
-  _: any,
-  fetchOptions: FetchOptions
-) => {
-  const response = await query(timestamp, fetchOptions);
+const fetch = async (options: FetchOptions) => {
+  const response = await query(options.toTimestamp, options);
 
   if (!response.snapshots || response.snapshots.length === 0) {
     return { openInterestAtEnd: undefined };

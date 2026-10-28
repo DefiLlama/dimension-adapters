@@ -34,7 +34,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     for (let i = 0; i < vaults.length; i++) {
         const { performanceRate, managementRate } = feeDetails[i]; //fee in BPs
         const dailyYield = await getERC4626VaultsYield({ options, vaults: [vaults[i]] });
-        const dailyManagementFee = (totalAssets[i]) * (managementRate / 100) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
+        const dailyManagementFee = (totalAssets[i]) * (managementRate / 10000) * ((options.toTimestamp - options.fromTimestamp) / ONE_YEAR)
         dailySupplySideRevenue.add(dailyYield, METRIC.ASSETS_YIELDS);
         dailyFees = dailySupplySideRevenue.clone(1 / (1 - performanceRate / 10000));
         dailyFees.add(asset[i], dailyManagementFee, METRIC.MANAGEMENT_FEES);

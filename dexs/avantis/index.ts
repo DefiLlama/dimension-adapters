@@ -1,5 +1,5 @@
 import { CHAIN } from "../../helpers/chains";
-import { SimpleAdapter } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import fetchURL from "../../utils/fetchURL";
 import { FetchResultVolume } from "../../adapters/types";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
@@ -18,8 +18,8 @@ interface IData {
 
 const API_URL = "https://api.avantisfi.com/v1";
 
-const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
-	const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+	const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
 	const date = new Date(todaysTimestamp * 1000);
 	const dateStr = date.toISOString().split("T")[0];
 
@@ -29,12 +29,18 @@ const fetch = async (timestamp: number): Promise<FetchResultVolume> => {
 
 	const data = await fetchURL(`${API_URL}/cached/history/analytics/open-interest-snapshot/60`);
 	const openInterest = data.history.find((d: any) => d.date === dateStr)?.openInterestSnapshot;
-	const openInterestAtEnd = openInterest ? openInterest.totalRatio : 0;
 	const dailyVolume = value.history.find((d) => d.date === dateStr)?.volume;
+	// both endpoints only cover the last 60 days and the current day's row can land after the run, so a missing
+	// row means no data yet, not zero; throwing lets the run be retried instead of storing 0
+	if (dailyVolume === undefined || !openInterest) throw new Error(`avantis: no volume or open interest row for ${dateStr}`);
 
 	return {
 		dailyVolume,
-		openInterestAtEnd
+		// totalRatio is the sum of long + short = Avantis' own totalOi. Pool venue: every position faces the
+		// pool, so the sum counts each open position once (on-chain openTrades sum to these exactly).
+		openInterestAtEnd: openInterest.totalRatio,
+		longOpenInterestAtEnd: openInterest.longTotal,
+		shortOpenInterestAtEnd: openInterest.shortTotal,
 	};
 };
 

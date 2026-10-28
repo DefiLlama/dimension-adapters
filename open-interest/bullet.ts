@@ -28,7 +28,7 @@ async function fetch() {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.SOLANA],
+  chains: [CHAIN.BULLET],
   start: "2026-02-12",
   runAtCurrTime: true,
 };

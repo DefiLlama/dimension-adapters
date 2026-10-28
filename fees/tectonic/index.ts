@@ -4,7 +4,7 @@ import { getFees } from "../../helpers/compoundV2";
 import { METRIC } from "../../helpers/metrics";
 
 const comptrollers: Array<string> = [
-  '0xb3831584acb95ed9ccb0c11f677b5ad01deaeec0',
+  // '0xb3831584acb95ed9ccb0c11f677b5ad01deaeec0', // Hacked
   '0x8312A8d5d1deC499D00eb28e1a2723b13aA53C1e',
   '0x7E0067CEf1e7558daFbaB3B1F8F6Fa75Ff64725f',
 ]

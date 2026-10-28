@@ -8,6 +8,8 @@ export const USDC = ADDRESSES.gensyn.USDC;
 
 const GATEWAY = "0x4e4e85c52E0F414cc67eE88d0C649Ec81698d700";
 const PRECISION = 10n ** 18n;
+// The public gensyn RPC caps eth_getLogs at 100 blocks; the sdk pads each chunk by 10 blocks per side
+const MAX_BLOCK_RANGE = 80;
 
 export const abi = {
     buy: "event GatewayBuy(address indexed marketProxy, address indexed buyer, uint256 indexed outcomeIdx, uint256 tokensIn, uint256 sharesOut)",
@@ -23,8 +25,8 @@ const fetch: FetchV2 = async (options) => {
     const dailyProtocolRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    const buyLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.buy });
-    const sellLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.sell });
+    const buyLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.buy, maxBlockRange: MAX_BLOCK_RANGE });
+    const sellLogs = await options.getLogs({ target: GATEWAY, eventAbi: abi.sell, maxBlockRange: MAX_BLOCK_RANGE });
 
     const marketProxies = Array.from(new Set(
         [...buyLogs, ...sellLogs].map((trade) => trade.marketProxy.toLowerCase())
@@ -32,15 +34,19 @@ const fetch: FetchV2 = async (options) => {
 
     const configs: Record<string, { tradingFee: bigint, recipientPct: bigint }> = {};
 
-    for (const marketProxy of marketProxies) {
-        const market = await options.api.call({ target: marketProxy, abi: abi.getMarket });
-        const recipientPct = await options.api.call({ target: marketProxy, abi: abi.tradingFeesRecipientPct });
+    const [markets, recipientPcts] = await Promise.all([
+        options.api.multiCall({ calls: marketProxies, abi: abi.getMarket }),
+        options.api.multiCall({ calls: marketProxies, abi: abi.tradingFeesRecipientPct }),
+    ]);
+
+    marketProxies.forEach((marketProxy, i) => {
+        const market = markets[i];
         const config = market.config ?? market[0];
         configs[marketProxy] = {
             tradingFee: BigInt(config.tradingFee ?? config[2]),
-            recipientPct: BigInt(recipientPct),
+            recipientPct: BigInt(recipientPcts[i]),
         };
-    }
+    });
 
     buyLogs.forEach((buy) => {
         const config = configs[buy.marketProxy.toLowerCase()];

@@ -15,7 +15,7 @@ type BlendV1Row = {
   borrow_interest_raw: string | number;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 

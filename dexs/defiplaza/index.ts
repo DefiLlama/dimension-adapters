@@ -1,6 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import request, { gql } from "graphql-request";
-import { FetchResultGeneric, SimpleAdapter } from "../../adapters/types";
+import { FetchResultGeneric, SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
@@ -16,6 +16,12 @@ type RadixPlazaResponse = {
 
 const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKYN9QRmuzSsizVXhjKa');
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
+// Days the source published a bad figure; store 0 instead of that day.
+const badDays: Record<string, string[]> = {
+  [CHAIN.RADIXDLT]: [
+    '2026-10-03',
+  ],
+}
 
 const adapter: SimpleAdapter = {
 
@@ -26,7 +32,7 @@ const adapter: SimpleAdapter = {
   },
   adapter: {
     [CHAIN.ETHEREUM]: {
-      fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
+      fetch: async (options: FetchOptions): Promise<FetchResultGeneric> => {
         const graphData = (await request(thegraph_endpoints, gql`
 {
   factories(first: 1) {
@@ -34,7 +40,7 @@ const adapter: SimpleAdapter = {
     totalTradeVolumeUSD
     totalFeesEarnedUSD
   }
-  dailies(first: 1, where:{date_lte: ${timestamp}}, orderBy: date, orderDirection:desc) {
+  dailies(first: 1, where:{date_lte: ${options.toTimestamp}}, orderBy: date, orderDirection:desc) {
     date
     tradeVolumeUSD
     swapUSD
@@ -56,8 +62,19 @@ const adapter: SimpleAdapter = {
       start: '2021-10-03'
     },
     [CHAIN.RADIXDLT]: {
-      fetch: async (timestamp: number): Promise<FetchResultGeneric> => {
-        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${timestamp}`));
+      fetch: async (options: FetchOptions): Promise<FetchResultGeneric> => {
+        if (badDays[options.chain]?.includes(options.dateString)) {
+          return {
+            dailyVolume: 0,
+            dailyUserFees: 0,
+            dailyFees: 0,
+            dailyRevenue: 0,
+            dailyProtocolRevenue: 0,
+            dailySupplySideRevenue: 0,
+          }
+        }
+
+        const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${options.toTimestamp}`));
 
         const dailySupplySideRevenue = daily.feesUSD;
         const dailyProtocolRevenue = daily.royaltiesUSD;

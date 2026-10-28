@@ -495,7 +495,7 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.FILECOIN]: '0x60e1773636cf5e4a227d9ac24f20feca034ee25a',
   [CHAIN.HAQQ]: ADDRESSES.islm.ISLM,
   [CHAIN.KAVA]: ADDRESSES.kava.WKAVA,
-  [CHAIN.METIS]: '0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481',
+  [CHAIN.METIS]: ADDRESSES.metis.WMETIS_2,
   [CHAIN.THUNDERCORE]: ADDRESSES.thundercore.WTT,
   [CHAIN.SCROLL]: ADDRESSES.scroll.WETH,
   [CHAIN.ZETA]: ADDRESSES.zeta.WZETA,
@@ -526,14 +526,10 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
   [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
   [CHAIN.MONAD]: ADDRESSES.monad.WMON,
-  [CHAIN.MEGAETH]: '0x4200000000000000000000000000000000000006',
+  [CHAIN.MEGAETH]: ADDRESSES.optimism.WETH_1,
   [CHAIN.XLAYER]: ADDRESSES.xlayer.WOKB,
 }
 
-const useSushiAPIPrice = (chain: any) => [
-  CHAIN.BOBA_BNB,
-  CHAIN.MOONRIVER
-].includes(chain)
 
 interface Log {
   tokenIn: string;
@@ -544,10 +540,10 @@ interface Log {
 
 const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<FetchResultV2> => {
   const dailyVolume = createBalances()
-  
+
   const blacklistedTokens = getDefaultDexTokensBlacklisted(chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: chain })
-  
+
   let logs: Array<Log> = [];
 
   if (RP4_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP4_ADDRESS[chain], eventAbi: ROUTE_RP45_EVENT }))
@@ -560,59 +556,29 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP11_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
-  
+
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))
       && !blacklistedTokens.includes(formatAddress(log.tokenIn))
       && !blacklistedTokens.includes(formatAddress(log.tokenOut))
     )
   }
-  
+
   // filter many scam/spam tokens on arbitrum
   if (chain === CHAIN.ARBITRUM) {
     // require both input and output tokens in whitelisted
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) && whitelistedTokens.includes(formatAddress(log.tokenOut))))
   }
 
-  if (useSushiAPIPrice(chain)) {
-    const tokenPrice = Object.entries(await httpGet(`https://api.sushi.com/price/v1/${CHAIN_ID[chain]}`)).reduce((acc, [key, value]: any) => {
-      acc[key.toLowerCase()] = value
-      return acc
-    });
-    const tokensIn =  [...new Set(logs.map(log => log.tokenIn.toLowerCase()))]
-    const tokensInfo = (await Promise.all(tokensIn.map(token => httpGet(`https://api.sushi.com/token/v1/${CHAIN_ID[chain]}/${token}`)))).flat();
-
-    const tokens = tokensInfo.reduce((tokens, token) => {
-      const address = token.address.toLowerCase()
-      tokens[address] = {
-        ...token,
-        price: tokenPrice[address] ?? 0
-      }
-
-      return tokens
-    }, {});
-
-    for (const log of logs) {
-      const token = tokens[log.tokenIn.toLowerCase()]
-      if (token && log.tokenIn.toLowerCase() !== ADDRESSES.GAS_TOKEN_2.toLowerCase()) {
-        const _dailyVolume = Number(log.amountIn) * token.price / 10 ** token.decimals
-        if (_dailyVolume < 0) throw new Error(`Daily volume cannot be negative. Current value: ${_dailyVolume}`)
-        dailyVolume.addUSDValue(_dailyVolume)
-      } else {
-        if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
-        dailyVolume.add(WNATIVE_ADDRESS[chain], log.amountIn)
-      }
-    }
-  } else {
-    for (const log of logs) {
-      if (Number(log.amountIn) < 0) throw new Error(`Amount cannot be negative. Current value: ${log.amountIn}`)
-      if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
-        dailyVolume.addGasToken(log.amountIn)
-      else {
-        dailyVolume.add(log.tokenIn, log.amountIn)
-      }
+  for (const log of logs) {
+    if (Number(log.amountIn) < 0) continue;
+    if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2.toLowerCase())
+      dailyVolume.addGasToken(log.amountIn)
+    else {
+      dailyVolume.add(log.tokenIn, log.amountIn)
     }
   }
+
 
   return { dailyVolume }
 }
@@ -734,10 +700,12 @@ const adapters = {
   //   fetch,
   //   start: '2024-04-22'
   // },
-  [CHAIN.THUNDERCORE]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // thundercore halted on 2026-09-01 at block 236120709; the stale-head guard throws on the
+  // block lookup and takes every other chain's record down with it
+  // [CHAIN.THUNDERCORE]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.ZETA]: {
     fetch,
     start: '2024-02-25'
@@ -810,5 +778,6 @@ const adapters = {
 
 export default {
   version: 2,
+  pullHourly: true,
   adapter: adapters,
 }

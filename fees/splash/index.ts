@@ -6,7 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 
 const url: string = "https://api2.splash.trade/platform-api/v1/platform/stats";
 
-const fetch = async (_:number, _t: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const {
     data: { lpFeeUsd, volumeUsd },
   } = await axios.get(url);
@@ -17,7 +17,6 @@ const fetch = async (_:number, _t: any, options: FetchOptions): Promise<FetchRes
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.resizeBy(0.5 / 100);
   return {
-    timestamp: options.startOfDay,
     dailyFees,
     dailyRevenue,
     dailyVolume: dailyVolume,
@@ -26,13 +25,10 @@ const fetch = async (_:number, _t: any, options: FetchOptions): Promise<FetchRes
 
 const adapter: Adapter = {
   version: 1,
-  adapter: {
-    [CHAIN.CARDANO]: {
-      fetch,
-      start: '2024-06-04',
-      runAtCurrTime: true,
-    },
-  },
+  fetch,
+  chains: [CHAIN.CARDANO],
+  start: '2024-06-04',
+  runAtCurrTime: true,
 };
 
 export default adapter;

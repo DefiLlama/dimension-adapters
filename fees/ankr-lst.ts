@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
@@ -37,7 +38,7 @@ const chainConfig: Record<string, { tokens: string[]; start: string; feeRates: n
     feeRates: [0.1, 0.05],
   },
   [CHAIN.FLOW]: {
-    tokens: ['0x1b97100eA1D7126C4d60027e231EA4CB25314bdb'],
+    tokens: [ADDRESSES.flow.ankrFLOWEVM],
     start: '2024-09-06',
     feeRates: [0.1],
   },
@@ -58,7 +59,7 @@ const chainConfig: Record<string, { tokens: string[]; start: string; feeRates: n
   },
 }
 
-const fetch = async (_a:any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()

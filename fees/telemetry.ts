@@ -17,7 +17,7 @@ const chainConfig: Record<string, { start: string; feeWallet: string; rewardWall
   },
 };
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const { feeWallet, rewardWallet } = chainConfig[options.chain];
   const query = `
     WITH

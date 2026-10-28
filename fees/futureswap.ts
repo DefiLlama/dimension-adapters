@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { METRIC } from '../helpers/metrics';
@@ -12,12 +13,12 @@ const exchangeConfigs: Record<string, Array<IExchange>> = {
   [CHAIN.ARBITRUM]: [
     {
       address: '0xF7CA7384cc6619866749955065f17beDD3ED80bC', // ETH/USDC
-      baseToken: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', // USDC
+      baseToken: ADDRESSES.arbitrum.USDC, // USDC
       baseTokenDecimals: 6,
     },
     {
       address: '0x85DDE4A11cF366Fb56e05cafE2579E7119D5bC2f', // WBTC/ETH
-      baseToken: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', // ETH
+      baseToken: ADDRESSES.arbitrum.WETH, // ETH
       baseTokenDecimals: 18,
     },
   ],

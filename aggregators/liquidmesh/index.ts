@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -44,14 +45,14 @@ const prefetch = async (options: FetchOptions): Promise<any> => {
 	return data;
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
 
 	const tokensAndAmounts: Array<IData> = options.preFetchedResults || []
 
 	const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
 	const whitesliedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== '0x0000000000000000000000000000000000000000')) {
+	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== ADDRESSES.null)) {
 		if (options.chain === CHAIN.BSC) {
 			if (whitesliedTokens.includes(formatAddress(token.token))) {
 				dailyVolume.add(token.token, token.amount);
@@ -68,7 +69,7 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 	};
 };
 
-const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
+const fetchSolana = async (options: FetchOptions) => {
 	const dailyVolume = options.createBalances()
 
   const blacklistTokens = ['2xaPstY4XqJ2gUA1mpph3XmvmPZGuTuJ658AeqX3gJ6F', 'Dsx5h4jk8vyQjd8B9JF9cydNTz87KgPqUG2QCGH9PjCh']
@@ -77,7 +78,7 @@ const fetchSolana = async (_a: any, _b: any, options: FetchOptions) => {
 		SELECT
 			'solana' AS chain,
 			(CASE
-				WHEN source_token_mint = '11111111111111111111111111111111' THEN 'So11111111111111111111111111111111111111112'
+				WHEN source_token_mint = '11111111111111111111111111111111' THEN '${ADDRESSES.solana.SOL}'
 				ELSE source_token_mint
 			END) AS token,
 			SUM(amount_in) as amount

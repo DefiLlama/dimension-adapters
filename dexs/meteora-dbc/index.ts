@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -14,7 +15,7 @@ interface IData {
 
 const BUYBACK_WALLET = 'FzULv8pR9Rd7cyVKjVkzmJ1eqEmgwDnzjYyNUcEJtoG9';
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = `
         WITH
             dbc_tokens AS (
@@ -81,9 +82,9 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
+        ADDRESSES.solana.SOL,
+        ADDRESSES.solana.USDC,
+        ADDRESSES.solana.JUP
     ]
     data.forEach(row => {
         if (!accepted_quote_mints.includes(row.quote_mint)) return;
@@ -101,12 +102,16 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
         mints: ["METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"],  // MET token
     })
 
+    // MET buybacks are paid out of Meteora protocol revenue (all products, tracked here for historic
+    // support), so they move from protocol revenue to holders revenue: Revenue = Protocol + Holders
+    const dailyRevenue = dailyProtocolRevenue.clone()
+    dailyProtocolRevenue.subtract(dailyHoldersRevenue)
 
     return {
         dailyVolume,
         dailyFees,
         dailyUserFees: dailyFees,
-        dailyRevenue: dailyProtocolRevenue,
+        dailyRevenue,
         dailyProtocolRevenue,
         dailyHoldersRevenue,
         dailySupplySideRevenue
@@ -120,11 +125,14 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE,Dependencies.ALLIUM],
     start: '2025-04-23',
     isExpensiveAdapter: true,
+    // protocol revenue is negative on MET buyback days: the buybacks are funded by revenue from all
+    // Meteora products (DLMM, DAMM, DBC), which is far larger than DBC's own protocol fees
+    allowNegativeValue: true,
     methodology: {
         Fees: "Trading fees paid by users.",
         Revenue: "Protocol fees collected by Meteora DBC protocol.",
-        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol.",
-        HoldersRevenue: "Part of revenue going to MET token buybacks.",
+        ProtocolRevenue: "Protocol fees collected by Meteora DBC protocol, minus the MET buybacks funded from Meteora protocol revenue.",
+        HoldersRevenue: "MET token buybacks funded from Meteora protocol revenue across all Meteora products.",
         SupplySideRevenue: "The portion of the trading fees paid to LPs and referrals."
     }
 }

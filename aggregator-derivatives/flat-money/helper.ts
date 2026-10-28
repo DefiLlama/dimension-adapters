@@ -90,7 +90,7 @@ function sleep(ms) {
 export const leverageOpensQuery = gql`
     query leverageOpens($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
         leverageOpens(
-            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lt: $endTimestamp },
             first: 1000, orderBy: blockTimestamp, orderDirection: asc
         ) {
             margin,
@@ -102,7 +102,7 @@ export const leverageOpensQuery = gql`
 export const leverageAdjustsQuery = gql`
     query leverageAdjusts($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
         leverageAdjusts(
-            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lt: $endTimestamp },
             first: 1000, orderBy: blockTimestamp, orderDirection: asc
         ) {
             marginDelta,
@@ -114,7 +114,7 @@ export const leverageAdjustsQuery = gql`
 export const leverageClosesQuery = gql`
     query leverageCloses($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
         leverageCloses(
-            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lte: $endTimestamp },
+            where: { blockTimestamp_gte: $startTimestamp, blockTimestamp_lt: $endTimestamp },
             first: 1000, orderBy: blockTimestamp, orderDirection: asc
         ) {
             settledMargin,

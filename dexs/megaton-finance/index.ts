@@ -1,8 +1,8 @@
-import fetchURL from "../../utils/fetchURL"
-import { SimpleAdapter } from "../../adapters/types";
+import { proxiedFetch } from "../../utils/fetchURL"
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../../helpers/getUniSubgraphVolume";
 
+// megaton.fi answers from a residential IP but blocks datacenter IPs, so route it through the shared proxy like fees/ntm
 const historicalVolumeEndpoint = "https://megaton.fi/api/dashboard/info?"
 
 interface IVolumeall {
@@ -10,27 +10,22 @@ interface IVolumeall {
   dateId: string;
 }
 
-const fetch = async (timestamp: number) => {
-  const dayTimestamp = getUniqStartOfTodayTimestamp(new Date(timestamp * 1000))
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).dayVolume;
-  const dateString = new Date(dayTimestamp * 1000).toISOString().split('T')[0];
+const fetch = async (options: FetchOptions) => {
+  const historicalVolume: IVolumeall[] = (await proxiedFetch(historicalVolumeEndpoint)).dayVolume;
+  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.dateId.split('T')[0] === dateString)?.amount
 
   return {
     dailyVolume: dailyVolume,
-    timestamp: dayTimestamp,
   };
 };
 
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.TON]: {
-      fetch,
-      start: '2023-02-08',
-    },
-  },
+  fetch,
+  chains: [CHAIN.TON],
+  start: '2023-02-08',
 };
 
 export default adapter;

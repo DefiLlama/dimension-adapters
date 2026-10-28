@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const DECIMALS = 18;
 const MANAGER_FEE_DENOMINATOR = 1000;
-const UNI_IOTX = "0x236f8c0a61da474db21b693fb2ea7aab0c803894";
+const UNI_IOTX = ADDRESSES.bob.uniBTC;
 const UNI_IOTX_STAKING = "0x2c914ba874d94090ba0e6f56790bb8eb6d4c7e5f";
 
 const METRICS = {

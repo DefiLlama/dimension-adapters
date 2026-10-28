@@ -16,13 +16,21 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
+
+  // On a primary sale the contract pays the creator everything after the protocol fee and leaves
+  // sellerRev at 0 (MarketFees._getFees), so creatorRev is sale proceeds, not a royalty. Only a
+  // secondary sale, where the seller is paid separately, carries a creator royalty.
+  const addRoyalty = (creatorRev: any, sellerRev: any) => {
+    if (BigInt(sellerRev) > 0n) dailyFees.addGasToken(creatorRev, METRIC.CREATOR_FEES)
+  }
+
   (await getLogs({
     target: market_address,
     topics: [topic_0_reserveAuction_finalized],
     eventAbi:  "event ReserveAuctionFinalized(uint256 indexed auctionId, address indexed seller, address indexed bidder, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)",
   })).map((e: any) => {
     dailyFees.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorRev, METRIC.CREATOR_FEES)
+    addRoyalty(e.creatorRev, e.sellerRev)
     dailyRevenue.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
   });
 
@@ -32,7 +40,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: "event PrivateSaleFinalized(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 f8nFee, uint256 creatorFee, uint256 ownerRev, uint256 deadline)"
   })).map((e: any) => {
     dailyFees.addGasToken(e.f8nFee, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorFee, METRIC.CREATOR_FEES)
+    addRoyalty(e.creatorFee, e.ownerRev)
     dailyRevenue.addGasToken(e.f8nFee, METRIC.PROTOCOL_FEES)
   });
 
@@ -42,7 +50,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: "event BuyPriceAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed seller, address buyer, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)"
   })).map((e: any) => {
     dailyFees.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorRev, METRIC.CREATOR_FEES)
+    addRoyalty(e.creatorRev, e.sellerRev)
     dailyRevenue.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
   });
 
@@ -52,7 +60,7 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: "event OfferAccepted(address indexed nftContract, uint256 indexed tokenId, address indexed buyer, address seller, uint256 totalFees, uint256 creatorRev, uint256 sellerRev)"
   })).map((e: any) => {
     dailyFees.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorRev, METRIC.CREATOR_FEES)
+    addRoyalty(e.creatorRev, e.sellerRev)
     dailyRevenue.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
   });
 
@@ -62,7 +70,6 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: "event MintFromFixedPriceDrop (address indexed nftContract, address indexed buyer, uint256 indexed firstTokenId, uint256 count, uint256 totalFees, uint256 creatorRev)"
   })).map((e: any) => {
     dailyFees.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorRev, METRIC.CREATOR_FEES)
     dailyRevenue.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
   });
 
@@ -72,7 +79,6 @@ const fetch = async ({ createBalances, getLogs, }: FetchOptions) => {
     eventAbi: "event WithdrawCreatorRevenueFromDutchAuction (address indexed nftContract, uint256 clearingPrice, uint256 totalMintedCount, uint256 totalFees, uint256 creatorRev)"
   })).map((e: any) => {
     dailyFees.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
-    dailyFees.addGasToken(e.creatorRev, METRIC.CREATOR_FEES)
     dailyRevenue.addGasToken(e.totalFees, METRIC.PROTOCOL_FEES)
   });
 

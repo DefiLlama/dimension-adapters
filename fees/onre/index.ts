@@ -2,7 +2,7 @@ import fetchURL from "../../utils/fetchURL";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryAllium } from "../../helpers/allium";
 
 const NAV_API = "https://core.api.onre.finance/data/nav";
 
@@ -25,7 +25,7 @@ const formatUTCDate = (ts: number): string => {
 const ONYC_TOKEN_MINT = '5Y8NV33Vv7WbnLfq3zBcKSdYPrk7g2KoiQoe7M2tcxp5';
 const REDEEM_FEE = 0.25 / 100;
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const response = await fetchURL(NAV_API);
     const navData: NAVEntry[] = response.data;
 
@@ -47,17 +47,19 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
     const dailySupplySideRevenue = options.createBalances();
 
     dailyFees.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
+    dailySupplySideRevenue.addUSDValue(circulatingSupply * (todaysNAV - yesterdaysNAV), METRIC.ASSETS_YIELDS);
 
-    const duneQuery = `
+    const query = `
         SELECT
-            COALESCE(SUM(amount_usd), 0) AS onyc_redeemed_amount_usd
-        FROM tokens_solana.transfers
-        WHERE action = 'burn'
-            AND token_mint_address = '${ONYC_TOKEN_MINT}'
-            AND TIME_RANGE
+            COALESCE(SUM(usd_amount), 0) AS onyc_redeemed_amount_usd
+        FROM solana.assets.transfers
+        WHERE type IN ('burn', 'burnChecked')
+            AND mint = '${ONYC_TOKEN_MINT}'
+            AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+            AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `;
 
-    const queryResult = await queryDuneSql(options, duneQuery);
+    const queryResult = await queryAllium(query);
 
     dailyFees.addUSDValue(queryResult[0].onyc_redeemed_amount_usd * REDEEM_FEE, METRIC.MINT_REDEEM_FEES);
     dailyRevenue.addUSDValue(queryResult[0].onyc_redeemed_amount_usd * REDEEM_FEE, METRIC.MINT_REDEEM_FEES);
@@ -99,7 +101,7 @@ const adapter: SimpleAdapter = {
     methodology,
     breakdownMethodology,
     chains: [CHAIN.SOLANA],
-    dependencies: [Dependencies.DUNE],
+    dependencies: [Dependencies.ALLIUM],
     start: "2025-06-04",
     isExpensiveAdapter: true,
     allowNegativeValue: true,

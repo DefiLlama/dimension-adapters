@@ -1,4 +1,4 @@
-import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter, IStartTimestamp } from "../adapters/types";
+import { FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { addOneToken } from "./prices";
 import { METRIC } from "./metrics";
@@ -22,7 +22,7 @@ interface IPair {
 interface ExportConfig {
   [key: string]: {
     factories: Array<IFactory>;
-    start?: IStartTimestamp | number | string;
+    start?: string;
   }
 }
 

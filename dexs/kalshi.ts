@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-async function fetch(_a: any, _b: any, options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   // const data = await fetchURL(`https://kalshi-public-docs.s3.amazonaws.com/reporting/market_data_${options.dateString}.json`)
   const dateString = new Date((options.startOfDay - (24 * 3600)) * 1000).toISOString().split('T')[0]
   
@@ -27,13 +27,17 @@ async function fetch(_a: any, _b: any, options: FetchOptions) {
   FROM trade_report_agg tr
   CROSS JOIN market_report_agg mr
   `
-  const data: { 
-    cash_volume: string,
-    open_interest: string,
-    notional_volume: string,
+  const data: {
+    cash_volume: string | null,
+    open_interest: string | null,
+    notional_volume: string | null,
   }[] = await queryDuneSql(options, query)
-  
-  const dailyVolume = Number(data[0]?.cash_volume) || 0
+
+  if (!data?.length || data[0].cash_volume == null) {
+    throw new Error(`no rows in kalshi.trade_report on dune for ${dateString} yet`)
+  }
+
+  const dailyVolume = Number(data[0].cash_volume)
   const openInterestAtEnd = Number(data[0]?.open_interest) || 0
   const dailyNotionalVolume = Number(data[0]?.notional_volume) || 0
 

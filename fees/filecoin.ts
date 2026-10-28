@@ -1,27 +1,18 @@
+import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from '../utils/fetchURL';
-import { getEnv } from '../helpers/env';
 
-const fetch = async (_t: any, _a: any, options: FetchOptions) => {
-    const url = "https://api.spacescope.io/v2/gas/daily_network_fee_breakdown"
-    const headers = { "Authorization": `Bearer ${getEnv('SPACESCOPE_API_KEY')}`};
-    const data = await httpGet(`${url}?start_date=${options.dateString}&end_date=${options.dateString}`, { headers: headers})
+const BURN_ACTOR = '0xff00000000000000000000000000000000000063'
+
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
     const dailyRevenue = options.createBalances()
-    const response = data?.data?.[0]
-    if (!response) throw new Error(`No data returned from SpaceScope for date ${options.dateString}`)
-    const fees = [
-        response.base_fee_burn,
-        response.overestimation_burn,
-        response.precommit_batch_fee_burn,
-        response.provecommit_batch_fee_burn,
-        response.penalty_fee_burn,
-    ].reduce((acc, current) => {
-        const value = Number(current)
-        if (isNaN(value)) throw new Error(`Unexpected NaN for a fee field in SpaceScope response`)
-        return acc + value
-    }, 0)
+    const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()])
+    const [{ output: before }, { output: after }] = await Promise.all([
+        sdk.api.eth.getBalance({ target: BURN_ACTOR, block: fromBlock, chain: CHAIN.FILECOIN }),
+        sdk.api.eth.getBalance({ target: BURN_ACTOR, block: toBlock, chain: CHAIN.FILECOIN }),
+    ])
+    const fees = Number(BigInt(after) - BigInt(before)) / 1e18
 
   dailyFees.addCGToken('filecoin', fees)
   dailyRevenue.addCGToken('filecoin', fees)
@@ -36,7 +27,7 @@ const fetch = async (_t: any, _a: any, options: FetchOptions) => {
 const adapter: Adapter = {
   fetch,
   chains: [CHAIN.FILECOIN],
-  start: '2020-10-16',
+  runAtCurrTime: true, // SpaceScope api is down and public filecoin rpcs prune old state, so past days cannot be refilled
   protocolType: ProtocolType.CHAIN,
   methodology: {
     Fees: 'Transaction fees paid by users',

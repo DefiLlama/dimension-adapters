@@ -2,11 +2,17 @@ import { CHAIN } from '../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { METRIC } from '../helpers/metrics'
 
-const HUBS: Record<string, string[]> = {
+export const HUBS: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
     '0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9', // Core
     '0x06002e9c4412CB7814a791eA3666D905871E536A', // Plus
     '0x943827DCA022D0F354a8a8c332dA1e5Eb9f9F931', // Prime
+  ],
+  [CHAIN.AVAX]: [
+    '0xd07369fAE4A5BB13c9Ce446B052c7867B1AbDf6e', // Core
+  ],
+  [CHAIN.ARC]: [
+    '0x17288dfc86205301064577b98B02b81017e6F79C', // Core
   ],
 }
 
@@ -25,7 +31,7 @@ const abis = {
   getReservePrice: 'function getReservePrice(uint256) view returns (uint256)',
 }
 
-async function discoverSpokes(api: any, hubs: string[], assetCounts: number[]): Promise<string[]> {
+export async function discoverSpokes(api: any, hubs: string[], assetCounts: number[]): Promise<string[]> {
   const countCalls = hubs.flatMap((hub, i) =>
     Array.from({ length: assetCounts[i] }, (_, assetId) => ({ target: hub, params: [assetId] }))
   )
@@ -217,8 +223,10 @@ const breakdownMethodology = {
   },
 }
 
-const chainConfig: Record<string, { start: string }> = {
+export const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: '2026-03-30' },
+  [CHAIN.AVAX]: { start: '2026-07-07' },
+  [CHAIN.ARC]: { start: '2026-05-28' },
 }
 
 const adapter: SimpleAdapter = {

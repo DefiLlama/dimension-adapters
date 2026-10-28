@@ -1,53 +1,126 @@
-import fetchURL from "../../utils/fetchURL";
-import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import {METRIC} from "../../helpers/metrics";
 
-const URL = 'https://routerv2.akka.finance';
+const swapEvent =
+  "event Swap(address indexed _from, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)";
 
-interface IAPIResponse {
-  dailyVolume: string;
-}
-
-const chainIds = {
-  [CHAIN.CORE]: 1116,
-  [CHAIN.XDC]: 50,
-  [CHAIN.BITLAYER]: 200901,
-  [CHAIN.BSQUARED]: 223,
+type ChainConfig = {
+  routers: string[];
+  start: string;
+  deadFrom?: string;
+  fetch: typeof fetch;
 };
 
-const startTimestamps = {
-  [CHAIN.CORE]: '2024-06-01',
-  [CHAIN.XDC]: '2024-10-29',
-  [CHAIN.BITLAYER]: '2024-10-29',
-  [CHAIN.BSQUARED]: '2024-10-29',
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const { routers } = chainConfig[options.chain];
+
+  const logs = await options.getLogs({
+    targets: routers,
+    eventAbi: swapEvent,
+  });
+
+  for (const log of logs) {
+    dailyVolume.add(log.tokenIn, log.amountIn);
+    dailyFees.add(log.tokenOut, log.fee, METRIC.SWAP_FEES);
+    dailyRevenue.add(log.tokenOut, log.fee, "Swap fees to protocol");
+  }
+
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
-const fetch = async (_a: any, _b: any, options: FetchOptions): Promise<FetchResult> => {
-  const chainId = chainIds[options.chain];
+const chainConfig: Record<string, ChainConfig> = {
+  // AKKA Router on Ethereum; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ETHEREUM]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://etherscan.io/tx/0xd8f6b9fc54a1239c9fcd69b7244962a1c4a1c740a98c71440bc508e071ce6aeb
+    start: "2026-07-12",
+    fetch,
+  },
+  // AKKA Router on Arbitrum; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ARBITRUM]: {
+    routers: ["0xfB33E11e44547f31f55CAa5e77028b844a6d6fE3"],
+    // Deployment: https://arbiscan.io/tx/0x225a0dac720d4a61d2d4fb84ecf6047f1fcbb87fc627dd7c01e7f16e31515916
+    start: "2026-08-16",
+    fetch,
+  },
+  // AKKA Router on Robinhood Chain; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ROBINHOOD]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://robinhoodchain.blockscout.com/tx/0xde781fa8766415dc3c23ba391f173ccf1f97b041f6de50f0e41cf5fb374091a2
+    start: "2026-07-07",
+    fetch,
+  },
+  // AKKA Router on HyperEVM; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.HYPERLIQUID]: {
+    routers: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
+    start: "2026-01-20",
+    fetch,
+  },
+  // AKKA Router on XDC Network; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.XDC]: {
+    routers: ["0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3"],
+    start: "2024-10-29",
+    fetch,
+  },
+  // Historical AKKA Router on Core; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+  [CHAIN.CORE]: {
+    routers: [
+      // Historical AKKA Core router; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+      "0x7C5Af181D9e9e91B15660830B52f7B7076Be0d64",
+      // Historical AKKA Core router; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+      "0x5f3B7b49c5763045a6571dEe9A2b13ccd2407daA",
+      // Historical AKKA Core router; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+      "0x0cfedb22dbda450077dc64d21f58ad8ff3646036",
+    ],
+    start: "2023-11-19",
+    deadFrom: "2026-05-14",
+    fetch,
+  },
+  // Historical AKKA Router on Bitlayer; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+  [CHAIN.BITLAYER]: {
+    routers: ["0x4822b754118e066bf9dccf8b8f105f8b47bb4502"],
+    start: "2024-10-29",
+    deadFrom: "2026-01-13",
+    fetch,
+  },
+  // Historical AKKA Router on B2 Network; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+  [CHAIN.BSQUARED]: {
+    routers: ["0x70D80feb53005272E81F3493a69177911D458CbA"],
+    start: "2024-10-29",
+    deadFrom: "2026-01-26",
+    fetch,
+  },
+};
 
-  const endpoint = `/v2/${chainId}/statistics/dappradar`;
-  const response = await fetchURL(`${URL}${endpoint}`);
+const methodology = {
+  Volume: "Volume is calculated from Swap events emitted by the AkkaRouter contracts.",
+  Fees: "Fees are tracked from the fee field in Swap events in the output token, excluding charges not reported by router builds that emit zero fees.",
+  Revenue: "All the fees from swap events go to the protocol.",
+  ProtocolRevenue: "All the fees from swap events go to the protocol.",
+};
 
-  const { dailyVolume }: IAPIResponse = response;
-
-  return {
-    dailyVolume
-  };
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Fees are tracked from the fee field in Swap events in the output token, excluding charges not reported by router builds that emit zero fees.",
+  },
+  Revenue: {
+    "Swap fees to protocol": "All the fees from swap events go to the protocol.",
+  },
+  ProtocolRevenue: {
+    "Swap fees to protocol": "All the fees from swap events go to the protocol.",
+  },
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  adapter: Object.keys(chainIds).reduce((acc, chain) => {
-    const startTimestamp = startTimestamps[chain];
-    return {
-      ...acc,
-      [chain]: {
-        fetch,
-        runAtCurrTime: true,
-        start: startTimestamp,
-      },
-    };
-  }, {}),
+  version: 2,
+  pullHourly: true,
+  adapter: chainConfig,
+  methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

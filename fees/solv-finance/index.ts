@@ -10,23 +10,28 @@ import BigNumber from "bignumber.js";
 const feesConfig =
   "https://raw.githubusercontent.com/solv-finance/solv-protocol-defillama/main/solv-fees-v2.json";
 
-const chains: { [chain: Chain]: { deployedAt: number } } = {
-  [CHAIN.ETHEREUM]: { deployedAt: 1726531200 },
-  [CHAIN.BSC]: { deployedAt: 1726531200 },
-  [CHAIN.ARBITRUM]: { deployedAt: 1726531200 },
-  [CHAIN.MANTLE]: { deployedAt: 1726531200 },
-  // [CHAIN.MERLIN]: { deployedAt: 1726531200 },
-  [CHAIN.CORE]: { deployedAt: 1726531200 },
-  [CHAIN.SCROLL]: { deployedAt: 1726531200 },
-  [CHAIN.SOLANA]: { deployedAt: 1726531200 },
-  [CHAIN.AVAX]: { deployedAt: 1726531200 },
-  [CHAIN.BOB]: { deployedAt: 1726531200 },
-  [CHAIN.BASE]: { deployedAt: 1726531200 },
-  [CHAIN.LINEA]: { deployedAt: 1726531200 },
-  [CHAIN.ROOTSTOCK]: { deployedAt: 1726531200 },
-  [CHAIN.SONEIUM]: { deployedAt: 1742169600 },
-  [CHAIN.INK]: { deployedAt: 1742169600 },
-  [CHAIN.BERACHAIN]: { deployedAt: 1742169600 },
+// `configKey` is Solv's key in solv-fees-v2.json when it differs from the
+// DefiLlama chain name (options.chain). Without it the config lookup silently
+// misses and the chain reports $0.
+const chains: { [chain: Chain]: { start: string; configKey?: string } } = {
+  [CHAIN.ETHEREUM]: { start: "2024-09-17" },
+  [CHAIN.BSC]: { start: "2024-09-17" },
+  [CHAIN.ARBITRUM]: { start: "2024-09-17" },
+  [CHAIN.MANTLE]: { start: "2024-09-17" },
+  [CHAIN.MERLIN]: { start: "2024-09-17" },
+  [CHAIN.CORE]: { start: "2024-09-17" },
+  [CHAIN.SCROLL]: { start: "2024-09-17" },
+  [CHAIN.SOLANA]: { start: "2024-09-17" },
+  [CHAIN.AVAX]: { start: "2024-09-17" },
+  [CHAIN.BOB]: { start: "2024-09-17" },
+  [CHAIN.BASE]: { start: "2024-09-17" },
+  [CHAIN.LINEA]: { start: "2024-09-17" },
+  //[CHAIN.ROOTSTOCK]: { start: "2024-09-17", configKey: "rootstock" },
+  [CHAIN.AILAYER]: { start: "2024-09-17" },
+  [CHAIN.SONEIUM]: { start: "2025-03-17" },
+  [CHAIN.INK]: { start: "2025-03-17" },
+  [CHAIN.BERACHAIN]: { start: "2025-03-17", configKey: "bera" },
+  [CHAIN.HYPERLIQUID]: { start: "2025-03-17", configKey: "hyper" },
 };
 
 const fetch: FetchV2 = async (options) => {
@@ -53,10 +58,10 @@ const fetch: FetchV2 = async (options) => {
     }>;
   } = await getConfig('solv-fi/fees', feesConfig);
 
-  if (!contracts[options.chain])
-    return {}
+  const configKey = chains[options.chain]?.configKey ?? options.chain;
+  const pools = contracts[configKey];
 
-  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await fees(options, contracts);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await fees(options, pools);
 
   return {
     dailyFees,
@@ -66,13 +71,14 @@ const fetch: FetchV2 = async (options) => {
   };
 };
 
-async function fees(options: FetchOptions, contracts: any) {
+async function fees(options: FetchOptions, pools: any[]) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const pools = contracts[options.chain];
-  if (!pools)
+
+  if (!pools || pools.length === 0)
     return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  
   const shareConcretes = await concrete(pools, options);
   const fromTimestamp = options.fromTimestamp * 1000;
   const toTimestamp = options.toTimestamp * 1000;
@@ -299,7 +305,7 @@ const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true, meth
 Object.keys(chains).forEach((chain: Chain) => {
   adapter.adapter![chain] = {
     fetch,
-    start: chains[chain].deployedAt,
+    start: chains[chain].start,
   };
 });
 

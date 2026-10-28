@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, FetchResult, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const query = `
     WITH table_a AS (
         SELECT
@@ -33,8 +33,8 @@ const fetch = async (_1: any, _2: any, options: FetchOptions): Promise<FetchResu
             1082197246,1082197771,1082189106,1082188929
           )
           AND e.tx_success = TRUE
-          AND e.block_date >= from_unixtime(${options.startTimestamp})
-          AND e.block_date <= from_unixtime(${options.endTimestamp})
+          AND e.block_time >= from_unixtime(${options.startTimestamp})
+          AND e.block_time < from_unixtime(${options.endTimestamp})
     )
     SELECT
         SUM(tx_value_usd) AS total_volume

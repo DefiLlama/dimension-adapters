@@ -46,9 +46,10 @@ interface PoolConfig {
 
 interface Config {
     pools: PoolConfig[]
+    start: string
 }
 
-const chainConfig: Record<string, Config> = {
+export const chainConfig: Record<string, Config> = {
     [CHAIN.ETHEREUM]: {
         pools: [
             {
@@ -57,6 +58,7 @@ const chainConfig: Record<string, Config> = {
             dataProvider: '0xfc21d6d146e6086b8359705c8b28512a983db0cb',
             },
         ],
+        start: '2023-03-08',
     },
     [CHAIN.XDAI]: {
         pools: [
@@ -66,6 +68,7 @@ const chainConfig: Record<string, Config> = {
             dataProvider: '0x2a002054a06546bb5a264d57a81347e23af91d18',
             },
         ],
+        start: '2023-09-06',
     },
 }
 
@@ -102,8 +105,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2023-03-08' },
-    [CHAIN.XDAI]:     { fetch, start: '2023-09-06' }
+    [CHAIN.ETHEREUM]: { fetch, start: chainConfig[CHAIN.ETHEREUM].start },
+    [CHAIN.XDAI]:     { fetch, start: chainConfig[CHAIN.XDAI].start }
   },
   methodology,
   breakdownMethodology,

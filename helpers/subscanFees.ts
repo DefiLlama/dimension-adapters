@@ -39,7 +39,7 @@ export function subscanFeeAdapter(chain: string) {
         version: 1,
         adapter: {
             [chain]: {
-                fetch: async (_timestamp: number, _: ChainBlocks, options: FetchOptions) => {
+                fetch: async (options: FetchOptions) => {
 
                     const apikey = getEnv('SUBSCAN_API_KEY')
                     if (!apikey) throw new Error('SUBSCAN_API_KEY is not set')

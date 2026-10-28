@@ -2,13 +2,21 @@
 import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
 
-const feesEndpoint = "https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/5913/card/5760?parameters=%5B%5D"
+const PERP_TRADING_FEES = 'Perp Trading Fees'
+
+// Lifetime fees broken down by product. This listing is perps-only, so it reads PERP_FEES.
+// The previous source reported whole-exchange fees (perps + options + spot), which double-counted
+// the options fees already tracked in fees/paradex-options.
+// Row format: [TRADE_DATE, PERP_FEES, PERP_OPTION_FEES, SPOT_FEES, OPTION_FEES, TOTAL_FEE, CUMULATIVE_FEES]
+const feesEndpoint = "https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/20068/card/21188?parameters=%5B%5D"
+const PERP_FEES_INDEX = 1
 
 interface IFeesData {
   data: {
-    rows: [string, number][];
+    rows: [string, ...number[]][];
   }
 }
 
@@ -17,21 +25,25 @@ const ASSISTANCE_FUND = "0xe80c1286a424B09fB9FC1d82afedAf9d4CE8e5f6";
 const DIME_TOKEN = "0xb32e10022ffbedfe10bc818a1c7e67d9d87e0fa7";
 const PARADEX_BRIDGE = "0xe3cbe3a636ab6a754e9e41b12b09d09ce9e53db3";
 
-const fetchParadex = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetchParadex = async (options: FetchOptions): Promise<FetchResultV2> => {
   const feesData = await fetchURL(feesEndpoint) as IFeesData
-  const timestampStr = new Date(options.startOfDay * 1000).toISOString().split('T')[0] + "T00:00:00Z"
-  const dailyFees = feesData.data.rows.find(row => row[0] === timestampStr)?.[1]
-  if (!dailyFees) throw new Error('record missing!')
+  const fees = feesData.data.rows.find(row => row[0].slice(0, 10) === options.dateString)?.[PERP_FEES_INDEX]
+  if (fees == null) throw new Error('record missing!')
+
+  const dailyFees = options.createBalances()
+  const dailyUserFees = options.createBalances()
+  dailyFees.addUSDValue(fees, PERP_TRADING_FEES)
+  dailyUserFees.addUSDValue(fees, PERP_TRADING_FEES)
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees
+    dailyUserFees,
     // As there's no reliable source for dailySupplySideRevenue data, in order to
     // avoid reporting incorrect data we do not return dailyRevenue
   };
 };
 
-const fetchEth = async (_: any, _b: any, options: FetchOptions): Promise<FetchResultV2> => {
+const fetchEth = async (options: FetchOptions): Promise<FetchResultV2> => {
   // Buybacks occur continuously but are only withdrawn to L1 on a weekly basis
   // Tokens come straight from the bridge in a single transaction
   // https://etherscan.io/address/0xe80c1286a424B09fB9FC1d82afedAf9d4CE8e5f6#tokentxns
@@ -42,8 +54,11 @@ const fetchEth = async (_: any, _b: any, options: FetchOptions): Promise<FetchRe
     fromAddressFilter: PARADEX_BRIDGE,
   });
 
+  const dailyHoldersRevenue = options.createBalances()
+  dailyHoldersRevenue.addBalances(buybacks, METRIC.TOKEN_BUY_BACK)
+
   return {
-    dailyHoldersRevenue: buybacks
+    dailyHoldersRevenue,
   };
 };
 
@@ -60,10 +75,22 @@ const adapter: SimpleAdapter = {
     }
   },
   methodology: {
-		Fees: "Tracks total fees paid by traders on Paradex.",
-    HoldersRevenue: "$DIME purchased with net protocol revenue."
+		Fees: "Perps trading fees paid by traders on Paradex, from the PERP_FEES breakdown of the public Paradex stats dashboard. Options and spot fees are tracked in their own listings.",
+    UserFees: "Perps trading fees paid by traders on Paradex.",
+    HoldersRevenue: "$DIME purchased with net protocol revenue and withdrawn to the assistance fund."
 	},
-  skipBreakdownValidation: true, // skipping breakdown validation as we dont have the revenue breakdown
+  breakdownMethodology: {
+    Fees: {
+      [PERP_TRADING_FEES]: "Perpetual trading fees paid by traders on Paradex, from the PERP_FEES column of the public Paradex stats dashboard.",
+    },
+    UserFees: {
+      [PERP_TRADING_FEES]: "Perpetual trading fees paid by traders on Paradex, from the PERP_FEES column of the public Paradex stats dashboard.",
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "$DIME bought with protocol revenue and sent from the Paradex bridge to the assistance fund.",
+    },
+  },
+  skipBreakdownValidation: true, // Paradex does not publish a supply-side/protocol split, so dailyRevenue is not reported
 };
 
 export default adapter; 

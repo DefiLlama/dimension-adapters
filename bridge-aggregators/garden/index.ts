@@ -81,8 +81,48 @@ const chainMapper: Record<string, { name: string, start: string, primaryCGToken:
         primaryCGToken: 'monad',
         decimals: 18
     },
+    [CHAIN.BOTANIX]: {
+        name: "botanix",
+        start: "2025-06-24",
+        primaryCGToken: 'bitcoin',
+        decimals: 18
+    },
+    [CHAIN.CITREA]: {
+        name: "citrea",
+        start: "2026-01-20",
+        primaryCGToken: 'bitcoin',
+        decimals: 18
+    },
+    [CHAIN.MEGAETH]: {
+        name: "megaeth",
+        start: "2026-02-06",
+        primaryCGToken: 'ethereum',
+        decimals: 18
+    },
+    [CHAIN.TRON]: {
+        name: "tron",
+        start: "2026-01-10",
+        primaryCGToken: 'tron',
+        decimals: 6
+    },
+    [CHAIN.LITECOIN]: {
+        name: "litecoin",
+        start: "2026-01-10",
+        primaryCGToken: 'litecoin',
+        decimals: 8
+    },
+    [CHAIN.SPARK]: {
+        name: "spark",
+        start: "2026-02-26",
+        primaryCGToken: 'bitcoin',
+        decimals: 8
+    },
 };
-const baseUrl = "https://api.garden.finance/orders";
+
+// Garden emits two chain strings for HyperEVM ("hyperliquid" legacy, "hyperevm" new);
+// both map to the DefiLlama hyperliquid chain.
+const normalizeChain = (chain: string): string => (chain === "hyperevm" ? "hyperliquid" : chain);
+const baseUrl = "https://api.garden.finance/v2/orders";
 
 type SwapDetails = {
     chain: string;
@@ -146,24 +186,45 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
 
     while (shouldContinue) {
         const response: GardenApiResponse = await fetchURL(
-            `${baseUrl}/matched?page=${currentPage}&per_page=200&status=completed`
+            `${baseUrl}?page=${currentPage}&per_page=200&status=completed`
         );
+        // Same reasoning as fees/garden: an empty first page is a source failure,
+        // not a zero-volume day, and letting it through publishes a real 0.
         if (response.status !== "Ok" || !response.result.data.length) {
+            if (currentPage === 1) {
+                throw new Error(
+                    `garden bridge: orders endpoint returned no usable data on page 1 (status ${response.status}, ${response.result?.data?.length ?? "no"} rows)`
+                );
+            }
             break;
         }
+
+        // Pages are newest-first, so a stale first row means paging further is
+        // pointless and would publish the same silent zeros as an empty feed.
+        if (currentPage === 1) {
+            const newestTimestamp = new Date(response.result.data[0].created_at).getTime() / 1000;
+            if (newestTimestamp < startTimestamp) {
+                throw new Error(
+                    `garden bridge: freshest completed order (${response.result.data[0].created_at}) predates the requested window — the orders feed looks stale, not zero`
+                );
+            }
+        }
+
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-            if (!insideDateRange && txTimestamp > endTimestamp) {
+            if (!insideDateRange && txTimestamp >= endTimestamp) {
                 continue;
             }
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
+            if (txTimestamp < endTimestamp && txTimestamp >= startTimestamp) {
                 if (!insideDateRange) {
                     insideDateRange = true;
                 }
                 const { source_swap, destination_swap } = tx;
+                const sourceChain = normalizeChain(source_swap.chain);
+                const destChain = normalizeChain(destination_swap.chain);
                 addToVolume(
-                    source_swap.chain === destination_swap.chain ? volumes.sameChain : volumes.crossChain,
-                    source_swap.chain,
+                    sourceChain === destChain ? volumes.sameChain : volumes.crossChain,
+                    sourceChain,
                     source_swap.token_address,
                     source_swap.filled_amount
                 );

@@ -1,9 +1,10 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
 import { fetchCurveApiData, getChainDataFromApiResponse } from "./api";
 
-const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
+const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
   [CHAIN.ETHEREUM]: {
     start: '2020-09-06',
     stable_factory: [
@@ -90,40 +91,40 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     metaBasePools: {
       '0x6c3f90f043a72fa612cbac8115ee7e52bde6e490': {
         tokens: [
-          '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-          '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+          ADDRESSES.ethereum.DAI, // DAI
+          ADDRESSES.ethereum.USDC, // USDC
+          ADDRESSES.ethereum.USDT, // USDT
         ],
       },
       '0x3175df0976dfa876431c2e9ee6bc45b65d3473cc': {
         tokens: [
-          '0x853d955aCEf822Db058eb8505911ED77F175b99e', // FRAX
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+          ADDRESSES.ethereum.FRAX, // FRAX
+          ADDRESSES.ethereum.USDC, // USDC
         ],
       },
       '0x075b1bb99792c9e1041ba13afef80c91a1e70fb3': {
         tokens: [
           '0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D',
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
           '0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6',
         ],
       },
       '0x49849c98ae39fff122806c06791fa73784fb3675': {
         tokens: [
           '0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D',
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
         ],
       },
       '0x051d7e5609917bd9b73f04bac0ded8dd46a74301': {
         tokens: [
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
           '0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6',
         ],
       },
     },
   },
   [CHAIN.ARBITRUM]: {
-    start: '2021-09-12',
+    start: '2021-09-21',
     stable_factory: [
       '0xb17b674D9c5CB2e441F8e196a2f048A81355d031'
     ],
@@ -152,20 +153,20 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     metaBasePools: {
       '0x7f90122bf0700f9e7e1f688fe926940e8839f353': {
         tokens: [
-          '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-          '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+          ADDRESSES.arbitrum.USDC,
+          ADDRESSES.arbitrum.USDT,
         ],
       },
       '0x3e01dd8a5e1fb3481f0f589056b428fc308af0fb': {
         tokens: [
-          '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.arbitrum.WBTC,
+          ADDRESSES.fantom.renBTC,
         ],
       },
       '0xc9b8a3fdecb9d5b218d02555a8baf332e5b740d5': {
         tokens: [
-          '0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F',
-          '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
+          ADDRESSES.arbitrum.FRAX,
+          ADDRESSES.arbitrum.USDC,
         ],
       },
     }
@@ -195,15 +196,15 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     metaBasePools: {
       '0x1337bedc9d22ecbe766df105c9623922a27963ec': {
         tokens: [
-          '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
-          '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          ADDRESSES.optimism.DAI,
+          ADDRESSES.optimism.USDC,
+          ADDRESSES.optimism.USDT,
         ]
       },
       '0x29a3d66b30bc4ad674a4fdaf27578b64f6afbfe7': {
         tokens: [
-          '0x2E3D870790dC77A83DD1d18184Acc7439A53f475',
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ADDRESSES.optimism.FRAX,
+          ADDRESSES.optimism.USDC,
         ]
       },
     }
@@ -212,6 +213,12 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     start: '2021-06-12',
     stable_factory: [
       '0xb17b674D9c5CB2e441F8e196a2f048A81355d031',
+    ],
+    factory_stable_ng: [
+      '0x6a8cbed756804b16e05e741edabd5cb544ae21bf',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
     ],
     customPools: {
       [ContractVersion.main]: [
@@ -232,14 +239,52 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
           '0x532E6537FEA298397212F09A61e03311686f548e',
         ]
       },
-      '0xdbf31df14b66535af65aac99c32e9ea844e14501': {
+      [ADDRESSES.fantom.renBTC]: {
         tokens: [
           '0x686bEF2417b6Dc32C50a3cBfbCC3bb60E1e9a15D',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.fantom.renBTC,
         ]
       }
     }
   },
+  [CHAIN.BSC]: {
+    start: '2023-12-19',
+    stable_factory: [
+      '0xEfDE221f306152971D8e9f181bFe998447975810',
+    ],
+    factory_crypto: [
+      '0xBd5fBd2FA58cB15228a9Abdac9ec994f79E3483C',
+    ],
+    factory_twocrypto: [
+      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+    ],
+    factory_tricrypto: [
+      '0x38f8D93406fA2d9924DcFcB67dB5B0521Fb20F7D',
+    ],
+    factory_stable_ng: [
+      '0xd7E72f3615aa65b92A4DBdC211E296a35512988B',
+    ],
+    customPools: {},
+  },
+  // [CHAIN.FANTOM]: {
+  //   start: '2021-09-16',
+  //   stable_factory: [
+  //     '0x686d67265703d1f124c45e33d47d794c566889ba',
+  //   ],
+  //   factory_crypto: [
+  //     '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
+  //   ],
+  //   factory_stable_ng: [
+  //     '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
+  //   ],
+  //   customPools: {},
+  // },
   [CHAIN.POLYGON]: {
     start: '2021-10-05',
     stable_factory: [
@@ -273,7 +318,7 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
       '0xf8a57c1d3b9629b77b6726a042ca48990a84fb49': {
         tokens: [
           '0x5c2ed810328349100A66B82b78a1791B101C9D61',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.fantom.renBTC,
         ]
       },
       '0xe7a24ef0c5e95ffb0f6684b813a78f2a3ad7d171': {
@@ -283,10 +328,14 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
           '0x60D55F02A771d515e077c9C2403a1ef324885CeC',
         ]
       },
-    }
+    },
+    blacklistedTokens: [
+      // Curve.fi amDAI/amUSDC/amUSDT LP; coins DB mislabels/prices it as am3CRV (~$20k)
+      '0xE7a24EF0C5e95Ffb0f6684b813A78F2a3AD7D171',
+    ],
   },
   [CHAIN.BASE]: {
-    start: '2023-04-17',
+    start: '2023-08-30',
     stable_factory: [
       '0x3093f9b57a428f3eb6285a589cb35bea6e78c336',
     ],
@@ -328,9 +377,9 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     metaBasePools: {
       '0x1337bedc9d22ecbe766df105c9623922a27963ec': {
         tokens: [
-          '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d',
-          '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83',
-          '0x4ECaBa5870353805a9F068101A40E0f32ed605C6',
+          ADDRESSES.xdai.WXDAI,
+          ADDRESSES.xdai.USDC,
+          ADDRESSES.xdai.USDT,
         ]
       }
     }
@@ -464,7 +513,52 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
     blacklistedPools: [
     ],
   },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-05',
+    factory_stable_ng: [
+      '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+    ],
+    factory_twocrypto: [
+      '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+    ],
+    factory_tricrypto: [
+      '0x6E28493348446503db04A49621d8e6C9A40015FB',
+    ],
+    customPools: {},
+    blacklistedPools: [
+    ],
+  },
+  // [CHAIN.ARC]: {
+  //   start: '2026-09-16',
+  //   factory_stable_ng: [
+  //     '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x6E28493348446503db04A49621d8e6C9A40015FB',
+  //   ],
+  //   customPools: {},
+  //   blacklistedPools: [
+  //   ],
+  // },
 
+  // [CHAIN.ETHERLINK]: {
+  //   start: "2025-08-02",
+  //   factory_stable_ng: [
+  //     "0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD",
+  //   ],
+  //   factory_twocrypto: [
+  //     "0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C",
+  //   ],
+  //   factory_tricrypto: [
+  //     "0x6E28493348446503db04A49621d8e6C9A40015FB",
+  //   ],
+  //   customPools: {},
+  //   blacklistedPools: [
+  //   ],
+  // },
   // [CHAIN.TAC]: {
   //   start: '2025-06-25',
   //   factory_stable_ng: [
@@ -480,20 +574,21 @@ const CurveDexConfigs: {[key: string]: ICurveDexConfig} = {
   // },
 }
 
-const LABELS = {
-  CurveDEXSwapFees: 'CurveDEX Swap Fees',
-  CurveDEXSwapRevenue: 'CurveDEX Admin Fees',
-  CurveDEXFeesTreasury: 'CurveDEX Admin Fees To Treasury',
-  CurveDEXFeesHolders: 'CurveDEX Fees To veCRV Holders',
-  CurveDEXFeesLPs: 'CurveDEX Fees To LPs',
-}
+// admin fees: 90% veCRV holders, 10% DAO treasury
+const HOLDERS_SHARE_OF_ADMIN_FEES = 0.9
+const TREASURY_SHARE_OF_ADMIN_FEES = 0.1
+
+// only for chains the API doesn't cover - any other failure must propagate
+class ChainNotInApiError extends Error { }
 
 async function fetchFromApi(options: FetchOptions) {
-  const apiResponse = await fetchCurveApiData(options.startTimestamp, options.endTimestamp);
+  if (options.startOfDay < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
+
+  const apiResponse = await fetchCurveApiData(options.startOfDay);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
   if (!chainData) {
-    throw new Error(`No data for chain ${options.chain} in API response`);
+    throw new ChainNotInApiError(`No data for chain ${options.chain} in API response`);
   }
 
   const dailyFees = options.createBalances();
@@ -502,14 +597,15 @@ async function fetchFromApi(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(chainData.total_fees, LABELS.CurveDEXSwapFees);
-  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury, LABELS.CurveDEXSwapRevenue);
-  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury, LABELS.CurveDEXFeesTreasury);
-  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp, LABELS.CurveDEXFeesLPs);
-  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao, LABELS.CurveDEXFeesHolders);
-  
+  dailyFees.addUSDValue(chainData.total_fees);
+  dailyRevenue.addUSDValue(chainData.fees_to_dao + chainData.fees_to_treasury);
+  dailyProtocolRevenue.addUSDValue(chainData.fees_to_treasury);
+  dailySupplySideRevenue.addUSDValue(chainData.fees_to_lp);
+  dailyHoldersRevenue.addUSDValue(chainData.fees_to_dao);
+
   return {
-    dailyVolume: chainData.total_volume,
+    // trading_volume only - total_volume also counts add/remove liquidity
+    dailyVolume: chainData.trading_volume,
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
@@ -527,14 +623,15 @@ async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) 
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  
+
   const lpRevenue = swapFees.clone(1);
   lpRevenue.subtract(adminFees);
 
-  dailyFees.add(swapFees, LABELS.CurveDEXSwapFees);
-  dailyRevenue.add(adminFees, LABELS.CurveDEXSwapRevenue);
-  dailySupplySideRevenue.add(lpRevenue, LABELS.CurveDEXFeesLPs);
-  dailyHoldersRevenue.add(adminFees, LABELS.CurveDEXFeesHolders);
+  dailyFees.add(swapFees);
+  dailyRevenue.add(adminFees);
+  dailySupplySideRevenue.add(lpRevenue);
+  dailyHoldersRevenue.add(adminFees.clone(HOLDERS_SHARE_OF_ADMIN_FEES));
+  dailyProtocolRevenue.add(adminFees.clone(TREASURY_SHARE_OF_ADMIN_FEES));
 
   return {
     dailyVolume,
@@ -547,19 +644,30 @@ async function fetchFromOnChain(options: FetchOptions, config: ICurveDexConfig) 
   };
 }
 
-export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
+const methodology = {
+  Volume: "Value swapped in Curve pools, counting one side of each trade. Deposits and withdrawals are not counted as volume.",
+  Fees: "Swap fees paid by traders, set per pool (roughly 0.01% on stable pools, up to a few percent on volatile pools).",
+  UserFees: "Swap fees paid by traders.",
+  Revenue: "The share of swap fees taken by the protocol rather than paid to liquidity providers - usually half of the fee.",
+  ProtocolRevenue: "10% of the protocol's share, sent to the Curve DAO treasury.",
+  HoldersRevenue: "90% of the protocol's share, distributed to veCRV holders.",
+  SupplySideRevenue: "The share of swap fees paid to liquidity providers - usually half of the fee.",
+}
+
+export function getCurveExport(configs: { [key: string]: ICurveDexConfig }) {
   const adapter: SimpleAdapter = {
     version: 2,
+    methodology,
     adapter: Object.keys(configs).reduce((acc, chain) => {
       return {
         ...acc,
         [chain]: {
-          fetch: async function(options: FetchOptions) {
-            // Try API first, fall back to on-chain if chain not in API or API fails
+          fetch: async function (options: FetchOptions): Promise<FetchResultV2> {
+            // Fall back to onchain only when the chain isn't covered by the API.
             try {
               return await fetchFromApi(options);
             } catch (e) {
-              // Fall back to on-chain if API fails or chain not supported
+              if (!(e instanceof ChainNotInApiError)) throw e;
               return await fetchFromOnChain(options, configs[chain]);
             }
           },
@@ -572,34 +680,6 @@ export function getCurveExport(configs: {[key: string]: ICurveDexConfig}) {
   return adapter;
 }
 
-// https://resources.curve.finance/pools/overview/#pool-fees
 const adapter = getCurveExport(CurveDexConfigs)
-
-adapter.methodology = {
-  Fees: "Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)",
-  UserFees: "Trading and liquidity fees paid by users",
-  Revenue: "Fees distributed to veCRV holders and protocol treasury",
-  ProtocolRevenue: "Fees allocated to the protocol treasury",
-  HoldersRevenue: "Fees distributed to veCRV governance token holders",
-  SupplySideRevenue: "Fees distributed to liquidity providers"
-}
-
-adapter.breakdownMethodology = {
-  Fees: {
-    [LABELS.CurveDEXSwapFees]: 'Trading and liquidity fees from Curve pools (typically 0.01%-0.04%)',
-  },
-  Revenue: {
-    [LABELS.CurveDEXSwapRevenue]: 'Fees distributed to veCRV holders and protocol treasury',
-  },
-  ProtocolRevenue: {
-    [LABELS.CurveDEXFeesTreasury]: 'Fees allocated to the protocol treasury',
-  },
-  HoldersRevenue: {
-    [LABELS.CurveDEXFeesHolders]: 'Fees distributed to veCRV governance token holders',
-  },
-  SupplySideRevenue: {
-    [LABELS.CurveDEXFeesLPs]: 'Fees distributed to liquidity providers',
-  },
-}
 
 export default adapter;

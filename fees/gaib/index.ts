@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // DefiLlama Fees / Revenue Adapter for GAIB
 // Repo: DefiLlama/dimension-adapters
 // Path: fees/gaib/index.ts
@@ -15,7 +16,7 @@ import { CHAIN } from "../../helpers/chains";
 const SAID_VAULT = "0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8";
 const AID = "0x18F52B3fb465118731d9e0d276d4Eb3599D57596"
 const AIDFirstPriceTimestamp = 1769550059
-const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
+const DAI = ADDRESSES.ethereum.DAI;
 
 const ONE = BigInt(1e18);
 // Protocol fee ~20% of gross yield — governance-adjustable on-chain

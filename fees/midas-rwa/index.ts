@@ -227,6 +227,14 @@ const config: Record<string, Record<string, TokenConfig>> = {
 				"0x9BF00b7CFC00D6A7a2e2C994DB8c8dCa467ee359",
 			],
 		},
+		mGLO: {
+			address: "0xFCc9Cc1209651Ed8867332d6F664CF82743A2584",
+			oracle: "0x6B593a5FAbb90F36e125562Db833f761d274fcBC",
+			vaults: [
+				"0x2B7e9c9a72a31e4299F735D6e13445B320701Df1",
+				"0xA80F9BfFff91CBC13314fEfD05560032aF018F18",
+			],
+		}
 	},
 	[CHAIN.OPTIMISM]: {
 		mRe7ETH: {
@@ -427,6 +435,16 @@ const config: Record<string, Record<string, TokenConfig>> = {
 			],
 		},
 	},
+	[CHAIN.ROBINHOOD]: {
+		mGLO: {
+			address: "0xFEd493F38c1aAcb4EA4e6A11F8b9287849EE0096",
+			oracle: "0x49D9Dd1Fa6EA3709aB8A5d5f16a1cf207eb91dd0",
+			vaults: [
+				"0x2A3b139EA78CC54290C672162e2b6A8c486f4791",
+				"0x89db0aA579F0b136A295C427e8C0D35A3dcD0a2e",
+			],
+		},
+	},
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -474,12 +492,12 @@ const fetch = async (options: FetchOptions) => {
 	if (allVaults.length > 0) {
 		const logOpts = { targets: allVaults, flatten: true };
 		const [redeemLogs, redeemCustomLogs, depositLogs, depositCustomLogs, redeemRequestLogs, redeemRequestCustomLogs, depositRequestLogs, depositRequestCustomLogs] = await Promise.all([
-			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant }),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemInstant, onlyArgs: false }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemInstantCustom, onlyArgs: false }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositInstant}),
 			getLogs({ ...logOpts, eventAbi: ABI.depositInstantCustom}),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest }),
-			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemRequest, onlyArgs: false }),
+			getLogs({ ...logOpts, eventAbi: ABI.redeemRequestCustom, onlyArgs: false }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositRequest }),
 			getLogs({ ...logOpts, eventAbi: ABI.depositRequestCustom }),
 		]);
@@ -513,7 +531,7 @@ const fetch = async (options: FetchOptions) => {
 
 		// Process redeem fees (feeAmount) — instant + request-based
 		for (const log of [...redeemLogs, ...redeemCustomLogs, ...redeemRequestLogs, ...redeemRequestCustomLogs]) {
-			const feeAmount = Number(log.feeAmount);
+			const feeAmount = Number(log.args.feeAmount);
 			if (feeAmount <= 0) continue;
 			const info = vaultToToken[log.address?.toLowerCase()];
 			if (!info) continue;
@@ -577,6 +595,7 @@ const adapter: SimpleAdapter = {
 		// [CHAIN.TAC]: { fetch, start: "2026-01-09" },
 		// [CHAIN.ROOTSTOCK]: { fetch, start: "2025-03-01" },
 		// [CHAIN.OG]: { fetch, start: "2025-09-16" },
+		[CHAIN.ROBINHOOD]: { fetch, start: "2026-06-30" },
 	},
 	allowNegativeValue: true,
 	methodology: {

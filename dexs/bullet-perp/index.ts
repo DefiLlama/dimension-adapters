@@ -12,7 +12,7 @@ async function fetch(_: any) {
 
   const perpSymbols = new Set<string>(
     exchangeInfo.symbols
-      .filter((s: any) => s.contractType === "Perp")
+      .filter((s: any) => s.contractType.includes("Perp"))
       .map((s: any) => s.symbol)
   );
 
@@ -30,7 +30,7 @@ async function fetch(_: any) {
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
-  chains: [CHAIN.SOLANA],
+  chains: [CHAIN.BULLET],
   runAtCurrTime: true,
   start: "2026-02-12",
 }

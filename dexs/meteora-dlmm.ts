@@ -1,64 +1,88 @@
+import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import fetchURL from '../utils/fetchURL';
+import { queryDuneSql } from '../helpers/dune';
+import { httpGet } from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 
-const meteoraStatsEndpoint = 'https://dlmm.datapi.meteora.ag/pools';
+// Meteora DLMM volume from dex_solana.trades (one row per swap, valued off the SOL/USDC side at swap time).
+// Unpriced swaps fall back to the raw sold amount. Pools on Meteora's own blacklist (wash/scam pools, flagged
+// is_blacklisted in the DLMM API) are excluded.
 
-async function fetch() {
-  let page = 1;
-  let dailyVolume = 0;
-  let dailyFees = 0;
-  let dailyRevenue = 0;
-  let dailySupplySideRevenue = 0;
-  const limit = 100;
+type DuneRow = {
+  pool: string;
+  mint: string;
+  priced_volume_usd: string;
+  unpriced_sold_raw: string;
+};
 
-  while (true) {
-    const response = await fetchURL(`${meteoraStatsEndpoint}?page=${page}&limit=${limit}`);
+const DLMM_API = 'https://dlmm.datapi.meteora.ag/pools';
+const PAGE_SIZE = 1000; // API max
 
-    const pools = response.data || [];
-    if (pools.length === 0) break;
+const getQuery = (options: FetchOptions) => `
+SELECT
+  project_program_id AS pool,
+  token_sold_mint_address AS mint,
+  CAST(coalesce(sum(amount_usd), 0) AS VARCHAR) AS priced_volume_usd,
+  CAST(coalesce(sum(CASE WHEN amount_usd IS NULL THEN token_sold_amount_raw END), 0) AS VARCHAR) AS unpriced_sold_raw
+FROM dex_solana.trades
+WHERE block_month >= CAST(date_trunc('month', from_unixtime(${options.startTimestamp})) AS DATE)
+  AND block_month <= CAST(date_trunc('month', from_unixtime(${options.endTimestamp} - 1)) AS DATE)
+  AND block_time >= from_unixtime(${options.startTimestamp})
+  AND block_time < from_unixtime(${options.endTimestamp})
+  AND project = 'meteora'
+  AND version = 2
+GROUP BY 1, 2
+`;
 
-    for (const pool of pools) {
-      const tvl = pool.tvl || 0;
-      const volume = (pool.volume && pool.volume['24h']) ? Number(pool.volume['24h']) : 0;
-      // const protocolFeeRatio = +pool.pool_config.protocol_fee_percentage / 100 || 0;
-      const fees = (pool.fees && pool.fees['24h']) ? Number(pool.fees['24h']) : 0;
-      const protocol_fees = (pool.protocol_fees && pool.protocol_fees['24h']) ? Number(pool.protocol_fees['24h']) : 0;
+const getBlacklistedPools = async (): Promise<Set<string>> => {
+  const pools = new Set<string>();
+  for (let page = 1; ; page++) {
+    // sorted by creation time so pages are stable (the default volume sort reshuffles ties between pages)
+    const res = await httpGet(`${DLMM_API}?page=${page}&page_size=${PAGE_SIZE}&filter_by=is_blacklisted%3Dtrue&sort_by=pool_created_at%3Aasc`);
+    if (!Array.isArray(res.data) || !Number.isFinite(res.pages)) throw new Error('meteora-dlmm: unexpected DLMM API response');
+    for (const pool of res.data) pools.add(pool.address);
+    if (!res.data.length || page >= res.pages) break;
+    await sleep(100);
+  }
+  return pools;
+};
 
-      // Ignore if TVL < 1M and volume > 10x TVL
-      if (pool.is_blacklisted || (tvl < 1_000_000 && volume > tvl * 10) || fees > volume * 0.1)
-        continue;
+const fetch = async (options: FetchOptions) => {
+  const [rows, blacklisted] = await Promise.all([
+    queryDuneSql(options, getQuery(options)) as Promise<DuneRow[]>,
+    getBlacklistedPools(),
+  ]);
+  if (!rows.length) throw new Error('meteora-dlmm: Dune returned no swaps for the window');
 
-      dailyVolume += volume;
-      dailyFees += fees;
-      dailyRevenue += protocol_fees;
-      dailySupplySideRevenue += fees - protocol_fees;
+  const dailyVolume = options.createBalances();
+  const pools = new Set<string>();
+  const excluded = new Set<string>();
+  for (const row of rows) {
+    pools.add(row.pool);
+    if (blacklisted.has(row.pool)) {
+      excluded.add(row.pool);
+      continue;
     }
-
-    const lastPool = pools[pools.length - 1];
-    if (lastPool.volume['24h'] < 1000) break;
-
-    await sleep(100)
-
-    page++;
+    dailyVolume.addUSDValue(Number(row.priced_volume_usd));
+    dailyVolume.add(row.mint, row.unpriced_sold_raw);
   }
+  options.api.log(`meteora-dlmm: ${pools.size} pools traded, ${excluded.size} excluded by Meteora's blacklist (${blacklisted.size} pools listed)`);
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  }
-}
+  return { dailyVolume };
+};
 
-export default {
-  version: 2,
-  adapter: {
-    [CHAIN.SOLANA]: {
-      fetch,
-      runAtCurrTime: true,
-      start: '2023-11-07'
-    }
-  }
-}
+const methodology = {
+  Volume: 'Value of the tokens traders sold in Meteora DLMM swaps, taken from decoded onchain swaps and valued at the time of each swap. Pools blacklisted by Meteora are excluded.',
+};
+
+const adapter: SimpleAdapter = {
+  version: 1,
+  methodology,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: '2023-11-07',
+  dependencies: [Dependencies.DUNE],
+  isExpensiveAdapter: true,
+};
+
+export default adapter;

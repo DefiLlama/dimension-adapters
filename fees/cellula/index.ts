@@ -8,11 +8,11 @@ const LIFE_ADDRESS = "0xabd1780208a62b9cbf9d3b7a1617918d42493933";
 const LIFE_ABI = "event FeedEvent(uint256 tokenId, uint256 startTime, uint256 workTime)"
 
 const methodology = {
-  Fees: "The cost of renting a Cell.",
-  Revenue: "The sum of life charging fees and life mint fees.",
-  ProtocolRevenue: "Share of 25% of life charging fees and life mint fees.",
-  HoldersRevenue: "Share of 5% of life charging fees and life mint fees.",
-  SupplySideRevenue: "Share of 70% of life charging fees and life mint fees.",
+  Fees: "Cell rental fees paid when minting a Life, plus BNB paid to charge a Life for 1, 3 or 7 days.",
+  Revenue: "75% of Cell rental fees plus all Life charging fees.",
+  ProtocolRevenue: "70% of Cell rental fees plus all Life charging fees, kept by the protocol.",
+  HoldersRevenue: "5% of Cell rental fees, distributed to token holders.",
+  SupplySideRevenue: "25% of Cell rental fees, paid to Cell owners.",
 };
 const adapter: Adapter = {
   adapter: {
@@ -31,7 +31,7 @@ const adapter: Adapter = {
         logs.map((e: any) => {
           dailyFees.addGasToken(e.amount * BigInt(20))
 
-          dailyRevenue.addGasToken(e.amount * BigInt(20))
+          dailyRevenue.addGasToken(e.amount * BigInt(15))
           dailyProtocolRevenue.addGasToken(e.amount * BigInt(14))
           dailyHoldersRevenue.addGasToken(e.amount)
           dailySupplySideRevenue.addGasToken(e.amount * BigInt(5))
@@ -40,7 +40,7 @@ const adapter: Adapter = {
         // 0.0017 BNB / 1 D
         // 0.0051 BNB / 3 D
         // 0.0119 BNB / 7 D
-        const workTimePrice = {
+        const workTimePrice : any = {
           "86400": "1700000000000000",
           "259200": "5100000000000000",
           "604800": "11900000000000000",

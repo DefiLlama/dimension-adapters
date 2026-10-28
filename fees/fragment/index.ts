@@ -28,48 +28,38 @@ const TELEGRAM_WALLETS = [
   '0:99DC29AD86155121C8B0CE9B75542D1714F06B3FA42F5472D97BF61DC78E9048', // Telegram operations deployer/funder (vesting & validator wallets)
 ];
 
-async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResult> {
+async function fetch(options: FetchOptions): Promise<FetchResult> {
   // Workaround for dune indexing issue
   const now = Date.now()
-  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > tenHoursAgo) {
-      console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
-      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
+  const twoHoursAgo = now - (2 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > twoHoursAgo) {
+      console.log("End timestamp is less than 2 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(twoHoursAgo).toISOString())
+      throw new Error("End timestamp is less than 2 hours ago, skipping due to dune indexing delay")
   }
 
   const fragmentAddressList = FRAGMENT_ADDRESSES.map(a => `'${a}'`).join(', ');
   const telegramAddressList = TELEGRAM_WALLETS.map(a => `'${a}'`).join(', ');
 
+  // Both sides read the same window of the same table, so they are one pass. message_count is that
+  // window's total row count: it separates a day Fragment really took nothing from a day
+  // ton.messages has not been loaded for, which the sums cannot do on their own.
   const query = `
-    WITH fees AS (
-      SELECT SUM(value / 1e9) AS ton_received
-      FROM ton.messages
-      WHERE direction = 'in'
-        AND NOT bounced
-        AND value > 0
-        AND destination IN (${fragmentAddressList})
-        AND source NOT IN (${fragmentAddressList})
-        AND source NOT IN (${telegramAddressList})
-        AND block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
-    ),
-    supply_side AS (
-      SELECT SUM(value / 1e9) AS ton_sent
-      FROM ton.messages
-      WHERE direction = 'in'
-        AND NOT bounced
-        AND value > 0
-        AND source IN (${fragmentAddressList})
-        AND destination NOT IN (${fragmentAddressList})
-        AND destination NOT IN (${telegramAddressList})
-        AND block_time >= from_unixtime(${options.fromTimestamp})
-        AND block_time < from_unixtime(${options.toTimestamp})
-    )
     SELECT
-      COALESCE(fees.ton_received, 0) AS ton_received,
-      COALESCE(supply_side.ton_sent, 0) AS ton_sent
-    FROM fees
-    CROSS JOIN supply_side`;
+      COUNT(*) AS message_count,
+      COALESCE(SUM(CASE WHEN destination IN (${fragmentAddressList})
+                         AND source NOT IN (${fragmentAddressList})
+                         AND source NOT IN (${telegramAddressList})
+                        THEN value / 1e9 END), 0) AS ton_received,
+      COALESCE(SUM(CASE WHEN source IN (${fragmentAddressList})
+                         AND destination NOT IN (${fragmentAddressList})
+                         AND destination NOT IN (${telegramAddressList})
+                        THEN value / 1e9 END), 0) AS ton_sent
+    FROM ton.messages
+    WHERE direction = 'in'
+      AND NOT bounced
+      AND value > 0
+      AND block_time >= from_unixtime(${options.fromTimestamp})
+      AND block_time < from_unixtime(${options.toTimestamp})`;
 
   const queryResults = await queryDuneSql(options, query);
 
@@ -79,6 +69,12 @@ async function fetch(_a: any, _b: any, options: FetchOptions): Promise<FetchResu
 
   if (queryResults[0].ton_received == null || queryResults[0].ton_sent == null) {
     throw new Error(`Unexpected Dune result shape: ${JSON.stringify(queryResults[0])}`);
+  }
+
+  // A TON day carries millions of messages, so an empty window means the table has not been loaded
+  // that far yet rather than that nothing happened. Publishing the sums as a zero day would bury it.
+  if (Number(queryResults[0].message_count) === 0) {
+    throw new Error(`ton.messages has no rows for ${options.dateString}, refusing to report it as a zero fee day`);
   }
 
   const dailyFees = options.createBalances();

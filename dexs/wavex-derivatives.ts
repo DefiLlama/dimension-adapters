@@ -1,7 +1,6 @@
 import request, { gql } from "graphql-request";
-import { SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getUniqStartOfTodayTimestamp } from "../helpers/getUniSubgraphVolume";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.SONEIUM]: "https://wavex-indexer-serve-mainnet.up.railway.app/",
@@ -25,13 +24,10 @@ const historicalOI = gql`
   }
 `;
 
-const fetch = async (timestamp: number) => {
+const fetch = async (options: FetchOptions) => {
   const chain = CHAIN.SONEIUM;
-  const dayTimestamp = getUniqStartOfTodayTimestamp(
-    new Date(timestamp * 1000)
-  );
   const dailyData = await request(endpoints[chain], historicalDataDerivatives, {
-    id: dayTimestamp.toString(),
+    id: options.startOfDay.toString(),
   });
 
   let openInterestAtEnd = 0;
@@ -39,7 +35,7 @@ const fetch = async (timestamp: number) => {
   let shortOpenInterestAtEnd = 0;
 
   const tradingStats = await request(endpoints[chain], historicalOI, {
-    id: dayTimestamp.toString(),
+    id: options.startOfDay.toString(),
   });
 
   if (tradingStats.tradingStat) {
@@ -49,18 +45,18 @@ const fetch = async (timestamp: number) => {
     shortOpenInterestAtEnd = Number(
       tradingStats.tradingStat.shortOpenInterest || 0
     );
-    openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd = (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2;
   }
 
   const DECIMALS = 30;
 
   return {
-    timestamp: dayTimestamp,
     longOpenInterestAtEnd: longOpenInterestAtEnd
-      ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((longOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     shortOpenInterestAtEnd: shortOpenInterestAtEnd
-      ? String(shortOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((shortOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     openInterestAtEnd: openInterestAtEnd
       ? String(openInterestAtEnd * 10 ** -DECIMALS)
@@ -79,12 +75,9 @@ const fetch = async (timestamp: number) => {
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.SONEIUM]: {
-      fetch,
-      start: 1735286448,
-    },
-  },
+  fetch,
+  chains: [CHAIN.SONEIUM],
+  start: '2024-12-27',
 };
 
 export default adapter;

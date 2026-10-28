@@ -44,7 +44,7 @@ const blacklistPools: Array<string> = [
   '0xad00786c2ba76f08c92e7847456015728f98ac56', // bad pool - very low liquidity
 ];
 
-const fetch = async (_a: any, _b: any, _: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
   const pools = await fetchPools();
   let dailyVolume = 0;
   let dailyFees = 0;

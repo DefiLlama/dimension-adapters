@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const PAYMENT_CONTRACT = "0xEe83640f0ed07d36E799531CC6d87FB4CDcCaC13";
 const MARKETPLACE_CONTRACT = "0x6374aD0E4adab392dFeE60304a16ADc569f06703";
-const USDT_ADDRESS = "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3";
+const USDT_ADDRESS = ADDRESSES.op_bnb.USDT;
 
 // Event ABIs
 const ITEM_SOLD_ABI =

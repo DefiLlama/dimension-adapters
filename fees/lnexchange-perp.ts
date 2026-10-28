@@ -22,7 +22,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   adapter: {
-    [CHAIN.BITCOIN]: {
+    // Orders are matched by the operator over Nostr and funds sit on LN Exchange's Lightning
+    // node (managed custody); nothing trade-related touches Bitcoin L1, so the venue is keyed
+    // as off_chain rather than Bitcoin.
+    [CHAIN.OFF_CHAIN]: {
       fetch,
       start: "2024-10-20",
     },

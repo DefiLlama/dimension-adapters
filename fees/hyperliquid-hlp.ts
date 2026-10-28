@@ -1,8 +1,12 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHyperliquidIndexer, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { getRevenueRatioShares, LLAMA_HL_INDEXER_FROM_TIME, queryHypurrscanApi } from "../helpers/hyperliquid";
+import { queryHyperliquidIndexerV2 } from "../helpers/hyperliquid-v2";
 
-async function fetch(_1: number, _: any,  options: FetchOptions) {
+async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
 
   let perpFees = options.createBalances()
@@ -14,9 +18,9 @@ async function fetch(_1: number, _: any,  options: FetchOptions) {
     perpFees = result.dailyPerpFees.clone(hlpShare)
     spotFees = result.dailySpotFees.clone(hlpShare)
   } else {
-    const result = await queryHyperliquidIndexer(options);
-    perpFees = result.dailyPerpRevenue.clone(hlpShare)
-    spotFees = result.dailySpotRevenue.clone(hlpShare)
+    const result = await queryHyperliquidIndexerV2(options);
+    perpFees = result.dailyHyperliquidRevenue.clone(hlpShare)
+    spotFees = result.dailySpotHyperliquidRevenue.clone(hlpShare)
   }
 
   dailyFees.add(perpFees, 'Perp Fees')
@@ -30,7 +34,7 @@ async function fetch(_1: number, _: any,  options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "1% of perp and spot trading revenue (excluding builders and unit revenue) share for HLP.",
+  Fees: "1% of perp and spot trading revenue (after builder code fees, maker rebates, HIP-3 deployer and unit revenue) share for HLP.",
   SupplySideRevenue: 'All fees share of HLP are distributed to vaults suppliers.',
   Revenue: "No revenue.",
 }
@@ -49,12 +53,9 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2024-12-23',
-    },
-  },
+  chains: [CHAIN.HYPERLIQUID],
+  fetch,
+  start: '2024-12-23',
   doublecounted: true, // we have already counted to supplySideRevenue on perps and spot
 };
 

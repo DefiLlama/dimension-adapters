@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
 async function fetch() {
-  const { data } = await httpGet('https://api-dex.colorpool.xyz/pool/list?page=1&limit=2500&sortField=volume1d&sortOrder=desc')
+  const { data } = await httpGet('https://dex-api-mainnet.colorpool.xyz/pool/list?page=1&limit=2500&sortField=volume1d&sortOrder=desc')
   let dailyFees = 0
 
   for (const pool of data) {

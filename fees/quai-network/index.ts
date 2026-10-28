@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Balances } from "@defillama/sdk";
 import { Adapter, FetchOptions, } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -99,14 +100,14 @@ const getDogeMiningRewards = async (options: FetchOptions, dailyFees: Balances) 
 const chainDetails = {
   ltc: getLitecoinMiningRewards,
   doge: getDogeMiningRewards,
-  rvn: getRavenMiningRewards,
+  // rvn: getRavenMiningRewards,
   bch: getBchMiningRewards
 };
 
 const getQuaiBurnDetails = async (options: FetchOptions, dailyHoldersRevenue: Balances) => {
   const { fromApi, api } = options;
   const quaiBurnAddress = "0x0050AF0000000000000000000000000000000000";
-  const tokens = ["0x0000000000000000000000000000000000000000",]; // Quai Native
+  const tokens = [ADDRESSES.null,]; // Quai Native
 
   await api.sumTokens({ tokens, owner: quaiBurnAddress })
   await fromApi.sumTokens({ tokens, owner: quaiBurnAddress })
@@ -115,7 +116,7 @@ const getQuaiBurnDetails = async (options: FetchOptions, dailyHoldersRevenue: Ba
   dailyHoldersRevenue.subtract(fromApi.getBalancesV2(), METRIC.TOKEN_BUY_BACK)
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 

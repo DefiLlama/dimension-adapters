@@ -261,6 +261,8 @@ const adapter: Adapter = {
   fetch,
   version: 2,
   adapter: chainConfig,
+  allowNegativeValue: true,
+  pullHourly: true,
 };
 
 export default adapter;

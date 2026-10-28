@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const data = await queryDuneSql(
     options,
     `

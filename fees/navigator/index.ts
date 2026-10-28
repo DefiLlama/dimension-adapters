@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const endOfDay = options.startOfDay + (24 * 60 * 60);
   const url = `https://api.navigator.exchange/sonic/api/daily-fees?from=${options.startOfDay}&to=${endOfDay}`

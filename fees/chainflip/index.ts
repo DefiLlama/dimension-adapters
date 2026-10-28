@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
 
     // Fees collected from burning $FLIP. This is a fixed percentage of swap value.
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: 0,
 
     // Ingress, Egress, and Broker fees paid by the user per swap
     dailyUserFees,
@@ -66,6 +66,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue:
       "Fees collected by the LPs + Broker, Ingress and Egress fees",
     HoldersRevenue: 'Fees collected from burning $FLIP.',
+    ProtocolRevenue: 'Protocol keeps no fees, network fees are entirely used to buy and burn $FLIP.',
   },
   breakdownMethodology: {
     Fees: {

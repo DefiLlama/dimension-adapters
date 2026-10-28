@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
@@ -18,11 +19,11 @@ const FEE_EVENT_TYPE_LIST = [
 ];
 const FEE_EVENT_TYPES = FEE_EVENT_TYPE_LIST.map((eventType) => `'${eventType}'`).join(",\n          ");
 
-const APT_CANONICAL = "0x1::aptos_coin::AptosCoin";
+const APT_CANONICAL = ADDRESSES.aptos.APT;
 const APT_SHORT = "0xa";
 const APT_TOKEN = "0x000000000000000000000000000000000000000000000000000000000000000a";
 const USD1_SHORT = "0x5fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2";
-const USD1_TOKEN = "0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2";
+const USD1_TOKEN = ADDRESSES.aptos.USD1;
 const APT_TOKEN_VARIANTS = [APT_CANONICAL, APT_SHORT, APT_TOKEN];
 const USD1_TOKEN_VARIANTS = [USD1_SHORT, USD1_TOKEN];
 const TRACKED_TOKEN_VARIANTS = [...APT_TOKEN_VARIANTS, ...USD1_TOKEN_VARIANTS];
@@ -30,7 +31,7 @@ const TRACKED_TOKEN_TYPES = TRACKED_TOKEN_VARIANTS.map((token) => `'${token}'`).
 const APT_TOKEN_TYPES = APT_TOKEN_VARIANTS.map((token) => `'${token}'`).join(", ");
 const USD1_TOKEN_TYPES = USD1_TOKEN_VARIANTS.map((token) => `'${token}'`).join(", ");
 
-const fetch = async (_: any, __: any, options: FetchOptions): Promise<FetchResult> => {
+const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const volumeQuery = `
     WITH date_filter AS (
       SELECT

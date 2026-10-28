@@ -21,13 +21,17 @@ const chainConfig: Record<string, config> = {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
     start: '2025-05-21',
   },
-  [CHAIN.BITLAYER]: {
-    token: '0xcdfb58c8c859cb3f62ebe9cf2767f9e036c7fb15',
-    start: '2025-01-03',
-  },
+  // [CHAIN.BITLAYER]: {
+  //   token: '0xcdfb58c8c859cb3f62ebe9cf2767f9e036c7fb15',
+  //   start: '2025-01-03',
+  // },
   [CHAIN.HEMI]: {
     token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
     start: '2025-03-14',
+  },
+  [CHAIN.PHAROS]: {
+    token: '0x623F2774d9f27B59bc6b954544487532CE79d9DF',
+    start: '2026-06-24',
   },
   [CHAIN.CORE]: {
     token: '0xCdFb58c8C859Cb3F62ebe9Cf2767F9e036C7fb15',

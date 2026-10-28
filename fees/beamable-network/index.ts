@@ -6,7 +6,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const TREASURY_PDA = '6pZERJjcMpNjPZ6ovnXWC6LzwkXLAYgAR1URAEs63cWC';
 
-const fetch = async (_a: any, _b:any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyHoldersRevenue = options.createBalances();
@@ -28,7 +28,7 @@ const fetch = async (_a: any, _b:any, options: FetchOptions) => {
     JOIN calls c ON t.tx_id = c.tx_id
     WHERE t.block_time >= from_unixtime(${options.fromTimestamp})
       AND t.block_time < from_unixtime(${options.toTimestamp})
-      AND t.token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+      AND t.token_mint_address = '${ADDRESSES.solana.USDC}'
     ORDER BY t.block_slot DESC
   `;
 

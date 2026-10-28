@@ -85,7 +85,7 @@ async function queryOkxApi(timestamp:string, path:string){
     return data
 }
 
-const fetch = async (_timestampParam: number, block: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const timestamp = new Date().toISOString()
     const path = `/api/v5/dex/cross-chain/volume?timestamp=${options.endTimestamp * 1e3}&chainId=${CHAINS[options.chain]}`
 
@@ -93,7 +93,6 @@ const fetch = async (_timestampParam: number, block: any, options: FetchOptions)
 
     return {
         dailyBridgeVolume,
-        timestamp: options.endTimestamp,
     };
 };
 

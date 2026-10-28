@@ -4,7 +4,7 @@ import * as _env from '../../helpers/env';
 import { getBlock } from "../../helpers/getBlock";
 import { getUniqStartOfTodayTimestamp } from '../../helpers/getUniSubgraphVolume';
 import { getDateString } from '../../helpers/utils';
-import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, Fetch, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
+import { accumulativeKeySet, BaseAdapter, BaseAdapterChainConfig, ChainBlocks, FetchGetLogsOptions, FetchOptions, FetchResponseValue, FetchV2, SimpleAdapter } from '../types';
 import { CHAIN } from '../../helpers/chains';
 
 // to trigger inclusion of the env.ts file
@@ -85,7 +85,8 @@ export async function setModuleDefaults(module: SimpleAdapter) {
 
 export function isHourlyAdapter(module: SimpleAdapter) {
   const adapterVersion = module.version
-  return adapterVersion === 2 && (module as any).pullHourly === true
+  const disablePullHourly = String(process.env.DISABLE_PULL_HOURLY) // for local testing purpose only
+  return adapterVersion === 2 && (module as any).pullHourly === true && disablePullHourly !== 'true'
 }
 
 export function isPlainDateArg(rawTimeArg?: string) {
@@ -94,6 +95,7 @@ export function isPlainDateArg(rawTimeArg?: string) {
 
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
+  onlyChains?: Set<string>, // if set, run only these chains, used for chain level refills
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -113,12 +115,20 @@ type AdapterRunOptions = {
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module,} = options
+  const { module, name, isTest, metadata = {}, endTimestamp } = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
-  return _runAdapter(options)
+  // Count every http request made during the run (rpc per chain, indexer, subgraphs, fetchURL...) and
+  // write the totals to the adapter-call-stats index when it settles, see sdk.callStats
+  const callStatsMeta = {
+    application: 'dimensions', type: 'protocol',
+    name: name ?? metadata.name ?? 'unknown',
+    id: metadata.id, adapterType: metadata.adapterType, runType: metadata.runType ?? (isTest ? 'test' : undefined),
+    endTimestamp,
+  }
+  return sdk.callStats.run(callStatsMeta, () => _runAdapter(options), { print: isTest })
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -136,6 +146,7 @@ async function _runAdapter({
   isTest = false,
   withMetadata = false,
   deadChains = new Set(),
+  onlyChains,
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
   metadata = {},
 }: AdapterRunOptions) {
@@ -179,7 +190,7 @@ async function _runAdapter({
   // Run prefetch if provided
   let preFetchedResults: any = null;
   if (typeof prefetch === 'function') {
-    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    const firstChain = chains.find(chain => validStart[chain]?.canRun && (!onlyChains || onlyChains.has(chain)));
     if (firstChain) {
       const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
@@ -199,6 +210,7 @@ async function _runAdapter({
       else
         console.log(`Skipping ${chain} because the configured start time is ${new Date(res.startTimestamp * 1e3).toUTCString()} \n\n`)
     }
+    if (onlyChains && !onlyChains.has(chain)) return false // chain level refill, skip chains that were not asked for
     return validStart[chain]?.canRun && !deadChains.has(chain)
   }).map(getChainResult))
 
@@ -211,7 +223,7 @@ async function _runAdapter({
   if (Object.keys(breakdownByLabelByChain).length === 0) breakdownByLabelByChain = undefined
 
   // if the special chain_global metric is present, it holds the aggregated value for the metric, so we move it to the value field and remove it from the chains object to avoid double counting in the aggregated value
-  if (chains.includes(CHAIN.CHAIN_GLOBAL)) {
+  if (chains.length > 1 && chains.includes(CHAIN.CHAIN_GLOBAL)) {
     Object.keys(aggregated).forEach(metricType => {
       const metricObject = aggregated[metricType]
       if (metricObject.chains[CHAIN.CHAIN_GLOBAL] !== undefined) {
@@ -251,7 +263,12 @@ async function _runAdapter({
 
       let result: any
       if (adapterVersion === 1) {
-        result = await (fetchFunction as Fetch)(options.toTimestamp, chainBlocks, options);
+        // v1 fetch functions now take a single `options` arg (same shape as v2). Any adapter
+        // still on the legacy (timestamp, chainBlocks, options) signature will break here,
+        // which is intentional so the remaining un-migrated adapters surface.
+        result = await (fetchFunction as FetchV2)(options);
+        // v1 adapters may return their own `timestamp` (e.g. when reporting a previous day);
+        // when absent we leave it unset and let the caller default it.
       } else if (adapterVersion === 2) {
         result = await (fetchFunction as FetchV2)(options);
         result.timestamp = options.toTimestamp
@@ -456,10 +473,13 @@ async function _runAdapter({
   }
 
   async function setChainValidStart(chain: string) {
+    // Run every window that ends after the configured start. The server passes an end
+    // of D 23:59:59 (or HH:59:59 for hourly slices), so comparing against the window
+    // start (end - window) skipped the start day itself and its first hour.
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
-    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom
+    let _end = module.deadFrom ?? adapterObject![chain]?.deadFrom ?? 32503593600
     if (typeof _start === 'string') _start = new Date(_start).getTime() / 1000
     if (typeof _end === 'string') _end = new Date(_end).getTime() / 1000
     // if (_start === undefined) return;
@@ -476,7 +496,7 @@ async function _runAdapter({
 
     if (typeof _start === 'number') {
       validStart[chain] = {
-        canRun: _start <= cleanPreviousDayTimestamp,
+        canRun: _start < cleanCurrentDayTimestamp,
         startTimestamp: _start
       }
       return;
@@ -497,7 +517,7 @@ async function _runAdapter({
       return defaultStart
     })
     validStart[chain] = {
-      canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
+      canRun: typeof start === 'number' && start < cleanCurrentDayTimestamp,
       startTimestamp: start
     }
   }

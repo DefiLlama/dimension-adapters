@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTokenSupply } from "../../helpers/solana";
@@ -5,7 +6,7 @@ import * as sdk from "@defillama/sdk";
 
 const USCC: Record<string, string> = {
     [CHAIN.ETHEREUM]: "0x14d60e7fdc0d71d8611742720e4c50e7a974020c",
-    [CHAIN.PLUME]: "0x4c21b7577c8fe8b0b0669165ee7c8f67fa1454cf",
+    [CHAIN.PLUME]: ADDRESSES.plume_mainnet.USCC,
     [CHAIN.SOLANA]: "BTRR3sj1Bn2ZjuemgbeQ6SCtf84iXS81CS7UDTSxUCaK",
 };
 const USCC_CHAINLINK_ORACLE = "0xAfFd8F5578E8590665de561bdE9E7BAdb99300d9";
@@ -37,7 +38,7 @@ const fetch = async (options: FetchOptions) => {
     const rate = priceToday - priceYesterday;
 
     const dailyFees = options.createBalances();
-    dailyFees.addUSDValue(totalSupply * rate > 0 ? rate : 0);
+    dailyFees.addUSDValue(totalSupply * rate > 0 ? totalSupply * rate : 0);
 
     const dailyRevenue = options.createBalances();
     const oneYear = 365 * 24 * 60 * 60;
@@ -52,8 +53,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: "Total Yields from Superstate USCC basis trading",
-    Revenue: "0.75% Annual Management fee collected by superstate",
+    Fees: "Total Yields from Bitwise USCC basis trading",
+    Revenue: "0.75% Annual Management fee collected by Bitwise",
 };
 
 const adapter: SimpleAdapter = {

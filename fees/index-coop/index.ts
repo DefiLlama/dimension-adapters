@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -37,7 +38,7 @@ const ETHEREUM_SET_TOKENS = [
   "0x55b2CFcfe99110C773f00b023560DD9ef6C8A13B", // cdETI
   "0x1B5E16C5b20Fb5EE87C61fE9Afe735Cca3B21A65", // ic21
   "0x36c833Eed0D376f75D1ff9dFDeE260191336065e", // gtcETH
-  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", // USDC
+  ADDRESSES.ethereum.USDC, // USDC
 
   // v2
   "0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b", // DeFi Pulse Index (DPI)

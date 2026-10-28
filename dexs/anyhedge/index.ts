@@ -18,15 +18,17 @@ export const anyhedgeVolumeEndpoint = (day: string) => {
   return "https://gitlab.com/0353F40E/anyhedge-stats/-/raw/master/stats_daily/" + day + ".csv";
 }
 
-const fetchAnyhedgeVolumeData: any = async (timestamp: number, _: any, options: FetchOptions) => {
-  const dayString = new Date(timestamp * 1000).toISOString().slice(0,10);
+const fetch: any = async (options: FetchOptions) => {
+  // each CSV row is stamped with the day it covers, so use the start of the window, not its end
+  const dayString = new Date(options.fromTimestamp * 1000).toISOString().slice(0, 10);
   const anyhedgeVolumeData = await getAnyhedgeVolumeData(anyhedgeVolumeEndpoint(dayString));
-  
+  if (!anyhedgeVolumeData || !Number.isFinite(Number(anyhedgeVolumeData.daily_volume)))
+    throw new Error(`AnyHedge stats CSV for ${dayString} is not published yet`);
+
   const dailyVolume = options.createBalances();
-  dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData?.daily_volume));
+  dailyVolume.addCGToken('bitcoin-cash', Number(anyhedgeVolumeData.daily_volume));
 
   return {
-    timestamp,
     dailyVolume,
   };
 }
@@ -40,7 +42,7 @@ async function getAnyhedgeVolumeData(endpoint: string): Promise<IAnyhedgeVolumeR
     retval.total_volume = data[0].volume_closed_cumulative;
     return retval;
   } catch {
-      return null;
+    return null;
   }
 }
 
@@ -60,12 +62,10 @@ function toObject(keys, values) {
 }
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.BITCOIN_CASH]: {
-      fetch: fetchAnyhedgeVolumeData,
-      start: '2022-06-09',
-    },
-  },
+  fetch,
+  chains: [CHAIN.BITCOIN_CASH],
+  start: '2022-06-09',
   methodology,
 };
+
 export default adapter;

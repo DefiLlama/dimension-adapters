@@ -77,7 +77,7 @@ async function fetchOptimism(options: FetchOptions) {
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees, dailyHoldersRevenue: 0 };
 }
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.SCROLL) return fetchScroll(options);
   else return fetchOptimism(options);
 };

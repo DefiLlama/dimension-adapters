@@ -5,7 +5,7 @@ import { CHAIN } from "../../helpers/chains";
 const prefetch = async (options: FetchOptions) =>
   fetchChainWiseVolumeFromDZapAPI({ ...options, txType: "swap" });
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   // bad data, wash trade
   if (options.startOfDay === 1750982400 && options.chain === CHAIN.ARBITRUM) {
     return {

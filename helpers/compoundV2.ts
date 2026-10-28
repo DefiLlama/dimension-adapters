@@ -1,7 +1,11 @@
 import ADDRESSES from './coreAssets.json'
-import { BaseAdapter, Fetch, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, FetchOptions, IJSON, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 import { METRIC } from './metrics';
+import { cache } from "@defillama/sdk";
+import { collectNamedSymbols } from './insolventMarkets';
+
+const LiquidateBorrowEvent = 'event LiquidateBorrow(address liquidator, address borrower, uint256 repayAmount, address cTokenCollateral, uint256 seizeTokens)'
 
 const comptrollerABI = {
   underlying: "address:underlying",
@@ -12,18 +16,63 @@ const comptrollerABI = {
   totalSupply: "uint256:totalSupply",
 };
 
+const emptyResult = (options: FetchOptions) => ({
+  dailyFees: options.createBalances(),
+  dailyRevenue: options.createBalances(),
+  dailyProtocolRevenue: options.createBalances(),
+  dailyHoldersRevenue: options.createBalances(),
+  dailySupplySideRevenue: options.createBalances(),
+})
+
+// Resolves the symbols the cache names to cToken addresses on this comptroller. Matches the
+// underlying's symbol first and the cToken's own symbol second, so a market whose underlying is the
+// chain's native token is still found. Returns undefined when any named symbol has no match.
+async function resolveMarketsBySymbol(market: string, namedSymbols: Array<string>, { api }: FetchOptions): Promise<Array<string> | undefined> {
+  const markets: Array<string> = await api.call({ target: market, abi: comptrollerABI.getAllMarkets })
+  const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true })
+  const underlyingSymbols = await api.multiCall({
+    calls: underlyings.map((underlying: string, index: number) => underlying ?? markets[index]),
+    abi: 'string:symbol',
+    permitFailure: true,
+  })
+  const marketSymbols = await api.multiCall({ calls: markets, abi: 'string:symbol', permitFailure: true })
+
+  const wanted = new Set(namedSymbols.map(symbol => symbol.trim().toLowerCase()))
+  const matched = new Set<string>()
+  const listedMarkets: Array<string> = []
+  markets.forEach((cToken, index) => {
+    for (const symbol of [underlyingSymbols[index], marketSymbols[index]]) {
+      const normalised = typeof symbol === 'string' ? symbol.trim().toLowerCase() : ''
+      if (normalised && wanted.has(normalised)) {
+        listedMarkets.push(String(cToken).toLowerCase())
+        matched.add(normalised)
+        return
+      }
+    }
+  })
+  if (matched.size !== wanted.size) {
+    const unmatched = [...wanted].filter(symbol => !matched.has(symbol))
+    sdk.log(`compoundV2: ${market} could not match listed market symbol(s) ${unmatched.join(', ')}, skipping the whole comptroller`)
+    return undefined
+  }
+  return listedMarkets
+}
+
 export async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
   dailyFees,
   dailyRevenue,
   abis = {},
+  blacklists = [],
 }: {
   dailyFees?: sdk.Balances,
   dailyRevenue?: sdk.Balances,
-  abis?: any
+  abis?: any,
+  blacklists?: Array<string>
 }) {
   if (!dailyFees) dailyFees = createBalances()
   if (!dailyRevenue) dailyRevenue = createBalances()
-  const markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  let markets = await api.call({ target: market, abi: comptrollerABI.getAllMarkets, })
+  markets = markets.filter((m: string) => (!blacklists.length || !blacklists.includes(String(m).toLowerCase())))
   const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
   underlyings.forEach((underlying, index) => {
     if (!underlying) underlyings[index] = ADDRESSES.null
@@ -51,6 +100,20 @@ export async function getFees(market: string, { createBalances, api, getLogs, }:
   return { dailyFees, dailyRevenue }
 }
 
+/**
+ * Calculates daily borrow fees and protocol revenue for Compound V2 pools
+ * using exchange rate progression across the time window.
+ *
+ * In Compound V2, borrow interest increases exchangeRateStored for pool
+ * suppliers after deducting the protocol reserve factor. This helper measures
+ * the underlying asset growth across blocks and reconstructs the gross
+ * borrow interest (dailyFees) and protocol reserve cut (dailyRevenue).
+ *
+ * @param market - The Comptroller contract address
+ * @param options - FetchOptions providing block range APIs and balance builders
+ * @param extra - Optional parameters including custom balances, ABIs, and market blacklists
+ * @returns Object containing dailyFees and dailyRevenue Balances
+ */
 export async function getFeesUseExchangeRates(market: string, { createBalances, api, fromApi, toApi, }: FetchOptions, {
   dailyFees,
   dailyRevenue,
@@ -87,10 +150,14 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
     const rateGrowth = Number(marketExchangeRatesAfter[i]) - Number(marketExchangeRatesBefore[i])
     if (rateGrowth > 0) {
       const mantissa = 18 + underlyingDecimal - 8
-      const interestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
-      const revenueAccumulated = interestAccumulated * reserveFactor / 1e18
+      const supplyInterestAccumulated = rateGrowth * Number(totalSupplies[i]) * (10 ** underlyingDecimal) / (10 ** mantissa) / 1e8
+      // Reconstruct gross borrow interest from supply-side growth and active reserve factor.
+      // Assumes reserve factor is constant across the window (governance updates are rare).
+      const rf = Number(reserveFactor) / 1e18
+      const grossInterestAccumulated = rf < 1 ? supplyInterestAccumulated / (1 - rf) : supplyInterestAccumulated
+      const revenueAccumulated = grossInterestAccumulated * rf
       
-      dailyFees!.add(underlying, interestAccumulated, METRIC.BORROW_INTEREST);
+      dailyFees!.add(underlying, grossInterestAccumulated, METRIC.BORROW_INTEREST);
       dailyRevenue!.add(underlying, revenueAccumulated, METRIC.BORROW_INTEREST);
     }
   }
@@ -99,7 +166,7 @@ export async function getFeesUseExchangeRates(market: string, { createBalances, 
 }
 
 export function getFeesExport(market: string) {
-  return (async (timestamp: number, _: any, options: FetchOptions) => {
+  return (async (options: FetchOptions) => {
     const { dailyFees, dailyRevenue } = await getFees(market, options, {})
     const dailyHoldersRevenue = dailyRevenue
     const dailySupplySideRevenue = options.createBalances()
@@ -107,8 +174,8 @@ export function getFeesExport(market: string) {
     Object.entries(dailyRevenue.getBalances()).forEach(([token, balance]) => {
       dailySupplySideRevenue.addTokenVannila(token, Number(balance) * -1)
     })
-    return { timestamp, dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
-  }) as Fetch
+    return { dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue }
+  })
 }
 
 interface CompoundV2ExportOptions {
@@ -130,11 +197,31 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     exportObject[chain] = {
       start: starts[chain],
       fetch: (async (options: FetchOptions) => {
+        const compoundInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/compound.json`;
+        const insolventMarketsDetails = await cache.readCache(compoundInsolventMarketsCacheKey, { readFromR2Cache: true });
+        const reasons = ['stuck', 'insolvent'].map(section => {
+          const listed = (insolventMarketsDetails[section] ?? {})?.[options.chain] ?? {};
+          const key = Object.keys(listed).find(item => item.toLowerCase() === market.toLowerCase());
+          return key === undefined ? undefined : listed[key];
+        });
+
+        let blacklists = exportOptions?.blacklists ?? [];
+        if (reasons.some(reason => reason !== undefined)) {
+          // The cache names the offending cToken's underlying in a "SYMBOL: reason" shape, so drop
+          // those markets and keep the rest of the comptroller. A reason we cannot read, or a symbol
+          // we cannot find on this comptroller, still drops everything, as this did before.
+          const namedSymbols = collectNamedSymbols(reasons);
+          if (!namedSymbols?.length) return emptyResult(options);
+          const listedMarkets = await resolveMarketsBySymbol(market, namedSymbols, options);
+          if (!listedMarkets) return emptyResult(options);
+          blacklists = [...blacklists, ...listedMarkets];
+        }
+
         const { dailyFees, dailyRevenue } = exportOptions && exportOptions.useExchangeRate 
           ? await getFeesUseExchangeRates(market, options, {
-            blacklists: exportOptions.blacklists,
+            blacklists,
           }) 
-          : await getFees(market, options, {})
+          : await getFees(market, options, { blacklists })
         const dailyProtocolRevenue = exportOptions && exportOptions.protocolRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.protocolRevenueRatio) : undefined
         const dailyHoldersRevenue = exportOptions && exportOptions.holdersRevenueRatio !== undefined ? dailyRevenue.clone(exportOptions.holdersRevenueRatio) : undefined
         const dailySupplySideRevenue = options.createBalances()
@@ -173,6 +260,84 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
       SupplySideRevenue: {
         [METRIC.BORROW_INTEREST]: 'Borrow interest distributed to suppliers, lenders',
       },
+    },
+  } as SimpleAdapter
+}
+
+export function compoundV2LiquidationsExport(
+  config: { [chain: string]: { comptroller: string; start?: string } },
+  { pullHourly = true, ...otherRootOptions }: {
+    pullHourly?: boolean
+    [key: string]: any
+  } = {},
+): SimpleAdapter {
+  const exportObject: BaseAdapter = {}
+
+  Object.entries(config).forEach(([chain, { comptroller, start }]) => {
+    exportObject[chain] = {
+      fetch: async (options: FetchOptions) => {
+        const dailyCollateralLiquidated = options.createBalances()
+
+        const cTokens: string[] = await options.api.call({
+          target: comptroller,
+          abi: comptrollerABI.getAllMarkets,
+        })
+
+        const underlyings = await options.api.multiCall({
+          abi: comptrollerABI.underlying,
+          calls: cTokens,
+          permitFailure: true,
+        })
+
+        const underlyingMap: Record<string, string> = {}
+        for (let i = 0; i < cTokens.length; i++) {
+          underlyingMap[cTokens[i].toLowerCase()] = underlyings[i] ?? ADDRESSES.null
+        }
+
+        const exchangeRates = await options.api.multiCall({
+          abi: comptrollerABI.exchangeRateStored,
+          calls: cTokens,
+          permitFailure: true,
+        })
+
+        const exchangeRateMap: Record<string, bigint> = {}
+        for (let i = 0; i < cTokens.length; i++) {
+          if (exchangeRates[i]) {
+            exchangeRateMap[cTokens[i].toLowerCase()] = BigInt(exchangeRates[i])
+          }
+        }
+
+        for (const cToken of cTokens) {
+          const events: any[] = await options.getLogs({
+            target: cToken,
+            eventAbi: LiquidateBorrowEvent,
+          })
+          if (events.length === 0) continue
+
+          for (const event of events) {
+            const collateralCToken = event.cTokenCollateral.toLowerCase()
+            const collateralUnderlying = underlyingMap[collateralCToken]
+            const exchangeRate = exchangeRateMap[collateralCToken]
+            if (collateralUnderlying && exchangeRate) {
+              const underlyingAmount = (BigInt(event.seizeTokens) * exchangeRate) / BigInt(1e18)
+              dailyCollateralLiquidated.add(collateralUnderlying, underlyingAmount)
+            }
+          }
+        }
+
+        return { dailyCollateralLiquidated }
+      },
+      start,
+    }
+  })
+
+  return {
+    ...otherRootOptions,
+    version: 2,
+    pullHourly,
+    adapter: exportObject,
+    methodology: {
+      CollateralLiquidated: 'Total USD value of collateral seized in LiquidateBorrow events, converted from cToken units to underlying via exchangeRateStored.',
     },
   } as SimpleAdapter
 }

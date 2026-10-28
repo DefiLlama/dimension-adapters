@@ -22,6 +22,7 @@ const config: any = {
   [CHAIN.POLYGON]: {},
   [CHAIN.ZORA]: {},
   [CHAIN.HYPERLIQUID]: {},
+  [CHAIN.ROBINHOOD]: {},
 }
 
 const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {

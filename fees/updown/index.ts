@@ -5,7 +5,7 @@ import { METRIC } from "../../helpers/metrics";
 
 const endpoint = "https://graph.perpex.ai/celo-beta-usdt-wrap/subgraphs";
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
     const query = gql`
     query TestDailyFees {
       position: positionFeesInfoWithPeriods(

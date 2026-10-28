@@ -9,7 +9,8 @@ const fetch = async (options: FetchOptions) => {
       SELECT 
         SUM(receipt_gas_used * receipt_effective_gas_price) AS l2_fees_wei,
       FROM gravity.raw.transactions
-      WHERE block_timestamp BETWEEN '${options.startTimestamp}' AND '${options.endTimestamp}'
+      WHERE block_timestamp >= '${options.startTimestamp}'
+        AND block_timestamp < '${options.endTimestamp}'
     `;
 
     const res = await queryAllium(query);

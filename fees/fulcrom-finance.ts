@@ -19,9 +19,9 @@ const ratios = {
   supplySideRevenue: 0.6
 }
 
-const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const chain = options.chain;
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(timestamp);
+  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.toTimestamp);
   const searchTimestamp = "daily:" + todaysTimestamp;
 
   const graphQuery = gql`{
@@ -36,11 +36,15 @@ const fetch = async (timestamp: number, _a: any, options: FetchOptions) => {
 
   const graphRes = await request(endpoint, graphQuery);
 
+  // the stats subgraph only writes a daily feeStat row on days with activity (verified on
+  // cronos_zkevm: rows exist for the current day but not every past day), so a missing row is zero
+  const feeStat = graphRes.feeStat ?? { mint: 0, burn: 0, marginAndLiquidation: 0, swap: 0 }
+
   const dailyFees = options.createBalances()
-  dailyFees.addUSDValue(graphRes.feeStat?.mint / 1e30, METRIC.MINT_REDEEM_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.burn / 1e30, METRIC.MINT_REDEEM_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.marginAndLiquidation / 1e30, METRIC.LIQUIDATION_FEES)
-  dailyFees.addUSDValue(graphRes.feeStat?.swap / 1e30, METRIC.SWAP_FEES)
+  dailyFees.addUSDValue(Number(feeStat.mint) / 1e30, METRIC.MINT_REDEEM_FEES)
+  dailyFees.addUSDValue(Number(feeStat.burn) / 1e30, METRIC.MINT_REDEEM_FEES)
+  dailyFees.addUSDValue(Number(feeStat.marginAndLiquidation) / 1e30, METRIC.LIQUIDATION_FEES)
+  dailyFees.addUSDValue(Number(feeStat.swap) / 1e30, METRIC.SWAP_FEES)
 
   return {
     dailyFees,
@@ -100,10 +104,10 @@ const adapter: Adapter = {
       fetch,
       start: '2023-10-05',
     },
-    [CHAIN.CRONOS_ZKEVM]: {
-      fetch,
-      start: '2024-08-15',
-    },
+    // [CHAIN.CRONOS_ZKEVM]: {
+    //   fetch,
+    //   start: '2024-08-15',
+    // },
   },
 };
 

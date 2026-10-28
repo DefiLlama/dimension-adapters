@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
 const FEE_WALLET = "0x96EE5C63d51e2dB627a5597BfE76da26EF6800D9";
-const USDC_E_POLYGON = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const USDC_E_POLYGON = ADDRESSES.polygon.USDC;
 const REWARDS_WALLET = "0xEDC3fDFdC046c05c76872E43636B7E9662F5B5D5";
 
 const fetch = async (options: FetchOptions) => {

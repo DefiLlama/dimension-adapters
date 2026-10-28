@@ -1,9 +1,13 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
+const blacklistTokens = [
+    ADDRESSES.sui.BTC, // wBTC -> wrong pricing from bluefin
+];
 
-const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
+const fetch = async (_options: FetchOptions) => {
     const allPools: any[] = [];
     let page = 1;
     let hasMore = true;
@@ -25,6 +29,10 @@ const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
 
     let dailyVolume = 0;
     for (const pool of allPools) {
+        const tokenA = pool.tokenA?.info?.address;
+        const tokenB = pool.tokenB?.info?.address;
+        if (blacklistTokens.includes(tokenA) || blacklistTokens.includes(tokenB)) continue;
+
         dailyVolume += Number(pool.day.volume);
     }
 
@@ -32,13 +40,10 @@ const fetch = async (_a: any, _b: any, _c: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-    adapter: {
-        [CHAIN.SUI]: {
-            fetch,
-            start: '2024-11-19',
-            runAtCurrTime: true
-        },
-    },
+    fetch,
+    chains: [CHAIN.SUI],
+    start: '2024-11-19',
+    runAtCurrTime: true,
 };
 
 export default adapter;

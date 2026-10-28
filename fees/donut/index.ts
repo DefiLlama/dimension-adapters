@@ -1,12 +1,13 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 // dailyFees = treasury + provider fees (20% of price) - excludes the 80% miner fee (0-sum transfer between old miner/it's counted as cost)
 
 const MINER_ADDRESS = "0xF69614F4Ee8D4D3879dd53d5A039eB3114C794F6";
-const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
+const WETH_ADDRESS = ADDRESSES.optimism.WETH_1; // WETH on Base
 
-const fetch = async (_a: any, _b: any, options: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -49,7 +50,8 @@ const fetch = async (_a: any, _b: any, options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
   start: '2025-11-07',
