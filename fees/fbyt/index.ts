@@ -186,7 +186,7 @@ const methodology = {
   Fees: "Management and performance fees paid by vault investors (the manager's and FBYT's parts), plus the SOL trading fee paid on every vault swap and the SOL fee paid to create a vault.",
   UserFees: "All fees: investors pay the management and performance fees, managers (or their trading delegates) pay the trading and vault creation fees.",
   Revenue: "FBYT's share of the management and performance fees, plus all trading and vault creation fees.",
-  ProtocolRevenue: "All revenue goes to the FBYT admin wallet.",
+  ProtocolRevenue: "FBYT's share of the management and performance fees, plus all trading and vault creation fees.",
   SupplySideRevenue: "The money managers' share of the management and performance fees.",
 };
 
