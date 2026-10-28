@@ -1,3 +1,4 @@
+
 import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -83,7 +84,15 @@ function programEvents(logs: string[], program: string): Buffer[] {
 }
 
 async function totalsFromTransaction(signature: string, program: string): Promise<Totals> {
-  const tx = await rpc(() => getTransaction({ signature, maxSupportedTransactionVersion: 0 }));
+  let tx;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    tx = await rpc(() => getTransaction({
+      signature,
+      maxSupportedTransactionVersion: 0,
+      commitment: "finalized",
+    }));
+    if (tx?.meta?.logMessages) break;
+  }
   if (!tx?.meta?.logMessages) throw new Error(`showdown: missing transaction logs for ${signature}`);
   if (tx.meta.err) return { volume: 0n, fees: 0n };
   let volume = 0n;
