@@ -11,7 +11,7 @@ const FORWARDED = "event Forwarded(uint256 nvda)";
 const BURNED = "event Burned(uint64 indexed session, uint256 usd, uint256 nvdaIn, uint256 tokens, uint256 twap)";
 const TAX = "QUOTUM Trading Tax";
 const PROTOCOL = "Trading Tax To Protocol";
-const INFERENCE = "Inference Provider Payments";
+const INFERENCE = "Provider And Backing Funding";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -35,8 +35,8 @@ const fetch = async (options: FetchOptions) => {
     // Value the NVDA spent, not the purchased QUOTUM or the duplicate Bell event.
     dailyHoldersRevenue.add(NVDA, log.nvdaIn, METRIC.TOKEN_BUY_BACK);
 
-  // Claims, provider payments and buybacks can settle in different windows;
-  // changes in retained NVDA reconcile fees with the realized destinations.
+  // Forwarded measures cash sent to PAY_TO, including backing funding.
+  // Its event alone does not distinguish backing from consumed inference.
   const dailyRevenue = dailyFees.clone();
   // Subtract under the same source label to avoid a negative provider breakdown row.
   for (const log of payments) dailyRevenue.add(NVDA, -BigInt(log.nvda), TAX);
@@ -62,17 +62,17 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // Creator trading tax is also accounted for by the underlying Pons adapter.
   methodology: {
     Fees: "QUOTUM trading tax collected by TaxSink, measured in NVDA when claimed, excluding Pons platform fees and direct funding transfers.",
-    Revenue: "Claimed QUOTUM trading tax less NVDA paid to the inference provider, with claims and payments recognized when executed; retained funding and later buybacks can make attribution differ within a period.",
+    Revenue: "Claimed QUOTUM trading tax less cash NVDA forwarded to PAY_TO, including backing funding, with claims and transfers recognized when executed; retained funding and later buybacks can make attribution differ within a period.",
     ProtocolRevenue: "The fixed 40% share of claimed QUOTUM trading tax transferred to the protocol recipient in NVDA.",
     HoldersRevenue: "NVDA spent on successful QUOTUM buybacks and burns at the daily bell, excluding failed purchases and direct token burns.",
-    SupplySideRevenue: "NVDA forwarded by TaxSink to the inference provider for seat usage, recognized when payment executes.",
+    SupplySideRevenue: "Cash NVDA forwarded by TaxSink to PAY_TO, including seat-use funding and backing funding recorded in keeper reports. This measures executed transfers, not inference consumption.",
   },
   breakdownMethodology: {
     Fees: { [TAX]: "Gross NVDA collected in TaxSink claims before the fixed 40% protocol share is transferred." },
-    Revenue: { [TAX]: "Gross claimed NVDA trading tax less executed inference provider payments, including retained funding for future sessions." },
+    Revenue: { [TAX]: "Gross claimed NVDA trading tax less executed PAY_TO transfers, including backing funding, on the existing cash basis." },
     ProtocolRevenue: protocolBreakdown,
     HoldersRevenue: holdersBreakdown,
-    SupplySideRevenue: { [INFERENCE]: "NVDA actually forwarded to the fixed inference payment recipient." },
+    SupplySideRevenue: { [INFERENCE]: "NVDA actually forwarded to immutable PAY_TO; the event does not separate provider funding, prepayment and backing." },
   },
 };
 
