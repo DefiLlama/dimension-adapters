@@ -39,12 +39,16 @@ import { CHAIN } from '../helpers/chains'
 const STONK_DROP = '0x22F8e7F1Ea92f31eB3BFA2974EE988C7B2156C37'
 const USDG = ADDRESSES.robinhood.USDG
 
-// $STONKD / USDG Uniswap v3 pool (1% tier; token0 = USDG, token1 = STONKD) and the Uniswap v3
-// NonfungiblePositionManager on Robinhood Chain, which minted the pool's positions.
+// $STONKD / USDG Uniswap v3 pool (1% tier; token0 = USDG, token1 = STONKD).
 // https://robinhoodchain.blockscout.com/address/0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0
 const STONKD_POOL = '0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0'
+// Uniswap v3 NonfungiblePositionManager ("Uniswap V3 Positions NFT-V1") on Robinhood Chain, which
+// minted the pool's positions and emits their Collect / DecreaseLiquidity events.
+// https://robinhoodchain.blockscout.com/address/0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3
 const POSITION_MANAGER = '0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3'
-// The treasury's position(s) in that pool: the full-range launch liquidity, minted with the pool.
+// The treasury's position(s) in that pool, by position-manager token id: the full-range launch
+// liquidity, minted in the pool's creation transaction (see STONKD_POOL_CREATED_BLOCK below).
+// https://robinhoodchain.blockscout.com/token/0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3/instance/1404166
 const TREASURY_POSITIONS = [1404166]
 // Where to look for the pool's last swap when a window with a claim saw none: back from the window in
 // bounded ranges, down to the block the pool was created in (PoolCreated in tx
