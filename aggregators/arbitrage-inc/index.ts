@@ -1,19 +1,17 @@
-import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, type FetchOptions, type SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
+import { addTokensReceived, getETHReceived } from "../../helpers/token";
 import { ethers } from "ethers";
 
-
-// Dedicated BSC swap fee receiver activated in the October 1, 2026 receiver migration.
-// This address is used only for protocol swap fees (0.5% fee rate).
+// Protocol fee receivers:
+// - SWAP_FEE_RECEIVER: Dedicated BSC swap fee receiver (0.5% fee rate) activated on October 1, 2026.
 const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
-// Dedicated BSC limit-order fee receiver activated in the October 1, 2026 receiver migration.
-// This address is used only for protocol limit-order fees (0.1% fee rate).
+// - LIMIT_ORDER_FEE_RECEIVER: Dedicated BSC limit-order fee receiver (0.1% fee rate) activated on October 1, 2026.
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
 
 // Legacy receiver used before the October 1, 2026 migration.
 const LEGACY_SWAP_FEE_RECEIVER = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
-// Token-tax accumulator; its transfers into the legacy receiver are tax proceeds, not swap fees.
+// Tax accumulator address used strictly to filter out transfer tax forwards into legacy swap fees.
 const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
 
 const RECEIVER_MIGRATION_TIMESTAMP = 1790812800; // 2026-10-01 00:00:00 UTC
@@ -45,6 +43,7 @@ const getLegacySwapFees = async (options: FetchOptions) => {
 	return balances;
 };
 
+// Era 1: Pre-October 1, 2026 (Legacy Swap Receiver)
 const fetchLegacy = async (options: FetchOptions) => {
 	const timestamp = options.startTimestamp ?? options.startOfDay;
 	const feeRate = timestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? 0.001 : SWAP_FEE_RATE;
@@ -70,10 +69,23 @@ const fetchLegacy = async (options: FetchOptions) => {
 	};
 };
 
+const getSwapFees = async (options: FetchOptions) => {
+	const balances = await addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] });
+	await getETHReceived({ options, target: SWAP_FEE_RECEIVER, balances });
+	return balances;
+};
+
+const getLimitOrderFees = async (options: FetchOptions) => {
+	const balances = await addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] });
+	await getETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances });
+	return balances;
+};
+
+// Era 2: October 1, 2026 onward (Dedicated Swap & Limit Order Receivers)
 const fetchCurrent = async (options: FetchOptions) => {
 	const [swapFees, limitOrderFees] = await Promise.all([
-		addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] }),
-		addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] }),
+		getSwapFees(options),
+		getLimitOrderFees(options),
 	]);
 
 	const dailyVolume = options.createBalances();
@@ -101,9 +113,9 @@ const fetchCurrent = async (options: FetchOptions) => {
 };
 
 const fetch = async (options: FetchOptions) => {
-	const timestamp = options.startTimestamp ?? options.startOfDay;
-	return timestamp < RECEIVER_MIGRATION_TIMESTAMP ? fetchLegacy(options) : fetchCurrent(options);
-}
+	if (options.endTimestamp <= RECEIVER_MIGRATION_TIMESTAMP) return fetchLegacy(options);
+	return fetchCurrent(options);
+};
 
 const adapter: SimpleAdapter = {
 	version: 2,
@@ -111,27 +123,28 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: [CHAIN.BSC],
 	start: "2026-03-23",
+	dependencies: [Dependencies.ALLIUM],
 	methodology: {
-		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219). The dedicated receivers are used only for their stated protocol fee streams.",
-		Fees: "Swap and limit-order fees paid by users routing through Arbitrage Inc, received by the legacy swap receiver before October 1, 2026 and by the dedicated swap and limit-order receivers from that date. Excludes the 4% ARB INC token transfer tax.",
-		Revenue: "All swap and limit-order fees paid by users, kept by the protocol. Excludes the 4% ARB INC token transfer tax.",
-		ProtocolRevenue: "All swap and limit-order fees paid by users, kept by the protocol fee receivers. Excludes the 4% ARB INC token transfer tax.",
+		Volume: "Before October 1, 2026, routed swap volume is estimated from the legacy receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 using the historical 0.1%/0.5% fee transition; from October 1, 2026 onward, swap and limit-order volume use the dedicated receivers at 0.5% (0x0F477f8c88b48E299AcE83B14303157d032382EC) and 0.1% (0x75F7F06a5C5c440c1aDbd586826CD26253EDE219) across all received BEP-20 tokens and native BNB.",
+		Fees: "Swap and limit-order fees paid by users routing through Arbitrage Inc, received by the legacy swap receiver before October 1, 2026 and by the dedicated swap and limit-order receivers from that date. Pure protocol fee streams excluding token transfer taxes as per DefiLlama policy.",
+		Revenue: "All collected swap and limit-order fees across all tokens and native BNB retained by the protocol.",
+		ProtocolRevenue: "100% of collected swap and limit-order fees retained by the protocol fee receivers.",
 	},
 	breakdownMethodology: {
 		Fees: {
-			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding token-tax proceeds forwarded from the tax accumulator 0x4c1caA917FD012b285Ba35E93535675e5B59806C.",
-			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC.",
-			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219.",
+			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding transfers originating from the tax accumulator.",
+			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC across all received tokens and native BNB.",
+			"Kyber Limit Order Fees": "Post-migration fees received by the dedicated limit-order receiver 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219 across all received tokens and native BNB.",
 		},
 		Revenue: {
 			"Legacy Swap Revenue": "Pre-migration legacy swap fees retained by the protocol.",
-			"Kyber Swap Revenue": "Post-migration swap fees retained by the protocol.",
-			"Kyber Limit Order Revenue": "Post-migration limit-order fees retained by the protocol.",
+			"Kyber Swap Revenue": "Post-migration swap fees retained by the protocol across all tokens and native BNB.",
+			"Kyber Limit Order Revenue": "Post-migration limit-order fees retained by the protocol across all tokens and native BNB.",
 		},
 		ProtocolRevenue: {
 			"Legacy Swap Fees To Protocol": "100% of pre-migration legacy swap fees.",
-			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver.",
-			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver.",
+			"Swap Fees To Protocol": "100% of post-migration fees received by the dedicated swap receiver across all tokens and native BNB.",
+			"Limit Order Fees To Protocol": "100% of post-migration fees received by the dedicated limit-order receiver across all tokens and native BNB.",
 		},
 	},
 };
