@@ -74,7 +74,7 @@ async function totalsFromTransaction(signature: string, program: string): Promis
 async function totalsForProgram(program: string, from: number, to: number): Promise<Totals> {
   if (from >= to) return { volume: 0n, fees: 0n };
   const signatures = await signaturesInWindow(program, from, to);
-  const { results, errors } = await PromisePool.withConcurrency(5).for(signatures)
+  const { results, errors } = await PromisePool.withConcurrency(1).for(signatures)
     .process((signature) => totalsFromTransaction(signature, program));
   if (errors.length) throw errors[0];
   return results.reduce((total, result) => ({
