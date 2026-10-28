@@ -2,127 +2,112 @@ import * as sdk from "@defillama/sdk";
 import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { request, gql } from "graphql-request";
 import type { FetchOptions } from "../adapters/types"
-import { getTimestampAtStartOfDayUTC } from "../utils/date";
 import { addTokensReceived } from "../helpers/token";
+import { getPositionedLogArgs } from "../helpers/logs";
 import coreAssets from "../helpers/coreAssets.json"
 
-const endpoints: Record<string, string> = {
-  [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('F7qb71hWab6SuRL5sf6LQLTpNahmqMsBnnweYHzLGUyG'),
-}
-
-const PROTOCOL_FEE_RATIO = 0.1 // 10%
-const LIDO_V2_LAUNCH = '2023-05-15' // StakingRouter (per-module fee split) went live; earlier windows read 0
-const LIDO_MEV_REWARDS_VAULT = '0x388c818ca8b9251b393131c08a736a67ccb19297';
+// from LidoLocator 0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb
+const STETH = '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84'
+const LIDO_ORACLE_V1 = '0x442af784A788A5bd6F42A01Ebe9F287a871243fb'
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
-const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
 const LIDO_AGENT = '0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c'
 const BUYBACKS_SAFE = '0xf6F0732c1e9971497342C295141566E6F1A31e96'
 
+const LIDO_V2_FIRST_REPORT = '2023-05-16' // block 17272708; the 2023-05-15 report was still V1
+
+const ETH_DISTRIBUTED_EVENT = 'event ETHDistributed(uint256 indexed reportTimestamp, uint256 preCLBalance, uint256 postCLBalance, uint256 withdrawalsWithdrawn, uint256 executionLayerRewardsWithdrawn, uint256 postBufferedEther)'
+const TOKEN_REBASED_EVENT = 'event TokenRebased(uint256 indexed reportTimestamp, uint256 timeElapsed, uint256 preTotalShares, uint256 preTotalEther, uint256 postTotalShares, uint256 postTotalEther, uint256 sharesMintedAsFees)'
+const POST_TOTAL_SHARES_EVENT = 'event PostTotalShares(uint256 postTotalPooledEther, uint256 preTotalPooledEther, uint256 timeElapsed, uint256 totalShares)'
+const EL_REWARDS_RECEIVED_EVENT = 'event ELRewardsReceived(uint256 amount)'
+const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
+
+type OracleReport = {
+  clRewards: bigint
+  elRewards: bigint
+  fee: bigint
+  treasuryFeeBp: bigint
+  totalFeeBp: bigint
+}
+
+// V1 fee: 10% of rewards, split 5% node operators / 5% DAO (getFee, getFeeDistribution)
+async function getV1Reports(options: FetchOptions): Promise<OracleReport[]> {
+  const [totals, elLogs] = await Promise.all([
+    options.getLogs({ target: LIDO_ORACLE_V1, eventAbi: POST_TOTAL_SHARES_EVENT }),
+    options.getLogs({ target: STETH, eventAbi: EL_REWARDS_RECEIVED_EVENT }),
+  ])
+  const rewards = totals.reduce((acc: bigint, log: any) => acc + BigInt(log.postTotalPooledEther) - BigInt(log.preTotalPooledEther), 0n)
+  const elRewards = elLogs.reduce((acc: bigint, log: any) => acc + BigInt(log.amount), 0n)
+  return [{ clRewards: rewards - elRewards, elRewards, fee: rewards > 0n ? rewards / 10n : 0n, treasuryFeeBp: 5000n, totalFeeBp: 10000n }]
+}
+
+// EL rewards come from the report, not vault txs: most reach the vault as coinbase credits
+async function getV2Reports(options: FetchOptions): Promise<OracleReport[]> {
+  const [distributed, rebased] = await Promise.all([
+    getPositionedLogArgs(options, { target: STETH, eventAbi: ETH_DISTRIBUTED_EVENT }),
+    options.getLogs({ target: STETH, eventAbi: TOKEN_REBASED_EVENT }),
+  ])
+  // one report every day since V2, so none means missing logs
+  if (!distributed.length) throw new Error(`Lido: no oracle report found for ${options.dateString}`)
+
+  return Promise.all(distributed.map(async (report) => {
+    const rebase = rebased.find((log: any) => String(log.reportTimestamp) === String(report.reportTimestamp))
+    if (!rebase) throw new Error(`Lido: no TokenRebased for report ${report.reportTimestamp} on ${options.dateString}`)
+
+    // at the report block: the 2025-12-24 fee change landed after that day's report
+    const reportApi = new sdk.ChainApi({ chain: options.chain, block: report.blockNumber })
+    const feeSplit = await reportApi.call({ target: LIDO_STAKING_ROUTER, abi: STAKING_ROUTER_FEE_DISTRIBUTION_ABI })
+    const treasuryFeeBp = BigInt(feeSplit.treasuryFee)
+    const totalFeeBp = BigInt(feeSplit.modulesFee) + treasuryFeeBp
+    if (totalFeeBp === 0n) throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
+
+    return {
+      clRewards: BigInt(report.postCLBalance) + BigInt(report.withdrawalsWithdrawn) - BigInt(report.preCLBalance),
+      elRewards: BigInt(report.executionLayerRewardsWithdrawn),
+      fee: BigInt(rebase.sharesMintedAsFees) * BigInt(rebase.postTotalEther) / BigInt(rebase.postTotalShares),
+      treasuryFeeBp,
+      totalFeeBp,
+    }
+  }))
+}
+
 const fetch = async (options: FetchOptions) => {
-  const dateId = Math.floor(getTimestampAtStartOfDayUTC(options.toTimestamp) / 86400)
-
-  const graphQuery = gql
-    `{
-    financialsDailySnapshot(id: ${dateId}) {
-        dailyTotalRevenueUSD
-        dailyProtocolSideRevenueUSD
-        cumulativeTotalRevenueUSD
-        cumulativeProtocolSideRevenueUSD
-        dailySupplySideRevenueUSD
-        cumulativeSupplySideRevenueUSD
-    }
-  }`;
-
-  const graphRes = await request(endpoints[options.chain], graphQuery);
-
-  const dailyTotalRevenueUSD = Number(graphRes.financialsDailySnapshot.dailyTotalRevenueUSD)
-  const dailyProtocolRevenueUSD = dailyTotalRevenueUSD * PROTOCOL_FEE_RATIO
-  const dailySupplySideRevenueUSD = dailyTotalRevenueUSD - dailyProtocolRevenueUSD
-
-  // Lido's 10% protocol take is split between node operators and the DAO treasury, weighted
-  // across staking modules by their active-validator share.
-  let operatorShare: number
-  let treasuryShare: number
-  if (options.dateString < LIDO_V2_LAUNCH) {
-    // Before Lido V2 the StakingRouter didn't exist, so calling it reverts. The 10% fee was a
-    // fixed 5%/5% split for the whole V1 era (the 2022-07-15 insurance->treasury redirect,
-    // research.lido.fi/t/.../2528, left the operator share unchanged at 5%), so a flat 50/50
-    // operator/treasury split is accurate. Booking the operator share as Revenue (the old
-    // treasuryShare=1 fallback) overstated protocol Revenue ~2x for this era.
-    operatorShare = 0.5
-    treasuryShare = 0.5
-  } else {
-    // Read the live aggregate split off the StakingRouter at the window's end block so historical
-    // accuracy follows the on-chain rate (e.g. module 1 changed from 5%/5% to 3.5%/6.5% on
-    // 2025-12-24, tx 0x470e74a0…).
-    const feeSplit = await options.toApi.call({
-      target: LIDO_STAKING_ROUTER,
-      abi: STAKING_ROUTER_FEE_DISTRIBUTION_ABI,
-    })
-    const modulesFeeBp = Number(feeSplit.modulesFee)
-    const treasuryFeeBp = Number(feeSplit.treasuryFee)
-    const totalFeeBp = modulesFeeBp + treasuryFeeBp
-    // Post-V2 the StakingRouter always returns a configured non-zero split, so a 0 here is a
-    // transient read fault, not a real allocation. Fail loudly rather than silently guessing a
-    // ratio, which would mis-split protocol Revenue vs the node-operator supply-side share.
-    if (totalFeeBp === 0) throw new Error(`Lido: StakingRouter returned a zero fee split for ${options.dateString}; refusing to guess the treasury/operator ratio`)
-    operatorShare = modulesFeeBp / totalFeeBp
-    treasuryShare = treasuryFeeBp / totalFeeBp
-  }
-
-  // MEV and execution rewards
-  const mevFeesETH = options.createBalances()
-  const transactions = await sdk.indexer.getTransactions({
-    chain: options.chain,
-    transactionType: 'to',
-    addresses: [LIDO_MEV_REWARDS_VAULT],
-    from_block: Number(options.fromApi.block),
-    to_block: Number(options.toApi.block),
-  })
-  if (transactions) {
-    for (const tx of transactions) {
-      mevFeesETH.addGasToken(tx.value)
-    }
-  }
-
-  const totalMevFees = await mevFeesETH.getUSDValue()
-  const protocolMevFees = totalMevFees * PROTOCOL_FEE_RATIO
-  const supplySideMevFees = totalMevFees - protocolMevFees
-
-  const stakingProtocolFees = dailyProtocolRevenueUSD - protocolMevFees
-  const stakingSupplySide = dailySupplySideRevenueUSD - supplySideMevFees
+  const reports = options.dateString < LIDO_V2_FIRST_REPORT ? await getV1Reports(options) : await getV2Reports(options)
 
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
 
-  dailyFees.addUSDValue(dailyTotalRevenueUSD - totalMevFees, METRIC.STAKING_REWARDS)
-  dailyFees.addUSDValue(totalMevFees, METRIC.MEV_REWARDS)
+  for (const { clRewards, elRewards, fee, treasuryFeeBp, totalFeeBp } of reports) {
+    // fee split pro rata across CL/EL, then treasury vs node operators
+    const totalRewards = clRewards + elRewards
+    const clFee = totalRewards > 0n ? fee * clRewards / totalRewards : 0n
+    const elFee = fee - clFee
+    const clTreasuryFee = clFee * treasuryFeeBp / totalFeeBp
+    const elTreasuryFee = elFee * treasuryFeeBp / totalFeeBp
 
-  dailySupplySideRevenue.addUSDValue(stakingSupplySide, 'Staking rewards to ETH stakers')
-  dailySupplySideRevenue.addUSDValue(supplySideMevFees, 'MEV rewards to ETH stakers')
+    dailyFees.addGasToken(clRewards, METRIC.STAKING_REWARDS)
+    dailyFees.addGasToken(elRewards, METRIC.MEV_REWARDS)
 
-  // Split the protocol take into the DAO-treasury share (kept by the Lido DAO) and the
-  // module-operator share (paid to node operators). Totals are preserved; only the breakdown
-  // gains granularity. Operator and treasury shares are summed across staking + MEV sources.
-  dailyRevenue.addUSDValue(stakingProtocolFees * treasuryShare, METRIC.STAKING_REWARDS)
-  dailyRevenue.addUSDValue(protocolMevFees * treasuryShare, METRIC.MEV_REWARDS)
+    dailySupplySideRevenue.addGasToken(clRewards - clFee, 'Staking rewards to ETH stakers')
+    dailySupplySideRevenue.addGasToken(elRewards - elFee, 'MEV rewards to ETH stakers')
+    dailySupplySideRevenue.addGasToken(clFee - clTreasuryFee, 'Staking rewards to node operators')
+    dailySupplySideRevenue.addGasToken(elFee - elTreasuryFee, 'MEV rewards to node operators')
 
-  dailySupplySideRevenue.addUSDValue(stakingProtocolFees * operatorShare, 'Staking rewards to node operators')
-  dailySupplySideRevenue.addUSDValue(protocolMevFees * operatorShare, 'MEV rewards to node operators')
+    dailyRevenue.addGasToken(clTreasuryFee, METRIC.STAKING_REWARDS)
+    dailyRevenue.addGasToken(elTreasuryFee, METRIC.MEV_REWARDS)
+  }
 
   const buybacks = await addTokensReceived({
     options,
     target: LIDO_AGENT,
     fromAdddesses: [BUYBACKS_SAFE],
-    tokens: [coreAssets.ethereum.LIDO] 
+    tokens: [coreAssets.ethereum.LIDO]
   })
   dailyHoldersRevenue.addBalances(buybacks, "LDO Accumulation Program")
 
-  // Buybacks are paid out of the DAO-treasury share
+  // buybacks are paid from the treasury share
   const dailyProtocolRevenue = options.createBalances()
   dailyProtocolRevenue.addBalances(dailyRevenue, 'DAO treasury share')
   dailyProtocolRevenue.subtract(dailyHoldersRevenue, 'DAO treasury share')
@@ -141,22 +126,22 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2020-12-19',
-  allowNegativeValue: true, // protocol revenue nets out LDO buybacks, which land in lumps of 1.7M-6.5M LDO (~$1.5M on 2026-06-01 vs ~$75k/day treasury revenue)
+  allowNegativeValue: true, // protocol revenue nets out lumpy LDO buybacks
   methodology: {
-    Fees: "Staking rewards earned by all staked ETH",
+    Fees: "Staking rewards earned by all ETH staked with Lido: consensus-layer validator rewards plus execution-layer rewards (priority fees and MEV), as booked by each daily oracle report.",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (2023-05-15) the treasury/operator split is the validator-share-weighted aggregate read live from the StakingRouter; before V2 the split was a fixed 5%/5%, so half the fee is treasury.",
+    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (first report 2023-05-16) the treasury/operator split is the validator-share-weighted aggregate read from the StakingRouter at the oracle report's block; before V2 the split was a fixed 5%/5%, so half the fee is treasury.",
     HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
     ProtocolRevenue: "DAO-treasury portion of the 10% fee, minus the LDO bought back under the LDO Accumulation Program; excludes the node-operator share.",
     SupplySideRevenue: "Staking rewards earned by stETH holders plus the node-operator share of the 10% fee (paid to operators for running validators)."
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators.',
-      [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
+      [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators (consensus-layer balance change plus withdrawals, net of principal), as booked by each oracle report.',
+      [METRIC.MEV_REWARDS]: 'Execution-layer rewards (priority fees and MEV tips paid by block builders) withdrawn from the Lido Execution Layer Rewards Vault at each oracle report.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. From Lido V2 (2023-05-15) the ratio is read live from StakingRouter.getStakingFeeAggregateDistributionE4Precision() — treasuryFee / (modulesFee + treasuryFee); before V2 it defaults to the fixed 5%/5% split (treasury share 0.5).',
+      [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. From Lido V2 (first report 2023-05-16) the ratio is read from StakingRouter.getStakingFeeAggregateDistributionE4Precision() at the oracle report block — treasuryFee / (modulesFee + treasuryFee); before V2 it is the fixed 5%/5% split (treasury share 0.5).',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
     },
     ProtocolRevenue: {
