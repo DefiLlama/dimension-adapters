@@ -34,9 +34,22 @@ const FACTORIES_V6 = [
   "0x69EeAB0020EbD064AFAA8e35D0E64f6b8a2842b4", "0xa17bF3952C23c19e9B0c3F017eBACa3006216fFd", "0x542bb8E1f9Ed0E0a523910B18843f5da22711D2F",
   "0x5bffd94d0AE1d2fC9C78f5909f43dF700552029c", "0xf7EdFECB155E4065C7F8684820B21503098b05B8",
 ];
-const FACTORIES = [...FACTORIES_V5, ...FACTORIES_V6];
+// V7 game factories (CasinoHubV7 0x3F033CeAE85B9Db2eBD3f5BaBcEb90518DEf496c, 2026-10-28): the same counters (no LP fee — rooms keep only the
+// house edge); the platform fee goes to the ElcasBurnerV3. Every bet also carries an ETH reveal fee, paid to whoever
+// reveals the round (the keeper) — a gas refund, not counted as a fee.
+const FACTORIES_V7 = [
+  "0x91284A7de6b9431eDE067ee25685593d27ea9c59", "0x42097766d7e434B37b16F5304a58658eF5EA4605", "0x7bFc80D91477497226e2526dF83eBd725779F37D",
+  "0xA1cB1A627326976bF42176127050530616efc50a", "0x65A3e41138a49878a5E78969878A61793987129C", "0x911A405AFDA70702156f9D6C15D101CeceDD5EC4",
+  "0x07EF0b8F45058DC3804511BBB1111080Cb299DAA", "0x541B988aC567bBEa96901B79e50b3B9d2168E81E", "0x0e92c1744C89913920f3974833fBB3DDa637c7EA",
+  "0xb21928bec8725670C662f05f0DdD37f7d6033110", "0x3f62789A03965d571D354283fe4Fbe878E3f9d5e", "0xD71Cd3C0Ffc9B1eA83A5fF5e1c0F2d4d5435f04f",
+  "0x5007345F3b1D5485D04Daf1f95Efc0025352F37D", "0xF1ac23255Ee8d7728dF0A1b548E26f8e13dDC429", "0x150638483b7935CAC6800e47BBD7281678150408",
+  "0x279484859326FBC6696cAA8304f5BDCAc310eC44", "0xfcC8bCc00fc811F7e8a06a40571FEF5D3341Bd3C", "0xEeebcb164D09B93Eea0C3138D14A0F39b0B01b05",
+  "0x6d640E0CA7b84550c5881CB8D2c847d18125342D", "0xd87D01FDd92e90E27d101D419896F84d975569CD",
+];
+const FACTORIES = [...FACTORIES_V5, ...FACTORIES_V6, ...FACTORIES_V7];
 const V5_LIVE_BLOCK = 75800030;
 const V6_LIVE_BLOCK = 96781938;
+const V7_LIVE_BLOCK = 100256000;
 const GET_GAMES = "function getGames(uint256 offset, uint256 limit) view returns (tuple(address gameAddress, address owner, address creator, address token, string tokenLogoUrl, string betName, uint256 createdAt)[])";
 const PLATFORM = "event PlatformFeeCollected(uint256 amount)";
 const CREATOR = "event CreatorFeeCollected(uint256 amount)";
@@ -56,7 +69,7 @@ const fetch = async (options: FetchOptions) => {
   const toBlock = await options.getToBlock();
   const totals: number[] = await options.api.multiCall({ abi: "uint256:getTotalGames", calls: FACTORIES, permitFailure: true });
   FACTORIES.forEach((f, i) => {
-    if (totals[i] == null && toBlock >= (i < FACTORIES_V5.length ? V5_LIVE_BLOCK : V6_LIVE_BLOCK)) throw new Error(`getTotalGames failed on factory ${f} at block ${toBlock}`);
+    if (totals[i] == null && toBlock >= (i < FACTORIES_V5.length ? V5_LIVE_BLOCK : i < FACTORIES_V5.length + FACTORIES_V6.length ? V6_LIVE_BLOCK : V7_LIVE_BLOCK)) throw new Error(`getTotalGames failed on factory ${f} at block ${toBlock}`);
   });
   const calls: any[] = [];
   FACTORIES.forEach((f, i) => { for (let o = 0; o < Number(totals[i] ?? 0); o += 200) calls.push({ target: f, params: [o, 200] }); });
@@ -100,9 +113,9 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: "2026-09-27",
   methodology: {
-    Fees: "Fees charged on bets in every V5 and V6 room: the room stakers' fee, the platform fee and the room creator's fee.",
+    Fees: "Fees charged on bets in every V5, V6 and V7 room: the room stakers' fee (V5 / V6), the platform fee and the room creator's fee.",
     UserFees: "Fees charged on bets, paid by players.",
-    Revenue: "The platform fee on bets, sent to the ElcasTreasury (V5) or the ElcasBurner (V6).",
+    Revenue: "The platform fee on bets, sent to the ElcasTreasury (V5) or the ElcasBurner (V6, V7).",
     HoldersRevenue: "The ElcasTreasury / ElcasBurner swaps the platform fee to $ELCAS and burns it.",
     SupplySideRevenue: "The fee kept by each room's pool for its stakers and the fee paid to each room's creator.",
   },
@@ -111,10 +124,10 @@ const adapter: SimpleAdapter = {
       [L.fees]: "Fees charged on each bet: the room stakers' fee, the platform fee and the room creator's fee.",
     },
     Revenue: {
-      [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6), which buys and burns $ELCAS.",
+      [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6, V7), which buys and burns $ELCAS.",
     },
     HoldersRevenue: {
-      [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6), which buys and burns $ELCAS.",
+      [L.platformToBurn]: "Platform fee sent to the ElcasTreasury (V5) or the ElcasBurner (V6, V7), which buys and burns $ELCAS.",
     },
     SupplySideRevenue: {
       [L.lpToStakers]: "Fee kept by the room's pool, owned by its stakers (donations to the room are not counted here).",
