@@ -24,6 +24,8 @@ const fetch = async (_options: FetchOptions) => {
 const adapter: Adapter = {
   version: 1,
   fetch,
+  // Multichain ceased operations on 2023-07-14 and bridgeapi.anyswap.exchange no longer resolves (NXDOMAIN)
+  deadFrom: '2023-07-14',
   // The API reports aggregate fees across all supported chains.
   chains: [CHAIN.CHAIN_GLOBAL],
   runAtCurrTime: true,
