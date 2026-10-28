@@ -495,20 +495,29 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
     if (feeFromSlot0) {
       const slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint24 fee, bool unlocked)'
-      const _slots = await api.multiCall({ abi: slot0Abi, calls: pairs, permitFailure: true })
-      const retryIndexes = pairs.map((_: string, i: number) => i).filter((i: number) => _slots[i] == null)
-      if (retryIndexes.length) {
-        const _retries = await api.multiCall({ abi: slot0Abi, calls: retryIndexes.map((i: number) => pairs[i]), permitFailure: true })
-        retryIndexes.forEach((i: number, j: number) => { _slots[i] = _retries[j] })
+      const readSlots = async (slotApi: ChainApi) => {
+        const _slots = await slotApi.multiCall({ abi: slot0Abi, calls: pairs, permitFailure: true })
+        const retryIndexes = pairs.map((_: string, i: number) => i).filter((i: number) => _slots[i] == null)
+        if (retryIndexes.length) {
+          const _retries = await slotApi.multiCall({ abi: slot0Abi, calls: retryIndexes.map((i: number) => pairs[i]), permitFailure: true })
+          retryIndexes.forEach((i: number, j: number) => { _slots[i] = _retries[j] })
+        }
+        return _slots
       }
+      const _slots = await readSlots(api)
       const unread = pairs.filter((_: string, i: number) => _slots[i] == null)
       if (unread.length) throw new Error(`slot0 unreadable on ${unread.length} of ${pairs.length} pools, the fee in the pool creation log is a tick spacing and cannot be used instead: first ${unread[0]}`)
       _slots.forEach((slot: any, i: number) => { fees[pairs[i]] = Number(slot.fee) / 1e6 })
 
+      const openingSlots = await readSlots(new ChainApi({ chain, block: (await fetchOptions.getFromBlock()) - 1 }))
       const changeLogs = await getLogs({ targets: pairs, eventAbi: feeChangeEvent, flatten: false, onlyArgs: false })
       changeLogs.forEach((logs: any[], i: number) => {
-        if (!logs?.length) return
         const pair = pairs[i]
+        const openingFee = openingSlots[i] == null ? undefined : Number(openingSlots[i].fee) / 1e6
+        if (!logs?.length) {
+          if (openingFee !== undefined && openingFee !== fees[pair]) throw new Error(`fee change logs missing on ${pair}: fee went from ${openingFee} to ${fees[pair]} in the window but no change was logged`)
+          return
+        }
         const positions = new Set()
         const changes = logs.map(toPositionedLogArgs)
           .filter((change: any) => {
@@ -519,21 +528,14 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           })
           .sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
         const chained = changes.every((change: any, j: number) => j === 0 || Number(change.feeOld) === Number(changes[j - 1].feeNew))
-        if (!chained) return
-        if (Number(changes[changes.length - 1].feeNew) / 1e6 !== fees[pair]) return
+        const opensAtOpeningFee = openingFee === undefined || Number(changes[0].feeOld) / 1e6 === openingFee
+        const closesAtClosingFee = Number(changes[changes.length - 1].feeNew) / 1e6 === fees[pair]
+        if (!chained || !opensAtOpeningFee || !closesAtClosingFee) throw new Error(`fee change logs incomplete on ${pair}: ${changes.length} changes do not link the opening fee ${openingFee} to the closing fee ${fees[pair]}`)
         feeTimelines[pair] = [
           { blockNumber: -1, logIndex: -1, fee: Number(changes[0].feeOld) / 1e6 },
           ...changes.map((change: any) => ({ blockNumber: change.blockNumber, logIndex: change.logIndex, fee: Number(change.feeNew) / 1e6 })),
         ]
       })
-
-      const timelinePairs = Object.keys(feeTimelines)
-      if (timelinePairs.length) {
-        const openingSlots = await fetchOptions.fromApi.multiCall({ abi: slot0Abi, calls: timelinePairs, permitFailure: true })
-        timelinePairs.forEach((pair: string, i: number) => {
-          if (openingSlots[i] == null || Number(openingSlots[i].fee) / 1e6 !== feeTimelines[pair][0].fee) delete feeTimelines[pair]
-        })
-      }
     }
 
     const hasFeeTimelines = Object.keys(feeTimelines).length > 0
