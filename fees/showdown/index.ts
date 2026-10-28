@@ -51,10 +51,8 @@ async function signaturesInWindow(program: string, from: number, to: number): Pr
           blockTimes.set(s.slot, await rpc(() => solanaRpc("getBlockTime", [s.slot])));
         blockTime = blockTimes.get(s.slot);
       }
-      if (typeof blockTime !== "number") {
-        console.warn(`showdown: no block time for ${s.signature} (slot ${s.slot})`);
-        continue;
-      }
+      if (typeof blockTime !== "number")
+        throw new Error(`showdown: cannot determine block time for ${s.signature} (slot ${s.slot})`);
       if (blockTime >= from && blockTime < to) signatures.push(s.signature);
     }
     if (page.length < 1000) break;
