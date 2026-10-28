@@ -12,13 +12,35 @@ const MATCH_RESOLVED = "c33773f466d7dd28";
 const TOURNAMENT_CLOSED = "f6899b59e2265708";
 type Totals = { volume: bigint; fees: bigint };
 
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+let rpcQueue: Promise<void> = Promise.resolve();
+
+// Limit requests across concurrently running hourly windows; retry HTTP 429.
+function rpc<T>(call: () => Promise<T>): Promise<T> {
+  const result = rpcQueue.then(async () => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await sleep(500);
+      try {
+        return await call();
+      } catch (error) {
+        if (!/429|Too Many Requests/i.test(String(error)) || attempt === 4) throw error;
+        await sleep(2000 * 2 ** attempt);
+      }
+    }
+    throw new Error("showdown: RPC retries exhausted");
+  });
+  rpcQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+/** Find successful finalized signatures in [from, to). */
 async function signaturesInWindow(program: string, from: number, to: number): Promise<string[]> {
   const signatures: string[] = [];
   let before: string | undefined;
   for (;;) {
-    const page: any[] = await solanaRpc("getSignaturesForAddress", [
+    const page: any[] = await rpc(() => solanaRpc("getSignaturesForAddress", [
       program, { before, limit: 1000, commitment: "finalized" },
-    ]);
+    ]));
     if (!Array.isArray(page)) throw new Error(`showdown: invalid signature response for ${program}`);
     for (const s of page) {
       if (s.err) continue;
@@ -34,6 +56,7 @@ async function signaturesInWindow(program: string, from: number, to: number): Pr
   return signatures;
 }
 
+/** Extract Anchor events emitted by this program, excluding inner programs. */
 function programEvents(logs: string[], program: string): Buffer[] {
   const events: Buffer[] = [];
   const frames: string[] = [];
@@ -49,7 +72,7 @@ function programEvents(logs: string[], program: string): Buffer[] {
 }
 
 async function totalsFromTransaction(signature: string, program: string): Promise<Totals> {
-  const tx = await getTransaction({ signature, maxSupportedTransactionVersion: 0 });
+  const tx = await rpc(() => getTransaction({ signature, maxSupportedTransactionVersion: 0 }));
   if (!tx?.meta?.logMessages) throw new Error(`showdown: missing transaction logs for ${signature}`);
   if (tx.meta.err) return { volume: 0n, fees: 0n };
   let volume = 0n;
@@ -75,7 +98,7 @@ async function totalsForProgram(program: string, from: number, to: number): Prom
   if (from >= to) return { volume: 0n, fees: 0n };
   const signatures = await signaturesInWindow(program, from, to);
   const { results, errors } = await PromisePool.withConcurrency(1).for(signatures)
-    .process((signature) => totalsFromTransaction(signature, program));
+    .process(signature => totalsFromTransaction(signature, program));
   if (errors.length) throw errors[0];
   return results.reduce((total, result) => ({
     volume: total.volume + result.volume,
@@ -86,25 +109,36 @@ async function totalsForProgram(program: string, from: number, to: number): Prom
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
-  // Exclude the one-second overlap between runAdapter reporting windows.
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const from = Math.max(options.startTimestamp + 1, START_TIMESTAMP);
   const to = options.endTimestamp;
   const matches = await totalsForProgram(MONEY_MATCHES, from, to);
   const tournaments = await totalsForProgram(TOURNAMENTS, from, to);
+  const fees = matches.fees + tournaments.fees;
+  const referrals = fees / 10n;
+  const profit = fees - referrals;
+
   dailyVolume.add(USDC, matches.volume + tournaments.volume);
-  dailyFees.add(USDC, matches.fees + tournaments.fees);
-  return { dailyVolume, dailyFees, dailyRevenue: dailyFees };
+  dailyFees.add(USDC, fees);
+  dailySupplySideRevenue.add(USDC, referrals);
+  dailyRevenue.add(USDC, profit);
+  dailyProtocolRevenue.add(USDC, profit);
+  return { dailyVolume, dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: { [CHAIN.SOLANA]: {fetch, start: "2026-10-13", }, },
+  adapter: { [CHAIN.SOLANA]: { fetch, start: "2026-10-13" } },
   methodology: {
-    Volume: "Includes money match stakes, tournament buy-ins, sponsorship, and guarantee overlays.",
+    Volume: "Money match stakes, tournament buy-ins, sponsorship, and guarantee overlays.",
     Fees: "Rake collected from money matches and tournaments.",
-    Revenue: "Equal to fees.",
+    SupplySideRevenue: "Referral allocation is 10% of the collected rake; paid off-chain.",
+    Revenue: "Rake after minus the referral allocation.",
   },
+  breakdownMethodology: {},
 };
 
 export default adapter;
