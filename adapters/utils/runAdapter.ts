@@ -121,7 +121,7 @@ export default async function runAdapter(options: AdapterRunOptions) {
   setModuleDefaults(module)
 
   // Count every http request made during the run (rpc per chain, indexer, subgraphs, fetchURL...) and
-  // write the totals to the adapter-call-stats index when it settles, see sdk.callStats
+  // write the per-chain totals to the adapter-calls index when it settles, see sdk.callStats
   const callStatsMeta = {
     application: 'dimensions', type: 'protocol',
     name: name ?? metadata.name ?? 'unknown',
