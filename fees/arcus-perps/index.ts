@@ -37,11 +37,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Gross taker and maker trading fees paid by traders on Arcus perpetual markets.",
-  UserFees: "Gross trading fees paid by traders.",
+  Fees: "Gross taker, maker and liquidation fees paid by traders on Arcus perpetual markets.",
+  UserFees: "Gross trading and liquidation fees paid by traders.",
   SupplySideRevenue: "Maker rebates paid back to liquidity providers plus payouts to referral partners.",
-  Revenue: "Trading fees kept by Arcus after maker rebates and referral payouts.",
-  ProtocolRevenue: "All retained trading fees go to the protocol treasury; Arcus has no token distribution.",
+  Revenue: "Trading and liquidation fees kept by Arcus after maker rebates and referral payouts.",
+  ProtocolRevenue: "All retained trading and liquidation fees go to the protocol treasury; Arcus has no token distribution.",
 };
 
 const breakdownMethodology = {
