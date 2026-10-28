@@ -3,6 +3,7 @@ import { CHAIN } from '../../helpers/chains';
 import fetchURL from '../../utils/fetchURL';
 import { dailyResponse } from './accounting';
 import { managedVaults } from './deployments';
+import { vaultFees } from './vaults';
 
 const SWAP_FEES = 'Vault Liquidity Fees';
 const OPERATIONS = 'Vault Fees To Operations';
@@ -42,6 +43,15 @@ const fetch = async (options: FetchOptions) => {
       dailySupplySideRevenue.add(token, earned - operations - buyback, DEPOSITORS);
     }
   });
+  // Vaults that replaced V7, read on-chain: each vault's protocolFeeBps (10%) and buybackFeeBps (20%)
+  for (const { token, earned, operations, buyback } of await vaultFees(options)) {
+    dailyFees.add(token, earned, SWAP_FEES);
+    dailyRevenue.add(token, operations, OPERATIONS);
+    dailyRevenue.add(token, buyback, BUYBACK_RESERVE);
+    dailyProtocolRevenue.add(token, operations, OPERATIONS);
+    dailyHoldersRevenue.add(token, buyback, BUYBACK_RESERVE);
+    dailySupplySideRevenue.add(token, earned - operations - buyback, DEPOSITORS);
+  }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 const protocolBreakdown = {
@@ -59,14 +69,14 @@ const adapter: SimpleAdapter = {
   // Cumulative allocation floors may also produce raw-unit revenue/supplier negatives.
   allowNegativeValue: true,
   methodology: {
-    Fees: 'LP fees earned by the listed TickerSpring V7 vaults during the UTC day, including uncollected fees. Measured as the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Excludes principal, stock-price returns, retired vaults and lending.',
+    Fees: 'LP fees earned by the TickerSpring vaults during the UTC day, including uncollected fees. V7 vaults: the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Vaults that replaced V7 (listed by https://api.tickerspring.com/v1/merged/vaults): the fees their Harvest events collected plus the change in uncollected position fees, read on-chain at the day\'s first and last blocks. Excludes principal, stock-price returns, UP and RAM emissions, retired vaults and lending.',
     Revenue: 'Earned vault LP fees allocated to operations (10%) and the SPRING buyback reserve (20%), subject to raw-token rounding.',
     ProtocolRevenue: 'The operations allocation of earned vault LP fees (10%).',
     HoldersRevenue: 'The allocation reserved to buy and permanently burn SPRING (20%), measured when vault fees accrue rather than when the buyback executes.',
     SupplySideRevenue: 'Earned LP fees retained for vault depositors after protocol allocations (approximately 70%).',
   },
   breakdownMethodology: {
-    Fees: { [SWAP_FEES]: 'Daily change in grossFees plus position.pendingFees, in each underlying token, from the public daily history API. Harvesting moves fees between these counters without counting them twice. Missing observations fail instead of returning zero.' },
+    Fees: { [SWAP_FEES]: 'V7 vaults: daily change in grossFees plus position.pendingFees, in each underlying token, from the public daily history API; missing observations fail instead of returning zero. Vaults that replaced V7: USDG and pool-token fees from Harvest events plus the change in the venue position\'s uncollected fees (fee growth inside its range on Uniswap V3, Up and Ramses; the PoolManager position on Uniswap V4). Harvesting moves fees between these counters without counting them twice.' },
     Revenue: revenueBreakdown, ProtocolRevenue: protocolBreakdown, HoldersRevenue: holdersBreakdown,
     SupplySideRevenue: { [DEPOSITORS]: 'Earned vault LP fees minus the accrued operations and buyback-reserve allocations.' },
   },
