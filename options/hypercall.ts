@@ -1,3 +1,4 @@
+import PromisePool from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet, httpPost } from "../utils/fetchURL";
@@ -46,14 +47,21 @@ const findCandle = (candles: Candle[], timestamp: number) => candles.find((c) =>
 const fetch = async (options: FetchOptions) => {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
-  const fromMs = options.startTimestamp * 1000;
+  // consecutive runner windows share their boundary second (start = previous end - 1), so skip it to avoid double counting
+  const fromMs = (options.startTimestamp + 1) * 1000;
   const toMs = options.endTimestamp * 1000;
 
   const trades = await getTrades(fromMs, toMs);
   const underlyings = [...new Set(trades.map((t) => t.symbol.split("-")[0]))];
   const hourly: Record<string, Candle[]> = {};
   const daily: Record<string, Candle[]> = {};
-  for (const underlying of underlyings) hourly[underlying] = await getCandles(underlying, "1h", fromMs - HOUR_MS, toMs);
+  // low concurrency: the Hyperliquid info endpoint is rate limited
+  const { errors } = await PromisePool.withConcurrency(3)
+    .for(underlyings)
+    .process(async (underlying) => {
+      hourly[underlying] = await getCandles(underlying, "1h", fromMs - HOUR_MS, toMs);
+    });
+  if (errors.length) throw errors[0].raw ?? errors[0];
 
   for (const trade of trades) {
     const underlying = trade.symbol.split("-")[0];
@@ -76,7 +84,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.HYPERLIQUID],
+  chains: [CHAIN.OFF_CHAIN], // matching is off-chain; collateral sits in Hypercall's HyperCore account
   start: "2026-06-01", // mainnet launch, first trade 2026-06-01T19:55Z
   methodology: {
     NotionalVolume: "Contracts traded on Hypercall times the underlying price, taken as the open of the Hyperliquid 1h candle (BTC/ETH perps, trade.xyz perps for equities and indices) containing the trade, or of the 1d candle once hourly candles are no longer served. Each fill is counted once.",
