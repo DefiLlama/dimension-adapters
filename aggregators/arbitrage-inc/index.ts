@@ -22,21 +22,6 @@ const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 const SWAP_FEE_RATE = 0.005;
 const LIMIT_ORDER_FEE_RATE = 0.001;
 
-// Safely call getETHReceived, handling local or fork environments where ALLIUM_API_KEY is not exposed
-const safeGetETHReceived = async (params: any) => {
-	try {
-		return await getETHReceived(params);
-	} catch (e: any) {
-		if (
-			!process.env.ALLIUM_API_KEY &&
-			e.message?.includes("Allium API Key")
-		) {
-			return params.balances ?? params.options.createBalances();
-		}
-		throw e;
-	}
-};
-
 const getLegacySwapFees = async (options: FetchOptions) => {
 	const balances = options.createBalances();
 	const logs = await options.getLogs({
@@ -65,7 +50,7 @@ const fetchLegacy = async (options: FetchOptions) => {
 	const swapFees = await getLegacySwapFees(options);
 
 	const dailyVolume = options.createBalances();
-	dailyVolume.add(swapFees.clone(1 / feeRate), "Legacy Swap Volume");
+	dailyVolume.add(swapFees.clone(1 / feeRate));
 
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Legacy Swap Fees");
@@ -86,13 +71,13 @@ const fetchLegacy = async (options: FetchOptions) => {
 
 const getSwapFees = async (options: FetchOptions) => {
 	const balances = await addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] });
-	await safeGetETHReceived({ options, target: SWAP_FEE_RECEIVER, balances });
+	await getETHReceived({ options, target: SWAP_FEE_RECEIVER, balances });
 	return balances;
 };
 
 const getLimitOrderFees = async (options: FetchOptions) => {
 	const balances = await addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] });
-	await safeGetETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances });
+	await getETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances });
 	return balances;
 };
 
@@ -104,8 +89,8 @@ const fetchCurrent = async (options: FetchOptions) => {
 	]);
 
 	const dailyVolume = options.createBalances();
-	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE), "Swap Volume");
-	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE), "Limit Order Volume");
+	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE));
+	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE));
 
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Kyber Swap Fees");
@@ -127,70 +112,8 @@ const fetchCurrent = async (options: FetchOptions) => {
 	};
 };
 
-const splitAtBoundary = async (
-	options: FetchOptions,
-	boundaryTs: number,
-	preFetch: (opts: FetchOptions) => Promise<any>,
-	postFetch: (opts: FetchOptions) => Promise<any>,
-) => {
-	const boundaryBlock: number =
-		typeof options.getBlock === "function"
-			? await options.getBlock(boundaryTs, options.chain, {})
-			: await options.getFromBlock();
-
-	const preOptions: FetchOptions = {
-		...options,
-		endTimestamp: boundaryTs,
-		toTimestamp: boundaryTs - 1,
-		getToBlock: async () => boundaryBlock - 1,
-		getLogs: (params: any) =>
-			options.getLogs({
-				...params,
-				toBlock: params.toBlock ? Math.min(params.toBlock, boundaryBlock - 1) : boundaryBlock - 1,
-			}),
-	};
-
-	const postOptions: FetchOptions = {
-		...options,
-		startTimestamp: boundaryTs,
-		fromTimestamp: boundaryTs,
-		startOfDay: boundaryTs,
-		getFromBlock: async () => boundaryBlock,
-		getLogs: (params: any) =>
-			options.getLogs({
-				...params,
-				fromBlock: params.fromBlock ? Math.max(params.fromBlock, boundaryBlock) : boundaryBlock,
-			}),
-	};
-
-	const [resPre, resPost] = await Promise.all([preFetch(preOptions), postFetch(postOptions)]);
-
-	const merge = (key: string) => {
-		const balances = options.createBalances();
-		if (resPre && resPre[key]) balances.addBalances(resPre[key]);
-		if (resPost && resPost[key]) balances.addBalances(resPost[key]);
-		return balances;
-	};
-
-	return {
-		dailyVolume: merge("dailyVolume"),
-		dailyFees: merge("dailyFees"),
-		dailyRevenue: merge("dailyRevenue"),
-		dailyProtocolRevenue: merge("dailyProtocolRevenue"),
-	};
-};
-
-const fetch = async (options: FetchOptions): Promise<any> => {
-	const startTimestamp = options.startTimestamp ?? options.startOfDay;
-	const endTimestamp = options.endTimestamp ?? (startTimestamp + 86400);
-
-	if (startTimestamp < RECEIVER_MIGRATION_TIMESTAMP) {
-		if (endTimestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
-			return fetchLegacy(options);
-		}
-		return splitAtBoundary(options, RECEIVER_MIGRATION_TIMESTAMP, fetchLegacy, fetchCurrent);
-	}
-
+const fetch = async (options: FetchOptions) => {
+	if (options.endTimestamp <= RECEIVER_MIGRATION_TIMESTAMP) return fetchLegacy(options);
 	return fetchCurrent(options);
 };
 
@@ -208,11 +131,6 @@ const adapter: SimpleAdapter = {
 		ProtocolRevenue: "100% of collected swap and limit-order fees retained by the protocol fee receivers.",
 	},
 	breakdownMethodology: {
-		Volume: {
-			"Swap Volume": "Routed swap volume from October 1, 2026 onward, calculated as dedicated swap receiver fees divided by the 0.5% fee rate across all received tokens and native BNB.",
-			"Limit Order Volume": "Routed limit-order volume from October 1, 2026 onward, calculated as dedicated limit-order receiver fees divided by the 0.1% fee rate across all received tokens and native BNB.",
-			"Legacy Swap Volume": "Routed swap volume before October 1, 2026, calculated from legacy swap fees divided by the date-aware 0.1%/0.5% fee rate.",
-		},
 		Fees: {
 			"Legacy Swap Fees": "Pre-migration fees received by the legacy swap receiver 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, excluding transfers originating from the tax accumulator.",
 			"Kyber Swap Fees": "Post-migration fees received by the dedicated swap receiver 0x0F477f8c88b48E299AcE83B14303157d032382EC across all received tokens and native BNB.",
