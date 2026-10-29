@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types"
 import { METRIC } from "../../helpers/metrics"
 import { EulerChainConfigs } from './config';
+import { getEulerExcludedVaults } from '../../helpers/eulerExclusions';
 
 const UINT256_MAX = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
@@ -13,7 +14,7 @@ const eulerFactoryABI = {
 const eulerVaultABI = {
   asset: "function asset() view returns (address)",
   decimals: "function decimals() view returns (uint8)",
-  totalAssets: "function totalAssets() view returns (uint256)",
+  totalSupply: "function totalSupply() view returns (uint256)",
   convertToAssets: "function convertToAssets(uint256 shares) view returns (uint256)",
   interestFee: 'uint256:interestFee',
   protocolFeeShare: 'uint256:protocolFeeShare',
@@ -31,34 +32,32 @@ const fetch = async (options: FetchOptions) => {
   // get vaults info
   const vaultAssets = (await options.fromApi.multiCall({ calls: vaults, abi: eulerVaultABI.asset }))
     .map(asset => asset ? asset : ADDRESSES.null)
-  const vaultBalances = await options.fromApi.multiCall({ abi: eulerVaultABI.totalAssets, calls: vaults })
+  const vaultSupplies = await options.fromApi.multiCall({ abi: eulerVaultABI.totalSupply, calls: vaults })
   const vaultInterestFees = await options.fromApi.multiCall({ abi: eulerVaultABI.interestFee, calls: vaults })
   const vaultProtocolFeeShares = await options.fromApi.multiCall({ abi: eulerVaultABI.protocolFeeShare, calls: vaults })
 
-  const convertToAssetsBefore = await options.fromApi.multiCall({
-    abi: eulerVaultABI.convertToAssets,
-    calls: vaults.map((vaultAddress: string) => ({ target: vaultAddress, params: [String(1e18)] }))
-  })
-  const convertToAssetsAfter = await options.toApi.multiCall({
-    abi: eulerVaultABI.convertToAssets,
-    calls: vaults.map((vaultAddress: string) => ({ target: vaultAddress, params: [String(1e18)] }))
-  })
+  const supplyCalls = vaults.map((vaultAddress: string, i: number) => ({ target: vaultAddress, params: [vaultSupplies[i] ? vaultSupplies[i] : 0] }))
+  const convertToAssetsBefore = await options.fromApi.multiCall({ abi: eulerVaultABI.convertToAssets, calls: supplyCalls })
+  const convertToAssetsAfter = await options.toApi.multiCall({ abi: eulerVaultABI.convertToAssets, calls: supplyCalls })
 
-  const blacklistedVaults = EulerChainConfigs[options.chain].blacklistedVaults || []
+  const blacklistedVaults = new Set([
+    ...(EulerChainConfigs[options.chain].blacklistedVaults || []),
+    ...(await getEulerExcludedVaults(options.chain, options.dateString)),
+  ])
 
   for (let i = 0; i < vaults.length; i++) {
-    if (blacklistedVaults.includes(vaults[i].toLowerCase())) {
+    if (blacklistedVaults.has(vaults[i].toLowerCase())) {
       continue
     }
-    const balance = vaultBalances[i] ? vaultBalances[i] : 0
     const interestFeeRate = vaultInterestFees[i] ? vaultInterestFees[i] : 0
     const protocolFeeRate = vaultProtocolFeeShares[i] ? vaultProtocolFeeShares[i] : 0
 
-    const growthAssets = Number(convertToAssetsAfter[i]) - Number(convertToAssetsBefore[i])
-    
-    if (growthAssets > 0) {
-      const interestEarned = BigInt(growthAssets) * BigInt(balance) / BigInt(1e18)
-  
+    const interestEarned = BigInt(convertToAssetsAfter[i]) - BigInt(convertToAssetsBefore[i])
+
+    if (interestEarned < BigInt(0)) {
+      dailyFees.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
+      dailySupplySideRevenue.add(vaultAssets[i], interestEarned, METRIC.BORROW_INTEREST);
+    } else if (interestEarned > BigInt(0)) {
       let interestEarnedBeforeFees = interestEarned
       if (interestFeeRate < BigInt(1e4)) {
         interestEarnedBeforeFees = interestEarned * BigInt(1e4) / (BigInt(1e4) - BigInt(interestFeeRate))
@@ -113,18 +112,19 @@ const fetch = async (options: FetchOptions) => {
 const adapters: Adapter = {
   version: 2,
   pullHourly: true,
-  // EUL buy backs spend protocol fees accrued over earlier days, so ProtocolRevenue is negative on buy back days
+  // EUL buy backs spend protocol fees accrued over earlier days, so ProtocolRevenue is negative on buy back days;
+  // Fees and SupplySideRevenue go negative when a vault socializes bad debt onto its lenders (share price drops)
   allowNegativeValue: true,
   methodology: {
-    Fees: "Includes interest that is paid by the borrowers, protocol and curators fees.",
+    Fees: "Includes interest that is paid by the borrowers, protocol and curators fees, net of bad debt written off against vault lenders.",
     Revenue: "Fees collected by Euler protocol.",
     ProtocolRevenue: "Fees collected by Euler protocol, minus the amount used to buy back EUL tokens (negative on buy back days).",
-    SupplySideRevenue: "Fees distributed to vaults lenders and curators.",
+    SupplySideRevenue: "Fees distributed to vaults lenders and curators, net of bad debt written off against vault lenders.",
     HoldersRevenue: "Revenue used for buy back EUL tokens.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to lenders (excluding protocol and curators fees).',
+      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to lenders (excluding protocol and curators fees), net of bad debt socialized onto lenders.',
       [METRIC.CURATORS_FEES]: 'Interest share to curators.',
       [METRIC.PROTOCOL_FEES]: 'Interest share to Euler protocol.',
     },
@@ -132,7 +132,7 @@ const adapters: Adapter = {
       [METRIC.PROTOCOL_FEES]: 'Interest share to Euler protocol.',
     },
     SupplySideRevenue: {
-      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to lenders (excluding protocol and curators fees).',
+      [METRIC.BORROW_INTEREST]: 'Interest paid by borrowers to lenders (excluding protocol and curators fees), net of bad debt socialized onto lenders.',
       [METRIC.CURATORS_FEES]: 'Interest share to curators.',
     },
     ProtocolRevenue: {

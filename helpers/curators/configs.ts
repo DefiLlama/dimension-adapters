@@ -7,6 +7,7 @@ export const ABI = {
     decimals: 'uint8:decimals',
     converttoAssets: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
     totalAssets: 'uint256:totalAssets',
+    totalSupply: 'uint256:totalSupply',
   },
   morpho: {
     fee: 'uint256:fee',
