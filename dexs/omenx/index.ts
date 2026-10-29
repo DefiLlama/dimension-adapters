@@ -39,8 +39,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.OFF_CHAIN],
   fetch,
-  // placeholder: set to the official reporting start date before submitting the PR
-  start: "2026-11-01",
+  start: "2026-10-29",
   methodology,
 };
 
