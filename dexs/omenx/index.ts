@@ -30,7 +30,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Sum of YES price x shares over taker-side fills, so each trade is counted once. NO-side fills are converted to the YES price (1 - NO price). Includes trades by platform market-maker accounts. Computed from trades recorded on the OmenX ledger on Base.",
+  Volume: "Sum of YES price x shares over taker-side fills, so each trade is counted once. NO-side fills are converted to the YES price (1 - NO price). Includes trades by platform market-maker accounts. Computed from trades recorded on the OmenX ledger on Base (0xacf666Ff4fDAb8FeC552801471dbA7e8F1d0c058).",
   NotionalVolume: "Sum of shares over taker-side fills, each share valued at 1 USD. Includes trades by platform market-maker accounts.",
 };
 
@@ -39,7 +39,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.OFF_CHAIN],
   fetch,
-  start: "2026-10-29",
+  start: "2026-10-30",
   methodology,
 };
 
