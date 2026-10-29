@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { fetchTransfersFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { httpGet } from "../../utils/fetchURL";
 
 // HyperDex (https://hyperdex.app) - swap and bridge aggregator for tokenized stocks and other RWAs,
 // routed through LI.FI under the integrator string "hyperdex" with a 0.25% integrator fee on every
@@ -26,6 +27,13 @@ import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
 // Fynd (Robinhood Chain): HyperDex's 15 bp client fee on Fynd swaps is paid inside Fynd's TychoRouter, whose
 // FeesTaken event lists each leg; the leg to HyperDex's fee receiver is HyperDex's (Fynd keeps the other).
 //
+// RAVN, Velora, Hinkal and CoW: HyperDex's other route sources leave nothing on-chain that names HyperDex, so their
+// fee is HyperDex's fee rate on each completed swap in HyperDex's own swap record (the list
+// https://hyperdex.app/explorer shows), at the swap's dollar amount when sent, on the sending chain:
+// https://hyperdex.app/api/defillama. Rates: RAVN 50 bp until 2026-10-16, 5 bp after (none before 2026-10-19 on
+// routes with no fee of their own: Eco, Layerswap, Mayan, Jupiter; Rift 0.25 % from 2026-10-14); Velora 5 bp
+// (Delta) or 10 bp (Market); Hinkal 10 bp; CoW 15 bp. Perps fees are in aggregator-derivatives/hyperdex.
+//
 // Addresses: https://github.com/lifinance/contracts/tree/main/deployments (FeeForwarder, LiFiDiamond),
 // plus the shared routers listed in fees/lifi (0xce40... emits on Base and Arbitrum for these transfers).
 
@@ -37,6 +45,9 @@ const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, strin
 const INTEGRATOR = 'hyperdex'
 const IntegratorFee = 'Integrator fee'
 const FyndFee = 'Fynd client fee'
+const HYPERDEX_API = 'https://hyperdex.app/api/defillama'
+// the record's sources and their fee labels
+const RecordFees: Record<string, string> = { ravn: 'RAVN integrator fee', velora: 'Velora partner fee', private: 'Hinkal partner fee', cow: 'CoW partner fee' }
 
 // HyperDex's integrator payout addresses: the recipient on every HyperDex FeesForwarded leg that is not
 // LI.FI's. The first received every payout up to 2026-09-24; HyperDex then moved the payout to the
@@ -46,40 +57,57 @@ const HYPERDEX_FEE_RECIPIENTS = [
   '0xf3619a5029bc4d7de640d22640cab564aeb34735',
 ]
 
-const chainConfig: Record<string, { diamond?: string; forwarders?: string[]; lifiChainId?: number; fyndRouter?: string; start: string }> = {
+// chainId: the chain's id in HyperDex's record
+const chainConfig: Record<string, { chainId: number; diamond?: string; forwarders?: string[]; lifiChainId?: number; fyndRouter?: string; start: string }> = {
   // API-routed (see above), plus Fynd's router
-  [CHAIN.ROBINHOOD]: { lifiChainId: 4663, fyndRouter: '0x09215a470bd585e59eb3f4b612fbd2678131ff9e', start: '2026-09-16' },
-  [CHAIN.SOLANA]: { lifiChainId: 1151111081099710, start: '2026-09-16' },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, lifiChainId: 4663, fyndRouter: '0x09215a470bd585e59eb3f4b612fbd2678131ff9e', start: '2026-09-16' },
+  [CHAIN.SOLANA]: { chainId: 1151111081099710, lifiChainId: 1151111081099710, start: '2026-09-16' },
   [CHAIN.BASE]: {
+    chainId: 8453,
     diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0xc18d9e84b8687a2645447a61e52c455dac1675e1'],
     start: '2026-09-16',
   },
   [CHAIN.ARBITRUM]: {
+    chainId: 42161,
     diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0xc18d9e84b8687a2645447a61e52c455dac1675e1'],
     start: '2026-09-16',
   },
   [CHAIN.ETHEREUM]: {
+    chainId: 1,
     diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0x685527c551cc40ce1f1c9818cd8683307076e4ed'],
     start: '2026-09-16',
   },
   [CHAIN.BSC]: {
+    chainId: 56,
     diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0xc18d9e84b8687a2645447a61e52c455dac1675e1'],
     start: '2026-09-16',
   },
   [CHAIN.ARC]: {
+    chainId: 5042,
     diamond: '0xA4072583658Fae592A3506A42431cb6316a8d40b',
     forwarders: ['0xEDff4051B8286d2333149429F019dC10E23570da'],
     start: '2026-09-16',
   },
+  // HyperDex's record only (no LI.FI orders from here)
+  [CHAIN.POLYGON]: { chainId: 137, start: '2026-10-11' },
+  [CHAIN.AVAX]: { chainId: 43114, start: '2026-10-11' },
+  [CHAIN.ERA]: { chainId: 324, start: '2026-10-11' },
+  [CHAIN.HYPERLIQUID]: { chainId: 999, start: '2026-10-11' },
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { diamond, forwarders, lifiChainId, fyndRouter } = chainConfig[options.chain]
+  const { chainId, diamond, forwarders, lifiChainId, fyndRouter } = chainConfig[options.chain]
   const dailyFees = options.createBalances()
+
+  // RAVN, Velora, Hinkal and CoW fees from HyperDex's record, in USD
+  const record = await httpGet(`${HYPERDEX_API}?start=${options.startTimestamp}&end=${options.endTimestamp}`)
+  Object.entries(record.fees?.[chainId] ?? {}).forEach(([source, usd]: [string, any]) => {
+    if (RecordFees[source]) dailyFees.addUSDValue(Number(usd) || 0, RecordFees[source])
+  })
 
   if (lifiChainId) {
     // every hyperdex transfer in the window, all chains (the helper has no numeric LI.FI chainId for Robinhood), kept to this chain
@@ -144,7 +172,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    Fees: 'The 0.25% integrator fee HyperDex charges on every swap, bridge and basket order routed through LI.FI: the FeesForwarded leg paid to HyperDex in a transaction whose LI.FI event carries integrator "hyperdex" (Robinhood Chain and Solana: the integrator share of each transfer\'s fee from LI.FI\'s analytics API, in USD); and HyperDex\'s leg of its client fee on Fynd swaps, from the TychoRouter FeesTaken event.',
+    Fees: 'The 0.25% integrator fee HyperDex charges on every swap, bridge and basket order routed through LI.FI: the FeesForwarded leg paid to HyperDex in a transaction whose LI.FI event carries integrator "hyperdex" (Robinhood Chain and Solana: the integrator share of each transfer\'s fee from LI.FI\'s analytics API, in USD); HyperDex\'s leg of its client fee on Fynd swaps, from the TychoRouter FeesTaken event; and HyperDex\'s fee on RAVN, Velora, Hinkal and CoW swaps, at its fee rate on each completed swap in HyperDex\'s own swap record (https://hyperdex.app/api/defillama), at the swap\'s dollar amount when sent.',
     Revenue: 'All of these fees go to HyperDex.',
     ProtocolRevenue: 'All of these fees go to HyperDex.',
   },
@@ -152,14 +180,26 @@ const adapter: SimpleAdapter = {
     Fees: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
       [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
+      [RecordFees.ravn]: 'HyperDex\'s fee on RAVN-routed swaps: 50 bp until 2026-10-16, 5 bp after.',
+      [RecordFees.velora]: 'HyperDex\'s partner fee on Velora swaps: 5 bp on Delta orders, 10 bp on Market swaps.',
+      [RecordFees.private]: 'HyperDex\'s 10 bp partner fee on Hinkal private swaps.',
+      [RecordFees.cow]: 'HyperDex\'s 15 bp partner fee on CoW Swap orders.',
     },
     Revenue: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
       [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
+      [RecordFees.ravn]: 'HyperDex\'s fee on RAVN-routed swaps: 50 bp until 2026-10-16, 5 bp after.',
+      [RecordFees.velora]: 'HyperDex\'s partner fee on Velora swaps: 5 bp on Delta orders, 10 bp on Market swaps.',
+      [RecordFees.private]: 'HyperDex\'s 10 bp partner fee on Hinkal private swaps.',
+      [RecordFees.cow]: 'HyperDex\'s 15 bp partner fee on CoW Swap orders.',
     },
     ProtocolRevenue: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
       [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
+      [RecordFees.ravn]: 'HyperDex\'s fee on RAVN-routed swaps: 50 bp until 2026-10-16, 5 bp after.',
+      [RecordFees.velora]: 'HyperDex\'s partner fee on Velora swaps: 5 bp on Delta orders, 10 bp on Market swaps.',
+      [RecordFees.private]: 'HyperDex\'s 10 bp partner fee on Hinkal private swaps.',
+      [RecordFees.cow]: 'HyperDex\'s 15 bp partner fee on CoW Swap orders.',
     },
   },
 }
