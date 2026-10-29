@@ -17,11 +17,12 @@ interface VolumeResponse {
 const fetch = async (options: FetchOptions) => {
   // runAdapter passes startTimestamp as the hour boundary minus 1s; the API only accepts whole UTC hours
   const start = Math.ceil(options.startTimestamp / 3600) * 3600;
-  const res: VolumeResponse = await fetchURL(`${VOLUME_URL}?start=${start}&end=${options.endTimestamp}`);
+  const end = Math.ceil(options.endTimestamp / 3600) * 3600;
+  const res: VolumeResponse = await fetchURL(`${VOLUME_URL}?start=${start}&end=${end}`);
 
   // ready=false means trades in this window are not all on the ledger yet; fail so the window is retried later
   if (res.code !== 0 || !res.data?.ready || res.data.volumeUsd == null || res.data.notionalUsd == null)
-    throw new Error(`OmenX volume not available for ${start}-${options.endTimestamp}: ${JSON.stringify(res)}`);
+    throw new Error(`OmenX volume not available for ${start}-${end}: ${JSON.stringify(res)}`);
 
   return {
     dailyVolume: Number(res.data.volumeUsd),
@@ -39,7 +40,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.OFF_CHAIN],
   fetch,
-  start: "2026-10-30",
+  start: "2026-10-29",
   methodology,
 };
 
