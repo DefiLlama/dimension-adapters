@@ -3,16 +3,22 @@ import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 
-// Canonical bridges of Arbitrum-stack chains (Arbitrum One, Orbit chains), Ethereum side; configs in factory/arbitrumBridges.ts.
-// One-sided: the L2 leg is attributed server-side from each listing's destination chain.
+// Canonical bridges of Arbitrum-stack chains (Arbitrum One, Orbit chains), parent-chain side; configs in factory/arbitrumBridges.ts.
+// One-sided: the child chain's leg is attributed server-side from each listing's destination chain.
 export type ArbitrumBridgeConfig = {
-  name: string; // L2 name, for the methodology
+  name: string; // child chain name, for the methodology
   inbox: string; // delayed Inbox
   bridge: string;
   escrows: string[]; // token gateways / escrows holding bridged ERC20s
   // The Bridge records a contract sender with the L1->L2 alias (address + 0x1111000000000000000000000000000000001111).
   // The WETH gateway's retryables move the ETH of WETH deposits, which are counted as WETH sent to the gateway.
-  wethGatewayAlias: string;
+  // Chains without a WETH gateway (custom gas token chains, some ETH chains) leave it out.
+  wethGatewayAlias?: string;
+  // Custom gas token chains: the Bridge (ERC20Bridge.nativeToken()) holds that token instead of ETH, and deposits,
+  // retryable call values and plain payouts are amounts of it
+  nativeToken?: string;
+  // L3s settle on an L2 instead of Ethereum
+  parent?: { chain: string; name: string };
   start: string;
   excludedTokens?: string[]; // mispriced or fake tokens moved through the gateways, skipped entirely
 };
@@ -33,6 +39,8 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
     target: config.bridge,
     eventAbi: "event MessageDelivered(uint256 indexed messageIndex, bytes32 indexed beforeInboxAcc, address inbox, uint8 kind, address sender, bytes32 messageDataHash, uint256 baseFeeL1, uint64 timestamp)",
   });
+  const addNative = (balances: any, amount: bigint | string) => config.nativeToken ? balances.add(config.nativeToken, amount) : balances.addGasToken(amount);
+  const wethGatewayAlias = config.wethGatewayAlias?.toLowerCase();
   const kindOf: Record<string, number> = {};
   const senderOf: Record<string, string> = {};
   bridgeMessages.forEach((m: any) => {
@@ -45,9 +53,9 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
     // ETH deposit: data is (destination address, amount)
     if (kindOf[messageNum] === ETH_DEPOSIT) amount = BigInt(ethers.dataSlice(data, 20, 52));
     // retryable ticket: the second word is the ETH delivered on L2 (l2CallValue)
-    if (kindOf[messageNum] === RETRYABLE && senderOf[messageNum] !== config.wethGatewayAlias) amount = BigInt(ethers.dataSlice(data, 32, 64));
+    if (kindOf[messageNum] === RETRYABLE && senderOf[messageNum] !== wethGatewayAlias) amount = BigInt(ethers.dataSlice(data, 32, 64));
     if (!amount) continue;
-    dailyOutgoingVolume.addGasToken(amount);
+    addNative(dailyOutgoingVolume, amount);
     dailyOutgoingTxCount++;
   }
 
@@ -55,7 +63,7 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
   const bridgeCalls = await options.getLogs({ target: config.bridge, eventAbi: "event BridgeCallTriggered(address indexed outbox, address indexed to, uint256 value, bytes data)" });
   for (const { value, data } of bridgeCalls) {
     if (data !== "0x" || !BigInt(value)) continue;
-    dailyIncomingVolume.addGasToken(value);
+    addNative(dailyIncomingVolume, value);
     dailyIncomingTxCount++;
   }
 
@@ -81,20 +89,25 @@ const fetchArbitrumBridge = async (options: FetchOptions, config: ArbitrumBridge
 };
 
 /**
- * Bridge adapter for an Arbitrum-stack (Nitro) chain's canonical bridge, read on Ethereum only: ETH deposits and
- * retryables from the Inbox, ETH withdrawals from Bridge calls without calldata, and token transfers through the
- * gateway escrows. The L2 leg is attributed server-side from the listing's destination chain.
+ * Bridge adapter for an Arbitrum-stack (Nitro) chain's canonical bridge, read on its parent chain only (Ethereum unless
+ * `parent` is set): gas token deposits and retryables from the Inbox, gas token withdrawals from Bridge calls without
+ * calldata, and token transfers through the gateway escrows. The child chain's leg is attributed server-side from the
+ * listing's destination chain.
  */
-export const arbitrumBridgeExport = (config: ArbitrumBridgeConfig): SimpleAdapter => ({
-  version: 2,
-  pullHourly: true,
-  fetch: (options: FetchOptions) => fetchArbitrumBridge(options, config),
-  chains: [CHAIN.ETHEREUM],
-  start: config.start,
-  methodology: {
-    OutgoingVolume: `Value of ETH and tokens deposited from Ethereum into ${config.name} through the canonical bridge.`,
-    IncomingVolume: `Value of ETH and tokens withdrawn from ${config.name} and released on Ethereum through the canonical bridge.`,
-    OutgoingTxCount: `Number of deposits from Ethereum into ${config.name} through the canonical bridge.`,
-    IncomingTxCount: `Number of withdrawals from ${config.name} released on Ethereum through the canonical bridge.`,
-  },
-});
+export const arbitrumBridgeExport = (config: ArbitrumBridgeConfig): SimpleAdapter => {
+  const parent = config.parent?.name ?? "Ethereum";
+  const gasToken = config.nativeToken ? "its gas token" : "ETH";
+  return {
+    version: 2,
+    pullHourly: true,
+    fetch: (options: FetchOptions) => fetchArbitrumBridge(options, config),
+    chains: [config.parent?.chain ?? CHAIN.ETHEREUM],
+    start: config.start,
+    methodology: {
+      OutgoingVolume: `Value of ${gasToken} and tokens deposited from ${parent} into ${config.name} through the canonical bridge.`,
+      IncomingVolume: `Value of ${gasToken} and tokens withdrawn from ${config.name} and released on ${parent} through the canonical bridge.`,
+      OutgoingTxCount: `Number of deposits from ${parent} into ${config.name} through the canonical bridge.`,
+      IncomingTxCount: `Number of withdrawals from ${config.name} released on ${parent} through the canonical bridge.`,
+    },
+  };
+};
