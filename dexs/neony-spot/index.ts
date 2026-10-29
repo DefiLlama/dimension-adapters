@@ -18,7 +18,8 @@ const adapter: SimpleAdapter = {
   start: '2026-03-05',
   methodology: {
     Volume: 'Spot daily trading volume in USD.'
-  }
+  },
+  deadFrom: '2026-07-20'
 }
 
 export default adapter

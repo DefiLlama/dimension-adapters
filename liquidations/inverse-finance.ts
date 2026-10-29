@@ -14,17 +14,17 @@ const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
 
   const toBlock = await options.getToBlock()
-  const markets = (await getMarkets()).filter(m => m.startingBlock <= toBlock)
+  const markets = (await getMarkets()).filter((m: any) => m.startingBlock <= toBlock)
 
-  const logs: any[][] = await options.getLogs({ targets: markets.map(m => m.address), eventAbi: LiquidateEvent, flatten: false, entireLog: true, parseLog: true })
+  const logs: any[][] = await options.getLogs({ targets: markets.map((m: any) => m.address), eventAbi: LiquidateEvent, flatten: false, entireLog: true, parseLog: true })
 
-  const liquidated = markets.map((m, i) => ({ ...m, logs: logs[i] })).filter(m => m.logs.length > 0)
+  const liquidated = markets.map((m: any, i: number) => ({ ...m, logs: logs[i] })).filter((m: any) => m.logs.length > 0)
   if (!liquidated.length) return { dailyCollateralLiquidated }
 
-  const govs: string[] = await options.api.multiCall({ abi: 'address:gov', calls: liquidated.map(m => m.address) })
+  const govs: string[] = await options.api.multiCall({ abi: 'address:gov', calls: liquidated.map((m: any) => m.address) })
 
   const feeLegs: Record<string, { collaterals: Set<string>, keys: Set<string> }> = {}
-  liquidated.forEach((market, i) => {
+  liquidated.forEach((market: any, i: number) => {
     const collateral = market.collateral.toLowerCase()
     const leg = feeLegs[govs[i].toLowerCase()] ??= { collaterals: new Set(), keys: new Set() }
     leg.collaterals.add(collateral)

@@ -31,6 +31,7 @@ const adapter: SimpleAdapter = {
   // as off_chain rather than Bitcoin.
   chains: [CHAIN.OFF_CHAIN],
   start: "2024-10-20",
+  deadFrom: "2026-08-09",
 };
 
 export default adapter;

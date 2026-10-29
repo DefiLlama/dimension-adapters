@@ -29,7 +29,7 @@ interface DailyVolume {
 type URLBuilder = (from: string, to: string) => string;
 
 const endpointMap: {
-	[chain: string]: { historical?: URLBuilder; daily: URLBuilder };
+	[chain: string]: { historical?: URLBuilder; daily: URLBuilder; collateralCGToken?: string };
 } = {
 	[CHAIN.BERACHAIN]: {
 		historical: historicalVolumeBerachainEndpoint,
@@ -37,6 +37,7 @@ const endpointMap: {
 	},
 	[CHAIN.WC]: {
 		daily: dailyVolumeWorldchainEndpoint,
+		collateralCGToken: "worldcoin-wld",
 	},
 	[CHAIN.BSC]: {
 		historical: historicalVolumeBSCEndpoint,
@@ -45,7 +46,7 @@ const endpointMap: {
 };
 
 const fetch = async (options: FetchOptions) => {
-	const { historical, daily } = endpointMap[options.chain];
+	const { historical, daily, collateralCGToken } = endpointMap[options.chain];
 
 	// startTimestamp is one second before the day being requested, so flooring it to a day landed
 	// on the day before and the adapter asked the API for the wrong date. dateString is already the
@@ -73,8 +74,15 @@ const fetch = async (options: FetchOptions) => {
 	const dailyRevenue = data.govFee;
 	const dailySupplySideRevenue = data.vaultFee;
 
+	const volume = dailyVolume.length > 0 ? dailyVolume[0].volume : "0";
+	let volumeBalances;
+	if (collateralCGToken) {
+		volumeBalances = options.createBalances();
+		volumeBalances.addCGToken(collateralCGToken, Number(volume));
+	}
+
 	return {
-		dailyVolume: dailyVolume.length > 0 ? dailyVolume[0].volume : "0",
+		dailyVolume: volumeBalances ?? volume,
 		dailyFees,
 		dailyRevenue,
 		dailySupplySideRevenue,

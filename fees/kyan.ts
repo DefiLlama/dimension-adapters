@@ -48,6 +48,7 @@ const adapter: SimpleAdapter = {
       [METRIC.LIQUIDATION_FEES]: "Fees paid by users from liquidations.",
     },
   },
+  deadFrom: '2026-10-19'
 };
 
 export default adapter;

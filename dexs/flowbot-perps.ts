@@ -103,6 +103,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   doublecounted: true,
+  deadFrom: '2026-09-20',
 };
 
 export default adapter;

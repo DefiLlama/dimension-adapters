@@ -21,6 +21,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  deadFrom: "2026-08-09",
   adapter: {
     // Orders are matched by the operator over Nostr and funds sit on LN Exchange's Lightning
     // node (managed custody); nothing trade-related touches Bitcoin L1, so the venue is keyed

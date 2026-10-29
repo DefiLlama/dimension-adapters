@@ -38,6 +38,7 @@ const adapter: SimpleAdapter = {
     methodology: {
         OpenInterest: "Sum of open perpetual and dated-futures contracts on Rocket multiplied by each market's last match price (one side), from GET /instruments (all pages).",
     },
+    deadFrom: '2026-09-05',
 };
 
 export default adapter;

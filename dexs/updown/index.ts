@@ -40,6 +40,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.CELO],
     start: '2026-01-04',
+    deadFrom: '2026-09-19'
 };
 
 export default adapter;
