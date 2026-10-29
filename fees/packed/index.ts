@@ -25,7 +25,11 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 //
 // All numbers below were read back from the contracts on chain, not copied from docs:
 // every factory answers feeBps() 100 (Robinhood), creatorShareBps() 7500, launchFee() 0.0004 ETH
-// and protocolFeeRecipient() 0x71BB2cc5Be1599AaCD36080321f1b781a46fD1d9.
+// and protocolFeeRecipient() 0x71BB2cc5Be1599AaCD36080321f1b781a46fD1d9, except the newest
+// Ethereum factory, whose protocolFeeRecipient() is the Safe 0xbCa2BE8461f1681C73b44E499611c2F6fA9fAF29.
+// Fees are counted from each factory's and each pool's own events, never from what a recipient
+// receives, so a second recipient adds no second count: every launch, pack and collectFees is
+// emitted by exactly one contract.
 //
 // Packs Packed runs on Pons (ponsdotfamily-v2) are not counted here: those coins trade on Pons and
 // their fees are Pons' fees.
@@ -70,8 +74,9 @@ type ChainConfig = {
   taxHooks: string[];
   // Hooks that take the launch-block charge themselves and emit SnipeTaxed for it.
   snipeHooks: string[];
-  // The factory that launches packs from deposits and emits PackLaunched, where there is one.
-  packFactory?: string;
+  // The factories that launch packs from deposits and emit PackLaunched (each one is also in
+  // `factories`, which counts its launch fee; PackLaunched counts only the seat bids).
+  packFactories: string[];
   // Coins trade on a PackedCurve (Buy/Sell events) before they reach a pool.
   curveTrades: boolean;
   // Pools whose LP fee is 1% plus the creator tax and whose FeesCollected carries a `premium`.
@@ -83,6 +88,9 @@ type ChainConfig = {
 
 const chainConfig: Record<string, ChainConfig> = {
   // https://robinhoodchain.blockscout.com/address/0x3Ff274CF9A4B4a3ec6c524C8915B3ad2eD336ade
+  // 0xa5fb8e98...9511 below is a Robinhood Chain factory. The same address is also an Ethereum
+  // factory (same deployer, same nonce on both chains) with different code; each chain reads only
+  // its own list.
   [CHAIN.ROBINHOOD]: {
     start: "2026-09-04", // first launch, block 54350011
     fromBlock: 54_340_000,
@@ -106,6 +114,7 @@ const chainConfig: Record<string, ChainConfig> = {
       "0xa9362f54b41bd75a9c3f5dfc295aad79ddabe044", // reward factory, first version
     ],
     snipeHooks: [],
+    packFactories: [],
     curveTrades: true,
     taxInPoolFee: false,
     // Packed buys back $PACKD and burns it. Every buy so far is a swap of ETH for $PACKD in the
@@ -129,21 +138,31 @@ const chainConfig: Record<string, ChainConfig> = {
       poolId: "0xf40adb78665275f2cdd62e06fc29d0a892c359790017612d198086ac6cd392ef", // ETH/$PACKD, from the Swap logs of the buys
     },
   },
+  // https://etherscan.io/address/0xA5fB8E98aedb2ab59a61971a6956399dF8059511
   // https://etherscan.io/address/0x378708937B65CBeC6c5f1Cf5205960B12c9EB6AB
   [CHAIN.ETHEREUM]: {
     start: "2026-09-24", // first launch, block 26047618
     fromBlock: 26_047_465, // the first set's deployment
     factories: [
-      { factory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", launchFee: LAUNCH_FEE }, // current: PackedPoolDepositFactory (packs from deposits)
+      // Current: PackedPoolDepositFactory (packs from deposits), the same code as the one below,
+      // deployed at block 26297575 with its platform fees going to the Safe
+      // 0xbCa2BE8461f1681C73b44E499611c2F6fA9fAF29. Not the Robinhood factory at the same address.
+      { factory: "0xa5fb8e98aedb2ab59a61971a6956399df8059511", launchFee: LAUNCH_FEE },
+      // PackedPoolDepositFactory with its fees going to the fee wallet; its coins still trade.
+      { factory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", launchFee: LAUNCH_FEE },
       { factory: "0x75f2f001e66a721ab83990911a3ce33e2da8dfa2", launchFee: LAUNCH_FEE },
       { factory: "0xf154ab716d00d2c37576c7c4eabc99d30b80dbba", launchFee: LAUNCH_FEE },
       { factory: "0xa765219db324daffd9c67e6d4913623c8adcb4dc", launchFee: LAUNCH_FEE }, // first set: tax taken by its hook, pool fee is 1% only
     ],
     // The first set's hook, which took the creator tax and the launch-block charge itself,
-    // outside the pool fee.
+    // outside the pool fee. The two deposit factories' hooks (0xac710b52...28c0 and
+    // 0xb3a92b1c...68c0) take nothing themselves: their pools charge the tax in the LP fee.
     taxHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
     snipeHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
-    packFactory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab",
+    packFactories: [
+      "0xa5fb8e98aedb2ab59a61971a6956399df8059511",
+      "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab",
+    ],
     curveTrades: false,
     taxInPoolFee: true,
   },
@@ -259,8 +278,8 @@ async function addHookSnipeCharges(options: FetchOptions, hooks: string[], b: Re
  * Packs launched from deposits: every bought seat's bid, half to Packed and half to the launcher,
  * split by the factory in the launch itself.
  */
-async function addPackBids(options: FetchOptions, packFactory: string, b: ReturnType<typeof balances>) {
-  const packs = await options.getLogs({ target: packFactory, eventAbi: PACK_LAUNCHED });
+async function addPackBids(options: FetchOptions, packFactories: string[], b: ReturnType<typeof balances>) {
+  const packs = await options.getLogs({ targets: packFactories, eventAbi: PACK_LAUNCHED });
   for (const l of packs) {
     const bids = BigInt(l.bids);
     const toProtocol = BigInt(l.bidsToProtocol);
@@ -346,7 +365,7 @@ const fetch = async (options: FetchOptions) => {
   await addLaunchFees(options, config.factories, b);
   await addHookTaxes(options, config.taxHooks, b);
   if (config.snipeHooks.length) await addHookSnipeCharges(options, config.snipeHooks, b);
-  if (config.packFactory) await addPackBids(options, config.packFactory, b);
+  if (config.packFactories.length) await addPackBids(options, config.packFactories, b);
   if (config.buyback) await addBuybacks(options, config.buyback, b);
   if (!contracts.length) return b.result();
 
