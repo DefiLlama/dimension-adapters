@@ -1,7 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// DZap router (DZapDiamond), same contract as the swap leg in aggregators/byzanlink-stocks
 const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
+// Byzanlink's DZap integrator address, also receives the integrator fee: https://basescan.org/tx/0xc3d74485f5e1f20a032dac84f33f555cfe18dca791f8777e5157e8a04d482be7
 const BYZANLINK_INTEGRATOR = "0x5bf9e1af9eaFe63344FBB3D227503f9EB80D2B17".toLowerCase();
 const NATIVE = "0x0000000000000000000000000000000000000000";
 
@@ -60,19 +62,21 @@ export const addBridgeVolume = async (
   dailyBridgeVolume: any,
   integrator = BYZANLINK_INTEGRATOR,
 ) => {
-  const started = await options.getLogs({ target: DZAP_ROUTER, eventAbi: BRIDGE_STARTED, onlyArgs: true });
-  const byzanlinkTxIds = new Set<string>(
+  // transactionId is caller-supplied, so match on the tx hash too
+  const key = (log: any) => `${log.transactionHash.toLowerCase()}:${log.args.transactionId.toLowerCase()}`;
+  const started = await options.getLogs({ target: DZAP_ROUTER, eventAbi: BRIDGE_STARTED, onlyArgs: false });
+  const byzanlinkBridges = new Set<string>(
     started
-      .filter((args: any) => args.integrator.toLowerCase() === integrator.toLowerCase())
-      .map((args: any) => args.transactionId.toLowerCase()),
+      .filter((log: any) => log.args.integrator.toLowerCase() === integrator.toLowerCase())
+      .map(key),
   );
-  if (byzanlinkTxIds.size === 0) return;
+  if (byzanlinkBridges.size === 0) return;
 
   for (const bridge of BRIDGE_EVENTS) {
-    const logs = await options.getLogs({ target: DZAP_ROUTER, eventAbi: bridge.eventAbi, onlyArgs: true });
-    for (const args of logs) {
-      if (!byzanlinkTxIds.has(args.transactionId.toLowerCase())) continue;
-      dailyBridgeVolume.addToken(bridge.token(args), bridge.amount(args), { label: "DZap" });
+    const logs = await options.getLogs({ target: DZAP_ROUTER, eventAbi: bridge.eventAbi, onlyArgs: false });
+    for (const log of logs) {
+      if (!byzanlinkBridges.has(key(log))) continue;
+      dailyBridgeVolume.addToken(bridge.token(log.args), bridge.amount(log.args), { label: "DZap" });
     }
   }
 };

@@ -5,7 +5,9 @@ import { addOneToken } from "../../helpers/prices";
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const BYZANLINK_SOURCE = "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"; // Byzanlink source
 
+// DZap router (DZapDiamond), sample Byzanlink swap: https://basescan.org/tx/0x8d706e99ab3244ccffa21ed05dc52612924a830d69138c6a590791df81f7d53d#eventlog
 const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
+// Byzanlink's DZap integrator address, also receives the integrator fee: https://basescan.org/tx/0xc3d74485f5e1f20a032dac84f33f555cfe18dca791f8777e5157e8a04d482be7
 const BYZANLINK_INTEGRATOR = "0x5bf9e1af9eaFe63344FBB3D227503f9EB80D2B17".toLowerCase();
 const DZAP_SWAP_INFO =
   "(string dex, address callTo, address recipient, address fromToken, address toToken, uint256 fromAmount, uint256 returnToAmount)";
