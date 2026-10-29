@@ -137,7 +137,8 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
   }],
 }
 
-async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
+async function getBlacklistedVaultsForChain(options: FetchOptions): Promise<Set<string>> {
+  const { chain, dateString } = options;
   const blacklistedVaultsForChain = new Set(
     blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
   );
@@ -156,7 +157,7 @@ async function getBlacklistedVaultsForChain(chain: string, dateString: string): 
     blacklistedVaultsForChain.add(vault);
   }
 
-  for (const vault of await getEulerExcludedVaults(chain, dateString)) {
+  for (const vault of await getEulerExcludedVaults(options)) {
     blacklistedVaultsForChain.add(vault);
   }
 
@@ -330,8 +331,8 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
     // interest earned and distributed to vault deposited including fees
     const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator
-    const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
+    // interest earned by vault curator, no performance fee is taken on a loss (the depositors carry all of it)
+    const interestFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18) : BigInt(0)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
@@ -363,8 +364,9 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
     const interestEarned = vaultInfo[i].yieldEarned
     
     // interest earned and distributed to vault deposited and vault curator before fees
+    // a loss (bad debt socialized onto depositors) has no fee taken from it, so it is not grossed up
     let interestEarnedBeforeFee = interestEarned
-    if (vaultFeeRate < BigInt(1e4)) {
+    if (vaultFeeRate < BigInt(1e4) && interestEarned > BigInt(0)) {
       interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
     }
 
@@ -535,8 +537,8 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // interest earned and distributed to vault deposited including fees
     const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator - performance fee
-    const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
+    // interest earned by vault curator - performance fee, none is taken on a loss (the depositors carry all of it)
+    const interestPerformanceFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18) : BigInt(0)
     
     // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
@@ -603,7 +605,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailySupplySideRevenue = options.createBalances()
 
         // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
-        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options.chain, options.dateString)
+        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options)
         const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults

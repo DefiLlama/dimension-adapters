@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
 
   const blacklistedVaults = new Set([
     ...(EulerChainConfigs[options.chain].blacklistedVaults || []),
-    ...(await getEulerExcludedVaults(options.chain, options.dateString)),
+    ...(await getEulerExcludedVaults(options)),
   ])
 
   for (let i = 0; i < vaults.length; i++) {

@@ -1,4 +1,4 @@
-import * as sdk from "@defillama/sdk";
+import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { getConfig } from "./cache";
 import { httpGet } from "../utils/fetchURL";
@@ -73,7 +73,8 @@ const BAD_DEBT_CHAIN_IDS: Record<string, number> = {
 const MIN_BAD_DEBT_USD = 10_000;
 const MIN_BAD_DEBT_SHARE = 0.5;
 
-async function getFlaggedVaults(chain: string): Promise<Array<string>> {
+async function getFlaggedVaults(options: FetchOptions): Promise<Array<string>> {
+  const { chain } = options;
   const chainId = BAD_DEBT_CHAIN_IDS[chain];
   if (!chainId) return [];
 
@@ -96,19 +97,20 @@ async function getFlaggedVaults(chain: string): Promise<Array<string>> {
     },
   });
   if (!Array.isArray(flagged?.vaults)) {
-    sdk.log(`euler bad debt: no feed and no cache for ${chain}, running with the dated list only`);
+    options.api.log(`euler bad debt: no feed and no cache for ${chain}, running with the dated list only`);
     return [];
   }
   return flagged.vaults;
 }
 
-// Euler vaults to leave out of fee tracking on `chain` for `dateString`: dated entries from their incident
+// Euler vaults to leave out of fee tracking on the window's chain and date: dated entries from their incident
 // date onwards, plus vaults the bad-debt feed flags now that have no dated entry yet.
-export async function getEulerExcludedVaults(chain: string, dateString: string): Promise<Set<string>> {
+export async function getEulerExcludedVaults(options: FetchOptions): Promise<Set<string>> {
+  const { chain, dateString } = options;
   const dated = BAD_DEBT_VAULTS[chain] ?? [];
   const excluded = new Set(dated.filter((i) => dateString >= i.from).map((i) => i.vault.toLowerCase()));
   const datedVaults = new Set(dated.map((i) => i.vault.toLowerCase()));
-  for (const vault of await getFlaggedVaults(chain)) {
+  for (const vault of await getFlaggedVaults(options)) {
     if (datedVaults.has(vault)) continue; // its entry above decides from when
     excluded.add(vault);
   }
