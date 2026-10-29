@@ -19,17 +19,13 @@
 // `prizeValueWad / 1e12` USDG. Owner deposits into and withdrawals from the vault are treasury
 // movements and are not counted.
 //
-// The treasury also provided the launch liquidity of $STONKD, StonkDrop's token, as one full-range
-// position in the STONKD/USDG 1% Uniswap v3 pool. The swap fees that position earns are counted when
-// the treasury claims them: the position manager's Collect minus any DecreaseLiquidity in the same
-// window, so principal taken out of the position is not counted. DefiLlama does not price $STONKD, so
-// the STONKD half of a claim is converted to USDG at the pool's price after the last Swap log in the
-// window or, when the window saw no swap, the last Swap log before it, searched for back to the
-// pool's creation. The price is always read from
-// events: the chain's public RPC keeps only a few minutes of state, so a contract call at a past block
-// would fail on a historical refill. Fees left unclaimed in the pool are not counted. These LP fees are
-// also inside Uniswap v3's fees on Robinhood Chain (the pool's protocol-fee switch is on; that cut goes
-// to Uniswap, not here).
+// The treasury also provided the launch liquidity of $STONKD, StonkDrop's token, as one position in the
+// STONKD/USDG 1% Uniswap v3 pool (800M STONKD, single-sided, from the minimum tick up to the launch
+// price). The swap fees that position earns are counted when the treasury claims them: the position
+// manager's Collect minus any DecreaseLiquidity in the same window, so principal taken out of the
+// position is not counted. Both halves of a claim, USDG and $STONKD, are valued at DefiLlama prices.
+// Fees left unclaimed in the pool are not counted. These LP fees are also inside Uniswap v3's fees on
+// Robinhood Chain (the pool's protocol-fee switch is on; that cut goes to Uniswap, not here).
 import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from 'ethers'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
@@ -39,33 +35,25 @@ import { CHAIN } from '../helpers/chains'
 const STONK_DROP = '0x22F8e7F1Ea92f31eB3BFA2974EE988C7B2156C37'
 const USDG = ADDRESSES.robinhood.USDG
 
-// $STONKD / USDG Uniswap v3 pool (1% tier; token0 = USDG, token1 = STONKD).
-// https://robinhoodchain.blockscout.com/address/0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0
-const STONKD_POOL = '0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0'
+// $STONKD (18 decimals). It trades in the STONKD/USDG 1% Uniswap v3 pool
+// 0x4a5996E00065ACd791A44c2115Bb6808b3bC2BA0 (token0 = USDG, token1 = STONKD).
+// https://robinhoodchain.blockscout.com/address/0xfeb1AB438e274B2a2Ef0657BE64AA7DB073441a3
+const STONKD = '0xfeb1AB438e274B2a2Ef0657BE64AA7DB073441a3'
 // Uniswap v3 NonfungiblePositionManager ("Uniswap V3 Positions NFT-V1") on Robinhood Chain, which
 // minted the pool's positions and emits their Collect / DecreaseLiquidity events.
 // https://robinhoodchain.blockscout.com/address/0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3
 const POSITION_MANAGER = '0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3'
-// The treasury's position(s) in that pool, by position-manager token id: the full-range launch
-// liquidity, minted in the pool's creation transaction (see STONKD_POOL_CREATED_BLOCK below).
+// The treasury's position(s) in the STONKD/USDG pool, by position-manager token id: the launch
+// liquidity, minted in the pool's creation transaction
+// 0x64aa0f477ed2d072b6d606320f17ec8c17fe69c6e860720e7cb3d55cdcc88cd8 (block 82621979, 2026-10-07).
 // https://robinhoodchain.blockscout.com/token/0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3/instance/1404166
 const TREASURY_POSITIONS = [1404166]
-// Where to look for the pool's last swap when a window with a claim saw none: back from the window in
-// bounded ranges, down to the block the pool was created in (PoolCreated in tx
-// 0x64aa0f477ed2d072b6d606320f17ec8c17fe69c6e860720e7cb3d55cdcc88cd8, 2026-10-07). Robinhood Chain
-// produces about 9.7 blocks a second and the pool trades hundreds of times a day, so the first range
-// (about twelve hours) is normally enough; the later ones (about four days each) stay under the public
-// RPC's getLogs limits for a single event (about 10M blocks and 10,000 logs per call).
-const STONKD_POOL_CREATED_BLOCK = 82_621_979
-const SWAP_SEARCH_FIRST_RANGE = 420_000
-const SWAP_SEARCH_RANGE = 3_350_000
 
 const abi = {
   SpinsCommitted: 'event SpinsCommitted(uint64 indexed commitmentId, address indexed player, uint64 indexed gachaConfigId, uint64 targetRound, uint64 priceTargetTimestamp, uint16 quantity, uint256 paymentAmount, uint256 reservedValueWad)',
   SpinSettled: 'event SpinSettled(uint64 indexed commitmentId, uint16 index, uint8 rarityIndex, uint128 prizeValueWad, address indexed stockToken, uint8 indexed medium, uint256 payoutAmount)',
   Collect: 'event Collect(uint256 indexed tokenId, address recipient, uint256 amount0, uint256 amount1)',
   DecreaseLiquidity: 'event DecreaseLiquidity(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1)',
-  Swap: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',
 }
 const COLLECT_TOPIC = ethers.id('Collect(uint256,address,uint256,uint256)')
 const DECREASE_TOPIC = ethers.id('DecreaseLiquidity(uint256,uint128,uint256,uint256)')
@@ -78,37 +66,6 @@ const WAD_TO_USDG = BigInt(1e12)
 const L = {
   GGR: 'Drop Gross Gaming Revenue',
   LP: 'Treasury LP Fees',
-}
-
-// USDG (token0, 6 decimals) that `stonkd` (token1, 18 decimals) is worth at the pool's sqrtPriceX96:
-// price1/0 = (sqrtPriceX96 / 2^96)^2 in raw units, so usdg = stonkd * 2^192 / sqrtPriceX96^2.
-const stonkdToUsdg = (stonkd: bigint, sqrtPriceX96: bigint) => (stonkd << BigInt(192)) / (sqrtPriceX96 * sqrtPriceX96)
-
-// The pool's sqrtPriceX96 after its last swap in the window; when the window saw no swap, after the
-// last swap before it, searched for in bounded ranges back to the pool's creation. Event logs only: no
-// state read at a past block. A non-zero STONKD fee claim implies an earlier swap, so the search
-// cannot come up empty for a real claim; the throw guards the impossible case.
-async function poolSqrtPrice(options: FetchOptions): Promise<bigint> {
-  const lastSwapPrice = (swaps: any[]): bigint | undefined => {
-    if (!swaps.length) return
-    const byChain = (a: any, b: any) => Number(a.blockNumber) - Number(b.blockNumber) || Number(a.logIndex ?? a.index) - Number(b.logIndex ?? b.index)
-    const last = [...swaps].sort(byChain).pop()
-    return BigInt(last.args.sqrtPriceX96)
-  }
-  const inWindow = lastSwapPrice(await options.getLogs({ target: STONKD_POOL, eventAbi: abi.Swap, onlyArgs: false }))
-  if (inWindow !== undefined) return inWindow
-
-  const windowStart = await options.getFromBlock()
-  let toBlock = windowStart - 1
-  let range = SWAP_SEARCH_FIRST_RANGE
-  while (toBlock >= STONKD_POOL_CREATED_BLOCK) {
-    const fromBlock = Math.max(toBlock - range + 1, STONKD_POOL_CREATED_BLOCK)
-    const before = lastSwapPrice(await options.getLogs({ target: STONKD_POOL, eventAbi: abi.Swap, onlyArgs: false, fromBlock, toBlock }))
-    if (before !== undefined) return before
-    toBlock = fromBlock - 1
-    range = SWAP_SEARCH_RANGE
-  }
-  throw new Error(`stonkdrop: no STONKD/USDG swap between the pool's creation and block ${windowStart} to price claimed LP fees`)
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -143,7 +100,7 @@ const fetch = async (options: FetchOptions) => {
     for (const log of decreases) { lpUsdg -= BigInt(log.amount0); lpStonkd -= BigInt(log.amount1) }
   }
   if (lpUsdg !== BigInt(0)) dailyFees.add(USDG, lpUsdg, L.LP)
-  if (lpStonkd !== BigInt(0)) dailyFees.add(USDG, stonkdToUsdg(lpStonkd, await poolSqrtPrice(options)), L.LP)
+  if (lpStonkd !== BigInt(0)) dailyFees.add(STONKD, lpStonkd, L.LP)
 
   return {
     dailyVolume,
@@ -157,7 +114,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: 'Gross receipts: the USDG paid for drops committed in the period. Every drop costs the fixed price of the active gacha configuration, $10.00 under configuration 1.',
-  Fees: 'Gross receipts minus prizes: the USDG paid for drops less the fixed USD prize value of every drop settled in the period, which the game pays in a Robinhood stock token or, when stock delivery is unavailable, in USDG. Prizes are the cost of the game, so this is what players lost to the house, negative in a period where they win more than they pay in. Plus the swap fees the treasury claims from its launch-liquidity position in the STONKD/USDG Uniswap v3 pool, the STONKD half valued at the pool price after the period\'s last swap. Unclaimed LP fees are not counted.',
+  Fees: 'Gross receipts minus prizes: the USDG paid for drops less the fixed USD prize value of every drop settled in the period, which the game pays in a Robinhood stock token or, when stock delivery is unavailable, in USDG. Prizes are the cost of the game, so this is what players lost to the house, negative in a period where they win more than they pay in. Plus the swap fees the treasury claims from its launch-liquidity position in the STONKD/USDG Uniswap v3 pool, paid in USDG and STONKD. Unclaimed LP fees are not counted.',
   Revenue: 'All of Fees: receipts minus prizes, plus the claimed LP fees. The vault that pays prizes is protocol-owned, with no liquidity providers, referrers or token distributions, so nothing is shared out.',
   ProtocolRevenue: 'The house result, which accrues in the game vault controlled by the team, plus the LP fees the treasury claims. Owner deposits into and withdrawals from the vault are treasury movements and are not counted.',
   SupplySideRevenue: 'Zero: the bankroll is protocol-owned and there are no external liquidity providers.',
@@ -166,7 +123,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [L.GGR]: 'Receipts for drops (SpinsCommitted.paymentAmount) less the fixed USD prize value of settled drops (SpinSettled.prizeValueWad), paid in stock tokens or USDG.',
-    [L.LP]: 'Swap fees claimed by the treasury from its STONKD/USDG Uniswap v3 position (position manager Collect net of DecreaseLiquidity); the STONKD half is valued at the pool price after the last swap of the period, or the last swap before it when the period had none. Also inside Uniswap v3 fees on Robinhood Chain.',
+    [L.LP]: 'Swap fees claimed by the treasury from its STONKD/USDG Uniswap v3 position (position manager Collect net of DecreaseLiquidity), paid in USDG and STONKD. Also inside Uniswap v3 fees on Robinhood Chain.',
   },
   UserFees: {
     [L.GGR]: 'The net amount players paid: receipts for drops net of the prize value paid back to them. LP fees are paid by STONKD traders and are left out.',
