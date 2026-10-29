@@ -2,7 +2,7 @@ import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { isUsdc, noTpSlColumns, pubkey, queryOliveEvents, readCustodies, sizeTpSlFills, START, tpSlRowsSql } from "../../helpers/oliveExchange";
 
-// Option and chooser trading fees are counted in options/olive-exchange.
+// Option and chooser trading fees are counted in options/olive-exchange-options.
 const LABELS = {
   closes: 'Perps And Futures Close Fees',
   liquidations: 'Liquidation Fees',
@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
     ),
     usd_fees AS (
       -- trading fees in USD × 1e6, each with the share Olive took
-      -- TP/SL fills: contract_type 0 is a perp, 2 an expiry future (1, an option, is in options/olive-exchange)
+      -- TP/SL fills: contract_type 0 is a perp, 2 an expiry future (1, an option, is in options/olive-exchange-options)
       SELECT '${LABELS.closes}' AS label, trade_fees_paid_usd AS fee, bps FROM TpSlOrderExecuted WHERE contract_type IN (0, 2)
       UNION ALL SELECT '${LABELS.closes}', trade_fees_paid_usd, bps FROM PerpPositionClosed
       UNION ALL SELECT '${LABELS.closes}', trade_fees_paid_usd, bps FROM FuturePositionClosed
