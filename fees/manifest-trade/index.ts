@@ -6,19 +6,23 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
 const feesEndpoint = "https://mfx-stats-mainnet.fly.dev/fees";
 
+const FEES_DESCRIPTION =
+  "Protocol fees swept to the Manifest fee collector, measured as SOL received by the collector account: wrapper trading fees, advanced-order fees, gas deposits reclaimed from expired orders, and rent recovered by market compaction (mostly re-funded by traders placing new orders).";
+
 async function fetch(options: FetchOptions) {
   // The stats server indexes fees hourly and requires whole-hour UTC unix
-  // timestamps. Daily runs pass day boundaries (already aligned), but the test
-  // harness can pass e.g. 23:59:59 as the end, so widen to hour boundaries.
+  // timestamps, while the runner passes second-offset boundaries (endTimestamp
+  // minus one second and a 86401s window). Align the end up to the hour and
+  // take exactly the trailing 24 hours so consecutive days never overlap.
   const HOUR = 3600;
-  const startTimestamp = Math.floor(options.startTimestamp / HOUR) * HOUR;
   const endTimestamp = Math.ceil(options.endTimestamp / HOUR) * HOUR;
+  const startTimestamp = endTimestamp - 24 * HOUR;
   const response = await httpGet(
     `${feesEndpoint}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`,
   );
 
   const dailyFees = options.createBalances();
-  dailyFees.add(ADDRESSES.solana.SOL, response.feesLamports, METRIC.TRADING_FEES);
+  dailyFees.add(ADDRESSES.solana.SOL, response.feesLamports, METRIC.PROTOCOL_FEES);
 
   return {
     dailyFees,
@@ -28,25 +32,29 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Trading fees paid by traders, measured as SOL received by the Manifest fee collector account.",
+  Fees: FEES_DESCRIPTION,
   Revenue: "All fees accrue to the protocol fee collector.",
   ProtocolRevenue: "All revenue goes to the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Trading fees paid by traders, measured as SOL received by the Manifest fee collector account.",
+    [METRIC.PROTOCOL_FEES]: FEES_DESCRIPTION,
   },
   Revenue: {
-    [METRIC.TRADING_FEES]: "All trading fees accrue to the protocol fee collector.",
+    [METRIC.PROTOCOL_FEES]: "All protocol fees accrue to the fee collector.",
   },
   ProtocolRevenue: {
-    [METRIC.TRADING_FEES]: "All revenue goes to the protocol.",
+    [METRIC.PROTOCOL_FEES]: "All revenue goes to the protocol.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // The stats server finalizes each hour of fee data 1-2 hours after the hour
+  // closes, so pulling the most recent hour would consistently fail. Pull
+  // daily instead; completed days are always fully indexed by run time.
+  pullHourly: false,
   fetch,
   chains: [CHAIN.SOLANA],
   methodology,
