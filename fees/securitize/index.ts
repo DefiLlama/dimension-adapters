@@ -79,6 +79,16 @@ const EVM_CONTRACTS: Record<string, any> = {
     bps: 18,
     start: '2025-10-08',
   },
+  // On-chain (rpc.mainnet.tempo.xyz): symbol BUIDL, 6 decimals.
+  [CHAIN.TEMPO]: {
+    contracts: [
+      {
+        address: '0xb5FF12Bd8010BaEf823D1BfA2Ce6bdc0109CBb24',
+      },
+    ],
+    bps: 20,
+    start: '2026-07-28',
+  },
 }
 const SECONDS_PER_DAY = 24 * 60 * 60;
 const SECONDS_PER_YEAR = 365 * SECONDS_PER_DAY;
