@@ -79,7 +79,8 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   doublecounted: true,
-  adapter: chainConfig
+  adapter: chainConfig,
+  deadFrom: '2026-10-09',
 };
 
 export default adapter;

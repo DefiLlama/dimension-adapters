@@ -50,10 +50,10 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   lightlink: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io", version: 2 },
   lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com", version: 2 },
   lumia: { chain: CHAIN.LUMIA, baseUrl: "https://explorer.lumia.org", version: 2 },
-  matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 },
+  // matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 }, // explorer no longer runs blockscout (lite mode, stats api 503 since Oct 2026); moved to RPC metrics in feeHistoryUsers.ts
   mode: { chain: CHAIN.MODE, baseUrl: "https://explorer.mode.network", version: 2 },
   neon: { chain: CHAIN.NEON, baseUrl: "https://neon.blockscout.com", version: 2 },
-  // "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 }, // explorer no longer runs blockscout, no stats api
+  "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 2, start: "2023-10-06" },
   perennial: { chain: CHAIN.PERENNIAL, baseUrl: "https://explorer.perennial.foundation", version: 1 },
   plume: { chain: CHAIN.PLUME, baseUrl: "https://explorer.plume.org", version: 2 },
   prom: { chain: CHAIN.PROM, baseUrl: "https://promscan.io", version: 2 },

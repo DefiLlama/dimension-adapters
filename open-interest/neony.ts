@@ -15,7 +15,8 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.NEONY],
-  start: '2026-03-05'
+  start: '2026-03-05',
+  deadFrom: '2026-07-20'
 }
 
 export default adapter

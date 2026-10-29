@@ -47,6 +47,7 @@ const adapter = {
   chains: [CHAIN.SEI],
   start: "2025-02-18",
   runAtCurrTime: true,
+  deadFrom: '2026-08-01'
 };
 
 export default adapter;

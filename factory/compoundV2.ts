@@ -10,6 +10,7 @@ type ChainConfig = {
 type Config = {
   chains: Record<string, ChainConfig>;
   options?: Record<string, any>;
+  deadFrom?: string;
 };
 
 const configs: Record<string, Config> = {
@@ -38,6 +39,7 @@ const configs: Record<string, Config> = {
   "elara": {
     chains: { [CHAIN.ZIRCUIT]: { comptroller: "0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296", start: '2024-11-20' } },
     options: { protocolRevenueRatio: 1 },
+    deadFrom: '2026-07-31',
   },
   "fluxfinance": {
     chains: { [CHAIN.ETHEREUM]: { comptroller: "0x95Af143a021DF745bc78e845b54591C53a8B3A51", start: '2023-02-02' } },
@@ -130,12 +132,13 @@ const configs: Record<string, Config> = {
 
 
 const feesProtocols: Record<string, any> = {};
-for (const [name, { chains, options }] of Object.entries(configs)) {
+for (const [name, { chains, options, deadFrom }] of Object.entries(configs)) {
   const comptrollers: Record<string, string> = {};
   for (const [chain, { comptroller }] of Object.entries(chains)) {
     comptrollers[chain] = comptroller;
   }
   feesProtocols[name] = compoundV2Export(comptrollers, options);
+  if (deadFrom) feesProtocols[name].deadFrom = deadFrom;
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
@@ -162,6 +165,8 @@ for (const [name, { chains }] of Object.entries(configs)) {
 const liquidationProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(liquidationConfigs)) {
   liquidationProtocols[name] = compoundV2LiquidationsExport(config);
+  const deadFrom = configs[name]?.deadFrom;
+  if (deadFrom) liquidationProtocols[name].deadFrom = deadFrom;
 }
 
 export const liquidations = createFactoryExports(liquidationProtocols);

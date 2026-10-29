@@ -30,6 +30,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.HOTSTUFF],
     runAtCurrTime: true,
+    deadFrom: '2026-09-25',
 }
 
 export default adapter;

@@ -44,6 +44,7 @@ const adapter: SimpleAdapter = {
     chains: [CHAIN.HOTSTUFF],
     start: "2026-02-06",
     methodology,
+    deadFrom: '2026-09-25',
 }
 
 export default adapter;
