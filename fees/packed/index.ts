@@ -25,7 +25,11 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 //
 // All numbers below were read back from the contracts on chain, not copied from docs:
 // every factory answers feeBps() 100 (Robinhood), creatorShareBps() 7500, launchFee() 0.0004 ETH
-// and protocolFeeRecipient() 0x71BB2cc5Be1599AaCD36080321f1b781a46fD1d9.
+// and protocolFeeRecipient() 0x71BB2cc5Be1599AaCD36080321f1b781a46fD1d9, except the newest
+// Ethereum factory, whose protocolFeeRecipient() is the Safe 0xbCa2BE8461f1681C73b44E499611c2F6fA9fAF29.
+// Fees are counted from each factory's and each pool's own events, never from what a recipient
+// receives, so a second recipient adds no second count: every launch, pack and collectFees is
+// emitted by exactly one contract.
 //
 // Packs Packed runs on Pons (ponsdotfamily-v2) are not counted here: those coins trade on Pons and
 // their fees are Pons' fees.
@@ -70,18 +74,23 @@ type ChainConfig = {
   taxHooks: string[];
   // Hooks that take the launch-block charge themselves and emit SnipeTaxed for it.
   snipeHooks: string[];
-  // The factory that launches packs from deposits and emits PackLaunched, where there is one.
-  packFactory?: string;
+  // The factories that launch packs from deposits and emit PackLaunched (each one is also in
+  // `factories`, which counts its launch fee; PackLaunched counts only the seat bids).
+  packFactories: string[];
   // Coins trade on a PackedCurve (Buy/Sell events) before they reach a pool.
   curveTrades: boolean;
   // Pools whose LP fee is 1% plus the creator tax and whose FeesCollected carries a `premium`.
   taxInPoolFee: boolean;
-  // Packed's own token, bought back on the open market by the fee wallet, where there is one.
-  buyback?: { token: string; wallets: string[]; poolManager: string; poolId: string };
+  // Packed's own token, bought back on the open market, where there is one. `feeWallet` pays out of
+  // Packed's revenue; the other wallets pay out of the creator income $PACKD itself earns.
+  buyback?: { token: string; feeWallet: string; wallets: string[]; poolManager: string; poolId: string };
 };
 
 const chainConfig: Record<string, ChainConfig> = {
   // https://robinhoodchain.blockscout.com/address/0x3Ff274CF9A4B4a3ec6c524C8915B3ad2eD336ade
+  // 0xa5fb8e98...9511 below is a Robinhood Chain factory. The same address is also an Ethereum
+  // factory (same deployer, same nonce on both chains) with different code; each chain reads only
+  // its own list.
   [CHAIN.ROBINHOOD]: {
     start: "2026-09-04", // first launch, block 54350011
     fromBlock: 54_340_000,
@@ -105,19 +114,22 @@ const chainConfig: Record<string, ChainConfig> = {
       "0xa9362f54b41bd75a9c3f5dfc295aad79ddabe044", // reward factory, first version
     ],
     snipeHooks: [],
+    packFactories: [],
     curveTrades: true,
     taxInPoolFee: false,
     // Packed buys back $PACKD and burns it. Every buy so far is a swap of ETH for $PACKD in the
     // ETH/$PACKD pool, made by one of two wallets: the fee wallet itself (first one: tx
-    // 0xf06b6c6c8a5935a87f610dc805ee33a32c6ed50fff0e7f564b491f96ed090b95), and the team wallet that
-    // launched $PACKD, which hands every $PACKD it buys to the fee wallet for the burn (25 buys,
-    // 0.3774 ETH, 6,483,665 $PACKD bought and 6,626,140 passed on; it has never sold). Its launch
-    // allocation went straight into a 12-month lock and is not a buy, so it is not counted.
+    // 0xf06b6c6c8a5935a87f610dc805ee33a32c6ed50fff0e7f564b491f96ed090b95), out of Packed's revenue,
+    // and the team wallet that launched $PACKD, which hands every $PACKD it buys to the fee wallet
+    // for the burn and has never sold. The team wallet pays out of the creator fee and creator tax
+    // $PACKD earns as a coin launched on Pons: Pons' fees, not Packed's, so not in Revenue here.
+    // Its launch allocation went straight into a 12-month lock and is not a buy, so it is not counted.
     // The burns are plain transfers from the fee wallet to 0x...dEaD
     // (tx 0x382b9c93b0a5513ec0ab7dd29a654fcf60d0ae19cba50a4faea371a67bb1911d).
     buyback: {
       // https://robinhoodchain.blockscout.com/token/0x853E1A36876Cc4538BE636B78E7b2BD0aABC0dEd
       token: "0x853e1a36876cc4538be636b78e7b2bd0aabc0ded", // $PACKD
+      feeWallet: "0x71bb2cc5be1599aacd36080321f1b781a46fd1d9",
       wallets: [
         "0x71bb2cc5be1599aacd36080321f1b781a46fd1d9", // fee wallet: protocolFeeRecipient() of every factory above
         "0x88888ac5967484dd6e03d0b89e9a8abac6a88888", // team wallet, creator of $PACKD
@@ -126,21 +138,31 @@ const chainConfig: Record<string, ChainConfig> = {
       poolId: "0xf40adb78665275f2cdd62e06fc29d0a892c359790017612d198086ac6cd392ef", // ETH/$PACKD, from the Swap logs of the buys
     },
   },
+  // https://etherscan.io/address/0xA5fB8E98aedb2ab59a61971a6956399dF8059511
   // https://etherscan.io/address/0x378708937B65CBeC6c5f1Cf5205960B12c9EB6AB
   [CHAIN.ETHEREUM]: {
     start: "2026-09-24", // first launch, block 26047618
     fromBlock: 26_047_465, // the first set's deployment
     factories: [
-      { factory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", launchFee: LAUNCH_FEE }, // current: PackedPoolDepositFactory (packs from deposits)
+      // Current: PackedPoolDepositFactory (packs from deposits), the same code as the one below,
+      // deployed at block 26297575 with its platform fees going to the Safe
+      // 0xbCa2BE8461f1681C73b44E499611c2F6fA9fAF29. Not the Robinhood factory at the same address.
+      { factory: "0xa5fb8e98aedb2ab59a61971a6956399df8059511", launchFee: LAUNCH_FEE },
+      // PackedPoolDepositFactory with its fees going to the fee wallet; its coins still trade.
+      { factory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab", launchFee: LAUNCH_FEE },
       { factory: "0x75f2f001e66a721ab83990911a3ce33e2da8dfa2", launchFee: LAUNCH_FEE },
       { factory: "0xf154ab716d00d2c37576c7c4eabc99d30b80dbba", launchFee: LAUNCH_FEE },
       { factory: "0xa765219db324daffd9c67e6d4913623c8adcb4dc", launchFee: LAUNCH_FEE }, // first set: tax taken by its hook, pool fee is 1% only
     ],
     // The first set's hook, which took the creator tax and the launch-block charge itself,
-    // outside the pool fee.
+    // outside the pool fee. The two deposit factories' hooks (0xac710b52...28c0 and
+    // 0xb3a92b1c...68c0) take nothing themselves: their pools charge the tax in the LP fee.
     taxHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
     snipeHooks: ["0x0b89dc37a77255ceea712bbba2969f367a3920cc"],
-    packFactory: "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab",
+    packFactories: [
+      "0xa5fb8e98aedb2ab59a61971a6956399df8059511",
+      "0x378708937b65cbec6c5f1cf5205960b12c9eb6ab",
+    ],
     curveTrades: false,
     taxInPoolFee: true,
   },
@@ -182,16 +204,21 @@ function balances(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  // The part of the buybacks the fee wallet paid, out of Packed's own revenue.
+  const revenueBuybacks = options.createBalances();
   return {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue,
-    // Buybacks are paid out of Packed's own share, so they move from protocol revenue to holders
-    // revenue; on a buyback day protocol revenue can go negative (fees/AGENTS.md, accrual basis).
+    revenueBuybacks,
+    // The fee wallet's buybacks are paid out of Packed's own share, so they move from protocol
+    // revenue to holders revenue; on a buyback day protocol revenue can go negative (fees/AGENTS.md,
+    // accrual basis). The team wallet's are paid out of $PACKD's creator income on Pons, which is
+    // not in Revenue here, so they are holders revenue without being taken out of protocol revenue.
     result: () => {
       const dailyProtocolRevenue = dailyRevenue.clone();
-      dailyProtocolRevenue.subtract(dailyHoldersRevenue);
+      dailyProtocolRevenue.subtract(revenueBuybacks);
       return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
     },
   };
@@ -251,8 +278,8 @@ async function addHookSnipeCharges(options: FetchOptions, hooks: string[], b: Re
  * Packs launched from deposits: every bought seat's bid, half to Packed and half to the launcher,
  * split by the factory in the launch itself.
  */
-async function addPackBids(options: FetchOptions, packFactory: string, b: ReturnType<typeof balances>) {
-  const packs = await options.getLogs({ target: packFactory, eventAbi: PACK_LAUNCHED });
+async function addPackBids(options: FetchOptions, packFactories: string[], b: ReturnType<typeof balances>) {
+  const packs = await options.getLogs({ targets: packFactories, eventAbi: PACK_LAUNCHED });
   for (const l of packs) {
     const bids = BigInt(l.bids);
     const toProtocol = BigInt(l.bidsToProtocol);
@@ -273,7 +300,8 @@ async function addPackBids(options: FetchOptions, packFactory: string, b: Return
  * same transaction (for example the team wallet handing its buys to the fee wallet) is not a buy,
  * and is left out, so nothing is counted twice.
  *
- * This overlaps Revenue rather than adding to it: the ETH spent is Packed's income.
+ * The fee wallet's buys overlap Revenue rather than adding to it: the ETH spent is Packed's
+ * income. The team wallet's are paid out of $PACKD's own creator income on Pons, outside Revenue.
  */
 async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConfig["buyback"]>, b: ReturnType<typeof balances>) {
   const received = (await Promise.all(buyback.wallets.map((wallet) => options.getLogs({
@@ -298,9 +326,11 @@ async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConf
   const wallets = new Set(buyback.wallets.map((w) => w.toLowerCase()));
   const hashes = [...receipts.keys()];
   const txs = await getTransactionsWithRetry(options.chain, hashes);
+  const senderOf = new Map<string, string>();
   hashes.forEach((hash, i) => {
     const from = txs[i]?.from?.toLowerCase();
     if (!from || !wallets.has(from)) receipts.delete(hash);
+    else senderOf.set(hash, from);
   });
   if (!receipts.size) return;
   const swaps = await options.getLogs({
@@ -319,7 +349,9 @@ async function addBuybacks(options: FetchOptions, buyback: NonNullable<ChainConf
     pending.forEach((v, i) => { if (v <= out && (at < 0 || v > pending[at])) at = i; });
     if (at < 0) continue;
     pending.splice(at, 1);
-    add(b.dailyHoldersRevenue, NULL, -BigInt(s.args.amount0), METRIC.TOKEN_BUY_BACK);
+    const paid = -BigInt(s.args.amount0);
+    add(b.dailyHoldersRevenue, NULL, paid, METRIC.TOKEN_BUY_BACK);
+    if (senderOf.get(String(s.transactionHash).toLowerCase()) === buyback.feeWallet) add(b.revenueBuybacks, NULL, paid, METRIC.TOKEN_BUY_BACK);
   }
 }
 
@@ -333,7 +365,7 @@ const fetch = async (options: FetchOptions) => {
   await addLaunchFees(options, config.factories, b);
   await addHookTaxes(options, config.taxHooks, b);
   if (config.snipeHooks.length) await addHookSnipeCharges(options, config.snipeHooks, b);
-  if (config.packFactory) await addPackBids(options, config.packFactory, b);
+  if (config.packFactories.length) await addPackBids(options, config.packFactories, b);
   if (config.buyback) await addBuybacks(options, config.buyback, b);
   if (!contracts.length) return b.result();
 
@@ -401,9 +433,9 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Everything users pay through Packed: the flat 0.0004 ETH launch fee, the 1% fee on every trade on a Packed bonding curve (Robinhood Chain), the 1% LP fee of every Packed coin's Uniswap v4 pool (after graduation on Robinhood Chain, from launch on Ethereum), the creator tax a coin's creator sets at launch (0-5%, on curve trades and pool swaps), the anti-snipe charges of a coin's first seconds or first block, and the bids paid for seats in packs launched from deposits on Ethereum. All of it is paid by users: launch fees and bids by creators and pack members, the rest by traders. Pool fees are counted when they are collected from the position.",
   Revenue: "Packed's share: the launch fee in full, 25% of the 1% curve fee, 25% of the 1% pool fee, and half of every seat bid.",
-  ProtocolRevenue: "Revenue minus the ETH spent buying back $PACKD, which is moved to HoldersRevenue. Negative on days when a buyback spends more than that day's revenue.",
+  ProtocolRevenue: "Revenue minus the ETH the fee wallet spends buying back $PACKD, which is moved to HoldersRevenue. Negative on days when a buyback spends more than that day's revenue.",
   SupplySideRevenue: "The creator's 75% of the 1% curve and pool fees, the whole creator tax and anti-snipe charges, and the launcher's half of seat bids. For a reward coin the creator's share goes to the coin's holders instead.",
-  HoldersRevenue: "ETH Packed spends buying back $PACKD, its own token, on the open market on Robinhood Chain, from the fee wallet and the team wallet; the coins bought are burned. It is part of Revenue, moved out of ProtocolRevenue.",
+  HoldersRevenue: "ETH Packed spends buying back $PACKD, its own token, on the open market on Robinhood Chain; the coins bought are burned. The fee wallet pays out of Packed's revenue above, and that part is moved out of ProtocolRevenue. The team wallet pays out of the creator fee and creator tax $PACKD earns as a coin launched on Pons, which are Pons' fees and not in Revenue here, so HoldersRevenue can be larger than Revenue.",
 };
 
 const breakdownMethodology = {
@@ -426,7 +458,7 @@ const breakdownMethodology = {
     [CURVE_FEES_TO_PROTOCOL]: "Packed's 25% of the 1% curve fee.",
     [SWAP_FEES_TO_PROTOCOL]: "Packed's 25% of the 1% pool fee.",
     [PACK_BIDS_TO_PROTOCOL]: "Half of every seat bid, paid to Packed by the factory inside the launch.",
-    [METRIC.TOKEN_BUY_BACK]: "Same as the HoldersRevenue component, subtracted from protocol revenue.",
+    [METRIC.TOKEN_BUY_BACK]: "The fee wallet's buybacks of $PACKD, subtracted from protocol revenue.",
   },
   SupplySideRevenue: {
     [CURVE_FEES_TO_CREATORS]: "The creator's 75% of the 1% curve fee (the coin's holders' for a reward coin).",
@@ -436,7 +468,7 @@ const breakdownMethodology = {
     [PACK_BIDS_TO_LAUNCHERS]: "The launcher's half of every seat bid.",
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: "ETH spent by the fee wallet and the team wallet swapping for $PACKD in the ETH/$PACKD Uniswap v4 pool, on the day of each buy. The coins bought are burned.",
+    [METRIC.TOKEN_BUY_BACK]: "ETH spent by the fee wallet (out of Packed's revenue) and the team wallet (out of $PACKD's creator income on Pons) swapping for $PACKD in the ETH/$PACKD Uniswap v4 pool, on the day of each buy. The coins bought are burned.",
   },
 };
 
