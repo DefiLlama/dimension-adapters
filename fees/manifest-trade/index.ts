@@ -4,6 +4,11 @@ import { METRIC } from '../../helpers/metrics';
 import { httpGet } from '../../utils/fetchURL';
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
+// Fees are the SOL balance increases of the Manifest fee collector account
+// B6dmr2UAn2wgjdm3T4N1Vjd8oPYRRTguByW7AEngkeL6, summed per hour. If the stats
+// server is down, the same number can be recomputed directly from chain data
+// with the indexer the server runs on:
+// https://github.com/Bonasa-Tech/manifest/blob/ff62612100a82a46babb646fc312ab9ceea041db/scripts/stats_utils/feeCollections.ts#L1
 const feesEndpoint = "https://mfx-stats-mainnet.fly.dev/fees";
 
 const FEES_DESCRIPTION =
