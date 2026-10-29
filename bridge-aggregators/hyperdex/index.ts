@@ -21,6 +21,7 @@ const chainConfig: Record<string, { diamond?: string; start: string }> = {
   [CHAIN.BASE]: { diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', start: '2026-09-16' },
   [CHAIN.ARBITRUM]: { diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', start: '2026-09-16' },
   [CHAIN.ETHEREUM]: { diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', start: '2026-09-16' },
+  [CHAIN.BSC]: { diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', start: '2026-09-16' },
   [CHAIN.ARC]: { diamond: '0xA4072583658Fae592A3506A42431cb6316a8d40b', start: '2026-09-16' },
   // API-routed: LI.FI's Solana program emits no EVM logs
   [CHAIN.SOLANA]: { start: '2026-09-16' },

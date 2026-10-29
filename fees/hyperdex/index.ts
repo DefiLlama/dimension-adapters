@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { fetchTransfersFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
 
@@ -18,15 +19,24 @@ import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
 // the LI.FI analytics API for integrator=hyperdex: every payout above LI.FI's minimum names the same
 // recipient on every chain, at 50/50 with LI.FI's leg, in the same transaction as the diamond event.
 //
+// Robinhood Chain and Solana are read from LI.FI's analytics API instead: Solana's program emits no EVM
+// event, and most Robinhood Chain tokens HyperDex trades have no DefiLlama price, so an on-chain leg there
+// counts $0. The API gives each transfer's fee in USD and its split; HyperDex's share is the integrator part.
+//
+// Fynd (Robinhood Chain): HyperDex's 15 bp client fee on Fynd swaps is paid inside Fynd's TychoRouter, whose
+// FeesTaken event lists each leg; the leg to HyperDex's fee receiver is HyperDex's (Fynd keeps the other).
+//
 // Addresses: https://github.com/lifinance/contracts/tree/main/deployments (FeeForwarder, LiFiDiamond),
 // plus the shared routers listed in fees/lifi (0xce40... emits on Base and Arbitrum for these transfers).
 
 const FeesForwardedEvent = "event FeesForwarded(address indexed token, (address recipient, uint256 amount)[] fees)"
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
+const FyndFeesTakenEvent = "event FeesTaken(address indexed token, (address recipient, uint256 amount)[] fees)"
 const LifiBridgeEvent = "event LiFiTransferStarted((bytes32 transactionId, string bridge, string integrator, address referrer, address sendingAssetId, address receiver, uint256 minAmount, uint256 destinationChainId, bool hasSourceSwaps, bool hasDestinationCall) bridgeData)"
 
 const INTEGRATOR = 'hyperdex'
 const IntegratorFee = 'Integrator fee'
+const FyndFee = 'Fynd client fee'
 
 // HyperDex's integrator payout addresses: the recipient on every HyperDex FeesForwarded leg that is not
 // LI.FI's. The first received every payout up to 2026-09-24; HyperDex then moved the payout to the
@@ -36,12 +46,10 @@ const HYPERDEX_FEE_RECIPIENTS = [
   '0xf3619a5029bc4d7de640d22640cab564aeb34735',
 ]
 
-const chainConfig: Record<string, { diamond: string; forwarders: string[]; start: string }> = {
-  [CHAIN.ROBINHOOD]: {
-    diamond: '0xB477751B76CF82d00a686A1232f5fCD772414Af3',
-    forwarders: ['0xF4BFFE4dfC693f37715A47c15BdA8af9ed8f7Cf1', '0x4e0eb4c17A2Fc64f06314aFa4d3646241784ab3a'],
-    start: '2026-09-16',
-  },
+const chainConfig: Record<string, { diamond?: string; forwarders?: string[]; lifiChainId?: number; fyndRouter?: string; start: string }> = {
+  // API-routed (see above), plus Fynd's router
+  [CHAIN.ROBINHOOD]: { lifiChainId: 4663, fyndRouter: '0x09215a470bd585e59eb3f4b612fbd2678131ff9e', start: '2026-09-16' },
+  [CHAIN.SOLANA]: { lifiChainId: 1151111081099710, start: '2026-09-16' },
   [CHAIN.BASE]: {
     diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0xc18d9e84b8687a2645447a61e52c455dac1675e1'],
@@ -57,6 +65,11 @@ const chainConfig: Record<string, { diamond: string; forwarders: string[]; start
     forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0x685527c551cc40ce1f1c9818cd8683307076e4ed'],
     start: '2026-09-16',
   },
+  [CHAIN.BSC]: {
+    diamond: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
+    forwarders: ['0xce40449b773a3e6e5e769adb4e567179d4828cbd', '0xc18d9e84b8687a2645447a61e52c455dac1675e1'],
+    start: '2026-09-16',
+  },
   [CHAIN.ARC]: {
     diamond: '0xA4072583658Fae592A3506A42431cb6316a8d40b',
     forwarders: ['0xEDff4051B8286d2333149429F019dC10E23570da'],
@@ -65,8 +78,32 @@ const chainConfig: Record<string, { diamond: string; forwarders: string[]; start
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { diamond, forwarders } = chainConfig[options.chain]
+  const { diamond, forwarders, lifiChainId, fyndRouter } = chainConfig[options.chain]
   const dailyFees = options.createBalances()
+
+  if (lifiChainId) {
+    // every hyperdex transfer in the window, all chains (the helper has no numeric LI.FI chainId for Robinhood), kept to this chain
+    const transfers = await fetchTransfersFromLIFIAPI(options.startTimestamp, options.endTimestamp, [INTEGRATOR])
+    transfers.forEach((tx: any) => {
+      if (tx.sending.chainId !== lifiChainId) return
+      ;(tx.feeCosts ?? []).forEach((fee: any) => {
+        const amount = Number(fee.amount), integratorFee = Number(fee.feeSplit?.integratorFee ?? 0), usd = Number(fee.amountUSD)
+        if (amount > 0 && integratorFee > 0 && usd > 0) dailyFees.addUSDValue((usd * integratorFee) / amount, IntegratorFee)
+      })
+    })
+  }
+
+  if (fyndRouter) {
+    const feeLogs: any[] = await options.getLogs({ target: fyndRouter, eventAbi: FyndFeesTakenEvent })
+    feeLogs.forEach((log: any) => {
+      log.fees.forEach((fee: any) => {
+        if (HYPERDEX_FEE_RECIPIENTS.includes(String(fee.recipient).toLowerCase())) dailyFees.add(log.token, fee.amount, FyndFee)
+      })
+    })
+  }
+
+  if (!diamond || !forwarders) return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+
   const blacklistForChain = new Set((DefaultDexTokensBlacklisted[options.chain] ?? []).map((a) => a.toLowerCase()))
 
   // the transactions of this window that LI.FI executed for HyperDex
@@ -107,19 +144,22 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    Fees: 'The 0.25% integrator fee HyperDex charges on every swap, bridge and basket order routed through LI.FI: the FeesForwarded leg paid to HyperDex in a transaction whose LI.FI event carries integrator "hyperdex".',
-    Revenue: 'All of the integrator fee goes to HyperDex.',
-    ProtocolRevenue: 'All of the integrator fee goes to HyperDex.',
+    Fees: 'The 0.25% integrator fee HyperDex charges on every swap, bridge and basket order routed through LI.FI: the FeesForwarded leg paid to HyperDex in a transaction whose LI.FI event carries integrator "hyperdex" (Robinhood Chain and Solana: the integrator share of each transfer\'s fee from LI.FI\'s analytics API, in USD); and HyperDex\'s leg of its client fee on Fynd swaps, from the TychoRouter FeesTaken event.',
+    Revenue: 'All of these fees go to HyperDex.',
+    ProtocolRevenue: 'All of these fees go to HyperDex.',
   },
   breakdownMethodology: {
     Fees: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
+      [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
     },
     Revenue: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
+      [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
     },
     ProtocolRevenue: {
       [IntegratorFee]: 'The 0.25% integrator fee paid to HyperDex on each LI.FI-routed order.',
+      [FyndFee]: 'HyperDex\'s part of its 15 bp client fee on each Fynd swap (Fynd keeps the rest).',
     },
   },
 }
