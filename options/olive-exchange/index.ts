@@ -1,94 +1,121 @@
 import { CHAIN } from "../../helpers/chains";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { noTpSlColumns, queryOliveEvents, sizeTpSlFills, START, tpSlRowsSql } from "../../fees/olive-exchange/shared";
+import { noTpSlColumns, queryOliveEvents, sizeTpSlFills, START, tpSlRowsSql } from "../../helpers/oliveExchange";
 
 // One contract is one unit of the underlying, quantities are contracts × 1e6 and prices USD × 1e6, so
 // quantity × price / 1e6 is notional in USD × 1e6. Puts are valued at their strike, calls and choosers at spot.
 const notional = (quantity: string, spot: string) => `ROUND(${quantity} * IFF(option_type = 1, strike_price, ${spot}) / 1e6)`;
 
+const FEE_LABEL = 'Options Trading Fees';
+
 const fetch = async (options: FetchOptions) => {
   const rows = await queryOliveEvents(options, [
-    'OptionPositionOpened', 'LimitOptionOrderExecuted', 'OptionPositionClosed', 'OptionPositionExercised',
-    'OptionPositionAutoExercised', 'ChooserPositionOpened', 'LimitChooserOrderExecuted', 'ChooserPositionClosed',
-    'ChooserTpSlOrderExecuted', 'ChooserChosen', 'ChooserConverted', 'TradeRequestFilled', 'TpSlOrderExecuted',
+    'OptionPositionOpened', 'LimitOptionOrderExecuted', 'OptionPositionClosed', 'ChooserPositionOpened',
+    'LimitChooserOrderExecuted', 'ChooserPositionClosed', 'ChooserTpSlOrderExecuted', 'TpSlOrderExecuted',
   ], `
     notional_rows AS (
-      SELECT IFF(option_type = 1, 'Put Options', 'Call Options') AS product, ${notional('remaining_quantity', 'entry_spot_price')} AS notional_usd FROM OptionPositionOpened
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), ${notional('remaining_quantity', 'execution_spot_price')} FROM LimitOptionOrderExecuted
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), ${notional('closed_quantity', 'current_price')} FROM OptionPositionClosed
-      -- a holder's exercise records no spot: the price the fill in the same transaction used
-      UNION ALL SELECT IFF(e.option_type = 1, 'Put Options', 'Call Options'),
-        ROUND(e.exercised_quantity * IFF(e.option_type = 1, e.strike_price, COALESCE(f.fill_price, e.strike_price)) / 1e6)
-        FROM OptionPositionExercised e
-        LEFT JOIN (SELECT txn_id, pool, MAX(fill_price) AS fill_price FROM TradeRequestFilled GROUP BY txn_id, pool) f ON f.txn_id = e.txn_id AND f.pool = e.pool
-      -- expiry auto-exercise at the settlement price (USD × 1e9), in the money or not
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), ${notional('auto_exercised_quantity', 'ROUND(settlement_underlying_price_e9 / 1000)')} FROM OptionPositionAutoExercised
-      UNION ALL SELECT 'Chooser Options', ROUND(quantity * entry_spot_price / 1e6) FROM ChooserPositionOpened
-      UNION ALL SELECT 'Chooser Options', ROUND(quantity * entry_spot_price / 1e6) FROM LimitChooserOrderExecuted
-      UNION ALL SELECT 'Chooser Options', ROUND(closed_quantity * current_price / 1e6) FROM ChooserPositionClosed
-      UNION ALL SELECT 'Chooser Options', ROUND(closed_quantity * current_price / 1e6) FROM ChooserTpSlOrderExecuted
-      -- an automatic choice settles only when the kept leg has already expired
-      UNION ALL SELECT 'Chooser Options', ROUND(quantity * current_price / 1e6) FROM ChooserChosen WHERE settled_immediately = 1
-      -- a chooser converted into the option its holder chose
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), ${notional('remaining_quantity', 'entry_spot_price')} FROM ChooserConverted
+      -- trades only: buys and sell-backs. Exercises, expiry settlements and chooser conversions are not trades
+      -- and are left out (the contracts were already counted when bought)
+      SELECT ${notional('remaining_quantity', 'entry_spot_price')} AS notional_usd FROM OptionPositionOpened
+      UNION ALL SELECT ${notional('remaining_quantity', 'execution_spot_price')} FROM LimitOptionOrderExecuted
+      UNION ALL SELECT ${notional('closed_quantity', 'current_price')} FROM OptionPositionClosed
+      UNION ALL SELECT ROUND(quantity * entry_spot_price / 1e6) FROM ChooserPositionOpened
+      UNION ALL SELECT ROUND(quantity * entry_spot_price / 1e6) FROM LimitChooserOrderExecuted
+      UNION ALL SELECT ROUND(closed_quantity * current_price / 1e6) FROM ChooserPositionClosed
+      UNION ALL SELECT ROUND(closed_quantity * current_price / 1e6) FROM ChooserTpSlOrderExecuted
     ),
     premium_rows AS (
       -- premiums buyers paid and premiums the pool paid for contracts sold back, before fees, USD × 1e6
-      SELECT IFF(option_type = 1, 'Put Options', 'Call Options') AS product, remaining_premium_total_usd AS premium_usd FROM OptionPositionOpened
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), remaining_premium_total_usd FROM LimitOptionOrderExecuted
-      UNION ALL SELECT IFF(option_type = 1, 'Put Options', 'Call Options'), close_premium_usd FROM OptionPositionClosed
-      UNION ALL SELECT 'Chooser Options', remaining_premium_total_usd FROM ChooserPositionOpened
-      UNION ALL SELECT 'Chooser Options', remaining_premium_total_usd FROM LimitChooserOrderExecuted
-      UNION ALL SELECT 'Chooser Options', close_value_usd FROM ChooserPositionClosed
-      UNION ALL SELECT 'Chooser Options', close_value_usd FROM ChooserTpSlOrderExecuted
+      SELECT remaining_premium_total_usd AS premium_usd FROM OptionPositionOpened
+      UNION ALL SELECT remaining_premium_total_usd FROM LimitOptionOrderExecuted
+      UNION ALL SELECT close_premium_usd FROM OptionPositionClosed
+      UNION ALL SELECT remaining_premium_total_usd FROM ChooserPositionOpened
+      UNION ALL SELECT remaining_premium_total_usd FROM LimitChooserOrderExecuted
+      UNION ALL SELECT close_value_usd FROM ChooserPositionClosed
+      UNION ALL SELECT close_value_usd FROM ChooserTpSlOrderExecuted
+    ),
+    fee_rows AS (
+      -- option and chooser trading fees in USD × 1e6, each with the share Olive took
+      SELECT protocol_fee_usd AS fee, bps FROM OptionPositionOpened
+      UNION ALL SELECT protocol_fee_usd, bps FROM LimitOptionOrderExecuted
+      UNION ALL SELECT protocol_fee_usd, bps FROM OptionPositionClosed
+      UNION ALL SELECT protocol_fee_usd, bps FROM ChooserPositionOpened
+      UNION ALL SELECT protocol_fee_usd, bps FROM LimitChooserOrderExecuted
+      UNION ALL SELECT protocol_fee_usd, bps FROM ChooserPositionClosed
+      UNION ALL SELECT protocol_fee_usd, bps FROM ChooserTpSlOrderExecuted
+      -- TP/SL fills: contract_type 1 is an option (perp and future ones are in dexs/olive-exchange)
+      UNION ALL SELECT trade_fees_paid_usd, bps FROM TpSlOrderExecuted WHERE contract_type = 1
     )`, `
-    SELECT 'notional' AS metric, product, SUM(notional_usd)::VARCHAR AS usd, ${noTpSlColumns} FROM notional_rows GROUP BY product
-    UNION ALL SELECT 'premium', product, SUM(premium_usd)::VARCHAR, ${noTpSlColumns} FROM premium_rows GROUP BY product
+    SELECT 'notional' AS metric, SUM(notional_usd)::VARCHAR AS usd, NULL AS company, ${noTpSlColumns} FROM notional_rows
+    UNION ALL SELECT 'premium', SUM(premium_usd)::VARCHAR, NULL, ${noTpSlColumns} FROM premium_rows
+    UNION ALL SELECT 'fees', SUM(fee)::VARCHAR, SUM(FLOOR(fee * bps / 10000))::VARCHAR, ${noTpSlColumns} FROM fee_rows
     UNION ALL ${tpSlRowsSql([1], 'NULL, NULL, NULL')}
   `);
 
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   for (const row of rows) {
     if (!row.metric || !row.usd) continue;
     const usd = Number(row.usd) / 1e6;
-    if (row.metric === 'notional') dailyNotionalVolume.addUSDValue(usd, row.product);
-    else dailyPremiumVolume.addUSDValue(usd, row.product);
+    if (row.metric === 'notional') dailyNotionalVolume.addUSDValue(usd);
+    else if (row.metric === 'premium') dailyPremiumVolume.addUSDValue(usd);
+    else {
+      // each fee is split on chain by the event's own company_fee_share_bps (2500 = 25% in every pool since
+      // launch): floor(fee × bps / 10000) to Olive, the rest stays in the pool for its liquidity providers
+      const company = Number(row.company) / 1e6;
+      dailyFees.addUSDValue(usd, FEE_LABEL);
+      dailyRevenue.addUSDValue(company, `${FEE_LABEL} To Olive`);
+      dailySupplySideRevenue.addUSDValue(usd - company, `${FEE_LABEL} To LPs`);
+    }
   }
   // option take-profit and stop-loss sells record the share of the position they sold: the contracts sold come
   // from the position's history, valued like a sell-back (puts at their strike, calls at spot)
   for (const fill of await sizeTpSlFills(options, rows)) {
-    const isPut = fill.optionType === 1;
-    const price = isPut && fill.strike !== undefined ? fill.strike : fill.spot;
-    const product = isPut ? 'Put Options' : 'Call Options';
-    dailyNotionalVolume.addUSDValue(Number(fill.quantity * price) / 1e12, product);
+    const price = fill.optionType === 1 && fill.strike !== undefined ? fill.strike : fill.spot;
+    dailyNotionalVolume.addUSDValue(Number(fill.quantity * price) / 1e12);
     // the trigger fires on the premium: contracts sold × premium per contract
-    dailyPremiumVolume.addUSDValue(Number(fill.quantity * fill.executedPrice) / 1e12, product);
+    dailyPremiumVolume.addUSDValue(Number(fill.quantity * fill.executedPrice) / 1e12);
   }
-  return { dailyNotionalVolume, dailyPremiumVolume };
+  return {
+    dailyNotionalVolume, dailyPremiumVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue,
+  };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+ // pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: START,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
-    NotionalVolume: "Notional of every option and chooser trade: market and limit buys, sell-backs, exercises, expiry settlements, chooser conversions, and take-profit and stop-loss sells, at the execution spot price (puts at their strike). A take-profit or stop-loss sell records the share of the position it sold; the contracts sold are taken from the position's earlier events.",
+    NotionalVolume: "Notional of every option and chooser trade (market and limit buys, sell-backs, and take-profit and stop-loss sells) at the execution spot price, with puts valued at their strike. Exercises, expiry settlements and chooser conversions are not trades and are not counted.",
     PremiumVolume: "Premiums of option and chooser trades before fees: what buyers paid (market and limit buys) and what the pool paid for contracts sold back (sell-backs and take-profit and stop-loss sells).",
+    Fees: "Fees option and chooser traders pay Olive on opening and closing positions (market and limit orders, sell-backs and take-profit and stop-loss sells). Liquidity deposit and withdrawal fees on the pools Olive's options and perps share are counted in Olive's perps listing.",
+    UserFees: "All option and chooser trading fees, paid by Olive's option traders.",
+    Revenue: "Olive's share of option and chooser trading fees: 25% of each fee since launch, set per pool on chain.",
+    ProtocolRevenue: "Olive's share of option and chooser trading fees, collected into each pool's protocol fee account.",
+    SupplySideRevenue: "The liquidity providers' share of option and chooser trading fees (75% since launch), kept by the pools.",
   },
   breakdownMethodology: {
-    NotionalVolume: {
-      'Call Options': "Call option trades, valued at spot.",
-      'Put Options': "Put option trades, valued at their strike.",
-      'Chooser Options': "Chooser option trades (a chooser becomes a call or a put on its choice date), valued at spot.",
+    Fees: {
+      [FEE_LABEL]: "Fees on opening and closing options and chooser options (market and limit orders, sell-backs and TP/SL sells).",
     },
-    PremiumVolume: {
-      'Call Options': "Premiums of call option buys and sell-backs.",
-      'Put Options': "Premiums of put option buys and sell-backs.",
-      'Chooser Options': "Premiums of chooser option buys and sell-backs.",
+    UserFees: {
+      [FEE_LABEL]: "Paid by option and chooser traders.",
+    },
+    Revenue: {
+      [`${FEE_LABEL} To Olive`]: "Olive's share of option and chooser fees.",
+    },
+    ProtocolRevenue: {
+      [`${FEE_LABEL} To Olive`]: "Olive's share of option and chooser fees.",
+    },
+    SupplySideRevenue: {
+      [`${FEE_LABEL} To LPs`]: "The pool's share of option and chooser fees.",
     },
   },
 };

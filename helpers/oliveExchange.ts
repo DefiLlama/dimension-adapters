@@ -1,14 +1,13 @@
-import { FetchOptions } from "../../adapters/types";
-import { queryAllium } from "../../helpers/allium";
-import { assertComplete, programEventsSql } from "../../helpers/alliumSolanaEvents";
-import { base58Encode, getAccountBuffers } from "../../helpers/solana";
+import { FetchOptions } from "../adapters/types";
+import ADDRESSES from "./coreAssets.json";
+import { queryAllium } from "./allium";
+import { assertComplete, programEventsSql } from "./alliumSolanaEvents";
+import { base58Encode, getAccountBuffers } from "./solana";
 
 // Olive (https://olive.exchange): options, chooser options, perpetuals and expiry futures on Solana, traded against
 // fully collateralized liquidity pools. Every figure below is read from the program's own Anchor events.
 export const PROGRAM = 'ELfKgKXLdcnLaq3oHzJJHRCKUat9q2tJsxvr3NMbELbB';
 export const START = '2026-09-19'; // mainnet launch of this program
-
-const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 // Byte layouts of the events read here, from the live program's IDL (Anchor event = 8-byte discriminator +
 // Borsh struct). `vec` events carry `accounting: Vec<CustodyAccounting>` (80 bytes each) right after
@@ -192,4 +191,4 @@ export async function readCustodies(custodies: string[]): Promise<Record<string,
   return result;
 }
 
-export const isUsdc = (mint: string) => mint === USDC;
+export const isUsdc = (mint: string) => mint === ADDRESSES.solana.USDC;
