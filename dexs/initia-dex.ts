@@ -1,7 +1,23 @@
+import { FetchOptions } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { httpGet } from "../utils/fetchURL"
 
-async function fetch() {
+const STATUS_URL = 'https://rpc.initia.xyz/status'
+const STATUS_TIMEOUT = 10000
+const MAX_HEAD_LAG = 3600
+
+async function fetch(options: FetchOptions) {
+  const snapshotTime = Math.max(options.endTimestamp, Math.floor(Date.now() / 1000))
+  const covers = `the 24 hours ending ${new Date(snapshotTime * 1000).toISOString()}`
+  let syncInfo: any
+  try {
+    syncInfo = (await httpGet(STATUS_URL, { timeout: STATUS_TIMEOUT })).result?.sync_info
+  } catch (e: any) {
+    throw new Error(`initia ${STATUS_URL} is unreachable (${e?.message}), so the dex api volume_24h cannot be shown to cover ${covers}`)
+  }
+  const headTime = Date.parse(syncInfo?.latest_block_time) / 1000
+  if (!(snapshotTime - headTime <= MAX_HEAD_LAG))
+    throw new Error(`initia latest block ${syncInfo?.latest_block_height} is from ${syncInfo?.latest_block_time}, so the dex api volume_24h is a stale snapshot and does not cover ${covers}`)
 
   let paginationKey = ''
   let dailyVolume = 0
