@@ -32,7 +32,7 @@ import { httpGet } from "../../utils/fetchURL";
 // https://hyperdex.app/explorer shows), at the swap's dollar amount when sent, on the sending chain:
 // https://hyperdex.app/api/defillama. Rates: RAVN 50 bp until 2026-10-16, 5 bp after (none before 2026-10-19 on
 // routes with no fee of their own: Eco, Layerswap, Mayan, Jupiter; Rift 0.25 % from 2026-10-14); Velora 5 bp
-// (Delta) or 10 bp (Market); Hinkal 10 bp; CoW 15 bp. Perps fees are in aggregator-derivatives/hyperdex.
+// (Delta) or 10 bp (Market); Hinkal 10 bp; CoW 15 bp.
 //
 // Addresses: https://github.com/lifinance/contracts/tree/main/deployments (FeeForwarder, LiFiDiamond),
 // plus the shared routers listed in fees/lifi (0xce40... emits on Base and Arbitrum for these transfers).
