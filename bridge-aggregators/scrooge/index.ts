@@ -22,22 +22,18 @@ const LIFI_INTEGRATOR = "scrooge";
 const AcrossDepositEvent = "event FundsDeposited(bytes32 inputToken, bytes32 outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint256 indexed depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes32 indexed depositor, bytes32 recipient, bytes32 exclusiveRelayer, bytes message)";
 const FEE_WALLET = "d21ba2ac73e7e825f929d4b2f70228e806f439ae";
 const ACROSS_START = "2026-10-22";
-// The SpokePools Scrooge deposits into, by chain.
+// The SpokePools Scrooge deposits into, by chain: the chains Scrooge's Across deposits come from, Ethereum above all,
+// and the larger chains it offers Across on. Its smaller Across chains (World Chain, HyperEVM, Monad, MegaETH,
+// Soneium, Ink) are left out until Scrooge's volume there is worth a day of their logs.
 const ACROSS_SPOKE_POOLS: Record<string, string> = {
   [CHAIN.ETHEREUM]: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5",
   [CHAIN.OPTIMISM]: "0x6f26Bf09B1C792e3228e5467807a900A503c0281",
   [CHAIN.UNICHAIN]: "0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64",
   [CHAIN.POLYGON]: "0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096",
-  [CHAIN.MONAD]: "0xd2ecb3afe598b746F8123CaE365a598DA831A449",
-  [CHAIN.WC]: "0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64",
-  [CHAIN.HYPERLIQUID]: "0x35E63eA3eb0fb7A3bc543C71FB66412e1F6B0E04",
-  [CHAIN.SONEIUM]: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96",
-  [CHAIN.MEGAETH]: "0x3Db06DA8F0a24A525f314eeC954fC5c6a973d40E",
   [CHAIN.ROBINHOOD]: "0xD29C85F15DF544bA632C9E25829fd29d767d7978",
   [CHAIN.BASE]: "0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64",
   [CHAIN.ARBITRUM]: "0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A",
   [CHAIN.AVAX]: "0xFE9D541c92E4e90437C7152A00244886dE37a658",
-  [CHAIN.INK]: "0xeF684C38F94F48775959ECf2012D7E864ffb9dd4",
   [CHAIN.LINEA]: "0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75",
 };
 // The first transfer under Scrooge's LI.FI integrator string, 2026-10-12.
@@ -58,7 +54,7 @@ const fetch = async (options: FetchOptions) => {
 
   const spokePool = ACROSS_SPOKE_POOLS[options.chain];
   if (spokePool && options.endTimestamp > Date.parse(ACROSS_START) / 1000) {
-    const deposits = await options.getLogs({ target: spokePool, eventAbi: AcrossDepositEvent });
+    const deposits = await options.getLogs({ target: spokePool, eventAbi: AcrossDepositEvent, maxBlockRange: 10000 });
     for (const log of deposits) {
       if (String(log.message).toLowerCase().includes(FEE_WALLET)) dailyBridgeVolume.add("0x" + String(log.inputToken).slice(26), log.inputAmount);
     }
@@ -79,9 +75,9 @@ const fetch = async (options: FetchOptions) => {
   return { dailyBridgeVolume };
 };
 
+// A day at a time, as aggregators/scrooge runs: one read of each chain's logs a day rather than one an hour.
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   prefetch: fetchRelayTotals as any,
   adapter: Object.fromEntries([

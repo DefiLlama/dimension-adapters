@@ -25,11 +25,14 @@ const ROUTER = "0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82";
 // router pays it and sends to the site. Deployed 2026-10-17.
 // Verified source: https://repo.sourcify.dev/4663/0x405AE06D4204A94D341597B513116A43D10b0712
 const PARTNER = "0x405AE06D4204A94D341597B513116A43D10b0712";
-// $SCROOGE, Scrooge's token. Its address is not priced by the coins API, so it is valued through its CoinGecko id.
+// $SCROOGE, Scrooge's token: CoinGecko's "scrooge-2" lists this contract on Robinhood Chain
+// (https://www.coingecko.com/en/coins/scrooge-2), and decimals() returns 18. Its address is not priced by the coins
+// API, so it is valued through its CoinGecko id.
 const SCROOGE = "0x4da3916d3ae6feece32ec8a2c4856d4abeb41bfd";
 const SCROOGE_CG = "scrooge-2";
-// The router's feeRecipient. Its fees are swapped into SCROOGE every 15 minutes and every SCROOGE it holds is sent to
-// 0x…dEaD, so its SCROOGE transfers to 0x…dEaD are the buy and burn.
+const SCROOGE_DECIMALS = 1e18;
+// ScroogeRouter.feeRecipient() (selector 0x46904840 on the router above). Its fees are swapped into SCROOGE every 15
+// minutes and every SCROOGE it holds is sent to 0x…dEaD, so its SCROOGE transfers to 0x…dEaD are the buy and burn.
 const FEE_WALLET = "0xd21Ba2Ac73E7e825F929D4b2f70228E806f439aE";
 const DEAD = "0x000000000000000000000000000000000000dEaD";
 
@@ -56,7 +59,7 @@ const rank = (token: string) => {
   return t === SCROOGE ? 1 : 0;
 };
 const addToken = (balances: any, token: string, amount: bigint, label?: string) => {
-  if (token.toLowerCase() === SCROOGE) balances.addCGToken(SCROOGE_CG, Number(amount) / 1e18, label);
+  if (token.toLowerCase() === SCROOGE) balances.addCGToken(SCROOGE_CG, Number(amount) / SCROOGE_DECIMALS, label);
   else balances.add(token, amount, label);
 };
 

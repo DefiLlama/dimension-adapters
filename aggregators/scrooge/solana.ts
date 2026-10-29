@@ -9,7 +9,11 @@ import { getEnv } from "../../helpers/env";
 // and grew either account's lamports is a Scrooge swap (the rule Scrooge's own statistics count by), read the way
 // fees/axiom reads its fee wallets. Each is valued as aggregators/jupiter-aggregator values a Jupiter transaction:
 // from the program's own swap events, once, at the amount the user put in.
+// Scrooge's Solana fee wallet: the recipient of the fee transfer in the swaps Scrooge builds, e.g.
+// https://solscan.io/tx/3pWeS6VFSfJqxohJt3xT5iCacSKmjv3m1auZRJ6XVhiYJ6CEKLbv1PRtfhTadmLHqbkTfn5c2wdK5hYaQrgcFdC1
 const FEE_WALLET = "476HfMYteUageywESAe46syKCf5qoKRegqDc7rC8dgm9";
+// The fee wallet's wrapped-SOL token account, where Jupiter pays its platform fee: getAccountInfo reads mint
+// So11111111111111111111111111111111111111112, owner the fee wallet above, isNative true.
 const FEE_TOKEN_ACCOUNT = "9o3QVkKC6PftJNPuDySZj4uS5PxZ7meUtT5FjjmJSTbW";
 const JUP6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 // Swaps on Solana went live on 2026-10-12.

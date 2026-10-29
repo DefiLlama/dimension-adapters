@@ -23,7 +23,8 @@ export type RelayTotals = { crossChain: Record<string, number>; sameChain: Recor
 
 const add = (totals: Record<string, number>, chain: string, usd: number) => { totals[chain] = (totals[chain] ?? 0) + usd; };
 
-// One pull of Scrooge's filled Relay requests per window, shared by every chain. Relay's USD prices break on long-tail
+// One pull of Scrooge's filled Relay requests per window, shared by every chain, by the time each was made; the API's
+// bounds are inclusive, so the window ends a second early and a request on the boundary falls in one window only. Relay's USD prices break on long-tail
 // tokens (see fees/relay), so where what was sent and what arrived disagree by more than 2x, the smaller is counted.
 // Every request under Scrooge's app id pays Scrooge's fee wallet; one that does not means the filter was not applied,
 // and the run stops rather than count all of Relay.
@@ -38,7 +39,7 @@ export const fetchRelayTotals = async (options: FetchOptions): Promise<RelayTota
   const apiKey = getRelayApiKey();
   let continuation: string | undefined;
   do {
-    const page = await getRelayPage(`${RELAY_REQUESTS_API}?appId=${RELAY_APP_ID}&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}&limit=100&sortBy=createdAt&sortDirection=asc&status=success${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ""}`, apiKey);
+    const page = await getRelayPage(`${RELAY_REQUESTS_API}?appId=${RELAY_APP_ID}&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp - 1}&limit=100&sortBy=createdAt&sortDirection=asc&status=success${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ""}`, apiKey);
     for (const { data } of page.requests as RelayRequest[]) {
       const paysScrooge = [...(data?.appFees?.quoted ?? []), ...(data?.appFees?.actual ?? [])].some((f) => f.recipient?.toLowerCase() === FEE_WALLET);
       if (!paysScrooge) throw new Error("scrooge: Relay returned a request outside Scrooge's app id");
