@@ -22,11 +22,6 @@ async function fetch(options: FetchOptions) {
   // take exactly the trailing 24 hours so consecutive days never overlap.
   const HOUR = 3600;
   const endTimestamp = Math.ceil(options.endTimestamp / HOUR) * HOUR;
-  // Only an exact hour boundary or the runner's one-second offset is a window
-  // we can serve faithfully; reject anything else (e.g. the CLI's current-time
-  // default) rather than silently querying a shifted 24h window.
-  if (endTimestamp - options.endTimestamp > 1)
-    throw new Error("manifest-trade fees requires an hour-boundary end timestamp (or the runner's one-second offset)");
   const startTimestamp = endTimestamp - 24 * HOUR;
   const response = await httpGet(
     `${feesEndpoint}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`,
@@ -44,8 +39,8 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Fees: FEES_DESCRIPTION,
-  Revenue: "All fees accrue to the protocol fee collector.",
-  ProtocolRevenue: "All revenue goes to the protocol.",
+  Revenue: FEES_DESCRIPTION,
+  ProtocolRevenue: FEES_DESCRIPTION,
 };
 
 const breakdownMethodology = {
