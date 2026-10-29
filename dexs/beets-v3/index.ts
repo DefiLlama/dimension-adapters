@@ -127,9 +127,11 @@ const adapter: SimpleAdapter = {
     Volume: 'Total volume is the sum of all trades, read from the Balancer V3 vault subgraph on Sonic.',
     Fees: 'Total fees earned from all the trades and yield.',
     Revenue: 'Total revenue earned by the protocol, which is 25% of the fees and yield capture.',
+    SupplySideRevenue: 'Swap fees and yield capture earned by liquidity providers, which is 75% of the fees and yield capture.',
   },
   breakdownMethodology,
   fetch,
+  pullHourly: true,
   chains: [CHAIN.SONIC],
   start: '2024-12-14',
 };
