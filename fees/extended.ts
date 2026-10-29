@@ -164,6 +164,9 @@ const adapter: SimpleAdapter = {
     version: 1,
 	dependencies: [Dependencies.DUNE],
 	start: '2025-08-02',
+	// settlement moved from Starknet to Arc on 2026-10-22 (13:00 UTC), the Starknet contract has emitted no Trade events since.
+	// Arc settles in batches (BatchSettled / StateDiffChunkPosted) with no per-trade fee events, so there is no Arc leg to read
+	deadFrom: '2026-10-23',
     fetch,
     chains: [CHAIN.STARKNET],
     skipBreakdownValidation: true, // no revenue attribution breakdown
