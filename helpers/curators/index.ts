@@ -4,6 +4,7 @@ import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 import fetchURL from "../../utils/fetchURL";
 import { getExcludedAssets, getExcludedVaults } from "../morphoExclusions";
+import { getEulerExcludedVaults } from "../eulerExclusions";
 
 const KAMINO_API = 'https://api.kamino.finance';
 const YEAR_SECS = 365 * 24 * 60 * 60;
@@ -76,10 +77,10 @@ interface Balances {
 interface VaultERC4626Info {
   vault: string;
   asset: string;
-  assetDecimals: number;
+  // totalAssets at the window start
   balance: bigint;
-  rateBefore: bigint;
-  rateAfter: bigint;
+  // assets gained by the window-start share supply over the window
+  yieldEarned: bigint;
 }
 
 const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
@@ -127,13 +128,6 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
     // read treats a ~2% real day as a ~34% fee print (~$108k/day on ~$341k TVL).
     vault: '0x214B47C50057eFaa7adc1B1C2608C3751Cd77D78',
     from: '2026-03-22',
-  }, {
-    // Euler eUSDC-47 (ex-DAO vault, curated by AlphaGrowth since the 2026-05-06 sunset) - lent
-    // against YU / PT-YU collateral that the vault oracle still prices at $1 while YU trades ~$0.01.
-    // Cash is 0 since 2025-11-12 and borrows only compound at the 60% max rate with no repayments
-    // (2.63M -> 4.65M USDC), so its ~$13k/day of interest is unpayable bad-debt accrual.
-    vault: '0x481D4909D7ca2eb27c4975f08dCE07DBeF0d3Fa7',
-    from: '2025-11-12',
   }],
   [CHAIN.BASE]: [{
     // Apostro Resolv USDC (aprUSDC) - same Resolv freeze as the ethereum twin. Share price
@@ -143,7 +137,8 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
   }],
 }
 
-async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
+async function getBlacklistedVaultsForChain(options: FetchOptions): Promise<Set<string>> {
+  const { chain, dateString } = options;
   const blacklistedVaultsForChain = new Set(
     blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
   );
@@ -159,6 +154,10 @@ async function getBlacklistedVaultsForChain(chain: string, dateString: string): 
   const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
 
   for (const vault of await getExcludedVaults(chain, dateString)) {
+    blacklistedVaultsForChain.add(vault);
+  }
+
+  for (const vault of await getEulerExcludedVaults(options)) {
     blacklistedVaultsForChain.add(vault);
   }
 
@@ -271,7 +270,7 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
   return eulerVaults
 }
 
-async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>, decimalAdjustment?: boolean): Promise<Array<VaultERC4626Info>> {
+async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>): Promise<Array<VaultERC4626Info>> {
   const vaultInfo: Array<VaultERC4626Info> = []
 
   const assets = await options.fromApi.multiCall({
@@ -279,49 +278,35 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
     calls: vaults,
     permitFailure: true,
   });
-  const decimals = await options.fromApi.multiCall({
-    abi: ABI.ERC4626.decimals,
-    calls: assets.map(item => item ? item : ''),
-    permitFailure: true,
-  });
   const balances = await options.fromApi.multiCall({
     abi: ABI.ERC4626.totalAssets,
     calls: vaults,
     permitFailure: true,
   });
-  const ratesBefore = await options.fromApi.multiCall({
-    abi: ABI.ERC4626.converttoAssets,
-    calls: vaults.map(vault => {
-      return {
-        target: vault,
-        params: ['1000000000000000000'],
-      }
-    }),
+  const supplies = await options.fromApi.multiCall({
+    abi: ABI.ERC4626.totalSupply,
+    calls: vaults,
     permitFailure: true,
   });
-  const ratesAfter = await options.toApi.multiCall({
+  const supplyCalls = vaults.map((vault, i) => ({ target: vault, params: [supplies[i] ? supplies[i] : 0] }))
+  const assetsBefore = await options.fromApi.multiCall({
     abi: ABI.ERC4626.converttoAssets,
-    calls: vaults.map(vault => {
-      return {
-        target: vault,
-        params: ['1000000000000000000'],
-      }
-    }),
+    calls: supplyCalls,
+    permitFailure: true,
+  });
+  const assetsAfter = await options.toApi.multiCall({
+    abi: ABI.ERC4626.converttoAssets,
+    calls: supplyCalls,
     permitFailure: true,
   });
   for (let i = 0; i < vaults.length; i++) {
     const asset = assets[i]
     if (asset) {
-      const assetDecimals = Number(decimals[i]);
-      const denominator = decimalAdjustment ? 10 ** (18 - assetDecimals) : 1;
-      
       vaultInfo.push({
         vault: vaults[i],
         asset,
-        assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i] ? balances[i] : 0),
-        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0) * BigInt(denominator),
-        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0) * BigInt(denominator),
+        yieldEarned: assetsBefore[i] && assetsAfter[i] ? BigInt(assetsAfter[i]) - BigInt(assetsBefore[i]) : BigInt(0),
       })
     }
   }
@@ -330,7 +315,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
 }
 
 async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
-  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
+  const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.morpho.fee,
     calls: vaultInfo.map(item => item.vault),
@@ -338,18 +323,16 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
     // morpho vault include fee directly to vault shares
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator
-    const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
+    // interest earned by vault curator, no performance fee is taken on a loss (the depositors carry all of it)
+    const interestFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18) : BigInt(0)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
@@ -372,19 +355,18 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
     // euler vault subtract fee directly from interest when collecting
     // it mean that vault fees were remove from vault token shares
 
     // interest earned and distributed to vault deposited after fees
-    const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
+    const interestEarned = vaultInfo[i].yieldEarned
     
     // interest earned and distributed to vault deposited and vault curator before fees
+    // a loss (bad debt socialized onto depositors) has no fee taken from it, so it is not grossed up
     let interestEarnedBeforeFee = interestEarned
-    if (vaultFeeRate < BigInt(1e4)) {
+    if (vaultFeeRate < BigInt(1e4) && interestEarned > BigInt(0)) {
       interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
     }
 
@@ -533,7 +515,7 @@ export async function getAaveV4HubFee(options: FetchOptions, balances: Balances,
 }
 
 async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
-  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
+  const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultPerformanceFeeRates = await options.api.multiCall({
     abi: ABI.morpho.performanceFee,
     calls: vaultInfo.map(item => item.vault),
@@ -546,8 +528,6 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
   })
   
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
     const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
     
@@ -555,10 +535,10 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator - performance fee
-    const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
+    // interest earned by vault curator - performance fee, none is taken on a loss (the depositors carry all of it)
+    const interestPerformanceFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18) : BigInt(0)
     
     // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
@@ -625,7 +605,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailySupplySideRevenue = options.createBalances()
 
         // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
-        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options.chain, options.dateString)
+        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options)
         const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults
