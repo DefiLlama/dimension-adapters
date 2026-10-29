@@ -13,8 +13,9 @@
  *
  * Post bond:
  *   Swaps on every locked Book pool (v3 pools from the v3 locker's Locked event,
- *   v4 pool ids from the v4 locker's Locked event) count the quote side as
- *   volume, and the pool fee on that quote side as the LP fee. Locked LP fees
+ *   v4 pool ids from the v4 locker's Locked event) count the pool fee on the
+ *   quote side as the LP fee. Their volume is not counted: it is trading on an
+ *   external Uniswap pool, not on the Book curve. Locked LP fees
  *   go to Book LP stakers (or are burned) and the vault's own LP leg, so they
  *   are supply side. Locker FeesCollected / LpFees FeesHarvested are NOT read
  *   to avoid double counting.
@@ -56,6 +57,8 @@ const STACKS = [
   },
 ];
 
+const START_BLOCK = Math.min(...STACKS.map((s) => s.fromBlock));
+
 const ALLOWED_QUOTES = new Set([ROBINHOOD_WETH.toLowerCase(), STONKBROKER.toLowerCase()]);
 
 const BPS = 10_000n;
@@ -64,6 +67,8 @@ const CREATOR_BPS = 833n;
 const PROTOCOL_BPS = 833n;
 
 const LABELS = {
+  Tax: "Book Anti Snipe Tax",
+  CloseFee: "Book Close Fee",
   TaxVault: "Book Anti Snipe Tax To Book Vault",
   TaxCreator: "Book Anti Snipe Tax To Creator",
   TaxProtocol: "Book Anti Snipe Tax To Protocol",
@@ -98,18 +103,14 @@ function splitTax(tax: bigint, quote: string, fees: Balances, revenue: Balances,
   const rest = tax - toVault - toCreator - toProtocol;
   const isWeth = quote === ROBINHOOD_WETH.toLowerCase();
 
-  addQuote(fees, quote, toVault, LABELS.TaxVault);
+  addQuote(fees, quote, tax, LABELS.Tax);
   addQuote(supply, quote, toVault, LABELS.TaxVault);
-  addQuote(fees, quote, toCreator, LABELS.TaxCreator);
   addQuote(supply, quote, toCreator, LABELS.TaxCreator);
-  addQuote(fees, quote, toProtocol, LABELS.TaxProtocol);
   addQuote(revenue, quote, toProtocol, LABELS.TaxProtocol);
   addQuote(protocol, quote, toProtocol, LABELS.TaxProtocol);
   if (isWeth) {
-    addQuote(fees, quote, rest, LABELS.TaxBooster);
     addQuote(supply, quote, rest, LABELS.TaxBooster);
   } else {
-    addQuote(fees, quote, rest, LABELS.TaxProtocol);
     addQuote(revenue, quote, rest, LABELS.TaxProtocol);
     addQuote(protocol, quote, rest, LABELS.TaxProtocol);
   }
@@ -122,38 +123,40 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const s of STACKS) {
-    const [timings, registered, lockedV3, lockedV4] = await Promise.all([
-      options.getLogs({ target: s.pad, fromBlock: s.fromBlock, eventAbi: EV.timing, cacheInCloud: true }),
-      options.getLogs({ target: s.pad, fromBlock: s.fromBlock, eventAbi: EV.registered, cacheInCloud: true }),
-      options.getLogs({ target: s.locker, fromBlock: s.fromBlock, eventAbi: EV.lockedV3, cacheInCloud: true }),
-      options.getLogs({ target: s.lockerV4, fromBlock: s.fromBlock, eventAbi: EV.lockedV4, cacheInCloud: true }),
-    ]);
+  const history = { fromBlock: START_BLOCK, cacheInCloud: true, flatten: false };
+  const [timings, registered, lockedV3, lockedV4, buys, sells, closes] = await Promise.all([
+    options.getLogs({ targets: STACKS.map((s) => s.pad), eventAbi: EV.timing, ...history }),
+    options.getLogs({ targets: STACKS.map((s) => s.pad), eventAbi: EV.registered, ...history }),
+    options.getLogs({ targets: STACKS.map((s) => s.locker), eventAbi: EV.lockedV3, ...history }),
+    options.getLogs({ targets: STACKS.map((s) => s.lockerV4), eventAbi: EV.lockedV4, ...history }),
+    options.getLogs({ targets: STACKS.map((s) => s.pad), eventAbi: EV.buy, flatten: false }),
+    options.getLogs({ targets: STACKS.map((s) => s.pad), eventAbi: EV.sell, flatten: false }),
+    options.getLogs({ targets: STACKS.map((s) => s.settler), eventAbi: EV.closeFee, flatten: false }),
+  ]);
 
+  const v3Pools = new Map<string, string>(); // pool -> quote
+  const v4Pools = new Map<string, { quote: string; book: string }>(); // pool id -> quote, Book token
+
+  STACKS.forEach((_, i) => {
     const quoteOf = new Map<string, string>();
-    for (const t of timings) {
+    for (const t of timings[i]) {
       const q = String(t.quote).toLowerCase();
       if (ALLOWED_QUOTES.has(q)) quoteOf.set(String(t.bookId), q);
     }
     const quoteOfToken = new Map<string, string>();
-    for (const r of registered) {
+    for (const r of registered[i]) {
       const q = quoteOf.get(String(r.bookId));
       if (q) quoteOfToken.set(String(r.token).toLowerCase(), q);
     }
 
     // ---- pre bond curve trades + anti snipe tax
-    const [buys, sells, closes] = await Promise.all([
-      options.getLogs({ target: s.pad, eventAbi: EV.buy }),
-      options.getLogs({ target: s.pad, eventAbi: EV.sell }),
-      options.getLogs({ target: s.settler, eventAbi: EV.closeFee }),
-    ]);
-    for (const b of buys) {
+    for (const b of buys[i]) {
       const q = quoteOf.get(String(b.bookId));
       if (!q) continue;
       addQuote(dailyVolume, q, BigInt(b.ethIn));
       splitTax(BigInt(b.tax), q, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue);
     }
-    for (const x of sells) {
+    for (const x of sells[i]) {
       const q = quoteOf.get(String(x.bookId));
       if (!q) continue;
       addQuote(dailyVolume, q, BigInt(x.ethGross));
@@ -161,67 +164,65 @@ const fetch = async (options: FetchOptions) => {
     }
 
     // ---- close fee
-    for (const c of closes) {
+    for (const c of closes[i]) {
       const q = quoteOf.get(String(c.bookId));
       if (!q) continue;
       const mancer = BigInt(c.mancerAmount);
       const prot = BigInt(c.protocolAmount);
-      addQuote(dailyFees, q, mancer, LABELS.CloseMancer);
+      addQuote(dailyFees, q, mancer + prot, LABELS.CloseFee);
       addQuote(dailySupplySideRevenue, q, mancer, LABELS.CloseMancer);
-      addQuote(dailyFees, q, prot, LABELS.CloseProtocol);
       addQuote(dailyRevenue, q, prot, LABELS.CloseProtocol);
       addQuote(dailyProtocolRevenue, q, prot, LABELS.CloseProtocol);
     }
 
-    // ---- post bond v3 pools
-    const v3Pools = new Map<string, string>(); // pool -> quote
-    for (const l of lockedV3) {
+    // ---- locked pools the stack's Books bonded into
+    for (const l of lockedV3[i]) {
       const q = quoteOfToken.get(String(l.bookToken).toLowerCase());
       if (q) v3Pools.set(String(l.pool).toLowerCase(), q);
     }
-    if (v3Pools.size) {
-      const pools = [...v3Pools.keys()];
-      const [token0s, poolFees] = await Promise.all([
-        options.api.multiCall({ abi: "address:token0", calls: pools, permitFailure: true }),
-        options.api.multiCall({ abi: "uint24:fee", calls: pools, permitFailure: true }),
-      ]);
-      const swaps = await options.getLogs({ targets: pools, eventAbi: EV.v3Swap, flatten: false });
-      pools.forEach((pool, i) => {
-        const q = v3Pools.get(pool)!;
-        if (!token0s[i] || poolFees[i] == null) return;
-        const quoteIs0 = String(token0s[i]).toLowerCase() === q;
-        const fee = BigInt(poolFees[i]);
-        for (const sw of swaps[i] ?? []) {
-          const amt = abs(BigInt(quoteIs0 ? sw.amount0 : sw.amount1));
-          addQuote(dailyVolume, q, amt);
-          const lp = (amt * fee) / 1_000_000n;
-          addQuote(dailyFees, q, lp, LABELS.LpFees);
-          addQuote(dailySupplySideRevenue, q, lp, LABELS.LpFees);
-        }
-      });
-    }
-
-    // ---- post bond v4 pools
-    for (const l of lockedV4) {
+    for (const l of lockedV4[i]) {
       const q = quoteOfToken.get(String(l.bookToken).toLowerCase());
       const poolId = String(l.poolId).toLowerCase();
-      if (!q || !/^0x[0-9a-f]{64}$/.test(poolId)) continue;
-      const book = String(l.bookToken).toLowerCase();
-      const quoteIs0 = BigInt(q) < BigInt(book);
-      const swaps = await options.getLogs({
-        target: UNI_V4_POOL_MANAGER,
-        topics: [UNI_V4_SWAP_TOPIC0, poolId],
-        eventAbi: UNI_V4_SWAP,
-      });
-      for (const sw of swaps) {
+      if (q && /^0x[0-9a-f]{64}$/.test(poolId)) v4Pools.set(poolId, { quote: q, book: String(l.bookToken).toLowerCase() });
+    }
+  });
+
+  // ---- post bond v3 pools
+  if (v3Pools.size) {
+    const pools = [...v3Pools.keys()];
+    const [token0s, poolFees, swaps] = await Promise.all([
+      options.api.multiCall({ abi: "address:token0", calls: pools }),
+      options.api.multiCall({ abi: "uint24:fee", calls: pools }),
+      options.getLogs({ targets: pools, eventAbi: EV.v3Swap, flatten: false }),
+    ]);
+    pools.forEach((pool, i) => {
+      const q = v3Pools.get(pool)!;
+      const quoteIs0 = String(token0s[i]).toLowerCase() === q;
+      const fee = BigInt(poolFees[i]);
+      for (const sw of swaps[i]) {
         const amt = abs(BigInt(quoteIs0 ? sw.amount0 : sw.amount1));
-        addQuote(dailyVolume, q, amt);
-        const lp = (amt * BigInt(sw.fee)) / 1_000_000n;
+        const lp = (amt * fee) / 1_000_000n;
         addQuote(dailyFees, q, lp, LABELS.LpFees);
         addQuote(dailySupplySideRevenue, q, lp, LABELS.LpFees);
       }
-    }
+    });
   }
+
+  const v4 = [...v4Pools.entries()];
+  const v4Swaps = await Promise.all(
+    v4.map(([poolId]) =>
+      options.getLogs({ target: UNI_V4_POOL_MANAGER, topics: [UNI_V4_SWAP_TOPIC0, poolId], eventAbi: UNI_V4_SWAP }),
+    ),
+  );
+  v4.forEach(([, { quote: q, book }], i) => {
+    const quoteIs0 = BigInt(q) < BigInt(book);
+    for (const sw of v4Swaps[i]) {
+      const amt = abs(BigInt(quoteIs0 ? sw.amount0 : sw.amount1));
+      const lp = (amt * BigInt(sw.fee)) / 1_000_000n;
+      addQuote(dailyFees, q, lp, LABELS.LpFees);
+      addQuote(dailySupplySideRevenue, q, lp, LABELS.LpFees);
+    }
+  });
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
 };
@@ -234,38 +235,36 @@ const adapter: SimpleAdapter = {
   },
   methodology: {
     Volume:
-      "Book (TOKENIZE.FUN) launch curve buys (gross quote in) and sells (gross quote out) plus the quote side of every swap on the locked Uniswap v3 / v4 pool each Book bonds into.",
+      "Trading in Book tokens on TOKENIZE.FUN (a Book is a token backed by one trader's vault): buys and sells on each Book's launch curve, tax included. Swaps in the Uniswap v3 or v4 pool a Book moves to once it bonds are excluded. Only Books priced in WETH or STONKBROKER are counted.",
     Fees:
-      "The decaying anti snipe tax on curve buys and sells, the pool fee on swaps in each Book's locked pool, and the 2% close fee on the Book's closing NAV.",
-    Revenue: "The 8.33% protocol leg of the anti snipe tax (plus the 8.34% remainder on non WETH books) and the protocol half of the close fee.",
-    ProtocolRevenue: "Same as Revenue, paid to the StonkBrokers treasury.",
+      "Paid by Book traders and holders: the anti-snipe tax on launch-curve buys and sells (it decays after a Book launches), the swap fee in each Book's locked Uniswap pool, and a 2% fee on a Book's closing value when its epoch ends and the vault is liquidated.",
+    Revenue:
+      "The StonkBrokers protocol's share of fees: 8.33% of the anti-snipe tax (16.67% on Books not priced in WETH, which have no StockBooster share) and half of the 2% close fee.",
+    ProtocolRevenue:
+      "8.33% of the anti-snipe tax (16.67% on Books not priced in WETH) and half of the 2% close fee, paid to the StonkBrokers treasury.",
     SupplySideRevenue:
-      "75% of the anti snipe tax to the Book vault, 8.33% to the creator, 8.34% to the StockBooster on WETH books, locked pool LP fees to Book LP stakers and the vault, and the Mancer (host) half of the close fee.",
+      "Fees paid out to others: 75% of the anti-snipe tax into the Book's vault for its holders, 8.33% to the Book's creator, 8.34% on WETH Books to StockBooster dividends for activated StonkBrokers, all swap fees from the locked pools to Book LP stakers and the vault, and half of the 2% close fee to Mancer, which hosts Books.",
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.TaxVault]: "75% of the anti snipe tax, paid into the Book's ERC-6551 vault.",
-      [LABELS.TaxCreator]: "8.33% of the anti snipe tax, paid to the Book creator.",
-      [LABELS.TaxProtocol]: "8.33% of the anti snipe tax to the treasury, plus the 8.34% remainder on non WETH books.",
-      [LABELS.TaxBooster]: "8.34% remainder of the anti snipe tax on WETH books, paid to the StockBooster (Clock In).",
-      [LABELS.LpFees]: "Pool fee on the quote side of swaps in each Book's locked Uniswap v3 / v4 pool.",
-      [LABELS.CloseProtocol]: "1% of the Book's closing NAV, paid to the protocol treasury.",
-      [LABELS.CloseMancer]: "1% of the Book's closing NAV, paid to Mancer, the Books host.",
+      [LABELS.Tax]: "Anti-snipe tax on launch-curve buys and sells, which decays after a Book launches. 75% goes to the Book's vault, 8.33% to the creator, 8.33% to the treasury and 8.34% to StockBooster (to the treasury on Books not priced in WETH).",
+      [LABELS.LpFees]: "Swap fee on trades in each Book's locked Uniswap v3 or v4 pool, measured on the WETH or STONKBROKER side.",
+      [LABELS.CloseFee]: "2% of the Book's closing value when its epoch ends and the vault is liquidated, split evenly between the StonkBrokers treasury and Mancer, which hosts Books.",
     },
     Revenue: {
-      [LABELS.TaxProtocol]: "Protocol leg of the anti snipe tax.",
-      [LABELS.CloseProtocol]: "Protocol half of the close fee.",
+      [LABELS.TaxProtocol]: "8.33% of the anti-snipe tax (16.67% on Books not priced in WETH), kept by the protocol.",
+      [LABELS.CloseProtocol]: "Half of the 2% close fee, kept by the protocol.",
     },
     ProtocolRevenue: {
-      [LABELS.TaxProtocol]: "Protocol leg of the anti snipe tax.",
-      [LABELS.CloseProtocol]: "Protocol half of the close fee.",
+      [LABELS.TaxProtocol]: "8.33% of the anti-snipe tax (16.67% on Books not priced in WETH), paid to the StonkBrokers treasury.",
+      [LABELS.CloseProtocol]: "Half of the 2% close fee, paid to the StonkBrokers treasury.",
     },
     SupplySideRevenue: {
-      [LABELS.TaxVault]: "Book vault leg of the anti snipe tax.",
-      [LABELS.TaxCreator]: "Creator leg of the anti snipe tax.",
-      [LABELS.TaxBooster]: "StockBooster leg of the anti snipe tax on WETH books.",
-      [LABELS.LpFees]: "Locked pool LP fees.",
-      [LABELS.CloseMancer]: "Mancer half of the close fee.",
+      [LABELS.TaxVault]: "75% of the anti-snipe tax, paid into the Book's vault for its holders.",
+      [LABELS.TaxCreator]: "8.33% of the anti-snipe tax, paid to the Book's creator.",
+      [LABELS.TaxBooster]: "8.34% of the anti-snipe tax on WETH Books, paid to StockBooster dividends for activated StonkBrokers.",
+      [LABELS.LpFees]: "All swap fees from the locked Book pools, paid to Book LP stakers and the Book vault's own LP position.",
+      [LABELS.CloseMancer]: "Half of the 2% close fee, paid to Mancer, which hosts Books.",
     },
   },
 };
