@@ -55,12 +55,13 @@ const DEFAULTS: any = {
   FLARE_WHITELISTED_RPC: 'https://rpc.ankr.com/flare,https://flare.rpc.thirdweb.com',
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
-  ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
-  // Whitelisted so the sdk uses only these three (ROBINHOOD_RPC is prepended to providers.json, not a replacement).
-  // The official RPC stays first (getLogs, latest reads) but keeps only minutes of state; most providers.json hosts are
-  // pruned too, so an eth_call at a past block failed on 7 of 7 attempts. blockmachine and thirdweb serve historical
-  // eth_call (tested back to 2026-10-20) and are the fallbacks tried after the official RPC.
-  ROBINHOOD_WHITELISTED_RPC: 'https://rpc.mainnet.chain.robinhood.com,https://rpc-robinhood.blockmachine.io,https://4663.rpc.thirdweb.com',
+  // ROBINHOOD_RPC is prepended to the providers.json list (which already holds the official RPC and 11 others), so these
+  // two hosts lead eth_call: an eth_call at a past block fails on the official RPC (it keeps minutes of state) and on most
+  // providers.json hosts, while blockmachine and thirdweb serve it (tested back to 2026-10-20).
+  ROBINHOOD_RPC: 'https://rpc-robinhood.blockmachine.io,https://4663.rpc.thirdweb.com',
+  ROBINHOOD_ARCHIVAL_RPC: 'https://rpc.mainnet.chain.robinhood.com', // getLogs leads with the official RPC (blockmachine caps ranges at 10k blocks, thirdweb caps response size)
+  ROBINHOOD_RPC_MAX_PARALLEL: '10', // the public hosts answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
+  ROBINHOOD_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
   // rpc.mainnet.arc.io 429s every archival read, even a single batch of 50 after sitting idle.
