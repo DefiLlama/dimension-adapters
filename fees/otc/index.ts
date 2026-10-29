@@ -133,12 +133,12 @@ const fetch = async (options: FetchOptions) => {
   dailyProtocolRevenue.add(SOL, mintProtocol, LABELS.MINT_SURCHARGE);
   dailyHoldersRevenue.add(SOL, launcherBuyback, LABELS.BUYBACK);
   dailyHoldersRevenue.add(SOL, launcherDividends, LABELS.DIVIDENDS);
+  dailyHoldersRevenue.add(SOL, launcherPot + otcPot, LABELS.DESK_POT);
+  dailyHoldersRevenue.add(SOL, mintPot, LABELS.MINT_SURCHARGE);
   dailyRevenue.add(dailyProtocolRevenue);
   dailyRevenue.add(dailyHoldersRevenue);
 
   dailySupplySideRevenue.add(SOL, holderRewards, LABELS.HOLDER_REWARDS);
-  dailySupplySideRevenue.add(SOL, launcherPot + otcPot, LABELS.DESK_POT);
-  dailySupplySideRevenue.add(SOL, mintPot, LABELS.MINT_SURCHARGE);
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -154,10 +154,10 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // launcher coin creator fees are also counted by the Pump.fun / PumpSwap listings
   methodology: {
     Fees: "Creator fees from coins launched on OTC (Pump.fun bonding curve and PumpSwap), which are routed to OTC's fee wallets, plus the creator fees of the $OTC token itself, plus the 0.5 SOL surcharge paid on every Desk NFT mint (refundable account rent excluded). Meteora launches, whose fees are claimed in the quote token, are not tracked yet.",
-    Revenue: "Protocol share (including 0.05 SOL per Desk mint) plus SOL used to buy back and burn $OTC and SOL dividends paid to $OTC holders.",
+    Revenue: "Protocol share plus holders revenue: SOL used to buy back and burn $OTC, SOL dividends paid to $OTC holders, and the Desk pot paid to Desk NFT owners (including the full 0.5 SOL Desk mint surcharge).",
     ProtocolRevenue: "Share of launcher fees sent to the OTC protocol wallet (12.5% since Oct 3 2026) plus 50% of $OTC's own creator fees, plus 0.05 SOL of each Desk mint surcharge.",
-    HoldersRevenue: "Share of launcher fees used to buy back and burn $OTC (10% since Oct 3 2026) and, from Sep 13 to Oct 2 2026, 5% paid as SOL dividends to $OTC holders.",
-    SupplySideRevenue: "Rewards bought for each launcher coin's holders (67.5% since Oct 3 2026) plus the Desk pot paid to Desk NFT owners (10% of launcher fees, 50% of $OTC's own creator fees and 0.45 SOL of each Desk mint surcharge).",
+    HoldersRevenue: "Share of launcher fees used to buy back and burn $OTC (10% since Oct 3 2026), 5% paid as SOL dividends to $OTC holders from Sep 13 to Oct 2 2026, and the Desk pot paid to Desk NFT owners (10% of launcher fees, 50% of $OTC's own creator fees and 0.45 SOL of each Desk mint surcharge).",
+    SupplySideRevenue: "Rewards bought for each launcher coin's holders (67.5% since Oct 3 2026).",
   },
   breakdownMethodology: {
     Fees: {
@@ -166,7 +166,8 @@ const adapter: SimpleAdapter = {
       [LABELS.MINT_SURCHARGE]: "0.5 SOL surcharge paid on each Desk NFT mint (0.45 SOL to the Desk pot, 0.05 SOL to the protocol). Refundable account rent and the burned $OTC deposit are excluded.",
     },
     Revenue: {
-      [LABELS.MINT_SURCHARGE]: "0.05 SOL protocol share of each Desk NFT mint surcharge.",
+      [LABELS.MINT_SURCHARGE]: "0.5 SOL Desk NFT mint surcharge (0.05 SOL protocol share plus 0.45 SOL to the Desk pot).",
+      [LABELS.DESK_POT]: "Launcher fee share and 50% of $OTC creator fees sent to the Desk pot, paid out to Desk NFT owners.",
       [LABELS.PROTOCOL]: "Launcher fee share and $OTC creator fee share sent to the OTC protocol wallet.",
       [LABELS.BUYBACK]: "Launcher fee share sent to the buyback wallet, which buys $OTC on Jupiter and burns it.",
       [LABELS.DIVIDENDS]: "SOL dividends to $OTC holders (Sep 13 - Oct 2 2026).",
@@ -178,11 +179,11 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: {
       [LABELS.BUYBACK]: "Launcher fee share sent to the buyback wallet, which buys $OTC on Jupiter and burns it.",
       [LABELS.DIVIDENDS]: "SOL dividends to $OTC holders (Sep 13 - Oct 2 2026).",
+      [LABELS.DESK_POT]: "Launcher fee share and 50% of $OTC creator fees sent to the Desk pot, paid out to Desk NFT owners.",
+      [LABELS.MINT_SURCHARGE]: "0.45 SOL of each Desk NFT mint surcharge, sent to the Desk pot and paid out to Desk NFT owners.",
     },
     SupplySideRevenue: {
       [LABELS.HOLDER_REWARDS]: "Launcher fees kept in the fee wallet and spent on the reward token (stocks, pre-IPO, yield tokens) airdropped to each coin's holders, including transfer rent.",
-      [LABELS.DESK_POT]: "Launcher fee share and 50% of $OTC creator fees sent to the Desk pot, paid out to Desk NFT owners.",
-      [LABELS.MINT_SURCHARGE]: "0.45 SOL of each Desk NFT mint surcharge, sent to the Desk pot and paid out to Desk NFT owners.",
     },
   },
 };
