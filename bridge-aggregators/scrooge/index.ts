@@ -75,9 +75,11 @@ const fetch = async (options: FetchOptions) => {
   return { dailyBridgeVolume };
 };
 
-// A day at a time, as aggregators/scrooge runs: one read of each chain's logs a day rather than one an hour.
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  // Pulled a day at a time: each window reads Relay's requests API and the logs of every listed chain, and read hourly
+  // the smaller chains' public RPCs refused (World Chain answered 400 and 429 in this adapter's first test).
+  pullHourly: false,
   fetch,
   prefetch: fetchRelayTotals as any,
   adapter: Object.fromEntries([
