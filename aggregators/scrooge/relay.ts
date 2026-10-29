@@ -1,5 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 import { getRelayApiKey, getRelayPage, RELAY_CHAINS, RELAY_REQUESTS_API } from "../../helpers/relay";
+import { getEnv } from "../../helpers/env";
 
 // Scrooge's swaps and transfers through Relay, shared by aggregators/scrooge (swaps on one chain) and
 // bridge-aggregators/scrooge (across chains). Scrooge quotes Relay with its own API key, so every request it makes is
@@ -27,8 +28,14 @@ const add = (totals: Record<string, number>, chain: string, usd: number) => { to
 // Every request under Scrooge's app id pays Scrooge's fee wallet; one that does not means the filter was not applied,
 // and the run stops rather than count all of Relay.
 export const fetchRelayTotals = async (options: FetchOptions): Promise<RelayTotals> => {
-  const apiKey = getRelayApiKey();
   const totals: RelayTotals = { crossChain: {}, sameChain: {}, sameChainFees: {} };
+  // Relay's API needs a key. A run without one (a pull request's CI has no secrets) counts no Relay volume and says so,
+  // rather than failing every chain.
+  if (!getEnv("RELAY_API_KEY")) {
+    console.log("scrooge: RELAY_API_KEY is not set, Relay volume is not counted");
+    return totals;
+  }
+  const apiKey = getRelayApiKey();
   let continuation: string | undefined;
   do {
     const page = await getRelayPage(`${RELAY_REQUESTS_API}?appId=${RELAY_APP_ID}&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp}&limit=100&sortBy=createdAt&sortDirection=asc&status=success${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ""}`, apiKey);

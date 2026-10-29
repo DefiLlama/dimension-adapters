@@ -1,6 +1,7 @@
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
+import { getEnv } from "../../helpers/env";
 
 // Scrooge's swaps on Solana. Scrooge builds them on Jupiter's v6 program and has the trader pay Scrooge's fee in the
 // swap's own transaction, either as SOL to Scrooge's Solana fee wallet or, on a swap to or from SOL, as Jupiter's
@@ -107,6 +108,12 @@ const query = (options: FetchOptions) => `
 
 /** A day's swaps through Scrooge on Solana: their worth in dollars and Scrooge's fee in lamports. */
 export async function fetchSolanaSwaps(options: FetchOptions): Promise<{ volumeUsd: number; feeLamports: number }> {
+  // Dune needs a key. A run without one (a pull request's CI has no secrets) counts nothing on Solana and says so, rather
+  // than failing every chain.
+  if (!getEnv("DUNE_API_KEYS")) {
+    console.log("scrooge: DUNE_API_KEYS is not set, Solana is not counted");
+    return { volumeUsd: 0, feeLamports: 0 };
+  }
   // Dune indexes Solana with a delay, as aggregators/jupiter-aggregator allows for.
   if (options.toTimestamp * 1000 > Date.now() - 10 * 60 * 60 * 1000) throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   const [row] = await queryDuneSql(options, query(options));
