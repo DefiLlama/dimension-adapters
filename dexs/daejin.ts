@@ -7,16 +7,31 @@ import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
 //  - AMM markets (PredictionMarket): every bet emits BetPlaced with the cash paid and the token.
 //  - Order-book markets (ClobExchange): the matching engine's bridge settles each fill on-chain
 //    with settleFill (two signed orders) or ammFill (one order against the AMM pool).
+//
+// Deployments (https://daejin.xyz). PredictionMarket and ClobExchange are ERC-1967 (UUPS)
+// proxies; the events and views used here are on the implementation each proxy points to.
+//  Ethereum
+//   PredictionMarket https://etherscan.io/address/0xA528f636bAE87FF2c3e4d5718313cfC38C1B0be9
+//   ClobExchange     https://etherscan.io/address/0x9b00A64FF4a8F72D6Ff463fFe3acBC01cf5DB24f
+//   collateral       Circle USDC, 6 decimals
+//                    https://etherscan.io/token/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+//  BNB Chain
+//   PredictionMarket https://bscscan.com/address/0x7B8F913097242e21895F3731206F07d753170c07
+//   ClobExchange     https://bscscan.com/address/0x792a699e6A35566Ae293AD560698C41917B27b02
+//   collateral       Binance-Peg USDC, 18 decimals
+//                    https://bscscan.com/token/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
+// The collateral is the paymentToken of every order-book market created so far on each chain
+// (ClobExchange.markets(id).paymentToken); the AMM path takes the token from the event itself.
 const CONTRACTS: Record<string, { predictionMarket: string; clobExchange: string; collateral: string }> = {
   [CHAIN.ETHEREUM]: {
     predictionMarket: "0xA528f636bAE87FF2c3e4d5718313cfC38C1B0be9",
     clobExchange: "0x9b00A64FF4a8F72D6Ff463fFe3acBC01cf5DB24f",
-    collateral: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC, 6 decimals
+    collateral: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
   },
   [CHAIN.BSC]: {
     predictionMarket: "0x7B8F913097242e21895F3731206F07d753170c07",
     clobExchange: "0x792a699e6A35566Ae293AD560698C41917B27b02",
-    collateral: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", // USDC, 18 decimals
+    collateral: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
   },
 };
 
@@ -28,6 +43,9 @@ const NATIVE = "0x0000000000000000000000000000000000000000";
 // One event per fill. size is in shares (1 share = 1 raw collateral unit at resolution),
 // execPrice is the YES price in ticks out of PRICE_TICKS. The outcome each side traded is not
 // in the event, so it is read from the settlement call's calldata below.
+// PRICE_TICKS is the exchange's public constant: ClobExchange.PRICE_TICKS() returns 1000 on
+// both chains (price 1000 = 1 collateral unit per share), and the contract charges a leg
+// price * size / PRICE_TICKS, which legCash mirrors.
 const FILL_SETTLED =
   "event FillSettled(uint256 indexed marketId, bytes32 hashA, bytes32 hashB, uint256 execPrice, uint256 size, uint256 totalFee)";
 const AMM_FILLED =
