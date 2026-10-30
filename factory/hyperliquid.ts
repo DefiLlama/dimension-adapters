@@ -605,7 +605,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "superx": superxConfig,
   "supurr-perps": { addresses: ["0x36be02a397e969e010ccbd7333f4169f66b8989f"], start: "2025-09-19" },
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
-  "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
   "valiant-perps": {
     addresses: ["0x751d254c07f7a4b454eb5c2a23ebe3adf1a4eaec"],
     start: "2025-02-08",
