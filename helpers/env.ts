@@ -55,6 +55,12 @@ const DEFAULTS: any = {
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
+  // Whitelisted: an eth_call at a past block fails on the official RPC (it keeps minutes of state) and on most providers.json
+  // hosts, and the sdk retries only 6 random hosts, so a past-block read could miss every archive host. The official RPC
+  // leads (getLogs, latest reads); the other four serve historical eth_call (tested back to 2026-10-20; degenprotocol ~1 day).
+  ROBINHOOD_WHITELISTED_RPC: 'https://rpc.mainnet.chain.robinhood.com,https://rpc-robinhood.blockmachine.io,https://4663.rpc.thirdweb.com,https://robinhood.api.pocket.network,https://rpc.degenprotocol.io/robinhood',
+  ROBINHOOD_RPC_MAX_PARALLEL: '10', // the public hosts answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
+  ROBINHOOD_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
   // rpc.mainnet.arc.io 429s every archival read, even a single batch of 50 after sitting idle.
