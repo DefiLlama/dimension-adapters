@@ -95,7 +95,8 @@ const fetch = async (options: FetchOptions) => {
       });
     };
     const dayClaims = await getCapLogs(CLAIMED, dayFromBlock, toBlock);
-    const revenueEvents = dayClaims.map(log => ({ blockNumber: Number(log.blockNumber), amount: BigInt(log.args.nvda) }));
+    // The ops share leaves the sink in the claim call, so only the net claim can fund holders revenue.
+    const revenueEvents = dayClaims.map(log => ({ blockNumber: Number(log.blockNumber), amount: BigInt(log.args.nvda) - BigInt(log.args.ops) }));
     const dayPayments = await getCapLogs(FORWARDED, dayFromBlock, toBlock);
     if (dayPayments.length) {
       const bells = await getCapLogs(BELL, dayFromBlock - BELL_LOOKBACK_BLOCKS, toBlock);
