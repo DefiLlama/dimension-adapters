@@ -33,6 +33,12 @@
 // Before 2026-10-02 the 25% liquidity share was held in a vault per coin (to_vault, to_overflow); those vaults were
 // then moved into the same $SAPLING/ZEC liquidity. From 2026-10-02 the share goes there directly (ToLiquidity).
 //
+// Raydium LaunchLab (from 2026-10-28): a coin planted on LaunchLab is a token with a transfer fee of Sapling's 2.00% plus
+// the deployer's tax (none to 3%). The tax collected and, after graduation, Sapling's fees from the coin's locked pool
+// position are sold to ZEC and settled per coin (TaxSettled): Sapling's part a quarter each to the treasury, the flywheel
+// (buys back and burns the top Sapling coins), $SAPLING buyback and burn, and the protocol-owned $SAPLING/ZEC pool; the
+// deployer's part to the coin's payee. A platform fee claimed from the curve is split the same four ways (FeesSplit).
+//
 // Robinhood Chain: Sapling plants native Pons coins through its venue (0xFdc8f5a657073829f1cAC5e2488519Ed3B463dbF),
 // which sets Sapling's splitter as each coin's creator fee recipient with a 2% creator tax. Pons pays the splitter the
 // 2% tax plus the creator's 70% of its 1% fee, in USDG, through its fee escrow. The splitter emits one Split event per
@@ -57,6 +63,9 @@ const TREASURY = "FauKh2enCxjqMDaEEmo3qMmA9toxyZPFvPhGEZNMzChr"; // vault Config
 // coin on pump.fun
 const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const PUMP_CREATES = ["181ec828051c0777", "d6904cec5f8b31b4"]; // pump.fun create, create_v2: sha256("global:<name>")[0..8]
+// From 2026-10-28 coins are also planted on Raydium LaunchLab (initialize_with_token_2022), with the same planting fee
+const LAUNCHLAB_PROGRAM = "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj";
+const LAUNCHLAB_CREATES = ["25be7ede2c9aab11"];
 
 // Robinhood Chain deployment (2026-10-20): Sapling's fee splitter, and the holder rewards contract that a coin's payee can be
 const RH_SPLITTER = "0x8c0F2F294F9a00ECCFbE778b9cD65B7C3C0aEf59";
@@ -86,6 +95,10 @@ const EVENT = {
   SaplingSettled: { discriminator: "8C09C6B99F8AA542", size: 80 },
   SaplingConverted: { discriminator: "AFC36889823E28C0", size: 96 },
   OrderRan: { discriminator: "ACEE3CC1D2DF2B50", size: 137 },
+  // LaunchLab coins (from 2026-10-28): a platform fee claimed from the curve, split four ways in ZEC
+  FeesSplit: { discriminator: "B8977AF987030681", size: 80 },
+  // and, per coin, its sold tax (Sapling's 2.00% and the deployer's) with the graduated pool's fees, settled in ZEC
+  TaxSettled: { discriminator: "EC08F74D40A848AD", size: 144 },
 };
 // Vault instructions that emit none of the events above, so truncated logs lose nothing when a transaction only calls
 // these: declare_payee, sha256("global:declare_payee")[0..8], run when a coin is planted, records the coin's payee and
@@ -104,10 +117,15 @@ const LABELS = {
   TO_DEPLOYERS: "Coin Trading Fees To Deployers",
   TO_COIN_HOLDERS: "Coin Trading Fees To Coin Holders",
   TO_UNATTRIBUTED_PAYEES: "Coin Trading Fees To Deployers Or Coin Holders",
+  FLYWHEEL: "Sapling Coins Buyback And Burn",
+  TAX_TO_PAYEES: "Coin Tax To Deployers Or Coin Holders",
 };
 
 const events = (program: string, event: { discriminator: string; size: number }) =>
   `FROM program_events WHERE program = '${program}' AND STARTSWITH(data, '${event.discriminator}') AND LENGTH(data) = ${2 * event.size}`;
+
+const PLANTING_CREATES = `((program_id = '${PUMP_PROGRAM}' AND data_hex_first16 IN (${PUMP_CREATES.map((d) => `'${d}'`).join(", ")}))
+      OR (program_id = '${LAUNCHLAB_PROGRAM}' AND data_hex_first16 IN (${LAUNCHLAB_CREATES.map((d) => `'${d}'`).join(", ")})))`;
 
 const fetchSolana = async (options: FetchOptions) => {
   const [row] = await queryAllium(`${programEventsSql([VAULT_PROGRAM, GUARD_PROGRAM], options, QUIET_INSTRUCTIONS)},
@@ -127,12 +145,31 @@ const fetchSolana = async (options: FetchOptions) => {
     SELECT ${u64("data", 80)} AS to_deployer, ${u64("data", 88)} AS to_treasury
     ${events(VAULT_PROGRAM, EVENT.SaplingConverted)}
   ),
+  fees_split AS (
+    -- FeesSplit: amount u64 @8 | to_buyback u64 @16 | to_pool u64 @24 | to_grove u64 @32 | to_treasury u64 @40
+    SELECT ${u64("data", 8)} AS amount, ${u64("data", 16)} AS to_buyback, ${u64("data", 24)} AS to_pool,
+      ${u64("data", 32)} AS to_grove, ${u64("data", 40)} AS to_treasury
+    ${events(VAULT_PROGRAM, EVENT.FeesSplit)}
+  ),
+  tax_settled AS (
+    -- TaxSettled: amount u64 @40 (tax_zec + fee_zec) | to_buyback @48 | to_pool_pot @56 | to_grove_pot @64 | to_treasury @72 |
+    -- to_deployer @80 (with what accrued before) | tax_zec @88 | fee_zec @96; the deployer's part of this settle is the
+    -- amount less Sapling's four buckets
+    SELECT ${u64("data", 40)} AS amount, ${u64("data", 48)} AS to_buyback, ${u64("data", 56)} AS to_pool,
+      ${u64("data", 64)} AS to_grove, ${u64("data", 72)} AS to_treasury, ${u64("data", 88)} AS tax, ${u64("data", 96)} AS fee
+    ${events(VAULT_PROGRAM, EVENT.TaxSettled)}
+  ),
+  launchlab_buckets AS (
+    SELECT to_buyback, to_pool, to_grove, to_treasury FROM fees_split
+    UNION ALL
+    SELECT to_buyback, to_pool, to_grove, to_treasury FROM tax_settled
+  ),
   planting_txs AS (
     SELECT txn_id FROM solana.raw.instructions
-    WHERE ${timeFilter(options)} AND program_id = '${PUMP_PROGRAM}' AND data_hex_first16 IN (${PUMP_CREATES.map((d) => `'${d}'`).join(", ")})
+    WHERE ${timeFilter(options)} AND ${PLANTING_CREATES}
     UNION ALL
     SELECT txn_id FROM solana.raw.inner_instructions
-    WHERE ${timeFilter(options)} AND program_id = '${PUMP_PROGRAM}' AND data_hex_first16 IN (${PUMP_CREATES.map((d) => `'${d}'`).join(", ")})
+    WHERE ${timeFilter(options)} AND ${PLANTING_CREATES}
   )
   SELECT checks.*,
     -- a known event with an unexpected size: its layout changed and the offsets below no longer hold
@@ -150,6 +187,14 @@ const fetchSolana = async (options: FetchOptions) => {
     (SELECT SUM(to_treasury) FROM sapling_converted)::VARCHAR AS converted_treasury,
     -- OrderRan: sapling_fee u64 @121
     (SELECT SUM(${u64("data", 121)}) ${events(GUARD_PROGRAM, EVENT.OrderRan)})::VARCHAR AS account_fees,
+    (SELECT SUM(amount) FROM fees_split)::VARCHAR AS ll_curve_fees,
+    (SELECT SUM(fee) FROM tax_settled)::VARCHAR AS ll_pool_fees,
+    (SELECT SUM(tax) FROM tax_settled)::VARCHAR AS ll_tax,
+    (SELECT SUM(amount - to_buyback - to_pool - to_grove - to_treasury) FROM tax_settled)::VARCHAR AS ll_tax_payees,
+    (SELECT SUM(to_buyback) FROM launchlab_buckets)::VARCHAR AS ll_buyback,
+    (SELECT SUM(to_pool) FROM launchlab_buckets)::VARCHAR AS ll_pool,
+    (SELECT SUM(to_grove) FROM launchlab_buckets)::VARCHAR AS ll_grove,
+    (SELECT SUM(to_treasury) FROM launchlab_buckets)::VARCHAR AS ll_treasury,
     (SELECT SUM(raw_amount) FROM solana.assets.transfers
       WHERE ${timeFilter(options)} AND transfer_type = 'sol_transfer' AND type = 'transfer' AND to_address = '${TREASURY}'
         AND txn_id IN (SELECT txn_id FROM planting_txs))::VARCHAR AS planting_fees
@@ -179,16 +224,32 @@ const fetchSolana = async (options: FetchOptions) => {
     [ZEC, row.account_fees, LABELS.ACCOUNT_FEES, LABELS.ACCOUNT_TO_TREASURY, "protocol"],
     [SOL, row.planting_fees, LABELS.PLANTING_FEES, LABELS.PLANTING_TO_TREASURY, "protocol"],
   ];
-  // a sum over no rows is absent from the response: nothing of that kind happened in an indexed window
-  for (const [token, amount, source, destination, metric] of parts) {
-    dailyFees.add(token, amount ?? 0, source);
+  const direct = (token: string, amount: string | undefined, destination: string, metric: "protocol" | "holders" | "supply") => {
     if (metric === "supply") {
       dailySupplySideRevenue.add(token, amount ?? 0, destination);
     } else {
       dailyRevenue.add(token, amount ?? 0, destination);
       (metric === "protocol" ? dailyProtocolRevenue : dailyHoldersRevenue).add(token, amount ?? 0, destination);
     }
+  };
+  // a sum over no rows is absent from the response: nothing of that kind happened in an indexed window
+  for (const [token, amount, source, destination, metric] of parts) {
+    dailyFees.add(token, amount ?? 0, source);
+    direct(token, amount, destination, metric);
   }
+
+  // LaunchLab coins: what traders paid (the coin's transfer tax, Sapling's fees from the graduated pool, a platform fee
+  // from the curve), then where it went: Sapling's part in four equal buckets (treasury, the flywheel that buys back and
+  // burns the top Sapling coins, $SAPLING buyback and burn, the protocol-owned $SAPLING/ZEC pool), the deployer's tax to
+  // the coin's payee
+  dailyFees.add(ZEC, row.ll_curve_fees ?? 0, LABELS.COIN_FEES);
+  dailyFees.add(ZEC, row.ll_pool_fees ?? 0, LABELS.COIN_FEES);
+  dailyFees.add(ZEC, row.ll_tax ?? 0, LABELS.COIN_FEES);
+  direct(ZEC, row.ll_treasury, LABELS.TO_TREASURY, "protocol");
+  direct(ZEC, row.ll_grove, LABELS.FLYWHEEL, "protocol");
+  direct(ZEC, row.ll_buyback, LABELS.BUYBACK, "holders");
+  direct(ZEC, row.ll_pool, LABELS.LIQUIDITY, "holders");
+  direct(ZEC, row.ll_tax_payees, LABELS.TAX_TO_PAYEES, "supply");
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -266,39 +327,42 @@ const fetchRobinhood = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee on every buy and sell of a coin planted through Sapling, both paid to Sapling's splitter, plus the planting fee and the Zcash account fee, paid in USDG to the treasury.",
-  Revenue: "The part of the 2% coin trading fee Sapling keeps (10% treasury, 25% $SAPLING buyback and burn, 25% $SAPLING/ZEC liquidity), plus the planting fee and the Zcash account fee. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
-  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
-  HoldersRevenue: "50% of the 2% coin trading fee: 25% buys and burns $SAPLING, and 25% goes to the $SAPLING/ZEC pool on PumpSwap, where about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
-  SupplySideRevenue: "40% of the 2% coin trading fee, paid to each coin's deployer, a wallet they choose, or the holders of that coin as holder rewards (on Robinhood Chain, 40% of what reaches Sapling's splitter).",
+  Fees: "The 2% fee on every buy and sell of a coin launched on Sapling, the flat fee paid to plant a coin, and Sapling's fee on buys, plantings and sales made from a Zcash account. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee on every buy and sell of a coin planted through Sapling, both paid to Sapling's splitter, plus the planting fee and the Zcash account fee, paid in USDG to the treasury. On Raydium LaunchLab (from 2026-10-28): each coin's transfer fee of Sapling's 2.00% plus the deployer's tax (none to 3%), and Sapling's fees from the coin's graduated pool.",
+  Revenue: "The part of the 2% coin trading fee Sapling keeps (10% treasury, 25% $SAPLING buyback and burn, 25% $SAPLING/ZEC liquidity), plus the planting fee and the Zcash account fee. For LaunchLab coins, all of Sapling's 2.00% (a quarter each to the treasury, the flywheel, $SAPLING buyback and burn, and the protocol-owned $SAPLING/ZEC pool). On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
+  ProtocolRevenue: "The treasury's share: 10% of the 2% coin trading fee, plus the planting fee and the Zcash account fee. For LaunchLab coins, the treasury's and the flywheel's quarters of Sapling's 2.00%. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee.",
+  HoldersRevenue: "50% of the 2% coin trading fee: 25% buys and burns $SAPLING, and 25% goes to the $SAPLING/ZEC pool on PumpSwap, where about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it. On Robinhood Chain the shares apply to what reaches Sapling's splitter: the 2% creator tax plus the creator's 70% of Pons's 1% fee. For LaunchLab coins, half of Sapling's 2.00%: $SAPLING buyback and burn, and the protocol-owned $SAPLING/ZEC pool, whose position is locked for good.",
+  SupplySideRevenue: "40% of the 2% coin trading fee, paid to each coin's deployer, a wallet they choose, or the holders of that coin as holder rewards (on Robinhood Chain, 40% of what reaches Sapling's splitter). For LaunchLab coins, the deployer's tax, paid to the deployer's choice: holder rewards, the Zcash Foundation or a wallet.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.COIN_FEES]: "The 2% fee on every buy and sell of a coin launched on Sapling, collected and split on chain by the Sapling vault program. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee, paid to Sapling's splitter and split there.",
+    [LABELS.COIN_FEES]: "The 2% fee on every buy and sell of a coin launched on Sapling, collected and split on chain by the Sapling vault program. On Robinhood Chain: the 2% creator tax plus the creator's 70% of Pons's 1% fee, paid to Sapling's splitter and split there. For LaunchLab coins: the coin's transfer fee (Sapling's 2.00% plus the deployer's tax) and Sapling's fees from the graduated pool, settled in ZEC.",
     [LABELS.ACCOUNT_FEES]: "Sapling's fee on a buy, planting or sale made from a Zcash account.",
     [LABELS.PLANTING_FEES]: "The flat fee paid to the Sapling treasury when a coin is planted, in the same transaction that creates the coin.",
   },
   Revenue: {
-    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%.",
     [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
-    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter.",
-    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.FLYWHEEL]: "A quarter of Sapling's 2.00% on LaunchLab coins, spent buying back and burning the top Sapling coins.",
+    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%.",
+    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%, added to a protocol-owned $SAPLING/ZEC pool whose position is locked for good.",
   },
   ProtocolRevenue: {
-    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.TO_TREASURY]: "10% of the 2% coin trading fee, sent to the Sapling treasury. On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%.",
     [LABELS.PLANTING_TO_TREASURY]: "The flat planting fee, sent to the Sapling treasury.",
     [LABELS.ACCOUNT_TO_TREASURY]: "The Zcash account fee, sent to the Sapling treasury.",
+    [LABELS.FLYWHEEL]: "A quarter of Sapling's 2.00% on LaunchLab coins, spent buying back and burning the top Sapling coins.",
   },
   HoldersRevenue: {
-    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter.",
-    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter.",
+    [LABELS.BUYBACK]: "25% of the 2% coin trading fee, used to buy $SAPLING and burn it (burned directly for coins paired with $SAPLING). On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%.",
+    [LABELS.LIQUIDITY]: "25% of the 2% coin trading fee, added to the $SAPLING/ZEC pool on PumpSwap: about half of it buys $SAPLING, both sides are deposited and the LP tokens are burned, so no one, Sapling included, can withdraw it (held in a vault per coin before 2026-10-02, then moved into the same liquidity). On Robinhood Chain the share is of what reaches Sapling's splitter. For LaunchLab coins, a quarter of Sapling's 2.00%, added to a protocol-owned $SAPLING/ZEC pool whose position is locked for good.",
   },
   SupplySideRevenue: {
     [LABELS.TO_DEPLOYERS]: "40% of the 2% coin trading fee, paid to the coin's deployer or a wallet they choose. On Robinhood Chain the share is of what reaches Sapling's splitter.",
     [LABELS.TO_COIN_HOLDERS]: "40% of the 2% coin trading fee of coins whose deployer chose holder rewards, paid in ZEC to the holders of that coin. On Robinhood Chain the share is of what reaches Sapling's splitter.",
     [LABELS.TO_UNATTRIBUTED_PAYEES]: "On Robinhood Chain, the 40% share of fees Pons's escrow held before a sweep tied them to a coin, paid later to that coin's deployer or holders.",
+    [LABELS.TAX_TO_PAYEES]: "A LaunchLab coin's tax, paid in ZEC to the deployer's choice: the coin's holders as holder rewards, the Zcash Foundation or a wallet.",
   },
 };
 
