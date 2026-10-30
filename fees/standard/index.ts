@@ -257,7 +257,10 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const dailyRevenue = dailyFees.clone();
-  dailyRevenue.subtract(dailySupplySideRevenue);
+  // Net each supply-side line out of revenue under the fee label it came from.
+  for (const [label, breakdown] of Object.entries(dailySupplySideRevenue.getBreakdownBalances())) {
+    dailyRevenue.subtract(breakdown, label === LABELS.informantBounty ? LABELS.exitFees : label);
+  }
   // Protocol revenue is recognised on receipt; buybacks from those balances are
   // recognised as holders revenue when they execute.
   const dailyProtocolRevenue = dailyRevenue.clone();
@@ -267,6 +270,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-09-15",
   fetch,
@@ -308,7 +312,6 @@ const adapter: SimpleAdapter = {
       [LABELS.lpThirdParty]: "Third-party LP share, netted out to the supply side.",
       [LABELS.licenseAuctions]: "License payments retired from supply.",
       [LABELS.exitFees]: "Charter exit fees net of informant bounties.",
-      [LABELS.informantBounty]: "Informant bounties, netted out to the supply side.",
       [LABELS.sbillsExit]: "S-Bills exit fees.",
     },
     ProtocolRevenue: {
@@ -322,7 +325,6 @@ const adapter: SimpleAdapter = {
       [LABELS.lpThirdParty]: "Third-party LP share, netted out to the supply side.",
       [LABELS.licenseAuctions]: "STANDARD paid for licenses.",
       [LABELS.exitFees]: "Charter exit fees net of informant bounties.",
-      [LABELS.informantBounty]: "Informant bounties, netted out to the supply side.",
       [LABELS.sbillsExit]: "S-Bills exit fees.",
     },
     HoldersRevenue: {
