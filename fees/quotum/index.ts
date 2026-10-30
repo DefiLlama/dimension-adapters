@@ -78,38 +78,49 @@ const fetch = async (options: FetchOptions) => {
     const fromBlock = await options.getFromBlock();
     const toBlock = await options.getToBlock();
     const dayFromBlock = await options.getBlock(options.startOfDay, options.chain, {});
-    const dayClaims = await options.getLogs({ target: SINK, eventAbi: CLAIMED, onlyArgs: false,
-      fromBlock: dayFromBlock, toBlock });
-    const revenueEvents = dayClaims.map(log => ({ blockNumber: log.blockNumber, amount: BigInt(log.args.nvda) }));
-    const dayPayments = await options.getLogs({ target: SINK, eventAbi: FORWARDED, onlyArgs: false,
-      fromBlock: dayFromBlock, toBlock });
+    const getCapLogs = async (eventAbi: string, fromBlock: number, toBlock: number) => {
+      const logs = await options.getLogs({ target: SINK, eventAbi, onlyArgs: false, fromBlock, toBlock });
+      const seen = new Set<string>();
+      return logs.filter(log => {
+        const blockNumber = Number(log.blockNumber);
+        if (!(fromBlock <= blockNumber && blockNumber <= toBlock)) return false;
+        const hash = log.transactionHash.toLowerCase();
+        // Without logIndex, fall back to hash + block + JSON args, including bigint values.
+        const key = log.logIndex != null ? `${hash}:${log.logIndex}`
+          : `${hash}:${blockNumber}:${JSON.stringify(log.args, (_, value) => typeof value === 'bigint' ? value.toString() : value)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    const dayClaims = await getCapLogs(CLAIMED, dayFromBlock, toBlock);
+    const revenueEvents = dayClaims.map(log => ({ blockNumber: Number(log.blockNumber), amount: BigInt(log.args.nvda) }));
+    const dayPayments = await getCapLogs(FORWARDED, dayFromBlock, toBlock);
     if (dayPayments.length) {
-      const bells = await options.getLogs({ target: SINK, eventAbi: BELL, onlyArgs: false,
-        fromBlock: dayFromBlock - BELL_LOOKBACK_BLOCKS, toBlock });
-      bells.sort((a, b) => a.blockNumber - b.blockNumber);
+      const bells = await getCapLogs(BELL, dayFromBlock - BELL_LOOKBACK_BLOCKS, toBlock);
+      bells.sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber));
       for (const payment of dayPayments) {
         const amount = BigInt(payment.args.nvda);
-        const bell = bells.filter(b => b.blockNumber <= payment.blockNumber).pop();
+        const bell = bells.filter(b => Number(b.blockNumber) <= Number(payment.blockNumber)).pop();
         if (!bell) throw new Error(`No Bell before forward ${payment.transactionHash}`);
         const backingNvda = await getBackingNvda(Number(bell.args.session));
         if (backingNvda > amount) throw new Error(`Session ${bell.args.session} backing exceeds its forward`);
-        revenueEvents.push({ blockNumber: payment.blockNumber, amount: -(amount - backingNvda) });
+        revenueEvents.push({ blockNumber: Number(payment.blockNumber), amount: -(amount - backingNvda) });
       }
     }
 
     // Recompute earlier burn-hour bookings so multiple bells share the UTC day's budget.
-    const earlierBurns = dayFromBlock < fromBlock ? await options.getLogs({ target: SINK,
-      eventAbi: BURNED, onlyArgs: false, fromBlock: dayFromBlock, toBlock: fromBlock - 1 }) : [];
+    const earlierBurns = dayFromBlock < fromBlock ? await getCapLogs(BURNED, dayFromBlock, fromBlock - 1) : [];
     let earlierHoldersNvda = 0n;
     if (earlierBurns.length) {
       let hourFromBlock = dayFromBlock;
       for (let timestamp = options.startOfDay + 3600; timestamp <= options.fromTimestamp; timestamp += 3600) {
         const hourEndBlock = timestamp === options.fromTimestamp ? fromBlock
           : await options.getBlock(timestamp, options.chain, {});
-        const hourBurnedNvda = earlierBurns.filter(log => log.blockNumber >= hourFromBlock && log.blockNumber < hourEndBlock)
+        const hourBurnedNvda = earlierBurns.filter(log => Number(log.blockNumber) >= hourFromBlock && Number(log.blockNumber) < hourEndBlock)
           .reduce((sum, log) => sum + BigInt(log.args.nvdaIn), 0n);
         if (hourBurnedNvda > 0n) {
-          const revenueNvda = revenueEvents.filter(log => log.blockNumber < hourEndBlock)
+          const revenueNvda = revenueEvents.filter(log => Number(log.blockNumber) < hourEndBlock)
             .reduce((sum, log) => sum + log.amount, 0n);
           const availableNvda = revenueNvda - earlierHoldersNvda;
           earlierHoldersNvda += availableNvda <= 0n ? 0n : hourBurnedNvda < availableNvda ? hourBurnedNvda : availableNvda;
