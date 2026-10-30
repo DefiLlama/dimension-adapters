@@ -37,6 +37,12 @@ const MidnightConfigs: Record<string, MidnightConfig> = {
     fromBlock: 48286884,
     start: "2026-07-06",
   },
+  [CHAIN.ETHEREUM]: {
+    chainId: 1,
+    midnight: "0x471686c42792F93528B000beF54bC10E3aa2045f",
+    fromBlock: 25798183,
+    start: "2026-08-20",
+  },
 };
 
 const eventAbis = {
