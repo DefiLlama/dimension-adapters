@@ -36,6 +36,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import ADDRESSES from "../../helpers/coreAssets.json";
+import { ChainApi } from "@defillama/sdk";
 
 const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
 const TAX_HOOK = "0xF1eE073811B14359D850825E48d200483200eDcd";
@@ -130,15 +131,21 @@ const LABELS = {
 
 const pad32 = (address: string) => "0x" + address.toLowerCase().replace("0x", "").padStart(64, "0");
 
-// ETH per STANDARD from the canonical pool's slot0. PoolManager keeps pools in a
-// mapping at storage slot 6; slot0 is the first word, sqrtPriceX96 its low 160 bits.
-// currency0 is ETH and currency1 is STANDARD, so price1/0 = (sqrtP / 2^96)^2 STANDARD per ETH.
-async function stdToEthRatio(options: FetchOptions): Promise<(stdWei: bigint) => bigint> {
-  const { ethers } = await import("ethers");
-  const slot = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "uint256"], [STD_ETH_POOL_ID, 6]));
-  const word: string = await options.api.call({ target: POOL_MANAGER, abi: "function extsload(bytes32 slot) view returns (bytes32)", params: [slot] });
-  const sqrtP = BigInt(word) & ((1n << 160n) - 1n);
-  if (sqrtP === 0n) throw new Error("STANDARD/ETH pool slot0 is empty");
+// ETH per STANDARD. Taken from the last STANDARD/ETH swap in the window; when
+// the window has no swap, from the pool's slot0 at the latest block, since the
+// public RPCs do not serve historical state. PoolManager keeps pools in a mapping
+// at storage slot 6 and slot0 is its first word with sqrtPriceX96 in the low 160
+// bits. currency0 is ETH and currency1 is STANDARD, so price1/0 = (sqrtP / 2^96)^2.
+async function stdToEthRatio(options: FetchOptions, stdPoolSwaps: { sqrtPriceX96: string }[]): Promise<(stdWei: bigint) => bigint> {
+  let sqrtP = stdPoolSwaps.length ? BigInt(stdPoolSwaps[stdPoolSwaps.length - 1].sqrtPriceX96) : 0n;
+  if (sqrtP === 0n) {
+    const { ethers } = await import("ethers");
+    const slot = ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "uint256"], [STD_ETH_POOL_ID, 6]));
+    const latest = new ChainApi({ chain: options.chain });
+    const word: string = await latest.call({ target: POOL_MANAGER, abi: "function extsload(bytes32 slot) view returns (bytes32)", params: [slot] });
+    sqrtP = BigInt(word) & ((1n << 160n) - 1n);
+  }
+  if (sqrtP === 0n) throw new Error("STANDARD/ETH pool price unavailable");
   const q192 = 1n << 192n;
   return (stdWei: bigint) => (stdWei * q192) / (sqrtP * sqrtP);
 }
@@ -147,7 +154,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  const toEth = await stdToEthRatio(options);
+  const swapsByPool: Record<string, { amount0: string; amount1: string; fee: string; sqrtPriceX96: string }[]> = {};
+  for (const pool of POOLS) swapsByPool[pool.id] = await options.getLogs({ target: POOL_MANAGER, eventAbi: EVENTS.swap, topics: [SWAP_TOPIC, pool.id] });
+  const toEth = await stdToEthRatio(options, swapsByPool[STD_ETH_POOL_ID]);
   const addStd = (bal: ReturnType<typeof options.createBalances>, stdWei: bigint, label: string) => bal.addGasToken(toEth(stdWei), label);
 
   // 1. STANDARD/ETH hook taxes, ETH to the FeeSplitter.
@@ -186,8 +195,7 @@ const fetch = async (options: FetchOptions) => {
   // 4. LP fees on protocol-owned v4 pools. Fee is charged on the input side;
   //    the swapper's negative delta is what went in.
   for (const pool of POOLS) {
-    const swaps = await options.getLogs({ target: POOL_MANAGER, eventAbi: EVENTS.swap, topics: [SWAP_TOPIC, pool.id] });
-    for (const log of swaps) {
+    for (const log of swapsByPool[pool.id]) {
       const a0 = BigInt(log.amount0);
       const a1 = BigInt(log.amount1);
       const fee = BigInt(log.fee);
