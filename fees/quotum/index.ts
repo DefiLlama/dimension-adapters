@@ -74,9 +74,56 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const burns = await options.getLogs({ target: SINK, eventAbi: BURNED });
-  for (const log of burns)
-    // Value the NVDA spent, not the purchased QUOTUM or the duplicate Bell event.
-    dailyHoldersRevenue.add(NVDA, log.nvdaIn, METRIC.TOKEN_BUY_BACK);
+  if (burns.length) {
+    const fromBlock = await options.getFromBlock();
+    const toBlock = await options.getToBlock();
+    const dayFromBlock = await options.getBlock(options.startOfDay, options.chain, {});
+    const dayClaims = await options.getLogs({ target: SINK, eventAbi: CLAIMED, onlyArgs: false,
+      fromBlock: dayFromBlock, toBlock });
+    const revenueEvents = dayClaims.map(log => ({ blockNumber: log.blockNumber, amount: BigInt(log.args.nvda) }));
+    const dayPayments = await options.getLogs({ target: SINK, eventAbi: FORWARDED, onlyArgs: false,
+      fromBlock: dayFromBlock, toBlock });
+    if (dayPayments.length) {
+      const bells = await options.getLogs({ target: SINK, eventAbi: BELL, onlyArgs: false,
+        fromBlock: dayFromBlock - BELL_LOOKBACK_BLOCKS, toBlock });
+      bells.sort((a, b) => a.blockNumber - b.blockNumber);
+      for (const payment of dayPayments) {
+        const amount = BigInt(payment.args.nvda);
+        const bell = bells.filter(b => b.blockNumber <= payment.blockNumber).pop();
+        if (!bell) throw new Error(`No Bell before forward ${payment.transactionHash}`);
+        const backingNvda = await getBackingNvda(Number(bell.args.session));
+        if (backingNvda > amount) throw new Error(`Session ${bell.args.session} backing exceeds its forward`);
+        revenueEvents.push({ blockNumber: payment.blockNumber, amount: -(amount - backingNvda) });
+      }
+    }
+
+    // Recompute earlier burn-hour bookings so multiple bells share the UTC day's budget.
+    const earlierBurns = dayFromBlock < fromBlock ? await options.getLogs({ target: SINK,
+      eventAbi: BURNED, onlyArgs: false, fromBlock: dayFromBlock, toBlock: fromBlock - 1 }) : [];
+    let earlierHoldersNvda = 0n;
+    if (earlierBurns.length) {
+      let hourFromBlock = dayFromBlock;
+      for (let timestamp = options.startOfDay + 3600; timestamp <= options.fromTimestamp; timestamp += 3600) {
+        const hourEndBlock = timestamp === options.fromTimestamp ? fromBlock
+          : await options.getBlock(timestamp, options.chain, {});
+        const hourBurnedNvda = earlierBurns.filter(log => log.blockNumber >= hourFromBlock && log.blockNumber < hourEndBlock)
+          .reduce((sum, log) => sum + BigInt(log.args.nvdaIn), 0n);
+        if (hourBurnedNvda > 0n) {
+          const revenueNvda = revenueEvents.filter(log => log.blockNumber < hourEndBlock)
+            .reduce((sum, log) => sum + log.amount, 0n);
+          const availableNvda = revenueNvda - earlierHoldersNvda;
+          earlierHoldersNvda += availableNvda <= 0n ? 0n : hourBurnedNvda < availableNvda ? hourBurnedNvda : availableNvda;
+        }
+        hourFromBlock = hourEndBlock;
+      }
+    }
+
+    const revenueNvda = revenueEvents.reduce((sum, log) => sum + log.amount, 0n);
+    const availableNvda = revenueNvda - earlierHoldersNvda;
+    const burnedNvda = burns.reduce((sum, log) => sum + BigInt(log.nvdaIn), 0n);
+    const holdersNvda = availableNvda <= 0n ? 0n : burnedNvda < availableNvda ? burnedNvda : availableNvda;
+    dailyHoldersRevenue.add(NVDA, holdersNvda, METRIC.TOKEN_BUY_BACK);
+  }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -85,7 +132,7 @@ const protocolBreakdown = {
   [PROTOCOL]: "The fixed 40% share of claimed trading tax transferred to the protocol recipient.",
 };
 const holdersBreakdown = {
-  [METRIC.TOKEN_BUY_BACK]: "NVDA spent on successful QUOTUM purchases followed by burning the purchased tokens.",
+  [METRIC.TOKEN_BUY_BACK]: "Successful QUOTUM buyback spend in each burn hour, limited to revenue from UTC midnight through that hour, less holders revenue already booked that day. Reserve-funded excess is excluded.",
 };
 
 const adapter: SimpleAdapter = {
@@ -102,7 +149,7 @@ const adapter: SimpleAdapter = {
     Fees: "QUOTUM trading tax collected by TaxSink, measured in NVDA when claimed, excluding Pons platform fees and direct funding transfers.",
     Revenue: "Claimed QUOTUM trading tax less the NVDA forwarded to pay inference providers; NVDA forwarded to fund the protocol's own trading agent stays in revenue.",
     ProtocolRevenue: "The fixed 40% share of claimed QUOTUM trading tax transferred to the protocol recipient in NVDA.",
-    HoldersRevenue: "NVDA spent on successful QUOTUM buybacks and burns at the daily bell, excluding failed purchases and direct token burns.",
+    HoldersRevenue: "Successful buyback NVDA is booked only in hours with burns, capped at positive revenue from UTC midnight through that hour, after subtracting earlier holders bookings that day. No holders revenue is booked when that budget is zero or negative. Excess reserve-funded spending, failed purchases and direct token burns are excluded.",
     SupplySideRevenue: "NVDA forwarded from TaxSink to pay inference providers, excluding the portion the team reports moving on to fund the protocol's trading agent.",
   },
   breakdownMethodology: {
