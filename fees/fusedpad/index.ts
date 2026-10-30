@@ -125,9 +125,14 @@ const fetch = async (options: FetchOptions) => {
             ${CREATOR_PCT_FALLBACK}
           ) AS creator_pct,
           -- 1 = creator has some DAMM LP; 0 = none / unknown.
-          -- Mirrors fused_fee creator_has_lp(): permanent-locked OR unlocked OR
-          -- (vesting is_initialized AND vesting_percentage). Check each field on its
-          -- own — a stored 0 must not hide a later nonzero via one COALESCE.
+          -- Mirrors fused_fee creator_has_lp() on the PoolConfig account:
+          --   permanent-locked != 0 OR unlocked != 0 OR (is_initialized && vesting_percentage).
+          -- EvtCreateConfig(V2) stores ConfigParameters.creator_liquidity_vesting_info as
+          -- LiquidityVestingInfoParams (vesting_percentage, bps_per_period, …) — there is NO
+          -- is_initialized in the event JSON (that flag is derived on-account as !params.is_zero()).
+          -- So for Dune rows, vesting LP ≡ vesting_percentage > 0 (NULL-safe), which matches the
+          -- program because percentage > 0 ⇒ is_initialized = 1 on the account.
+          -- Check permanent / unlocked / vesting independently (a stored 0 must not mask another).
           MAX(
             CASE
               WHEN COALESCE(
@@ -140,18 +145,11 @@ const fetch = async (options: FetchOptions) => {
                 CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_liquidity_percentage') AS INTEGER),
                 0
               ) > 0
-              OR (
-                COALESCE(
-                  CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_liquidity_vesting_info.is_initialized') AS INTEGER),
-                  CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_liquidity_vesting_info.is_initialized') AS INTEGER),
-                  0
-                ) > 0
-                AND COALESCE(
-                  CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_liquidity_vesting_info.vesting_percentage') AS INTEGER),
-                  CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_liquidity_vesting_info.vesting_percentage') AS INTEGER),
-                  0
-                ) > 0
-              )
+              OR COALESCE(
+                CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_liquidity_vesting_info.vesting_percentage') AS INTEGER),
+                CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_liquidity_vesting_info.vesting_percentage') AS INTEGER),
+                0
+              ) > 0
               THEN 1
               ELSE 0
             END
