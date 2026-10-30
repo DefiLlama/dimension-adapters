@@ -25,8 +25,9 @@
  *            1.104%  FusedPad partner share (the remainder), which fused_fee
  *                    then splits 90/110 to holders of the pair token and
  *                    20/110 to the $FUSED burn pot:
- *                      0.90%  holder distributions (paid in the quote token)
- *                      0.20%  $FUSED buy-and-burn
+ *                      0.90%  holder distributions (paid in the quote token;
+ *                             supply-side — pair token holders, not $FUSED)
+ *                      0.20%  $FUSED buy-and-burn (holders revenue)
  *                    After $FUSED itself graduates and set_auto_lp is called,
  *                    that 0.20% burn pot further splits by lp_share_bps
  *                    (default 5000 = half): 0.10% burn + 0.10% permanently
@@ -74,6 +75,7 @@ const LABELS = {
   Creators: METRIC.CREATOR_FEES,
   Meteora: "Protocol Fees to Meteora",
   Referral: "Referral Fees",
+  CompoundedLp: "Compounded LP Fees",
 };
 
 type Row = {
@@ -82,6 +84,7 @@ type Row = {
   creator_fee: string | number;
   protocol_fee: string | number;
   referral_fee: string | number;
+  compounding_fee?: string | number;
 };
 
 /**
@@ -118,7 +121,20 @@ const fetch = async (options: FetchOptions) => {
             MIN(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_trading_fee_percentage') AS INTEGER)),
             MIN(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_trading_fee_percentage') AS INTEGER)),
             ${CREATOR_PCT_FALLBACK}
-          ) AS creator_pct
+          ) AS creator_pct,
+          -- 1 = creator has some DAMM LP (locked/unlocked/vested); 0 = none / unknown.
+          -- Mirrors fused_fee creator_has_lp(). Prefer explicit migration LP fields when Dune has them.
+          MAX(
+            CASE
+              WHEN COALESCE(
+                CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_lp_percentage') AS INTEGER),
+                CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_lp_percentage') AS INTEGER),
+                CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.locked_vesting_params.amount_per_period') AS INTEGER),
+                0
+              ) > 0 THEN 1
+              ELSE 0
+            END
+          ) AS creator_has_lp
         FROM (
           SELECT config, quote_mint, config_parameters
           FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfig
@@ -164,18 +180,38 @@ const fetch = async (options: FetchOptions) => {
         SELECT
           m.account_pool AS pool,
           COALESCE(m.account_quote_mint, c.quote_mint) AS quote_mint,
-          c.creator_pct
+          c.creator_pct,
+          c.creator_has_lp
         FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
         JOIN fused_configs c ON c.config = m.account_config
       ),
-      -- DAMM v2: partner_fee is what accrues to the FusedPad fee position (Global).
-      -- fused_fee then takes an 8% creator share of each claim (CREATOR_SHARE_NUM);
-      -- apply the same floor here so graduated days match the curve split.
+      -- DAMM v2 fee position income for FusedPad = Global's locked-position LP fees.
+      -- Pre cp-amm 0.2.0 EvtSwap2 carried partner_fee; 0.2.0 removed partner_fee and
+      -- split trading fee into claiming_fee + compounding_fee (see Meteora changelog).
+      -- COALESCE keeps old rows working and maps claiming_fee/trading_fee as the
+      -- position-accruing leg Global claims via crank_claim_damm.
+      -- Creator cut on DAMM mirrors crank_claim_damm: only when the DBC config gives the
+      -- creator NO locked/unlocked/vested LP (creator_has_lp == false). Configs that still
+      -- grant creator LP (92/8 style) must NOT take an 8% program cut. We detect "no
+      -- creator LP" from create-config JSON when present; if unknown, keep the historical
+      -- creator_pct cut (fail open toward matching older curve-style reporting).
       damm_swaps AS (
         SELECT
           m.quote_mint,
           m.creator_pct,
-          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.partner_fee') AS DECIMAL(38,0)) AS partner_fee,
+          m.creator_has_lp,
+          COALESCE(
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.partner_fee') AS DECIMAL(38,0)),
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.claiming_fee') AS DECIMAL(38,0)),
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)),
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.partner_fee') AS DECIMAL(38,0)),
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.lp_fee') AS DECIMAL(38,0)),
+            0
+          ) AS position_fee,
+          COALESCE(
+            CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.compounding_fee') AS DECIMAL(38,0)),
+            0
+          ) AS compounding_fee,
           CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
           CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
         FROM meteora_solana.cp_amm_evt_evtswap2 s
@@ -189,12 +225,21 @@ const fetch = async (options: FetchOptions) => {
         SELECT
           quote_mint,
           SUM(
-            COALESCE(partner_fee, 0)
-            - FLOOR(COALESCE(partner_fee, 0) * creator_pct / 100)
+            CASE
+              WHEN creator_has_lp = 1 THEN COALESCE(position_fee, 0)
+              ELSE COALESCE(position_fee, 0)
+                - FLOOR(COALESCE(position_fee, 0) * creator_pct / 100)
+            END
           ) AS partner_fee,
-          SUM(FLOOR(COALESCE(partner_fee, 0) * creator_pct / 100)) AS creator_fee,
+          SUM(
+            CASE
+              WHEN creator_has_lp = 1 THEN CAST(0 AS DECIMAL(38,0))
+              ELSE FLOOR(COALESCE(position_fee, 0) * creator_pct / 100)
+            END
+          ) AS creator_fee,
           SUM(COALESCE(protocol_fee, 0)) AS protocol_fee,
-          SUM(COALESCE(referral_fee, 0)) AS referral_fee
+          SUM(COALESCE(referral_fee, 0)) AS referral_fee,
+          SUM(COALESCE(compounding_fee, 0)) AS compounding_fee
         FROM damm_swaps
         GROUP BY quote_mint
       )
@@ -202,11 +247,13 @@ const fetch = async (options: FetchOptions) => {
       CAST(SUM(partner_fee) AS VARCHAR) AS partner_fee,
       CAST(SUM(creator_fee) AS VARCHAR) AS creator_fee,
       CAST(SUM(protocol_fee) AS VARCHAR) AS protocol_fee,
-      CAST(SUM(referral_fee) AS VARCHAR) AS referral_fee
+      CAST(SUM(referral_fee) AS VARCHAR) AS referral_fee,
+      CAST(SUM(compounding_fee) AS VARCHAR) AS compounding_fee
     FROM (
-      SELECT * FROM dbc
+      SELECT quote_mint, partner_fee, creator_fee, protocol_fee, referral_fee,
+             CAST(0 AS DECIMAL(38,0)) AS compounding_fee FROM dbc
       UNION ALL
-      SELECT * FROM damm
+      SELECT quote_mint, partner_fee, creator_fee, protocol_fee, referral_fee, compounding_fee FROM damm
     ) t
     GROUP BY quote_mint
   `,
@@ -222,6 +269,7 @@ const fetch = async (options: FetchOptions) => {
     const creator = Number(row.creator_fee ?? 0);
     const protocol = Number(row.protocol_fee ?? 0);
     const referral = Number(row.referral_fee ?? 0);
+    const compounding = Number(row.compounding_fee ?? 0);
     const { holders, burn, lockedLp } = splitPartnerShare(
       partner,
       options.startOfDay,
@@ -233,18 +281,21 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(row.quote_mint, creator, LABELS.Creators);
     dailyFees.add(row.quote_mint, protocol, LABELS.Meteora);
     dailyFees.add(row.quote_mint, referral, LABELS.Referral);
+    dailyFees.add(row.quote_mint, compounding, LABELS.CompoundedLp);
 
-    // Partner share is value accruing to $FUSED holders (distributions + burn + LP)
-    dailyRevenue.add(row.quote_mint, holders, LABELS.Holders);
+    // $FUSED burn + locked LP = FusedPad holders revenue (protocol's own token).
+    // Pair-token holder distributions are supply-side (paid to each launched coin's
+    // holders, not $FUSED holders) — per DefiLlama holders-revenue guidance.
     dailyRevenue.add(row.quote_mint, burn, LABELS.Burn);
     dailyRevenue.add(row.quote_mint, lockedLp, LABELS.LockedLp);
-    dailyHoldersRevenue.add(row.quote_mint, holders, LABELS.Holders);
     dailyHoldersRevenue.add(row.quote_mint, burn, LABELS.Burn);
     dailyHoldersRevenue.add(row.quote_mint, lockedLp, LABELS.LockedLp);
 
+    dailySupplySideRevenue.add(row.quote_mint, holders, LABELS.Holders);
     dailySupplySideRevenue.add(row.quote_mint, creator, LABELS.Creators);
     dailySupplySideRevenue.add(row.quote_mint, protocol, LABELS.Meteora);
     dailySupplySideRevenue.add(row.quote_mint, referral, LABELS.Referral);
+    dailySupplySideRevenue.add(row.quote_mint, compounding, LABELS.CompoundedLp);
   }
 
   return {
@@ -271,21 +322,39 @@ const breakdownMethodology = {
       "Meteora's protocol share of every trade (~0.30%), taken off the top before the curve accumulates anything.",
     [LABELS.Referral]:
       "Part of Meteora's protocol share handed back to whichever interface hosted the swap.",
+    [LABELS.CompoundedLp]:
+      "DAMM v2 compounding-mode LP fee that is reinvested into pool reserves (cp-amm 0.2.0+ compounding_fee). Zero on DBC and on non-compounding pools.",
+  },
+  UserFees: {
+    [LABELS.Holders]:
+      "0.90% of every FusedPad trade, paid out to holders of the pair token in the quote asset.",
+    [LABELS.Burn]:
+      "Share of the 0.20% $FUSED burn pot that is used to buy and permanently burn $FUSED. Until auto-LP is enabled this is the whole 0.20%; afterwards it is (10000 - lp_share_bps) / 10000 of that pot (default half).",
+    [LABELS.LockedLp]:
+      "Share of the 0.20% burn pot added as permanently locked $FUSED liquidity. Zero until $FUSED graduates and set_auto_lp is called; default thereafter is half of the burn pot (0.10%).",
+    [LABELS.Creators]:
+      "Coin creator share of the bonding-curve / graduated trading fee (creator_trading_fee_percentage of each config, 8 on live FusedPad configs ≈ 0.096% of volume).",
+    [LABELS.Meteora]:
+      "Meteora's protocol share of every trade (~0.30%), taken off the top before the curve accumulates anything.",
+    [LABELS.Referral]:
+      "Part of Meteora's protocol share handed back to whichever interface hosted the swap.",
+    [LABELS.CompoundedLp]:
+      "DAMM v2 compounding-mode LP fee that is reinvested into pool reserves (cp-amm 0.2.0+ compounding_fee). Zero on DBC and on non-compounding pools.",
   },
   Revenue: {
-    [LABELS.Holders]: "Pair-token holder distributions funded by FusedPad trading fees.",
     [LABELS.Burn]: "$FUSED buy-and-burn funded by FusedPad trading fees.",
     [LABELS.LockedLp]: "Permanently locked $FUSED liquidity funded by FusedPad trading fees (zero until auto-LP is enabled).",
   },
   HoldersRevenue: {
-    [LABELS.Holders]: "Pair-token holder distributions funded by FusedPad trading fees.",
     [LABELS.Burn]: "$FUSED buy-and-burn funded by FusedPad trading fees.",
     [LABELS.LockedLp]: "Permanently locked $FUSED liquidity funded by FusedPad trading fees (zero until auto-LP is enabled).",
   },
   SupplySideRevenue: {
+    [LABELS.Holders]: "0.90% paid to holders of each launched pair token (not $FUSED holders).",
     [LABELS.Creators]: "Fees paid to coin creators.",
     [LABELS.Meteora]: "Protocol fees paid to Meteora.",
     [LABELS.Referral]: "Referral fees paid to hosting frontends.",
+    [LABELS.CompoundedLp]: "DAMM v2 compounding LP fees reinvested into pool reserves.",
   },
 };
 
@@ -303,13 +372,13 @@ const adapter: SimpleAdapter = {
       "1.50% of every FusedPad trade on Meteora DBC (pre-graduation) and DAMM v2 (post-graduation), in the pool's quote asset. Covers holder distributions, the $FUSED burn pot (and locked LP once enabled), coin-creator fees, Meteora's protocol fee and referral fees. Identified by DBC configs whose fee_claimer is the fused_fee Global PDA.",
     UserFees: "The same 1.50%. It is the whole of what a trader pays on a FusedPad trade.",
     Revenue:
-      "FusedPad partner share only (~1.104% of volume): holder distributions (0.90%) plus the $FUSED burn pot (0.20%, of which half becomes locked LP after auto-LP is enabled). No treasury cut.",
+      "FusedPad value to $FUSED holders only: the 0.20% burn pot (buy-and-burn, and locked $FUSED LP once auto-LP is enabled). Pair-token holder distributions are supply-side, not FusedPad revenue. No treasury cut.",
     ProtocolRevenue:
-      "Zero. FusedPad does not keep a separate treasury cut; the partner share is attributed to holders revenue (distributions, burn, locked LP).",
+      "Zero. FusedPad does not keep a separate treasury cut; $FUSED burn / locked LP is holders revenue.",
     HoldersRevenue:
-      "0.90% paid to holders of each pair token, plus the 0.20% $FUSED buy-and-burn pot (split into burn + permanently locked $FUSED LP once auto-LP is enabled).",
+      "The 0.20% $FUSED buy-and-burn pot (split into burn + permanently locked $FUSED LP once auto-LP is enabled). Pair-token payouts are not included here.",
     SupplySideRevenue:
-      "Coin creator fees (~0.096%), Meteora's ~0.30% protocol fee, and referral fees paid to hosting frontends.",
+      "0.90% pair-token holder distributions, coin creator fees (~0.096%), Meteora's ~0.30% protocol fee, referral fees, and any DAMM compounding LP fees.",
   },
   breakdownMethodology,
 };
