@@ -155,7 +155,7 @@ async function getPricedCoreTokens(chain: string, tokens: string[]): Promise<Set
   }
 }
 
-export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
+export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200, enforceBalanceFailureRatio = false }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number, enforceBalanceFailureRatio?: boolean }): Promise<IJSON<number>> {
   const chain = api.chain
 
   const coreTokens = new Set<string>()
@@ -193,7 +193,7 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   }
   const failedCalls = failedIndices.length
   const rpcIsDead = balanceCalls.length > 0 && failedCalls === balanceCalls.length
-  const rpcIsFlaky = retryFixed > 0 && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO
+  const rpcIsFlaky = (retryFixed > 0 || enforceBalanceFailureRatio) && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO
   if (rpcIsDead || rpcIsFlaky)
     throw new Error(`filterPools: ${failedCalls}/${balanceCalls.length} pooled balance calls failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as (partly) empty`)
   const balances: Balances = createBalances()
@@ -252,7 +252,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -292,7 +292,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const swapFees = createBalances()
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
-    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
+    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
@@ -638,6 +638,7 @@ type UniV2Config = {
   blacklistPools?: Array<string>,
   blacklistTokens?: Array<string>, // pairs holding any of these tokens are skipped
   allowReadPairs?: boolean;
+  enforceBalanceFailureRatio?: boolean;
 }
 
 export interface UniGetRevenueRatioProps {
