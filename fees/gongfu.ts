@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // GongFuFeeCollector: the Pons V2 creator-fee recipient for the GF token. It has no owner and no withdraw
 // function: it can only claim the creator share of GF trading fees (paid in USDG) from the Pons fee escrow
@@ -8,7 +9,7 @@ import { METRIC } from "../helpers/metrics";
 // Verified source: https://robin.etherscan.io/address/0xbfb0cd280a6394901f7d945e41100b50a9e79755#code
 const FEE_COLLECTOR = "0xbfb0cd280a6394901f7d945e41100b50a9e79755";
 // USDG, the quote asset of the GF/USDG pair; FeesClaimed.amount and ReserveBuyback.usdIn are USDG amounts
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 
 const CREATOR_FEES_TO_BUYBACKS = "Creator Fees To Reserve Buybacks";
 
