@@ -1,7 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import axios from "axios";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getConfig } from "../../helpers/cache";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
@@ -20,9 +19,10 @@ const INFERENCE = "Inference Provider Payments";
 const BACKING_ROUNDS = [
   // Backing stopped after session 28: https://quotum.org/governance/qip-4/execution.json
   { proposal: "qip-4", firstSession: 27, lastSession: 28 },
-  // "The round runs from session 30 to session 43 at most": https://quotum.org/governance/qip-5/execution.json
-  { proposal: "qip-5", firstSession: 30, lastSession: 43 },
+  // Fixed $1,000 round (https://quotum.org/governance/qip-5/execution.json), used up by sessions 30 and 34 ($520 + $480, https://quotum.org/log)
+  { proposal: "qip-5", firstSession: 30, lastSession: 34 },
 ];
+const PUBLISHED_BACKING_SESSIONS = new Set([27, 28, 30, 34]);
 
 const BELL_LOOKBACK_BLOCKS = 36_000;
 
@@ -30,14 +30,15 @@ async function getBackingNvda(session: number): Promise<bigint> {
   const round = BACKING_ROUNDS.find(r => session >= r.firstSession && session <= r.lastSession);
   if (!round) return 0n;
   const url = `https://quotum.org/governance/${round.proposal}/sessions/${session}/onward.json`;
-  const record = await getConfig(`quotum/${round.proposal}-onward-${session}`, undefined, {
-    fetcher: () => axios.get(url).then(res => res.data).catch(e => {
-      if (e.response?.status === 404) return { unpublished: true };
-      throw e;
-    }),
-  });
-  if (record.unpublished) return 0n;
-  if (record.amountNvdaWei === undefined || Number(record.session) !== session)
+  let record;
+  try {
+    record = (await axios.get(url)).data;
+  } catch (e: any) {
+    if (e.response?.status === 404 && !PUBLISHED_BACKING_SESSIONS.has(session)) return 0n;
+    throw e;
+  }
+  if (!record || Number(record.session) !== session || typeof record.amountNvdaWei !== "string"
+    || !/^\d+$/.test(record.amountNvdaWei))
     throw new Error(`Quotum onward record unavailable: ${url}`);
   return BigInt(record.amountNvdaWei);
 }
@@ -113,9 +114,11 @@ const fetch = async (options: FetchOptions) => {
     const earlierBurns = dayFromBlock < fromBlock ? await getCapLogs(BURNED, dayFromBlock, fromBlock - 1) : [];
     let earlierHoldersNvda = 0n;
     if (earlierBurns.length) {
+      // The runner's fromTimestamp is one second before the logical hour start.
+      const windowStartTimestamp = options.fromTimestamp + 1;
       let hourFromBlock = dayFromBlock;
-      for (let timestamp = options.startOfDay + 3600; timestamp <= options.fromTimestamp; timestamp += 3600) {
-        const hourEndBlock = timestamp === options.fromTimestamp ? fromBlock
+      for (let timestamp = options.startOfDay + 3600; timestamp <= windowStartTimestamp; timestamp += 3600) {
+        const hourEndBlock = timestamp === windowStartTimestamp ? fromBlock
           : await options.getBlock(timestamp, options.chain, {});
         const hourBurnedNvda = earlierBurns.filter(log => Number(log.blockNumber) >= hourFromBlock && Number(log.blockNumber) < hourEndBlock)
           .reduce((sum, log) => sum + BigInt(log.args.nvdaIn), 0n);
