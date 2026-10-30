@@ -1,11 +1,12 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // DZap router (DZapDiamond), same contract as the swap leg in aggregators/byzanlink-stocks
 const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
 // Byzanlink's DZap integrator address, also receives the integrator fee: https://basescan.org/tx/0xc3d74485f5e1f20a032dac84f33f555cfe18dca791f8777e5157e8a04d482be7
 const BYZANLINK_INTEGRATOR = "0x5bf9e1af9eaFe63344FBB3D227503f9EB80D2B17".toLowerCase();
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 // DZapBridgeStarted carries the integrator; the amount lives in one bridge-specific
 // event of the same transactionId. Each bridge tx emits exactly one of these.
@@ -76,7 +77,7 @@ export const addBridgeVolume = async (
     const logs = await options.getLogs({ target: DZAP_ROUTER, eventAbi: bridge.eventAbi, onlyArgs: false });
     for (const log of logs) {
       if (!byzanlinkBridges.has(key(log))) continue;
-      dailyBridgeVolume.addToken(bridge.token(log.args), bridge.amount(log.args), { label: "DZap" });
+      dailyBridgeVolume.addToken(bridge.token(log.args), bridge.amount(log.args));
     }
   }
 };
@@ -97,11 +98,6 @@ const adapter: SimpleAdapter = {
   methodology: {
     BridgeVolume:
       "Value of tokens Byzanlink users bridge out through the DZap router, measured on the source chain at the amount sent.",
-  },
-  breakdownMethodology: {
-    BridgeVolume: {
-      DZap: "Bridges started through the DZap router with the Byzanlink integrator address, matched to the bridge-specific transfer event by transaction id.",
-    },
   },
 };
 
