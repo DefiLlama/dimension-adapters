@@ -7,6 +7,9 @@ export const HUBS: Record<string, string[]> = {
     '0xCca852Bc40e560adC3b1Cc58CA5b55638ce826c9', // Core
     '0x06002e9c4412CB7814a791eA3666D905871E536A', // Plus
     '0x943827DCA022D0F354a8a8c332dA1e5Eb9f9F931', // Prime
+    // Global Dollar, deployed 2026-06-14 by the same deployer as Core; proxy admin owned by the Aave governance
+    // executor 0x5300A1a1...; fees go to the same collector as Core (0xB9B0b861...)
+    '0x62d63197660c080236193CA60b70E49A08E90368',
   ],
   [CHAIN.AVAX]: [
     '0xd07369fAE4A5BB13c9Ce446B052c7867B1AbDf6e', // Core
@@ -14,7 +17,19 @@ export const HUBS: Record<string, string[]> = {
   [CHAIN.ARC]: [
     '0x17288dfc86205301064577b98B02b81017e6F79C', // Core
   ],
+  [CHAIN.BASE]: [
+    // Equities, deployed 2026-09-18; same Hub bytecode as the other hubs, fees go to collector 0x5F8d0102...
+    '0xa4d5947Eb727A052bae69C593FfC84247EC9864E',
+  ],
 }
+
+// hubs deployed after their chain's start: calls to a hub with no code revert, so it is only read from this date
+const HUB_START: Record<string, string> = {
+  '0x62d63197660c080236193CA60b70E49A08E90368': '2026-06-15', // Global Dollar
+}
+
+export const getHubs = (chain: string, timestamp: number): string[] =>
+  HUBS[chain].filter((hub) => !HUB_START[hub] || timestamp >= Date.parse(`${HUB_START[hub]}T00:00:00Z`) / 1000)
 
 const abis = {
   getAssetCount: 'uint256:getAssetCount',
@@ -59,7 +74,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const hubs = HUBS[options.chain]
+  const hubs = getHubs(options.chain, options.startTimestamp)
   const assetCounts: number[] = await options.fromApi.multiCall({ abi: abis.getAssetCount, calls: hubs })
 
   const allCalls = hubs.flatMap((hub, i) =>
@@ -227,6 +242,7 @@ export const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: '2026-03-30' },
   [CHAIN.AVAX]: { start: '2026-07-07' },
   [CHAIN.ARC]: { start: '2026-05-28' },
+  [CHAIN.BASE]: { start: '2026-09-19' },
 }
 
 const adapter: SimpleAdapter = {
