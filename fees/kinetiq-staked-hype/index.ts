@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
@@ -55,14 +56,18 @@ const KHYPE_STAKING_MANAGER = '0x393D0B87Ed38fc779FD9611144aE649BA6082109';
 // rewardShare = deployerAmount (via 0x55758d720e0f32328f7f1e1b3de6b637e0bec4ba to buyback wallet 0xaa3b7392052d62928cc87701e3ca6fb6630bb6e2)
 // + treasuryAmount (to KHYPE_TREASURY)
 const KHYPE_REWARD_SHARE_TRACKER = '0xE5FbA07C7b3CfbC29633f3D3Ab38b36007F35983';
-// KIP-2 (https://x.com/Kinetiq_xyz/status/2041888848595021866): first RewardDistributionQueued, block 31907253
-const KIP2_START = 1775638820; // 2026-04-08 09:00:20 UTC
+// KIP-2 (https://x.com/Kinetiq_xyz/status/2041888848595021866): first RewardDistributionQueued
+const KIP2_BLOCK = 31907253;
+const KIP2_START = 1775638820; // 2026-04-08 09:00:20 UTC, KIP2_BLOCK's timestamp
 const exchangeRateAbi = 'function kHYPEToHYPE(uint256 kHYPEAmount) external view returns (uint256)'
 const rewardDistributionQueuedAbi = 'event RewardDistributionQueued(uint256 indexed distributionId, address indexed validator, uint256 newRewardAmount, uint256 rewardShare, uint256 deployerAmount, uint256 treasuryAmount)';
+const rewardShareBpsUpdatedAbi = 'event RewardShareBpsUpdated(uint256 oldBps, uint256 newBps)';
 const instantUnstakeExecutedAbi = 'event InstantUnstakeExecuted(address indexed user, uint256 kHYPEAmount, uint256 hypeReceived, uint256 kHYPEFee, uint256 feeRateBps, uint256 kHYPEFeeBurned, uint256 kHYPEFeeToTreasury)';
 const transferAbi = 'event Transfer(address indexed from, address indexed to, uint256 value)';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const pad = (a: string) => '0x' + a.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+// log position for ordering; indexer rows may use snake_case fields
+const logPosition = (log: any) => Number(log.blockNumber ?? log.block_number) * 1e6 + Number(log.logIndex ?? log.index ?? log.log_index);
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
@@ -104,17 +109,38 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyProtocolRevenue.addBalances(unstakingFees, METRICS.UnstakingFees)
   } else {
     // Events, not exchange-rate growth: burning queued withdrawals at their request-time price counts their yield twice (+3.75%)
-    const [distributions, instantUnstakes, stakingManagerToTreasury, rewardShareBps] = await Promise.all([
-      options.getLogs({ target: KHYPE_REWARD_SHARE_TRACKER, eventAbi: rewardDistributionQueuedAbi }),
+    const [distributions, instantUnstakes, stakingManagerToTreasury, rewardShareBpsAtStart, rewardShareBpsUpdates] = await Promise.all([
+      options.getLogs({ target: KHYPE_REWARD_SHARE_TRACKER, eventAbi: rewardDistributionQueuedAbi, entireLog: true, parseLog: true }),
       options.getLogs({ target: KHYPE_STAKING_MANAGER, eventAbi: instantUnstakeExecutedAbi, entireLog: true, parseLog: true }),
       options.getLogs({
         target: KHYPE, eventAbi: transferAbi, topics: [TRANSFER_TOPIC, pad(KHYPE_STAKING_MANAGER), pad(KHYPE_TREASURY)],
         entireLog: true, parseLog: true,
       }),
-      options.api.call({ target: KHYPE_REWARD_SHARE_TRACKER, abi: 'uint256:rewardShareBps' }),
+      options.fromApi.call({ target: KHYPE_REWARD_SHARE_TRACKER, abi: 'uint256:rewardShareBps' }),
+      options.getLogs({ target: KHYPE_REWARD_SHARE_TRACKER, eventAbi: rewardShareBpsUpdatedAbi, entireLog: true, parseLog: true }),
     ]);
 
-    for (const { rewardShare, deployerAmount, treasuryAmount } of distributions) {
+    // window starting before KIP-2: exchange-rate rewards up to the block before the first distribution
+    if (options.fromTimestamp < KIP2_START) {
+      const kip2Api = new sdk.ChainApi({ chain: options.chain, block: KIP2_BLOCK - 1 });
+      const [rateBefore, rateAtKip2, supplyAtKip2] = await Promise.all([
+        options.fromApi.call({ target: KHYPE_STAKING_ACCOUNTANT, abi: exchangeRateAbi, params: ['1000000000000000000'] }),
+        kip2Api.call({ target: KHYPE_STAKING_ACCOUNTANT, abi: exchangeRateAbi, params: ['1000000000000000000'] }),
+        kip2Api.call({ target: KHYPE, abi: 'uint256:totalSupply' }),
+      ]);
+      const stakingRewards = supplyAtKip2 / 1e18 * (rateAtKip2 - rateBefore) / 1e18;
+      dailyFees.addCGToken('hyperliquid', stakingRewards, METRICS.StakingRewards);
+      dailySupplySideRevenue.addCGToken('hyperliquid', stakingRewards, METRICS.StakingRewardsToLPs);
+    }
+
+    for (const log of distributions) {
+      const { rewardShare, deployerAmount, treasuryAmount } = log.args;
+      // rate in force at this distribution: the last RewardShareBpsUpdated before it, else the window-start value
+      const update = rewardShareBpsUpdates
+        .filter((u: any) => logPosition(u) < logPosition(log))
+        .sort((a: any, b: any) => logPosition(a) - logPosition(b))
+        .pop();
+      const rewardShareBps = update ? update.args.newBps : rewardShareBpsAtStart;
       // no gross amount in the log (newRewardAmount == rewardShare): gross up by rewardShareBps
       const performanceFees = Number(rewardShare) / 1e18;
       const stakingRewards = performanceFees * 10000 / Number(rewardShareBps);
