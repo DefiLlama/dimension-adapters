@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getWalletTransfers } from "../helpers/bridges";
@@ -9,7 +10,7 @@ import { queryClickhouse } from "../helpers/indexer";
 // their input data, so every successful transaction to the maker counts); ERC20 moves are Transfer events.
 // https://memebridge.xyz
 const MAKER = "0x623777cc098c6058a46cf7530f45150ff6a8459d";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+const NULL_ADDRESS = ADDRESSES.null;
 
 const NATIVE_TXS = `
   SELECT lower(from_address) AS from_address, lower(to_address) AS to_address, toString(value) AS amount

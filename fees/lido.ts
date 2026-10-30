@@ -5,10 +5,10 @@ import { METRIC } from "../helpers/metrics";
 import type { FetchOptions } from "../adapters/types"
 import { addTokensReceived } from "../helpers/token";
 import { getPositionedLogArgs } from "../helpers/logs";
-import coreAssets from "../helpers/coreAssets.json"
+import ADDRESSES from "../helpers/coreAssets.json"
 
 // from LidoLocator 0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb
-const STETH = '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84'
+const STETH = ADDRESSES.ethereum.STETH
 const LIDO_ORACLE_V1 = '0x442af784A788A5bd6F42A01Ebe9F287a871243fb'
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
 const LIDO_AGENT = '0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c'
@@ -103,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
     options,
     target: LIDO_AGENT,
     fromAdddesses: [BUYBACKS_SAFE],
-    tokens: [coreAssets.ethereum.LIDO]
+    tokens: [ADDRESSES.ethereum.LIDO]
   })
   dailyHoldersRevenue.addBalances(buybacks, "LDO Accumulation Program")
 
