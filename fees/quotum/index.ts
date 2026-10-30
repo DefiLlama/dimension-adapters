@@ -32,7 +32,7 @@ async function getBackingNvda(session: number): Promise<bigint> {
   const url = `https://quotum.org/governance/${round.proposal}/sessions/${session}/onward.json`;
   let record;
   try {
-    record = (await axios.get(url)).data;
+    record = (await axios.get(url, { timeout: 30_000 })).data;
   } catch (e: any) {
     if (e.response?.status === 404 && !PUBLISHED_BACKING_SESSIONS.has(session)) return 0n;
     throw e;
@@ -115,8 +115,8 @@ const fetch = async (options: FetchOptions) => {
     const earlierBurns = dayFromBlock < fromBlock ? await getCapLogs(BURNED, dayFromBlock, fromBlock - 1) : [];
     let earlierHoldersNvda = 0n;
     if (earlierBurns.length) {
-      // The runner's fromTimestamp is one second before the logical hour start.
-      const windowStartTimestamp = options.fromTimestamp + 1;
+      // startTimestamp (= fromTimestamp) is one second before the logical hour start.
+      const windowStartTimestamp = options.startTimestamp + 1;
       let hourFromBlock = dayFromBlock;
       for (let timestamp = options.startOfDay + 3600; timestamp <= windowStartTimestamp; timestamp += 3600) {
         const hourEndBlock = timestamp === windowStartTimestamp ? fromBlock
