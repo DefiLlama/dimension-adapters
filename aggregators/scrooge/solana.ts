@@ -24,7 +24,15 @@ const MAJOR_MINTS = [ADDRESSES.solana.USDC, ADDRESSES.solana.USDT, ADDRESSES.sol
 const majors = MAJOR_MINTS.map((m) => `'${m}'`).join(", ");
 
 // The JUP6 event decoding, the one-entry-per-transaction valuation and the parse check are those of
-// aggregators/jupiter-aggregator, limited to the transactions that paid Scrooge's fee.
+// aggregators/jupiter-aggregator (its layout notes at the top of aggregators/jupiter-aggregator/index.ts), limited to the
+// transactions that paid Scrooge's fee. JUP6 emits each pool hop as an Anchor event through a self-CPI, an inner
+// instruction whose data is (byte positions as Dune's bytearray_substring counts them, from 1):
+// - 1-8: the Anchor event-CPI prefix e445a52e51cb9a1d; 9-16: the event's discriminator.
+// - SwapEvent (40c6cde8260871e2), 128 bytes, one hop: amm (17-48), input_mint (49-80), input_amount as a little-endian
+//   u64 (81-88), output_mint (89-120), output_amount u64 (121-128).
+// - SwapsEvent (982f4eebc0606e6a): a little-endian u32 count (17-20), then that many hops of sz bytes each from byte 21,
+//   so sz = (length - 20) / count: input_mint (32), input_amount u64 (8), output_mint (32), output_amount u64 (8), and
+//   the amm (32) where sz is 112 rather than 80. Hop k's fields start at 21, 53, 61 and 93, plus k * sz.
 const query = (options: FetchOptions) => `
   WITH fee_payments AS (
     SELECT tx_id, SUM(balance_change) AS fee_lamports
@@ -122,7 +130,8 @@ export async function fetchSolanaSwaps(options: FetchOptions): Promise<{ volumeU
   if (options.toTimestamp * 1000 > Date.now() - 10 * 60 * 60 * 1000) throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay");
   const [row] = await queryDuneSql(options, query(options));
   if (!row) throw new Error("scrooge: Dune query returned no row");
-  // A JUP6 event layout change would drop events silently and under-count, so fail instead.
+  // A JUP6 event layout change would drop events silently and under-count, so fail instead: more than 0.1% of the
+  // events not parsed (the limit aggregators/jupiter-aggregator uses) fails the day.
   if (row.unparsed_events > 0.001 * row.events) throw new Error(`scrooge: JUP6 events not parsed: ${row.unparsed_events} of ${row.events}`);
   return { volumeUsd: Number(row.volume_usd ?? 0), feeLamports: Number(row.fee_lamports ?? 0) };
 }

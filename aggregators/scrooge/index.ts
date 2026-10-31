@@ -31,19 +31,17 @@ const PARTNER = "0x405AE06D4204A94D341597B513116A43D10b0712";
 const SCROOGE = "0x4da3916d3ae6feece32ec8a2c4856d4abeb41bfd";
 const SCROOGE_CG = "scrooge-2";
 const SCROOGE_DECIMALS = 1e18;
-// ScroogeRouter.feeRecipient() (selector 0x46904840 on the router above). Its fees are swapped into SCROOGE every 15
-// minutes and every SCROOGE it holds is sent to 0x…dEaD, so its SCROOGE transfers to 0x…dEaD are the buy and burn.
-const FEE_WALLET = "0xd21Ba2Ac73E7e825F929D4b2f70228E806f439aE";
-const DEAD = "0x000000000000000000000000000000000000dEaD";
+// The router pays its fee to Scrooge's fee wallet (FEE_WALLET in ./relay.ts), which swaps what it holds into SCROOGE
+// every 15 minutes and sends it to 0x…dEaD, keeping a little ETH for its own gas: the router's fees are holders revenue,
+// counted when charged. The burns themselves are not read, as the same wallet also burns Scrooge's launchpad fees,
+// which are not swap fees. Relay's app fees accrue to that wallet as USDC on Base until claimed, and Solana's fees stay
+// in Scrooge's Solana fee wallet: neither is burned, so both are protocol revenue.
 
 const SwappedEvent = "event Swapped(address indexed sender, address indexed recipient, address indexed target, address tokenIn, address tokenOut, uint256 amountIn, uint256 received, uint256 fee)";
 const SwappedManyEvent = "event SwappedMany(address indexed sender, address indexed recipient, address tokenIn, address tokenOut, uint256 amountIn, uint256 received, uint256 fee, uint256 legs)";
 const PartnerSwappedEvent = "event PartnerSwapped(address indexed sender, address indexed partner, address indexed recipient, address tokenIn, address tokenOut, uint256 amountIn, uint256 received, uint256 partnerFee)";
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)";
 const LIFI_INTEGRATOR = "scrooge";
-const TransferEvent = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-const padAddress = (address: string) => "0x" + address.slice(2).toLowerCase().padStart(64, "0");
 
 const SWAP_FEES = "Swap Fees";
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Scrooge";
@@ -66,7 +64,9 @@ const addToken = (balances: any, token: string, amount: bigint, label?: string) 
 // Same-chain swaps through LI.FI under Scrooge's integrator string, counted once on the side that is the native coin
 // or a core asset: most are new coins bought or sold for ETH or a stablecoin, whose own side is not priced. Where
 // both sides are, the output is preferred when the input is the native coin, as native-in facets emit a
-// caller-declared fromAmount (see aggregators/hyperdex).
+// caller-declared fromAmount (see aggregators/hyperdex). A day's logs are read 10,000 blocks per eth_getLogs, as
+// bridge-aggregators/lifi does: a day is over 800,000 blocks on Robinhood Chain and ~350,000 on Arbitrum, past the range
+// RPCs serve in one call where the logs indexer does not cover the chain.
 const addLifiSwaps = async (options: FetchOptions, dailyVolume: any) => {
   const logs = await options.getLogs({ target: LifiDiamonds[options.chain].id, eventAbi: LifiSwapEvent, maxBlockRange: 10000 });
   const core = (token: string) => token.toLowerCase() === NATIVE || isCoreAsset(options.chain, token);
@@ -82,29 +82,33 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
+  const result = () => ({ dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue });
 
   if (options.chain === CHAIN.SOLANA) {
     const { volumeUsd, feeLamports } = await fetchSolanaSwaps(options);
     dailyVolume.addUSDValue(volumeUsd);
     dailyFees.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES);
     dailyRevenue.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES_TO_PROTOCOL);
-    return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+    dailyProtocolRevenue.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES_TO_PROTOCOL);
+    return result();
   }
 
   await addLifiSwaps(options, dailyVolume);
   const relay: RelayTotals = options.preFetchedResults;
+  const relayFees = relay.sameChainFees[options.chain] ?? 0;
   dailyVolume.addUSDValue(relay.sameChain[options.chain] ?? 0);
-  dailyFees.addUSDValue(relay.sameChainFees[options.chain] ?? 0, SWAP_FEES);
-  dailyRevenue.addUSDValue(relay.sameChainFees[options.chain] ?? 0, SWAP_FEES_TO_PROTOCOL);
-  if (options.chain !== CHAIN.ROBINHOOD) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  dailyFees.addUSDValue(relayFees, SWAP_FEES);
+  dailyRevenue.addUSDValue(relayFees, SWAP_FEES_TO_PROTOCOL);
+  dailyProtocolRevenue.addUSDValue(relayFees, SWAP_FEES_TO_PROTOCOL);
+  if (options.chain !== CHAIN.ROBINHOOD) return result();
 
-  const [single, split, partner, burns] = await Promise.all([
+  const [single, split, partner] = await Promise.all([
     options.getLogs({ target: ROUTER, eventAbi: SwappedEvent }),
     options.getLogs({ target: ROUTER, eventAbi: SwappedManyEvent }),
     options.getLogs({ target: PARTNER, eventAbi: PartnerSwappedEvent }),
-    options.getLogs({ target: SCROOGE, eventAbi: TransferEvent, topics: [TRANSFER_TOPIC, padAddress(FEE_WALLET), padAddress(DEAD)] }),
   ]);
 
   // A fee is taken from the output: counted in the output token where it is valued at least as well as the input,
@@ -122,7 +126,8 @@ const fetch = async (options: FetchOptions) => {
     else addToken(dailyVolume, log.tokenOut, BigInt(log.received));
     const fee = BigInt(log.fee);
     addFee(dailyFees, log, fee, SWAP_FEES);
-    addFee(dailyRevenue, log, fee, SWAP_FEES_TO_PROTOCOL);
+    addFee(dailyRevenue, log, fee, METRIC.TOKEN_BUY_BACK);
+    addFee(dailyHoldersRevenue, log, fee, METRIC.TOKEN_BUY_BACK);
   }
 
   // The partner contract's swaps are counted in volume through the router's events above; only its fee is read here.
@@ -132,17 +137,7 @@ const fetch = async (options: FetchOptions) => {
     addFee(dailySupplySideRevenue, log, fee, PARTNER_FEES_TO_SITES);
   }
 
-  for (const log of burns) addToken(dailyHoldersRevenue, SCROOGE, BigInt(log.value), METRIC.TOKEN_BUY_BACK);
-
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-    dailyHoldersRevenue,
-  };
+  return result();
 };
 
 const adapter: SimpleAdapter = {
@@ -163,32 +158,28 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Every swap settled through ScroogeRouter (Swapped and SwappedMany events), counted once at its input amount when the input is ETH or a core asset, otherwise at its output before Scrooge's fee; a swap between a new token and SCROOGE is valued on its SCROOGE side. A route split across venues counts once at its total. Swaps the site sends straight to a venue's own router are not counted. Swaps through LI.FI under the integrator \"scrooge\", on Robinhood Chain and other chains, from LiFiGenericSwapCompleted logs; swaps on one chain through Relay under Scrooge's Relay app id, at the USD value Relay reports sent. On Solana, every successful Jupiter v6 transaction that paid Scrooge's fee wallet (SOL, or Jupiter's platform fee in wrapped SOL to its token account), valued once from Jupiter's swap events as aggregators/jupiter-aggregator does.",
     Fees: "Scrooge's fee, taken by ScroogeRouter from each swap's output (the fee field of Swapped and SwappedMany), plus the fee a site embedding Scrooge's swap widget charges on top through ScroogePartner (at most 1%). On swaps through Relay, Scrooge's app fee as Relay reports it paid to Scrooge's fee wallet. On Solana, the SOL the swap paid Scrooge's fee wallet or its wrapped-SOL account. Fees of the underlying venues and pools are not included. Scrooge takes no fee on swaps through LI.FI.",
-    UserFees: "Users pay Scrooge's fee and, on swaps made in a partner site's widget, that site's fee.",
-    Revenue: "Scrooge's fee, sent by the router, or by Relay as an app fee, to Scrooge's fee wallet, and on Solana by the swap itself to Scrooge's Solana fee wallet.",
-    ProtocolRevenue: "Scrooge's fee, sent by the router, or by Relay as an app fee, to Scrooge's fee wallet, and on Solana by the swap itself to Scrooge's Solana fee wallet.",
+    Revenue: "Scrooge's fee on each swap: taken by ScroogeRouter on Robinhood Chain, paid as Relay's app fee on swaps through Relay, and paid in SOL to Scrooge's Solana fee wallet on Solana. The fee a partner site adds goes to that site and is not included.",
+    ProtocolRevenue: "Scrooge's fee on swaps through Relay, paid as Relay's app fee, and on Solana, paid in SOL to Scrooge's Solana fee wallet: kept by Scrooge, not burned.",
     SupplySideRevenue: "The fee a partner site charges in Scrooge's swap widget, paid to that site.",
-    HoldersRevenue: "SCROOGE bought back and burned: the fee wallet swaps the fees it holds into SCROOGE every 15 minutes and sends it to 0x…dEaD, valued at SCROOGE's price when burned. The same buybacks also spend Scrooge's launchpad fees, which arrive in the same wallet.",
+    HoldersRevenue: "Scrooge's fee on swaps through ScroogeRouter on Robinhood Chain, which the fee wallet swaps into SCROOGE every 15 minutes and burns, counted when the fee is charged. Burns funded by Scrooge's launchpad fees, which reach the same wallet, are not included.",
   },
   breakdownMethodology: {
     Fees: {
       [SWAP_FEES]: "Scrooge's fee on each swap, taken from the output by ScroogeRouter, paid through Relay as an app fee, or paid in SOL on Solana.",
       [PARTNER_FEES]: "The fee a site embedding Scrooge's swap widget adds on top, taken from the output by ScroogePartner.",
     },
-    UserFees: {
-      [SWAP_FEES]: "Scrooge's fee on each swap, taken from the output by ScroogeRouter, paid through Relay as an app fee, or paid in SOL on Solana.",
-      [PARTNER_FEES]: "The fee a site embedding Scrooge's swap widget adds on top, taken from the output by ScroogePartner.",
-    },
     Revenue: {
-      [SWAP_FEES_TO_PROTOCOL]: "Scrooge's swap fee, sent to Scrooge's fee wallet by the router or by Relay, or to its Solana fee wallet.",
+      [SWAP_FEES_TO_PROTOCOL]: "Scrooge's swap fee on swaps through Relay and on Solana, kept by Scrooge.",
+      [METRIC.TOKEN_BUY_BACK]: "Scrooge's swap fee on ScroogeRouter swaps, spent buying SCROOGE to burn.",
     },
     ProtocolRevenue: {
-      [SWAP_FEES_TO_PROTOCOL]: "Scrooge's swap fee, sent to Scrooge's fee wallet by the router or by Relay, or to its Solana fee wallet.",
+      [SWAP_FEES_TO_PROTOCOL]: "Scrooge's swap fee on swaps through Relay and on Solana, kept by Scrooge.",
     },
     SupplySideRevenue: {
       [PARTNER_FEES_TO_SITES]: "Partner fees, paid to the sites that embed Scrooge's swap widget.",
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: "SCROOGE bought with the fee wallet's fees and burned (sent from the fee wallet to 0x…dEaD).",
+      [METRIC.TOKEN_BUY_BACK]: "Scrooge's swap fee on ScroogeRouter swaps, which the fee wallet swaps into SCROOGE and burns (sends to 0x…dEaD).",
     },
   },
 };

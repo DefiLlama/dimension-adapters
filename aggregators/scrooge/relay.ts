@@ -9,7 +9,10 @@ import { getEnv } from "../../helpers/env";
 const RELAY_APP_ID = "app_id_517dc2a9-faf4-452d-b3ac-20b653265a70";
 // Scrooge's first Relay request under its app id.
 export const RELAY_START = "2026-10-14";
-const FEE_WALLET = "0xd21ba2ac73e7e825f929d4b2f70228e806f439ae";
+// Scrooge's fee wallet on EVM chains, shared by aggregators/scrooge and bridge-aggregators/scrooge: ScroogeRouter's
+// feeRecipient() (selector 0x46904840 on 0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82, Robinhood Chain), the recipient
+// Scrooge names for its app fee on Relay and on Across.
+export const FEE_WALLET = "0xd21ba2ac73e7e825f929d4b2f70228e806f439ae";
 
 type RelaySide = { currency?: { chainId?: number }; amountUsd?: string };
 type RelayRequest = {
