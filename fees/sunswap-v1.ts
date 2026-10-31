@@ -8,6 +8,9 @@ interface IResponse {
   fee: number;
 }
 
+const SWAP_FEES = 'Swap Fees';
+const SWAP_FEES_TO_LPS = 'Swap Fees To LPs';
+
 const adapterHistorical: Adapter = {
   version: 1,
   adapter: {
@@ -19,9 +22,13 @@ const adapterHistorical: Adapter = {
         const endStr = new Date(end).toISOString().split("T")[0];
         const url = `${api}?fromDate=${startStr}&toDate=${endStr}&version=v1`;
         const res: IResponse[] = (await httpGet(url)).data;
+        if (!Array.isArray(res) || !res.length)
+          throw new Error(`sunswap-v1: no fee data returned for ${startStr}`);
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
-        dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
+        if (!dayItem)
+          throw new Error(`sunswap-v1: no fee data for ${startStr}`);
+        dailyFees.addUSDValue(dayItem.fee, SWAP_FEES);
         return { dailyFees };
       }) as any,
       start: '2024-01-06'
@@ -29,20 +36,25 @@ const adapterHistorical: Adapter = {
   },
 
 }
-async function fetch() {
-  const { data: { list } } = await httpGet('https://abc.endjgfsv.link/swap/v2/exchanges/scan?pageNo=1&orderBy=volume24hrs&desc=true&pageSize=1000')
-  let dailyFees = 0
-  list.forEach((item: { volume24hrs: number; liquidity: number; tokenSymbol: string, fees24hrs: number }) => {
-    if (!item.volume24hrs || +item.volume24hrs === 0) return;
-    const volTvlRatio = +item.volume24hrs / +item.liquidity;
-    if (volTvlRatio < 50 && +item.liquidity < 1e7) { // filter out scam volume
-      dailyFees += +item.fees24hrs;
-    } else {
-      // console.log(`Volume: ${item.volume24hrs}, TVL: ${item.liquidity}, Ratio: ${volTvlRatio} symbol: ${item.tokenSymbol} - Skipping this exchange due to high ratio`);
-    }
-  });
 
-  return { dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0 }
+async function fetch(options: FetchOptions) {
+  const { data: { list } } = await httpGet('https://abc.endjgfsv.link/swap/v2/exchanges/scan?pageNo=1&orderBy=volume24hrs&desc=true&pageSize=1000')
+
+  let feesUsd = 0
+  for (const item of list) {
+    if (!item.volume24hrs || +item.volume24hrs === 0) continue;
+    const volTvlRatio = +item.volume24hrs / +item.liquidity;
+    if (volTvlRatio < 50 && +item.liquidity < 1e7) {
+      feesUsd += +item.fees24hrs;
+    }
+  }
+
+  const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  dailyFees.addUSDValue(feesUsd, SWAP_FEES)
+  dailySupplySideRevenue.addUSDValue(feesUsd, SWAP_FEES_TO_LPS)
+
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue: 0 }
 }
 
 const adapter: SimpleAdapter = {
@@ -53,7 +65,15 @@ const adapter: SimpleAdapter = {
     Fees: 'Swap fees paid by users.',
     Revenue: 'The protocol keeps no revenue.',
     SupplySideRevenue: 'All the swap fees are distributed to liquidity providers.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [SWAP_FEES]: 'Swap fees paid by users on SunSwap V1 pools.',
+    },
+    SupplySideRevenue: {
+      [SWAP_FEES_TO_LPS]: 'All swap fees are distributed to liquidity providers.',
+    },
+  },
 };
 
 export default adapter;
