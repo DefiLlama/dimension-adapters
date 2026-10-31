@@ -66,9 +66,10 @@ export const solanaVolumeQuery = (options: FetchOptions) => {
 		)
 		-- Only increases in the route's input deficit are new user notional: split inputs
 		-- add up, intermediate hops and recycled input in cyclic routes do not.
+		-- Unpriced input legs are counted in unpriced_input_legs and contribute 0 to volume.
 		SELECT
 			CASE WHEN COUNT(*) = 0 THEN 0 ELSE SUM(
-				CASE WHEN new_input_raw > 0 THEN
+				CASE WHEN new_input_raw > 0 AND amount_usd IS NOT NULL THEN
 					CAST(new_input_raw AS DOUBLE) / NULLIF(CAST(token_sold_amount_raw AS DOUBLE), 0) * amount_usd
 				ELSE 0 END
 			) END AS volume,
