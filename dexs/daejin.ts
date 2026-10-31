@@ -2,6 +2,7 @@ import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // Daejin runs two kinds of prediction market on each chain:
 //  - AMM markets (PredictionMarket): every bet emits BetPlaced with the cash paid and the token.
@@ -26,19 +27,19 @@ const CONTRACTS: Record<string, { predictionMarket: string; clobExchange: string
   [CHAIN.ETHEREUM]: {
     predictionMarket: "0xA528f636bAE87FF2c3e4d5718313cfC38C1B0be9",
     clobExchange: "0x9b00A64FF4a8F72D6Ff463fFe3acBC01cf5DB24f",
-    collateral: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    collateral: ADDRESSES.ethereum.USDC,
   },
   [CHAIN.BSC]: {
     predictionMarket: "0x7B8F913097242e21895F3731206F07d753170c07",
     clobExchange: "0x792a699e6A35566Ae293AD560698C41917B27b02",
-    collateral: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    collateral: ADDRESSES.bsc.USDC,
   },
 };
 
 // cashAmount is the gross stake in the bet token's raw units; token 0x0 is the chain's native coin
 const BET_PLACED =
   "event BetPlaced(uint256 indexed marketId, address indexed bettor, bool isYes, address token, uint256 cashAmount, uint256 sharesReceived, uint256 priceNum, uint256 priceDen)";
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 // One event per fill. size is in shares (1 share = 1 raw collateral unit at resolution),
 // execPrice is the YES price in ticks out of PRICE_TICKS. The outcome each side traded is not
@@ -80,21 +81,11 @@ const fetch = async (options: FetchOptions) => {
   ];
   if (!fills.length) return { dailyVolume };
 
-  // One settlement per transaction, ~2k a day on BSC. Fetched in small batches so public RPCs
-  // don't start answering null under the helper's default concurrency.
+  // One settlement per transaction; the helper re-requests hashes a lagging node answers null
   const txHashes = [...new Set(fills.map((log: any) => log.transactionHash.toLowerCase()))];
+  const txs = await getTransactionsWithRetry(options.chain, txHashes);
   const calldataByHash = new Map<string, string>();
-  const BATCH = 10;
-  let pending = txHashes;
-  for (let attempt = 0; pending.length && attempt < 6; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 1000 * attempt));
-    for (let i = 0; i < pending.length; i += BATCH) {
-      const batch = pending.slice(i, i + BATCH);
-      const txs = await getTransactionsWithRetry(options.chain, batch);
-      batch.forEach((hash, j) => { if (txs[j]?.data) calldataByHash.set(hash, txs[j].data); });
-    }
-    pending = pending.filter((hash) => !calldataByHash.has(hash));
-  }
+  txHashes.forEach((hash, i) => { if (txs[i]?.data) calldataByHash.set(hash, txs[i].data); });
 
   for (const log of fills) {
     const data = calldataByHash.get(log.transactionHash.toLowerCase());
