@@ -8,6 +8,9 @@ interface IResponse {
   fee: number;
 }
 
+const SWAP_FEES = 'Swap Fees';
+const SWAP_FEES_TO_LPS = 'Swap Fees To LPs';
+
 const adapterHistorical: Adapter = {
   version: 1,
   adapter: {
@@ -25,7 +28,7 @@ const adapterHistorical: Adapter = {
         const dayItem = res.find((item) => item.date === start);
         if (!dayItem)
           throw new Error(`sunswap-v1: no fee data for ${startStr}`);
-        dailyFees.addUSDValue(dayItem.fee);
+        dailyFees.addUSDValue(dayItem.fee, SWAP_FEES);
         return { dailyFees };
       }) as any,
       start: '2024-01-06'
@@ -48,8 +51,8 @@ async function fetch(options: FetchOptions) {
 
   const dailyFees = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
-  dailyFees.addUSDValue(feesUsd)
-  dailySupplySideRevenue.addUSDValue(feesUsd)
+  dailyFees.addUSDValue(feesUsd, SWAP_FEES)
+  dailySupplySideRevenue.addUSDValue(feesUsd, SWAP_FEES_TO_LPS)
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue: 0 }
 }
@@ -62,7 +65,15 @@ const adapter: SimpleAdapter = {
     Fees: 'Swap fees paid by users.',
     Revenue: 'The protocol keeps no revenue.',
     SupplySideRevenue: 'All the swap fees are distributed to liquidity providers.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [SWAP_FEES]: 'Swap fees paid by users on SunSwap V1 pools.',
+    },
+    SupplySideRevenue: {
+      [SWAP_FEES_TO_LPS]: 'All swap fees are distributed to liquidity providers.',
+    },
+  },
 };
 
 export default adapter;
