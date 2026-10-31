@@ -32,6 +32,21 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "wenlong": {
+    // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
+    // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
+    // https://wenlong.io/terms. Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0xb5e6e42154961f57021d06b7052c637155280025"],
+    // first day with fills through this builder code
+    start: "2026-07-03",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through WenLong, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through WenLong; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by WenLong, before its referral payouts.",
+      ProtocolRevenue: "Builder code fees received by WenLong, before its referral payouts.",
+    },
+    breakdownFees: true,
+  },
   "perpex": {
     // Perpex (perpex.co, by Celebit Ltd) builder code, attached to Hyperliquid orders placed through the web, iOS and
     // Android apps, including copy-trading orders: 0.10% of eligible filled notional, published at https://perpex.co/fees.
