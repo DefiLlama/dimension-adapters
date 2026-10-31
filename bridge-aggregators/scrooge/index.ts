@@ -11,9 +11,10 @@ import { CHAIN } from "../../helpers/chains";
 //   that integrator (the same event as bridge-aggregators/lifi and bridge-aggregators/hyperdex). Solana has no logs
 //   indexer here and is read from LI.FI's analytics API, filtered by the same integrator.
 // - Relay: requests under Scrooge's Relay app id (aggregators/scrooge/relay.ts), read from Relay's requests API.
-// - Across (since 2026-10-22): one deposit into the SpokePool of the chain paid from, whose message holds the
-//   instructions Across's MulticallHandler runs on arrival, among them paying Scrooge's fee to Scrooge's fee wallet. A
-//   FundsDeposited log whose decoded instructions pay that wallet is Scrooge's.
+// - Across (since 2026-10-22): one deposit into the SpokePool of the chain paid from, to Across's MulticallHandler on
+//   the chain paid to, whose message holds the instructions the handler runs on arrival, among them paying Scrooge's
+//   fee to Scrooge's fee wallet. A FundsDeposited log to that handler whose decoded instructions pay that wallet a
+//   nonzero fee is Scrooge's.
 //   SpokePools: https://github.com/across-protocol/contracts/blob/master/deployments/deployments.json
 //   Instructions: https://github.com/across-protocol/contracts/blob/master/contracts/handlers/MulticallHandler.sol
 //
@@ -27,6 +28,20 @@ const ACROSS_START = "2026-10-22";
 // MulticallHandler's Instructions struct: the calls it makes on arrival, and who gets the tokens if one fails.
 const ACROSS_INSTRUCTIONS = ["tuple(tuple(address target, bytes callData, uint256 value)[] calls, address fallbackRecipient)"];
 const ERC20_TRANSFER = "0xa9059cbb"; // transfer(address,uint256)
+// The MulticallHandler a deposit to each destination chain id is paid to, the recipient Across's Swap API sets for
+// Scrooge's routes: MulticallHandler in deployments.json (above), the same address on most chains. Robinhood Chain's is
+// not in that file; it is the one Across's API names, with the same code as Avalanche's and MegaETH's handlers.
+const MULTICALL_HANDLER = "0x0f7ae28de1c8532170ad4ee566b5801485c13a0e";
+const ACROSS_HANDLERS: Record<string, string> = {
+  1: MULTICALL_HANDLER, 10: MULTICALL_HANDLER, 130: MULTICALL_HANDLER, 137: MULTICALL_HANDLER, 480: MULTICALL_HANDLER,
+  1868: MULTICALL_HANDLER, 8453: MULTICALL_HANDLER, 42161: MULTICALL_HANDLER, 57073: MULTICALL_HANDLER,
+  143: "0xec41f75c686e376ab2a4f18bde263ab5822c4511", // Monad
+  999: "0x5e7840e06faccb6d1c3b5f5e0d1d3d07f2829bba", // HyperEVM
+  4326: "0xffc1285082deab9bf0eca5699e4930bb310afbe4", // MegaETH
+  4663: "0xa8ad2e87e2043711d8bec77e8bc3e2683c0ab6bd", // Robinhood Chain
+  43114: "0x9610954acdca5ff7905f051a040ce33fe613c60e", // Avalanche
+  59144: "0xdf1c940487574eefa79989a79a4936a0f979cda2", // Linea
+};
 // The SpokePools Scrooge deposits into, by chain: the chains Scrooge's Across deposits come from, Ethereum above all,
 // and the larger chains it offers Across on. Its smaller Across chains (World Chain, HyperEVM, Monad, MegaETH,
 // Soneium, Ink) are left out until Scrooge's volume there is worth a day of their logs.
@@ -54,10 +69,12 @@ const RELAY_ONLY_CHAINS: string[] = [
 
 const lastAddress = (word: string) => "0x" + String(word).slice(-40).toLowerCase();
 
-// Whether a deposit's instructions pay Scrooge's fee: the token that arrives transferred to the fee wallet, or, where ETH
-// arrives, ETH sent to it with no calldata. A message that does not decode as Instructions is not Scrooge's.
-function paysScroogeFee(message: string, outputToken: string): boolean {
-  if (!message || message === "0x") return false;
+// Whether a deposit is Scrooge's: paid to the destination chain's MulticallHandler, which alone runs its message as
+// Instructions, and those instructions pay Scrooge's fee, a nonzero amount of the token that arrives transferred to the
+// fee wallet or, where ETH arrives, nonzero ETH sent to it with no calldata. A message that does not decode as
+// Instructions is not Scrooge's. The fee is paid on arrival on the other chain; volume is counted at the deposit.
+function paysScroogeFee(recipient: string, destinationChainId: string, message: string, outputToken: string): boolean {
+  if (recipient !== ACROSS_HANDLERS[destinationChainId] || !message || message === "0x") return false;
   const coder = ethers.AbiCoder.defaultAbiCoder();
   let calls: { target: string; callData: string; value: bigint }[];
   try {
@@ -69,8 +86,8 @@ function paysScroogeFee(message: string, outputToken: string): boolean {
     if (target.toLowerCase() === FEE_WALLET) return callData === "0x" && value > 0n;
     if (target.toLowerCase() !== outputToken || value !== 0n || !callData.startsWith(ERC20_TRANSFER)) return false;
     try {
-      const [to] = coder.decode(["address", "uint256"], "0x" + callData.slice(10));
-      return String(to).toLowerCase() === FEE_WALLET;
+      const [to, amount] = coder.decode(["address", "uint256"], "0x" + callData.slice(10));
+      return String(to).toLowerCase() === FEE_WALLET && amount > 0n;
     } catch {
       return false;
     }
@@ -86,7 +103,7 @@ const fetch = async (options: FetchOptions) => {
   if (spokePool && options.endTimestamp > Date.parse(ACROSS_START) / 1000) {
     const deposits = await options.getLogs({ target: spokePool, eventAbi: AcrossDepositEvent, maxBlockRange: 10000 });
     for (const log of deposits) {
-      if (paysScroogeFee(String(log.message), lastAddress(log.outputToken))) dailyBridgeVolume.add(lastAddress(log.inputToken), log.inputAmount);
+      if (paysScroogeFee(lastAddress(log.recipient), String(log.destinationChainId), String(log.message), lastAddress(log.outputToken))) dailyBridgeVolume.add(lastAddress(log.inputToken), log.inputAmount);
     }
   }
 
@@ -118,7 +135,7 @@ const adapter: SimpleAdapter = {
     ...RELAY_ONLY_CHAINS.map((chain) => [chain, { start: RELAY_START }]),
   ]),
   methodology: {
-    BridgeVolume: 'Cross-chain volume Scrooge routes, on the sending chain: through LI.FI under the integrator "scrooge", the sent amount of every LiFiTransferStarted log carrying it (from Solana, LI.FI\'s analytics API for the same integrator); through Relay, the USD value Relay reports sent in every filled request under Scrooge\'s Relay app id; through Across, the input amount of every FundsDeposited log on the sending chain\'s SpokePool whose message, decoded as Across\'s MulticallHandler instructions, pays Scrooge\'s fee to Scrooge\'s fee wallet.',
+    BridgeVolume: 'Cross-chain volume Scrooge routes, on the sending chain: through LI.FI under the integrator "scrooge", the sent amount of every LiFiTransferStarted log carrying it (from Solana, LI.FI\'s analytics API for the same integrator); through Relay, the USD value Relay reports sent in every filled request under Scrooge\'s Relay app id; through Across, the input amount of every FundsDeposited log on the sending chain\'s SpokePool paid to Across\'s MulticallHandler on the receiving chain whose message, decoded as that handler\'s instructions, pays a nonzero fee to Scrooge\'s fee wallet.',
   },
 };
 
