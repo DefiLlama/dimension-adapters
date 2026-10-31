@@ -6,15 +6,10 @@ import { addTokensReceived } from '../helpers/token';
 const CONFIG: Record<string, string> = {
   [CHAIN.AVAX]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.BSC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.FANTOM]: '0x0b5025d8d409a51615cb624b8ede132bb11a2550',
   [CHAIN.POLYGON]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.ARBITRUM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.OPTIMISM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.ERA]: '0x01b50b57a3d3c1a54433813585e60713e75f3de9',
-  [CHAIN.LINEA]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.BASE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.MANTLE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.SONIC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d'
+  [CHAIN.BASE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d'
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -58,10 +53,6 @@ const adapter: Adapter = {
       fetch,
       start: '2023-01-09',
     },
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: '2023-01-09',
-    },
     [CHAIN.POLYGON]: {
       fetch,
       start: '2023-01-09',
@@ -74,25 +65,9 @@ const adapter: Adapter = {
       fetch,
       start: '2023-01-09',
     },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2023-01-09',
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2023-01-09',
-    },
     [CHAIN.BASE]: {
       fetch,
       start: '2023-01-09',
-    },
-    [CHAIN.MANTLE]: {
-      fetch,
-      start: '2023-01-09',
-    },
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2024-12-18',
     }
   }
 }
