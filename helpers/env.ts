@@ -54,6 +54,7 @@ const DEFAULTS: any = {
   FLARE_WHITELISTED_RPC: 'https://rpc.ankr.com/flare,https://flare.rpc.thirdweb.com',
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
+  ENI_RPC: 'https://rpc2.eniac.network,https://rpc1.eniac.network',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
