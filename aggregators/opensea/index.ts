@@ -1,5 +1,6 @@
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
 import { solanaVolumeQuery } from "./solana";
@@ -31,6 +32,7 @@ const duneAggregatorChains = Object.values(chainConfig)
 const duneChainList = [...duneAggregatorChains, 'robinhood'].map((c) => `'${c}'`).join(', ')
 
 const prefetch = async (options: FetchOptions) => {
+	assertDuneSolanaIndexed(options);
 	const timeRange = (column: string) => `${column} >= FROM_UNIXTIME(${options.startTimestamp}) AND ${column} < FROM_UNIXTIME(${options.endTimestamp})`
 	return await queryDuneSql(options, `
 		WITH opensea_txs AS (
@@ -80,16 +82,16 @@ const prefetch = async (options: FetchOptions) => {
 };
 
 const fetchSolana = async (options: FetchOptions) => {
-	if (options.endTimestamp > Date.now() / 1000 - 10 * 60 * 60) {
-		throw new Error('OpenSea Solana: allow 10 hours for Dune indexing');
-	}
 	const results = await queryDuneSql(options, solanaVolumeQuery(options), { extraUIDKey: 'solana-volume' });
 	const row = results[0];
 	if (!row || row.volume == null || row.decoded_legs == null || row.input_legs == null || row.unpriced_input_legs == null) {
 		throw new Error('OpenSea Solana: missing Dune volume result');
 	}
-	if (Number(row.unpriced_input_legs) > 0 || (Number(row.decoded_legs) > 0 && Number(row.input_legs) === 0)) {
-		throw new Error('OpenSea Solana: decoded swaps have missing input amounts or prices');
+	if (Number(row.decoded_legs) > 0 && Number(row.input_legs) === 0) {
+		throw new Error('OpenSea Solana: decoded swaps have missing input amounts');
+	}
+	if (Number(row.unpriced_input_legs) > 0) {
+		console.log(`OpenSea Solana: ${row.unpriced_input_legs} of ${row.input_legs} input legs have no USD price, excluded from volume`);
 	}
 	const dailyVolume = Number(row.volume);
 	if (!Number.isFinite(dailyVolume) || dailyVolume < 0) {
@@ -118,7 +120,7 @@ const adapter: SimpleAdapter = {
 	prefetch,
 	dependencies: [Dependencies.DUNE],
 	methodology: {
-		Volume: "On Solana, decoded swap input value for traders identified by a signed OpenSea memo or a transfer to the OpenSea fee wallet, counting each outer routing instruction's fresh input once; fee-free swaps without a memo and swaps Dune does not decode are excluded. On EVM, tagged transactions present in Dune's aggregator trades are counted, except Robinhood uses DEX trades with intermediate-token legs excluded; unlisted chains and tags only inside bundled calls are not covered.",
+		Volume: "On Solana, decoded swap input value for traders identified by a signed OpenSea memo or a transfer to the OpenSea fee wallet, counting each outer routing instruction's fresh input once; fee-free swaps without a memo, swaps Dune does not decode and swaps where neither token has a USD price are excluded. On EVM, tagged transactions present in Dune's aggregator trades are counted, except Robinhood uses DEX trades with intermediate-token legs excluded; unlisted chains and tags only inside bundled calls are not covered.",
 	},
 	breakdownMethodology: {
 		Volume: "Solana is valued at fresh route input using Dune's decoded trade prices, not fee receipts; EVM retains its existing aggregator and Robinhood DEX sources.",
