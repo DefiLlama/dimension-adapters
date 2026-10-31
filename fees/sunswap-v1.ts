@@ -19,9 +19,13 @@ const adapterHistorical: Adapter = {
         const endStr = new Date(end).toISOString().split("T")[0];
         const url = `${api}?fromDate=${startStr}&toDate=${endStr}&version=v1`;
         const res: IResponse[] = (await httpGet(url)).data;
+        if (!Array.isArray(res) || !res.length)
+          throw new Error(`sunswap-v1: no fee data returned for ${startStr}`);
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
-        dailyFees.addGasToken((dayItem?.fee || 0) * 1e6);
+        if (!dayItem)
+          throw new Error(`sunswap-v1: no fee data for ${startStr}`);
+        dailyFees.addUSDValue(dayItem.fee);
         return { dailyFees };
       }) as any,
       start: '2024-01-06'
