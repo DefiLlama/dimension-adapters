@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";

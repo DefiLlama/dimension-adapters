@@ -474,6 +474,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   "echosync-perps": { addresses: ["0x831ad7eb3e600a3ab8df851ce27df8d8dd6b5d9c"], start: "2025-11-07" },
   // "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
+  // Changes to fomo's revenue methodology, including shared builder logic, require further approval before merging:
+  // a Trueo market depends on this data; this builder also supplies fomo Spot and Outcome.
   "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"] },
   "gemwallet-perps": {
     addresses: ["0x0d9dab1a248f63b0a48965ba8435e4de7497a3dc"],
@@ -875,6 +877,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  // Changes to fomo Perps' revenue methodology, including shared builder logic, require further approval before merging:
+  // a Trueo market depends on this data.
   "fomo-social-trading-perps": {
     addresses: ["0x2a2b6b093a9813fbd8cddae800c3d17d46460d17"],
     start: "2026-06-05",
@@ -1510,6 +1514,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "evplusai-spot": { builder: "evplusai-perps", market: "spot", start: "2025-02-23" },
   "fan-app-spot": { builder: "fan-app-perps", market: "spot", start: "2025-09-06" },
   "floatout-outcome": { builder: "floatout", market: "outcome", start: "2026-05-05" },
+  // Changes to fomo Spot or Outcome revenue methodology require further approval before merging:
+  // a Trueo market depends on this data, including the shared fomo-perps builder configuration.
   "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01" },
   "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02" },
   "gdex-outcome": { builder: "gdex-perps", market: "outcome", start: "2026-05-05" },
