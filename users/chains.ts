@@ -4,6 +4,7 @@ import { ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { createEvmChainNewUsersFetcher, createEvmChainUsersFetcher, EVM_CHAIN_METRIC_CONFIGS } from "../helpers/evmChainFees";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
+import { feeHistoryUsersExports } from "./utils/feeHistoryUsers";
 import { routescanStatsExports } from "./utils/routescanStats";
 import { subscanStatsExports } from "./utils/subscanStats";
 
@@ -212,4 +213,4 @@ export default [
   type: "chain",
   chain: chain.chain,
   getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, routescanStatsExports, subscanStatsExports, evmChainMetricExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, feeHistoryUsersExports, routescanStatsExports, subscanStatsExports, evmChainMetricExports)

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -12,7 +13,7 @@ import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
 //    Multicall3 by the relayers) and its UnlockNativeToken / MintForeignToken commands are counted when dispatched
 //    successfully (v1 by message id, v2 by nonce, skipping commands reported by CommandFailed)
 const GATEWAY = "0x27ca963c279c93801941e1eb8799c23f407d68e7";
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 const TOKEN_SENT_V1 = "event TokenSent(address indexed token, address indexed sender, uint32 indexed destinationChain, (uint8 kind, bytes data) destinationAddress, uint128 amount)";
 const OUTBOUND_V2 = "event OutboundMessageAccepted(uint64 nonce, (address origin, (uint8 kind, bytes data)[] assets, (uint8 kind, bytes data) xcm, bytes claimer, uint128 value, uint128 executionFee, uint128 relayerFee) payload)";

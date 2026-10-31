@@ -86,9 +86,9 @@ const fetch = async (options: FetchOptions) => {
 
   dailyFees.addUSDValue(platform[options.chain] ?? 0);
   dailyFees.addUSDValue(app[options.chain] ?? 0);
-  dailyFees.addUSDValue(swap[options.chain] ?? 0);
+  dailyFees.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS);
   dailySupplySideRevenue.addUSDValue(app[options.chain] ?? 0);
-  dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0);
+  dailySupplySideRevenue.addUSDValue(swap[options.chain] ?? 0, SWAP_COSTS_TO_LPS);
   dailyRevenue.addUSDValue(platform[options.chain] ?? 0);
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
@@ -108,24 +108,24 @@ const adapter: SimpleAdapter = {
     Revenue: "Platform fees. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
     ProtocolRevenue: "Platform fees kept by Relay. This is an upper bound: Relay pays qualifying integrators an undisclosed 0-67% revenue share out of it.",
   },
-  // breakdown labels hidden for now, restore together with the labels in fetch
-  // breakdownMethodology: {
-  //   Fees: {
+  // other breakdown labels hidden for now, restore together with the labels in fetch
+  breakdownMethodology: {
+    Fees: {
   //     [PLATFORM_FEES]: "Flat basis point fee for using the Relay API and relay.link. Relay keeps it, minus a 0-67% revenue share paid to qualifying integrators that Relay does not disclose.",
   //     [APP_FEES]: "Fees an integrator adds on top of the Relay quote, paid to that integrator.",
-  //     [SWAP_COSTS]: "Payments to liquidity providers for cross-asset and cross-chain swaps. Excludes trades with unreliable token prices.",
-  //   },
-  //   SupplySideRevenue: {
+      [SWAP_COSTS]: "Payments to liquidity providers for cross-asset and cross-chain swaps. Excludes trades with unreliable token prices.",
+    },
+    SupplySideRevenue: {
   //     [APP_FEES_TO_INTEGRATORS]: "Fees an integrator adds on top of the Relay quote, paid to that integrator.",
-  //     [SWAP_COSTS_TO_LPS]: "Swap costs paid to the liquidity providers that fill cross-asset and cross-chain swaps.",
-  //   },
+      [SWAP_COSTS_TO_LPS]: "Swap costs paid to the liquidity providers that fill cross-asset and cross-chain swaps.",
+    },
   //   Revenue: {
   //     [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
   //   },
   //   ProtocolRevenue: {
   //     [PLATFORM_FEES]: "Platform fee, including the undisclosed 0-67% revenue share Relay pays to qualifying integrators.",
   //   },
-  // },
+  },
   unknownBreakdownMethodology: {
     SupplySideRevenue: {
       'Platform Fee Revenue Share To Integrators': "Relay pays qualifying integrators a revenue share of 0-67% of its platform fee, depending on the swap type and their 30-day volume. Relay does not report the amount, so it cannot be measured.",

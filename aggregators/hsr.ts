@@ -28,7 +28,7 @@ const EXTRA_MAJOR_TOKENS: Record<string, Set<string>> = { [CHAIN.BASE]: new Set(
   '0x60a3e35cc302bfa44cb288bc5a4f316fdb1adb42', // EURC
   '0x820c137fa70c8691f0e44dc420a5e53c168921dc', // USDS
   '0x6bb7a212910682dcfdbd5bcbb3e28fb4e8da10ee', // GHO
-  '0x2416092f143378750bb29b79ed961ab195cceea5', // ezETH
+  ADDRESSES.optimism.ezETH, // ezETH
   '0x236aa50979d5f3de3bd1eeb40e81137f22ab794b', // tBTC
   '0x532f27101965dd16442e59d40670faf5ebb142e4', // BRETT
   '0x4ed4e862860bed51a9570b96d89af5e1b0efefed', // DEGEN

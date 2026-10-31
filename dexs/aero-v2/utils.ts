@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 // Changes to this helper's revenue logic require further approval before merging:
 // a Trueo market depends on the Aero revenue it feeds (aero-v2, aero-lite).
 
@@ -15,7 +16,7 @@ export const BRIBES_TO_HOLDERS = 'External Bribes Revenue'
 // AERO (Base) and xAERO (each chain's receipt token, redeemable 1:1) have no price feed yet. The
 // upgrade converted Aerodrome AERO 1:1 (https://aero.xyz/aero-upgrade/), so both are valued at the
 // Aerodrome AERO price. Addresses: https://app.aero.xyz/docs/security/
-const AERODROME_AERO = 'base:0x940181a94A35A4569E4529A3CDfB74e38FD98631'
+const AERODROME_AERO = 'base:' + ADDRESSES.base.AERO
 const AERO_TOKENS = new Set([
   'base:0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee', // AERO
   'base:0x6cdda0e730744dc6ff67654b35350adad05ecee7', // xAERO

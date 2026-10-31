@@ -42,10 +42,9 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   GATELAYER_RPC: 'https://www.gatescan.org/gatelayer/api/eth-rpc',
-  BITKUB_RPC: 'https://www.kubscan.com/api/eth-rpc', // official rpc.bitkubchain.io has no historical state (pruned); kubscan blockscout proxy serves archival eth_call + wide eth_getLogs
-  BITKUB_ARCHIVAL_RPC: 'https://www.kubscan.com/api/eth-rpc',
-  BITKUB_RPC_MAX_PARALLEL: '10', // both bitkub RPCs rate-limit aggressively (429) under the sdk's default 100 parallel requests
-  BITKUB_RPC_GET_LOGS_CONCURRENCY_LIMIT: '3',
+  BITKUB_WHITELISTED_RPC: 'https://dataseed.bitkubchain.org,https://dataseed.bitkubchain.io,https://rpc.kubchain.io,https://www.kubscan.com/api/eth-rpc',
+  BITKUB_RPC_MAX_PARALLEL: '10',
+  BITKUB_RPC_GET_LOGS_CONCURRENCY_LIMIT: '10',
   XDC_RPC: 'https://rpc.xdc.network,https://rpc.ankr.com/xdc', // xinfin.network endpoints 403, rpc.xdc.org stale ~2 months, xdcrpc.com load-balances onto stale/rate-limited backends
   XDC_ARCHIVAL_RPC: 'https://rpc.xdc.network', // archival + answers eth_getLogs over 5000 blocks
   // blockscout proxy first: it is the only public endpoint still serving historical state (eth_call at a past block).

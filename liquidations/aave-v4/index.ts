@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
-import { HUBS, chainConfig, discoverSpokes } from '../../fees/aave-v4'
+import { getHubs, chainConfig, discoverSpokes } from '../../fees/aave-v4'
 
 const abis = {
   getAssetCount: 'uint256:getAssetCount',
@@ -12,7 +12,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
 
   // liquidations happen on the Spokes; find them through the Hubs, same as fees/aave-v4
-  const hubs = HUBS[options.chain]
+  const hubs = getHubs(options.chain, options.startTimestamp)
   const assetCounts: number[] = await options.fromApi.multiCall({ abi: abis.getAssetCount, calls: hubs })
   const spokes = await discoverSpokes(options.fromApi, hubs, assetCounts)
   if (!spokes.length) return { dailyCollateralLiquidated }

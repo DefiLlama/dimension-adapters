@@ -46,6 +46,31 @@ function computeMethodology(fp: SubgraphConfig['feesPercent']): Record<string, s
 }
 
 const configs: Record<string, SubgraphConfig> = {
+  "quainance": {
+    graphUrls: {
+      [CHAIN.QUAI]: "https://graph.quai.network/subgraphs/name/quainance/v2",
+    },
+    totalVolume: { factory: "uniswapFactories", field: "totalVolumeUSD" },
+    // 0.3% fee, all to LPs, nothing to protocol
+    feesPercent: { type: "volume", Fees: 0.3, UserFees: 0.3, ProtocolRevenue: 0, HoldersRevenue: 0, Revenue: 0, SupplySideRevenue: 0.3 },
+    start: '2026-07-06',
+  },
+  "zyberswap-v3": {
+    graphUrls: {
+      [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    feesPercent: { type: "fees", ProtocolRevenue: 10, HoldersRevenue: 0, Fees: 10, UserFees: 90, SupplySideRevenue: 90, Revenue: 10 },
+    start: '2023-02-20',
+    methodology: {
+      UserFees: "User pays dynamic swap fee.",
+      Fees: "A dynamic swap fee is collected as trading fee",
+      Revenue: "Protocol receives 10% of the dynamic swap fee",
+      ProtocolRevenue: "Protocol receives 10% of the dynamic swap fee",
+      SupplySideRevenue: "90% of the dynamic swap fee is distributed to LPs",
+      HoldersRevenue: "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
+    },
+  },
   "harmony-swap": {
     graphUrls: {
       [CHAIN.HARMONY]: "https://graph.swap.country/subgraphs/name/harmony-uniswap-v3",

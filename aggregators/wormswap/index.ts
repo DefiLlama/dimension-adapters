@@ -10,7 +10,7 @@ const ROUTER = "0x532bd585ddb129ea50b0938995d3ac3184c4f1bc";
 // Router's feeDistributor(): https://bscscan.com/address/0x532bd585ddb129ea50b0938995d3ac3184c4f1bc#readContract
 const FEE_DISTRIBUTOR = "0x66f87b4125b314a8abd26abca7b43da045700eb5";
 // BSC WBNB: https://bscscan.com/token/0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c
-const WRAPPED_NATIVE = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c";
+const WRAPPED_NATIVE = ADDRESSES.bsc.WBNB;
 // Router's native-BNB sentinel in SwapExecuted: https://bscscan.com/address/0x532bd585ddb129ea50b0938995d3ac3184c4f1bc#code
 const NATIVE = ADDRESSES.null;
 
