@@ -32,7 +32,7 @@ const GAME_CONTRACTS: { targets: string[]; eventAbi: string }[] = [
   {
     targets: [
       "0x8baecE06d825d36b52cb588960aE707d6C76a54C",
-      "0xD1EbacbBAC3D800dc413A5f5d0DD62855F832203",
+      "0xD1EbacbBAC3D800DC413a5f5D0dd62855F832203",
     ],
     eventAbi: EVENT_ABIS.Dice,
   },
