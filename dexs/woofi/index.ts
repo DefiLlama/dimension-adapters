@@ -14,6 +14,14 @@ const apiNetworks: Record<Chain, string> = {
   [CHAIN.SOLANA]: "solana",
   [CHAIN.HYPERLIQUID]: "hyperevm",
   [CHAIN.MONAD]: "monad",
+  // Discontinued chains commented out in place to preserve history:
+  // [CHAIN.FANTOM]: "fantom", // Discontinued support
+  // [CHAIN.ERA]: "era", // Discontinued support
+  // [CHAIN.POLYGON_ZKEVM]: "polygon_zkevm", // Discontinued support
+  // [CHAIN.LINEA]: "linea", // Discontinued support
+  // [CHAIN.MANTLE]: "mantle", // Discontinued support
+  // [CHAIN.SONIC]: "sonic", // Discontinued support
+  // [CHAIN.BERACHAIN]: "berachain", // Discontinued support
 };
 
 type TStartTime = {
@@ -29,6 +37,13 @@ const startTime: TStartTime = {
   [CHAIN.SOLANA]: 1740528000,
   [CHAIN.HYPERLIQUID]: 1751328000,
   [CHAIN.MONAD]: 1764201600,
+  // [CHAIN.FANTOM]: 1648080000, // Discontinued support
+  // [CHAIN.ERA]: 1682553600, // Discontinued support
+  // [CHAIN.POLYGON_ZKEVM]: 1687910400, // Discontinued support
+  // [CHAIN.LINEA]: 1692748800, // Discontinued support
+  // [CHAIN.MANTLE]: 1696464000, // Discontinued support
+  // [CHAIN.SONIC]: 1735084800, // Discontinued support
+  // [CHAIN.BERACHAIN]: 1738800000, // Discontinued support
 };
 
 const fetchApiVolume = async (options: FetchOptions) => {
