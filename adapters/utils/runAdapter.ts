@@ -363,7 +363,7 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - windowSize
+    const fromTimestamp = timestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei',])
