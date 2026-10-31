@@ -1,130 +1,41 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import { ALGEBRA_INTEGRAL_LABELS, getAlgebraIntegralFetch } from "../helpers/algebraIntegral";
 
-const HYPERCAT_API_URL = "https://api.gamma.xyz/frontend/externalApis/hypercat/pools";
-
-interface HypercatToken {
-  id: string;
-  symbol: string;
-  name: string;
-  decimals: string;
-  derivedMatic: string;
-  totalValueLocked: string;
-  totalValueLockedUSD: string;
-}
-
-interface HypercatPool {
-  id: string;
-  fee: string;
-  token0: HypercatToken;
-  token1: HypercatToken;
-  sqrtPrice: string;
-  liquidity: string;
-  tick: string;
-  tickSpacing: string;
-  totalValueLockedUSD: string;
-  totalValueLockedToken0: string;
-  totalValueLockedToken1: string;
-  volumeUSD: string;
-  feesUSD: string;
-  untrackedFeesUSD: string;
-  token0Price: string;
-  token1Price: string;
-  communityFee: string;
-  calculated24h: {
-    volumeUSD: number;
-    feesUSD: number;
-    averageTVL: number;
-  };
-}
-
-interface HypercatResponse {
-  data: {
-    pools: HypercatPool[];
-  };
-}
-
-const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-
-  try {
-    // Fetch data from the official Hypercat API
-    const response: HypercatResponse = await httpGet(HYPERCAT_API_URL);
-
-    if (!response?.data?.pools) {
-      console.warn("No pools data received from Hypercat API");
-      return {
-        dailyFees,
-        dailyRevenue,
-        dailyUserFees: dailyFees,
-        dailyProtocolRevenue,
-        dailySupplySideRevenue,
-        dailyHoldersRevenue: options.createBalances(),
-      };
-    }
-
-    // Calculate total daily fees from all pools using calculated24h data
-    const totalDailyFees = response.data.pools.reduce((acc, pool) => {
-      return acc + (pool.calculated24h?.feesUSD || 0);
-    }, 0);
-
-    // Calculate total daily volume using calculated24h data
-    const totalDailyVolume = response.data.pools.reduce((acc, pool) => {
-      return acc + (pool.calculated24h?.volumeUSD || 0);
-    }, 0);
-
-    // Protocol revenue is 25% of total fees
-    const protocolRevenue = totalDailyFees * 0.25;
-    // Supply side revenue is 75% of total fees
-    const supplySideRevenue = totalDailyFees * 0.75;
-
-    // Add fees to balances (in USD)
-    dailyFees.addUSDValue(totalDailyFees);
-    dailyRevenue.addUSDValue(protocolRevenue); // For DeFiLlama, dailyRevenue = protocol revenue
-    dailyProtocolRevenue.addUSDValue(protocolRevenue);
-    dailySupplySideRevenue.addUSDValue(supplySideRevenue);
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyUserFees: dailyFees, // User fees are the same as total fees
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
-      dailyHoldersRevenue: options.createBalances(), // No holder revenue for now
-    };
-  } catch (error) {
-    console.error("Error fetching Hypercat fees data:", error);
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyUserFees: dailyFees,
-      dailyProtocolRevenue,
-      dailySupplySideRevenue,
-      dailyHoldersRevenue: options.createBalances(),
-    };
-  }
-};
+const fetch = getAlgebraIntegralFetch({
+  factory: "0x1d9DcF8238daf2E078FF639a5Ded6b518BF3E585",
+  fromBlock: 4548782,
+});
 
 const adapter: SimpleAdapter = {
   version: 2,
-  adapter: {
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      runAtCurrTime: true,
-    },
-  },
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.HYPERLIQUID],
+  start: "2025-05-31",
   methodology: {
-    Fees: "Trading fees collected by Hypercat exchange, sourced from official Hypercat API using calculated24h feesUSD",
-    Revenue: "Protocol revenue from trading fees (25% of total fees, per fee switch)",
-    UserFees: "Trading fees paid by users (same as total fees)",
-    SupplySideRevenue: "Revenue shared with liquidity providers (75% of total fees, per fee switch)",
-    ProtocolRevenue: "Revenue retained by the protocol (25% of fees, per fee switch)",
-    HoldersRevenue: "Revenue distributed to token holders (currently 0)",
+    Fees: "Swap fees paid by traders, at the rate each swap was charged. Pools run Algebra's dynamic fee, so the rate is tracked through every on-chain fee change.",
+    UserFees: "Swap fees paid by traders.",
+    Revenue: "The 25% community fee share of swap fees that reaches the HyperCat fee receiver, after Algebra's cut.",
+    ProtocolRevenue: "The 25% community fee share of swap fees that reaches the HyperCat fee receiver, after Algebra's cut.",
+    SupplySideRevenue: "Swap fees kept by liquidity providers, plus Algebra's 5% licensing cut of the community fee.",
+    HoldersRevenue: "No swap fees go to token holders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [ALGEBRA_INTEGRAL_LABELS.SWAP_FEES]: "Every swap fee charged, at the rate the trade actually paid.",
+    },
+    SupplySideRevenue: {
+      [ALGEBRA_INTEGRAL_LABELS.LP_FEES]: "The part of swap fees that stays in the pool for liquidity providers.",
+      [ALGEBRA_INTEGRAL_LABELS.ALGEBRA_FEES]: "Algebra's 5% licensing cut, taken by the community vault from the fees pools send it.",
+    },
+    Revenue: {
+      [ALGEBRA_INTEGRAL_LABELS.PROTOCOL_FEES]: "Community fees forwarded to HyperCat's fee receiver, the factory owner.",
+    },
+    ProtocolRevenue: {
+      [ALGEBRA_INTEGRAL_LABELS.PROTOCOL_FEES]: "Community fees forwarded to HyperCat's fee receiver, the factory owner.",
+    },
   },
 };
 
-export default adapter; 
+export default adapter;
