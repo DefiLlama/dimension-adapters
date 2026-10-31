@@ -43,6 +43,11 @@ const LEGACY_PRIZE_POOL = "0xdE597816a8473C059C846B77EE4ABaC8EbaB1770";
 const PRIZE_POOL = "0xd3F3E252B79260E95Ad7DFb311FFFBd90f81ab78";
 const PRIZE_POOL_ROTATION_BLOCK = 94930730;
 const PRIZE_POOL_ROTATION_LOG_INDEX = 9;
+// The prize pool moved to the documented prize vault on 2026-10-30 at 06:55:23 UTC, keeping the 75/25 split.
+// https://robinhoodchain.blockscout.com/tx/0x45b8ad25585604fd7f5bddbe4211c82865e3386352492cba4ef3ba2df8907bca
+const CURRENT_PRIZE_POOL = "0xbc4C09A863878Ac4Ee0Dc6167C3C121e3b06eaC1";
+const CURRENT_PRIZE_POOL_ROTATION_BLOCK = 101536276;
+const CURRENT_PRIZE_POOL_ROTATION_LOG_INDEX = 3;
 // Buybacks wallet: takes the splitter's 25% leg and the buyback share of every car sale. Buybacks are made by
 // hand; none had been made as of 2026-09-24 (the wallet had never sent a transaction).
 const BUYBACKS = "0x18eD3E25Fb4786EA60021E2e9A2Da0A52602f503";
@@ -98,7 +103,9 @@ const fetch = async (options: FetchOptions) => {
     const to = String(log.to).toLowerCase();
     const afterRotation = log.blockNumber > PRIZE_POOL_ROTATION_BLOCK ||
       (log.blockNumber === PRIZE_POOL_ROTATION_BLOCK && log.logIndex > PRIZE_POOL_ROTATION_LOG_INDEX);
-    const prizePool = afterRotation ? PRIZE_POOL : LEGACY_PRIZE_POOL;
+    const afterCurrentRotation = log.blockNumber > CURRENT_PRIZE_POOL_ROTATION_BLOCK ||
+      (log.blockNumber === CURRENT_PRIZE_POOL_ROTATION_BLOCK && log.logIndex > CURRENT_PRIZE_POOL_ROTATION_LOG_INDEX);
+    const prizePool = afterCurrentRotation ? CURRENT_PRIZE_POOL : afterRotation ? PRIZE_POOL : LEGACY_PRIZE_POOL;
     if (to === prizePool.toLowerCase()) {
       dailyFees.add(token, amount, LABELS.PoolFees);
       dailySupplySideRevenue.add(token, amount, LABELS.PoolFeesToPrizePool);
