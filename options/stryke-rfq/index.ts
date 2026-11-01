@@ -5,7 +5,7 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 // Current address: https://app.stryke.xyz (VITE_SETTLEMENT_4663 in the public bundle).
 // Previous deployments are returned by https://api.rfq.stryke.xyz/indexer/portfolio?taker=<address>.
 // Evidence and transaction reconciliation are supplied in the PR; these contracts are not explorer-verified.
-// Historical scope includes early deployments and Arbitrum test fills at the team's explicit request.
+// Historical scope includes the early Robinhood deployments and Arbitrum/USDC.
 export const legacySettlement = '0x1fa225166e84cade8fb74384622dbdf6cfe55929';
 export const deployments = [
   { address: legacySettlement, start: '2026-10-04', version: 0 },
@@ -16,8 +16,7 @@ export const deployments = [
   { address: '0x6f1285fd060259e535c8e7526009d5c6ae247024', start: '2026-10-30', version: 3 },
 ];
 
-// Arbitrum/USDC is included with the team's explicit authorization, including
-// the October 30 test history. This does not assert a production launch date.
+// Arbitrum/USDC history begins on October 30, 2026.
 export const chainConfig: Record<string, { start: string; token: string; fromBlock: number; deployments: typeof deployments }> = {
   [CHAIN.ROBINHOOD]: { start: '2026-10-04', token: ADDRESSES.robinhood.USDG, fromBlock: 79843602, deployments },
   [CHAIN.ARBITRUM]: { start: '2026-10-30', token: ADDRESSES.arbitrum.USDC, fromBlock: 519639774,
