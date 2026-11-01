@@ -35,7 +35,7 @@ async function fetchFallbackVolume(endpoint: string): Promise<number> {
 function isRecentDate(dateString: string): boolean {
   const targetTime = new Date(dateString).getTime();
   const now = Date.now();
-  // Zezwalaj na fallback do cache wyłącznie dla zapytań z ostatnich 48 godzin
+  // Allow cache fallback only for requests within the last 48 hours
   return (now - targetTime) <= 48 * 60 * 60 * 1000;
 }
 
@@ -47,10 +47,10 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
         return { dailyVolume: res.total_volume_usd };
       }
     } catch {
-      // BigQuery offline lub błąd zapytania
+      // BigQuery offline or request failed
     }
 
-    // Użyj cache tylko dla bieżących danych, nigdy dla indeksowania wstecznego
+    // Use live cache only for recent dates, never for historical backfills
     if (config.fallbackEndpoint && isRecentDate(options.dateString)) {
       const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
       if (liveVolume > 0) {
@@ -65,7 +65,6 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
     fetch,
     start: config.start,
     chains: [CHAIN.INJECTIVE],
-    runAtCurrTime: true,
     ...(config.doublecounted ? { doublecounted: true } : {}),
     ...(config.methodology ? { methodology: config.methodology } : {}),
   };
@@ -91,7 +90,6 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
     fetch,
     start: config.start,
     chains: [CHAIN.INJECTIVE],
-    runAtCurrTime: true,
     ...(config.doublecounted ? { doublecounted: true } : {}),
     ...(config.methodology ? { methodology: config.methodology } : {}),
     ...(config.breakdownMethodology ? { breakdownMethodology: config.breakdownMethodology } : {}),
