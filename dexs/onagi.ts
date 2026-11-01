@@ -111,7 +111,10 @@ const SOLANA_FEE_ACCOUNT = "Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i";
 const JUPITER_V6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
 // Public Solana RPC answers 429 when called too fast: wait and try again, up to six times.
-const isRateLimit = (e: any) => [e?.status, e?.statusCode, e?.response?.status].includes(429) || String(e?.message ?? e).includes("429");
+// The sdk rethrows transport errors as a plain Error whose message is "[host: <url>] [<http status>] ...", so the
+// status survives only as that bracketed field.
+const isRateLimit = (e: any) =>
+  [e?.status, e?.statusCode, e?.response?.status].includes(429) || /^\[host: [^\]]*\] \[429\] /.test(String(e?.message ?? ""));
 const withRetry = async <T>(call: () => Promise<T>): Promise<T> => {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -151,6 +154,7 @@ const solanaSignatures = async (from: number, to: number) => {
     while (!solanaHistoryEnd && !((oldest() ?? Infinity) < from)) {
       const page = (await signaturePage(solanaHistory[solanaHistory.length - 1]?.signature)) ?? [];
       const older = page.filter((entry: any) => !solanaKnown.has(entry.signature));
+      if (page.length >= 1000 && !older.length) throw new Error("onagi: solana signature paging did not advance");
       solanaHistory.push(...older);
       older.forEach((entry: any) => solanaKnown.add(entry.signature));
       if (page.length < 1000) solanaHistoryEnd = true;
