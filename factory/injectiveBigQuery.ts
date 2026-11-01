@@ -24,16 +24,12 @@ interface FeesConfig {
 }
 
 async function fetchFallbackVolume(endpoint: string): Promise<number> {
-  try {
-    const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
-    if (!Array.isArray(res) || res.length === 0) return 0;
-    return res.reduce((acc: number, item: any) => {
-      const vol = parseFloat(item?.volume);
-      return acc + (!isNaN(vol) && vol > 0 ? vol : 0);
-    }, 0);
-  } catch {
-    return 0;
-  }
+  const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
+  if (!Array.isArray(res) || res.length === 0) return 0;
+  return res.reduce((acc: number, item: any) => {
+    const vol = parseFloat(item?.volume);
+    return acc + (!isNaN(vol) && vol > 0 ? vol : 0);
+  }, 0);
 }
 
 function isRecentDate(dateString: string): boolean {
