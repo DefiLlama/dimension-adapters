@@ -24,33 +24,45 @@ interface FeesConfig {
 }
 
 async function fetchFallbackVolume(endpoint: string): Promise<number> {
-  const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
-  if (!Array.isArray(res)) return 0;
-  return res.reduce((acc: number, item: any) => {
-    const vol = parseFloat(item.volume ?? 0);
-    return acc + (isNaN(vol) ? 0 : vol);
-  }, 0);
+  try {
+    const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
+    if (!Array.isArray(res) || res.length === 0) return 0;
+    return res.reduce((acc: number, item: any) => {
+      const vol = parseFloat(item?.volume);
+      return acc + (!isNaN(vol) && vol > 0 ? vol : 0);
+    }, 0);
+  } catch {
+    return 0;
+  }
+}
+
+function isRecentDate(dateString: string): boolean {
+  const targetTime = new Date(dateString).getTime();
+  const now = Date.now();
+  // Zezwalaj na fallback do cache wyłącznie dla zapytań z ostatnich 48 godzin
+  return (now - targetTime) <= 48 * 60 * 60 * 1000;
 }
 
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     try {
       const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-      if (res && Array.isArray(res.days) && res.days.length === 1 && res.total_volume_usd > 0) {
+      if (res && Array.isArray(res.days) && res.days.length === 1) {
         return { dailyVolume: res.total_volume_usd };
       }
     } catch {
-      // BigQuery niedostępne / błąd pipeline'u
+      // BigQuery offline lub błąd zapytania
     }
 
-    if (config.fallbackEndpoint) {
+    // Użyj cache tylko dla bieżących danych, nigdy dla indeksowania wstecznego
+    if (config.fallbackEndpoint && isRecentDate(options.dateString)) {
       const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
       if (liveVolume > 0) {
         return { dailyVolume: liveVolume };
       }
     }
 
-    return { dailyVolume: 0 };
+    throw new Error(`No data found for the given date: ${options.dateString}`);
   };
 
   return {
@@ -66,14 +78,11 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    try {
-      const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-      if (res && Array.isArray(res.days) && res.days.length === 1) {
-        dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
-      }
-    } catch {
-      // Brak blokady w przypadku błędu serwera opłat
+    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+    if (!res || !Array.isArray(res.days) || res.days.length !== 1) {
+      throw new Error("No data found for the given date: " + options.dateString);
     }
+    dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
 
     return {
       dailyFees,
@@ -106,19 +115,16 @@ const volumeConfigs: Record<string, VolumeConfig> = {
   },
   "helix-helix": {
     endpoint: "helix_spot_volume",
-    fallbackEndpoint: "spot",
     start: "2022-09-06",
     doublecounted: true,
   },
   "helix-helix-perp": {
     endpoint: "helix_derivative_volume",
-    fallbackEndpoint: "derivatives",
     start: "2022-09-06",
     doublecounted: true,
   },
   "truecurrent": {
     endpoint: "truecurrent_derivative_volume",
-    fallbackEndpoint: "derivatives",
     start: "2026-05-15",
     doublecounted: true,
     methodology: {
