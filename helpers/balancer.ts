@@ -169,7 +169,7 @@ const balancerEntries: Record<string, any> = {
     [CHAIN.AVAX]: { vault: '0xad68ea482860cd7077a5d0684313dd3a9bc70fbb' },
   },
   "gaming-dex": {
-    defiverse: { vault: '0x2FA699664752B34E90A414A42D62D7A8b2702B85' },
+    defiverse: { vault: '0x2FA699664752B34E90A414A42D62D7A8b2702B85', deadFrom: '2025-10-04' },
     [CHAIN.OAS]: { vault: '0xfb6f8FEdE0Cb63674Ab964affB93D65a4a7D55eA' },
   },
   phux: {

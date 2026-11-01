@@ -1,77 +1,67 @@
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { postURL } from "../../utils/fetchURL";
+import { fetchRhivaTotals } from "../../dexs/rhiva";
 
-interface Metrics {
-  volume: number;
-  userFees: number;
-  protocolFees: number;
-  transactions: number;
-}
+const LABEL = {
+  SwapFees: "Swap Fees",
+  SwapFeesToProtocol: "Swap Fees To Protocol",
+  ReferralFees: "Referral Fees To Referrers",
+};
 
-const RHIVA_ENDPOINT = "https://api.rhiva.fun/metrics/fees";
+const fetch = async (options: FetchOptions) => {
+  const { protocolFees, userFees } = await fetchRhivaTotals(options);
 
-const fetch = async ({
-  createBalances,
-  fromTimestamp,
-  toTimestamp,
-}: FetchOptions) => {
-  const amounts: Metrics = await postURL(
-    RHIVA_ENDPOINT,
-    {
-      filter: {
-        endTime: new Date(toTimestamp * 1000).toISOString(),
-        startTime: new Date(fromTimestamp * 1000).toISOString(),
-      },
-    },
-    3,
-  );
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
 
-  const dailyFees = createBalances();
-  const dailySupplySideRevenue = createBalances();
-  const dailyRevenue = createBalances();
-  const dailyProtocolRevenue = createBalances();
-
-  dailyFees.addUSDValue(amounts.protocolFees + amounts.userFees, "Swap Fees");
-  dailySupplySideRevenue.addUSDValue(amounts.userFees, "Referral Fees To Referrers");
-  dailyRevenue.addUSDValue(amounts.protocolFees, "Swap Fees To Protocol");
-  dailyProtocolRevenue.addUSDValue(amounts.protocolFees, "Swap Fees To Protocol");
+  for (const { mint, amount } of protocolFees) {
+    dailyFees.add(mint, amount, LABEL.SwapFees);
+    dailyRevenue.add(mint, amount, LABEL.SwapFeesToProtocol);
+  }
+  for (const { mint, amount } of userFees) {
+    dailyFees.add(mint, amount, LABEL.SwapFees);
+    dailySupplySideRevenue.add(mint, amount, LABEL.ReferralFees);
+  }
 
   return {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Portion of Rhiva fees retained by the protocol from liquidity provision activity.",
+    [LABEL.SwapFees]: "Fees Rhiva's zap program charges on the SOL side of each swap, including the referrers' share.",
   },
   SupplySideRevenue: {
-    "Referral Fees To Referrers": "Referral fee share paid to users who invite new participants.",
+    [LABEL.ReferralFees]: "The share of the swap fees paid to the referrers set on the swap.",
   },
   Revenue: {
-    "Swap Fees To Protocol": "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+    [LABEL.SwapFeesToProtocol]: "The share of the swap fees paid to Rhiva's fee vault.",
   },
   ProtocolRevenue: {
-    "Swap Fees To Protocol": "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+    [LABEL.SwapFeesToProtocol]: "The share of the swap fees paid to Rhiva's fee vault.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  chains: [CHAIN.SOLANA],
-  start: "2026-09-11",
-  fetch,
   pullHourly: true,
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-09-10",
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: "Total fees from Rhiva liquidity provision activity, including referral and protocol shares.",
-    SupplySideRevenue: "Referral fees paid to users who invite new participants.",
-    Revenue: "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
-    ProtocolRevenue: "Protocol share of Rhiva fees (~90%) collected by Rhiva.",
+    Fees: "Fees users pay on the swaps Rhiva's zap program makes, charged on the SOL side of each swap.",
+    SupplySideRevenue: "The share of the swap fees paid to the referrers set on the swap.",
+    Revenue: "The share of the swap fees Rhiva keeps, paid to its fee vault.",
+    ProtocolRevenue: "The share of the swap fees Rhiva keeps, paid to its fee vault.",
   },
   breakdownMethodology,
 };
+
 export default adapter;

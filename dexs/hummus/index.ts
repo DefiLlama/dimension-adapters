@@ -22,6 +22,7 @@ const fetch: any = async ({ getLogs, createBalances, }: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  deadFrom: '2026-06-27',
   adapter: {
     [CHAIN.METIS]: {
       fetch,

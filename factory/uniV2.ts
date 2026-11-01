@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter, uniV2Exports } from "../helpers/uniswap";
 import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
 import { addTokensReceived } from "../helpers/token";
+import { getLogsSplitAtCap } from "../helpers/logs";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { createFactoryExports } from "./registry";
 
@@ -68,6 +69,25 @@ const configs: Record<string, Record<string, any>> = {
   "heliswap": {
     // uniV2 fork on Hedera, replaces dead GraphQL backend
     [CHAIN.HEDERA]: { factory: '0x0000000000000000000000000000000000134224', start: '2022-10-05' },
+  },
+  "somnex-xyz": {
+    // uniV2 fork on Somnia; the api.subgraph.somnia.network subgraph no longer resolves. Factory from TVL registry uniswapV2.js.
+    // 0.5% swap fee: swaps on pair 0x994570aa6a46d2bc0358f799634ae8db79b8cd73 match the 0.5% constant-product quote against the prior reserves (checked 2026-11-01).
+    // fetch is overridden below to split log requests under the Somnia RPC log cap
+    [CHAIN.SOMNIA]: { factory: '0xaFd71143Fb155058e96527B07695D93223747ed1', start: '2025-09-02', fees: 0.005 },
+  },
+  "reddex": {
+    // uniV2 fork on Redbelly; replaces the rednode.elephantthink.com subgraph (host returns 502, last stored day 2026-10-18). Factory from TVL registry uniswapV2.js.
+    // WRBNT and USDC.e have DefiLlama prices only from 2025-07-10, so earlier days undercount: history before 2026-10-19 comes from the subgraph, do not refill it from here.
+    // reddexv2Pair._mintFee uses denominator (rootK * 3) + rootKLast instead of the usual (rootK * 5), so feeTo takes 1/4 of the 0.3% swap fee
+    [CHAIN.REDBELLY]: { factory: '0x262E06314Af8f4EEd70dbd8C7EFe2a5De686C142', start: '2025-01-12', fees: 0.003, userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25, holdersRevenueRatio: 0, allowReadPairs: true },
+  },
+  "tealswap": {
+    // uniV2 fork on Oasys hub-layer; the sbb.sooho.io dashboard API no longer resolves. Factory from TVL registry uniswapV2.js.
+    // 0.5% swap fee: swaps on pairs 0x19c6d1c6b13eff2125f9b7c9551f4bbb264f0bd4 and 0x1bbebf2d72a8f76e02c848168c37bbc2c3783deb match the 0.5% constant-product quote against the prior reserves (checked 2026-11-01).
+    // feeTo is set but the protocol's share is undocumented, so revenue is not split out
+    // start: swaps begin 2022-12-14 but WOAS has no price before 2022-12-15, so that day would store $0
+    [CHAIN.OAS]: { factory: '0x5200000000000000000000000000000000000018', start: '2022-12-15', fees: 0.005 },
   },
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
@@ -972,6 +992,23 @@ const methodologyMap: Record<string, any> = {
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
   },
+  "somnex-xyz": {
+    Volume: "Swap volume from all Somnex V2 pairs deployed by the Somnex V2 factory on Somnia.",
+    Fees: "Users pay a 0.5% fee on every swap.",
+  },
+  "reddex": {
+    Volume: "Swap volume from all Reddex pairs deployed by the Reddex factory on Redbelly.",
+    Fees: "User pays 0.3% fees on each swap.",
+    UserFees: "User pays 0.3% fees on each swap.",
+    Revenue: "Protocol takes 25% of the 0.3% swap fee (0.075% of volume), minted to feeTo on each liquidity event.",
+    ProtocolRevenue: "Protocol takes 25% of the 0.3% swap fee (0.075% of volume).",
+    SupplySideRevenue: "Liquidity providers keep 75% of the 0.3% swap fee (0.225% of volume).",
+    HoldersRevenue: "Token holders receive no revenue.",
+  },
+  "tealswap": {
+    Volume: "Swap volume from all Tealswap V2 pairs deployed by the Tealswap factory on Oasys.",
+    Fees: "Users pay a 0.5% fee on every swap.",
+  },
   "melegaswap": {
     Volume: 'Swap volume from MelegaSwap V2 liquidity pairs on BNB Smart Chain.',
     Fees: 'A 0.3% fee is charged on each swap.',
@@ -1438,6 +1475,9 @@ const deadFromMap: Record<string, string> = {
   "zircon-gamma": '2023-03-26',
   "velocimeter-v2": "2026-05-17",
   "astroswap": "2023-08-06",
+  "jswap": '2023-03-03',
+  "okcswap": '2025-10-22',
+  "bcswap": '2026-10-27',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -1706,12 +1746,16 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     factoriesName: "factories",
     totalVolume: "totalVolumeUSD",
     start: '2024-01-30',
+    // MAP chain halted at block 26852733 (2026-10-31 10:32 UTC), all RPCs down; last swap 2026-10-21, under $1k/month since July 2026
+    deadFrom: '2026-10-31',
   },
   "hiveswap": {
     endpoints: {
       [CHAIN.MAP]: "https://makalu-graph.maplabs.io/subgraphs/name/map/hiveswap2",
     },
     start: '2022-07-16',
+    // MAP chain halted at block 26852733 (2026-10-31 10:32 UTC), all RPCs down; last swap 2026-10-21, under $1k/month since July 2026
+    deadFrom: '2026-10-31',
   },
   "levinswap": {
     endpoints: {
@@ -2005,6 +2049,34 @@ protocols['hybra-v2'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOpti
     ...config, fees: Number(volatileFee) / 10000, stableFees: Number(stableFee) / 10000,
     revenueRatio, protocolRevenueRatio: revenueRatio,
   })(options)
+}
+
+protocols['somnex-xyz'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['somnex-xyz'].Fees },
+}
+protocols['somnex-xyz'].adapter[CHAIN.SOMNIA].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['somnex-xyz'][CHAIN.SOMNIA])({ ...options, getLogs: getLogsSplitAtCap(options) })
+
+protocols['reddex'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['reddex'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['reddex'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['reddex'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['reddex'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['reddex'].SupplySideRevenue },
+  HoldersRevenue: { 'Tokenholder fees': methodologyMap['reddex'].HoldersRevenue },
+}
+protocols['reddex'].adapter[CHAIN.REDBELLY].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['reddex'][CHAIN.REDBELLY])({
+    ...options,
+    getLogs: async ({ targets, flatten = true, ...params }: any) => {
+      const results = []
+      for (const target of targets) results.push(await options.getLogs({ ...params, target, maxBlockRange: 80 }))
+      return flatten ? results.flat() : results
+    },
+  })
+
+protocols['tealswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['tealswap'].Fees },
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

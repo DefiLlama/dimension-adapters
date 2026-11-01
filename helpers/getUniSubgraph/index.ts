@@ -80,8 +80,11 @@ function getGraphDimensions2({
     blockGraphType: totalVolume.blockGraphType ?? DEFAULT_BLOCK_TYPE
   }
   const totalVolumeQuery = gql`
-  query total_volume ($block: ${graphFieldsTotalVolume.blockGraphType}) {
-    ${graphFieldsTotalVolume.factory}(block: { number: $block }) {
+  query total_volume ($startBlock: ${graphFieldsTotalVolume.blockGraphType}, $endBlock: ${graphFieldsTotalVolume.blockGraphType}) {
+    start: ${graphFieldsTotalVolume.factory}(block: { number: $startBlock }) {
+      ${graphFieldsTotalVolume.field}
+    }
+    end: ${graphFieldsTotalVolume.factory}(block: { number: $endBlock }) {
       ${graphFieldsTotalVolume.field}
     }
   }`;
@@ -91,11 +94,15 @@ function getGraphDimensions2({
     field: totalFees.field ?? DEFAULT_TOTAL_FEES_FIELD
   }
   const totalFeesQuery = gql`
-  query total_fees ($block: ${graphFieldsTotalVolume.blockGraphType}) {
-    ${graphFieldsTotalFees.factory}(block: { number: $block }) {
+  query total_fees ($startBlock: ${graphFieldsTotalVolume.blockGraphType}, $endBlock: ${graphFieldsTotalVolume.blockGraphType}) {
+    start: ${graphFieldsTotalFees.factory}(block: { number: $startBlock }) {
+      ${graphFieldsTotalFees.field}
+    }
+    end: ${graphFieldsTotalFees.factory}(block: { number: $endBlock }) {
       ${graphFieldsTotalFees.field}
     }
   }`;
+  const sumField = (factories: any[] | undefined, field: string) => factories?.reduce((total: number, factory: any) => total + Number(factory[field]), 0)
   return async (options: FetchOptions) => {
     const { chain, endTimestamp, startTimestamp, getEndBlock, getStartBlock } = options;
 
@@ -105,23 +112,19 @@ function getGraphDimensions2({
     endpoint = sdk.graph.modifyEndpoint(endpoint)
 
 
-    let dailyVolume: any;
-    const graphResTotalVolume = await request(endpoint, totalVolumeQuery, { block: endBlock }, graphRequestHeaders?.[chain]);
-    const totalVolume = graphResTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
-
-    // PREV TOTAL VOLUME
-    const graphResPrevTotalVolume = await request(endpoint, totalVolumeQuery, { block: startBlock }, graphRequestHeaders?.[chain]);
-    const prevTotalVolume = graphResPrevTotalVolume?.[graphFieldsTotalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalVolume.field]), 0)?.toString()
-    dailyVolume = totalVolume - prevTotalVolume
+    const graphResTotalVolume = await request(endpoint, totalVolumeQuery, { startBlock, endBlock }, graphRequestHeaders?.[chain]);
+    const totalVolume = sumField(graphResTotalVolume?.end, graphFieldsTotalVolume.field)
+    const prevTotalVolume = sumField(graphResTotalVolume?.start, graphFieldsTotalVolume.field)
+    if (totalVolume === undefined || prevTotalVolume === undefined)
+      throw new Error(`The subgraph returned an incomplete cumulative volume snapshot on ${chain}`)
+    const dailyVolume = totalVolume - prevTotalVolume
 
     const canDeriveFeesFromVolume = feesPercent?.type === 'volume' && typeof feesPercent.Fees === 'number'
     let dailyFees: number | undefined
     try {
-      const graphResTotalFees = await request(endpoint, totalFeesQuery, { block: endBlock }, graphRequestHeaders?.[chain])
-      const totalFees = graphResTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
-
-      const graphResPrevTotalFees = await request(endpoint, totalFeesQuery, { block: startBlock }, graphRequestHeaders?.[chain])
-      const prevTotalFees = graphResPrevTotalFees?.[graphFieldsTotalFees.factory]?.reduce((total: number, factory: any) => total + Number(factory[graphFieldsTotalFees.field]), 0)
+      const graphResTotalFees = await request(endpoint, totalFeesQuery, { startBlock, endBlock }, graphRequestHeaders?.[chain])
+      const totalFees = sumField(graphResTotalFees?.end, graphFieldsTotalFees.field)
+      const prevTotalFees = sumField(graphResTotalFees?.start, graphFieldsTotalFees.field)
 
       if (totalFees === undefined || prevTotalFees === undefined)
         throw new Error('The subgraph returned an incomplete cumulative fee snapshot')
