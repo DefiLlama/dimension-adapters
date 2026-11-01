@@ -2,6 +2,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiDiamonds } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 import { METRIC } from "../../helpers/metrics";
 import { isCoreAsset } from "../../helpers/prices";
 import { fetchRelayTotals, RelayTotals } from "./relay";
@@ -16,8 +17,8 @@ import { fetchSolanaSwaps, SOLANA_START } from "./solana";
 // Swaps Scrooge takes through LI.FI, on Robinhood Chain or on another chain (buying a coin on Ethereum, Base,
 // Arbitrum or BNB Chain), are sent under the integrator string "scrooge" and counted from LI.FI's
 // LiFiGenericSwapCompleted logs, as in aggregators/hyperdex; Scrooge takes no fee on them. Swaps on BNB Chain or Base
-// that Scrooge takes through Relay are read from Relay's requests API by Scrooge's Relay app id, with Scrooge's app fee
-// (./relay.ts). Swaps on Solana, built on Jupiter with Scrooge's fee paid in the same transaction, are read from Dune
+// that Scrooge takes through Relay are read from Relay's requests API by the referrer Scrooge's site sends, with
+// Scrooge's app fee (./relay.ts). Swaps on Solana, built on Jupiter with Scrooge's fee paid in the same transaction, are read from Dune
 // (./solana.ts), so the adapter runs a day at a time. Cross-chain routes are in bridge-aggregators/scrooge.
 // Verified source: https://repo.sourcify.dev/4663/0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82
 const ROUTER = "0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82";
@@ -88,8 +89,8 @@ const fetch = async (options: FetchOptions) => {
   const result = () => ({ dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue });
 
   if (options.chain === CHAIN.SOLANA) {
-    const { volumeUsd, feeLamports } = await fetchSolanaSwaps(options);
-    dailyVolume.addUSDValue(volumeUsd);
+    const { volume, feeLamports } = await fetchSolanaSwaps(options);
+    for (const { mint, amount } of volume) dailyVolume.add(mint, amount);
     dailyFees.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES);
     dailyRevenue.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES_TO_PROTOCOL);
     dailyProtocolRevenue.add(ADDRESSES.solana.SOL, feeLamports, SWAP_FEES_TO_PROTOCOL);
@@ -140,10 +141,17 @@ const fetch = async (options: FetchOptions) => {
   return result();
 };
 
+// runAdapter drops every chain's record when one chain throws, so Dune's Solana indexing delay is checked once, before
+// any chain runs, rather than in the Solana leg after the other chains have done their work.
+const prefetch = async (options: FetchOptions): Promise<RelayTotals> => {
+  assertDuneSolanaIndexed(options);
+  return fetchRelayTotals(options);
+};
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  prefetch: fetchRelayTotals as any,
+  prefetch: prefetch as any,
   adapter: {
     [CHAIN.ROBINHOOD]: { start: "2026-09-22" },
     // The first swap under Scrooge's LI.FI integrator string, 2026-10-12.
@@ -156,7 +164,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: "Every swap settled through ScroogeRouter (Swapped and SwappedMany events), counted once at its input amount when the input is ETH or a core asset, otherwise at its output before Scrooge's fee; a swap between a new token and SCROOGE is valued on its SCROOGE side. A route split across venues counts once at its total. Swaps the site sends straight to a venue's own router are not counted. Swaps through LI.FI under the integrator \"scrooge\", on Robinhood Chain and other chains, from LiFiGenericSwapCompleted logs; swaps on one chain through Relay under Scrooge's Relay app id, at the USD value Relay reports sent. On Solana, every successful Jupiter v6 transaction that paid Scrooge's fee wallet (SOL, or Jupiter's platform fee in wrapped SOL to its token account), valued once from Jupiter's swap events as aggregators/jupiter-aggregator does.",
+    Volume: "Every swap settled through ScroogeRouter (Swapped and SwappedMany events), counted once at its input amount when the input is ETH or a core asset, otherwise at its output before Scrooge's fee; a swap between a new token and SCROOGE is valued on its SCROOGE side. A route split across venues counts once at its total. Swaps the site sends straight to a venue's own router are not counted. Swaps through LI.FI under the integrator \"scrooge\", on Robinhood Chain and other chains, from LiFiGenericSwapCompleted logs; swaps on one chain through Relay under Scrooge's referrer \"scrooge.exchange\" that pay Scrooge's app fee, at the USD value Relay reports sent (since 2026-10-29; Scrooge's earlier Relay swaps carry no referrer and are not counted). On Solana, every successful Jupiter v6 transaction that paid Scrooge's fee wallet (SOL, or Jupiter's platform fee in wrapped SOL to its token account), valued once from Jupiter's swap events as aggregators/jupiter-aggregator does.",
     Fees: "Scrooge's fee, taken by ScroogeRouter from each swap's output (the fee field of Swapped and SwappedMany), plus the fee a site embedding Scrooge's swap widget charges on top through ScroogePartner (at most 1%). On swaps through Relay, Scrooge's app fee as Relay reports it paid to Scrooge's fee wallet. On Solana, the SOL the swap paid Scrooge's fee wallet or its wrapped-SOL account. Fees of the underlying venues and pools are not included. Scrooge takes no fee on swaps through LI.FI.",
     Revenue: "Scrooge's fee on each swap: taken by ScroogeRouter on Robinhood Chain, paid as Relay's app fee on swaps through Relay, and paid in SOL to Scrooge's Solana fee wallet on Solana. The fee a partner site adds goes to that site and is not included.",
     ProtocolRevenue: "Scrooge's fee on swaps through Relay, paid as Relay's app fee, and on Solana, paid in SOL to Scrooge's Solana fee wallet: kept by Scrooge, not burned.",
