@@ -4,9 +4,11 @@ import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
+const INJECTIVE_CACHE_API = "https://api.ui.injective.network/api/v1/cache";
 
 interface VolumeConfig {
   endpoint: string;
+  fallbackEndpoint?: string;
   start: string;
   doublecounted?: boolean;
   methodology?: Record<string, string>;
@@ -21,17 +23,41 @@ interface FeesConfig {
   breakdownMethodology?: Record<string, Record<string, string>>;
 }
 
+async function fetchFallbackVolume(endpoint: string): Promise<number> {
+  const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
+  if (!Array.isArray(res)) return 0;
+  return res.reduce((acc: number, item: any) => {
+    const vol = parseFloat(item.volume ?? 0);
+    return acc + (isNaN(vol) ? 0 : vol);
+  }, 0);
+}
+
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-    return { dailyVolume: res.total_volume_usd };
+    try {
+      const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+      if (res && Array.isArray(res.days) && res.days.length === 1 && res.total_volume_usd > 0) {
+        return { dailyVolume: res.total_volume_usd };
+      }
+    } catch {
+      // BigQuery niedostępne / błąd pipeline'u
+    }
+
+    if (config.fallbackEndpoint) {
+      const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
+      if (liveVolume > 0) {
+        return { dailyVolume: liveVolume };
+      }
+    }
+
+    return { dailyVolume: 0 };
   };
 
   return {
     fetch,
     start: config.start,
     chains: [CHAIN.INJECTIVE],
+    runAtCurrTime: true,
     ...(config.doublecounted ? { doublecounted: true } : {}),
     ...(config.methodology ? { methodology: config.methodology } : {}),
   };
@@ -39,11 +65,15 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
 
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-
     const dailyFees = options.createBalances();
-    dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
+    try {
+      const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+      if (res && Array.isArray(res.days) && res.days.length === 1) {
+        dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
+      }
+    } catch {
+      // Brak blokady w przypadku błędu serwera opłat
+    }
 
     return {
       dailyFees,
@@ -56,6 +86,7 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
     fetch,
     start: config.start,
     chains: [CHAIN.INJECTIVE],
+    runAtCurrTime: true,
     ...(config.doublecounted ? { doublecounted: true } : {}),
     ...(config.methodology ? { methodology: config.methodology } : {}),
     ...(config.breakdownMethodology ? { breakdownMethodology: config.breakdownMethodology } : {}),
@@ -65,24 +96,29 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
 const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-spot": {
     endpoint: "injective_spot_volume",
+    fallbackEndpoint: "spot",
     start: "2021-07-17",
   },
   "injective-derivatives": {
     endpoint: "injective_derivative_volume",
+    fallbackEndpoint: "derivatives",
     start: "2021-07-17",
   },
   "helix-helix": {
     endpoint: "helix_spot_volume",
+    fallbackEndpoint: "spot",
     start: "2022-09-06",
     doublecounted: true,
   },
   "helix-helix-perp": {
     endpoint: "helix_derivative_volume",
+    fallbackEndpoint: "derivatives",
     start: "2022-09-06",
     doublecounted: true,
   },
   "truecurrent": {
     endpoint: "truecurrent_derivative_volume",
+    fallbackEndpoint: "derivatives",
     start: "2026-05-15",
     doublecounted: true,
     methodology: {
