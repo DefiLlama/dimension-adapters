@@ -4,8 +4,9 @@ import { CHAIN } from "../helpers/chains";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import fetchURL from "../utils/fetchURL";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { getSignaturesForAddress, getTransaction } from "../helpers/solana";
 
-// Onagi (https://onagi.si) is a trading app on Robinhood Chain. Token and stock token trades are sent
+// Onagi (https://onagi.si) is a trading app on Robinhood Chain and Solana. Token and stock token trades are sent
 // by each user's own wallet and filled by Uniswap (v2/v3/v4 through the Universal Router) or by the
 // Pons bonding curve. Onagi has no router of its own, and not every trade leaves an Onagi mark on chain:
 // ONAGI itself pays no platform fee on its Pons route, and curve tokens pay the fee in a separate
@@ -94,18 +95,87 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+// SOLANA. Token trades are Jupiter swaps signed by each user's own Solana wallet, always between USDC and the token.
+// Every one pays Onagi's platform fee inside the swap, through Jupiter's platform fee, in USDC, into one Onagi fee
+// account; Jupiter is never asked for a quote without it. So the fee account's own history lists every Onagi
+// trade, and no list from Onagi is needed. For each successful transaction of that account that runs Jupiter:
+// - the fee is what the fee account received in it;
+// - the volume is the trader's USDC leg (the fee payer is the trader): what it paid on a buy, or what it received
+//   plus the fee on a sell, so volume is gross of the fee like on Robinhood Chain.
+// Withdrawals from the fee account receive nothing and add zero.
+const SOLANA_USDC = ADDRESSES.solana.USDC;
+// Owner of the fee account and its USDC token account, the feeAccount of every Onagi Jupiter swap.
+const SOLANA_FEE_OWNER = "DEnNbkQgpUiHxyjSzSTdNxBPg6JC5iZ92DtAkys9mwpD";
+const SOLANA_FEE_ACCOUNT = "Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i";
+const JUPITER_V6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+
+const solanaSignatures = async (from: number, to: number) => {
+  const signatures: string[] = [];
+  let before: string | undefined;
+  while (true) {
+    const page = await getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before });
+    if (!page?.length) break;
+    for (const entry of page) {
+      const time = entry.blockTime;
+      if (typeof time === "number" && time >= from && time < to && !entry.err) signatures.push(entry.signature);
+    }
+    // A signature without a blockTime yet says nothing about the window; keep paging past it.
+    const oldest = [...page].reverse().find((entry: any) => typeof entry.blockTime === "number")?.blockTime;
+    if (page.length < 1000 || (typeof oldest === "number" && oldest < from)) break;
+    before = page[page.length - 1].signature;
+  }
+  return signatures;
+};
+
+// USDC base units an owner gained (negative: lost) in a transaction, over all of its USDC token accounts.
+const usdcDelta = (meta: any, owner: string) => {
+  let delta = 0n;
+  for (const [list, sign] of [[meta.preTokenBalances, -1n], [meta.postTokenBalances, 1n]] as const) {
+    for (const b of list ?? []) {
+      if (b.mint === SOLANA_USDC && b.owner === owner) delta += sign * BigInt(b.uiTokenAmount.amount);
+    }
+  }
+  return delta;
+};
+
+// Every Onagi trade on Solana in the window: the platform fee and the gross volume, in USDC base units.
+export async function getOnagiSolanaTrades(options: FetchOptions) {
+  const signatures = await solanaSignatures(options.startTimestamp, options.endTimestamp);
+  const trades = await Promise.all(signatures.map(async (signature) => {
+    const tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+    // A missing transaction means the node could not serve it, not that nothing traded.
+    if (!tx?.meta) throw new Error(`onagi: solana rpc returned no transaction for ${signature}`);
+    if (tx.meta.err || !(tx.meta.logMessages ?? []).some((log: string) => log.startsWith(`Program ${JUPITER_V6} invoke`))) return null;
+    const fee = usdcDelta(tx.meta, SOLANA_FEE_OWNER);
+    if (fee <= 0n) return null;
+    const trader = tx.transaction.message.accountKeys[0].pubkey;
+    const leg = usdcDelta(tx.meta, trader);
+    return { fee, volume: leg < 0n ? -leg : leg + fee };
+  }));
+  return trades.filter((t): t is { fee: bigint; volume: bigint } => t !== null);
+}
+
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  for (const { volume } of await getOnagiSolanaTrades(options)) dailyVolume.add(SOLANA_USDC, volume);
+  return { dailyVolume };
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  chains: [CHAIN.ROBINHOOD],
-  fetch,
-  start: "2026-10-22",
+  adapter: {
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-10-22" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-25" },
+  },
   doublecounted: true,
   methodology: {
     Volume:
-      "Token and stock token trades made in Onagi on Robinhood Chain, filled by Uniswap or the Pons bonding curve. " +
+      "Token and stock token trades made in Onagi. On Robinhood Chain they are filled by Uniswap or the Pons bonding curve: " +
       "Onagi publishes which transactions were its trades; each one's value is read from that transaction on chain: " +
       "the Pons curve event for curve trades, otherwise the trader's USDG leg (gross of the platform fee). " +
+      "On Solana they are Jupiter swaps that all pay Onagi's platform fee into one fee account; every Jupiter transaction " +
+      "of that account is an Onagi trade, valued on the trader's USDC leg (gross of the fee). " +
       "Doublecounted with the venues that filled the trades.",
   },
 };
