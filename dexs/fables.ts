@@ -204,7 +204,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   }
   if (!pools.size) throw new Error("FablesPoolRegistry returned no active pools");
 
-  const swapsOf = () => getLogs({ target: POOL_MANAGER, eventAbi: SwapEvent, topics: [SWAP_TOPIC, [...pools.keys()]] as any });
+  // skipIndexer: the indexer ignores the OR'd pool ids in topic1 and returns every v4 Swap on Robinhood
+  const swapsOf = () =>
+    getLogs({ target: POOL_MANAGER, eventAbi: SwapEvent, topics: [SWAP_TOPIC, [...pools.keys()]] as any, skipIndexer: true });
   const addSwaps = (swapLogs: any[]) => {
     for (const log of swapLogs) {
       const pool = pools.get(String(log.id).toLowerCase());
@@ -238,7 +240,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const [swapLogs, donateLogs, collectedLogs, accruedLogs, sweptLogs, stakedLogs, unstakedLogs, recipients] = await Promise.all([
     swapsOf(),
-    getLogs({ target: POOL_MANAGER, eventAbi: DonateEvent, topics: [DONATE_TOPIC, [...pools.keys()]] as any }),
+    getLogs({ target: POOL_MANAGER, eventAbi: DonateEvent, topics: [DONATE_TOPIC, [...pools.keys()]] as any, skipIndexer: true }),
     getLogs({ targets: hooks, eventAbi: FeesCollectedEvent, onlyArgs: false, flatten: false }),
     currentHooks.length ? getLogs({ targets: currentHooks, eventAbi: ClaimFeeAccruedEvent, onlyArgs: false }) : [],
     legacyPools.length ? getLogs({ targets: legacyPools.map((p) => p.hook), eventAbi: ClaimFeeSweptEvent, onlyArgs: false, flatten: false }) : [],
