@@ -110,19 +110,50 @@ const SOLANA_FEE_OWNER = "DEnNbkQgpUiHxyjSzSTdNxBPg6JC5iZ92DtAkys9mwpD";
 const SOLANA_FEE_ACCOUNT = "Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i";
 const JUPITER_V6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
-// The fee account's signatures, newest first, paged once per run and shared by every hourly window. A signature
-// whose blockTime the node left out is kept: its time is read from the transaction itself.
+// Public Solana RPC answers 429 when called too fast: wait and try again, up to six times.
+const isRateLimit = (e: any) => [e?.status, e?.statusCode, e?.response?.status].includes(429) || String(e?.message ?? e).includes("429");
+const withRetry = async <T>(call: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (e: any) {
+      if (attempt >= 6 || !isRateLimit(e)) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+    }
+  }
+};
+
+const signaturePage = (before?: string) =>
+  withRetry(() => getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before }));
+
+// The fee account's signatures, newest first, shared by every hourly window of a run. Each window first adds what
+// arrived since the last look (newest pages until a known signature), then pages further back if it needs older
+// ones. A signature whose blockTime the node left out is kept: its time is read from the transaction itself.
 const solanaHistory: any[] = [];
+const solanaKnown = new Set<string>();
 let solanaHistoryEnd = false;
 let solanaPaging: Promise<void> = Promise.resolve();
 const solanaSignatures = async (from: number, to: number) => {
   const oldest = () => [...solanaHistory].reverse().find((entry) => typeof entry.blockTime === "number")?.blockTime;
   solanaPaging = solanaPaging.catch(() => undefined).then(async () => {
+    // Newer signatures since the last look: newest pages until one already known.
+    const fresh: any[] = [];
+    for (let before: string | undefined; solanaHistory.length;) {
+      const page = (await signaturePage(before)) ?? [];
+      const known = page.findIndex((entry: any) => solanaKnown.has(entry.signature));
+      fresh.push(...(known < 0 ? page : page.slice(0, known)));
+      if (known >= 0 || page.length < 1000) break;
+      before = page[page.length - 1].signature;
+    }
+    solanaHistory.unshift(...fresh);
+    fresh.forEach((entry) => solanaKnown.add(entry.signature));
+    // Older signatures, back to the start of the window.
     while (!solanaHistoryEnd && !((oldest() ?? Infinity) < from)) {
-      const before = solanaHistory[solanaHistory.length - 1]?.signature;
-      const page = await getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before });
-      solanaHistory.push(...(page ?? []));
-      if (!page?.length || page.length < 1000) solanaHistoryEnd = true;
+      const page = (await signaturePage(solanaHistory[solanaHistory.length - 1]?.signature)) ?? [];
+      const older = page.filter((entry: any) => !solanaKnown.has(entry.signature));
+      solanaHistory.push(...older);
+      older.forEach((entry: any) => solanaKnown.add(entry.signature));
+      if (page.length < 1000) solanaHistoryEnd = true;
     }
   });
   await solanaPaging;
@@ -142,16 +173,8 @@ const usdcDelta = (meta: any, owner: string) => {
   return delta;
 };
 
-const solanaTransaction = async (signature: string) => {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
-    } catch (e: any) {
-      if (attempt >= 6 || !String(e?.message ?? e).includes("429")) throw e;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
-    }
-  }
-};
+const solanaTransaction = (signature: string) =>
+  withRetry(() => getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
 
 // Every Onagi trade on Solana in the window: the platform fee and the gross volume, in USDC base units.
 export async function getOnagiSolanaTrades(options: FetchOptions) {
