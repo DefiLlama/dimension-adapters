@@ -5,6 +5,7 @@ import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import fetchURL from "../utils/fetchURL";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { getSignaturesForAddress, getTransaction } from "../helpers/solana";
+import { PromisePool } from "@supercharge/promise-pool";
 
 // Onagi (https://onagi.si) is a trading app on Robinhood Chain and Solana. Token and stock token trades are sent
 // by each user's own wallet and filled by Uniswap (v2/v3/v4 through the Universal Router) or by the
@@ -109,22 +110,25 @@ const SOLANA_FEE_OWNER = "DEnNbkQgpUiHxyjSzSTdNxBPg6JC5iZ92DtAkys9mwpD";
 const SOLANA_FEE_ACCOUNT = "Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i";
 const JUPITER_V6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
+// The fee account's signatures, newest first, paged once per run and shared by every hourly window. A signature
+// whose blockTime the node left out is kept: its time is read from the transaction itself.
+const solanaHistory: any[] = [];
+let solanaHistoryEnd = false;
+let solanaPaging: Promise<void> = Promise.resolve();
 const solanaSignatures = async (from: number, to: number) => {
-  const signatures: string[] = [];
-  let before: string | undefined;
-  while (true) {
-    const page = await getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before });
-    if (!page?.length) break;
-    for (const entry of page) {
-      const time = entry.blockTime;
-      if (typeof time === "number" && time >= from && time < to && !entry.err) signatures.push(entry.signature);
+  const oldest = () => [...solanaHistory].reverse().find((entry) => typeof entry.blockTime === "number")?.blockTime;
+  solanaPaging = solanaPaging.catch(() => undefined).then(async () => {
+    while (!solanaHistoryEnd && !((oldest() ?? Infinity) < from)) {
+      const before = solanaHistory[solanaHistory.length - 1]?.signature;
+      const page = await getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before });
+      solanaHistory.push(...(page ?? []));
+      if (!page?.length || page.length < 1000) solanaHistoryEnd = true;
     }
-    // A signature without a blockTime yet says nothing about the window; keep paging past it.
-    const oldest = [...page].reverse().find((entry: any) => typeof entry.blockTime === "number")?.blockTime;
-    if (page.length < 1000 || (typeof oldest === "number" && oldest < from)) break;
-    before = page[page.length - 1].signature;
-  }
-  return signatures;
+  });
+  await solanaPaging;
+  return solanaHistory
+    .filter((entry) => !entry.err && (typeof entry.blockTime !== "number" || (entry.blockTime >= from && entry.blockTime < to)))
+    .map((entry) => entry.signature as string);
 };
 
 // USDC base units an owner gained (negative: lost) in a transaction, over all of its USDC token accounts.
@@ -138,20 +142,36 @@ const usdcDelta = (meta: any, owner: string) => {
   return delta;
 };
 
+const solanaTransaction = async (signature: string) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+    } catch (e: any) {
+      if (attempt >= 6 || !String(e?.message ?? e).includes("429")) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+    }
+  }
+};
+
 // Every Onagi trade on Solana in the window: the platform fee and the gross volume, in USDC base units.
 export async function getOnagiSolanaTrades(options: FetchOptions) {
-  const signatures = await solanaSignatures(options.startTimestamp, options.endTimestamp);
-  const trades = await Promise.all(signatures.map(async (signature) => {
-    const tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+  const from = options.startTimestamp, to = options.endTimestamp;
+  const signatures = await solanaSignatures(from, to);
+  // A few at a time, waiting and retrying on 429: public Solana RPC rate limits getTransaction.
+  const { results: trades, errors } = await PromisePool.withConcurrency(3).for(signatures).process(async (signature) => {
+    const tx = await solanaTransaction(signature);
     // A missing transaction means the node could not serve it, not that nothing traded.
     if (!tx?.meta) throw new Error(`onagi: solana rpc returned no transaction for ${signature}`);
+    if (typeof tx.blockTime !== "number") throw new Error(`onagi: solana rpc returned no block time for ${signature}`);
+    if (tx.blockTime < from || tx.blockTime >= to) return null;
     if (tx.meta.err || !(tx.meta.logMessages ?? []).some((log: string) => log.startsWith(`Program ${JUPITER_V6} invoke`))) return null;
     const fee = usdcDelta(tx.meta, SOLANA_FEE_OWNER);
     if (fee <= 0n) return null;
     const trader = tx.transaction.message.accountKeys[0].pubkey;
     const leg = usdcDelta(tx.meta, trader);
     return { fee, volume: leg < 0n ? -leg : leg + fee };
-  }));
+  });
+  if (errors.length) throw errors[0];
   return trades.filter((t): t is { fee: bigint; volume: bigint } => t !== null);
 }
 
