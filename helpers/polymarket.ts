@@ -3,19 +3,9 @@ import fetchURL from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 import { CHAIN } from './chains';
 
-// Data API v1 is retired on 2026-10-24: https://docs.polymarket.com/migrate/data-api-v1-to-v2
-// v2 wraps the rows in `data`, uses snake_case fields and a YYYY-MM-DD `date`. It is not paginated
-// and serves only the latest 90 daily buckets (`limit` max 90), so older days cannot be fetched.
-const BUILDERS_VOLUME_URL = 'https://data-api.polymarket.com/v2/builders/volume?interval=day&limit=90'
-
-// One row of the v2 builders volume series (data-api.polymarket.com/v2/docs).
-type BuilderVolumeRow = {
-  date: string
-  builder_name: string
-  volume: number
-}
-
 const BUILDER_TRADES_URL = 'https://clob.polymarket.com/builder/trades'
+
+const CLOB_V2_START = '2026-04-28'
 
 async function getBuilderTrades(builderCode: string, fromTimestamp: number, toTimestamp: number) {
   const trades: any[] = []
@@ -39,51 +29,34 @@ async function getBuilderTrades(builderCode: string, fromTimestamp: number, toTi
 }
 
 /**
- * Daily volume of one Polymarket builder for the day that starts at `options.startOfDay` (UTC).
+ * Daily volume of one Polymarket builder for the day that starts at `options.startOfDay` (UTC), from the builder's
+ * attributed CLOB trades that day: `dailyNotionalVolume` as the sum of `size` (shares) and `dailyVolume` as the sum of
+ * `sizeUsdc`. A day with no trades is 0.
  *
- * - `dailyNotionalVolume`: Polymarket's own daily volume for `builder` (in shares), from Data API v2
- *   `/v2/builders/volume`, matched on the day and the builder name.
- * - `dailyVolume` (only when `builderCode` is given): the USD size of the builder's attributed CLOB trades that day.
+ * Summed `size` matches the daily volume of https://data-api.polymarket.com/v2/builders/volume on complete days, but
+ * that API publishes a day only ~1-2 days late, its newest bucket is still filling, it has no row for a builder with
+ * no volume that day, and it serves only the latest 90 days.
  *
- * Supported range: v2 serves only the latest 90 daily buckets, so only about the last 90 days can be fetched.
- * Two different errors:
- * - a day older than the oldest bucket returned throws `Polymarket builder volume is only served from <oldest>, ...`
- *   (the data exists upstream but is out of reach; nothing should be written for that day);
- * - a day inside the range with no row for the builder throws `No volume data found for <builder> on <day>`
- *   (the builder had no attributed volume that day).
+ * Days before CLOB v2 throw, so refills never overwrite the history stored from the Data API.
  */
-export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode?: string }) => {
-
-  const { data }: { data: BuilderVolumeRow[] } = await fetchURL(BUILDERS_VOLUME_URL)
+export const fetchPolymarketBuilderVolume = async ({ options, builder, builderCode }: { options: FetchOptions, builder: string, builderCode: string }) => {
   const dateString = new Date(options.startOfDay * 1000).toISOString().slice(0, 10)
-  const oldestDate: string | undefined = data.reduce((oldest: string | undefined, item) => !oldest || item.date < oldest ? item.date : oldest, undefined)
-  if (oldestDate && dateString < oldestDate) {
-    throw new Error(`Polymarket builder volume is only served from ${oldestDate}, cannot fetch ${builder} on ${dateString}`);
-  }
-  const volume = data.find((item) => item.date === dateString && item.builder_name === builder)
-
-  if (!volume) {
-    throw new Error(`No volume data found for ${builder} on ${dateString}`);
+  if (dateString < CLOB_V2_START) {
+    throw new Error(`Polymarket builder trades are only available from ${CLOB_V2_START}, cannot fetch ${builder} on ${dateString}`);
   }
 
-  const result: FetchResult = { dailyNotionalVolume: volume.volume };
-
-  // USD (cash) volume: sum sizeUsdc across the builder's attributed trades,
-  // from the same CLOB endpoint used by fetchPolymarketV2BuilderFees below.
-  if (builderCode) {
-    const dailyVolume = options.createBalances();
-    const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
-    for (const trade of trades) {
-      dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
-    }
-    result.dailyVolume = dailyVolume;
+  const dailyVolume = options.createBalances();
+  let dailyNotionalVolume = 0;
+  const trades = await getBuilderTrades(builderCode, options.startTimestamp, options.endTimestamp);
+  for (const trade of trades) {
+    dailyVolume.addUSDValue(Number(trade.sizeUsdc || 0));
+    dailyNotionalVolume += Number(trade.size || 0);
   }
-
-  return result;
+  return { dailyVolume, dailyNotionalVolume };
 };
 
 
-export function polymarketBuilderExports({ builder, start, builderCode }: { builder: string, start: string, builderCode?: string }) {
+export function polymarketBuilderExports({ builder, start, builderCode }: { builder: string, start: string, builderCode: string }) {
 
   const fetch = async (options: FetchOptions) => {
     return await fetchPolymarketBuilderVolume({ options, builder, builderCode });

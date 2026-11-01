@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../helpers/uniswap";
 import { createFactoryExports } from "./registry";
 import { FetchOptions } from "../adapters/types";
+import { getLogsSplitAtCap } from "../helpers/logs";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -557,6 +558,11 @@ const configs: Record<string, Record<string, any>> = {
     // volume only: per-pool feeProtocol differs (0, 1/4, 1/5) so fees/revenue need their own review
     [CHAIN.STORY]: { factory: '0xa111dDbE973094F949D78Ad755cd560F8737B7e2', customLogic: volumeOnly },
   },
+  "somnex-v3": {
+    // uniV3 fork on Somnia; the api.subgraph.somnia.network subgraph no longer resolves. Factory = factory() of the Somnex V3 pools.
+    // fetch is overridden below: pools come from its own PoolCreated scan and log requests are split under the Somnia RPC log cap
+    [CHAIN.SOMNIA]: { factory: '0xDd594374a0fa18cd074ED61288f392eD1CCbaFfD', start: '2025-09-02' },
+  },
   "baseswap-v3": {
     // Stock Uniswap V3 pools: protocol cut = 1/slot0.feeProtocol per pool, set by the factory owner
     // (FactoryManager 0x463112327576814f80da8d3632f7bad23c853a29) to 4/4 = 25% or left at 0/0; read at the day's block.
@@ -633,6 +639,10 @@ const methodologyMap: Record<string, any> = {
     Revenue: "No protocol fee is taken: the factory owner is burned, so feeProtocol can never be turned on.",
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
+  },
+  "somnex-v3": {
+    Volume: "Swap volume from all Somnex V3 pools deployed by the Somnex V3 factory on Somnia.",
+    Fees: "Users pay each pool's fee tier (0.05%, 0.3%, 0.5% or 1%) on every swap.",
   },
   "prism-dex": {
     Volume: "Swap volume from all Prism DEX V3 pools deployed via the Prism DEX V3 factory.",
@@ -1012,6 +1022,19 @@ protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOpti
     for (const key of Object.keys(result)) if (values[key]) result[key].add(values[key])
   }
   return result
+}
+
+protocols['somnex-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['somnex-v3'].Fees },
+}
+protocols['somnex-v3'].adapter[CHAIN.SOMNIA].fetch = async (options: FetchOptions) => {
+  const config = configs['somnex-v3'][CHAIN.SOMNIA]
+  const poolLogs = await options.getLogs({
+    target: config.factory, fromBlock: 87495886, toBlock: await options.getToBlock(), // block of the first PoolCreated
+    eventAbi: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    cacheInCloud: true,
+  })
+  return getUniV3LogAdapter({ ...config, factory: undefined, pools: poolLogs.map(log => log.pool) })({ ...options, getLogs: getLogsSplitAtCap(options) })
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

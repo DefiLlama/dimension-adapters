@@ -9,11 +9,15 @@ export const fetch = async (options: FetchOptions,) => {
   const q = `
     query {
       poolDayDatas(first: 1000 where: { date: ${options.startOfDay}}) {  id date volumeUSD feesUSD }
+      _meta { block { number } }
     }
   `;
 
-  const { poolDayDatas } = await request(BABYDOGE_GRAPHQL_ENDPOINT, q);
-  if (!poolDayDatas.length) throw new Error("No data for " + options.dateString);
+  const { poolDayDatas, _meta } = await request(BABYDOGE_GRAPHQL_ENDPOINT, q);
+  // a lagging subgraph would return a partial (or missing) day; the gateway mostly returns a null
+  // _meta block timestamp, so compare the indexed block number instead
+  if (Number(_meta.block.number) < await options.getToBlock())
+    throw new Error(`babydoge-algebra subgraph not synced past ${options.dateString}`);
 
   const dailyVolume = poolDayDatas.reduce((acc: string, d: any) => acc + +d.volumeUSD, 0)
   const dailyFees = poolDayDatas.reduce((acc: string, d: any) => acc + +d.feesUSD, 0)

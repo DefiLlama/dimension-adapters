@@ -16,6 +16,7 @@ const fetch = async ({ chain }: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-07-12',
   runAtCurrTime: true,
   chains: Object.keys(config),
   fetch,

@@ -36,3 +36,18 @@ export async function queryCanisterDecoded(
 ): Promise<any> {
   return icp.queryCanisterDecoded(canisterId, methodName, labels)
 }
+
+/**
+ * Query a method that takes arguments: encodes `args` as Candid, queries and decodes the reply.
+ * @param args typed arguments, e.g. `[{ type: { opt: 'nat' }, value: [1] }]` for `opt nat = 1`
+ * @param labels field names to resolve in the decoded records
+ * @returns the first value of the reply tuple, `any` for the reason given on {@link decodeCandid}
+ */
+export async function callCanister({ canisterId, method, args, labels = [] }: {
+  canisterId: string
+  method: string
+  args: sdk.chains.icp.CandidValue[]
+  labels?: string[]
+}): Promise<any> {
+  return icp.callCandid({ canisterId, method, args, labels })
+}

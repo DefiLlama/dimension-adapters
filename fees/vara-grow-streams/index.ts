@@ -54,7 +54,7 @@ async function rpcCall(program: string, payloadHex: string): Promise<Buffer> {
   throw lastErr;
 }
 
-type Stream = { startTime: number; deposited: bigint };
+type Stream = { token: string; startTime: number; deposited: bigint };
 
 function decodeConfig(buf: Buffer): { nextStreamId: number; feeBps: number } {
   if (!buf.subarray(0, ROUTE_CONFIG.length).equals(ROUTE_CONFIG)) throw new Error("malformed GetConfig");
@@ -63,7 +63,7 @@ function decodeConfig(buf: Buffer): { nextStreamId: number; feeBps: number } {
   return { nextStreamId: u64LE(rest, 40), feeBps: rest.readUInt16LE(84) };
 }
 
-function decodeStream(buf: Buffer): { token: string; startTime: number; deposited: bigint } | null {
+function decodeStream(buf: Buffer): Stream | null {
   if (!buf.subarray(0, ROUTE_GETSTREAM.length).equals(ROUTE_GETSTREAM)) throw new Error("malformed GetStream");
   const rest = buf.subarray(ROUTE_GETSTREAM.length);
   if (rest.length === 0 || rest[0] === 0) return null;
@@ -75,39 +75,64 @@ function decodeStream(buf: Buffer): { token: string; startTime: number; deposite
   return { token, startTime, deposited };
 }
 
-let cached: Promise<{ feeBps: number; streams: Stream[] }> | undefined;
-function getSnapshot() {
-  if (!cached) {
-    cached = (async () => {
-      const { nextStreamId, feeBps } = decodeConfig(await rpcCall(STREAM_CORE, "0x" + ROUTE_CONFIG.toString("hex")));
-      const ids = Array.from({ length: Math.max(0, nextStreamId - 1) }, (_, i) => i + 1);
-      const { results, errors } = await PromisePool.withConcurrency(10).for(ids).process(async (id) => {
-        await new Promise((r) => setTimeout(r, 40 + Math.random() * 80));
-        const idBuf = Buffer.alloc(8);
-        idBuf.writeBigUInt64LE(BigInt(id), 0);
-        return decodeStream(await rpcCall(STREAM_CORE, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex")));
+let configCache: Promise<{ nextStreamId: number; feeBps: number }> | undefined;
+function getConfig() {
+  if (!configCache) {
+    configCache = rpcCall(STREAM_CORE, "0x" + ROUTE_CONFIG.toString("hex"))
+      .then(decodeConfig)
+      .catch((e) => {
+        configCache = undefined;
+        throw e;
       });
-      if (errors.length) throw new Error(`${errors.length}/${ids.length} GetStream calls failed`);
-      const streams = (results as Awaited<ReturnType<typeof decodeStream>>[])
-        .filter((s): s is NonNullable<typeof s> => !!s && s.token.toLowerCase() === WVARA)
-        .map(({ startTime, deposited }) => ({ startTime, deposited }));
-      return { feeBps, streams };
-    })().catch((e) => {
-      cached = undefined;
-      throw e;
-    });
   }
-  return cached;
+  return configCache;
+}
+
+const streamCache = new Map<number, Promise<Stream | null>>();
+function getStream(id: number) {
+  let p = streamCache.get(id);
+  if (!p) {
+    const idBuf = Buffer.alloc(8);
+    idBuf.writeBigUInt64LE(BigInt(id), 0);
+    p = rpcCall(STREAM_CORE, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex")).then(decodeStream);
+    p.catch(() => streamCache.delete(id));
+    streamCache.set(id, p);
+  }
+  return p;
+}
+
+async function firstStreamAtOrAfter(ts: number, lastId: number): Promise<number> {
+  let lo = 1;
+  let hi = lastId + 1;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    let start: number | undefined;
+    for (let id = mid; id < hi && start === undefined; id++) start = (await getStream(id))?.startTime;
+    if (start === undefined || start >= ts) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
-  const { feeBps, streams } = await getSnapshot();
+  const { nextStreamId, feeBps } = await getConfig();
+  const lastId = nextStreamId - 1;
+
+  const fromId = await firstStreamAtOrAfter(options.fromTimestamp, lastId);
+  const toId = await firstStreamAtOrAfter(options.toTimestamp, lastId);
+  const ids = Array.from({ length: toId - fromId }, (_, i) => fromId + i);
+  const { results, errors } = await PromisePool.withConcurrency(10).for(ids).process(async (id) => {
+    await new Promise((r) => setTimeout(r, 40 + Math.random() * 80));
+    return getStream(id);
+  });
+  if (errors.length) throw new Error(`${errors.length}/${ids.length} GetStream calls failed`);
 
   let volumePlancks = 0n;
-  for (const s of streams) {
+  for (const s of results) {
+    if (!s || s.token.toLowerCase() !== WVARA) continue;
     if (s.startTime >= options.fromTimestamp && s.startTime < options.toTimestamp) volumePlancks += s.deposited;
   }
   if (volumePlancks > 0n) {

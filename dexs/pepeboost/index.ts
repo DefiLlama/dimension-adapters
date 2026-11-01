@@ -6,14 +6,7 @@ import { CHAIN } from '../../helpers/chains';
 // https://github.com/duneanalytics/spellbook/blob/main/dbt_subprojects/solana/models/_sector/dex/bot_trades/solana/platforms/pepe_boost_solana_bot_trades.sql
 const FEE_WALLET = 'G9PhF9C9H83mAjjkdJz4MDqkufiTPMJkx7TnKE1kFyCp';
 
-// Allium solana.dex.trades lands ~98% of a window's USD volume within 12h of block time (p99 ~33h)
-const INDEXING_DELAY = 12 * 60 * 60;
-
 const fetch = async (options: FetchOptions) => {
-  if (options.endTimestamp > Date.now() / 1e3 - INDEXING_DELAY) {
-    throw new Error('End timestamp is less than 12 hours ago, skipping due to Allium indexing delay');
-  }
-
   const timeRange = (alias: string) =>
     `${alias}.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND ${alias}.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
@@ -38,11 +31,24 @@ const fetch = async (options: FetchOptions) => {
         PARTITION BY t.txn_id, t.instruction_index
         ORDER BY COALESCE(t.inner_instruction_index, -1) DESC
       ) = 1
+    ),
+    totals AS (
+      SELECT COUNT(*) AS trades, SUM(usd_amount) AS volume
+      FROM bot_trades
     )
-    SELECT COUNT(*) AS trades, SUM(usd_amount) AS volume
-    FROM bot_trades
+    -- Allium loads both tables in block order (dex.trades in hourly batches, ~1-2.5h behind the chain),
+    -- so rows just past the window end mean the window is complete
+    SELECT t.trades, t.volume,
+      EXISTS (SELECT 1 FROM solana.dex.trades
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900}))
+      AND EXISTS (SELECT 1 FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed
+    FROM totals t
   `);
   if (!row) throw new Error(`No PepeBoost volume row for ${options.startTimestamp}-${options.endTimestamp}`);
+  if (!row.indexed) throw new Error(`pepeboost: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
 
   return { dailyVolume: Number(row.trades) > 0 ? row.volume : 0 };
 };
