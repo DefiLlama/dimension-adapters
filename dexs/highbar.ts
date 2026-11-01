@@ -16,7 +16,8 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
  * on highbar is a DBC pool on one of these configs; coin-create transactions are signed by each creator, so the
  * pool signer is not a usable key. The configs below are the full list of DBC configs whose fee_claimer is that
  * wallet (getProgramAccounts on the DBC program, memcmp on PoolConfig.fee_claimer), and every value next to a key
- * was decoded from that config account on chain.
+ * was decoded from that config account on chain. The query also finds configs by fee_claimer (EvtCreateConfigV2,
+ * emitted by create_config), so a new highbar config with no entry below makes fetch throw instead of going uncounted.
  *
  * FEE WATERFALL ON THE CURVE (quote side, collect_fee_mode = 0, so every curve fee is paid in SOL)
  *
@@ -35,9 +36,11 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
  *
  *   All migrated liquidity is permanently locked, split between a partner position (owned by the fee_claimer,
  *   DBC migrate_damm_v2_initialize_pool) and a creator position. highbar's income there is the LP fee its own
- *   position earns, counted when the fee_claimer claims it (cp_amm EvtClaimPositionFee, both tokens). Trading
- *   volume, Meteora's DAMM v2 protocol fee and the creator position's LP fees in graduated pools belong to Meteora
- *   DAMM v2 and are not counted here.
+ *   position earns, counted when the fee_claimer claims it (cp_amm EvtClaimPositionFee). Only the SOL side
+ *   (token B) is counted: migrated_collect_fee_mode = 0 on every config takes the fee from the output token, so
+ *   buys pay it in the launched coin (token A), which has no reliable price. Trading volume, Meteora's DAMM v2
+ *   protocol fee and the creator position's LP fees in graduated pools belong to Meteora DAMM v2 and are not
+ *   counted here.
  */
 
 const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
@@ -87,6 +90,16 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
   };
   return `
     WITH
+    -- The known configs plus every config created with highbar's fee_claimer; one missing from CONFIGS makes fetch throw
+    highbar_configs AS (
+      SELECT config FROM UNNEST(ARRAY[${quoted(Object.keys(CONFIGS))}]) AS t(config)
+      UNION
+      SELECT config
+      FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
+      WHERE fee_claimer = '${FEE_CLAIMER}'
+        AND evt_executing_account = '${DBC_PROGRAM}'
+        AND evt_block_date >= DATE '${START}'
+    ),
     -- EvtSwap2 holds every DBC trade exactly once (legacy swap emits EvtSwap + EvtSwap2, swap2 only EvtSwap2)
     curve_swaps AS (
       SELECT
@@ -98,15 +111,15 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
         CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
         CAST(JSON_EXTRACT_SCALAR(swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
       FROM meteora_solana.dynamic_bonding_curve_evt_evtswap2
-      WHERE config IN (${quoted(Object.keys(CONFIGS))})
+      WHERE config IN (SELECT config FROM highbar_configs)
         AND evt_executing_account = '${DBC_PROGRAM}'
         AND ${window("evt_block_time")}
     ),
     -- Every highbar curve that graduated into DAMM v2 up to the end of the window
     migrations AS (
-      SELECT DISTINCT account_config AS config, account_pool AS pool, account_base_mint AS base_mint, call_block_time
+      SELECT DISTINCT account_config AS config, account_pool AS pool, call_block_time
       FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2
-      WHERE account_config IN (${quoted(Object.keys(CONFIGS))})
+      WHERE account_config IN (SELECT config FROM highbar_configs)
         AND call_block_date >= DATE '${START}'
         AND call_block_time < from_unixtime(${endTimestamp})
     )
@@ -129,14 +142,8 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
     WHERE call_block_time >= from_unixtime(${startTimestamp})
     GROUP BY config
     UNION ALL
-    -- LP fees of highbar's locked partner position in graduated pools, when claimed: token A is the launched coin
-    SELECT 'position_fees', m.config, m.base_mint, '0', '0', '0', '0', '0', CAST(SUM(CAST(f.fee_a_claimed AS DECIMAL(38,0))) AS VARCHAR)
-    FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
-    JOIN migrations m ON m.pool = f.pool
-    WHERE f.owner = '${FEE_CLAIMER}' AND ${window("f.evt_block_time")}
-    GROUP BY m.config, m.base_mint
-    UNION ALL
-    -- ... and token B is SOL
+    -- LP fees of highbar's locked partner position in graduated pools, when claimed: token B (SOL) only, token A is
+    -- the launched coin
     SELECT 'position_fees', m.config, '${SOL}', '0', '0', '0', '0', '0', CAST(SUM(CAST(f.fee_b_claimed AS DECIMAL(38,0))) AS VARCHAR)
     FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
     JOIN migrations m ON m.pool = f.pool
@@ -184,7 +191,7 @@ const fetch = async (options: FetchOptions) => {
 
   for (const row of rows) {
     const config = CONFIGS[row.config];
-    if (!config) throw new Error(`highbar: unexpected DBC config ${row.config} in Dune result`);
+    if (!config) throw new Error(`highbar: DBC config ${row.config} has highbar's fee_claimer but no entry in CONFIGS; decode its fee split and add it`);
 
     if (row.metric === "curve") {
       const trading = big(row.trading_fee);
@@ -234,10 +241,10 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "SOL value of every buy and sell on the bonding curves of coins launched on highbar (Meteora DBC pools on highbar's configs), gross of fees, read from the DBC swap events. Trading after a coin graduates is Meteora DAMM v2 volume and is not counted. Double counted: Meteora DBC also lists this volume.",
-  Fees: "Everything traders pay on highbar bonding curves (a 1% fee, or on anti-sniper launches a fee starting at 25% and falling to 1% within the first minute), including Meteora's 20% share; the migration fee taken from a curve's SOL when a coin graduates (1% of the 85 and 150 SOL thresholds, none on the 250 SOL tier); and the LP fees highbar's locked liquidity earns in graduated Meteora DAMM v2 pools, when claimed. Excludes the creator's and Meteora's share of graduated-pool fees.",
-  UserFees: "What traders pay: the bonding curve fee and the graduated-pool LP fees claimed by highbar; not the migration fee, which comes out of the curve's reserve.",
-  Revenue: "highbar's share: 50%, 38% or 25% (85, 150 and 250 SOL tiers) of the 80% of the bonding curve fee Meteora does not keep, its share of the migration fee (all of it on the 85 SOL tier, half on the 150 SOL tier), and the claimed LP fees of its locked liquidity in graduated pools.",
-  ProtocolRevenue: "highbar's share of bonding curve fees, migration fees and graduated-pool LP fees, all paid to the highbar partner wallet (fee claimer).",
+  Fees: "Everything traders pay on highbar bonding curves (a 1% fee, or on anti-sniper launches a fee starting at 25% and falling to 1% within the first minute), including Meteora's 20% share; the migration fee taken from a curve's SOL when a coin graduates (1% of the 85 and 150 SOL thresholds, none on the 250 SOL tier); and the SOL LP fees highbar's locked liquidity earns in graduated Meteora DAMM v2 pools, when claimed. Excludes graduated-pool fees paid in the launched coin, and the creator's and Meteora's share of graduated-pool fees.",
+  UserFees: "What traders pay: the bonding curve fee and the SOL graduated-pool LP fees claimed by highbar; not the migration fee, which comes out of the curve's reserve.",
+  Revenue: "highbar's share: 50%, 38% or 25% (85, 150 and 250 SOL tiers) of the 80% of the bonding curve fee Meteora does not keep, its share of the migration fee (all of it on the 85 SOL tier, half on the 150 SOL tier), and the claimed SOL LP fees of its locked liquidity in graduated pools.",
+  ProtocolRevenue: "highbar's share of bonding curve fees, migration fees and SOL graduated-pool LP fees, all paid to the highbar partner wallet (fee claimer).",
   SupplySideRevenue: "The coin creator's share of the bonding curve fee (50%, 62% or 75% of the 80% Meteora does not keep) and of the migration fee, Meteora's 20% protocol fee, and the referral fee Meteora pays the interface a swap names.",
 };
 
@@ -245,21 +252,21 @@ const breakdownMethodology = {
   Fees: {
     [LABELS.CURVE_FEES]: "The whole fee traders pay on every buy and sell on a highbar bonding curve, in SOL: 1%, or on anti-sniper launches 25% at launch decaying to 1% over 60 seconds. 80% is shared by the coin creator and highbar, 20% goes to Meteora.",
     [LABELS.MIGRATION_FEES]: "The migration fee taken when a curve graduates to Meteora DAMM v2: 1% of the 85 SOL or 150 SOL threshold, 0% on the 250 SOL tier.",
-    [LABELS.POOL_FEES]: "LP fees earned by highbar's permanently locked liquidity in graduated Meteora DAMM v2 pools (1% pool fee), in SOL and in the launched coin, counted when claimed.",
+    [LABELS.POOL_FEES]: "SOL LP fees earned by highbar's permanently locked liquidity in graduated Meteora DAMM v2 pools (1% pool fee), counted when claimed. Fees on buys are paid in the launched coin and are not counted.",
   },
   UserFees: {
     [LABELS.CURVE_FEES]: "The whole fee traders pay on every bonding curve trade.",
-    [LABELS.POOL_FEES]: "LP fees traders pay to highbar's locked liquidity in graduated pools, when claimed.",
+    [LABELS.POOL_FEES]: "SOL LP fees traders pay to highbar's locked liquidity in graduated pools, when claimed.",
   },
   Revenue: {
     [LABELS.CURVE_TO_HIGHBAR]: "highbar's share of the 80% of the bonding curve fee Meteora does not keep: 50% (85 SOL tier), 38% (150 SOL tier) or 25% (250 SOL tier).",
     [LABELS.MIGRATION_TO_HIGHBAR]: "highbar's share of the migration fee: all of it on the 85 SOL tier, half on the 150 SOL tier.",
-    [LABELS.POOL_TO_HIGHBAR]: "Claimed LP fees of highbar's locked liquidity in graduated pools.",
+    [LABELS.POOL_TO_HIGHBAR]: "Claimed SOL LP fees of highbar's locked liquidity in graduated pools.",
   },
   ProtocolRevenue: {
     [LABELS.CURVE_TO_HIGHBAR]: "highbar's share of the 80% of the bonding curve fee Meteora does not keep: 50% (85 SOL tier), 38% (150 SOL tier) or 25% (250 SOL tier).",
     [LABELS.MIGRATION_TO_HIGHBAR]: "highbar's share of the migration fee: all of it on the 85 SOL tier, half on the 150 SOL tier.",
-    [LABELS.POOL_TO_HIGHBAR]: "Claimed LP fees of highbar's locked liquidity in graduated pools.",
+    [LABELS.POOL_TO_HIGHBAR]: "Claimed SOL LP fees of highbar's locked liquidity in graduated pools.",
   },
   SupplySideRevenue: {
     [LABELS.CURVE_TO_CREATORS]: "The coin creator's share of the 80% of the bonding curve fee Meteora does not keep: 50%, 62% or 75% by tier.",
