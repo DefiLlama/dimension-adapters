@@ -52,7 +52,7 @@ export async function fetchTrading(options: FetchOptions) {
       dailyNotionalVolume.add(token, log.answer.notional.toString(), 'Options Notional');
       dailyPremiumVolume.add(token, log.answer.charged.toString(), 'Options Premiums');
       dailyFees.add(token, log.answer.fee.toString(), 'Options Trading Fees');
-      dailyRevenue.add(token, log.answer.fee.toString(), 'Options Trading Fees To Stryke');
+      dailyRevenue.add(token, log.answer.fee.toString(), 'RFQ Collected Trading Fees');
     }
   }
   if (options.chain === CHAIN.ROBINHOOD) {
@@ -71,7 +71,7 @@ export async function fetchTrading(options: FetchOptions) {
       // The app's premium-collected card counts buy payments only.
       dailyPremiumVolume.add(token, log.premium.toString(), 'Options Premiums');
       dailyFees.add(token, price.fee.toString(), 'Options Trading Fees');
-      dailyRevenue.add(token, price.fee.toString(), 'Options Trading Fees To Stryke');
+      dailyRevenue.add(token, price.fee.toString(), 'RFQ Collected Trading Fees');
     }
   }
   return { dailyNotionalVolume, dailyPremiumVolume, dailyFees, dailyRevenue };
@@ -86,13 +86,13 @@ const adapter = {
     NotionalVolume: 'Underlying notional recorded for each confirmed Stryke RFQ option purchase or sale, counted once on the chain where the fill is confirmed.',
     PremiumVolume: 'Actual premium or sale proceeds recorded for confirmed Stryke RFQ options fills, excluding protocol fees and refunded requests.',
     Fees: 'Actual trading fees recorded on confirmed Stryke RFQ fills; excludes settlement charges, external venue fees and sunsetted products.',
-    Revenue: 'Trading fees directed to the Stryke fee recipient on confirmed RFQ fills, before subsequent token-holder allocation; excludes settlement charges and external venue fees.',
+    Revenue: 'All trading fees recorded on confirmed RFQ fills, before subsequent token-holder allocation. Uses answer.fee for later deployments and paired FillPriced.fee for the October 4 deployment. No fee-recipient allowlist is enforced; legacy confirmation events do not expose a recipient. Excludes maker premiums, settlement deductions and external venue fees.',
   },
   breakdownMethodology: {
     NotionalVolume: { 'Options Notional': 'Underlying notional of confirmed option fills, denominated in USDG on Robinhood or USDC on Arbitrum.' },
     PremiumVolume: { 'Options Premiums': 'Premium or proceeds charged by the maker for each confirmed fill, in the chain payment token.' },
     Fees: { 'Options Trading Fees': 'The actual fee in each FillConfirmed answer; no fixed fee-rate estimate is used.' },
-    Revenue: { 'Options Trading Fees To Stryke': 'The fee sent to answer.feeRecipient, separately from the premium paid to the maker.' },
+    Revenue: { 'RFQ Collected Trading Fees': 'All recorded fill fees: answer.fee on later deployments, or paired FillPriced.fee on the October 4 deployment. This is not a recipient-filtered treasury-transfer measure.' },
   },
 } satisfies SimpleAdapter;
 

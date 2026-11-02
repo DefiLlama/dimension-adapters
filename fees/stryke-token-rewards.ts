@@ -1,61 +1,98 @@
+import { getProvider } from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import { getPositionedLogArgs } from '../helpers/logs';
 
-// Public frontend config: app.stryke.xyz. Source:
-// github.com/stryke-xyz/lumbridge/blob/master/src/governance/StakedSYK.sol
+// Public app config: https://app.stryke.xyz. Accounting/events:
+// https://github.com/stryke-xyz/lumbridge/blob/master/src/governance/StakedSYK.sol
 const staking = '0x20b2431557bB90954744a6D404f45aD1aD8719f4';
-// Verified source: robinhoodchain.blockscout.com/address/<address>?tab=contract
+// Immutable syk() underlying, matched to the constructor in the creation receipt:
+// https://robinhoodchain.blockscout.com/tx/0xf50238eee6f7e34290f153d8209e9027e2baf3c6e79d89e86ab0fe811c311e59
+const syk = '0x97c065eed0309f182777bffa41a9c0027c190df1';
+const stakingFromBlock = 83382171; // Same creation receipt.
+// Claimed ABI is published in this contract's verified Blockscout source:
+// https://robinhoodchain.blockscout.com/address/0x1Bfa26a0dc850B3a9B7586Cc6f8f868B5204a3F1?tab=contract
 const distributor = '0x1Bfa26a0dc850B3a9B7586Cc6f8f868B5204a3F1';
 const distributorStart = 1793145600; // 2026-10-28; no pre-deployment claims.
-const dataAbi = 'function rewardData(address) view returns (uint256 duration,uint256 finishAt,uint256 updatedAt,uint256 rewardRate,uint256 rewardPerTokenStored)';
 
-// rewardReserved includes accrued liabilities AND future scheduled rewards.
-// When supply is zero, not-yet-checkpointed idle rewards must also be removed.
-// This reproduces StakedSYK._updateRewards without counting a new notification
-// as immediate income or counting previously accrued claims a second time.
-export function earnedLiability(reserved: string, data: any, supply: string, timestamp: number): bigint {
-  const finish = Number(data.finishAt ?? data[1]);
-  const updated = Number(data.updatedAt ?? data[2]);
-  const rate = BigInt(data.rewardRate ?? data[3]);
-  const cutoff = BigInt(supply) === 0n ? updated : timestamp;
-  const unearned = rate * BigInt(Math.max(0, finish - cutoff));
-  const earned = BigInt(reserved) - unearned;
-  if (earned < 0n) throw new Error('Inconsistent StakedSYK reward reserve');
+type RewardEvent = { kind: string; blockNumber: number; logIndex: number; [key: string]: any };
+
+/** Replay schedules and active-stake transitions; accrue only inside [from, to). */
+export async function replayAccrual(events: RewardEvent[], from: number, to: number, blockTime: (block: number) => Promise<number>) {
+  const schedules = new Map<string, { rate: bigint; finish: number; updated: number }>();
+  const earned = new Map<string, bigint>();
+  let supply = 0n;
+  const accrue = (timestamp: number) => {
+    for (const [token, schedule] of schedules) {
+      const end = Math.min(timestamp, schedule.finish, to);
+      const start = Math.max(schedule.updated, from);
+      if (supply > 0n && end > start)
+        earned.set(token, (earned.get(token) ?? 0n) + schedule.rate * BigInt(end - start));
+      schedule.updated = Math.max(schedule.updated, Math.min(timestamp, schedule.finish));
+    }
+  };
+  for (const event of [...events].sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)) {
+    if (event.kind === 'RewardNotified') {
+      const timestamp = await blockTime(event.blockNumber);
+      if (timestamp >= to) break;
+      accrue(timestamp);
+      const duration = Number(event.finishAt) - timestamp;
+      if (duration <= 0 || BigInt(event.amount) % BigInt(duration) !== 0n)
+        throw new Error('Invalid StakedSYK reward schedule');
+      schedules.set(event.token.toLowerCase(), { rate: BigInt(event.amount) / BigInt(duration), finish: Number(event.finishAt), updated: timestamp });
+    } else {
+      const next = supply + (event.kind === 'UnstakeInitiated' ? -BigInt(event.amount) : BigInt(event.amount));
+      if (next < 0n) throw new Error('Incomplete StakedSYK supply event history');
+      // Only zero/nonzero transitions change aggregate accrual. Read headers
+      // sequentially for those transitions, never historical contract state.
+      if ((supply === 0n) !== (next === 0n)) {
+        const timestamp = await blockTime(event.blockNumber);
+        if (timestamp >= to) break;
+        accrue(timestamp);
+      }
+      supply = next;
+    }
+  }
+  accrue(to);
   return earned;
 }
 
+/** Reconstruct staker accrual from logs; count Merkle rewards on successful payment. */
 export async function fetchHolders(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
-  const tokens: string[] = await options.toApi.call({ target: staking, abi: 'address[]:getRewardTokens' });
-  const syk: string = await options.toApi.call({ target: staking, abi: 'address:syk' });
-  // Own-token distributions could be emissions; do not classify them as revenue
-  // without evidence of fee-funded buybacks. Other reward assets are holder income.
-  const rewards = tokens.filter(t => t.toLowerCase() !== syk.toLowerCase());
-  if (rewards.length) {
-    const paid = await options.getLogs({ target: staking, eventAbi: 'event RewardPaid(address indexed account,address indexed token,uint256 amount)' });
-    const states: { supply: string; reserved: string[]; data: any[] }[] = [];
-    for (const api of [options.fromApi, options.toApi]) {
-      const supply = await api.call({ target: staking, abi: 'uint256:totalSupply' });
-      const reserved = await api.multiCall({ target: staking, abi: 'function rewardReserved(address) view returns (uint256)', calls: rewards.map(token => ({ params: [token] })) });
-      const data = await api.multiCall({ target: staking, abi: dataAbi, calls: rewards.map(token => ({ params: [token] })) });
-      states.push({ supply, reserved, data });
+  const toBlock = await options.getToBlock();
+  if (toBlock >= stakingFromBlock) {
+    const added = await options.getLogs({ target: staking, fromBlock: stakingFromBlock, toBlock, eventAbi: 'event RewardAdded(address indexed token,uint256 duration)' });
+    const rewards = new Set(added.map(log => log.token.toLowerCase()).filter(token => token !== syk));
+    if (rewards.size) {
+      const events: RewardEvent[] = [];
+      for (const [kind, fields] of [
+        ['Staked', 'address indexed account,uint256 amount'],
+        ['UnstakeInitiated', 'address indexed account,uint256 amount,uint256 unlockAt,uint256 index,uint256 penaltyBps'],
+        ['UnstakeCancelled', 'address indexed account,uint256 amount,uint256 index'],
+        ['RewardNotified', 'address indexed token,uint256 amount,uint256 finishAt'],
+      ]) {
+        const logs = await getPositionedLogArgs(options, { target: staking, fromBlock: stakingFromBlock, toBlock, eventAbi: 'event ' + kind + '(' + fields + ')' });
+        events.push(...logs.filter(log => kind !== 'RewardNotified' || rewards.has(log.token.toLowerCase())).map(log => ({ ...log, kind })));
+      }
+      const times = new Map<number, number>();
+      const blockTime = async (block: number) => {
+        if (!times.has(block)) {
+          const header = await getProvider(options.chain)!.getBlock(block);
+          if (!header) throw new Error('Missing StakedSYK block header ' + block);
+          times.set(block, header.timestamp);
+        }
+        return times.get(block)!;
+      };
+      const earned = await replayAccrual(events, options.startTimestamp, options.endTimestamp, blockTime);
+      for (const [token, amount] of earned)
+        dailyHoldersRevenue.add(token, amount.toString(), 'SYK Staker Reward Accrual');
     }
-    rewards.forEach((token, i) => {
-      const start = earnedLiability(states[0].reserved[i], states[0].data[i], states[0].supply, options.fromTimestamp);
-      const end = earnedLiability(states[1].reserved[i], states[1].data[i], states[1].supply, options.toTimestamp);
-      const claims = paid.filter(log => log.token.toLowerCase() === token.toLowerCase()).reduce((sum, log) => sum + BigInt(log.amount), 0n);
-      const accrued = end - start + claims;
-      if (accrued < 0n) throw new Error('Negative StakedSYK accrual requires review');
-      dailyHoldersRevenue.add(token, accrued.toString(), 'SYK Staker Reward Accrual');
-    });
   }
   if (options.endTimestamp > distributorStart) {
-    // The Merkle contract does not expose historical per-token allocation totals.
-    // Count incremental successful claims, never cumulative claim arguments,
-    // funding transfers, root replacements, or recoveries.
     const claims = await options.getLogs({ target: distributor, eventAbi: 'event Claimed(address indexed account,address indexed token,uint256 amount)' });
     for (const log of claims) {
-      if (log.token.toLowerCase() === syk.toLowerCase()) continue;
+      if (log.token.toLowerCase() === syk) continue;
       dailyHoldersRevenue.add(log.token, log.amount.toString(), 'sykASH Reward Claims');
     }
   }
@@ -68,16 +105,15 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: '2026-10-12',
   fetch: fetchHolders,
-  // docs.stryke.xyz/tokenomics/protocol-fees: rewards pool several products.
-  // Associate this with the Stryke parent, NOT exclusively with its RFQ child.
-  // Do not duplicate trading fees/revenue already recorded in stryke-rfq.
+  // https://docs.stryke.xyz/tokenomics/protocol-fees: rewards pool several products.
+  // Register once at the Stryke parent; do not duplicate RFQ trading revenue.
   methodology: {
-    HoldersRevenue: 'Non-SYK rewards accrued by SYK stakers plus non-SYK rewards successfully claimed through the new sykASH distributor. Staking uses the change in earned reward liabilities plus claims; sykASH uses payment dates because historical allocation totals are not exposed. Covers these two new reward programs across products, not an estimated RFQ fee split. Excludes own-token emissions and unverified buybacks.',
+    HoldersRevenue: 'Non-SYK rewards accrued by SYK stakers plus non-SYK rewards successfully claimed through the new sykASH distributor. Staking replays reward schedules and active stake from on-chain events, excluding idle periods; claims are not counted again. sykASH uses payment dates because historical allocation totals are not exposed. Covers these two reward programs across products, not an estimated RFQ fee split. Excludes own-token emissions and unverified buybacks.',
   },
   breakdownMethodology: {
     HoldersRevenue: {
-      'SYK Staker Reward Accrual': 'Change in rewardReserved minus unearned scheduled/idle rewards, plus paid claims. Active and zero-stake intervals follow StakedSYK accounting.',
-      'sykASH Reward Claims': 'Incremental Claimed event amounts from the new Merkle distributor, excluding SYK. Funding and recoveries are not income.',
+      'SYK Staker Reward Accrual': 'RewardNotified streamed amount divided by its duration, accrued while active stake is nonzero. Replays Staked, UnstakeInitiated and UnstakeCancelled from deployment; replacement schedules supersede unearned rewards. Funding, claims and recoveries do not add income.',
+      'sykASH Reward Claims': 'Incremental Claimed event amounts from the verified Merkle distributor, excluding SYK. Funding and recoveries are not income.',
     },
   },
 };
