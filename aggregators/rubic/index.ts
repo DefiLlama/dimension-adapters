@@ -74,14 +74,20 @@ interface ApiResponse {
   total_transaction_count: string;
 }
 
+const mispricedDays: Record<string, string[]> = {
+  [CHAIN.BSC]: ['2026-10-31'],
+}
+
 async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time * 1000))
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  if (mispricedDays[options.chain]?.includes(options.dateString)) return { dailyVolume: 0 }
+
   await sleep(Math.floor(Math.random() * 5) + 1)
 
-  const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startTimestamp}&network=${chains[options.chain]}`);
+  const data: ApiResponse = await fetchURL(`https://api.rubic.exchange/api/stats/defilama_onchain?date=${options.startOfDay}&network=${chains[options.chain]}`);
 
   return {
     dailyVolume: data?.daily_volume_in_usd || '0',
