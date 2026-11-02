@@ -34,16 +34,16 @@ async function fetchFallbackVolume(endpoint: string): Promise<number> {
 
 function isRecentDate(dateString: string): boolean {
   const targetTime = new Date(dateString).getTime();
-  const now = Date.now();
+  const age = Date.now() - targetTime;
   // Allow cache fallback only for requests within the last 48 hours
-  return (now - targetTime) <= 48 * 60 * 60 * 1000;
+  return age >= 0 && age <= 48 * 60 * 60 * 1000;
 }
 
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     try {
       const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-      if (res && Array.isArray(res.days) && res.days.length === 1) {
+      if (res && Array.isArray(res.days) && res.days.length === 1 && res.days[0]?.date === options.dateString) {
         return { dailyVolume: res.total_volume_usd };
       }
     } catch {
@@ -74,7 +74,7 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (!res || !Array.isArray(res.days) || res.days.length !== 1) {
+    if (!res || !Array.isArray(res.days) || res.days.length !== 1 || res.days[0]?.date !== options.dateString) {
       throw new Error("No data found for the given date: " + options.dateString);
     }
     dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
