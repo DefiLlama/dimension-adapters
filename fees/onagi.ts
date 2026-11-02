@@ -1,5 +1,5 @@
 import { id } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -96,7 +96,7 @@ const fetch = async (options: FetchOptions) => {
 
 const fetchSolana = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  for (const { fee } of await getOnagiSolanaTrades(options)) dailyFees.add(ADDRESSES.solana.USDC, fee, LABELS.PLATFORM_FEES);
+  dailyFees.add(ADDRESSES.solana.USDC, (await getOnagiSolanaTrades(options)).fee, LABELS.PLATFORM_FEES);
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -149,6 +149,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROBINHOOD]: { fetch, start: "2026-10-22" },
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-25" },
   },
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
   doublecounted: true, // pons
