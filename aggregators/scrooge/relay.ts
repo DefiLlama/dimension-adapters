@@ -1,5 +1,6 @@
 import { FetchOptions } from "../../adapters/types";
 import { getRelayApiKey, getRelayPage, RELAY_CHAINS } from "../../helpers/relay";
+import { RELAY_HISTORY } from "./relayHistory";
 
 // Scrooge's swaps and transfers through Relay, shared by aggregators/scrooge (swaps on one chain) and
 // bridge-aggregators/scrooge (across chains). Scrooge's site quotes Relay with the referrer "scrooge.exchange" and pays
@@ -9,8 +10,8 @@ import { getRelayApiKey, getRelayPage, RELAY_CHAINS } from "../../helpers/relay"
 // (https://docs.relay.link/references/api/get-requests-v2).
 const RELAY_REQUESTS_V2_API = "https://api.relay.link/requests/v2";
 const RELAY_REFERRER = "scrooge.exchange";
-// Scrooge's first Relay request with its referrer. Its Relay requests before then carry no referrer and cannot be told
-// apart from other apps' requests, so they are not counted.
+// Scrooge's first Relay request with its referrer. Its Relay requests before then carry no referrer and are listed in
+// ./relayHistory.ts instead, from its first on 2026-10-14.
 export const RELAY_START = "2026-10-29";
 // Scrooge's fee wallet on EVM chains, shared by aggregators/scrooge and bridge-aggregators/scrooge: ScroogeRouter's
 // feeRecipient() (selector 0x46904840 on 0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82, Robinhood Chain), the recipient
@@ -30,14 +31,34 @@ export type RelayTotals = { crossChain: Record<string, number>; sameChain: Recor
 const add = (totals: Record<string, number>, chain: string, usd: number) => { totals[chain] = (totals[chain] ?? 0) + usd; };
 const toScrooge = (fees?: RelayAppFee[] | null) => (fees ?? []).filter((f) => f.recipient?.toLowerCase() === FEE_WALLET);
 
-// One pull of Scrooge's filled Relay requests per window, shared by every chain, by the time each was made. The API's
-// bounds are inclusive and the window is [startTimestamp, endTimestamp) (adapters/utils/runAdapter.ts, since #10547), so
-// the query covers [startTimestamp, endTimestamp - 1]: a request on a boundary falls in one window only. Relay's USD prices break on long-tail
-// tokens (see fees/relay), so where what was sent and what arrived disagree by more than 2x, the smaller is counted.
-// A request without Scrooge's referrer means the filter was not applied, and the run stops rather than count all of
-// Relay. Any caller can send the referrer, so a request counts only where it pays Scrooge's fee wallet an app fee.
+// One request in the totals, on the chain paid from: cross-chain, or same-chain with Scrooge's fee. Relay's USD prices
+// break on long-tail tokens (see fees/relay), so where what was sent and what arrived disagree by more than 2x, the
+// smaller is counted.
+const addRequest = (totals: RelayTotals, fromChainId: number | undefined, toChainId: number | undefined, inUsd: number, outUsd: number, feeUsd: number) => {
+  const chain = RELAY_CHAINS[fromChainId as number];
+  if (!chain || !Number.isFinite(inUsd)) return;
+  const usd = Number.isFinite(outUsd) && (inUsd > 2 * outUsd || outUsd > 2 * inUsd) ? Math.min(inUsd, outUsd) : inUsd;
+  if (toChainId !== fromChainId) {
+    add(totals.crossChain, chain, usd);
+    return;
+  }
+  add(totals.sameChain, chain, usd);
+  // a fee above what was swapped is a mispriced token, as above
+  if (feeUsd <= usd) add(totals.sameChainFees, chain, feeUsd);
+};
+
+// Scrooge's filled Relay requests per window, shared by every chain, by the time each was made. The window is
+// [startTimestamp, endTimestamp) (adapters/utils/runAdapter.ts, since #10547). Before RELAY_START they are the listed
+// ones (./relayHistory.ts), and Relay is not asked. From then, one pull by referrer: the API's bounds are inclusive, so
+// the query covers [startTimestamp, endTimestamp - 1] and a request on a boundary falls in one window only. A request
+// without Scrooge's referrer means the filter was not applied, and the run stops rather than count all of Relay. Any
+// caller can send the referrer, so a request counts only where it pays Scrooge's fee wallet an app fee.
 export const fetchRelayTotals = async (options: FetchOptions): Promise<RelayTotals> => {
   const totals: RelayTotals = { crossChain: {}, sameChain: {}, sameChainFees: {} };
+  for (const [, createdAt, fromChainId, toChainId, inUsd, outUsd, feeUsd] of RELAY_HISTORY) {
+    if (createdAt >= options.startTimestamp && createdAt < options.endTimestamp) addRequest(totals, fromChainId, toChainId, inUsd, outUsd, feeUsd);
+  }
+  if (options.endTimestamp <= Date.parse(RELAY_START) / 1000) return totals;
   const apiKey = getRelayApiKey();
   let continuation: string | undefined;
   do {
@@ -48,19 +69,8 @@ export const fetchRelayTotals = async (options: FetchOptions): Promise<RelayTota
       if (!toScrooge(data?.appFees).length && !toScrooge(data?.paidAppFees).length) continue;
       const sent = data?.metadata?.currencyIn;
       const arrived = data?.metadata?.currencyOut;
-      const chain = RELAY_CHAINS[sent?.currency?.chainId as number];
-      const inUsd = Number(sent?.amountUsd);
-      const outUsd = Number(arrived?.amountUsd);
-      if (!chain || !Number.isFinite(inUsd)) continue;
-      const usd = Number.isFinite(outUsd) && (inUsd > 2 * outUsd || outUsd > 2 * inUsd) ? Math.min(inUsd, outUsd) : inUsd;
-      if (arrived?.currency?.chainId !== sent?.currency?.chainId) {
-        add(totals.crossChain, chain, usd);
-        continue;
-      }
-      add(totals.sameChain, chain, usd);
       const fee = toScrooge(data?.paidAppFees).reduce((sum, f) => sum + Number(f.amountUsd ?? 0), 0);
-      // a fee above what was swapped is a mispriced token, as above
-      if (fee <= usd) add(totals.sameChainFees, chain, fee);
+      addRequest(totals, sent?.currency?.chainId, arrived?.currency?.chainId, Number(sent?.amountUsd), Number(arrived?.amountUsd), fee);
     }
     continuation = page.continuation;
   } while (continuation);
