@@ -102,9 +102,11 @@ const fetch = async (options: FetchOptions) => {
     pending = pending.filter((hash) => !calldataByHash.has(hash));
   }
 
-  // Collateral units per signed size unit, per market. Reverts on an exchange that has not
-  // been upgraded to have the field (then every market trades 1:1), and reads 0 on a market
-  // created before it; both mean 1.
+  // Collateral units per signed size unit, per market. An exchange not upgraded to have the
+  // field reverts on every call, and every market on it trades 1:1; a market created before
+  // the field reads 0, which also means 1. A node that fails some calls but not others is
+  // neither: taking 1 there would book 6-decimal sizes as 18-decimal USDC, so the day fails
+  // and is retried instead.
   const marketIds = [...new Set(fills.map((log: any) => log.args.marketId.toString()))];
   const units = await options.api.multiCall({
     target: clobExchange,
@@ -112,6 +114,9 @@ const fetch = async (options: FetchOptions) => {
     calls: marketIds,
     permitFailure: true,
   });
+  const missing = units.filter((u: any) => u == null).length;
+  if (missing && missing < units.length)
+    throw new Error(`daejin: shareUnit unreadable for ${missing}/${units.length} markets on ${options.chain}`);
   const unitOf = new Map<string, bigint>();
   marketIds.forEach((id, i) => unitOf.set(id, units[i] && BigInt(units[i]) > 0n ? BigInt(units[i]) : 1n));
 
