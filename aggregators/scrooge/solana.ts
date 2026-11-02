@@ -87,12 +87,13 @@ const decodeHops = (data: Buffer, order: number): Hop[] | undefined => {
   return Array.from({ length: count }, (_, k) => hop(20 + k * size, k));
 };
 
-/** A day's swaps through Scrooge on Solana: the token each was valued in with its raw amount, and Scrooge's fee in lamports. */
-export async function fetchSolanaSwaps(options: FetchOptions): Promise<{ volume: { mint: string; amount: bigint }[]; feeLamports: number }> {
-  // Dune's Solana indexing delay is checked in the adapter's prefetch (./index.ts), before any chain runs.
+// A day's payments to Scrooge's fee accounts, and the JUP6 hops of each paying transaction that ran Jupiter, by
+// transaction id. Shared by aggregators/scrooge (volume) and fees/scrooge (fees).
+async function fetchSolanaSwaps(options: FetchOptions): Promise<{ payments: any[]; hopsByTx: Record<string, Hop[]> }> {
+  // Dune's Solana indexing delay is checked in each adapter's prefetch, before any chain runs.
   // extraUIDKey keeps DUNE_BULK_MODE from UNION ALLing the two queries, whose columns differ
   const payments = await queryDuneSql(options, feePaymentsQuery, { extraUIDKey: "scrooge-fee-payments" });
-  if (!payments.length) return { volume: [], feeLamports: 0 };
+  if (!payments.length) return { payments, hopsByTx: {} };
   const events = await queryDuneSql(options, eventsQuery(options, payments.map((p: any) => p.tx_id)), { extraUIDKey: "scrooge-jup6-events" });
 
   const hopsByTx: Record<string, Hop[]> = {};
@@ -110,7 +111,12 @@ export async function fetchSolanaSwaps(options: FetchOptions): Promise<{ volume:
   // A JUP6 event layout change would drop events silently and under-count, so fail instead: more than 0.1% of the
   // events not parsed (the limit aggregators/jupiter-aggregator uses) fails the day.
   if (unparsed > 0.001 * seen.size) throw new Error(`scrooge: JUP6 events not parsed: ${unparsed} of ${seen.size}`);
+  return { payments, hopsByTx };
+}
 
+/** A day's swaps through Scrooge on Solana: the token each was valued in, with its raw amount. */
+export async function fetchSolanaVolume(options: FetchOptions): Promise<{ mint: string; amount: bigint }[]> {
+  const { hopsByTx } = await fetchSolanaSwaps(options);
   // Each transaction is valued once, on the input mint of its first hop: every hop selling that mint is counted (a
   // route split across pools in full) and the intermediate hops are not.
   const entryHops: Hop[] = [];
@@ -132,7 +138,11 @@ export async function fetchSolanaSwaps(options: FetchOptions): Promise<{ volume:
     const [first, second] = MAJOR_MINTS.has(h.omint) && !MAJOR_MINTS.has(h.imint) ? [output, input] : [input, output];
     volume.push(priced(first.mint) || !priced(second.mint) ? first : second);
   }
-  // Scrooge's fee, on the transactions that ran Jupiter
-  const feeLamports = payments.filter((p: any) => hopsByTx[p.tx_id]).reduce((sum: number, p: any) => sum + Number(p.fee_lamports), 0);
-  return { volume, feeLamports };
+  return volume;
+}
+
+/** Scrooge's fee in lamports on a day's swaps through Scrooge on Solana: what the transactions that ran Jupiter paid its fee accounts. */
+export async function fetchSolanaFeeLamports(options: FetchOptions): Promise<number> {
+  const { payments, hopsByTx } = await fetchSolanaSwaps(options);
+  return payments.filter((p: any) => hopsByTx[p.tx_id]).reduce((sum: number, p: any) => sum + Number(p.fee_lamports), 0);
 }
