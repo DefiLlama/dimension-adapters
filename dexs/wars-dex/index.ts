@@ -118,8 +118,8 @@ const methodology = {
   Fees: "The swap fee each pool charges (0.05%, 0.30% or 1.00%, fixed when the pool is created), in SUPRA on a pool with SUPRA, else in the asset paid in.",
   UserFees: "Traders pay every swap fee.",
   Revenue: "The share of each fee that leaves the pool in the same transaction (wars_pool::PlatformCut events): the protocol share to the WARs DEX treasury (at most half of the fee), or on a pool seeded by the WARs Floor launchpad the platform's share.",
-  ProtocolRevenue: "All revenue goes to the WARs treasury and platform wallets.",
-  SupplySideRevenue: "The rest of each fee stays in the pool for its liquidity providers.",
+  ProtocolRevenue: "The swap fees received by the WARs DEX treasury and the Floor platform wallet.",
+  SupplySideRevenue: "The swap fees received by the pools' liquidity providers.",
 };
 
 const breakdownMethodology = {
