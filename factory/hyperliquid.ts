@@ -32,6 +32,23 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "blackboard": {
+    // Blackboard (https://blackboard.fi), a web trading terminal with embedded wallets for Hyperliquid perps (it also
+    // trades Aster, Polymarket and others; only the Hyperliquid builder code is counted here). Every Hyperliquid order it
+    // places carries this builder code; the fee is a share of filled notional that varies by the user's volume tier
+    // (0.025% on most current fills).
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x6c7b618ec300ffe98cd63bf96a00e5088c724f58"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-04-29",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Blackboard, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Blackboard; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
+      ProtocolRevenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
+    },
+    breakdownFees: true,
+  },
   "wenlong": {
     // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
     // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
