@@ -1,18 +1,18 @@
 import { FetchOptions } from "../../adapters/types";
 import { getRelayApiKey, getRelayPage, RELAY_CHAINS } from "../../helpers/relay";
 
-// Scrooge's swaps and transfers through Relay, shared by aggregators/scrooge (swaps on one chain) and
-// bridge-aggregators/scrooge (across chains). Scrooge's site quotes Relay with the referrer "scrooge.exchange" and pays
-// Scrooge's fee to Scrooge's fee wallet as an app fee. Relay's v3 requests API filters by app id only for the key that
-// owns the app (any other key gets HTTP 403 APP_FILTER_UNAUTHORIZED) and by referrer only among keyless requests, so
-// Scrooge's requests are read from the v2 requests API, which filters by referrer across all requests
-// (https://docs.relay.link/references/api/get-requests-v2).
+// Scrooge's swaps and transfers through Relay, shared by aggregators/scrooge (swaps on one chain), fees/scrooge (Scrooge's
+// app fee on them) and bridge-aggregators/scrooge (across chains). Scrooge's site quotes Relay with the referrer
+// "scrooge.exchange" and pays Scrooge's fee to Scrooge's fee wallet as an app fee. Relay's v3 requests API filters by
+// app id only for the key that owns the app (any other key gets HTTP 403 APP_FILTER_UNAUTHORIZED) and by referrer only
+// among keyless requests, so Scrooge's requests are read from the v2 requests API, which filters by referrer across all
+// requests (https://docs.relay.link/references/api/get-requests-v2).
 const RELAY_REQUESTS_V2_API = "https://api.relay.link/requests/v2";
 const RELAY_REFERRER = "scrooge.exchange";
 // Scrooge's first Relay request with its referrer. Its Relay requests before then carry no referrer and cannot be told
 // apart from other apps' requests, so they are not counted.
 export const RELAY_START = "2026-10-29";
-// Scrooge's fee wallet on EVM chains, shared by aggregators/scrooge and bridge-aggregators/scrooge: ScroogeRouter's
+// Scrooge's fee wallet on EVM chains, shared by the Scrooge adapters: ScroogeRouter's
 // feeRecipient() (selector 0x46904840 on 0x7668b4F9E949E392DC3A1B562bf03086Fd35bb82, Robinhood Chain), the recipient
 // Scrooge names for its app fee on Relay and on Across.
 export const FEE_WALLET = "0xd21ba2ac73e7e825f929d4b2f70228e806f439ae";
