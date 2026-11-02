@@ -34,6 +34,7 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   "cro-trade-predict": { builder: "crotrade", start: "2026-06-03", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4" },
   "whalidate": { builder: "Whalidate", start: "2026-10-01", builderCode: "0x7043f01555796d800d711fd807cbb367bd260d85ba45b052ac472b1e049d596f" },
   "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
+  "blackboard-predict": { builder: "Blackboard", start: "2026-04-29", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
@@ -53,6 +54,7 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   // Onagi pools these with its other fees (fees/onagi.ts, dexs/onagi-perps.ts) and splits all of it the same way:
   // 50% USDG payouts to ONAGI holders + 25% ONAGI buyback and burn, 25% treasury (split.*Bps in https://onagi.si/data/cycles.json)
   "onagi-predict": { builderName: "Onagi", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f", start: "2026-10-22", holdersRevenueRatio: 0.75 },
+  "blackboard-predict": { builderName: "Blackboard", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c", start: "2026-04-29" },
 }
 
 const dexsProtocols: Record<string, any> = {};
