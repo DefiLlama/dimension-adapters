@@ -3,7 +3,7 @@ import { exportLighterPartnerAdapter, type LighterPartnerConfig } from "../helpe
 import { createFactoryExports } from "./registry";
 
 // Lighter partners (builder codes), one listing per partner, account indexes from https://lighter.exchange/stats?tab=partners
-// Already tracked elsewhere: telegram-wallet-perps, insilico, minaraai-perps, pear-interface, taco-trade, onagi-perps, lifi-perps, vooi.
+// Already tracked elsewhere: telegram-wallet-perps, insilico, minaraai-perps, pear-interface, taco-trade, onagi-perps, jumper-perps, vooi.
 // Not listed: Atoma Fi (383032) and lunch.fun (735079) are a single client earning $0 in fees, Cryexc (712390) earned ~$1 on ~$27M volume.
 // A partner can be integrated with several Lighter deployments (zklighter, robinhood) and can rotate accounts on one:
 // list each account index with its active days, see LighterAccountConfig in helpers/lighter.ts.
