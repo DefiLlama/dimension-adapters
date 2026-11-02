@@ -222,17 +222,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "jumper-perps-hl": {
-    addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
-    start: "2026-09-09",
-    methodology: {
-      Volume: "Perpetual trading volume routed through Jumper on Hyperliquid.",
-      Fees: "Builder code fees paid by users trading Hyperliquid perpetuals through Jumper.",
-      Revenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
-      ProtocolRevenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
-    },
-    breakdownFees: true,
-  },
   "synthra-perps": {
     // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
     // factory 0x6307fc239C7964942c1BfFE51930E55606619c74 on Robinhood Chain and Arc, and it is the
@@ -1591,7 +1580,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "hyprearn-spot": { builder: "hyprearn-perps", market: "spot", start: "2025-09-01" },
   "infinex-spot": { builder: "infinex-perps", market: "spot", start: "2025-08-18" },
   "infinex-outcome": { builder: "infinex-perps", market: "outcome", start: "2026-05-02" },
-  "jumper-perps-hl-spot": { builder: "jumper-perps-hl", market: "spot", start: "2026-09-09" },
   "katoshi-spot": { builder: "katoshi-perps", market: "spot", start: "2025-08-01" },
   "legend-trade-spot": { builder: "legend-trade", market: "spot", start: "2026-01-29" },
   "liminal-spot": { builder: "liminal-perps", market: "spot", start: "2025-07-20" },
