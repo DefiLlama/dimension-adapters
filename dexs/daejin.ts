@@ -41,7 +41,9 @@ const BET_PLACED =
   "event BetPlaced(uint256 indexed marketId, address indexed bettor, bool isYes, address token, uint256 cashAmount, uint256 sharesReceived, uint256 priceNum, uint256 priceDen)";
 const NATIVE = ADDRESSES.null;
 
-// One event per fill. size is in shares (1 share = 1 raw collateral unit at resolution),
+// One event per fill. size is the signed order's size in 6-decimal share units; the exchange
+// converts that to collateral units with the market's shareUnit (10^(decimals-6), 1 where the
+// collateral has 6 decimals or the market predates the field), so cash = legCash * shareUnit.
 // execPrice is the YES price in ticks out of PRICE_TICKS. The outcome each side traded is not
 // in the event, so it is read from the settlement call's calldata below.
 // PRICE_TICKS is the exchange's public constant: ClobExchange.PRICE_TICKS() returns 1000 on
@@ -58,6 +60,7 @@ const clobIface = new Interface([
   `function ammFill(${ORDER} order, bytes sig, uint256 execPrice, uint256 size)`,
 ]);
 const OUTCOME_YES = 0n;
+const SHARE_UNIT_ABI = "function shareUnit(uint256) view returns (uint256)";
 
 // Collateral one side pays (or receives) for `size` shares of `outcome` at execPrice.
 const legCash = (outcome: bigint, execPrice: bigint, size: bigint): bigint => {
@@ -81,13 +84,39 @@ const fetch = async (options: FetchOptions) => {
   ];
   if (!fills.length) return { dailyVolume };
 
-  // One settlement per transaction; the helper re-requests hashes a lagging node answers null
+  // One settlement per transaction, a few thousand on a busy day. Fetched in small batches
+  // with a second pass over stragglers: the helper re-requests hashes a lagging node answers
+  // null, but public nodes answer null under load faster than its three quick attempts
+  // recover, and a day with one hash short is a day that cannot be stored.
   const txHashes = [...new Set(fills.map((log: any) => log.transactionHash.toLowerCase()))];
-  const txs = await getTransactionsWithRetry(options.chain, txHashes);
   const calldataByHash = new Map<string, string>();
-  txHashes.forEach((hash, i) => { if (txs[i]?.data) calldataByHash.set(hash, txs[i].data); });
+  const BATCH = 10;
+  let pending = txHashes;
+  for (let attempt = 0; pending.length && attempt < 6; attempt++) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    for (let i = 0; i < pending.length; i += BATCH) {
+      const batch = pending.slice(i, i + BATCH);
+      const txs = await getTransactionsWithRetry(options.chain, batch);
+      batch.forEach((hash, j) => { if (txs[j]?.data) calldataByHash.set(hash, txs[j].data); });
+    }
+    pending = pending.filter((hash) => !calldataByHash.has(hash));
+  }
+
+  // Collateral units per signed size unit, per market. Reverts on an exchange that has not
+  // been upgraded to have the field (then every market trades 1:1), and reads 0 on a market
+  // created before it; both mean 1.
+  const marketIds = [...new Set(fills.map((log: any) => log.args.marketId.toString()))];
+  const units = await options.api.multiCall({
+    target: clobExchange,
+    abi: SHARE_UNIT_ABI,
+    calls: marketIds,
+    permitFailure: true,
+  });
+  const unitOf = new Map<string, bigint>();
+  marketIds.forEach((id, i) => unitOf.set(id, units[i] && BigInt(units[i]) > 0n ? BigInt(units[i]) : 1n));
 
   for (const log of fills) {
+    const unit = unitOf.get(log.args.marketId.toString())!;
     const data = calldataByHash.get(log.transactionHash.toLowerCase());
     if (!data) throw new Error(`daejin: missing transaction ${log.transactionHash} on ${options.chain}`);
     const call = clobIface.parseTransaction({ data });
@@ -98,10 +127,10 @@ const fetch = async (options: FetchOptions) => {
       // Two user orders. Volume is one side of the trade: the average of what each side paid.
       const cashA = legCash(BigInt(call.args.orderA.outcome), execPrice, size);
       const cashB = legCash(BigInt(call.args.orderB.outcome), execPrice, size);
-      dailyVolume.add(collateral, (cashA + cashB) / 2n);
+      dailyVolume.add(collateral, ((cashA + cashB) / 2n) * unit);
     } else {
       // One user order against the AMM pool: the user's side.
-      dailyVolume.add(collateral, legCash(BigInt(call.args.order.outcome), execPrice, size));
+      dailyVolume.add(collateral, legCash(BigInt(call.args.order.outcome), execPrice, size) * unit);
     }
   }
 
