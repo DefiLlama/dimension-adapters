@@ -1,11 +1,10 @@
 import { Interface } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import fetchURL from "../utils/fetchURL";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { getSignaturesForAddress, getTransaction } from "../helpers/solana";
-import { PromisePool } from "@supercharge/promise-pool";
+import { queryAllium } from "../helpers/allium";
 
 // Onagi (https://onagi.si) is a trading app on Robinhood Chain and Solana. Token and stock token trades are sent
 // by each user's own wallet and filled by Uniswap (v2/v3/v4 through the Universal Router) or by the
@@ -98,113 +97,59 @@ const fetch = async (options: FetchOptions) => {
 
 // SOLANA. Token trades are Jupiter swaps signed by each user's own Solana wallet, always between USDC and the token.
 // Every one pays Onagi's platform fee inside the swap, through Jupiter's platform fee, in USDC, into one Onagi fee
-// account; Jupiter is never asked for a quote without it. So the fee account's own history lists every Onagi
-// trade, and no list from Onagi is needed. For each successful transaction of that account that runs Jupiter:
-// - the fee is what the fee account received in it;
-// - the volume is the trader's USDC leg (the fee payer is the trader): what it paid on a buy, or what it received
-//   plus the fee on a sell, so volume is gross of the fee like on Robinhood Chain.
-// Withdrawals from the fee account receive nothing and add zero.
+// account; Jupiter is never asked for a quote without it. So the USDC that Jupiter itself sends to that account
+// marks every Onagi trade, and no list from Onagi is needed. Read from Allium's Solana transfers (settled only):
+// - the fee is the USDC Jupiter sent to the fee account in the transaction;
+// - the volume is the trader's USDC leg in it (the signer is the trader): what it paid on a buy, or what it
+//   received plus the fee on a sell, so volume is gross of the fee like on Robinhood Chain.
+// Deposits into the fee account outside Jupiter, and withdrawals from it, are not trades and add zero.
 const SOLANA_USDC = ADDRESSES.solana.USDC;
-// Owner of the fee account and its USDC token account, the feeAccount of every Onagi Jupiter swap.
+// Owner of Onagi's USDC fee account (Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i), the feeAccount of every Onagi Jupiter swap.
 const SOLANA_FEE_OWNER = "DEnNbkQgpUiHxyjSzSTdNxBPg6JC5iZ92DtAkys9mwpD";
-const SOLANA_FEE_ACCOUNT = "Gu6dzYEGMpvfjUng5p6erjPJqirEdBE6sMHsZmA2zc9i";
 const JUPITER_V6 = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
-// Public Solana RPC answers 429 when called too fast: wait and try again, up to six times.
-// The sdk rethrows transport errors as a plain Error whose message is "[host: <url>] [<http status>] ...", so the
-// status survives only as that bracketed field.
-const isRateLimit = (e: any) =>
-  [e?.status, e?.statusCode, e?.response?.status].includes(429) || /^\[host: [^\]]*\] \[429\] /.test(String(e?.message ?? ""));
-const withRetry = async <T>(call: () => Promise<T>): Promise<T> => {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await call();
-    } catch (e: any) {
-      if (attempt >= 6 || !isRateLimit(e)) throw e;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
-    }
-  }
-};
-
-const signaturePage = (before?: string) =>
-  withRetry(() => getSignaturesForAddress({ address: SOLANA_FEE_ACCOUNT, limit: 1000, before }));
-
-// The fee account's signatures, newest first, shared by every hourly window of a run. Each window first adds what
-// arrived since the last look (newest pages until a known signature), then pages further back if it needs older
-// ones. A signature whose blockTime the node left out is kept: its time is read from the transaction itself.
-const solanaHistory: any[] = [];
-const solanaKnown = new Set<string>();
-let solanaHistoryEnd = false;
-let solanaPaging: Promise<void> = Promise.resolve();
-const solanaSignatures = async (from: number, to: number) => {
-  const oldest = () => [...solanaHistory].reverse().find((entry) => typeof entry.blockTime === "number")?.blockTime;
-  solanaPaging = solanaPaging.catch(() => undefined).then(async () => {
-    // Newer signatures since the last look: newest pages until one already known.
-    const fresh: any[] = [];
-    for (let before: string | undefined; solanaHistory.length;) {
-      const page = (await signaturePage(before)) ?? [];
-      const known = page.findIndex((entry: any) => solanaKnown.has(entry.signature));
-      fresh.push(...(known < 0 ? page : page.slice(0, known)));
-      if (known >= 0 || page.length < 1000) break;
-      before = page[page.length - 1].signature;
-    }
-    solanaHistory.unshift(...fresh);
-    fresh.forEach((entry) => solanaKnown.add(entry.signature));
-    // Older signatures, back to the start of the window.
-    while (!solanaHistoryEnd && !((oldest() ?? Infinity) < from)) {
-      const page = (await signaturePage(solanaHistory[solanaHistory.length - 1]?.signature)) ?? [];
-      const older = page.filter((entry: any) => !solanaKnown.has(entry.signature));
-      if (page.length >= 1000 && !older.length) throw new Error("onagi: solana signature paging did not advance");
-      solanaHistory.push(...older);
-      older.forEach((entry: any) => solanaKnown.add(entry.signature));
-      if (page.length < 1000) solanaHistoryEnd = true;
-    }
-  });
-  await solanaPaging;
-  return solanaHistory
-    .filter((entry) => !entry.err && (typeof entry.blockTime !== "number" || (entry.blockTime >= from && entry.blockTime < to)))
-    .map((entry) => entry.signature as string);
-};
-
-// USDC base units an owner gained (negative: lost) in a transaction, over all of its USDC token accounts.
-const usdcDelta = (meta: any, owner: string) => {
-  let delta = 0n;
-  for (const [list, sign] of [[meta.preTokenBalances, -1n], [meta.postTokenBalances, 1n]] as const) {
-    for (const b of list ?? []) {
-      if (b.mint === SOLANA_USDC && b.owner === owner) delta += sign * BigInt(b.uiTokenAmount.amount);
-    }
-  }
-  return delta;
-};
-
-const solanaTransaction = (signature: string) =>
-  withRetry(() => getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
-
-// Every Onagi trade on Solana in the window: the platform fee and the gross volume, in USDC base units.
+// Onagi's Solana trades in the window: the platform fee and the gross volume, in USDC base units.
 export async function getOnagiSolanaTrades(options: FetchOptions) {
-  const from = options.startTimestamp, to = options.endTimestamp;
-  const signatures = await solanaSignatures(from, to);
-  // A few at a time, waiting and retrying on 429: public Solana RPC rate limits getTransaction.
-  const { results: trades, errors } = await PromisePool.withConcurrency(3).for(signatures).process(async (signature) => {
-    const tx = await solanaTransaction(signature);
-    // A missing transaction means the node could not serve it, not that nothing traded.
-    if (!tx?.meta) throw new Error(`onagi: solana rpc returned no transaction for ${signature}`);
-    if (typeof tx.blockTime !== "number") throw new Error(`onagi: solana rpc returned no block time for ${signature}`);
-    if (tx.blockTime < from || tx.blockTime >= to) return null;
-    if (tx.meta.err || !(tx.meta.logMessages ?? []).some((log: string) => log.startsWith(`Program ${JUPITER_V6} invoke`))) return null;
-    const fee = usdcDelta(tx.meta, SOLANA_FEE_OWNER);
-    if (fee <= 0n) return null;
-    const trader = tx.transaction.message.accountKeys[0].pubkey;
-    const leg = usdcDelta(tx.meta, trader);
-    return { fee, volume: leg < 0n ? -leg : leg + fee };
-  });
-  if (errors.length) throw errors[0];
-  return trades.filter((t): t is { fee: bigint; volume: bigint } => t !== null);
+  const rows = await queryAllium(`
+    WITH checks AS (
+      SELECT EXISTS (SELECT 1 FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed
+    ),
+    usdc AS (
+      SELECT txn_id, signer, from_address, to_address, outer_program_id, raw_amount
+      FROM solana.assets.transfers
+      WHERE mint = '${SOLANA_USDC}'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    ),
+    trades AS (
+      SELECT txn_id, ANY_VALUE(signer) AS trader, SUM(raw_amount) AS fee
+      FROM usdc
+      WHERE to_address = '${SOLANA_FEE_OWNER}' AND outer_program_id = '${JUPITER_V6}'
+      GROUP BY txn_id
+    ),
+    legs AS (
+      SELECT t.txn_id, t.fee,
+        SUM(IFF(u.to_address = t.trader, u.raw_amount, 0)) - SUM(IFF(u.from_address = t.trader, u.raw_amount, 0)) AS leg
+      FROM trades t
+      JOIN usdc u ON u.txn_id = t.txn_id
+      GROUP BY 1, 2
+    )
+    SELECT c.indexed, COUNT(l.txn_id) AS trades, SUM(l.fee) AS fee, SUM(IFF(l.leg < 0, -l.leg, l.leg + l.fee)) AS volume
+    FROM checks c
+    LEFT JOIN legs l ON TRUE
+    GROUP BY c.indexed
+  `);
+  if (!rows[0]?.indexed) throw new Error(`onagi: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
+  // Indexed, and no trade in the window: the sums are null.
+  if (!Number(rows[0].trades)) return { fee: 0, volume: 0 };
+  return { fee: rows[0].fee, volume: rows[0].volume };
 }
 
 const fetchSolana = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  for (const { volume } of await getOnagiSolanaTrades(options)) dailyVolume.add(SOLANA_USDC, volume);
+  dailyVolume.add(SOLANA_USDC, (await getOnagiSolanaTrades(options)).volume);
   return { dailyVolume };
 };
 
@@ -215,14 +160,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROBINHOOD]: { fetch, start: "2026-10-22" },
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-25" },
   },
+  dependencies: [Dependencies.ALLIUM],
   doublecounted: true,
   methodology: {
     Volume:
       "Token and stock token trades made in Onagi. On Robinhood Chain they are filled by Uniswap or the Pons bonding curve: " +
       "Onagi publishes which transactions were its trades; each one's value is read from that transaction on chain: " +
       "the Pons curve event for curve trades, otherwise the trader's USDG leg (gross of the platform fee). " +
-      "On Solana they are Jupiter swaps that all pay Onagi's platform fee into one fee account; every Jupiter transaction " +
-      "of that account is an Onagi trade, valued on the trader's USDC leg (gross of the fee). " +
+      "On Solana they are Jupiter swaps that all pay Onagi's platform fee into one fee account; every swap where Jupiter " +
+      "pays that account is an Onagi trade, valued on the trader's USDC leg (gross of the fee). " +
       "Doublecounted with the venues that filled the trades.",
   },
 };
