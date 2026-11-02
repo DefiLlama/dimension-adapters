@@ -104,14 +104,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.BASE]: { fetch: fetchPool, start: "2026-10-07" },
     [CHAIN.BSC]: { fetch: fetchPool, start: "2026-10-12" },
     [CHAIN.ROBINHOOD]: { fetch: fetchPool, start: "2026-10-14" },
+    [CHAIN.AVAX]: { fetch: fetchPool, start: "2026-10-30" },
     [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-23" },
   },
   dependencies: [Dependencies.ALLIUM],
   pullHourly: true,
   methodology: {
-    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
-    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Fees: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Avalanche, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    Revenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Avalanche, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
+    ProtocolRevenue: "0.5% protocol fee on shielded pool deposits and 0.5% on withdrawals (Ethereum, Base, BNB Chain, Robinhood Chain, Avalanche, Solana), deposit check fees on Solana, plus ZEC rewards received by the Nullmask team wallet from MASK token holder distributions (Solana).",
   },
   breakdownMethodology: {
     Fees: {
