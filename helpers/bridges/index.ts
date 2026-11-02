@@ -62,7 +62,7 @@ const methodology = {
 
 export function bridgeExport(
   config: { [chain: string]: BridgeChainConfig },
-  { pullHourly = true, ...otherRootOptions }: { pullHourly?: boolean; [key: string]: any } = {},
+  { pullHourly = true, methodology: methodologyOverrides, ...otherRootOptions }: { pullHourly?: boolean; methodology?: Record<string, string>; [key: string]: any } = {},
 ): SimpleAdapter {
   const exportObject: BaseAdapter = {};
 
@@ -79,7 +79,8 @@ export function bridgeExport(
     version: 2,
     pullHourly,
     adapter: exportObject,
-    methodology,
+    // per-bridge overrides replace the generic text key by key
+    methodology: { ...methodology, ...methodologyOverrides },
   } as SimpleAdapter;
 }
 
