@@ -10,8 +10,9 @@ import { CHAIN } from "../../helpers/chains";
 // - LI.FI: routes are sent under the integrator string "scrooge", so they are the LiFiTransferStarted logs carrying
 //   that integrator (the same event as bridge-aggregators/lifi and bridge-aggregators/hyperdex). Solana has no logs
 //   indexer here and is read from LI.FI's analytics API, filtered by the same integrator.
-// - Relay (since 2026-10-29): requests under Scrooge's referrer that pay Scrooge's app fee (aggregators/scrooge/relay.ts),
-//   read from Relay's requests API.
+// - Relay (since 2026-10-14): requests under Scrooge's referrer that pay Scrooge's app fee, read from Relay's requests
+//   API, and those from before Scrooge sent the referrer (2026-10-29), listed with Relay's figures
+//   (aggregators/scrooge/relay.ts, relayHistory.ts).
 // - Across (since 2026-10-22): one deposit into the SpokePool of the chain paid from, to Across's MulticallHandler on
 //   the chain paid to, whose message holds the instructions the handler runs on arrival, among them paying Scrooge's
 //   fee to Scrooge's fee wallet. A FundsDeposited log to that handler whose decoded instructions pay that wallet a
@@ -163,7 +164,7 @@ const adapter: SimpleAdapter = {
   prefetch: fetchRelayTotals as any,
   adapter: chainConfig,
   methodology: {
-    BridgeVolume: 'Cross-chain volume Scrooge routes, on the sending chain: through LI.FI under the integrator "scrooge", the sent amount of every LiFiTransferStarted log carrying it (from Solana, LI.FI\'s analytics API for the same integrator); through Relay, the USD value Relay reports sent in every filled request under Scrooge\'s referrer "scrooge.exchange" that pays Scrooge\'s app fee (since 2026-10-29; Scrooge\'s earlier Relay requests carry no referrer and are not counted); through Across, the input amount of every FundsDeposited log on the sending chain\'s SpokePool paid to Across\'s MulticallHandler on the receiving chain whose message, decoded as that handler\'s instructions, pays a nonzero fee to Scrooge\'s fee wallet.',
+    BridgeVolume: 'Cross-chain volume Scrooge routes, on the sending chain: through LI.FI under the integrator "scrooge", the sent amount of every LiFiTransferStarted log carrying it (from Solana, LI.FI\'s analytics API for the same integrator); through Relay, the USD value Relay reports sent in every filled request under Scrooge\'s referrer "scrooge.exchange" that pays Scrooge\'s app fee (since 2026-10-29), and before then, when Scrooge\'s requests carried no referrer, the requests Relay filled for Scrooge\'s app from 2026-10-14, each paying its app fee, listed by id with the USD value Relay reports sent; through Across, the input amount of every FundsDeposited log on the sending chain\'s SpokePool paid to Across\'s MulticallHandler on the receiving chain whose message, decoded as that handler\'s instructions, pays a nonzero fee to Scrooge\'s fee wallet.',
   },
 };
 

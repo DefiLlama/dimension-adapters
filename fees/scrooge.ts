@@ -1,6 +1,6 @@
 import ADDRESSES from "../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
-import { fetchRelayTotals, RELAY_START, RelayTotals } from "../aggregators/scrooge/relay";
+import { fetchRelayTotals, RelayTotals } from "../aggregators/scrooge/relay";
 import { addToken, rank, ROUTER, SwappedEvent, SwappedManyEvent } from "../aggregators/scrooge/router";
 import { fetchSolanaFeeLamports, SOLANA_START } from "../aggregators/scrooge/solana";
 import { CHAIN } from "../helpers/chains";
@@ -12,8 +12,9 @@ import { METRIC } from "../helpers/metrics";
 // - On Robinhood Chain, ScroogeRouter (aggregators/scrooge/router.ts) takes it from each swap's output and reports it in
 //   the fee field of its Swapped and SwappedMany events.
 // - On swaps on one chain that Scrooge takes through Relay, as Relay's app fee, read from Relay's requests API by the
-//   referrer Scrooge's site sends (aggregators/scrooge/relay.ts). Scrooge takes no fee on swaps through LI.FI, its other
-//   route on Ethereum, Base, Arbitrum and BNB Chain, so Relay's app fee is its only fee there.
+//   referrer Scrooge's site sends, and before it sent one listed (aggregators/scrooge/relay.ts, relayHistory.ts).
+//   Scrooge takes no fee on swaps through LI.FI, its other route on Ethereum, Base, Arbitrum and BNB Chain, so Relay's
+//   app fee is its only fee there.
 // - On Solana, paid in SOL to Scrooge's Solana fee wallet in the same transaction as the Jupiter swap, read from Dune
 //   (aggregators/scrooge/solana.ts), so the adapter runs a day at a time.
 // Sites embedding the swap widget can charge their own fee (at most 1%), which ScroogePartner takes from what the
@@ -99,17 +100,18 @@ const adapter: SimpleAdapter = {
   prefetch: prefetch as any,
   adapter: {
     [CHAIN.ROBINHOOD]: { start: "2026-09-22" },
-    // Relay's app fee is Scrooge's only fee on these chains, counted from Scrooge's first Relay request with its referrer.
-    [CHAIN.ETHEREUM]: { start: RELAY_START },
-    [CHAIN.BASE]: { start: RELAY_START },
-    [CHAIN.ARBITRUM]: { start: RELAY_START },
-    [CHAIN.BSC]: { start: RELAY_START },
+    // Relay's app fee is Scrooge's only fee on these chains. Every Relay request Scrooge made is counted, the first on
+    // 2026-10-14, so these chains start with Scrooge's volume there, from its first LI.FI swap on 2026-10-12.
+    [CHAIN.ETHEREUM]: { start: "2026-10-12" },
+    [CHAIN.BASE]: { start: "2026-10-12" },
+    [CHAIN.ARBITRUM]: { start: "2026-10-12" },
+    [CHAIN.BSC]: { start: "2026-10-12" },
     [CHAIN.SOLANA]: { start: SOLANA_START },
   },
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Scrooge's fee, taken by ScroogeRouter from each swap's output (the fee field of Swapped and SwappedMany), plus the fee a site embedding Scrooge's swap widget charges on top through ScroogePartner (at most 1%). On swaps through Relay, Scrooge's app fee as Relay reports it paid to Scrooge's fee wallet (since 2026-10-29; Scrooge's earlier Relay swaps carry no referrer and are not counted). On Solana, the SOL the swap paid Scrooge's fee wallet or its wrapped-SOL account. Fees of the underlying venues and pools are not included. Scrooge takes no fee on swaps through LI.FI.",
+    Fees: "Scrooge's fee, taken by ScroogeRouter from each swap's output (the fee field of Swapped and SwappedMany), plus the fee a site embedding Scrooge's swap widget charges on top through ScroogePartner (at most 1%). On swaps through Relay, Scrooge's app fee as Relay reports it paid to Scrooge's fee wallet: on swaps under Scrooge's referrer \"scrooge.exchange\" since 2026-10-29, and before then, when Scrooge's swaps carried no referrer, on the ones Relay filled for Scrooge's app, listed by id. On Solana, the SOL the swap paid Scrooge's fee wallet or its wrapped-SOL account. Fees of the underlying venues and pools are not included. Scrooge takes no fee on swaps through LI.FI.",
     Revenue: "Scrooge's fee on each swap: taken by ScroogeRouter on Robinhood Chain, paid as Relay's app fee on swaps through Relay, and paid in SOL to Scrooge's Solana fee wallet on Solana. The fee a partner site adds goes to that site and is not included.",
     ProtocolRevenue: "Scrooge's fee on swaps through Relay, paid as Relay's app fee, and on Solana, paid in SOL to Scrooge's Solana fee wallet: kept by Scrooge, not burned.",
     SupplySideRevenue: "The fee a partner site charges in Scrooge's swap widget, paid to that site.",
