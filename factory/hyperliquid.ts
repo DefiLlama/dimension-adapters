@@ -32,6 +32,28 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "rxn": {
+    // RXN (https://rxn.gg, https://x.com/rxn_gg), a Hyperliquid perps terminal. Orders RXN places carry this builder code
+    // while Hyperliquid pays the builder: 0.02% on crypto and standard perps, 0.005% on HIP-3 markets in growth mode, and
+    // 0 on post-only orders, which still carry the code (f = 0) so their volume is attributed. TWAP orders, trailing stops
+    // and the deposit window's spot sale carry no builder field and are not counted; a close refused because of the
+    // builder is sent again without it. Traders approve a 0.05% ceiling once; the order ticket shows the rate before
+    // each order.
+    // Verifiable: each order's action on the Hyperliquid explorer (builder b, f); https://rxn.gg/api/trading?op=config
+    // (builder.address) while trading is open; the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x4480dcf81d177a4295b4ff32393ebeda35bb02e2"],
+    // RXN's first day: the team's check fills from 08:37 UTC (team-only preview), trading open on rxn.gg from 08:51 UTC.
+    // Earlier fills of this address came from Ryntra's previous terminal, trade.ryntra.io (same team, offline since
+    // 2026-10-28), and are not RXN's
+    start: "2026-11-01",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through RXN with its builder code; post-only orders carry the code at no fee and are included, TWAP orders and trailing stops carry none and are not.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through RXN; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees paid on trades placed through RXN, all kept by RXN.",
+      ProtocolRevenue: "Builder code fees paid on trades placed through RXN, all paid to RXN's builder account.",
+    },
+    breakdownFees: true,
+  },
   "wenlong": {
     // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
     // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
