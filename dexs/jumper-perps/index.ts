@@ -6,9 +6,8 @@ import { fetchLighterPartnerStats, LIGHTER_PARTNER_FEES_LABEL } from "../../help
 // Jumper Perps (https://jumper.exchange, https://x.com/jumperexchange), the perps product of LI.FI's Jumper interface:
 // perpetual trades routed through Jumper to Hyperliquid and Lighter. Each venue tags the routed trades with Jumper's
 // builder code / partner account and pays Jumper a fee on top of its own trading fees.
-// Jumper's Hyperliquid spot fills stay in factory/hyperliquid.ts (jumper-perps-hl-spot).
 
-// Hyperliquid builder code supplied by the Jumper team, previously listed as jumper-perps-hl in factory/hyperliquid.ts (PR #9827)
+// Hyperliquid builder code supplied by the Jumper team, previously listed as jumper-perps-hl (perps) and jumper-perps-hl-spot (spot) in factory/hyperliquid.ts (PR #9827)
 const HL_BUILDER_ADDRESSES = ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"];
 const HL_BUILDER_FEES_LABEL = "Hyperliquid Builder Code Fees";
 

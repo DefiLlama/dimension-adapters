@@ -222,13 +222,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "jumper-perps-hl-spot": {
-    // Jumper's Hyperliquid builder code, spot fills only. Perps (plus the Lighter legs) are the standalone dexs/jumper-perps adapter
-    addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
-    start: "2026-09-09",
-    market: "spot",
-    breakdownFees: true,
-  },
   "synthra-perps": {
     // Synthra's builder code. Verifiable on-chain: the same address is owner() of the Synthra V3
     // factory 0x6307fc239C7964942c1BfFE51930E55606619c74 on Robinhood Chain and Arc, and it is the
