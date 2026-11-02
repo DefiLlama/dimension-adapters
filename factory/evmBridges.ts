@@ -6,7 +6,7 @@ import {
   crossCurveBridge, crowdSwapBridge, eclipseBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
-  universalXBridge, wanBridge, xswapBridge, xyBridge, zkBridge,
+  universalXBridge, wanBridge, wbtcBridge, xswapBridge, xyBridge, zkBridge,
 } from "../helpers/bridges/config";
 import { createFactoryExports } from "./registry";
 
@@ -337,6 +337,10 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
   // one-sided (destinationChain: bitcoin)
   "threshold-network": {
     [CHAIN.ETHEREUM]: thresholdTbtcBridge("2024-12-06"),
+  },
+  // one-sided (destinationChain: bitcoin)
+  "wbtc": {
+    [CHAIN.ETHEREUM]: wbtcBridge("2018-11-24"),
   },
   // one-sided (destinationChain: bitcoin)
   "core-bitcoin-bridge": {

@@ -453,6 +453,20 @@ export const thresholdTbtcBridge = (start?: string): BridgeChainConfig => {
   };
 };
 
+// WBTC: the Factory confirms merchant mints (BTC locked with the custodian) and burns (BTC released).
+// Same events as fees/wbtc. https://wbtc.network
+export const wbtcBridge = (start?: string): BridgeChainConfig => {
+  const factory = ["0xe5A5F138005E19A3E6D0FE68b039397EeEf2322b"];
+  const wbtc = ADDRESSES.ethereum.WBTC;
+  return {
+    start,
+    events: [
+      { eventAbi: "event BurnConfirmed(uint256 indexed nonce, address indexed requester, uint256 amount, string btcDepositAddress, string btcTxid, uint256 timestamp, bytes32 inputRequestHash)", targets: factory, direction: "outgoing", fixedToken: wbtc, amountArg: "amount" },
+      { eventAbi: "event MintConfirmed(uint256 indexed nonce, address indexed requester, uint256 amount, string btcDepositAddress, string btcTxid, uint256 timestamp, bytes32 requestHash)", targets: factory, direction: "incoming", fixedToken: wbtc, amountArg: "amount" },
+    ],
+  };
+};
+
 // ---------------------------------------------------------------------------------------------------
 // Asset Chain bridge, Asset Chain side: one bridge contract per bridged asset. SentTokens leaves Asset
 // Chain, FulfilledTokens delivers an inbound transfer. https://docs.assetchain.org
