@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Curve DEX revenue it feeds (curve).
+
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 

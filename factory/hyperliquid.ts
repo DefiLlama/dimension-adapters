@@ -1500,6 +1500,8 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: 
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (HIP-3 dex "mkts");
   // its builder codes are in the standalone dexs/kinetiq-interface.ts (perps) and dexs/kinetiq-interface-spot.ts
+  // Changes to tradeXYZ's revenue methodology, including shared HIP-3 deployer logic, require further approval before merging:
+  // a Trueo market depends on this data.
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
   // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
