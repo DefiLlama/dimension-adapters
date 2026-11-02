@@ -453,6 +453,16 @@ export const thresholdTbtcBridge = (start?: string): BridgeChainConfig => {
   };
 };
 
+// Coinbase wrapped assets: FiatTokenV2_1 contracts that Coinbase mints when the native asset
+// is deposited into its custody and burns on redemption.
+export const coinbaseWrappedBridge = (token: string, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event Burn(address indexed burner, uint256 amount)", targets: [token], direction: "outgoing", fixedToken: token, amountArg: "amount" },
+    { eventAbi: "event Mint(address indexed minter, address indexed to, uint256 amount)", targets: [token], direction: "incoming", fixedToken: token, amountArg: "amount" },
+  ],
+});
+
 // WBTC: the Factory confirms merchant mints (BTC locked with the custodian) and burns (BTC released).
 // Same events as fees/wbtc. https://wbtc.network
 export const wbtcBridge = (start?: string): BridgeChainConfig => {
