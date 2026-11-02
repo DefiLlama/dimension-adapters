@@ -3,14 +3,14 @@ import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
 import { fetchLighterPartnerStats, LIGHTER_PARTNER_FEES_LABEL } from "../../helpers/lighter";
 
-// LI.FI perps (https://li.fi, https://x.com/lifiprotocol): perpetual trades routed through LI.FI to Hyperliquid and Lighter.
-// Each venue tags the routed trades with LI.FI's builder code / partner account and pays LI.FI a fee on top of its own trading fees.
+// Jumper Perps (https://jumper.exchange, https://x.com/jumperexchange): perpetual trades placed through Jumper on
+// Hyperliquid (builder code) and Lighter (partner account). Each venue pays Jumper a fee on top of its own trading fees.
 
-// Hyperliquid builder code supplied by the LI.FI team, previously listed as jumper-perps-hl in factory/hyperliquid.ts (PR #9827)
+// Hyperliquid builder code supplied by the Jumper team, previously listed as jumper-perps-hl (perps) and jumper-perps-hl-spot (spot) in factory/hyperliquid.ts (PR #9827)
 const HL_BUILDER_ADDRESSES = ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"];
 const HL_BUILDER_FEES_LABEL = "Hyperliquid Builder Code Fees";
 
-// Lighter partner account indexes supplied by the LI.FI team, one per Lighter deployment
+// Lighter partner account indexes supplied by the Jumper team, one per Lighter deployment
 const chainConfig: Record<string, { start: string; lighterAccountIndex?: string }> = {
   [CHAIN.HYPERLIQUID]: { start: "2026-09-09" },
   [CHAIN.ZK_LIGHTER]: { start: "2026-09-06", lighterAccountIndex: "735353" },
@@ -37,23 +37,23 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true, // the trades are already counted in the Hyperliquid and Lighter listings
   methodology: {
-    Volume: "Notional volume of perpetual trades routed through LI.FI to Hyperliquid, Lighter and Lighter on Robinhood Chain, as attributed by each venue to LI.FI's builder code or partner account.",
-    Fees: "Builder code fees on Hyperliquid and partner fees on Lighter, paid by users on top of the venues' own trading fees for perpetual trades routed through LI.FI.",
-    Revenue: "All builder code fees on Hyperliquid and partner fees on Lighter for perpetual trades routed through LI.FI, kept by LI.FI.",
-    ProtocolRevenue: "All builder code fees on Hyperliquid and partner fees on Lighter for perpetual trades routed through LI.FI, sent to LI.FI.",
+    Volume: "Notional volume of perpetual trades placed through Jumper on Hyperliquid and Lighter.",
+    Fees: "Builder code fees on Hyperliquid and partner fees on Lighter, paid by users on perpetual trades placed through Jumper.",
+    Revenue: "All builder code and partner fees on perpetual trades placed through Jumper, kept by Jumper.",
+    ProtocolRevenue: "All builder code and partner fees on perpetual trades placed through Jumper, sent to Jumper.",
   },
   breakdownMethodology: {
     Fees: {
-      [HL_BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades routed through LI.FI.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Partner fees paid by users on Lighter and Lighter on Robinhood Chain perpetual trades routed through LI.FI.",
+      [HL_BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Jumper.",
+      [LIGHTER_PARTNER_FEES_LABEL]: "Partner fees paid by users on Lighter perpetual trades placed through Jumper.",
     },
     Revenue: {
-      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, kept by LI.FI.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, kept by LI.FI.",
+      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, kept by Jumper.",
+      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, kept by Jumper.",
     },
     ProtocolRevenue: {
-      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, sent to LI.FI.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, sent to LI.FI.",
+      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, sent to Jumper.",
+      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, sent to Jumper.",
     },
   },
 };
