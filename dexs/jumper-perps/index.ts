@@ -3,9 +3,8 @@ import { CHAIN } from "../../helpers/chains";
 import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
 import { fetchLighterPartnerStats, LIGHTER_PARTNER_FEES_LABEL } from "../../helpers/lighter";
 
-// Jumper Perps (https://jumper.exchange, https://x.com/jumperexchange), the perps product of LI.FI's Jumper interface:
-// perpetual trades routed through Jumper to Hyperliquid and Lighter. Each venue tags the routed trades with Jumper's
-// builder code / partner account and pays Jumper a fee on top of its own trading fees.
+// Jumper Perps (https://jumper.exchange, https://x.com/jumperexchange): perpetual trades placed through Jumper on
+// Hyperliquid (builder code) and Lighter (partner account). Each venue pays Jumper a fee on top of its own trading fees.
 
 // Hyperliquid builder code supplied by the Jumper team, previously listed as jumper-perps-hl (perps) and jumper-perps-hl-spot (spot) in factory/hyperliquid.ts (PR #9827)
 const HL_BUILDER_ADDRESSES = ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"];
@@ -38,15 +37,15 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true, // the trades are already counted in the Hyperliquid and Lighter listings
   methodology: {
-    Volume: "Notional volume of perpetual trades routed through Jumper to Hyperliquid, Lighter and Lighter on Robinhood Chain, as attributed by each venue to Jumper's builder code or partner account.",
-    Fees: "Builder code fees on Hyperliquid and partner fees on Lighter, paid by users on top of the venues' own trading fees for perpetual trades routed through Jumper.",
-    Revenue: "All builder code fees on Hyperliquid and partner fees on Lighter for perpetual trades routed through Jumper, kept by Jumper.",
-    ProtocolRevenue: "All builder code fees on Hyperliquid and partner fees on Lighter for perpetual trades routed through Jumper, sent to Jumper.",
+    Volume: "Notional volume of perpetual trades placed through Jumper on Hyperliquid and Lighter.",
+    Fees: "Builder code fees on Hyperliquid and partner fees on Lighter, paid by users on perpetual trades placed through Jumper.",
+    Revenue: "All builder code and partner fees on perpetual trades placed through Jumper, kept by Jumper.",
+    ProtocolRevenue: "All builder code and partner fees on perpetual trades placed through Jumper, sent to Jumper.",
   },
   breakdownMethodology: {
     Fees: {
-      [HL_BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades routed through Jumper.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Partner fees paid by users on Lighter and Lighter on Robinhood Chain perpetual trades routed through Jumper.",
+      [HL_BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Jumper.",
+      [LIGHTER_PARTNER_FEES_LABEL]: "Partner fees paid by users on Lighter perpetual trades placed through Jumper.",
     },
     Revenue: {
       [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, kept by Jumper.",
