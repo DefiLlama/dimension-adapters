@@ -89,11 +89,8 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(tx.paymentToken, BigInt(tx.base) + BigInt(tx.premium), REGISTRATION)
   );
 
-  const v2Renewals = await options.getLogs({ target: ens_v2_registrar, eventAbi: renewed_v2 });
+  const v2Renewals = await options.getLogs({ targets: [ens_v2_registrar, ens_v2_renewer_v1], eventAbi: renewed_v2 });
   v2Renewals.forEach((tx: any) => dailyFees.add(tx.paymentToken, tx.amount, RENEWAL));
-
-  const v1RenewalsOnV2 = await options.getLogs({ target: ens_v2_renewer_v1, eventAbi: renewed_v2 });
-  v1RenewalsOnV2.forEach((tx: any) => dailyFees.add(tx.paymentToken, tx.amount, RENEWAL));
 
   return {
     dailyFees,
@@ -106,14 +103,14 @@ const fetch = async (options: FetchOptions) => {
 // ENS DAO treasury. There is no supply-side split, no distribution to ENS token holders, and no
 // buyback - so fees, revenue and protocol revenue are all equal.
 const methodology = {
-  Fees: "ENS .eth name registration and renewal costs (base cost plus temporary premium) across every registrar controller since the 2019 launch.",
-  Revenue: "Same as fees: ENS keeps 100% of registration and renewal costs in the DAO treasury, so revenue equals fees.",
-  ProtocolRevenue: "Same as revenue: all fees accrue to the ENS DAO treasury. ENS token holders receive no direct fee distribution and there is no buyback.",
+  Fees: "ENS .eth name registration and renewal costs (base cost plus temporary premium) paid by users, across every registrar controller since the 2019 launch and the ENSv2 registrar (paid in USDC) since 2026-10-27.",
+  Revenue: "All .eth name registration and renewal costs paid by users, kept in full by the ENS DAO.",
+  ProtocolRevenue: "All .eth name registration and renewal costs paid by users, sent to the ENS DAO treasury. ENS token holders receive no direct fee distribution and there is no buyback.",
 };
 
 const adapter: Adapter = {
   version: 2,
-  pullHourly: true, // every query is bounded by the requested window, so hourly runs are safe
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2019-05-04', // ENS .eth permanent registrar launch (controller 1, 0xf0ad5cad)
