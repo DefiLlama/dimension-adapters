@@ -77,7 +77,7 @@ export const chainConfigMap: any = {
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
-  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', burnRatio: 0.5 },
+  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', url: 'https://mainnet.somnia.w3us.site/api?module=stats&action=totalfees', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start: '2021-12-18', burnRatio: 0.8 },
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start: '2025-02-20' },
