@@ -43,6 +43,12 @@ Configure an archive-only HyperEVM SDK provider list. `HYPERLIQUID_RPC` alone ap
 
 Hourly boundaries normalize the runner's `(fromTimestamp, toTimestamp]` into a nonoverlapping half-open interval; regression tests cover adjacent slots and same-block fee changes.
 
+### Receipt/indexer log identity
+
+The same withdrawal can have different positions across HyperEVM providers. For transaction `0x5a1cb5baa9cbfb380e727c2ccc6282bf8ba2839a2067557fc018c4484d4f3b5a` (block 50125287, November 1, 2026), the archive/indexer position was 9 while the public RPC receipt position was 8; address, topics and data were identical. The deployed event topic matches the existing Withdraw ABI, which is unchanged.
+
+Normalize receipt hex casing, require identical address/topics/data, prefer a matching indexed position, and otherwise accept only a unique identity match. Missing, ambiguous and duplicate matches throw. Burn/funding reconstruction uses only receipt-local positions, while the original indexed ordering still controls manager-rate/module replay. No hardcoded position offset, receipt omission or trace fallback is used.
+
 ## Validation
 
 ```sh
@@ -61,9 +67,11 @@ pnpm test fees staked-hype 2025-02-23
 pnpm test fees valantis-sthype-restaking 2026-10-15
 ```
 
-Validation includes fourteen unit tests: integer rounding bounds, exact protocol revenue, no tracing, batched exits, same-block module/rate changes, zero-spread launch exits, combined-factory deduplication, token1 attribution and existing start preservation. All four current DEX/fee routes pass, alongside early factory history, active kHYPE trading, the first stHYPE Rebase and first restaking funding. A separate run of the unchanged upstream STEX adapter on March 28, 2025 reproduced the new adapter's ~$1.46 volume, demonstrating retained pre-current-AMM history.
+Validation includes seventeen unit tests: integer rounding bounds, exact protocol revenue, no tracing, batched exits, same-block module/rate changes, zero-spread launch exits, combined-factory deduplication, token1 attribution, existing start preservation and receipt/indexer identity. New regression coverage includes the real CI withdrawal amounts, shifted receipt positions, mixed-case hex, preferred-position disambiguation, altered event bytes, ambiguous fallbacks and duplicate-event rejection. All four current DEX/fee routes passed before this receipt fix, alongside early factory history, active kHYPE trading, the first stHYPE Rebase and first restaking funding. A separate run of the unchanged upstream STEX adapter on March 28, 2025 reproduced the new adapter's ~$1.46 volume, demonstrating retained pre-current-AMM history.
 
 An additional live-data check on June 30, 2026 verified raw per-token fee/revenue/supply-side identities, user-fee equality and protocol-revenue equality in all 24 hourly windows using the actual SDK balances objects.
+
+After the receipt-identity fix, November 1, 2026 was re-run with archive state but live public-RPC receipts. It exercised the exact CI transaction with indexed position 9 and receipt position 8, completed all 24 windows and retained every raw fee-allocation identity. The DEX route on November 1 and the active June 30 fee history were also rechecked successfully. The unsupported `UserFees` methodology keys were removed without changing the valid `dailyUserFees` output.
 
 CLI dates are window **ends** (D+1 to test day D), with all 24 hourly slots. The preserved February 18 stHYPE start returns verified zero before the first Rebase. Its earliest UTC slots still cause the shared runner to log pre-genesis block-lookup warnings before the adapter runs; the adapter itself does not require those missing blocks and the daily test completes with zero. No shared runner code is modified.
 

@@ -129,10 +129,24 @@ export function stexAdapter(product: Product): SimpleAdapter {
     for (const [hash, wanted] of byTx) {
       const receipt = await options.api.getTransactionReceipt(hash);
       if (!receipt || Number(receipt.status) !== 1) throw new Error(`Missing successful STEX receipt ${hash}`);
+      const logs = receipt.logs.map(l => ({ ...l, address: l.address.toLowerCase(),
+        topics: l.topics.map(topic => topic.toLowerCase()), data: l.data.toLowerCase() }));
+      const matched = new Set<typeof logs[number]>();
       for (const { log, managerBps, module } of wanted) {
-        const withdrawal = receipt.logs.find(l => eq(l.address, product.stex) && l.topics[0] === iface.getEvent('Withdraw')!.topicHash && index(l) === index(log));
-        if (!withdrawal || withdrawal.data !== log.data || withdrawal.topics.join() !== log.topics.join()) throw new Error(`Indexed STEX withdrawal does not match receipt ${hash}:${index(log)}`);
-        const revenue = managerFromReceipt(receipt.logs, withdrawal, product, module);
+        // HyperEVM providers can disagree on log numbering. Require identical
+        // event bytes, prefer an exact position, otherwise accept only a unique
+        // match. Reconstruct funding using the receipt's own ordering throughout.
+        const identical = logs.filter(l => eq(l.address, product.stex) && eq(l.address, log.address)
+          && l.topics[0] === iface.getEvent('Withdraw')!.topicHash && eq(l.data, log.data)
+          && l.topics.length === log.topics.length && l.topics.every((topic, i) => eq(topic, log.topics[i])));
+        const positional = identical.filter(l => index(l) === index(log));
+        const candidates = positional.length ? positional : identical;
+        if (candidates.length === 0) throw new Error(`Indexed STEX withdrawal does not match receipt ${hash}:${index(log)}`);
+        if (candidates.length !== 1) throw new Error(`Ambiguous STEX withdrawal in receipt ${hash}:${index(log)}`);
+        const withdrawal = candidates[0];
+        if (matched.has(withdrawal)) throw new Error(`Duplicate indexed STEX withdrawal ${hash}:${index(log)}`);
+        matched.add(withdrawal);
+        const revenue = managerFromReceipt(logs, withdrawal, product, module);
         // Verified launch history: stHYPE had no withdrawals before its first
         // manager-fee setup; kHYPE had two HYPE-only exits with no LST exposure
         // (blocks 8037281 / 8126199), hence zero conversion spread. Never extend
@@ -151,7 +165,6 @@ export function stexAdapter(product: Product): SimpleAdapter {
     methodology: {
       Volume: 'Gross input-side volume of swaps in Valantis trading pools; excludes LP withdrawals and keeper operations.',
       Fees: 'Actual swap fees plus conservatively reconstructed instant-withdrawal fees, rounded down by at most 4 HYPE wei per withdrawal at a 20% manager share.',
-      UserFees: 'Swap fees and conservatively reconstructed instant-withdrawal fees paid by users; excludes LP withdrawal principal.',
       Revenue: 'The execution-time manager share of swap and instant-withdrawal fees retained by Valantis.',
       ProtocolRevenue: 'The execution-time manager share of swap and instant-withdrawal fees accrued to Valantis-controlled recipients.',
       SupplySideRevenue: 'Swap and conservatively reconstructed instant-withdrawal fees remaining for LPs after the exact Valantis manager share.',
@@ -161,7 +174,6 @@ export function stexAdapter(product: Product): SimpleAdapter {
       Revenue: { [METRIC.PROTOCOL_FEES]: 'Swap manager share using ordered on-chain rate changes.', 'Instant Withdrawal Fees To Valantis': 'Exact requested pool/lending funding less the matched user payout.' },
       ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: 'Swap manager share allocated to Valantis.', 'Instant Withdrawal Fees To Valantis': 'Instant-withdrawal manager share allocated to Valantis.' },
       SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees less the manager share.', 'Instant Withdrawal Fees To LPs': 'Conservatively reconstructed instant-conversion spread less the exact manager share.' },
-      UserFees: { [METRIC.SWAP_FEES]: 'Fees paid by traders.', 'Instant Withdrawal Fees': 'Conservatively reconstructed fees paid for instant conversion on LP exit.' },
     },
   };
 }

@@ -161,6 +161,13 @@ test('batched withdrawals need one receipt, replay module/rate changes, and neve
   assert.equal(result.dailySupplySideRevenue.total, 14n);
   assert.equal(result.dailyVolume.total, 0n);
   assert.equal(receipts, 1);
+  // Receipt numbering can differ from indexed positions, including within a
+  // transaction that changes both the module and manager share.
+  input.api.getTransactionReceipt = async () => ({ status: 1, logs: logs.map(l => ({ ...l, index: l.index + 20 })) });
+  const shifted = await stexAdapter(product).fetch!(input) as any;
+  assert.equal(shifted.dailyFees.total, 20n);
+  assert.equal(shifted.dailyRevenue.total, 6n);
+  assert.equal(shifted.dailySupplySideRevenue.total, 14n);
   input.api.getTransactionReceipt = async () => ({ status: 1, logs: logs.filter(l => l !== first) });
   await assert.rejects(stexAdapter(product).fetch!(input), /does not match receipt/);
   input.api.getTransactionReceipt = async () => null;
@@ -200,6 +207,8 @@ test('verified HYPE-only launch exits are exempt, later zero-share periods fail 
 test('combined listing preserves factory history, avoids duplicate pools and shares the fee route', async (t) => {
   assert.equal(combined.start, '2025-03-27');
   assert.equal(combinedFees, combined);
+  assert.equal(Object.keys(combined.methodology || {}).includes('UserFees'), false);
+  assert.equal(Object.keys(combined.breakdownMethodology || {}).includes('UserFees'), false);
   const legacyPool = '0x0000000000000000000000000000000000000050';
   const legacyToken = '0x0000000000000000000000000000000000000060';
   const uniswap = require('../helpers/uniswap');
@@ -238,4 +247,70 @@ test('existing stHYPE start is retained and pre-rebase days require no pre-genes
   assert.equal(result.dailyFees.total, 0n);
   assert.equal(result.dailyRevenue.total, 0n);
   assert.equal(result.dailySupplySideRevenue.total, 0n);
+});
+
+test('CI withdrawal matches mixed-case event bytes at different RPC/indexer positions', async (t) => {
+  t.mock.method(ChainApi.prototype, 'call', async ({ abi }: any) => abi === 'address:withdrawalModule' ? moduleAddress : '2000');
+  // Real withdrawal 0x5a1cb5...f3b5a: archive/indexer index 9, public RPC 8.
+  const user = '0xa829cc3a7fefc8819ab7277b1c3b877e85c8c0a6';
+  const shares = BigInt('0x69c1e001e402c9');
+  const funding = BigInt('0x6e1c7407357707');
+  const payout = BigInt('0x6e1c423ef9ece7');
+  const withdrawal = log('Withdraw', product.stex, [user, user, 0, payout, shares], 8);
+  assert.equal(withdrawal.topics[0], '0xebff2602b3f468259e1e99f613fed6691f3a6526effe6ef3e768ba7ae7a36c4f');
+  const receiptLogs = [log('Transfer', product.stex, [user, zero, shares], 4),
+    log('WithdrawLiquidity', product.pool, [product.stex, 0, funding], 6), withdrawal];
+  const upper = (value: string) => '0x' + value.slice(2).toUpperCase();
+  const indexed = { ...withdrawal, index: 9, blockNumber: 2000001, address: upper(product.stex),
+    topics: withdrawal.topics.map(upper), args: eventInterface.parseLog(withdrawal)!.args };
+  const input = options(async ({ eventAbi }) => eventAbi === events.withdraw ? [indexed] : []);
+  input.api.getTransactionReceipt = async () => ({ status: '0x1', logs: receiptLogs.map(l => ({
+    ...l, logIndex: '0x' + l.index.toString(16), address: upper(l.address), data: upper(l.data),
+  })) });
+  const result = await stexAdapter(product).fetch!(input) as any;
+  assert.equal(result.dailyRevenue.total, 213812742688n);
+  assert.equal(result.dailyFees.total, 1069063713440n);
+  assert.equal(result.dailySupplySideRevenue.total, 855250970752n);
+  assert.equal(result.dailyVolume.total, 0n);
+});
+
+test('receipt lookup prefers an identical position, rejects ambiguous fallback and ignores a wrong positional payload', async (t) => {
+  t.mock.method(ChainApi.prototype, 'call', async ({ abi }: any) => abi === 'address:withdrawalModule' ? moduleAddress : '2000');
+  const first = log('Withdraw', product.stex, [sender, recipient, 0, 100, 1], 3);
+  const second = log('Withdraw', product.stex, [sender, recipient, 0, 100, 1], 8);
+  const logs = [log('Transfer', product.stex, [sender, zero, 1], 1),
+    log('WithdrawLiquidity', product.pool, [product.stex, 0, 102], 2), first,
+    log('Transfer', product.stex, [sender, zero, 1], 6),
+    log('WithdrawLiquidity', product.pool, [product.stex, 0, 104], 7), second];
+  let indexedPosition = 3;
+  const input = options(async ({ eventAbi }) => eventAbi === events.withdraw
+    ? [{ ...first, index: indexedPosition, blockNumber: 2000001, args: eventInterface.parseLog(first)!.args }] : []);
+  input.api.getTransactionReceipt = async () => ({ status: 1, logs });
+  assert.equal((await stexAdapter(product).fetch!(input) as any).dailyRevenue.total, 2n);
+  indexedPosition = 99;
+  await assert.rejects(stexAdapter(product).fetch!(input), /Ambiguous STEX withdrawal/);
+  indexedPosition = 3;
+  logs[2] = log('Withdraw', product.stex, [sender, recipient, 0, 101, 1], 3);
+  assert.equal((await stexAdapter(product).fetch!(input) as any).dailyRevenue.total, 4n);
+});
+
+test('receipt fallback never accepts altered address, topic or data and never counts a receipt event twice', async (t) => {
+  t.mock.method(ChainApi.prototype, 'call', async ({ abi }: any) => abi === 'address:withdrawalModule' ? moduleAddress : '2000');
+  const withdrawal = log('Withdraw', product.stex, [sender, recipient, 0, 100, 1], 3);
+  const indexed = { ...withdrawal, index: 99, blockNumber: 2000001, args: eventInterface.parseLog(withdrawal)!.args };
+  let indexedLogs = [indexed];
+  const input = options(async ({ eventAbi }) => eventAbi === events.withdraw ? indexedLogs : []);
+  const prefix = [log('Transfer', product.stex, [sender, zero, 1], 1),
+    log('WithdrawLiquidity', product.pool, [product.stex, 0, 102], 2)];
+  for (const altered of [
+    { ...withdrawal, address: moduleAddress },
+    { ...withdrawal, topics: [...withdrawal.topics.slice(0, 2), '0x' + '0'.repeat(64)] },
+    log('Withdraw', product.stex, [sender, recipient, 0, 101, 1], 3),
+  ]) {
+    input.api.getTransactionReceipt = async () => ({ status: 1, logs: [...prefix, altered] });
+    await assert.rejects(stexAdapter(product).fetch!(input), /does not match receipt/);
+  }
+  input.api.getTransactionReceipt = async () => ({ status: 1, logs: [...prefix, withdrawal] });
+  indexedLogs = [indexed, indexed];
+  await assert.rejects(stexAdapter(product).fetch!(input), /Duplicate indexed STEX withdrawal/);
 });
