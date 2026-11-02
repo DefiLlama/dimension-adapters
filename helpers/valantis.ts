@@ -2,6 +2,7 @@ import { ChainApi } from '@defillama/sdk';
 import { Interface } from 'ethers';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from './chains';
+import { METRIC } from './metrics';
 
 // Deployment/code boundaries verified on HyperEVM, chain 999.
 // https://github.com/ValantisLabs/valantis-stex-khype/blob/main/src/STEXAMM.sol
@@ -13,7 +14,7 @@ export const products = {
   sthype: { stex: '0x39694eFF3b02248929120c73F90347013Aec834d', pool: '0x5365b6EF09253C7aBc0A9286eC578A9f4B413B7D', token0: '0xfFaa4a3D97fE9107Cef8a3F48c069F577Ff76cC1', block: 1937868, managerFeeStartBlock: 1937930, start: '2025-04-02' },
   khype: { stex: '0xbf747D2959F03332dbd25249dB6f00F62c6Cb526', pool: '0x88B214eC94276B825E641820D5C97a9042F9Dd60', token0: '0xfD739d4e423301CE9385c1fb8850539D657C296D', block: 7773262, managerFeeStartBlock: 8134100, start: '2025-07-07' },
 };
-type Product = typeof products.sthype;
+type Product = typeof products.sthype & { token1?: string };
 const BPS = 10000n;
 export const events = {
   swap: 'event Swap(address indexed sender,bool isZeroToOne,uint256 amountIn,uint256 fee,uint256 amountOut)',
@@ -96,7 +97,7 @@ export function stexAdapter(product: Product): SimpleAdapter {
     const updates = await options.getLogs({ target: product.pool, eventAbi: events.managerFee, onlyArgs: false });
     // Non-instant exits with zero token0 payout are harmless candidates: their
     // funding exactly equals the user payout, giving zero manager/gross fees.
-    const withdrawals = (await options.getLogs({ target: product.stex, eventAbi: events.withdraw, onlyArgs: false }))
+    const withdrawals = (product.stex ? await options.getLogs({ target: product.stex, eventAbi: events.withdraw, onlyArgs: false }) : [])
       .filter(l => bounds.includes(l) && BigInt(l.args.amountToken0) === 0n);
     const modules = withdrawals.length ? await options.getLogs({ target: product.stex, eventAbi: events.withdrawalModule, onlyArgs: false }) : [];
     let module = withdrawals.length ? await new ChainApi({ chain: options.chain, block: Math.max(bounds.from - 1, product.block) })
@@ -116,12 +117,13 @@ export function stexAdapter(product: Product): SimpleAdapter {
         byTx.get(hash)!.push({ log, managerBps, module });
         continue;
       }
-      const a = log.args, token = a.isZeroToOne ? product.token0 : WHYPE;
+      const a = log.args, token = a.isZeroToOne ? product.token0 : (product.token1 || WHYPE);
       const fee = BigInt(a.fee), revenue = fee * managerBps / BPS;
       dailyVolume.add(token, a.amountIn.toString()); // One gross input leg only.
-      dailyFees.add(token, fee.toString(), 'Swap Fees');
-      dailyRevenue.add(token, revenue.toString(), 'Swap Fees To Valantis');
-      dailySupplySideRevenue.add(token, (fee - revenue).toString(), 'Swap Fees To LPs');
+      // Preserve the live combined listing's existing swap breakdown labels.
+      dailyFees.add(token, fee.toString(), METRIC.SWAP_FEES);
+      dailyRevenue.add(token, revenue.toString(), METRIC.PROTOCOL_FEES);
+      dailySupplySideRevenue.add(token, (fee - revenue).toString(), METRIC.LP_FEES);
     }
     // One receipt per distinct candidate transaction; no execution traces.
     for (const [hash, wanted] of byTx) {
@@ -147,7 +149,7 @@ export function stexAdapter(product: Product): SimpleAdapter {
   return {
     version: 2, pullHourly: true, chains: [CHAIN.HYPERLIQUID], start: product.start, fetch,
     methodology: {
-      Volume: 'Gross input-side volume of swaps in this STEX pool; excludes LP withdrawals and keeper operations.',
+      Volume: 'Gross input-side volume of swaps in Valantis trading pools; excludes LP withdrawals and keeper operations.',
       Fees: 'Actual swap fees plus conservatively reconstructed instant-withdrawal fees, rounded down by at most 4 HYPE wei per withdrawal at a 20% manager share.',
       UserFees: 'Swap fees and conservatively reconstructed instant-withdrawal fees paid by users; excludes LP withdrawal principal.',
       Revenue: 'The execution-time manager share of swap and instant-withdrawal fees retained by Valantis.',
@@ -155,11 +157,11 @@ export function stexAdapter(product: Product): SimpleAdapter {
       SupplySideRevenue: 'Swap and conservatively reconstructed instant-withdrawal fees remaining for LPs after the exact Valantis manager share.',
     },
     breakdownMethodology: {
-      Fees: { 'Swap Fees': 'Fees emitted by this trading pool.', 'Instant Withdrawal Fees': 'Smallest spread consistent with the receipt-derived manager fee and historical on-chain manager share.' },
-      Revenue: { 'Swap Fees To Valantis': 'Swap manager share using ordered on-chain rate changes.', 'Instant Withdrawal Fees To Valantis': 'Exact requested pool/lending funding less the matched user payout.' },
-      ProtocolRevenue: { 'Swap Fees To Valantis': 'Swap manager share allocated to Valantis.', 'Instant Withdrawal Fees To Valantis': 'Instant-withdrawal manager share allocated to Valantis.' },
-      SupplySideRevenue: { 'Swap Fees To LPs': 'Swap fees less the manager share.', 'Instant Withdrawal Fees To LPs': 'Conservatively reconstructed instant-conversion spread less the exact manager share.' },
-      UserFees: { 'Swap Fees': 'Fees paid by traders.', 'Instant Withdrawal Fees': 'Conservatively reconstructed fees paid for instant conversion on LP exit.' },
+      Fees: { [METRIC.SWAP_FEES]: 'Fees emitted by Valantis trading pools.', 'Instant Withdrawal Fees': 'Smallest spread consistent with the receipt-derived manager fee and historical on-chain manager share.' },
+      Revenue: { [METRIC.PROTOCOL_FEES]: 'Swap manager share using ordered on-chain rate changes.', 'Instant Withdrawal Fees To Valantis': 'Exact requested pool/lending funding less the matched user payout.' },
+      ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: 'Swap manager share allocated to Valantis.', 'Instant Withdrawal Fees To Valantis': 'Instant-withdrawal manager share allocated to Valantis.' },
+      SupplySideRevenue: { [METRIC.LP_FEES]: 'Swap fees less the manager share.', 'Instant Withdrawal Fees To LPs': 'Conservatively reconstructed instant-conversion spread less the exact manager share.' },
+      UserFees: { [METRIC.SWAP_FEES]: 'Fees paid by traders.', 'Instant Withdrawal Fees': 'Conservatively reconstructed fees paid for instant conversion on LP exit.' },
     },
   };
 }

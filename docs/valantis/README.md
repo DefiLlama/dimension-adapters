@@ -1,21 +1,20 @@
-# Valantis split: dimension adapter PR handoff
+# Valantis combined-STEX and restaking dimensions
 
-Draft integration notes, prepared on 2026-10-26. Registration and server migration require a coordinated rollout with the companion TVL/yield changes.
+Updated November 2, 2026 after the companion TVL PR merged. Retain the existing stHYPE and combined STEX listing identities; add restaking premiums under its now-live listing. No per-pool TVL split or history retirement is requested.
 
-Website: https://www.valantis.xyz ; app: https://app.valantis.xyz ; X/Twitter: https://x.com/ValantisLabs . Existing stHYPE social: https://x.com/stakedhype . Docs/audit references: https://docs.valantis.xyz/stakedhype/restaking and https://docs.valantis.xyz/resources/audits . Final child categories, logos and registration IDs require metadata coordination.
+Website: https://www.valantis.xyz ; app: https://app.valantis.xyz ; X/Twitter: https://x.com/ValantisLabs . Existing stHYPE social: https://x.com/stakedhype . Docs/audit references: https://docs.valantis.xyz/stakedhype/restaking and https://docs.valantis.xyz/resources/audits .
 
 ## Routing and scope
 
-| Proposed product | DEX route | Fee route | History |
+| Registered product | DEX route | Fee route | History |
 | --- | --- | --- | --- |
-| `valantis-sthype` | None: staking is not trading | `fees/valantis-sthype` | First observed Rebase: 2025-02-22, block 172466 |
-| `valantis-sthype-stex` | `dexs/valantis-sthype-stex` | `fees/valantis-sthype-stex` | AMM deployment: 2025-04-02, block 1937868 |
-| `valantis-khype-stex` | `dexs/valantis-khype-stex` | `fees/valantis-khype-stex` | AMM deployment: 2025-07-07, block 7773262 |
-| `valantis-sthype-restaking` | None: deposits are not trading | `fees/valantis-sthype-restaking` | First observed RewardsFunded: 2026-10-14, block 48545658 |
+| `sthype`, ID 6457 | None: staking is not trading | Existing `fees/staked-hype` | Existing start 2025-02-18 retained; first Rebase 2025-02-22, block 172466 |
+| `valantis-stex`, ID 5987 | Existing `dexs/valantis-stex` | `fees/valantis-stex` | Existing start 2025-03-27 and older factory pools retained; current stHYPE/kHYPE AMMs deployed 2025-04-02 / 2025-07-07 |
+| `valantis-sthype-restaking`, ID 9281 | None: deposits are not trading | `fees/valantis-sthype-restaking` | First RewardsFunded: 2026-10-14, block 48545658 |
 
-The AMM fee files reexport the same helper-backed adapters as the DEX routes; register volume and fee dashboards without summing the two routes as different earnings sources. No lending/staking volume is invented for the other products.
+The combined STEX fee file reexports the DEX implementation; register both dashboards without summing them as separate earnings sources. No lending/staking volume is invented for the other products.
 
-Replace old combined `valantis-stex` (ID 5987) and old `staked-hype` fee routing (stHYPE ID 6457) through a coordinated server migration. The user requested four separate listings and retirement of the combined aggregate, not a fifth active listing. Old source modules are removed in this proposed change; do not merge those removals before updating server mappings. Preserve/archive existing stored history and audit historical factory pools outside these two AMMs separately. The `defillama-server` per-child `dimensions` mappings are a separate required follow-up. No server/history changes have been made here.
+Keep existing server mappings and stored history. Discovery from the existing Valantis factory, including the existing liquidity/pricing filter for other pools, is retained. The two current STEX pools are counted once and add verified LP-withdrawal fees; other factory pools retain swap coverage without being assigned unsupported STEX withdrawal behavior. Existing swap and stHYPE breakdown labels are preserved. Server-side `dimensions` routing for combined STEX fees and new restaking fees remains a separate follow-up; no server/history changes are made here.
 
 ## Fee methodology / common review questions
 
@@ -26,8 +25,8 @@ Replace old combined `valantis-stex` (ID 5987) and old `staked-hype` fee routing
 - Restaking tracks **new on-chain funded HYPE premiums**, allocated fully to restakers, with zero retained revenue. Exclude principal, recycled scheduled reserves, base stHYPE yield and later stream releases. It is not a verified private-deal earnings history. User owns final dashboard classification after submission; no private payment history was investigated.
 - Legitimate zero flow: no swaps, no instant spread, no rebase, or no new funding. kHYPE's withdrawal-only pause is verified at block 41283056, 2026-07-24T03:02:00Z; current zero trading is expected. kHYPE first LP mint was 2025-07-07, first Withdraw 2025-07-10 and first Swap 2025-07-14 in the bounded launch-history check.
 - Fees/volume can be tiny when execution swap fees are small; withdrawal spread can also create fees without DEX volume. The fee-to-volume ratio is therefore not a fixed fee tier.
-- Differences from the old dashboard: split pool coverage, gross-input volume, historic rate replay, explicit withdrawal fees, and restaking funding-date rather than release-date recognition. Raw `fees = revenue + supply-side revenue` allocations are exact per token; CLI USD output rounds values independently.
-- Refill required: stHYPE fees from 2025-02-22; stHYPE STEX from 2025-04-02; kHYPE STEX from 2025-07-07; funded restaking premiums from 2026-10-14. Do not proportionally split old combined daily totals.
+- Differences from the old dashboard: gross-input volume, historic rate replay, explicit withdrawal fees, and restaking funding-date rather than release-date recognition. Older factory pool coverage is retained, not silently removed. Raw `fees = revenue + supply-side revenue` allocations are exact per token; CLI USD output rounds metrics independently.
+- Refill required on the existing identities: combined STEX from 2025-03-27, including withdrawal fees from each verified AMM's deployment; stHYPE from 2025-02-18 (verified zero before the first Rebase on February 22); new funded restaking premiums from 2026-10-14. No proportional split, source deletion or retirement of combined history is requested.
 
 ### Historical manager rates / zero-share handling
 
@@ -50,22 +49,24 @@ Hourly boundaries normalize the runner's `(fromTimestamp, toTimestamp]` into a n
 node --test -r ts-node/register/transpile-only tests/valantis.test.ts
 pnpm run ts-check
 pnpm run ts-check-cli
-pnpm test dexs valantis-sthype-stex 2026-10-26
-pnpm test fees valantis-sthype-stex 2025-04-03
-pnpm test fees valantis-sthype-stex 2026-10-26
-pnpm test dexs valantis-khype-stex 2025-07-08
-pnpm test dexs valantis-khype-stex 2026-07-01
-pnpm test fees valantis-khype-stex 2026-10-26
-pnpm test fees valantis-khype-stex 2025-07-11
-pnpm test fees valantis-khype-stex 2025-07-12
-pnpm test fees valantis-sthype 2026-10-26
-pnpm test fees valantis-sthype-restaking 2026-10-26
-pnpm test fees valantis-sthype 2025-02-23
+pnpm test dexs valantis-stex 2026-11-02
+pnpm test fees valantis-stex 2026-11-02
+pnpm test dexs valantis-stex 2025-03-29
+pnpm test fees valantis-stex 2026-07-01
+pnpm test fees valantis-stex 2025-07-11
+pnpm test fees staked-hype 2026-11-02
+pnpm test fees valantis-sthype-restaking 2026-11-02
+pnpm test fees staked-hype 2025-02-19
+pnpm test fees staked-hype 2025-02-23
 pnpm test fees valantis-sthype-restaking 2026-10-15
 ```
 
-Validation includes twelve unit tests: integer rounding bounds across changing rates, exact protocol revenue, no tracing, batched exits, same-block module/rate changes, ordinary HYPE-only exits and the narrowly scoped zero-share exception. All six current DEX/fee routes are exercised alongside historical launch/active trading days and kHYPE's pre-setup exits. CLI dates are window **ends** (D+1 to test day D), with all 24 hourly slots. Tests also cover the first stHYPE rebase day and first restaking funding day, plus representative early zero-flow dates. An earlier stHYPE launch-day CLI attempt queried before chain genesis; bounded chain logs subsequently established 2025-02-22 as the first actual Rebase and the fee start was corrected to that observed date, not moved to conceal missing history.
+Validation includes fourteen unit tests: integer rounding bounds, exact protocol revenue, no tracing, batched exits, same-block module/rate changes, zero-spread launch exits, combined-factory deduplication, token1 attribution and existing start preservation. All four current DEX/fee routes pass, alongside early factory history, active kHYPE trading, the first stHYPE Rebase and first restaking funding. A separate run of the unchanged upstream STEX adapter on March 28, 2025 reproduced the new adapter's ~$1.46 volume, demonstrating retained pre-current-AMM history.
 
-Example October 25 results: stHYPE STEX ~$41.92K volume / ~$0.20 fees; stHYPE ~$10.33K gross rewards / ~$1.03K revenue; restaking ~$772 funded premiums / zero retained revenue. kHYPE on June 30 had ~$115.21K volume and ~$241.19 fees including ~$147.76 instant-withdrawal spread. These are historical observations, not quotes.
+An additional live-data check on June 30, 2026 verified raw per-token fee/revenue/supply-side identities, user-fee equality and protocol-revenue equality in all 24 hourly windows using the actual SDK balances objects.
 
-No dependencies, lockfiles, core type/build wiring or unrelated factories were modified. Parent TVL exclusions and yield IDs are covered by the companion TVL/yield PRs, not arbitrary exports here.
+CLI dates are window **ends** (D+1 to test day D), with all 24 hourly slots. The preserved February 18 stHYPE start returns verified zero before the first Rebase. Its earliest UTC slots still cause the shared runner to log pre-genesis block-lookup warnings before the adapter runs; the adapter itself does not require those missing blocks and the daily test completes with zero. No shared runner code is modified.
+
+Example November 1 results: combined STEX ~$10.62K volume / ~$0.94 fees / ~$0.19 revenue; stHYPE ~$11.71K gross rewards / ~$1.17K revenue; restaking ~$869 funded premiums / zero retained revenue. Combined STEX on June 30, 2026 had ~$180.47K volume and ~$246.45 fees, including ~$147.78 instant-withdrawal spread. These are observations, not quotes.
+
+No dependencies, lockfiles, core type/build wiring or unrelated factories were modified. Parent TVL exclusions are live; assigned yield IDs are supplied in the companion Yields PR, not arbitrary exports here.

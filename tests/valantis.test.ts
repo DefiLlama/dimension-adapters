@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { EventFragment, Interface } from 'ethers';
 import { ChainApi } from '@defillama/sdk';
 import { products, events, withdrawalFees, managerFromReceipt, stexAdapter, windowBounds } from '../helpers/valantis';
-import { rebaseAmounts } from '../fees/valantis-sthype';
+import stakedHype, { rebaseAmounts } from '../fees/staked-hype';
 import restaking from '../fees/valantis-sthype-restaking';
+import combined from '../dexs/valantis-stex';
+import combinedFees from '../fees/valantis-stex';
 
 const product = products.sthype;
 const moduleAddress = '0x0000000000000000000000000000000000000010';
@@ -72,9 +74,17 @@ test('stHYPE positive rewards, changing fee rates, losses and invalid rates', ()
 
 class TestBalances {
   total = 0n;
-  add(_token: string, amount: string) { this.total += BigInt(amount); }
+  tokens = new Map<string, bigint>();
+  add(token: string, amount: string) {
+    this.total += BigInt(amount);
+    this.tokens.set(token, (this.tokens.get(token) || 0n) + BigInt(amount));
+  }
   addGasToken(amount: string) { this.total += BigInt(amount); }
-  clone() { const copy = new TestBalances(); copy.total = this.total; return copy; }
+  addBalances(other: TestBalances) {
+    this.total += other.total;
+    for (const [token, amount] of other.tokens) this.tokens.set(token, (this.tokens.get(token) || 0n) + amount);
+  }
+  clone() { const copy = new TestBalances(); copy.total = this.total; copy.tokens = new Map(this.tokens); return copy; }
 }
 function options(getLogs: (args: any) => Promise<any[]>) {
   return { chain: 'hyperliquid', fromTimestamp: 999, toTimestamp: 2999, startTimestamp: 999, endTimestamp: 3000,
@@ -185,4 +195,47 @@ test('verified HYPE-only launch exits are exempt, later zero-share periods fail 
     if (allowed) assert.equal((await stexAdapter(product).fetch!(input) as any).dailyFees.total, 0n);
     else await assert.rejects(stexAdapter(product).fetch!(input), /Cannot reconstruct/);
   }
+});
+
+test('combined listing preserves factory history, avoids duplicate pools and shares the fee route', async (t) => {
+  assert.equal(combined.start, '2025-03-27');
+  assert.equal(combinedFees, combined);
+  const legacyPool = '0x0000000000000000000000000000000000000050';
+  const legacyToken = '0x0000000000000000000000000000000000000060';
+  const uniswap = require('../helpers/uniswap');
+  t.mock.method(uniswap, 'filterPools', async ({ pairs }: any) => {
+    assert.deepEqual(Object.keys(pairs), [legacyPool]);
+    return { [legacyPool]: 1 };
+  });
+  t.mock.method(ChainApi.prototype, 'call', async () => '2000');
+  const swaps: string[] = [];
+  const input = options(async ({ eventAbi, target }) => {
+    if (eventAbi.includes('SovereignPoolDeployed')) return [
+      { blockNumber: product.block, args: { pool: product.pool, token0: product.token0, token1: '0x5555555555555555555555555555555555555555' } },
+      { blockNumber: 1600000, args: { pool: legacyPool, token0: product.token0, token1: legacyToken } },
+    ];
+    if (eventAbi !== events.swap) return [];
+    swaps.push(target);
+    const legacy = target === legacyPool;
+    return [{ index: 1, blockNumber: 2000001, args: { amountIn: legacy ? '500' : '1000', fee: legacy ? '50' : '100', isZeroToOne: !legacy } }];
+  });
+  const result = await combined.fetch!(input) as any;
+  assert.deepEqual(swaps, [product.pool, legacyPool]);
+  assert.equal(result.dailyVolume.total, 1500n);
+  assert.equal(result.dailyVolume.tokens.get(legacyToken), 500n);
+  assert.equal(result.dailyFees.total, 150n);
+  assert.equal(result.dailyRevenue.total, 30n);
+  assert.equal(result.dailySupplySideRevenue.total, 120n);
+  assert.notEqual(result.dailyRevenue, result.dailyProtocolRevenue);
+});
+
+test('existing stHYPE start is retained and pre-rebase days require no pre-genesis state', async () => {
+  assert.equal(stakedHype.start, '2025-02-18');
+  const input = options(async () => { throw new Error('Unexpected logs before first Rebase'); });
+  input.endTimestamp = Date.parse('2025-02-22T00:19:42Z') / 1000;
+  input.getFromBlock = async () => { throw new Error('Unexpected pre-genesis block lookup'); };
+  const result = await stakedHype.fetch!(input) as any;
+  assert.equal(result.dailyFees.total, 0n);
+  assert.equal(result.dailyRevenue.total, 0n);
+  assert.equal(result.dailySupplySideRevenue.total, 0n);
 });
