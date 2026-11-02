@@ -47,7 +47,8 @@ const getEvents = async (type: string, from: number, to: number): Promise<any[]>
     const list = res.data?.data ?? [];
     out.push(...list);
     const next = String(res.headers["x-supra-cursor"] ?? "");
-    if (list.length < PAGE || !next || next === cursor) break;
+    // keep reading while the feed hands back a new cursor; an empty page or a missing/unchanged cursor ends it
+    if (!list.length || !next || next === cursor) break;
     cursor = next;
   }
   return out;
