@@ -1,4 +1,4 @@
-import { ChainApi, getProvider } from "@defillama/sdk";
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -15,6 +15,13 @@ const SPLITTER = "0xd8eb805e96B05cb412A1e48eb3a85B6267f901d7";
 const V1_REFLECTIONS = "0x666A51Eb731a9CF79d97B4A9c64cD5a4806c877C";
 const V2_REFLECTIONS = "0xe04fba61FD54Ba78Dd450A30d8Af40167aF5d3Ec";
 const ROYALTY_REFLECTIONS = "0x424F0d6cee21E6227239f4Ae6e14ACD2C3D51424";
+// First V1 FloorPotClaimed positions, indexed by floor. Before these events,
+// toFloor is unallocated; afterwards permanent hardwiring keeps weight positive.
+// Event evidence: https://robinhoodchain.blockscout.com/address/0x666A51Eb731a9CF79d97B4A9c64cD5a4806c877C?tab=logs
+const V1_FIRST_FLOOR_ALLOCATION = [
+  [34692551, 8], [34694499, 8], [34693341, 6], [34692412, 5], [34693896, 63],
+  [34693811, 6], [34692640, 9], [34693148, 2], [34692983, 2], [34694176, 2],
+];
 const COLLECTIONS = new Set([
   "0xbde7bec47cbfc689e5e952b6cdd113a500abcd83", // V1 mirror
   "0x027aca2794e44f24950d81227dcd516ffbb49d6e", // V2 mirror
@@ -121,6 +128,7 @@ const fetch = async (options: FetchOptions) => {
   const notifications = await options.getLogs({
     targets,
     eventAbi: "event FeesNotified(uint8 indexed floorIdx, uint256 amount, uint256 toFloor, uint256 toBasket, uint256 toGold)",
+    entireLog: true,
     flatten: false,
   });
   const floorPotClaims = await options.getLogs({
@@ -128,33 +136,38 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: "event FloorPotClaimed(uint8 indexed floorIdx, uint256 indexed id, uint256 amount)",
     flatten: false,
   });
-  const beforeBlock = (await options.getFromBlock()) - 1;
-  const beforeApi = new ChainApi({ chain: options.chain, block: beforeBlock });
+  // These token catalogs are set once. Read their immutable configuration at
+  // latest so public RPCs do not need historical contract state.
+  const configApi = new ChainApi({ chain: options.chain });
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
-    const floorIds = [...new Set<number>([...notifications[i], ...floorPotClaims[i]].map(log => Number(log.floorIdx)))];
+    const floorIds = [...new Set<number>([
+      ...notifications[i].map((log: any) => Number(log.args.floorIdx)),
+      ...floorPotClaims[i].map((log: any) => Number(log.floorIdx)),
+    ])];
     if (!floorIds.length) continue;
     const calls = floorIds.map(floor => ({ params: [floor] }));
-    const catalog = i === 2 ? await options.api.call({ target, abi: "address:catalog" }) : target;
-    const stocks = await options.api.multiCall({ target: catalog, abi: "function floorStocks(uint256) view returns (address)", calls });
-    const floorAbi = "function floors(uint256) view returns (uint256 accPerWeight, uint256 totalWeight, uint256 potPending)";
-    const before = await beforeApi.multiCall({ target, abi: floorAbi, calls, permitFailure: true });
-    const after = await options.api.multiCall({ target, abi: floorAbi, calls });
-    // Only a contract not yet deployed at the window's opening has zero state.
-    // An archive RPC failure for an existing contract must fail the fetch.
-    if (before.some(value => value == null) && await getProvider(options.chain)!.getCode(target, beforeBlock) !== "0x")
-      throw new Error(`Missing opening reward state for ${target}`);
-    for (let j = 0; j < floorIds.length; j++) {
-      const notified = notifications[i].filter((log: any) => Number(log.floorIdx) === floorIds[j]).reduce(
-        // V1 gold stocks await conversion: count the resulting PAXG deposit below.
-        (sum: bigint, log: any) => sum + BigInt(log.amount) - (i === 0 ? BigInt(log.toGold) : 0n), 0n,
-      );
-      // Remove new unallocated pots; add old pots when the first holder earns them.
-      // FloorPotClaimed selects affected floors, but is not added a second time.
-      const accrued = notified + BigInt(before[j]?.potPending ?? 0) - BigInt(after[j].potPending);
-      if (accrued < 0n) throw new Error(`Negative reward accrual for ${target} floor ${floorIds[j]}`);
-      dailyHoldersRevenue.add(stocks[j], accrued, i === 2 ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL);
+    const catalog = i === 2 ? await configApi.call({ target, abi: "address:catalog" }) : target;
+    const stocks = await configApi.multiCall({ target: catalog, abi: "function floorStocks(uint256) view returns (address)", calls });
+    const stockByFloor = Object.fromEntries(floorIds.map((floor, index) => [floor, stocks[index]]));
+    const label = i === 2 ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL;
+    for (const log of notifications[i]) {
+      const reward = log.args;
+      let accrued = BigInt(reward.amount);
+      if (i === 0) {
+        // V1 gold stocks await conversion: recognize the PAXG deposit instead.
+        accrued -= BigInt(reward.toGold);
+        const [block, index] = V1_FIRST_FLOOR_ALLOCATION[Number(reward.floorIdx)];
+        if (Number(log.blockNumber) < block || (Number(log.blockNumber) === block && Number(log.logIndex ?? log.index) < index))
+          accrued -= BigInt(reward.toFloor);
+      }
+      // All V2/royalty floors had positive weight before their first notification
+      // (blocks 35637938-35638281 and 36315309-36315337 respectively).
+      // Permanent hardwiring means those floors never return to zero weight.
+      dailyHoldersRevenue.add(stockByFloor[Number(reward.floorIdx)], accrued, label);
     }
+    for (const log of floorPotClaims[i])
+      dailyHoldersRevenue.add(stockByFloor[Number(log.floorIdx)], log.amount, label);
   }
   const paxgDeposits = await options.getLogs({ target: V1_REFLECTIONS, eventAbi: "event PaxgDeposited(uint256 amount)" });
   if (paxgDeposits.length) {
