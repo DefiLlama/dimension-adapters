@@ -1,7 +1,7 @@
 import { duneSolanaDexTrades } from "../helpers/duneSolanaDex";
 import { createFactoryExports } from "./registry";
 
-const dexsConfigs: Record<string, { project: string, start: string }> = {
+const dexsConfigs: Record<string, { project: string, start: string, excludeRoundTrips?: boolean }> = {
     "scorch": {
         "project": "scorch",
         "start": "2025-12-10",
@@ -29,13 +29,14 @@ const dexsConfigs: Record<string, { project: string, start: string }> = {
     "zerofi": {
         "project": "zerofi",
         "start": "2024-12-12",
+        "excludeRoundTrips": true,
     },
 }
 
 const dexsProtocols: Record<string, any> = {};
 
-for (const [name, { project, start }] of Object.entries(dexsConfigs)) {
-    dexsProtocols[name] = duneSolanaDexTrades(project, start);
+for (const [name, { project, start, excludeRoundTrips }] of Object.entries(dexsConfigs)) {
+    dexsProtocols[name] = duneSolanaDexTrades(project, start, { excludeRoundTrips });
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(dexsProtocols);
