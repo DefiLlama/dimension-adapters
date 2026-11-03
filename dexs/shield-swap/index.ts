@@ -3,170 +3,126 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import {
-  AleoTransition,
-  aleoBigInt,
-  aleoBool,
-  aleoNumber,
-  firstPublicOutput,
-  futureArguments,
-  getAleoMappingValue,
-  getAleoProgramCallsSince,
-  getAleoTransactionTransitions,
-  parseAleoPlaintext,
+  AleoTransition, AleoValue, aleoBigInt, aleoBool, aleoNumber, firstPublicOutput,
+  futureArguments, getAleoMappingValue, getAleoProgramCallsSince,
+  getAleoTransactionTransitions, parseAleoPlaintext,
 } from "../../helpers/aleo";
 
-// Shield Swap is a confidential concentrated-liquidity AMM on Aleo. Swap sizes, routes and pool
-// state are public on the ledger, so every number below is read from Aleo chain state.
-// https://shield.fi/docs/confidentiality/public-data
 const AMM = "shield_swap.aleo";
-
-const SWAP = "swap";
-const SWAP_MULTI_HOP = "swap_multi_hop";
-const CLAIM = "claim_swap_output";
-const CLAIM_NO_REFUND = "claim_swap_output_no_refund";
-
-// The protocol keeps `fee_protocol / PROTOCOL_FEE_DENOMINATOR` of every swap fee; the rest accrues
-// to the LP position. `fee_protocol` itself is read per pool from the on-chain `slots` mapping.
-// https://shield.fi/docs/reference/constants-and-limits ("The protocol share is fee_protocol / 16")
-const PROTOCOL_FEE_DENOMINATOR = 16n;
-
-// Pool `fee` is a u16 count of parts per million (200 => 0.02%), same source as above.
-const FEE_PPM_DENOMINATOR = 1_000_000n;
-
-// A swap settles in a separate claim transaction, observed 23-151s after the swap over a 493-claim
-// sample. Half an hour of slack keeps the number of transactions read per run near the number of
-// swaps in the window.
+const PRICING_TERMS = "shield_swap_pricing_terms.aleo";
+const ROUTER = "shield_swap_router.aleo";
+const START = "2026-07-30";
+// Edition 1 first writes permanent receipts. The deployment is in mainnet block 21031954.
+const RECEIPTS_FROM_BLOCK = 21_031_954;
+const CONCURRENCY = 3;
+const SWAPS = new Set(["swap", "swap_multi_hop"]);
+const CLAIMS = new Set(["claim_swap_output", "claim_swap_output_no_refund"]);
 const CLAIM_LAG_SECONDS = 30 * 60;
 
-// AMM-side ARC-20 token ids, read off the on-chain `pools` mapping. Aleo carries no decimal
-// registry - "The AMM uses native token base units directly. It has no on-chain decimal scale or
-// normalization registry." (https://shield.fi/docs/reference/constants-and-limits) - so decimals and
-// the price feed are pinned here, matching the Shield Swap TVL adapter. USDCx is a USD stablecoin on
-// Aleo with no DefiLlama price feed of its own, so it is priced at parity via usd-coin; a de-peg
-// would overstate volume and fees. A swap whose input token is missing from this list is logged and
-// skipped so one newly approved asset cannot take out the whole window; the log says to add it here.
-const TOKENS: Record<string, { symbol: string; decimals: number; coingeckoId: string }> = {
-  "724721105858008932013114020280511843613117371369744086165619field": { symbol: "ALEO", decimals: 6, coingeckoId: "aleo" },
-  "1926848598207449231969field": { symbol: "ETH", decimals: 18, coingeckoId: "ethereum" },
-  "2000279227181771747937field": { symbol: "SOL", decimals: 9, coingeckoId: "solana" },
-  "469661199361043738096225field": { symbol: "wBTC", decimals: 8, coingeckoId: "bitcoin" },
-  "212707628815602939926313406778312270053663804591730917421274098438979020915field": { symbol: "USDCx", decimals: 6, coingeckoId: "usd-coin" },
+// Aleo has no decimal registry. Bridged reference assets use their underlying CoinGecko prices.
+const TOKENS: Record<string, { decimals: number; coingeckoId: string }> = {
+  "724721105858008932013114020280511843613117371369744086165619field": { decimals: 6, coingeckoId: "aleo" },
+  "1926848598207449231969field": { decimals: 18, coingeckoId: "ethereum" },
+  "2000279227181771747937field": { decimals: 9, coingeckoId: "solana" },
+  "469661199361043738096225field": { decimals: 8, coingeckoId: "bitcoin" },
+  "212707628815602939926313406778312270053663804591730917421274098438979020915field": { decimals: 6, coingeckoId: "usd-coin" },
+  "2679721602684747572764973622859521753039207964435861502200550930344051field": { decimals: 8, coingeckoId: "zcash" },
 };
 
-interface Pool {
-  token0: string;
-  token1: string;
-  feePpm: bigint;
-  feeProtocol: bigint;
+type Struct = { [key: string]: AleoValue };
+interface Hop { pool: string; zeroForOne: boolean }
+interface Pool { token0: string; token1: string; fee: bigint }
+interface Swap { id: string; block: number; amountIn: bigint; hops: Hop[]; transitions: AleoTransition[] }
+interface Execution extends Hop { amountIn: bigint; fees: bigint; revenue: bigint }
+
+function struct(value: AleoValue | undefined): Struct {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("shield-swap: expected an Aleo struct");
+  return value;
 }
 
-interface Hop {
-  pool: string;
-  zeroForOne: boolean;
+function literal(value: AleoValue): string {
+  if (typeof value !== "string") throw new Error("shield-swap: expected an Aleo literal");
+  return value;
 }
 
-interface Swap {
-  swapId: string;
-  amountIn: bigint;
-  hops: Hop[];
+function parseHop(value: AleoValue): Hop {
+  const hop = struct(value);
+  return { pool: literal(hop.pool), zeroForOne: aleoBool(hop.zero_for_one) };
 }
 
-interface Claim {
-  remainder: bigint;
-}
-
-/** The AMM's own transition inside a transaction, named so a missing one is diagnosable. */
-function transitionOf(transitions: AleoTransition[], functionName: string, transactionId: string): AleoTransition {
-  const transition = transitions?.find((t) => t.program === AMM && t.function === functionName);
-  // The call list said this transaction calls the AMM, so a missing transition means the RPC
-  // returned a transaction we cannot read - surface which one rather than a bare TypeError.
-  if (!transition) throw new Error(`shield-swap: ${transactionId} has no ${AMM}/${functionName} transition`);
-  return transition;
-}
-
-/** A single-hop swap: the request struct carries the pool, direction and input size. */
-function parseSwap(transitions: AleoTransition[], transactionId: string): Swap {
-  const transition = transitionOf(transitions, SWAP, transactionId);
-  // swap(request, token0, token1, swap_id, ...) - the request struct carries pool, direction and size
-  const request = futureArguments(transition)[0];
-  if (typeof request !== "object" || Array.isArray(request)) throw new Error("shield-swap: malformed swap request");
+function parseSwap(transition: AleoTransition, block: number, transitions: AleoTransition[]): Swap {
+  const request = struct(futureArguments(transition)[0]);
+  const count = transition.function === "swap" ? 1 : aleoNumber(request.hop_count);
+  if (count < 1 || count > 3 || (transition.function === "swap_multi_hop" && count < 2))
+    throw new Error("shield-swap: invalid hop count");
   return {
-    swapId: firstPublicOutput(transition),
+    id: firstPublicOutput(transition), block, transitions,
     amountIn: aleoBigInt(request.amount_in),
-    hops: [{ pool: request.pool as string, zeroForOne: aleoBool(request.zero_for_one) }],
+    hops: count === 1 ? [parseHop(request)] : Array.from({ length: count }, (_, i) => parseHop(request[`hop${i}`])),
   };
 }
 
-/** A routed swap: hop0..hopN-1 are the legs actually taken, hop_count says how many. */
-function parseMultiHopSwap(transitions: AleoTransition[], transactionId: string): Swap {
-  const transition = transitionOf(transitions, SWAP_MULTI_HOP, transactionId);
-  const request = futureArguments(transition)[0];
-  if (typeof request !== "object" || Array.isArray(request)) throw new Error("shield-swap: malformed multi-hop request");
-  // Routes are 2 or 3 hops; unused hop slots repeat the previous hop, so only hop_count entries count.
-  // https://shield.fi/docs/reference/constants-and-limits
-  const hopCount = aleoNumber(request.hop_count);
-  const hops: Hop[] = [];
-  for (let i = 0; i < hopCount; i++) {
-    const hop = request[`hop${i}`];
-    if (typeof hop !== "object" || Array.isArray(hop)) throw new Error(`shield-swap: malformed hop${i}`);
-    hops.push({ pool: hop.pool as string, zeroForOne: aleoBool(hop.zero_for_one) });
+async function receipt(swap: Swap): Promise<Execution[] | null> {
+  // Pre-edition-1 swaps have no receipt, including swaps earlier in the upgrade block.
+  if (swap.block < RECEIPTS_FROM_BLOCK) return null;
+  const raw = await getAleoMappingValue(AMM, "swap_execution_headers", swap.id);
+  if (!raw) {
+    if (swap.block === RECEIPTS_FROM_BLOCK) return null;
+    throw new Error(`shield-swap: missing execution receipt for ${swap.id}`);
   }
-  return {
-    swapId: firstPublicOutput(transition),
-    amountIn: aleoBigInt(request.amount_in),
-    hops,
-  };
+  const header = struct(parseAleoPlaintext(raw));
+  if (aleoNumber(header.hop_count) !== swap.hops.length || aleoNumber(header.executed_height) !== swap.block)
+    throw new Error(`shield-swap: inconsistent execution header for ${swap.id}`);
+  const hops: Execution[] = [];
+  // Keep the global request budget at three swaps in flight, rather than multiplying it by hops.
+  for (const [i, expected] of swap.hops.entries()) {
+    const key = `{ swap_id: ${swap.id}, hop_index: ${i}u8 }`;
+    const rawHop = await getAleoMappingValue(AMM, "swap_execution_hops", key);
+    if (!rawHop) throw new Error(`shield-swap: missing hop ${i} of ${swap.id}`);
+    const value = struct(parseAleoPlaintext(rawHop));
+    const hop = parseHop(value);
+    const amountIn = aleoBigInt(value.amount_in);
+    const fees = aleoBigInt(value.fee_paid);
+    const revenue = aleoBigInt(value.protocol_fee);
+    if (hop.pool !== expected.pool || hop.zeroForOne !== expected.zeroForOne ||
+      amountIn < 0n || fees < 0n || revenue < 0n || revenue > fees || fees > amountIn)
+      throw new Error(`shield-swap: inconsistent hop ${i} of ${swap.id}`);
+    hops.push({ ...hop, amountIn, fees, revenue });
+  }
+  return hops;
 }
 
-/** The settlement of a swap: the part of the input that was not filled, and so refunded. */
-function parseClaim(transitions: AleoTransition[], functionName: string, transactionId: string): [string, Claim] {
-  const transition = transitionOf(transitions, functionName, transactionId);
-  // claim_swap_output(swap_id, token_in, token_out, amount_out, amount_remaining, ...)
-  // amount_remaining is denominated in token_in.
-  // claim_swap_output_no_refund has no remainder argument.
-  const args = futureArguments(transition);
-  const swapId = args[0] as string;
-  return [swapId, { remainder: functionName === CLAIM ? aleoBigInt(args[4]) : 0n }];
+function policyCharge(swap: Swap): bigint {
+  const authorizations = swap.transitions.filter(t =>
+    t.program === PRICING_TERMS && t.function === "authorize_policy" && t.inputs[0]?.value === swap.id);
+  if (!authorizations.length) {
+    const policyRoute = swap.transitions.some(t => t.program === ROUTER &&
+      (t.function.endsWith("_with_policy") || t.function.endsWith("_terms_and_policy")) &&
+      t.outputs.some(o => o.type === "public" && o.value === swap.id));
+    if (policyRoute) throw new Error(`shield-swap: missing policy authorization for ${swap.id}`);
+    return 0n;
+  }
+  if (authorizations.length !== 1) throw new Error(`shield-swap: duplicate policy authorization for ${swap.id}`);
+  const inputs = authorizations[0].inputs;
+  if (inputs.length !== 3 || inputs.some(i => i.type !== "public" || !i.value))
+    throw new Error(`shield-swap: malformed policy authorization for ${swap.id}`);
+  const bps = aleoBigInt(inputs[2].value!);
+  if (inputs[1]?.value !== swap.hops[0].pool || bps < 0n || bps >= 10_000n)
+    throw new Error(`shield-swap: invalid policy authorization for ${swap.id}`);
+  // The permit is deleted in the same transaction. The historical rate survives in public inputs.
+  return swap.amountIn * bps / 10_000n;
 }
 
-// Fee tier and protocol split change only by admin action, so they are resolved once per process
-// rather than re-read for every window a run covers. Mappings hold current consensus state rather
-// than history (https://shield.fi/docs/reference/mappings), so a backfilled window is priced with
-// today's fee tier; both have been unchanged (200/800/100/200 ppm, fee_protocol 5) since launch.
-// Keyed on the in-flight promise, not the resolved value, so windows running concurrently share one
-// read instead of each issuing its own. A rejected read is evicted so a later window can retry.
-const poolCache: Record<string, Promise<Pool>> = {};
-// Matches the concurrency the Aleo helper uses for its own reads, so a run stays inside the same
-// request budget whether it is reading pools or transactions.
-const POOL_CONCURRENCY = 3;
-
-/** Pool state for a key, shared between concurrent callers and retried after a failure. */
-function loadPool(poolKey: string): Promise<Pool> {
-  if (!poolCache[poolKey])
-    poolCache[poolKey] = getPool(poolKey).catch((e) => {
-      delete poolCache[poolKey];
-      throw e;
-    });
-  return poolCache[poolKey];
-}
-
-/** Fee tier and protocol split of one pool, read from the AMM's pools and slots mappings. */
-async function getPool(poolKey: string): Promise<Pool> {
-  const [poolState, slot] = await Promise.all([
-    getAleoMappingValue(AMM, "pools", poolKey),
-    getAleoMappingValue(AMM, "slots", poolKey),
-  ]);
-  if (!poolState || !slot) throw new Error(`shield-swap: pool ${poolKey} is missing on-chain state`);
-  const pool = parseAleoPlaintext(poolState);
-  const slotState = parseAleoPlaintext(slot);
-  if (typeof pool !== "object" || Array.isArray(pool) || typeof slotState !== "object" || Array.isArray(slotState))
-    throw new Error(`shield-swap: malformed state for pool ${poolKey}`);
-  return {
-    token0: pool.token0 as string,
-    token1: pool.token1 as string,
-    feePpm: aleoBigInt(pool.fee),
-    feeProtocol: aleoBigInt(slotState.fee_protocol),
-  };
+function tokenAmount(tokenId: string, amount: bigint) {
+  const token = TOKENS[tokenId];
+  if (!token) throw new Error(`shield-swap: no price feed for token ${tokenId}`);
+  if (amount < 0n) throw new Error(`shield-swap: invalid amount for ${tokenId}`);
+  const digits = amount.toString().padStart(token.decimals + 1, "0");
+  // The SDK requires numeric whole-token amounts for CoinGecko balances. Convert only after scaling.
+  const value = Number(`${digits.slice(0, -token.decimals)}.${digits.slice(-token.decimals)}`);
+  if (!Number.isFinite(value)) throw new Error(`shield-swap: invalid amount for ${tokenId}`);
+  return { token: token.coingeckoId, value };
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -174,136 +130,132 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-
   const calls = await getAleoProgramCallsSince(AMM, options.fromTimestamp);
-  const accepted = calls.filter((call) => call.status === "Accepted");
-  if (!accepted.length) throw new Error("shield-swap: no accepted AMM calls returned by the Aleo RPC");
-
-  const swapCalls = accepted.filter(
-    (call) =>
-      (call.function_id === SWAP || call.function_id === SWAP_MULTI_HOP) &&
-      call.block_timestamp >= options.fromTimestamp &&
-      call.block_timestamp < options.toTimestamp
-  );
-  // Claims settle a swap and publish the exact filled output and the unspent input. A claim always
-  // follows its swap, and never by much, so the window is extended forward rather than read whole.
-  const claimCalls = accepted.filter(
-    (call) =>
-      (call.function_id === CLAIM || call.function_id === CLAIM_NO_REFUND) &&
-      call.block_timestamp >= options.fromTimestamp &&
-      call.block_timestamp < options.toTimestamp + CLAIM_LAG_SECONDS
-  );
-
-  const transitions = await getAleoTransactionTransitions([
-    ...new Set([...swapCalls, ...claimCalls].map((call) => call.transaction_id)),
-  ]);
-
-  const claims: Record<string, Claim> = {};
-  for (const call of claimCalls) {
-    const [swapId, claim] = parseClaim(transitions[call.transaction_id], call.function_id, call.transaction_id);
-    claims[swapId] = claim;
-  }
-
-  const swaps = swapCalls.map((call) =>
-    call.function_id === SWAP
-      ? parseSwap(transitions[call.transaction_id], call.transaction_id)
-      : parseMultiHopSwap(transitions[call.transaction_id], call.transaction_id)
-  );
-
-  const needed = [...new Set(swaps.flatMap((swap) => swap.hops.map((hop) => hop.pool)))];
-  const { errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
-    .for(needed.filter((poolKey) => !poolCache[poolKey]))
-    .process(async (poolKey) => {
-      await loadPool(poolKey);
-    });
+  const swapCalls = calls.filter(c => c.status === "Accepted" && SWAPS.has(c.function_id) &&
+    c.block_timestamp >= options.startTimestamp && c.block_timestamp < options.endTimestamp);
+  const ids = [...new Set(swapCalls.map(c => c.transaction_id))];
+  const transitions = await getAleoTransactionTransitions(ids);
+  const swaps = ids.flatMap(id => {
+    const ts = transitions[id];
+    const block = swapCalls.find(c => c.transaction_id === id)!.block_number;
+    const ownSwaps = ts?.filter(t => t.program === AMM && SWAPS.has(t.function));
+    if (!ownSwaps?.length) throw new Error(`shield-swap: no swap transition in ${id}`);
+    const parsed = ownSwaps.map(t => parseSwap(t, block, ts));
+    for (const t of ts.filter(t => t.program === PRICING_TERMS && t.function === "authorize_policy")) {
+      if (!parsed.some(s => s.id === t.inputs[0]?.value))
+        throw new Error(`shield-swap: policy authorization has no matching swap in ${id}`);
+    }
+    return parsed;
+  });
+  if (new Set(swaps.map(s => s.id)).size !== swaps.length)
+    throw new Error("shield-swap: duplicate swap ID");
+  const executions = new Map<string, Execution[]>();
+  const { errors } = await PromisePool.withConcurrency(CONCURRENCY).for(swaps).process(async swap => {
+    const hops = await receipt(swap);
+    if (hops) executions.set(swap.id, hops);
+  });
   if (errors.length) throw errors[0];
-  const pools: Record<string, Pool> = Object.fromEntries(
-    await Promise.all(needed.map(async (key) => [key, await loadPool(key)] as const))
-  );
+
+  // Only immutable pool identity and creation fee are shared within this fetch. No live fee is cached.
+  const pools = new Map<string, Pool>();
+  const keys = [...new Set(swaps.flatMap(s => s.hops.map(h => h.pool)))];
+  const poolReads = await PromisePool.withConcurrency(CONCURRENCY).for(keys).process(async key => {
+    const raw = await getAleoMappingValue(AMM, "pools", key);
+    if (!raw) throw new Error(`shield-swap: missing pool ${key}`);
+    const pool = struct(parseAleoPlaintext(raw));
+    pools.set(key, { token0: literal(pool.token0), token1: literal(pool.token1), fee: aleoBigInt(pool.fee) });
+  });
+  if (poolReads.errors.length) throw poolReads.errors[0];
+  const inputToken = (hop: Hop) => {
+    const pool = pools.get(hop.pool)!;
+    return hop.zeroForOne ? pool.token0 : pool.token1;
+  };
+
+  const legacy = swaps.filter(s => !executions.has(s.id));
+  if (legacy.length) {
+    // Preserve pre-receipt coverage as an explicit estimate. Current pool metadata cannot price history.
+    const history = await getAleoProgramCallsSince(AMM, Date.parse(START) / 1000);
+    const accepted = history.filter(c => c.status === "Accepted");
+    const setters = accepted.filter(c => c.function_id === "set_fee_protocol" && c.block_number <= RECEIPTS_FROM_BLOCK);
+    const claims = accepted.filter(c => CLAIMS.has(c.function_id) && c.block_timestamp >= options.fromTimestamp &&
+      c.block_timestamp < options.toTimestamp + CLAIM_LAG_SECONDS);
+    const txs = await getAleoTransactionTransitions([...new Set([...setters, ...claims].map(c => c.transaction_id))]);
+    const remainders = new Map<string, bigint>();
+    for (const call of claims) {
+      for (const t of txs[call.transaction_id].filter(t => t.program === AMM && CLAIMS.has(t.function))) {
+        const args = futureArguments(t);
+        remainders.set(literal(args[0]), t.function === "claim_swap_output" ? aleoBigInt(args[4]) : 0n);
+      }
+    }
+    const changes = setters.flatMap(c => txs[c.transaction_id]
+      .filter(t => t.program === AMM && t.function === "set_fee_protocol")
+      .map(t => ({ block: c.block_number, args: futureArguments(t) }))).sort((a, b) => a.block - b.block);
+    for (const swap of legacy) {
+      const filled = swap.amountIn - (remainders.get(swap.id) ?? 0n);
+      if (filled < 0n) throw new Error(`shield-swap: invalid legacy refund for ${swap.id}`);
+      for (const hop of swap.hops) {
+        // Every legacy pool was paired with USDCx. Intermediate legacy hop amounts were not recorded.
+        const { token, value } = tokenAmount(inputToken(swap.hops[0]), filled);
+        const fee = value * Number(pools.get(hop.pool)!.fee) / 1e6;
+        let split = 5n; // Edition 0 initializes every pool with fee_protocol=5.
+        for (const change of changes) {
+          if (literal(change.args[1]) !== hop.pool || change.block > swap.block) continue;
+          if (change.block === swap.block) throw new Error("shield-swap: legacy fee change needs transaction ordering");
+          split = aleoBigInt(change.args[2]);
+        }
+        const revenue = fee * Number(split) / 16;
+        dailyVolume.addCGToken(token, value);
+        dailyFees.addCGToken(token, fee, METRIC.SWAP_FEES);
+        dailyRevenue.addCGToken(token, revenue, METRIC.PROTOCOL_FEES);
+        dailySupplySideRevenue.addCGToken(token, fee - revenue, METRIC.LP_FEES);
+      }
+    }
+  }
 
   for (const swap of swaps) {
-    const claim = claims[swap.swapId];
-    // The tick-walk loop is capped, so a swap can fill partially and refund the rest on claim.
-    // An unsettled swap has no published refund yet; partial fills are rare enough that treating it
-    // as fully filled is the closest available estimate.
-    const filledIn = swap.amountIn - (claim?.remainder ?? 0n);
-    if (filledIn <= 0n) continue;
-
-    const entryPool = pools[swap.hops[0].pool];
-    const entryTokenId = swap.hops[0].zeroForOne ? entryPool.token0 : entryPool.token1;
-
-    const token = TOKENS[entryTokenId];
-    // The admin can approve an asset before this list knows how to price it. That is recoverable:
-    // log it and keep the swaps we can price rather than losing the whole window.
-    if (!token) {
-      // console, not sdk.log: sdk.log only prints under LLAMA_DEBUG_MODE, which would make the gap
-      // invisible on a normal run - the whole point is that the omission is visible.
-      console.error(`shield-swap: no price feed for token ${entryTokenId} (swap ${swap.swapId}), swap skipped`);
-      continue;
+    const hops = executions.get(swap.id);
+    if (!hops) continue;
+    for (const hop of hops) {
+      const tokenId = inputToken(hop);
+      const volume = tokenAmount(tokenId, hop.amountIn);
+      const fees = tokenAmount(tokenId, hop.fees);
+      const revenue = tokenAmount(tokenId, hop.revenue);
+      const lpFees = tokenAmount(tokenId, hop.fees - hop.revenue);
+      dailyVolume.addCGToken(volume.token, volume.value);
+      dailyFees.addCGToken(fees.token, fees.value, METRIC.SWAP_FEES);
+      dailyRevenue.addCGToken(revenue.token, revenue.value, METRIC.PROTOCOL_FEES);
+      dailySupplySideRevenue.addCGToken(lpFees.token, lpFees.value, METRIC.LP_FEES);
     }
-    const notional = Number(filledIn) / 10 ** token.decimals;
-    if (!Number.isFinite(notional)) throw new Error(`shield-swap: bad ${token.symbol} amount ${filledIn}`);
-
-    // Every pool is quoted against a stablecoin, so a route carries the same notional through each of
-    // its hops, less the fee taken on the way. The entry leg's exact input therefore sizes the whole
-    // route, and every hop is counted at that notional.
-    for (const hop of swap.hops) {
-      const pool = pools[hop.pool];
-
-      const fees = (Number(pool.feePpm) / Number(FEE_PPM_DENOMINATOR)) * notional;
-      const revenue = (Number(pool.feeProtocol) / Number(PROTOCOL_FEE_DENOMINATOR)) * fees;
-
-      dailyVolume.addCGToken(token.coingeckoId, notional);
-      dailyFees.addCGToken(token.coingeckoId, fees, METRIC.SWAP_FEES);
-      dailyRevenue.addCGToken(token.coingeckoId, revenue, METRIC.PROTOCOL_FEES);
-      dailySupplySideRevenue.addCGToken(token.coingeckoId, fees - revenue, METRIC.LP_FEES);
-    }
+    const charge = tokenAmount(inputToken(swap.hops[0]), policyCharge(swap));
+    dailyFees.addCGToken(charge.token, charge.value, METRIC.TRADING_FEES);
+    dailyRevenue.addCGToken(charge.token, charge.value, METRIC.TRADING_FEES);
   }
 
-  return {
-    dailyVolume,
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
+
+const poolFeeMethodology = "Actual fee_paid from each on-chain swap_execution_hops receipt, in that hop's input token. Receipts automatically reflect fee changes, discounts and partial fills.";
+const policyMethodology = "Additional protocol charge authorized by shield_swap_pricing_terms.aleo/authorize_policy in an accepted swap transaction: floor(gross input * historical policy_bps / 10000), counted once per swap. It is excluded from AMM receipts and has no LP share.";
+const protocolMethodology = "Actual protocol_fee from each executed hop, plus the additional protocol charge on policy routes.";
+const legacyMethodology = "Before permanent receipts (edition 1, August 12 2026), fees are estimated from creation fee tiers, claims and historical protocol-split updates; multi-hop notionals and unclaimed fills are approximate.";
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  // Hourly: the Aleo RPC has no time or block filter, so reaching a window means paging back from
-  // the head. Hourly windows keep that walk short, and the helper caches it across the windows of a
-  // single run.
-  pullHourly: true,
-  fetch,
-  chains: [CHAIN.ALEO],
-  start: '2026-07-30',
+  version: 2, pullHourly: true, fetch, chains: [CHAIN.ALEO], start: START,
   methodology: {
-    Volume: "Input notional of every accepted swap and swap_multi_hop call to shield_swap.aleo, read from the public swap request on the Aleo ledger and counted once per hop of the route.",
-    Fees: "Swap volume multiplied by each pool's on-chain fee tier (the pools mapping stores it as parts per million).",
-    UserFees: "Identical to Fees - traders pay the whole swap fee.",
-    Revenue: "The protocol's cut of the swap fee, fee_protocol/16 per the pool's on-chain slots entry.",
-    ProtocolRevenue: "Same as Revenue; Shield Swap has no token, so none of it is passed to holders.",
-    SupplySideRevenue: "The remaining (16 - fee_protocol)/16 of the swap fee, which accrues to the concentrated-liquidity position that provided it.",
+    Volume: "Actual amount_in per executed hop from permanent on-chain receipts; excludes the additional protocol charge. " + legacyMethodology,
+    Fees: poolFeeMethodology + " " + policyMethodology + " " + legacyMethodology,
+    UserFees: "All pool swap fees and additional protocol charges paid by traders.",
+    Revenue: protocolMethodology + " " + legacyMethodology,
+    ProtocolRevenue: "Pool protocol fees and additional protocol charges retained by the protocol; no fees are distributed to token holders.",
+    SupplySideRevenue: "fee_paid minus protocol_fee per executed hop. Additional protocol charges have no LP share. " + legacyMethodology,
   },
   breakdownMethodology: {
-    Fees: {
-      [METRIC.SWAP_FEES]: "Swap volume times the pool fee tier read from the on-chain pools mapping.",
-    },
-    UserFees: {
-      [METRIC.SWAP_FEES]: "Swap fees paid by traders.",
-    },
-    Revenue: {
-      [METRIC.PROTOCOL_FEES]: "fee_protocol/16 of the swap fee, retained by the protocol.",
-    },
-    ProtocolRevenue: {
-      [METRIC.PROTOCOL_FEES]: "fee_protocol/16 of the swap fee, retained by the protocol.",
-    },
-    SupplySideRevenue: {
-      [METRIC.LP_FEES]: "(16 - fee_protocol)/16 of the swap fee, credited to liquidity positions.",
-    },
+    Fees: { [METRIC.SWAP_FEES]: poolFeeMethodology, [METRIC.TRADING_FEES]: policyMethodology },
+    UserFees: { [METRIC.SWAP_FEES]: poolFeeMethodology, [METRIC.TRADING_FEES]: policyMethodology },
+    Revenue: { [METRIC.PROTOCOL_FEES]: "Actual protocol_fee per executed hop.", [METRIC.TRADING_FEES]: policyMethodology },
+    ProtocolRevenue: { [METRIC.PROTOCOL_FEES]: "Actual protocol_fee per executed hop.", [METRIC.TRADING_FEES]: policyMethodology },
+    SupplySideRevenue: { [METRIC.LP_FEES]: "Actual fee_paid minus protocol_fee per executed hop." },
   },
 };
-
 export default adapter;
