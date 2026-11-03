@@ -36,14 +36,6 @@ const DEPLOYER_WALLET = '0x67976cebb5266b50a08c0dcb676e03baf305e3a2';
 const TREASURY_SAFE = '0xf1e958db7d1e4c074377946018ad645db4fb158e'; // Safe 3-of-3
 const AEON_WALLETS = [DEPLOYER_WALLET, TREASURY_SAFE];
 
-// Paid security work (audits) settled on-chain into the Aeon wallets. Only
-// transfers from these verified client payers count; add new clients here.
-const SECURITY_AUDIT_PAYERS = [
-  // audit client Safe, 12,000 USDC in Oct 2026, e.g. tx 0x15a712df64f40e9108a59eb988ac2d4e77ef99fb04cb2ee7df628117d86b07d7
-  '0x632ee0ef9461fe1ea4e802e68c5f761d9c07942c',
-];
-const PAYMENT_TOKENS = [ADDRESSES.base.USDC, ADDRESSES.base.USDT, WETH];
-
 // $aeon arriving in the Aeon wallets from these addresses is not a buyback:
 // fee claims from the multicurve initializer (already counted as swap fee
 // revenue) and transfers between Aeon's own wallets / Safe owners.
@@ -95,16 +87,6 @@ async function fetch(options: FetchOptions) {
     dailySupplySideRevenue.add(WETH, fee - treasuryFee, "Token Swap Fees to Launch Platform");
   }
 
-  // paid security audits settled on-chain by verified client payers
-  const auditPayments = await addTokensReceived({
-    options,
-    targets: AEON_WALLETS,
-    tokens: PAYMENT_TOKENS,
-    fromAdddesses: SECURITY_AUDIT_PAYERS,
-  });
-  dailyFees.addBalances(auditPayments, "Security Audit Fees");
-  dailyRevenue.addBalances(auditPayments, "Security Audit Fees To Treasury");
-
   // market buybacks: $aeon bought by the Aeon wallets through swap routers,
   // e.g. tx 0x6dfd84eb5e57240f7cb03026f7c96def9135c5f1574074ad2d686d576eb1bb04 (500 USDC in)
   const buybacks = await addTokensReceived({
@@ -137,24 +119,21 @@ const adapter: SimpleAdapter = {
   // protocol revenue goes negative in a window where a buyback is larger than that window's income
   allowNegativeValue: true,
   methodology: {
-    Fees: 'Dynamic swap fee (1.2% steady-state) paid by users trading on the WETH/AEON Uniswap v4 pool on Base, plus payments for security audits settled on-chain to the Aeon wallets. Liquidity is protocol-owned multicurve positions, there are no third-party LPs.',
-    Revenue: '57% of swap fees routed to the Aeon treasury, per the on-chain beneficiary split read from the multicurve initializer, plus all security audit payments.',
-    ProtocolRevenue: '57% of swap fees plus security audit payments kept by the Aeon treasury, minus what the treasury spends on $aeon buybacks.',
+    Fees: 'Dynamic swap fee (1.2% steady-state) paid by users trading on the WETH/AEON Uniswap v4 pool on Base. Liquidity is protocol-owned multicurve positions, there are no third-party LPs.',
+    Revenue: '57% of swap fees routed to the Aeon treasury, per the on-chain beneficiary split read from the multicurve initializer.',
+    ProtocolRevenue: '57% of swap fees kept by the Aeon treasury, minus what the treasury spends on $aeon buybacks.',
     SupplySideRevenue: '43% of swap fees going to the launch platform beneficiaries (Bankr/Doppler & interface), per the on-chain beneficiary split.',
     HoldersRevenue: '$aeon bought back on the market by the Aeon wallets (deployer wallet and treasury Safe) and kept by the treasury.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.SWAP_FEES]: 'Dynamic swap fee charged on WETH/AEON Uniswap v4 pool swaps, measured on the WETH side of each swap.',
-      "Security Audit Fees": 'USDC, USDT or WETH paid on-chain by verified security audit clients to the Aeon wallets.',
     },
     Revenue: {
       "Token Swap Fees to Treasury": '57% treasury share of swap fees, per the on-chain beneficiary split.',
-      "Security Audit Fees To Treasury": 'Security audit payments, kept in full by the Aeon treasury.',
     },
     ProtocolRevenue: {
       "Token Swap Fees to Treasury": '57% treasury share of swap fees, per the on-chain beneficiary split, minus $aeon buybacks.',
-      "Security Audit Fees To Treasury": 'Security audit payments, kept in full by the Aeon treasury.',
     },
     SupplySideRevenue: {
       "Token Swap Fees to Launch Platform": '43% launch platform share of swap fees (Bankr/Doppler & interface beneficiaries).',
