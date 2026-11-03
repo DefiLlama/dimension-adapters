@@ -1,6 +1,5 @@
 import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from "ethers";
-import { httpGet } from "../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -20,11 +19,6 @@ const FEE_COLLECTOR_GENESIS = 1786543200; // 2026-08-12 14:00:00 UTC
 // feeMaker / feeTaker are net of any volume rebate
 const EXECUTED_EVENT =
   "event Executed(uint8 version, bytes32 indexed pair, uint256 price, uint256 quantity, bytes32 makerOrder, bytes32 takerOrder, uint256 feeMaker, uint256 feeTaker, uint8 takerSide, uint256 execId, address indexed addressMaker, address indexed addressTaker)";
-// internal portfolio transfers. RFQ fees reach the FeeCollector through OmniVaultExecutorSub.collectSwapFees, which
-// credits it with IXFERREC (6). Order book fees are credited without an event, so these are exactly the RFQ fees
-const PORTFOLIO_UPDATED_EVENT =
-  "event PortfolioUpdated(uint8 indexed transaction, address indexed wallet, bytes32 indexed symbol, uint256 quantity, uint256 feeCharged, uint256 total, uint256 available, address walletOther)";
-const TX_IXFERREC = 6;
 // weekly epoch close, splits each collected token between the treasury and the ALOT buyback
 const TOKEN_SETTLED_EVENT =
   "event TokenSettled(uint256 indexed epoch, bytes32 indexed symbol, uint256 quantity, uint256 price, uint256 toTreasury, uint256 toBuyback)";
@@ -40,32 +34,21 @@ const TENK = 100000; // rate scale, 10 = 1 bp
 const GET_TOKEN_DETAILS_ABI =
   "function getTokenDetails(bytes32) view returns (tuple(uint8 decimals, address tokenAddress, uint8 auctionMode, uint32 srcChainId, uint8 l1Decimals, bytes32 symbol, bytes32 symbolId, bytes32 sourceChainSymbol, bool isVirtual))";
 
-// Dexalot L1 balances are portfolio entries, not ERC20s, so fees are priced through coingecko ids keyed by L1 symbol
-// from Dexalot's API (new listings need no adapter change). The fallback covers the majors if the API is down.
-const COINGECKO_IDS_ENDPOINT = "https://api.dexalot.com/api/stats/coingeckoids";
-const COINGECKO_ID_FALLBACK: Record<string, string> = {
+// Order book fees are valued in the pair's quote token, base-token fees at the fill price. Quote tokens by L1 symbol,
+// including the names used before renames (USDt)
+const QUOTE_COINGECKO_ID: Record<string, string> = {
   USDC: "usd-coin",
   USDT: "tether",
-  BTC: "bitcoin",
-  WBTC: "wrapped-bitcoin",
+  USDt: "tether",
   AVAX: "avalanche-2",
   ETH: "ethereum",
-};
-
-const getCoingeckoIds = async (): Promise<Record<string, string>> => {
-  try {
-    const rows: { symbol: string; coingecko_id: string }[] = await httpGet(COINGECKO_IDS_ENDPOINT);
-    return Object.fromEntries(rows.map((r) => [r.symbol, r.coingecko_id]));
-  } catch (e: any) {
-    console.log(`fees/dexalot: coingeckoids endpoint failed (${e?.message ?? e}), using the fallback map`);
-    return COINGECKO_ID_FALLBACK;
-  }
+  BTC: "bitcoin",
+  WBTC: "wrapped-bitcoin",
 };
 
 const ZERO = ADDRESSES.null;
 
 interface PairMeta {
-  baseSymbol: string;
   quoteSymbol: string;
   baseDecimals: number;
   quoteDecimals: number;
@@ -88,24 +71,11 @@ const fetch = async (options: FetchOptions) => {
   const pairMetaById: Record<string, PairMeta> = {};
   pairIds.forEach((id: string, i: number) => {
     pairMetaById[id.toLowerCase()] = {
-      baseSymbol: ethers.decodeBytes32String(pairs[i].baseSymbol),
       quoteSymbol: ethers.decodeBytes32String(pairs[i].quoteSymbol),
       baseDecimals: Number(pairs[i].baseDecimals),
       quoteDecimals: Number(pairs[i].quoteDecimals),
     };
   });
-
-  // a token without a coingecko id is skipped (logged once) rather than failing the day
-  const cgIds = await getCoingeckoIds();
-  const unmapped = new Set<string>();
-  const cgIdOf = (symbol: string): string | undefined => {
-    const id = cgIds[symbol];
-    if (!id && !unmapped.has(symbol)) {
-      unmapped.add(symbol);
-      console.log(`fees/dexalot: unmapped token ${symbol}, its fees are not counted`);
-    }
-    return id;
-  };
 
   // 1. Order book fees, per fill
   const logs = await getLogs({ target: TRADE_PAIRS, eventAbi: EXECUTED_EVENT });
@@ -139,75 +109,47 @@ const fetch = async (options: FetchOptions) => {
       console.log(`fees/dexalot: skipping fill on unknown pair ${log.pair}`);
       continue;
     }
-    // taker sells (1): maker pays its fee in base, taker in quote. Taker buys (0): the reverse
+    const quoteCgId = QUOTE_COINGECKO_ID[meta.quoteSymbol];
+    if (!quoteCgId) throw new Error(`fees/dexalot: unmapped quote token ${meta.quoteSymbol}`);
+    // price: quote per base. Taker sells (1): maker pays its fee in base, taker in quote. Taker buys (0): the reverse
+    const price = Number(log.price) / 10 ** meta.quoteDecimals;
+    const inQuote = (fee: bigint, inBase: boolean) =>
+      inBase ? (Number(fee) / 10 ** meta.baseDecimals) * price : Number(fee) / 10 ** meta.quoteDecimals;
     const takerSells = Number(log.takerSide) === 1;
-    const base = { symbol: meta.baseSymbol, decimals: meta.baseDecimals };
-    const quote = { symbol: meta.quoteSymbol, decimals: meta.quoteDecimals };
-    const makerFeeToken = takerSells ? base : quote;
-    const takerFeeToken = takerSells ? quote : base;
-    const makerFee = Number(log.feeMaker) / 10 ** makerFeeToken.decimals;
-    const takerFee = Number(log.feeTaker) / 10 ** takerFeeToken.decimals;
+    const makerFee = inQuote(log.feeMaker, takerSells);
+    const takerFee = inQuote(log.feeTaker, !takerSells);
 
     // the maker fee always goes to the protocol
-    const makerCgId = cgIdOf(makerFeeToken.symbol);
-    if (makerFee > 0 && makerCgId) {
-      dailyFees.addCGToken(makerCgId, makerFee, "Maker Fees");
-      dailyRevenue.addCGToken(makerCgId, makerFee, "Maker Fees");
-      if (preFeeCollector) dailyProtocolRevenue.addCGToken(makerCgId, makerFee, "Treasury");
+    if (makerFee > 0) {
+      dailyFees.addCGToken(quoteCgId, makerFee, "Maker Fees");
+      dailyRevenue.addCGToken(quoteCgId, makerFee, "Maker Fees");
+      if (preFeeCollector) dailyProtocolRevenue.addCGToken(quoteCgId, makerFee, "Treasury");
     }
 
-    const takerCgId = cgIdOf(takerFeeToken.symbol);
-    if (takerFee > 0 && takerCgId) {
+    if (takerFee > 0) {
       const maker = (log.addressMaker as string).toLowerCase();
       const cap = capByKey[fillKey(log)] ?? 0;
       const collector = collectorByPair[pairId] ?? ZERO;
       let vaultShare = 0;
       if (cap > 0 && maker !== (log.addressTaker as string).toLowerCase()) {
         // the vault earns takerFee * min(cap, rate) / rate. The rate is recovered from the fee itself, so it is the
-        // rebate-adjusted one the contract used. Notional is in the fee's token
-        const baseQty = Number(log.quantity) / 10 ** meta.baseDecimals;
-        const notional = takerFeeToken === base ? baseQty : baseQty * (Number(log.price) / 10 ** meta.quoteDecimals);
+        // rebate-adjusted one the contract used
+        const notional = (Number(log.quantity) / 10 ** meta.baseDecimals) * price;
         const rate = Math.round((takerFee / notional) * TENK);
         if (rate > 0) vaultShare = (takerFee * Math.min(cap, rate)) / rate;
       } else if (collector !== ZERO && maker === collector) {
         vaultShare = takerFee;
       }
-      dailyFees.addCGToken(takerCgId, takerFee, "Taker Fees");
-      if (vaultShare > 0) dailySupplySideRevenue.addCGToken(takerCgId, vaultShare, "Taker Fees To OmniVaults");
+      dailyFees.addCGToken(quoteCgId, takerFee, "Taker Fees");
+      if (vaultShare > 0) dailySupplySideRevenue.addCGToken(quoteCgId, vaultShare, "Taker Fees To OmniVaults");
       if (takerFee - vaultShare > 0) {
-        dailyRevenue.addCGToken(takerCgId, takerFee - vaultShare, "Taker Fees");
-        if (preFeeCollector) dailyProtocolRevenue.addCGToken(takerCgId, takerFee - vaultShare, "Treasury");
+        dailyRevenue.addCGToken(quoteCgId, takerFee - vaultShare, "Taker Fees");
+        if (preFeeCollector) dailyProtocolRevenue.addCGToken(quoteCgId, takerFee - vaultShare, "Treasury");
       }
     }
   }
 
-  // 2. RFQ fees, as they reach the FeeCollector. They are settled with everything else it holds
-  if (options.endTimestamp > FEE_COLLECTOR_GENESIS) {
-    const rfqLogs = await getLogs({
-      target: PORTFOLIO_SUB,
-      eventAbi: PORTFOLIO_UPDATED_EVENT,
-      topics: [
-        ethers.id("PortfolioUpdated(uint8,address,bytes32,uint256,uint256,uint256,uint256,address)"),
-        ethers.zeroPadValue(ethers.toBeHex(TX_IXFERREC), 32),
-        ethers.zeroPadValue(FEE_COLLECTOR, 32),
-      ],
-    });
-    const rfqSymbols = [...new Set(rfqLogs.map((l: any) => l.symbol as string))];
-    const rfqDetails = await toApi.multiCall({
-      abi: GET_TOKEN_DETAILS_ABI,
-      calls: rfqSymbols.map((s) => ({ target: PORTFOLIO_SUB, params: [s] })),
-    });
-    const rfqDecimals = Object.fromEntries(rfqSymbols.map((s, i) => [s, Number(rfqDetails[i].decimals)]));
-    for (const log of rfqLogs) {
-      const cgId = cgIdOf(ethers.decodeBytes32String(log.symbol as string));
-      if (!cgId) continue;
-      const amount = Number(log.quantity) / 10 ** rfqDecimals[log.symbol as string];
-      dailyFees.addCGToken(cgId, amount, "RFQ Fees");
-      dailyRevenue.addCGToken(cgId, amount, "RFQ Fees");
-    }
-  }
-
-  // 3. Revenue split
+  // 2. Revenue split
   if (preFeeCollector) {
     return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
   }
@@ -235,11 +177,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees paid by takers and makers on Dexalot's order book, net of volume discounts, plus RFQ swap fees.",
+  Fees: "Trading fees paid by takers and makers on Dexalot's order book, net of volume discounts.",
   SupplySideRevenue:
     "The share of taker fees an OmniVault (Dexalot's market-making vaults) earns when it is the maker, capped at a per-vault rate. It goes to the vault's depositors.",
   Revenue:
-    "Fees kept by the protocol, booked per fill: maker fees, taker fees less any OmniVault share, and RFQ fees. RFQ fees include an integration fee that the treasury later pays to the integrator, it is not deducted.",
+    "Fees kept by the protocol, booked per fill: maker fees and taker fees less any OmniVault share.",
   ProtocolRevenue:
     "Kept fees collect in the FeeCollector and settle once a week at epoch close. The operating budget, taken stables first, goes to the treasury and is booked on the settlement day at the close's on-chain USD value.",
   HoldersRevenue:
@@ -250,7 +192,6 @@ const breakdownMethodology = {
   Fees: {
     "Maker Fees": "Fee paid by the trader whose resting order was filled.",
     "Taker Fees": "Fee paid by the trader whose order filled against the order book.",
-    "RFQ Fees": "Fees on RFQ swaps, collected into the FeeCollector and settled with the order book fees.",
   },
   SupplySideRevenue: {
     "Taker Fees To OmniVaults": "The share of taker fees earned by an OmniVault when it is the maker.",
@@ -258,7 +199,6 @@ const breakdownMethodology = {
   Revenue: {
     "Maker Fees": "Maker fees, all kept by the protocol.",
     "Taker Fees": "Taker fees less any OmniVault share.",
-    "RFQ Fees": "Fees on RFQ swaps, collected into the FeeCollector.",
   },
   ProtocolRevenue: {
     Treasury:
