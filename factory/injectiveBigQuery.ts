@@ -32,6 +32,7 @@ async function fetchFallbackVolume(endpoint: string): Promise<number> {
   }, 0);
 }
 
+/** Whether a requested UTC day is no more than 48 hours old and not in the future. */
 function isRecentDate(dateString: string): boolean {
   const targetTime = new Date(dateString).getTime();
   const age = Date.now() - targetTime;
@@ -39,19 +40,23 @@ function isRecentDate(dateString: string): boolean {
   return age >= 0 && age <= 48 * 60 * 60 * 1000;
 }
 
+/** Build a daily volume adapter that rejects nonmatching rows before considering live fallback. */
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
+  /** Accept matching daily data; retain recent live fallback only when no single conflicting row exists. */
   const fetch = async (options: FetchOptions) => {
+    let hasMismatchedDailyRow = false;
     try {
       const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
       if (res && Array.isArray(res.days) && res.days.length === 1 && res.days[0]?.date === options.dateString) {
         return { dailyVolume: res.total_volume_usd };
       }
+      hasMismatchedDailyRow = Boolean(res && Array.isArray(res.days) && res.days.length === 1);
     } catch {
       // BigQuery offline or request failed
     }
 
-    // Use live cache only for recent dates, never for historical backfills
-    if (config.fallbackEndpoint && isRecentDate(options.dateString)) {
+    // A live snapshot cannot replace a daily row with a conflicting or missing date.
+    if (config.fallbackEndpoint && !hasMismatchedDailyRow && isRecentDate(options.dateString)) {
       const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
       if (liveVolume > 0) {
         return { dailyVolume: liveVolume };
@@ -70,7 +75,9 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   };
 }
 
+/** Build a fees adapter that requires one row matching the requested day. */
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
+  /** Validate the daily row before attributing fees and revenue to the requested date. */
   const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
