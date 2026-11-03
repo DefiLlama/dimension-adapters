@@ -32,6 +32,23 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "proliquid": {
+    // Proliquid (https://www.proliquid.xyz, https://x.com/proliquid_xyz), a multi-venue trading terminal (Hyperliquid,
+    // RISEx, Lighter, Extended, Binance, Bybit, OKX, BloFin; keys stay on the user's device).
+    // Only the Hyperliquid builder code is counted here: perps, HIP-3 included. The builder fee starts at 0.02% and drops to 0.005% at the top volume tier, published
+    // at https://www.proliquid.xyz/hyperliquid-builder-fees-compared; CEX venues carry no Proliquid fee.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x00000000617c4307d352e8c1720a9f29d01c3d62"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2025-05-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Proliquid, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Proliquid; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees collected by Proliquid.",
+      ProtocolRevenue: "Builder code fees collected by Proliquid.",
+    },
+    breakdownFees: true,
+  },
   "rxn": {
     // RXN (https://rxn.gg, https://x.com/rxn_gg), a Hyperliquid perps terminal. Orders RXN places carry this builder code
     // while Hyperliquid pays the builder: 0.02% on crypto and standard perps, 0.005% on HIP-3 markets in growth mode, and

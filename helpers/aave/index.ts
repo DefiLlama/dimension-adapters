@@ -720,11 +720,6 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             lendingPoolProxy: '0xC486115C7db399F0e080A3713BF01B65CC8A5b64',
             dataProvider: '0x898D0EF6E20B7597728AEB41169c22608Fe4b234',
           },
-          {
-            version: 3,
-            lendingPoolProxy: '0xeD6d6d18F20f8b419B5442C43D3e48EE568dEc14',
-            dataProvider: '0x4c25c261Fe47bC216113D140BaF72B05E151bcE4',
-          },
         ],
       },
       [CHAIN.CORE]: {
@@ -1450,6 +1445,52 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             dataProvider: '0xD95D42BAd744821af78da755C6fC012f10ad1824',
           },
         ],
+      },
+    },
+  },
+  // RNT Lend: Reental's Aave V3 fork, borrow USDT0/USDC against Reental property tokens
+  'rnt-lend': {
+    config: {
+      [CHAIN.POLYGON]: {
+        start: '2024-10-30', // pool proxy created in block 63679510, tx 0x30a6c77d72229baf4a26a575d5d2c1f66ea2494cb065c847d2067dd1f9b29f58
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x67dC8037Db6309Dd5571D82c65F5f593F7da1505', // returned by PoolAddressesProvider 0x717c2a6fa0820b04b9d4793daca33a229aec85ca getPool()
+            // Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/rnt-lend/index.js
+            dataProvider: '0x5542ac41138f6a52a13c644f1db56bada71a4021',
+          },
+        ],
+      },
+    },
+    global: {
+      pullHourly: true,
+      methodology: {
+        Fees: 'Estimated borrowing fees, including supplier flashloan earnings, plus liquidation bonuses and the separately recorded protocol share of flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+        Revenue: 'Estimated reserve-factor share of borrowing fees, plus the protocol shares of liquidation bonuses and flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+        SupplySideRevenue: 'Liquidity-index earnings for suppliers, including their flashloan premiums, and liquidation bonuses retained by liquidators; unpriced collateral bonuses are excluded from USD totals.',
+        ProtocolRevenue: 'Estimated reserve-factor share of borrowing fees and the protocol shares of liquidation bonuses and flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+      },
+      breakdownMethodology: {
+        Fees: {
+          [METRIC.BORROW_INTEREST]: 'Opening aToken supply multiplied by relative liquidity-index growth, grossed up by the opening reserve factor; includes supplier flashloan earnings.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses, paid in the seized collateral. Reental property tokens have no market price, so bonuses paid in them are not valued.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums. The suppliers\' share accrues to the liquidity index and is already counted in borrow interest.',
+        },
+        Revenue: {
+          [METRIC.BORROW_INTEREST]: 'Estimated interest less supplier index earnings, using the reserve factor at the start of the window.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation protocol fee share of liquidation bonuses.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums.',
+        },
+        SupplySideRevenue: {
+          [METRIC.BORROW_INTEREST]: 'Opening aToken supply multiplied by relative liquidity-index growth, including supplier flashloan earnings.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses kept by liquidators.',
+        },
+        ProtocolRevenue: {
+          [METRIC.BORROW_INTEREST]: 'Reserve factor share of borrow interest kept by the RNT Lend treasury.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation protocol fee share kept by the RNT Lend treasury.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums kept by the RNT Lend treasury.',
+        },
       },
     },
   },

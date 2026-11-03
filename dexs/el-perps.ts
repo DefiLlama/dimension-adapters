@@ -8,8 +8,12 @@ import ADDRESSES from "../helpers/coreAssets.json";
 // Fee split, from ElcasPerpsBook._cutFees: hub.perpsProtocolBps() of every open / close fee accrues to the platform
 // (FeeAccrued to address(0), later claimProtocol → the hub's fee address), the market's creatorShareBps accrues to its
 // creator (FeeAccrued to the creator), the rest stays in the market's LP vault; borrow goes to the LP vault in full.
-// ElcasMarketsHub v1, then the V2 hubs: the launchpad's (books its game reserve opens for launched tokens) and the public one
-const HUBS = ["0xBd65EE837e57D5060013cbE8bAc8a6d0F8037f45", "0x9DB90Cf484614C3424a49B0cB0b6E5cA7b6a850F", "0xB7eF17054fb9541dd9Bc58E932Af116d11f2fD3f"];
+// ElcasMarketsHub v1, then the V2 hubs: the launchpad's (books its game reserve opens for launched tokens) and the public one,
+// then the V3 hubs (2026-10-28 redeploy, same interface): the public one and the launchpad V3's
+const HUBS = [
+  "0xBd65EE837e57D5060013cbE8bAc8a6d0F8037f45", "0x9DB90Cf484614C3424a49B0cB0b6E5cA7b6a850F", "0xB7eF17054fb9541dd9Bc58E932Af116d11f2fD3f",
+  "0x2AC7854F4DBd6e18933dc6c87598532641898Ad1", "0xf31da25f3F4E2f041c63Aa0751ceB69f50fdFd5c",
+];
 const ZERO = ADDRESSES.null;
 
 const OPENED = "event PositionOpened(uint256 indexed id, uint256 indexed market, address indexed owner, bool isLong, uint256 collateral, uint256 size, int24 entryTick, uint256 fee)";
