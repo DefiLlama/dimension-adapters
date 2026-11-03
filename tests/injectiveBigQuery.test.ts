@@ -9,6 +9,7 @@ const date = '2026-10-20';
 const midnight = Date.parse(`${date}T00:00:00Z`);
 const hours48 = 48 * 60 * 60 * 1000;
 
+/** Mock upstream responses and time while recording whether the live cache is queried. */
 function fixture(t: TestContext, response: unknown, now = midnight + hours48 + 1) {
   const requests: string[] = [];
   t.mock.method(Date, 'now', () => now);
@@ -84,10 +85,13 @@ for (const slug of ['injective-spot', 'injective-derivatives']) {
       }
     });
   }
-  test(`${slug}: retains recent fallback after a wrong-day response`, async (t) => {
-    const { options } = fixture(t, dailyResponse('2026-10-19'), midnight);
-    assert.deepEqual(await fetch(options), { dailyVolume: 123 });
-  });
+  for (const row of [{ date: '2026-10-19' }, { date: '2026-10-21' }, {}, null]) {
+    test(`${slug}: rejects recent nonmatching row without querying live cache: ${JSON.stringify(row)}`, async (t) => {
+      const { options, requests } = fixture(t, { days: [row], total_volume_usd: 42 }, midnight);
+      await assert.rejects(fetch(options), /No data found for the given date/);
+      assert.equal(requests.length, 1, 'must not replace a nonmatching daily row with live volume');
+    });
+  }
   test(`${slug}: retains recent fallback after a network failure`, async (t) => {
     const { options } = fixture(t, new Error('upstream unavailable'), midnight);
     assert.deepEqual(await fetch(options), { dailyVolume: 123 });
