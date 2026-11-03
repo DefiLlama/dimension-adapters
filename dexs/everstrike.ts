@@ -102,18 +102,8 @@ const getDailyVolume = (candles: OhlcvCandle[], endMs: number) => {
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  let startTimestamp = options.startOfDay;
-
-  const startMs = startTimestamp * 1000;
-  const endMs = options.endTimestamp * 1000;
-  if (
-    !Number.isSafeInteger(startMs) ||
-    !Number.isSafeInteger(endMs) ||
-    endMs - startMs !== DAY_MS ||
-    startMs % DAY_MS !== 0
-  ) {
-    throw new Error("Everstrike expects a UTC daily time window");
-  }
+  const endMs = Math.round(options.endTimestamp / DAY_SECONDS) * DAY_MS;
+  const startMs = endMs - DAY_MS;
 
   const pairs = (await httpGet(`${API_BASE}/pairs`, { timeout: REQUEST_TIMEOUT_MS })) as PairsResponse;
   if (pairs?.code !== 200 || !pairs.result || typeof pairs.result !== "object" || Array.isArray(pairs.result)) {

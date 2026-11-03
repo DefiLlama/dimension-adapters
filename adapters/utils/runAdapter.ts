@@ -115,12 +115,20 @@ type AdapterRunOptions = {
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module,} = options
+  const { module, name, isTest, metadata = {}, endTimestamp } = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
-  return _runAdapter(options)
+  // Count every http request made during the run (rpc per chain, indexer, subgraphs, fetchURL...) and
+  // write the per-chain totals to the adapter-calls index when it settles, see sdk.callStats
+  const callStatsMeta = {
+    application: 'dimensions', type: 'protocol',
+    name: name ?? metadata.name ?? 'unknown',
+    id: metadata.id, adapterType: metadata.adapterType, runType: metadata.runType ?? (isTest ? 'test' : undefined),
+    endTimestamp,
+  }
+  return sdk.callStats.run(callStatsMeta, () => _runAdapter(options), { print: isTest })
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -355,7 +363,7 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - windowSize
+    const fromTimestamp = timestamp - windowSize
     const getFromBlock = async () => await getBlock(fromTimestamp, chain)
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei',])

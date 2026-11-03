@@ -1,6 +1,6 @@
 // helpers/aggregators/soheil.ts — shared by aggregators/soheil and bridge-aggregators/soheil: every network Soheil.fi supports
 // (LI.FI's numbering for EVM chains, LI.FI-style ids for the rest) → DefiLlama chain keys. A network missing here would be left
-// out of the volume, so this list follows https://soheil.fi/api/chains (all 84 networks as of 2026-10-11).
+// out of the volume, so this list follows https://soheil.fi/api/chains (101 of its 102 networks as of 2026-10-27; Quantus has no DefiLlama chain yet).
 import { CHAIN } from "../chains";
 import { FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
@@ -22,12 +22,14 @@ export const SOHEIL_CHAINS: Record<string, string> = {
   "137": CHAIN.POLYGON,
   "143": CHAIN.MONAD,
   "146": CHAIN.SONIC,
+  "169": CHAIN.MANTA, // Manta Pacific
   "196": CHAIN.XLAYER,
   "204": CHAIN.OP_BNB,
   "232": CHAIN.LENS,
   "252": CHAIN.FRAXTAL,
   "288": CHAIN.BOBA,
   "324": CHAIN.ERA, // zkSync Era
+  "360": CHAIN.SHAPE,
   "480": CHAIN.WC, // World Chain
   "747": CHAIN.FLOW, // Flow EVM
   "988": CHAIN.STABLE,
@@ -57,24 +59,30 @@ export const SOHEIL_CHAINS: Record<string, string> = {
   "16661": CHAIN.OG, // 0G
   "33139": CHAIN.APECHAIN,
   "34443": CHAIN.MODE,
+  "42018": CHAIN.MYTHOS,
   "42161": CHAIN.ARBITRUM,
   "42170": CHAIN.ARBITRUM_NOVA,
   "42220": CHAIN.CELO,
   "42793": CHAIN.ETHERLINK,
   "43111": CHAIN.HEMI,
   "43114": CHAIN.AVAX,
+  "48900": CHAIN.ZIRCUIT,
   "57073": CHAIN.INK,
   "59144": CHAIN.LINEA,
   "60808": CHAIN.BOB,
   "80094": CHAIN.BERACHAIN,
   "81457": CHAIN.BLAST,
+  "97477": CHAIN.DOMA,
   "98866": CHAIN.PLUME,
   "534352": CHAIN.SCROLL,
+  "685689": CHAIN.GENSYN,
   "747474": CHAIN.KATANA,
   "3586256": CHAIN.ZK_LIGHTER, // Lighter
+  "5064014": CHAIN.ETHEREAL,
+  "7777777": CHAIN.ZORA,
   "728126428": CHAIN.TRON,
   "964": CHAIN.BITTENSOR, // Bittensor EVM
-  // Other networks (LI.FI-style ids; 88000000000000xx = networks reached through NEAR Intents)
+  // Other networks (LI.FI-style ids; 88000000000000xx = networks reached through NEAR Intents, 89000… = Cosmos networks)
   "1151111081099710": CHAIN.SOLANA,
   "9270000000000000": CHAIN.SUI,
   "6070000000000000": CHAIN.TON,
@@ -92,6 +100,20 @@ export const SOHEIL_CHAINS: Record<string, string> = {
   "8800000000000011": CHAIN.STARKNET,
   "8800000000000012": CHAIN.ALEO,
   "8800000000000013": CHAIN.MOVE, // Movement
+  "8800000000000014": CHAIN.FOGO,
+  "8800000000000015": CHAIN.ADI, // ADI Chain
+  // 8800000000000016 (Quantus): no DefiLlama chain key yet, left out
+  // Cosmos networks (89000…: our ids for the Cosmos chains, reached through Skip:Go)
+  "8900003296855744": CHAIN.COSMOS, // Cosmos Hub
+  "8900004150164185": CHAIN.OSMOSIS,
+  "8900000984827007": CHAIN.CELESTIA,
+  "8900002505836210": CHAIN.DYDX,
+  "8900000493458034": CHAIN.NOBLE,
+  "8900001797533832": CHAIN.NEUTRON,
+  "8900001423511888": CHAIN.STRIDE,
+  "8900000812963649": CHAIN.AKASH,
+  "8900002587681917": CHAIN.INJECTIVE, // Injective (Cosmos side)
+  "8900000601483365": CHAIN.DYMENSION,
 };
 
 export const SOHEIL_START = "2026-10-01";

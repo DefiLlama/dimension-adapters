@@ -3,9 +3,9 @@ import { createFactoryExports } from "./registry";
 
 // builderCode values sourced from https://data-api.polymarket.com/v1/builders/volume
 // (each row includes builder + builderCode). The 6 codes that also appear in feesConfigs
-// below match that dump. PolyHelper.io is absent from the dump, so it has no builderCode
-// and keeps its previous notional-only behavior.
-const dexsConfigs: Record<string, { builder: string; start: string; builderCode?: string }> = {
+// below match that dump. PolyHelper.io's code is from the `builder_code` field of
+// https://data-api.polymarket.com/v2/builders/volume (the same code on every row).
+const dexsConfigs: Record<string, { builder: string; start: string; builderCode: string }> = {
   "based-predict": { builder: "Based", start: "2025-11-18", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf" },
   "betmoar-fun": { builder: "betmoar", start: "2025-10-17", builderCode: "0xceebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1" },
   "flowbot-prediction": { builder: "FlowBot", start: "2025-12-31", builderCode: "0x18fc17ee71e267387694d721f09ccb2517cb2092acee07449dc896b58367dbb5" },
@@ -21,7 +21,7 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "preddy-trade": { builder: "Preddy.trade", start: "2025-11-07", builderCode: "0x25d56a25be81b183908e80ccc522e72d4187480a4aa29fa7e4dd1112546fabef" },
   "polytrader-app": { builder: "Polytrader.app", start: "2025-12-31", builderCode: "0x6f5dfb79b61e701021143a9426b4188bda94da794068dec5454a0ac2ec82bc64" },
   "kiyotaka": { builder: "Kiyotaka", start: "2025-12-09", builderCode: "0x2096c1dd5e4d0c660ce764ab20a3a95853d11e27724b3c73cad543352da1555f" },
-  "polyhelper-io": { builder: "PolyHelper.io", start: "2026-01-01" },
+  "polyhelper-io": { builder: "PolyHelper.io", start: "2026-01-01", builderCode: "0xb05677aa676cd5aeab7e8d85ef83836ee1bf4e3de5519d5bbb6594484b51a805" },
   "gate": { builder: "Gate", start: "2026-02-14", builderCode: "0x2c6624a23b16a2a69acd14c87b7fc03906870c851fa0a7b7f9d7be0fbbedea8a" },
   "polycop": { builder: "PolyCop", start: "2025-12-01", builderCode: "0x4898df15ec6590495dc6c0fedf951ade3e64001d47f9caf44a64e86fc11959df" },
   "traderline": { builder: "traderline", start: "2025-12-01", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984" },
@@ -33,9 +33,12 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode?
   "overdog": { builder: "OVERDOG", start: "2026-03-27", builderCode: "0x21d90db23c70a5901c0ee20f0ee20cf7f98fce24795a4e99cbf79cf0d8d63905" },
   "cro-trade-predict": { builder: "crotrade", start: "2026-06-03", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4" },
   "whalidate": { builder: "Whalidate", start: "2026-10-01", builderCode: "0x7043f01555796d800d711fd807cbb367bd260d85ba45b052ac472b1e049d596f" },
+  "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
+  "blackboard-predict": { builder: "Blackboard", start: "2026-04-29", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c" },
+  "wallet-v-predictions": { builder: "Wallet V", start: "2026-09-09", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04" },
 };
 
-const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean }> = {
+const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
   "polygun": { builderName: "Polygun", builderCode: "0xd625c78659cda77fc5e1b2c2657ec4ecc9187ec82fbc4a2300337269332c046b", start: "2026-04-28" },
   "bullpen": { builderName: "Bullpen", builderCode: "0x2a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", start: "2026-04-21" },
   "evplusai": { builderName: "EvplusAI", builderCode: "0xb8d6bf0c9ec3c806c30fcb0e8da931f2940a5141cf420394c4b1d82ae7c6d415", start: "2026-04-28" },
@@ -49,6 +52,11 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "smartx": { builderName: "SmartX", builderCode: "0x58d3820045831c879b218ec64514dc191eebadf31a4641670293fddf542643c3", start: "2026-04-28" },
   "virae": { builderName: "Virae.ai", builderCode: "0xcb5f0c1b63c47ad9193a5d1a95a2055076eec604be4abb019025dd0e3554a7cc", start: "2026-04-28" },
   "cro-trade-predict": { builderName: "crotrade", builderCode: "0x6b82257805a4732cbd432c88ff1c5137ce4038f82145ed6c67b5588b742f2ee4", start: "2026-06-03", revenueToHolders: true },
+  // Onagi pools these with its other fees (fees/onagi.ts, dexs/onagi-perps.ts) and splits all of it the same way:
+  // 50% USDG payouts to ONAGI holders + 25% ONAGI buyback and burn, 25% treasury (split.*Bps in https://onagi.si/data/cycles.json)
+  "onagi-predict": { builderName: "Onagi", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f", start: "2026-10-22", holdersRevenueRatio: 0.75 },
+  "blackboard-predict": { builderName: "Blackboard", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c", start: "2026-04-29" },
+  "wallet-v-predictions": { builderName: "Wallet V", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04", start: "2026-09-09" },
 }
 
 const dexsProtocols: Record<string, any> = {};

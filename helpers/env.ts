@@ -11,6 +11,7 @@ const DEFAULTS: any = {
   // eth_getLogs: full archive, 10,000-block ranges. evm.cronos.org caps ranges at 2,000 blocks, so hourly windows fell
   // back to a random SDK RPC, and cronos-evm-rpc.publicnode.com is pruned: it answers older ranges with [] instead of an error.
   CRONOS_ARCHIVAL_RPC: 'https://cronos.rpc.sentio.xyz',
+  INJECTIVE_ARCHIVAL_RPC: 'https://sentry.evm-rpc.injective.network',
   TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
   TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
   ETLK_RPC: 'https://node.mainnet.etherlink.com',
@@ -41,21 +42,21 @@ const DEFAULTS: any = {
   XRPL_EVM_RPC: 'https://explorer.xrplevm.org/api/eth-rpc',
   MANTLE_ARCHIVAL_RPC: 'https://explorer.mantle.xyz/api/eth-rpc',
   GATELAYER_RPC: 'https://www.gatescan.org/gatelayer/api/eth-rpc',
-  BITKUB_RPC: 'https://www.kubscan.com/api/eth-rpc', // official rpc.bitkubchain.io has no historical state (pruned); kubscan blockscout proxy serves archival eth_call + wide eth_getLogs
-  BITKUB_ARCHIVAL_RPC: 'https://www.kubscan.com/api/eth-rpc',
-  BITKUB_RPC_MAX_PARALLEL: '10', // both bitkub RPCs rate-limit aggressively (429) under the sdk's default 100 parallel requests
-  BITKUB_RPC_GET_LOGS_CONCURRENCY_LIMIT: '3',
+  BITKUB_WHITELISTED_RPC: 'https://dataseed.bitkubchain.org,https://dataseed.bitkubchain.io,https://rpc.kubchain.io,https://www.kubscan.com/api/eth-rpc',
+  BITKUB_RPC_MAX_PARALLEL: '10',
+  BITKUB_RPC_GET_LOGS_CONCURRENCY_LIMIT: '10',
   XDC_RPC: 'https://rpc.xdc.network,https://rpc.ankr.com/xdc', // xinfin.network endpoints 403, rpc.xdc.org stale ~2 months, xdcrpc.com load-balances onto stale/rate-limited backends
   XDC_ARCHIVAL_RPC: 'https://rpc.xdc.network', // archival + answers eth_getLogs over 5000 blocks
   // blockscout proxy first: it is the only public endpoint still serving historical state (eth_call at a past block).
   // songbird-api.flare.network, rpc.au.cc and thirdweb now answer "missing trie node" even 100 blocks back, tatum gates eth_call behind a paid plan, sgb.ftso.com.au times out
   SONGBIRD_RPC: 'https://songbird-explorer.flare.network/api/eth-rpc,https://songbird-api.flare.network/ext/C/rpc',
   SONGBIRD_ARCHIVAL_RPC: 'https://rpc.au.cc/songbird,https://songbird-explorer.flare.network/api/eth-rpc', // for getLogs: rpc.au.cc handles 5000-block ranges uncapped, blockscout proxy as fallback (caps at 1000 logs)
-  // keyless ankr: historical state (eth_call 17M blocks back) and eth_getLogs over 5000-block ranges with no result cap.
-  FLARE_RPC: 'https://rpc.ankr.com/flare',
-  FLARE_ARCHIVAL_RPC: 'https://rpc.ankr.com/flare',
+  FLARE_WHITELISTED_RPC: 'https://rpc.ankr.com/flare,https://flare.rpc.thirdweb.com',
   FLARE_RPC_MAX_PARALLEL: '10', // thirdweb and rpc.au.cc answer 429 under the sdk's default 100 parallel requests (hourly runs fire 24 windows at once)
   FLARE_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5',
+  ENI_RPC: 'https://rpc2.eniac.network,https://rpc1.eniac.network',
+  IOTEX_WHITELISTED_RPC: 'https://archive-mainnet.iotex.io,https://babel-api.mainnet.iotex.io,https://babel-api.mainnet.iotex.one',
+  SHIBARIUM_WHITELISTED_RPC: 'https://rpc.shibarium.shib.io,https://shibariumscan.io/api/eth-rpc',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and

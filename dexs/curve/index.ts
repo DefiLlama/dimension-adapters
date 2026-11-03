@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -582,9 +585,10 @@ const TREASURY_SHARE_OF_ADMIN_FEES = 0.1
 class ChainNotInApiError extends Error { }
 
 async function fetchFromApi(options: FetchOptions) {
-  if (options.startOfDay < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
+  const start = Math.ceil(options.startTimestamp / 3600) * 3600;
+  if (start < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
 
-  const apiResponse = await fetchCurveApiData(options.startOfDay);
+  const apiResponse = await fetchCurveApiData(start, options.endTimestamp);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
   if (!chainData) {
@@ -657,6 +661,7 @@ const methodology = {
 export function getCurveExport(configs: { [key: string]: ICurveDexConfig }) {
   const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     methodology,
     adapter: Object.keys(configs).reduce((acc, chain) => {
       return {

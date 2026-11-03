@@ -3,14 +3,18 @@ import { CHAIN } from "../../helpers/chains";
 
 /**
  * StonkBrokers Smart LP (Volatility Farming) — immutable concentrated-liquidity
- * vaults on canonical Uniswap V3 pools on Robinhood Chain (live 2026-09-08).
+ * vaults on canonical Uniswap V3 pools on Robinhood Chain (live 2026-09-08) and Arbitrum One (live 2026-09-15).
  * The on-chain registry is the single discovery surface for the fleet. Every
  * fee collection emits FeesCollected on the vault: fees0/fees1 = gross pool
  * fees collected, skim0/skim1 = the 10% performance fee, which splits 50%
  * StockBooster (Clock In dividends) / 50% $STONKBROKER buybacks. The remaining
  * 90% auto-compounds back into the vault position for depositors.
  */
-const SMART_LP_REGISTRY = "0xE8749183Fbf6A657EB58B3a4D3E4B9Cc09560146";
+const SMART_LP_REGISTRY: Record<string, string> = {
+  [CHAIN.ROBINHOOD]: "0xE8749183Fbf6A657EB58B3a4D3E4B9Cc09560146",
+  // Arbitrum One fleet (live 2026-09-15), chain-local registry.
+  [CHAIN.ARBITRUM]: "0xFB2eA53b16C07011d4390A2e449385180A54eD5e",
+};
 
 const SMART_LP_FEES_COLLECTED = "event FeesCollected(uint256 fees0, uint256 fees1, uint256 skim0, uint256 skim1)";
 
@@ -29,7 +33,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Registry-enumerated fleet (the registry is the only discovery surface).
   // flatten:false so each vault's logs attribute to its own token0/token1 pair.
-  const vaults: string[] = await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY });
+  const vaults: string[] = await options.api.call({ abi: "address[]:all", target: SMART_LP_REGISTRY[options.chain] });
   const feeLogsByVault: any[][] = vaults.length
     ? await options.getLogs({ targets: vaults, eventAbi: SMART_LP_FEES_COLLECTED, flatten: false })
     : [];
@@ -72,9 +76,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-09-08",
+  adapter: {
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-09-08" },
+    [CHAIN.ARBITRUM]: { fetch, start: "2026-09-15" },
+  },
   doublecounted: true,
   methodology: {
     Fees: "Gross Uniswap V3 pool fees collected by every registry-listed Smart LP (Volatility Farming) vault (FeesCollected fees0/fees1).",

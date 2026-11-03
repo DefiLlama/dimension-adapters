@@ -1,9 +1,11 @@
-import { Adapter, FetchOptions } from "../../adapters/types"
+import { Adapter, Dependencies, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import ADDRESSES from "../../helpers/coreAssets.json"
+import { getETHReceived } from "../../helpers/token"
 
 const CRYSTAL = "0x508254c838B2e936B0631440c5C6E3AB3a4a98BD"
 const ETH = ADDRESSES.GAS_TOKEN_2
+const TERMINAL_FEE_WALLET = "0x565e9c68fc827958551ede5757461959206ab0bd"
 const abi = {
   allMarketsLength: 'uint256:allMarketsLength',
   allMarkets: 'function allMarkets(uint256) view returns (address)',
@@ -24,7 +26,8 @@ const abi = {
   LaunchpadParamsChanged: 'event LaunchpadParamsChanged(bool isTokenCreationPaused, uint112 launchpadInitialNativeSupply, uint256 launchpadFee, uint256 launchpadCreatorFeeSplit, uint256 graduatedMinSize, uint256 graduatedTakerFee, uint256 graduatedMakerRebate, uint256 graduatedCreatorFeeSplit)',
 }
 
-const fetch = async ({ api, fromApi, getLogs, createBalances }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const { api, fromApi, getLogs, createBalances } = options
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
@@ -127,6 +130,9 @@ const fetch = async ({ api, fromApi, getLogs, createBalances }: FetchOptions) =>
     const share = (takerByQuote[q] ?? 0n) - (received[q] ?? 0n) // taker fee not credited to the fee recipient
     if (share !== 0n) dailySupplySideRevenue.add(q, share.toString(), 'Taker Fees To Referrers And Creators')
   }
+  const terminalFees = await getETHReceived({ options, target: TERMINAL_FEE_WALLET })
+  dailyFees.addBalances(terminalFees, 'Terminal Trading Fees')
+  dailyRevenue.addBalances(terminalFees, 'Terminal Trading Fees To Protocol')
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -136,11 +142,12 @@ const adapter: Adapter = {
   fetch,
   chains: [CHAIN.MONAD],
   start: "2026-09-20",
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
-    Fees: "Taker fees paid on every orderbook and AMM trade, plus the AMM constant-product LP fee and the maker rebate takers pay to resting orders. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted. Maker rebate is derived from each Fill: the maker receives notional * 1e5 / makerRebate, so the rebate is the excess over notional, expressed in the market's quote asset.",
-    UserFees: "Taker fees paid on every orderbook and AMM trade, plus the AMM constant-product LP fee and the maker rebate takers pay to resting orders. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted. Maker rebate is derived from each Fill: the maker receives notional * 1e5 / makerRebate, so the rebate is the excess over notional, expressed in the market's quote asset.",
-    Revenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol.",
-    ProtocolRevenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol.",
+    Fees: "Taker fees paid on every orderbook and AMM trade, plus the AMM constant-product LP fee and the maker rebate takers pay to resting orders. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted. Maker rebate is derived from each Fill: the maker receives notional * 1e5 / makerRebate, so the rebate is the excess over notional, expressed in the market's quote asset. Also includes the MON trading fees the Crystal terminal sends to its fee wallet on launchpad-token trades.",
+    UserFees: "Taker fees paid on every orderbook and AMM trade, plus the AMM constant-product LP fee and the maker rebate takers pay to resting orders. LP fee is derived from Sync reserve-quote deltas per trade so only the AMM portion of a split fill is counted. Maker rebate is derived from each Fill: the maker receives notional * 1e5 / makerRebate, so the rebate is the excess over notional, expressed in the market's quote asset. Also includes the MON trading fees the Crystal terminal sends to its fee wallet on launchpad-token trades.",
+    Revenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol. Also includes all MON trading fees the Crystal terminal sends to its fee wallet, which go entirely to the protocol.",
+    ProtocolRevenue: "Trading fees actually credited to the protocol fee recipient: the day's change in Crystal.claimableRewards[quote][feeRecipient] plus its RewardsClaimed amounts, so referral commissions and creator splits are already excluded. Because gov is the fee recipient, gov's launchpad fee share (from LaunchpadTrade) and claimLockedReserves credits (claimedLockedReserve delta) are subtracted from the native-token figure. AMM LP fees are excluded because they accrue to LPs, not the protocol. Also includes all MON trading fees the Crystal terminal sends to its fee wallet, which go entirely to the protocol.",
     SupplySideRevenue: "AMM LP fees, maker rebates paid to resting-order makers, and the taker fees paid to referrers and market creators instead of the protocol fee recipient.",
   },
   breakdownMethodology: {
@@ -148,17 +155,21 @@ const adapter: Adapter = {
       'Taker Fees': 'Taker fee charged on each orderbook and AMM trade, in the market quote asset.',
       'AMM LP Fees': 'Constant-product fee earned by AMM LPs, from the quote-reserve change on the Sync that belongs to that trade.',
       'Maker Rebates': 'Rebate paid by takers to makers on each orderbook fill, from the Fill event amounts and the market makerRebate, in the market quote asset.',
+      'Terminal Trading Fees': 'MON trading fees received by the Crystal terminal fee wallet.',
     },
     UserFees: {
       'Taker Fees': 'Taker fee charged on each orderbook and AMM trade, in the market quote asset.',
       'AMM LP Fees': 'Constant-product fee earned by AMM LPs, from the quote-reserve change on the Sync that belongs to that trade.',
       'Maker Rebates': 'Rebate paid by takers to makers on each orderbook fill, from the Fill event amounts and the market makerRebate, in the market quote asset.',
+      'Terminal Trading Fees': 'MON trading fees received by the Crystal terminal fee wallet.',
     },
     Revenue: {
       'Trading Fees To Protocol': 'Trading fees credited to the protocol fee recipient, after referral commissions, creator splits, launchpad fees, and locked-reserve credits.',
+      'Terminal Trading Fees To Protocol': 'MON trading fees received by the Crystal terminal fee wallet.',
     },
     ProtocolRevenue: {
       'Trading Fees To Protocol': 'Trading fees credited to the protocol fee recipient, after referral commissions, creator splits, launchpad fees, and locked-reserve credits.',
+      'Terminal Trading Fees To Protocol': 'MON trading fees received by the Crystal terminal fee wallet.',
     },
     SupplySideRevenue: {
       'AMM LP Fees To LPs': 'Constant-product fee paid to AMM liquidity providers.',

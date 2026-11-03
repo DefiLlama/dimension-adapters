@@ -53,7 +53,7 @@ const QUOTE = {
   USO: ADDRESSES.robinhood.USO,
 } as const;
 
-type SafePad = { addr: string; quote: string | null; gen: "v1-eth" | "v1-quoted" | "v2" | "r2" };
+type SafePad = { addr: string; quote: string | null; gen: "v1-eth" | "v1-quoted" | "v2" | "r2" | "v3" };
 
 const SAFE_LAUNCH_PADS: SafePad[] = [
   // V1 ETH pad (native ETH amounts)
@@ -86,7 +86,38 @@ const SAFE_LAUNCH_PADS: SafePad[] = [
   { addr: "0xd82da1D8ef59959b170b59147283Ab1F2F1Ca86A", quote: QUOTE.SPCX, gen: "r2" },
   { addr: "0x644b19512052A1b6d38d7B16C6c3Fb1d3F7270D2", quote: QUOTE.USO, gen: "r2" },
 ];
-const SAFE_PAD_TARGETS = SAFE_LAUNCH_PADS.map((p) => p.addr);
+
+// Arbitrum One Stonklauncher V3 pads (quoted pads, Uniswap v3 bond venue,
+// opened 2026-09-15). Same SafeBuy / SafeSell layout and the same
+// setFeeSplit(1650, 1650, 5000) as the Robinhood V2 / r2 pads.
+const ARBITRUM_PADS: SafePad[] = [
+  { addr: "0x9540AC4173E5A8c7970743bd13aEc5E9e97FcD22", quote: ADDRESSES.arbitrum.WETH, gen: "v3" },
+  { addr: "0x42a561Bf35E311A59492ECe678315949a112D9ef", quote: ADDRESSES.arbitrum.USDC_CIRCLE, gen: "v3" },
+  { addr: "0xea69D73A62Bd25644b2d164BA1A56F521aeA8616", quote: "0x0a85b6EBe3C150A1979a65656E304033D62b1E12", gen: "v3" }, // rNVDA
+  { addr: "0x58329852104FFeA8103E8377E0DcBF5098667682", quote: "0xf912911C9c8D5131929c758e66e6dc54e65cF3ba", gen: "v3" }, // rTSLA
+  { addr: "0x1338a39f86824A5a3a6282EEd3Ac399681600D63", quote: "0xdA7c9549E87D4F96585701970AcDCc90E8d35024", gen: "v3" }, // rMSFT
+  { addr: "0x4Ad64B9b5990b37616bd297Ab1Cc11C3fbB2FAed", quote: "0xcA1942EdEB697A85AF98eF8C74C4910fe9587afB", gen: "v3" }, // rGOOGL
+  { addr: "0xDBFf2b590B9b04b2A75D6d5249B666C3c373bdAb", quote: "0xfba9E358F9AD443236155E5C67f2aADe032Db7A1", gen: "v3" }, // rAMZN
+  { addr: "0x238d85f92a1B2346C0262254B9E3d233C1ad32BE", quote: "0xB65f3005aB2aEede3707F56223C7c45f68cca008", gen: "v3" }, // rMETA
+  { addr: "0x6fce80BCe616aBd45a29fb286E5c86EfE989140D", quote: "0x412Ab56d122343dE6ABeaCceC646699BacD85601", gen: "v3" }, // rCOIN
+  { addr: "0xEECf01bac1BA354451AA2852727ebC304B2e5bA2", quote: "0x9a0fda21276F245b89d2B7f1120F42e4466b1cb5", gen: "v3" }, // rSPY
+  { addr: "0x009c43dD3C002B02965e0327ef35da0515c7c746", quote: "0xaBa5e0C80e9f58E391214689fB342049C0d31892", gen: "v3" }, // rAAPL
+  { addr: "0xbc9Bc56D0018b9c1c71aaB74e917c89CC97A637E", quote: "0x5181b7Dd097B42d7787ee78Efab86f43D4E12f44", gen: "v3" }, // rSPCX
+  { addr: "0xA6096F7c3186f815D1F477f9e9dE9f4323eF7241", quote: ADDRESSES.arbitrum.ARB, gen: "v3" },
+  { addr: "0x2b2Df013f0fb71A46434d952B5A71C593fBF3d60", quote: ADDRESSES.arbitrum.WBTC, gen: "v3" },
+  { addr: "0xAdc21631C65799fd5752EBEb0D55a4f28b73F098", quote: ADDRESSES.arbitrum.USDT, gen: "v3" },
+  { addr: "0xd3A44fB4fA4dd98662f511D5aF5B9399bF0E70CF", quote: ADDRESSES.arbitrum.GMX, gen: "v3" },
+  { addr: "0x36AAE654aD50b6e2D8c867703faB0160bA8b0B25", quote: "0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8", gen: "v3" }, // PENDLE
+  { addr: "0x8D2a8236FC7294f736C537d22393259e3Db5C8F9", quote: "0x7f9FBf9bDd3F4105C478b996B648FE6e828a1e98", gen: "v3" }, // APE
+  { addr: "0xA08B9b63c0db362FB5e4b0ccc7f178cb10fc4AfF", quote: "0x13A7DeDb7169a17bE92B0E3C7C2315B46f4772B3", gen: "v3" }, // BOOP
+  { addr: "0xF14971037dED25792Cd4D5516a9688F07D5bbabd", quote: "0x3212dc0F8c834e4DE893532d27CC9B6001684DB0", gen: "v3" }, // PEAR
+  { addr: "0xE467ADbE0671e1747242089169968Ad32e8BE09d", quote: "0x485cb1ED5662a911EbA7f8547EB9E253cF43b8aE", gen: "v3" }, // rHOOD
+];
+
+const PADS_BY_CHAIN: Record<string, SafePad[]> = {
+  [CHAIN.ROBINHOOD]: SAFE_LAUNCH_PADS,
+  [CHAIN.ARBITRUM]: ARBITRUM_PADS,
+};
 // Production tax split, applied by the go-live `setFeeSplit(1650, 1650, 5000)`
 // and snapshotted into every launch: creator / protocol / locked-LP reserve,
 // remainder (1700) punches through the Clock In Card → ~0.5% of tax to the
@@ -135,19 +166,27 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // The one-off anti-snipe launches and the closed bonding-curve factory
+  // only exist on Robinhood Chain; Arbitrum One runs the V3 pads alone.
+  const isRobinhood = options.chain === CHAIN.ROBINHOOD;
+  const pads = PADS_BY_CHAIN[options.chain] ?? [];
+  const padTargets = pads.map((p) => p.addr);
+
   const [launchBuyLogs, safeBuyLogsByPad, safeSellLogsByPad] = await Promise.all([
-    options.getLogs({ targets: ANTI_SNIPE_LAUNCHES, eventAbi: WALL_BOUGHT }),
-    options.getLogs({ targets: SAFE_PAD_TARGETS, eventAbi: SAFE_BUY, flatten: false }),
-    options.getLogs({ targets: SAFE_PAD_TARGETS, eventAbi: SAFE_SELL, flatten: false }),
+    isRobinhood ? options.getLogs({ targets: ANTI_SNIPE_LAUNCHES, eventAbi: WALL_BOUGHT }) : Promise.resolve([]),
+    options.getLogs({ targets: padTargets, eventAbi: SAFE_BUY, flatten: false }),
+    options.getLogs({ targets: padTargets, eventAbi: SAFE_SELL, flatten: false }),
   ]);
 
   // Bonding-curve launcher pools (closed factory — residual trading).
-  const launched = await options.getLogs({
-    target: LAUNCHER_FACTORY,
-    fromBlock: LAUNCHER_FACTORY_START,
-    eventAbi: TOKEN_LAUNCHED,
-    cacheInCloud: true,
-  });
+  const launched = isRobinhood
+    ? await options.getLogs({
+        target: LAUNCHER_FACTORY,
+        fromBlock: LAUNCHER_FACTORY_START,
+        eventAbi: TOKEN_LAUNCHED,
+        cacheInCloud: true,
+      })
+    : [];
   const curvePools = [
     ...new Set(
       launched.map((l: any) => String(l.pool || "").toLowerCase()).filter((a: string) => /^0x[0-9a-f]{40}$/.test(a)),
@@ -196,8 +235,8 @@ const fetch = async (options: FetchOptions) => {
     addQuote(dailySupplySideRevenue, quote, toBoosterAndRef, LABELS.SAFE_TAX_BOOSTER);
     addQuote(dailySupplySideRevenue, quote, toLp, LABELS.SAFE_TAX_LP);
   };
-  for (let i = 0; i < SAFE_LAUNCH_PADS.length; i++) {
-    const quote = SAFE_LAUNCH_PADS[i].quote;
+  for (let i = 0; i < pads.length; i++) {
+    const quote = pads[i].quote;
     for (const log of safeBuyLogsByPad[i] ?? []) {
       const tax = BigInt(log.taxPaid ?? 0);
       const gross = BigInt(log.ethIn ?? log.quoteIn ?? 0);
@@ -237,9 +276,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-08-12",
+  adapter: {
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-08-12" },
+    [CHAIN.ARBITRUM]: { fetch, start: "2026-09-15" },
+  },
   methodology: {
     Volume:
       "Safe Launch / Stonklauncher window buys AND sells on every pad generation (V1 ETH, V1 quoted, V2, r2 — buy = tax-inclusive quoteIn/ethIn, sell = quoteOut/ethOut + taxPaid, quote-token denominated on quoted/WETH lanes) + anti-snipe WallBought.ethIn + StonkCurvePool Trade.quoteAmount on the bonding-curve launcher.",
@@ -255,7 +295,7 @@ const adapter: SimpleAdapter = {
       [LABELS.LAUNCH_TAX]:
         "Time-decay snipe tax on anti-snipe fair-launch curve buys (99% at launch, falling 1%/minute over a 99-minute window; WallBought.taxPaid). Split 90% StockBooster / 10% launch dev, pushed live per trade.",
       [LABELS.SAFE_TAX]:
-        "Time-decay snipe tax on Safe Launch / Stonklauncher window buys AND sells (SafeBuy/SafeSell taxPaid) across the V1 ETH pad, V1 quoted lanes, V2 lanes, and r2 pads. Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve or ICO Bonus / 17% StockBooster + Clock In Card referrers, snapshotted per launch. Quoted-lane amounts are in the quote token.",
+        "Time-decay snipe tax on Safe Launch / Stonklauncher window buys AND sells (SafeBuy/SafeSell taxPaid) across the V1 ETH pad, V1 quoted lanes, V2 lanes, and r2 pads on Robinhood Chain, plus the V3 lanes on Arbitrum One. Split 16.5% launch creator / 16.5% protocol / 50% locked-LP reserve or ICO Bonus / 17% StockBooster + Clock In Card referrers, snapshotted per launch. Quoted-lane amounts are in the quote token.",
       [LABELS.CURVE_FEES]:
         "1% trade fee on StonkCurvePool (bonding-curve Stonk Launcher factory), waterfall 33.33% creator / 33.34% protocol / 33.33% StonkBrokers.",
     },

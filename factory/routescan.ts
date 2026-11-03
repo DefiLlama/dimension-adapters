@@ -8,6 +8,7 @@ const routescanFeeChains: Record<string, RouteScanFeeConfig> = {
   step: { chain: CHAIN.STEP, chainId: 1234, CGToken: "step-app-fitfi", start: "2022-08-12" },
   nibiru: { chain: CHAIN.NIBIRU, chainId: 6900, CGToken: "nibiru", start: "2025-02-11" },
   botanix: { chain: CHAIN.BOTANIX, chainId: 3637, CGToken: "bitcoin", start: "2025-05-22" },
+  beam: { chain: CHAIN.BEAM, chainId: 4337, CGToken: "beam-2", start: "2023-08-14" },
 };
 
 const protocols: Record<string, any> = {};

@@ -2,6 +2,7 @@ import type { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { addTokensReceived } from "../../helpers/token";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 type PumpBoxChainConfig = {
   checkout: string;
@@ -121,6 +122,7 @@ const adapter: Adapter = {
   adapter: CONFIG,
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true, // Buyback spends can exceed box opening fees in a window
 };
 

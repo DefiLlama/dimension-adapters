@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -84,6 +85,39 @@ const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
 const abi = {
     tokenExchange:
         "event TokenExchange (address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 swap_fee, uint256 admin_fee)",
+    v3Swap:
+        "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)",
+    v3Slot0:
+        "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+};
+
+// V3 (Uniswap V3 fork) pools: the fee is charged on the input token (the positive amount) and the
+// protocol keeps 1/feeProtocol of it, with one 4-bit denominator per token packed into slot0.feeProtocol.
+const addV3Swaps = async (options: FetchOptions, pools: string[], token0s: string[], balances: Record<string, Balances>) => {
+    const { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue } = balances;
+    const [token1s, feeTiers, slot0s] = await Promise.all([
+        options.api.multiCall({ abi: "address:token1", calls: pools }),
+        options.api.multiCall({ abi: "uint24:fee", calls: pools }),
+        options.api.multiCall({ abi: abi.v3Slot0, calls: pools }),
+    ]);
+    const logsByPool = await options.getLogs({ targets: pools, eventAbi: abi.v3Swap, flatten: false });
+
+    pools.forEach((_pool, i) => {
+        const feeTier = BigInt(feeTiers[i]);
+        const feeProtocol = Number(slot0s[i].feeProtocol);
+        (logsByPool[i] || []).forEach((log: any) => {
+            const zeroForOne = BigInt(log.amount0) > 0n;
+            const tokenIn = zeroForOne ? token0s[i] : token1s[i];
+            const amountIn = BigInt(zeroForOne ? log.amount0 : log.amount1);
+            const protocolDenominator = BigInt(zeroForOne ? feeProtocol & 0x0f : feeProtocol >> 4);
+            const fee = (amountIn * feeTier) / 1_000_000n;
+            const protocolFee = protocolDenominator > 0n ? fee / protocolDenominator : 0n;
+            dailyVolume.add(tokenIn, amountIn);
+            dailyFees.add(tokenIn, fee, METRIC.SWAP_FEES);
+            dailyRevenue.add(tokenIn, protocolFee, METRIC.SWAP_FEES);
+            dailySupplySideRevenue.add(tokenIn, fee - protocolFee, METRIC.SWAP_FEES);
+        });
+    });
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -97,17 +131,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailySupplySideRevenue };
     }
 
-    const targets = pools.map((p) => p.pool);
+    // V3 pools expose token0(); StableSwap pools only have coins(i). A pool answering neither is a
+    // failed read, so throw rather than silently count it as a StableSwap pool with no swaps.
+    const calls = pools.map((p) => p.pool);
+    const [v3Token0s, stableCoins0] = await Promise.all([
+        options.api.multiCall({ abi: "address:token0", calls, permitFailure: true }),
+        options.api.multiCall({ abi: "function coins(uint256) view returns (address)", calls: calls.map((target) => ({ target, params: [0] })), permitFailure: true }),
+    ]);
+    pools.forEach((p, i) => {
+        if (!v3Token0s[i] && !stableCoins0[i]) throw new Error(`lista-dex: cannot classify pool ${p.pool}`);
+    });
+    const isV3 = pools.map((_, i) => !!v3Token0s[i]);
+    const v3Pools = pools.filter((_, i) => isV3[i]).map((p) => p.pool);
+    const stablePools = pools.filter((_, i) => !isV3[i]);
 
-    const logsByTarget = await options.getLogs({
-        targets,
+    if (v3Pools.length) await addV3Swaps(options, v3Pools, v3Token0s.filter((_, i) => isV3[i]), { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue });
+
+    const logsByTarget = stablePools.length ? await options.getLogs({
+        targets: stablePools.map((p) => p.pool),
         eventAbi: abi.tokenExchange,
         flatten: false,
         onlyArgs: false,
-    });
+    }) : [];
 
     const allSwapEvents: SwapEventArgs[] = [];
-    pools.forEach((pool, idx) => {
+    stablePools.forEach((pool, idx) => {
         const logs = logsByTarget[idx] || [];
         logs.forEach((log: any) => {
             allSwapEvents.push({
@@ -142,11 +190,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 };
 
 const methodology = {
-    Volume: "Total token swap volume across all Lista DEX pools.",
+    Volume: "Total token swap volume across all Lista DEX pools (StableSwap and V3).",
     Fees: "Total swap fees paid by users.",
     UserFees: "Users pay fees per swap.",
-    Revenue: "Lista DAO takes a portion of swap fees.",
-    ProtocolRevenue: "Lista DAO takes a portion of swap fees.",
+    Revenue: "Lista DAO takes a portion of swap fees (StableSwap admin fee; V3 pool protocol fee from slot0.feeProtocol).",
+    ProtocolRevenue: "Lista DAO takes a portion of swap fees (StableSwap admin fee; V3 pool protocol fee from slot0.feeProtocol).",
     SupplySideRevenue: "Amount of swap fees distributed to LPs.",
 };
 
@@ -158,10 +206,10 @@ const breakdownMethodology = {
         [METRIC.SWAP_FEES]: "Users pay fees per swap.",
     },
     Revenue: {
-        [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees.",
+        [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees (StableSwap admin fee; V3 pool protocol fee from slot0.feeProtocol).",
     },
     ProtocolRevenue: {
-        [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees.",
+        [METRIC.SWAP_FEES]: "Lista DAO takes a portion of swap fees (StableSwap admin fee; V3 pool protocol fee from slot0.feeProtocol).",
     },
     SupplySideRevenue: {
         [METRIC.SWAP_FEES]: "Amount of swap fees distributed to LPs.",

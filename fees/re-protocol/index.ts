@@ -84,10 +84,25 @@ const adapter : SimpleAdapter = {
     chains: [CHAIN.ETHEREUM, CHAIN.AVAX, CHAIN.ARBITRUM, CHAIN.BASE],
     allowNegativeValue: true,
     methodology: {
-        Fees: "The yield generated from deposited assets",
-        Revenue: "The redemption fees. The protocol charges a management and performance fee, but the actual percentages are not disclosed",
-        SupplySideRevenue: "The yield generated from deposited assets are distributed to reUsd and reUSDe",
-        UserFees: "There's a 18 bps fee on redemptions",
+        Fees: "Yield accrued by reUSD and reUSDe, plus fees recorded in the fee vault",
+        Revenue: "Fees recorded in the fee vault",
+        SupplySideRevenue: "Yield accrued by reUSD and reUSDe, distributed to token holders",
+        UserFees: "Fees recorded in the fee vault",
+    },
+    breakdownMethodology: {
+        Fees: {
+            [METRIC.ASSETS_YIELDS]: "Yield accrued by reUSD and reUSDe from deposited assets",
+            [METRIC.MINT_REDEEM_FEES]: "Mint and redemption fees recorded in the fee vault",
+        },
+        Revenue: {
+            [METRIC.MINT_REDEEM_FEES]: "Fees recorded in the fee vault",
+        },
+        SupplySideRevenue: {
+            [METRIC.ASSETS_YIELDS]: "Yield accrued by reUSD and reUSDe, distributed to token holders",
+        },
+        UserFees: {
+            [METRIC.MINT_REDEEM_FEES]: "Fees recorded in the fee vault",
+        },
     }
 }
 

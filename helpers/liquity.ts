@@ -138,7 +138,6 @@ export function liquityV2Exports(config: IJSON<LiquityV2Config>) {
 const RedemptionEvent = 'event Redemption(uint _attemptedLUSDAmount, uint _actualLUSDAmount, uint _ETHSent, uint _ETHFee)'
 const BorrowingEvent = 'event LUSDBorrowingFeePaid(address indexed _borrower, uint _LUSDFee)'
 const LiquidationEvent = 'event Liquidation(uint _liquidatedDebt, uint _liquidatedColl, uint _collGasCompensation, uint _LUSDGasCompensation)'
-const ETHGainWithdrawn = 'event ETHGainWithdrawn (address indexed _depositor, uint256 _ETH, uint256 _LUSDLoss)'
 
 type LiquityV1Config = {
   start?: string;
@@ -173,7 +172,6 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
 
     // Get brrower operator contract
     const borrowerOperator = await api.call({ abi: 'address:borrowerOperationsAddress', target: config.troveManager })
-    const stabilityPool = await api.call({ abi: 'address:stabilityPool', target: config.troveManager })
 
     // redemptions fees
     const redemptionLogs = await getLogs({
@@ -191,11 +189,6 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
     const borrowingLogs = await getLogs({
       target: borrowerOperator,
       eventAbi: borrowingEvent,
-    })
-
-    const ETHGainWithdrawnLogs = await getLogs({
-      target: stabilityPool,
-      eventAbi: ETHGainWithdrawn,
     })
 
     // get _ETHFee from event - redemption fees are holders revenue
@@ -235,15 +228,15 @@ export const getLiquityV1LogAdapter: any = (config: LiquityV1Config): FetchV2 =>
       }
     })
 
-    // count liquidation gain to supplyside: collateral gained by stability pool depositors minus the
-    // stablecoin they burned. Net the two in USD so a day with heavy stablecoin losses cannot push the
-    // stablecoin balance negative (the validator rejects negative per-token values).
+    // count liquidation gain to supplyside: collateral seized from liquidated troves minus the debt it
+    // cleared. Net the two in USD so a day where the debt is worth more than the collateral cannot push
+    // the stablecoin balance negative (the validator rejects negative per-token values).
     const liquidationGain = createBalances()
     const liquidationLoss = createBalances()
-    ETHGainWithdrawnLogs.forEach((logs) => {
-      if (config.collateralCoin) liquidationGain.add(config.collateralCoin, BigInt(logs['_ETH']))
-      else liquidationGain.addGasToken(BigInt(logs['_ETH']))
-      liquidationLoss.add(config.stableCoin, BigInt(logs['_LUSDLoss']))
+    liquidationLogs.forEach((logs) => {
+      if (config.collateralCoin) liquidationGain.add(config.collateralCoin, BigInt(logs['_liquidatedColl']))
+      else liquidationGain.addGasToken(BigInt(logs['_liquidatedColl']))
+      liquidationLoss.add(config.stableCoin, BigInt(logs['_liquidatedDebt']))
     })
     const liquidationProfitUsd = (await liquidationGain.getUSDValue()) - (await liquidationLoss.getUSDValue())
     if (liquidationProfitUsd > 0) {
@@ -266,7 +259,7 @@ const defaultV1methodology = {
   Fees: 'Total one-time borrow fees, redemption fees paid by borrowers, liquidation gas compensations and liquidation profits.',
   Revenue: 'Share of borrow and redemption fees distributed to the protocol and/or token holders.',
   HoldersRevenue: 'Share of borrow and redemption fees distributed to stability pool depositors and protocol token stakers.',
-  SupplySideRevenue: 'Liquidation gas compensations and liquidation profits distributed to stability pool depositors.',
+  SupplySideRevenue: 'Liquidation gas compensations, and the profit on collateral seized in liquidations, which goes to stability pool depositors and to the borrowers any remainder is redistributed to.',
   ProtocolRevenue: 'Share of borrow and redemption fees going to the protocol.',
 }
 
@@ -275,7 +268,7 @@ export const defaultV1BreakdownMethodology = {
     [METRICS.BorrowFees]: 'One-time borrow fees paid by borrowers.',
     [METRICS.RedemptionFee]: 'Redemption fees paid by borrowers.',
     [METRICS.GasCompensation]: 'Gas compensations paid to liquidators when trigger liquidations.',
-    [METRICS.LiquidationProfit]: 'Profit from collaterals seized in liquidations, distributed to stability pool depositors.',
+    [METRICS.LiquidationProfit]: 'Collateral seized from liquidated troves less the debt it cleared, priced on the day of the liquidation.',
   },
   Revenue: {
     [METRICS.BorrowFees]: 'Share of one-time borrow fees paid by borrowers.',
@@ -291,7 +284,7 @@ export const defaultV1BreakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRICS.GasCompensation]: 'Gas compensations paid to liquidators when trigger liquidations.',
-    [METRICS.LiquidationProfit]: 'Profit from collaterals seized in liquidations, distributed to stability pool depositors.',
+    [METRICS.LiquidationProfit]: 'Collateral seized from liquidated troves less the debt it cleared, going to stability pool depositors and to the borrowers any remainder is redistributed to.',
   },
 }
 

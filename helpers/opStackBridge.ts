@@ -22,6 +22,8 @@ export type OpStackBridgeConfig = {
   extraEthDeposits?: { target: string; eventAbi: string; amountArg: string }[];
   // Ethereum address of the L2 gas token when it isn't ETH
   gasToken?: string;
+  // senders whose token deposits/withdrawals through the bridge are skipped (the issuer's own treasury moving its token supply)
+  excludedSenders?: string[];
 };
 
 const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) => {
@@ -72,13 +74,16 @@ const fetchOpStack = async (options: FetchOptions, config: OpStackBridgeConfig) 
   }
 
   // Token deposits and withdrawals through the bridge
+  const excludedSenders = new Set((config.excludedSenders ?? []).map((s) => s.toLowerCase()));
   const tokenDeposits = await options.getLogs({ target: config.bridge, eventAbi: "event ERC20DepositInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData)" });
-  for (const { l1Token, amount } of tokenDeposits) {
+  for (const { l1Token, from, amount } of tokenDeposits) {
+    if (excludedSenders.has(from.toLowerCase())) continue;
     dailyOutgoingVolume.add(l1Token, amount);
     dailyOutgoingTxCount++;
   }
   const tokenWithdrawals = await options.getLogs({ target: config.bridge, eventAbi: "event ERC20WithdrawalFinalized(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 amount, bytes extraData)" });
-  for (const { l1Token, amount } of tokenWithdrawals) {
+  for (const { l1Token, from, amount } of tokenWithdrawals) {
+    if (excludedSenders.has(from.toLowerCase())) continue;
     dailyIncomingVolume.add(l1Token, amount);
     dailyIncomingTxCount++;
   }

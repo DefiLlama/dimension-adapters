@@ -2,8 +2,9 @@ import { queryAllium } from "../helpers/allium";
 import fetchURL, { httpGet } from "../utils/fetchURL";
 import { ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { createEvmChainUsersFetcher, EVM_CHAIN_METRIC_CONFIGS } from "../helpers/evmChainFees";
+import { createEvmChainNewUsersFetcher, createEvmChainUsersFetcher, EVM_CHAIN_METRIC_CONFIGS } from "../helpers/evmChainFees";
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
+import { feeHistoryUsersExports } from "./utils/feeHistoryUsers";
 import { routescanStatsExports } from "./utils/routescanStats";
 import { subscanStatsExports } from "./utils/subscanStats";
 
@@ -112,13 +113,15 @@ const alliumChainMap: Record<string, string> = {
 
 const alliumExports = Object.keys(alliumChainMap).map(c => ({ name: c, id: c, getUsers: getAlliumUsersChain(c), getNewUsers: getAlliumNewUsersChain(c), chain: alliumChainMap[c], type: 'chain' }))
 
-const evmChainMetricConfigKeys = ["core"] as const;
+const evmChainMetricConfigKeys = ["core", "bifrost-network"] as const;
+const evmChainNewUsersConfigKeys: string[] = ["bifrost-network"];
 const evmChainMetricExports = evmChainMetricConfigKeys.map((name) => {
   const config = EVM_CHAIN_METRIC_CONFIGS[name];
   return {
     name,
     chain: config.chain,
     getUsers: createEvmChainUsersFetcher(config),
+    getNewUsers: evmChainNewUsersConfigKeys.includes(name) ? createEvmChainNewUsersFetcher(config) : undefined,
     start: config.start,
     id: name,
   };
@@ -210,4 +213,4 @@ export default [
   type: "chain",
   chain: chain.chain,
   getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, routescanStatsExports, subscanStatsExports, evmChainMetricExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, feeHistoryUsersExports, routescanStatsExports, subscanStatsExports, evmChainMetricExports)

@@ -23,9 +23,9 @@ const fetch = async (options: FetchOptions) => {
   const markets = await httpGet(`${API}/orderBooks?market_id=255`);
   options.api.log('Lighter markets #', markets?.order_books?.length || 0);
 
-  // Filter markets to only include those with market_id > 2047
-  const filteredMarkets = markets.order_books.filter(({ market_id }: any) => market_id > 2047);
-  options.api.log('Filtered markets (market_id > 2047) #', filteredMarkets?.length || 0);
+  // Spot markets only; new perps use ids >= 4095, so filter on market_type, not the id range
+  const filteredMarkets = markets.order_books.filter(({ market_type }: any) => market_type === 'spot');
+  options.api.log('Spot markets #', filteredMarkets?.length || 0);
 
   await PromisePool.withConcurrency(5)
     .for(filteredMarkets)

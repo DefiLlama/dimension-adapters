@@ -72,7 +72,7 @@ const breakdownMethodology = {
   }
 }
 
-const getMarkets = async () => {
+export const getMarkets = async () => {
   const url = "https://www.inverse.finance/api/defillama/simple-market-list"
   const data = await getConfig('inverse-finance/markets', url);
   return data.markets;
@@ -106,15 +106,15 @@ const fetch = async ({ chain, toTimestamp, createBalances, getLogs, getFromBlock
     getDbrPrices(),
   ]);
 
-  const dbrHistoPrice = dbrPrices.findLast(d => d.timestamp < (toTimestamp * 1000)).price;
+  const dbrHistoPrice = dbrPrices.findLast((d: any) => d.timestamp < (toTimestamp * 1000)).price;
 
-  const existingMarkets = markets.filter(m => m.startingBlock <= block)
+  const existingMarkets = markets.filter((m: any) => m.startingBlock <= block)
 
   // 1 DOLA debt = 1 DBR spent per year by borrowers
   const totalDebts = await api.multiCall({
     permitFailure: true,
     abi: 'function totalDebt() public view returns (uint)',
-    calls: existingMarkets.map(m => ({ target: m.address })),
+    calls: existingMarkets.map((m: any) => ({ target: m.address })),
   });
 
   // DBR distributed to INV stakers

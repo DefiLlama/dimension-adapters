@@ -9,21 +9,24 @@ export const timeFilter = (options: FetchOptions, alias = "") =>
   `${alias}block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND ${alias}block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
 // programIds: one program, or several read together (program_events then tells them apart by `program`)
-export function programEventsSql(programIds: string | string[], options: FetchOptions): string {
+export function programEventsSql(programIds: string | string[], options: FetchOptions, quietInstructions: Record<string, string[]> = {}): string {
   const programs = [programIds].flat().map((id) => `'${id}'`).join(", ");
+  const quiet = Object.entries(quietInstructions)
+    .map(([program, discriminators]) => `(program_id = '${program}' AND data_hex_first16 IN (${discriminators.map((d) => `'${d}'`).join(", ")}))`)
+    .join(" OR ") || "FALSE";
   return `
   WITH program_calls AS (
     -- every call of the program, by a user or by another program
-    SELECT txn_id, COUNT(*) AS calls
+    SELECT txn_id, COUNT(*) AS calls, COUNT_IF(NOT COALESCE(quiet, FALSE)) AS loud_calls
     FROM (
-      SELECT txn_id FROM solana.raw.instructions WHERE ${timeFilter(options)} AND program_id IN (${programs})
+      SELECT txn_id, ${quiet} AS quiet FROM solana.raw.instructions WHERE ${timeFilter(options)} AND program_id IN (${programs})
       UNION ALL
-      SELECT txn_id FROM solana.raw.inner_instructions WHERE ${timeFilter(options)} AND program_id IN (${programs})
+      SELECT txn_id, ${quiet} AS quiet FROM solana.raw.inner_instructions WHERE ${timeFilter(options)} AND program_id IN (${programs})
     )
     GROUP BY txn_id
   ),
   program_txs AS (
-    SELECT t.txn_id, t.log_messages, c.calls
+    SELECT t.txn_id, t.log_messages, c.calls, c.loud_calls
     FROM solana.raw.transactions t
     JOIN program_calls c ON c.txn_id = t.txn_id
     WHERE ${timeFilter(options, "t.")} AND t.success
@@ -32,7 +35,7 @@ export function programEventsSql(programIds: string | string[], options: FetchOp
     -- The runtime writes "Program <id> invoke [<depth>]" when a program is called and "Program <id> success"
     -- when it returns. A program's own lines read "Program log:", "Program data:" or "Program return:", so
     -- they cannot pass for these. The network keeps about 10 kB of logs and then writes "Log truncated".
-    SELECT t.txn_id, t.calls, l.index AS line, l.value::STRING AS msg,
+    SELECT t.txn_id, t.calls, t.loud_calls, l.index AS line, l.value::STRING AS msg,
       STARTSWITH(msg, 'Program ') AND NOT ENDSWITH(SPLIT_PART(msg, ' ', 2), ':') AS by_runtime,
       IFF(by_runtime AND SPLIT_PART(msg, ' ', 3) = 'invoke', SPLIT_PART(msg, ' ', 2), NULL) AS invoked,
       CASE WHEN invoked IS NOT NULL THEN 1 WHEN by_runtime AND SPLIT_PART(msg, ' ', 3) IN ('success', 'failed:') THEN -1 ELSE 0 END AS step,
@@ -50,7 +53,7 @@ export function programEventsSql(programIds: string | string[], options: FetchOp
   log_calls AS (
     -- A program can log arbitrary bytes, so an event is only trusted from the program that was running
     -- when it was written: the latest call opened at the line's depth.
-    SELECT txn_id, calls, truncated_at, msg, step,
+    SELECT txn_id, calls, loud_calls, truncated_at, msg, step,
       LAST_VALUE(invoked) IGNORE NULLS OVER (PARTITION BY txn_id, depth ORDER BY line ROWS UNBOUNDED PRECEDING) AS program,
       LAST_VALUE(IFF(step = 1, call_no, NULL)) IGNORE NULLS OVER (PARTITION BY txn_id, depth ORDER BY line ROWS UNBOUNDED PRECEDING) AS frame
     FROM log_depths
@@ -61,10 +64,11 @@ export function programEventsSql(programIds: string | string[], options: FetchOp
     WHERE program IN (${programs}) AND STARTSWITH(msg, 'Program data: ')
   ),
   cut_txs AS (
-    -- logs cut before every call of the program had returned: the events of the other calls are lost
+    -- logs cut before every call of the program had returned: the events of the other calls are lost (unless every
+    -- call is quiet; a returned quiet call cannot be told from a returned loud one, so mixed transactions still count)
     SELECT txn_id
     FROM log_calls
-    WHERE truncated_at IS NOT NULL
+    WHERE truncated_at IS NOT NULL AND loud_calls > 0
     GROUP BY txn_id, calls
     HAVING COUNT_IF(step = -1 AND program IN (${programs})) < calls
   ),

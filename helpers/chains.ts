@@ -441,4 +441,5 @@ export enum CHAIN {
   SOMMELIER = "sommelier",
   FETCHHUB = "fetchhub",
   ANUBI = "anubi",
+  DUSK = "dusk",
 }

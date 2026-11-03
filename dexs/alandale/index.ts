@@ -17,6 +17,34 @@ const defaultCommunityFeeEvent = 'event DefaultCommunityFee(uint8 newDefaultComm
 const FEE_DENOMINATOR = 1e6;
 const COMMUNITY_FEE_DENOMINATOR = 1e3;
 
+// 2026-10-27 flash loan exploit wallets
+const EXPLOIT_SENDERS = new Set([
+  '0x1ca808a5f90719916794b2afa947ae47db78434d',
+  '0x24200d29e2822239f71e0e279b38d6cbfcc71608',
+  '0x3329031f09b33bf872ac5a48c6b114a6fcaa0179',
+  '0x3557b3e7964b9915de02804041419b968d607595',
+  '0x3d7de716cc83e7a4b4f3372a7af0fb218d63898b',
+  '0x54276a09f868c91e46bd9ff05d73462f9ad04064',
+  '0x552812dfe6d24b78e16d00c00c9a0482c92fd2bb',
+  '0x5cc2499c82f0d58497b50f701e5e3c569368e825',
+  '0x5d1d94cc0f2347b015cfbad37b036e6977179455',
+  '0x5f44da8f248d2a61a0bf69c439ac45110eaed272',
+  '0x7744fe376c34b2d10c8e1f356573c1272ab4de68',
+  '0x7ef3f545e060bee1b2298dd481490b0ee621d9ce',
+  '0x9c875a6480daa7fc1fd0a141b780f68881067273',
+  '0xa380fa7166cfda74cbee2a952b7546408e915259',
+  '0xa4c6e695c41e2f1b34dc87a276b742baff028811',
+  '0xab9d3c7a26cb365719543decb20ceca420c09cc0',
+  '0xb25652eadcf794c5cf1ac86ed5f2fd63b1cf8bec',
+  '0xb649d65e75ab19005b02ec3f9d35e2f72ceb1b7b',
+  '0xc32e118ae7a91931bcdf5de98ae2b69191f2bb99',
+  '0xc459fc154d01bb4c159b834eeb14ccc3afb84eb2',
+  '0xc81eeb349874b32e34bf75fbd413e95fa9afe9d4',
+  '0xe17809fea1684ff0a753f9239c4fee0c0472a5d8',
+  '0xe5221ae40c86fa37447c4526a05ee63b94ca80cb',
+  '0xfb1c38e5d287d070c5f7c158bdc2b2e07fcfa2b4',
+]);
+
 type Point = { block: number; index: number; value: number };
 
 const toPoints = (logs: any[]): Point[] =>
@@ -126,7 +154,8 @@ const fetch = async (options: FetchOptions) => {
       const fee0 = amount0.toString() * fee;
       const fee1 = amount1.toString() * fee;
 
-      addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
+      if (!EXPLOIT_SENDERS.has(args.sender.toLowerCase()))
+        addOneToken({ chain, balances: dailyVolume, token0, token1, amount0, amount1 });
       addOneToken({ chain, balances: dailyFees, token0, token1, amount0: fee0, amount1: fee1, label: METRIC.SWAP_FEES });
       addOneToken({
         chain,

@@ -32,6 +32,75 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "rxn": {
+    // RXN (https://rxn.gg, https://x.com/rxn_gg), a Hyperliquid perps terminal. Orders RXN places carry this builder code
+    // while Hyperliquid pays the builder: 0.02% on crypto and standard perps, 0.005% on HIP-3 markets in growth mode, and
+    // 0 on post-only orders, which still carry the code (f = 0) so their volume is attributed. TWAP orders, trailing stops
+    // and the deposit window's spot sale carry no builder field and are not counted; a close refused because of the
+    // builder is sent again without it. Traders approve a 0.05% ceiling once; the order ticket shows the rate before
+    // each order.
+    // Verifiable: each order's action on the Hyperliquid explorer (builder b, f); https://rxn.gg/api/trading?op=config
+    // (builder.address) while trading is open; the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x4480dcf81d177a4295b4ff32393ebeda35bb02e2"],
+    // RXN's first day: the team's check fills from 08:37 UTC (team-only preview), trading open on rxn.gg from 08:51 UTC.
+    // Earlier fills of this address came from Ryntra's previous terminal, trade.ryntra.io (same team, offline since
+    // 2026-10-28), and are not RXN's
+    start: "2026-11-01",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through RXN with its builder code; post-only orders carry the code at no fee and are included, TWAP orders and trailing stops carry none and are not.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through RXN; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees paid on trades placed through RXN, all kept by RXN.",
+      ProtocolRevenue: "Builder code fees paid on trades placed through RXN, all paid to RXN's builder account.",
+    },
+    breakdownFees: true,
+  },
+  "blackboard": {
+    // Blackboard (https://blackboard.fi), a web trading terminal with embedded wallets for Hyperliquid perps (it also
+    // trades Aster, Polymarket and others; only the Hyperliquid builder code is counted here). Every Hyperliquid order it
+    // places carries this builder code; the fee is a share of filled notional that varies by the user's volume tier
+    // (0.025% on most current fills).
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x6c7b618ec300ffe98cd63bf96a00e5088c724f58"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-04-29",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Blackboard, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Blackboard; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
+      ProtocolRevenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
+    },
+    breakdownFees: true,
+  },
+  "wenlong": {
+    // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
+    // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
+    // https://wenlong.io/terms. Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0xb5e6e42154961f57021d06b7052c637155280025"],
+    // first day with fills through this builder code
+    start: "2026-07-03",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through WenLong, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through WenLong; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by WenLong, before its referral payouts.",
+      ProtocolRevenue: "Builder code fees received by WenLong, before its referral payouts.",
+    },
+    breakdownFees: true,
+  },
+  "perpex": {
+    // Perpex (perpex.co, by Celebit Ltd) builder code, attached to Hyperliquid orders placed through the web, iOS and
+    // Android apps, including copy-trading orders: 0.10% of eligible filled notional, published at https://perpex.co/fees.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x495a2c91b4173d979150ba108e2d80ce0145a7de"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-03-14",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Perpex, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Perpex; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by Perpex.",
+      ProtocolRevenue: "Builder code fees collected by Perpex.",
+    },
+    breakdownFees: true,
+  },
   "arx-perps": {
     // ARX team-confirmed builder; official site: https://arx.trade / https://x.com/ARX_TRADE
     // First real fills confirmed by the team: 2026-10-02 (UTC).
@@ -89,6 +158,23 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
 
+  "fiatbear-perps": {
+    // FiatBear (fiatbear.com) non-custodial Hyperliquid copy-trading app. The builder code is attached to copied
+    // orders placed through the user's agent wallet. Disclosed fee: 5 bps (0.05%) of copied notional, approved by the
+    // user's main wallet: https://app.fiatbear.com/security
+    // Verifiable: POST https://api.hyperliquid.xyz/info {"type":"referral","user":"0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"} (builderRewards)
+    addresses: ["0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232"],
+    // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x9f719aed9e651e8c6060e06f67cf9f5f2c0f0232/20260716.csv.lz4
+    start: "2026-07-16",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) copied through FiatBear, counted from its builder code.",
+      Fees: "Hyperliquid builder code fees paid by users on trades copied through FiatBear; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees collected by FiatBear on copied trades.",
+      ProtocolRevenue: "Builder code fees collected by FiatBear on copied trades.",
+    },
+    breakdownFees: true,
+  },
+
   "kokoah-perps": {
     // Kokoah (kokoah.com) builder code, attached to every Hyperliquid order placed through the app. The app's API
     // publishes the address and fee: https://api.kokoah.com/v1/public-config (`builder`).
@@ -133,17 +219,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through GDEX.",
       Revenue: "Hyperliquid builder code fees collected by GDEX. Referral rewards GDEX later pays out off-chain from its treasury are not deducted.",
       ProtocolRevenue: "Hyperliquid builder code fees collected by GDEX. Referral rewards GDEX later pays out off-chain from its treasury are not deducted.",
-    },
-    breakdownFees: true,
-  },
-  "jumper-perps-hl": {
-    addresses: ["0x50d95d5823c5dc70d49599e9f120dfbbba93be56"],
-    start: "2026-09-09",
-    methodology: {
-      Volume: "Perpetual trading volume routed through Jumper on Hyperliquid.",
-      Fees: "Builder code fees paid by users trading Hyperliquid perpetuals through Jumper.",
-      Revenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
-      ProtocolRevenue: "Builder code fees attributed to Jumper from Hyperliquid perpetual trades.",
     },
     breakdownFees: true,
   },
@@ -387,6 +462,19 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     extraReturnFields: { dailyHoldersRevenue: "0" },
   },
+  "entryx": {
+    // Entryx (entryx.trade) builder code, attached to Hyperliquid perp orders placed through the web app: 0.05% builder fee.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards) and the public builder_fills archive,
+    // https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x3b9e208e3890fb54a1b4d4129bee0da90ce87d1e/20261025.csv.lz4
+    addresses: ["0x3b9e208e3890fb54a1b4d4129bee0da90ce87d1e"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-10-25",
+    methodology: {
+      Fees: "Builder code fees paid by users on Hyperliquid perps placed through Entryx (excludes Hyperliquid's own trading fees).",
+      Revenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
+      ProtocolRevenue: "Builder Code Fees collected by Entryx from Hyperliquid Perps.",
+    },
+  },
   "phantom-perps": {
     addresses: ["0xb84168cf3be63c6b8dad05ff5d755e97432ff80b"],
     start: "2025-07-08",
@@ -429,6 +517,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   "echosync-perps": { addresses: ["0x831ad7eb3e600a3ab8df851ce27df8d8dd6b5d9c"], start: "2025-11-07" },
   // "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
+  // Changes to fomo's revenue methodology, including shared builder logic, require further approval before merging:
+  // a Trueo market depends on this data; this builder also supplies fomo Spot and Outcome.
   "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"] },
   "gemwallet-perps": {
     addresses: ["0x0d9dab1a248f63b0a48965ba8435e4de7497a3dc"],
@@ -560,7 +650,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "superx": superxConfig,
   "supurr-perps": { addresses: ["0x36be02a397e969e010ccbd7333f4169f66b8989f"], start: "2025-09-19" },
   "unigox-perps": { addresses: ["0xf8ead1ecc72dfbb87cdd7bf78450f7cf68d046a3"], start: "2025-09-01" },
-  "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20" },
+  // UXUY moved perps to its self-operated venue in July 2026, tracked as uxuy-perps-v2 (dexs + open-interest)
+  "uxuy-perps": { addresses: ["0x2e266a0f40e9f5bca48f5df1686aab10b1b68ec8"], start: "2025-10-20", deadFrom: "2026-09-22" }, // no builder fills since 2026-09-21
   "valiant-perps": {
     addresses: ["0x751d254c07f7a4b454eb5c2a23ebe3adf1a4eaec"],
     start: "2025-02-08",
@@ -704,15 +795,12 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
     },
   },
-  "rainbow-perps": {
+  // rainbow-perps is a standalone adapter (fees/rainbow-perps.ts), only the spot market is listed here
+  "rainbow-spot": {
     addresses: ["0x60dc8e3dad2e4e0738e813b9cb09b9c00b5e0fc9"],
     start: "2025-09-15",
     breakdownFees: true,
-    methodology: {
-      Fees: "builder code revenue from Hyperliquid Perps Trades.",
-      Revenue: "builder code revenue from Hyperliquid Perps Trades.",
-      ProtocolRevenue: "builder code revenue from Hyperliquid Perps Trades.",
-    },
+    market: "spot",
   },
   "supercexy": {
     addresses: ["0x0000000bfbf4c62c43c2e71ef0093f382bf7a7b4"],
@@ -833,6 +921,8 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  // Changes to fomo Perps' revenue methodology, including shared builder logic, require further approval before merging:
+  // a Trueo market depends on this data.
   "fomo-social-trading-perps": {
     addresses: ["0x2a2b6b093a9813fbd8cddae800c3d17d46460d17"],
     start: "2026-06-05",
@@ -1410,6 +1500,8 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: 
   "hyena": { dexId: "hyna", start: "2025-12-01", methodologyName: "Based and Ethena teams" },
   // "kinetiq-markets" fees/volume is handled by the standalone dexs/kinetiq-markets.ts (HIP-3 dex "mkts");
   // its builder codes are in the standalone dexs/kinetiq-interface.ts (perps) and dexs/kinetiq-interface-spot.ts
+  // Changes to tradeXYZ's revenue methodology, including shared HIP-3 deployer logic, require further approval before merging:
+  // a Trueo market depends on this data.
   "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
   // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
   // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
@@ -1468,6 +1560,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "evplusai-spot": { builder: "evplusai-perps", market: "spot", start: "2025-02-23" },
   "fan-app-spot": { builder: "fan-app-perps", market: "spot", start: "2025-09-06" },
   "floatout-outcome": { builder: "floatout", market: "outcome", start: "2026-05-05" },
+  // Changes to fomo Spot or Outcome revenue methodology require further approval before merging:
+  // a Trueo market depends on this data, including the shared fomo-perps builder configuration.
   "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01" },
   "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02" },
   "gdex-outcome": { builder: "gdex-perps", market: "outcome", start: "2026-05-05" },
@@ -1488,7 +1582,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "hyprearn-spot": { builder: "hyprearn-perps", market: "spot", start: "2025-09-01" },
   "infinex-spot": { builder: "infinex-perps", market: "spot", start: "2025-08-18" },
   "infinex-outcome": { builder: "infinex-perps", market: "outcome", start: "2026-05-02" },
-  "jumper-perps-hl-spot": { builder: "jumper-perps-hl", market: "spot", start: "2026-09-09" },
   "katoshi-spot": { builder: "katoshi-perps", market: "spot", start: "2025-08-01" },
   "legend-trade-spot": { builder: "legend-trade", market: "spot", start: "2026-01-29" },
   "liminal-spot": { builder: "liminal-perps", market: "spot", start: "2025-07-20" },
@@ -1527,7 +1620,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
   "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
-  "rainbow-spot": { builder: "rainbow-perps", market: "spot", start: "2025-09-15" },
   "sendai-outcome": { builder: "sendai-perps", market: "outcome", start: "2026-05-02" },
   "sendai-spot": { builder: "sendai-perps", market: "spot", start: "2026-04-15" },
   "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },

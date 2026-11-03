@@ -5,6 +5,7 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { httpGet } from "../../utils/fetchURL";
 import { id, zeroPadValue } from "ethers";
 import { ChainApi } from "@defillama/sdk";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const USDC = ADDRESSES.base.USDC;
 // Base Mainnet network identifier: https://docs.base.org/base-chain/api-reference/ethereum-json-rpc-api/eth_chainId
@@ -304,6 +305,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // a buyback can land in a later hour than its draw, so an hour's net pack sales can be negative
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

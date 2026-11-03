@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";

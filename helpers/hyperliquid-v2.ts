@@ -1,3 +1,7 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// Trueo markets depend on the Hyperliquid revenue it feeds (Perps, Spot, Outcomes, HLP) and on
+// the fomo Perps, Spot and Outcome builder revenue (exportBuilderAdapterV2).
+
 import { Balances } from "@defillama/sdk";
 import axios from "axios";
 import { decompressFrame } from "lz4-napi";
@@ -186,6 +190,14 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     dailyAqav2Yield: usd(fees.aqav2YieldUsd),
     dailyAssistanceFundBuyBack: usd(fees.afBuyBackHypeUsd),
   };
+}
+
+// Spot fees paid in `token` net of the builder-code fees paid in it, in token units. Fees paid in a HIP-1 token go
+// to its deployer (deployerTradingFeeShare, the rest is burned), so this is a deployer's take on its own token.
+// Raw units rather than Balances: these tokens are not in CoinGeckoMaps, so the caller prices them.
+export async function queryHyperliquidSpotDeployerFeesV2(options: FetchOptions, token: string): Promise<number> {
+  const fees = await requestDaily<FeesDailyResponse>("fees", options);
+  return Number(fees.spotFees?.[token] || 0) - Number(fees.spotBuildersFees?.[token] || 0);
 }
 
 // HIP-4 outcome markets went live on mainnet on 2026-05-02

@@ -11,6 +11,14 @@ export async function getObject(objectId: string): Promise<any> {
   return sui.getObject({ objectId })
 }
 
+export async function graphqlCall(query: string, variables: Record<string, any> = {}): Promise<any> {
+  return sui.graphqlCall({ query, variables })
+}
+
+export async function getCheckpointAtTimestamp(timestamp: number): Promise<{ sequenceNumber: number; timestamp: number }> {
+  return sui.getCheckpointAtTimestamp({ timestamp })
+}
+
 export interface SuiEventModule {
   package: string
   module: string

@@ -4,9 +4,11 @@ import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
+const INJECTIVE_CACHE_API = "https://api.ui.injective.network/api/v1/cache";
 
 interface VolumeConfig {
   endpoint: string;
+  fallbackEndpoint?: string;
   start: string;
   doublecounted?: boolean;
   methodology?: Record<string, string>;
@@ -21,11 +23,42 @@ interface FeesConfig {
   breakdownMethodology?: Record<string, Record<string, string>>;
 }
 
+async function fetchFallbackVolume(endpoint: string): Promise<number> {
+  const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
+  if (!Array.isArray(res) || res.length === 0) return 0;
+  return res.reduce((acc: number, item: any) => {
+    const vol = parseFloat(item?.volume);
+    return acc + (!isNaN(vol) && vol > 0 ? vol : 0);
+  }, 0);
+}
+
+function isRecentDate(dateString: string): boolean {
+  const targetTime = new Date(dateString).getTime();
+  const now = Date.now();
+  // Allow cache fallback only for requests within the last 48 hours
+  return (now - targetTime) <= 48 * 60 * 60 * 1000;
+}
+
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-    return { dailyVolume: res.total_volume_usd };
+    try {
+      const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+      if (res && Array.isArray(res.days) && res.days.length === 1) {
+        return { dailyVolume: res.total_volume_usd };
+      }
+    } catch {
+      // BigQuery offline or request failed
+    }
+
+    // Use live cache only for recent dates, never for historical backfills
+    if (config.fallbackEndpoint && isRecentDate(options.dateString)) {
+      const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
+      if (liveVolume > 0) {
+        return { dailyVolume: liveVolume };
+      }
+    }
+
+    throw new Error(`No data found for the given date: ${options.dateString}`);
   };
 
   return {
@@ -39,10 +72,11 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
 
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-
     const dailyFees = options.createBalances();
+    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+    if (!res || !Array.isArray(res.days) || res.days.length !== 1) {
+      throw new Error("No data found for the given date: " + options.dateString);
+    }
     dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
 
     return {
@@ -65,10 +99,12 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
 const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-spot": {
     endpoint: "injective_spot_volume",
+    fallbackEndpoint: "spot",
     start: "2021-07-17",
   },
   "injective-derivatives": {
     endpoint: "injective_derivative_volume",
+    fallbackEndpoint: "derivatives",
     start: "2021-07-17",
   },
   "helix-helix": {

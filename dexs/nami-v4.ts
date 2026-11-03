@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -49,7 +50,7 @@ const getFeesDataAbi = 'function getFeesData(address pool) view returns (address
 
 const FEE_DENOMINATOR = 1e6
 const MAX_COMMUNITY_FEE = 1e3
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ZERO_ADDRESS = ADDRESSES.null
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, getLogs, chain, api } = options

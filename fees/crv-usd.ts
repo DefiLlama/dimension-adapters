@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -11,7 +14,7 @@ type ChainConfig = {
   crvusd: string;
 };
 
-const config: Record<string, ChainConfig> = {
+export const config: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: {
     factory: '0xC9332fdCB1C491Dcc683bAe86Fe3cb70360738BC',
     feeSplitter: '0x2dFd89449faff8a532790667bAb21cF733C064F2', // fee splitter sends crvusd revenue to scrvusd

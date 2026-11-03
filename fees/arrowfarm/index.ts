@@ -31,13 +31,12 @@ const LABELS = {
   CALLER: METRIC.OPERATORS_FEES,
 };
 
-// Harvest semantics differ per strategy type, so an unknown type must fail loudly
-// rather than be counted with the wrong formula.
-const POST_FEE_HARVEST: Record<string, boolean> = {
-  "uniswap-v1": false, // Harvest is gross LP trading fees, the charged part included
-  "fables-v1": false, // same contract shape as uniswap-v1
-  "fables-native-v1": false,
-  "velodrome-v1": true, // Harvest is the post-fee user share of the gauge reward
+const HARVEST_LABEL: Record<string, string> = {
+  "uniswap-v1": LABELS.LP_FEES, // LP trading fees
+  "fables-v1": LABELS.LP_FEES,
+  "fables-native-v1": LABELS.LP_FEES,
+  "velodrome-v1": LABELS.YIELD, // gauge rewards
+  "ramses-v1": LABELS.YIELD, // LP trading fees plus RAM gauge rewards, not separable in Harvest
 };
 
 /**
@@ -54,30 +53,26 @@ async function fetch(options: FetchOptions) {
     fromBlock: FACTORY_FROM_BLOCK,
     cacheInCloud: true,
   });
-  const strategies: { address: string; velodrome: boolean }[] = proxyLogs.map((l: any) => {
+  const harvestLabelOf: Record<string, string> = {};
+  for (const l of proxyLogs) {
     const name = String(l.strategyName);
-    if (!(name in POST_FEE_HARVEST)) throw new Error(`arrowfarm: unknown strategy type ${name} at ${l.proxy}`);
-    return { address: l.proxy.toLowerCase(), velodrome: POST_FEE_HARVEST[name] };
-  });
-  const addresses = strategies.map((s) => s.address);
+    if (!(name in HARVEST_LABEL)) throw new Error(`arrowfarm: unknown strategy type ${name} at ${l.proxy}`);
+    harvestLabelOf[l.proxy.toLowerCase()] = HARVEST_LABEL[name];
+  }
+  const addresses = Object.keys(harvestLabelOf);
 
   const vaults = await api.multiCall({ abi: vaultAbi, calls: addresses });
   const wants = await api.multiCall({ abi: wantsAbi, calls: vaults });
   const tokensOf: Record<string, [string, string]> = {};
   addresses.forEach((a, i) => (tokensOf[a] = [wants[i].token0, wants[i].token1]));
 
-  const uniTargets = strategies.filter((s) => !s.velodrome).map((s) => s.address);
-  const veloTargets = strategies.filter((s) => s.velodrome).map((s) => s.address);
-
   const logOpts = { entireLog: true, parseLog: true } as const;
-  // getLogs throws on an empty target list (no Velodrome strategy existed on the first days)
-  const logsOf = async (targets: string[], eventAbi: string): Promise<any[]> =>
-    targets.length ? getLogs({ targets, eventAbi, ...logOpts }) : [];
-  const uniHarvests = await logsOf(uniTargets, harvestAbi);
-  const veloHarvests = await logsOf(veloTargets, harvestAbi);
-  const uniCharged = await logsOf(uniTargets, chargedFeesAbi);
-  const veloCharged = await logsOf(veloTargets, chargedFeesAbi);
-  const sentToTreasury = await logsOf(uniTargets, sentFeesToTreasuryAbi);
+  // getLogs throws on an empty target list (no strategy existed in the first hours)
+  const logsOf = async (eventAbi: string): Promise<any[]> =>
+    addresses.length ? getLogs({ targets: addresses, eventAbi, ...logOpts }) : [];
+  const harvests = await logsOf(harvestAbi);
+  const charged = await logsOf(chargedFeesAbi);
+  const sentToTreasury = await logsOf(sentFeesToTreasuryAbi);
 
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
@@ -91,33 +86,18 @@ async function fetch(options: FetchOptions) {
     balances.add(token1, args.fee1, label);
   };
 
-  // uniswap-*, fables-*: Harvest is GROSS LP trading fees, the charged part is included.
-  // The charged WETH is removed from the supply side below, never added to fees again.
-  for (const log of uniHarvests) {
-    addPair(dailyFees, log.address, log.args, LABELS.LP_FEES);
-    addPair(dailySupplySideRevenue, log.address, log.args, LABELS.LP_FEES);
+  // Harvest is the post-fee share that stays with vault depositors
+  for (const log of harvests) {
+    const label = harvestLabelOf[log.address.toLowerCase()];
+    addPair(dailyFees, log.address, log.args, label);
+    addPair(dailySupplySideRevenue, log.address, log.args, label);
   }
-  for (const log of uniCharged) {
+  // ChargedFees is the performance fee taken on top of Harvest, paid in WETH
+  for (const log of charged) {
     const { callFeeAmount, arrowFeeAmount, strategistFeeAmount } = log.args;
-    const charged = BigInt(callFeeAmount) + BigInt(arrowFeeAmount) + BigInt(strategistFeeAmount);
-    dailySupplySideRevenue.add(WETH, -charged, LABELS.LP_FEES);
+    const total = BigInt(callFeeAmount) + BigInt(arrowFeeAmount) + BigInt(strategistFeeAmount);
+    dailyFees.add(WETH, total, LABELS.PERFORMANCE_FEES);
     // the harvest caller fee goes to the harvester, a cost of the protocol, not revenue
-    dailySupplySideRevenue.add(WETH, callFeeAmount, LABELS.CALLER);
-    dailyRevenue.add(WETH, arrowFeeAmount, LABELS.PERFORMANCE_FEES);
-    dailyRevenue.add(WETH, strategistFeeAmount, LABELS.PERFORMANCE_FEES);
-    dailyHoldersRevenue.add(WETH, arrowFeeAmount, LABELS.BUYBACK);
-    dailyProtocolRevenue.add(WETH, strategistFeeAmount, LABELS.PERFORMANCE_FEES);
-  }
-
-  // velodrome-*: Harvest is the POST-fee user share of the gauge reward, ChargedFees is the cut on top.
-  for (const log of veloHarvests) {
-    addPair(dailyFees, log.address, log.args, LABELS.YIELD);
-    addPair(dailySupplySideRevenue, log.address, log.args, LABELS.YIELD);
-  }
-  for (const log of veloCharged) {
-    const { callFeeAmount, arrowFeeAmount, strategistFeeAmount } = log.args;
-    const charged = BigInt(callFeeAmount) + BigInt(arrowFeeAmount) + BigInt(strategistFeeAmount);
-    dailyFees.add(WETH, charged, LABELS.PERFORMANCE_FEES);
     dailySupplySideRevenue.add(WETH, callFeeAmount, LABELS.CALLER);
     dailyRevenue.add(WETH, arrowFeeAmount, LABELS.PERFORMANCE_FEES);
     dailyRevenue.add(WETH, strategistFeeAmount, LABELS.PERFORMANCE_FEES);
@@ -136,18 +116,18 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "All yield generated by Arrowfarm concentrated liquidity vaults: LP trading fees harvested by Uniswap and Fables strategies (gross, before the performance fee), gauge rewards harvested by Velodrome strategies plus the performance fee charged on them, and trading fees sent straight to the treasury.",
+  Fees: "All yield generated by Arrowfarm concentrated liquidity vaults: LP trading fees and gauge rewards harvested by the strategies, the performance fee charged on them, and trading fees sent straight to the treasury.",
   Revenue: "Performance fees charged on harvests (arrow fee and strategist fee, paid in WETH) plus trading fees that strategies send to the treasury. The harvest caller fee is not counted as revenue.",
   ProtocolRevenue: "Strategist performance fees and trading fees sent to the Arrowfarm treasury.",
   HoldersRevenue: "The arrow performance fee in WETH is sent to the ArrowBuybackBurner, which buys ARROWFARM and burns it.",
-  SupplySideRevenue: "Yield that stays with vault depositors (gross harvested trading fees minus the performance fee, and the user share of Velodrome gauge rewards), plus the harvest caller fee paid to whoever calls harvest.",
+  SupplySideRevenue: "Yield that stays with vault depositors after the performance fee (LP trading fees and gauge rewards), plus the harvest caller fee paid to whoever calls harvest.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.LP_FEES]: "LP trading fees harvested by Uniswap and Fables strategies (gross, before the performance fee), plus trading fees sent to the treasury.",
-    [LABELS.YIELD]: "Velodrome gauge rewards harvested and converted to the vault tokens, net of the performance fee.",
-    [LABELS.PERFORMANCE_FEES]: "Performance fee charged on Velodrome gauge rewards, paid in WETH.",
+    [LABELS.LP_FEES]: "LP trading fees harvested by Uniswap and Fables strategies, net of the performance fee, plus trading fees sent to the treasury.",
+    [LABELS.YIELD]: "Velodrome gauge rewards, and Ramses LP trading fees plus RAM gauge rewards, harvested and converted to the vault tokens, net of the performance fee.",
+    [LABELS.PERFORMANCE_FEES]: "Performance fee charged on harvests, paid in WETH: taken from trading fees on Uniswap, Fables and Ramses strategies and from gauge rewards on Velodrome strategies.",
   },
   Revenue: {
     [LABELS.PERFORMANCE_FEES]: "Arrow and strategist performance fees charged on harvests, paid in WETH.",
@@ -161,8 +141,8 @@ const breakdownMethodology = {
     [LABELS.BUYBACK]: `Arrow performance fees in WETH sent to the ArrowBuybackBurner (${BUYBACK_BURNER}) to buy and burn ARROWFARM.`,
   },
   SupplySideRevenue: {
-    [LABELS.LP_FEES]: "LP trading fees retained by vault depositors, net of the performance fee.",
-    [LABELS.YIELD]: "User share of Velodrome gauge rewards.",
+    [LABELS.LP_FEES]: "LP trading fees harvested by Uniswap and Fables strategies and retained by vault depositors, net of the performance fee.",
+    [LABELS.YIELD]: "User share of Velodrome gauge rewards, and of Ramses LP trading fees plus RAM gauge rewards.",
     [LABELS.CALLER]: "Harvest caller fee in WETH paid to the account that calls harvest (0 since launch).",
   },
 };
@@ -177,7 +157,6 @@ const adapter: Adapter = {
   breakdownMethodology,
   // LP trading fees are also counted by the underlying DEX listings
   doublecounted: true,
-  allowNegativeValue: true, // per-hour supply side nets WETH charged against gross harvests held in other tokens
 };
 
 export default adapter;

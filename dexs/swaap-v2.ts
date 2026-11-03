@@ -7,7 +7,6 @@ interface ChainConfig {
   start: string;
   id: string;
   firstDayVolume: number;
-  invalidSpikes?: string[];
 }
 
 const config: Record<string, ChainConfig> = {
@@ -40,14 +39,12 @@ const config: Record<string, ChainConfig> = {
     start: '2024-05-29',
     id: '2',
     firstDayVolume: 0,
-    invalidSpikes: ['2026-09-18', '2026-09-21'],
   },
   [CHAIN.BASE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-base/1.0.0/gn",
     start: '2024-05-14',
     id: '2',
     firstDayVolume: 0,
-    invalidSpikes: ['2026-09-11', '2026-09-15'],
   },
   [CHAIN.MODE]: {
     api: "https://api.goldsky.com/api/public/project_clws2t7g7ae9c01xsbnu80a51/subgraphs/swaapv2-mode/1.0.1/gn",
@@ -75,47 +72,52 @@ const config: Record<string, ChainConfig> = {
   },
 };
 
+interface Snapshot {
+  id: string;
+  totalSwapVolume: string;
+}
+
 interface Data {
-  start: {
-    id: string;
-    totalSwapVolume: string;
+  _meta: {
+    block: {
+      timestamp: number;
+    };
   };
-  end: {
-    id: string;
-    totalSwapVolume: string;
-  };
+  start: Snapshot[];
+  end: Snapshot[];
 }
 
 const getVolume = async (options: FetchOptions) => {
-  if (config[options.chain].invalidSpikes?.includes(options.dateString)) {
-    return {
-      dailyVolume: 0,
-    };
-  }
   // A swaapSnapshot accumulates through the day its id names, so a day's volume is its own
   // snapshot minus the previous day's. Reading the next day's snapshot shifted the series one
   // day forward and, in production, read that snapshot while it was still filling up.
-  const endtimestamp = options.startOfDay;
-  const starttimestamp = endtimestamp - 86400;
-  const startId = config[options.chain].id + '-' + starttimestamp;
-  const endId = config[options.chain].id + '-' + endtimestamp;
+  // Snapshots are only written on days with vault activity
+  const dayStart = options.startOfDay;
+  const { id, api } = config[options.chain];
 
   const query = gql`
   {
-      start:swaapSnapshot(id: "${startId}") {
+      _meta {
+          block {
+              timestamp
+          }
+      }
+      start:swaapSnapshots(first: 1, orderBy: timestamp, orderDirection: desc, where: { vault: "${id}", timestamp_lt: ${dayStart} }) {
           id
           totalSwapVolume
       }
-      end:swaapSnapshot(id: "${endId}") {
+      end:swaapSnapshots(first: 1, orderBy: timestamp, orderDirection: desc, where: { vault: "${id}", timestamp_lte: ${dayStart} }) {
           id
           totalSwapVolume
       }
   }
   `;
-  const url = config[options.chain].api;
-  const graphQLClient = new GraphQLClient(url, { timeout: 30000 });
+  const graphQLClient = new GraphQLClient(api, { timeout: 30000 });
   const result: Data = await graphQLClient.request(query);
-  const dailyVolume = Number(result.end?.totalSwapVolume || 0) - Number(result.start?.totalSwapVolume || 0);
+  // a lagging subgraph would read as a quiet day, so wait until it has indexed past the day
+  if (result._meta.block.timestamp < dayStart + 86400)
+    throw new Error(`swaap-v2 ${options.chain} subgraph is indexed only up to ${new Date(result._meta.block.timestamp * 1000).toISOString()}`);
+  const dailyVolume = Number(result.end[0]?.totalSwapVolume || 0) - Number(result.start[0]?.totalSwapVolume || 0);
   return {
     dailyVolume: dailyVolume < 0 ? 0 : dailyVolume,
   };

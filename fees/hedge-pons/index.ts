@@ -12,6 +12,11 @@ const HOOK = "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044";
 const NVDA = ADDRESSES.robinhood.NVDA;
 const POOL_ID = "0xc5c73a17f81e15c4d9b076601476bbf751e0ab51a6eb7262da1b58e2913723be";
 const LAUNCH_BLOCK = 60794876;
+const HEDGE_RECIPIENTS = new Set([
+  "0xB5C9e27F50599687eD141ABe337414B79061489b", // HedgeHood Safe (2-of-3), the launch recipient
+  // HedgeHood buyback contract: safe() is the Safe, hedge() is $HEDGE
+  "0xbf5f103D1dbE47D90f06B7C1c3C1580bf9350e27",
+].map((a) => a.toLowerCase()));
 
 const CURVE_FEES_SWEPT = "event FeesSwept(uint256 protocolAmount, uint256 buybackAmount, uint256 creatorAmount)";
 const POOL_FEES_SWEPT = "event PoolFeesSwept(bytes32 indexed poolId, uint256 protocolAmount, uint256 buybackAmount, uint256 creatorAmount, uint256 tokensLocked)";
@@ -36,8 +41,8 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // The documented launch recipient is the HedgeHood Safe. If it is changed,
-  // review the effective recipient before attributing later sweeps to $HEDGE.
+  // The documented launch recipient is the HedgeHood Safe. If it is changed to an
+  // unverified address, review it before attributing later sweeps to $HEDGE.
   const [recipientChanges, curveSweeps, poolSweeps, curveRescues, poolRescues] = await Promise.all([
     options.getLogs({
       target: FACTORY,
@@ -60,8 +65,9 @@ async function fetch(options: FetchOptions) {
     }),
   ]);
 
-  if (recipientChanges.length)
-    throw new Error("$HEDGE Pons creator recipient changed; review historical fee attribution");
+  const unknownRecipient = recipientChanges.find((log: any) => !HEDGE_RECIPIENTS.has(log.newRecipient.toLowerCase()));
+  if (unknownRecipient)
+    throw new Error(`$HEDGE Pons creator recipient changed to unverified ${unknownRecipient.newRecipient}; review fee attribution`);
   if (curveRescues.length || poolRescues.length)
     throw new Error("$HEDGE Pons fees rescued; review rescue assets and allocations before counting");
 

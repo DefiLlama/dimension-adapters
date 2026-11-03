@@ -124,6 +124,7 @@ export type AdapterBase = {
   doublecounted?: boolean;
   methodology?: string | IJSON<string>;
   breakdownMethodology?: Record<string, string | IJSON<string>>;
+  unknownBreakdownMethodology?: Record<string, string | IJSON<string>>;
   fetch?: FetchV2;
   chains?: (string | [string, BaseAdapterChainConfig])[]
   prefetch?: FetchV2;

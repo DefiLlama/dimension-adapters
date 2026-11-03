@@ -146,7 +146,7 @@ const adapter: SimpleAdapter = {
 | `dailyNotionalVolume` | YES | Notional volume of options contracts |
 | `dailyPremiumVolume` | YES | Premium volume collected/paid |
 
-Open interest is currently exported for perps and futures only. Options adapters do not export it yet: raw notional OI is not comparable across expiries and strikes, and a measure normalized for time to expiry and distance from the current price is still to be defined.
+Options venues may export one-sided USD notional OI from `open-interest/`, separately from perps and futures (see `open-interest/AGENTS.md`). Label it notional OI: it does not account for expiry, moneyness, or premium paid, so do not describe it as capital at risk.
 
 ### Fees (Income Statement Model)
 

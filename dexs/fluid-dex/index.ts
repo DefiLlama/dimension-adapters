@@ -67,7 +67,16 @@ const abi = {
   swap: "event Swap(bool swap0to1, uint256 amountIn, uint256 amountOut, address to)",
 };
 
-const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<FetchResultV2> => {
+// Exported so fees/fluid can subtract the swap revenue cut from Liquidity Layer revenue (see fees/fluid/revenue.ts)
+export const FLUID_DEX_START: Record<string, string> = {
+  [CHAIN.ETHEREUM]: '2024-10-26',
+  [CHAIN.ARBITRUM]: '2024-12-23',
+  [CHAIN.POLYGON]: '2025-04-03',
+  [CHAIN.BASE]: '2025-05-22',
+  [CHAIN.PLASMA]: '2025-09-22',
+}
+
+export const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
@@ -167,13 +176,7 @@ const adapter: Adapter = {
   pullHourly: true,
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2024-10-26' },
-    [CHAIN.ARBITRUM]: { fetch, start: '2024-12-23' },
-    [CHAIN.POLYGON]: { fetch, start: '2025-04-03' },
-    [CHAIN.BASE]: { fetch, start: '2025-05-22' },
-    [CHAIN.PLASMA]: { fetch, start: '2025-09-22' },
-  },
+  adapter: Object.fromEntries(Object.entries(FLUID_DEX_START).map(([chain, start]) => [chain, { fetch, start }])),
 };
 
 export default adapter;

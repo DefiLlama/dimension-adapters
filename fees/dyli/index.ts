@@ -7,6 +7,7 @@ import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../../helpers/
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
 import { httpGet } from "../../utils/fetchURL";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 // DYLI production contracts on Abstract; source is DYLI's live production config.
 const MAIN_CONTRACT = "0x458422e93bf89a109afc4fac00aacf2f18fcf541";
@@ -374,6 +375,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true, // buybacks in this period can cover sales from prior periods, so net fees may be negative
 };
 

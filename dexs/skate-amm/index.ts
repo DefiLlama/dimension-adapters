@@ -31,23 +31,37 @@ const skateDataApis = [
     "https://api.skatechain.org/amm-data-v2/pools/stats",
 ];
 
+// api.skatechain.org answers HTTP 500 (wrapping an nginx 503) above ~4-5 req/s; hourly runs fire every slice at once.
+// The hourly job runs up to 24 slices back-to-back in one 20-minute child: during an outage (2026-10-31, HTTP 500
+// "SSL peer certificate ... not OK" on every chain) retrying every slice timed the whole job out. Once a call
+// exhausts its retries, later calls fail immediately for a few minutes; the failed slices are re-run next hour.
+const OUTAGE_COOLDOWN_MS = 5 * 60 * 1000;
+let outage: { error: any, until: number } | undefined;
+
+async function getStats(url: string, params: any) {
+    if (outage && Date.now() < outage.until) throw outage.error;
+    try {
+        return await asyncRetry(() => httpGet(url, { params, timeout: 30_000 }), { retries: 5, minTimeout: 2000, maxTimeout: 10_000, factor: 2, randomize: true });
+    } catch (error) {
+        outage = { error, until: Date.now() + OUTAGE_COOLDOWN_MS };
+        throw error;
+    }
+}
+
 const fetch = async (options: FetchOptions) => {
 
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
 
-    const tokenVolume_options = {
-        params: {
-            chainId: chainConfig[options.api.chain].id,
-            startTime: options.startTimestamp,
-            endTime: options.endTimestamp,
-        }
+    const params = {
+        chainId: chainConfig[options.api.chain].id,
+        startTime: options.startTimestamp,
+        endTime: options.endTimestamp,
     }
     // v1 winding down (its stats endpoint now returns empty); v2 carries live
     // data. Sum both so historical v1 volume and current v2 volume both count.
     for (const skateDataApi of skateDataApis) {
-      // api.skatechain.org answers HTTP 500 (wrapping an nginx 503) above ~4-5 req/s; hourly runs fire every slice at once
-      const tokenVolumeInfo = await asyncRetry(() => httpGet(skateDataApi, tokenVolume_options), { retries: 5, minTimeout: 2000, factor: 2, randomize: true });
+      const tokenVolumeInfo = await getStats(skateDataApi, params);
       if(!tokenVolumeInfo.success) {
         throw new Error(`Failed to fetch token volume info from ${skateDataApi}`);
       }

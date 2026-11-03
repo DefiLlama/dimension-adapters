@@ -1,7 +1,7 @@
 import { httpGet } from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 
-// Some Blockscout stats hosts (e.g. Bifrost) sit behind Cloudflare and 403 datacenter IPs
+// Some Blockscout stats hosts sit behind Cloudflare and 403 datacenter IPs
 // unless a browser User-Agent is sent.
 const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
@@ -50,10 +50,10 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   lightlink: { chain: CHAIN.LIGHTLINK_PHOENIX, baseUrl: "https://phoenix.lightlink.io", version: 2 },
   lisk: { chain: CHAIN.LISK, baseUrl: "https://blockscout.lisk.com", version: 2 },
   lumia: { chain: CHAIN.LUMIA, baseUrl: "https://explorer.lumia.org", version: 2 },
-  matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 },
+  // matchain: { chain: CHAIN.MATCHAIN, baseUrl: "https://matchscan.io", version: 2 }, // explorer no longer runs blockscout (lite mode, stats api 503 since Oct 2026); moved to RPC metrics in feeHistoryUsers.ts
   mode: { chain: CHAIN.MODE, baseUrl: "https://explorer.mode.network", version: 2 },
   neon: { chain: CHAIN.NEON, baseUrl: "https://neon.blockscout.com", version: 2 },
-  // "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 1 }, // explorer no longer runs blockscout, no stats api
+  "orderly-network": { chain: CHAIN.ORDERLY, baseUrl: "https://explorer.orderly.network", version: 2, start: "2023-10-06" },
   perennial: { chain: CHAIN.PERENNIAL, baseUrl: "https://explorer.perennial.foundation", version: 1 },
   plume: { chain: CHAIN.PLUME, baseUrl: "https://explorer.plume.org", version: 2 },
   prom: { chain: CHAIN.PROM, baseUrl: "https://promscan.io", version: 2 },
@@ -83,7 +83,7 @@ const blockscoutStatsChains: Record<string, ChainConfig> = {
   citrea: { chain: CHAIN.CITREA, baseUrl: "https://explorer.mainnet.citrea.xyz", statsUrl: "https://explorer-stats.mainnet.citrea.xyz", version: 1, start: "2025-11-25" },
   gatelayer: { chain: CHAIN.GATE_LAYER, baseUrl: "https://www.gatescan.org/gatelayer", statsUrl: "https://gl-exp-api-m.gatescan.org/stats", version: 1, start: "2025-09-17" },
   lukso: { chain: CHAIN.LUKSO, baseUrl: "https://explorer.execution.mainnet.lukso.network", statsUrl: "https://stats-explorer.execution.mainnet.lukso.network", version: 1, start: "2023-05-29" },
-  "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 },
+  // "bifrost-network": { chain: CHAIN.BFC, baseUrl: "https://explorer.mainnet.bifrostnetwork.com", statsUrl: "https://explorer-stats.mainnet.thebifrost.io", version: 1 }, // stats host 403s our servers (routing it through the shared proxy did not help) and newAccounts counts receive-only addresses; moved to RPC metrics in helpers/evmChainFees.ts
   // b3: { chain: CHAIN.B3, baseUrl: "https://blockscout.b3.fun", statsUrl: "https://b3.calderaexplorer.xyz/stats", version: 1, start: "2024-07-30" }, // stats host and explorers offline
   degen: { chain: CHAIN.DEGEN, baseUrl: "https://explorer.degen.tips", version: 2, start: "2024-03-10" },
   robinhood: { chain: CHAIN.ROBINHOOD, baseUrl: "https://robinhoodchain.blockscout.com", version: 2, start: "2026-04-30" },

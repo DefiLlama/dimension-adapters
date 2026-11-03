@@ -4,11 +4,12 @@ import { ABI, EulerConfigs, MorphoConfigs } from "./configs";
 import { CHAIN } from "../chains";
 import fetchURL from "../../utils/fetchURL";
 import { getExcludedAssets, getExcludedVaults } from "../morphoExclusions";
+import { getEulerExcludedVaults } from "../eulerExclusions";
 
 const KAMINO_API = 'https://api.kamino.finance';
 const YEAR_SECS = 365 * 24 * 60 * 60;
 
-const METRICS = {
+export const METRICS = {
   // use this label for all yield sources if breakdownFees was not set
   AssetYields: 'Assets Yields',
   
@@ -27,6 +28,10 @@ const METRICS = {
   KaminoYieldsToSuppliers: 'Kamino Yields Distributed To Supliers',
   KaminoPerformanceFee: 'Kamino Performance Fees',
   KaminoManagementFee: 'Kamino Management Fees',
+  AaveV4Yields: 'Aave V4 Yields',
+  AaveV4YieldsToSuppliers: 'Aave V4 Yields Distributed To Suppliers',
+  AaveV4HubFee: 'Aave V4 Hub Fees',
+  AaveV4HubFeeToAave: 'Aave V4 Hub Fees To Aave DAO',
 }
 
 export interface CuratorConfig {
@@ -50,8 +55,17 @@ export interface CuratorConfig {
       // Kamino kvault addresses (Solana). Curated vaults are attributed by
       // vaultAdminAuthority off-chain; only the confirmed addresses are listed.
       kaminoVaults?: Array<string>;
+
+      // Aave V4 hubs curated externally. `share` is the curator's cut of the hub's liquidity fee,
+      // the rest of the fee goes to the Aave DAO (e.g. 0.5 for Sentora's hub, per the ARFC)
+      aaveV4Hubs?: Array<AaveV4Hub>;
     }
   }
+}
+
+export interface AaveV4Hub {
+  hub: string;
+  share: number;
 }
 
 interface Balances {
@@ -63,10 +77,10 @@ interface Balances {
 interface VaultERC4626Info {
   vault: string;
   asset: string;
-  assetDecimals: number;
+  // totalAssets at the window start
   balance: bigint;
-  rateBefore: bigint;
-  rateAfter: bigint;
+  // assets gained by the window-start share supply over the window
+  yieldEarned: bigint;
 }
 
 const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
@@ -123,7 +137,8 @@ const blacklistedVaults: Record<string, Array<{ vault: string, from: string }>> 
   }],
 }
 
-async function getBlacklistedVaultsForChain(chain: string, dateString: string): Promise<Set<string>> {
+async function getBlacklistedVaultsForChain(options: FetchOptions): Promise<Set<string>> {
+  const { chain, dateString } = options;
   const blacklistedVaultsForChain = new Set(
     blacklistedVaults[chain]?.filter(item => dateString >= item.from).map(item => item.vault.toLowerCase()) ?? []
   );
@@ -139,6 +154,10 @@ async function getBlacklistedVaultsForChain(chain: string, dateString: string): 
   const firstSeenForChain = insolventMarketsDetails.firstSeen?.vaults?.[chain] ?? {};
 
   for (const vault of await getExcludedVaults(chain, dateString)) {
+    blacklistedVaultsForChain.add(vault);
+  }
+
+  for (const vault of await getEulerExcludedVaults(options)) {
     blacklistedVaultsForChain.add(vault);
   }
 
@@ -251,7 +270,7 @@ async function getEulerVaults(options: FetchOptions, vaults: Array<string> | und
   return eulerVaults
 }
 
-async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>, decimalAdjustment?: boolean): Promise<Array<VaultERC4626Info>> {
+async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>): Promise<Array<VaultERC4626Info>> {
   const vaultInfo: Array<VaultERC4626Info> = []
 
   const assets = await options.fromApi.multiCall({
@@ -259,49 +278,35 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
     calls: vaults,
     permitFailure: true,
   });
-  const decimals = await options.fromApi.multiCall({
-    abi: ABI.ERC4626.decimals,
-    calls: assets.map(item => item ? item : ''),
-    permitFailure: true,
-  });
   const balances = await options.fromApi.multiCall({
     abi: ABI.ERC4626.totalAssets,
     calls: vaults,
     permitFailure: true,
   });
-  const ratesBefore = await options.fromApi.multiCall({
-    abi: ABI.ERC4626.converttoAssets,
-    calls: vaults.map(vault => {
-      return {
-        target: vault,
-        params: ['1000000000000000000'],
-      }
-    }),
+  const supplies = await options.fromApi.multiCall({
+    abi: ABI.ERC4626.totalSupply,
+    calls: vaults,
     permitFailure: true,
   });
-  const ratesAfter = await options.toApi.multiCall({
+  const supplyCalls = vaults.map((vault, i) => ({ target: vault, params: [supplies[i] ? supplies[i] : 0] }))
+  const assetsBefore = await options.fromApi.multiCall({
     abi: ABI.ERC4626.converttoAssets,
-    calls: vaults.map(vault => {
-      return {
-        target: vault,
-        params: ['1000000000000000000'],
-      }
-    }),
+    calls: supplyCalls,
+    permitFailure: true,
+  });
+  const assetsAfter = await options.toApi.multiCall({
+    abi: ABI.ERC4626.converttoAssets,
+    calls: supplyCalls,
     permitFailure: true,
   });
   for (let i = 0; i < vaults.length; i++) {
     const asset = assets[i]
     if (asset) {
-      const assetDecimals = Number(decimals[i]);
-      const denominator = decimalAdjustment ? 10 ** (18 - assetDecimals) : 1;
-      
       vaultInfo.push({
         vault: vaults[i],
         asset,
-        assetDecimals: Number(decimals[i]),
         balance: BigInt(balances[i] ? balances[i] : 0),
-        rateBefore: BigInt(ratesBefore[i] ? ratesBefore[i] : 0) * BigInt(denominator),
-        rateAfter: BigInt(ratesAfter[i] ? ratesAfter[i] : 0) * BigInt(denominator),
+        yieldEarned: assetsBefore[i] && assetsAfter[i] ? BigInt(assetsAfter[i]) - BigInt(assetsBefore[i]) : BigInt(0),
       })
     }
   }
@@ -310,7 +315,7 @@ async function getVaultERC4626Info(options: FetchOptions, vaults: Array<string>,
 }
 
 async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
-  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
+  const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultFeeRates = await options.api.multiCall({
     abi: ABI.morpho.fee,
     calls: vaultInfo.map(item => item.vault),
@@ -318,18 +323,16 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
     // morpho vault include fee directly to vault shares
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator
-    const interestFee = interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18)
+    // interest earned by vault curator, no performance fee is taken on a loss (the depositors carry all of it)
+    const interestFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18) : BigInt(0)
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
@@ -352,19 +355,18 @@ export async function getEulerVaultFee(options: FetchOptions, balances: Balances
   })
 
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
     // euler vault subtract fee directly from interest when collecting
     // it mean that vault fees were remove from vault token shares
 
     // interest earned and distributed to vault deposited after fees
-    const interestEarned = vaultInfo[i].balance * growthRate / BigInt(1e18)
+    const interestEarned = vaultInfo[i].yieldEarned
     
     // interest earned and distributed to vault deposited and vault curator before fees
+    // a loss (bad debt socialized onto depositors) has no fee taken from it, so it is not grossed up
     let interestEarnedBeforeFee = interestEarned
-    if (vaultFeeRate < BigInt(1e4)) {
+    if (vaultFeeRate < BigInt(1e4) && interestEarned > BigInt(0)) {
       interestEarnedBeforeFee = interestEarned * BigInt(1e4) / (BigInt(1e4) - vaultFeeRate)
     }
 
@@ -453,8 +455,67 @@ export async function getKaminoVaultFee(options: FetchOptions, balances: Balance
   }
 }
 
+// Aave V4 hubs. Same accounting as fees/aave-v4.ts: the hub's liquidity fee over the window is the
+// growth of getAssetAccruedFees plus the fees minted to the fee receiver (MintFeeShares), and the
+// borrow interest is that fee grossed up by liquidityFee. The curator keeps `share` of the fee, the
+// Aave DAO the rest; suppliers get the interest net of the fee. Assets with a 0% liquidity fee are
+// skipped, their interest cannot be derived from the fee.
+export async function getAaveV4HubFee(options: FetchOptions, balances: Balances, hubs: Array<AaveV4Hub>, breakdownFees?: boolean) {
+  // permitFailure: hubs revert before they are deployed, those are skipped
+  const assetCounts = await options.fromApi.multiCall({
+    abi: ABI.aaveV4Hub.getAssetCount,
+    calls: hubs.map(item => item.hub),
+    permitFailure: true,
+  })
+  const calls = hubs.flatMap((item, i) => Array.from({ length: Number(assetCounts[i] ?? 0) }, (_, assetId) => ({ target: item.hub, params: [assetId] })))
+  if (!calls.length) return
+
+  const underlyings = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetUnderlyingAndDecimals, calls })
+  const assetConfigs = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetConfig, calls })
+  const feesBefore = await options.fromApi.multiCall({ abi: ABI.aaveV4Hub.getAssetAccruedFees, calls })
+  const feesAfter = await options.toApi.multiCall({ abi: ABI.aaveV4Hub.getAssetAccruedFees, calls })
+  const mintLogsByHub = await options.getLogs({
+    targets: hubs.map(item => item.hub),
+    eventAbi: ABI.aaveV4Hub.MintFeeShares,
+    flatten: false,
+  })
+
+  const mintedByKey: Record<string, bigint> = {}
+  mintLogsByHub.forEach((logs: Array<any>, i: number) => {
+    for (const log of logs) {
+      const key = `${hubs[i].hub.toLowerCase()}-${Number(log.assetId)}`
+      mintedByKey[key] = (mintedByKey[key] || 0n) + BigInt(log.assets)
+    }
+  })
+  const shareOf = new Map(hubs.map(item => [item.hub.toLowerCase(), item.share]))
+
+  for (let i = 0; i < calls.length; i++) {
+    const liquidityFee = BigInt(assetConfigs[i].liquidityFee)
+    if (liquidityFee === 0n) continue
+
+    const hub = calls[i].target.toLowerCase()
+    const hubFee = BigInt(feesAfter[i]) - BigInt(feesBefore[i]) + (mintedByKey[`${hub}-${calls[i].params[0]}`] || 0n)
+    if (hubFee <= 0n) continue
+
+    const token = underlyings[i][0]
+    const interest = hubFee * 10000n / liquidityFee
+    const curatorFee = hubFee * BigInt(Math.round((shareOf.get(hub) ?? 0) * 1e4)) / 10000n
+
+    if (breakdownFees) {
+      balances.dailyFees.add(token, interest, METRICS.AaveV4Yields)
+      balances.dailyRevenue.add(token, curatorFee, METRICS.AaveV4HubFee)
+      balances.dailySupplySideRevenue.add(token, interest - hubFee, METRICS.AaveV4YieldsToSuppliers)
+      balances.dailySupplySideRevenue.add(token, hubFee - curatorFee, METRICS.AaveV4HubFeeToAave)
+    } else {
+      balances.dailyFees.add(token, interest, METRICS.AssetYields)
+      balances.dailyRevenue.add(token, curatorFee, METRICS.AssetYields)
+      balances.dailySupplySideRevenue.add(token, interest - curatorFee, METRICS.AssetYields)
+    }
+  }
+}
+
 async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, vaults: Array<string>, breakdownFees?: boolean) {
-  const vaultInfo = await getVaultERC4626Info(options, vaults, true)
+  const vaultInfo = await getVaultERC4626Info(options, vaults)
   const vaultPerformanceFeeRates = await options.api.multiCall({
     abi: ABI.morpho.performanceFee,
     calls: vaultInfo.map(item => item.vault),
@@ -467,8 +528,6 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
   })
   
   for (let i = 0; i < vaultInfo.length; i++) {
-    const growthRate = vaultInfo[i].rateAfter - vaultInfo[i].rateBefore
-
     const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
     const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
     
@@ -476,10 +535,10 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     // it mean that vault fees were added from vault token shares
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].balance * growthRate / BigInt(10**18)
+    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
     
-    // interest earned by vault curator - performance fee
-    const interestPerformanceFee = interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18)
+    // interest earned by vault curator - performance fee, none is taken on a loss (the depositors carry all of it)
+    const interestPerformanceFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18) : BigInt(0)
     
     // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
@@ -516,6 +575,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.EulerYields]: 'Interest yields generated from deposited assets in Euler',
       [METRICS.KaminoYields]: 'Interest yields generated from deposited assets in Kamino kvaults',
       [METRICS.KaminoManagementFee]: 'Management fees charged on assets deposited in Kamino kvaults',
+      [METRICS.AaveV4Yields]: 'Borrow interest paid on curated Aave V4 hubs',
     },
     Revenue: {
       [METRICS.AssetYields]: 'Portion of interest yields retained by vault curators as management and performance fees',
@@ -524,12 +584,15 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
       [METRICS.EulerPerformanceFee]: 'Performance fees charged from vaults in Euler',
       [METRICS.KaminoPerformanceFee]: 'Performance fees charged from Kamino kvaults',
       [METRICS.KaminoManagementFee]: 'Management fees charged from Kamino kvaults',
+      [METRICS.AaveV4HubFee]: 'Curator share of the liquidity fee charged on curated Aave V4 hubs',
     },
     SupplySideRevenue: {
       [METRICS.AssetYields]: 'Portion of interest yields distributed to vault depositors/investors after curator fees are deducted',
       [METRICS.MorphoYieldsToSuppliers]: 'Interest yields generated from deposited assets in Morpho distributed to suppliers',
       [METRICS.EulerYieldsToSuppliers]: 'Interest yields generated from deposited assets in Euler distributed to suppliers',
       [METRICS.KaminoYieldsToSuppliers]: 'Interest yields from Kamino kvaults distributed to suppliers',
+      [METRICS.AaveV4YieldsToSuppliers]: 'Borrow interest on curated Aave V4 hubs distributed to suppliers after the liquidity fee',
+      [METRICS.AaveV4HubFeeToAave]: 'Aave DAO share of the liquidity fee charged on curated Aave V4 hubs',
     },
   }
   const exportObject: BaseAdapter = {}
@@ -542,7 +605,7 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         let dailySupplySideRevenue = options.createBalances()
 
         // vaults blacklisted from this date onwards (corrupted share price / pending write-off)
-        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options.chain, options.dateString)
+        const blacklistedVaultsForChain = await getBlacklistedVaultsForChain(options)
         const isBlacklistedVault = (vault: string) => blacklistedVaultsForChain.has(vault.toLowerCase())
 
         // morpho meta vaults
@@ -578,6 +641,9 @@ export function getCuratorExport(curatorConfig: CuratorConfig): SimpleAdapter {
         }
         if (vaults.kaminoVaults && vaults.kaminoVaults.length > 0) {
           await getKaminoVaultFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.kaminoVaults, curatorConfig.breakdownFees)
+        }
+        if (vaults.aaveV4Hubs && vaults.aaveV4Hubs.length > 0) {
+          await getAaveV4HubFee(options, { dailyFees, dailyRevenue, dailySupplySideRevenue }, vaults.aaveV4Hubs, curatorConfig.breakdownFees)
         }
 
         const blacklistedTokensForChain = blacklistedTokens[options.chain]?.filter(token => options.dateString >= token.from)?.map(token => token.token) ?? []

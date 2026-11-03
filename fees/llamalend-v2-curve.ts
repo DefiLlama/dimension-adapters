@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -17,7 +20,7 @@ interface LlamaLendV2Factory {
 
 // v2 uses LlamaLend Factory 2.0.0 — separate from v1 OneWayLendingFactory on the same chains.
 // Add new chains here when v2 mainnet / other deployments go live.
-const LlamaLendV2Factories: {[key: string]: LlamaLendV2Factory} = {
+export const LlamaLendV2Factories: {[key: string]: LlamaLendV2Factory} = {
   [CHAIN.OPTIMISM]: {
     address: '0x5f94073e3f51c1fff92ffc6b4b06b7af193b3640',
     start: '2026-06-09',

@@ -171,27 +171,29 @@ async function fetch(options: FetchOptions) {
   const pools = Object.values(config[chain].pools) as string[];
 
   const swapAbi = "event Swap (address indexed sender, address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address indexed to)";
-
-  // 1. Read haircutRate and lpDividendRatio from each pool
-  const [haircutRates, lpDividendRatios] = await Promise.all([
-    api.multiCall({ abi: "function haircutRate() view returns (uint256)", calls: pools }).catch(() => pools.map(() => "400000000000000")), // default 4bps
-    api.multiCall({ abi: "function lpDividendRatio() view returns (uint256)", calls: pools }).catch(() => pools.map(() => "1000000000000000000")), // default 100%
-  ]);
-
-  // 2. Compute per-pool volume, fees, and revenue split
   const dailyVolume = createBalances();
   const fees = createBalances();
   const supplySideRevenue = createBalances();
   const protocolRevenue = createBalances();
 
-  const perPoolLogs = await Promise.all(
-    pools.map((pool) => getLogs({ target: pool, eventAbi: swapAbi }).catch(() => []))
-  );
+  const perPoolLogs = await getLogs({ targets: pools, eventAbi: swapAbi, flatten: false });
+  const activePools = pools.filter((_, index) => perPoolLogs[index].length > 0)
+  const poolRates = new Map<string, { haircutRate: number, lpDividendRatio: number }>()
+  if (activePools.length) {
+    const [haircutRates, lpDividendRatios] = await Promise.all([
+      api.multiCall({ abi: "function haircutRate() view returns (uint256)", calls: activePools }),
+      api.multiCall({ abi: "function lpDividendRatio() view returns (uint256)", calls: activePools }),
+    ]);
+    activePools.forEach((pool, index) => poolRates.set(pool, {
+      haircutRate: Number(haircutRates[index]) / 1e18,
+      lpDividendRatio: Number(lpDividendRatios[index]) / 1e18,
+    }))
+  }
 
   for (let i = 0; i < pools.length; i++) {
     const poolLogs = perPoolLogs[i];
-    const hr = Number(haircutRates[i]) / 1e18;
-    const lpRatio = Number(lpDividendRatios[i]) / 1e18;
+    if (!poolLogs.length) continue
+    const { haircutRate: hr, lpDividendRatio: lpRatio } = poolRates.get(pools[i])!
 
     const poolVolume = createBalances();
     poolLogs.forEach((log: any) => {
@@ -205,7 +207,12 @@ async function fetch(options: FetchOptions) {
     protocolRevenue.addBalances(poolFees.clone(1 - lpRatio));
   }
 
-  // 5. Bribes: OnReward events from BribeV2 contracts (via Voter)
+  const logBribeFailure = (step: string, error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    api.log(`wombat-exchange: ${step} failed on ${chain}: ${message}`)
+    return []
+  }
+
   const dailyBribesRevenue = createBalances();
   if (voterConfig[chain]) {
     const { voter } = voterConfig[chain];
@@ -214,7 +221,7 @@ async function fetch(options: FetchOptions) {
     const allUnderlyingTokens = await api.multiCall({
       abi: "address[]:getTokens",
       calls: pools,
-    }).catch(() => []);
+    }).catch((error) => logBribeFailure('loading pool tokens', error));
 
     const assetCalls: { target: string; params: string }[] = [];
     allUnderlyingTokens.forEach((tokens: string[], poolIdx: number) => {
@@ -227,7 +234,7 @@ async function fetch(options: FetchOptions) {
       const assetAddresses = await api.multiCall({
         abi: "function addressOfAsset(address) view returns (address)",
         calls: assetCalls,
-      }).catch(() => []);
+      }).catch((error) => logBribeFailure('loading pool assets', error));
 
       // Look up bribe address for each asset from Voter
       const infoCalls = assetAddresses
@@ -237,7 +244,7 @@ async function fetch(options: FetchOptions) {
         const infos = await api.multiCall({
           abi: "function infos(address) view returns (uint104 supplyBaseIndex, uint104 supplyVoteIndex, uint40 nextEpochStartTime, uint128 claimable, bool whitelist, address gaugeManager, address bribe)",
           calls: infoCalls.map((a: string) => ({ target: voter, params: a })),
-        }).catch(() => []);
+        }).catch((error) => logBribeFailure('loading bribe contracts', error));
 
         const bribeAddresses = infos
           .map((info: any) => info?.bribe)
@@ -248,7 +255,7 @@ async function fetch(options: FetchOptions) {
           const bribeLogs = await getLogs({
             targets: bribeAddresses,
             eventAbi: "event OnReward(address indexed rewardToken, address indexed user, uint256 amount)",
-          }).catch(() => []);
+          }).catch((error) => logBribeFailure('loading bribe events', error));
 
           bribeLogs.forEach((log: any) => {
             dailyBribesRevenue.add(log.rewardToken, log.amount);

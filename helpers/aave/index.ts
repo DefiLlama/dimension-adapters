@@ -6,6 +6,7 @@ import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
 import { cache } from "@defillama/sdk";
+import { collectNamedSymbols, parseStuckReserveSymbols } from '../insolventMarkets';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -39,28 +40,7 @@ const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
 const HIGH_RESERVE_FACTOR = 0.99;
 const FULL_UTILIZATION = 0.99;
 
-// The stuck-markets cache records one entry per pool, whose value names the
-// offending reserves in a fixed shape: "SYMBOL: reason", several of them joined
-// by " | ". Every one of the 41 entries in the cache follows it, including
-// awkward ones like "SolvBTC.b", "USDC.e", "oUSDC", "WETH/USDT WLP" and
-// "T-2250_2750-WETH-USDC", none of which contain a colon or a pipe.
-//
-// Returns an empty array for anything it cannot read, which the caller treats as
-// "drop the whole pool", i.e. the behaviour before reserve-level filtering.
-export function parseStuckReserveSymbols(reason: unknown): Array<string> {
-  if (typeof reason !== 'string' || !reason.trim()) return []
-  const symbols = reason
-    .split('|')
-    .map(segment => {
-      const separator = segment.indexOf(':')
-      return separator === -1 ? '' : segment.slice(0, separator).trim()
-    })
-    .filter(Boolean)
-  // A partially parseable reason is not good enough: one unreadable segment
-  // would let its reserve through. Treat the whole thing as unreadable.
-  if (symbols.length !== reason.split('|').length) return []
-  return [...new Set(symbols)]
-}
+export { parseStuckReserveSymbols };
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
@@ -357,19 +337,14 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
 
         for (const pool of config.pools) {
           const poolAddress = pool.lendingPoolProxy.toLowerCase();
-          const skipped = new Set<string>();
 
           // Both lists name their offending reserves in the same "SYMBOL: reason" shape, so drop
           // those reserves and keep the rest of the pool. A reason we cannot read still drops the
           // whole pool, which is what both lists did before.
-          for (const reason of [insolventReasons[poolAddress], stuckReasons[poolAddress]]) {
-            if (reason === undefined) continue;
-            const symbols = parseStuckReserveSymbols(reason);
-            if (!symbols.length) { skipped.clear(); break; }
-            symbols.forEach(symbol => skipped.add(symbol));
-          }
-          if ((poolAddress in insolventReasons || poolAddress in stuckReasons) && !skipped.size) continue;
-          const skipReserveSymbols = skipped.size ? [...skipped] : undefined;
+          const listed = poolAddress in insolventReasons || poolAddress in stuckReasons;
+          const namedSymbols = collectNamedSymbols([insolventReasons[poolAddress], stuckReasons[poolAddress]]);
+          if (listed && !namedSymbols?.length) continue;
+          const skipReserveSymbols = namedSymbols?.length ? namedSymbols : undefined;
 
           await getPoolFees(pool, options, {
             dailyFees,
