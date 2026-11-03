@@ -122,7 +122,7 @@ const fetch = async (options: FetchOptions) => {
     // the maker fee always goes to the protocol
     if (makerFee > 0) {
       dailyFees.addCGToken(quoteCgId, makerFee, "Maker Fees");
-      dailyRevenue.addCGToken(quoteCgId, makerFee, "Maker Fees");
+      dailyRevenue.addCGToken(quoteCgId, makerFee, "Maker Fees To Protocol");
       if (preFeeCollector) dailyProtocolRevenue.addCGToken(quoteCgId, makerFee, "Treasury");
     }
 
@@ -143,7 +143,7 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addCGToken(quoteCgId, takerFee, "Taker Fees");
       if (vaultShare > 0) dailySupplySideRevenue.addCGToken(quoteCgId, vaultShare, "Taker Fees To OmniVaults");
       if (takerFee - vaultShare > 0) {
-        dailyRevenue.addCGToken(quoteCgId, takerFee - vaultShare, "Taker Fees");
+        dailyRevenue.addCGToken(quoteCgId, takerFee - vaultShare, "Taker Fees To Protocol");
         if (preFeeCollector) dailyProtocolRevenue.addCGToken(quoteCgId, takerFee - vaultShare, "Treasury");
       }
     }
@@ -183,7 +183,7 @@ const methodology = {
   Revenue:
     "Fees kept by the protocol, booked per fill: maker fees and taker fees less any OmniVault share.",
   ProtocolRevenue:
-    "Kept fees collect in the FeeCollector and settle once a week at epoch close. The operating budget, taken stables first, goes to the treasury and is booked on the settlement day at the close's on-chain USD value.",
+    "Kept fees collect in the FeeCollector and settle once a week at epoch close. The operating budget, taken stables first, goes to the treasury and is booked on the settlement day at the close's on-chain USD value. Before the FeeCollector contract (2026-08-12), every kept fee went to the treasury per fill.",
   HoldersRevenue:
     "Settled fees above the operating budget, sent to the BuybackVault at epoch close to buy ALOT and booked on the settlement day.",
 };
@@ -197,12 +197,12 @@ const breakdownMethodology = {
     "Taker Fees To OmniVaults": "The share of taker fees earned by an OmniVault when it is the maker.",
   },
   Revenue: {
-    "Maker Fees": "Maker fees, all kept by the protocol.",
-    "Taker Fees": "Taker fees less any OmniVault share.",
+    "Maker Fees To Protocol": "Maker fees, all kept by the protocol.",
+    "Taker Fees To Protocol": "Taker fees kept by the protocol after any OmniVault share.",
   },
   ProtocolRevenue: {
     Treasury:
-      "The weekly operating budget taken from each settlement at epoch close, stables first.",
+      "The weekly operating budget taken from each settlement at epoch close, stables first. Before the FeeCollector contract (2026-08-12), every kept fee per fill.",
   },
   HoldersRevenue: {
     "ALOT Buyback": "The rest of each settlement, sent to the BuybackVault to buy ALOT.",
