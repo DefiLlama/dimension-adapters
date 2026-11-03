@@ -720,11 +720,6 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             lendingPoolProxy: '0xC486115C7db399F0e080A3713BF01B65CC8A5b64',
             dataProvider: '0x898D0EF6E20B7597728AEB41169c22608Fe4b234',
           },
-          {
-            version: 3,
-            lendingPoolProxy: '0xeD6d6d18F20f8b419B5442C43D3e48EE568dEc14',
-            dataProvider: '0x4c25c261Fe47bC216113D140BaF72B05E151bcE4',
-          },
         ],
       },
       [CHAIN.CORE]: {
