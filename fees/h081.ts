@@ -90,9 +90,13 @@ const methodology = {
     "The treasury's USDG account receives nothing else from the protocol; transfers from or signed by the team's wallets (deployer, config authority, treasury multisig and its members, relayer hot wallet) are excluded. " +
     "H081 token trading and creator fees are not protocol fees and are not counted (the H081 mint is excluded).",
   Revenue:
-    "Same as Fees: 100% of the relay and origination fees go to the protocol treasury; there is no supply-side share.",
+    "USDG received by the H081 protocol treasury's fee-only USDG account: the 0.20% relay fee on relayed withdrawals and spends (sent out of the bank vault by the stipend_pool program) plus the 0.25% loan origination fee on funded loans (sent by the lender in stream_loan::fund). " +
+    "The treasury's USDG account receives nothing else from the protocol; transfers from or signed by the team's wallets (deployer, config authority, treasury multisig and its members, relayer hot wallet) are excluded. " +
+    "H081 token trading and creator fees are not protocol fees and are not counted (the H081 mint is excluded).",
   ProtocolRevenue:
-    "Same as Revenue: all fees are kept by the protocol treasury (a Squads multisig vault).",
+    "USDG received by the H081 protocol treasury's fee-only USDG account: the 0.20% relay fee on relayed withdrawals and spends (sent out of the bank vault by the stipend_pool program) plus the 0.25% loan origination fee on funded loans (sent by the lender in stream_loan::fund). " +
+    "The treasury's USDG account receives nothing else from the protocol; transfers from or signed by the team's wallets (deployer, config authority, treasury multisig and its members, relayer hot wallet) are excluded. " +
+    "H081 token trading and creator fees are not protocol fees and are not counted (the H081 mint is excluded).",
 };
 
 const breakdownMethodology = {
