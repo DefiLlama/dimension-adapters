@@ -6,6 +6,7 @@ import { CHAIN } from "../helpers/chains";
 
 const TRADE_PAIRS = "0x09383137c1eee3e1a8bc781228e4199f6b4a9bbf";
 const PORTFOLIO_SUB = "0xa5c079c1986e2335d83fa2d7282e162958e515d5";
+// https://432204.snowtrace.io/address/0xB90c65b9bA39c616500aEF23cF6B512490f5eb1C
 const FEE_COLLECTOR = "0xB90c65b9bA39c616500aEF23cF6B512490f5eb1C";
 
 // When each fee mechanism went live on chain, so a window only calls the getters that exist for it
@@ -40,25 +41,12 @@ const GET_TOKEN_DETAILS_ABI =
   "function getTokenDetails(bytes32) view returns (tuple(uint8 decimals, address tokenAddress, uint8 auctionMode, uint32 srcChainId, uint8 l1Decimals, bytes32 symbol, bytes32 symbolId, bytes32 sourceChainSymbol, bool isVirtual))";
 
 // Dexalot L1 balances are portfolio entries, not ERC20s, so fees are priced through coingecko ids keyed by L1 symbol
-// from Dexalot's API (new listings need no adapter change). The fallback covers the majors if the API is down.
+// from Dexalot's API (new listings need no adapter change)
 const COINGECKO_IDS_ENDPOINT = "https://api.dexalot.com/api/stats/coingeckoids";
-const COINGECKO_ID_FALLBACK: Record<string, string> = {
-  USDC: "usd-coin",
-  USDT: "tether",
-  BTC: "bitcoin",
-  WBTC: "wrapped-bitcoin",
-  AVAX: "avalanche-2",
-  ETH: "ethereum",
-};
 
 const getCoingeckoIds = async (): Promise<Record<string, string>> => {
-  try {
-    const rows: { symbol: string; coingecko_id: string }[] = await httpGet(COINGECKO_IDS_ENDPOINT);
-    return Object.fromEntries(rows.map((r) => [r.symbol, r.coingecko_id]));
-  } catch (e) {
-    console.log("fees/dexalot: coingeckoids endpoint unreachable, using the fallback map");
-    return COINGECKO_ID_FALLBACK;
-  }
+  const rows: { symbol: string; coingecko_id: string }[] = await httpGet(COINGECKO_IDS_ENDPOINT);
+  return Object.fromEntries(rows.map((r) => [r.symbol, r.coingecko_id]));
 };
 
 const ZERO = ADDRESSES.null;
@@ -74,7 +62,10 @@ const fetch = async (options: FetchOptions) => {
   const { getLogs, toApi } = options;
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const accruedRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  // before the FeeCollector, kept fees went straight to the treasury
+  const preFeeCollector = options.startTimestamp < FEE_COLLECTOR_GENESIS;
 
   const pairIds: string[] = await toApi.call({ target: TRADE_PAIRS, abi: GET_TRADE_PAIRS_ABI });
   const pairs = await toApi.multiCall({
@@ -148,7 +139,8 @@ const fetch = async (options: FetchOptions) => {
     const makerCgId = cgIdOf(makerFeeToken.symbol);
     if (makerFee > 0 && makerCgId) {
       dailyFees.addCGToken(makerCgId, makerFee, "Maker Fees");
-      accruedRevenue.addCGToken(makerCgId, makerFee, "Maker Fees");
+      dailyRevenue.addCGToken(makerCgId, makerFee, "Maker Fees");
+      if (preFeeCollector) dailyProtocolRevenue.addCGToken(makerCgId, makerFee, "Treasury");
     }
 
     const takerCgId = cgIdOf(takerFeeToken.symbol);
@@ -169,7 +161,10 @@ const fetch = async (options: FetchOptions) => {
       }
       dailyFees.addCGToken(takerCgId, takerFee, "Taker Fees");
       if (vaultShare > 0) dailySupplySideRevenue.addCGToken(takerCgId, vaultShare, "Taker Fees To OmniVaults");
-      if (takerFee - vaultShare > 0) accruedRevenue.addCGToken(takerCgId, takerFee - vaultShare, "Taker Fees");
+      if (takerFee - vaultShare > 0) {
+        dailyRevenue.addCGToken(takerCgId, takerFee - vaultShare, "Taker Fees");
+        if (preFeeCollector) dailyProtocolRevenue.addCGToken(takerCgId, takerFee - vaultShare, "Treasury");
+      }
     }
   }
 
@@ -192,18 +187,19 @@ const fetch = async (options: FetchOptions) => {
     const rfqDecimals = Object.fromEntries(rfqSymbols.map((s, i) => [s, Number(rfqDetails[i].decimals)]));
     for (const log of rfqLogs) {
       const cgId = cgIdOf(ethers.decodeBytes32String(log.symbol as string));
-      if (cgId) dailyFees.addCGToken(cgId, Number(log.quantity) / 10 ** rfqDecimals[log.symbol as string], "RFQ Fees");
+      if (!cgId) continue;
+      const amount = Number(log.quantity) / 10 ** rfqDecimals[log.symbol as string];
+      dailyFees.addCGToken(cgId, amount, "RFQ Fees");
+      dailyRevenue.addCGToken(cgId, amount, "RFQ Fees");
     }
   }
 
-  // 3. Revenue. Before the FeeCollector, kept fees went straight to the treasury, so revenue accrues per fill
-  if (options.startTimestamp < FEE_COLLECTOR_GENESIS) {
-    return { dailyFees, dailyRevenue: accruedRevenue, dailyProtocolRevenue: accruedRevenue, dailySupplySideRevenue };
+  // 3. Revenue split
+  if (preFeeCollector) {
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
   }
 
-  // Since then kept fees collect in the FeeCollector and revenue books on the weekly settlement, valued at its price
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
+  // Since then kept fees collect in the FeeCollector and are split on the weekly settlement, valued at its price
   const dailyHoldersRevenue = options.createBalances();
   const settledLogs = await getLogs({ target: FEE_COLLECTOR, eventAbi: TOKEN_SETTLED_EVENT });
   const symbols = [...new Set(settledLogs.map((l: any) => l.symbol as string))];
@@ -219,9 +215,7 @@ const fetch = async (options: FetchOptions) => {
     const price = Number(log.price) / 1e18;
     const toTreasuryUsd = (Number(log.toTreasury) / unit) * price;
     const toBuybackUsd = (Number(log.toBuyback) / unit) * price;
-    dailyRevenue.addUSDValue(toTreasuryUsd, "Operating Budget");
-    dailyRevenue.addUSDValue(toBuybackUsd, "ALOT Buyback");
-    dailyProtocolRevenue.addUSDValue(toTreasuryUsd, "Operating Budget");
+    dailyProtocolRevenue.addUSDValue(toTreasuryUsd, "Treasury");
     dailyHoldersRevenue.addUSDValue(toBuybackUsd, "ALOT Buyback");
   }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
@@ -232,19 +226,11 @@ const methodology = {
   SupplySideRevenue:
     "The share of taker fees an OmniVault (Dexalot's market-making vaults) earns when it is the maker, capped at a per-vault rate. It goes to the vault's depositors.",
   Revenue:
-    "Fees kept by the protocol. Since the FeeCollector launch (2026-08-12) they settle once a week at epoch close, so revenue books on the settlement day at the close's on-chain USD value and is zero on the other days. RFQ fees include an integration fee that the treasury later pays to the integrator, it is not deducted.",
+    "Fees kept by the protocol, booked per fill: maker fees, taker fees less any OmniVault share, and RFQ fees. RFQ fees include an integration fee that the treasury later pays to the integrator, it is not deducted.",
   ProtocolRevenue:
-    "Before the FeeCollector, every kept fee. Since then the weekly operating budget taken from collected fees at epoch close, sent to the treasury, stables first.",
-  HoldersRevenue: "Collected fees above the operating budget, sent to the BuybackVault at epoch close to buy ALOT.",
-};
-
-const keptFees = {
-  "Maker Fees": "Before the FeeCollector: maker fees, all kept by the protocol.",
-  "Taker Fees": "Before the FeeCollector: taker fees less any OmniVault share.",
-};
-const settlement = {
-  "Operating Budget": "The weekly operating budget, taken stables first at epoch close.",
-  "ALOT Buyback": "The rest of each settlement, sent to the BuybackVault to buy ALOT.",
+    "Kept fees collect in the FeeCollector and settle once a week at epoch close. The operating budget, taken stables first, goes to the treasury and is booked on the settlement day at the close's on-chain USD value.",
+  HoldersRevenue:
+    "Settled fees above the operating budget, sent to the BuybackVault at epoch close to buy ALOT and booked on the settlement day.",
 };
 
 const breakdownMethodology = {
@@ -256,9 +242,18 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     "Taker Fees To OmniVaults": "The share of taker fees earned by an OmniVault when it is the maker.",
   },
-  Revenue: { ...keptFees, ...settlement },
-  ProtocolRevenue: { ...keptFees, "Operating Budget": settlement["Operating Budget"] },
-  HoldersRevenue: { "ALOT Buyback": settlement["ALOT Buyback"] },
+  Revenue: {
+    "Maker Fees": "Maker fees, all kept by the protocol.",
+    "Taker Fees": "Taker fees less any OmniVault share.",
+    "RFQ Fees": "Fees on RFQ swaps, collected into the FeeCollector.",
+  },
+  ProtocolRevenue: {
+    Treasury:
+      "The weekly operating budget taken from each settlement at epoch close, stables first.",
+  },
+  HoldersRevenue: {
+    "ALOT Buyback": "The rest of each settlement, sent to the BuybackVault to buy ALOT.",
+  },
 };
 
 const adapter: SimpleAdapter = {
