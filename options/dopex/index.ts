@@ -1,16 +1,19 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { getChainStats, getOnchainStats, IOptionMarket, ONCHAIN_LABELS } from "./clamm";
+import { getChainStats, getOnchainStats, getCurrentClammStats, getCurrentMarkets, IOptionMarket, ONCHAIN_LABELS } from "./clamm";
 import { CHAIN } from "../../helpers/chains";
 
 // Stryke (ex-Dopex) CLAMM option markets. Deployed addresses per chain:
 // https://docs.stryke.xyz/developers/deployed-addresses/clamm (also served by
 // https://api.stryke.xyz/v1.1/clamm/option-markets?chains=<chainId>, which lists markets the docs omit).
-type ChainConfig = { start: number; graphUrl?: string; markets?: IOptionMarket[] };
+type ChainConfig = { start: string; graphUrl?: string; markets?: IOptionMarket[] };
 
 const SONIC_USDC_E = ADDRESSES.sonic.USDC_e;
 
 const chainConfig: Record<string, ChainConfig> = {
+  // FeeStrategy/first option market deployed at block 65228887/65228888.
+  // Current market catalogue: https://stryke-api-v2-robinhood.up.railway.app/v1/markets
+  [CHAIN.ROBINHOOD]: { start: '2026-09-17' },
   [CHAIN.ARBITRUM]: {
     graphUrl:
       "https://api.0xgraph.xyz/api/public/e2146f32-5728-4755-b1d1-84d17708c119/subgraphs/clamm-arbitrum/prod/gn",
@@ -54,14 +57,27 @@ const chainConfig: Record<string, ChainConfig> = {
 };
 
 const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.ROBINHOOD) return getCurrentClammStats(options);
   const { graphUrl, markets } = chainConfig[options.chain];
   if (markets) return getOnchainStats(options, markets);
+  if (options.chain === CHAIN.ARBITRUM) {
+    const currentMarkets = await getCurrentMarkets(options);
+    const current = await getCurrentClammStats(options, currentMarkets);
+    // Retain legacy history; explicitly exclude current markets if the graph is
+    // later extended to index them, so every purchase is still counted once.
+    const legacy = await getChainStats({ graphUrl: graphUrl!, dayStart: options.startOfDay, excludeMarkets: currentMarkets });
+    current.dailyNotionalVolume.addUSDValue(legacy.dailyNotionalVolume);
+    current.dailyPremiumVolume.addUSDValue(legacy.dailyPremiumVolume);
+    current.dailyFees.addUSDValue(legacy.dailyFees, ONCHAIN_LABELS.fees);
+    current.dailyRevenue.addUSDValue(legacy.dailyRevenue, ONCHAIN_LABELS.revenue);
+    return current;
+  }
   return getChainStats({ graphUrl: graphUrl!, dayStart: options.startOfDay });
 };
 
 const methodology = {
   NotionalVolume:
-    "Sum of totalAssetWithdrawn from LogMintOption: the call asset (calls) or put asset (puts) borrowed from concentrated-liquidity ticks to back each option, valued in USD.",
+    "Call assets (calls) or put assets (puts) borrowed from concentrated-liquidity ticks to back purchased options, valued in USD; recorded as totalAssetWithdrawn on legacy markets and size on Robinhood.",
   PremiumVolume:
     "Sum of premiumAmount from LogMintOption: the premium option buyers pay, which is donated back to the LP positions whose liquidity backed the option.",
   Fees: "Protocol fees charged on top of the premium (a fixed percentage of premiumAmount set in the CLAMM FeeStrategy) and sent to the feeTo address. Premiums to LPs are not included.",
