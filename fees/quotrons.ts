@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { nullAddress } from "../helpers/token";
 
 // Public integration manifest and contract explorers:
 // https://quotrons.cash/integration/manifest.json
@@ -15,31 +16,40 @@ const COLLECTIONS = new Set([
 ]);
 // OpenSea pays the 4% keeper and 1% creator legs directly, bypassing ERC-2981.
 // Royalty configuration: https://opensea.io/collection/quotrons404
-const DIRECT_RECIPIENTS = new Set([
-  "0xd1de50b724de2e243d3f6f3c3ef1806babd39e58",
-  "0x7171e64e979265aed6588577d1c6b60a701d7866",
-]);
+const KEEPER = "0xd1de50b724de2e243d3f6f3c3ef1806babd39e58";
+const CREATOR = "0x7171e64e979265aed6588577d1c6b60a701d7866";
+const DIRECT_RECIPIENTS = new Set([KEEPER, CREATOR]);
 const SEAPORT = "0x0000000000000068F116a894984e2DB1123eB395";
 const FEE_EVENT = "event FeeTaken(bytes32 indexed poolId, address indexed swapper, uint256 feeBps, uint256 total, uint256 toReflections, uint256 toBurn, uint256 toLp, uint256 toCreator)";
 const SALE_EVENT = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)";
-const LABEL = "Swap Fees and NFT Royalties";
+const SWAP_LABEL = "Swap Fees";
+const ROYALTY_LABEL = "NFT Royalties";
 const LP_LABEL = "Swap Fees To LPs";
 const CREATOR_LABEL = "Swap Fees To Creators";
-const RETAINED_LABEL = "Fees After Hook LP and Creator Allocations";
+const BURN_LABEL = "Swap Fees Allocated To STONKBROKER Burns";
+const REFLECTION_LABEL = "Swap Fees For Terminal Rewards";
+const ROYALTY_CREATOR_LABEL = "NFT Royalties To Creator";
+const ROYALTY_KEEPER_LABEL = "NFT Royalties To Keeper";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const addHookFee = (token: string, log: any) => {
-    dailyFees.add(token, log.total, LABEL);
+    dailyFees.add(token, log.total, SWAP_LABEL);
     dailySupplySideRevenue.add(token, log.toLp, LP_LABEL);
     dailySupplySideRevenue.add(token, log.toCreator, CREATOR_LABEL);
-    dailyRevenue.add(token, BigInt(log.total) - BigInt(log.toLp) - BigInt(log.toCreator), RETAINED_LABEL);
+    // The advisory vote did not change the sealed V2 burn sink or fee carve.
+    // This is the allocation at accrual, not a claim about final net spending.
+    // Subsequent flash-loan recoveries are documented in the submission:
+    // https://github.com/DefiLlama/dimension-adapters/pull/10611
+    dailySupplySideRevenue.add(token, log.toBurn, BURN_LABEL);
+    dailyRevenue.add(token, BigInt(log.total) - BigInt(log.toLp) - BigInt(log.toCreator) - BigInt(log.toBurn), REFLECTION_LABEL);
   };
-  const addRoyalty = (token: string, amount: bigint) => {
-    dailyFees.add(token, amount, LABEL);
-    dailyRevenue.add(token, amount, RETAINED_LABEL);
+  const addRoyalty = (token: string, total: bigint, creatorAmount: bigint) => {
+    dailyFees.add(token, total, ROYALTY_LABEL);
+    dailySupplySideRevenue.add(token, creatorAmount, ROYALTY_CREATOR_LABEL);
+    dailyRevenue.add(token, BigInt(total) - BigInt(creatorAmount), ROYALTY_KEEPER_LABEL);
   };
   const [v1Fees, v2Fees] = await options.getLogs({
     targets: [V1_HOOK, V2_HOOK],
@@ -80,7 +90,7 @@ const fetch = async (options: FetchOptions) => {
       const seller = sale.offer.some((offer: any) => Number(offer.itemType) >= 2)
         ? sale.offerer : sale.recipient;
       if (item.recipient.toLowerCase() === seller.toLowerCase()) continue;
-      addRoyalty(item.token, item.amount);
+      addRoyalty(item.token, item.amount, item.recipient.toLowerCase() === CREATOR ? item.amount : 0n);
     }
   }
 
@@ -96,11 +106,8 @@ const fetch = async (options: FetchOptions) => {
     target: SPLITTER,
     eventAbi: "event TokenRoyaltyReleased(address indexed token, uint256 total, uint256 keeperAmount, uint256 creatorAmount)",
   });
-  for (const log of nativeRoyalties) {
-    dailyFees.addGasToken(log.total, LABEL);
-    dailyRevenue.addGasToken(log.total, RETAINED_LABEL);
-  }
-  for (const log of tokenRoyalties) addRoyalty(log.token, log.total);
+  for (const log of nativeRoyalties) addRoyalty(nullAddress, log.total, log.creatorAmount);
+  for (const log of tokenRoyalties) addRoyalty(log.token, log.total, log.creatorAmount);
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue };
 };
@@ -111,25 +118,25 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ROBINHOOD],
   start: "2026-08-12",
   fetch,
-  // Only the hook LP and creator allocations are classified as supply side.
-  // Revenue is the residual after these known allocations. Reflections, burn
-  // and keeper receipts remain in that residual pending downstream attribution.
-  skipBreakdownValidation: true,
   methodology: {
     Fees: "Total Quotrons V1 and V2 hook swap fees plus NFT royalties paid directly through Seaport or released by the royalty splitter on Robinhood Chain, excluding direct royalties from mixed-collection orders, marketplace fees and subsequent redistribution of the same funds.",
-    SupplySideRevenue: "Known swap fee allocations to LP reinvestment and the hook creator on Robinhood Chain, recorded when accrued; downstream allocations of reflections, burns and NFT royalties are outside this partial classification.",
-    Revenue: "Swap fees and NFT royalties remaining after the hook LP and creator allocations, before downstream attribution of reflections, burn pots and keeper receipts.",
+    SupplySideRevenue: "Hook fee allocations to LP reinvestment, STONKBROKER burns and the creator, plus the creator portion of NFT royalties, recorded at accrual or royalty receipt/release; allocations precede any later treasury recovery.",
+    Revenue: "Hook fees allocated to terminal rewards and the keeper portion of NFT royalties, before conversion and distribution to terminals; later treasury recoveries are excluded.",
   },
   breakdownMethodology: {
     Fees: {
-      [LABEL]: "Actual hook fee amounts in floor stocks or WETH, plus direct Quotrons sale royalties and royalty splitter releases in their payment currencies; ERC-20 splitter royalties are recognized when released.",
+      [SWAP_LABEL]: "Actual V1 and V2 hook fee totals in floor stocks or WETH, including FeeTaken events emitted by recovery swaps; recovered principal and flash-loan transfers are excluded.",
+      [ROYALTY_LABEL]: "Direct royalties on Quotrons-only Seaport orders and royalty splitter releases in their payment currencies; ERC-20 splitter royalties are recognized when released.",
     },
     SupplySideRevenue: {
       [LP_LABEL]: "Actual toLp amounts allocated by the V1 and V2 hooks to LP reinvestment, recorded at the swap.",
       [CREATOR_LABEL]: "Actual toCreator amounts allocated by the V1 and V2 hooks to the creator, recorded at the swap.",
+      [BURN_LABEL]: "Actual toBurn amounts earmarked by the V1 and V2 hooks for the separate STONKBROKER token; the immutable V2 allocation continues after the advisory vote and periodic recoveries.",
+      [ROYALTY_CREATOR_LABEL]: "Direct NFT royalty payments to the creator and creatorAmount from the dedicated splitter's release events.",
     },
     Revenue: {
-      [RETAINED_LABEL]: "Hook fee totals less their actual toLp and toCreator allocations, plus NFT royalty receipts; downstream uses of the retained funds are not classified here.",
+      [REFLECTION_LABEL]: "Hook fee totals less toLp, toCreator and toBurn, retained for terminal reward conversion and distribution.",
+      [ROYALTY_KEEPER_LABEL]: "Direct NFT royalty payments to the keeper and splitter totals less creatorAmount, retained for the royalty reward pipeline.",
     },
   },
 };
