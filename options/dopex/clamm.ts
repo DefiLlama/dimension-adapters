@@ -126,7 +126,11 @@ async function getOnchainStats(options: FetchOptions, markets: IOptionMarket[]) 
 const ROBINHOOD_MINT_EVENT = 'event LogMintOption(((address _handler,address pool,address hook,int24 tickLower,int24 tickUpper,uint256 liquidityToUse)[] optionTicks,uint256 ttl,uint256 maxCostAllowance,int24 tickLower,int24 tickUpper,bool isCall) _params,uint256 optionId,uint256 premiumAmount,uint256 size,uint256 protocolFees)';
 
 const currentConfig: Record<string, { feeStrategy: string; fromBlock: number }> = {
+  // FeeStrategy deployed in block 65228887; scan registrations from deployment:
+  // https://robinhoodchain.blockscout.com/tx/0xe2b2282f4356c3653cf07d106b6fae2f499c793c1d89cf7ebf37f8fed8acffb0
   robinhood: { feeStrategy: '0x56b8221882e4707f998f3e9717fbdfde628ed1b2', fromBlock: 65228887 },
+  // FeeStrategy deployed in block 379445413; scan registrations from deployment:
+  // https://arbitrum.blockscout.com/tx/0xc9251017549f4a7fccdf06423044d3328dc29bcd5c8ee138c653843da0cde8fd
   arbitrum: { feeStrategy: '0x11d27d84e21dc88eb8c8aef3a1f9b869b5f95a87', fromBlock: 379445413 },
 };
 
