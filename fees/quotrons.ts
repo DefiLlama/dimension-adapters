@@ -147,14 +147,14 @@ const fetch = async (options: FetchOptions) => {
     ])];
     if (!floorIds.length) continue;
     const calls = floorIds.map(floor => ({ params: [floor] }));
-    const catalog = i === 2 ? await configApi.call({ target, abi: "address:catalog" }) : target;
+    const catalog = target === ROYALTY_REFLECTIONS ? await configApi.call({ target, abi: "address:catalog" }) : target;
     const stocks = await configApi.multiCall({ target: catalog, abi: "function floorStocks(uint256) view returns (address)", calls });
     const stockByFloor = Object.fromEntries(floorIds.map((floor, index) => [floor, stocks[index]]));
-    const label = i === 2 ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL;
+    const label = target === ROYALTY_REFLECTIONS ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL;
     for (const log of notifications[i]) {
       const reward = log.args;
       let accrued = BigInt(reward.amount);
-      if (i === 0) {
+      if (target === V1_REFLECTIONS) {
         // V1 gold stocks await conversion: recognize the PAXG deposit instead.
         accrued -= BigInt(reward.toGold);
         const [block, index] = V1_FIRST_FLOOR_ALLOCATION[Number(reward.floorIdx)];
