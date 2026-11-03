@@ -237,6 +237,7 @@ export function compoundV2Export(config: IJSON<string>, exportOptions?: Compound
     start: typeof exportOptions?.start === 'string' ? exportOptions.start :  undefined,
     adapter: exportObject,
     version: 2,
+    pullHourly: true,
     methodology: exportOptions && exportOptions.methodology ? exportOptions.methodology : {
       Fees: "Total interest paid by borrowers",
       Revenue: "Protocol and holders share of interest",
