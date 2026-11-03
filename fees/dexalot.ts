@@ -41,12 +41,25 @@ const GET_TOKEN_DETAILS_ABI =
   "function getTokenDetails(bytes32) view returns (tuple(uint8 decimals, address tokenAddress, uint8 auctionMode, uint32 srcChainId, uint8 l1Decimals, bytes32 symbol, bytes32 symbolId, bytes32 sourceChainSymbol, bool isVirtual))";
 
 // Dexalot L1 balances are portfolio entries, not ERC20s, so fees are priced through coingecko ids keyed by L1 symbol
-// from Dexalot's API (new listings need no adapter change)
+// from Dexalot's API (new listings need no adapter change). The fallback covers the majors if the API is down.
 const COINGECKO_IDS_ENDPOINT = "https://api.dexalot.com/api/stats/coingeckoids";
+const COINGECKO_ID_FALLBACK: Record<string, string> = {
+  USDC: "usd-coin",
+  USDT: "tether",
+  BTC: "bitcoin",
+  WBTC: "wrapped-bitcoin",
+  AVAX: "avalanche-2",
+  ETH: "ethereum",
+};
 
 const getCoingeckoIds = async (): Promise<Record<string, string>> => {
-  const rows: { symbol: string; coingecko_id: string }[] = await httpGet(COINGECKO_IDS_ENDPOINT);
-  return Object.fromEntries(rows.map((r) => [r.symbol, r.coingecko_id]));
+  try {
+    const rows: { symbol: string; coingecko_id: string }[] = await httpGet(COINGECKO_IDS_ENDPOINT);
+    return Object.fromEntries(rows.map((r) => [r.symbol, r.coingecko_id]));
+  } catch (e: any) {
+    console.log(`fees/dexalot: coingeckoids endpoint failed (${e?.message ?? e}), using the fallback map`);
+    return COINGECKO_ID_FALLBACK;
+  }
 };
 
 const ZERO = ADDRESSES.null;
