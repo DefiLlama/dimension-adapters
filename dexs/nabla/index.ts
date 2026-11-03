@@ -8,13 +8,6 @@ const config = {
         registry: "0xcB94Eee869a2041F3B44da423F78134aFb6b676B",
         backfill: {
             routers: ["0x7bcFc8b8ff61456ad7C5E2be8517D01df006d18d"],
-            pools: [
-                "0xE70292D6054B753214D555930e0F11CD7206Efeb", // ARB
-                "0x058a0875DB2168AF97bbf01043C3e8F751cCd9A8", // USDC
-                "0xcC5544C63392952B6f94a695f8f9e153F4284A87", // USDT
-                "0x411eF79fE9Df8Ba82A09c7e93FdE85AF5732BF12", // WBTC
-                "0x272dF896f4D0c97F65e787f861bb6e882776a155", // WETH
-            ],
             assets: [
                 ADDRESSES.arbitrum.ARB,
                 ADDRESSES.arbitrum.USDC_CIRCLE,
@@ -28,11 +21,6 @@ const config = {
         registry: "0xd24d145f5E351de52934A7E1f8cF55b907E67fFF",
         backfill: {
             routers: ["0x791Fee7b66ABeF59630943194aF17B029c6F487B"],
-            pools: [
-                "0xa83a20F4dCaB1a63a9118E9E432932c8BEB39b85", // CBBTC
-                "0x123456C6C27bb57013F4b943A0f032a0ab9c12eB", // WETH
-                "0xdd8f26dea84b13600039747b59797E615767Dab0", // DEGEN
-            ],
             assets: [
                 ADDRESSES.base.cbBTC,
                 ADDRESSES.base.WETH,
@@ -44,11 +32,6 @@ const config = {
         registry: "0x1F917Fe724F186a1fFA7744A73afed18C335b9eC",
         backfill: {
             routers: ["0x8756fd992569E0389bF357EB087f5827F364D2a4"],
-            pools: [
-                "0xBa8cC2Ac11CbB65f542FF59A3af5655940fB3282", // WETH
-                "0x896BDED4b4A89C1104587dd045C1B441110B8B5f", // WBTC
-                "0xE971445787DCB0BB577610126287DED493DDDAE7", // USDC
-            ],
             assets: [
                 ADDRESSES.berachain.WETH,
                 ADDRESSES.berachain.WBTC,
@@ -59,12 +42,9 @@ const config = {
     [CHAIN.HYPERLIQUID]: {
         registry: "0x45a2C9FBc307A13c2737Cef9e00C1555c2F8C948",
         backfill: {
-            routers: ["0xe62b7C96F9b804742d2Cbd57613F19Bda82D426F"],
-            pools: [
-                "0x5C542cE2e3dC25B4EF197b79B239261AAE27b3Dd", // UETH
-                "0xB5E4C3Ca3D1D804DA0c1808cF60ddED6FF3b65e5", // UBTC
-                "0x8426d3de775f77c7226f89eed6839b288639ad73", // USDT
-                "0x5c235275583048BF99C14C1e20DE35Eeb23AADd7", // WHYPE
+            routers: [
+                "0xe62b7C96F9b804742d2Cbd57613F19Bda82D426F",
+                "0xca51650D3840c2E628A95AC0096592a2aEa9daE8",
             ],
             assets: [
                 "0xBe6727B535545C67d5cAa73dEa54865B92CF7907",
@@ -78,12 +58,6 @@ const config = {
         registry: "0x11B06EF8Adc5ea73841023CB39Be614f471213cc",
         backfill: {
             routers: ["0x610748f49774C062467c7AE1eC9E4729FFE94577"],
-            pools: [
-                "0xd7B645e5027A010899A95bE464e880d58eCf6d76", // WETH
-                "0xAe0cC253F27f0e80556e911E56FC4806Ac6a1508", // USDC
-                "0xC1EB061De61f3B23D17cF61d1E890D53070dee62", // WBTC
-                "0x12243c1cdb211813776d58DdBC1B59237b447919", // WMON
-            ],
             assets: [
                 ADDRESSES.monad.WETH, // WETH
                 ADDRESSES.monad.USDC, // USDC
@@ -153,8 +127,21 @@ async function getAddresses(chain, api) {
         });
     } catch (e) {
         routers = config[chain].backfill.routers;
-        pools = config[chain].backfill.pools;
-        assets = config[chain].backfill.assets;
+        const backfillCalls: any[] = [];
+        assets = [];
+        routers.forEach((router: any) => {
+            config[chain].backfill.assets.forEach((asset: any) => {
+                backfillCalls.push({
+                    target: router,
+                    params: asset,
+                });
+                assets.push(asset);
+            });
+        });
+        pools = await api.multiCall({
+            abi: abis.router.poolByAsset,
+            calls: backfillCalls,
+        });
     }
 
     return { routers, pools, assets };
