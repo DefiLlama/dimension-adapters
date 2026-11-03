@@ -140,13 +140,13 @@ const chainConfig: Record<Chain, { start: string, deadFrom?: string }> = {
   [CHAIN.SONIC]: { start: "2024-03-07", deadFrom: "2026-09-28" }, // napier api no longer serves these chains (same as fees/napier)
   [CHAIN.ARBITRUM]: { start: "2024-03-11" },
   [CHAIN.OPTIMISM]: { start: "2024-03-11", deadFrom: "2026-09-28" },
-  [CHAIN.FRAXTAL]: { start: "2024-03-11" },
+  [CHAIN.FRAXTAL]: { start: "2024-03-11", deadFrom: "2026-10-24" },
   [CHAIN.MANTLE]: { start: "2024-03-11", deadFrom: "2026-09-28" },
   [CHAIN.BSC]: { start: "2024-03-11" },
   [CHAIN.POLYGON]: { start: "2024-03-12", deadFrom: "2026-09-28" },
   [CHAIN.AVAX]: { start: "2024-03-12", deadFrom: "2026-09-28" },
-  [CHAIN.HYPERLIQUID]: { start: "2024-03-13" },
-  [CHAIN.PLUME]: { start: "2024-03-13" },
+  [CHAIN.HYPERLIQUID]: { start: "2024-03-13", deadFrom: "2026-10-24" },
+  [CHAIN.PLUME]: { start: "2024-03-13", deadFrom: "2026-10-24" },
   [CHAIN.ROBINHOOD]: { start: "2026-09-15" },
 };
 

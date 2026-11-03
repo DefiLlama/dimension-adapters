@@ -6,15 +6,16 @@ import { addTokensReceived } from '../helpers/token';
 const CONFIG: Record<string, string> = {
   [CHAIN.AVAX]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.BSC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.FANTOM]: '0x0b5025d8d409a51615cb624b8ede132bb11a2550',
   [CHAIN.POLYGON]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.ARBITRUM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.OPTIMISM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.ERA]: '0x01b50b57a3d3c1a54433813585e60713e75f3de9',
-  [CHAIN.LINEA]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
   [CHAIN.BASE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.MANTLE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d',
-  [CHAIN.SONIC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d'
+  // Discontinued chains commented out in place with reason:
+  // [CHAIN.FANTOM]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d', // Discontinued support
+  // [CHAIN.ERA]: '0xC889e471d533BEA7fb4c58229F8a60E36a1e5068', // Discontinued support
+  // [CHAIN.LINEA]: '0x99A619736c0500d43C6207E05C66C3E43B330a66', // Discontinued support
+  // [CHAIN.MANTLE]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d', // Discontinued support
+  // [CHAIN.SONIC]: '0xc45b55032cafeaff3b8057d52758d8f8211da54d', // Discontinued support
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -58,10 +59,6 @@ const adapter: Adapter = {
       fetch,
       start: '2023-01-09',
     },
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: '2023-01-09',
-    },
     [CHAIN.POLYGON]: {
       fetch,
       start: '2023-01-09',
@@ -74,26 +71,16 @@ const adapter: Adapter = {
       fetch,
       start: '2023-01-09',
     },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2023-01-09',
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2023-01-09',
-    },
     [CHAIN.BASE]: {
       fetch,
       start: '2023-01-09',
     },
-    [CHAIN.MANTLE]: {
-      fetch,
-      start: '2023-01-09',
-    },
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2024-12-18',
-    }
+    // Discontinued chains commented out in place with reason:
+    // [CHAIN.FANTOM]: { fetch, start: '2023-01-09' }, // Discontinued support
+    // [CHAIN.ERA]: { fetch, start: '2023-05-18' }, // Discontinued support
+    // [CHAIN.LINEA]: { fetch, start: '2023-08-23' }, // Discontinued support
+    // [CHAIN.MANTLE]: { fetch, start: '2023-10-06' }, // Discontinued support
+    // [CHAIN.SONIC]: { fetch, start: '2024-12-25' }, // Discontinued support
   }
 }
 

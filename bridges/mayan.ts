@@ -7,7 +7,9 @@ import { httpGet } from "../utils/fetchURL";
 // server used). The explorer has no time filter and pages at most 3000 swaps back per query, so it only reaches the last hours.
 // The source chain gets the outgoing leg and the destination chain the incoming leg, both valued with the source token and raw
 // amount (the destination amount is only known once filled). Same-chain swaps and refunded or failed orders are skipped; swaps
-// still in flight are counted, since nearly all settle within minutes and the hour is not read again.
+// still in flight are counted, since nearly all settle within minutes and the hour is not read again. HyperCore withdrawals
+// still at HC_INITIATED_ON_HYPERCORE are skipped: that is a signed request Mayan received but HyperCore never executed, and
+// unexecuted requests stay there for weeks with test amounts (1e24 USDC from the Anvil default account on 2026-10-29).
 const API = "https://explorer-api.mayan.finance/v3/swaps";
 const PAGE_SIZE = 100;
 const MAX_OFFSET = 3000; // the explorer rejects larger offsets
@@ -31,9 +33,12 @@ const CHAINS: Record<string, { name: string; chain: string }> = {
   "65000": { name: "hypercore", chain: CHAIN.HYPERLIQUID }, // HyperCore, booked with HyperEVM under hyperliquid
 };
 const HYPERCORE = "65000"; // HyperCore token amounts are not chain-priceable, the explorer's USD price is used
+// Sui MCTP bridges report fromAmount64 in the pre-swap input token (100 SUI = 100e9 booked as 100k USDC), so the explorer's
+// USD price on the bridged amount is used instead; other chains' fromAmount64 matches fromTokenAddress
+const SUI = "21";
 const NATIVE = ADDRESSES.null; // native token on every chain, SOL included
 const WSOL = ADDRESSES.solana.SOL;
-const SKIPPED_STATUS = /REFUND|FAIL|EXPIRE|CANCEL/;
+const SKIPPED_STATUS = /REFUND|FAIL|EXPIRE|CANCEL|^HC_INITIATED_ON_HYPERCORE$/;
 
 type Swap = {
   id: string; service: string; status: string; initiatedAt: string; sourceChain: string; destChain: string;
@@ -69,7 +74,7 @@ const prefetch = async (options: FetchOptions): Promise<Swap[]> => {
 };
 
 const addSourceValue = (balances: any, s: Swap) => {
-  if (s.sourceChain === HYPERCORE) return balances.addUSDValue(Number(s.fromAmount) * (s.fromTokenPrice ?? 0));
+  if (s.sourceChain === HYPERCORE || s.sourceChain === SUI) return balances.addUSDValue(Number(s.fromAmount) * (s.fromTokenPrice ?? 0));
   const chain = CHAINS[s.sourceChain].chain;
   const token = chain === CHAIN.SOLANA && s.fromTokenAddress === NATIVE ? WSOL : s.fromTokenAddress;
   balances.add(`${chain}:${token}`, s.fromAmount64, { skipChain: true });

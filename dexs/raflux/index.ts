@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { queryAllium } from '../../helpers/allium'
+import { PHYSICAL_CARD_COSTS } from '../../helpers/physicalCards'
 
 /** Gross pack spend, shown separately from USDC paid back to players. */
 const LABEL_PACK_PURCHASES = 'Pack Purchases'
@@ -183,6 +184,7 @@ const adapter: SimpleAdapter = {
         'USDC returned to players, subtracted from treasury revenue.',
     },
   },
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true,
 }
 

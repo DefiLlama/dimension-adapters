@@ -1,5 +1,8 @@
-import { FetchOptions } from "../adapters/types";
+import * as sdk from "@defillama/sdk";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
+import { CHAIN } from "./chains";
+import { getBlock } from "./getBlock";
 
 // Papertrade: synthetic BTC/ETH perps on HyperEVM, every position is against the protocol-owned LP at Hyperliquid's BBO mid.
 // Source: the API behind https://exchange.papertrade.xyz/stats. HyperEVM contracts, in case it needs an on-chain rebuild:
@@ -96,4 +99,82 @@ export async function getOpenInterestAtEnd(options: FetchOptions) {
   const longOpenInterestAtEnd = bl + el;
   const shortOpenInterestAtEnd = bs + es;
   return { openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
+}
+
+//(https://docs.papertrade.xyz/how/builder-codes/).
+const EXCHANGE = "0x6cd5661646289fb6e65ea5c032310fded797d0a2"; // HyperEVM
+const BUILDER_FEES_ACCRUED = "event BuilderFeesAccrued(address indexed builder, address indexed user, uint256 amount)";
+const usd = (x: bigint) => Number(x / 10n ** 12n) / 1e6;
+
+export type PapertradeBuilderConfig = { builder: string; name: string; start: string };
+
+export function papertradeBuilderFeesExports({ builder, name, start }: PapertradeBuilderConfig): SimpleAdapter {
+  builder = builder.toLowerCase();
+  const fetch = async (options: FetchOptions) => {
+    const [fromBlock, toBlock] = await Promise.all([getBlock(options.fromTimestamp, CHAIN.HYPERLIQUID), getBlock(options.toTimestamp, CHAIN.HYPERLIQUID)]);
+    const logs = await sdk.getEventLogs({ chain: CHAIN.HYPERLIQUID, target: EXCHANGE, fromBlock, toBlock, eventAbi: BUILDER_FEES_ACCRUED, onlyArgs: true });
+    let fees = 0n;
+    for (const log of logs) {
+      if (log.builder.toLowerCase() !== builder) continue;
+      if (log.user.toLowerCase() === builder) continue;
+      fees += BigInt(log.amount);
+    }
+
+    const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
+    dailyFees.addUSDValue(usd(fees), "Papertrade Builder Fees");
+    dailyRevenue.addUSDValue(usd(fees), "Papertrade Builder Fees To Builder");
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
+  };
+
+  return {
+    version: 2,
+    pullHourly: true,
+    fetch,
+    chains: [CHAIN.OFF_CHAIN], // same as fees/papertrade.ts: the fee is credited inside the Papertrade Exchange on HyperEVM
+    start,
+    methodology: {
+      Fees: `Builder fees ${name} earns on Papertrade: a share of the PnL (0.5% since launch) of positions its users close, paid by winning traders on top of the 2% win fee and taken from the Papertrade LP's gain on losing ones. Liquidations pay none, and closes by ${name}'s own address are excluded.`,
+      Revenue: `All builder fees ${name} earns on Papertrade closes by its users, kept by ${name}.`,
+      ProtocolRevenue: `All builder fees ${name} earns on Papertrade closes by its users, credited to ${name}'s Papertrade balance.`,
+    },
+    breakdownMethodology: {
+      Fees: { "Papertrade Builder Fees": "Share of the PnL of positions closed by the builder's users; liquidations pay none." },
+      Revenue: { "Papertrade Builder Fees To Builder": "All builder fees, kept by the builder." },
+      ProtocolRevenue: { "Papertrade Builder Fees To Builder": "All builder fees, credited to the builder's Papertrade balance." },
+    },
+  };
+}
+
+type BuilderStats = {
+  address: string;
+  routing: { notionalRaw: string; asOfMs: number; daily: { dayMs: number; closes: number; notionalRaw: string }[] };
+};
+
+// /query/builders/<address>/stats: notional of the closes each builder's users signed, per UTC day. Its hourly buckets skip
+// empty hours, so they cannot tell a quiet hour from one that rolled off; the daily series is used instead.
+export function papertradeBuilderVolumeExports({ builder, name, start }: PapertradeBuilderConfig): SimpleAdapter {
+  builder = builder.toLowerCase();
+  const fetch = async (options: FetchOptions) => {
+    const { address, routing }: BuilderStats = await httpGet(`${PAPERTRADE_API}/query/builders/${builder}/stats`);
+    if (address !== builder) throw new Error(`papertrade: stats for ${address} returned for builder ${builder}`);
+    const dayMs = options.startOfDay * 1000;
+    if (routing.asOfMs < dayMs + 86400 * 1000) throw new Error(`papertrade: ${name} routing stats as of ${new Date(routing.asOfMs).toISOString()} do not cover ${options.dateString}`);
+    // a day missing from the series is only a quiet day when the buckets add up to the lifetime total
+    const bucketSum = routing.daily.reduce((acc, d) => acc + BigInt(d.notionalRaw), 0n);
+    if (bucketSum !== BigInt(routing.notionalRaw)) throw new Error(`papertrade: ${name} daily routing buckets do not add up to its lifetime notional`);
+    const day = routing.daily.find((d) => d.dayMs === dayMs);
+    return { dailyVolume: day ? usd(BigInt(day.notionalRaw)) : 0 };
+  };
+
+  return {
+    version: 1,
+    fetch,
+    chains: [CHAIN.OFF_CHAIN],
+    start,
+    doublecounted: true, // closes on Papertrade itself
+    methodology: {
+      Volume: `Notional (margin times leverage) of Papertrade positions closed by ${name}'s users, in USD; liquidations are not included.`,
+    },
+  };
 }

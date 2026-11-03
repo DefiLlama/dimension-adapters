@@ -15,6 +15,7 @@ export const ophisChainConfig: Record<string, { id: number; start: string }> = {
   [CHAIN.UNICHAIN]: { id: 130, start: OPHIS_START },
   [CHAIN.POLYGON]: { id: 137, start: OPHIS_START },
   [CHAIN.ROBINHOOD]: { id: 4663, start: OPHIS_START },
+  [CHAIN.ARC]: { id: 5042, start: "2026-09-24" },
   [CHAIN.BASE]: { id: 8453, start: OPHIS_START },
   [CHAIN.PLASMA]: { id: 9745, start: OPHIS_START },
   [CHAIN.ARBITRUM]: { id: 42161, start: OPHIS_START },

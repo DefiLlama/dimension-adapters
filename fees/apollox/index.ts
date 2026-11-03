@@ -35,7 +35,13 @@ const adapter: Adapter = {
   chains: [CHAIN.OFF_CHAIN],
   runAtCurrTime: true,
   methodology,
-  breakdownMethodology
+  breakdownMethodology,
+  unknownBreakdownMethodology: {
+    SupplySideRevenue: {
+      'ALP Holders Share of Fees': 'Part of the trading fees is added to the value of the ALP liquidity pool for its holders. The share is not published.',
+      'Referral Commissions': 'Referrers earn 10% of the trading fees of the users they refer (20% for approved affiliates), paid from offchain records.',
+    },
+  },
 }
 
 export default adapter;

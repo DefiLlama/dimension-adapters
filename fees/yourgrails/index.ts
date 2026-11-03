@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const GACHA_PACKS = "0xA26De0Ed1c24f54Cf316C9CDb8fEFF1ea68E5AB4";
 const MARKETPLACE_ESCROW = "0x90A40f2befe2CE0AA10e951dbc47e2B6837Cfd9d";
@@ -196,6 +197,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   // Buyback payouts can exceed gross sales in a window, so net fees/revenue may be negative.
   allowNegativeValue: true,
 };

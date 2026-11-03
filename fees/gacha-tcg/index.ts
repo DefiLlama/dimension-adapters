@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards"
 
 // Gacha Pull main contract on Abstract (pack purchases & buyback events)
 // https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619
@@ -66,6 +67,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // hourly buybacks can exceed hourly pack purchases
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   adapter: {
     [CHAIN.ABSTRACT]: {
       fetch,

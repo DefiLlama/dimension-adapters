@@ -1,16 +1,19 @@
 import { id } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { getOnagiSolanaTrades } from "../dexs/onagi";
 
-// Onagi: trading app with an AI agent on Robinhood Chain (https://onagi.si).
-// Two income sources, pooled together and split the same way:
+// Onagi: trading app with an AI agent on Robinhood Chain and Solana (https://onagi.si).
+// On Robinhood Chain two income sources, pooled together and split the same way:
 // 1. Platform fees: every token and stock token trade made in Onagi pays its fee in USDG into one fee vault contract.
 // 2. ONAGI token fees: the creator share of Pons V2 fees on ONAGI trades (paired with native ETH),
 //    read from the ONAGI curve and its graduated pool, like the hedge-pons adapter.
 // Onagi's perps and prediction market fees go into the same pool and split; they are tracked with their volume
 // in dexs/onagi-perps.ts and under onagi-predict in factory/polymarket.ts.
+// On Solana every token trade pays the platform fee in USDC into Onagi's Solana fee account (read in dexs/onagi.ts).
+// That account is not part of the pooled split: the fee is kept by Onagi, so it is protocol revenue only.
 // Docs: https://onagi.si/docs , live split and payout ledger: https://onagi.si/data/cycles.json
 const FEE_VAULT = "0xe2f197bA0D1C0864b86FA36186c0c80B57f54F49";
 const USDG = ADDRESSES.robinhood.USDG;
@@ -37,6 +40,7 @@ const LABELS = {
   HOLDER_PAYOUTS: "Holder Payouts",
   BUYBACK_BURN: "Token Buyback And Burn",
   TREASURY: "Treasury",
+  SOLANA_PLATFORM_FEES_TO_TREASURY: "Solana Platform Fees To Treasury",
 } as const;
 
 const fetch = async (options: FetchOptions) => {
@@ -90,18 +94,31 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  dailyFees.add(ADDRESSES.solana.USDC, (await getOnagiSolanaTrades(options)).fee, LABELS.PLATFORM_FEES);
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue: dailyFees,
+    dailySupplySideRevenue: 0,
+    dailyHoldersRevenue: 0,
+    dailyProtocolRevenue: dailyFees.clone(1, LABELS.SOLANA_PLATFORM_FEES_TO_TREASURY),
+  };
+};
+
 const methodology = {
-  Fees: "Platform fees paid in USDG on every token and stock token trade made in Onagi (transfers into the Onagi fee vault), plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events). Platform fees include a small reimbursement for network gas that Onagi pays on behalf of users, which is not separated on chain.",
-  UserFees: "Platform fees paid in USDG on every token and stock token trade made in Onagi, plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events).",
+  Fees: "Platform fees on every token and stock token trade made in Onagi: on Robinhood Chain paid in USDG into the Onagi fee vault, on Solana paid in USDC into the Onagi Solana fee account inside each Jupiter swap. Plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events). Platform fees include a small reimbursement for network gas that Onagi pays on behalf of users, which is not separated on chain.",
+  UserFees: "Platform fees paid on every token and stock token trade made in Onagi (USDG on Robinhood Chain, USDC on Solana), plus all Pons V2 swap fees and creator tax charged on ONAGI token trades (curve and graduated pool sweep events).",
   Revenue: "Platform fees plus the creator share of ONAGI token swap fees that Pons credits to Onagi.",
   SupplySideRevenue: "The Pons protocol and Pons buyback share of ONAGI token swap fees, not kept by Onagi.",
-  HoldersRevenue: "75% of revenue: 50% is paid to eligible ONAGI holders in USDG and 25% buys ONAGI and sends it to the burn address. Computed from Onagi's published split.",
-  ProtocolRevenue: "25% of revenue goes to the Onagi treasury.",
+  HoldersRevenue: "75% of Robinhood Chain revenue: 50% is paid to eligible ONAGI holders in USDG and 25% buys ONAGI and sends it to the burn address. Computed from Onagi's published split.",
+  ProtocolRevenue: "25% of Robinhood Chain revenue goes to the Onagi treasury. Solana platform fees stay in Onagi's Solana fee account, outside the holder split, so all of them are protocol revenue.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.PLATFORM_FEES]: "USDG fees paid into the Onagi fee vault on every token and stock token trade, including gas reimbursement.",
+    [LABELS.PLATFORM_FEES]: "USDG fees paid into the Onagi fee vault on every Robinhood Chain token and stock token trade, including gas reimbursement; USDC received by the Onagi Solana fee account in each Jupiter swap.",
     [LABELS.ONAGI_TOKEN_FEES]: "protocolAmount + buybackAmount + creatorAmount from FeesSwept on the ONAGI curve and PoolFeesSwept for the ONAGI pool, in ETH.",
   },
   UserFees: {
@@ -120,16 +137,19 @@ const breakdownMethodology = {
     [LABELS.BUYBACK_BURN]: "25% of revenue, used to buy ONAGI and burn it.",
   },
   ProtocolRevenue: {
-    [LABELS.TREASURY]: "25% of revenue, kept by the Onagi treasury.",
+    [LABELS.TREASURY]: "25% of Robinhood Chain revenue, kept by the Onagi treasury.",
+    [LABELS.SOLANA_PLATFORM_FEES_TO_TREASURY]: "All Solana platform fees, kept in the Onagi Solana fee account.",
   },
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-10-22",
+  adapter: {
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-10-22" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-25" },
+  },
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
   doublecounted: true, // pons

@@ -138,9 +138,10 @@ const synapseRfqEvents = (targets: string[]): BridgeEvent[] => [
   { eventAbi: "event BridgeRelayed(bytes32 indexed transactionId, address indexed relayer, address indexed to, uint32 originChainId, address originToken, address destToken, uint256 originAmount, uint256 destAmount, uint256 chainGasAmount)", targets, direction: "incoming", tokenArg: "destToken", amountArg: "destAmount" },
 ];
 
-export const synapseBridge = (contracts: { bridge: string; rfq?: string }, start?: string): BridgeChainConfig => ({
+// Linea and Scroll only have the FastBridge, no SynapseBridge
+export const synapseBridge = (contracts: { bridge?: string; rfq?: string }, start?: string): BridgeChainConfig => ({
   start,
-  events: [...synapseBridgeEvents([contracts.bridge]), ...(contracts.rfq ? synapseRfqEvents([contracts.rfq]) : [])],
+  events: [...(contracts.bridge ? synapseBridgeEvents([contracts.bridge]) : []), ...(contracts.rfq ? synapseRfqEvents([contracts.rfq]) : [])],
 });
 
 // ---------------------------------------------------------------------------------------------------
@@ -448,6 +449,30 @@ export const thresholdTbtcBridge = (start?: string): BridgeChainConfig => {
     events: [
       { eventAbi: "event Unminted(address indexed from, uint256 amount)", targets: vault, direction: "outgoing", fixedToken: tbtc, amountArg: "amount" },
       { eventAbi: "event Minted(address indexed to, uint256 amount)", targets: vault, direction: "incoming", fixedToken: tbtc, amountArg: "amount" },
+    ],
+  };
+};
+
+// Coinbase wrapped assets: FiatTokenV2_1 contracts that Coinbase mints when the native asset
+// is deposited into its custody and burns on redemption.
+export const coinbaseWrappedBridge = (token: string, start?: string): BridgeChainConfig => ({
+  start,
+  events: [
+    { eventAbi: "event Burn(address indexed burner, uint256 amount)", targets: [token], direction: "outgoing", fixedToken: token, amountArg: "amount" },
+    { eventAbi: "event Mint(address indexed minter, address indexed to, uint256 amount)", targets: [token], direction: "incoming", fixedToken: token, amountArg: "amount" },
+  ],
+});
+
+// WBTC: the Factory confirms merchant mints (BTC locked with the custodian) and burns (BTC released).
+// Same events as fees/wbtc. https://wbtc.network
+export const wbtcBridge = (start?: string): BridgeChainConfig => {
+  const factory = ["0xe5A5F138005E19A3E6D0FE68b039397EeEf2322b"];
+  const wbtc = ADDRESSES.ethereum.WBTC;
+  return {
+    start,
+    events: [
+      { eventAbi: "event BurnConfirmed(uint256 indexed nonce, address indexed requester, uint256 amount, string btcDepositAddress, string btcTxid, uint256 timestamp, bytes32 inputRequestHash)", targets: factory, direction: "outgoing", fixedToken: wbtc, amountArg: "amount" },
+      { eventAbi: "event MintConfirmed(uint256 indexed nonce, address indexed requester, uint256 amount, string btcDepositAddress, string btcTxid, uint256 timestamp, bytes32 requestHash)", targets: factory, direction: "incoming", fixedToken: wbtc, amountArg: "amount" },
     ],
   };
 };

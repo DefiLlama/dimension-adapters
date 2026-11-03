@@ -1,3 +1,7 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// Trueo markets depend on the Hyperliquid revenue it feeds (Perps, Spot, Outcomes, HLP) and on
+// the tradeXYZ HIP-3 deployer revenue (exportHIP3DeployerAdapter).
+
 import { Balances } from "@defillama/sdk";
 import axios from "axios";
 import { decompressFrame } from "lz4-napi";

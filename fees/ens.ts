@@ -14,7 +14,17 @@ const controllers_cost = [
   "0x283af0b28c62c092c9727f1ee09c02ca627eb7f5", // 3 - 2020
 ];
 const controller_premium = "0x253553366da8546fc250f225fe3d25d0c782303b"; // 4 - 2023
-const controller_referrer = "0x59e16fccd424cc24e280be16e11bcd56fb0ce547"; // 5 - current
+const controller_referrer = "0x59e16fccd424cc24e280be16e11bcd56fb0ce547"; // 5 - last v1 controller
+
+// ENSv2 went live on 2026-10-27 and permanently disabled new registrations on the v1
+// controllers above. Registrations now emit NameRegistered on the ENSv2 ETHRegistrar and are
+// paid in the token the registrant chose (USDC on-chain today), and renewals for names that
+// stayed on v1 are routed through ETHRenewerV1 - a direct v1 controller `renew()` reverts. Both
+// surfaces must be read or ENS fees drop to zero from 2026-10-28 onward.
+// Both addresses are from the canonical deployment list at docs.ens.domains/learn/deployments/
+// (confirmed verified on a block explorer).
+const ens_v2_registrar = "0xd6d8369e55c94ae8afa714e6cf7ab5be54d5cc81"; // ENSv2 ETHRegistrar
+const ens_v2_renewer_v1 = "0x56c447f308f463a01121c41e72b0e7e7557fcb68"; // ENSv2 ETHRenewerV1
 
 const registered_cost =
   "event NameRegistered(string name, bytes32 indexed label, address indexed owner, uint256 cost, uint256 expires)";
@@ -26,6 +36,13 @@ const renewed =
   "event NameRenewed(string name, bytes32 indexed label, uint256 cost, uint256 expires)";
 const renewed_referrer =
   "event NameRenewed(string label, bytes32 indexed labelhash, uint256 cost, uint256 expires, bytes32 referrer)";
+
+// ENSv2 emits the amount in the payment token, not the gas token. ETHRenewerV1 uses the same
+// canonical signature for NameRenewed, so one ABI covers both v2 contracts.
+const registered_v2 =
+  "event NameRegistered(uint256 indexed tokenId, string label, address owner, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 indexed referrer, uint256 base, uint256 premium)";
+const renewed_v2 =
+  "event NameRenewed(uint256 indexed tokenId, string label, uint64 duration, uint64 newExpiry, address paymentToken, bytes32 indexed referrer, uint256 amount)";
 
 const REGISTRATION = "Name registration fees";
 const RENEWAL = "Name renewal fees";
@@ -65,6 +82,16 @@ const fetch = async (options: FetchOptions) => {
   const renewalsUsd = await options.getLogs({ target: controller_premium, eventAbi: renewed });
   renewalsUsd.forEach((tx: any) => dailyFees.addUSDValue(Number(tx.cost) / 1e18, RENEWAL));
 
+  // ENSv2 (from 2026-10-27). Amounts are denominated in `paymentToken`, so they are added per
+  // token instead of as the gas token. 100% still goes to the ENS treasury.
+  const v2Regs = await options.getLogs({ target: ens_v2_registrar, eventAbi: registered_v2 });
+  v2Regs.forEach((tx: any) =>
+    dailyFees.add(tx.paymentToken, BigInt(tx.base) + BigInt(tx.premium), REGISTRATION)
+  );
+
+  const v2Renewals = await options.getLogs({ targets: [ens_v2_registrar, ens_v2_renewer_v1], eventAbi: renewed_v2 });
+  v2Renewals.forEach((tx: any) => dailyFees.add(tx.paymentToken, tx.amount, RENEWAL));
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -76,21 +103,22 @@ const fetch = async (options: FetchOptions) => {
 // ENS DAO treasury. There is no supply-side split, no distribution to ENS token holders, and no
 // buyback - so fees, revenue and protocol revenue are all equal.
 const methodology = {
-  Fees: "ENS .eth name registration and renewal costs (base cost plus temporary premium) across every registrar controller since the 2019 launch.",
-  Revenue: "Same as fees: ENS keeps 100% of registration and renewal costs in the DAO treasury, so revenue equals fees.",
-  ProtocolRevenue: "Same as revenue: all fees accrue to the ENS DAO treasury. ENS token holders receive no direct fee distribution and there is no buyback.",
+  Fees: "ENS .eth name registration and renewal costs (base cost plus temporary premium) paid by users, across every registrar controller since the 2019 launch and the ENSv2 registrar (paid in USDC) since 2026-10-27.",
+  Revenue: "All .eth name registration and renewal costs paid by users, kept in full by the ENS DAO.",
+  ProtocolRevenue: "All .eth name registration and renewal costs paid by users, sent to the ENS DAO treasury. ENS token holders receive no direct fee distribution and there is no buyback.",
 };
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2019-05-04', // ENS .eth permanent registrar launch (controller 1, 0xf0ad5cad)
   methodology,
   breakdownMethodology: {
     Fees: {
-      "Name registration fees": "Cost paid to register .eth names across all ETHRegistrarController versions. The 2019-2020 controllers report a single combined cost; the 2023+ controllers report base cost plus temporary Dutch-auction premium, both counted in full.",
-      "Name renewal fees": "Cost paid to renew .eth names across all ETHRegistrarController versions.",
+      "Name registration fees": "Cost paid to register .eth names across all ETHRegistrarController versions and the ENSv2 ETHRegistrar. The 2019-2020 controllers report a single combined cost; the 2023+ controllers report base cost plus temporary Dutch-auction premium, both counted in full. ENSv2 registrations are paid in the token the registrant chose (USDC on-chain today).",
+      "Name renewal fees": "Cost paid to renew .eth names across all ETHRegistrarController versions, the ENSv2 ETHRegistrar, and ETHRenewerV1 (which handles renewals for names that stayed on ENSv1).",
     },
   },
 };

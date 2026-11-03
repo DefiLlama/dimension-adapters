@@ -77,7 +77,7 @@ export const chainConfigMap: any = {
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
-  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', burnRatio: 0.5 },
+  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', url: 'https://mainnet.somnia.w3us.site/api?module=stats&action=totalfees', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start: '2021-12-18', burnRatio: 0.8 },
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start: '2025-02-20' },
@@ -136,7 +136,7 @@ export const chainConfigMap: any = {
   [CHAIN.PERENNIAL]: { CGToken: 'ethereum', explorer: 'https://explorer.perennial.foundation/' },
   [CHAIN.LOOP]: { CGToken: 'loopnetwork', explorer: 'https://explorer.mainnetloop.com/' },
   [CHAIN.STRATIS]: { CGToken: 'stratis', explorer: 'https://explorer.xertra.com/' },
-  [CHAIN.OMAX]: { CGToken: 'omax-token', explorer: 'https://omaxscan.com/' },
+  [CHAIN.OMAX]: { CGToken: 'omax-token', explorer: 'https://omaxscan.com/', verifyEmptyDays: true },
   [CHAIN.Q_PROTOCOL]: { CGToken: 'q-protocol', explorer: 'https://explorer.q.org/' },
   [CHAIN.VINUCHAIN]: { CGToken: 'vinuchain', explorer: 'https://vinuexplorer.org/' },
   [CHAIN.ENI]: { CGToken: 'wrapped-egas', explorer: 'https://scan.eniac.network/' },
@@ -145,7 +145,7 @@ export const chainConfigMap: any = {
   [CHAIN.MEZO]: { CGToken: 'bitcoin', explorer: 'https://api.explorer.mezo.org', start: '2025-05-06' },
   [CHAIN.WORLD_MOBILE]: { CGToken: 'world-mobile-token', explorer: 'https://explorer.worldmobile.io', start: '2025-06-01' },
   [CHAIN.RISE]: { CGToken: 'ethereum', explorer: 'https://explorer.risechain.com', start: '2026-01-01' },
-  [CHAIN.CITREA]: { CGToken: 'bitcoin', explorer: 'https://explorer.mainnet.citrea.xyz', start: '2025-11-25' },
+  [CHAIN.CITREA]: { CGToken: 'bitcoin', explorer: 'https://explorer.mainnet.citrea.xyz', url: 'https://explorer-api.mainnet.citrea.xyz/api?module=stats&action=totalfees', start: '2025-11-25' },
   [CHAIN.MOCA]: { CGToken: 'mocaverse', explorer: 'https://scan.mocachain.org', start: '2026-01-26' },
   [CHAIN.FLUENT]: { CGToken: 'ethereum', explorer: 'https://fluentscan.xyz', allStatsApi: 'https://fluentscan.xyz/node-api/proxy' },
   [CHAIN.LUKSO]: { CGToken: 'lukso-token-2', explorer: 'https://explorer.execution.mainnet.lukso.network', allStatsApi: 'https://stats-explorer.execution.mainnet.lukso.network' },
@@ -267,6 +267,18 @@ export function blockscoutFeeAdapter2(chain: string) {
           const dailyFees = createBalances()
           const fees = await httpGet(`${url}&date=${dateString}`)
           let feesWei: number | undefined = fees?.result ?? undefined
+          if (config.verifyEmptyDays && fees?.status === '1' && fees?.result === null) {
+            const indexing = await httpGet(`${explorer}/api/v2/main-page/indexing-status`, requestConfig)
+            if (indexing.finished_indexing === true && indexing.finished_indexing_blocks === true) {
+              const blocks = await httpGet(`${explorer}/api/v2/blocks?type=block`, requestConfig)
+              const latestBlockTimestamp = Date.parse(blocks.items?.[0]?.timestamp) / 1000
+              if (latestBlockTimestamp >= startOfDay + 86400) {
+                const transactions = await httpGet(`${explorer}/api/v2/transactions?filter=validated`, requestConfig)
+                const latestTransactionTimestamp = Date.parse(transactions.items?.[0]?.timestamp) / 1000
+                if (latestTransactionTimestamp < startOfDay) feesWei = 0
+              }
+            }
+          }
           if ((feesWei === undefined || feesWei === null) && allStatsApi) {
             // newer blockscout deployments return result: null from the legacy totalfees endpoint;
             // fall back to the stats service daily txnsFee series (values are in the native coin)

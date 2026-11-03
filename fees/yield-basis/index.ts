@@ -1,6 +1,7 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import coreAssets from "../../helpers/coreAssets.json";
 
 /**
  * Yield Basis Fee Calculation Notes:
@@ -38,6 +39,8 @@ const ABI = {
     tokenExchange: 'event TokenExchange(address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 fee, uint256 packed_price_scale)',
     pricePerShare: 'uint256:pricePerShare',
     totalSupply: 'uint256:totalSupply',
+    updatedBalances: 'function updated_balances() view returns (uint256 supply_tokens, uint256 staked_tokens)',
+    transfer: 'event Transfer(address indexed sender, address indexed receiver, uint256 value)',
     balanceOf: 'function balanceOf(address) view returns(uint256)',
     withdrawAdminFees: 'event WithdrawAdminFees (address receiver, uint256 amount)',
     assetToken: 'address:ASSET_TOKEN',
@@ -82,6 +85,30 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         calls: ltContracts,
         abi: ABI.totalSupply,
         permitFailure: true,
+    });
+
+    const totalSuppliesBefore = await options.fromApi.multiCall({
+        calls: ltContracts,
+        abi: ABI.totalSupply,
+        permitFailure: true,
+    });
+
+    const balancesBefore = await options.fromApi.multiCall({
+        calls: ltContracts,
+        abi: ABI.updatedBalances,
+        permitFailure: true,
+    });
+
+    const balancesAfter = await options.api.multiCall({
+        calls: ltContracts,
+        abi: ABI.updatedBalances,
+        permitFailure: true,
+    });
+
+    const transferLogs = await options.getLogs({
+        targets: ltContracts,
+        eventAbi: ABI.transfer,
+        flatten: false,
     });
 
     // Track FundEpoch events from FeeDistributor - when admin fees are distributed to veYB holders
@@ -129,7 +156,23 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
         const ltAndAssetDecimalDifference = ltDecimals[index] - assetTokenDecimals[index];
 
-        const yieldForPeriod = (pricesAfter[index] - pricesBefore[index]) * (totalSupplies[index]) / (10 ** ltDecimals[index]);
+        const staker = markets[index].staker.toLowerCase();
+        let executedTokenReduction = 0;
+        if (staker !== coreAssets.null) {
+            for (const log of transferLogs[index]) {
+                const sender = log.sender.toLowerCase();
+                const receiver = log.receiver.toLowerCase();
+                if (sender === staker && receiver === coreAssets.null) executedTokenReduction += Number(log.value);
+                if (sender === coreAssets.null && receiver === staker) executedTokenReduction -= Number(log.value);
+            }
+        }
+
+        const supplyBefore = balancesBefore[index] ? Number(balancesBefore[index].supply_tokens) : Number(totalSuppliesBefore[index]);
+        const supplyAfter = balancesAfter[index] ? Number(balancesAfter[index].supply_tokens) : Number(totalSupplies[index]);
+        const pendingTokenReduction = (Number(totalSupplies[index]) - supplyAfter) - (Number(totalSuppliesBefore[index]) - supplyBefore);
+        const tokenReduction = executedTokenReduction + pendingTokenReduction;
+
+        const yieldForPeriod = ((pricesAfter[index] - pricesBefore[index]) * supplyAfter - pricesBefore[index] * tokenReduction) / (10 ** ltDecimals[index]);
 
         dailyFees.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference), METRIC.ASSETS_YIELDS);
         dailySupplySideRevenue.addToken(assetTokens[index], yieldForPeriod / (10 ** ltAndAssetDecimalDifference), METRIC.ASSETS_YIELDS);

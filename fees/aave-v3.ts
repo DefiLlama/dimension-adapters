@@ -249,6 +249,14 @@ const AaveNonBuybackTransferAddresses = [
 ]
 
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
+// One-off AAVE transfers into the buyback treasury from unrelated EOAs. The buyback
+// programme was paused in April 2026 (#10535) and these senders were never funded by
+// the protocol, so they are not treasury buybacks.
+const AaveNonBuybackTransactions = new Set([
+  '0x4f007edfa6cdb8a4f3b96df10235867d97e87fdd29e54b2679c625aa637bc7c8', // 0.15 AAVE, 2026-06-16
+  '0xc8ec048914b138379c83b97d1d560eeba5d6f80cfdb33d4442c82996991115ff', // 1,405 AAVE, 2026-06-24
+  '0xdc38f874d16b7cbb75268b7d375f82ac17ff91ef606532ac72144d7d06827fd0', // 5,983 AAVE, 2026-06-24
+].map((tx) => tx.toLowerCase()))
 const CowSettlement = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // Chainlink SVR (Smart Value Recapture) distribution Safe. Captures MEV from
@@ -394,7 +402,8 @@ const fetch = async (options: FetchOptions) => {
       options,
       tokens: [ADDRESSES.ethereum.AAVE],
       target: AaveBuyBackTreasury,
-      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase()),
+      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase())
+        && !AaveNonBuybackTransactions.has((log.transactionHash ?? "").toLowerCase()),
     })
     dailyHoldersRevenue.addBalances(buybackReceived, METRIC.TOKEN_BUY_BACK)
     const collectorBuybacks = await addTokensReceived({

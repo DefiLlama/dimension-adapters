@@ -31,9 +31,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const vaults = chainConfig.vaults.map((vault: any) => vault.PlasmaVault);
 
-    const [assets, totalSupplies, decimals, performanceFeeData] = await Promise.all([
+    const [assets, supplyBefore, supplyAfter, decimals, performanceFeeData] = await Promise.all([
         options.api.multiCall({ abi: 'address:asset', calls: vaults, permitFailure: true }),
-        options.api.multiCall({ abi: 'uint256:totalSupply', calls: vaults, permitFailure: true }),
+        options.fromApi.multiCall({ abi: 'uint256:totalSupply', calls: vaults, permitFailure: true }),
+        options.toApi.multiCall({ abi: 'uint256:totalSupply', calls: vaults, permitFailure: true }),
         options.api.multiCall({ abi: 'uint8:decimals', calls: vaults, permitFailure: true }),
         options.api.multiCall({
             abi: 'function getPerformanceFeeData() view returns (address feeManager, uint16 feeInPercentage)',
@@ -59,14 +60,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     for (let i = 0; i < vaults.length; i++) {
         const token = assets[i];
-        const value = totalSupplies[i];
         const decimal = decimals[i];
         const before = cumulativeIndexBefore[i];
         const after = cumulativeIndexAfter[i];
-        if (!token || !value || !decimal || !before || !after) continue;
+        if (!token || !supplyBefore[i] || !supplyAfter[i] || !decimal || !before || !after) continue;
 
+        // smaller of start/end supply: shares minted after (or redeemed before) an in-window price move never held it
+        // (2026-10-30 a 500 USDC deposit into an emptied $0.12 Arbitrum vault turned -$0.12 into -$60.7M at end supply)
+        const value = Math.min(Number(supplyBefore[i]), Number(supplyAfter[i]));
         const growthCumulativeIndex = Number(after) - Number(before);
-        const netYield = growthCumulativeIndex * Number(value) / (10 ** Number(decimal));
+        const netYield = growthCumulativeIndex * value / (10 ** Number(decimal));
         const feeInPercentage = performanceFeeData[i] ? Number(performanceFeeData[i].feeInPercentage) : 0;
         // performance fee only applies on profitable days (high-watermark model)
         const performanceFee = feeInPercentage > 0 && netYield > 0

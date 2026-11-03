@@ -7,6 +7,7 @@ export const ABI = {
     decimals: 'uint8:decimals',
     converttoAssets: 'function convertToAssets(uint256 shares) view returns (uint256 assets)',
     totalAssets: 'uint256:totalAssets',
+    totalSupply: 'uint256:totalSupply',
   },
   morpho: {
     fee: 'uint256:fee',
@@ -20,6 +21,13 @@ export const ABI = {
     getProxyListLength: 'uint256:getProxyListLength',
     proxyList: 'function proxyList(uint256) view returns (address)',
     creator: 'address:creator',
+  },
+  aaveV4Hub: {
+    getAssetCount: 'uint256:getAssetCount',
+    getAssetUnderlyingAndDecimals: 'function getAssetUnderlyingAndDecimals(uint256) view returns (address, uint8)',
+    getAssetConfig: 'function getAssetConfig(uint256) view returns (tuple(address feeReceiver, uint16 liquidityFee, address irStrategy, address reinvestmentController))',
+    getAssetAccruedFees: 'function getAssetAccruedFees(uint256) view returns (uint256)',
+    MintFeeShares: 'event MintFeeShares(uint256 indexed assetId, address indexed feeReceiver, uint256 shares, uint256 assets)',
   },
 }
 

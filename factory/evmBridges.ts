@@ -2,11 +2,11 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { BridgeChainConfig, bridgeExport } from "../helpers/bridges";
 import {
-  agglayerBridge, alcorBridge, allbridgeClassicBridge, anubisBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, connextBridge, coreBitcoinBridge,
+  agglayerBridge, alcorBridge, allbridgeClassicBridge, anubisBridge, aoriBridge, assetChainBridge, cctpBridge, circleGatewayBridge, interportBridge, InterportContracts, celerBridge, coinbaseWrappedBridge, connextBridge, coreBitcoinBridge,
   crossCurveBridge, crowdSwapBridge, eclipseBridge, fuseBridge, gnosisBridgeEthereum, gnosisBridgeGnosis,
   helixboxBridge, hopL1Bridge, hopL2Bridge, oftEvents, polygonPosBridge, rainbowBridge,
   rhinoBridge, rootstockTokenBridge, shimmerBridge, stargateBridge, starkgateBridge, symbiosisBridge, synapseBridge, thresholdTbtcBridge,
-  universalXBridge, wanBridge, xswapBridge, xyBridge, zkBridge,
+  universalXBridge, wanBridge, wbtcBridge, xswapBridge, xyBridge, zkBridge,
 } from "../helpers/bridges/config";
 import { createFactoryExports } from "./registry";
 
@@ -46,7 +46,7 @@ const ANUBIS_DOMAIN = 6714; // the other chains use their EVM chain id as domain
  */
 // chain keys map to BridgeChainConfig; `doublecounted` marks bridges whose transfers another tracked listing also counts
 // OP-stack canonical bridges (optimism, base, mode, mint, manta) live in factory/opStackBridges.ts
-const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> = {
+const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | Record<string, string> }> = {
   "cbridge": {
     [CHAIN.ETHEREUM]: celerBridge({ pool: ["0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820"], vaultV1: ["0xB37D31b2A74029B5951a2778F959282E2D518595"], vaultV2: ["0x7510792A3B1969F9307F3845CE88e39578f2bAE1"], peggedV1: ["0x16365b45EB269B5B5dACB34B4a15399Ec79b95eB"], peggedV2: ["0x52E4f244f380f8fA51816c8a10A63105dd4De084"] }, "2021-11-21"), // cBridge 2.0 launch; younger chains below use the first day the old bridges DB has activity for them, Flow uses the Flow EVM mainnet launch
     [CHAIN.POLYGON]: celerBridge({ pool: ["0x88DCDC47D2f83a99CF0000FDF667A468bB958a78"], vaultV1: ["0xc1a2D967DfAa6A10f3461bc21864C23C1DD51EeA"], vaultV2: ["0x4C882ec256823eE773B25b414d36F92ef58a7c0C"], peggedV1: ["0x4d58FDC7d0Ee9b674F49a0ADE11F26C3c9426F7A"], peggedV2: ["0xb51541df05DE07be38dcfc4a80c05389A54502BB"] }),
@@ -174,8 +174,8 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
     [CHAIN.METIS]: synapseBridge({ bridge: "0x06Fea8513FF03a0d3f61324da709D4cf06F42A5c" }, "2023-10-13"),
     [CHAIN.MOONBEAM]: synapseBridge({ bridge: "0x84A420459cd31C3c34583F67E0f0fB191067D32f" }, "2023-06-25"),
     [CHAIN.MOONRIVER]: synapseBridge({ bridge: "0xaeD5b25BE1c3163c907a471082640450F928DDFE" }, "2023-06-25"),
-    [CHAIN.SCROLL]: synapseBridge({ bridge: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2024-06-22"),
-    [CHAIN.LINEA]: synapseBridge({ bridge: "0x34F52752975222d5994C206cE08C1d5B329f24dD" }, "2024-08-06"),
+    [CHAIN.SCROLL]: synapseBridge({ rfq: "0x5523D3c98809DdDB82C686E152F5C58B1B0fB59E" }, "2024-06-22"),
+    [CHAIN.LINEA]: synapseBridge({ rfq: "0x34F52752975222d5994C206cE08C1d5B329f24dD" }, "2024-08-06"),
   },
   "symbiosis": {
     [CHAIN.ETHEREUM]: symbiosisBridge({ portal: "0xb8f275fBf7A959F4BCE59999A2EF122A099e81A8", synthesis: "0xD7c3DF25683871d18BC838E4F619126442Dd38B3" }, "2023-06-14"),
@@ -337,6 +337,22 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
   // one-sided (destinationChain: bitcoin)
   "threshold-network": {
     [CHAIN.ETHEREUM]: thresholdTbtcBridge("2024-12-06"),
+  },
+  // one-sided (destinationChain: bitcoin)
+  "wbtc": {
+    [CHAIN.ETHEREUM]: wbtcBridge("2018-11-24"),
+  },
+  // one-sided (destinationChain: bitcoin)
+  "coinbase-btc": {
+    methodology: {
+      OutgoingVolume: "USD value of cbBTC burned by Coinbase on Ethereum, Base and Arbitrum when it is redeemed for BTC.",
+      IncomingVolume: "USD value of cbBTC minted by Coinbase on Ethereum, Base and Arbitrum against BTC deposited into its custody.",
+      OutgoingTxCount: "Number of cbBTC burns by Coinbase on Ethereum, Base and Arbitrum.",
+      IncomingTxCount: "Number of cbBTC mints by Coinbase on Ethereum, Base and Arbitrum.",
+    },
+    [CHAIN.ETHEREUM]: coinbaseWrappedBridge(ADDRESSES.ethereum.cbBTC, "2024-08-30"),
+    [CHAIN.BASE]: coinbaseWrappedBridge(ADDRESSES.base.cbBTC, "2024-08-30"),
+    [CHAIN.ARBITRUM]: coinbaseWrappedBridge("0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf", "2024-11-09"),
   },
   // one-sided (destinationChain: bitcoin)
   "core-bitcoin-bridge": {
@@ -775,8 +791,11 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean }> 
 };
 
 const protocols: Record<string, any> = {};
-for (const [slug, { doublecounted, ...chains }] of Object.entries(configs)) {
-  protocols[slug] = bridgeExport(chains as { [chain: string]: BridgeChainConfig }, doublecounted ? { doublecounted: true } : {});
+for (const [slug, { doublecounted, methodology, ...chains }] of Object.entries(configs)) {
+  protocols[slug] = bridgeExport(chains as { [chain: string]: BridgeChainConfig }, {
+    ...(doublecounted ? { doublecounted: true } : {}),
+    ...(methodology ? { methodology: methodology as Record<string, string> } : {}),
+  });
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols);

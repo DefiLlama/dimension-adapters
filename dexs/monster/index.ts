@@ -2,6 +2,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ChainApi } from "@defillama/sdk";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 // MNSTR Gacha — MegaETH PROD
 const GACHA_STARTER = "0xdEa1D72f08D83e36946128603d4cD0A180A938A9";
@@ -132,6 +133,7 @@ const adapter: SimpleAdapter = {
   },
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
 };
 
 export default adapter;

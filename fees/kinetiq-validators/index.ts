@@ -23,9 +23,9 @@ const METRICS = {
 const methodology = {
   Fees: "Commission charged by the validators kHYPE delegates to, on the staking rewards they produce for kHYPE.",
   Revenue: "The half of that commission Kinetiq invoices back to each validator operator (invoice_rate_bps, 5000 to date).",
-  ProtocolRevenue: "From 2026-04-09, 30% of the invoiced amount is kept by the treasury; it was 100% before.",
+  ProtocolRevenue: "None: the whole invoiced commission pays for KNTQ buybacks, so Kinetiq's treasury keeps none of it.",
   SupplySideRevenue: "The half of the commission the validator operators retain for running the nodes.",
-  HoldersRevenue: "70% of the invoiced amount, used to buy back KNTQ for sKNTQ holders from 2026-04-09.",
+  HoldersRevenue: "All of the commission Kinetiq invoices to validator operators, used to buy back KNTQ. The bought KNTQ went to sKNTQ stakers until 2026-09-15 and has been sent to the Hyperliquid Assistance Fund since then (KIP-5, https://kinetiq.xyz/blog/kip-5-kntq-buybacks-assistance-fund).",
 };
 
 const breakdownMethodology = {
@@ -35,14 +35,11 @@ const breakdownMethodology = {
   Revenue: {
     [METRICS.CommissionInvoiced]: "Commission invoiced back to validator operators by Kinetiq.",
   },
-  ProtocolRevenue: {
-    [METRICS.CommissionInvoiced]: "From 2026-04-09, 30% of the invoiced commission is kept by the treasury; it was 100% before.",
-  },
   SupplySideRevenue: {
     [METRICS.CommissionToOperators]: "Commission retained by the validator operators.",
   },
   HoldersRevenue: {
-    [METRICS.TokenBuyBack]: "70% of the invoiced commission, used to buy back KNTQ for sKNTQ holders.",
+    [METRICS.TokenBuyBack]: "The whole invoiced commission, used to buy back KNTQ.",
   },
 };
 
@@ -62,13 +59,10 @@ const KEEPERS_API = "https://rpc.km.xyz/kinetiq";
 const PAGE_SIZE = 500;
 const REQUEST_TIMEOUT = 10000;
 
-// Kinetiq's treasury policy: before 2026-04-09 the protocol kept all of its revenue; from that
-// date 30% is kept and 70% buys back KNTQ for sKNTQ holders. Same boundary and same split the
-// kinetiq-staked-hype adapter encodes. This adapter's first distribution is 2026-04-08, one day
-// before the change, so the split is chosen per event rather than for the adapter as a whole.
-const TREASURY_SPLIT_FROM = 1775692800; // 2026-04-09
-const SHARES_BEFORE = { protocol: 1, holders: 0 };
-const SHARES_AFTER = { protocol: 0.3, holders: 0.7 };
+// All invoiced commission buys back KNTQ (https://kinetiq.xyz/docs/kntq); none reaches the treasury. From the June 2026
+// invoice on, each operator pays its own collector, which forwards to buyback wallet 0xaa3b7392052d62928cc87701e3ca6fb6630bb6e2
+// (e.g. txs 0xa57b6e1bad52f8cda6f5043fc7475502010c00014856179f4944196e6c56d2b8, 0x6f330606a9154c2170ac043fc751dc02034500ec44186af312fbb1596819260c).
+// April-May invoices were paid to deployer 0x51172933b60847085e2a959e860e2ec9e240ac09, sold for USDC and sent to the same wallet.
 
 interface InvoiceEvent {
   block_timestamp: number;
@@ -102,7 +96,6 @@ async function validatorInvoices(validator: string, fromTimestamp: number, toTim
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
@@ -117,19 +110,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (errors.length) throw errors[0].raw ?? errors[0];
 
   for (const events of results) {
-    for (const { block_timestamp, commission_wei, invoice_wei } of events) {
+    for (const { commission_wei, invoice_wei } of events) {
       const commission = toHype(commission_wei);
       const invoiced = toHype(invoice_wei);
-      const shares = Number(block_timestamp) >= TREASURY_SPLIT_FROM ? SHARES_AFTER : SHARES_BEFORE;
       dailyFees.addCGToken("hyperliquid", commission, METRICS.ValidatorCommission);
       dailyRevenue.addCGToken("hyperliquid", invoiced, METRICS.CommissionInvoiced);
-      dailyProtocolRevenue.addCGToken("hyperliquid", invoiced * shares.protocol, METRICS.CommissionInvoiced);
-      if (shares.holders) dailyHoldersRevenue.addCGToken("hyperliquid", invoiced * shares.holders, METRICS.TokenBuyBack);
+      dailyHoldersRevenue.addCGToken("hyperliquid", invoiced, METRICS.TokenBuyBack);
       dailySupplySideRevenue.addCGToken("hyperliquid", commission - invoiced, METRICS.CommissionToOperators);
     }
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue, dailyHoldersRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: 0, dailySupplySideRevenue, dailyHoldersRevenue };
 }
 
 const adapter: Adapter = {

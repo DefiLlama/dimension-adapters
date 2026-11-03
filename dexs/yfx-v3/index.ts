@@ -52,5 +52,6 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: startTimestamps[CHAIN.ARBITRUM],
+  deadFrom: '2024-06-25',
 };
 export default adapter;

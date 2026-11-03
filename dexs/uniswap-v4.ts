@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 // import { FetchOptions, SimpleAdapter } from "../adapters/types";
 // import { httpGet } from "../utils/fetchURL";
 

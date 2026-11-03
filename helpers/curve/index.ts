@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Curve DEX revenue it feeds (curve).
+
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { formatAddress } from "../../utils/utils";
 import { addOneToken } from "../prices";

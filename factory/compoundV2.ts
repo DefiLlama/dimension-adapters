@@ -10,6 +10,7 @@ type ChainConfig = {
 type Config = {
   chains: Record<string, ChainConfig>;
   options?: Record<string, any>;
+  deadFrom?: string;
 };
 
 const configs: Record<string, Config> = {
@@ -38,6 +39,7 @@ const configs: Record<string, Config> = {
   "elara": {
     chains: { [CHAIN.ZIRCUIT]: { comptroller: "0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296", start: '2024-11-20' } },
     options: { protocolRevenueRatio: 1 },
+    deadFrom: '2026-07-31',
   },
   "fluxfinance": {
     chains: { [CHAIN.ETHEREUM]: { comptroller: "0x95Af143a021DF745bc78e845b54591C53a8B3A51", start: '2023-02-02' } },
@@ -126,16 +128,31 @@ const configs: Record<string, Config> = {
     },
     options: { useExchangeRate: true },
   },
+  "segment-finance": {
+    chains: {
+      [CHAIN.OP_BNB]: { comptroller: '0x71ac0e9A7113130280040d0189d0556f45a8CBB5', start: '2024-03-21' },
+      [CHAIN.BSC]: { comptroller: '0x57E09c96DAEE58B77dc771B017de015C38060173', start: '2024-01-07' },
+      [CHAIN.BOB]: { comptroller: '0xcD7C4F508652f33295F0aEd075936Cd95A4D2911', start: '2024-04-20' },
+      [CHAIN.ROOTSTOCK]: { comptroller: '0x2eea8fbA494d5008ba72f80E0091Cc74dB5f9926', start: '2024-08-22' },
+      [CHAIN.CORE]: { comptroller: '0xaba65b87eBEdB2D753b37AeCECD1E168341eE0DD', start: '2024-08-22' },
+      [CHAIN.BSQUARED]: { comptroller: '0x69a6B3B96b26a15A588081Df17F46d61f625741c', start: '2025-01-09' },
+    },
+    options: { protocolRevenueRatio: 1 },
+  },
 };
 
 
 const feesProtocols: Record<string, any> = {};
-for (const [name, { chains, options }] of Object.entries(configs)) {
+for (const [name, { chains, options, deadFrom }] of Object.entries(configs)) {
   const comptrollers: Record<string, string> = {};
-  for (const [chain, { comptroller }] of Object.entries(chains)) {
+  const starts: Record<string, string> = {};
+  for (const [chain, { comptroller, start }] of Object.entries(chains)) {
     comptrollers[chain] = comptroller;
+    if (start) starts[chain] = start;
   }
-  feesProtocols[name] = compoundV2Export(comptrollers, options);
+  // per-chain start dates from `chains` unless the options already carry a start
+  feesProtocols[name] = compoundV2Export(comptrollers, { ...options, start: options?.start ?? starts });
+  if (deadFrom) feesProtocols[name].deadFrom = deadFrom;
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
@@ -162,6 +179,8 @@ for (const [name, { chains }] of Object.entries(configs)) {
 const liquidationProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(liquidationConfigs)) {
   liquidationProtocols[name] = compoundV2LiquidationsExport(config);
+  const deadFrom = configs[name]?.deadFrom;
+  if (deadFrom) liquidationProtocols[name].deadFrom = deadFrom;
 }
 
 export const liquidations = createFactoryExports(liquidationProtocols);

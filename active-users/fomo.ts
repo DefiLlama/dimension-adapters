@@ -3,25 +3,26 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { queryAllium } from '../helpers/allium';
 import { CHAIN } from '../helpers/chains';
 
-// Same attribution as dexs/fomo: FOMO-sponsored native Solana swaps plus Relay
-// cross-chain buys/sells, counted on Solana where user balances are held.
+// FOMO-sponsored native Solana swaps plus cross-chain buys/sells via Relay and the
+// Mobula bridge, counted on Solana where user balances are held.
 const USDC_MINT = ADDRESSES.solana.USDC;
 const FEE_WALLET = 'R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX';     // FOMO fee recipient on native Solana swaps
 const GAS_SPONSOR = 'AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51';   // FOMO fee payer on all user-initiated txs
 const RELAY_VAULT = '7uTT8Xi5RWXzy7h9XL244GRgEycDYDhLjr3ZyNdXi8pZ';   // owner of Relay Depository USDC account (Solana)
+const MOBULA_SOLVER = 'oMcssxWxgooErb8bsRA4QN34VHhvfeEbdDjrwF6WH45'; // Mobula bridge solver: takes cross-chain buy deposits, pays out sells (Solana)
 
 const fetch = async (options: FetchOptions) => {
   const timeRange = `block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`;
 
   const result = await queryAllium(`
-    -- Candidate txs: USDC either paid as fee to FOMO (native swap) or deposited to the Relay vault (cross-chain buy).
+    -- Candidate txs: USDC either paid as fee to FOMO (native swap) or deposited to the Relay vault / Mobula solver (cross-chain buy).
     -- signer on solana.assets.transfers is the fee payer, equivalent to Dune solana.transactions.signer.
     WITH candidate_transfers AS (
       SELECT txn_id, from_address, to_address, usd_amount
       FROM solana.assets.transfers
       WHERE ${timeRange}
         AND mint = '${USDC_MINT}'
-        AND to_address IN ('${FEE_WALLET}', '${RELAY_VAULT}')
+        AND to_address IN ('${FEE_WALLET}', '${RELAY_VAULT}', '${MOBULA_SOLVER}')
         AND signer = '${GAS_SPONSOR}'
         AND transfer_type = 'spl_token_transfer'
     ),
@@ -45,35 +46,37 @@ const fetch = async (options: FetchOptions) => {
       QUALIFY ROW_NUMBER() OVER (PARTITION BY t.txn_id ORDER BY t.usd_amount DESC) = 1
     ),
 
-    -- 2. Cross-chain buys: sponsored USDC deposits into the Relay vault
-    relay_buys AS (
+    -- 2. Cross-chain buys: sponsored USDC deposits into the Relay vault or the Mobula solver
+    bridge_buys AS (
       SELECT txn_id, from_address AS user_wallet
       FROM candidate_transfers
-      WHERE to_address = '${RELAY_VAULT}'
+      WHERE to_address IN ('${RELAY_VAULT}', '${MOBULA_SOLVER}')
     ),
 
-    -- 3. FOMO user set for the window (fee payer of native swaps; depositor of Relay buys)
+    -- 3. FOMO user set for the window (fee payer of native swaps; depositor of cross-chain buys)
     fomo_users AS (
       SELECT DISTINCT user_wallet FROM native_swaps
       UNION
-      SELECT DISTINCT user_wallet FROM relay_buys
+      SELECT DISTINCT user_wallet FROM bridge_buys
     ),
 
-    -- 4. Cross-chain sells: USDC fills from Relay solvers into FOMO user wallets.
-    --    Solvers approximated as wallets that withdrew USDC from the Relay vault in the window.
-    relay_solvers AS (
+    -- 4. Cross-chain sells: USDC fills from Relay solvers or the Mobula solver into FOMO user wallets.
+    --    Relay solvers approximated as wallets that withdrew USDC from the Relay vault in the window.
+    bridge_solvers AS (
       SELECT DISTINCT to_address AS solver
       FROM solana.assets.transfers
       WHERE ${timeRange}
         AND mint = '${USDC_MINT}'
         AND from_address = '${RELAY_VAULT}'
         AND transfer_type = 'spl_token_transfer'
+      UNION
+      SELECT '${MOBULA_SOLVER}'
     ),
-    relay_sells AS (
+    bridge_sells AS (
       SELECT tr.txn_id, tr.to_address AS user_wallet
       FROM solana.assets.transfers tr
       JOIN fomo_users u ON tr.to_address = u.user_wallet
-      JOIN relay_solvers rs ON tr.from_address = rs.solver
+      JOIN bridge_solvers rs ON tr.from_address = rs.solver
       LEFT JOIN (SELECT DISTINCT txn_id FROM candidate_transfers) s ON tr.txn_id = s.txn_id
       WHERE ${timeRange}
         AND tr.mint = '${USDC_MINT}'
@@ -83,8 +86,8 @@ const fetch = async (options: FetchOptions) => {
 
     all_trades AS (
       SELECT txn_id, user_wallet FROM native_swaps
-      UNION ALL SELECT txn_id, user_wallet FROM relay_buys
-      UNION ALL SELECT txn_id, user_wallet FROM relay_sells
+      UNION ALL SELECT txn_id, user_wallet FROM bridge_buys
+      UNION ALL SELECT txn_id, user_wallet FROM bridge_sells
     )
 
     SELECT
@@ -110,9 +113,9 @@ const adapter: SimpleAdapter = {
   start: '2026-03-01',
   methodology: {
     ActiveUsers:
-      'Unique wallets that traded through FOMO that day, counted on Solana where user balances are held. Includes native Solana swaps (FOMO-sponsored transactions that pay a USDC fee to FOMO) and cross-chain trades via Relay (buys as sponsored USDC deposits into the Relay depository; sells as USDC fills from Relay solvers to FOMO user wallets).',
+      'Unique wallets that traded through FOMO that day, counted on Solana where user balances are held. Includes native Solana swaps (FOMO-sponsored transactions that pay a USDC fee to FOMO) and cross-chain trades via Relay and the Mobula bridge (buys as sponsored USDC deposits into the Relay depository or the Mobula solver; sells as USDC fills from Relay solvers or the Mobula solver to FOMO user wallets).',
     TransactionsCount:
-      'Number of FOMO spot trades that day, counted on Solana. Includes native Solana swaps and Relay cross-chain buys and sells, each counted once regardless of destination chain.',
+      'Number of FOMO spot trades that day, counted on Solana. Includes native Solana swaps and Relay and Mobula bridge cross-chain buys and sells, each counted once regardless of destination chain.',
   },
   isExpensiveAdapter: true,
 };

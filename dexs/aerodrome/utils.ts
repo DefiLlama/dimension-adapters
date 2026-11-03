@@ -1,3 +1,6 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// a Trueo market depends on the Aero revenue it feeds (aerodrome, aerodrome-slipstream, velodrome-v2, velodrome-slipstream).
+
 import * as sdk from '@defillama/sdk';
 import { FetchOptions } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';

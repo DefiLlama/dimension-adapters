@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getCache, setCache } from "../helpers/cache";
 import { httpPost } from "../utils/fetchURL";
 
 // Dusk Domains: the .dusk name service on Dusk mainnet (https://dusk.domains).
@@ -20,7 +21,6 @@ const VAULT = "aaaefaf86e0df54e6cc6680d49b7abb934f3252deb4d6383d393f8dacb2c814f"
 const STORE = "33bd9ec8c70425f1a60c8a9e2fc860f15b822a3fcd2cf72b02b515a926de2b50";
 // https://duskscan.net/contract/d8c003e0788548cb78ae029f0d7cfeb91aebc992a9ab200b31ac8967e35842b8
 const MARKETPLACE = "d8c003e0788548cb78ae029f0d7cfeb91aebc992a9ab200b31ac8967e35842b8";
-const VAULT_DEPLOY_HEIGHT = 5556173; // `vault_initialized`, 2026-10-21
 
 // Public Dusk node; the archive GraphQL serves finalized contract events.
 const GRAPHQL = "https://nodes.dusk.network/on/graphql/query";
@@ -42,23 +42,28 @@ async function query(body: string) {
 }
 
 const timestamps: Record<number, number> = {};
-async function blockTimestamp(height: number) {
-  if (timestamps[height] === undefined) {
-    const res = await query(`query { block(height: ${height}) { header { timestamp } } }`);
-    timestamps[height] = res.block.header.timestamp;
+// Block timestamps for `heights`, read in one request (GraphQL aliases) and kept for the run.
+async function blockTimestamps(heights: number[]) {
+  const missing = [...new Set(heights)].filter((h) => timestamps[h] === undefined);
+  if (missing.length) {
+    const res = await query(`query { ${missing.map((h) => `h${h}: block(height: ${h}) { header { timestamp } }`).join(" ")} }`);
+    for (const h of missing) timestamps[h] = res[`h${h}`].header.timestamp;
   }
-  return timestamps[height];
+  return heights.map((h) => timestamps[h]);
 }
 
-// Lowest height in [lo, hi] whose block timestamp is >= ts (hi if none is).
-async function firstHeightAtOrAfter(ts: number, lo: number, hi: number) {
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if ((await blockTimestamp(mid)) >= ts) hi = mid;
-    else lo = mid + 1;
-  }
-  return lo;
-}
+// Each run would otherwise page the vault's events from its first one: the archive pages a contract's events
+// forward only, with no height or time filter. So the adapter keeps checkpoints in DefiLlama's cache: at the end of
+// each full page it has read, the cursor the archive returned, the block time of the page's last event and the
+// first event after it. A run resumes from the last checkpoint before its window, if the cursor still leads to that
+// same event (an archive rebuilt from scratch would number its rows differently); if it doesn't, the checkpoints
+// are dropped and the run pages from the start.
+// Events come in archive order, which is block order, so their block times only go up.
+type Checkpoint = { cursor: string; time: number; next?: { id: number; hash: string } };
+const CACHE_KEY = "dusk-domains-vault-event-pages";
+
+const eventsPage = (cursor: string | null) =>
+  `finalizedEvents(contractId: "${VAULT}", limit: ${PAGE_SIZE}${cursor ? `, cursor: "${cursor}"` : ""}) { json }`;
 
 // Each event's data is the rkyv archive of the vault's `Event<FeeReceived>`
 // (all fields #[repr(C)]). rkyv writes out-of-line bytes (the payer's and
@@ -93,33 +98,65 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
-  // Only count finalized blocks; fail rather than undercount a window that
-  // isn't fully finalized yet.
-  const pair = (await query("query { lastBlockPair { json } }")).lastBlockPair.json;
-  const finalized = pair.last_finalized_block[0];
-  if ((await blockTimestamp(finalized)) < options.endTimestamp)
-    throw new Error(`dusk-domains: window ends after the last finalized block ${finalized}`);
+  const cached = (await getCache(CACHE_KEY, CHAIN.DUSK)).checkpoints;
+  let checkpoints: Checkpoint[] = Array.isArray(cached) ? cached : [];
+  let changed = false;
 
-  // The runner's window is [end - 1 - size, end), so startTimestamp is the last second of the previous
-  // window. Starting at the next second counts a block on that second in one window only.
-  const fromHeight = await firstHeightAtOrAfter(options.startTimestamp + 1, VAULT_DEPLOY_HEIGHT, finalized);
-  const toHeight = await firstHeightAtOrAfter(options.endTimestamp, fromHeight, finalized);
+  // The first request asks for the last finalized block and the page after the last checkpoint before the window.
+  // The runner's window is [end - 1 - size, end), so startTimestamp is the last second of the previous window: a
+  // block on that second belongs to the previous window.
+  let start = checkpoints.filter((c) => c.next && c.time <= options.startTimestamp).pop();
+  const first = await query(`query { pair: lastBlockPair { json } page: ${eventsPage(start?.cursor ?? null)} }`);
+  const finalized = first.pair.json.last_finalized_block[0];
+  let page = first.page.json;
+  if (start && (page.events[0]?.id !== start.next?.id || page.events[0]?.block_hash !== start.next?.hash)) {
+    [checkpoints, changed, start] = [[], true, undefined];
+    page = (await query(`query { page: ${eventsPage(null)} }`)).page.json;
+  }
+  let cursor = start?.cursor ?? null;
+  const byCursor = new Map(checkpoints.map((c) => [c.cursor, c]));
 
   // Events come oldest first; stop paging once past the window.
-  let cursor: string | null = null;
-  let pastWindow = false;
-  while (!pastWindow) {
-    const page: any = (await query(`query { finalizedEvents(contractId: "${VAULT}", limit: ${PAGE_SIZE}${cursor ? `, cursor: "${cursor}"` : ""}) { json } }`)).finalizedEvents.json;
-    for (const event of page.events) {
-      if (event.block_height >= toHeight) { pastWindow = true; break; }
-      if (event.topic !== "fee_received" || event.reverted || event.block_height < fromHeight) continue;
+  for (;;) {
+    // Block times for this page's events, read together with the last finalized block's.
+    const heights: number[] = page.events.map((e: any) => e.block_height);
+    const [finalizedTime, ...times] = await blockTimestamps([finalized, ...heights]);
+    // Only count finalized blocks; fail rather than undercount a window that isn't fully finalized yet.
+    if (finalizedTime < options.endTimestamp)
+      throw new Error(`dusk-domains: window ends after the last finalized block ${finalized}`);
+
+    // The first event after a checkpoint is what later runs check its cursor against.
+    const from = cursor === null ? undefined : byCursor.get(cursor);
+    if (from && !from.next && page.events.length) {
+      from.next = { id: page.events[0].id, hash: page.events[0].block_hash };
+      changed = true;
+    }
+    // A full page's end becomes a checkpoint.
+    if (page.events.length === PAGE_SIZE && !byCursor.has(page.endCursor)) {
+      const checkpoint = { cursor: page.endCursor, time: times[times.length - 1] };
+      checkpoints.push(checkpoint);
+      byCursor.set(checkpoint.cursor, checkpoint);
+      changed = true;
+    }
+
+    let pastWindow = false;
+    for (const [k, event] of page.events.entries()) {
+      const time = times[k];
+      if (time >= options.endTimestamp) { pastWindow = true; break; }
+      if (event.topic !== "fee_received" || event.reverted || time <= options.startTimestamp) continue;
       const { label, receivedLux, referralLux } = decodeFee(event.data);
       dailyFees.addCGToken("dusk-network", toDusk(receivedLux), label);
       dailySupplySideRevenue.addCGToken("dusk-network", toDusk(referralLux), `${label} To Referrers`);
       dailyRevenue.addCGToken("dusk-network", toDusk(receivedLux - referralLux), `${label} To Treasury`);
     }
-    if (!page.hasNextPage) break;
+    if (pastWindow || !page.hasNextPage) break;
     cursor = page.endCursor;
+    page = (await query(`query { page: ${eventsPage(cursor)} }`)).page.json;
+  }
+
+  if (changed) {
+    checkpoints.sort((a, b) => a.time - b.time);
+    await setCache(CACHE_KEY, CHAIN.DUSK, { checkpoints });
   }
   return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };

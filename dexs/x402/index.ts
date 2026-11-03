@@ -19,6 +19,7 @@ const DUNE_CHAIN_MAP: Record<string, string> = {
   [CHAIN.AVAX]: 'avalanche_c',
   [CHAIN.HYPERLIQUID]: 'hyperevm',
   [CHAIN.CELO]: 'celo',
+  [CHAIN.ARC]: 'arc',
 }
 
 function arrayToQuotedString(items: string[]): string {                                                                                                                                                                                                                                                                                                                    
