@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, FetchResultVolume } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
-const API_ENDPOINT = "http://stats.symphony.ag/api/v1/stats";
+const API_ENDPOINT = "https://stats.symphony.ag/api/v1/stats";
 
 interface IVolumeResponse {
     last24Hours: {
