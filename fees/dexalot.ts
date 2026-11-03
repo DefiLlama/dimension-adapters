@@ -19,6 +19,11 @@ const FEE_COLLECTOR_GENESIS = 1786543200; // 2026-08-12 14:00:00 UTC
 // feeMaker / feeTaker are net of any volume rebate
 const EXECUTED_EVENT =
   "event Executed(uint8 version, bytes32 indexed pair, uint256 price, uint256 quantity, bytes32 makerOrder, bytes32 takerOrder, uint256 feeMaker, uint256 feeTaker, uint8 takerSide, uint256 execId, address indexed addressMaker, address indexed addressTaker)";
+// internal portfolio transfers. RFQ fees reach the FeeCollector through OmniVaultExecutorSub.collectSwapFees, which
+// credits it with IXFERREC (6). Order book fees are credited without an event, so these are exactly the RFQ fees
+const PORTFOLIO_UPDATED_EVENT =
+  "event PortfolioUpdated(uint8 indexed transaction, address indexed wallet, bytes32 indexed symbol, uint256 quantity, uint256 feeCharged, uint256 total, uint256 available, address walletOther)";
+const TX_IXFERREC = 6;
 // weekly epoch close, splits each collected token between the treasury and the ALOT buyback
 const TOKEN_SETTLED_EVENT =
   "event TokenSettled(uint256 indexed epoch, bytes32 indexed symbol, uint256 quantity, uint256 price, uint256 toTreasury, uint256 toBuyback)";
@@ -168,7 +173,30 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  // 2. Revenue. Before the FeeCollector, kept fees went straight to the treasury, so revenue accrues per fill
+  // 2. RFQ fees, as they reach the FeeCollector. They are settled with everything else it holds
+  if (options.endTimestamp > FEE_COLLECTOR_GENESIS) {
+    const rfqLogs = await getLogs({
+      target: PORTFOLIO_SUB,
+      eventAbi: PORTFOLIO_UPDATED_EVENT,
+      topics: [
+        ethers.id("PortfolioUpdated(uint8,address,bytes32,uint256,uint256,uint256,uint256,address)"),
+        ethers.zeroPadValue(ethers.toBeHex(TX_IXFERREC), 32),
+        ethers.zeroPadValue(FEE_COLLECTOR, 32),
+      ],
+    });
+    const rfqSymbols = [...new Set(rfqLogs.map((l: any) => l.symbol as string))];
+    const rfqDetails = await toApi.multiCall({
+      abi: GET_TOKEN_DETAILS_ABI,
+      calls: rfqSymbols.map((s) => ({ target: PORTFOLIO_SUB, params: [s] })),
+    });
+    const rfqDecimals = Object.fromEntries(rfqSymbols.map((s, i) => [s, Number(rfqDetails[i].decimals)]));
+    for (const log of rfqLogs) {
+      const cgId = cgIdOf(ethers.decodeBytes32String(log.symbol as string));
+      if (cgId) dailyFees.addCGToken(cgId, Number(log.quantity) / 10 ** rfqDecimals[log.symbol as string], "RFQ Fees");
+    }
+  }
+
+  // 3. Revenue. Before the FeeCollector, kept fees went straight to the treasury, so revenue accrues per fill
   if (options.startTimestamp < FEE_COLLECTOR_GENESIS) {
     return { dailyFees, dailyRevenue: accruedRevenue, dailyProtocolRevenue: accruedRevenue, dailySupplySideRevenue };
   }
@@ -200,11 +228,11 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees paid by takers and makers on Dexalot's order book, net of volume discounts.",
+  Fees: "Trading fees paid by takers and makers on Dexalot's order book, net of volume discounts, plus RFQ swap fees.",
   SupplySideRevenue:
     "The share of taker fees an OmniVault (Dexalot's market-making vaults) earns when it is the maker, capped at a per-vault rate. It goes to the vault's depositors.",
   Revenue:
-    "Fees kept by the protocol. Since the FeeCollector launch (2026-08-12) they settle once a week at epoch close, so revenue books on the settlement day at the close's on-chain USD value and is zero on the other days.",
+    "Fees kept by the protocol. Since the FeeCollector launch (2026-08-12) they settle once a week at epoch close, so revenue books on the settlement day at the close's on-chain USD value and is zero on the other days. RFQ fees include an integration fee that the treasury later pays to the integrator, it is not deducted.",
   ProtocolRevenue:
     "Before the FeeCollector, every kept fee. Since then the weekly operating budget taken from collected fees at epoch close, sent to the treasury, stables first.",
   HoldersRevenue: "Collected fees above the operating budget, sent to the BuybackVault at epoch close to buy ALOT.",
@@ -223,6 +251,7 @@ const breakdownMethodology = {
   Fees: {
     "Maker Fees": "Fee paid by the trader whose resting order was filled.",
     "Taker Fees": "Fee paid by the trader whose order filled against the order book.",
+    "RFQ Fees": "Fees on RFQ swaps, collected into the FeeCollector and settled with the order book fees.",
   },
   SupplySideRevenue: {
     "Taker Fees To OmniVaults": "The share of taker fees earned by an OmniVault when it is the maker.",
