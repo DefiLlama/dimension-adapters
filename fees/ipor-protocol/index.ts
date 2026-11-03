@@ -34,11 +34,15 @@ const abis = {
     depositFeeRealized: 'event DepositFeeRealized(address recipient, uint256 feeShares)',
 }
 
+const PERFORMANCE_FEES_TO_CURATORS = 'Performance Fees To Curators'
+const MANAGEMENT_FEES_TO_CURATORS = 'Management Fees To Curators'
+const DEPOSIT_FEES_TO_VAULT = 'Deposit Fees To Vault'
+
 const methodology = {
-    Fees: 'Gross yield earned by PlasmaVault depositors plus all fees charged by the vaults (performance, management and deposit fees).',
-    Revenue: 'Performance, management and deposit fees charged by the vaults, measured from the fee shares actually minted or transferred on-chain. Split between vault curators and the IPOR DAO.',
-    ProtocolRevenue: 'The IPOR DAO share of vault fees, as configured in each vault FeeManager.',
-    SupplySideRevenue: 'Net yield earned by PlasmaVault depositors after fees, from the change in share price. Can be negative when a vault marks its positions down.',
+    Fees: 'Gross yield earned by PlasmaVault depositors plus all fees charged by the vaults (performance, management and deposit fees), measured from the fee shares actually minted on-chain.',
+    Revenue: 'The IPOR DAO share of performance and management fees, as configured in each vault FeeManager.',
+    ProtocolRevenue: 'The IPOR DAO share of performance and management fees, as configured in each vault FeeManager.',
+    SupplySideRevenue: 'Net yield earned by PlasmaVault depositors after fees (from the change in share price; negative when a vault marks its positions down), plus the vault curators\' share of performance and management fees and the deposit fees kept by the vault.',
 };
 
 const ratio = (part: any, total: any) => {
@@ -154,17 +158,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
         dailySupplySideRevenue.add(token, netYield, METRIC.ASSETS_YIELDS);
         dailyFees.add(token, netYield, METRIC.ASSETS_YIELDS);
 
-        dailyFees.add(token, performanceFee, METRIC.PERFORMANCE_FEES);
-        dailyRevenue.add(token, performanceFee, METRIC.PERFORMANCE_FEES);
-        dailyFees.add(token, managementFee, METRIC.MANAGEMENT_FEES);
-        dailyRevenue.add(token, managementFee, METRIC.MANAGEMENT_FEES);
-        dailyFees.add(token, depositFee, METRIC.DEPOSIT_WITHDRAW_FEES);
-        dailyRevenue.add(token, depositFee, METRIC.DEPOSIT_WITHDRAW_FEES);
-
+        // Revenue is only the IPOR DAO share; the curators' share and deposit fees are supply side.
         const daoPerformance = performanceFee * ratio(daoPerformanceFees[i], totalPerformanceFees[i])
         const daoManagement = managementFee * ratio(daoManagementFees[i], totalManagementFees[i])
+
+        dailyFees.add(token, performanceFee, METRIC.PERFORMANCE_FEES);
+        dailyRevenue.add(token, daoPerformance, METRIC.PERFORMANCE_FEES);
         dailyProtocolRevenue.add(token, daoPerformance, METRIC.PERFORMANCE_FEES);
+        dailySupplySideRevenue.add(token, performanceFee - daoPerformance, PERFORMANCE_FEES_TO_CURATORS);
+
+        dailyFees.add(token, managementFee, METRIC.MANAGEMENT_FEES);
+        dailyRevenue.add(token, daoManagement, METRIC.MANAGEMENT_FEES);
         dailyProtocolRevenue.add(token, daoManagement, METRIC.MANAGEMENT_FEES);
+        dailySupplySideRevenue.add(token, managementFee - daoManagement, MANAGEMENT_FEES_TO_CURATORS);
+
+        // Deposit fee shares go to the vault's WithdrawManager, not to the IPOR DAO.
+        dailyFees.add(token, depositFee, METRIC.DEPOSIT_WITHDRAW_FEES);
+        dailySupplySideRevenue.add(token, depositFee, DEPOSIT_FEES_TO_VAULT);
     }
 
     return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue }
@@ -196,6 +206,7 @@ const adapter: SimpleAdapter = {
         [CHAIN.TAC]: {
             fetch,
             start: "2025-07-11",
+            deadFrom: "2026-11-01", // IPOR Fusion no longer runs on TAC; its public RPC no longer serves logs
         },
         [CHAIN.INK]: {
             fetch,
@@ -223,9 +234,8 @@ const adapter: SimpleAdapter = {
             [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Deposit fees, from DepositFeeRealized events (shares sent to the vault WithdrawManager on mint).',
         },
         Revenue: {
-            [METRIC.PERFORMANCE_FEES]: 'Performance fees kept by vault curators and the IPOR DAO.',
-            [METRIC.MANAGEMENT_FEES]: 'Management fees kept by vault curators and the IPOR DAO.',
-            [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Deposit fees kept by the vault (WithdrawManager).',
+            [METRIC.PERFORMANCE_FEES]: 'IPOR DAO share of performance fees (IPOR_DAO_PERFORMANCE_FEE / total performance fee).',
+            [METRIC.MANAGEMENT_FEES]: 'IPOR DAO share of management fees (IPOR_DAO_MANAGEMENT_FEE / total management fee).',
         },
         ProtocolRevenue: {
             [METRIC.PERFORMANCE_FEES]: 'IPOR DAO share of performance fees (IPOR_DAO_PERFORMANCE_FEE / total performance fee).',
@@ -233,6 +243,9 @@ const adapter: SimpleAdapter = {
         },
         SupplySideRevenue: {
             [METRIC.ASSETS_YIELDS]: 'Net yield earned by PlasmaVault depositors after fees.',
+            [PERFORMANCE_FEES_TO_CURATORS]: 'Vault curators\' share of performance fees (everything above the IPOR DAO share).',
+            [MANAGEMENT_FEES_TO_CURATORS]: 'Vault curators\' share of management fees (everything above the IPOR DAO share).',
+            [DEPOSIT_FEES_TO_VAULT]: 'Deposit fees, sent as shares to the vault WithdrawManager on mint; not paid to the IPOR DAO.',
         },
     },
 }
