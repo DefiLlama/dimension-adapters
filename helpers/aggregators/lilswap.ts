@@ -22,6 +22,7 @@ export const lilswapChainAliases: Record<string, string> = {
     [CHAIN.HYPERLIQUID]: "hyperevm",
     [CHAIN.SOLANA]: "solana",
     [CHAIN.BITCOIN]: "bitcoin",
+    [CHAIN.ARC]: "arc",
 }
 
 const BASE_URL = 'https://api.lilswap.xyz/v1/metrics/daily';

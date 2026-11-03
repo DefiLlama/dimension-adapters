@@ -30,7 +30,7 @@ const methodology = {
     Fees: "Swap fees paid by users, including LilSwap's explicit fee and surplus share.",
     UserFees: "Users pay LilSwap's swap fees on confirmed swaps.",
     Revenue: "Swap fees retained by LilSwap after partner share.",
-    ProtocolRevenue: "Same as revenue.",
+    ProtocolRevenue: "Swap fees retained by LilSwap after partner share.",
     SupplySideRevenue: "Swap fees paid to routing and liquidity partners.",
 }
 
