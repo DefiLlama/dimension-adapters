@@ -1,3 +1,4 @@
+import { ChainApi, getProvider } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -10,12 +11,10 @@ import { nullAddress } from "../helpers/token";
 const V1_HOOK = "0x5A7D914597476393794E100dDD8b70f8c3f570CC";
 const V2_HOOK = "0x62E200Cc8e4D95cf622f40Dd70f407C883EcB0cc";
 const SPLITTER = "0xd8eb805e96B05cb412A1e48eb3a85B6267f901d7";
-// Each Claimed event follows a successful reward transfer to the terminal owner.
-// V1 claims to the migrator are forwarded into V2 legacy credits first.
+// Reward contracts allocate converted assets to terminal holders.
 const V1_REFLECTIONS = "0x666A51Eb731a9CF79d97B4A9c64cD5a4806c877C";
 const V2_REFLECTIONS = "0xe04fba61FD54Ba78Dd450A30d8Af40167aF5d3Ec";
 const ROYALTY_REFLECTIONS = "0x424F0d6cee21E6227239f4Ae6e14ACD2C3D51424";
-const MIGRATOR = "0x205e13e6ec07baa4ed1c57d677de9fee1c88cd6d";
 const COLLECTIONS = new Set([
   "0xbde7bec47cbfc689e5e952b6cdd113a500abcd83", // V1 mirror
   "0x027aca2794e44f24950d81227dcd516ffbb49d6e", // V2 mirror
@@ -36,8 +35,8 @@ const BURN_LABEL = "Swap Fees Allocated To STONKBROKER Burns";
 const REFLECTION_LABEL = "Swap Fees For Terminal Rewards";
 const ROYALTY_CREATOR_LABEL = "NFT Royalties To Creator";
 const ROYALTY_KEEPER_LABEL = "NFT Royalties To Keeper";
-const SWAP_REWARDS_LABEL = "Trading Rewards Paid To Terminal Holders";
-const ROYALTY_REWARDS_LABEL = "Royalty Rewards Paid To Terminal Holders";
+const SWAP_REWARDS_LABEL = "Trading Rewards Accrued To Terminal Holders";
+const ROYALTY_REWARDS_LABEL = "Royalty Rewards Accrued To Terminal Holders";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -118,18 +117,51 @@ const fetch = async (options: FetchOptions) => {
   for (const log of nativeRoyalties) addRoyalty(nullAddress, log.total, log.creatorAmount);
   for (const log of tokenRoyalties) addRoyalty(log.token, log.total, log.creatorAmount);
 
-  const [v1Claims, v2Claims, royaltyClaims] = await options.getLogs({
-    targets: [V1_REFLECTIONS, V2_REFLECTIONS, ROYALTY_REFLECTIONS],
-    eventAbi: "event Claimed(uint256 indexed id, address indexed to, address stock, uint256 amount)",
+  const targets = [V1_REFLECTIONS, V2_REFLECTIONS, ROYALTY_REFLECTIONS];
+  const notifications = await options.getLogs({
+    targets,
+    eventAbi: "event FeesNotified(uint8 indexed floorIdx, uint256 amount, uint256 toFloor, uint256 toBasket, uint256 toGold)",
     flatten: false,
   });
-  for (const log of v1Claims) {
-    // Migrated rewards are counted once, when V2 actually pays the holder.
-    if (log.to.toLowerCase() === MIGRATOR) continue;
-    dailyHoldersRevenue.add(log.stock, log.amount, SWAP_REWARDS_LABEL);
+  const floorPotClaims = await options.getLogs({
+    targets,
+    eventAbi: "event FloorPotClaimed(uint8 indexed floorIdx, uint256 indexed id, uint256 amount)",
+    flatten: false,
+  });
+  const beforeBlock = (await options.getFromBlock()) - 1;
+  const beforeApi = new ChainApi({ chain: options.chain, block: beforeBlock });
+  for (let i = 0; i < targets.length; i++) {
+    const target = targets[i];
+    const floorIds = [...new Set<number>([...notifications[i], ...floorPotClaims[i]].map(log => Number(log.floorIdx)))];
+    if (!floorIds.length) continue;
+    const calls = floorIds.map(floor => ({ params: [floor] }));
+    const catalog = i === 2 ? await options.api.call({ target, abi: "address:catalog" }) : target;
+    const stocks = await options.api.multiCall({ target: catalog, abi: "function floorStocks(uint256) view returns (address)", calls });
+    const floorAbi = "function floors(uint256) view returns (uint256 accPerWeight, uint256 totalWeight, uint256 potPending)";
+    const before = await beforeApi.multiCall({ target, abi: floorAbi, calls, permitFailure: true });
+    const after = await options.api.multiCall({ target, abi: floorAbi, calls });
+    // Only a contract not yet deployed at the window's opening has zero state.
+    // An archive RPC failure for an existing contract must fail the fetch.
+    if (before.some(value => value == null) && await getProvider(options.chain)!.getCode(target, beforeBlock) !== "0x")
+      throw new Error(`Missing opening reward state for ${target}`);
+    for (let j = 0; j < floorIds.length; j++) {
+      const notified = notifications[i].filter((log: any) => Number(log.floorIdx) === floorIds[j]).reduce(
+        // V1 gold stocks await conversion: count the resulting PAXG deposit below.
+        (sum: bigint, log: any) => sum + BigInt(log.amount) - (i === 0 ? BigInt(log.toGold) : 0n), 0n,
+      );
+      // Remove new unallocated pots; add old pots when the first holder earns them.
+      // FloorPotClaimed selects affected floors, but is not added a second time.
+      const accrued = notified + BigInt(before[j]?.potPending ?? 0) - BigInt(after[j].potPending);
+      if (accrued < 0n) throw new Error(`Negative reward accrual for ${target} floor ${floorIds[j]}`);
+      dailyHoldersRevenue.add(stocks[j], accrued, i === 2 ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL);
+    }
   }
-  for (const log of v2Claims) dailyHoldersRevenue.add(log.stock, log.amount, SWAP_REWARDS_LABEL);
-  for (const log of royaltyClaims) dailyHoldersRevenue.add(log.stock, log.amount, ROYALTY_REWARDS_LABEL);
+  const paxgDeposits = await options.getLogs({ target: V1_REFLECTIONS, eventAbi: "event PaxgDeposited(uint256 amount)" });
+  if (paxgDeposits.length) {
+    const paxg = await options.api.call({ target: V1_REFLECTIONS, abi: "address:paxg" });
+    for (const log of paxgDeposits) dailyHoldersRevenue.add(paxg, log.amount, SWAP_REWARDS_LABEL);
+  }
+  // LegacyCredited and Claimed only move rewards already recognized at accrual.
 
   return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue };
 };
@@ -144,7 +176,7 @@ const adapter: SimpleAdapter = {
     Fees: "Total Quotrons V1 and V2 hook swap fees plus NFT royalties paid directly through Seaport or released by the royalty splitter on Robinhood Chain, excluding direct royalties from mixed-collection orders, marketplace fees and subsequent redistribution of the same funds.",
     SupplySideRevenue: "Hook fee allocations to LP reinvestment, STONKBROKER burns and the creator, plus the creator portion of NFT royalties, recorded at accrual or royalty receipt/release; allocations precede any later treasury recovery.",
     Revenue: "Hook fees allocated to terminal rewards and the keeper portion of NFT royalties, before conversion and distribution to terminals; later treasury recoveries are excluded.",
-    HoldersRevenue: "Stock and legacy PAXG rewards actually transferred to terminal holders by the V1, V2 and royalty reward contracts, measured on claim; keeper receipts, unclaimed allocations and internal migration transfers are excluded.",
+    HoldersRevenue: "Rewards earned by terminal holders when converted assets are allocated, including first-holder releases of pending floor pots and V1 PAXG deposits; unallocated pots, queued conversion funds, migration credits and subsequent claims are excluded.",
   },
   breakdownMethodology: {
     Fees: {
@@ -162,8 +194,8 @@ const adapter: SimpleAdapter = {
       [ROYALTY_KEEPER_LABEL]: "Direct NFT royalty payments to the keeper and splitter totals less creatorAmount, retained for the royalty reward pipeline.",
     },
     HoldersRevenue: {
-      [SWAP_REWARDS_LABEL]: "Claimed amounts paid to holders by V1 and V2 reflections, including V2 payouts of legacy credits; V1 claims to the migrator are excluded to prevent duplicate counting.",
-      [ROYALTY_REWARDS_LABEL]: "Claimed stock amounts transferred by royalty reflections to terminal holders after royalty conversion and allocation.",
+      [SWAP_REWARDS_LABEL]: "V1 and V2 stock notifications less increases in unallocated floor pots, plus releases of previously pending pots. V1 gold stock allocations are excluded until converted PAXG is deposited; migration credits and claims do not add new revenue.",
+      [ROYALTY_REWARDS_LABEL]: "Converted stock notifications to royalty reflections, adjusted for changes in unallocated floor pots; keeper receipts and subsequent claims are not holder accruals.",
     },
   },
 };
