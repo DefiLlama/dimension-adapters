@@ -3,7 +3,7 @@ import { Adapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const config = {
+const config : any = {
     [CHAIN.ARBITRUM]: {
         registry: "0xcB94Eee869a2041F3B44da423F78134aFb6b676B",
         backfill: {
@@ -20,11 +20,16 @@ const config = {
     [CHAIN.BASE]: {
         registry: "0xd24d145f5E351de52934A7E1f8cF55b907E67fFF",
         backfill: {
-            routers: ["0x791Fee7b66ABeF59630943194aF17B029c6F487B"],
+            routers: [
+                "0x791Fee7b66ABeF59630943194aF17B029c6F487B",
+                "0x925d2452185d4fA38C77feC56fAc4a136BBe5976",
+            ],
             assets: [
                 ADDRESSES.base.cbBTC,
                 ADDRESSES.base.WETH,
                 "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed", // DEGEN
+                "0x532f27101965dd16442E59d40670FaF5eBB142E4", // BRETT
+                "0x2Da56AcB9Ea78330f947bD57C54119Debda7AF71", // MOG
             ],
         },
     },
@@ -87,7 +92,7 @@ const abis = {
     },
 };
 
-async function getAddresses(chain, api) {
+async function getAddresses(chain: string, api: any) {
     const registry = config[chain].registry;
     let routers;
     let pools;
@@ -109,11 +114,11 @@ async function getAddresses(chain, api) {
                 params: router,
             })),
         });
-        assets = assetsResponse.reduce((acc, a: any[]) => [...acc, ...a], []);
+        assets = assetsResponse.reduce((acc: any[], a: any[]) => [...acc, ...a], []);
 
         // pools
         const poolsCalls: any[] = [];
-        routers.forEach((router: any, i) => {
+        routers.forEach((router: any, i: number) => {
             assetsResponse[i].forEach((asset: any) => {
                 poolsCalls.push({
                     target: router,
@@ -128,19 +133,25 @@ async function getAddresses(chain, api) {
     } catch (e) {
         routers = config[chain].backfill.routers;
         const backfillCalls: any[] = [];
-        assets = [];
         routers.forEach((router: any) => {
             config[chain].backfill.assets.forEach((asset: any) => {
                 backfillCalls.push({
                     target: router,
                     params: asset,
                 });
-                assets.push(asset);
             });
         });
-        pools = await api.multiCall({
+        const backfillPools = await api.multiCall({
             abi: abis.router.poolByAsset,
             calls: backfillCalls,
+            permitFailure: true,
+        });
+        pools = [];
+        assets = [];
+        backfillPools.forEach((pool: any, i: number) => {
+            if (!pool || pool === ADDRESSES.null) return;
+            pools.push(pool);
+            assets.push(backfillCalls[i].params);
         });
     }
 
