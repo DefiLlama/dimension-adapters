@@ -20,11 +20,30 @@ export function assertDuneSolanaIndexed(options: FetchOptions): void {
     }
 }
 
-export function duneSolanaDexTrades(project: string, start: string) {
+export function duneSolanaDexTrades(project: string, start: string, { excludeRoundTrips = false }: { excludeRoundTrips?: boolean } = {}) {
     const fetch = async (options: FetchOptions) => {
         assertDuneSolanaIndexed(options)
 
-        const query = `
+        // excludeRoundTrips drops both legs when one tx buys and sells on the same pool.
+        // project_program_id holds the pool account in spellbook solana_amm_base_trades models (e.g. zerofi)
+        const query = excludeRoundTrips ? `
+            SELECT
+                COALESCE(SUM(volume), 0) AS daily_volume
+            FROM (
+                SELECT
+                    SUM(amount_usd) AS volume,
+                    COUNT(DISTINCT token_sold_mint_address) AS directions
+                FROM
+                    dex_solana.trades
+                WHERE
+                    TIME_RANGE
+                    AND project = '${project}'
+                GROUP BY
+                    tx_id,
+                    project_program_id
+            )
+            WHERE directions = 1
+        ` : `
             SELECT
                 COALESCE(SUM(amount_usd), 0) AS daily_volume
             FROM
