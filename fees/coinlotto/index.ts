@@ -28,6 +28,10 @@ const LABELS = {
   CREATOR_FEES_TO_LOTTERY_CREATORS: "Creator Fees To Lottery Creators",
 };
 
+/**
+ * Ticket sales volume, fees and revenue for one window on one chain, built from CoinLotto contract events.
+ * CLT-denominated flows are excluded.
+ */
 const fetch = async (options: FetchOptions) => {
   const { api, getLogs, createBalances } = options;
   const dailyVolume = createBalances();
@@ -39,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
   const creatorFeeLogs = await getLogs({ target: USER_LOTTERY_MANAGER, eventAbi: ABI.CreatorFeeAdded });
   const buyLogs = await getLogs({ target: LOTTERY_HUB, eventAbi: ABI.TicketsBought, onlyArgs: false });
 
+  /** Dimension balances for the window; user fees and protocol revenue mirror fees and revenue. */
   const result = () => ({
     dailyVolume,
     dailyFees,
@@ -53,6 +58,7 @@ const fetch = async (options: FetchOptions) => {
   if (!referrerFeeLogs.length && !creatorFeeLogs.length && !buyLogs.length) return result();
 
   const clt = (await api.call({ target: PROTOCOL_LOTTERY_MANAGER, abi: ABI.cltToken })).toLowerCase();
+  /** True when the token is CLT, whose flows are out of scope. */
   const isClt = (token: string) => token.toLowerCase() === clt;
 
   referrerFeeLogs.forEach((log: any) => {
@@ -73,6 +79,7 @@ const fetch = async (options: FetchOptions) => {
     const lotteries = await api.multiCall({ abi: ABI.getLottery, calls: lotteryIds.map((id, i) => ({ target: managers[i], params: [id] })) });
     const lotteryById: Record<string, any> = {};
     lotteryIds.forEach((id, i) => lotteryById[id] = lotteries[i]);
+    /** True for lotteries whose tickets are paid in an ERC-20 other than CLT (Super Lotteries are paid in CLT). */
     const isErc20Sale = (lottery: any) => Number(lottery.kind) !== LOTTERY_KIND_SUPER && !isClt(lottery.params.asset);
 
     const buyersByTx: Record<string, Set<string>> = {};
