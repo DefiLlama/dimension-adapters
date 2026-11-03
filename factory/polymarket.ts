@@ -36,6 +36,9 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
   "blackboard-predict": { builder: "Blackboard", start: "2026-04-29", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c" },
   "wallet-v-predictions": { builder: "Wallet V", start: "2026-09-09", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04" },
+  // Sparkling (https://sparkl.ing): builder name and code as listed in https://data-api.polymarket.com/v2/builders/volume
+  // and set in the public code of https://app.sparkl.ing; first attributed trade 2026-09-13
+  "sparkling-predict": { builder: "Sparkling", start: "2026-09-13", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
@@ -57,6 +60,8 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "onagi-predict": { builderName: "Onagi", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f", start: "2026-10-22", holdersRevenueRatio: 0.75 },
   "blackboard-predict": { builderName: "Blackboard", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c", start: "2026-04-29" },
   "wallet-v-predictions": { builderName: "Wallet V", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04", start: "2026-09-09" },
+  // first trade with a builder fee in https://clob.polymarket.com/builder/trades for this code: 2026-09-13
+  "sparkling-predict": { builderName: "Sparkling", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a", start: "2026-09-13" },
 }
 
 const dexsProtocols: Record<string, any> = {};

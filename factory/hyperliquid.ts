@@ -71,6 +71,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "sparkling-perps": {
+    // Sparkling (https://sparkl.ing), the trading app that comes with an agent, in Telegram (https://t.me/sparkling_trade_bot)
+    // and on the web (https://app.sparkl.ing). Its Hyperliquid perps orders carry this builder code at 5.5 bps (f = 55),
+    // set in the web app's public code. Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x6f84e41bddb6df636be5332331b8a7d7bb968c33"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-09-13",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades placed through Sparkling, counted from its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Sparkling; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by Sparkling from Hyperliquid perps trades, before its affiliate payouts.",
+      ProtocolRevenue: "Builder code fees received by Sparkling from Hyperliquid perps trades, before its affiliate payouts.",
+    },
+    breakdownFees: true,
+  },
   "wenlong": {
     // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
     // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
