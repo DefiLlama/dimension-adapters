@@ -71,7 +71,7 @@ export async function fetchLighterPartnerTrades(options: FetchOptions, accounts:
     let cursor: string | undefined;
     let volume = 0, notional = 0, fees = 0;
     do {
-      const res = await fetchURL(`${url}?integrator_account_index=${accountIndex}&market_type=${marketType}&sort_by=timestamp&limit=100${cursor ? `&cursor=${cursor}` : ""}`);
+      const res = await fetchURL(`${url}?integrator_account_index=${accountIndex}&market_type=${marketType}&sort_by=timestamp&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
       if (res?.code !== 200 || !Array.isArray(res.trades)) throw new Error(`Lighter trades failed for account ${accountIndex}: ${JSON.stringify(res)}`);
       for (const trade of res.trades) {
         if (trade.timestamp < startMs || trade.timestamp >= endMs) continue;
