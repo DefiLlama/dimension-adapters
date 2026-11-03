@@ -8,6 +8,14 @@ const TRADE_PAIRS = "0x09383137c1eee3e1a8bc781228e4199f6b4a9bbf";
 const PORTFOLIO_SUB = "0xa5c079c1986e2335d83fa2d7282e162958e515d5";
 const FEE_COLLECTOR = "0xB90c65b9bA39c616500aEF23cF6B512490f5eb1C";
 
+// When each fee mechanism went live on chain, so a window only calls the getters that exist for it
+// PortfolioSubHelper 2.6.0 (block 51710667): a pair's collector OmniVault takes its whole taker fee
+const TAKER_FEE_COLLECTORS_START = 1764180368; // 2025-11-26 18:06:08 UTC
+// PortfolioSubHelper 2.7.2 (block 71609965): a capped share per (pair, maker) replaces the collectors
+const TAKER_FEE_CAPS_START = 1786462822; // 2026-08-11 15:40:22 UTC
+// FeeCollector genesis(): kept fees settle weekly from here on
+const FEE_COLLECTOR_GENESIS = 1786543200; // 2026-08-12 14:00:00 UTC
+
 // feeMaker / feeTaker are net of any volume rebate
 const EXECUTED_EVENT =
   "event Executed(uint8 version, bytes32 indexed pair, uint256 price, uint256 quantity, bytes32 makerOrder, bytes32 takerOrder, uint256 feeMaker, uint256 feeTaker, uint8 takerSide, uint256 execId, address indexed addressMaker, address indexed addressTaker)";
@@ -20,7 +28,6 @@ const GET_TRADE_PAIRS_ABI = "function getTradePairs() view returns (bytes32[])";
 const GET_TRADE_PAIR_ABI =
   "function getTradePair(bytes32) view returns (tuple(bytes32 baseSymbol, bytes32 quoteSymbol, bytes32 buyBookId, bytes32 sellBookId, uint256 minTradeAmount, uint256 maxTradeAmount, uint256 auctionPrice, uint8 auctionMode, uint8 makerRate, uint8 takerRate, uint8 baseDecimals, uint8 baseDisplayDecimals, uint8 quoteDecimals, uint8 quoteDisplayDecimals, uint8 allowedSlippagePercent, bool addOrderPaused, bool pairPaused, bool postOnly))";
 const GET_HELPER_ABI = "function getPortfolioSubHelper() view returns (address)";
-// replaced by takerFeeCapBps in PortfolioSubHelper 2.7, still needed for days before it
 const TAKER_FEE_COLLECTORS_ABI = "function takerFeeCollectors(bytes32) view returns (address)";
 const TAKER_FEE_CAP_BPS_ABI = "function takerFeeCapBps(bytes32, address) view returns (uint32)";
 const TENK = 100000; // rate scale, 10 = 1 bp
@@ -56,7 +63,6 @@ interface PairMeta {
   quoteSymbol: string;
   baseDecimals: number;
   quoteDecimals: number;
-  collector: string; // OmniVault collecting the pair's taker fees before takerFeeCapBps, or ZERO
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -70,31 +76,13 @@ const fetch = async (options: FetchOptions) => {
     abi: GET_TRADE_PAIR_ABI,
     calls: pairIds.map((id: string) => ({ target: TRADE_PAIRS, params: [id] })),
   });
-
-  // An OmniVault making a pair can earn part of its taker fees. Before PortfolioSubHelper existed the protocol kept them all
-  let helper: string | undefined;
-  try {
-    helper = await toApi.call({ target: PORTFOLIO_SUB, abi: GET_HELPER_ABI });
-  } catch (e) {
-    // reverts before the helper was deployed
-  }
-  const collectors = helper
-    ? await toApi.multiCall({
-        abi: TAKER_FEE_COLLECTORS_ABI,
-        calls: pairIds.map((id: string) => ({ target: helper, params: [id] })),
-        permitFailure: true,
-      })
-    : [];
-
   const pairMetaById: Record<string, PairMeta> = {};
   pairIds.forEach((id: string, i: number) => {
-    const p = pairs[i];
     pairMetaById[id.toLowerCase()] = {
-      baseSymbol: ethers.decodeBytes32String(p.baseSymbol),
-      quoteSymbol: ethers.decodeBytes32String(p.quoteSymbol),
-      baseDecimals: Number(p.baseDecimals),
-      quoteDecimals: Number(p.quoteDecimals),
-      collector: (collectors[i] || ZERO).toLowerCase(),
+      baseSymbol: ethers.decodeBytes32String(pairs[i].baseSymbol),
+      quoteSymbol: ethers.decodeBytes32String(pairs[i].quoteSymbol),
+      baseDecimals: Number(pairs[i].baseDecimals),
+      quoteDecimals: Number(pairs[i].quoteDecimals),
     };
   });
 
@@ -114,20 +102,30 @@ const fetch = async (options: FetchOptions) => {
   const logs = await getLogs({ target: TRADE_PAIRS, eventAbi: EXECUTED_EVENT });
   const fillKey = (log: any) => `${(log.pair as string).toLowerCase()}|${(log.addressMaker as string).toLowerCase()}`;
 
-  // taker fee cap per (pair, maker) in the day's fills, -1 when the getter reverts (before caps existed)
-  const fillKeys = [...new Set(logs.map(fillKey))];
-  const capResults = helper
-    ? await toApi.multiCall({
+  // The OmniVault making a fill can earn part of its taker fee, the getters are read at the window's end block
+  const capByKey: Record<string, number> = {};
+  const collectorByPair: Record<string, string> = {};
+  if (options.endTimestamp > TAKER_FEE_COLLECTORS_START) {
+    const helper = await toApi.call({ target: PORTFOLIO_SUB, abi: GET_HELPER_ABI });
+    if (options.endTimestamp > TAKER_FEE_CAPS_START) {
+      const fillKeys = [...new Set(logs.map(fillKey))];
+      const caps = await toApi.multiCall({
         abi: TAKER_FEE_CAP_BPS_ABI,
         calls: fillKeys.map((k) => ({ target: helper, params: k.split("|") as [string, string] })),
-        permitFailure: true,
-      })
-    : [];
-  const capByKey: Record<string, number> = {};
-  fillKeys.forEach((k, i) => (capByKey[k] = capResults[i] == null ? -1 : Number(capResults[i])));
+      });
+      fillKeys.forEach((k, i) => (capByKey[k] = Number(caps[i])));
+    } else {
+      const collectors = await toApi.multiCall({
+        abi: TAKER_FEE_COLLECTORS_ABI,
+        calls: pairIds.map((id: string) => ({ target: helper, params: [id] })),
+      });
+      pairIds.forEach((id: string, i: number) => (collectorByPair[id.toLowerCase()] = collectors[i].toLowerCase()));
+    }
+  }
 
   for (const log of logs) {
-    const meta = pairMetaById[(log.pair as string).toLowerCase()];
+    const pairId = (log.pair as string).toLowerCase();
+    const meta = pairMetaById[pairId];
     if (!meta) {
       console.log(`fees/dexalot: skipping fill on unknown pair ${log.pair}`);
       continue;
@@ -151,7 +149,8 @@ const fetch = async (options: FetchOptions) => {
     const takerCgId = cgIdOf(takerFeeToken.symbol);
     if (takerFee > 0 && takerCgId) {
       const maker = (log.addressMaker as string).toLowerCase();
-      const cap = capByKey[fillKey(log)];
+      const cap = capByKey[fillKey(log)] ?? 0;
+      const collector = collectorByPair[pairId] ?? ZERO;
       let vaultShare = 0;
       if (cap > 0 && maker !== (log.addressTaker as string).toLowerCase()) {
         // the vault earns takerFee * min(cap, rate) / rate. The rate is recovered from the fee itself, so it is the
@@ -160,8 +159,7 @@ const fetch = async (options: FetchOptions) => {
         const notional = takerFeeToken === base ? baseQty : baseQty * (Number(log.price) / 10 ** meta.quoteDecimals);
         const rate = Math.round((takerFee / notional) * TENK);
         if (rate > 0) vaultShare = (takerFee * Math.min(cap, rate)) / rate;
-      } else if (cap === -1 && meta.collector !== ZERO && maker === meta.collector) {
-        // before caps, the pair's collector took the whole taker fee
+      } else if (collector !== ZERO && maker === collector) {
         vaultShare = takerFee;
       }
       dailyFees.addCGToken(takerCgId, takerFee, "Taker Fees");
@@ -171,13 +169,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // 2. Revenue. Before the FeeCollector, kept fees went straight to the treasury, so revenue accrues per fill
-  let feeCollectorGenesis = Infinity;
-  try {
-    feeCollectorGenesis = Number(await toApi.call({ target: FEE_COLLECTOR, abi: "uint256:genesis" }));
-  } catch (e) {
-    // reverts before the FeeCollector was deployed
-  }
-  if (options.startOfDay < feeCollectorGenesis) {
+  if (options.startTimestamp < FEE_COLLECTOR_GENESIS) {
     return { dailyFees, dailyRevenue: accruedRevenue, dailyProtocolRevenue: accruedRevenue, dailySupplySideRevenue };
   }
 
@@ -187,19 +179,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
   const settledLogs = await getLogs({ target: FEE_COLLECTOR, eventAbi: TOKEN_SETTLED_EVENT });
   const symbols = [...new Set(settledLogs.map((l: any) => l.symbol as string))];
+  // the FeeCollector values amounts in the token's portfolio decimals (getTokenDetails().decimals)
   const details = await toApi.multiCall({
     abi: GET_TOKEN_DETAILS_ABI,
     calls: symbols.map((s) => ({ target: PORTFOLIO_SUB, params: [s] })),
-    permitFailure: true,
   });
-  const decimalsBySymbol = Object.fromEntries(symbols.map((s, i) => [s, details[i] ? Number(details[i].decimals) : 18]));
+  const decimalsBySymbol = Object.fromEntries(symbols.map((s, i) => [s, Number(details[i].decimals)]));
   for (const log of settledLogs) {
-    // amounts in the token's L1 decimals, price in USD per token at 1e18
+    // price is USD per whole token at 1e18
     const unit = 10 ** decimalsBySymbol[log.symbol as string];
     const price = Number(log.price) / 1e18;
     const toTreasuryUsd = (Number(log.toTreasury) / unit) * price;
     const toBuybackUsd = (Number(log.toBuyback) / unit) * price;
-    dailyRevenue.addUSDValue(toTreasuryUsd + toBuybackUsd);
+    dailyRevenue.addUSDValue(toTreasuryUsd, "Operating Budget");
+    dailyRevenue.addUSDValue(toBuybackUsd, "ALOT Buyback");
     dailyProtocolRevenue.addUSDValue(toTreasuryUsd, "Operating Budget");
     dailyHoldersRevenue.addUSDValue(toBuybackUsd, "ALOT Buyback");
   }
@@ -212,8 +205,18 @@ const methodology = {
     "The share of taker fees an OmniVault (Dexalot's market-making vaults) earns when it is the maker, capped at a per-vault rate. It goes to the vault's depositors.",
   Revenue:
     "Fees kept by the protocol. Since the FeeCollector launch (2026-08-12) they settle once a week at epoch close, so revenue books on the settlement day at the close's on-chain USD value and is zero on the other days.",
-  ProtocolRevenue: "The weekly operating budget taken from collected fees at epoch close, sent to the treasury, stables first.",
+  ProtocolRevenue:
+    "Before the FeeCollector, every kept fee. Since then the weekly operating budget taken from collected fees at epoch close, sent to the treasury, stables first.",
   HoldersRevenue: "Collected fees above the operating budget, sent to the BuybackVault at epoch close to buy ALOT.",
+};
+
+const keptFees = {
+  "Maker Fees": "Before the FeeCollector: maker fees, all kept by the protocol.",
+  "Taker Fees": "Before the FeeCollector: taker fees less any OmniVault share.",
+};
+const settlement = {
+  "Operating Budget": "The weekly operating budget, taken stables first at epoch close.",
+  "ALOT Buyback": "The rest of each settlement, sent to the BuybackVault to buy ALOT.",
 };
 
 const breakdownMethodology = {
@@ -222,14 +225,11 @@ const breakdownMethodology = {
     "Taker Fees": "Fee paid by the trader whose order filled against the order book.",
   },
   SupplySideRevenue: {
-    "Taker Fees To OmniVaults": "The capped share of taker fees earned by an OmniVault when it is the maker.",
+    "Taker Fees To OmniVaults": "The share of taker fees earned by an OmniVault when it is the maker.",
   },
-  ProtocolRevenue: {
-    "Operating Budget": "The weekly operating budget, taken stables first at epoch close.",
-  },
-  HoldersRevenue: {
-    "ALOT Buyback": "The rest of each settlement, sent to the BuybackVault to buy ALOT.",
-  },
+  Revenue: { ...keptFees, ...settlement },
+  ProtocolRevenue: { ...keptFees, "Operating Budget": settlement["Operating Budget"] },
+  HoldersRevenue: { "ALOT Buyback": settlement["ALOT Buyback"] },
 };
 
 const adapter: SimpleAdapter = {
