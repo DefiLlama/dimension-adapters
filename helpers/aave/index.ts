@@ -1462,6 +1462,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
           {
             version: 3,
             lendingPoolProxy: '0x67dC8037Db6309Dd5571D82c65F5f593F7da1505', // returned by PoolAddressesProvider 0x717c2a6fa0820b04b9d4793daca33a229aec85ca getPool()
+            // Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/rnt-lend/index.js
             dataProvider: '0x5542ac41138f6a52a13c644f1db56bada71a4021',
           },
         ],
