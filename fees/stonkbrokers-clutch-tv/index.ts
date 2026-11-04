@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Clutch TV (stonkbrokers.io/tv): streamer channels on Robinhood Chain.
 // Each channel is a ClutchPass ERC-721 on a rising bonding curve created by
@@ -12,7 +13,7 @@ const TIP_JAR = "0xec371C1664Dab7dD7b00aAf7Cc16c4181Ef2cE43";
 const FACTORY_START_BLOCK = 100324098;
 const BURN_BPS = 6000n;
 const BPS = 10000n;
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 const EV = {
   channelCreated: "event ChannelCreated(address indexed creator, string handle, address pass, address agent)",
