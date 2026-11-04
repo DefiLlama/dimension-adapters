@@ -1,6 +1,10 @@
 -- Jupiter Perpetual Fees - Hybrid approach
 -- Uses instruction_calls for open_fees, close_fees, liquidation_fees
 -- Uses decoded tables for funding_fees and price_impact_fees
+-- feeUsd on position events (read from instruction_calls below) already includes the borrow (funding) fee and the
+-- price impact fee, so the decoded legs below subtract them from open/close fees to report each fee once.
+-- Liquidations: the instruction_calls leg reads liquidationFeeUsd only, so the decoded leg adds the base close fee
+-- (positionFeeUsd minus the price impact fee it contains).
 
 WITH all_events AS (
     -- Add liquidity fees
@@ -233,7 +237,7 @@ WITH all_events AS (
         0 AS add_liq_fees,
         0 AS remove_liq_fees,
         0 AS swap_fees,
-        0 AS open_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS open_fees,
         0 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
@@ -250,7 +254,7 @@ WITH all_events AS (
         0 AS add_liq_fees,
         0 AS remove_liq_fees,
         0 AS swap_fees,
-        0 AS open_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS open_fees,
         0 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
@@ -268,7 +272,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
@@ -285,7 +289,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
@@ -302,7 +306,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        (COALESCE(CAST(positionFeeUsd AS DOUBLE), 0) - COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
