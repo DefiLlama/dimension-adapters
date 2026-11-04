@@ -4,6 +4,7 @@ import { getUniV2LogAdapter } from "../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
       // factory feeTo is set on-chain => stock uniV2 protocol share of 1/6 of swap fees

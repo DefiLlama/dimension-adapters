@@ -10,6 +10,7 @@ const adapter: Adapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Fees paid by users while trading on social network.",
     Revenue: "Fees paid by users while trading on social network.",

@@ -20,6 +20,7 @@ const adapter: SimpleAdapter = {
         Revenue: "Fees paid by users using payment services.",
     },
     version: 2,
+    pullHourly: true,
     adapter: [CHAIN.ETHEREUM, CHAIN.OPTIMISM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC, CHAIN.SCROLL].reduce((all, chain) => ({
         ...all,
         [chain]: {

@@ -139,6 +139,21 @@ const configs: Record<string, Config> = {
     },
     options: { protocolRevenueRatio: 1 },
   },
+  "sonne-finance": {
+    chains: {
+      [CHAIN.OPTIMISM]: { comptroller: "0x60CF091cD3f50420d50fD7f707414d0DF4751C58", start: '2022-10-01' },
+      [CHAIN.BASE]: { comptroller: "0x1DB2466d9F5e10D7090E7152B68d62703a2245F0", start: '2023-08-31' },
+    },
+    options: {
+      methodology: {
+        Fees: "Total interest paid by borrowers",
+        Revenue: "Protocol's share of interest treasury",
+        ProtocolRevenue: "Protocol's share of interest into treasury",
+        HoldersRevenue: "Share of interest into protocol governance token holders.",
+        SupplySideRevenue: "Interest paid to lenders in liquidity pools",
+      },
+    },
+  },
 };
 
 

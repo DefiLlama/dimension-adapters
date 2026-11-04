@@ -1,4 +1,5 @@
 import * as sdk from "@defillama/sdk";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter, uniV2Exports } from "../helpers/uniswap";
 import { univ2Adapter2 } from "../helpers/getUniSubgraphVolume";
@@ -977,6 +978,11 @@ const configs: Record<string, Record<string, any>> = {
   "dexswap": {
     [CHAIN.ARBITRUM]: { factory: '0x3e40739d8478c58f9b973266974c58998d4f9e8b', start: '2023-05-21' },
   },
+  "bitblocks-finance-v2": {
+    // 0.25% swap fee; 8/25 (32%) of it to the protocol through LP-token minting while the factory feeTo is set.
+    // fetch is overridden below to read feeTo at run time, so revenue drops to zero if it is ever unset.
+    [CHAIN.BSC]: { factory: '0x65b3cc7a7cb167221266fc93884717de2dbd074e', start: '2022-04-26', fees: 0.0025, userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 8 / 25, allowReadPairs: true },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -985,6 +991,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "bitblocks-finance-v2": {
+    Volume: 'Volume is derived from Swap events emitted by BitBlocks Finance V2 pairs on BNB Smart Chain.',
+    Fees: 'Traders pay a 0.25% fee on every V2 swap.',
+    UserFees: 'Users pay the full 0.25% swap fee charged by V2 pairs.',
+    Revenue: '32% of V2 swap fees go to the protocol while feeTo is enabled on the factory.',
+    ProtocolRevenue: '32% of V2 swap fees accrue to the protocol through LP token minting while feeTo is enabled.',
+    SupplySideRevenue: 'Liquidity providers receive V2 swap fees minus the protocol share.',
+  },
   "bdex-v2": {
     Volume: "Swap volume from all BDEX V2 pools deployed via the V2 factory on BOT Chain.",
     Fees: "Users pay a 0.3% fee on every swap.",
@@ -2077,6 +2091,20 @@ protocols['reddex'].adapter[CHAIN.REDBELLY].fetch = async (options: FetchOptions
 
 protocols['tealswap'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': methodologyMap['tealswap'].Fees },
+}
+
+protocols['bitblocks-finance-v2'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Trading fees paid by users on V2 swaps.' },
+  UserFees: { 'Trading fees': 'The full trading fee paid by swap users.' },
+  Revenue: { 'Protocol fees': 'The portion of swap fees accruing to the protocol.' },
+  ProtocolRevenue: { 'Protocol fees': 'Swap fees controlled by the BitBlocks Finance protocol.' },
+  SupplySideRevenue: { 'LP fees': 'The portion of swap fees accruing to liquidity providers.' },
+}
+protocols['bitblocks-finance-v2'].adapter[CHAIN.BSC].fetch = async (options: FetchOptions) => {
+  const config = configs['bitblocks-finance-v2'][CHAIN.BSC]
+  const feeTo: string = await options.api.call({ target: config.factory, abi: 'address:feeTo' })
+  const revenueRatio = feeTo && feeTo.toLowerCase() !== ADDRESSES.null ? config.revenueRatio : 0
+  return getUniV2LogAdapter({ ...config, revenueRatio, protocolRevenueRatio: revenueRatio })(options)
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

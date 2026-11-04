@@ -32,6 +32,7 @@ const getBribes = async (options: FetchOptions): Promise<sdk.Balances> => {
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: async (options: FetchOptions) => {

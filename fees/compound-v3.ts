@@ -151,6 +151,7 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Total borrow interest paid by borrowers across Compound V3 markets.',
     Revenue: 'Spread between borrow interest paid by borrowers and supply interest distributed to lenders. Accumulates as protocol reserves on each Comet contract, withdrawable to the Compound DAO Treasury via Governance.',

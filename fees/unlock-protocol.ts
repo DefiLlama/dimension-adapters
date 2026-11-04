@@ -92,6 +92,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Gross network product delta recorded by each Unlock contract across supported chains.",
     Revenue: "Unlock DAO keeps the protocol fee (1% of each key purchase/renewal).",

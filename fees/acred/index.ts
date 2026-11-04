@@ -146,6 +146,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 1, //price updates once a day
+    pullHourly: false,
     prefetch,
     fetch,
     breakdownMethodology,

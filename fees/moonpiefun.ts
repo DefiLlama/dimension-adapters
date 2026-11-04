@@ -33,7 +33,7 @@ const methodology = {
 }
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
   pullHourly: true,
   fetch,
   chains: [CHAIN.ASSETCHAIN],

@@ -68,6 +68,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.ETHEREUM, CHAIN.BSC],
   fetch,
   start: '2023-04-20',
