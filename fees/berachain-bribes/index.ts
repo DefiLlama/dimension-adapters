@@ -114,7 +114,7 @@ const fetch: any = async (options: FetchOptions) => {
             t.token
     ),
     -- PoL Next (block 23207664, 2026-07-07): vaults send everything after the validator commission to the IncentivesCollector
-    -- (IncentivesCollected), accrued to sWBERA stakers. https://docs.berachain.com/general/proof-of-liquidity/changelog
+    -- (IncentivesCollected), which auctions it for WBERA paid to sWBERA and LST stakers. https://docs.berachain.com/general/proof-of-liquidity/changelog
     -- Sample tx 0x37dfa08fe05b427781263460d1060f8d537379a23434429b740f360b95256909
     incentives_collected as (
         SELECT
@@ -178,6 +178,26 @@ const fetch: any = async (options: FetchOptions) => {
         group by
             t.token
     ),
+    -- The collector (BGTIncentiveFeeCollector 0x1984...) splits each WBERA payout between the sWBERA vault (0x118d...) and the
+    -- registered LST staker vaults by stake (_splitAmount); RewardConverted logs each LST vault's WBERA. LST stakers are suppliers.
+    collector_split as (
+        select
+            sum(case when contract_address = 0x6969696969696969696969696969696969696969 then bytearray_to_uint256(data) end) as swbera_wbera,
+            sum(case when contract_address = 0x1984baf659607cc5f206c55bb3b00eb3e180190b then bytearray_to_uint256(bytearray_substring(data, 1, 32)) end) as lst_wbera
+        from
+            berachain.logs
+        where
+            block_time >= from_unixtime(${options.startTimestamp})
+            AND block_time < from_unixtime(${options.endTimestamp})
+            AND (
+                (contract_address = 0x6969696969696969696969696969696969696969 -- WBERA Transfer, collector -> sWBERA vault
+                    AND topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+                    AND topic1 = 0x0000000000000000000000001984baf659607cc5f206c55bb3b00eb3e180190b
+                    AND topic2 = 0x000000000000000000000000118d2ceee9785eaf70c15cd74cd84c9f8c3eec9a)
+                OR (contract_address = 0x1984baf659607cc5f206c55bb3b00eb3e180190b -- RewardConverted(vault, wberaAmount, lstAmount)
+                    AND topic0 = 0x110ea658b6c32d24c841364199b6429365b6ac3479bd2d318a173c514f58c53a)
+            )
+    ),
     incentive_taxes as (
         SELECT
             *
@@ -237,7 +257,12 @@ const fetch: any = async (options: FetchOptions) => {
         sum(case when source = 'distribution' then token_amount else 0 end) as bribes_to_holders,
         sum(case when source = 'validators' then token_amount else 0 end) as bribes_to_validators,
         sum(case when source = 'taxes' then token_amount else 0 end) as bribes_to_protocol,
-        sum(case when source = 'stakers' then token_amount else 0 end) as bribes_to_stakers
+        sum(case when source = 'stakers' then token_amount else 0 end) as bribes_to_stakers,
+        (
+            select cast(coalesce(lst_wbera, 0) as double) / cast(coalesce(lst_wbera, 0) + coalesce(swbera_wbera, 0) as double)
+            from collector_split
+            where coalesce(lst_wbera, 0) + coalesce(swbera_wbera, 0) > 0
+        ) as lst_share
     from (
         select token, token_amount, 'distribution' as source from distribution
         union all
@@ -270,8 +295,12 @@ const fetch: any = async (options: FetchOptions) => {
       dailyProtocolRevenue.addToken(row.token, row.bribes_to_protocol, "Bribes to protocol");
     }
     if (row.bribes_to_stakers > 0) {
+      // no collector payout that day means the sWBERA / LST split is unknown
+      if (row.lst_share === null || row.lst_share === undefined) throw new Error("berachain-bribes: no IncentivesCollector payout to split IncentivesCollected");
+      const toLstStakers = row.bribes_to_stakers * row.lst_share;
       dailyFees.addToken(row.token, row.bribes_to_stakers, "Bribes");
-      dailyHoldersRevenue.addToken(row.token, row.bribes_to_stakers, "Bribes to sWBERA stakers");
+      dailyHoldersRevenue.addToken(row.token, row.bribes_to_stakers - toLstStakers, "Bribes to sWBERA stakers");
+      dailySupplySideRevenue.addToken(row.token, toLstStakers, "Bribes to LST stakers");
     }
   });
 
@@ -289,9 +318,9 @@ const fetch: any = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Bribes are distributed to holders, validators, and the protocol.",
-  Revenue: "Bribes not paid to validators: BGT booster incentives distributed to BGT holders and incentive fee taxes collected by the protocol until PoL Next (2026-07-07), and incentives collected for sWBERA stakers since.",
+  Revenue: "Bribes not paid to validators: BGT booster incentives distributed to BGT holders and incentive fee taxes collected by the protocol until PoL Next (2026-07-07), and the sWBERA stakers' share of incentives collected since.",
   HoldersRevenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults.",
-  SupplySideRevenue: "Incentive tokens distributed to validators via IncentivesProcessed events.",
+  SupplySideRevenue: "Incentive tokens distributed to validators via IncentivesProcessed events, and since PoL Next (2026-07-07) the LST stakers' share of incentives collected.",
   ProtocolRevenue: "Incentive fee taxes collected by the protocol via IncentiveFeeCollected events.",
 };
 
@@ -302,14 +331,15 @@ const breakdownMethodology = {
   Revenue: {
     "Bribes to holders": "BGT booster incentives distributed to BGT holders (BGTBoosterIncentivesProcessed), until PoL Next on 2026-07-07.",
     "Bribes to protocol": "Incentive fee taxes collected via IncentiveFeeCollected, until PoL Next on 2026-07-07.",
-    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for BERA and accrued to sWBERA stakers, since PoL Next on 2026-07-07.",
+    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for WBERA; the sWBERA vault's share of each payout, since PoL Next on 2026-07-07.",
   },
   HoldersRevenue: {
     "Bribes to holders": "BGT booster incentives distributed to BGT holders (BGTBoosterIncentivesProcessed), until PoL Next on 2026-07-07.",
-    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for BERA and accrued to sWBERA stakers, since PoL Next on 2026-07-07.",
+    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for WBERA; the sWBERA vault's share of each payout, since PoL Next on 2026-07-07.",
   },
   SupplySideRevenue: {
     "Bribes to validators": "Validator commission on incentives, paid to the validator operator (IncentivesProcessed).",
+    "Bribes to LST stakers": "Incentives sent to the IncentivesCollector (IncentivesCollected): the registered LST staker vaults' share of each WBERA payout, split by stake, since PoL Next on 2026-07-07.",
   },
   ProtocolRevenue: {
     "Bribes to protocol": "Incentive fee taxes collected via IncentiveFeeCollected, until PoL Next on 2026-07-07.",
