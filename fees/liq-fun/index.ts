@@ -36,26 +36,26 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-12",
   methodology: {
-    Fees: "2% of the gain on a profitable close, and 2% of the margin lost on a losing close or liquidation, taken by the protocol from what the LP pool receives.",
-    UserFees: "The 2% win fee. The loss fee is not included: it comes out of the LP pool's receipt, not on top of the trader's loss.",
-    Revenue: "Both fees go to the protocol.",
-    ProtocolRevenue: "Both fees go to the protocol.",
+    Fees: "2% of the trader's gain on profitable perp closes plus 2% of the margin lost on losing closes and liquidations; the impact haircut on wins and the LP pool's trading profit or loss against traders are not counted.",
+    UserFees: "The 2% fee traders pay on the gain of a profitable perp close; the 2% loss fee is excluded because it is taken from what the LP pool receives, not charged on top of the trader's loss.",
+    Revenue: "The 2% fee on profitable perp-close gains and the 2% fee on margin lost in losing closes and liquidations, all kept by the protocol.",
+    ProtocolRevenue: "The 2% fee on profitable perp-close gains and the 2% fee on margin lost in losing closes and liquidations, all kept by the protocol.",
   },
   breakdownMethodology: {
     Fees: {
-      "Win Fee": "2% of the gain on a profitable close, after the impact haircut.",
-      "Loss Fee": "2% of the margin lost on a losing close or liquidation.",
+      "Win Fee": "2% of the trader's gain on a profitable close, charged after the impact haircut.",
+      "Loss Fee": "2% of the margin lost on a losing close or liquidation, taken out of what the LP pool receives.",
     },
     UserFees: {
       "Win Fee": "2% of the gain on a profitable close, paid by the trader.",
     },
     Revenue: {
-      "Win Fee": "Kept by the protocol.",
-      "Loss Fee": "Kept by the protocol.",
+      "Win Fee": "2% fee on the gain of profitable closes, kept by the protocol.",
+      "Loss Fee": "2% fee on the margin lost in losing closes and liquidations, kept by the protocol.",
     },
     ProtocolRevenue: {
-      "Win Fee": "Kept by the protocol.",
-      "Loss Fee": "Kept by the protocol.",
+      "Win Fee": "2% fee on the gain of profitable closes, kept by the protocol.",
+      "Loss Fee": "2% fee on the margin lost in losing closes and liquidations, kept by the protocol.",
     },
   },
 };
