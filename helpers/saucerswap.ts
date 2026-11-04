@@ -17,6 +17,18 @@ export const SPLITS = [
   { start: 1756598400, xsauce: 0.455, burn: 0, devFund: 0.3, pol: 0.245 },  // 2025-08-31
 ]
 
+/**
+ * Split one day's protocol revenue between holders revenue and protocol revenue, using the BrewsaucerV2 shares
+ * of the era that contains the day.
+ *
+ * The era is picked by `options.startOfDay` (00:00 UTC of the day being fetched). Before 2025-08-31 everything
+ * stays protocol revenue under 'Swap Fees To Protocol'. SPLITS must stay sorted newest era first.
+ *
+ * @param options fetch options of the adapter, used for `startOfDay` and `createBalances`
+ * @param revenue the day's protocol revenue in USD: the 1/6 fee-switch share of swap fees
+ * @returns `dailyProtocolRevenue` (Development Fund and POL shares; all revenue before 2025-08-31) and
+ *   `dailyHoldersRevenue` (xSAUCE and burn shares; empty before 2025-08-31)
+ */
 export function splitRevenue(options: FetchOptions, revenue: number) {
   const dailyProtocolRevenue = options.createBalances()
   const dailyHoldersRevenue = options.createBalances()
@@ -32,7 +44,12 @@ export function splitRevenue(options: FetchOptions, revenue: number) {
   return { dailyProtocolRevenue, dailyHoldersRevenue }
 }
 
-// breakdownMethodology shared by the V1 and V2 adapters; feesText describes each adapter's own swap fee
+/**
+ * breakdownMethodology shared by the SaucerSwap V1 and V2 adapters, covering every label they and `splitRevenue` emit.
+ *
+ * @param feesText description of the adapter's own swap fee, used for the 'Token Swap Fees' label in Fees and UserFees
+ * @returns the breakdownMethodology object for the adapter
+ */
 export function saucerswapBreakdownMethodology(feesText: string) {
   return {
     Fees: {
