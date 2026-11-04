@@ -108,19 +108,15 @@ const fetch: any = async (options: FetchOptions) => {
     openfour_accrued AS (
       SELECT quote AS token, label, CAST(SUM(amount) AS varchar) AS fees
       FROM (
-        SELECT bytearray_substring(data, 45, 20) AS quote, 'Developer Fees' AS label, bytearray_to_uint256(bytearray_substring(data, 353, 32)) AS amount
-        FROM bnb.logs
-        WHERE contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
-          AND topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
-          AND block_time >= from_unixtime(${options.startTimestamp})
-          AND block_time < from_unixtime(${options.endTimestamp})
-        UNION ALL
-        SELECT bytearray_substring(data, 45, 20), 'Anti-Sniper Fees', bytearray_to_uint256(bytearray_substring(data, 385, 32))
-        FROM bnb.logs
-        WHERE contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
-          AND topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
-          AND block_time >= from_unixtime(${options.startTimestamp})
-          AND block_time < from_unixtime(${options.endTimestamp})
+        -- TradeExecuted data words (32 bytes each, byte offsets 1-based): quoteAsset is the address in word 1 (byte 45),
+        -- devFee is word 11 (byte 353) and antiSniperFee word 12 (byte 385)
+        SELECT bytearray_substring(t.data, 45, 20) AS quote, f.label, bytearray_to_uint256(bytearray_substring(t.data, f.pos, 32)) AS amount
+        FROM bnb.logs t
+        CROSS JOIN (VALUES ('Developer Fees', 353), ('Anti-Sniper Fees', 385)) AS f(label, pos)
+        WHERE t.contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
+          AND t.topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
+          AND t.block_time >= from_unixtime(${options.startTimestamp})
+          AND t.block_time < from_unixtime(${options.endTimestamp})
         UNION ALL
         SELECT bytearray_substring(topic2, 13, 20),
           CASE WHEN bytearray_to_uint256(topic3) = 5 THEN '${METRIC.CREATOR_FEES}' ELSE 'Partner Fees' END,
