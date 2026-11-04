@@ -113,6 +113,71 @@ const fetch: any = async (options: FetchOptions) => {
         group by
             t.token
     ),
+    -- PoL Next (block 23207664, 2026-07-07): vaults send everything after the validator commission to the IncentivesCollector
+    -- (IncentivesCollected), accrued to sWBERA stakers. https://docs.berachain.com/general/proof-of-liquidity/changelog
+    -- Sample tx 0x37dfa08fe05b427781263460d1060f8d537379a23434429b740f360b95256909
+    incentives_collected as (
+        SELECT
+            *
+        FROM
+            TABLE (
+                decode_evm_event (
+                    abi => '{
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "bytes",
+                            "name": "pubkey",
+                            "type": "bytes"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "token",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "rewardsEmitted",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "amount",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "IncentivesCollected",
+                    "type": "event"
+                }',
+                input => TABLE (
+                    SELECT
+                        *
+                    FROM
+                        berachain.logs
+                    WHERE
+                        contract_address in (
+                            select vault from berachain_berachain.reward_vault_factory_evt_vaultcreated
+                        )
+                        AND topic0 = 0xc867f28f50cad1991611d2718cce29e0bdf1c21ba8ca950d5705db1afc00302b
+                        AND block_time >= from_unixtime(${options.startTimestamp})
+                        AND block_time < from_unixtime(${options.endTimestamp})
+                    )
+                )
+            )
+    ),
+    distribution_stakers as (
+        select
+            t.token,
+            sum(t.amount) as token_amount
+        from
+            incentives_collected t
+        group by
+            t.token
+    ),
     incentive_taxes as (
         SELECT
             *
@@ -171,13 +236,16 @@ const fetch: any = async (options: FetchOptions) => {
         token,
         sum(case when source = 'distribution' then token_amount else 0 end) as bribes_to_holders,
         sum(case when source = 'validators' then token_amount else 0 end) as bribes_to_validators,
-        sum(case when source = 'taxes' then token_amount else 0 end) as bribes_to_protocol
+        sum(case when source = 'taxes' then token_amount else 0 end) as bribes_to_protocol,
+        sum(case when source = 'stakers' then token_amount else 0 end) as bribes_to_stakers
     from (
         select token, token_amount, 'distribution' as source from distribution
         union all
         select token, token_amount, 'validators' as source from distribution_validators
         union all
         select token, token_amount, 'taxes' as source from taxes
+        union all
+        select token, token_amount, 'stakers' as source from distribution_stakers
     ) a
     group by token
     `;
@@ -201,6 +269,10 @@ const fetch: any = async (options: FetchOptions) => {
       dailyFees.addToken(row.token, row.bribes_to_protocol, "Bribes");
       dailyProtocolRevenue.addToken(row.token, row.bribes_to_protocol, "Bribes to protocol");
     }
+    if (row.bribes_to_stakers > 0) {
+      dailyFees.addToken(row.token, row.bribes_to_stakers, "Bribes");
+      dailyHoldersRevenue.addToken(row.token, row.bribes_to_stakers, "Bribes to sWBERA stakers");
+    }
   });
 
   const dailyRevenue = dailyHoldersRevenue.clone();
@@ -217,10 +289,31 @@ const fetch: any = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Bribes are distributed to holders, validators, and the protocol.",
-  Revenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults and incentive tokens distributed to validators via IncentivesProcessed events.",
+  Revenue: "Bribes not paid to validators: BGT booster incentives distributed to BGT holders and incentive fee taxes collected by the protocol until PoL Next (2026-07-07), and incentives collected for sWBERA stakers since.",
   HoldersRevenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults.",
   SupplySideRevenue: "Incentive tokens distributed to validators via IncentivesProcessed events.",
   ProtocolRevenue: "Incentive fee taxes collected by the protocol via IncentiveFeeCollected events.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Bribes": "Incentive tokens paid out by Berachain Reward Vaults when validators distribute rewards: the validator commission, the BGT booster share and the incentive fee until PoL Next (2026-07-07), the validator commission and the IncentivesCollector share since.",
+  },
+  Revenue: {
+    "Bribes to holders": "BGT booster incentives distributed to BGT holders (BGTBoosterIncentivesProcessed), until PoL Next on 2026-07-07.",
+    "Bribes to protocol": "Incentive fee taxes collected via IncentiveFeeCollected, until PoL Next on 2026-07-07.",
+    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for BERA and accrued to sWBERA stakers, since PoL Next on 2026-07-07.",
+  },
+  HoldersRevenue: {
+    "Bribes to holders": "BGT booster incentives distributed to BGT holders (BGTBoosterIncentivesProcessed), until PoL Next on 2026-07-07.",
+    "Bribes to sWBERA stakers": "Incentives net of validator commission sent to the IncentivesCollector (IncentivesCollected), auctioned for BERA and accrued to sWBERA stakers, since PoL Next on 2026-07-07.",
+  },
+  SupplySideRevenue: {
+    "Bribes to validators": "Validator commission on incentives, paid to the validator operator (IncentivesProcessed).",
+  },
+  ProtocolRevenue: {
+    "Bribes to protocol": "Incentive fee taxes collected via IncentiveFeeCollected, until PoL Next on 2026-07-07.",
+  },
 };
 
 const adapter: SimpleAdapter = {
@@ -230,6 +323,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BERACHAIN],
   start: "2025-02-05",
   methodology,
+  breakdownMethodology,
   isExpensiveAdapter: true,
 };
 
