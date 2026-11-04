@@ -15,6 +15,8 @@ const SPLITTER = "0xd8eb805e96B05cb412A1e48eb3a85B6267f901d7";
 const V1_REFLECTIONS = "0x666A51Eb731a9CF79d97B4A9c64cD5a4806c877C";
 const V2_REFLECTIONS = "0xe04fba61FD54Ba78Dd450A30d8Af40167aF5d3Ec";
 const ROYALTY_REFLECTIONS = "0x424F0d6cee21E6227239f4Ae6e14ACD2C3D51424";
+const TRADING_CONVERTER = "0x24e62Dd5C7058CC41ad9c5375C137460ea1Da2FE";
+const ROYALTY_CONVERTER = "0x8168762be8D09804D5B17D3BD4C10807D4F8CF3a";
 // First V1 FloorPotClaimed positions, indexed by floor. Before these events,
 // toFloor is unallocated; afterwards permanent hardwiring keeps weight positive.
 // Event evidence: https://robinhoodchain.blockscout.com/address/0x666A51Eb731a9CF79d97B4A9c64cD5a4806c877C?tab=logs
@@ -136,21 +138,54 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: "event FloorPotClaimed(uint8 indexed floorIdx, uint256 indexed id, uint256 amount)",
     flatten: false,
   });
+  // Each converter notifies reflections and emits FloorConverted in the same
+  // transaction. Value allocations at their actual USDG acquisition cost ($1,
+  // 6 decimals), avoiding incomplete historical price feeds for reward stocks.
+  // https://robinhoodchain.blockscout.com/address/0x24e62Dd5C7058CC41ad9c5375C137460ea1Da2FE?tab=contract
+  // https://robinhoodchain.blockscout.com/address/0x8168762be8D09804D5B17D3BD4C10807D4F8CF3a?tab=contract
+  const tradingConversions = await options.getLogs({
+    target: TRADING_CONVERTER,
+    eventAbi: "event FloorConverted(uint256 indexed epoch, uint8 indexed floorIdx, uint256 wethIn, uint256 usdgOut, uint256 stockOut)",
+  });
+  const royaltyConversions = await options.getLogs({
+    target: ROYALTY_CONVERTER,
+    eventAbi: "event FloorConverted(uint256 indexed epoch, uint8 indexed floorIdx, uint256 usdgIn, uint256 stockOut)",
+  });
   // These token catalogs are set once. Read their immutable configuration at
   // latest so public RPCs do not need historical contract state.
   const configApi = new ChainApi({ chain: options.chain });
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
+    if (target !== V1_REFLECTIONS) {
+      const isRoyalty = target === ROYALTY_REFLECTIONS;
+      const conversions = isRoyalty ? royaltyConversions : tradingConversions;
+      // Fail if the funding route changes instead of silently dropping a direct
+      // notification or counting a conversion that did not allocate rewards.
+      const allocated = new Map<number, bigint>();
+      for (const log of notifications[i]) {
+        const floor = Number(log.args.floorIdx);
+        allocated.set(floor, (allocated.get(floor) ?? 0n) + BigInt(log.args.amount));
+      }
+      let usdg = 0n;
+      for (const log of conversions) {
+        const floor = Number(log.floorIdx);
+        allocated.set(floor, (allocated.get(floor) ?? 0n) - BigInt(log.stockOut));
+        usdg += BigInt(isRoyalty ? log.usdgIn : log.usdgOut);
+      }
+      if (floorPotClaims[i].length || [...allocated.values()].some(amount => amount !== 0n))
+        throw new Error(`Unmatched Quotrons reward allocations for ${target}`);
+      dailyHoldersRevenue.addUSDValue(Number(usdg) / 1e6, isRoyalty ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL);
+      continue;
+    }
     const floorIds = [...new Set<number>([
       ...notifications[i].map((log: any) => Number(log.args.floorIdx)),
       ...floorPotClaims[i].map((log: any) => Number(log.floorIdx)),
     ])];
     if (!floorIds.length) continue;
     const calls = floorIds.map(floor => ({ params: [floor] }));
-    const catalog = target === ROYALTY_REFLECTIONS ? await configApi.call({ target, abi: "address:catalog" }) : target;
-    const stocks = await configApi.multiCall({ target: catalog, abi: "function floorStocks(uint256) view returns (address)", calls });
+    const stocks = await configApi.multiCall({ target, abi: "function floorStocks(uint256) view returns (address)", calls });
     const stockByFloor = Object.fromEntries(floorIds.map((floor, index) => [floor, stocks[index]]));
-    const label = target === ROYALTY_REFLECTIONS ? ROYALTY_REWARDS_LABEL : SWAP_REWARDS_LABEL;
+    const label = SWAP_REWARDS_LABEL;
     for (const log of notifications[i]) {
       const reward = log.args;
       let accrued = BigInt(reward.amount);
@@ -161,9 +196,6 @@ const fetch = async (options: FetchOptions) => {
         if (Number(log.blockNumber) < block || (Number(log.blockNumber) === block && Number(log.logIndex ?? log.index) < index))
           accrued -= BigInt(reward.toFloor);
       }
-      // All V2/royalty floors had positive weight before their first notification
-      // (blocks 35637938-35638281 and 36315309-36315337 respectively).
-      // Permanent hardwiring means those floors never return to zero weight.
       dailyHoldersRevenue.add(stockByFloor[Number(reward.floorIdx)], accrued, label);
     }
     for (const log of floorPotClaims[i])
@@ -189,7 +221,7 @@ const adapter: SimpleAdapter = {
     Fees: "Total Quotrons V1 and V2 hook swap fees plus NFT royalties paid directly through Seaport or released by the royalty splitter on Robinhood Chain, excluding direct royalties from mixed-collection orders, marketplace fees and subsequent redistribution of the same funds.",
     SupplySideRevenue: "Hook fee allocations to LP reinvestment, STONKBROKER burns and the creator, plus the creator portion of NFT royalties, recorded at accrual or royalty receipt/release; allocations precede any later treasury recovery.",
     Revenue: "Hook fees allocated to terminal rewards and the keeper portion of NFT royalties, before conversion and distribution to terminals; later treasury recoveries are excluded.",
-    HoldersRevenue: "Rewards earned by terminal holders when converted assets are allocated, including first-holder releases of pending floor pots and V1 PAXG deposits; unallocated pots, queued conversion funds, migration credits and subsequent claims are excluded.",
+    HoldersRevenue: "V2 trading and royalty rewards recognized on allocation at actual USDG conversion cost, with USDG valued at $1. V1 allocated stocks and PAXG use historical token prices. Unallocated pots, queued conversion funds, migration credits and subsequent claims are excluded.",
   },
   breakdownMethodology: {
     Fees: {
@@ -207,8 +239,8 @@ const adapter: SimpleAdapter = {
       [ROYALTY_KEEPER_LABEL]: "Direct NFT royalty payments to the keeper and splitter totals less creatorAmount, retained for the royalty reward pipeline.",
     },
     HoldersRevenue: {
-      [SWAP_REWARDS_LABEL]: "V1 and V2 stock notifications less increases in unallocated floor pots, plus releases of previously pending pots. V1 gold stock allocations are excluded until converted PAXG is deposited; migration credits and claims do not add new revenue.",
-      [ROYALTY_REWARDS_LABEL]: "Converted stock notifications to royalty reflections, adjusted for changes in unallocated floor pots; keeper receipts and subsequent claims are not holder accruals.",
+      [SWAP_REWARDS_LABEL]: "V2 FloorConverted.usdgOut measures USDG spent acquiring stocks allocated to holders, at $1 per USDG. V1 stock notifications exclude gold and unallocated floor shares, adding first-holder pot releases; PAXG counts only when deposited. V1 stocks retain historical token pricing. Migration credits and claims are excluded.",
+      [ROYALTY_REWARDS_LABEL]: "Royalty FloorConverted.usdgIn measures USDG spent acquiring stocks allocated to holders, at $1 per USDG, reconciled to reward notifications. Keeper receipts, queued funds and subsequent claims are excluded.",
     },
   },
 };
