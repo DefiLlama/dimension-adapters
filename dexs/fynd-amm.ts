@@ -1,9 +1,8 @@
 import { api2, getProvider } from "@defillama/sdk";
-import PromisePool from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { queryClickhouse } from "../helpers/indexer";
 import { METRIC } from "../helpers/metrics";
-import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 
 // Fynd AMM pools are Ekubo v3 pools that use Fynd's SignedExclusiveSwap extension.
 // Docs: https://docs.fynd.xyz/get-started/fynd-amm
@@ -16,12 +15,12 @@ const EXTENSION = "0x550CFe1292d0D9c0d28f232b3F42Edb4439B1D09";
 const POSITIONS = "0x02D9876A21AF7545f8632C3af76eC90b5ad4b66D";
 const POSITIONS_192_BIT_IDS = "0xA2971E0C37cFdb13aE8440A0C94Ef1A1af39e326";
 
-// fromBlock is the block in which the first Fynd AMM pool was initialized on that chain.
-const chainConfig: Record<string, { start: string; fromBlock: number; extensions: string[]; positions: string }> = {
-  [CHAIN.ETHEREUM]: { start: "2026-08-05", fromBlock: 25689059, extensions: [EXTENSION_V1, EXTENSION], positions: POSITIONS },
-  [CHAIN.ROBINHOOD]: { start: "2026-09-25", fromBlock: 72277109, extensions: [EXTENSION], positions: POSITIONS },
-  [CHAIN.BASE]: { start: "2026-10-27", fromBlock: 53151641, extensions: [EXTENSION], positions: POSITIONS },
-  [CHAIN.BSC]: { start: "2026-10-27", fromBlock: 130064169, extensions: [EXTENSION], positions: POSITIONS_192_BIT_IDS },
+type ChainConfig = { start: string; fromBlock: number; extensions: string[]; positions: string; swapLogs: "indexer" | "rpc" };
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.ETHEREUM]: { start: "2026-08-05", fromBlock: 25689059, extensions: [EXTENSION_V1, EXTENSION], positions: POSITIONS, swapLogs: "indexer" },
+  [CHAIN.ROBINHOOD]: { start: "2026-09-25", fromBlock: 72277109, extensions: [EXTENSION], positions: POSITIONS, swapLogs: "rpc" },
+  [CHAIN.BASE]: { start: "2026-10-27", fromBlock: 53151641, extensions: [EXTENSION], positions: POSITIONS, swapLogs: "indexer" },
+  [CHAIN.BSC]: { start: "2026-10-27", fromBlock: 130064169, extensions: [EXTENSION], positions: POSITIONS_192_BIT_IDS, swapLogs: "indexer" },
 };
 
 // Test pools that are not listed in the Fynd app.
@@ -44,98 +43,63 @@ const UINT64_MASK = Q64 - 1n;
 // Core logs every swap as an anonymous log0 of 116 bytes: locker (20) | poolId (32) | balanceUpdate (32) | stateAfter (32).
 const SWAP_LOG_BYTES = 116;
 
-// Public RPCs cap the block range of a raw eth_getLogs call; 5,000 blocks is accepted on every chain here.
-const LOG_BLOCK_RANGE = 5_000;
+const RPC_LOG_BLOCK_RANGE = 10_000;
 
 const toInt128 = (value: bigint) => BigInt.asIntN(128, value);
 
-async function getCoreLogs(chain: string, fromBlock: number, toBlock: number) {
-  const ranges: [number, number][] = [];
-  for (let start = fromBlock; start <= toBlock; start += LOG_BLOCK_RANGE)
-    ranges.push([start, Math.min(start + LOG_BLOCK_RANGE - 1, toBlock)]);
-  const { results, errors } = await PromisePool.withConcurrency(2)
-    .for(ranges)
-    .process(async ([from, to]) => {
-      // Public RPCs sometimes rate-limit a range that succeeds on the next attempt.
-      for (let attempt = 1; ; attempt++) {
-        try {
-          return await getProvider(chain).getLogs({ address: CORE, fromBlock: from, toBlock: to });
-        } catch (error) {
-          if (attempt === 3) throw error;
-          await new Promise((resolve) => setTimeout(resolve, 2_000 * attempt));
-        }
-      }
-    });
-  if (errors.length) throw errors[0];
-  return results.flat();
+async function getSwapLogData(options: FetchOptions, source: ChainConfig["swapLogs"]): Promise<string[]> {
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  if (source === "rpc") {
+    const provider = getProvider(options.chain);
+    const data: string[] = [];
+    for (let from = fromBlock; from <= toBlock; from += RPC_LOG_BLOCK_RANGE) {
+      const logs = await provider.getLogs({ address: CORE, fromBlock: from, toBlock: Math.min(from + RPC_LOG_BLOCK_RANGE - 1, toBlock) });
+      logs.forEach((log) => { if (!log.topics.length) data.push(log.data); });
+    }
+    return data;
+  }
+  const core = CORE.toLowerCase();
+  const rows = await queryClickhouse<{ data: string }>(`
+    SELECT data FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)} AND short_address = '${core.slice(0, 10)}' AND short_topic0 = ''
+      AND address = '${core}' AND topic0 = ''
+      AND block_number >= ${fromBlock} AND block_number <= ${toBlock}
+  `);
+  return rows.map(({ data }) => data);
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { fromBlock, extensions, positions } = chainConfig[options.chain];
+  const { fromBlock, extensions, positions, swapLogs } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const [startBlock, endBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
 
   // The top 20 bytes of a pool config are its extension, so this finds every Fynd AMM pool on-chain.
   const extensionSet = new Set(extensions.map((extension) => BigInt(extension)));
-  const initialized = await options.getLogs({ target: CORE, eventAbi: abis.poolInitialized, fromBlock, toBlock: endBlock, cacheInCloud: true });
+  const initialized = await options.getLogs({ target: CORE, eventAbi: abis.poolInitialized, fromBlock, toBlock: await options.getToBlock(), cacheInCloud: true });
   const pools: Record<string, { token0: string; token1: string }> = {};
   initialized.forEach(({ poolId, poolKey }: any) => {
     const id = poolId.toLowerCase();
     if (!extensionSet.has(BigInt(poolKey.config) >> 96n) || EXCLUDED_POOLS.has(id)) return;
     pools[id] = { token0: poolKey.token0, token1: poolKey.token1 };
   });
-  const poolIds = Object.keys(pools);
-  if (!poolIds.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  // Volume: Core's swap log has no topics, so getLogs cannot select it by event. Read Core's raw logs for the
-  // period and keep the swaps on Fynd AMM pools. The extension runs every Fynd AMM swap, so it is the locker.
-  const lockers = new Set(extensions.map((extension) => extension.toLowerCase()));
-  const isFyndSwap = (log: { topics: readonly string[]; data: string }) =>
-    log.topics.length === 0 && (log.data.length - 2) / 2 === SWAP_LOG_BYTES
-    && lockers.has("0x" + log.data.slice(2, 42)) && !!pools["0x" + log.data.slice(42, 106)];
-  const rawLogs = await getCoreLogs(options.chain, startBlock, endBlock);
-  const swaps = rawLogs
-    .filter(isFyndSwap)
-    .map((log) => ({
-      txHash: log.transactionHash,
-      poolId: "0x" + log.data.slice(42, 106),
-      balanceUpdate: BigInt("0x" + log.data.slice(106, 170)),
-    }));
-
-  // The fee logs come from DefiLlama's indexer. The first swap on a pool in a new block also credits the pool's
-  // saved fees, so a fee log in a swap transaction must have a raw swap log. If it has none, the RPC
-  // returned incomplete raw logs, and the period fails instead of under-counting volume.
-  const feeLogs = await options.getLogs({ target: CORE, eventAbi: abis.feesAccumulated, onlyArgs: false });
-  const fyndFeeLogs = feeLogs.filter(({ args }: any) => pools[args.poolId.toLowerCase()]);
-  const swapTxs = new Set(swaps.map(({ txHash }) => txHash.toLowerCase()));
-  const unmatchedTxs = [...new Set(fyndFeeLogs.map(({ transactionHash }: any) => transactionHash.toLowerCase()))].filter((tx) => !swapTxs.has(tx));
-  if (unmatchedTxs.length) {
-    const receipts = await getTxReceiptsWithRetry(options.chain, unmatchedTxs);
-    receipts.forEach((receipt, i) => {
-      if (!receipt) throw new Error(`fynd-amm: no receipt for ${unmatchedTxs[i]}`);
-      const missedSwap = receipt.logs.some((log) => log.address.toLowerCase() === CORE.toLowerCase() && isFyndSwap(log));
-      if (missedSwap) throw new Error(`fynd-amm: the RPC returned incomplete Core logs, the swap in ${unmatchedTxs[i]} is missing`);
-    });
-  }
-
-  // balanceUpdate holds delta0 (high 128 bits) and delta1 (low 128 bits) from the pool's view: the positive
-  // delta is the token the trader paid in. Fynd takes its fee from the output token, so the input is gross.
-  swaps.forEach(({ poolId, balanceUpdate }) => {
-    const { token0, token1 } = pools[poolId];
+  (await getSwapLogData(options, swapLogs)).forEach((data) => {
+    const pool = pools["0x" + data.slice(42, 106)];
+    if ((data.length - 2) / 2 !== SWAP_LOG_BYTES || !pool) return;
+    const balanceUpdate = BigInt("0x" + data.slice(106, 170));
     const delta0 = toInt128(balanceUpdate >> 128n);
     const delta1 = toInt128(balanceUpdate);
-    if (delta0 > 0n) dailyVolume.add(token0, delta0);
-    else if (delta1 > 0n) dailyVolume.add(token1, delta1);
+    if (delta0 > 0n) dailyVolume.add(pool.token0, delta0);
+    else if (delta1 > 0n) dailyVolume.add(pool.token1, delta1);
   });
 
   // Fees: the extension keeps its owner fee and then credits the LP share to the pool with Core.accumulateAsFees,
   // which emits FeesAccumulated. In the same transaction the extension emits PoolStateUpdated, whose state holds
   // the pool's owner fee in its low 64 bits, so each fee log is matched to the owner fee that applied to it.
-  if (!fyndFeeLogs.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
-
+  const feeLogs = await options.getLogs({ target: CORE, eventAbi: abis.feesAccumulated, onlyArgs: false });
+  const fyndFeeLogs = feeLogs.filter(({ args }: any) => pools[args.poolId.toLowerCase()]);
   const stateLogs = await options.getLogs({ targets: extensions, eventAbi: abis.poolStateUpdated, onlyArgs: false });
   const ownerFees: Record<string, bigint> = {};
   stateLogs.forEach(({ args, transactionHash }: any) => {
