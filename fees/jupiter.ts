@@ -70,6 +70,9 @@ export const JUPITER_METRICS = {
   JupSOLStakingRewards: 'JupSOL Staking Rewards',
   JupSOLStakingRewardsToStakers: 'JupSOL Staking Rewards To Stakers',
   JupSOLDepositWithdrawFees: 'JupSOL Deposit/Withdraw Fees',
+  JupSOLMevRewards: 'JupSOL MEV Rewards',
+  JupSOLValidatorPriorityFees: 'JupSOL Validator Priority Fees',
+  JupSOLStakingRewardsToSanctum: 'JupSOL Staking Rewards To Sanctum',
 
   // Prediction
   JupPredictionFees: 'Jup Prediction Fees',

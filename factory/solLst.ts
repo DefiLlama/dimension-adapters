@@ -167,6 +167,35 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
   return Object.keys(breakdown).length > 0 ? breakdown : undefined;
 }
 
+// --- Jito MEV tips (the dailyMevRewards row of sol-lst.sql) ---
+// Tips claimed by the pool's stake accounts raise SOL per LST like inflation rewards, and the stake pool program charges its
+// epoch fee on every lamport the pool gains, so they are split like staking rewards. Where a config labels its staking
+// rewards, the tips are booked under METRIC.MEV_REWARDS.
+
+const MEV_TIPS = "Jito MEV tips claimed by the pool's stake accounts";
+const pct = (ratio: number) => +(ratio * 100).toFixed(1);
+
+function withMevMethodology(methodology: Record<string, string>): Record<string, string> {
+  return { ...methodology, Fees: `${methodology.Fees.replace(/\.$/, "")}. Also counts the ${MEV_TIPS}` };
+}
+
+function withMevBreakdown(config: SolLstConfig, breakdown?: Record<string, Record<string, string>>) {
+  if (!breakdown) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [dimension, labels] of Object.entries(breakdown)) out[dimension] = { ...labels };
+  if (config.fees.metric)
+    out.Fees = { ...out.Fees, [METRIC.MEV_REWARDS]: MEV_TIPS };
+  if (config.supplySide.enabled && config.supplySide.metric)
+    out.SupplySideRevenue = { ...out.SupplySideRevenue, [METRIC.MEV_REWARDS]: `${pct(config.supplySide.ratio)}% of the ${MEV_TIPS} go to stakers` };
+  if (config.stakingRevenue.enabled && config.stakingRevenue.metric) {
+    const share = `${pct(config.stakingRevenue.ratio)}% of the ${MEV_TIPS} are collected as fees`;
+    out.Revenue = { ...out.Revenue, [METRIC.MEV_REWARDS]: share };
+    if (config.returnDailyProtocolRevenue !== false)
+      out.ProtocolRevenue = { ...out.ProtocolRevenue, [METRIC.MEV_REWARDS]: share };
+  }
+  return out;
+}
+
 function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     const lstFeeTokenAccount = config.lstFeeTokenAccountSwitcher
@@ -190,10 +219,11 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
     const dailySupplySideRevenue = config.supplySide.enabled ? options.createBalances() : undefined;
 
     results.forEach((row: any) => {
-      if (row.metric_type === "dailyFees") {
-        // Staking rewards always go to dailyFees as SOL
+      if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
+        // Staking rewards always go to dailyFees as SOL; Jito MEV tips (dailyMevRewards) are split the same way, under their own label
+        const label = (metric: string) => row.metric_type === "dailyMevRewards" ? METRIC.MEV_REWARDS : metric;
         if (config.fees.metric) {
-          dailyFees.addCGToken("solana", row.amount || 0, config.fees.metric);
+          dailyFees.addCGToken("solana", row.amount || 0, label(config.fees.metric));
         } else {
           dailyFees.addCGToken("solana", row.amount || 0);
         }
@@ -202,7 +232,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
         if (config.supplySide.enabled && dailySupplySideRevenue) {
           const supplySideAmount = Number(row.amount) * config.supplySide.ratio || 0;
           if (config.supplySide.metric) {
-            dailySupplySideRevenue.addCGToken("solana", supplySideAmount, config.supplySide.metric);
+            dailySupplySideRevenue.addCGToken("solana", supplySideAmount, label(config.supplySide.metric));
           } else {
             dailySupplySideRevenue.addCGToken("solana", supplySideAmount);
           }
@@ -212,7 +242,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
         if (config.stakingRevenue.enabled) {
           const stakingRevenueAmount = Number(row.amount) * config.stakingRevenue.ratio || 0;
           if (config.stakingRevenue.metric) {
-            dailyRevenue.addCGToken("solana", stakingRevenueAmount, config.stakingRevenue.metric);
+            dailyRevenue.addCGToken("solana", stakingRevenueAmount, label(config.stakingRevenue.metric));
           } else {
             dailyRevenue.addCGToken("solana", stakingRevenueAmount);
           }
@@ -288,8 +318,8 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
     return result;
   };
 
-  const methodology = getMethodology(config);
-  const breakdownMethodology = getBreakdownMethodology(config);
+  const methodology = withMevMethodology(getMethodology(config));
+  const breakdownMethodology = withMevBreakdown(config, getBreakdownMethodology(config));
 
   const adapter: SimpleAdapter = {
     version: 1,
@@ -960,7 +990,7 @@ const doublezeroAdapter = (() => {
     const dailyRevenue = options.createBalances();
 
     results.forEach((row: any) => {
-      if (row.metric_type === "dailyFees") {
+      if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
@@ -979,7 +1009,7 @@ const doublezeroAdapter = (() => {
 
   const adapter: SimpleAdapter = {
     version: 1,
-    methodology: baseCfg.methodology,
+    methodology: withMevMethodology(getMethodology(baseCfg)),
     fetch,
     dependencies: [Dependencies.DUNE],
     chains: [CHAIN.SOLANA],

@@ -30,7 +30,8 @@ const fetch = async (options: FetchOptions) => {
     const results = await queryDuneSql(options, query);
 
     results.forEach((row: any) => {
-      if (row.metric_type === 'dailyFees') {
+      // dailyMevRewards: Jito MEV tips claimed by the pool's stake accounts
+      if (row.metric_type === 'dailyFees' || row.metric_type === 'dailyMevRewards') {
         dailyFees.addCGToken("solana", row.amount || 0);
       } else if (row.metric_type === 'dailyRevenue') {
         dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
@@ -59,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked ETH and SOL on Crypto.com EARN Product',
+  Fees: 'Staking rewards from staked ETH and SOL on Crypto.com EARN Product, including Jito MEV tips claimed by the SOL pool',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
