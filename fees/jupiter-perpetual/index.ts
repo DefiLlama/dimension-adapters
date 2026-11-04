@@ -10,10 +10,10 @@ const fetch = async (options: FetchOptions) => {
   });
 
   let data: any[] = [];
-  if (options.startOfDay > 1774656000) {
+  if (options.startOfDay > 1793664000) {
     data = await queryDuneSql(options, sql);
   } else {
-    const alldata = await queryDuneResult(options, '6919084')
+    const alldata = await queryDuneResult(options, '9069874')
     const targetDate = options.dateString
     const matched = alldata.find(
       (row: any) => typeof row.day === 'string' && row.day.slice(0, 10) === targetDate,
