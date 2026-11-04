@@ -40,6 +40,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   }
 
   for (const record of records) {
+    // Sparklend rows need the reserve-factor slice from spark_sparklend_actual_revenue_daily; without it the row would double count
+    if (record.protocol_name === 'Sparklend' && record.reserve_factor_usd == null) {
+      throw new Error(`No Sparklend reserve factor data for ${record.token_symbol} on ${date}`)
+    }
     const fees = Number(record.fees || 0)
     const revenue = Number(record.revenue || 0)
     const ssr = Number(record.fees) - Number(record.revenue);
@@ -67,7 +71,7 @@ const breakdownMethodology = {
     'Morpho Yields': 'All yields collected from Morpho loans.',
     'Curve Yields': 'All yields collected from Curve pools.',
     'Maple Yields': 'All yields collected from Maple loans.',
-    'Sparklend Yields': 'All yields collected from Sparklend loans.',
+    'Sparklend Yields': 'All yields collected from Sparklend loans, net of the SparkLend reserve factor (counted in the SparkLend listing).',
     'Others Yields': 'All yields collected from other sources.',
   },
   Revenue: {
@@ -77,7 +81,7 @@ const breakdownMethodology = {
     'Morpho Yields To Spark': 'Spark share of yields collected from Morpho loans.',
     'Curve Yields To Spark': 'Spark share of yields collected from Curve pools.',
     'Maple Yields To Spark': 'Spark share of yields collected from Maple loans.',
-    'Sparklend Yields To Spark': 'Spark share of yields collected from Sparklend loans.',
+    'Sparklend Yields To Spark': 'Spark share of yields collected from Sparklend loans, net of the SparkLend reserve factor (counted in the SparkLend listing).',
     'Others Yields To Spark ': 'Spark share of yields collected from other sources.',
   },
   SupplySideRevenue: {
