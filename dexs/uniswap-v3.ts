@@ -35,6 +35,8 @@ const HOLDERS_REVENUE_CONFIG: Record<string, { feeSwitchDate: string | null; fir
   [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
   [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B' },
   [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB' },
+  // Releaser from github.com/Uniswap/protocol-fees .records/Arc.json; fee switch relayed 2026-10-05 (tx 0x2d42e5e9...5c49), first Released 2026-10-18
+  [CHAIN.ARC]: { feeSwitchDate: "2026-10-05", firepit: '0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16' },
 }
 
 const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
@@ -344,10 +346,10 @@ const methodology = {
   Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
 }
 
 const adapter: SimpleAdapter = {
