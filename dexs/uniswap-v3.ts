@@ -6,7 +6,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
-import { DUNE_DEX_BLACKLIST_TABLE } from "../helpers/lists";
+import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
 import {
   getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
@@ -272,6 +272,8 @@ async function fetchFromLogs(options: FetchOptions) {
     userFeesRatio: 1,
     revenueRatio: 0,
     protocolRevenueRatio: 0,
+    // same shared scam/fake-token list the Dune path applies in-query
+    blacklistTokens: await getDexTokensBlacklisted(options),
   })(options);
 
   const dailyHoldersRevenue = await fetchHoldersRevenue(options);
