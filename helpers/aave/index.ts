@@ -404,7 +404,7 @@ const aaveV1V2BreakdownMethodology = {
 }
 
 function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter>): SimpleAdapter {
-  return { version: 2, adapter: aaveExport(config), ...global };
+  return { version: 2, pullHourly: true, adapter: aaveExport(config), ...global };
 }
 
 export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
