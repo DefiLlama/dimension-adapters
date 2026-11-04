@@ -12,6 +12,10 @@ interface FeesResponse {
   breakdown: {
     trade_fees: number;
     borrow_fees: number;
+    trade_fees_v1?: number;
+    trade_fees_v2?: number;
+    borrow_fees_v1?: number;
+    borrow_fees_v2?: number;
   };
 }
 
@@ -19,13 +23,17 @@ interface FeesResponse {
 const TRADING_FEES_LABEL = "Trading Fees";
 const BORROW_FEES_LABEL = "Borrow Fees";
 
-// Of every fee collected:
+// Rise v1 markets — of every fee collected:
 //   25%   → creator + floor (on-chain, supply-side)
 //   75%   → rise team wallet (= revenue)
 //     ├─ 75% × 75% = 56.25% → rise treasury (protocolRevenue)
 //     └─ 75% × 25% = 18.75% → off-chain ops (not surfaced) -> Not handling this as we dont have metric for OE
-const REVENUE_RATIO = 0.75;
-const SUPPLY_SIDE_REVENUE_RATIO = 0.25;
+const V1_REVENUE_RATIO = 0.75;
+const V1_SUPPLY_SIDE_REVENUE_RATIO = 0.25;
+
+// Rise v2 markets — every fee is split on-chain 50% team wallet / 50% creator.
+const V2_REVENUE_RATIO = 0.5;
+const V2_SUPPLY_SIDE_REVENUE_RATIO = 0.5;
 
 const fetch = async (options: FetchOptions) => {
   const url = `${ENDPOINT}?from=${options.startTimestamp}&to=${options.endTimestamp}`;
@@ -35,21 +43,38 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`No data found for date ${options.dateString}`);
   }
 
-  const tradeFees = Number(res.breakdown.trade_fees) || 0;
-  const borrowFees = Number(res.breakdown.borrow_fees) || 0;
+  const b = res.breakdown;
+  const tradeFees = Number(b.trade_fees) || 0;
+  const borrowFees = Number(b.borrow_fees) || 0;
+  const tradeFeesV2 = Number(b.trade_fees_v2) || 0;
+  const borrowFeesV2 = Number(b.borrow_fees_v2) || 0;
+  const tradeFeesV1 = b.trade_fees_v1 !== undefined ? Number(b.trade_fees_v1) || 0 : tradeFees - tradeFeesV2;
+  const borrowFeesV1 = b.borrow_fees_v1 !== undefined ? Number(b.borrow_fees_v1) || 0 : borrowFees - borrowFeesV2;
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyFees.addUSDValue(tradeFees, TRADING_FEES_LABEL);
-  dailyFees.addUSDValue(borrowFees, BORROW_FEES_LABEL);
+  dailyFees.addUSDValue(tradeFeesV1 + tradeFeesV2, TRADING_FEES_LABEL);
+  dailyFees.addUSDValue(borrowFeesV1 + borrowFeesV2, BORROW_FEES_LABEL);
 
-  dailyRevenue.addUSDValue(tradeFees * REVENUE_RATIO, "Trading fees to team wallet");
-  dailyRevenue.addUSDValue(borrowFees * REVENUE_RATIO, "Borrow fees to team wallet");
+  dailyRevenue.addUSDValue(
+    tradeFeesV1 * V1_REVENUE_RATIO + tradeFeesV2 * V2_REVENUE_RATIO,
+    "Trading fees to team wallet",
+  );
+  dailyRevenue.addUSDValue(
+    borrowFeesV1 * V1_REVENUE_RATIO + borrowFeesV2 * V2_REVENUE_RATIO,
+    "Borrow fees to team wallet",
+  );
 
-  dailySupplySideRevenue.addUSDValue(tradeFees * SUPPLY_SIDE_REVENUE_RATIO, "Trading fees to creator and floor reserve");
-  dailySupplySideRevenue.addUSDValue(borrowFees * SUPPLY_SIDE_REVENUE_RATIO, "Borrow fees to creator and floor reserve");
+  dailySupplySideRevenue.addUSDValue(
+    tradeFeesV1 * V1_SUPPLY_SIDE_REVENUE_RATIO + tradeFeesV2 * V2_SUPPLY_SIDE_REVENUE_RATIO,
+    "Trading fees to creator and floor reserve",
+  );
+  dailySupplySideRevenue.addUSDValue(
+    borrowFeesV1 * V1_SUPPLY_SIDE_REVENUE_RATIO + borrowFeesV2 * V2_SUPPLY_SIDE_REVENUE_RATIO,
+    "Borrow fees to creator and floor reserve",
+  );
 
   return {
     dailyFees,
@@ -60,31 +85,31 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "1.25% on every buy/sell trade and 3% on every borrow (gross principal). Includes both bonding-curve trading fees and lending fees.",
+  Fees: "1.25% on every buy/sell trade and 3% on every borrow (gross principal), on Rise v1 and v2 markets. Includes both bonding-curve trading fees and lending fees.",
   Revenue:
-    "75% of total fees collected by the rise team wallet (on-chain protocol share, before any internal split).",
+    "Fees collected by the rise team wallet: 75% of v1 fees and 50% of v2 fees (on-chain protocol share, before any internal split).",
   ProtocolRevenue:
-    "75% of total fees collected by the rise team wallet (on-chain protocol share, before any internal split).",
+    "Fees collected by the rise team wallet: 75% of v1 fees and 50% of v2 fees (on-chain protocol share, before any internal split).",
   SupplySideRevenue:
-    "25% of total fees paid to creators and the per-market floor reserve (split per-market by creator_fee_percent).",
+    "Fees paid to creators: 25% of v1 fees (split per-market between the creator and the floor reserve) and 50% of v2 fees (to the creator).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [TRADING_FEES_LABEL]: "1.25% of trade notional on buy/sell/create transactions.",
-    [BORROW_FEES_LABEL]: "3% of gross borrow principal taken at borrow time.",
+    [TRADING_FEES_LABEL]: "1.25% of trade notional on buy/sell/create transactions (v1 and v2).",
+    [BORROW_FEES_LABEL]: "3% of gross borrow principal taken at borrow time (v1 and v2).",
   },
   Revenue: {
-    ["Trading fees to team wallet"]: "75% of trade fees flowing to the rise team wallet.",
-    ["Borrow fees to team wallet"]: "75% of borrow fees flowing to the rise team wallet.",
+    ["Trading fees to team wallet"]: "75% of v1 and 50% of v2 trade fees flowing to the rise team wallet.",
+    ["Borrow fees to team wallet"]: "75% of v1 and 50% of v2 borrow fees flowing to the rise team wallet.",
   },
   ProtocolRevenue: {
-    ["Trading fees to team wallet"]: "75% of trade fees ending up in the rise treasury.",
-    ["Borrow fees to team wallet"]: "75% of borrow fees ending up in the rise treasury.",
+    ["Trading fees to team wallet"]: "75% of v1 and 50% of v2 trade fees ending up in the rise treasury.",
+    ["Borrow fees to team wallet"]: "75% of v1 and 50% of v2 borrow fees ending up in the rise treasury.",
   },
   SupplySideRevenue: {
-    ["Trading fees to creator and floor reserve"]: "25% of trade fees split between the market creator and the market's floor reserve.",
-    ["Borrow fees to creator and floor reserve"]: "25% of borrow fees split between the market creator and the market's floor reserve.",
+    ["Trading fees to creator and floor reserve"]: "25% of v1 trade fees (creator + floor reserve) and 50% of v2 trade fees (creator).",
+    ["Borrow fees to creator and floor reserve"]: "25% of v1 borrow fees (creator + floor reserve) and 50% of v2 borrow fees (creator).",
   },
 };
 
