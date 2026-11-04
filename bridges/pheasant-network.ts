@@ -7,9 +7,11 @@ import { CHAIN } from "../helpers/chains";
 // only reimburses the relayer). Addresses from the bridges-server adapter; payout executors from params.payoutExecutor(networkCode).
 // Pheasant CCTP: the user's USDC is burned through Circle's TokenMessenger v1 by PheasantNetworkCctpBurn, which emits
 // DepositForBurnCalled with the amount after Pheasant's fee (outgoing). Pheasant's relayer then calls receiveMessage on
-// Circle's MessageTransmitter v1 on the destination chain, which emits MessageReceived; burn messages whose
-// messageSender is a Pheasant burn contract are counted as incoming, amount from the BurnMessage body. Two generations
-// of burn contracts exist: 2024-10 (6-arg event) and the 2025-05 proxies (7-arg event with originalAmount).
+// Circle's MessageTransmitter v1 on the destination chain, which emits MessageReceived. A received message counts as
+// incoming when its sender is Circle's TokenMessenger v1 of its sourceDomain (addresses and domain ids from
+// https://developers.circle.com/cctp/v1/evm-smart-contracts) and its BurnMessage body names a Pheasant burn contract as
+// messageSender; the amount comes from the body. Two generations of burn contracts exist: 2024-10 (6-arg event) and
+// the 2025-05 proxies (7-arg event with originalAmount).
 // This USDC is also counted by the `circle` listing.
 // Not counted: PheasantSwap (SwapNewTrade, tokens handed to third-party aggregators), listed under aggregators and
 // bridge-aggregators instead.
@@ -25,7 +27,7 @@ const MESSAGE_RECEIVED =
 type ChainConfig = {
   bridge?: string;
   payoutExecutor?: string;
-  cctp?: { burnV1?: string[]; burnV2?: string; messageTransmitter: string; usdc: string };
+  cctp?: { domain: number; tokenMessenger: string; burnV1?: string[]; burnV2?: string; messageTransmitter: string; usdc: string };
 };
 
 const chainConfig: Record<string, ChainConfig> = {
@@ -35,6 +37,8 @@ const chainConfig: Record<string, ChainConfig> = {
     cctp: {
       burnV1: ["0x847885c4a883A42dbC58c9f318df3106306c2467"],
       burnV2: "0x2dC80114D923dA07327b7096226359D785F32e3F",
+      domain: 0,
+      tokenMessenger: "0xBd3fa81B58Ba92a82136038B25aDec7066af3155",
       messageTransmitter: "0x0a992d191DEeC32aFe36203Ad87D7d289a738F81",
       usdc: ADDRESSES.ethereum.USDC,
     },
@@ -45,6 +49,8 @@ const chainConfig: Record<string, ChainConfig> = {
     cctp: {
       burnV1: ["0x9dD4a939D6646028d3a35Eb45737f18Ee047D480"],
       burnV2: "0xe8105d442EaD594fb05D6bE20d9813c8b7b974bD",
+      domain: 2,
+      tokenMessenger: "0x2B4069517957735bE00ceE0fadAE88a26365528f",
       messageTransmitter: "0x4D41f22c5a0e5c74090899E5a8Fb597a8842b3e8",
       usdc: ADDRESSES.optimism.USDC_CIRCLE,
     },
@@ -55,6 +61,8 @@ const chainConfig: Record<string, ChainConfig> = {
     cctp: {
       burnV1: ["0xF25B5E622fB6dBab216671b282F89f51Cd10D009", "0x268d153690F07E46dFbfC57cB74d5fb6BF5994fA"],
       burnV2: "0xBc0E277204f85d3924577FF2b0E50e67051B3E62",
+      domain: 3,
+      tokenMessenger: "0x19330d10D9Cc8751218eaf51E8885D058642E08A",
       messageTransmitter: "0xC30362313FBBA5cf9163F0bb16a0e01f01A896ca",
       usdc: ADDRESSES.arbitrum.USDC_CIRCLE,
     },
@@ -66,6 +74,8 @@ const chainConfig: Record<string, ChainConfig> = {
     cctp: {
       burnV1: ["0xA3ed5F8D0Df3C1225E084ce6879DFBFE91Ae567d"],
       burnV2: "0xE33Bf689B53ae461bd253617B60408227182362b",
+      domain: 6,
+      tokenMessenger: "0x1682Ae6375C4E4A97e4B583BC394c861A46D8962",
       messageTransmitter: "0xAD09780d193884d503182aD4588450C416D6F9D4",
       usdc: ADDRESSES.base.USDC,
     },
@@ -79,6 +89,8 @@ const chainConfig: Record<string, ChainConfig> = {
     payoutExecutor: "0x5c2E7369f044Ae87e40B19582056ede717953337",
     cctp: {
       burnV2: "0x9476A404191a52aD48C0F486584fA8FdAD6f5cae",
+      domain: 10,
+      tokenMessenger: "0x4e744b28E787c3aD0e810eD65A24461D4ac5a762",
       messageTransmitter: "0x353bE9E2E38AB1D19104534e4edC21c643Df86f4",
       usdc: ADDRESSES.unichain.USDC,
     },
@@ -91,6 +103,16 @@ const pheasantBurnContracts = new Set(
     .flatMap(({ cctp }) => [...(cctp?.burnV1 ?? []), ...(cctp?.burnV2 ? [cctp.burnV2] : [])])
     .map((a) => a.toLowerCase())
 );
+
+// Circle TokenMessenger v1 by CCTP domain: MessageReceived.sender must be the TokenMessenger of MessageReceived.sourceDomain
+const tokenMessengerByDomain = new Map(
+  Object.values(chainConfig)
+    .filter(({ cctp }) => cctp)
+    .map(({ cctp }) => [cctp!.domain, cctp!.tokenMessenger.toLowerCase()])
+);
+
+// bytes32 left-padded address -> 0x + 40 hex chars
+const bytes32ToAddress = (b: string) => "0x" + b.slice(-40).toLowerCase();
 
 // Circle BurnMessage body: version (4 bytes) | burnToken (32) | mintRecipient (32) | amount (32) | messageSender (32)
 const parseBurnMessage = (body: string) => {
@@ -130,6 +152,7 @@ const fetch = async (options: FetchOptions) => {
 
     const received = await options.getLogs({ target: messageTransmitter, eventAbi: MESSAGE_RECEIVED });
     for (const l of received) {
+      if (tokenMessengerByDomain.get(Number(l.sourceDomain)) !== bytes32ToAddress(l.sender)) continue;
       const message = parseBurnMessage(l.messageBody);
       if (!message || message.version !== 0 || !pheasantBurnContracts.has(message.messageSender)) continue;
       dailyIncomingVolume.add(usdc, message.amount);

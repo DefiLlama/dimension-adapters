@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { fetchPheasantSwapVolume, pheasantSwapChains } from "../../helpers/aggregators/pheasant-network";
+import { fetchPheasantSwapVolume, pheasantSwapConfig } from "../../helpers/aggregators/pheasant-network";
 
 // Pheasant Swap cross-chain swaps: SwapNewTrade on the source chain whose trade.toChainId is another chain, valued at the
 // amount forwarded to the routing tool, trade.amount minus Pheasant's relayerFee (see helpers/aggregators/pheasant-network.ts). Same-chain swaps are aggregators/pheasant-network.
@@ -14,7 +14,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   doublecounted: true, // routed through LI.FI and Squid, whose own bridge-aggregator listings also count these transfers
   fetch,
-  adapter: pheasantSwapChains,
+  adapter: pheasantSwapConfig,
   methodology: {
     BridgeVolume:
       "Value of tokens users hand to Pheasant Swap for a swap whose destination is another chain, measured on the source chain. Pheasant's relayer fee is excluded.",

@@ -11,6 +11,7 @@ import { CHAIN } from "../chains";
 // proxy and proxy-admin addresses are swapped); `start` is the proxy's creation block. Public list:
 // https://docs.pheasant.network/products/swap/supported-networks
 // Chains retired on 2026-10-08 (no new swaps accepted, contracts still settle) keep their history with `deadFrom`.
+// Sei (chain id 1329, same proxy, created 2025-02-25) is not listed: getLogs is disabled for sei in adapters/utils/runAdapter.ts.
 const SWAP_NEW_TRADE =
   "event SwapNewTrade(address indexed userAddress, address indexed token, (string toChainId, uint16 swapToolIndex, address toolContract, address toToken, uint256 amount, uint256 relayerFee, uint256 timestamp) trade)";
 
@@ -27,7 +28,6 @@ export const pheasantSwapConfig: Record<string, { chainId: number; swap: string;
   [CHAIN.BSC]: { chainId: 56, swap: SWAP, start: "2025-02-25" },
   [CHAIN.XDAI]: { chainId: 100, swap: SWAP, start: "2025-02-25" },
   [CHAIN.SCROLL]: { chainId: 534352, swap: SWAP, start: "2025-02-25" },
-  [CHAIN.SEI]: { chainId: 1329, swap: SWAP, start: "2025-02-25" },
   [CHAIN.LINEA]: { chainId: 59144, swap: SWAP, start: "2025-02-26" },
   [CHAIN.POLYGON]: { chainId: 137, swap: SWAP, start: "2025-02-26" },
   [CHAIN.CRONOS]: { chainId: 25, swap: SWAP, start: "2025-02-26" },
@@ -57,10 +57,17 @@ export const pheasantSwapConfig: Record<string, { chainId: number; swap: string;
   [CHAIN.METIS]: { chainId: 1088, swap: SWAP_ALT, start: "2025-02-26", deadFrom: RETIRED },
 };
 
-export const pheasantSwapChains = Object.fromEntries(
-  Object.entries(pheasantSwapConfig).map(([chain, { start, deadFrom }]) => [chain, { start, ...(deadFrom ? { deadFrom } : {}) }])
-);
-
+/**
+ * Sums the value users handed to Pheasant Swap on `options.chain` during the fetch window.
+ *
+ * Every SwapNewTrade log is classified by `trade.toChainId`: equal to the chain's own id means a same-chain swap, any
+ * other value a cross-chain swap. Only trades matching `mode` are counted, at `trade.amount - trade.relayerFee` of
+ * `token`, the amount the Swap contract forwards to the routing tool.
+ *
+ * @param options fetch options for the chain and window; `options.chain` must be a key of `pheasantSwapConfig`
+ * @param mode which trades to count: "same-chain" (aggregators listing) or "cross-chain" (bridge-aggregators listing)
+ * @returns a Balances object holding the matching volume by token
+ */
 export async function fetchPheasantSwapVolume(options: FetchOptions, mode: "same-chain" | "cross-chain") {
   const { chainId, swap } = pheasantSwapConfig[options.chain];
   const volume = options.createBalances();
