@@ -319,7 +319,7 @@ const fetch: any = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Bribes are distributed to holders, validators, and the protocol.",
   Revenue: "Bribes not paid to validators: BGT booster incentives distributed to BGT holders and incentive fee taxes collected by the protocol until PoL Next (2026-07-07), and the sWBERA stakers' share of incentives collected since.",
-  HoldersRevenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults.",
+  HoldersRevenue: "BGT booster incentives distributed to BGT holders via Berachain Reward Vaults until PoL Next (2026-07-07), and the sWBERA stakers' share of incentives collected since.",
   SupplySideRevenue: "Incentive tokens distributed to validators via IncentivesProcessed events, and since PoL Next (2026-07-07) the LST stakers' share of incentives collected.",
   ProtocolRevenue: "Incentive fee taxes collected by the protocol via IncentiveFeeCollected events.",
 };
