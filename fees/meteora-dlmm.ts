@@ -2,6 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
+import { assertDuneSolanaIndexed } from '../helpers/duneSolanaDex';
 import { METRIC } from '../helpers/metrics';
 
 // Meteora DLMM fees and revenue. Volume is in dexs/meteora-dlmm.ts.
@@ -156,6 +157,8 @@ GROUP BY 1
 `;
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   const rows: FeeRow[] = await queryDuneSql(options, getFeesQuery(options), { extraUIDKey: 'dlmm-fees' });
   if (!rows.length) throw new Error('meteora-dlmm fees: Dune returned no swaps for the window');
 
