@@ -37,7 +37,7 @@ const V2_MERGE_FEE = "Merge Fees (v2)";
 // ── v2 ──────────────────────────────────────────────────────────────────────
 const V2_VERIFIER = "0x4D14355C3fC905446908d70190eADf36F34DB711";
 const V2_FACTORY = "0xFB488dC9eCdeEd12e126986b8Bb441d6b14CdE58";
-const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const NATIVE = ADDRESSES.GAS_TOKEN_2;
 // v2 was deployed 2026-10-20/21 (deployment blocks on the contracts page); nothing earlier.
 const V2_LIVE = 1792454400; // 2026-10-20 00:00 UTC
 // Kaia is a v1-only chain.
@@ -141,29 +141,33 @@ async function addV2Fees(options: FetchOptions, dailyFees: any) {
 }
 
 const methodology = {
-  Fees: "v2: the protocol fee on withdrawals (tiered, 0.35% under $10k down to 0.08% above $10M) plus the small fee accrued on note merges, both read exactly from the Verifier's FeeAccrued events. v1: a 0.35% redeem fee on private transfers (withheld before zAssets are minted, live 2026-06-02) plus liquidity-based unwrap fees from the LiquidityManagers. Relayer and third-party referral fees are not included.",
-  Revenue: "All protocol fees are retained by the protocol: v2 fees accrue to the Verifier's fee recipient; the v1 redeem fee is never minted and v1 unwrap fees accrue to the LiquidityManager fee surplus.",
-  ProtocolRevenue: "All protocol fees are retained by the protocol.",
+  Fees: "Fees users pay to move tokens privately: since 2026-10-20 a v2 withdrawal fee (0.35% below $10k, tapering to 0.08% above $10M) and a small fee for merging notes, plus on v1 a 0.35% redeem fee on private transfers (since 2026-06-02) and an unwrap fee for converting zTokens back to the underlying token that rises as liquidity runs low; relayer and third-party referral fees are excluded.",
+  UserFees: "All zERC20 fees are paid directly by users: v2 withdrawal and note-merge fees, and v1 redeem fees on private transfers and unwrap fees.",
+  Revenue: "All v2 withdrawal and note-merge fees and all v1 redeem and unwrap fees paid by users are kept by the protocol.",
+  ProtocolRevenue: "All v2 withdrawal and note-merge fees and all v1 redeem and unwrap fees paid by users go to the protocol: v2 fees to its fee-recipient address, v1 fees as surplus backing in its liquidity reserves.",
+};
+
+const feesBreakdown = {
+  [V2_WITHDRAW_FEE]: "Fee withheld from each v2 withdrawal: 0.35% below $10k, tapering to 0.08% above $10M.",
+  [V2_MERGE_FEE]: "Small fee charged when a user merges several v2 notes into one.",
+  [REDEEM_FEE]: "0.35% of each v1 private transfer, withheld before the recipient's zTokens are minted (since 2026-06-02).",
+  [UNWRAP_FEE]: "Fee for unwrapping v1 zTokens back to the underlying token; the rate rises as liquidity falls below target (zBNB is exempt).",
 };
 
 const breakdownMethodology = {
-  Fees: {
-    [V2_WITHDRAW_FEE]: "v2 protocol fee withheld on each withdrawal, from FeeAccrued; tiered by size.",
-    [V2_MERGE_FEE]: "v2 fee accrued when notes are merged, from FeeAccrued in a transaction that also emits Merged.",
-    [REDEEM_FEE]: "0.35% of the gross private-transfer amount, derived from Teleport mints as minted * 0.35 / 99.65.",
-    [UNWRAP_FEE]: "feeAmount from LiquidityManager Unwrapped events; the rate rises as liquidity falls below target (zBNB is exempt).",
-  },
+  Fees: feesBreakdown,
+  UserFees: feesBreakdown,
   Revenue: {
-    [V2_WITHDRAW_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
-    [V2_MERGE_FEE]: "v2 merge fees accrued to the protocol's fee recipient.",
-    [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
-    [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
+    [V2_WITHDRAW_FEE]: "v2 withdrawal fees, kept by the protocol.",
+    [V2_MERGE_FEE]: "v2 note-merge fees, kept by the protocol.",
+    [REDEEM_FEE]: "v1 redeem fees on private transfers, kept by the protocol.",
+    [UNWRAP_FEE]: "v1 unwrap fees, kept by the protocol.",
   },
   ProtocolRevenue: {
-    [V2_WITHDRAW_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
-    [V2_MERGE_FEE]: "v2 merge fees accrued to the protocol's fee recipient.",
-    [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
-    [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
+    [V2_WITHDRAW_FEE]: "v2 withdrawal fees sent to the protocol's fee-recipient address.",
+    [V2_MERGE_FEE]: "v2 note-merge fees sent to the protocol's fee-recipient address.",
+    [REDEEM_FEE]: "v1 redeem fees, never minted to the recipient, so they stay as surplus backing in the protocol's reserves.",
+    [UNWRAP_FEE]: "v1 unwrap fees, added to the protocol's fee surplus in the liquidity reserve.",
   },
 };
 
