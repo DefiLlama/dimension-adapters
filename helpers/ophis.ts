@@ -12,7 +12,8 @@ export const ophisChainConfig: Record<string, { id: number; start: string }> = {
   [CHAIN.OPTIMISM]: { id: 10, start: OPHIS_START },
   [CHAIN.BSC]: { id: 56, start: OPHIS_START },
   [CHAIN.XDAI]: { id: 100, start: OPHIS_START },
-  [CHAIN.UNICHAIN]: { id: 130, start: OPHIS_START },
+  // Temporarily excluded while its sovereign source/audits are unavailable; restore after recovery.
+  // [CHAIN.UNICHAIN]: { id: 130, start: OPHIS_START },
   [CHAIN.POLYGON]: { id: 137, start: OPHIS_START },
   [CHAIN.ROBINHOOD]: { id: 4663, start: OPHIS_START },
   [CHAIN.ARC]: { id: 5042, start: "2026-09-24" },
@@ -40,11 +41,12 @@ export type OphisProtocolDay = Omit<OphisChainDay, "chainId">;
 interface OphisDayResponse {
   ok: true;
   date: string;
+  chainIds: number[];
   totals: OphisProtocolDay;
   chains: OphisChainDay[];
 }
 
-const responseCache = new Map<string, Promise<OphisDayResponse>>();
+const responseCache = new Map<string, { response: Promise<OphisDayResponse>; expiresAt: number }>();
 const supportedChainIds = new Set(Object.values(ophisChainConfig).map(({ id }) => id));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -104,19 +106,26 @@ const validateProtocolDay = (value: unknown, date: string): OphisProtocolDay => 
   return totals;
 };
 
-const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
-  const cached = responseCache.get(date);
-  if (cached) return cached;
+const fetchOphisDay = (date: string, chainIds: number[]): Promise<OphisDayResponse> => {
+  const cacheKey = `${date}:${chainIds.join(",")}`;
+  const cached = responseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.response;
 
   const pending = (async () => {
-    const response: unknown = await fetchURL(`${API}?date=${encodeURIComponent(date)}`);
+    // Chain-scoped completion lets healthy chains report during another chain's outage.
+    const response: unknown = await fetchURL(`${API}?date=${encodeURIComponent(date)}&chainIds=${chainIds.join(",")}`);
     if (!isRecord(response) || response.ok !== true || response.date !== date || !Array.isArray(response.chains))
       throw new Error(`ophis: incomplete reporting response for ${date}`);
+    if (!Array.isArray(response.chainIds) || response.chainIds.length !== chainIds.length
+      || !chainIds.every((id, index) => response.chainIds[index] === id))
+      throw new Error(`ophis: incorrect reporting scope for ${date}`);
 
     const totals = validateProtocolDay(response.totals, date);
     const chains = response.chains.map((row) => validateChainDay(row, date));
     const returnedChainIds = new Set<number>();
     for (const row of chains) {
+      if (!chainIds.includes(row.chainId))
+        throw new Error(`ophis: unexpected chain ${row.chainId} for requested scope on ${date}`);
       if (!supportedChainIds.has(row.chainId))
         throw new Error(`ophis: unsupported chain ${row.chainId} returned for ${date}`);
       if (returnedChainIds.has(row.chainId))
@@ -141,12 +150,13 @@ const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
     if (totals.users < maxChainUsers || totals.users > summedChainUsers)
       throw new Error(`ophis: invalid cross-chain user total for ${date}`);
 
-    return { ok: true as const, date, totals, chains };
+    return { ok: true as const, date, chainIds, totals, chains };
   })();
 
-  responseCache.set(date, pending);
+  // Match the API's five-minute cache lifetime so repairs are picked up.
+  responseCache.set(cacheKey, { response: pending, expiresAt: Date.now() + 300_000 });
   pending.catch(() => {
-    if (responseCache.get(date) === pending) responseCache.delete(date);
+    if (responseCache.get(cacheKey)?.response === pending) responseCache.delete(cacheKey);
   });
   return pending;
 };
@@ -163,10 +173,10 @@ const fetchOphisDay = (date: string): Promise<OphisDayResponse> => {
 export const fetchOphisChainDay = async (options: FetchOptions): Promise<OphisChainDay | undefined> => {
   const config = ophisChainConfig[options.chain];
   if (!config) throw new Error(`ophis: unsupported DefiLlama chain ${options.chain}`);
-  const response = await fetchOphisDay(options.dateString);
+  const response = await fetchOphisDay(options.dateString, [config.id]);
   return response.chains.find(({ chainId }) => chainId === config.id);
 };
 
-/** Fetches the validated protocol-wide totals, including cross-chain user deduplication. */
+/** Fetches totals over configured reporting chains, with cross-chain user deduplication. */
 export const fetchOphisProtocolDay = async (options: FetchOptions): Promise<OphisProtocolDay> =>
-  (await fetchOphisDay(options.dateString)).totals;
+  (await fetchOphisDay(options.dateString, [...supportedChainIds])).totals;
