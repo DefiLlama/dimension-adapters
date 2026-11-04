@@ -11,6 +11,35 @@ const CommissionFromTokenRecordEventV2 = 'event CommissionFromTokenRecord(addres
 const CommissionToTokenRecordEventV2 = 'event CommissionToTokenRecord(address tokenAddress, uint256 commissionAmount, address referrerAddress, uint256 commissionRate)';
 
 const REFERRAL_COMMISSIONS = 'Referral commissions';
+const OKX_FEES = 'OKX interface and API fees';
+
+// OKX's own fee accounts. The routers pay OKX's fee with the same commission event they use for
+// third-party referrers, with one of these accounts as the referrer; every other referrer is a third
+// party and stays supply side.
+// - DEX API share: on API swaps that charge a partner fee this account takes 20% of the commission and
+//   the partner 80%, the Start-up tier's "20% of your revenue as our infrastructure fee"
+//   (https://web3.okx.com/onchainos/dev-docs/trade/api-fee). E.g. Ethereum tx
+//   0x5b374cf230cfb66be5c0b12e18a58d6532f339065b14fe4f527c6fcc371e9e0f: 5.396130 USDT to this
+//   account, 21.584521 USDT to the partner.
+// - Interface fee: charged at 0.1-0.5% of the swap, the range of OKX's DEX interface fee
+//   (https://web3.okx.com/dex-fees).
+// OKX replaced each account in 2026. The old and the new account sweep their USDC every day, at the
+// same hour, to the same address (noted per pair with a sample sweep), so both are listed and a refill
+// of older days splits the same way.
+const OKX_FEE_ACCOUNTS = new Set([
+  // interface fee; sweep to 0x89efb4bc95b9eafcdb8d7a4417f401d5d1d75e24 at 04:00 UTC, e.g. Ethereum tx
+  // 0x627302daa891e2e508154b84f922ca2179e1d40f49529a441db9bd9fc688ee5d
+  '0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d',
+  '0x7797c4a7f786f77dbce13d71d2c710310cb92aa3',
+  // DEX API share; sweep to 0x79d3e0cde1380525dd649bd73335188b7e85422f at 08:00 UTC, e.g. Ethereum tx
+  // 0xdeb8ecff2553d31bff64edddfe14b25fe73aecb61d91ab307382ee58a3366dd0
+  '0xfa00a9ed787f3793db668bff3e6e6e7db0f92a1b',
+  '0x7fc8fd8bb3192e2d62a3d8d97d9a7924d4bae58b',
+  // interface fee, second account (0.25% / 0.5%); sweep to 0x761a71b7046597154dc543762f966f8d06334682
+  // at 09:00 UTC, e.g. Ethereum tx 0x1f9d60a03efccd6256be28bd5d3b10eb0e074be5c5efb519c1a1ec9d52320f54
+  '0x31c241ef4d6a191ce474a02f4c5122536e5bf0dc',
+  '0xd5c38205cf30ea91b1dde17aaf42766ac84a91fc',
+])
 
 const V2_EVENTS_START = 1761955200; // Nov-01-2025 00:00:00 UTC, two weeks before the first one
 const V1_EVENTS_END = 1777507200; // Apr-30-2026 00:00:00 UTC, a month after the last one
@@ -260,15 +289,24 @@ const fetch: any = async (options: FetchOptions) => {
 
   const events = await Promise.all(eventAbis.map((eventAbi) => options.getLogs({ eventAbi, targets, flatten: true })))
 
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
   for (const event of events.flat()) {
-    dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+    if (OKX_FEE_ACCOUNTS.has(event.referrerAddress.toLowerCase())) {
+      dailyFees.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
+      dailyRevenue.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
+    } else {
+      dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+      dailySupplySideRevenue.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+    }
   }
 
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 
@@ -279,18 +317,27 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Total comission fees from every trade.',
     UserFees: 'Users pay small amount of fees on trades.',
-    Revenue: 'No revenue',
-    SupplySideRevenue: 'All comission fees distributed to referrer addresses.',
+    Revenue: "Commissions paid to OKX's own fee accounts: OKX's DEX interface fee and its 20% share of DEX API partner fees.",
+    ProtocolRevenue: "Commissions paid to OKX's own fee accounts: OKX's DEX interface fee and its 20% share of DEX API partner fees.",
+    SupplySideRevenue: 'Commissions paid to third-party referrers, such as wallets and apps that charge their own fee on top of OKX DEX.',
   },
   breakdownMethodology: {
     Fees: {
-      [REFERRAL_COMMISSIONS]: "Commission each OKX router records on the swaps it routes, counted in whichever token the commission was taken in.",
+      [OKX_FEES]: "Commission each OKX router pays to OKX's own fee accounts, counted in whichever token the commission was taken in.",
+      [REFERRAL_COMMISSIONS]: "Commission each OKX router pays to third-party referrers on the swaps it routes, counted in whichever token the commission was taken in.",
     },
     UserFees: {
-      [REFERRAL_COMMISSIONS]: "The same commissions, which are paid by the user out of the swap.",
+      [OKX_FEES]: "OKX's commission, paid by the user out of the swap.",
+      [REFERRAL_COMMISSIONS]: "Third-party referrer commissions, paid by the user out of the swap.",
+    },
+    Revenue: {
+      [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
+    },
+    ProtocolRevenue: {
+      [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
     },
     SupplySideRevenue: {
-      [REFERRAL_COMMISSIONS]: "Every commission is booked against the referrer that brought the trade, so all of it is supply side.",
+      [REFERRAL_COMMISSIONS]: "Commission paid to the third-party referrer that brought the trade.",
     },
   },
   chains: Object.keys(routers),
