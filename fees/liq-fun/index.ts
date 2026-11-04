@@ -53,6 +53,10 @@ const adapter: SimpleAdapter = {
       "Win Fee": "Kept by the protocol.",
       "Loss Fee": "Kept by the protocol.",
     },
+    ProtocolRevenue: {
+      "Win Fee": "Kept by the protocol.",
+      "Loss Fee": "Kept by the protocol.",
+    },
   },
 };
 

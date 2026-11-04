@@ -39,6 +39,7 @@ const adapter: SimpleAdapter = {
     Fees: { "Stake Fee": "2% of the stake of a game that played out." },
     UserFees: { "Stake Fee": "2% of the stake, paid by the player." },
     Revenue: { "Stake Fee": "Kept by the protocol." },
+    ProtocolRevenue: { "Stake Fee": "Kept by the protocol." },
   },
 };
 
