@@ -69,26 +69,26 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Mining payments kept by the protocol, creators and funds (everything except the 80% paid to the outgoing miner), plus swap fees charged on fund pools.",
-  UserFees: "Mining payments and swap fees paid by users, excluding the 80% of each mining payment that goes to the outgoing miner.",
-  Revenue: "The protocol fee on each mining payment (0.5%) and 30% of swap fees on fund pools.",
-  ProtocolRevenue: "The protocol fee on each mining payment (0.5%) and 30% of swap fees on fund pools, sent to the GlazeCorp treasury.",
-  SupplySideRevenue: "The creator fee on each mining payment, the remainder of each mining payment sent to the fund to buy assets, and 70% of swap fees sent to fund creators or funds.",
+  Fees: "Mining payments kept by the protocol, fund creators and funds (everything except the 80% paid to the outgoing miner), plus swap fees charged on Uniswap v4 pools created by the GlazeCorp Launchpad. Fees paid in fund coins are not valued because those coins have no price.",
+  UserFees: "Mining payments and swap fees paid by users, excluding the 80% of each mining payment that goes to the outgoing miner. Fees paid in fund coins are not valued.",
+  Revenue: "The protocol fee on each mining payment (currently 0.5%) and 30% of swap fees on Launchpad pools.",
+  ProtocolRevenue: "The protocol fee on each mining payment (currently 0.5%) and 30% of swap fees on Launchpad pools, sent to the GlazeCorp treasury.",
+  SupplySideRevenue: "The creator fee on each mining payment, the rest of each mining payment sent to the fund to buy assets for fund coin holders, and 70% of swap fees on Launchpad pools paid to the fund or its creator.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Mining Fees": "Base token (mostly USDG) from each mining payment that is not paid to the outgoing miner: the protocol fee, the creator fee and the share sent to the fund.",
-    "Swap Fees": "Swap fees charged on Uniswap v4 pools created for GlazeCorp funds.",
+    "Mining Fees": "The part of each mining payment, in the fund's base token (mostly USDG), that is not paid to the outgoing miner: the protocol fee, the creator fee and the share sent to the fund. When a Mine has no outgoing miner, that share also goes to the fund.",
+    "Swap Fees": "Swap fees credited by the FullRange hook on Uniswap v4 pools created by the GlazeCorp Launchpad. Each pool's fee rate is fixed at launch (0.01% to 10%). Fees paid in fund coins are not valued.",
   },
   Revenue: {
-    "Mining Fees To Protocol": "Protocol fee on each mining payment (0.5%).",
-    "Swap Fees To Protocol": "30% of swap fees on fund pools.",
+    "Mining Fees To Protocol": "Protocol fee on each mining payment (currently 0.5%), set on the Launchpad.",
+    "Swap Fees To Protocol": "30% of swap fees on Launchpad pools.",
   },
   SupplySideRevenue: {
-    "Mining Fees To Creators": "Creator fee on each mining payment (0.5% by default, set by the creator between 0.01% and 2%).",
+    "Mining Fees To Creators": "Creator fee on each mining payment (0.5% by default; the creator can set it between 0.01% and 2%).",
     "Mining Fees To Funds": "The rest of each mining payment, sent to the fund to buy assets for fund coin holders.",
-    "Swap Fees To Creators And Funds": "70% of swap fees on fund pools, paid to the fund or to the fund creator.",
+    "Swap Fees To Creators And Funds": "70% of swap fees on Launchpad pools, paid to the fund or to the fund creator.",
   },
 };
 
