@@ -68,7 +68,8 @@ const config: any = {
     //   emission and does not belong in incentives/.
     // - Up to 20M ETHFI of existing Foundation holdings may top up shortfalls. So far distributions (3.4M ETHFI to early Nov 2026)
     //   exceed purchases (2.2M), so nothing has accumulated for holders and the buffer is being drawn.
-    // The ETHFI handed to card users is therefore card revenue converted into cashback: supply side here, netted from revenue.
+    // The ETHFI handed to card users is therefore card revenue converted into cashback: Fees and SupplySideRevenue here, same as
+    // the Cash-contract cashback leg.
     // It is not holders revenue: it is spent on users, and fees/ether-fi-stake only counts buybacks that land in the Foundation
     // wallet 0x2f5301a3D59388c509C65f8698f521377D41Fd0F, which these purchases do not (different buyer Safe), so there is no overlap.
     // https://github.com/etherfi-protocol/cash-v3/blob/ac89a4b94db4bd0c0b5dc0421137dd3afa1d7bc1/deployments/mainnet/10/deployments.json#L40
@@ -126,11 +127,11 @@ const fetch = async (options: FetchOptions) => {
         logs.forEach(log => {
             // award(): `amount` of `token` is paid. awardStaked(): `token` is sETHFI, and the shares paid are `sEthfiAmount`
             const amount = log.sEthfiAmount > 0 ? log.sEthfiAmount : log.amount;
-            // ether.fi funds this cashback, so it is a cost: supply side, netted from revenue under the same label. Fees are unchanged.
+            // Booked like the Cash-contract cashback above: in Fees and SupplySideRevenue, revenue untouched.
             // The event has no product tag: the distributor also pays ether.fi's trade and borrow cashback. Over 2026-09-17..11-01,
             // awards beyond 4% of each recipient's own card spend, plus awards to safes with no card spend, were 0.7% of the total.
+            dailyFees.add(log.token, amount, MetricLabels.CASHBACKS);
             dailySupplySideRevenue.add(log.token, amount, MetricLabels.CASHBACKS);
-            dailyRevenue.subtractToken(log.token, amount, MetricLabels.CASH_TRANSACTION_FEES);
         })
     }
 
@@ -147,9 +148,6 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
-    // Revenue nets the ETHFI cashback settled in each window. Claims settle after the spends they reward and can exceed
-    // that window's 1.38% fee (10 of 30 days in 2026-10-03..11-01), so revenue can be negative.
-    allowNegativeValue: true,
     fetch,
     adapter: {
       [CHAIN.SCROLL]: {
@@ -161,22 +159,22 @@ const adapter: SimpleAdapter = {
     },
     methodology: {
         Volume: "Card spending volume on EtherFi Cash.",
-        Fees: "Estimated 1.38% transaction fee on EtherFi Cash card spending, plus cashback paid to card users through the Cash contract.",
-        Revenue: "Estimated 1.38% transaction fee on card spending, minus the ETHFI cashback ether.fi pays to card users.",
-        ProtocolRevenue: "Estimated 1.38% transaction fee on card spending kept by ether.fi, minus the ETHFI cashback it pays to card users.",
+        Fees: "Estimated 1.38% transaction fee on EtherFi Cash card spending, plus cashback paid to card users.",
+        Revenue: "Estimated 1.38% transaction fee on card spending.",
+        ProtocolRevenue: "Estimated 1.38% transaction fee on card spending, kept by ether.fi.",
         SupplySideRevenue: "Cashback paid to card users: stablecoin or ETH cashback through the Cash contract, and ETHFI cashback bought with card revenue and paid through the CashbackDistributor.",
         HoldersRevenue: "No revenue is distributed to ETHFI holders.",
     },
     breakdownMethodology: {
         Fees: {
             [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending',
-            [MetricLabels.CASHBACKS]: 'Cashback paid to card users through the Cash contract',
+            [MetricLabels.CASHBACKS]: 'Cashback paid to card users through the Cash contract and ETHFI cashback through the CashbackDistributor',
         },
         Revenue: {
-            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending, minus ETHFI cashback paid to card users',
+            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending',
         },
         ProtocolRevenue: {
-            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending, minus ETHFI cashback paid to card users',
+            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending',
         },
         SupplySideRevenue: {
             [MetricLabels.CASHBACKS]: 'Cashback paid to card users through the Cash contract and ETHFI cashback through the CashbackDistributor',
