@@ -30,6 +30,10 @@ import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { SanctumMetric } from "../sanctum";
 
+// INF, the Infinity LP token (9 decimals). withdrawProtocolFeesV2 mints sol_to_inf(protocol_fee_lamports) of it,
+// so the v2 amount is INF, worth about 1.45 SOL each in Oct 2026, and must be priced as INF, not SOL.
+const INF_MINT = "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm";
+
 const fetch: any = async (options: FetchOptions) => {
   const fees = await queryDuneSql(
     options,
@@ -89,13 +93,15 @@ const fetch: any = async (options: FetchOptions) => {
   const infv1Fees = fees[0].infv1_fees || 0;
   const infv2Fees = fees[0].infv2_fees || 0;
 
-  const allFees = infv1Fees + infv2Fees;
-  const revenue = infv1Fees * 0.1 + infv2Fees * 0.05;
-  const supplySideRevenue = (infv1Fees + infv2Fees) - revenue;
-  
-  dailyFees.addCGToken("solana", allFees, SanctumMetric.InfinityStakingRewards);
-  dailyRevenue.addCGToken("solana", revenue, SanctumMetric.StakingRewardsToProtocol);
-  dailySupplySideRevenue.addCGToken("solana", supplySideRevenue, SanctumMetric.StakingRewardsToStakers);
+  // v1: fee-account balance changes counted in SOL (unchanged); v2: minted INF, priced as INF
+  const infv2Raw = Math.round(infv2Fees * 1e9);
+
+  dailyFees.addCGToken("solana", infv1Fees, SanctumMetric.InfinityStakingRewards);
+  dailyFees.add(INF_MINT, infv2Raw, SanctumMetric.InfinityStakingRewards);
+  dailyRevenue.addCGToken("solana", infv1Fees * 0.1, SanctumMetric.StakingRewardsToProtocol);
+  dailyRevenue.add(INF_MINT, Math.round(infv2Raw * 0.05), SanctumMetric.StakingRewardsToProtocol);
+  dailySupplySideRevenue.addCGToken("solana", infv1Fees * 0.9, SanctumMetric.StakingRewardsToStakers);
+  dailySupplySideRevenue.add(INF_MINT, infv2Raw - Math.round(infv2Raw * 0.05), SanctumMetric.StakingRewardsToStakers);
  
   return {
     dailyFees,
