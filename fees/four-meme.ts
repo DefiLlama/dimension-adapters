@@ -20,6 +20,14 @@ import { METRIC } from "../helpers/metrics";
 // ]
 // const revshareWallet = "0x2b6e6e4def77583229299cf386438a227e683b28" // not entirely sure but i suspect this is a rev share wallet
 
+// OpenFour, the launch engine introduced by Four.Meme (https://github.com/four-meme-community/openfour-docs, integration guide §13):
+// its FeeRouter 0x7383B244B416Db16Aa9dd0AB7C296Aa60255B9A2 sends 5% of each protocol fee to the same rebate wallet 0x2b6e6e...
+// (FeeAssigned kind 6) and the rest of the protocol fee, plus the protocol share of migration fees (kinds 1 and 4), to the
+// OpenFour treasury 0x7cf6b1c47b4a199a4af6da22726c2c8bfa64a3f1, as ERC-20 transfers in the quote token.
+// Sample tx 0x2c906e792ae2c6ad84efbfe23212d8a5fb335a20720ac95a96ace695172ba6d3: trade fee 1.506 BNC4, 1.431 to treasury, 0.075 to rebate wallet.
+// Sample tx 0x982e1f1dafe3b3b6ae122fd6205783b01e34abb7b5dea28df0bbb93e6d6144da: migration fee, 0.121 WBNB to treasury.
+// Token taxes (kind 3), module-developer fees and the creator/partner shares (kinds 5 and 7) go elsewhere and are not counted.
+
 const fetch: any = async (options: FetchOptions) => {
   const query = `
     WITH bnb_received AS (
@@ -62,7 +70,7 @@ const fetch: any = async (options: FetchOptions) => {
         COALESCE(CAST(SUM(bytearray_to_uint256(bytearray_substring(l.data, 1, 32))) AS varchar), '0') AS fees
       FROM bnb.logs l
       WHERE l.topic0 = 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-      AND l.topic1 IN (
+      AND ((l.topic1 IN (
         0x000000000000000000000000EC4549caDcE5DA21Df6E6422d448034B5233bFbC,
         0x0000000000000000000000005c952063c7fc8610FFDB798152D69F0B9550762b
       )
@@ -83,7 +91,13 @@ const fetch: any = async (options: FetchOptions) => {
         0x0000000000000000000000000232fCa3F2E8bb567e851151c396cEB3D0D47c11,
         0x000000000000000000000000821cfB3921Bae561fbF9527fdc5A4285468740AA,
         0x000000000000000000000000b10c5381fC00Bc8296016EC21B7E29a852414c48
-      )
+      ))
+      -- OpenFour FeeRouter -> OpenFour treasury / rebate wallet
+      OR (l.topic1 = 0x0000000000000000000000007383B244B416Db16Aa9dd0AB7C296Aa60255B9A2
+      AND l.topic2 IN (
+        0x0000000000000000000000007cf6b1c47b4a199a4af6da22726c2c8bfa64a3f1,
+        0x0000000000000000000000002b6e6e4def77583229299cf386438a227e683b28
+      )))
       AND l.block_time >= from_unixtime(${options.startTimestamp})
       AND l.block_time < from_unixtime(${options.endTimestamp})
       GROUP BY 1
@@ -159,8 +173,8 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: 'All fees paid by users for launching, trading tokens.',
-    Revenue: 'Fees collected by four.meme protocol.',
+    Fees: 'All fees paid by users for launching, trading tokens, on the classic four.meme curves and on OpenFour (including TapeFour). Excludes token taxes, module-developer fees and creator/partner shares.',
+    Revenue: 'Fees collected by four.meme protocol, including the OpenFour treasury share of OpenFour protocol and migration fees.',
     ProtocolRevenue: 'Fees retained by the four.meme protocol after rev-share distributions, the same as revenue.',
   },
   breakdownMethodology: {
