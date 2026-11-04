@@ -6,10 +6,16 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 const USDC = ADDRESSES[CHAIN.ETHEREUM].USDC;
 const USDT = ADDRESSES[CHAIN.ETHEREUM].USDT;
 
-// Approved first-leg prefunding routes: (lending Safe -> borrower payout wallet, token).
-// A route is counted only as this exact pair, so stablecoin leaving a Safe to any
-// other destination — operational relays, rebalancing, returns to lenders — is not
-// volume. Adding a borrower means adding its tuple here.
+// Approved prefunding routes: (lending Safe -> borrower payout wallet, token).
+//
+// Source: each entry is a DeFa-operated lending Safe paired with the payout wallet
+// of the borrower that Safe funds. A route is added only once DeFa has approved it,
+// and the resulting total is published on DeFa's public dashboard at
+// https://dune.com/defa_im/defa-by-invoicemate, which is generated from this same
+// pair list. The borrower names below are labels for that pairing, not its source.
+//
+// Matching the pair rather than the Safe alone keeps stablecoin that leaves a Safe
+// for an operational relay, for rebalancing, or back to lenders out of the total.
 const ROUTES = [
   { safe: "0x182d16434faa044b9216a490cf0955b04ae16904", borrower: "0x6ccf7374dd59f3642633ce2161e02cf670773034", token: USDC }, // A Express
   { safe: "0x6357c870970775d63847d31be3161093a21736db", borrower: "0x8a0dd7159093f1847bf9b467cabb9926e26fa653", token: USDC }, // Menden/Mansa
@@ -47,6 +53,11 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: {
     [CHAIN.ETHEREUM]: { start: "2026-04-11" },
+    // Disabled: these chains recorded no volume on the previous Dune-backed path.
+    // Re-enable when a prefunding route goes live on them.
+    // [CHAIN.STELLAR]: { start: "2026-07-04" },
+    // [CHAIN.STARKNET]: { start: "2026-07-04" },
+    // zigchain: { start: "2026-07-04" },
   },
 };
 
