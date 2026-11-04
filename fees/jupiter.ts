@@ -63,6 +63,8 @@ export const JUPITER_METRICS = {
   JupPerpsLiquidationFees: 'JupPerps Liquidation Fees',
   JupPerpsFundingFees: 'JupPerps Funding Fees',
   JupPerpsPriceImpactFees: 'JupPerps Price Impact Fees',
+  JupPerpsStakingRewards: 'JupPerps SOL Staking Rewards',
+  JupPerpsLoanInterest: 'JupPerps JLP Loans Interest',
   JupPerpsFeesToLPs: 'JupPerps Fees To Lps',
   JupPerpsFeesToLJupiter: 'JupPerps Fees To Jupiter',
 
