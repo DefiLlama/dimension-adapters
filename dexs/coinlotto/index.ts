@@ -20,7 +20,6 @@ const ABI = {
 };
 
 const LABELS = {
-  TICKET_SALES: "Ticket Sales",
   TICKET_PROTOCOL_FEES: "Ticket Protocol Fees",
   TICKET_PROTOCOL_FEES_TO_REFERRERS: "Ticket Protocol Fees To Referrers",
   TICKET_PROTOCOL_FEES_TO_TREASURY: "Ticket Protocol Fees To Treasury",
@@ -86,7 +85,7 @@ const fetch = async (options: FetchOptions) => {
     buyLogs.forEach((log: any) => {
       const lottery = lotteryById[log.args.lotteryId.toString()];
       if (!isErc20Sale(lottery)) return;
-      dailyVolume.add(lottery.params.asset, BigInt(log.args.qty) * BigInt(lottery.params.ticketPrice), LABELS.TICKET_SALES);
+      dailyVolume.add(lottery.params.asset, BigInt(log.args.qty) * BigInt(lottery.params.ticketPrice));
       const txHash = log.transactionHash.toLowerCase();
       if (!buyersByTx[txHash]) buyersByTx[txHash] = new Set();
       buyersByTx[txHash].add(log.args.buyer.toLowerCase());
@@ -120,9 +119,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    [LABELS.TICKET_SALES]: "Ticket price times quantity for every ticket purchase paid in ERC-20 tokens (TicketsBought events).",
-  },
   Fees: {
     [LABELS.TICKET_PROTOCOL_FEES]: "Protocol fee charged on ticket purchases: the part transferred to the treasury (including the Super Lottery fee on feeder allocations) plus the referrer share (ReferrerFeeAdded events).",
     [LABELS.CREATOR_FEES]: "Creator fee of user lotteries, 0-30% of ticket sales set per lottery (CreatorFeeAdded events).",
