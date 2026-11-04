@@ -10,7 +10,8 @@ const TOKEN_MANAGER_V2 = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
 const TOKEN_INFOS = 'function _tokenInfos(address) view returns (address base, address quote, uint256 template, uint256 totalSupply, uint256 maxOffers, uint256 maxRaising, uint256 launchTime, uint256 offers, uint256 funds, uint256 lastPrice, uint256 K, uint256 T, uint256 status)'
 
 // OpenFour (the launch engine introduced by Four.Meme), https://github.com/four-meme-community/openfour-docs: every curve
-// trade emits TradeExecuted on Core with the quote asset and curveQuoteAmount (the curve price of the trade before fees).
+// trade emits TradeExecuted on Core with the quote asset. Volume is what the trader put in: traderQuoteAmount on buys
+// (curve amount plus fees), curveQuoteAmount on sells (before fees), per the guide's §10.2 amount relationships.
 // Sample tx 0x2c906e792ae2c6ad84efbfe23212d8a5fb335a20720ac95a96ace695172ba6d3: curve trade of 150.625 BNC4.
 // TapeFour (presetId 1778027615734) curve trades are NAND NFT fundraising, which the OpenFour integration guide says to
 // keep out of ERC-20 volume.
@@ -38,9 +39,11 @@ const fetch = async (options: FetchOptions) => {
     UNION ALL
     SELECT 'v1' AS src, 'v1' AS token, CAST(SUM(amount) AS varchar) AS amount FROM v1_trades
     UNION ALL
-    -- OpenFour: quoteAsset and curveQuoteAmount from TradeExecuted
+    -- OpenFour: quoteAsset, and traderQuoteAmount on buys / curveQuoteAmount on sells, from TradeExecuted
     SELECT 'openfour' AS src, lower('0x' || to_hex(bytearray_substring(data, 45, 20))) AS token,
-      CAST(SUM(bytearray_to_uint256(bytearray_substring(data, 161, 32))) AS varchar) AS amount
+      CAST(SUM(CASE WHEN bytearray_to_uint256(bytearray_substring(data, 1, 32)) = 1
+        THEN bytearray_to_uint256(bytearray_substring(data, 193, 32))
+        ELSE bytearray_to_uint256(bytearray_substring(data, 161, 32)) END) AS varchar) AS amount
     FROM bnb.logs
     WHERE contract_address = ${OPENFOUR_CORE}
       AND topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
@@ -72,7 +75,7 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the quote token TokenManager2 records for that curve: BNB, a stablecoin, or any other ERC-20 such as the tokenized stocks some curves are priced in. Plus OpenFour bonding-curve trades (TradeExecuted curveQuoteAmount in the trade's quote asset), except TapeFour NFT fundraising.",
+    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the quote token TokenManager2 records for that curve: BNB, a stablecoin, or any other ERC-20 such as the tokenized stocks some curves are priced in. Plus OpenFour bonding-curve trades in the trade's quote asset (TradeExecuted: what the buyer paid including fees, and the seller's amount before fees), except TapeFour NFT fundraising.",
   },
 }
 

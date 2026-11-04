@@ -26,7 +26,9 @@ import { METRIC } from "../helpers/metrics";
 // OpenFour treasury 0x7cf6b1c47b4a199a4af6da22726c2c8bfa64a3f1, as ERC-20 transfers in the quote token.
 // Sample tx 0x2c906e792ae2c6ad84efbfe23212d8a5fb335a20720ac95a96ace695172ba6d3: trade fee 1.506 BNC4, 1.431 to treasury, 0.075 to rebate wallet.
 // Sample tx 0x982e1f1dafe3b3b6ae122fd6205783b01e34abb7b5dea28df0bbb93e6d6144da: migration fee, 0.121 WBNB to treasury.
-// Token taxes (kind 3), module-developer fees and the creator/partner shares (kinds 5 and 7) go elsewhere and are not counted.
+// Developer fees and partner shares (kind 7) accrue as claimable balances, the creator gets its share of migration fees
+// (kind 5) and early buys can pay an anti-sniper fee that the vault keeps for its migration buyback: these are fees paid
+// to others, booked when assigned (guide §10.2, §10.6, §13); later claims are not read. Token taxes (kind 3) are not fees.
 
 const fetch: any = async (options: FetchOptions) => {
   const query = `
@@ -101,28 +103,71 @@ const fetch: any = async (options: FetchOptions) => {
       AND l.block_time >= from_unixtime(${options.startTimestamp})
       AND l.block_time < from_unixtime(${options.endTimestamp})
       GROUP BY 1
+    ),
+
+    openfour_accrued AS (
+      SELECT quote AS token, label, CAST(SUM(amount) AS varchar) AS fees
+      FROM (
+        SELECT bytearray_substring(data, 45, 20) AS quote, 'Developer Fees' AS label, bytearray_to_uint256(bytearray_substring(data, 353, 32)) AS amount
+        FROM bnb.logs
+        WHERE contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
+          AND topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time < from_unixtime(${options.endTimestamp})
+        UNION ALL
+        SELECT bytearray_substring(data, 45, 20), 'Anti-Sniper Fees', bytearray_to_uint256(bytearray_substring(data, 385, 32))
+        FROM bnb.logs
+        WHERE contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
+          AND topic0 = keccak(to_utf8('TradeExecuted(address,address,uint256,bool,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)'))
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time < from_unixtime(${options.endTimestamp})
+        UNION ALL
+        SELECT bytearray_substring(topic2, 13, 20),
+          CASE WHEN bytearray_to_uint256(topic3) = 5 THEN '${METRIC.CREATOR_FEES}' ELSE 'Partner Fees' END,
+          bytearray_to_uint256(bytearray_substring(data, 33, 32))
+        FROM bnb.logs
+        WHERE contract_address = 0x7383b244b416db16aa9dd0ab7c296aa60255b9a2
+          AND topic0 = keccak(to_utf8('FeeAssigned(address,address,address,uint8,uint256,bool)'))
+          AND bytearray_to_uint256(topic3) IN (5, 7)
+          AND block_time >= from_unixtime(${options.startTimestamp})
+          AND block_time < from_unixtime(${options.endTimestamp})
+      ) a
+      WHERE amount > 0
+      GROUP BY 1, 2
     )
     
-    SELECT 'bnb' AS token, fees, revenue FROM bnb_received
+    SELECT 'bnb' AS token, CAST(NULL AS varchar) AS label, fees, revenue FROM bnb_received
     UNION ALL
-    SELECT lower('0x' || to_hex(token)) AS token, fees, revenue FROM token_received
+    SELECT lower('0x' || to_hex(token)) AS token, CAST(NULL AS varchar) AS label, fees, revenue FROM token_received
+    UNION ALL
+    SELECT lower('0x' || to_hex(token)) AS token, label, fees, '0' AS revenue FROM openfour_accrued
   `
   
   const rows = await queryDuneSql(options, query)
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
   
   for (const row of rows) {
+    if (row.label) {
+      // OpenFour fees paid to developers, partners, creators and the anti-sniper buyback
+      dailyFees.add(row.token, row.fees, row.label)
+      dailySupplySideRevenue.add(row.token, row.fees, row.label)
+      continue
+    }
+    const rebates = (BigInt(row.fees) - BigInt(row.revenue)).toString()
     if (row.token === 'bnb') {
       dailyFees.addGasToken(row.fees, METRIC.TRADING_FEES)
       dailyRevenue.addGasToken(row.revenue, METRIC.PROTOCOL_FEES)
+      dailySupplySideRevenue.addGasToken(rebates, 'Rebates')
     } else {
       dailyFees.add(row.token, row.fees, METRIC.TRADING_FEES)
       dailyRevenue.add(row.token, row.revenue, METRIC.PROTOCOL_FEES)
+      dailySupplySideRevenue.add(row.token, rebates, 'Rebates')
     }
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 };
   
 //   const result = await queryDuneSql(options, query)
@@ -173,19 +218,31 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {
-    Fees: 'All fees paid by users for launching, trading tokens, on the classic four.meme curves and on OpenFour (including TapeFour). Excludes token taxes, module-developer fees and creator/partner shares.',
+    Fees: 'All fees paid by users for launching, trading tokens, on the classic four.meme curves and on OpenFour (including TapeFour), including OpenFour developer, partner, creator migration and anti-sniper fees. Excludes token taxes.',
     Revenue: 'Fees collected by four.meme protocol, including the OpenFour treasury share of OpenFour protocol and migration fees.',
     ProtocolRevenue: 'Fees retained by the four.meme protocol after rev-share distributions, the same as revenue.',
+    SupplySideRevenue: 'Rebates sent to the rev-share wallet, and OpenFour developer fees, partner shares, creator shares of migration fees and anti-sniper fees.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "USD value of all BNB and token fees collected from token launches and trades, including rev-share distributions",
+      'Developer Fees': "OpenFour fees paid to the preset author or module developer on each trade (TradeExecuted devFee), accrued as claimable balances",
+      'Partner Fees': "OpenFour partner share of the post-rebate protocol fee (FeeAssigned kind 7), accrued as claimable balances",
+      [METRIC.CREATOR_FEES]: "OpenFour creator share of migration fees (FeeAssigned kind 5)",
+      'Anti-Sniper Fees': "OpenFour surcharge on early buys (TradeExecuted antiSniperFee), kept by the vault for its migration buyback",
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
     },
     ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+    },
+    SupplySideRevenue: {
+      'Rebates': "Share of the protocol fee sent to the rev-share wallet 0x2b6e6e... (5% on OpenFour, FeeAssigned kind 6)",
+      'Developer Fees': "OpenFour fees paid to the preset author or module developer on each trade (TradeExecuted devFee), accrued as claimable balances",
+      'Partner Fees': "OpenFour partner share of the post-rebate protocol fee (FeeAssigned kind 7), accrued as claimable balances",
+      [METRIC.CREATOR_FEES]: "OpenFour creator share of migration fees (FeeAssigned kind 5)",
+      'Anti-Sniper Fees': "OpenFour surcharge on early buys (TradeExecuted antiSniperFee), kept by the vault for its migration buyback",
     },
   },
 };
