@@ -2,8 +2,12 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// zERC20 — private ERC-20 transfers via zk proof-of-burn.
-// Addresses: github.com/kbizikav/zERC20/tree/main/config/deployed/mainnet (zJPYC LiquidityManager located on-chain).
+// zERC20 — private ERC-20 transfers.
+// v1 (Feb–Sep 2026): zk proof-of-burn; fees modelled below because v1 does not emit them.
+// v2 (Oct 2026 on): notes in a Merkle tree behind one Verifier; the protocol fee is emitted
+// on-chain (FeeAccrued), so it is read exactly. v1 still runs, so both are counted.
+// v1 addresses: github.com/kbizikav/zERC20/tree/main/config/deployed/mainnet (zJPYC LiquidityManager located on-chain).
+// v2 addresses: docs.zerc20.io/developers/contracts — identical on every v2 chain.
 const zETH = "0x410056c6F0A9ABD8c42b9eEF3BB451966Fb0d924";
 const zUSDC = "0xEB81ab55Bc7aa89d1e0E3F60597D86e37702Af53";
 const zBNB = "0x4388D5618B9e13Bd580209CDf37a202778C75c54";
@@ -27,6 +31,17 @@ const UNWRAPPED_EVENT = "event Unwrapped(address indexed caller, address indexed
 
 const REDEEM_FEE = "Redeem Fees";
 const UNWRAP_FEE = "Unwrap Fees";
+const V2_FEE = "Withdrawal Fees (v2)";
+
+// ── v2 ──────────────────────────────────────────────────────────────────────
+const V2_VERIFIER = "0x4D14355C3fC905446908d70190eADf36F34DB711";
+const V2_FACTORY = "0xFB488dC9eCdeEd12e126986b8Bb441d6b14CdE58";
+const NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+// v2 was deployed 2026-10-20/21 (deployment blocks on the contracts page); nothing earlier.
+const V2_LIVE = 1792454400; // 2026-10-20 00:00 UTC
+// Kaia is a v1-only chain.
+const V2_CHAINS = new Set<string>([CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC, CHAIN.POLYGON]);
+const FEE_ACCRUED_EVENT = "event FeeAccrued(uint32 indexed tokenId, address indexed recipient, uint256 amount)";
 
 type Asset = { token: string; liquidityManager?: string; add: (balances: any, amount: bigint, label: string) => void };
 
@@ -75,25 +90,60 @@ async function fetch(options: FetchOptions) {
     });
   }
 
+  await addV2Fees(options, dailyFees);
+
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
 }
 
+/**
+ * v2 protocol fees, read exactly from the Verifier's FeeAccrued events. Every v2 withdrawal
+ * emits one carrying the fee it withheld (cross-checked 2026-11-03: equal to
+ * Transacted.feeAmount on all 80 withdrawals indexed, and 0.35% of each, the entry tier).
+ * Token ids are assigned per chain, so each is resolved through ZERC20Factory.tokenById and
+ * the zToken's underlyingAsset — a newly listed token needs no change here.
+ */
+async function addV2Fees(options: FetchOptions, dailyFees: any) {
+  if (!V2_CHAINS.has(options.chain) || options.endTimestamp < V2_LIVE) return;
+  const logs = await options.getLogs({ target: V2_VERIFIER, eventAbi: FEE_ACCRUED_EVENT });
+  if (!logs.length) return;
+
+  const byTokenId = new Map<number, bigint>();
+  for (const log of logs) {
+    const id = Number(log.tokenId);
+    byTokenId.set(id, (byTokenId.get(id) ?? 0n) + BigInt(log.amount));
+  }
+  const ids = [...byTokenId.keys()];
+  const zTokens: string[] = await options.api.multiCall({
+    target: V2_FACTORY, abi: "function tokenById(uint32) view returns (address)", calls: ids });
+  const underlyings: string[] = await options.api.multiCall({
+    abi: "function underlyingAsset() view returns (address)", calls: zTokens });
+
+  ids.forEach((id, i) => {
+    const amount = byTokenId.get(id)!;
+    if (underlyings[i].toLowerCase() === NATIVE) dailyFees.addGasToken(amount, V2_FEE);
+    else dailyFees.add(underlyings[i], amount, V2_FEE);
+  });
+}
+
 const methodology = {
-  Fees: "0.35% redeem fee on private transfers (withheld from the gross amount before zAssets are minted to the recipient, live since 2026-06-02) plus liquidity-based unwrap fees charged by the LiquidityManagers.",
-  Revenue: "All fees (redeem and unwrap) are retained by the protocol: the redeem fee is never minted, and unwrap fees accrue to the LiquidityManager fee surplus.",
-  ProtocolRevenue: "All fees (redeem and unwrap) are retained by the protocol.",
+  Fees: "v2: the protocol fee on withdrawals (tiered, 0.35% under $10k down to 0.08% above $10M), read exactly from the Verifier's FeeAccrued events. v1: a 0.35% redeem fee on private transfers (withheld before zAssets are minted, live 2026-06-02) plus liquidity-based unwrap fees from the LiquidityManagers. Relayer and third-party referral fees are not included.",
+  Revenue: "All protocol fees are retained by the protocol: v2 fees accrue to the Verifier's fee recipient; the v1 redeem fee is never minted and v1 unwrap fees accrue to the LiquidityManager fee surplus.",
+  ProtocolRevenue: "All protocol fees are retained by the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
+    [V2_FEE]: "v2 protocol fee withheld on each withdrawal, from FeeAccrued; tiered by size.",
     [REDEEM_FEE]: "0.35% of the gross private-transfer amount, derived from Teleport mints as minted * 0.35 / 99.65.",
     [UNWRAP_FEE]: "feeAmount from LiquidityManager Unwrapped events; the rate rises as liquidity falls below target (zBNB is exempt).",
   },
   Revenue: {
+    [V2_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
     [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
     [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
   },
   ProtocolRevenue: {
+    [V2_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
     [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
     [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
   },
