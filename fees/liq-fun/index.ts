@@ -1,8 +1,9 @@
-// liq.fun — what traders pay on profitable closes (an impact haircut on the
-// gain and a 2% fee on the gain after it), plus the protocol's 2% cut of what
-// losing closes and liquidations pay into the LP pool. The LP pool is
-// protocol-owned (nobody can deposit into it), so everything is revenue.
-// Deposits sit on Solana, but trades settle off-chain on the protocol's own
+// liq.fun PERPS — the protocol's two fees on flash perps: 2% of the gain on a
+// profitable close (after the impact haircut), and 2% of the margin lost on a
+// losing close or liquidation, taken from what the LP pool receives.
+// The impact haircut is not a fee: it is how the payout curve prices a win,
+// and the LP pool is the trader's counterparty, so what it keeps or pays is
+// trading PnL, not revenue. Trades settle off-chain on the protocol's own
 // server, so fees are attributed to off_chain.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -12,15 +13,13 @@ const STATS = "https://relay.liq.fun/stats";
 
 const fetch = async (options: FetchOptions) => {
   const s = await httpGet(`${STATS}?from=${options.startTimestamp}&to=${options.endTimestamp}`);
+  if (typeof s?.feesUsd !== "number" || typeof s?.winFeeUsd !== "number") throw new Error("liq.fun stats: fee fields missing");
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
-  for (const b of [dailyFees, dailyUserFees]) {
-    b.addUSDValue(s.winHaircutUsd, "Win Haircut");
-    b.addUSDValue(s.winFeeUsd, "Win Fee");
-  }
-  // feesUsd is the protocol's two fees together: the win fee and 2% of losses.
-  // The loss fee comes out of what the LP pool receives, not on top of the
-  // trader's loss, so it is a fee to the protocol and not one traders pay
+  dailyFees.addUSDValue(s.winFeeUsd, "Win Fee");
+  dailyUserFees.addUSDValue(s.winFeeUsd, "Win Fee");
+  // feesUsd is the two fees together; the loss fee comes out of what the LP
+  // pool receives, not on top of the trader's loss, so it is not a user fee.
   dailyFees.addUSDValue(Math.max(0, s.feesUsd - s.winFeeUsd), "Loss Fee");
   return {
     dailyFees,
@@ -37,25 +36,26 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-10-12",
   methodology: {
-    Fees: "On profitable closes, an impact haircut on the gain and a 2% fee on the gain after the haircut; on losing closes and liquidations, a 2% fee on the margin lost, taken by the protocol from what the LP pool receives.",
-    UserFees: "The haircut and the win fee on profitable closes. The loss fee is not included: it comes out of the LP pool's receipt, not on top of the trader's loss.",
-    Revenue: "All fees (Win Haircut, Win Fee, Loss Fee) are kept: the haircut stays in the protocol-owned LP pool and the win fee goes to the protocol.",
-    ProtocolRevenue: "All fees (Win Haircut, Win Fee, Loss Fee) are kept by the protocol.",
+    Fees: "2% of the trader's gain on profitable perp closes plus 2% of the margin lost on losing closes and liquidations; the impact haircut on wins and the LP pool's trading profit or loss against traders are not counted.",
+    UserFees: "The 2% fee traders pay on the gain of a profitable perp close; the 2% loss fee is excluded because it is taken from what the LP pool receives, not charged on top of the trader's loss.",
+    Revenue: "The 2% fee on profitable perp-close gains and the 2% fee on margin lost in losing closes and liquidations, all kept by the protocol.",
+    ProtocolRevenue: "The 2% fee on profitable perp-close gains and the 2% fee on margin lost in losing closes and liquidations, all kept by the protocol.",
   },
   breakdownMethodology: {
     Fees: {
-      "Win Haircut": "Impact haircut on the gain of a profitable close, sized by the price move; kept by the protocol-owned LP pool.",
-      "Win Fee": "2% of the gain after the haircut on a profitable close.",
-      "Loss Fee": "2% of the margin lost on a losing close or liquidation.",
+      "Win Fee": "2% of the trader's gain on a profitable close, charged after the impact haircut.",
+      "Loss Fee": "2% of the margin lost on a losing close or liquidation, taken out of what the LP pool receives.",
     },
     UserFees: {
-      "Win Haircut": "Impact haircut on the gain of a profitable close, paid by the trader.",
-      "Win Fee": "2% of the gain after the haircut on a profitable close, paid by the trader.",
+      "Win Fee": "2% of the gain on a profitable close, paid by the trader.",
     },
     Revenue: {
-      "Win Haircut": "Kept by the protocol-owned LP pool.",
-      "Win Fee": "Kept by the protocol.",
-      "Loss Fee": "Kept by the protocol.",
+      "Win Fee": "2% fee on the gain of profitable closes, kept by the protocol.",
+      "Loss Fee": "2% fee on the margin lost in losing closes and liquidations, kept by the protocol.",
+    },
+    ProtocolRevenue: {
+      "Win Fee": "2% fee on the gain of profitable closes, kept by the protocol.",
+      "Loss Fee": "2% fee on the margin lost in losing closes and liquidations, kept by the protocol.",
     },
   },
 };
