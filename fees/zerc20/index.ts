@@ -31,7 +31,8 @@ const UNWRAPPED_EVENT = "event Unwrapped(address indexed caller, address indexed
 
 const REDEEM_FEE = "Redeem Fees";
 const UNWRAP_FEE = "Unwrap Fees";
-const V2_FEE = "Withdrawal Fees (v2)";
+const V2_WITHDRAW_FEE = "Withdrawal Fees (v2)";
+const V2_MERGE_FEE = "Merge Fees (v2)";
 
 // ── v2 ──────────────────────────────────────────────────────────────────────
 const V2_VERIFIER = "0x4D14355C3fC905446908d70190eADf36F34DB711";
@@ -42,6 +43,7 @@ const V2_LIVE = 1792454400; // 2026-10-20 00:00 UTC
 // Kaia is a v1-only chain.
 const V2_CHAINS = new Set<string>([CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.BSC, CHAIN.POLYGON]);
 const FEE_ACCRUED_EVENT = "event FeeAccrued(uint32 indexed tokenId, address indexed recipient, uint256 amount)";
+const MERGED_EVENT = "event Merged(address indexed caller, uint32 indexed tokenId, uint256 indexed commitmentRoot, uint256 inputCount, uint256 noteHash, uint64 noteIndex)";
 
 type Asset = { token: string; liquidityManager?: string; add: (balances: any, amount: bigint, label: string) => void };
 
@@ -99,18 +101,27 @@ async function fetch(options: FetchOptions) {
  * v2 protocol fees, read exactly from the Verifier's FeeAccrued events. Every v2 withdrawal
  * emits one carrying the fee it withheld (cross-checked 2026-11-03: equal to
  * Transacted.feeAmount on all 80 withdrawals indexed, and 0.35% of each, the entry tier).
+ * Merges accrue a small fee too, through the same event; a FeeAccrued in the same
+ * transaction as a Merged event is labelled as a merge fee, every other one as a
+ * withdrawal fee, so the breakdown shows which operation paid it.
  * Token ids are assigned per chain, so each is resolved through ZERC20Factory.tokenById and
  * the zToken's underlyingAsset — a newly listed token needs no change here.
  */
 async function addV2Fees(options: FetchOptions, dailyFees: any) {
   if (!V2_CHAINS.has(options.chain) || options.endTimestamp < V2_LIVE) return;
-  const logs = await options.getLogs({ target: V2_VERIFIER, eventAbi: FEE_ACCRUED_EVENT });
-  if (!logs.length) return;
+  const feeLogs = await options.getLogs({ target: V2_VERIFIER, eventAbi: FEE_ACCRUED_EVENT, onlyArgs: false });
+  if (!feeLogs.length) return;
+  const mergeLogs = await options.getLogs({ target: V2_VERIFIER, eventAbi: MERGED_EVENT, onlyArgs: false });
+  const mergeTxs = new Set(mergeLogs.map((l: any) => l.transactionHash.toLowerCase()));
 
-  const byTokenId = new Map<number, bigint>();
-  for (const log of logs) {
-    const id = Number(log.tokenId);
-    byTokenId.set(id, (byTokenId.get(id) ?? 0n) + BigInt(log.amount));
+  // tokenId -> { withdraw, merge } totals
+  const byTokenId = new Map<number, { withdraw: bigint; merge: bigint }>();
+  for (const log of feeLogs) {
+    const id = Number(log.args.tokenId);
+    const entry = byTokenId.get(id) ?? { withdraw: 0n, merge: 0n };
+    if (mergeTxs.has(log.transactionHash.toLowerCase())) entry.merge += BigInt(log.args.amount);
+    else entry.withdraw += BigInt(log.args.amount);
+    byTokenId.set(id, entry);
   }
   const ids = [...byTokenId.keys()];
   const zTokens: string[] = await options.api.multiCall({
@@ -119,31 +130,38 @@ async function addV2Fees(options: FetchOptions, dailyFees: any) {
     abi: "function underlyingAsset() view returns (address)", calls: zTokens });
 
   ids.forEach((id, i) => {
-    const amount = byTokenId.get(id)!;
-    if (underlyings[i].toLowerCase() === NATIVE) dailyFees.addGasToken(amount, V2_FEE);
-    else dailyFees.add(underlyings[i], amount, V2_FEE);
+    const { withdraw, merge } = byTokenId.get(id)!;
+    const isNative = underlyings[i].toLowerCase() === NATIVE;
+    for (const [amount, label] of [[withdraw, V2_WITHDRAW_FEE], [merge, V2_MERGE_FEE]] as [bigint, string][]) {
+      if (amount === 0n) continue;
+      if (isNative) dailyFees.addGasToken(amount, label);
+      else dailyFees.add(underlyings[i], amount, label);
+    }
   });
 }
 
 const methodology = {
-  Fees: "v2: the protocol fee on withdrawals (tiered, 0.35% under $10k down to 0.08% above $10M), read exactly from the Verifier's FeeAccrued events. v1: a 0.35% redeem fee on private transfers (withheld before zAssets are minted, live 2026-06-02) plus liquidity-based unwrap fees from the LiquidityManagers. Relayer and third-party referral fees are not included.",
+  Fees: "v2: the protocol fee on withdrawals (tiered, 0.35% under $10k down to 0.08% above $10M) plus the small fee accrued on note merges, both read exactly from the Verifier's FeeAccrued events. v1: a 0.35% redeem fee on private transfers (withheld before zAssets are minted, live 2026-06-02) plus liquidity-based unwrap fees from the LiquidityManagers. Relayer and third-party referral fees are not included.",
   Revenue: "All protocol fees are retained by the protocol: v2 fees accrue to the Verifier's fee recipient; the v1 redeem fee is never minted and v1 unwrap fees accrue to the LiquidityManager fee surplus.",
   ProtocolRevenue: "All protocol fees are retained by the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [V2_FEE]: "v2 protocol fee withheld on each withdrawal, from FeeAccrued; tiered by size.",
+    [V2_WITHDRAW_FEE]: "v2 protocol fee withheld on each withdrawal, from FeeAccrued; tiered by size.",
+    [V2_MERGE_FEE]: "v2 fee accrued when notes are merged, from FeeAccrued in a transaction that also emits Merged.",
     [REDEEM_FEE]: "0.35% of the gross private-transfer amount, derived from Teleport mints as minted * 0.35 / 99.65.",
     [UNWRAP_FEE]: "feeAmount from LiquidityManager Unwrapped events; the rate rises as liquidity falls below target (zBNB is exempt).",
   },
   Revenue: {
-    [V2_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
+    [V2_WITHDRAW_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
+    [V2_MERGE_FEE]: "v2 merge fees accrued to the protocol's fee recipient.",
     [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
     [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
   },
   ProtocolRevenue: {
-    [V2_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
+    [V2_WITHDRAW_FEE]: "v2 withdrawal fees accrued to the protocol's fee recipient.",
+    [V2_MERGE_FEE]: "v2 merge fees accrued to the protocol's fee recipient.",
     [REDEEM_FEE]: "Redeem fee withheld by the protocol.",
     [UNWRAP_FEE]: "Unwrap fees added to the LiquidityManager fee surplus.",
   },
