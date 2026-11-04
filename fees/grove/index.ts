@@ -54,6 +54,22 @@ const chainConfig = {
                 vaultDecimals: 18,
                 assetDecimals: 6,
             },
+            // Grove x Steakhouse USDC vaults in Grove's address registry:
+            // https://github.com/grove-labs/grove-address-registry/blob/622981e83411fa675672073476cbf45d6777c2b5/src/Ethereum.sol#L192-L193
+            {
+                // first ALM proxy deposit 2026-01-02 (fully withdrawn 2026-03-17): 0xb07450850e7eb441488fb51bc0879462d5f5ca3bfb45ca73f7e821e5cae3b22b
+                vault: "0xBEEf2B5FD3D94469b7782aeBe6364E6e6FB1B709",
+                name: "grove-bbqUSDC",
+                vaultDecimals: 18,
+                assetDecimals: 6,
+            },
+            {
+                // first ALM proxy deposit 2026-02-02: 0x9ef4800ca7c47a990b131177ece1613f1939d404f007330a14ed8bfbcd8364d8
+                vault: "0xBeefF08dF54897e7544aB01d0e86f013DA354111",
+                name: "grove-bbqUSDC",
+                vaultDecimals: 18,
+                assetDecimals: 6,
+            },
         ]
     },
     [CHAIN.AVAX]: {
@@ -89,6 +105,22 @@ const chainConfig = {
             {
                 vault: "0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9",
                 name: "steakUSDC",
+                vaultDecimals: 18,
+                assetDecimals: 6,
+            },
+            // Grove x Steakhouse USDC vaults in Grove's address registry:
+            // https://github.com/grove-labs/grove-address-registry/blob/622981e83411fa675672073476cbf45d6777c2b5/src/Base.sol#L58-L59
+            {
+                // first ALM proxy deposit 2026-01-19 (fully withdrawn 2026-10-14): 0x2c1593ed789ee008a92515444a1f3c76cfd21dea20901da0bd05ddb762ccc1b6
+                vault: "0xBeEf2d50B428675a1921bC6bBF4bfb9D8cF1461A",
+                name: "grove-bbqUSDC",
+                vaultDecimals: 18,
+                assetDecimals: 6,
+            },
+            {
+                // first ALM proxy deposit 2026-09-28: 0xb7ecfefb5a9fda1939ec663ea8717e51738bb220671cdd87ffe8dd24cf438c91
+                vault: "0xbeef0786756810478b88982DE00F3CD7fdB8e7c7",
+                name: "grove-steakUSDC",
                 vaultDecimals: 18,
                 assetDecimals: 6,
             },
