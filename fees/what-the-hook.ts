@@ -196,10 +196,13 @@ const V2_EXECUTORS = [
   "0x867e78db593f0e783370cc75ebe162cb5b83877b", // gen-17, 2026-10-10 to 10-13
   // https://robin.etherscan.io/address/0x150776A8c3baa8B22b49d40694b22b9C1D6FdB3C
   "0x150776a8c3baa8b22b49d40694b22b9c1d6fdb3c", // minutes on 2026-10-13, thirteen distributions
-  // gen-18, from 2026-10-13 (first distribution at block 87527285): the v2
+  // gen-18, 2026-10-13 (first distribution at block 87527285) to 10-28: the v2
   // hook's executor and DELTA's, and the first to emit PartnerRevenue
   // https://robin.etherscan.io/address/0xF2Ca86F11d46b8b1DE41974012052d93ef2785aC
   "0xf2ca86f11d46b8b1de41974012052d93ef2785ac",
+  // gen-20, both hooks' executor since 2026-10-28 (first distribution at block 100054086)
+  // https://robin.etherscan.io/address/0xF3Cb5d18Efc11bb05a9CC86F3eaf763d6CB6Bb83
+  "0xf3cb5d18efc11bb05a9cc86f3eaf763d6cb6bb83",
 ];
 const V2_EXECUTOR_SET = new Set(V2_EXECUTORS);
 const ALL_EXECUTORS = [...EXECUTORS, ...V2_EXECUTORS];
