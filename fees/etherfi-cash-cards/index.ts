@@ -111,6 +111,8 @@ const fetch = async (options: FetchOptions) => {
             // award(): `amount` of `token` is paid. awardStaked(): `token` is sETHFI, and the shares paid are `sEthfiAmount`
             const amount = log.sEthfiAmount > 0 ? log.sEthfiAmount : log.amount;
             // ether.fi funds this cashback, so it is a cost: supply side, netted from revenue under the same label. Fees are unchanged.
+            // The event has no product tag: the distributor also pays ether.fi's trade and borrow cashback. Over 2026-09-17..11-01,
+            // awards beyond 4% of each recipient's own card spend, plus awards to safes with no card spend, were 0.7% of the total.
             dailySupplySideRevenue.add(log.token, amount, MetricLabels.CASHBACKS);
             dailyRevenue.subtractToken(log.token, amount, MetricLabels.CASH_TRANSACTION_FEES);
         })
@@ -146,7 +148,7 @@ const adapter: SimpleAdapter = {
         Fees: "All fees from EtherFi Cash card spends on Scroll and Optimism: the 1.38% transaction fee, plus cashback recorded by the Cash contract's Cashback event. ETHFI cashback is paid by ether.fi, so it is a cost and not a fee.",
         Revenue: "1.38% transaction fees on EtherFi Cash card spends, minus the ETHFI cashback that ether.fi pays to card users.",
         ProtocolRevenue: "1.38% transaction fees on EtherFi Cash card spends kept by ether.fi, minus the ETHFI cashback it pays to card users.",
-        SupplySideRevenue: "Cashback paid to card users: cashback recorded by the Cash contract's Cashback event, and ETHFI cashback that ether.fi funds and pays through its CashbackDistributor on Optimism.",
+        SupplySideRevenue: "Cashback paid to card users: cashback recorded by the Cash contract's Cashback event, and ETHFI cashback that ether.fi funds and pays through its CashbackDistributor on Optimism (which also pays a small share of trade and borrow cashback that the contract does not tag).",
         HoldersRevenue: "No revenue share to ETHFI holders",
     },
     breakdownMethodology: {
