@@ -193,7 +193,7 @@ const breakdownMethodology = {
 }
 
 // chains currently listed by the ASP feed; all production contracts were deployed 2026-09-01
-const chains = [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.CITREA, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.ROBINHOOD];
+const chains = [CHAIN.ETHEREUM, CHAIN.BSC, CHAIN.OPTIMISM, CHAIN.BASE, CHAIN.ARBITRUM, CHAIN.ROBINHOOD];
 
 const adapter: SimpleAdapter = {
   version: 2,
