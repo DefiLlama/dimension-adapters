@@ -160,26 +160,26 @@ const adapter: SimpleAdapter = {
       },
     },
     methodology: {
-        Volume: "Total spending volumes using EtherFi Cash services.",
-        Fees: "All fees from EtherFi Cash card spends on Scroll and Optimism: the 1.38% transaction fee, plus cashback recorded by the Cash contract's Cashback event. ETHFI cashback is paid by ether.fi, so it is a cost and not a fee.",
-        Revenue: "1.38% transaction fees on EtherFi Cash card spends, minus the ETHFI cashback that ether.fi pays to card users.",
-        ProtocolRevenue: "1.38% transaction fees on EtherFi Cash card spends kept by ether.fi, minus the ETHFI cashback it pays to card users.",
-        SupplySideRevenue: "Cashback paid to card users: cashback recorded by the Cash contract's Cashback event, and ETHFI cashback that ether.fi funds and pays through its CashbackDistributor on Optimism (which also pays a small share of trade and borrow cashback that the contract does not tag).",
-        HoldersRevenue: "No revenue share to ETHFI holders",
+        Volume: "Card spending volume on EtherFi Cash.",
+        Fees: "Estimated 1.38% transaction fee on EtherFi Cash card spending, plus cashback paid to card users through the Cash contract.",
+        Revenue: "Estimated 1.38% transaction fee on card spending, minus the ETHFI cashback ether.fi pays to card users.",
+        ProtocolRevenue: "Estimated 1.38% transaction fee on card spending kept by ether.fi, minus the ETHFI cashback it pays to card users.",
+        SupplySideRevenue: "Cashback paid to card users: stablecoin or ETH cashback through the Cash contract, and ETHFI cashback bought with card revenue and paid through the CashbackDistributor.",
+        HoldersRevenue: "No revenue is distributed to ETHFI holders.",
     },
     breakdownMethodology: {
         Fees: {
-            [MetricLabels.CASH_TRANSACTION_FEES]: '1.38% transaction fees from EtherFi Cash card usage on Scroll and Optimism',
-            [MetricLabels.CASHBACKS]: 'Cashback paid to card users, as recorded by the Cash contract Cashback event',
+            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending',
+            [MetricLabels.CASHBACKS]: 'Cashback paid to card users through the Cash contract',
         },
         Revenue: {
-            [MetricLabels.CASH_TRANSACTION_FEES]: '1.38% transaction fees from EtherFi Cash card usage, minus the ETHFI cashback ether.fi pays to card users',
+            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending, minus ETHFI cashback paid to card users',
         },
         ProtocolRevenue: {
-            [MetricLabels.CASH_TRANSACTION_FEES]: '1.38% transaction fees from EtherFi Cash card usage, minus the ETHFI cashback ether.fi pays to card users',
+            [MetricLabels.CASH_TRANSACTION_FEES]: 'Estimated 1.38% transaction fee on card spending, minus ETHFI cashback paid to card users',
         },
         SupplySideRevenue: {
-            [MetricLabels.CASHBACKS]: 'Cashback recorded by the Cash contract Cashback event, plus ETHFI cashback ether.fi pays from its own funds through the CashbackDistributor',
+            [MetricLabels.CASHBACKS]: 'Cashback paid to card users through the Cash contract and ETHFI cashback through the CashbackDistributor',
         },
     },
     unknownBreakdownMethodology: {
