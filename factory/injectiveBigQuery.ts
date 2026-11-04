@@ -42,7 +42,7 @@ function isRecentDate(dateString: string): boolean {
 
 /** Build a daily volume adapter that rejects nonmatching rows before considering live fallback. */
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
-  /** Accept matching daily data; retain recent live fallback only when no single conflicting row exists. */
+  /** Accept matching daily data; retain recent live fallback only when BigQuery returned no rows. */
   const fetch = async (options: FetchOptions) => {
     let hasMismatchedDailyRow = false;
     try {
@@ -50,12 +50,12 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
       if (res && Array.isArray(res.days) && res.days.length === 1 && res.days[0]?.date === options.dateString) {
         return { dailyVolume: res.total_volume_usd };
       }
-      hasMismatchedDailyRow = Boolean(res && Array.isArray(res.days) && res.days.length === 1);
+      hasMismatchedDailyRow = Boolean(res && Array.isArray(res.days) && res.days.length > 0);
     } catch {
       // BigQuery offline or request failed
     }
 
-    // A live snapshot cannot replace a daily row with a conflicting or missing date.
+    // Live snapshot only covers BigQuery lag (no rows); never replace rows returned for another date.
     if (config.fallbackEndpoint && !hasMismatchedDailyRow && isRecentDate(options.dateString)) {
       const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
       if (liveVolume > 0) {
