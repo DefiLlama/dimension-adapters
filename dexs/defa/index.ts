@@ -48,7 +48,8 @@ const methodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   methodology,
   fetch,
   adapter: {
