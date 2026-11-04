@@ -95,16 +95,14 @@ const fetch = async (options: FetchOptions) => {
     const tokens = [...new Set(lotteries.filter(isErc20Sale).map((lottery: any) => lottery.params.asset.toLowerCase()))];
     const treasuries = [...new Set((await api.multiCall({ abi: ABI.treasury, calls: [USER_LOTTERY_MANAGER, PROTOCOL_LOTTERY_MANAGER] })).map((t: string) => t.toLowerCase()))];
     if (tokens.length) {
-      for (const treasury of treasuries) {
-        const toTreasury = await addTokensReceived({
-          options,
-          target: treasury,
-          tokens,
-          logFilter: (log: any) => !!buyersByTx[log.transactionHash.toLowerCase()]?.has(log.from.toLowerCase()),
-        });
-        dailyFees.addBalances(toTreasury, LABELS.TICKET_PROTOCOL_FEES);
-        dailyRevenue.addBalances(toTreasury, LABELS.TICKET_PROTOCOL_FEES_TO_TREASURY);
-      }
+      const toTreasury = await addTokensReceived({
+        options,
+        targets: treasuries,
+        tokens,
+        logFilter: (log: any) => !!buyersByTx[log.transactionHash.toLowerCase()]?.has(log.from.toLowerCase()),
+      });
+      dailyFees.addBalances(toTreasury, LABELS.TICKET_PROTOCOL_FEES);
+      dailyRevenue.addBalances(toTreasury, LABELS.TICKET_PROTOCOL_FEES_TO_TREASURY);
     }
   }
 
