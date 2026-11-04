@@ -184,6 +184,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: Object.fromEntries(Object.entries(config).map(([chain, { start }]) => [chain, { start }])),
   methodology,

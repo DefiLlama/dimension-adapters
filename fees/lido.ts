@@ -123,6 +123,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
+  version: 2,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2020-12-19',

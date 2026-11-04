@@ -124,7 +124,8 @@ const adapters: Adapter = {
         [CHAIN.POLYGON_ZKEVM]: { fetch: fetch, start: '2024-02-01', },
         // [CHAIN.XLAYER]: { fetch: fetch, start: '2024-04-28', }
     },
-    version: 2
+    version: 2,
+    pullHourly: true,
 }
 
 export default adapters;

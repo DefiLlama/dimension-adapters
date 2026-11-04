@@ -54,8 +54,11 @@ const methodology = {
   Revenue: "0.15% Annual Management fee collected by Invesco",
 };
 
+// no pullHourly: NAV comes from a once-a-day oracle print and intra-day negative prints are netted
+// in a daily window but fail (negative value) in an hourly one, inflating the hourly sum ~15%
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false,
   methodology,
   fetch,
   chains: [CHAIN.ETHEREUM, CHAIN.PLUME],

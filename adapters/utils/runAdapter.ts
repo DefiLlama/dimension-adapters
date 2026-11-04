@@ -364,7 +364,14 @@ async function _runAdapter({
     }
     const toTimestamp = timestamp - 1
     const fromTimestamp = timestamp - windowSize
-    const getFromBlock = async () => await getBlock(fromTimestamp, chain)
+    // Consecutive windows tile by timestamp (this fromTimestamp === previous toTimestamp + 1), but
+    // getBlock(fromTimestamp) and getBlock(previous toTimestamp) usually resolve to the same block, so
+    // that block's logs were counted in both windows (every hourly slot on ethereum). Start this window
+    // one block after the previous window's end block instead. Non-EVM chains return null, keep that.
+    const getFromBlock = async () => {
+      const previousToBlock = await getBlock(fromTimestamp - 1, chain)
+      return typeof previousToBlock === 'number' ? previousToBlock + 1 : previousToBlock
+    }
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei',])
 

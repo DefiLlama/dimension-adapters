@@ -65,6 +65,7 @@ const adapter: SimpleAdapter = {
     Revenue: "The protocol doesn't keep any fees"
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ETHEREUM]: {
       fetch: fetch,

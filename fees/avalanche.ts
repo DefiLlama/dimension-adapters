@@ -4,6 +4,7 @@ import { getTokenDiff } from "../helpers/token";
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.AVAX]: {
       fetch: async (options: FetchOptions) => {

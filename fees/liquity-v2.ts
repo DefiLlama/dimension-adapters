@@ -30,6 +30,7 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   start: '2025-01-24',
   chains: [CHAIN.ETHEREUM],

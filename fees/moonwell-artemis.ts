@@ -115,8 +115,7 @@ function moonwellArtemisExport(config: { moonbeam: string }) {
             }),
         }
     })
-    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
-    return { adapter: exportObject, pullHourly: true, allowNegativeValue: true, methodology, } as SimpleAdapter
+    return { adapter: exportObject, version: 2, pullHourly: true, allowNegativeValue: true, methodology, } as SimpleAdapter
 }
 
 export default moonwellArtemisExport({ moonbeam: moonbeamUnitroller });

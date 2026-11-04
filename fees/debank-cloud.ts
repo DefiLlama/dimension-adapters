@@ -89,6 +89,7 @@ const adapter: Adapter = {
   methodology,
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(
     Object.keys(config).map((chain) => [chain, { fetch }])
   ),

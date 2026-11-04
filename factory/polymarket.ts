@@ -1,4 +1,7 @@
-import { polymarketBuilderExports, polymarketV2BuilderFeesExports } from "../helpers/polymarket";
+import ADDRESSES from "../helpers/coreAssets.json";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { getPolymarketVolume, polymarketBuilderExports, polymarketV2BuilderFeesExports } from "../helpers/polymarket";
 import { createFactoryExports } from "./registry";
 
 // builderCode values sourced from https://data-api.polymarket.com/v1/builders/volume
@@ -59,9 +62,95 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "wallet-v-predictions": { builderName: "Wallet V", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04", start: "2026-09-09" },
 }
 
+// Polymarket-style CTF exchanges on other chains: OrderFilled logs of the listed exchange contracts, the collateral
+// (asset id 0) leg of each fill halved for the maker + taker double count, as in the Polymarket methodology.
+type CtfExchangeConfig = {
+  chain: CHAIN;
+  exchanges: string[];
+  currency: string; // the exchange collateral, or the priced token it is 1:1 with
+  start: string;
+  methodology?: Record<string, string>;
+  extraReturnFields?: Record<string, any>;
+};
+
+const ctfExchangeMethodology = {
+  Volume: "Trading volume from OrderFilled events on the CTF exchanges. Only the collateral side of each fill is counted and amounts are halved to correct for the maker + taker double counting, matching the Polymarket methodology.",
+  NotionalVolume: "Notional volume (1 collateral unit = 1 outcome token) traded through OrderFilled events on the CTF exchanges.",
+};
+
+const ctfExchangeConfigs: Record<string, CtfExchangeConfig> = {
+  "hermes-trade": {
+    // Hermes Trade - Polymarket-style prediction market CLOB on Monad: CTFExchange (regular / sports) and NegRiskCtfExchange.
+    // The exchange collateral (assetId 0) is USDW (0xb7bD080Df56FA76ce6CA4fA737d47815f7F8e746), a $1 receipt token 1:1 with
+    // USDC that shares USDC's 6 decimals. USDW is not priced by DefiLlama, so the collateral-side fills are valued with the priced USDC feed.
+    chain: CHAIN.MONAD, start: "2026-05-18", currency: ADDRESSES.monad.USDC,
+    exchanges: ["0x017641abFa4264121237023f9Fe678BF00F60De8", "0x50b7B00EE75F8bFb5cDa892883aFb3867851c738"],
+    methodology: {
+      Volume: "Trading volume from OrderFilled events on the Hermes Trade CLOB exchanges (regular + NegRisk). Only the collateral (USDW, valued as USDC) side of each fill is counted and amounts are halved to correct for the maker + taker double counting, matching the Polymarket methodology.",
+    },
+  },
+  "pred": {
+    // https://pred-1.gitbook.io/pred-docs, https://github.com/orgs/pred-org/repositories
+    chain: CHAIN.BASE, start: "2026-02-05", currency: ADDRESSES.base.USDC,
+    exchanges: [
+      "0x03C6c6fbdc0c719Dc878fCe24deBaBC31B2B4a27", // CTF_EXCHANGE
+      "0x90B036c618196634200F0323c420C50CdBBCf07C", // NEG_RISK_CTF_EXCHANGE
+      "0xd3460060A8363C24babC411a11444d5d985342EF", // CROSS_MATCHING_ADAPTER
+      "0x3d6726aF35Ae695E056e6e2ebDB5c813b7d8B6CC", // NEG_RISK_CTF_EXCHANGE_LEGACY
+      "0x74AD4708928628c20608F10751EaFBE391197b0F", // CROSS_MATCHING_ADAPTER_LEGACY
+      "0xcc9D4EA7c86f2d6d67a44BC5e7A8932699ddDDa1", // NEG_RISK_CTF_EXCHANGE_LEGACY_V2
+      "0x7B39c530C3F2Ea4056f1a3bBa777F82bBDFB047A", // CROSS_MATCHING_ADAPTER_LEGACY_V2
+      "0x1938Af63B717B80ea62ccB4CCBf799F8a28dEFB0", // NEG_RISK_CTF_EXCHANGE_LEGACY_V3
+      "0xC574A05e622A769e6aB14293070cDF6cADB55F98", // CROSS_MATCHING_ADAPTER_LEGACY_V3
+    ],
+  },
+  "predict-fun": {
+    chain: CHAIN.BSC, start: "2025-11-22", currency: ADDRESSES.bsc.USDT,
+    exchanges: [
+      '0x6bEb5a40C032AFc305961162d8204CDA16DECFa5', // CTFExchange - Yield Bearing
+      '0x8A289d458f5a134bA40015085A8F50Ffb681B41d', // NegRiskCtfExchange - Yield Bearing
+      '0x8BC070BEdAB741406F4B1Eb65A72bee27894B689', // CTFExchange - Non Yield
+      '0x365fb81bd4A24D6303cd2F19c349dE6894D8d58A', // NegRiskCtfExchange - Non Yield
+    ],
+  },
+  "probable": {
+    chain: CHAIN.BSC, start: "2025-12-09", currency: ADDRESSES.bsc.USDT,
+    exchanges: ["0xf99f5367ce708c66f0860b77b4331301a5597c86"],
+    extraReturnFields: { dailyFees: 0 }, // no fees
+  },
+  "prophet-market": {
+    // Prophet Market is an on-chain prediction market on Polygon where outcomes are settled through AI-powered resolution.
+    // Each trade settles through an OrderFilled event on the ProphetCTFExchange (deployed at block 86244025), where one leg
+    // is native USDC collateral (asset id 0) and the other is an ERC-1155 outcome token (a non-zero id).
+    chain: CHAIN.POLYGON, start: "2026-05-01", currency: ADDRESSES.polygon.USDC_CIRCLE,
+    exchanges: ["0x127aD3A6e55EbBDaecC0eaeb12615879611e1839"],
+    methodology: {
+      Volume: "USDC volume traded through OrderFilled events on Prophet's CTF exchange. Only the collateral (USDC) side of each fill is counted and amounts are halved to correct for maker + taker double counting, matching the Polymarket methodology.",
+      NotionalVolume: "Notional volume (1 USDC = 1 outcome token) traded through OrderFilled events on Prophet's CTF exchange.",
+    },
+  },
+};
+
+function ctfExchangeExports({ chain, exchanges, currency, start, methodology, extraReturnFields }: CtfExchangeConfig): SimpleAdapter {
+  return {
+    version: 2,
+    pullHourly: true,
+    chains: [chain],
+    start,
+    methodology: { ...ctfExchangeMethodology, ...methodology },
+    fetch: async (options: FetchOptions) => {
+      const { dailyVolume, dailyNotionalVolume } = await getPolymarketVolume({ options, exchanges, currency });
+      return { dailyVolume, dailyNotionalVolume, ...(extraReturnFields ?? {}) };
+    },
+  };
+}
+
 const dexsProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(dexsConfigs)) {
   dexsProtocols[name] = polymarketBuilderExports(config);
+}
+for (const [name, config] of Object.entries(ctfExchangeConfigs)) {
+  dexsProtocols[name] = ctfExchangeExports(config);
 }
 
 const feesProtocols: Record<string, any> = {};

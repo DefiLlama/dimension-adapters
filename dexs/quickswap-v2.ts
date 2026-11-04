@@ -22,7 +22,8 @@ const mkFetch = (factory: string) => (options: FetchOptions) =>
   getUniV2LogAdapter({ factory, ...getFeeConfig(options.startOfDay) })(options);
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.POLYGON]: { fetch: mkFetch('0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32'), start: '2020-10-09' },
     [CHAIN.BASE]: { fetch: mkFetch('0xEC6540261aaaE13F236A032d454dc9287E52e56A'), start: '2025-06-04' },
