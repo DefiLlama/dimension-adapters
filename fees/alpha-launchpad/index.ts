@@ -81,7 +81,9 @@ const fetch = async (options: FetchOptions) => {
     const tradeLogs = await options.getLogs({ targets: markets, eventAbi: TRADE, flatten: false });
 
     tradeLogs.forEach((trades: any[], i: number) => {
-      const creatorBps = CREATOR_FEE_BPS[presets[markets[i].toLowerCase()]];
+      const market = markets[i].toLowerCase();
+      const creatorBps = CREATOR_FEE_BPS[presets[market]];
+      if (creatorBps === undefined) throw new Error(`alpha-launchpad: unknown fee preset ${presets[market]} for market ${market} on ${options.chain}`);
       for (const trade of trades) {
         // Trade.fee is the total fee in the market's quote asset.
         const fee = BigInt(trade.fee);
