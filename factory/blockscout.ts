@@ -12,7 +12,7 @@ const protocolChainMap: Record<string, string> = {
   "bitcichain": CHAIN.BITCICHAIN,
   "bitgert": CHAIN.BITGERT,
   "canto": CHAIN.CANTO,
-  "celo": CHAIN.CELO,
+  // "celo": CHAIN.CELO, moved to fees/celo.ts to price gas paid in fee currencies
   "chiliz": CHAIN.CHILIZ,
   "corn": CHAIN.CORN,
   "cronos": CHAIN.CRONOS,
