@@ -5,16 +5,22 @@ import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../../fees/jupiter"
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
+    // From 2026-10-28 16:47 UTC the program fills with fill_buy_order2 / fill_sell_order2, whose Anchor
+    // discriminators are sha256("global:fill_buy_order2")[0..8] = 850b5e1c096fe5d1 and
+    // sha256("global:fill_sell_order2")[0..8] = 634609a43879ca22. Their data keeps contracts, amount and fee
+    // at the same offsets as v1 (b3 / fb) and appends two u64 fields.
     const query = `
         with trade_data as (
             select
                 BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6 as fees,
                 case
                     when bytearray_substring (data, 1, 1) = from_hex('b3') --buy
+                        or bytearray_substring (data, 1, 8) = from_hex('850b5e1c096fe5d1') --buy v2
                     then 
                         BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6 + 
                         BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 24, 8))) / 1e6
                     when bytearray_substring (data, 1, 1) = from_hex('fb') --sell
+                        or bytearray_substring (data, 1, 8) = from_hex('634609a43879ca22') --sell v2
                     then 
                             BYTEARRAY_TO_BIGINT (BYTEARRAY_REVERSE (BYTEARRAY_SUBSTRING (data, 1 + 16, 8))) / 1e6
                 end as volume
@@ -23,7 +29,9 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
                 and block_time< from_unixtime(${options.toTimestamp})
                 and executing_account = '3ZZuTbwC6aJbvteyVxXUS7gtFYdf7AuXeitx6VyvjvUp'
             and (bytearray_substring (data, 1, 1) = from_hex('fb')
-                or bytearray_substring (data, 1, 1) = from_hex('b3'))
+                or bytearray_substring (data, 1, 1) = from_hex('b3')
+                or bytearray_substring (data, 1, 8) = from_hex('850b5e1c096fe5d1')
+                or bytearray_substring (data, 1, 8) = from_hex('634609a43879ca22'))
             and tx_success
             and cardinality(log_messages) > 10
         )
