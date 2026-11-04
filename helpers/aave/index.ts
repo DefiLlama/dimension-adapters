@@ -196,8 +196,15 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
 
       const windowSeconds = options.toTimestamp - options.fromTimestamp
 
+      // The stored liquidityIndex only moves when the reserve is touched, so the growth we read spans the
+      // time between the two lastUpdateTimestamps, not the run window. Annualize over that span, otherwise
+      // an hourly window in which an idle reserve catches up on days of interest looks like a 1000%+ APR
+      // and the sanity guard below drops real interest (hourly runs undercounted lendle by ~40%).
+      const accrualSeconds = Number(reserveDataAfter[reserveIndex].lastUpdateTimestamp ?? 0) - Number(reserveDataBefore[reserveIndex].lastUpdateTimestamp ?? 0)
+      const annualizeSeconds = accrualSeconds > 0 ? accrualSeconds : windowSeconds
+
       const periodSupplyRate = Number(growthLiquidityIndex) / Number(reserveLiquidityIndexBefore)
-      const annualizedSupplyRate = windowSeconds > 0? periodSupplyRate * SECONDS_PER_YEAR / windowSeconds : periodSupplyRate
+      const annualizedSupplyRate = annualizeSeconds > 0 ? periodSupplyRate * SECONDS_PER_YEAR / annualizeSeconds : periodSupplyRate
       if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
 
       const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore

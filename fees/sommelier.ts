@@ -128,9 +128,11 @@ const breakdownMethodology = {
   },
 }
 
+// no pullHourly: yield is clamped to >0 per vault per window and management fees are only booked in
+// windows with positive growth, so hourly windows overcount vs a daily window (~13% in testing)
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  pullHourly: false,
   adapter: Object.keys(chainConfig).reduce((acc, chain) => ({
     ...acc,
     [chain]: {

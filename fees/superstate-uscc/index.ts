@@ -57,9 +57,11 @@ const methodology = {
     Revenue: "0.75% Annual Management fee collected by Bitwise",
 };
 
+// no pullHourly: NAV comes from a once-a-day oracle print and negative prints are clamped to 0 per
+// window, so hourly windows cannot net intra-day drops and overcount fees ~12% vs daily
 const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
+    pullHourly: false,
     methodology,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.PLUME, CHAIN.SOLANA],
