@@ -17,8 +17,10 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune"
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex"
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
 
   const sql = getSqlFromFile("helpers/queries/jito.sql", {
     start: options.startTimestamp,
