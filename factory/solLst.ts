@@ -341,7 +341,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
 
 function simpleConfig(overrides: Partial<SolLstConfig> & Pick<SolLstConfig, "stakePoolReserveAccount" | "stakePoolWithdrawAuthority" | "lstFeeTokenAccount" | "lstMint" | "start">): SolLstConfig {
   return {
-    fees: {},
+    fees: { metric: METRIC.STAKING_REWARDS },
     supplySide: { enabled: false, ratio: 0 },
     stakingRevenue: { enabled: false, ratio: 0 },
     revenue: { type: "add", mint: overrides.lstMint },
@@ -991,7 +991,7 @@ const doublezeroAdapter = (() => {
 
     results.forEach((row: any) => {
       if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
-        dailyFees.addCGToken("solana", row.amount || 0);
+        dailyFees.addCGToken("solana", row.amount || 0, row.metric_type === "dailyMevRewards" ? METRIC.MEV_REWARDS : METRIC.STAKING_REWARDS);
       } else if (row.metric_type === "dailyRevenue") {
         dailyRevenue.addCGToken(revenueToken, row.amount || 0);
       } else if (row.metric_type === "dailyUserFees") {
@@ -1010,6 +1010,7 @@ const doublezeroAdapter = (() => {
   const adapter: SimpleAdapter = {
     version: 1,
     methodology: withMevMethodology(getMethodology(baseCfg)),
+    breakdownMethodology: withMevBreakdown(baseCfg, getBreakdownMethodology(baseCfg)),
     fetch,
     dependencies: [Dependencies.DUNE],
     chains: [CHAIN.SOLANA],

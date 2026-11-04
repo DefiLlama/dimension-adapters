@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
+import { METRIC } from "../helpers/metrics";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "8Yz53yBLY5M8riwQ2qmJR3cQxiTmBvT9n1GDUJJTJo9";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "GiqwVAud4dH939qajy4F33Cht84kzutxJnGHez4urXnJ";
@@ -30,9 +31,11 @@ const fetch = async (options: FetchOptions) => {
     const results = await queryDuneSql(options, query);
 
     results.forEach((row: any) => {
-      // dailyMevRewards: Jito MEV tips claimed by the pool's stake accounts
-      if (row.metric_type === 'dailyFees' || row.metric_type === 'dailyMevRewards') {
-        dailyFees.addCGToken("solana", row.amount || 0);
+      if (row.metric_type === 'dailyFees') {
+        dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
+      } else if (row.metric_type === 'dailyMevRewards') {
+        // Jito MEV tips claimed by the pool's stake accounts
+        dailyFees.addCGToken("solana", row.amount || 0, METRIC.MEV_REWARDS);
       } else if (row.metric_type === 'dailyRevenue') {
         dailyRevenue.add(LST_MINT, Number(row.amount) * 1e9 || 0);
       } else if (row.metric_type === 'dailyUserFees') {
@@ -46,7 +49,7 @@ const fetch = async (options: FetchOptions) => {
     const exchangeRateBefore = await options.fromApi.call({ target: token, abi: "uint256:exchangeRate" });
     const exchangeRateAfter = await options.toApi.call({ target: token, abi: "uint256:exchangeRate" });
     const df = (totalSupply * (exchangeRateAfter - exchangeRateBefore)) / 1e18 // 15% is the commission for staked ETH
-    dailyFees.add(token, Number(df))
+    dailyFees.add(token, Number(df), METRIC.STAKING_REWARDS)
     dailyRevenue.add(token, Number(df) * 0.15)
   } else {
     throw new Error(`Chain ${options.chain} not supported`);
@@ -65,6 +68,13 @@ const methodology = {
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.STAKING_REWARDS]: 'Staking rewards from staked ETH and SOL on Crypto.com EARN Product',
+    [METRIC.MEV_REWARDS]: "Jito MEV tips claimed by the SOL pool's stake accounts",
+  },
+}
+
 export default {
   version: 1,
   fetch,
@@ -72,4 +82,5 @@ export default {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   methodology,
+  breakdownMethodology,
 };

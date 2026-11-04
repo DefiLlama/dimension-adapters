@@ -79,7 +79,7 @@ WHERE
   const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
   const revenueHolders = dailyRevenue.clone(buybackRatio);
   const revenueProtocol = dailyRevenue.clone(1 - buybackRatio);
-  dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+  dailyProtocolRevenue.add(revenueProtocol);
   dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
   
   return {
@@ -122,7 +122,9 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
-      [JUPITER_METRICS.JupSOLStakingRewards]: "Jupiter DAO's 2.5% of staking rewards (half of the 5% epoch fee).",
+      [JUPITER_METRICS.JupSOLStakingRewards]: "50% of Jupiter DAO's 2.5% of staking rewards goes to treasury/team, it was 100% before 2025-02-17.",
+      [JUPITER_METRICS.JupSOLMevRewards]: "50% of Jupiter DAO's 2.5% of the MEV tips goes to treasury/team, it was 100% before 2025-02-17.",
+      [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "50% of Jupiter DAO's 2.5% of the priority fees goes to treasury/team, it was 100% before 2025-02-17.",
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: '95% of the staking rewards, MEV tips and priority fees are distributed to jupSOL.',
