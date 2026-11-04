@@ -32,26 +32,31 @@ async function fetchFallbackVolume(endpoint: string): Promise<number> {
   }, 0);
 }
 
+/** Whether a requested UTC day is no more than 48 hours old and not in the future. */
 function isRecentDate(dateString: string): boolean {
   const targetTime = new Date(dateString).getTime();
-  const now = Date.now();
+  const age = Date.now() - targetTime;
   // Allow cache fallback only for requests within the last 48 hours
-  return (now - targetTime) <= 48 * 60 * 60 * 1000;
+  return age >= 0 && age <= 48 * 60 * 60 * 1000;
 }
 
+/** Build a daily volume adapter that rejects nonmatching rows before considering live fallback. */
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
+  /** Accept matching daily data; retain recent live fallback only when BigQuery returned no rows. */
   const fetch = async (options: FetchOptions) => {
+    let hasMismatchedDailyRow = false;
     try {
       const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-      if (res && Array.isArray(res.days) && res.days.length === 1) {
+      if (res && Array.isArray(res.days) && res.days.length === 1 && res.days[0]?.date === options.dateString) {
         return { dailyVolume: res.total_volume_usd };
       }
+      hasMismatchedDailyRow = Boolean(res && Array.isArray(res.days) && res.days.length > 0);
     } catch {
       // BigQuery offline or request failed
     }
 
-    // Use live cache only for recent dates, never for historical backfills
-    if (config.fallbackEndpoint && isRecentDate(options.dateString)) {
+    // Live snapshot only covers BigQuery lag (no rows); never replace rows returned for another date.
+    if (config.fallbackEndpoint && !hasMismatchedDailyRow && isRecentDate(options.dateString)) {
       const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
       if (liveVolume > 0) {
         return { dailyVolume: liveVolume };
@@ -70,11 +75,13 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   };
 }
 
+/** Build a fees adapter that requires one row matching the requested day. */
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
+  /** Validate the daily row before attributing fees and revenue to the requested date. */
   const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (!res || !Array.isArray(res.days) || res.days.length !== 1) {
+    if (!res || !Array.isArray(res.days) || res.days.length !== 1 || res.days[0]?.date !== options.dateString) {
       throw new Error("No data found for the given date: " + options.dateString);
     }
     dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
