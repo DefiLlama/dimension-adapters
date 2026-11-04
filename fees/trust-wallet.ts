@@ -2,6 +2,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
+import { getAlliumChain, queryAllium } from "../helpers/allium";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -154,6 +155,20 @@ const fromAdddesses: any = {
   ],
 }
 
+// Swaps that Trust Wallet routes through CoW Swap carry a 70 bps partner fee: app data appCode "Trust wallet",
+// partnerFee { volumeBps: 70, recipient: 0xea5B...334ec }, e.g.
+// https://explorer.cow.fi/orders/0x911c3a9f99e1d25a4010eb1bdbdb4b795757b036236fbbbe0f096f634c92d42a5d0875aab555bb3a604e2ce8e12e7d336ec123316ae528a8?tab=overview
+// CoW Protocol pays it out weekly, in the native token, from its "Solver payouts" Safe 0xa03be496...
+// (https://docs.cow.fi/governance/multisigs) and, on Arbitrum and Polygon, from 0x66331f0b..., a Safe that
+// shares its owners. First payout 2026-05-20, e.g. https://bscscan.com/tx/0xd5c1caf85bacca4125e8bdf3f4f6d3f39591e5c435f0b14435bff89f59cfd0a1
+// The payouts are internal value transfers (Safe.execTransaction), so they are read from Allium.
+const COW_PARTNER_FEE_RECIPIENT = '0xea5b5991f761ced44ffa99beacb72d691ee334ec'
+const COW_PARTNER_FEE_PAYERS = [
+  '0xa03be496e67ec29bc62f01a428683d7f9c204930',
+  '0x66331f0b9cb30d38779c786bda5a3d57d12fba50',
+]
+const COW_PARTNER_FEES_FROM = 1779235200 // 2026-05-20, the first payout
+
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   await addTokensReceived({
@@ -191,6 +206,19 @@ const fetchFees = async (options: FetchOptions) => {
     balances: dailyFees,
   });
 
+  if (options.endTimestamp > COW_PARTNER_FEES_FROM) {
+    const [{ amount }] = await queryAllium(`
+      SELECT COALESCE(SUM(raw_amount), 0) AS amount
+      FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+      WHERE to_address = '${COW_PARTNER_FEE_RECIPIENT}'
+        AND from_address IN (${COW_PARTNER_FEE_PAYERS.map((a) => `'${a}'`).join(', ')})
+        AND transfer_type = 'value_transfer'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `)
+    dailyFees.addGasToken(amount)
+  }
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -211,7 +239,7 @@ const adapter: SimpleAdapter = {
     };
   }, {}),
   methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured both from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT) and from native gas-token internal transfers forwarded by the 0x Settler integrator.',
+    Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT), from native gas-token internal transfers forwarded by the 0x Settler integrator, and from the CoW Swap partner fee that CoW Protocol pays out to Trust Wallet each week.',
     Revenue: 'Fees collected by Trust Wallet.',
     ProtocolRevenue: 'Fees collected by Trust Wallet.',
   }
