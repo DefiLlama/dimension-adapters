@@ -333,6 +333,7 @@ WITH all_events AS (
     SELECT
         date_trunc('day', block_time) AS day,
         COUNT(*) AS fee_withdrawals,
+        COUNT_IF(to_base58(bytearray_substring(evt, 1+40, 32)) = 'G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa') AS usdc_fee_withdrawals, -- USDC custody
         SUM(CASE WHEN to_base58(bytearray_substring(evt, 1+40, 32)) = 'G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa' -- USDC custody
             THEN bytearray_to_bigint(bytearray_reverse(bytearray_substring(evt, 1+160, 8)))
             ELSE 0
@@ -374,7 +375,8 @@ SELECT
     f.*,
     COALESCE(s.staking_rewards_sol, 0) AS staking_rewards_sol,
     l.loan_interest,
-    l.fee_withdrawals
+    l.fee_withdrawals,
+    l.usdc_fee_withdrawals
 FROM fees f
 LEFT JOIN staking s ON s.day = f.day
 LEFT JOIN loans l ON l.day = f.day

@@ -12,9 +12,9 @@ const fetch = async (options: FetchOptions) => {
   let data: any[] = [];
   if (options.startOfDay > 1793664000) {
     data = await queryDuneSql(options, sql);
-    // JLP Loans interest comes from the 15-minute withdrawFees2 events: a day without them is missing data, not zero interest
-    if (data.some((row: any) => !row.fee_withdrawals)) {
-      throw new Error(`No withdrawFees2 events found for date ${options.dateString}`)
+    // JLP Loans interest comes from the USDC custody's 15-minute withdrawFees2 events: a day without them is missing data, not zero interest
+    if (data.some((row: any) => !row.usdc_fee_withdrawals)) {
+      throw new Error(`No USDC custody withdrawFees2 events found for date ${options.dateString}`)
     }
   } else {
     const alldata = await queryDuneResult(options, '9069874')
@@ -25,6 +25,10 @@ const fetch = async (options: FetchOptions) => {
     data = matched ? [matched] : []
     if(!data || !data.length) {
       throw new Error(`No data found for date ${options.dateString}, fix cache result query`)
+    }
+    // a cached row without the staking and JLP Loans columns is missing data, not zero (genuine zeros are kept)
+    if (data.some((row: any) => !('staking_rewards_sol' in row) || !('loan_interest' in row))) {
+      throw new Error(`No staking_rewards_sol or loan_interest column found for date ${options.dateString}, fix cache result query`)
     }
   }
 
