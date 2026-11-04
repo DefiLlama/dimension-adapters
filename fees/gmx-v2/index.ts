@@ -43,12 +43,13 @@ const INDEX_TOKEN_KEY = ethers.keccak256(abi.encode(['string'], ['INDEX_TOKEN'])
 const indexTokenKey = (market: string) => ethers.keccak256(abi.encode(['address', 'bytes32'], [market, INDEX_TOKEN_KEY]))
 
 const PRICE_IMPACT = 'Price Impact'
+const REFERRAL_REBATES = 'Referral Rebates'
 
-// revenue split factors
-const REVENUE = 0.37
-const PROTOCOL = 0.1
-const HOLDERS = 0.27
-const SUPPLY_SIDE = 0.63
+// Revenue is the fee receiver's share read from each event (feeReceiverAmount): 37% of fees, with position fees
+// counted after referral rebates. GMX splits it into 10% of fees for the treasury and 27% for GMX stakers:
+// https://docs.gmx.io/docs/tokenomics/gmx-token and https://docs.gmx.io/docs/providing-liquidity (63% LPs / 37% protocol)
+const PROTOCOL_OF_REVENUE = 10 / 37
+const HOLDERS_OF_REVENUE = 27 / 37
 
 type KeyValue = { key?: string; value?: any; 0?: string; 1?: any }
 const toRecord = (items: KeyValue[]): Record<string, any> =>
@@ -76,17 +77,28 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   let marginFees = 0n
   let liquidationFees = 0n
   let swapFees = 0n
+  let marginRevenue = 0n
+  let liquidationRevenue = 0n
+  let swapRevenue = 0n
+  let referralRebates = 0n
 
   for (const log of positionLogs) {
     const uints = toRecord((log.eventData ?? log[4]).uintItems.items)
     const price = (uint(uints, 'collateralTokenPrice.min') + uint(uints, 'collateralTokenPrice.max')) / 2n
     marginFees += uint(uints, 'positionFeeAmount') * price + uint(uints, 'borrowingFeeUsd')
     liquidationFees += uint(uints, 'liquidationFeeAmount') * price
+    // feeReceiverAmount is the receiver's share of the position fee after rebates, the borrowing fee and the liquidation fee
+    const liquidationToReceiver = uint(uints, 'liquidationFeeAmountForFeeReceiver')
+    marginRevenue += (uint(uints, 'feeReceiverAmount') - liquidationToReceiver) * price
+    liquidationRevenue += liquidationToReceiver * price
+    // trader discount (referral or larger pro tier) + affiliate reward, taken out of the position fee first
+    referralRebates += (uint(uints, 'positionFeeAmount') - uint(uints, 'protocolFeeAmount')) * price
   }
 
   for (const log of swapLogs) {
     const uints = toRecord((log.eventData ?? log[4]).uintItems.items)
     swapFees += uint(uints, 'tokenPrice') * (uint(uints, 'feeReceiverAmount') + uint(uints, 'feeAmountForPool'))
+    swapRevenue += uint(uints, 'tokenPrice') * uint(uints, 'feeReceiverAmount')
   }
 
   // positive price impact distributed from the impact pool to LPs, denominated in the market's index token
@@ -110,25 +122,25 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyHoldersRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const addUsd = (amount: number, metric: string) => {
+  // LPs get each fee minus the fee receiver's share and minus referral rebates, so Fees = Revenue + SupplySideRevenue
+  const addUsd = (amount: number, revenue: number, metric: string, rebates = 0) => {
     dailyFees.addUSDValue(amount, metric)
-    dailyRevenue.addUSDValue(amount * REVENUE, metric)
-    dailyProtocolRevenue.addUSDValue(amount * PROTOCOL, metric)
-    dailyHoldersRevenue.addUSDValue(amount * HOLDERS, metric)
-    dailySupplySideRevenue.addUSDValue(amount * SUPPLY_SIDE, metric)
+    dailyRevenue.addUSDValue(revenue, metric)
+    dailyProtocolRevenue.addUSDValue(revenue * PROTOCOL_OF_REVENUE, metric)
+    dailyHoldersRevenue.addUSDValue(revenue * HOLDERS_OF_REVENUE, metric)
+    dailySupplySideRevenue.addUSDValue(amount - revenue - rebates, metric)
+    if (rebates) dailySupplySideRevenue.addUSDValue(rebates, REFERRAL_REBATES)
   }
-  addUsd(usd30ToNumber(marginFees), METRIC.MARGIN_FEES)
-  addUsd(usd30ToNumber(liquidationFees), METRIC.LIQUIDATION_FEES)
-  addUsd(usd30ToNumber(swapFees), METRIC.SWAP_FEES)
+  addUsd(usd30ToNumber(marginFees), usd30ToNumber(marginRevenue), METRIC.MARGIN_FEES, usd30ToNumber(referralRebates))
+  addUsd(usd30ToNumber(liquidationFees), usd30ToNumber(liquidationRevenue), METRIC.LIQUIDATION_FEES)
+  addUsd(usd30ToNumber(swapFees), usd30ToNumber(swapRevenue), METRIC.SWAP_FEES)
 
+  // distributePositionImpactPool only shrinks the impact pool, which raises the GM pool value: all of it goes to LPs
   markets.forEach((market, i) => {
     const token = indexTokens[i]
     const amount = impactByMarket[market]
     dailyFees.add(token, amount, PRICE_IMPACT)
-    dailyRevenue.add(token, amount * 37n / 100n, PRICE_IMPACT)
-    dailyProtocolRevenue.add(token, amount * 10n / 100n, PRICE_IMPACT)
-    dailyHoldersRevenue.add(token, amount * 27n / 100n, PRICE_IMPACT)
-    dailySupplySideRevenue.add(token, amount * 63n / 100n, PRICE_IMPACT)
+    dailySupplySideRevenue.add(token, amount, PRICE_IMPACT)
   })
 
   return {
@@ -143,10 +155,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Fees: "Fees from opening/closing perpetual positions, borrowing fees, swap fees, liquidation fees, and positive price impact distributed from the impact pool, decoded from EventEmitter logs",
   UserFees: "Fees from opening/closing perpetual positions, swap fees, and liquidation fees paid by traders",
-  Revenue: "37% of all collected fees - split between protocol treasury (10%) and GMX token holders (27%)",
-  ProtocolRevenue: "10% of all fees goes to the protocol treasury",
-  HoldersRevenue: "27% of all fees goes to GMX token stakers",
-  SupplySideRevenue: "63% of all fees goes to GM token liquidity providers",
+  Revenue: "37% of position fees (after referral rebates) and of borrowing, liquidation and swap fees, split between protocol treasury (10%) and GMX token holders (27%); distributed price impact goes to liquidity providers instead",
+  ProtocolRevenue: "10% of position fees (after referral rebates) and of borrowing, liquidation and swap fees goes to the protocol treasury",
+  HoldersRevenue: "27% of position fees (after referral rebates) and of borrowing, liquidation and swap fees goes to GMX token stakers",
+  SupplySideRevenue: "63% of position fees (after referral rebates) and of borrowing, liquidation and swap fees, plus all distributed price impact, goes to GM token liquidity providers; referral discounts and affiliate rewards go to traders and affiliates",
 }
 
 const breakdownMethodology = {
@@ -157,28 +169,26 @@ const breakdownMethodology = {
     [PRICE_IMPACT]: "Positive price impact distributed from the position impact pool to the market pool, in index token",
   },
   Revenue: {
-    [METRIC.MARGIN_FEES]: "37% of margin and borrowing fees retained by protocol",
+    [METRIC.MARGIN_FEES]: "37% of margin fees (after referral rebates) and borrowing fees retained by protocol",
     [METRIC.SWAP_FEES]: "37% of swap fees retained by protocol",
     [METRIC.LIQUIDATION_FEES]: "37% of liquidation fees retained by protocol",
-    [PRICE_IMPACT]: "37% of distributed price impact retained by protocol",
   },
   ProtocolRevenue: {
-    [METRIC.MARGIN_FEES]: "10% of margin and borrowing fees to protocol treasury",
+    [METRIC.MARGIN_FEES]: "10% of margin fees (after referral rebates) and borrowing fees to protocol treasury",
     [METRIC.SWAP_FEES]: "10% of swap fees to protocol treasury",
     [METRIC.LIQUIDATION_FEES]: "10% of liquidation fees to protocol treasury",
-    [PRICE_IMPACT]: "10% of distributed price impact to protocol treasury",
   },
   HoldersRevenue: {
-    [METRIC.MARGIN_FEES]: "27% of margin and borrowing fees distributed to GMX token stakers",
+    [METRIC.MARGIN_FEES]: "27% of margin fees (after referral rebates) and borrowing fees distributed to GMX token stakers",
     [METRIC.SWAP_FEES]: "27% of swap fees distributed to GMX token stakers",
     [METRIC.LIQUIDATION_FEES]: "27% of liquidation fees distributed to GMX token stakers",
-    [PRICE_IMPACT]: "27% of distributed price impact to GMX token stakers",
   },
   SupplySideRevenue: {
-    [METRIC.MARGIN_FEES]: "63% of margin and borrowing fees distributed to GM token liquidity providers",
+    [METRIC.MARGIN_FEES]: "63% of margin fees (after referral rebates) and borrowing fees distributed to GM token liquidity providers",
+    [REFERRAL_REBATES]: "Referral discounts to traders and rewards to affiliates, paid out of position fees before the protocol's 37% (positionFeeAmount - protocolFeeAmount)",
     [METRIC.SWAP_FEES]: "63% of swap fees distributed to GM token liquidity providers",
     [METRIC.LIQUIDATION_FEES]: "63% of liquidation fees distributed to GM token liquidity providers",
-    [PRICE_IMPACT]: "63% of distributed price impact to GM token liquidity providers",
+    [PRICE_IMPACT]: "All distributed price impact to GM token liquidity providers",
   },
 }
 
