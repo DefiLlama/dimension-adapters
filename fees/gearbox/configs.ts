@@ -17,6 +17,21 @@ export interface IGearboxChainConfig {
 }
 
 export const GearboxConfigs: {[key: string]: IGearboxChainConfig} = {
+  // SDK firstBlock timestamps, verified via eth_getBlockByNumber. Discovery
+  // checks historical deployment bytecode before reading the V3.1 registry.
+  // https://github.com/Gearbox-protocol/sdk/blob/master/src/onchain/chain/chains.ts
+  [CHAIN.PLASMA]: {
+    start: '2025-09-11', // block 670913, timestamp 1757599178
+    services: [],
+  },
+  [CHAIN.ETHERLINK]: {
+    start: '2025-06-02', // block 16672963, timestamp 1748856374
+    services: [],
+  },
+  [CHAIN.SOMNIA]: {
+    start: '2025-11-10', // block 147687380, timestamp 1762764431
+    services: [],
+  },
   [CHAIN.ETHEREUM]: {
     start: '2023-12-17',
     services: [
