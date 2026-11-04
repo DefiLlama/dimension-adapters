@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import { queryDuneSql } from '../helpers/dune';
+import { assertDuneSolanaIndexed } from '../helpers/duneSolanaDex';
 import { httpGet } from '../utils/fetchURL';
 import { sleep } from '../utils/utils';
 
@@ -48,6 +49,8 @@ const getBlacklistedPools = async (): Promise<Set<string>> => {
 };
 
 const fetch = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
+
   const [rows, blacklisted] = await Promise.all([
     queryDuneSql(options, getQuery(options)) as Promise<DuneRow[]>,
     getBlacklistedPools(),
