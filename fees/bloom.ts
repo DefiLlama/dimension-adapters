@@ -42,6 +42,7 @@ const chainConfig: any = {
       'EgMp6MRqnJ7RNiJAMymXA518bma8pfsuqCp6RdcJpx5e',
       '5sUSHnxvcKzDkkj9xQuxj5rzqj1bkvnwMUVQbfRMtJpY',
       'toAPhdPcxDZsm2ziAgKcLLb5FMvhsUxqWpRvxTnYfnP',
+      '3YtdHj6fyWtxax9mEcyXsah5Gff2E8C9cBPLa6DSDLcy', // took over the two-hourly sweep from 9Pbhcx above on 2026-10-02
     ],
     // Before this date, referral/cashback rewards were only paid out via the reward relayers above.
     // From this date on, some payouts also go directly from the fees wallet to recipients, so we start
