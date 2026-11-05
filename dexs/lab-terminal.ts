@@ -8,8 +8,8 @@ const fetch: any = async (options: FetchOptions) => {
 
   const query = `
     SELECT
-      COALESCE(daily_fees_usd_sol, 0)          AS daily_fees_usd_sol,
-      COALESCE(daily_solana_volume_usd, 0) AS daily_solana_volume_usd
+      daily_fees_usd_sol,
+      daily_solana_volume_usd
     FROM
       dune.lab_terminal.historical_aggregates_v3
     WHERE
@@ -18,7 +18,9 @@ const fetch: any = async (options: FetchOptions) => {
   `;
 
   const res = await queryDuneSql(options, query);
-  if (!res?.length) return { dailyFees };
+  // The adapter can't tell a row not yet written from a day with no fees, so a missing row or a null value throws.
+  if (!res?.length || res[0].daily_fees_usd_sol == null || res[0].daily_solana_volume_usd == null)
+    throw new Error(`Missing dune.lab_terminal.historical_aggregates_v3 data for ${options.dateString}`);
 
   dailyFees.addUSDValue(res[0].daily_fees_usd_sol);
   dailyVolume.addUSDValue(res[0].daily_solana_volume_usd);
