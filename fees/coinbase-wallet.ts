@@ -65,16 +65,23 @@ const baseAppPlatformReferrer = "0x55C88bB05602Da94fCe8FEadc1cbebF5B72c2453"
 // Transactions the fee wallet sends itself are treasury operations: it swaps the fee tokens it holds for the native coin,
 // sells that for USDC through LI.FI or 0x, and bridges the USDC out. What it receives in them is money it already had,
 // e.g. Ethereum 0x232efad294acc636417e07248a18281d4245898bcf382234dacbaaa889a189b5 sells 36.8 ETH for 98,400 USDC.
-// The same routers also pay users' fees into the wallet, so only the transaction sender tells the two apart.
+const INDEXER_MAX_BLOCK_RANGE = 10_000
+
 const getOwnTxHashes = async (options: FetchOptions, feeWallet: string) => {
-  const txs = await sdk.indexer.getTransactions({
-    chain: options.chain,
-    transactionType: 'from',
-    addresses: [feeWallet],
-    from_block: await options.getFromBlock(),
-    to_block: await options.getToBlock(),
-  })
-  return new Set((txs ?? []).map((tx) => String(tx.hash).toLowerCase()))
+  const fromBlock = await options.getFromBlock()
+  const toBlock = await options.getToBlock()
+  const hashes = new Set<string>()
+  for (let start = fromBlock; start <= toBlock; start += INDEXER_MAX_BLOCK_RANGE) {
+    const txs = await sdk.indexer.getTransactions({
+      chain: options.chain,
+      transactionType: 'from',
+      addresses: [feeWallet],
+      from_block: start,
+      to_block: Math.min(start + INDEXER_MAX_BLOCK_RANGE - 1, toBlock),
+    })
+    for (const tx of txs ?? []) hashes.add(String(tx.hash).toLowerCase())
+  }
+  return hashes
 }
 
 // Native-coin fees reach the fee wallet as internal calls from routers and smart wallets, with no Transfer log, so they
