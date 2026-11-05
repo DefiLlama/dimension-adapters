@@ -20,6 +20,8 @@ const RETIRED_EVENTS: MetricEvents = {
 // (metric-core contracts/types/Packed.sol, Packed2Int128). Verified against live
 // Base swaps: sign convention is "positive = the pool gained that token".
 const int128At = (word: bigint, shift: number) => BigInt.asIntN(128, word >> BigInt(shift));
+// Packed2Uint128: two unsigned 128-bit halves, high = top 128 bits, low = bottom 128 bits.
+const uint128At = (word: bigint, shift: number) => BigInt.asUintN(128, word >> BigInt(shift));
 const EVENTS: MetricEvents = {
   poolCreatedEvent,
   poolField: "poolAddress",
@@ -28,6 +30,20 @@ const EVENTS: MetricEvents = {
   swapAmounts: (log) => {
     const deltas = BigInt(log.amountDeltas);
     return { amount0: int128At(deltas, 128), amount1: int128At(deltas, 0) };
+  },
+  // Layouts from Metric's SDK (@metric.xyz/metric-omm-sdk-v1, utils/packedEvents.ts):
+  // Swap.platformFees packs (spread fee, notional fee); BinSwapped(binIdx, binDeltas, fees)
+  // packs binDeltas as (token0 delta, token1 delta) and fees as (LP fee, platform fee).
+  fees: {
+    binSwappedEvent: "event BinSwapped(int256 binIdx, uint256 binDeltas, uint256 fees)",
+    binSwapped: (log) => {
+      const deltas = BigInt(log.binDeltas);
+      return { delta0: int128At(deltas, 128), delta1: int128At(deltas, 0), lpFee: uint128At(BigInt(log.fees), 128), platformFee: uint128At(BigInt(log.fees), 0) };
+    },
+    swapPlatformFees: (log) => {
+      const fees = BigInt(log.platformFees);
+      return { spreadFee: uint128At(fees, 128), notionalFee: uint128At(fees, 0) };
+    },
   },
 };
 
@@ -70,7 +86,8 @@ const current = (fromBlock: number): MetricFactory => ({ address: FACTORY, fromB
 //   FACTORY.nextPoolIdx() on 2026-09-24: Ethereum 30, Base 46, Arbitrum 21,
 //   Robinhood 51, BSC 14; no pools yet on HyperEVM, Polygon, Avalanche, Monad
 //   and MegaETH, where the factory is deployed and approved but idle.
-const chainConfig: MetricFactoriesChainConfig = {
+// Exported for fees/metric-v1, which reuses the same factories.
+export const chainConfig: MetricFactoriesChainConfig = {
   [CHAIN.ETHEREUM]: { start: "2026-07-13", factories: [retired(25524981), current(25984373)] }, // https://etherscan.io/block/25984373
   [CHAIN.BASE]: { start: "2026-07-13", factories: [retired(48585753), current(51352088)] }, // https://basescan.org/block/51352088
   [CHAIN.ARBITRUM]: { start: "2026-07-23", factories: [retired(486842281), current(505490331)] }, // https://arbiscan.io/block/505490331

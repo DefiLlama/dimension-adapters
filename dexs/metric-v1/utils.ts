@@ -15,6 +15,19 @@ export type MetricEvents = {
   poolCreatedEvent: string;
   poolField: string;
   swapAmounts: (log: any) => { amount0: bigint; amount1: bigint };
+  // Only generations whose events expose per-swap fee amounts set this (see fees/metric-v1).
+  fees?: MetricFeeEvents;
+};
+
+// Fee amounts are in the pool's internal scaled units (native amount * token scale
+// multiplier from getImmutables()) and denominated in the swap's input token.
+export type MetricFeeEvents = {
+  // Emitted once per bin a swap crosses, before the Swap event.
+  binSwappedEvent: string;
+  // Per-bin token deltas (positive = the bin gained that token) and the LP fee kept in the bin.
+  binSwapped: (log: any) => { delta0: bigint; delta1: bigint; lpFee: bigint; platformFee: bigint };
+  // Platform fees (protocol + pool admin) withheld from the swap, split into the spread and notional legs.
+  swapPlatformFees: (log: any) => { spreadFee: bigint; notionalFee: bigint };
 };
 
 export type MetricFactory = {
