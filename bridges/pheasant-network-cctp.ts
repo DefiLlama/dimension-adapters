@@ -129,7 +129,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   doublecounted: true, // the USDC moves through Circle CCTP and is also counted by the circle listing
   fetch,
-  adapter: Object.fromEntries(Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }])),
+  adapter: chainConfig,
   methodology: {
     OutgoingVolume: "USDC burned on each chain through Pheasant Network's CCTP wrapper, after Pheasant's fee.",
     IncomingVolume: "USDC minted on each chain by Circle's MessageTransmitter for Pheasant Network CCTP transfers.",
