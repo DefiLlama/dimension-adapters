@@ -74,7 +74,7 @@ const adapter: Adapter = {
     isExpensiveAdapter: true,
     methodology: {
         Fees: 'Total transaction fees paid by users',
-        Revenue: 'EIP-1559 base fees, which are burned in tranches through the EIP-1559 burn contract. Under PIP-82 (capped at $1M, until 2026-12-31) a small part, about 0.8% of a sweep, is recycled to x402 facilitators instead of burned; it is counted here.',
+        Revenue: 'EIP-1559 base fees, which are burned in tranches through the EIP-1559 burn contract. Under PIP-82 (capped at $1M, until 2026-12-31) a small part, 0.7% of the base fee swept from March to October 2026, is recycled to x402 facilitators instead of burned. It is only paid out when the account is swept, every few months, so it is counted here.',
         HoldersRevenue: 'EIP-1559 base fees, which are burned (see Revenue).',
         SupplySideRevenue: 'Priority fees, which go to validators. Since PIP-65 and PIP-85 they are paid out through the PIP-65 fee account: 26% to the block producer, 37% to validators and 37% to stakers.',
     },
@@ -84,10 +84,10 @@ const adapter: Adapter = {
             [METRIC.TRANSACTION_PRIORITY_FEES]: 'Priority fees (tips) paid by users on top of the base fee.',
         },
         Revenue: {
-            [METRIC.TRANSACTION_BASE_FEES]: 'EIP-1559 base fees, burned in tranches (about 0.8% recycled under PIP-82).',
+            [METRIC.TRANSACTION_BASE_FEES]: 'EIP-1559 base fees, burned in tranches (about 0.7% recycled under PIP-82, see Revenue).',
         },
         HoldersRevenue: {
-            [METRIC.TRANSACTION_BASE_FEES]: 'EIP-1559 base fees, burned in tranches (about 0.8% recycled under PIP-82).',
+            [METRIC.TRANSACTION_BASE_FEES]: 'EIP-1559 base fees, burned in tranches (about 0.7% recycled under PIP-82, see Revenue).',
         },
         SupplySideRevenue: {
             [PRIORITY_FEES_TO_VALIDATORS_AND_STAKERS]: 'Priority fees paid 26% to the block producer, 37% to validators and 37% to stakers (PIP-65, PIP-85).',
