@@ -32,6 +32,12 @@ export const fillEvents: Record<number, string> = {
   3: `event FillConfirmed(${fields}, uint64 payBy)`,
 };
 
+// https://docs.stryke.xyz/tokenomics/protocol-fees: 20% retained, 80% to holders.
+// October 30 coverage cutoff confirmed by the submitting team; earlier split unknown, so omitted.
+// Run windows are hour/day aligned, so none straddles the cutoff.
+const protocolRevenueStart = Date.parse('2026-10-30T00:00:00Z') / 1000;
+const protocolShare = 0.2;
+
 export async function fetchTrading(options: FetchOptions) {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
@@ -49,8 +55,8 @@ export async function fetchTrading(options: FetchOptions) {
     for (const log of logs) {
       // Only confirmed fills count; requested/refunded fills, deposits, withdrawals,
       // maker hedge transactions and later payouts never create a second options trade.
-      dailyNotionalVolume.add(token, log.answer.notional.toString(), 'Options Notional');
-      dailyPremiumVolume.add(token, log.answer.charged.toString(), 'Options Premiums');
+      dailyNotionalVolume.add(token, log.answer.notional.toString());
+      dailyPremiumVolume.add(token, log.answer.charged.toString());
       dailyFees.add(token, log.answer.fee.toString(), 'Options Trading Fees');
       dailyRevenue.add(token, log.answer.fee.toString(), 'RFQ Collected Trading Fees');
     }
@@ -66,15 +72,19 @@ export async function fetchTrading(options: FetchOptions) {
     for (const log of confirmed) {
       const price = prices.get(key(log));
       if (!price || log.cashToken.toLowerCase() !== token.toLowerCase()) throw new Error('Unexpected legacy Stryke fill');
-      dailyNotionalVolume.add(token, price.notional.toString(), 'Options Notional');
+      dailyNotionalVolume.add(token, price.notional.toString());
       // Executed premium includes buy payments and gross sale proceeds.
       // The app's premium-collected card counts buy payments only.
-      dailyPremiumVolume.add(token, log.premium.toString(), 'Options Premiums');
+      dailyPremiumVolume.add(token, log.premium.toString());
       dailyFees.add(token, price.fee.toString(), 'Options Trading Fees');
       dailyRevenue.add(token, price.fee.toString(), 'RFQ Collected Trading Fees');
     }
   }
-  return { dailyNotionalVolume, dailyPremiumVolume, dailyFees, dailyRevenue };
+  if (options.startTimestamp < protocolRevenueStart) return { dailyNotionalVolume, dailyPremiumVolume, dailyFees, dailyRevenue };
+  // Holders revenue (the other 80%) is not reported: no reward has been funded or claimed on-chain yet
+  // (StakedSYK 0x20b2431557bB90954744a6D404f45aD1aD8719f4, sykASH distributor 0x1Bfa26a0dc850B3a9B7586Cc6f8f868B5204a3F1).
+  const dailyProtocolRevenue = dailyRevenue.clone(protocolShare, 'Options Trading Fees To Protocol');
+  return { dailyNotionalVolume, dailyPremiumVolume, dailyFees, dailyRevenue, dailyProtocolRevenue };
 }
 
 const adapter = {
@@ -87,12 +97,12 @@ const adapter = {
     PremiumVolume: 'Actual premium or sale proceeds recorded for confirmed Stryke RFQ options fills, excluding protocol fees and refunded requests.',
     Fees: 'Actual trading fees recorded on confirmed Stryke RFQ fills; excludes settlement charges, external venue fees and sunsetted products.',
     Revenue: 'All trading fees recorded on confirmed RFQ fills, before subsequent token-holder allocation. Uses answer.fee for later deployments and paired FillPriced.fee for the October 4 deployment. No fee-recipient allowlist is enforced; legacy confirmation events do not expose a recipient. Excludes maker premiums, settlement deductions and external venue fees.',
+    ProtocolRevenue: '20% of recorded RFQ trading fees from October 30, 2026, following the published protocol allocation. Earlier allocation is unknown and omitted. The 80% token-holder allocation is not counted until rewards are paid on-chain.',
   },
   breakdownMethodology: {
-    NotionalVolume: { 'Options Notional': 'Underlying notional of confirmed option fills, denominated in USDG on Robinhood or USDC on Arbitrum.' },
-    PremiumVolume: { 'Options Premiums': 'Premium or proceeds charged by the maker for each confirmed fill, in the chain payment token.' },
     Fees: { 'Options Trading Fees': 'The actual fee in each FillConfirmed answer; no fixed fee-rate estimate is used.' },
     Revenue: { 'RFQ Collected Trading Fees': 'All recorded fill fees: answer.fee on later deployments, or paired FillPriced.fee on the October 4 deployment. This is not a recipient-filtered treasury-transfer measure.' },
+    ProtocolRevenue: { 'Options Trading Fees To Protocol': '20% retained protocol allocation of recorded RFQ trading fees from October 30, 2026; excludes the 80% holder allocation.' },
   },
 } satisfies SimpleAdapter;
 

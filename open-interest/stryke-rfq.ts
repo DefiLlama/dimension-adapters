@@ -1,5 +1,4 @@
 import { formatUnits } from 'ethers';
-import { getPrices } from '@defillama/sdk/build/util/coins';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { chainConfig, legacySettlement } from '../options/stryke-rfq';
 
@@ -9,10 +8,20 @@ const requestEvent = 'event FillRequested((address maker,address taker,bytes32 m
 // Decode the stable prefix of Request; later versions append fields after position.
 // This preserves the ORIGINAL position token even if a maker's routing is reassigned.
 const requestState = 'function requests(address maker,uint256 quoteNonce) view returns (((address maker,address taker,bytes32 market,uint64 optionExpiry,uint8 kind,uint256[] strikes,address cashToken,uint256 pricePerContract,uint256 markPrice,uint256 maxSize,uint256 nonce,uint64 deadline,uint8 side,address writer) quote,address taker,(uint8 standard,address token,uint256 id,uint256 amount) position))';
+// CoinGecko id per underlying (market = bytes32 ticker). Gold and stocks use 1:1 tokenized
+// versions (PAXG = 1 troy oz; METAx / SPCXx xStocks = 1 share). Markets without a price source
+// (CL as of November 2026) are skipped and logged.
 const coins: Record<string, string> = {
-  '0x4254430000000000000000000000000000000000000000000000000000000000': 'bitcoin',
-  '0x4554480000000000000000000000000000000000000000000000000000000000': 'ethereum',
+  '0x4254430000000000000000000000000000000000000000000000000000000000': 'bitcoin', // BTC
+  '0x4554480000000000000000000000000000000000000000000000000000000000': 'ethereum', // ETH
+  '0x4859504500000000000000000000000000000000000000000000000000000000': 'hyperliquid', // HYPE
+  '0x5a45430000000000000000000000000000000000000000000000000000000000': 'zcash', // ZEC
+  '0x534f4c0000000000000000000000000000000000000000000000000000000000': 'solana', // SOL
+  '0x5841550000000000000000000000000000000000000000000000000000000000': 'pax-gold', // XAU
+  '0x4d45544100000000000000000000000000000000000000000000000000000000': 'meta-xstock', // META
+  '0x5350435800000000000000000000000000000000000000000000000000000000': 'spacex-xstocks', // SPCX
 };
+const ticker = (market: string) => Buffer.from(market.slice(2), 'hex').toString().replace(/\0+$/, '');
 
 const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = options.createBalances();
@@ -23,13 +32,15 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: requestEvent,
     fromBlock: config.fromBlock,
     flatten: false,
+    cacheInCloud: true,
   }) : [];
   const candidates: { settlement: string; maker: string; nonce: string; coin: string; writer: string }[] = [];
+  const unpriced = new Set<string>();
   logs.forEach((group: any[], index: number) => {
     for (const log of group) {
       if (Number(log.quote.optionExpiry) <= options.endTimestamp || Number(log.quote.side) !== 0) continue;
       const coin = coins[log.quote.market.toLowerCase()];
-      if (!coin) throw new Error('Unknown Stryke underlying; extend the reviewed pricing mapping');
+      if (!coin) { unpriced.add(ticker(log.quote.market)); continue; }
       candidates.push({ settlement: active[index].address, maker: log.quote.maker, nonce: log.quote.nonce.toString(), coin, writer: log.quote.writer && !/^0x0{40}$/i.test(log.quote.writer) ? log.quote.writer : log.quote.maker });
     }
   });
@@ -51,16 +62,17 @@ const fetch = async (options: FetchOptions) => {
   });
   if (options.chain === 'robinhood') {
     // The October 4 implementation issues ERC6909 positions itself.
-    const created = await options.getLogs({ target: legacySettlement, fromBlock: 79843602,
+    const created = await options.getLogs({ target: legacySettlement, fromBlock: 79843602, cacheInCloud: true,
       eventAbi: 'event OptionCreated(uint256 indexed id,address indexed writer,bytes32 market,uint64 expiry,uint8 kind,uint256[] strikes,address cashToken,bool collateralized)' });
     for (const log of created) {
       if (Number(log.expiry) <= options.endTimestamp) continue;
       const coin = coins[log.market.toLowerCase()];
-      if (!coin) throw new Error('Unknown legacy Stryke underlying');
+      if (!coin) { unpriced.add(ticker(log.market)); continue; }
       const id = log.id.toString();
       bySeries.set(legacySettlement + ':' + id, { target: legacySettlement, id, coin, writer: log.writer });
     }
   }
+  if (unpriced.size) console.log(`stryke-rfq ${options.chain}: OI excludes open series on unpriced underlyings ${[...unpriced].join(', ')}`);
   const series = [...bySeries.values()];
   const supplies = await options.toApi.multiCall({
     abi: 'function totalSupply(uint256) view returns (uint256)',
@@ -72,21 +84,13 @@ const fetch = async (options: FetchOptions) => {
   });
   // Positions sold back can remain minted in the writer wallet. They are closed
   // customer exposure, so subtract writer inventory from issued supply.
-  // Position quantities use 8 decimals for both BTC and ETH. Do not sum filled
+  // Position quantities use 8 decimals on every market. Do not sum filled
   // quantities: redemptions burn supply and sales may return inventory to the writer.
-  // Balances' automatic pricing substitutes current prices for recent windows.
-  // Fetch dated prices explicitly so OI quantity and valuation share a cutoff.
-  const live = series.map((s, i) => {
+  series.forEach((s, i) => {
     const outstanding = BigInt(supplies[i]) - BigInt(writerInventory[i]);
     if (outstanding < 0n) throw new Error('Writer inventory exceeds Stryke issued supply');
-    return { ...s, amount: Number(formatUnits(outstanding, 8)) };
-  }).filter(s => s.amount > 0);
-  const prices = await getPrices([...new Set(live.map(s => 'coingecko:' + s.coin))], options.toTimestamp);
-  for (const s of live) {
-    const price = prices['coingecko:' + s.coin]?.price;
-    if (!Number.isFinite(price) || price <= 0) throw new Error('Missing Stryke OI snapshot price');
-    openInterestAtEnd.addUSDValue(s.amount * price, 'Outstanding Options Notional');
-  }
+    if (outstanding > 0n) openInterestAtEnd.addCGToken(s.coin, Number(formatUnits(outstanding, 8)));
+  });
   return { openInterestAtEnd };
 };
 
@@ -96,10 +100,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   fetch,
   methodology: {
-    OpenInterest: 'Outstanding supply, excluding writer-held buybacks, of unexpired Stryke RFQ BTC and ETH option series, counted once on the position chain and valued at the underlying price at the window end; excludes external hedge positions and is not capital at risk.',
-  },
-  breakdownMethodology: {
-    OpenInterest: { 'Outstanding Options Notional': 'Unexpired series supply less writer inventory, in eight-decimal underlying units, priced as BTC or ETH. Refund-only series have zero supply.' },
+    OpenInterest: 'Outstanding supply, excluding writer-held buybacks, of unexpired Stryke RFQ option series on BTC, ETH, HYPE, ZEC, SOL, gold, META and SpaceX, counted once on the position chain and valued at the underlying price at the window end (gold, META and SpaceX via their PAXG, METAx and SPCXx tokenized versions); excludes underlyings without a price source (crude oil), external hedge positions, and is not capital at risk.',
   },
 };
 
