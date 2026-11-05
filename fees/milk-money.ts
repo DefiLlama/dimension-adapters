@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { httpGet } from "../utils/fetchURL";
+import axios from "axios";
 
 // Milk Money (https://milk-money.io) runs concentrated-liquidity positions on Meteora DLMM from protocol-owned
 // wallets and pays what they earn to $MM stakers or spends it on buybacks. The income statement comes from the
@@ -17,14 +17,14 @@ interface RevenueWindow {
 }
 
 const fetch = async (options: FetchOptions) => {
-  let data: RevenueWindow;
-  try {
-    data = await httpGet(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`);
-  } catch (e: any) {
-    // the API sits behind Cloudflare: say which edge rule answered, not just the status
-    const body = typeof e?.response?.data === "string" ? e.response.data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300) : "";
-    throw new Error(`Milk Money revenue API ${e?.response?.status ?? ""} ${e?.message ?? e}${body ? ` · ${body}` : ""}`);
+  // axios directly rather than httpGet: the API sits behind Cloudflare, and on a refusal the edge's HTML page names
+  // the rule that answered, which httpGet's wrapped error drops
+  const res = await axios.get(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`, { validateStatus: () => true, timeout: 30_000 });
+  if (res.status !== 200 || typeof res.data !== "object") {
+    const body = typeof res.data === "string" ? res.data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300) : JSON.stringify(res.data).slice(0, 300);
+    throw new Error(`Milk Money revenue API answered ${res.status} · ${body}`);
   }
+  const data: RevenueWindow = res.data;
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(data.lpFees, "LP Fees");
