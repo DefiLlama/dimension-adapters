@@ -40,8 +40,8 @@ const SUPPLY_SIDE_LABEL = 'Transaction Gas Fees To Sequencer'
 // The reports count all gas fees, so the carbon fund's 10% of base fees until 2026-05-09 is not deducted. The 1,748,950 CELO returned
 // on 2026-04-01 (tx 0xfbe1dac031726b6f580b561bfc2a80262b9529d09e4463fc3600cc74dce31a86) is a one-off for the first L2 year and is not booked.
 const COMMUNITY_FUND_FROM = 1775692800 // 2026-04-09 00:00 UTC, the first day of Celo's revenue reports
-const BATCHER = '0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60'
-const PROPOSER = '0x79d14553d6b3484f5612272b43c219a882415d33'
+const BATCHER = '0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60' // batcherHash() on Celo's SystemConfig 0x89E31965D844a309231B1f17759Ccaf1b7c09861
+const PROPOSER = '0x79d14553d6b3484f5612272b43c219a882415d33' // isAllowedProposer() on AccessManager 0xf59a19c5578291cb7fd22618d16281adf76f2816, of game type 42, the portal's respectedGameType
 const SUPERCHAIN_SHARE = 0.15
 const L1_COSTS_LABEL = 'Ethereum L1 Execution Gas Costs'
 const SUPERCHAIN_SHARE_LABEL = 'Superchain Revenue Share'
