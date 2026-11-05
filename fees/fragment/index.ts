@@ -29,12 +29,14 @@ const TELEGRAM_WALLETS = [
 ];
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
-  // Workaround for dune indexing issue
+  // Workaround for dune indexing issue: a day's ton.messages rows can carry an _ingested_at more than two hours
+  // after the day ends (up to 7.25 hours on 2026-06-02..11-01). With a two hour wait those days were stored near
+  // zero, and the message_count check below does not catch them.
   const now = Date.now()
-  const twoHoursAgo = now - (2 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > twoHoursAgo) {
-      console.log("End timestamp is less than 2 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(twoHoursAgo).toISOString())
-      throw new Error("End timestamp is less than 2 hours ago, skipping due to dune indexing delay")
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+      console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
   }
 
   const fragmentAddressList = FRAGMENT_ADDRESSES.map(a => `'${a}'`).join(', ');
