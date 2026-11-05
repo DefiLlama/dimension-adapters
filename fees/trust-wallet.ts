@@ -3,6 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
 import { getAlliumChain, queryAllium } from "../helpers/allium";
+import { METRIC } from "../helpers/metrics";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -168,16 +169,18 @@ const COW_PARTNER_FEE_PAYERS = [
   '0x66331f0b9cb30d38779c786bda5a3d57d12fba50',
 ]
 const COW_PARTNER_FEES_FROM = 1779235200 // 2026-05-20, the first payout
+const COW_PARTNER_FEES = 'CoW Swap Partner Fees'
 
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
+  const swapFees = options.createBalances()
   await addTokensReceived({
     options,
     targets: targets[options.chain],
     tokens: tokens[options.chain],
     toAddressFilter: targets[options.chain],
     fromAdddesses: fromAdddesses[options.chain] ?? [],
-    balances: dailyFees,
+    balances: swapFees,
   });
   const fees_percet = options.createBalances()
   if (targets_type_percent[options.chain]) {
@@ -191,7 +194,7 @@ const fetchFees = async (options: FetchOptions) => {
     });
   }
   fees_percet.resizeBy(0.01)
-  dailyFees.addBalances(fees_percet)
+  swapFees.addBalances(fees_percet)
 
   // Native gas-token fees. When a user swap is paid in the chain's native token
   // (ETH / BNB / POL / AVAX / etc.), 0x Settler (Trust Wallet's documented swap router
@@ -203,8 +206,9 @@ const fetchFees = async (options: FetchOptions) => {
   await getETHReceived({
     options,
     targets: targets[options.chain],
-    balances: dailyFees,
+    balances: swapFees,
   });
+  dailyFees.addBalances(swapFees, METRIC.SWAP_FEES)
 
   if (options.endTimestamp > COW_PARTNER_FEES_FROM) {
     const [{ amount }] = await queryAllium(`
@@ -216,7 +220,7 @@ const fetchFees = async (options: FetchOptions) => {
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     `)
-    dailyFees.addGasToken(amount)
+    dailyFees.addGasToken(amount, COW_PARTNER_FEES)
   }
 
   return {
@@ -242,7 +246,17 @@ const adapter: SimpleAdapter = {
     Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT), from native gas-token internal transfers forwarded by the 0x Settler integrator, and from the CoW Swap partner fee that CoW Protocol pays out to Trust Wallet each week.',
     Revenue: 'Fees collected by Trust Wallet.',
     ProtocolRevenue: 'Fees collected by Trust Wallet.',
-  }
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees received by the Trust Wallet fee collectors: ERC20 transfers (USDC, and 1%-scaled USDT) and native gas-token fees forwarded by the 0x Settler integrator.',
+      [COW_PARTNER_FEES]: 'Partner fee on CoW Swap orders with the Trust wallet app code, paid out weekly in native coin by CoW Protocol to the Trust Wallet partner-fee address.',
+    },
+    Revenue: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees kept by Trust Wallet.',
+      [COW_PARTNER_FEES]: 'CoW Swap partner fee paid out to Trust Wallet.',
+    },
+  },
 };
 
 export default adapter;
