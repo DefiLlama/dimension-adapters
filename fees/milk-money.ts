@@ -17,7 +17,14 @@ interface RevenueWindow {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const data: RevenueWindow = await httpGet(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`);
+  let data: RevenueWindow;
+  try {
+    data = await httpGet(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`);
+  } catch (e: any) {
+    // the API sits behind Cloudflare: say which edge rule answered, not just the status
+    const body = typeof e?.response?.data === "string" ? e.response.data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300) : "";
+    throw new Error(`Milk Money revenue API ${e?.response?.status ?? ""} ${e?.message ?? e}${body ? ` · ${body}` : ""}`);
+  }
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(data.lpFees, "LP Fees");
