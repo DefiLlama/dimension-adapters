@@ -1,9 +1,9 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import * as sdk from "@defillama/sdk";
 
 // Launchpad creates every fund (Coin, Fund, Mine, Uniswap v4 pool behind the FullRange hook).
 const LAUNCHPAD = "0x6ff3828435e96E343678E58F4677Da1dcEEE0C17";
+const LAUNCHPAD_DEPLOY_BLOCK = 100771402;
 const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
 
 // FullRange gives the creator side 70% of realized swap fees and the protocol 30%.
@@ -18,10 +18,10 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Fund addresses never change, so discovery reads current state (public RPCs here do not serve historical state)
-  const api = new sdk.ChainApi({ chain: options.chain });
-  const count = await api.call({ target: LAUNCHPAD, abi: "uint256:launchCount" });
-  const ids = Array.from({ length: Number(count) }, (_, i) => i + 1);
+  const { api } = options;
+  const count = await options.getToBlock() < LAUNCHPAD_DEPLOY_BLOCK ? 0 : Number(await api.call({ target: LAUNCHPAD, abi: "uint256:launchCount" }));
+  if (!count) return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  const ids = Array.from({ length: count }, (_, i) => i + 1);
   const launches = await api.multiCall({ target: LAUNCHPAD, abi: launchAbi, calls: ids });
 
   const mines = launches.map((l: any) => l.mine);
@@ -55,8 +55,10 @@ const fetch = async (options: FetchOptions) => {
   // (mostly USDG), so fees on swaps paid in unpriced fund coins are still counted.
   const poolById: Record<string, any> = {};
   launches.forEach((l: any) => poolById[l.poolId.toLowerCase()] = l);
-  // Filter by pool id at the RPC so only Launchpad pools' swaps are fetched, not every swap on the PoolManager
-  const swapLogs = await options.getLogs({ target: POOL_MANAGER, eventAbi: swapEvent, topics: [SWAP_TOPIC, Object.keys(poolById)] as any });
+  // Filter by pool id at the RPC so only Launchpad pools' swaps are fetched, not every swap on the PoolManager.
+  // skipIndexer: the indexer ignores the OR'd pool ids in topic1 and returns every v4 Swap on Robinhood
+  // TEMPORARY: remove skipIndexer once the indexer supports OR'd topics
+  const swapLogs = await options.getLogs({ target: POOL_MANAGER, eventAbi: swapEvent, topics: [SWAP_TOPIC, Object.keys(poolById)] as any, skipIndexer: true });
   swapLogs.forEach((log: any) => {
     const l = poolById[log.id.toLowerCase()];
     if (!l) return;
