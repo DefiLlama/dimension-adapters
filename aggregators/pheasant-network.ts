@@ -13,7 +13,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   doublecounted: true, // executed by LI.FI and Squid, whose own aggregator listings also count these swaps
   fetch,
-  adapter: pheasantSwapConfig,
+  adapter: Object.fromEntries(Object.entries(pheasantSwapConfig).map(([chain, config]) => [chain, { ...config }])), // own copy: the runner writes fetch onto each chain entry
   methodology: {
     Volume: "Value of tokens users hand to Pheasant Swap for a swap on the same chain. Pheasant's relayer fee is excluded.",
   },

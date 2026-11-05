@@ -14,7 +14,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   doublecounted: true, // routed through LI.FI and Squid, whose own bridge-aggregator listings also count these transfers
   fetch,
-  adapter: pheasantSwapConfig,
+  adapter: Object.fromEntries(Object.entries(pheasantSwapConfig).map(([chain, config]) => [chain, { ...config }])), // own copy: the runner writes fetch onto each chain entry
   methodology: {
     BridgeVolume:
       "Value of tokens users hand to Pheasant Swap for a swap whose destination is another chain, measured on the source chain. Pheasant's relayer fee is excluded.",
