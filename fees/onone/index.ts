@@ -7,12 +7,15 @@
  *      A launch also pays the router's creation fee, in the chain's native coin.
  * Solana: OnOne opens a Meteora DAMM v2 pool directly. There is no OnOne program
  *      that lists those pools, so each pool address is named below. The figure used
- *      is the LP fee (Meteora's own protocol cut stays on Meteora's listing).
+ *      is the LP fee (Meteora's own protocol cut stays on Meteora's listing), read per
+ *      swap from the pool's EvtSwap2 events on Allium.
  *      The creator position keeps creatorPct of that LP fee. OnOne keeps the rest.
  */
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
+import { timeFilter, u64, u8 } from "../../helpers/alliumSolanaEvents";
+import { base58Decode, base58Encode, getAccountBuffers } from "../../helpers/solana";
 
 const TREASURY = "0xf2D1f6A26989BFC164840c253eDcEC107a55Fa48";
 
@@ -68,11 +71,19 @@ const EVM: Record<string, Suite> = {
 /**
  * Every OnOne Meteora DAMM v2 pool. There is no OnOne program that lists them,
  * and Meteora's own pool list includes every Meteora pool, so a new launch is added here.
- * A pool Meteora does not serve is left off, rather than reported as zero.
  */
 const SOL_POOLS: { pool: string; creatorPct: number }[] = [
+  // created 2026-10-23 15:02 UTC by EEDrtBtH8DHhcjCLPNyCRVT5VQExNKNqsRpnR2MJbS46, which holds its only (permanently locked) position
   { pool: "82864UJ9DJvy62M5hzQwZKVSLi51gT6etbfuvPhE7Prk", creatorPct: 60 },
 ];
+
+// https://solscan.io/account/cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG
+const DAMM_V2 = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG";
+// Meteora emits its events with emit_cpi!, as self-CPIs: 8-byte tag, 8-byte discriminator, then the Borsh body
+const EVENT_CPI_TAG = "e445a52e51cb9a1d";
+const EVT_SWAP2 = "bd4233a826507599";
+// EvtSwap2 length in bytes, tag and discriminator included (MeteoraAg/damm-v2 programs/cp-amm/src/event.rs)
+const EVT_SWAP2_LENGTH = 196;
 
 async function evm(options: FetchOptions) {
   const suite = EVM[options.chain];
@@ -80,34 +91,33 @@ async function evm(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const hook of suite.hooks) {
-    const trades = await options.getLogs({ target: hook, eventAbi: FEE_TAKEN });
-    for (const log of trades) dailyFees.add(log.quote, log.totalFee, SWAP_FEES);
+  const trades = await options.getLogs({ targets: suite.hooks, eventAbi: FEE_TAKEN });
+  for (const log of trades) dailyFees.add(log.quote, log.totalFee, SWAP_FEES);
+
+  const credits = await options.getLogs({ targets: suite.escrows, eventAbi: CREDITED });
+  for (const log of credits) {
+    const toProtocol = String(log.account).toLowerCase() === TREASURY.toLowerCase();
+    if (toProtocol) dailyRevenue.add(log.token, log.amount, SWAP_FEES);
+    else dailySupplySideRevenue.add(log.token, log.amount, CREATOR_FEES);
   }
 
-  for (const escrow of suite.escrows) {
-    const credits = await options.getLogs({ target: escrow, eventAbi: CREDITED });
-    for (const log of credits) {
-      const toProtocol = String(log.account).toLowerCase() === TREASURY.toLowerCase();
-      if (toProtocol) dailyRevenue.add(log.token, log.amount, SWAP_FEES);
-      else dailySupplySideRevenue.add(log.token, log.amount, CREATOR_FEES);
-    }
-  }
-
-  for (const router of suite.routers) {
-    const launches = await options.getLogs({ target: router, eventAbi: LAUNCHED });
-    if (!launches.length) continue;
-    const feeWei = await options.api.call({ abi: "uint256:creationFeeWei", target: router });
-    const total = BigInt(launches.length) * BigInt(feeWei);
-    dailyFees.addGasToken(total, LAUNCH_FEES);
-    dailyRevenue.addGasToken(total, LAUNCH_FEES);
+  // one list of launches per router, because each router has its own creation fee
+  const launches: any[][] = await options.getLogs({ targets: suite.routers, eventAbi: LAUNCHED, flatten: false });
+  const launched = suite.routers.map((router, i) => ({ router, count: launches[i].length })).filter(({ count }) => count > 0);
+  if (launched.length) {
+    const feesWei = await options.api.multiCall({ abi: "uint256:creationFeeWei", calls: launched.map(({ router }) => router) });
+    launched.forEach(({ count }, i) => {
+      const total = BigInt(count) * BigInt(feesWei[i]);
+      dailyFees.addGasToken(total, LAUNCH_FEES);
+      dailyRevenue.addGasToken(total, LAUNCH_FEES);
+    });
   }
 
   return {
     dailyFees,
-    dailyUserFees: dailyFees,
+    dailyUserFees: dailyFees.clone(),
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
     dailySupplySideRevenue,
   };
 }
@@ -116,46 +126,83 @@ async function solana(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const result = {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
 
-  // fees["24h"] is a rolling snapshot, not the fees of an old day.
-  const end = options.endTimestamp;
-  if (Math.floor(Date.now() / 1000) - end > 36 * 60 * 60) return result;
+  // DAMM v2 Pool (programs/cp-amm/src/state/pool.rs): token_a_mint at 168, token_b_mint at 200, both fixed at creation
+  const buffers = await getAccountBuffers({ chain: CHAIN.SOLANA, accounts: SOL_POOLS.map(({ pool }) => pool) });
+  const pools: Record<string, { mintA: string; mintB: string; creatorPct: number }> = {};
+  SOL_POOLS.forEach(({ pool, creatorPct }, i) => {
+    const data = buffers[i];
+    if (!data) throw new Error(`OnOne: Meteora pool ${pool} not found`);
+    pools[Buffer.from(base58Decode(pool)).toString("hex")] = {
+      mintA: base58Encode(data.subarray(168, 200)),
+      mintB: base58Encode(data.subarray(200, 232)),
+      creatorPct,
+    };
+  });
 
-  for (const { pool, creatorPct } of SOL_POOLS) {
-    const row: { fees?: { "24h"?: number } } = await httpGet(`https://damm-v2.datapi.meteora.ag/pools/${pool}`);
-    const raw = row?.fees?.["24h"];
-    if (raw === undefined || raw === null) throw new Error(`OnOne: Meteora fees missing for ${pool}`);
-    const lpFees = Number(raw);
-    if (!Number.isFinite(lpFees)) throw new Error(`OnOne: Meteora fees not a number for ${pool}`);
-    if (lpFees <= 0) continue;
-    const creator = (lpFees * creatorPct) / 100;
-    const platform = lpFees - creator;
-    dailyFees.addUSDValue(lpFees, SWAP_FEES);
-    dailyRevenue.addUSDValue(platform, SWAP_FEES);
-    dailySupplySideRevenue.addUSDValue(creator, CREATOR_FEES);
+  const rows = await queryAllium(`
+    WITH events AS (
+      SELECT data_hex, LENGTH(data_hex) / 2 AS len
+      FROM solana.raw.inner_instructions
+      WHERE program_id = '${DAMM_V2}'
+        AND parent_tx_success
+        AND ${timeFilter(options)}
+        AND LEFT(data_hex, 16) = '${EVENT_CPI_TAG}'
+        AND SUBSTR(data_hex, 17, 16) = '${EVT_SWAP2}'
+        -- pool is the first field of the event
+        AND SUBSTR(data_hex, 33, 64) IN (${Object.keys(pools).map((hex) => `'${hex}'`).join(", ")})
+    )
+    SELECT 'check' AS kind, NULL AS pool, NULL AS fee_on_a, NULL AS fee,
+      (SELECT COUNT_IF(len <> ${EVT_SWAP2_LENGTH}) FROM events) AS unknown_layout,
+      -- the transfers table is built from the raw ones, so rows past the window mean the window is complete
+      EXISTS (SELECT 1 FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed
+    UNION ALL
+    -- EvtSwap2: trade_direction at 48 (1 = B to A), collect_fee_mode at 49 (0 = both tokens), claiming_fee at 116,
+    -- compounding_fee at 132. The fee is in token A only for a B to A swap in a both-token pool (FeeMode::get_fee_mode).
+    SELECT 'swap', SUBSTR(data_hex, 33, 64), (${u8("data_hex", 48)} = '01' AND ${u8("data_hex", 49)} = '00'),
+      TO_VARCHAR(SUM(${u64("data_hex", 116)} + ${u64("data_hex", 132)})), NULL, NULL
+    FROM events
+    WHERE len = ${EVT_SWAP2_LENGTH}
+    GROUP BY 2, 3
+  `);
+
+  const check = rows.find((row: any) => String(row.kind).toLowerCase() === "check");
+  if (!check) throw new Error("OnOne: empty Allium response");
+  if (!check.indexed) throw new Error(`OnOne: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
+  if (Number(check.unknown_layout) > 0) throw new Error(`OnOne: ${check.unknown_layout} Meteora swap events with an unknown layout, the program was likely upgraded`);
+
+  for (const row of rows) {
+    if (String(row.kind).toLowerCase() !== "swap") continue;
+    const { mintA, mintB, creatorPct } = pools[row.pool];
+    const mint = row.fee_on_a ? mintA : mintB;
+    const lpFees = BigInt(row.fee);
+    const creator = (lpFees * BigInt(creatorPct)) / 100n;
+    dailyFees.add(mint, lpFees.toString(), SWAP_FEES);
+    dailyRevenue.add(mint, (lpFees - creator).toString(), SWAP_FEES);
+    dailySupplySideRevenue.add(mint, creator.toString(), CREATOR_FEES);
   }
 
-  return result;
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailySupplySideRevenue,
+  };
 }
 
 const methodology = {
   Fees: "Quote-token fees taken by the OnOne launch hook on each swap, plus the native coin paid to launch a coin. On Solana, the LP fee earned by the OnOne Meteora pool (Meteora's own protocol cut is left on Meteora's listing). The 1% fee on swaps routed through the OnOne site is taken inside the Uniswap router and has no separate event, so it is not estimated here.",
-  UserFees: "The same amounts paid by the trader or the launcher.",
+  UserFees: "Quote-token fees taken by the OnOne launch hook on each swap, plus the native coin paid to launch a coin. On Solana, the LP fee earned by the OnOne Meteora pool (Meteora's own protocol cut is left on Meteora's listing). The 1% fee on swaps routed through the OnOne site is taken inside the Uniswap router and has no separate event, so it is not estimated here.",
   Revenue: "The protocol lane of each swap fee, credited to the OnOne treasury, plus the full launch fee. On Solana, the platform's share of the LP fee (40% when the creator share is 60%). The site's 1% routing fee is not included, because the router does not emit it on its own.",
-  ProtocolRevenue: "Same as Revenue.",
+  ProtocolRevenue: "The protocol lane of each swap fee, credited to the OnOne treasury, plus the full launch fee. On Solana, the platform's share of the LP fee (40% when the creator share is 60%).",
   SupplySideRevenue: "The creator lane and the referrer lane of each swap fee. On Solana, the creator position's share of the LP fee.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [SWAP_FEES]: "Hook swap fees, denominated in the pool's quote token. On Solana, the Meteora LP fee for the last 24 hours.",
+    [SWAP_FEES]: "Hook swap fees, denominated in the pool's quote token. On Solana, the LP fee of each swap in an OnOne Meteora pool.",
     [LAUNCH_FEES]: "Router creation fee paid once per launch, in the chain's native coin.",
   },
   UserFees: {
@@ -177,8 +224,9 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // Solana publishes one rolling 24h figure. An hourly pull would add that same figure once per hour.
-  pullHourly: false,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   methodology,
   breakdownMethodology,
   adapter: {
@@ -186,8 +234,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.ROBINHOOD]: { fetch: evm, start: "2026-09-21" },
     [CHAIN.ARC]: { fetch: evm, start: "2026-09-25" },
     [CHAIN.BSC]: { fetch: evm, start: "2026-09-25" },
-    // Meteora only publishes a rolling 24h fee, so this chain is read at "now", not backfilled.
-    [CHAIN.SOLANA]: { fetch: solana, start: "2026-10-01", runAtCurrTime: true },
+    // first OnOne pool created 2026-10-23 15:02 UTC
+    [CHAIN.SOLANA]: { fetch: solana, start: "2026-10-23" },
   },
 };
 
