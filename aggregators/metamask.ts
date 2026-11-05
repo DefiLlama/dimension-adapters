@@ -67,16 +67,24 @@ export const configs: IConfig = {
   },
 }
 
-// MetaMask's two Solana fee wallets. A swap pays one of them in the same transaction, which is
+// MetaMask's Solana fee wallets (extension, mobile). A swap pays one of them in the same transaction, which is
 // how fees/metamask.ts already identifies MetaMask activity on Solana - the volume side simply had
 // no Solana leg, so the chain reports fees while reporting no swap volume at all.
-const SOLANA_FEE_WALLETS = [
-  '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
-  'HbBHuvgWoChfztoqz2izLRF5mSoLKQXfU68kueBmhcmL',
+// On 2026-09-30 (15:21-15:31 UTC) the fees moved from the first pair to the second, which was also MetaMask's
+// fee pair before 2025-08-12. Source: `feeData.metabridge.recipient` in MetaMask's Bridge API quotes (87.5 bps).
+// Sample fees: 24NJ4BtLQcxHPhQ1r7euLr4ZCiBvTs45haGiKoCSM8r5uZZmuEiDMkohWPYiPTmmfySbCXASiK46P7swXoBUMKqA (4cLUBQ),
+// 3dRLkN3JyKrTqDsAhixDfCbaTx6dTpQtvvD8gk2vnBB1MCMVUt91wDzVNYk3LupRr9uzLjiHSw7Uikej6m4AVigQ (8ZCzZn).
+export const SOLANA_FEE_WALLETS = [
+  '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i', // extension, until 2026-09-30
+  'HbBHuvgWoChfztoqz2izLRF5mSoLKQXfU68kueBmhcmL', // mobile, until 2026-09-30
+  '4cLUBQKZgCv2AqGXbh8ncGhrDRcicUe3WSDzjgPY2oTA', // extension, from 2026-09-30
+  '8ZCzZnSxhbZp2oBGYYUeXMwqHCsAweXdgvyqNrAzGHWV', // mobile, from 2026-09-30
 ];
 
 // Only transactions that also carry a decoded swap count. The same wallets collect bridge fees,
-// and a bridge has no swap notional behind it.
+// and a bridge has no swap notional behind it. Transactions signed by a fee wallet are excluded:
+// until 2026-09-30 the first pair swept its fees to the second every day at 22:00 UTC with Jupiter
+// swaps it signed itself, and those are not user swaps.
 export const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2> => {
   const wallets = SOLANA_FEE_WALLETS.map((wallet) => `'${wallet}'`).join(', ');
   const query = `
@@ -84,6 +92,7 @@ export const fetchSolana = async (options: FetchOptions): Promise<FetchResultV2>
       SELECT DISTINCT txn_id
       FROM solana.assets.transfers
       WHERE to_address IN (${wallets})
+        AND signer NOT IN (${wallets})
         AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
         AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ),
