@@ -28,22 +28,7 @@ const FEE_CURRENCY_ADAPTERS: Record<string, string> = {
 // whose recipient is the same cLabs Safe 0x7a1e98fc9a008107dbd1f430a05ace8cf6f3fe19.
 // Earlier days burned part of the base fee, which is not computed here, so they report fees only.
 const NO_BURN_FROM = 1743379200 // 2025-03-31 00:00 UTC, the first full day with a burn fraction of 0
-
-// Celo is an OP Stack L2 since 2025-03-26, so revenue is gas fees minus the gas it pays on Ethereum to settle: every tx
-// sent by the batcher (to the batch inbox 0xff00000000000000000000000000000000042220) and by the proposer (to the
-// DisputeGameFactory 0xFbAC162162f4009Bb007C6DeBC36B1dAC10aF683; key rotated on 2025-12-10). Batch data sits on EigenDA,
-// paid off Ethereum, which is not deducted.
-// Since 2026-04-09 Celo Core Co. sends that net, after a 15% OP Stack / Superchain revenue share, to the Community Fund
-// (Governance 0xD533Ca259b330c7A88f74E000a3FaEa2d63B7972), per CELOccelerate (https://github.com/celo-org/governance/blob/main/CGPs/cgp-0233.md)
-// and its reports (https://forum.celo.org/t/initiating-ongoing-celo-chain-revenue-transactions/13494). The fees of the first
-// year were returned to the Community Fund in tx 0xfbe1dac031726b6f580b561bfc2a80262b9529d09e4463fc3600cc74dce31a86.
-// Both count all gas fees, so the FeeHandler's 10% carbon fund share (until 2026-05-09) is not deducted.
-const BATCHER = '0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60'
-const PROPOSERS = ['0x1204884e697efd929729b9a717ea14496298a689', '0x79d14553d6b3484f5612272b43c219a882415d33']
-const SUPERCHAIN_SHARE_FROM = 1775692800 // 2026-04-09 00:00 UTC, the first day of Celo's revenue reports
-const SUPERCHAIN_SHARE = 0.15
-const L1_COSTS_LABEL = 'Ethereum L1 Execution Gas Costs'
-const SUPERCHAIN_SHARE_LABEL = 'Superchain Revenue Share'
+const SUPPLY_SIDE_LABEL = 'Transaction Gas Fees To Sequencer'
 
 const fetch = async (options: FetchOptions) => {
   const rows: any[] = await queryDuneSql(options, `
@@ -66,33 +51,8 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.startOfDay < NO_BURN_FROM) return { dailyFees }
 
-  const l1Rows: any[] = await queryDuneSql(options, `
-    SELECT
-      LOWER(CAST("from" AS varchar)) AS sender,
-      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS gas_raw
-    FROM ethereum.transactions
-    WHERE TIME_RANGE
-      AND "from" IN (${[BATCHER, ...PROPOSERS].join(', ')})
-    GROUP BY 1
-  `)
-  // the batcher and the proposer post every day; a day without both is a rotated key or missing data, so revenue is
-  // left out rather than published without its L1 costs
-  const senders = new Set((l1Rows ?? []).map(({ sender }) => sender))
-  if (!senders.has(BATCHER) || !PROPOSERS.some((p) => senders.has(p))) return { dailyFees }
-
-  const l1Costs = options.createBalances()
-  for (const { gas_raw } of l1Rows) l1Costs.addCGToken('ethereum', gas_raw / 1e18, L1_COSTS_LABEL)
-
-  const dailySupplySideRevenue = l1Costs.clone()
-  if (options.startOfDay >= SUPERCHAIN_SHARE_FROM) {
-    const superchainShare = dailyFees.clone(SUPERCHAIN_SHARE, SUPERCHAIN_SHARE_LABEL)
-    superchainShare.subtract(l1Costs.clone(SUPERCHAIN_SHARE), SUPERCHAIN_SHARE_LABEL)
-    dailySupplySideRevenue.addBalances(superchainShare)
-  }
-
-  const dailyRevenue = dailyFees.clone()
-  dailyRevenue.subtract(dailySupplySideRevenue, METRIC.TRANSACTION_GAS_FEES)
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailyHoldersRevenue: 0, dailySupplySideRevenue }
+  const dailySupplySideRevenue = dailyFees.clone(1, SUPPLY_SIDE_LABEL)
+  return { dailyFees, dailyRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -107,24 +67,16 @@ const adapter: SimpleAdapter = {
   skipBreakdownValidation: true,
   methodology: {
     Fees: 'Gas fees paid by users, in CELO or in the fee currency they chose (USD₮, USDC, USA₮, Mento stablecoins), each priced in the currency it was paid in.',
-    Revenue: 'Gas fees minus the gas Celo pays on Ethereum to post batches and proposals and, from 2026-04-09, minus the 15% OP Stack revenue share. This net sequencer revenue goes to the Celo Community Fund. Days before 2025-03-31, when part of the base fee was burned, report fees only.',
-    ProtocolRevenue: 'Net sequencer revenue sent to the Celo Community Fund, the on-chain treasury: gas fees minus Ethereum settlement costs and, from 2026-04-09, the 15% OP Stack revenue share.',
-    HoldersRevenue: 'No gas fees have been burned since 2025-03-31, so holders revenue is 0 from that date.',
-    SupplySideRevenue: 'Gas paid on Ethereum by the Celo batcher and proposer to settle the chain and, from 2026-04-09, the 15% OP Stack revenue share.',
+    Revenue: 'Burned coins. No gas fees have been burned since 2025-03-31, so revenue is 0 from that date.',
+    HoldersRevenue: 'Burned coins. No gas fees have been burned since 2025-03-31, so holders revenue is 0 from that date.',
+    SupplySideRevenue: 'Gas fees paid to cLabs, which runs the Celo sequencer, from 2025-03-31.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees paid by users, each priced in the currency it was paid in: CELO, or USD₮, USDC, USA₮, XAUt0 and Mento stablecoins through fee abstraction.',
     },
-    Revenue: {
-      [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees net of Ethereum settlement costs and, from 2026-04-09, the OP Stack revenue share.',
-    },
-    ProtocolRevenue: {
-      [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees net of Ethereum settlement costs and, from 2026-04-09, the OP Stack revenue share, sent to the Celo Community Fund.',
-    },
     SupplySideRevenue: {
-      [L1_COSTS_LABEL]: 'ETH paid on Ethereum by the Celo batcher to post batches to the batch inbox and by the proposer to create and resolve dispute games.',
-      [SUPERCHAIN_SHARE_LABEL]: '15% of gas fees net of Ethereum settlement costs, the OP Stack / Superchain revenue share Celo Core Co. deducts before sending revenue to the Community Fund since 2026-04-09.',
+      [SUPPLY_SIDE_LABEL]: 'Base fees paid to cLabs through the FeeHandler and priority fees through the sequencer fee vault. From 2025-03-31 to 2026-05-08, 10% of base fees went to a carbon offset fund instead.',
     },
   },
 }
