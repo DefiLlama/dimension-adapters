@@ -19,7 +19,7 @@ const SWAP = "0xfC9C6B6e0D02EaDE37aC8b6c59e7181726075696";
 const SWAP_ALT = "0x7956c6EaEA7cAb8cd6C3221aBE3425c7e07133d9";
 const RETIRED = "2026-10-08";
 
-export const pheasantSwapConfig: Record<string, { chainId: number; swap: string; start: string; deadFrom?: string }> = {
+const pheasantSwapConfig: Record<string, { chainId: number; swap: string; start: string; deadFrom?: string }> = {
   [CHAIN.ETHEREUM]: { chainId: 1, swap: SWAP, start: "2025-02-25" },
   [CHAIN.OPTIMISM]: { chainId: 10, swap: SWAP_ALT, start: "2025-02-25" },
   [CHAIN.ARBITRUM]: { chainId: 42161, swap: SWAP, start: "2025-02-25" },
@@ -56,6 +56,14 @@ export const pheasantSwapConfig: Record<string, { chainId: number; swap: string;
   [CHAIN.FRAXTAL]: { chainId: 252, swap: SWAP_ALT, start: "2025-02-26", deadFrom: RETIRED },
   [CHAIN.METIS]: { chainId: 1088, swap: SWAP_ALT, start: "2025-02-26", deadFrom: RETIRED },
 };
+
+/**
+ * The Swap chain config for one adapter module, to pass as `adapter: chainConfig`.
+ *
+ * Each module gets its own copy of every chain entry: the runtime writes the module's `fetch` onto the entries it is
+ * given and does not overwrite one that is already set, so the two Swap modules must not share entries.
+ */
+export const pheasantSwapChainConfig = () => Object.fromEntries(Object.entries(pheasantSwapConfig).map(([chain, config]) => [chain, { ...config }]));
 
 /**
  * Sums the value users handed to Pheasant Swap on `options.chain` during the fetch window.
