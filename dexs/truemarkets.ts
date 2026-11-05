@@ -140,8 +140,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
           target: UNISWAP_V4_POOL_MANAGER,
           topics: [SWAP_TOPIC_V4, uniqueV4PoolIds.slice(i, i + POOL_ID_CHUNK)] as any,
           eventAbi: ABI.SwapV4,
-          // The indexer drops an OR'd topic1 list and returns every v4 swap on Base (and answers 414
-          // once the list is long), so the pool-id filter goes to the RPC, which applies it.
+          // RPC takes the whole chunk of OR'd pool ids in one call; the indexer runs one query per
+          // pool id, which is over a thousand queries per window for this market count.
           skipIndexer: true,
         })
         logs.forEach((log) => {

@@ -55,10 +55,7 @@ const fetch = async (options: FetchOptions) => {
   // (mostly USDG), so fees on swaps paid in unpriced fund coins are still counted.
   const poolById: Record<string, any> = {};
   launches.forEach((l: any) => poolById[l.poolId.toLowerCase()] = l);
-  // Filter by pool id at the RPC so only Launchpad pools' swaps are fetched, not every swap on the PoolManager.
-  // skipIndexer: the indexer ignores the OR'd pool ids in topic1 and returns every v4 Swap on Robinhood
-  // TEMPORARY: remove skipIndexer once the indexer supports OR'd topics
-  const swapLogs = await options.getLogs({ target: POOL_MANAGER, eventAbi: swapEvent, topics: [SWAP_TOPIC, Object.keys(poolById)] as any, skipIndexer: true });
+  const swapLogs = await options.getLogs({ target: POOL_MANAGER, eventAbi: swapEvent, topics: [SWAP_TOPIC, Object.keys(poolById)] as any });
   swapLogs.forEach((log: any) => {
     const l = poolById[log.id.toLowerCase()];
     if (!l) return;

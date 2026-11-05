@@ -96,7 +96,6 @@ const fetch = async (options: FetchOptions) => {
       entireLog: true,
       parseLog: false,
       cacheInCloud: true,
-      skipIndexer: true,
     }),
   ]);
 
