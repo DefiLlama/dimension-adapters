@@ -47,18 +47,31 @@ const L1_COSTS_LABEL = 'Ethereum L1 Execution Gas Costs'
 const SUPERCHAIN_SHARE_LABEL = 'Superchain Revenue Share'
 
 const fetch = async (options: FetchOptions) => {
+  const withL1Costs = options.startOfDay >= COMMUNITY_FUND_FROM
   const rows: any[] = await queryDuneSql(options, `
     SELECT
-      LOWER(CAST(fee_currency AS varchar)) AS fee_currency,
-      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS fee_raw
+      'fee' AS kind,
+      LOWER(CAST(fee_currency AS varchar)) AS id,
+      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS raw
     FROM celo.transactions
     WHERE TIME_RANGE
-    GROUP BY 1
+    GROUP BY 2
+    ${withL1Costs ? `
+    UNION ALL
+    SELECT
+      'l1' AS kind,
+      LOWER(CAST("from" AS varchar)) AS id,
+      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS raw
+    FROM ethereum.transactions
+    WHERE TIME_RANGE
+      AND "from" IN (${BATCHER}, ${PROPOSER})
+    GROUP BY 2` : ''}
   `)
-  if (!rows?.length) throw new Error(`celo: Dune returned no transactions for ${options.dateString}`)
+  const feeRows = (rows ?? []).filter(({ kind }) => kind === 'fee')
+  if (!feeRows.length) throw new Error(`celo: Dune returned no transactions for ${options.dateString}`)
 
   const dailyFees = options.createBalances()
-  for (const { fee_currency, fee_raw } of rows) {
+  for (const { id: fee_currency, raw: fee_raw } of feeRows) {
     // fee_currency is null when gas is paid in CELO; same CoinGecko id the blockscout config priced it with
     if (!fee_currency) dailyFees.addCGToken('celo', fee_raw / 1e18, METRIC.TRANSACTION_GAS_FEES)
     else if (FEE_CURRENCY_ADAPTERS[fee_currency]) dailyFees.add(FEE_CURRENCY_ADAPTERS[fee_currency], fee_raw / ADAPTER_SCALE, METRIC.TRANSACTION_GAS_FEES)
@@ -67,26 +80,18 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.startOfDay < NO_BURN_FROM) return { dailyFees }
 
-  if (options.startOfDay < COMMUNITY_FUND_FROM) {
+  if (!withL1Costs) {
     const dailySupplySideRevenue = dailyFees.clone(1, SUPPLY_SIDE_LABEL)
     return { dailyFees, dailyRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue }
   }
 
-  const l1Rows: any[] = await queryDuneSql(options, `
-    SELECT
-      LOWER(CAST("from" AS varchar)) AS sender,
-      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS gas_raw
-    FROM ethereum.transactions
-    WHERE TIME_RANGE
-      AND "from" IN (${BATCHER}, ${PROPOSER})
-    GROUP BY 1
-  `)
+  const l1Rows = rows.filter(({ kind }) => kind === 'l1')
   // the batcher and the proposer post every day: a day without both is a rotated key or missing data, so it throws
-  const senders = new Set((l1Rows ?? []).map(({ sender }) => sender))
+  const senders = new Set(l1Rows.map(({ id }) => id))
   if (!senders.has(BATCHER) || !senders.has(PROPOSER)) throw new Error(`celo: no batcher or proposer gas for ${options.dateString}`)
 
   const l1Costs = options.createBalances()
-  for (const { gas_raw } of l1Rows) l1Costs.addCGToken('ethereum', gas_raw / 1e18, L1_COSTS_LABEL)
+  for (const { raw } of l1Rows) l1Costs.addCGToken('ethereum', raw / 1e18, L1_COSTS_LABEL)
 
   const superchainShare = dailyFees.clone(SUPERCHAIN_SHARE, SUPERCHAIN_SHARE_LABEL)
   superchainShare.subtract(l1Costs.clone(SUPERCHAIN_SHARE), SUPERCHAIN_SHARE_LABEL)
