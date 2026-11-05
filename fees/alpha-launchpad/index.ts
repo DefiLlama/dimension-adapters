@@ -1,5 +1,8 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryAllium } from "../../helpers/allium";
+import { assertComplete, programEventsSql, u64 } from "../../helpers/alliumSolanaEvents";
 import { CHAIN } from "../../helpers/chains";
+import { base58Encode, getProgramAccounts } from "../../helpers/solana";
 
 const LAUNCHED = "event Launched(address indexed market, address indexed token, address indexed creator, address quote, bool nativeAlpha)";
 const FEE_PRESET_SELECTED = "event FeePresetSelected(address indexed market, uint8 preset, bytes32 policyDigest, address indexed feeRecipient)";
@@ -54,8 +57,22 @@ const chainConfig: Record<string, { factory: string; block: number; hook: string
   // Ethereum (factory 0x2DC4f507BD30c6b5df90B288FaeCDeCE627386Ec) has no market yet, add it once it has trades.
 };
 
-const fetch = async (options: FetchOptions) => {
-  const { factory, block, hook, splitter } = chainConfig[options.chain];
+// ALPHA launch program on Solana: https://solscan.io/account/r4yX8Q9Z5zSLY2fjoq1DgijfoHLru49zfikq79pa1fa
+const SOLANA_PROGRAM = "r4yX8Q9Z5zSLY2fjoq1DgijfoHLru49zfikq79pa1fa";
+// base58 of the Anchor `Market` account discriminator, and where quote_mint sits in that account
+const MARKET_DISCRIMINATOR = "dkokXHR3DTw";
+const MARKET_QUOTE_MINT_OFFSET = 141;
+// sha256("event:<Name>")[0..8] and event size in bytes, discriminator included. Events are written with emit!, as program logs.
+// TradeExecuted: market @8, trader, recipient, is_buy, base_amount, quote_principal, quote_settlement, protocol_fee u64 @129, creator_fee u64 @137, stage
+const TRADE_EXECUTED = { discriminator: "296E40813C4FB350", size: 146 };
+// PoolFeesSettled: market @8, sequence, pool, quote_mint, collected_quote_amount, operations_amount u64 @120, buyback_amount u64 @128, creator_amount u64 @136
+const POOL_FEES_SETTLED = { discriminator: "17C8582B8F538E2B", size: 144 };
+// launch_market and execute_meteora_migration, sha256("global:<name>")[0..8]. They call Meteora and Metaplex, which can cut the
+// logs at the 10 kB limit (e.g. 5UUwMdczu1dLAJQWauHGYgeudz7QPau5BTh28WCGXd4ue8o5KPLEJFU16tdvwF3f52scjwR5exswdXNUnWSzuj1J).
+// Neither emits an event read here, so truncated logs lose nothing when a transaction only calls these.
+const SOLANA_QUIET_INSTRUCTIONS = { [SOLANA_PROGRAM]: ["9b4734dd391eff85", "010afc44da4f6f56"] };
+
+const createFeeBalances = (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -67,9 +84,25 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(quote, protocolFee + creatorFee, fees);
     dailyRevenue.add(quote, protocolFee, toProtocol);
     dailySupplySideRevenue.add(quote, creatorFee, toCreators);
-    // ProtocolRevenueSplitter.deposit books half for operations and half for the ALPHA buyback.
+    // Half of the protocol fee is booked for operations and half for the ALPHA buyback.
     dailyProtocolRevenue.add(quote, protocolFee / 2n, FEES_TO_OPERATIONS);
   };
+
+  const result = () => ({
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  });
+
+  return { addFee, dailyHoldersRevenue, result };
+};
+
+const fetch = async (options: FetchOptions) => {
+  const { factory, block, hook, splitter } = chainConfig[options.chain];
+  const { addFee, dailyHoldersRevenue, result } = createFeeBalances(options);
 
   const launches = await options.getLogs({ target: factory, eventAbi: LAUNCHED, fromBlock: block, cacheInCloud: true });
   const presetLogs = await options.getLogs({ target: factory, eventAbi: FEE_PRESET_SELECTED, fromBlock: block, cacheInCloud: true });
@@ -104,33 +137,84 @@ const fetch = async (options: FetchOptions) => {
     dailyHoldersRevenue.add(log.asset, log.amount, FEES_TO_BUYBACK);
   }
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees.clone(),
-    dailyRevenue,
-    dailySupplySideRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
-  };
+  return result();
+};
+
+const fetchSolana = async (options: FetchOptions) => {
+  const { addFee, result } = createFeeBalances(options);
+
+  const ofEvent = (event: { discriminator: string }) => `FROM program_events WHERE STARTSWITH(data, '${event.discriminator}')`;
+  const knownSize = (event: { discriminator: string; size: number }) => `SELECT COUNT(*) ${ofEvent(event)} AND LENGTH(data) <> ${2 * event.size}`;
+
+  const rows = await queryAllium(`${programEventsSql(SOLANA_PROGRAM, options, SOLANA_QUIET_INSTRUCTIONS)},
+  fee_events AS (
+    SELECT 'curve' AS kind, SUBSTR(data, 17, 64) AS market_hex, ${u64("data", 129)} AS protocol_fee, ${u64("data", 137)} AS creator_fee
+    ${ofEvent(TRADE_EXECUTED)}
+    UNION ALL
+    SELECT 'pool', SUBSTR(data, 17, 64), ${u64("data", 120)} + ${u64("data", 128)}, ${u64("data", 136)}
+    ${ofEvent(POOL_FEES_SETTLED)}
+  ),
+  fees AS (
+    SELECT kind, market_hex, SUM(protocol_fee)::VARCHAR AS protocol_fee, SUM(creator_fee)::VARCHAR AS creator_fee
+    FROM fee_events
+    GROUP BY 1, 2
+  )
+  SELECT checks.*,
+    -- an event with a size it never had: its layout changed and the offsets above may no longer hold
+    (${knownSize(TRADE_EXECUTED)}) + (${knownSize(POOL_FEES_SETTLED)}) AS unknown_layouts,
+    fees.kind, fees.market_hex, fees.protocol_fee, fees.creator_fee
+  FROM checks
+  LEFT JOIN fees ON TRUE`);
+
+  assertComplete(rows[0], "alpha-launchpad", options);
+  if (Number(rows[0].unknown_layouts) > 0)
+    throw new Error(`alpha-launchpad: ${rows[0].unknown_layouts} fee events with an unexpected size, their layout changed`);
+
+  const feeRows = rows.filter((row: any) => row.market_hex);
+  if (!feeRows.length) return result();
+
+  // TradeExecuted names the market, not the quote asset, so map market to quote mint
+  const markets = await getProgramAccounts({
+    programId: SOLANA_PROGRAM,
+    encoding: "base64",
+    filters: [{ memcmp: { offset: 0, bytes: MARKET_DISCRIMINATOR } }],
+    dataSlice: { offset: MARKET_QUOTE_MINT_OFFSET, length: 32 },
+  });
+  const quoteMints: Record<string, string> = {};
+  markets.forEach((market: any) => {
+    quoteMints[market.pubkey] = base58Encode(Buffer.from(market.account.data[0], "base64"));
+  });
+
+  for (const row of feeRows) {
+    const market = base58Encode(Buffer.from(row.market_hex, "hex"));
+    const quote = quoteMints[market];
+    if (!quote) throw new Error(`alpha-launchpad: fee event for unknown market ${market}`);
+    const labels = row.kind === "curve"
+      ? [CURVE_FEES, CURVE_FEES_TO_PROTOCOL, CURVE_FEES_TO_CREATORS]
+      : [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS];
+    addFee(quote, BigInt(row.protocol_fee), BigInt(row.creator_fee), labels);
+  }
+
+  return result();
 };
 
 const methodology = {
-  Fees: "Trading fees paid by traders on bonding curves and on graduated pools: a 1% protocol fee plus a creator fee of 0, 0.25 or 0.5%.",
+  Fees: "Trading fees paid by traders on bonding curves and on graduated pools: a 1% protocol fee plus a creator fee of 0, 0.25 or 0.5%. On Solana, graduated pool fees are the ALPHA share of the Meteora DAMM v2 pool fee, counted when claimed, and the fee on a creator's first buy inside the launch transaction is not counted because no event reports it.",
   UserFees: "Trading fees paid by traders on bonding curves and on graduated pools.",
   Revenue: "The 1% protocol fee taken on every trade.",
   SupplySideRevenue: "The creator fee of 0, 0.25 or 0.5% paid to the token creator on every trade.",
   ProtocolRevenue: "Half of the 1% protocol fee, booked for operations.",
-  HoldersRevenue: "The other half of the protocol fee, counted when it is released on chain to the executor that buys back and burns ALPHA. Amounts booked for the buyback but not yet released are not counted.",
+  HoldersRevenue: "The other half of the protocol fee, counted when it is released on chain to the executor that buys back and burns ALPHA. Amounts booked for the buyback but not yet released are not counted. Not tracked on Solana.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [CURVE_FEES]: "Protocol and creator fees paid on bonding curve trades.",
-    [POOL_FEES]: "Protocol and creator fees charged by the ALPHA hook on graduated Uniswap v4 pools.",
+    [POOL_FEES]: "Protocol and creator fees charged by the ALPHA hook on graduated Uniswap v4 pools, and the ALPHA share of Meteora DAMM v2 pool fees on Solana.",
   },
   UserFees: {
     [CURVE_FEES]: "Protocol and creator fees paid on bonding curve trades.",
-    [POOL_FEES]: "Protocol and creator fees charged by the ALPHA hook on graduated Uniswap v4 pools.",
+    [POOL_FEES]: "Protocol and creator fees charged by the ALPHA hook on graduated Uniswap v4 pools, and the ALPHA share of Meteora DAMM v2 pool fees on Solana.",
   },
   Revenue: {
     [CURVE_FEES_TO_PROTOCOL]: "The 1% protocol fee on bonding curve trades.",
@@ -152,7 +236,12 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  adapter: {
+    ...chainConfig,
+    // first trade on the Solana program
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-22" },
+  },
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
 };
