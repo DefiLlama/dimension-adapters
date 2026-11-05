@@ -54,6 +54,14 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
+const FEE_LABELS = {
+  'JITOSOL_FEES': 'JitoSOL stake pool fees: rewards fee (4% of staking rewards), withdrawal fees (0.1% on unstake) and orphaned account fees',
+  'INTERCEPTOR_FEES': 'Fees generated from early unstake claims',
+  'TIP_ROUTER': 'Fees generated from the TipRouter Node Consensus Network',
+  'MEV_TIPS': 'Block engine fees routed directly to the DAO',
+  'JTX_FEES': "The DAO's 80% share of JTX platform fees (JIP-38), swept to the DAO wallet as JTO",
+}
+
 const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
@@ -61,13 +69,8 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   breakdownMethodology: {
-    Fees: {
-      'JITOSOL_FEES': 'JitoSOL stake pool fees: rewards fee (4% of staking rewards), withdrawal fees (0.1% on unstake) and orphaned account fees',
-      'INTERCEPTOR_FEES': 'Fees generated from early unstake claims',
-      'TIP_ROUTER': 'Fees generated from the TipRouter Node Consensus Network',
-      'MEV_TIPS': 'Block engine fees routed directly to the DAO',
-      'JTX_FEES': "The DAO's 80% share of JTX platform fees (JIP-38), swept to the DAO wallet as JTO",
-    },
+    Fees: FEE_LABELS,
+    Revenue: FEE_LABELS,
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: "The DAO's 80% share of JTX platform fees, swapped into JTO at each sweep and committed to buybacks and burns by JIP-38; held unburned in the DAO wallet so far",
     },
