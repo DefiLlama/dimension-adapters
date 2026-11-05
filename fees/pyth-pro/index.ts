@@ -16,6 +16,12 @@ const PYTHIAN_COUNCIL_WALLET = "GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2";
 // PIP-136: USDC DAO share is delivered to the Pythian Council instead of the DAO treasury
 const PIP_136 = "2026-09-25";
 
+// The September 2026 distribution (553,693 USDC) was sent to the DAO on 2026-10-05 instead of the
+// Council: Douro "should be sending it directly to the Pythian Council wallet ... but failed to do so this time".
+// Admit only this transfer; other post-PIP-136 USDC transfers to the DAO stay excluded.
+// Source: https://forum.pyth.network/t/pyth-pro-douro-labs-report-september-2026/2720
+const MISROUTED_USDC_TX = "4HmpUVkLMCTBZVoY2kmQaDpFkFTUUTpJ4bhrPwQeXTEKcdkmnXb8fhUv5Ha8kspL9xhvYaJYVjLE5DRcZSXNq6eZ";
+
 // Token mints
 const USDC_MINT = ADDRESSES.solana.USDC;
 const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
@@ -45,6 +51,7 @@ const fetch = async (options: FetchOptions) => {
       AND from_address = '${DOURO_LABS_WALLET}'
       AND (
         (mint = '${USDC_MINT}' AND to_address = '${usdcRecipient}')
+        OR (mint = '${USDC_MINT}' AND to_address = '${PYTH_DAO_WALLET}' AND txn_id = '${MISROUTED_USDC_TX}')
         OR (mint = '${PYTH_MINT}' AND to_address = '${PYTH_DAO_WALLET}')
       )
     GROUP BY mint
