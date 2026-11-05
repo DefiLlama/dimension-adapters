@@ -65,6 +65,13 @@ export const configs: IConfig = {
     getTrasnactionLimit: 10000,
     start: '2026-01-13',
   },
+  // MetaMask's Bridge API (bridge.api.cx.metamask.io/getQuote, chain 4663) quotes swaps with trade.to = this router,
+  // selector 0x5f575529 and an 87.5 bps fee to 0x932B4d3D0261f907cf94Be547ccBDC0e8B6be90A
+  [CHAIN.ROBINHOOD]: {
+    routerAddress: '0xf5307745c61de69bf033edfe6a8771256275a323',
+    getTrasnactionLimit: 10000,
+    start: '2026-07-10',
+  },
 }
 
 // MetaMask's Solana fee wallets (extension, mobile). A swap pays one of them in the same transaction, which is
