@@ -14,6 +14,22 @@ const configs: Record<string, LighterPartnerConfig> = {
   "infinex-lighter": { name: "Infinex", chains: { [CHAIN.ZK_LIGHTER]: { start: "2026-03-29", accounts: ["719006"] } } }, // https://infinex.xyz
   "liquid-lighter": { name: "Liquid", chains: { [CHAIN.ZK_LIGHTER]: { start: "2025-10-14", accounts: ["735594"] } } }, // "Liquid Trading" on the partners page, https://liquid.trade
   "pocket-universe-lighter": { name: "Pocket Universe", chains: { [CHAIN.ZK_LIGHTER]: { start: "2026-08-18", accounts: ["737834"] } } }, // https://www.pocketuniverse.app
+  // Sparkling (https://sparkl.ing): one partner account, set in the public code of https://app.sparkl.ing, routes perps and
+  // Up or Down prediction markets (market type bo). Each is its own listing, read from the trade feed by market type.
+  "sparkling-lighter-perps": {
+    name: "Sparkling", marketType: "perp", chains: { [CHAIN.ZK_LIGHTER]: { start: "2026-10-22", accounts: ["762434"] } },
+    methodology: {
+      Fees: "Partner fees paid by users on Lighter perps trades placed through Sparkling; excludes Lighter's own trading fees.",
+      Revenue: "Partner fees received by Sparkling from Lighter perps trades, before its affiliate payouts.",
+    },
+  },
+  "sparkling-lighter-predict": {
+    name: "Sparkling", marketType: "bo", chains: { [CHAIN.ZK_LIGHTER]: { start: "2026-10-22", accounts: ["762434"] } },
+    methodology: {
+      Fees: "Partner fees paid by users on Lighter Up or Down prediction market trades placed through Sparkling; excludes Lighter's own trading fees.",
+      Revenue: "Partner fees received by Sparkling from Lighter Up or Down prediction market trades, before its affiliate payouts.",
+    },
+  },
 };
 
 const protocols: Record<string, any> = {};
