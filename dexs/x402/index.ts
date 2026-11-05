@@ -50,11 +50,29 @@ const prefetch = async (options: FetchOptions) => {
   `);
 };
 
+// Central City Router 4: x402 payments settled through Circle Gateway nanopayments (scheme exact,
+// GatewayWalletBatched). Circle settles them in batches inside its GatewayWallet, with no token
+// transfer per payment, so the facilitator query above can't see them. Router 4 records every
+// settled batch on Base and Arc (one BatchRecorded event per batch part, volume in raw USDC with 6
+// decimals); each part's payments can be checked against Circle's Gateway API.
+// Spec and live totals: https://centralcity.ai/api/public/router4
+const CENTRAL_CITY_ROUTER4: Record<string, string> = {
+  [CHAIN.BASE]: '0x6f5a48A353820ab225fE7B301AD77B85D5B1c126',
+  [CHAIN.ARC]: '0x6f5a48A353820ab225fE7B301AD77B85D5B1c126',
+}
+const BATCH_RECORDED = 'event BatchRecorded(uint256 indexed chainId, bytes32 indexed batchTx, uint32 payments, uint64 volume, bytes32 transfersRoot)'
+
 async function fetch(options: FetchOptions): Promise<FetchResult> {
   const chain = DUNE_CHAIN_MAP[options.chain] ? DUNE_CHAIN_MAP[options.chain] : options.chain
   const results = options.preFetchedResults
   const dailyVolume = options.createBalances()
   results.filter((res: TransferRow) => res.chain === chain).forEach((row: TransferRow) => dailyVolume.add(row.token, row.volume))
+
+  const router4 = CENTRAL_CITY_ROUTER4[options.chain]
+  if (router4) {
+    const parts = await options.getLogs({ target: router4, eventAbi: BATCH_RECORDED })
+    parts.forEach((part: any) => dailyVolume.addUSDValue(Number(part.volume) / 1e6))
+  }
 
   return { dailyVolume }
 }
