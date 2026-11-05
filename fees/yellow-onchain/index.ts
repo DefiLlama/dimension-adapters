@@ -7,8 +7,8 @@
 //
 // Only inner Batch Payments count (tfInnerBatchTxn), so the account's other inflows are left out, and none from
 // Yellow Onchain's own referral rewards account (its test swaps and top-ups are internal transfers). SourceTag 58900000 is
-// on every app transaction from 2026-11-05 (88888888 from 2026-11-03 to 2026-11-05, counted up to the end of that day);
-// 2026-11-03 still had untagged fee Payments from before the release, so a tag is required from 2026-11-04 on.
+// on every app transaction from 2026-11-05 (88888888 from 2026-11-03 to 2026-11-05, counted up to the end of that day).
+// Counting starts 2026-11-04, the first full day with the tag (the release went out late on 2026-11-03).
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -19,11 +19,14 @@ const REWARDS_ACCOUNT = "rpsWtAtg2mJQkbypLGAdHXHP2P86kLnPEv"; // Yellow Onchain'
 const SOURCE_TAG = 58900000;
 const OLD_SOURCE_TAG = 88888888; // the app's tag 2026-11-03 to 2026-11-05 (Bithomp already used it for another app's name)
 const OLD_TAG_UNTIL = Date.UTC(2026, 10, 6) / 1e3; // 2026-11-06 00:00 UTC
-const TAG_REQUIRED_FROM = Date.UTC(2026, 10, 4) / 1e3; // 2026-11-04 00:00 UTC
 const TF_INNER_BATCH_TXN = 0x40000000; // XLS-56: set on every inner transaction of a Batch
+// XRPL close times count seconds from 2000-01-01 00:00 UTC, which is unix 946684800
+// (https://xrpl.org/docs/references/protocol/data-types/basic-data-types#specifying-time)
 const RIPPLE_EPOCH = 946_684_800;
+// A rough average ledger interval (ledgers close every 3 to 5 seconds), used only as the first guess of where a
+// timestamp lies; ledgerNear then refines it against real close times, so its exact value only changes the step count.
 const SECONDS_PER_LEDGER = 3.9;
-const PAD_LEDGERS = 100; // either side of the window: transactions are then kept by their ledger's close time
+const PAD_LEDGERS = 100; // ~6.5 minutes either side of the window: transactions are then kept by their ledger's close time
 
 /* A ledger's index and close time (unix seconds). */
 async function ledgerTime(ledgerIndex: number | "validated") {
@@ -44,8 +47,7 @@ async function ledgerNear(ts: number, from: { index: number; time: number }) {
 
 /* A platform fee: an inner Batch Payment of XRP to the fee account that applied, tagged as Yellow Onchain's. */
 function isPlatformFee(tx: any, meta: any, time: number) {
-  const tagOk = tx?.SourceTag === SOURCE_TAG || (time < OLD_TAG_UNTIL && tx?.SourceTag === OLD_SOURCE_TAG)
-    || (time < TAG_REQUIRED_FROM && tx?.SourceTag === undefined);
+  const tagOk = tx?.SourceTag === SOURCE_TAG || (time < OLD_TAG_UNTIL && tx?.SourceTag === OLD_SOURCE_TAG);
   return tx?.TransactionType === "Payment" && tx.Destination === FEE_ACCOUNT && tx.Account !== FEE_ACCOUNT && tx.Account !== REWARDS_ACCOUNT
     && (Number(tx.Flags) & TF_INNER_BATCH_TXN) !== 0 && tagOk
     && meta?.TransactionResult === "tesSUCCESS" && typeof meta.delivered_amount === "string";
@@ -64,6 +66,9 @@ const fetch = async (options: FetchOptions) => {
     const { result } = await rpcCall("account_tx", [{
       account: FEE_ACCOUNT, ledger_index_min: min, ledger_index_max: max, forward: true, limit: 400, api_version: 2, ...(marker ? { marker } : {}),
     }]);
+    // A node without the full history answers for a narrower range: never report a partial day.
+    if (!(Number(result.ledger_index_min) <= min && Number(result.ledger_index_max) >= max))
+      throw new Error(`The XRPL node searched ledgers ${result.ledger_index_min}-${result.ledger_index_max}, not ${min}-${max}`);
     for (const t of result.transactions ?? []) {
       const time = Date.parse(t.close_time_iso) / 1e3;
       if (!(time >= startTimestamp && time < endTimestamp) || !isPlatformFee(t.tx_json, t.meta, time)) continue;
@@ -99,7 +104,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.RIPPLE],
-  start: "2026-11-03", // SourceTag 88888888 shipped that day, 58900000 from 2026-11-05 (the fee account's first fee Payment was 2026-10-27)
+  start: "2026-11-04", // the first full day with the SourceTag (88888888, then 58900000 from 2026-11-05)
   methodology,
   breakdownMethodology,
 };

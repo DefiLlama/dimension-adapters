@@ -60,7 +60,7 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.RIPPLE],
-  start: "2026-11-03", // SourceTag 88888888 shipped that day (58900000 from 2026-11-05); untagged swaps before it are not counted
+  start: "2026-11-04", // the first full day with the SourceTag (88888888, then 58900000 from 2026-11-05); untagged swaps are not counted
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   doublecounted: true,
