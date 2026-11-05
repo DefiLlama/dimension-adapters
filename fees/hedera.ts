@@ -14,7 +14,7 @@ const fetch = async (options: FetchOptions) => {
   `;
 
   const res = await queryAllium(query);
-  if (!res?.[0]) {
+  if (!res?.[0] || res[0].tx_fees == null) {
     throw new Error(`Allium returned no rows for Hedera fees on ${options.dateString}`);
   }
 
