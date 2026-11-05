@@ -30,6 +30,22 @@ const FEE_CURRENCY_ADAPTERS: Record<string, string> = {
 const NO_BURN_FROM = 1743379200 // 2025-03-31 00:00 UTC, the first full day with a burn fraction of 0
 const SUPPLY_SIDE_LABEL = 'Transaction Gas Fees To Sequencer'
 
+// The cLabs Safe is a pass-through for the Community Fund since 2026-04-09: it sends gas fees net of Ethereum settlement gas, EigenDA and a
+// 15% OP Stack / Superchain revenue share to Governance 0xD533Ca259b330c7A88f74E000a3FaEa2d63B7972 (CELOccelerate,
+// https://github.com/celo-org/governance/blob/main/CGPs/cgp-0233.md; reports with txs in
+// https://forum.celo.org/t/initiating-ongoing-celo-chain-revenue-transactions/13494, each within 0.01% of 0.85 x (gross - L1 - EigenDA)).
+// All CELO the Safe has sent since 2026-04-01 went there. Revenue is booked as it accrues, from the same formula.
+// The batcher posts to the inbox 0xff00000000000000000000000000000000042220, the proposer to the DisputeGameFactory
+// 0xFbAC162162f4009Bb007C6DeBC36B1dAC10aF683. EigenDA is paid off Ethereum and is not deducted: 0-1.1% of gross per report.
+// The reports count all gas fees, so the carbon fund's 10% of base fees until 2026-05-09 is not deducted. The 1,748,950 CELO returned
+// on 2026-04-01 (tx 0xfbe1dac031726b6f580b561bfc2a80262b9529d09e4463fc3600cc74dce31a86) is a one-off for the first L2 year and is not booked.
+const COMMUNITY_FUND_FROM = 1775692800 // 2026-04-09 00:00 UTC, the first day of Celo's revenue reports
+const BATCHER = '0x0cd08c7f7a96aa9635f761b49216b9ea74c5ca60'
+const PROPOSER = '0x79d14553d6b3484f5612272b43c219a882415d33'
+const SUPERCHAIN_SHARE = 0.15
+const L1_COSTS_LABEL = 'Ethereum L1 Execution Gas Costs'
+const SUPERCHAIN_SHARE_LABEL = 'Superchain Revenue Share'
+
 const fetch = async (options: FetchOptions) => {
   const rows: any[] = await queryDuneSql(options, `
     SELECT
@@ -51,8 +67,35 @@ const fetch = async (options: FetchOptions) => {
 
   if (options.startOfDay < NO_BURN_FROM) return { dailyFees }
 
-  const dailySupplySideRevenue = dailyFees.clone(1, SUPPLY_SIDE_LABEL)
-  return { dailyFees, dailyRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue }
+  if (options.startOfDay < COMMUNITY_FUND_FROM) {
+    const dailySupplySideRevenue = dailyFees.clone(1, SUPPLY_SIDE_LABEL)
+    return { dailyFees, dailyRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue }
+  }
+
+  const l1Rows: any[] = await queryDuneSql(options, `
+    SELECT
+      LOWER(CAST("from" AS varchar)) AS sender,
+      SUM(CAST(gas_used AS double) * CAST(gas_price AS double)) AS gas_raw
+    FROM ethereum.transactions
+    WHERE TIME_RANGE
+      AND "from" IN (${BATCHER}, ${PROPOSER})
+    GROUP BY 1
+  `)
+  // the batcher and the proposer post every day: a day without both is a rotated key or missing data, so it throws
+  const senders = new Set((l1Rows ?? []).map(({ sender }) => sender))
+  if (!senders.has(BATCHER) || !senders.has(PROPOSER)) throw new Error(`celo: no batcher or proposer gas for ${options.dateString}`)
+
+  const l1Costs = options.createBalances()
+  for (const { gas_raw } of l1Rows) l1Costs.addCGToken('ethereum', gas_raw / 1e18, L1_COSTS_LABEL)
+
+  const superchainShare = dailyFees.clone(SUPERCHAIN_SHARE, SUPERCHAIN_SHARE_LABEL)
+  superchainShare.subtract(l1Costs.clone(SUPERCHAIN_SHARE), SUPERCHAIN_SHARE_LABEL)
+  const dailySupplySideRevenue = l1Costs.clone()
+  dailySupplySideRevenue.addBalances(superchainShare)
+
+  const dailyRevenue = dailyFees.clone()
+  dailyRevenue.subtract(dailySupplySideRevenue, METRIC.TRANSACTION_GAS_FEES)
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailyHoldersRevenue: 0, dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -67,16 +110,25 @@ const adapter: SimpleAdapter = {
   skipBreakdownValidation: true,
   methodology: {
     Fees: 'Gas fees paid by users, in CELO or in the fee currency they chose (USD₮, USDC, USA₮, Mento stablecoins), each priced in the currency it was paid in.',
-    Revenue: 'Burned coins. No gas fees have been burned since 2025-03-31, so revenue is 0 from that date.',
+    Revenue: 'Net sequencer revenue owed to the Celo Community Fund from 2026-04-09: gas fees minus the gas Celo pays on Ethereum to post batches and proposals and the 15% OP Stack revenue share. No gas fees have been burned since 2025-03-31, and from then to 2026-04-08 cLabs kept them, so revenue is 0 for those days.',
+    ProtocolRevenue: 'Net sequencer revenue owed to the Celo Community Fund, the on-chain treasury, from 2026-04-09: gas fees minus Ethereum settlement gas and the 15% OP Stack revenue share.',
     HoldersRevenue: 'Burned coins. No gas fees have been burned since 2025-03-31, so holders revenue is 0 from that date.',
-    SupplySideRevenue: 'Gas fees paid to cLabs, which runs the Celo sequencer, from 2025-03-31.',
+    SupplySideRevenue: 'Gas fees paid to cLabs, which runs the Celo sequencer, from 2025-03-31 to 2026-04-08; from 2026-04-09, the gas paid on Ethereum to settle the chain and the 15% OP Stack revenue share.',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees paid by users, each priced in the currency it was paid in: CELO, or USD₮, USDC, USA₮, XAUt0 and Mento stablecoins through fee abstraction.',
     },
+    Revenue: {
+      [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees net of Ethereum settlement gas and the OP Stack revenue share, owed to the Celo Community Fund from 2026-04-09.',
+    },
+    ProtocolRevenue: {
+      [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees net of Ethereum settlement gas and the OP Stack revenue share, owed to the Celo Community Fund from 2026-04-09.',
+    },
     SupplySideRevenue: {
-      [SUPPLY_SIDE_LABEL]: 'Base fees paid to cLabs through the FeeHandler and priority fees through the sequencer fee vault. From 2025-03-31 to 2026-05-08, 10% of base fees went to a carbon offset fund instead.',
+      [SUPPLY_SIDE_LABEL]: 'Base fees paid to cLabs through the FeeHandler and priority fees through the sequencer fee vault, 2025-03-31 to 2026-04-08. 10% of base fees went to a carbon offset fund instead.',
+      [L1_COSTS_LABEL]: 'ETH paid on Ethereum by the Celo batcher to post batches and by the proposer to create and resolve dispute games, from 2026-04-09.',
+      [SUPERCHAIN_SHARE_LABEL]: '15% of gas fees net of Ethereum settlement gas: the OP Stack / Superchain revenue share deducted before revenue goes to the Community Fund, from 2026-04-09.',
     },
   },
 }
