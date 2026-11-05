@@ -1,5 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 // OKX books each referral commission with one of these events. There are two generations: the
 // original three-argument pair, and a four-argument pair that adds the commission rate and so
@@ -10,8 +12,19 @@ const CommissionToTokenRecordEvent = 'event CommissionToTokenRecord(address toke
 const CommissionFromTokenRecordEventV2 = 'event CommissionFromTokenRecord(address tokenAddress, uint256 commissionAmount, address referrerAddress, uint256 commissionRate)';
 const CommissionToTokenRecordEventV2 = 'event CommissionToTokenRecord(address tokenAddress, uint256 commissionAmount, address referrerAddress, uint256 commissionRate)';
 
+// Positive slippage the router takes from a swap's output. It sends the trim to the address in the swap's calldata and books it with
+// the first event, and a share of the trim with the second. On toB API swaps the address is OKX's DEX API account, which keeps it as an
+// infrastructure fee, capped at 10% of the trade (https://web3.okx.com/onchainos/dev-docs/trade/api-fee). E.g. Ethereum tx
+// 0xfdc47546d262e1e07f0a57be02f67185b50706bf32d2db54296b5334f422ea8f: 0.618 WETH to 0x7fc8fd8b. The second event's amount has been 0 on
+// every chain Dune indexes since 2025-11-20, so it is read only for older days.
+const PositiveSlippageTrimRecordEvent = 'event PositiveSlippageTrimRecord(address tokenAddress, uint256 trimAmount, address trimAddress)';
+const PositiveSlippageChargeRecordEvent = 'event PositiveSlippageChargeRecord(address tokenAddress, uint256 chargeAmount, address chargeAddress)';
+const CHARGE_EVENTS_END = 1764547200; // Dec-01-2025 00:00:00 UTC
+
 const REFERRAL_COMMISSIONS = 'Referral commissions';
 const OKX_FEES = 'OKX interface and API fees';
+const OKX_POSITIVE_SLIPPAGE = 'OKX positive slippage';
+const PARTNER_POSITIVE_SLIPPAGE = 'Partner positive slippage';
 
 // OKX's own fee accounts. The routers pay OKX's fee with the same commission event they use for
 // third-party referrers, with one of these accounts as the referrer; every other referrer is a third
@@ -289,6 +302,12 @@ const fetch: any = async (options: FetchOptions) => {
 
   const events = await Promise.all(eventAbis.map((eventAbi) => options.getLogs({ eventAbi, targets, flatten: true })))
 
+  const slippageEventAbis = [
+    PositiveSlippageTrimRecordEvent,
+    ...(options.fromTimestamp < CHARGE_EVENTS_END ? [PositiveSlippageChargeRecordEvent] : []),
+  ]
+  const slippageEvents = await Promise.all(slippageEventAbis.map((eventAbi) => options.getLogs({ eventAbi, targets, flatten: true })))
+
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   for (const event of events.flat()) {
@@ -298,6 +317,22 @@ const fetch: any = async (options: FetchOptions) => {
     } else {
       dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
       dailySupplySideRevenue.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+    }
+  }
+
+  // A trim of a hacked token can carry an absurd amount: 1.9e15 PORT3 on Ethereum in tx
+  // 0x04f02c47210832e1cad6bb535b7ab8966080a903d29328dfb1f725280a2f1d2c is about $4.3T at its price.
+  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
+  for (const event of slippageEvents.flat()) {
+    if (blacklistTokens.includes(formatAddress(event.tokenAddress))) continue
+    const receiver = event.trimAddress ?? event.chargeAddress
+    const amount = event.trimAmount ?? event.chargeAmount
+    if (OKX_FEE_ACCOUNTS.has(receiver.toLowerCase())) {
+      dailyFees.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
+      dailyRevenue.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
+    } else {
+      dailyFees.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
+      dailySupplySideRevenue.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
     }
   }
 
@@ -315,29 +350,36 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology: {
-    Fees: 'Total comission fees from every trade.',
+    Fees: 'Total comission fees from every trade, plus the positive slippage the routers take from swaps.',
     UserFees: 'Users pay small amount of fees on trades.',
-    Revenue: "Commissions paid to OKX's own fee accounts: OKX's DEX interface fee and its 20% share of DEX API partner fees.",
-    ProtocolRevenue: "Commissions paid to OKX's own fee accounts: OKX's DEX interface fee and its 20% share of DEX API partner fees.",
-    SupplySideRevenue: 'Commissions paid to third-party referrers, such as wallets and apps that charge their own fee on top of OKX DEX.',
+    Revenue: "Commissions paid to OKX's own fee accounts, OKX's DEX interface fee and its 20% share of DEX API partner fees, and the positive slippage paid to those accounts.",
+    ProtocolRevenue: "Commissions paid to OKX's own fee accounts, OKX's DEX interface fee and its 20% share of DEX API partner fees, and the positive slippage paid to those accounts.",
+    SupplySideRevenue: 'Commissions paid to third-party referrers, such as wallets and apps that charge their own fee on top of OKX DEX, and positive slippage paid to other addresses.',
   },
   breakdownMethodology: {
     Fees: {
       [OKX_FEES]: "Commission each OKX router pays to OKX's own fee accounts, counted in whichever token the commission was taken in.",
       [REFERRAL_COMMISSIONS]: "Commission each OKX router pays to third-party referrers on the swaps it routes, counted in whichever token the commission was taken in.",
+      [OKX_POSITIVE_SLIPPAGE]: "Output above the swap's quote that each OKX router sends to OKX's own fee accounts.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Output above the swap's quote that each OKX router sends to any other address named in the swap.",
     },
     UserFees: {
       [OKX_FEES]: "OKX's commission, paid by the user out of the swap.",
       [REFERRAL_COMMISSIONS]: "Third-party referrer commissions, paid by the user out of the swap.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage OKX keeps, taken from the user's swap output.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Positive slippage a partner keeps, taken from the user's swap output.",
     },
     Revenue: {
       [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage paid to OKX's own fee accounts, kept by OKX.",
     },
     ProtocolRevenue: {
       [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage paid to OKX's own fee accounts, kept by OKX.",
     },
     SupplySideRevenue: {
       [REFERRAL_COMMISSIONS]: "Commission paid to the third-party referrer that brought the trade.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Positive slippage paid to the address named in the swap, other than OKX's own fee accounts.",
     },
   },
   chains: Object.keys(routers),
