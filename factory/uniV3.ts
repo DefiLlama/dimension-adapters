@@ -79,6 +79,12 @@ const configs: Record<string, Record<string, any>> = {
     // fee tiers 500/3000/10000; slot0().feeProtocol = 0 on every pool (https://scan.botchain.ai/address/0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419, checked 2026-09-22) => 100% of swap fees to LPs
     [CHAIN.BOT_CHAIN]: { factory: '0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419', start: '2026-02-26', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
   },
+  "vectaswap": {
+    // stock uniV3 fork (byte-identical pools, standard PoolCreated and Swap events)
+    // no protocol fee is switched on (factory feeProtocol = 0) => 100% of swap fees to LPs
+    // same factory address on Arbitrum; add it there once pools trade
+    [CHAIN.BASE]: { factory: '0xe84FA17C2Ea423E0dea3C986EE3E1560D684bb2d', start: '2026-10-29', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "xflows": {
     [CHAIN.WAN]: { factory: '0xEB3e557f6FdcaBa8dC98BDA833E017866Fc168cb', start: '2024-07-04' },
   },
@@ -624,6 +630,14 @@ const methodologyMap: Record<string, any> = {
     ProtocolRevenue: "No protocol fee is taken.",
     SupplySideRevenue: "100% of swap fees are distributed to liquidity providers.",
   },
+  "vectaswap": {
+    Volume: "Sum of the value of all swaps in VectaSwap V3 pools.",
+    Fees: "Swap fees paid by traders (0.01%, 0.035%, 0.05%, 0.3% or 1% per pool).",
+    UserFees: "Traders pay the pool's swap fee on every swap.",
+    Revenue: "No protocol fee is charged on pool swaps: 0.",
+    ProtocolRevenue: "No protocol fee is charged on pool swaps: 0.",
+    SupplySideRevenue: "All swap fees go to liquidity providers.",
+  },
   "betterswap-v3": {
     Volume: "Swap volume from all BetterSwap V3 pools deployed via the V3 factory.",
     Fees: "Users pay each pool's configured fee tier on every swap.",
@@ -959,6 +973,14 @@ protocols['bdex-v3'].breakdownMethodology = {
   Revenue: { 'Protocol fees': methodologyMap['bdex-v3'].Revenue },
   ProtocolRevenue: { 'Protocol fees': methodologyMap['bdex-v3'].ProtocolRevenue },
   SupplySideRevenue: { 'LP fees': methodologyMap['bdex-v3'].SupplySideRevenue },
+}
+
+protocols['vectaswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['vectaswap'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['vectaswap'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['vectaswap'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['vectaswap'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['vectaswap'].SupplySideRevenue },
 }
 
 protocols['baseswap-v3'].breakdownMethodology = {
