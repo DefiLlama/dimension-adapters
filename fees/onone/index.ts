@@ -65,10 +65,13 @@ const EVM: Record<string, Suite> = {
   },
 };
 
-/** Meteora DAMM v2 pools opened by OnOne. Add a line when a new Solana coin launches. */
+/**
+ * Every OnOne Meteora DAMM v2 pool. There is no OnOne program that lists them,
+ * and Meteora's own pool list includes every Meteora pool, so a new launch is added here.
+ * A pool Meteora does not serve is left off, rather than reported as zero.
+ */
 const SOL_POOLS: { pool: string; creatorPct: number }[] = [
   { pool: "82864UJ9DJvy62M5hzQwZKVSLi51gT6etbfuvPhE7Prk", creatorPct: 60 },
-  { pool: "GDFq3s1fmKP7fS3sSmF79irUNhgj3s5rMwoMQg63wEm", creatorPct: 60 },
 ];
 
 async function evm(options: FetchOptions) {
@@ -113,17 +116,25 @@ async function solana(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const result = {
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+
+  // fees["24h"] is a rolling snapshot, not the fees of an old day.
+  const end = options.endTimestamp;
+  if (Math.floor(Date.now() / 1000) - end > 36 * 60 * 60) return result;
 
   for (const { pool, creatorPct } of SOL_POOLS) {
-    let row: { fees?: { "24h"?: number } };
-    try {
-      row = await httpGet(`https://damm-v2.datapi.meteora.ag/pools/${pool}`);
-    } catch {
-      // A pool Meteora has not indexed yet must not fail the other chains.
-      continue;
-    }
-    const lpFees = Number(row?.fees?.["24h"] ?? 0);
-    if (!Number.isFinite(lpFees) || lpFees <= 0) continue;
+    const row: { fees?: { "24h"?: number } } = await httpGet(`https://damm-v2.datapi.meteora.ag/pools/${pool}`);
+    const raw = row?.fees?.["24h"];
+    if (raw === undefined || raw === null) throw new Error(`OnOne: Meteora fees missing for ${pool}`);
+    const lpFees = Number(raw);
+    if (!Number.isFinite(lpFees)) throw new Error(`OnOne: Meteora fees not a number for ${pool}`);
+    if (lpFees <= 0) continue;
     const creator = (lpFees * creatorPct) / 100;
     const platform = lpFees - creator;
     dailyFees.addUSDValue(lpFees, SWAP_FEES);
@@ -131,19 +142,13 @@ async function solana(options: FetchOptions) {
     dailySupplySideRevenue.addUSDValue(creator, CREATOR_FEES);
   }
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-  };
+  return result;
 }
 
 const methodology = {
-  Fees: "Quote-token fees taken by the OnOne launch hook on each swap, plus the native coin paid to launch a coin. On Solana, the LP fee earned by the OnOne Meteora pool (Meteora's own protocol cut is left on Meteora's listing).",
+  Fees: "Quote-token fees taken by the OnOne launch hook on each swap, plus the native coin paid to launch a coin. On Solana, the LP fee earned by the OnOne Meteora pool (Meteora's own protocol cut is left on Meteora's listing). The 1% fee on swaps routed through the OnOne site is taken inside the Uniswap router and has no separate event, so it is not estimated here.",
   UserFees: "The same amounts paid by the trader or the launcher.",
-  Revenue: "The protocol lane of each swap fee, credited to the OnOne treasury, plus the full launch fee. On Solana, the platform's share of the LP fee (40% when the creator share is 60%).",
+  Revenue: "The protocol lane of each swap fee, credited to the OnOne treasury, plus the full launch fee. On Solana, the platform's share of the LP fee (40% when the creator share is 60%). The site's 1% routing fee is not included, because the router does not emit it on its own.",
   ProtocolRevenue: "Same as Revenue.",
   SupplySideRevenue: "The creator lane and the referrer lane of each swap fee. On Solana, the creator position's share of the LP fee.",
 };
@@ -172,7 +177,8 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  // Solana publishes one rolling 24h figure. An hourly pull would add that same figure once per hour.
+  pullHourly: false,
   methodology,
   breakdownMethodology,
   adapter: {
