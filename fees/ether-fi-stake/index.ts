@@ -130,6 +130,9 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
          dex_aggregator.trades
          where blockchain = 'ethereum'
          and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F
+         -- only trades that buy ETHFI: the wallet also swapped USDC and WETH into USDT, e.g.
+         -- 0xad07edc030fda4111845f4903663403bc7452bd51b26d47420cb232ccec5661e, and those are not buybacks
+         and token_bought_address = ${ADDRESSES.ethereum.ETHFI}
          and TIME_RANGE
 
          union all
