@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 /**
  * The River (https://theriver.markets): a non-custodial web app for buying and selling tokenized US stocks
@@ -28,8 +29,6 @@ const OWN_TEST_WALLETS = new Set(["0x944f1dafb62f6886336660b31b87f9f7613496de"])
 
 const RIVER_TAKER = "0xd0daDF272d6c07129c058B937B867428A46c4fDb"; // Base only
 const RIVER_TAKE_EVENT = "event RiverTake(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 spent, uint256 received, uint256 fee)";
-// RiverTaker charges its fee in USDC on Base (immutable USDC in the contract).
-const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 // KyberSwap MetaAggregationRouterV2, same address on Base and Robinhood Chain.
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
@@ -40,21 +39,21 @@ const KYBER_FEE_EVENT = "event Fee(address token, uint256 totalAmount, uint256 t
 // Robinhood Chain: the same fee receiver was configured on 2026-10-01. A scan from block 78000000 (2026-10-02)
 // found no Fee event paying the treasury before tx 0xc4b1fc74eb0fbb3c1bcc2839f874bbe2b0489c280c422df75769ff3be0e8de8e
 // (block 105768375, 2026-11-04), so the zero days before it are correct.
-const chainConfig: Record<string, { start: string; riverTaker?: string }> = {
-  [CHAIN.BASE]: { start: "2026-10-01", riverTaker: RIVER_TAKER },
+const chainConfig: Record<string, { start: string; riverTaker?: string; token?: string }> = {
+  [CHAIN.BASE]: { start: "2026-10-01", riverTaker: RIVER_TAKER, token: ADDRESSES.base.USDC },
   [CHAIN.ROBINHOOD]: { start: "2026-10-01" },
 };
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const treasury = TREASURY.toLowerCase();
-  const { riverTaker } = chainConfig[options.chain];
+  const { riverTaker, token } = chainConfig[options.chain];
 
   // Fee payments to the treasury in this window: [txHash, token, amount].
   const payments: [string, string, bigint][] = [];
-  if (riverTaker) {
+  if (riverTaker && token) {
     const takes = await options.getLogs({ target: riverTaker, eventAbi: RIVER_TAKE_EVENT, onlyArgs: false });
-    for (const log of takes) payments.push([log.transactionHash, USDC_BASE, BigInt(log.args.fee)]);
+    for (const log of takes) payments.push([log.transactionHash, token, BigInt(log.args.fee)]);
   }
   const feeLogs = await options.getLogs({ target: KYBER_ROUTER, eventAbi: KYBER_FEE_EVENT, onlyArgs: false });
   for (const log of feeLogs) {
@@ -93,9 +92,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "The River's 0.10% interface fee on market trades of tokenized stocks, paid by the trader in USDC (Base) or USDG (Robinhood Chain), read from RiverTaker RiverTake events and KyberSwap router Fee events that pay The River's treasury. Trades from The River's own test wallet are excluded.",
-  UserFees: "The whole interface fee is paid by the trader.",
-  Revenue: "The treasury keeps the whole fee.",
-  ProtocolRevenue: "The treasury keeps the whole fee.",
+  UserFees: "The whole interface fee (0.10% of the trade value) is paid by the trader.",
+  Revenue: "The treasury keeps the whole interface fee (0.10% of the trade value).",
+  ProtocolRevenue: "The treasury keeps the whole interface fee (0.10% of the trade value).",
 };
 
 const breakdownMethodology = {
