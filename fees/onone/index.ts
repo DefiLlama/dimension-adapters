@@ -115,7 +115,13 @@ async function solana(options: FetchOptions) {
   const dailySupplySideRevenue = options.createBalances();
 
   for (const { pool, creatorPct } of SOL_POOLS) {
-    const row = await httpGet(`https://damm-v2.datapi.meteora.ag/pools/${pool}`);
+    let row: { fees?: { "24h"?: number } };
+    try {
+      row = await httpGet(`https://damm-v2.datapi.meteora.ag/pools/${pool}`);
+    } catch {
+      // A pool Meteora has not indexed yet must not fail the other chains.
+      continue;
+    }
     const lpFees = Number(row?.fees?.["24h"] ?? 0);
     if (!Number.isFinite(lpFees) || lpFees <= 0) continue;
     const creator = (lpFees * creatorPct) / 100;
