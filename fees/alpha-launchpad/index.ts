@@ -59,8 +59,8 @@ const chainConfig: Record<string, { factory: string; block: number; hook: string
 
 // ALPHA launch program on Solana: https://solscan.io/account/r4yX8Q9Z5zSLY2fjoq1DgijfoHLru49zfikq79pa1fa
 const SOLANA_PROGRAM = "r4yX8Q9Z5zSLY2fjoq1DgijfoHLru49zfikq79pa1fa";
-// base58 of the Anchor `Market` account discriminator, and where quote_mint sits in that account
 const MARKET_DISCRIMINATOR = "dkokXHR3DTw";
+const MARKET_SIZE = 914;
 const MARKET_QUOTE_MINT_OFFSET = 141;
 // sha256("event:<Name>")[0..8] and event size in bytes, discriminator included. Events are written with emit!, as program logs.
 // TradeExecuted: market @8, trader, recipient, is_buy, base_amount, quote_principal, quote_settlement, protocol_fee u64 @129, creator_fee u64 @137, stage
@@ -79,13 +79,13 @@ const createFeeBalances = (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  const addFee = (quote: string, protocolFee: bigint, creatorFee: bigint, labels: string[]) => {
+  // Half of the protocol fee is booked for operations and half for the ALPHA buyback, unless the event reports the split.
+  const addFee = (quote: string, protocolFee: bigint, creatorFee: bigint, labels: string[], operationsFee = protocolFee / 2n) => {
     const [fees, toProtocol, toCreators] = labels;
     dailyFees.add(quote, protocolFee + creatorFee, fees);
     dailyRevenue.add(quote, protocolFee, toProtocol);
     dailySupplySideRevenue.add(quote, creatorFee, toCreators);
-    // Half of the protocol fee is booked for operations and half for the ALPHA buyback.
-    dailyProtocolRevenue.add(quote, protocolFee / 2n, FEES_TO_OPERATIONS);
+    dailyProtocolRevenue.add(quote, operationsFee, FEES_TO_OPERATIONS);
   };
 
   const result = () => ({
@@ -148,21 +148,24 @@ const fetchSolana = async (options: FetchOptions) => {
 
   const rows = await queryAllium(`${programEventsSql(SOLANA_PROGRAM, options, SOLANA_QUIET_INSTRUCTIONS)},
   fee_events AS (
-    SELECT 'curve' AS kind, SUBSTR(data, 17, 64) AS market_hex, ${u64("data", 129)} AS protocol_fee, ${u64("data", 137)} AS creator_fee
+    SELECT 'curve' AS kind, SUBSTR(data, 17, 64) AS market_hex, NULL::VARCHAR AS quote_hex,
+      ${u64("data", 129)} AS protocol_fee, ${u64("data", 137)} AS creator_fee, NULL::NUMBER AS operations_fee
     ${ofEvent(TRADE_EXECUTED)}
     UNION ALL
-    SELECT 'pool', SUBSTR(data, 17, 64), ${u64("data", 120)} + ${u64("data", 128)}, ${u64("data", 136)}
+    SELECT 'pool', SUBSTR(data, 17, 64), SUBSTR(data, 161, 64),
+      ${u64("data", 120)} + ${u64("data", 128)}, ${u64("data", 136)}, ${u64("data", 120)}
     ${ofEvent(POOL_FEES_SETTLED)}
   ),
   fees AS (
-    SELECT kind, market_hex, SUM(protocol_fee)::VARCHAR AS protocol_fee, SUM(creator_fee)::VARCHAR AS creator_fee
+    SELECT kind, market_hex, quote_hex, SUM(protocol_fee)::VARCHAR AS protocol_fee, SUM(creator_fee)::VARCHAR AS creator_fee,
+      SUM(operations_fee)::VARCHAR AS operations_fee
     FROM fee_events
-    GROUP BY 1, 2
+    GROUP BY 1, 2, 3
   )
   SELECT checks.*,
     -- an event with a size it never had: its layout changed and the offsets above may no longer hold
     (${knownSize(TRADE_EXECUTED)}) + (${knownSize(POOL_FEES_SETTLED)}) AS unknown_layouts,
-    fees.kind, fees.market_hex, fees.protocol_fee, fees.creator_fee
+    fees.kind, fees.market_hex, fees.quote_hex, fees.protocol_fee, fees.creator_fee, fees.operations_fee
   FROM checks
   LEFT JOIN fees ON TRUE`);
 
@@ -174,25 +177,29 @@ const fetchSolana = async (options: FetchOptions) => {
   if (!feeRows.length) return result();
 
   // TradeExecuted names the market, not the quote asset, so map market to quote mint
-  const markets = await getProgramAccounts({
-    programId: SOLANA_PROGRAM,
-    encoding: "base64",
-    filters: [{ memcmp: { offset: 0, bytes: MARKET_DISCRIMINATOR } }],
-    dataSlice: { offset: MARKET_QUOTE_MINT_OFFSET, length: 32 },
-  });
   const quoteMints: Record<string, string> = {};
-  markets.forEach((market: any) => {
-    quoteMints[market.pubkey] = base58Encode(Buffer.from(market.account.data[0], "base64"));
-  });
+  if (feeRows.some((row: any) => row.kind === "curve")) {
+    const markets = await getProgramAccounts({
+      programId: SOLANA_PROGRAM,
+      encoding: "base64",
+      filters: [{ dataSize: MARKET_SIZE }, { memcmp: { offset: 0, bytes: MARKET_DISCRIMINATOR } }],
+      dataSlice: { offset: MARKET_QUOTE_MINT_OFFSET, length: 32 },
+    });
+    markets.forEach((market: any) => {
+      quoteMints[market.pubkey] = base58Encode(Buffer.from(market.account.data[0], "base64"));
+    });
+  }
 
   for (const row of feeRows) {
+    if (row.kind === "pool") {
+      const quote = base58Encode(Buffer.from(row.quote_hex, "hex"));
+      addFee(quote, BigInt(row.protocol_fee), BigInt(row.creator_fee), [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS], BigInt(row.operations_fee));
+      continue;
+    }
     const market = base58Encode(Buffer.from(row.market_hex, "hex"));
     const quote = quoteMints[market];
     if (!quote) throw new Error(`alpha-launchpad: fee event for unknown market ${market}`);
-    const labels = row.kind === "curve"
-      ? [CURVE_FEES, CURVE_FEES_TO_PROTOCOL, CURVE_FEES_TO_CREATORS]
-      : [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS];
-    addFee(quote, BigInt(row.protocol_fee), BigInt(row.creator_fee), labels);
+    addFee(quote, BigInt(row.protocol_fee), BigInt(row.creator_fee), [CURVE_FEES, CURVE_FEES_TO_PROTOCOL, CURVE_FEES_TO_CREATORS]);
   }
 
   return result();
