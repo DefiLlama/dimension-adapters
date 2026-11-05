@@ -6,10 +6,11 @@
  *
  * Escrows (mainnet) — every deployment is read, the current one and the ones it replaced, since a leg funded
  * on a retired deployment still settles there (the events are the same on all of them):
- *   EVM (every chain in EVM_CHAINS) — HTLCFactory (FACTORIES) deploys one minimal-proxy clone per leg
- *     (SwapCreated); the clone emits Claimed(secret) / Refunded.
- *   TRON — SharedHTLC pools (TRON_POOLS) (Funded / Claimed / Refunded / FeeCollected).
- *   Solana — programs (SOLANA_PROGRAMS), one escrow PDA per leg (Anchor events Funded / Claimed).
+ *   EVM (Ethereum, Base, Robinhood) — an HTLCFactory deploys one minimal-proxy clone per leg (SwapCreated);
+ *     the clone emits Claimed(secret) / Refunded.
+ *   TRON — SharedHTLC pools (Funded / Claimed / Refunded / FeeCollected).
+ *   Solana — programs with one escrow PDA per leg (Anchor events Funded / Claimed).
+ * Every address is listed per chain in chainConfig, with its explorer page and deployment day.
  *   Bitcoin — a P2WSH script per leg; not read here (see below).
  *
  * Volume counts each trade ONCE, at the FIRST claim of its hashlock. The secret holder claims the leg that
@@ -52,16 +53,43 @@ import { METRIC } from "../../helpers/metrics";
 import { base58Encode, getTransaction, solanaRpc } from "../../helpers/solana";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-// Same address on every chain in EVM_CHAINS; start = the deployment day there. 0x0B43… replaced 0xa9B6… after the
-// third audit round (2026-11-04).
-const FACTORIES = [
+type Deployment = { address: string; start: string }; // start: the deployment day
+
+// HTLCFactory: the same address on Ethereum, Base and Robinhood (one deployer, same nonce on each).
+const EVM_FACTORIES: Deployment[] = [
+  // https://basescan.org/address/0xa9B6a64837259034E949787B5d17Bfa46304ff71 (also on etherscan.io and explorer.chain.robinhood.com)
   { address: "0xa9B6a64837259034E949787B5d17Bfa46304ff71", start: "2026-10-05" },
+  // Third audit round. https://basescan.org/address/0x0B43C409B89515e279F651883837d4eB4ead3f4D (also on etherscan.io and explorer.chain.robinhood.com)
   { address: "0x0B43C409B89515e279F651883837d4eB4ead3f4D", start: "2026-11-04" },
 ];
-const FACTORY_START = FACTORIES[0].start;
-const TRON_POOLS = ["TE97fe1beR5nRZzjixi4azE36qWcHEWmNj", "TTngcUqouXmEXfjHvdqHmiFcbNBm7gezu8"].map((a) => sdk.util.tronToEvmAddress(a));
-const SOLANA_PROGRAMS = ["7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc", "721JrU7NUvaRBSz3JGyuJQMZMgKrT28aonEGxzngMemf"];
-const EVM_CHAINS: string[] = [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ROBINHOOD];
+
+// Every deployment per chain, the current one and the ones it replaced: a leg funded on a retired one still settles there.
+const chainConfig: Record<string, { start: string; factories?: Deployment[]; pools?: Deployment[]; programs?: Deployment[] }> = {
+  [CHAIN.ETHEREUM]: { start: "2026-10-05", factories: EVM_FACTORIES },
+  [CHAIN.BASE]: { start: "2026-10-05", factories: EVM_FACTORIES },
+  [CHAIN.ROBINHOOD]: { start: "2026-10-05", factories: EVM_FACTORIES },
+  [CHAIN.TRON]: {
+    start: "2026-10-07",
+    pools: [
+      // https://tronscan.org/#/contract/TE97fe1beR5nRZzjixi4azE36qWcHEWmNj
+      { address: "TE97fe1beR5nRZzjixi4azE36qWcHEWmNj", start: "2026-10-07" },
+      // Third audit round. https://tronscan.org/#/contract/TTngcUqouXmEXfjHvdqHmiFcbNBm7gezu8
+      { address: "TTngcUqouXmEXfjHvdqHmiFcbNBm7gezu8", start: "2026-11-04" },
+    ],
+  },
+  [CHAIN.SOLANA]: {
+    start: "2026-10-05",
+    programs: [
+      // https://solscan.io/account/7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc
+      { address: "7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc", start: "2026-10-05" },
+      // Third audit round. https://solscan.io/account/721JrU7NUvaRBSz3JGyuJQMZMgKrT28aonEGxzngMemf
+      { address: "721JrU7NUvaRBSz3JGyuJQMZMgKrT28aonEGxzngMemf", start: "2026-11-04" },
+    ],
+  },
+};
+const EVM_CHAINS = Object.keys(chainConfig).filter((c) => chainConfig[c].factories);
+const TRON_POOLS = chainConfig[CHAIN.TRON].pools!.map((p) => sdk.util.tronToEvmAddress(p.address));
+const SOLANA_PROGRAMS = chainConfig[CHAIN.SOLANA].programs!.map((p) => p.address);
 const LOOKBACK = 3 * 24 * 3600; // default timelocks are 24h (Bitcoin) and 4h (every other chain)
 
 const ABI = {
@@ -208,7 +236,7 @@ async function prefetch(options: FetchOptions): Promise<any> {
   const clones: Record<string, any[]> = {};
   for (const chain of EVM_CHAINS) {
     clones[chain] = [];
-    for (const f of FACTORIES)
+    for (const f of chainConfig[chain].factories!)
       clones[chain].push(...(await sdk.getEventLogs({ chain, target: f.address, eventAbi: ABI.SwapCreated, fromTimestamp: Date.parse(f.start) / 1000, toTimestamp: until, onlyArgs: false })));
     const fromBlock = await options.getBlock(from, chain, {});
     for (const { blockNumber, args: e } of clones[chain])
@@ -284,7 +312,7 @@ async function fetch(options: FetchOptions) {
   // block later so a boundary block is counted once.
   const fromBlock = (await options.getFromBlock()) + 1;
   if (EVM_CHAINS.includes(chain)) {
-    for (const { address } of FACTORIES)
+    for (const { address } of chainConfig[chain].factories!)
       for (const f of await options.getLogs({ target: address, eventAbi: ABI.EvmFee, fromBlock })) fee(evmToken(f.token), BigInt(f.fee));
   } else if (chain === CHAIN.TRON) {
     // FeeCollected carries no token; the Funded event of the same swap, in the same transaction, names it,
@@ -325,13 +353,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: FACTORY_START },
-    [CHAIN.BASE]: { start: FACTORY_START },
-    [CHAIN.ROBINHOOD]: { start: FACTORY_START },
-    [CHAIN.TRON]: { start: "2026-10-07" },
-    [CHAIN.SOLANA]: { start: "2026-10-05" },
-  },
+  adapter: chainConfig,
 };
 
 export default adapter;
