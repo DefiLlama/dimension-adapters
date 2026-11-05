@@ -4,12 +4,12 @@
  * sha256(secret) hashlock; claiming one leg reveals the secret, which claims the other.
  * Website: https://hashlock.markets · Docs: https://docs.hashlock.markets
  *
- * Escrows (mainnet):
- *   EVM (every chain in EVM_CHAINS) — HTLCFactory 0xa9B6a64837259034E949787B5d17Bfa46304ff71 deploys one
- *     minimal-proxy clone per leg (SwapCreated); the clone emits Claimed(secret) / Refunded.
- *   TRON — SharedHTLC pool TE97fe1beR5nRZzjixi4azE36qWcHEWmNj (Funded / Claimed / Refunded / FeeCollected).
- *   Solana — program 7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc, one escrow PDA per leg (Anchor events
- *     Funded / Claimed).
+ * Escrows (mainnet) — every deployment is read, the current one and the ones it replaced, since a leg funded
+ * on a retired deployment still settles there (the events are the same on all of them):
+ *   EVM (every chain in EVM_CHAINS) — HTLCFactory (FACTORIES) deploys one minimal-proxy clone per leg
+ *     (SwapCreated); the clone emits Claimed(secret) / Refunded.
+ *   TRON — SharedHTLC pools (TRON_POOLS) (Funded / Claimed / Refunded / FeeCollected).
+ *   Solana — programs (SOLANA_PROGRAMS), one escrow PDA per leg (Anchor events Funded / Claimed).
  *   Bitcoin — a P2WSH script per leg; not read here (see below).
  *
  * Volume counts each trade ONCE, at the FIRST claim of its hashlock. The secret holder claims the leg that
@@ -52,10 +52,15 @@ import { METRIC } from "../../helpers/metrics";
 import { base58Encode, getTransaction, solanaRpc } from "../../helpers/solana";
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const FACTORY = "0xa9B6a64837259034E949787B5d17Bfa46304ff71"; // same address on every chain in EVM_CHAINS
-const FACTORY_START = "2026-10-05"; // the factory's deployment day on every chain in EVM_CHAINS
-const TRON_POOL = sdk.util.tronToEvmAddress("TE97fe1beR5nRZzjixi4azE36qWcHEWmNj");
-const SOLANA_PROGRAM = "7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc";
+// Same address on every chain in EVM_CHAINS; start = the deployment day there. 0x0B43… replaced 0xa9B6… after the
+// third audit round (2026-11-04).
+const FACTORIES = [
+  { address: "0xa9B6a64837259034E949787B5d17Bfa46304ff71", start: "2026-10-05" },
+  { address: "0x0B43C409B89515e279F651883837d4eB4ead3f4D", start: "2026-11-04" },
+];
+const FACTORY_START = FACTORIES[0].start;
+const TRON_POOLS = ["TE97fe1beR5nRZzjixi4azE36qWcHEWmNj", "TTngcUqouXmEXfjHvdqHmiFcbNBm7gezu8"].map((a) => sdk.util.tronToEvmAddress(a));
+const SOLANA_PROGRAMS = ["7Egsecq7YU5n7PonndM7W7W92EFLZVGrnoaNPW8n1DEc", "721JrU7NUvaRBSz3JGyuJQMZMgKrT28aonEGxzngMemf"];
 const EVM_CHAINS: string[] = [CHAIN.ETHEREUM, CHAIN.BASE, CHAIN.ROBINHOOD];
 const LOOKBACK = 3 * 24 * 3600; // default timelocks are 24h (Bitcoin) and 4h (every other chain)
 
@@ -97,7 +102,7 @@ function ownEvents(logs: string[] = []): Buffer[] {
     const invoke = line.match(INVOKE);
     if (invoke) stack.push(invoke[1]);
     else if (EXIT.test(line)) stack.pop();
-    else if (line.startsWith("Program data: ") && stack[stack.length - 1] === SOLANA_PROGRAM)
+    else if (line.startsWith("Program data: ") && SOLANA_PROGRAMS.includes(stack[stack.length - 1]))
       out.push(Buffer.from(line.slice("Program data: ".length), "base64"));
   }
   return out;
@@ -136,14 +141,21 @@ const solTx = (signature: string) => {
   return solTxCache.get(signature)!;
 };
 
-// Program signatures with blockTime in [from, to), newest first from the tip.
+// Signatures of every program with blockTime in [from, to); one transaction is listed once.
 async function solanaSignatures(from: number, to: number) {
+  const seen = new Map<string, { signature: string; blockTime: number; slot: number }>();
+  for (const program of SOLANA_PROGRAMS) for (const s of await programSignatures(program, from, to)) seen.set(s.signature, s);
+  return [...seen.values()];
+}
+
+// One program's signatures with blockTime in [from, to), newest first from the tip.
+async function programSignatures(program: string, from: number, to: number) {
   const out: { signature: string; blockTime: number; slot: number }[] = [];
   let before: string | undefined;
   for (;;) {
     // The raw call, so a malformed answer throws instead of reading as the end of history.
     // Finalized only: a finalized signature carries its blockTime.
-    const page: any[] = await solanaRpc("getSignaturesForAddress", [SOLANA_PROGRAM, { before, limit: 1000, commitment: "finalized" }]);
+    const page: any[] = await solanaRpc("getSignaturesForAddress", [program, { before, limit: 1000, commitment: "finalized" }]);
     if (!Array.isArray(page)) throw new Error("hashlock-markets: Solana getSignaturesForAddress returned no list");
     for (const s of page) {
       if (s.err) continue;
@@ -195,16 +207,21 @@ async function prefetch(options: FetchOptions): Promise<any> {
   // Every clone since the factory's deployment: an older one can hold the reveal of a leg funded inside the lookback.
   const clones: Record<string, any[]> = {};
   for (const chain of EVM_CHAINS) {
-    clones[chain] = await sdk.getEventLogs({ chain, target: FACTORY, eventAbi: ABI.SwapCreated, fromTimestamp: Date.parse(FACTORY_START) / 1000, toTimestamp: until, onlyArgs: false });
+    clones[chain] = [];
+    for (const f of FACTORIES)
+      clones[chain].push(...(await sdk.getEventLogs({ chain, target: f.address, eventAbi: ABI.SwapCreated, fromTimestamp: Date.parse(f.start) / 1000, toTimestamp: until, onlyArgs: false })));
     const fromBlock = await options.getBlock(from, chain, {});
     for (const { blockNumber, args: e } of clones[chain])
       if (Number(blockNumber) >= fromBlock) addLeg(chain, lc(e.clone), e.hashlock, { token: evmToken(e.token), amount: BigInt(e.amount) });
   }
 
-  const funded = await sdk.getEventLogs({ chain: CHAIN.TRON, target: TRON_POOL, eventAbi: ABI.TronFunded, fromTimestamp: from, toTimestamp: until, onlyArgs: true });
-  for (const e of funded) addLeg(CHAIN.TRON, lc(e.swapId), e.hashlock, { token: tronToken(e.token), amount: BigInt(e.amount) });
-  const tronClaimed = await sdk.getEventLogs({ chain: CHAIN.TRON, target: TRON_POOL, eventAbi: ABI.TronClaimed, fromTimestamp: from, toTimestamp: until, onlyArgs: false });
-  await withTime(CHAIN.TRON, tronClaimed, (l) => ({ chain: CHAIN.TRON, leg: lc(l.args.swapId), hashlock: sha256(hexBytes(l.args.secret)) }));
+  // A TRON leg is a swap id inside one pool: keyed by both, so two pools can never be read as one leg.
+  for (const pool of TRON_POOLS) {
+    const funded = await sdk.getEventLogs({ chain: CHAIN.TRON, target: pool, eventAbi: ABI.TronFunded, fromTimestamp: from, toTimestamp: until, onlyArgs: true });
+    for (const e of funded) addLeg(CHAIN.TRON, `${lc(pool)}:${lc(e.swapId)}`, e.hashlock, { token: tronToken(e.token), amount: BigInt(e.amount) });
+    const tronClaimed = await sdk.getEventLogs({ chain: CHAIN.TRON, target: pool, eventAbi: ABI.TronClaimed, fromTimestamp: from, toTimestamp: until, onlyArgs: false });
+    await withTime(CHAIN.TRON, tronClaimed, (l) => ({ chain: CHAIN.TRON, leg: `${lc(pool)}:${lc(l.args.swapId)}`, hashlock: sha256(hexBytes(l.args.secret)) }));
+  }
 
   const solanaFees: { token: string | null; fee: bigint }[] = [];
   const sigs = await solanaSignatures(from, until);
@@ -267,16 +284,19 @@ async function fetch(options: FetchOptions) {
   // block later so a boundary block is counted once.
   const fromBlock = (await options.getFromBlock()) + 1;
   if (EVM_CHAINS.includes(chain)) {
-    for (const f of await options.getLogs({ target: FACTORY, eventAbi: ABI.EvmFee, fromBlock })) fee(evmToken(f.token), BigInt(f.fee));
+    for (const { address } of FACTORIES)
+      for (const f of await options.getLogs({ target: address, eventAbi: ABI.EvmFee, fromBlock })) fee(evmToken(f.token), BigInt(f.fee));
   } else if (chain === CHAIN.TRON) {
     // FeeCollected carries no token; the Funded event of the same swap, in the same transaction, names it,
     // so both are read over the same blocks.
-    const fees = await options.getLogs({ target: TRON_POOL, eventAbi: ABI.TronFee, fromBlock });
-    const funded = await options.getLogs({ target: TRON_POOL, eventAbi: ABI.TronFunded, fromBlock });
-    const tokenOf = new Map(funded.map((e: any) => [lc(e.swapId), tronToken(e.token)]));
-    for (const f of fees) {
-      if (!tokenOf.has(lc(f.swapId))) throw new Error(`hashlock-markets: TRON fee without its Funded event, swap ${f.swapId}`);
-      fee(tokenOf.get(lc(f.swapId))!, BigInt(f.fee));
+    for (const pool of TRON_POOLS) {
+      const fees = await options.getLogs({ target: pool, eventAbi: ABI.TronFee, fromBlock });
+      const funded = await options.getLogs({ target: pool, eventAbi: ABI.TronFunded, fromBlock });
+      const tokenOf = new Map(funded.map((e: any) => [lc(e.swapId), tronToken(e.token)]));
+      for (const f of fees) {
+        if (!tokenOf.has(lc(f.swapId))) throw new Error(`hashlock-markets: TRON fee without its Funded event, swap ${f.swapId}`);
+        fee(tokenOf.get(lc(f.swapId))!, BigInt(f.fee));
+      }
     }
   } else if (chain === CHAIN.SOLANA) {
     for (const f of pre.solanaFees) fee(f.token, f.fee);
