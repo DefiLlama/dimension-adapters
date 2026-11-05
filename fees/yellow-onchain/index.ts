@@ -87,14 +87,12 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Platform fee paid by Yellow Onchain users on swaps: 0.3% of the swap's XRP side, paid in XRP to Yellow Onchain's fee account inside the same XRP Ledger Batch as the swap and read from that account's validated transactions. The XRPL network fee is not included.",
-  UserFees: "Platform fee paid directly by Yellow Onchain users on swaps: 0.3% of the swap's XRP side, paid in XRP to Yellow Onchain's fee account.",
   Revenue: "All platform fees paid by Yellow Onchain users on swaps, received by Yellow Onchain's fee account.",
   ProtocolRevenue: "All platform fees paid by Yellow Onchain users on swaps, kept in Yellow Onchain's fee account.",
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.TRADING_FEES]: "Platform fee (0.3% of the XRP side) on swaps made in Yellow Onchain, paid in XRP to the fee account." },
-  UserFees: { [METRIC.TRADING_FEES]: "Platform fee (0.3% of the XRP side) on swaps made in Yellow Onchain, paid in XRP to the fee account." },
   Revenue: { "Trading Fees To Protocol": "Platform fees received by Yellow Onchain's fee account." },
   ProtocolRevenue: { "Trading Fees To Protocol": "Platform fees received by Yellow Onchain's fee account." },
 };

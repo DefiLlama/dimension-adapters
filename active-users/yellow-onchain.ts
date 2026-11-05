@@ -44,10 +44,6 @@ const adapter: SimpleAdapter = {
   start: "2026-11-04", // the first full day with the SourceTag (88888888, then 58900000 from 2026-11-05)
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
-  methodology: {
-    ActiveUsers: "Unique XRP Ledger accounts that made at least one swap in Yellow Onchain that day, found by the app's SourceTag (58900000; 88888888 from 2026-11-03 to 2026-11-05).",
-    TransactionsCount: "Number of swaps made in Yellow Onchain that day (successful OfferCreate transactions with the app's SourceTag), each counted once whether it was sent alone or inside a Batch.",
-  },
 };
 
 export default adapter;
