@@ -8,6 +8,10 @@ import axios from "axios";
 // https://staking.milk-money.io/api/staking/revenue?from=<unix s>&to=<unix s> (half-open window, ≤ 31 days).
 // Source: https://github.com/cryptomilkbeard/creamery/blob/main/src/revenue-history.ts
 const API = "https://staking.milk-money.io/api/staking/revenue";
+// the API answers from an in-process cache in well under a second; 30 s only covers a cold Cloudflare tunnel
+const REQUEST_TIMEOUT_MS = 30_000;
+// enough of an edge error page to name the rule that answered (Cloudflare's pages say so in their first line)
+const ERROR_BODY_CHARS = 300;
 
 interface RevenueWindow {
   from: number; to: number;
@@ -19,9 +23,12 @@ interface RevenueWindow {
 const fetch = async (options: FetchOptions) => {
   // axios directly rather than httpGet: the API sits behind Cloudflare, and on a refusal the edge's HTML page names
   // the rule that answered, which httpGet's wrapped error drops
-  const res = await axios.get(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`, { validateStatus: () => true, timeout: 30_000 });
+  const res = await axios.get(`${API}?from=${options.fromTimestamp}&to=${options.toTimestamp}`, { validateStatus: () => true, timeout: REQUEST_TIMEOUT_MS });
   if (res.status !== 200 || typeof res.data !== "object") {
-    const body = typeof res.data === "string" ? res.data.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300) : JSON.stringify(res.data).slice(0, 300);
+    // an HTML error page: drop its style and script blocks, then its tags, so the visible text survives the truncation
+    const body = typeof res.data === "string"
+      ? res.data.replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, ERROR_BODY_CHARS)
+      : JSON.stringify(res.data).slice(0, ERROR_BODY_CHARS);
     throw new Error(`Milk Money revenue API answered ${res.status} · ${body}`);
   }
   const data: RevenueWindow = res.data;
@@ -57,6 +64,12 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    "LP Fees": "Swap fees claimed from the protocol's Meteora DLMM positions.",
+    "Trading Gains": "The half of a trading agent's realized gain that it sends to the rewards vault or commits to buybacks.",
+    "Mining Rewards": "cbBTC earned by staking RUSH in Sat Rush, paid to $MM stakers.",
+  },
+  // dailyRevenue is the dailyFees balance, so it carries the same labels
+  Revenue: {
     "LP Fees": "Swap fees claimed from the protocol's Meteora DLMM positions.",
     "Trading Gains": "The half of a trading agent's realized gain that it sends to the rewards vault or commits to buybacks.",
     "Mining Rewards": "cbBTC earned by staking RUSH in Sat Rush, paid to $MM stakers.",
