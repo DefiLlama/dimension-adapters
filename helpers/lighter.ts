@@ -54,10 +54,11 @@ const TRADES_URLS: Record<string, string> = {
 const MARKET_NAMES: Record<LighterMarketType, string> = { perp: "perps", spot: "spot", bo: "Up or Down prediction market" };
 
 // Volume and partner fees of one market type's trades routed through a partner's account(s) in [startTimestamp, endTimestamp).
-// The feed only pages backwards from the newest trade, so this reads every trade newer than the window; it suits partners
-// with a modest trade count. A side of a trade counts when its fee collector is the partner's account, zero-fee (Standard
-// tier) sides included, the same way partnerStats sums taker and maker volume. Up or Down prediction markets (market type
-// bo) also return the shares traded as notional volume, each share paying $1 at settlement.
+// The feed pages backwards from `from` (ms, with sort_by=timestamp), so reading starts at the window end and stops once
+// a page reaches the window start: a refill costs the window's trades, not every trade since. A side of a trade counts
+// when its fee collector is the partner's account, zero-fee (Standard tier) sides included, the same way partnerStats
+// sums taker and maker volume. Up or Down prediction markets (market type bo) also return the shares traded as notional
+// volume, each share paying $1 at settlement.
 export async function fetchLighterPartnerTrades(options: FetchOptions, accounts: LighterAccountConfig | LighterAccountConfig[], marketType: LighterMarketType) {
   const url = TRADES_URLS[options.chain];
   if (!url) throw new Error(`no Lighter trades endpoint for chain ${options.chain}`);
@@ -71,9 +72,10 @@ export async function fetchLighterPartnerTrades(options: FetchOptions, accounts:
     let cursor: string | undefined;
     let volume = 0, notional = 0, fees = 0;
     do {
-      const res = await fetchURL(`${url}?integrator_account_index=${accountIndex}&market_type=${marketType}&sort_by=timestamp&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      const res = await fetchURL(`${url}?integrator_account_index=${accountIndex}&market_type=${marketType}&sort_by=timestamp&from=${endMs}&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
       if (res?.code !== 200 || !Array.isArray(res.trades)) throw new Error(`Lighter trades failed for account ${accountIndex}: ${JSON.stringify(res)}`);
       for (const trade of res.trades) {
+        // whether `from` itself is inclusive is undocumented, so the window is still enforced here
         if (trade.timestamp < startMs || trade.timestamp >= endMs) continue;
         for (const side of ["taker", "maker"]) {
           if (String(trade[`integrator_${side}_fee_collector_index`]) !== accountIndex) continue;
@@ -108,8 +110,9 @@ export interface LighterPartnerConfig {
 
 // Adapter for a partner whose fees are all kept by the partner (no supply side).
 export function exportLighterPartnerAdapter({ name, chains, marketType, methodology }: LighterPartnerConfig): SimpleAdapter {
-  const market = marketType ? MARKET_NAMES[marketType] : "perps";
-  const defaultText = `Partner fees earned by ${name} on Lighter ${market} trades routed through its integration.`;
+  // without a market type, partnerStats sums every market type the deployment offers
+  const market = marketType ? `${MARKET_NAMES[marketType]} trades` : "trades of every market type (perps, spot and Up or Down prediction markets)";
+  const defaultText = `Partner fees earned by ${name} on Lighter ${market} routed through its integration.`;
   const feesText = methodology?.Fees ?? defaultText;
   const revenueText = methodology?.Revenue ?? defaultText;
   return {
@@ -134,7 +137,9 @@ export function exportLighterPartnerAdapter({ name, chains, marketType, methodol
     methodology: {
       Volume: marketType === "bo"
         ? `Cash paid on Lighter Up or Down prediction market trades routed through ${name}'s Lighter partner account.`
-        : `Notional volume of Lighter ${market} trades routed through ${name}'s Lighter partner account.`,
+        : marketType
+          ? `Notional volume of Lighter ${market} routed through ${name}'s Lighter partner account.`
+          : `Volume of Lighter ${market} routed through ${name}'s Lighter partner account: notional for perps and spot, cash paid for prediction markets.`,
       ...(marketType === "bo" ? { NotionalVolume: `Shares of Lighter Up or Down prediction markets traded through ${name}'s Lighter partner account, each counted at its $1 payout.` } : {}),
       Fees: feesText,
       Revenue: revenueText,
