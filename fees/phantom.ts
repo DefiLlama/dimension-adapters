@@ -27,8 +27,8 @@ const eth_fee_wallet_addresses = [
   '0x2cffed5d56eb6a17662756ca0fdf350e732c9818',
   // Took over from 0x2cffed5d on 2026-10-06. No transfer links the two wallets, the tie is behavioural: same 0.85% rate
   // (https://help.phantom.com/articles/5985106844435), switched in the same minutes on Ethereum and Base. On Ethereum:
-  // last native to the old wallet 0x34a80288481faea4d0edab6196a4648a8e654644ffc41a0f1d38c682b9300d7e (20:58:23 UTC),
-  // first native to this one 0x530f50835cb85b3c6a875fe618c203307953eeb8c4b34d93a1d2fb2fb5e08152 (20:57:59 UTC).
+  // last native to the old wallet in tx 0x34a80288481faea4d0edab6196a4648a8e654644ffc41a0f1d38c682b9300d7e (20:58:23 UTC),
+  // first native to this one in tx 0x530f50835cb85b3c6a875fe618c203307953eeb8c4b34d93a1d2fb2fb5e08152 (20:57:59 UTC).
   '0x7d8eb200c45c273e3bef1bc55c09f76805158e96',
 ];
 
