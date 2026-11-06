@@ -75,6 +75,13 @@ const routers: Record<string, IRouter> = {
       '0x610776e63C5ca21B92217F4c06398E5437dB6A1E',
     ],
   },
+  // First FeeCollected 2026-07-11: 0xe4b381184df41c26fdf8a31eab75a1fdc0a21e35fa3315ed080050487d92199b
+  [CHAIN.ROBINHOOD]: {
+    eventFeeCollected: 'event FeeCollected(address recipient, address indexed token, uint256 amount)',
+    addresses: [
+      '0xb300000b72deaeb607a12d5f54773d1c19c7028d',
+    ],
+  },
 }
 
 const fetch: any = async (options: FetchOptions) => {
