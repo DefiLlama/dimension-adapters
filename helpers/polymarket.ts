@@ -87,6 +87,7 @@ export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { o
 // revenueToHolders: all builder fees go to the builder's token holders.
 // holdersRevenueRatio: only that share goes to token holders (e.g. 0.75), the builder keeps the rest.
 // supplySideRevenueRatio: that share goes to the builder's market provider (e.g. 0.25), the builder keeps the rest.
+// When both are set, the holders split applies to the share the builder keeps.
 export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders, holdersRevenueRatio, supplySideRevenueRatio }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean, holdersRevenueRatio?: number, supplySideRevenueRatio?: number }) {
   const holdersRatio = revenueToHolders ? 1 : holdersRevenueRatio ?? 0;
   const supplySideRatio = supplySideRevenueRatio ?? 0;
@@ -102,13 +103,17 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
 
   const fetch = async (options: FetchOptions) => {
     const res = await fetchPolymarketV2BuilderFees({ options, builderCode });
-    if (supplySideRatio) {
-      const dailyRevenue = res.dailyFees.clone(1 - supplySideRatio);
-      return { dailyFees: res.dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue: res.dailyFees.clone(supplySideRatio, 'Polymarket Builder Fees To Provider') };
-    }
-    if (!holdersRatio) return res;
-    const dailyProtocolRevenue = holdersRatio === 1 ? options.createBalances() : res.dailyFees.clone(1 - holdersRatio);
-    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue, dailyHoldersRevenue: res.dailyFees.clone(holdersRatio) };
+    if (!holdersRatio && !supplySideRatio) return res;
+    const dailyFees = res.dailyFees;
+    const dailyRevenue = supplySideRatio ? dailyFees.clone(1 - supplySideRatio) : dailyFees;
+    const dailyProtocolRevenue = holdersRatio === 1 ? options.createBalances() : dailyRevenue.clone(1 - holdersRatio);
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue,
+      ...(holdersRatio ? { dailyHoldersRevenue: dailyRevenue.clone(holdersRatio) } : {}),
+      ...(supplySideRatio ? { dailySupplySideRevenue: dailyFees.clone(supplySideRatio, 'Polymarket Builder Fees To Provider') } : {}),
+    };
   }
 
   const adapter: SimpleAdapter = {
