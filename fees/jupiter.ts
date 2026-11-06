@@ -175,8 +175,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Jupiter platform fees collected from Ultra mode swaps.',
   Revenue: 'Jupiter platform fees from Ultra aggregation service.',
-  HoldersRevenue: 'JUP received by the Jupiter Litterbox Trust buyback wallet each day since 2025-02-17, valued at the day\'s JUP price. Jupiter funds these buybacks with 50% of its revenue across all of its products (aggregator, perps, lend, DCA, limit orders, jupSOL, Studio, Ape, YOLO and others), so they are reported once, on this listing, and not on the other Jupiter listings. JUP later moved out of the Litterbox to be burned is not counted again.',
-  ProtocolRevenue: 'All Ultra platform fees, kept by Jupiter. The JUP buybacks reported as holders revenue are funded from revenue across all Jupiter products and are not deducted from this listing.',
+  HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of revenue across all Jupiter products and reported once, on this listing.',
+  ProtocolRevenue: 'All Ultra platform fees, kept by Jupiter. JUP buybacks are not deducted here.',
 }
 
 const breakdownMethodology = {
@@ -187,10 +187,10 @@ const breakdownMethodology = {
     [JUPITER_METRICS.AggSwapFees]: "100% of Jupiter platform fees from Ultra mode swaps.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.AggSwapFees]: "All Ultra platform fees, kept by Jupiter. The JUP buybacks are funded from revenue across all Jupiter products and are not deducted here.",
+    [JUPITER_METRICS.AggSwapFees]: "All Ultra platform fees, kept by Jupiter.",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.TokenBuyBack]: "JUP received by the Jupiter Litterbox Trust buyback wallet, funded with 50% of revenue across all Jupiter products, valued at the day's JUP price. Reported once, on this listing.",
+    [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of revenue across all Jupiter products.",
   }
 }
 
