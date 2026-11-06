@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import { formatAddress } from "../utils/utils";
 
 interface IRouter {
@@ -96,7 +97,7 @@ const fetch: any = async (options: FetchOptions) => {
   })
   for (const event of events) {
     if (!blacklistTokens.includes(formatAddress(event.token))) {
-      dailyFees.add(event.token, event.amount)
+      dailyFees.add(event.token, event.amount, METRIC.SWAP_FEES)
     }
   }
 
@@ -116,7 +117,12 @@ const adapter: SimpleAdapter = {
     UserFees: 'Fees paid by users while trading via Binance Alpha app.',
     Revenue: 'All fees are collected by Binance.',
   },
-  chains: Object.keys(routers),
+  breakdownMethodology: {
+    Fees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router.' },
+    UserFees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, paid by the trader.' },
+    Revenue: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, all counted as revenue.' },
+  },
+  chains: Object.keys(routers).map((chain): string | [string, { start: string }] => chain === CHAIN.ROBINHOOD ? [chain, { start: '2026-07-11' }] : chain),
   start: '2024-05-28',
 }
 
