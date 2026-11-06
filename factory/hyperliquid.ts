@@ -32,6 +32,19 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "pumpfun-perps": {
+    // Pump.fun wallet label: https://www.flowscan.xyz/builders/pumpfun
+    // Attribution is label-based; official fees: https://pump.fun/docs/fees.
+    addresses: ["0x95985ed24b5d1047cd09c380c7d9cb7d6f2c22ae"],
+    start: "2026-09-25", // earliest verified builder fill file; includes pre-launch activity
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) carrying the Pump.fun builder code; excludes spot and outcome markets.",
+      Fees: "Actual builder-code fees paid on Hyperliquid perpetual trades carrying the Pump.fun builder code; excludes Hyperliquid exchange fees and bridge fees.",
+      Revenue: "Builder-code fees received by the Pump.fun builder account, before any subsequent referral or callout reward payouts.",
+      ProtocolRevenue: "Builder-code fees received by the Pump.fun builder account, before any subsequent referral or callout reward payouts.",
+    },
+    breakdownFees: true,
+  },
   "proliquid": {
     // Proliquid (https://www.proliquid.xyz, https://x.com/proliquid_xyz), a multi-venue trading terminal (Hyperliquid,
     // RISEx, Lighter, Extended, Binance, Bybit, OKX, BloFin; keys stay on the user's device).
