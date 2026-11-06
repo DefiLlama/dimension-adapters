@@ -29,6 +29,12 @@ import { METRIC } from "../helpers/metrics";
 // Developer fees and partner shares (kind 7) accrue as claimable balances, the creator gets its share of migration fees
 // (kind 5) and early buys can pay an anti-sniper fee that the vault keeps for its migration buyback: these are fees paid
 // to others, booked when assigned (guide §10.2, §10.6, §13); later claims are not read. Token taxes (kind 3) are not fees.
+// Developer fees on four.meme's own presets stay with the protocol, so they count as revenue. A preset's author is its
+// userAddress in POST https://four.meme/meme-api/v1/public/token_template/search: 0xc91de63308562d46849c289b8de538fbdea815e6
+// wrote 4STOCK ("introduced by Four.Meme"), Binance Agent ID Exclusive, ListaYield and Likwid Dex, and
+// 0x582df7889e9118b73d23f002d3dc29b5b17d48f7 wrote OPEN_FOUR_TOKEN and RWA.
+const FOUR_MEME_PRESET_IDS = [1778027615722, 1778027615725, 1778027615726, 1778027615732, 1778027615733, 1778027615735]
+const FOUR_MEME_PRESET_DEV_FEES = 'Four.meme Preset Developer Fees'
 
 const fetch: any = async (options: FetchOptions) => {
   const query = `
@@ -110,7 +116,9 @@ const fetch: any = async (options: FetchOptions) => {
       FROM (
         -- TradeExecuted data words (32 bytes each, byte offsets 1-based): quoteAsset is the address in word 1 (byte 45),
         -- devFee is word 11 (byte 353) and antiSniperFee word 12 (byte 385)
-        SELECT bytearray_substring(t.data, 45, 20) AS quote, f.label, bytearray_to_uint256(bytearray_substring(t.data, f.pos, 32)) AS amount
+        SELECT bytearray_substring(t.data, 45, 20) AS quote,
+          CASE WHEN f.label = 'Developer Fees' AND bytearray_to_uint256(t.topic3) IN (${FOUR_MEME_PRESET_IDS.join(', ')}) THEN '${FOUR_MEME_PRESET_DEV_FEES}' ELSE f.label END AS label,
+          bytearray_to_uint256(bytearray_substring(t.data, f.pos, 32)) AS amount
         FROM bnb.logs t
         CROSS JOIN (VALUES ('Developer Fees', 353), ('Anti-Sniper Fees', 385)) AS f(label, pos)
         WHERE t.contract_address = 0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3
@@ -146,9 +154,10 @@ const fetch: any = async (options: FetchOptions) => {
   
   for (const row of rows) {
     if (row.label) {
-      // OpenFour fees paid to developers, partners, creators and the anti-sniper buyback
+      // OpenFour fees paid to developers, partners, creators and the anti-sniper buyback; four.meme's own presets keep theirs
       dailyFees.add(row.token, row.fees, row.label)
-      dailySupplySideRevenue.add(row.token, row.fees, row.label)
+      const recipient = row.label === FOUR_MEME_PRESET_DEV_FEES ? dailyRevenue : dailySupplySideRevenue
+      recipient.add(row.token, row.fees, row.label)
       continue
     }
     const rebates = (BigInt(row.fees) - BigInt(row.revenue)).toString()
@@ -215,27 +224,30 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: 'All fees paid by users for launching, trading tokens, on the classic four.meme curves and on OpenFour (including TapeFour), including OpenFour developer, partner, creator migration and anti-sniper fees. Excludes token taxes.',
-    Revenue: 'Fees collected by four.meme protocol, including the OpenFour treasury share of OpenFour protocol and migration fees.',
+    Revenue: "Fees collected by four.meme protocol, including the OpenFour treasury share of OpenFour protocol and migration fees, and developer fees on four.meme's own presets.",
     ProtocolRevenue: 'Fees retained by the four.meme protocol after rev-share distributions, the same as revenue.',
-    SupplySideRevenue: 'Rebates sent to the rev-share wallet, and OpenFour developer fees, partner shares, creator shares of migration fees and anti-sniper fees.',
+    SupplySideRevenue: "Rebates sent to the rev-share wallet, and OpenFour developer fees on other authors' presets, partner shares, creator shares of migration fees and anti-sniper fees.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.TRADING_FEES]: "USD value of all BNB and token fees collected from token launches and trades, including rev-share distributions",
-      'Developer Fees': "OpenFour fees paid to the preset author or module developer on each trade (TradeExecuted devFee), accrued as claimable balances",
+      [FOUR_MEME_PRESET_DEV_FEES]: "OpenFour developer fees on four.meme's own presets (TradeExecuted devFee), which stay with the protocol",
+      'Developer Fees': "OpenFour fees paid to the author of a preset four.meme did not write, on each trade (TradeExecuted devFee), accrued as claimable balances",
       'Partner Fees': "OpenFour partner share of the post-rebate protocol fee (FeeAssigned kind 7), accrued as claimable balances",
       [METRIC.CREATOR_FEES]: "OpenFour creator share of migration fees (FeeAssigned kind 5)",
       'Anti-Sniper Fees': "OpenFour surcharge on early buys (TradeExecuted antiSniperFee), kept by the vault for its migration buyback",
     },
     Revenue: {
       [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+      [FOUR_MEME_PRESET_DEV_FEES]: "OpenFour developer fees on four.meme's own presets (TradeExecuted devFee), which stay with the protocol",
     },
     ProtocolRevenue: {
       [METRIC.PROTOCOL_FEES]: "USD value of fees retained by the four.meme protocol after excluding rev-share wallet distributions",
+      [FOUR_MEME_PRESET_DEV_FEES]: "OpenFour developer fees on four.meme's own presets (TradeExecuted devFee), which stay with the protocol",
     },
     SupplySideRevenue: {
       'Rebates': "Share of the protocol fee sent to the rev-share wallet 0x2b6e6e... (5% on OpenFour, FeeAssigned kind 6)",
-      'Developer Fees': "OpenFour fees paid to the preset author or module developer on each trade (TradeExecuted devFee), accrued as claimable balances",
+      'Developer Fees': "OpenFour fees paid to the author of a preset four.meme did not write, on each trade (TradeExecuted devFee), accrued as claimable balances",
       'Partner Fees': "OpenFour partner share of the post-rebate protocol fee (FeeAssigned kind 7), accrued as claimable balances",
       [METRIC.CREATOR_FEES]: "OpenFour creator share of migration fees (FeeAssigned kind 5)",
       'Anti-Sniper Fees': "OpenFour surcharge on early buys (TradeExecuted antiSniperFee), kept by the vault for its migration buyback",
