@@ -126,7 +126,7 @@ const adapter: SimpleAdapter = {
     UserFees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, paid by the trader.' },
     Revenue: { [REVENUE_LABEL]: 'FeeCollected amounts on the Binance Wallet router, all counted as revenue.' },
   },
-  chains: Object.entries(routers).map(([chain, { start }]): string | [string, { start: string }] => start ? [chain, { start }] : chain),
+  adapter: routers,
   start: '2024-05-28',
 }
 
