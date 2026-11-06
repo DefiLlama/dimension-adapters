@@ -1,75 +1,25 @@
-import type { SimpleAdapter, FetchOptions } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { httpGet } from "../../utils/fetchURL";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { addVolume, getChainStats, adapterChains } from "../../helpers/aggregators/swapStatsApi";
 
-enum providers {
-  THORCHAIN = "THORCHAIN",
-  NEAR = "NEAR_INTENTS",
-  MAYACHAIN = "MAYACHAIN",
-  CHAINFLIP = "CHAINFLIP",
-}
-
-// date format: YYYY-MM-DD
-const fetch = async (provider: providers, startDate: string) => {
-  try {
-    const VOLUME_ENDPOINT = `https://backend.thorswap.net/stats/dimensions/volume/${provider}?date=${startDate}`;
-
-    const data = await httpGet(VOLUME_ENDPOINT);
-    
-    return {
-      dailyVolume: data.dailyVolume,
-    };
-  } catch (error) {
-    console.error("Error fetching Thorswap volume for", provider, ":", error);
-    throw error;
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const chain = await getChainStats(options);
+  if (chain) {
+    addVolume(dailyVolume, chain.aggregatorVolumeUsd, chain.aggregatorVolumeTokens);
+    addVolume(dailyVolume, chain.bridgeAggregatorVolumeUsd, chain.bridgeAggregatorVolumeTokens);
   }
-};
-
-const fetchNearThorswapVolume = async (options: FetchOptions) => {
-  const date = new Date(options.toTimestamp * 1000);
-  const formattedDate = date.toISOString().split("T")[0];
-  return fetch(providers.NEAR, formattedDate);
-};
-
-const fetchThorchainThorswapVolume = async (options: FetchOptions) => {
-  const date = new Date(options.toTimestamp * 1000);
-  const formattedDate = date.toISOString().split("T")[0];
-  return fetch(providers.THORCHAIN, formattedDate);
-};
-
-const fetchMayachainThorswapVolume = async (options: FetchOptions) => {
-  const date = new Date(options.toTimestamp * 1000);
-  const formattedDate = date.toISOString().split("T")[0];
-  return fetch(providers.MAYACHAIN, formattedDate);
-};
-
-const fetchChainflipThorswapVolume = async (options: FetchOptions) => {
-  const date = new Date(options.toTimestamp * 1000);
-  const formattedDate = date.toISOString().split("T")[0];
-  return fetch(providers.CHAINFLIP, formattedDate);
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
-  adapter: {
-    [CHAIN.THORCHAIN]: {
-      fetch: fetchThorchainThorswapVolume,
-      start: "2021-04-30",
-    },
-    [CHAIN.NEAR]: {
-      fetch: fetchNearThorswapVolume,
-      start: "2025-06-12",
-    },
-    [CHAIN.MAYA]: {
-      fetch: fetchMayachainThorswapVolume,
-      start: "2024-04-01",
-    },
-    [CHAIN.CHAINFLIP]: {
-      fetch: fetchChainflipThorswapVolume,
-      start: "2024-02-14",
-    },
-  },
+  version: 2,
+  pullHourly: true,
+  // swaps settle on liquidity venues DefiLlama already tracks (THORChain, Maya, Chainflip, NEAR Intents)
+  doublecounted: true,
+  fetch,
+  adapter: adapterChains(),
   methodology: {
-    Volume: `Thorswap volume is sourced from Thorswap's internal analytics which aggregates swap data across multiple providers including Thorchain, Near, Mayachain, and Chainflip.`,
+    Volume: "All swaps routed through the protocol, same-chain and cross-chain, counted in the hour they were created on the chain they sold from. Volume before 24 April 2022 is the weekly totals spread evenly across hours; per-swap data is not available for that period.",
   },
 };
 
