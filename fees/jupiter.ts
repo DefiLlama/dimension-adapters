@@ -101,6 +101,8 @@ export const JUPITER_METRICS = {
   // Prediction
   JupPredictionFees: 'Jup Prediction Fees',
   JupPredictionFeesToKalshi: 'Jup Prediction Fees to Kalshi',
+  JupPredictionFeesToJupiter: 'Jup Prediction Fees To Jupiter',
+  JupPredictionFeesToVenues: 'Jup Prediction Fees To Venues',
 
   // Ape
   JupApeFees: 'Jup Ape Trading And Launching Fees',
