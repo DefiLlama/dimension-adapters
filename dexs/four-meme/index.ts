@@ -70,7 +70,7 @@ const adapter: SimpleAdapter = {
   start: '2024-12-25',
   pullHourly: true,
   methodology: {
-    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the quote token TokenManager2 records for that curve: BNB, a stablecoin, or any other ERC-20 such as the tokenized stocks some curves are priced in. Plus OpenFour bonding-curve trades in the trade's quote asset (TradeExecuted: what the buyer paid including fees, and the seller's amount before fees), except TapeFour NFT fundraising.",
+    Volume: "Every buy and sell on four.meme's bonding curves, classic and OpenFour, valued in each curve's quote token (BNB, a stablecoin or a tokenized stock). Trades after a token migrates to a DEX and TapeFour NFT fundraising are excluded.",
   },
 }
 
