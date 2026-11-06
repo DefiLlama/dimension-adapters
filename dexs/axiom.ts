@@ -47,10 +47,24 @@ const robinhoodTradeContracts = [
   '0x9689992f5b5c09447f15906d8d11214944488341',
 ];
 
+// Same trade contract on each, see fees/axiom.ts. Ethereum also has its earlier one.
+const otherEvmTradeContracts: Record<string, string[]> = {
+  ethereum: ['0xe44f80d8b61762fdb03dc754247c0b2d3ddf456b', '0x9689992f5b5c09447f15906d8d11214944488341'],
+  base: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  hyperevm: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  arc: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  ink: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+};
+
 const duneChain: Record<string, string> = {
   [CHAIN.SOLANA]: 'solana',
   [CHAIN.BSC]: 'bnb',
   [CHAIN.ROBINHOOD]: 'robinhood',
+  [CHAIN.ETHEREUM]: 'ethereum',
+  [CHAIN.BASE]: 'base',
+  [CHAIN.HYPERLIQUID]: 'hyperevm',
+  [CHAIN.ARC]: 'arc',
+  [CHAIN.INK]: 'ink',
 };
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
@@ -109,6 +123,13 @@ const prefetch = async (options: FetchOptions) => {
     WHERE blockchain = 'robinhood'
       AND TIME_RANGE
       AND tx_to IN (${robinhoodTradeContracts.join(', ')})
+    ${Object.entries(otherEvmTradeContracts).map(([chain, contracts]) => `
+    UNION ALL
+    SELECT '${chain}' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
+    FROM dex.trades
+    WHERE blockchain = '${chain}'
+      AND TIME_RANGE
+      AND tx_to IN (${contracts.join(', ')})`).join('')}
   `);
 };
 
@@ -134,6 +155,11 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOLANA]: { start: '2025-01-21' },
     [CHAIN.BSC]: { start: '2025-12-25' },
     [CHAIN.ROBINHOOD]: { start: '2026-07-10' },
+    [CHAIN.ETHEREUM]: { start: '2026-04-28' },
+    [CHAIN.BASE]: { start: '2026-09-09' },
+    [CHAIN.HYPERLIQUID]: { start: '2026-09-11' },
+    [CHAIN.ARC]: { start: '2026-09-15' },
+    [CHAIN.INK]: { start: '2026-09-09' },
   },
   isExpensiveAdapter: true,
   doublecounted: true,
