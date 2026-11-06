@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from "../helpers/coreAssets.json";
@@ -151,9 +150,6 @@ const fetch = async (options: FetchOptions) => {
     target: ROYALTY_CONVERTER,
     eventAbi: "event FloorConverted(uint256 indexed epoch, uint8 indexed floorIdx, uint256 usdgIn, uint256 stockOut)",
   });
-  // These token catalogs are set once. Read their immutable configuration at
-  // latest so public RPCs do not need historical contract state.
-  const configApi = new ChainApi({ chain: options.chain });
   for (let i = 0; i < targets.length; i++) {
     const target = targets[i];
     if (target !== V1_REFLECTIONS) {
@@ -183,7 +179,7 @@ const fetch = async (options: FetchOptions) => {
     ])];
     if (!floorIds.length) continue;
     const calls = floorIds.map(floor => ({ params: [floor] }));
-    const stocks = await configApi.multiCall({ target, abi: "function floorStocks(uint256) view returns (address)", calls });
+    const stocks = await options.api.multiCall({ target, abi: "function floorStocks(uint256) view returns (address)", calls });
     const stockByFloor = Object.fromEntries(floorIds.map((floor, index) => [floor, stocks[index]]));
     const label = SWAP_REWARDS_LABEL;
     for (const log of notifications[i]) {
