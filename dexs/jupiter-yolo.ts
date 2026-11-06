@@ -57,22 +57,22 @@ const adapter: SimpleAdapter = {
     //Volume: 'Notional (margin times leverage) of every position opened and every position closed by its owner. Liquidations are not counted.',
     Fees: 'Profit fee of 2% on the gain of every winning trade, taken from the payout. Opening a position, losing trades and liquidations are free and there is no funding. The house bankroll\'s trading profit is not counted.',
     Revenue: 'All profit fees, kept by Jupiter in a fee balance of the YOLO program separate from the house bankroll; there are no liquidity providers.',
-    ProtocolRevenue: 'All profit fees, kept by Jupiter.',
-    HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
+    ProtocolRevenue: 'Half of profit fees, kept by Jupiter.',
+    HoldersRevenue: 'Half of profit fees, used to buy back JUP under Jupiter\'s policy of spending 50% of revenue on JUP buybacks.',
   },
   breakdownMethodology: {
     Fees: {
       [LABELS.profitFees]: '2% of the gain on each winning trade, deducted from the payout the trader receives.',
     },
     Revenue: {
-      [LABELS.profitFeesToJupiter]: 'All profit fees, kept by Jupiter.',
-      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
+      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by Jupiter.',
+      [JUPITER_METRICS.TokenBuyBack]: 'Half of profit fees, used to buy back JUP.',
     },
     ProtocolRevenue: {
-      [LABELS.profitFeesToJupiter]: 'All profit fees, kept by Jupiter.',
+      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by Jupiter.',
     },
     HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
+      [JUPITER_METRICS.TokenBuyBack]: 'Half of profit fees, used to buy back JUP.',
     },
   },
 }
