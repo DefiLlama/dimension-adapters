@@ -1,6 +1,5 @@
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 import { httpGet } from "../../utils/fetchURL";
 import { FetchOptions } from "../../adapters/types";
 import { sleep } from "../../utils/utils";
@@ -10,18 +9,23 @@ interface IResponse {
   allTime: any;
 }
 
+// returns only the trailing 366 days (date params are ignored), keyed by chain id
 const feesMMURL = "https://api.paraswap.io/stk/volume-stats/breakdown-by-chain";
 
-const mapChainId: Record<string, string> = {
-  [CHAIN.ETHEREUM]: '1',
-  [CHAIN.OPTIMISM]: '10',
-  [CHAIN.BSC]: '56',
-  [CHAIN.POLYGON]: '137',
-  [CHAIN.FANTOM]: '250',
-  [CHAIN.POLYGON_ZKEVM]: '1101',
-  [CHAIN.BASE]: '8453',
-  [CHAIN.ARBITRUM]: '42161',
-  [CHAIN.AVAX]: '43114',
+const chainConfig: Record<string, { id: string; start: string; deadFrom?: string }> = {
+  [CHAIN.ETHEREUM]: { id: '1', start: '2022-03-22' },
+  [CHAIN.OPTIMISM]: { id: '10', start: '2022-03-22' },
+  [CHAIN.BSC]: { id: '56', start: '2022-03-22' },
+  // live earlier, but the API's history only reaches back to 2025-11-05 (trailing 366 days on 2026-11-05)
+  [CHAIN.XDAI]: { id: '100', start: '2025-11-05' },
+  [CHAIN.UNICHAIN]: { id: '130', start: '2025-11-05' },
+  [CHAIN.POLYGON]: { id: '137', start: '2022-03-22' },
+  [CHAIN.FANTOM]: { id: '250', start: '2022-03-22', deadFrom: '2025-04-12' }, // delisted, last volume 2025-04-11
+  [CHAIN.POLYGON_ZKEVM]: { id: '1101', start: '2022-03-22', deadFrom: '2025-07-10' }, // delisted, last volume 2025-07-09
+  [CHAIN.ROBINHOOD]: { id: '4663', start: '2026-09-04' }, // first day in the API
+  [CHAIN.BASE]: { id: '8453', start: '2022-03-22' },
+  [CHAIN.ARBITRUM]: { id: '42161', start: '2022-03-22' },
+  [CHAIN.AVAX]: { id: '43114', start: '2022-03-22' },
 }
 
 const prefetch = async (_: any) => {
@@ -51,14 +55,13 @@ const prefetch = async (_: any) => {
 }
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const chain = options.chain;
-  if (chain == CHAIN.FANTOM && options.toTimestamp > 1744416000) return {} as FetchResult; // fantom delisted at 2025-04-12
-  const timestampToday = getTimestampAtStartOfDayUTC(options.toTimestamp)
-  const response: IResponse = options.preFetchedResults || [];
-  const dailyResultFees: any[] = response.daily;
-
-  const [dailyVolume, partnerRev, protocolRev]: number[] = dailyResultFees.filter(([time]: any) => time === timestampToday)
-    .map(([_, data]: any) => data[mapChainId[chain]]).flat()
+  const { id } = chainConfig[options.chain];
+  const response: IResponse = options.preFetchedResults;
+  const day = response?.daily?.find(([time]: any) => time === options.startOfDay);
+  // a day older than the API's 366-day window must not be stored as 0
+  if (!day) throw new Error(`Velora API has no data for ${options.dateString}`);
+  if (!day[1][id]) throw new Error(`Velora API has no ${options.chain} data for ${options.dateString}`);
+  const [dailyVolume, partnerRev, protocolRev]: number[] = day[1][id];
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -95,9 +98,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-
-  start: '2022-03-22',
-  chains: Object.keys(mapChainId),
+  adapter: chainConfig,
   fetch,
   prefetch,
   methodology: {

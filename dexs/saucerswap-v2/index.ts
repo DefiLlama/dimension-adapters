@@ -2,20 +2,24 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
 import { httpGet } from "../../utils/fetchURL";
+import { saucerswapBreakdownMethodology, splitRevenue } from "../../helpers/saucerswap";
 
 const methodology = {
   Fees: "Swap fees paid by users.",
   UserFees: "Users pay fees for every swaps.",
   SupplySideRevenue: 'Share of 5/6 swap fees goes to liquidity providers.',
   Revenue: 'Share of 1/6 of swap fees are revenue to protocol.',
-  ProtocolRevenue: 'Share of 1/6 of swap fees are revenue to protocol.',
+  ProtocolRevenue: 'From 2025-08-31 protocol revenue buys SAUCE; this is the share sent to the Development Fund and the POL and Incentive Reserve (54.5%, 40% from 2026-07-01, 50% from 2026-09-07). Before 2025-08-31, all protocol revenue.',
+  HoldersRevenue: 'From 2025-08-31 protocol revenue buys SAUCE; this is the share sent to xSAUCE stakers and burned (45.5%, 60% from 2026-07-01, 50% from 2026-09-07).',
 }
 
-const fetch = async ({ startOfDay }: FetchOptions) => {
+const breakdownMethodology = saucerswapBreakdownMethodology('Swap fees paid by users, at each pool fee tier.')
+
+
+const fetch = async (options: FetchOptions) => {
+  const { startOfDay } = options
   let dailyVolume = 0
-  let dailyFees = 0
-  let dailyRevenue = 0
-  let dailySupplySideRevenue = 0
+  let fees = 0
 
   // get know pools list
   const pools: Array<any> = (await httpGet('https://api.saucerswap.finance/v2/pools', {
@@ -41,10 +45,17 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
 
     // https://docs.saucerswap.finance/protocol/saucerswap-v2
     dailyVolume += volume
-    dailyFees += fee
-    dailyRevenue += fee * 1 / 6
-    dailySupplySideRevenue += fee * 5 / 6
+    fees += fee
   }
+
+  const revenue = fees * 1 / 6
+  const dailyFees = options.createBalances()
+  dailyFees.addUSDValue(fees, 'Token Swap Fees')
+  const dailyRevenue = options.createBalances()
+  dailyRevenue.addUSDValue(revenue, 'Swap Fees To Protocol')
+  const dailySupplySideRevenue = options.createBalances()
+  dailySupplySideRevenue.addUSDValue(fees * 5 / 6, 'Swap Fees To LPs')
+  const { dailyProtocolRevenue, dailyHoldersRevenue } = splitRevenue(options, revenue)
 
   return {
     dailyVolume,
@@ -52,7 +63,8 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -62,6 +74,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HEDERA],
   start: '2023-11-04',
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

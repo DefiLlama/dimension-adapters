@@ -9,6 +9,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x044fe33895Cb7c6e4566DA8E24420C1110933a63",
     "0x888888aE2c4A298EFd66D162fFC53b3F2a869888",
     "0xb4357054c3da8d46ed642383f03139ac7f090343", // PORT3 - hacked
+    "0x3e985250cb137fc1ff55922116934c5982d29f85", // ZENT - supply inflated to 5e45 tokens
     "0x8d010bf9C26881788b4e6bf5Fd1bdC358c8F90b8", // DOT
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5", //vDOT
   ],

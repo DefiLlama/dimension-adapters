@@ -71,6 +71,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   start: "2026-07-14",
+  deadFrom: "2026-11-04", // deprecated by the team, no longer maintained
   chains: [CHAIN.ROBINHOOD],
   methodology,
   breakdownMethodology,

@@ -33,6 +33,10 @@ const abi = {
   spot: 'function spot() view returns (uint160 sqrtPriceX96, int24 tick)',
   poolId: 'function poolId() view returns (bytes32)',
   stakedContains: 'function stakedContains(address depositor, uint256 tokenId) view returns (bool)',
+  // Gauge rewards owed to the vault and not yet claimed, before its fee shares (full signatures: both change by block).
+  // Ramses venue: RAM in the gauge or held by the venue. Up (Slipstream) gauge: UP earned by the staked position NFT.
+  pendingRewards: 'function pendingRewards() view returns (uint256)',
+  gaugeEarned: 'function earned(address account, uint256 tokenId) view returns (uint256)',
   getPositionInfo: 'function getPositionInfo(bytes32 poolId, address owner, int24 tickLower, int24 tickUpper, bytes32 salt) view returns (uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128)',
   getFeeGrowthInside: 'function getFeeGrowthInside(bytes32 poolId, int24 tickLower, int24 tickUpper) view returns (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128)',
 };
@@ -53,10 +57,13 @@ function feeGrowthInside(tick: number, lower: number, upper: number, global: big
 const owedFees = (liquidity: bigint, inside: bigint, insideLast: bigint, tokensOwed = 0n) =>
   tokensOwed + liquidity * wrap(inside - insideLast) / Q128;
 
-/** Each vault's trading fees not yet collected at the api's block, in pool order: zero before the vault exists, with
- *  no position, in recovery, or for a staked Up NFT. */
-async function uncollectedFees(api: ChainApi, vaults: Listed[]): Promise<[bigint, bigint][]> {
-  const result: [bigint, bigint][] = vaults.map(() => [0n, 0n]);
+type Uncollected = { fees: [bigint, bigint]; reward: bigint };
+
+/** Each vault's amounts not yet collected at the api's block: its trading fees in pool order (zero with no position or
+ *  for a staked Up NFT) and its unclaimed gauge rewards (Up and Ramses only); all zero before the vault exists or in
+ *  recovery. */
+async function uncollected(api: ChainApi, vaults: Listed[]): Promise<Uncollected[]> {
+  const result: Uncollected[] = vaults.map(() => ({ fees: [0n, 0n], reward: 0n }));
   const venues = await api.multiCall({ abi: abi.venue, calls: vaults.map(v => v.vault), permitFailure: true });
   const live = vaults.map((v, i) => ({ ...v, i, venue: venues[i] as string })).filter(v => v.venue);
   const [blocked, positions] = await Promise.all([
@@ -65,6 +72,11 @@ async function uncollectedFees(api: ChainApi, vaults: Listed[]): Promise<[bigint
   ]);
   // In recovery the vault harvests nothing more: the blocked token's amounts belong to the recovery
   const open = live.map((v, j) => ({ ...v, position: positions[j] })).filter((_, j) => blocked[j] === ADDRESSES.null);
+
+  // Ramses: RAM the venue is owed by the gauge or holds, which the next harvest claims (0 with gauge rewards off)
+  const ramses = open.filter(v => v.kind === 'ramses');
+  const ramsesPending = await api.multiCall({ abi: abi.pendingRewards, calls: ramses.map(v => v.venue) });
+  ramses.forEach((v, j) => { result[v.i].reward = BigInt(ramsesPending[j]); });
 
   // Uniswap V4: the venue's PoolManager position (owner the venue, salt 0)
   const v4 = open.filter(v => v.kind === 'v4' && BigInt(v.position.liquidity) > 0n);
@@ -75,7 +87,7 @@ async function uncollectedFees(api: ChainApi, vaults: Listed[]): Promise<[bigint
   ]);
   v4.forEach((v, j) => {
     const liquidity = BigInt(infos[j].liquidity);
-    result[v.i] = [
+    result[v.i].fees = [
       owedFees(liquidity, BigInt(insides[j].feeGrowthInside0X128), BigInt(infos[j].feeGrowthInside0LastX128)),
       owedFees(liquidity, BigInt(insides[j].feeGrowthInside1X128), BigInt(infos[j].feeGrowthInside1LastX128)),
     ];
@@ -89,10 +101,13 @@ async function uncollectedFees(api: ChainApi, vaults: Listed[]): Promise<[bigint
     api.multiCall({ abi: abi.spot, calls: npm.map(v => v.venue) }),
   ]);
   const minted = npm.map((v, j) => ({ ...v, tokenId: tokenIds[j], pool: pools[j], tick: Number(spots[j].tick) })).filter(v => BigInt(v.tokenId) > 0n);
-  // A staked Up NFT earns no trading fees (the gauge takes them); its UP emissions are not fees
+  // A staked Up NFT earns no trading fees (the gauge takes them); it earns UP instead, which the next harvest claims
   const up = minted.filter(v => v.kind === 'up');
   const gauges = await api.multiCall({ abi: 'address:gauge', calls: up.map(v => v.venue) });
   const staked = await api.multiCall({ abi: abi.stakedContains, calls: up.map((v, j) => ({ target: gauges[j], params: [v.venue, v.tokenId] })) });
+  const stakedUp = up.map((v, j) => ({ ...v, gauge: gauges[j] })).filter((_, j) => staked[j]);
+  const upEarned = await api.multiCall({ abi: abi.gaugeEarned, calls: stakedUp.map(v => ({ target: v.gauge, params: [v.venue, v.tokenId] })) });
+  stakedUp.forEach((v, j) => { result[v.i].reward = BigInt(upEarned[j]); });
   const earning = minted.filter(v => v.kind !== 'up' || !staked[up.indexOf(v)]);
   // Ramses' gauge can also pay pool-token rewards, which a harvest claims; they are counted when claimed, not here
   for (const kind of ['v3', 'up', 'ramses'] as const) {
@@ -113,16 +128,16 @@ async function uncollectedFees(api: ChainApi, vaults: Listed[]): Promise<[bigint
       const owed = [0, 1].map(k => owedFees(nft[layout.liquidity],
         feeGrowthInside(v.tick, tickLower, tickUpper, globals[k], lower[layout.outside + k], upper[layout.outside + k]),
         nft[layout.inside + k], nft[layout.owed + k]));
-      result[v.i] = [owed[0], owed[1]];
+      result[v.i].fees = [owed[0], owed[1]];
     });
   }
   return result;
 }
 
-export type VaultFee = { token: string; earned: bigint; operations: bigint; buyback: bigint };
+export type VaultFee = { source: 'fees' | 'rewards'; token: string; earned: bigint; operations: bigint; buyback: bigint };
 
-/** Trading fees the vaults earned in the window, per token: collected (Harvest) plus the change in fees not yet
- *  collected, split by each vault's protocol and buyback fee shares. */
+/** Trading fees and gauge rewards the vaults earned in the window, per token: collected (Harvest) plus the change in
+ *  amounts not yet collected, split by each vault's protocol and buyback fee shares, which apply to both. */
 export async function vaultFees(options: FetchOptions): Promise<VaultFee[]> {
   const { data } = await getConfig('tickerspring-vaults', VAULTS_API);
   const listed: Listed[] = data.vaults.map((v: any) => ({ vault: v.vault, kind: v.kind }));
@@ -130,29 +145,37 @@ export async function vaultFees(options: FetchOptions): Promise<VaultFee[]> {
   const venues = await options.toApi.multiCall({ abi: abi.venue, calls: listed.map(v => v.vault), permitFailure: true });
   const vaults = listed.filter((_, i) => venues[i]);
   if (!vaults.length) return [];
-  const [opening, closing, harvests, usdgs, tokens, token0s, configs] = await Promise.all([
-    uncollectedFees(options.fromApi, vaults),
-    uncollectedFees(options.toApi, vaults),
+  const [opening, closing, harvests, usdgs, tokens, rewardTokens, token0s, configs] = await Promise.all([
+    uncollected(options.fromApi, vaults),
+    uncollected(options.toApi, vaults),
     options.getLogs({ targets: vaults.map(v => v.vault), eventAbi: abi.harvest, flatten: false }),
     options.toApi.multiCall({ abi: 'address:usdg', calls: vaults.map(v => v.vault) }),
     options.toApi.multiCall({ abi: 'address:token', calls: vaults.map(v => v.vault) }),
+    // Immutable: UP on Up, RAM on Ramses, address(0) on Uniswap
+    options.toApi.multiCall({ abi: 'address:rewardToken', calls: vaults.map(v => v.vault) }),
     options.toApi.multiCall({ abi: 'address:token0', calls: venues.filter(Boolean) }),
     options.toApi.multiCall({ abi: abi.config, calls: vaults.map(v => v.vault) }),
   ]);
   return vaults.flatMap((_, i) => {
-    const harvested = [0n, 0n];
+    // Harvested: USDG, pool token, reward token
+    const harvested = [0n, 0n, 0n];
     harvests[i].forEach((log: any) => {
       harvested[0] += BigInt(log.usdgFees);
       harvested[1] += BigInt(log.tokenFees);
+      harvested[2] += BigInt(log.rewards);
     });
-    // Pool order to (USDG, pool token)
+    // Pool order to (USDG, pool token), then the reward token
     const usdgIsToken0 = token0s[i].toLowerCase() === usdgs[i].toLowerCase();
-    const [before, after] = [opening[i], closing[i]].map(([a, b]) => usdgIsToken0 ? [a, b] : [b, a]);
-    return [usdgs[i], tokens[i]].map((token, side) => {
-      // Only a recovery (an issuer froze a token) drops uncollected fees without a harvest; those fees are never collected
+    const [before, after] = [opening[i], closing[i]].map(({ fees: [a, b], reward }) => usdgIsToken0 ? [a, b, reward] : [b, a, reward]);
+    const sides: [VaultFee['source'], string][] = [['fees', usdgs[i]], ['fees', tokens[i]]];
+    if (rewardTokens[i] !== ADDRESSES.null) sides.push(['rewards', rewardTokens[i]]);
+    return sides.map(([source, token], side) => {
+      // Only a recovery (an issuer froze a token) or an unstaked Up NFT whose claim failed drops an uncollected amount
+      // without a harvest; that amount is never collected
       const earned = harvested[side] + after[side] - before[side];
       const fee = earned > 0n ? earned : 0n;
       return {
+        source,
         token,
         earned: fee,
         operations: fee * BigInt(configs[i].protocolFeeBps) / 10_000n,

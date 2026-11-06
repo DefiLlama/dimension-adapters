@@ -1,5 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { formatAddress } from "../utils/utils";
 
 // OKX books each referral commission with one of these events. There are two generations: the
 // original three-argument pair, and a four-argument pair that adds the commission rate and so
@@ -10,12 +12,54 @@ const CommissionToTokenRecordEvent = 'event CommissionToTokenRecord(address toke
 const CommissionFromTokenRecordEventV2 = 'event CommissionFromTokenRecord(address tokenAddress, uint256 commissionAmount, address referrerAddress, uint256 commissionRate)';
 const CommissionToTokenRecordEventV2 = 'event CommissionToTokenRecord(address tokenAddress, uint256 commissionAmount, address referrerAddress, uint256 commissionRate)';
 
+// Positive slippage the router takes from a swap's output. It splits what it takes by the swap's chargeRate and sends each part to its own
+// address from the calldata, booking the rest with the first event and the charged part with the second, so the two amounts don't overlap
+// (_processTrim in https://github.com/okxlabs/Web3-DEX-Router-EVM-V1/blob/1fc1508df3caeb18a8179dfc0ea4e956099ab481/contracts/8/libraries/CommissionLib.sol#L747-L796).
+// On toB API swaps the address is OKX's DEX API account, which keeps it as an infrastructure fee, capped at 10% of the trade
+// (https://web3.okx.com/onchainos/dev-docs/trade/api-fee). E.g. Ethereum tx
+// 0xfdc47546d262e1e07f0a57be02f67185b50706bf32d2db54296b5334f422ea8f: 0.618 WETH to 0x7fc8fd8b.
+const PositiveSlippageTrimRecordEvent = 'event PositiveSlippageTrimRecord(address tokenAddress, uint256 trimAmount, address trimAddress)';
+const PositiveSlippageChargeRecordEvent = 'event PositiveSlippageChargeRecord(address tokenAddress, uint256 chargeAmount, address chargeAddress)';
+
 const REFERRAL_COMMISSIONS = 'Referral commissions';
+const OKX_FEES = 'OKX interface and API fees';
+const OKX_POSITIVE_SLIPPAGE = 'OKX positive slippage';
+const PARTNER_POSITIVE_SLIPPAGE = 'Partner positive slippage';
+
+// OKX's own fee accounts. The routers pay OKX's fee with the same commission event they use for
+// third-party referrers, with one of these accounts as the referrer; every other referrer is a third
+// party and stays supply side.
+// - DEX API share: on API swaps that charge a partner fee this account takes 20% of the commission and
+//   the partner 80%, the Start-up tier's "20% of your revenue as our infrastructure fee"
+//   (https://web3.okx.com/onchainos/dev-docs/trade/api-fee). E.g. Ethereum tx
+//   0x5b374cf230cfb66be5c0b12e18a58d6532f339065b14fe4f527c6fcc371e9e0f: 5.396130 USDT to this
+//   account, 21.584521 USDT to the partner.
+// - Interface fee: charged at 0.1-0.5% of the swap, the range of OKX's DEX interface fee
+//   (https://web3.okx.com/dex-fees).
+// OKX replaced each account in 2026. The old and the new account sweep their USDC every day, at the
+// same hour, to the same address (noted per pair with a sample sweep), so both are listed and a refill
+// of older days splits the same way.
+const OKX_FEE_ACCOUNTS = new Set([
+  // interface fee; sweep to 0x89efb4bc95b9eafcdb8d7a4417f401d5d1d75e24 at 04:00 UTC, e.g. Ethereum tx
+  // 0x627302daa891e2e508154b84f922ca2179e1d40f49529a441db9bd9fc688ee5d
+  '0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d',
+  '0x7797c4a7f786f77dbce13d71d2c710310cb92aa3',
+  // DEX API share; sweep to 0x79d3e0cde1380525dd649bd73335188b7e85422f at 08:00 UTC, e.g. Ethereum tx
+  // 0xdeb8ecff2553d31bff64edddfe14b25fe73aecb61d91ab307382ee58a3366dd0
+  '0xfa00a9ed787f3793db668bff3e6e6e7db0f92a1b',
+  '0x7fc8fd8bb3192e2d62a3d8d97d9a7924d4bae58b',
+  // interface fee, second account (0.25% / 0.5%); sweep to 0x761a71b7046597154dc543762f966f8d06334682
+  // at 09:00 UTC, e.g. Ethereum tx 0x1f9d60a03efccd6256be28bd5d3b10eb0e074be5c5efb519c1a1ec9d52320f54
+  '0x31c241ef4d6a191ce474a02f4c5122536e5bf0dc',
+  '0xd5c38205cf30ea91b1dde17aaf42766ac84a91fc',
+])
 
 const V2_EVENTS_START = 1761955200; // Nov-01-2025 00:00:00 UTC, two weeks before the first one
 const V1_EVENTS_END = 1777507200; // Apr-30-2026 00:00:00 UTC, a month after the last one
 
 const endOfDay = (day: string) => Math.floor(Date.parse(`${day}T23:59:59Z`) / 1e3);
+
+const STILL_TRIMMING = '2100-01-01'; // see trimsUntil below
 
 interface IRouter {
   // Each entry is a router and, for the ones OKX has already replaced, the day its last commission
@@ -23,7 +67,13 @@ interface IRouter {
   // the same day, so a chain accumulates several over time but only one or two can produce logs in
   // any given window. Retired routers are skipped for windows that start after they stopped; some
   // of these chains have a single public RPC and querying every router on every window trips it.
-  addresses: Array<{ address: string, retiredOn?: string }>;
+  //
+  // A replaced router can still be called, so positive slippage can outlive its commissions. Where it
+  // does, trimsUntil replaces retiredOn for the slippage events: the last nonzero trim on Dune
+  // (evms.logs, through 2026-11-04) plus 30 days, or STILL_TRIMMING if one fired within 30 days of that
+  // date or within the router's longest earlier silence. Metis and Blast aren't on Dune, so theirs follow
+  // retiredOn. At the next rotation, give a retired router STILL_TRIMMING until its trims are checked.
+  addresses: Array<{ address: string, retiredOn?: string, trimsUntil?: string }>;
 }
 
 // Every contract that has emitted a commission event and paid the referrer
@@ -59,16 +109,16 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0xDcB7028E5EAA1d7bB82B7152Cb0e7adC12e7457c', retiredOn: '2026-08-03' },
       { address: '0x2E1Dee213BA8d7af0934C49a23187BabEACa8764', retiredOn: '2025-12-04' },
-      { address: '0xF6801D319497789f934ec7F83E142a9536312B08', retiredOn: '2025-12-17' },
-      { address: '0x5E1f62Dac767b0491e3CE72469C217365D5B48cC', retiredOn: '2026-05-12' },
-      { address: '0x28b1Dc1a5E3699A428BC51d234DFab7C9CB2a183', retiredOn: '2026-08-24' },
+      { address: '0xF6801D319497789f934ec7F83E142a9536312B08', retiredOn: '2025-12-17', trimsUntil: STILL_TRIMMING },
+      { address: '0x5E1f62Dac767b0491e3CE72469C217365D5B48cC', retiredOn: '2026-05-12', trimsUntil: STILL_TRIMMING },
+      { address: '0x28b1Dc1a5E3699A428BC51d234DFab7C9CB2a183', retiredOn: '2026-08-24', trimsUntil: STILL_TRIMMING },
       { address: '0x8feAB81D36E7576107D5dE0758c1b839Be31B4F6' },
     ],
   },
   [CHAIN.SONIC]: {
     addresses: [
       { address: '0xcc96b656b6dff0B5318d53271b82B7E7183b95D2', retiredOn: '2025-11-17' },
-      { address: '0x49E10cAee23d198CEE1E44b2a222232A85Df62Bb', retiredOn: '2025-12-17' },
+      { address: '0x49E10cAee23d198CEE1E44b2a222232A85Df62Bb', retiredOn: '2025-12-17', trimsUntil: '2026-04-11' },
       { address: '0x86F752f1F662f39BFbcBeF95EE56B6C20d178969', retiredOn: '2026-04-23' },
       { address: '0x79f7C6C6dc16Ed3154E85A8ef9c1Ef31CEFaEB19', retiredOn: '2026-08-24' },
       { address: '0xd72f9Af181A0eB1B8550a00124ECdb71Bb758C89' },
@@ -86,8 +136,8 @@ const routers: Record<string, IRouter> = {
   [CHAIN.OPTIMISM]: {
     addresses: [
       { address: '0x86F752f1F662f39BFbcBeF95EE56B6C20d178969', retiredOn: '2025-11-17' },
-      { address: '0xC44C6550a3B13116F6fD593e1ec963d5aE78C4C8', retiredOn: '2025-12-17' },
-      { address: '0x6733Eb2E75B1625F1Fe5f18aD2cB2BaBDA510d19', retiredOn: '2026-04-23' },
+      { address: '0xC44C6550a3B13116F6fD593e1ec963d5aE78C4C8', retiredOn: '2025-12-17', trimsUntil: '2026-05-12' },
+      { address: '0x6733Eb2E75B1625F1Fe5f18aD2cB2BaBDA510d19', retiredOn: '2026-04-23', trimsUntil: '2026-08-30' },
       { address: '0xDd5E9B947c99Aa60bab00ca4631Dce63b49983E7', retiredOn: '2026-08-24' },
       { address: '0x1f5B43127414E36c31eCb5Ff5567262997CD24D0' },
     ],
@@ -95,8 +145,8 @@ const routers: Record<string, IRouter> = {
   [CHAIN.POLYGON]: {
     addresses: [
       { address: '0xF5402CCC5fC3181B45D7571512999D3Eea0257B6', retiredOn: '2025-11-17' },
-      { address: '0x5e11D6A2184c321e69c6443DedB980F943DB7836', retiredOn: '2025-12-17' },
-      { address: '0x057cFd839AA88994d1A8A8C6D336CF21550F05Ef', retiredOn: '2026-04-27' },
+      { address: '0x5e11D6A2184c321e69c6443DedB980F943DB7836', retiredOn: '2025-12-17', trimsUntil: '2026-05-19' },
+      { address: '0x057cFd839AA88994d1A8A8C6D336CF21550F05Ef', retiredOn: '2026-04-27', trimsUntil: '2026-10-23' },
       { address: '0xF6E1B4b201e220FC3741bd7a75675ffEA25c02AD' },
       { address: '0x3C4829196BFadFF4394726b45159aeaAC6FCd41c' },
     ],
@@ -105,7 +155,7 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0xF4858d71e5d7D27e3F7270390Cd57545DcA35aa9', retiredOn: '2026-05-07' },
       { address: '0x6015126d7D23648C2e4466693b8DeaB005ffaba8', retiredOn: '2025-12-11' },
-      { address: '0xd547Eafde2410e63300Fc5308CceA0b356E7b5d8', retiredOn: '2025-12-18' },
+      { address: '0xd547Eafde2410e63300Fc5308CceA0b356E7b5d8', retiredOn: '2025-12-18', trimsUntil: '2026-06-25' },
       { address: '0x3156020dfF8D99af1dDC523ebDfb1ad2018554a0' },
       { address: '0x62cceF0b4545166f721cAa9fEe13c1d3767E27dc' },
       { address: '0x5994814f2C4040b863A0125A45DE152a8c2A4DEc' },
@@ -114,8 +164,8 @@ const routers: Record<string, IRouter> = {
   [CHAIN.AVAX]: {
     addresses: [
       { address: '0x79f7C6C6dc16Ed3154E85A8ef9c1Ef31CEFaEB19', retiredOn: '2025-11-17' },
-      { address: '0x2E84246828ddae18500Bc0CF23dd8A8d1Aa5Cf1f', retiredOn: '2025-12-17' },
-      { address: '0x8aDFb0D24cdb09c6eB6b001A41820eCe98831B91', retiredOn: '2026-04-23' },
+      { address: '0x2E84246828ddae18500Bc0CF23dd8A8d1Aa5Cf1f', retiredOn: '2025-12-17', trimsUntil: '2026-05-25' },
+      { address: '0x8aDFb0D24cdb09c6eB6b001A41820eCe98831B91', retiredOn: '2026-04-23', trimsUntil: STILL_TRIMMING },
       { address: '0xa94Fcf9fc56a864f8DE51e6315aee5863AD63C91', retiredOn: '2026-08-24' },
       { address: '0xAB96dcFA7A7D669d9BF5918faB8641479973dD0A' },
     ],
@@ -124,9 +174,9 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0xfFb8322DEEeADF0d61589211493Fb2Dc668D3CC0', retiredOn: '2026-04-28' },
       { address: '0x5e2F47bD7D4B357fCfd0Bb224Eb665773B1B9801', retiredOn: '2025-11-19' },
-      { address: '0x3608c8186fF3dCa322DeEFb8c27162162d581081', retiredOn: '2026-03-31' },
-      { address: '0x368E01160C2244B0363a35B3fF0A971E44a89284', retiredOn: '2026-04-23' },
-      { address: '0x7CF6b330b437E9fb432B1400DE17B03357Cf049A', retiredOn: '2026-08-24' },
+      { address: '0x3608c8186fF3dCa322DeEFb8c27162162d581081', retiredOn: '2026-03-31', trimsUntil: '2026-08-07' },
+      { address: '0x368E01160C2244B0363a35B3fF0A971E44a89284', retiredOn: '2026-04-23', trimsUntil: '2026-09-27' },
+      { address: '0x7CF6b330b437E9fb432B1400DE17B03357Cf049A', retiredOn: '2026-08-24', trimsUntil: '2026-10-10' },
       { address: '0x09f94b5Fc68e227C323A6FbaE3Bd98C97fD8c849' },
     ],
   },
@@ -134,7 +184,7 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0x6f7c20464258c732577c87a9B467619e03e5C158', retiredOn: '2025-11-17' },
       { address: '0x5Eb082A0713481d29cDCd19B2Af5736007571472', retiredOn: '2025-12-17' },
-      { address: '0x9EaBF1D34819D9eC9Fe5fd3Db4e9DCD12Fa05284', retiredOn: '2026-04-23' },
+      { address: '0x9EaBF1D34819D9eC9Fe5fd3Db4e9DCD12Fa05284', retiredOn: '2026-04-23', trimsUntil: '2026-09-26' },
       { address: '0x2E1Dee213BA8d7af0934C49a23187BabEACa8764', retiredOn: '2026-08-24' },
       { address: '0xdfcb0cEcC10e78F3F3749F3f3d3EE4047b2c9829' },
     ],
@@ -143,9 +193,9 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0xBb686278C6EB5B0a9Cc4406F8Db5A79BfaF53a99', retiredOn: '2026-04-29' },
       { address: '0x5e2F47bD7D4B357fCfd0Bb224Eb665773B1B9801', retiredOn: '2025-11-19' },
-      { address: '0x2bD541Ab3b704F7d4c9DFf79EfaDeaa85EC034f1', retiredOn: '2026-03-05' },
-      { address: '0x4409921Ae43a39a11D90F7B7F96cfd0B8093d9fC', retiredOn: '2026-04-23' },
-      { address: '0xC8F6b8Ba0DC0f175B568B99440B0867F69A29265', retiredOn: '2026-08-24' },
+      { address: '0x2bD541Ab3b704F7d4c9DFf79EfaDeaa85EC034f1', retiredOn: '2026-03-05', trimsUntil: '2026-07-06' },
+      { address: '0x4409921Ae43a39a11D90F7B7F96cfd0B8093d9fC', retiredOn: '2026-04-23', trimsUntil: '2026-10-11' },
+      { address: '0xC8F6b8Ba0DC0f175B568B99440B0867F69A29265', retiredOn: '2026-08-24', trimsUntil: '2026-10-01' },
       { address: '0x67d03631FE51B741C0C00c4E16eb662AC84381df' },
     ],
   },
@@ -167,8 +217,8 @@ const routers: Record<string, IRouter> = {
   [CHAIN.UNICHAIN]: {
     addresses: [
       { address: '0x411d2C093e4c2e69Bf0D8E94be1bF13DaDD879c6', retiredOn: '2025-11-17' },
-      { address: '0x1e3143b9cB44170098092e53bfbCE76E1Ce53E00', retiredOn: '2025-12-16' },
-      { address: '0x23E2f2FA1967FAffde2e05fDecbb3fa787A5D3E5', retiredOn: '2026-04-22' },
+      { address: '0x1e3143b9cB44170098092e53bfbCE76E1Ce53E00', retiredOn: '2025-12-16', trimsUntil: '2026-05-10' },
+      { address: '0x23E2f2FA1967FAffde2e05fDecbb3fa787A5D3E5', retiredOn: '2026-04-22', trimsUntil: '2026-07-26' },
       { address: '0x6733Eb2E75B1625F1Fe5f18aD2cB2BaBDA510d19', retiredOn: '2026-08-24' },
       { address: '0xe3dAb8Bf5187F9B4E8E89FF5414D7CF71E2C82e1' },
     ],
@@ -176,8 +226,8 @@ const routers: Record<string, IRouter> = {
   [CHAIN.PLASMA]: {
     addresses: [
       { address: '0xd30D8CA2E7715eE6804a287eB86FAfC0839b1380', retiredOn: '2025-11-17' },
-      { address: '0x509c370Da4Dc569f45D48A2318a54c5442Bc23CF', retiredOn: '2025-12-17' },
-      { address: '0x5C1c902e7E04DE98b49aCd3De68E12BEE2d7908D', retiredOn: '2026-04-22' },
+      { address: '0x509c370Da4Dc569f45D48A2318a54c5442Bc23CF', retiredOn: '2025-12-17', trimsUntil: '2026-07-07' },
+      { address: '0x5C1c902e7E04DE98b49aCd3De68E12BEE2d7908D', retiredOn: '2026-04-22', trimsUntil: '2026-05-23' },
       { address: '0x19D345f95A80cc136d898f41b490E023cFF78658', retiredOn: '2026-08-24' },
       { address: '0xd72f9Af181A0eB1B8550a00124ECdb71Bb758C89' },
     ],
@@ -192,7 +242,7 @@ const routers: Record<string, IRouter> = {
     addresses: [
       { address: '0xb1E4E25b1938c78Ec0b21cCb2D6a0Be60aA7E63f', retiredOn: '2025-12-17' },
       { address: '0x6088d94C5a40CEcd3ae2D4e0710cA687b91c61d0', retiredOn: '2026-04-23' },
-      { address: '0x7A7AD9aa93cd0A2D0255326E5Fb145CEc14997FF', retiredOn: '2026-08-24' },
+      { address: '0x7A7AD9aa93cd0A2D0255326E5Fb145CEc14997FF', retiredOn: '2026-08-24', trimsUntil: STILL_TRIMMING },
       { address: '0xc1C76E784Db8D68585fb608ce68FC5DcFF14000E' },
     ],
   },
@@ -260,15 +310,46 @@ const fetch: any = async (options: FetchOptions) => {
 
   const events = await Promise.all(eventAbis.map((eventAbi) => options.getLogs({ eventAbi, targets, flatten: true })))
 
+  const slippageTargets = routers[options.chain].addresses
+    .filter(({ retiredOn, trimsUntil = retiredOn }) => !trimsUntil || options.fromTimestamp <= endOfDay(trimsUntil))
+    .map(({ address }) => address)
+  const slippageEventAbis = [PositiveSlippageTrimRecordEvent, PositiveSlippageChargeRecordEvent]
+  const slippageEvents = await Promise.all(slippageEventAbis.map((eventAbi) => options.getLogs({ eventAbi, targets: slippageTargets, flatten: true })))
+
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
   for (const event of events.flat()) {
-    dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+    if (OKX_FEE_ACCOUNTS.has(event.referrerAddress.toLowerCase())) {
+      dailyFees.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
+      dailyRevenue.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
+    } else {
+      dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+      dailySupplySideRevenue.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+    }
+  }
+
+  // A trim of a hacked token can carry an absurd amount: 1.9e15 PORT3 on Ethereum in tx
+  // 0x04f02c47210832e1cad6bb535b7ab8966080a903d29328dfb1f725280a2f1d2c is about $4.3T at its price.
+  const blacklistTokens = getDefaultDexTokensBlacklisted(options.chain)
+  for (const event of slippageEvents.flat()) {
+    if (blacklistTokens.includes(formatAddress(event.tokenAddress))) continue
+    const receiver = event.trimAddress ?? event.chargeAddress
+    const amount = event.trimAmount ?? event.chargeAmount
+    if (OKX_FEE_ACCOUNTS.has(receiver.toLowerCase())) {
+      dailyFees.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
+      dailyRevenue.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
+    } else {
+      dailyFees.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
+      dailySupplySideRevenue.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
+    }
   }
 
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   }
 }
 
@@ -277,20 +358,36 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   methodology: {
-    Fees: 'Total comission fees from every trade.',
+    Fees: 'Total comission fees from every trade, plus the positive slippage the routers take from swaps.',
     UserFees: 'Users pay small amount of fees on trades.',
-    Revenue: 'No revenue',
-    SupplySideRevenue: 'All comission fees distributed to referrer addresses.',
+    Revenue: "Commissions paid to OKX's own fee accounts, OKX's DEX interface fee and its 20% share of DEX API partner fees, and the positive slippage paid to those accounts.",
+    ProtocolRevenue: "Commissions paid to OKX's own fee accounts, OKX's DEX interface fee and its 20% share of DEX API partner fees, and the positive slippage paid to those accounts.",
+    SupplySideRevenue: 'Commissions paid to third-party referrers, such as wallets and apps that charge their own fee on top of OKX DEX, and positive slippage paid to other addresses.',
   },
   breakdownMethodology: {
     Fees: {
-      [REFERRAL_COMMISSIONS]: "Commission each OKX router records on the swaps it routes, counted in whichever token the commission was taken in.",
+      [OKX_FEES]: "Commission each OKX router pays to OKX's own fee accounts, counted in whichever token the commission was taken in.",
+      [REFERRAL_COMMISSIONS]: "Commission each OKX router pays to third-party referrers on the swaps it routes, counted in whichever token the commission was taken in.",
+      [OKX_POSITIVE_SLIPPAGE]: "Output above the swap's quote that each OKX router sends to OKX's own fee accounts.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Output above the swap's quote that each OKX router sends to any other address named in the swap.",
     },
     UserFees: {
-      [REFERRAL_COMMISSIONS]: "The same commissions, which are paid by the user out of the swap.",
+      [OKX_FEES]: "OKX's commission, paid by the user out of the swap.",
+      [REFERRAL_COMMISSIONS]: "Third-party referrer commissions, paid by the user out of the swap.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage OKX keeps, taken from the user's swap output.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Positive slippage a partner keeps, taken from the user's swap output.",
+    },
+    Revenue: {
+      [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage paid to OKX's own fee accounts, kept by OKX.",
+    },
+    ProtocolRevenue: {
+      [OKX_FEES]: "OKX's DEX interface fee and its 20% share of DEX API partner fees, kept by OKX.",
+      [OKX_POSITIVE_SLIPPAGE]: "Positive slippage paid to OKX's own fee accounts, kept by OKX.",
     },
     SupplySideRevenue: {
-      [REFERRAL_COMMISSIONS]: "Every commission is booked against the referrer that brought the trade, so all of it is supply side.",
+      [REFERRAL_COMMISSIONS]: "Commission paid to the third-party referrer that brought the trade.",
+      [PARTNER_POSITIVE_SLIPPAGE]: "Positive slippage paid to the address named in the swap, other than OKX's own fee accounts.",
     },
   },
   chains: Object.keys(routers),

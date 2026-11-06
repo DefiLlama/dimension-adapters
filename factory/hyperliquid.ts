@@ -32,6 +32,19 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "pumpfun-perps": {
+    // Pump.fun wallet label: https://www.flowscan.xyz/builders/pumpfun
+    // Attribution is label-based; official fees: https://pump.fun/docs/fees.
+    addresses: ["0x95985ed24b5d1047cd09c380c7d9cb7d6f2c22ae"],
+    start: "2026-09-25", // earliest verified builder fill file; includes pre-launch activity
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) carrying the Pump.fun builder code; excludes spot and outcome markets.",
+      Fees: "Actual builder-code fees paid on Hyperliquid perpetual trades carrying the Pump.fun builder code; excludes Hyperliquid exchange fees and bridge fees.",
+      Revenue: "Builder-code fees received by the Pump.fun builder account, before any subsequent referral or callout reward payouts.",
+      ProtocolRevenue: "Builder-code fees received by the Pump.fun builder account, before any subsequent referral or callout reward payouts.",
+    },
+    breakdownFees: true,
+  },
   "proliquid": {
     // Proliquid (https://www.proliquid.xyz, https://x.com/proliquid_xyz), a multi-venue trading terminal (Hyperliquid,
     // RISEx, Lighter, Extended, Binance, Bybit, OKX, BloFin; keys stay on the user's device).
@@ -85,6 +98,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
       Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Blackboard; excludes Hyperliquid's own trading fees.",
       Revenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
       ProtocolRevenue: "Builder code fees received by Blackboard, before any referral or partner rebates.",
+    },
+    breakdownFees: true,
+  },
+  "sparkling-perps": {
+    // Sparkling (https://sparkl.ing), the trading app that comes with an agent, in Telegram (https://t.me/sparkling_trade_bot)
+    // and on the web (https://app.sparkl.ing). Its Hyperliquid perps orders carry this builder code at 5.5 bps (f = 55),
+    // set in the web app's public code. Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x6f84e41bddb6df636be5332331b8a7d7bb968c33"],
+    // first day with fills in the builder_fills archive for this address
+    start: "2026-09-13",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades placed through Sparkling, counted from its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perps trades placed through Sparkling; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by Sparkling from Hyperliquid perps trades, before its affiliate payouts.",
+      ProtocolRevenue: "Builder code fees received by Sparkling from Hyperliquid perps trades, before its affiliate payouts.",
     },
     breakdownFees: true,
   },
@@ -1549,14 +1577,14 @@ function hip3Methodology(name: string) {
 // Builders are split into one listing per market. Each builderConfigs entry is the builder's perps listing
 // (its outcome listing for outcome-only builders); these are the builder's other markets, reusing its addresses
 // and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
-const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string }> = {
+const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string; deadFrom?: string }> = {
   // Earliest positive Spot day: https://hl-indexer.llama.rip/v2/data/builder/0x2530e4a72587450529fb99518db39d6a218a4177/daily/2026-09-30
   "ditto-spot": { builder: "ditto-perps", market: "spot", start: "2026-09-30" },
   "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
   "aura-money-spot": { builder: "aura-money-perps", market: "spot", start: "2026-03-24" },
   "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
-  "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02" },
+  "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02", deadFrom: "2026-11-04" }, // deprecated by the team, no longer maintained
   "blockchain-wallet-spot": { builder: "blockchain-wallet-perps", market: "spot", start: "2026-05-02" },
   "bloxwap-outcome": { builder: "bloxwap-perps", market: "outcome", start: "2026-05-02" },
   "borsa-outcome": { builder: "borsa-perps", market: "outcome", start: "2026-05-02" },
@@ -1678,7 +1706,7 @@ for (const [name, listing] of Object.entries(builderMarketListings)) {
   const builder = builderConfigs[listing.builder];
   dexsProtocols[name] = exportBuilderAdapterV2(builder.addresses, {
     start: listing.start,
-    deadFrom: builder.deadFrom,
+    deadFrom: listing.deadFrom ?? builder.deadFrom,
     extraReturnFields: builder.extraReturnFields,
     breakdownFees: builder.breakdownFees,
     market: listing.market,

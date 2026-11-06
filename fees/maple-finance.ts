@@ -35,16 +35,25 @@ const interest_paid_events = [
   'event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 delegateFeePaid_, uint256 treasuryFeePaid_)',
 ]
 
+// MIP-021 applies one rate to the WHOLE month's revenue: 10% under $1.5m, 20% from $1.5m to $2m,
+// 30% above $2m (https://community.maple.finance/t/mip-021-a-rules-based-buyback-that-scales-with-revenue/1153).
+// A daily fetch cannot see the month total, so it defaults to the 20% tier (confirmed for Sep 2026:
+// $1.57m revenue -> $314,116 buyback) and months Maple published at another tier are listed here;
+// each new entry needs a refill of that month. Check https://maple.finance/transparency/syrup monthly.
+const MIP_021_DEFAULT_RATE = 0.2
+const MIP_021_MONTH_RATES: Record<string, number> = {
+  '2026-07': 0.1, // $136,768 buyback published by Maple, revenue under $1.5m
+  '2026-08': 0.1, // $147,098 buyback published by Maple, revenue under $1.5m
+}
+
 // Share of revenue spent buying back SYRUP. Each rate is confirmed against the monthly
-// buybacks published on https://maple.finance/transparency (buyback / revenue, same month).
-// ponytail: MIP-021 is tiered on MONTHLY revenue (10% under $1.5m, 20% to $2m, 30% above) and a
-// daily fetch cannot see the month, so 10% is hardcoded - Maple has run $1.0-1.4m/month all of
-// 2026. Revisit if a month clears $1.5m, or when MIP-021's 6-month term ends (Jan 2027).
+// buybacks published on https://maple.finance/transparency/syrup (buyback / revenue, same month).
+// ponytail: MIP-021's 6-month term ends Dec 2026, revisit the rate from Jan 2027.
 function getHoldersRevenueShare(date: number): number {
   if (date < 1735689600) return 0     // no buyback before 2025-01-01
   if (date < 1751328000) return 0.2   // MIP-013 / MIP-016, Q1+Q2 2025
   if (date < 1782950400) return 0.25  // MIP-019 Syrup Strategic Fund, 2025-07-01 -> 2026-06-30
-  return 0.1                          // MIP-021 tiered buyback, from 2026-07-01
+  return MIP_021_MONTH_RATES[new Date(date * 1000).toISOString().slice(0, 7)] ?? MIP_021_DEFAULT_RATE // MIP-021, from 2026-07-01
 }
 
 const STRATEGY_FEES = 'Strategy Fees';
@@ -302,7 +311,7 @@ const adapters: SimpleAdapter = {
     Revenue: "Total revenue flowing to Maple protocol and delegates, including management fees, service fees, strategy fees and origination fees from both fixed-term and open-term loans.",
     ProtocolRevenue: "Revenue flowing to Maple protocol treasuries, i.e. total revenue less the share allocated to SYRUP buybacks.",
     SupplySideRevenue: "Net interest earned by liquidity providers/depositors in Maple pools from both fixed-term and open-term loan payments, after the management fee the pool takes out of that interest.",
-    HoldersRevenue: "Share of revenue used to buy back SYRUP tokens: 20% from Jan 2025 (MIP-013/016), 25% from Jul 2025 (MIP-019), 10% from Jul 2026 (MIP-021).",
+    HoldersRevenue: "Share of revenue used to buy back SYRUP tokens: 20% from Jan 2025 (MIP-013/016), 25% from Jul 2025 (MIP-019), and from Jul 2026 10%, 20% or 30% of each month's revenue for months under $1.5M, $1.5M-$2M or above $2M (MIP-021).",
   },
   breakdownMethodology: {
     Fees: {
@@ -325,7 +334,7 @@ const adapters: SimpleAdapter = {
       [STRATEGY_FEES]: 'Aave/sky Strategy fees share to Maple protocol.',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Share of revenue used for SYRUP token buybacks: 20% from Jan 2025, 25% from Jul 2025 (MIP-019), 10% from Jul 2026 (MIP-021).',
+      [METRIC.TOKEN_BUY_BACK]: 'Share of revenue used for SYRUP token buybacks: 20% from Jan 2025, 25% from Jul 2025 (MIP-019), and from Jul 2026 10%/20%/30% of monthly revenue under $1.5M, $1.5M-$2M and above $2M (MIP-021).',
     },
   },
   dependencies: [Dependencies.DUNE],

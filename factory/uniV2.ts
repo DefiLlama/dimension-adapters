@@ -98,7 +98,19 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.RISE]: { factory: '0xd479E71C45aEB1E846A7B549c346D62fE77B39bA', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
   "sonevibe": {
-    [CHAIN.SONEIUM]: { factory: '0x06C0b58287794a0bdce20ce768b601CA974618DC', start: '2025-12-15', fees: 0.0025, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true },
+    // VibeSwap (Uniswap V2 fork). Soneium, Astar and BSC factories match the TVL adapter
+    // (DefiLlama-Adapters projects/sonevibe) and https://github.com/SoneVibe/Lending/blob/main/docs/networks.json
+    // Arbitrum One factory is the same networks.json entry, verified on-chain 2026-11-05.
+    // Swap fee is 0.25%: pair swap checks balance * 10000 - amountIn * 25.
+    // Soneium/Astar/BSC pair bytecode is identical. Arbitrum is a later build (OZ v5, solc 0.8.30 prague)
+    // with the same 25/10000 check and the same _mintFee denominator (rootK * 5) + rootKLast.
+    // feeTo is 0x7500773881f3e5058f7a93ca956116a352897ef6 (EOA, not a holder distributor) on every chain,
+    // set before the first pair, so 1/6 of swap fees is protocol revenue from the deployment-day start.
+    // Starts are the factory deployment UTC dates. allowReadPairs: factories have 1-8 pairs.
+    [CHAIN.SONEIUM]: { factory: '0x06C0b58287794a0bdce20ce768b601CA974618DC', start: '2025-12-15', fees: 0.0025, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true }, // deploy 2025-12-15 01:47 UTC, tx 0x9f581dd19987a5734aae19d1f6c5cfa4b9e379ef970cf5ea2b914701e16b8a58
+    [CHAIN.ASTAR]: { factory: '0x1b404A1e41cCe5f98DC9CBF0c1372F8b68e2588c', start: '2025-12-17', fees: 0.0025, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true }, // deploy 2025-12-17 00:53 UTC, tx 0x4b827d33029655df52a66acabb6c404cdf334cfb0086c9f8a2c91110647930d5; first pair after feeTo
+    [CHAIN.BSC]: { factory: '0xaf905e66038EcE89e03D843B35a11D262053B630', start: '2026-02-18', fees: 0.0025, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true }, // deploy 2026-02-18 03:53 UTC, block 81868992; first pair 04:47 UTC after feeTo
+    [CHAIN.ARBITRUM]: { factory: '0xA95107ebE4e54480bA755061eF3207c3421150f0', start: '2026-11-05', fees: 0.0025, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true }, // deploy 2026-11-05 05:04 UTC, block 521383212; feeTo set 05:11 UTC, first pair 05:41 UTC
   },
   "piperx-v2": {
     // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09

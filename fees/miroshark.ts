@@ -8,7 +8,9 @@ import { METRIC } from "../helpers/metrics";
 // v4 multicurve stack (DecayMulticurveInitializerHook). The pool charges a
 // dynamic LP fee (1.2% steady-state, emitted per-swap in the Swap event) that
 // accrues to protocol-owned multicurve positions and is split between on-chain
-// beneficiaries — there are no third-party LPs.
+// beneficiaries, there are no third-party LPs.
+// Uniswap's v4 protocol fee is 0 on this pool (StateView.getSlot0 protocolFee = 0,
+// checked 2026-11-03), so the full swap fee goes to the multicurve positions.
 //
 // Beneficiary shares (DecayMulticurveInitializer 0xD59cE43E53D69F190E15d9822Fb4540dCcc91178,
 // getShares(poolId, beneficiary)):
@@ -20,7 +22,7 @@ const MIROSHARK_WETH_POOL_ID = '0x83a29b6619907f80e5a47d40f53d4af239a69980f22a08
 const WETH = ADDRESSES.optimism.WETH_1;
 
 const MULTICURVE_INITIALIZER = '0xD59cE43E53D69F190E15d9822Fb4540dCcc91178';
-// MiroShark-controlled beneficiaries over the pool's lifetime — shares are
+// MiroShark-controlled beneficiaries over the pool's lifetime: shares are
 // summed, so the beneficiary handoff between them doesn't skew historical revenue
 const MIROSHARK_BENEFICIARIES = [
   '0x373509C3d065aE6049D6FF4e225B9936455d7A2b',
@@ -43,24 +45,26 @@ async function fetch(options: FetchOptions) {
       params: [MIROSHARK_WETH_POOL_ID, beneficiary],
     })),
   });
-  const treasuryShare = shares.reduce((sum: number, s: any) => sum + Number(s), 0) / 1e18;
+  const treasuryShareWad = shares.reduce((sum: bigint, s: any) => sum + BigInt(s), 0n);
 
   const logs = await options.getLogs({
     target: UNIV4_POOL_MANAGER,
     eventAbi: SWAP_EVENT,
-    // filter by indexed poolId (topic1) — only swaps on the MiroShark/WETH pool
+    // filter by indexed poolId (topic1): only swaps on the MiroShark/WETH pool
     topics: [SWAP_TOPIC, MIROSHARK_WETH_POOL_ID],
   });
 
   for (const log of logs) {
-    // currency0 is WETH — measure fees on the WETH side of each swap,
-    // same approximation as the canonical uniswap-v4 adapter
-    const amount0 = Math.abs(Number(log.amount0));
-    const feeRate = Number(log.fee) / 1e6; // dynamic fee in ppm
-    const fee = amount0 * feeRate;
+    // currency0 is WETH: measure fees on the WETH side of each swap,
+    // same approximation as the canonical uniswap-v4 adapter.
+    // BigInt math so large swaps keep full precision.
+    const amount0 = BigInt(log.amount0);
+    const absAmount0 = amount0 < 0n ? -amount0 : amount0;
+    const fee = (absAmount0 * BigInt(log.fee)) / 1_000_000n; // dynamic fee in ppm
+    const treasuryFee = (fee * treasuryShareWad) / 10n ** 18n;
     dailyFees.add(WETH, fee, METRIC.SWAP_FEES);
-    dailyRevenue.add(WETH, fee * treasuryShare, "Token Swap Fees to Treasury");
-    dailySupplySideRevenue.add(WETH, fee * (1 - treasuryShare), "Token Swap Fees to Launch Platform");
+    dailyRevenue.add(WETH, treasuryFee, "Token Swap Fees to Treasury");
+    dailySupplySideRevenue.add(WETH, fee - treasuryFee, "Token Swap Fees to Launch Platform");
   }
 
   return {
@@ -79,7 +83,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BASE],
   start: '2026-03-24',
   methodology: {
-    Fees: 'Dynamic swap fee (1.2% steady-state) paid by users trading on the WETH/MiroShark Uniswap v4 pool on Base. Liquidity is protocol-owned multicurve positions — there are no third-party LPs.',
+    Fees: 'Dynamic swap fee (1.2% steady-state) paid by users trading on the WETH/MiroShark Uniswap v4 pool on Base. Liquidity is protocol-owned multicurve positions, there are no third-party LPs.',
     Revenue: '57% of swap fees routed to MiroShark, per the on-chain beneficiary split read from the multicurve initializer.',
     ProtocolRevenue: '57% of swap fees routed to MiroShark.',
     SupplySideRevenue: '43% of swap fees going to the launch platform beneficiaries (Bankr/Doppler & interface), per the on-chain beneficiary split.',

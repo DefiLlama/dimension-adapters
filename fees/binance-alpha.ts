@@ -1,11 +1,13 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import { formatAddress } from "../utils/utils";
 
 interface IRouter {
   eventFeeCollected: string;
   addresses: Array<string>;
+  start?: string;
 }
 
 const routers: Record<string, IRouter> = {
@@ -75,7 +77,17 @@ const routers: Record<string, IRouter> = {
       '0x610776e63C5ca21B92217F4c06398E5437dB6A1E',
     ],
   },
+  // First FeeCollected 2026-07-11: 0xe4b381184df41c26fdf8a31eab75a1fdc0a21e35fa3315ed080050487d92199b
+  [CHAIN.ROBINHOOD]: {
+    eventFeeCollected: 'event FeeCollected(address recipient, address indexed token, uint256 amount)',
+    addresses: [
+      '0xb300000b72deaeb607a12d5f54773d1c19c7028d',
+    ],
+    start: '2026-07-11',
+  },
 }
+
+const REVENUE_LABEL = 'Token Swap Fees To Binance';
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
@@ -89,14 +101,14 @@ const fetch: any = async (options: FetchOptions) => {
   })
   for (const event of events) {
     if (!blacklistTokens.includes(formatAddress(event.token))) {
-      dailyFees.add(event.token, event.amount)
+      dailyFees.add(event.token, event.amount, METRIC.SWAP_FEES)
     }
   }
 
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: dailyFees.clone(1, REVENUE_LABEL),
   }
 }
 
@@ -109,7 +121,12 @@ const adapter: SimpleAdapter = {
     UserFees: 'Fees paid by users while trading via Binance Alpha app.',
     Revenue: 'All fees are collected by Binance.',
   },
-  chains: Object.keys(routers),
+  breakdownMethodology: {
+    Fees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router.' },
+    UserFees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, paid by the trader.' },
+    Revenue: { [REVENUE_LABEL]: 'FeeCollected amounts on the Binance Wallet router, all counted as revenue.' },
+  },
+  adapter: routers,
   start: '2024-05-28',
 }
 

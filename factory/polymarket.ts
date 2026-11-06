@@ -39,16 +39,22 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   "onagi-predict": { builder: "onagi", start: "2026-10-22", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f" },
   "blackboard-predict": { builder: "Blackboard", start: "2026-04-29", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c" },
   "wallet-v-predictions": { builder: "Wallet V", start: "2026-09-09", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04" },
+  // Sparkling (https://sparkl.ing): builder name and code as listed in https://data-api.polymarket.com/v2/builders/volume
+  // and set in the public code of https://app.sparkl.ing; first attributed trade 2026-09-13
+  "sparkling-predict": { builder: "Sparkling", start: "2026-09-13", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a" },
 };
 
-const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
+const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number; supplySideRevenueRatio?: number }> = {
   "polygun": { builderName: "Polygun", builderCode: "0xd625c78659cda77fc5e1b2c2657ec4ecc9187ec82fbc4a2300337269332c046b", start: "2026-04-28" },
   "bullpen": { builderName: "Bullpen", builderCode: "0x2a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", start: "2026-04-21" },
   "evplusai": { builderName: "EvplusAI", builderCode: "0xb8d6bf0c9ec3c806c30fcb0e8da931f2940a5141cf420394c4b1d82ae7c6d415", start: "2026-04-28" },
   "preddy-trade": { builderName: "Preddy.trade", builderCode: "0x25d56a25be81b183908e80ccc522e72d4187480a4aa29fa7e4dd1112546fabef", start: "2026-04-28" },
   "polytrader-app": { builderName: "Polytrader.app", builderCode: "0x6f5dfb79b61e701021143a9426b4188bda94da794068dec5454a0ac2ec82bc64", start: "2026-04-28" },
   "kiyotaka": { builderName: "Kiyotaka", builderCode: "0x2096c1dd5e4d0c660ce764ab20a3a95853d11e27724b3c73cad543352da1555f", start: "2026-04-28" },
-  "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
+  // MetaMask's 4% builder fee is 3% MetaMask + 1% provider: predictFeeCollection.metamaskFee 0.03, providerFee 0.01 in
+  // https://client-config.api.cx.metamask.io/v1/flags?client=mobile&distribution=main&environment=prod
+  // Polymarket is the provider: https://support.metamask.io/trade/predict/how-to-trade-predictions/
+  "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28", supplySideRevenueRatio: 0.25 },
   "based-predict": { builderName: "Based", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf", start: "2026-04-28" },
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
   "yeno": { builderName: "yeno-markets", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f", start: "2026-06-26" },
@@ -60,6 +66,8 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "onagi-predict": { builderName: "Onagi", builderCode: "0x2ce40875d56e3e37d1ec456cedb0d252d611fd7afea48497b6d323729e6a0f7f", start: "2026-10-22", holdersRevenueRatio: 0.75 },
   "blackboard-predict": { builderName: "Blackboard", builderCode: "0x9bbe9aa6257b0e4ff355d037e3f018b72789ae765b92c5a681c7afea303b9a7c", start: "2026-04-29" },
   "wallet-v-predictions": { builderName: "Wallet V", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04", start: "2026-09-09" },
+  // first trade with a builder fee in https://clob.polymarket.com/builder/trades for this code: 2026-09-13
+  "sparkling-predict": { builderName: "Sparkling", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a", start: "2026-09-13" },
 }
 
 // Polymarket-style CTF exchanges on other chains: OrderFilled logs of the listed exchange contracts, the collateral
