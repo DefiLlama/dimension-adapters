@@ -271,6 +271,7 @@ const fetchFees = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue: swapkitShare.clone(1, SWAPKIT_SHARE_LABEL),
   };
 };
@@ -300,6 +301,10 @@ const adapter: SimpleAdapter = {
       [COW_PARTNER_FEES]: 'Partner fee on CoW Swap orders with the Trust wallet app code, paid out weekly in native coin by CoW Protocol to the Trust Wallet partner-fee address.',
     },
     Revenue: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees kept by Trust Wallet.',
+      [COW_PARTNER_FEES]: 'CoW Swap partner fee paid out to Trust Wallet.',
+    },
+    ProtocolRevenue: {
       [METRIC.SWAP_FEES]: 'Swap and bridge fees kept by Trust Wallet.',
       [COW_PARTNER_FEES]: 'CoW Swap partner fee paid out to Trust Wallet.',
     },
