@@ -11,6 +11,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // swaps settle on liquidity venues DefiLlama already tracks (THORChain, Maya, Chainflip, NEAR Intents)
+  doublecounted: true,
   fetch,
   adapter: adapterChains(),
   methodology: {
