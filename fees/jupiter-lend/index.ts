@@ -73,10 +73,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // share of interest to Jupiter + JUP token holders
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
 
-    // 50% revenue to Jupiter
     dailyProtocolRevenue.addUSDValue(dr * (1 - buybackRatio), metrics.InterestToJupiter);
 
-    // 50% revenue to JUP buy back (protocol-wide, same buyback label for both instances)
     dailyHoldersRevenue.addUSDValue(dr * buybackRatio, JUPITER_METRICS.TokenBuyBack);
   };
 
@@ -103,8 +101,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
     Revenue: 'Amount of interest share to Jupiter and JUP token holders.',
-    ProtocolRevenue: '50% of the revenue goes to jupiter, it was 100% before 2025-02-17.',
-    HoldersRevenue: 'From 2025-02-17, 50% of the revenue goes to JUP token holders via buy back.',
+    ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
+    HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
   },
   breakdownMethodology: {
@@ -123,11 +121,11 @@ const adapter: SimpleAdapter = {
       [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) market.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.InterestToJupiter]: '50% of the revenue goes to Jupiter.',
-      [ETHENA_METRICS.InterestToJupiter]: '50% of the isolated Ethena (USDe) market revenue goes to Jupiter.',
+      [JUPITER_METRICS.InterestToJupiter]: 'Jupiter\'s interest cut, all to the Jupiter treasury.',
+      [ETHENA_METRICS.InterestToJupiter]: 'Jupiter\'s interest cut from the isolated Ethena (USDe) market, all to the Jupiter treasury.',
     },
     HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, 50% of the revenue are used to buy back JUP.',
+      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     },
   },
   isExpensiveAdapter: true,

@@ -116,8 +116,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Legacy DCA fees are measured from the dedicated DCA fee wallet. Trigger V2 fees are the net token balance increase of Jupiter fee authorities in swaps settled by the Trigger keeper.',
     Revenue: 'Legacy DCA fees and Trigger V2 fees collected by Jupiter. Trigger V2 fees are also part of the Jupiter aggregator adapter, hence this adapter is marked as double counted.',
-    ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-    HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+    ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
+    HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
   },
   breakdownMethodology: {
     Fees: {
@@ -129,11 +129,11 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupTriggerV2Fees]: 'Trigger V2 fees collected by Jupiter. Overlaps with the aggregator swap fees.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupDCAFees]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-      [JUPITER_METRICS.JupTriggerV2Fees]: 'Trigger V2 fees allocated to the Jupiter treasury after the token buyback share.',
+      [JUPITER_METRICS.JupDCAFees]: 'Legacy DCA fees, all to the Jupiter treasury.',
+      [JUPITER_METRICS.JupTriggerV2Fees]: 'Trigger V2 fees, all to the Jupiter treasury.',
     },
     HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     },
   }
 }

@@ -55,8 +55,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Fees collected from Jupiter Limit Order service. V1/V2: Fees paid by traders for limit orders execution and trade surplus.',
   Revenue: 'All fees collected by Jupiter from limit order executions.',
-  HoldersRevenue: 'JUP token buybacks funded by 50% of platform revenue, started Feb 17, 2025.',
-  ProtocolRevenue: 'Platform fees allocated to Jupiter treasury. 100% before Feb 17, 2025, then 50% after buyback program started.',
+  HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
+  ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
 }
 
 const breakdownMethodology = {
@@ -69,11 +69,11 @@ const breakdownMethodology = {
     [JUPITER_METRICS.LimitOrderV2Fees]: "100% of limit order v2 fees retained by Jupiter protocol.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.LimitOrderV1Fees]: "Limit order v1 fees allocated to treasury: 100% before Feb 17, 2025, then 50% after buyback program started.",
-    [JUPITER_METRICS.LimitOrderV2Fees]: "Limit order v2 fees allocated to treasury: 50% (v2 launched after buyback program started).",
+    [JUPITER_METRICS.LimitOrderV1Fees]: "Limit order v1 fees, all to the Jupiter treasury.",
+    [JUPITER_METRICS.LimitOrderV2Fees]: "Limit order v2 fees, all to the Jupiter treasury.",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.TokenBuyBack]: "Starting Feb 17, 2025, 50% of platform revenue is used to buy back JUP tokens, benefiting all token holders.",
+    [JUPITER_METRICS.TokenBuyBack]: "JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.",
   }
 }
 

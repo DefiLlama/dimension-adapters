@@ -49,8 +49,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Token trading and launching fees.',
     Revenue: 'All fees collected by protocol.',
-    ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-    HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+    ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
+    HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
   },
   breakdownMethodology: {
     Fees: {
@@ -60,10 +60,10 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupApeFees]: 'All token trading and launching fees are revenue.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupApeFees]: 'Share of 50% fees collected by protocol, it was 100% before 205-02-17.',
+      [JUPITER_METRICS.JupApeFees]: 'Ape fees, all to the Jupiter treasury.',
     },
     HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     },
   }
 };

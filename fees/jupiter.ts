@@ -3,11 +3,38 @@ import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { METRIC } from "../helpers/metrics"
 
-// const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
+// JUP buybacks are reported once, here: the JUP bought into the Litterbox, mostly by swaps signed by the collector
+// 7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP and the RFQ sweeper 3rA996DAZe5G67HWbC4jdyYPLeNptLXuybtLnx6dvkxn.
+// JUP sent out of the Litterbox for the 2025-11-25 burn is not counted again. Other Jupiter listings report all revenue
+// as protocol revenue.
+const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
+const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
+const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17
+export const jupBuybackRatioFromRevenue = (_timestamp: number) => 0;
 
-// 50% revenue will be used to buy back JUP start from 2025-02-17
-const JUP_BUY_BACK_START_TIME = 1739750400;
-export const jupBuybackRatioFromRevenue = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 0;
+async function getLitterboxBuybacks(options: FetchOptions) {
+  const dailyHoldersRevenue = options.createBalances()
+  if (options.endTimestamp <= JUP_BUY_BACK_START_TIME) return dailyHoldersRevenue
+  const [row] = await queryAllium(`
+    SELECT
+      (SELECT COALESCE(SUM(t.raw_amount), 0)
+        FROM solana.assets.transfers t
+        WHERE t.to_address = '${JUP_LITTERBOX_ADDRESS}'
+          AND t.from_address != '${JUP_LITTERBOX_ADDRESS}'
+          AND t.mint = '${JUP_MINT}'
+          AND t.type IN ('transfer', 'transferChecked')
+          AND t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})) AS amount,
+      (SELECT MIN(block_timestamp)
+        FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed_past_end
+  `)
+  if (!row) throw new Error(`Litterbox buybacks: no Allium result for ${options.dateString}`)
+  if (!row.indexed_past_end) throw new Error(`Litterbox buybacks: Allium is not indexed through ${options.dateString} yet`)
+  dailyHoldersRevenue.add(JUP_MINT, row.amount, METRIC.TOKEN_BUY_BACK)
+  return dailyHoldersRevenue
+}
 
 // Jupiter program authorities that accumulate Swap V2 fees before they are
 // swept to the central revenue wallet. Exported so product adapters can use
@@ -122,18 +149,11 @@ const fetch = async (options: FetchOptions) => {
   const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);
 
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
   dailyFees.addUSDValue(ultraRevenue, JUPITER_METRICS.AggSwapFees);
   const dailyRevenue = dailyFees.clone(1);
-
-  // Split protocol revenue between treasury and token buybacks
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-
-  // Ultra revenue split
-  dailyProtocolRevenue.addBalances(dailyRevenue.clone(1 - buybackRatio));
-  dailyHoldersRevenue.addBalances(dailyRevenue.clone(buybackRatio), JUPITER_METRICS.TokenBuyBack);
+  const dailyProtocolRevenue = dailyRevenue.clone(1);
+  // Not subtracted from protocol revenue: the buybacks are funded by several Jupiter products, not this listing alone.
+  const dailyHoldersRevenue = await getLitterboxBuybacks(options);
 
   return {
     dailyFees,
@@ -146,8 +166,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Jupiter platform fees collected from Ultra mode swaps.',
   Revenue: 'Jupiter platform fees from Ultra aggregation service.',
-  HoldersRevenue: 'JUP token buybacks from 50% of platform revenue, started 2025-02-17.',
-  ProtocolRevenue: 'Platform fees allocated to Jupiter treasury. 100% before 2025-02-17, 50% after.',
+  HoldersRevenue: 'JUP bought back into the Jupiter Litterbox from 2025-02-17 with revenue across Jupiter products, valued at the day\'s JUP price. Burns of that JUP are not counted again.',
+  ProtocolRevenue: 'All platform fees go to the Jupiter treasury.',
 }
 
 const breakdownMethodology = {
@@ -158,10 +178,10 @@ const breakdownMethodology = {
     [JUPITER_METRICS.AggSwapFees]: "100% of Jupiter platform fees from Ultra mode swaps.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees allocated to Jupiter treasury: 100% before 2025-02-17, 50% after when token buyback program started.",
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees, all to the Jupiter treasury.",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.TokenBuyBack]: "Starting 2025-02-17, 50% of platform revenue is used to buy back JUP tokens, benefiting token holders.",
+    [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox with revenue across Jupiter products, valued at the day's JUP price.",
   }
 }
 

@@ -60,8 +60,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: 'Staking rewards from staked SOL and deposit/withdraw fees on jupiter staked solana',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-  ProtocolRevenue: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
-  HoldersRevenue: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
+  ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
+  HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
   SupplySideRevenue: 'All SOL staking rewards go to stakers.'
 }
 
@@ -83,14 +83,14 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupSOLStakingRewards]: '5% of staking rewards are collected as fees.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: '50% revenue going to treasury/team, it was 100% before 2025-02-17.',
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: 'Deposit and withdraw fees, all to the Jupiter treasury.',
       [JUPITER_METRICS.JupSOLStakingRewards]: '5% of staking rewards are collected as fees.',
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: '95% of the staking rewards are distributed to jupSOL.',
     },
     HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, 50% revenue are used to buy back JUP tokens.',
+      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     },
   } ,
 };

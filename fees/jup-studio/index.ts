@@ -197,8 +197,8 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users on Jup Studio bonding curves, and the fees Jupiter's LP position earns in graduated Meteora DAMM v2 pools, counted when claimed.",
         Revenue: "Jup Studio's share of bonding-curve trading fees (after the token creator's share) and its fees from migrated DAMM v2 pools.",
         SupplySideRevenue: "Fees paid to referrals, to token creators (their configured share of the trading fee) and to Meteora (its protocol fee).",
-        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-        HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+        ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
+        HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
     },
     breakdownMethodology: {
         Fees: {
@@ -208,7 +208,7 @@ const adapter: SimpleAdapter = {
             [JUPITER_METRICS.JupStudioFeesToJupiter]: "Jup Studio's share of trading fees, after the creator share, plus DAMM v2 position fees it claims.",
         },
         ProtocolRevenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Jup Studio\'s share of fees, all to the Jupiter treasury.',
         },
         SupplySideRevenue: {
             [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',
@@ -216,7 +216,7 @@ const adapter: SimpleAdapter = {
             [LABELS.TRADING_FEES_TO_METEORA]: "Meteora's protocol fee on bonding-curve swaps.",
         },
         HoldersRevenue: {
-            [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+            [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
         },
     }
 }
