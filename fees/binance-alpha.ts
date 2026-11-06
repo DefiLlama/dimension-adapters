@@ -7,6 +7,7 @@ import { formatAddress } from "../utils/utils";
 interface IRouter {
   eventFeeCollected: string;
   addresses: Array<string>;
+  start?: string;
 }
 
 const routers: Record<string, IRouter> = {
@@ -82,8 +83,11 @@ const routers: Record<string, IRouter> = {
     addresses: [
       '0xb300000b72deaeb607a12d5f54773d1c19c7028d',
     ],
+    start: '2026-07-11',
   },
 }
+
+const REVENUE_LABEL = 'Token Swap Fees To Binance';
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
@@ -104,7 +108,7 @@ const fetch: any = async (options: FetchOptions) => {
   return {
     dailyFees: dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue: dailyFees.clone(1, REVENUE_LABEL),
   }
 }
 
@@ -120,9 +124,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router.' },
     UserFees: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, paid by the trader.' },
-    Revenue: { [METRIC.SWAP_FEES]: 'FeeCollected amounts on the Binance Wallet router, all counted as revenue.' },
+    Revenue: { [REVENUE_LABEL]: 'FeeCollected amounts on the Binance Wallet router, all counted as revenue.' },
   },
-  chains: Object.keys(routers).map((chain): string | [string, { start: string }] => chain === CHAIN.ROBINHOOD ? [chain, { start: '2026-07-11' }] : chain),
+  chains: Object.entries(routers).map(([chain, { start }]): string | [string, { start: string }] => start ? [chain, { start }] : chain),
   start: '2024-05-28',
 }
 
