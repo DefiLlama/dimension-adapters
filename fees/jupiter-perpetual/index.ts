@@ -2,8 +2,9 @@ import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
+import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
-const fetch = async (options: FetchOptions) => {
+const fetchOnchain = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
@@ -76,9 +77,26 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+// From 2026-01-01, Jupiter's stats API. Program PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu sends 25% of the pool's
+// fees to 7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP; the other 75% stays in the JLP pool.
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
+    perps: JUPITER_METRICS.JupPerpsPoolFees,
+  })
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(1),
+    dailySupplySideRevenue,
+  }
+}
+
+const fetch = async (options: FetchOptions) =>
+  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
+
 const methodology = {
-  Fees: "All fees paid by users including liquidity operations, swaps, trading positions, funding fees, and price impact",
-  Revenue: "25% of total fees goes to protocol treasury and JUP holders",
+  Fees: "Fees on liquidity operations, swaps, trading positions, funding and price impact. From 2026-01-01, Jupiter's stats API: the pool's fees, JLP Loans interest and staking rewards on the pool's SOL.",
+  Revenue: "25% of the pool's fees, sent to Jupiter.",
   ProtocolRevenue: "All revenue goes to the Jupiter treasury.",
   HoldersRevenue: "JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.",
   SupplySideRevenue: "75% of total fees goes to liquidity providers",
@@ -86,6 +104,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    [JUPITER_METRICS.JupPerpsPoolFees]: "From 2026-01-01, the pool's trading, swap, JLP mint and burn fees, JLP Loans interest and staking rewards on the pool's SOL.",
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Fees charged when users mint JLP to the pool",
     [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Fees charged when users burn JLP from the pool",
     [JUPITER_METRICS.JupPerpsSwapFees]: "Fees from swaps within the perpetual pool",
@@ -96,6 +115,7 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Price impact fees charged on trades based on market conditions and imbalance, up to 0.44% of trade size",
   },
   Revenue: {
+    [JUPITER_METRICS.JupPerpsPoolFees]: "From 2026-01-01, 25% of the pool's fees, loan interest and staking rewards, sent to Jupiter.",
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of mint JLP fees goes to protocol",
     [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of burn JLP fees goes to protocol",
     [JUPITER_METRICS.JupPerpsSwapFees]: "25% of swap fees goes to protocol",
@@ -106,6 +126,7 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "25% of price impact fees goes to protocol",
   },
   SupplySideRevenue: {
+    [JUPITER_METRICS.JupPerpsPoolFees]: "From 2026-01-01, 75% of the pool's fees, loan interest and staking rewards, kept by the JLP pool.",
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of mint JLP fees distributed to liquidity providers",
     [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "75% of burn JLP fees distributed to liquidity providers",
     [JUPITER_METRICS.JupPerpsSwapFees]: "75% of swap fees distributed to liquidity providers",
@@ -116,6 +137,7 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsPriceImpactFees]: "75% of price impact fees distributed to liquidity providers",
   },
   ProtocolRevenue: {
+    [JUPITER_METRICS.JupPerpsPoolFees]: "From 2026-01-01, 25% of the pool's fees, loan interest and staking rewards, all to the Jupiter treasury",
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Revenue from mint JLP fees (25% of these fees), all to the Jupiter treasury",
     [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Revenue from burn JLP fees (25% of these fees), all to the Jupiter treasury",
     [JUPITER_METRICS.JupPerpsSwapFees]: "Revenue from swap fees (25% of these fees), all to the Jupiter treasury",
