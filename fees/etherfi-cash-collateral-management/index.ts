@@ -119,6 +119,10 @@ const adapter: Adapter = {
       [METRIC.BORROW_INTEREST]: 'Interest earned from EtherFi Cash lending operations on Scroll and OP Mainnet',
       [METRICS.AaveV4HubFee]: "ether.fi's 80% of the liquidity fee on its Aave V4 instance",
     },
+    ProtocolRevenue: {
+      [METRIC.BORROW_INTEREST]: 'Interest earned from EtherFi Cash lending operations on Scroll and OP Mainnet',
+      [METRICS.AaveV4HubFee]: "ether.fi's 80% of the liquidity fee on its Aave V4 instance",
+    },
     SupplySideRevenue: {
       [METRICS.AaveV4YieldsToSuppliers]: 'Interest paid to suppliers of the Aave V4 instance after the liquidity fee',
       [METRICS.AaveV4HubFeeToAave]: "The Aave DAO's 20% of the liquidity fee on the instance",
