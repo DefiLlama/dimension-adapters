@@ -23,6 +23,19 @@ const chainConfig: Record<string, { start: string; duneChain?: string }> = {
     start: "2025-02-13",
     duneChain: "bnb",
   },
+  // the same fee-event discovery finds Bloom's routers on these chains too (deployers listed in fees/bloom.ts)
+  [CHAIN.ETHEREUM]: {
+    start: "2025-04-05",
+    duneChain: "ethereum",
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-07-04",
+    duneChain: "robinhood",
+  },
+  [CHAIN.ARC]: {
+    start: "2026-07-29",
+    duneChain: "arc",
+  },
 };
 
 const fetchSolana = (options: FetchOptions) => queryDuneSql(options, `
