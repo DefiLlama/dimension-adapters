@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import BigNumber from "bignumber.js";
 import { getConfig } from "../helpers/cache";
 import { ChainApi } from "@defillama/sdk";
@@ -35,6 +36,7 @@ const PENDLE = '0x808507121b80c02388fad14726482e061b8da827'
 const PT_LOOPER = '0xF82Ef4080A53b71093f9c470676Fc80E2ADC4263'
 const EXIT_FEES_LABEL = 'sPENDLE Instant Exit Fees'
 const LOOPER_FEES_LABEL = 'PT Looper Service Fees And Gas'
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const LOOPER_POSITION_EVENTS = [
   'event PositionIncreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preInBalance, uint256 netPtToMM, uint256 postDebtBalance)',
   'event PositionDecreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preDebtBalance, uint256 netPtToSwap, uint256 postDebtBalance)',
@@ -303,10 +305,16 @@ const fetch = async (options: FetchOptions) => {
   }
   if (looperTxs.size) {
     const countedTokens = new Set(rewardTokens.concat(sys).filter(Boolean).map((token) => token.toLowerCase()))
-    const looperFees = await addTokensReceived({
-      options,
-      target: chainConfig[chain].treasury,
-      logFilter: (log: any) => looperTxs.has(String(log.transactionHash).toLowerCase()) && !countedTokens.has(log.token),
+    const treasuryTopic = chainConfig[chain].treasury.toLowerCase().replace('0x', '').padStart(64, '0')
+    const receipts = await getTxReceiptsWithRetry(chain, [...looperTxs])
+    const looperFees = options.createBalances()
+    receipts.forEach((receipt: any) => {
+      (receipt?.logs ?? []).forEach((log: any) => {
+        const [topic0, , to] = log.topics
+        const token = log.address.toLowerCase()
+        if (topic0 === ERC20_TRANSFER_TOPIC && log.topics.length === 3 && to?.toLowerCase().endsWith(treasuryTopic) && !countedTokens.has(token))
+          looperFees.add(token, BigInt(log.data))
+      })
     })
     addTreasuryFees(looperFees, LOOPER_FEES_LABEL)
   }
