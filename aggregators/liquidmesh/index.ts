@@ -84,7 +84,7 @@ const fetch = async (options: FetchOptions) => {
 	const tokensAndAmounts: Array<IData> = options.preFetchedResults || []
 
 	const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
-	const whitesliedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
+	const whitesliedTokens = options.chain === CHAIN.BSC ? await getDefaultDexTokensWhitelisted({ chain: options.chain }) : []
 	for (const token of tokensAndAmounts.filter(item => options.chain === chainsMap[item.chain] && item.token !== ADDRESSES.null)) {
 		if (formatAddress(token.token) === NATIVE) {
 			dailyVolume.addGasToken(token.amount);
