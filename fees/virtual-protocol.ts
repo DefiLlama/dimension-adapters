@@ -19,6 +19,8 @@ const BASE = {
   PROTOTYPE_WALLET: '0x89c69df65d0f6a0df92b2f5b0715e9663b711341',
   COW_SETTLEMENT: '0x9008d19f58aabd9ed0d60971565aa8510560ab41',
   TAX_MANAGER: '0x7e26173192d72fd6d75a759f888d61c2cdbb64b1',
+  // AgentTaxV2, the Launchpad V5 tax sink since 2026-03-27: taxVault() on the FFactoryV3 behind BondingV5 0x1a540088125d00dd3990f9da45ca0859af4d3b01
+  TAX_MANAGER_V5: '0x617fd668c5b0d1906c0b3e7e3e49d1409df0a528',
   INVERTED_PAYOUT_BLOCKS: [48011352, 48570673],
 }
 
@@ -125,6 +127,12 @@ const fetchBase = async (options: FetchOptions) => {
   const usdcToTreasury = (t: Transfer) => t.blockNumber >= firstInverted && t.blockNumber <= lastInverted ? treasuryShare(t.value) : toTreasury(t)
   addAgentTax(result, addToken(BASE.CBBTC), sum(cbBtcPayouts), sum(cbBtcPayouts, toTreasury))
   addAgentTax(result, addToken(BASE.USDC), sum(usdcPayouts), sum(usdcPayouts, usdcToTreasury))
+
+  const v5Payouts = await getTransfers(options, [BASE.CBBTC, BASE.USDC], { from: BASE.TAX_MANAGER_V5 })
+  for (const token of [BASE.CBBTC, BASE.USDC]) {
+    const tokenPayouts = v5Payouts.filter(t => t.token === token)
+    addAgentTax(result, addToken(token), sum(tokenPayouts), sum(tokenPayouts, toTreasury))
+  }
 
   return withProtocolRevenue(result)
 }
