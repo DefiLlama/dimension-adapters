@@ -105,6 +105,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     SELECT
       COUNT(*) AS transfer_count,
       COALESCE(SUM(CASE WHEN destination IN (${fragmentAddressList})
+                         AND destination <> '${USERNAMES_COLLECTION}'
                          AND source NOT IN (${fragmentAddressList})
                          AND source NOT IN (${telegramAddressList})
                         THEN CAST(amount AS DOUBLE) / 1e6 END), 0) AS usdt_received
