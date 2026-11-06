@@ -9,6 +9,11 @@ const HOOKS = [
   '0xb6Ae760feDaE902d735Ec609076cA7de837D8040', // first release (100-tick bands)
   '0x1CB37AEB18e9e92d8a1308218E43FfE1568D0040', // 10-tick bands
   '0xa31729621a2280C0Ff9Aaff5B3F357cFF1bEC040', // current: 10-tick bands, 95% automatic completion
+  // Strategy hook: the same order-hook code with a 1% commission (each order snapshots its feeBps). It holds the orders
+  // of TickerSpring's order strategies (Spring Orders, grid, ladder) and any order placed on it directly. Deployed
+  // 2026-10-03 by the TickerSpring admin wallet 0x0006776A8B00dB9ac842B3f926513cF49473E000 through its hook deployer
+  // 0xd19672D42D9afD9Fd3D91BDf1245Df3F0B36C7A9, tx 0xca2f83bfb2ffc7bbc3f4bd1e09e6cd0f23d12caeb1c7bcabf7f707cd3acdf704.
+  '0xb3d2C19158FDd8D687BF0D7e9DDc76b031354040',
 ];
 // Every market pairs a token with USDG: markets open against MarketProfile.quote (USDG).
 const USDG = ADDRESSES.robinhood.USDG;
@@ -103,23 +108,23 @@ const adapter: SimpleAdapter = {
   start: '2026-09-21',
   fetch,
   methodology: {
-    Fees: 'Commission paid by limit-order makers (2.5% of converted proceeds and of the LP fees their orders earn) plus the Uniswap v4 LP fees earned by resting order liquidity, booked when an order is settled or partially filled at creation. Amounts in other tokens are valued on the USDG side at the order band\'s own execution price.',
-    Revenue: 'All commission (2.5% of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
-    ProtocolRevenue: 'All commission (2.5% of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
+    Fees: 'Commission paid by limit-order makers (2.5% on the Limit Orders hooks and 1% on the strategy hook, of converted proceeds and of the LP fees their orders earn) plus the Uniswap v4 LP fees earned by resting order liquidity, booked when an order is settled or partially filled at creation. Amounts in other tokens are valued on the USDG side at the order band\'s own execution price.',
+    Revenue: 'All commission (2.5% on the Limit Orders hooks and 1% on the strategy hook, of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
+    ProtocolRevenue: 'All commission (2.5% on the Limit Orders hooks and 1% on the strategy hook, of converted proceeds and of the LP fees their orders earn), paid to the TickerSpring treasury.',
     SupplySideRevenue: 'LP fees earned by order liquidity, net of commission, credited to order makers.',
   },
   breakdownMethodology: {
     Fees: {
-      [COMMISSION]: 'Commission on the proceeds of filled orders, including partial fills at creation (2.5%, snapshotted per order).',
+      [COMMISSION]: 'Commission on the proceeds of filled orders, including partial fills at creation (2.5% on the Limit Orders hooks, 1% on the strategy hook; snapshotted per order).',
       [LP_FEES]: 'Uniswap v4 LP fees earned by resting order liquidity while the pool price moved through its band.',
     },
     Revenue: {
       [COMMISSION_TO_TREASURY]: 'Commission on order proceeds, paid to the TickerSpring treasury.',
-      [LP_FEES_TO_TREASURY]: 'Commission on LP fees earned by orders (2.5%), paid to the TickerSpring treasury.',
+      [LP_FEES_TO_TREASURY]: 'Commission on LP fees earned by orders (2.5% on the Limit Orders hooks, 1% on the strategy hook), paid to the TickerSpring treasury.',
     },
     ProtocolRevenue: {
       [COMMISSION_TO_TREASURY]: 'Commission on order proceeds, paid to the TickerSpring treasury.',
-      [LP_FEES_TO_TREASURY]: 'Commission on LP fees earned by orders (2.5%), paid to the TickerSpring treasury.',
+      [LP_FEES_TO_TREASURY]: 'Commission on LP fees earned by orders (2.5% on the Limit Orders hooks, 1% on the strategy hook), paid to the TickerSpring treasury.',
     },
     SupplySideRevenue: {
       [LP_FEES_TO_MAKERS]: 'LP fees earned by orders minus commission, credited to order makers.',
