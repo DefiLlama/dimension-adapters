@@ -86,11 +86,16 @@ export async function fetchPolymarketV2BuilderFees({ options, builderCode }: { o
 
 // revenueToHolders: all builder fees go to the builder's token holders.
 // holdersRevenueRatio: only that share goes to token holders (e.g. 0.75), the builder keeps the rest.
-export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders, holdersRevenueRatio }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean, holdersRevenueRatio?: number }) {
+// supplySideRevenueRatio: that share goes to the builder's market provider (e.g. 0.25), the builder keeps the rest.
+// When both are set, the holders split applies to the share the builder keeps.
+export function polymarketV2BuilderFeesExports({ builderCode, builderName, start, revenueToHolders, holdersRevenueRatio, supplySideRevenueRatio }: { builderCode: string, builderName: string, start: string, revenueToHolders?: boolean, holdersRevenueRatio?: number, supplySideRevenueRatio?: number }) {
   const holdersRatio = revenueToHolders ? 1 : holdersRevenueRatio ?? 0;
+  const supplySideRatio = supplySideRevenueRatio ?? 0;
   const percent = (ratio: number) => `${Math.round(ratio * 10000) / 100}%`;
-  const feesText = `Builder fees received by ${builderName} from trades on Polymarket v2`;
-  const protocolRevenueText = holdersRatio === 0 ? feesText
+  const feesText = supplySideRatio ? `Builder fees charged by ${builderName} on trades on Polymarket v2` : `Builder fees received by ${builderName} from trades on Polymarket v2`;
+  const revenueText = supplySideRatio ? `${percent(1 - supplySideRatio)} of builder fees from trades on Polymarket v2, kept by ${builderName}` : feesText;
+  const supplySideText = `${percent(supplySideRatio)} of builder fees from trades on Polymarket v2, paid on to ${builderName}'s market provider`;
+  const protocolRevenueText = holdersRatio === 0 ? revenueText
     : holdersRatio === 1 ? `No builder fees are kept by ${builderName}`
     : `${percent(1 - holdersRatio)} of builder fees received by ${builderName}, kept by ${builderName}`;
   const holdersRevenueText = holdersRatio === 1 ? `Builder fees received by ${builderName}, all distributed to its token holders`
@@ -98,9 +103,17 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
 
   const fetch = async (options: FetchOptions) => {
     const res = await fetchPolymarketV2BuilderFees({ options, builderCode });
-    if (!holdersRatio) return res;
-    const dailyProtocolRevenue = holdersRatio === 1 ? options.createBalances() : res.dailyFees.clone(1 - holdersRatio);
-    return { dailyFees: res.dailyFees, dailyRevenue: res.dailyFees, dailyProtocolRevenue, dailyHoldersRevenue: res.dailyFees.clone(holdersRatio) };
+    if (!holdersRatio && !supplySideRatio) return res;
+    const dailyFees = res.dailyFees;
+    const dailyRevenue = supplySideRatio ? dailyFees.clone(1 - supplySideRatio) : dailyFees;
+    const dailyProtocolRevenue = holdersRatio === 1 ? options.createBalances() : dailyRevenue.clone(1 - holdersRatio);
+    return {
+      dailyFees,
+      dailyRevenue,
+      dailyProtocolRevenue,
+      ...(holdersRatio ? { dailyHoldersRevenue: dailyRevenue.clone(holdersRatio) } : {}),
+      ...(supplySideRatio ? { dailySupplySideRevenue: dailyFees.clone(supplySideRatio, 'Polymarket Builder Fees To Provider') } : {}),
+    };
   }
 
   const adapter: SimpleAdapter = {
@@ -112,19 +125,21 @@ export function polymarketV2BuilderFeesExports({ builderCode, builderName, start
     doublecounted: true,
     methodology: {
       Fees: feesText,
-      Revenue: feesText,
+      Revenue: revenueText,
       ProtocolRevenue: protocolRevenueText,
       ...(holdersRatio ? { HoldersRevenue: holdersRevenueText } : {}),
+      ...(supplySideRatio ? { SupplySideRevenue: supplySideText } : {}),
     },
     breakdownMethodology: {
       Fees: {
         'Polymarket Builder Fees': feesText,
       },
       Revenue: {
-        'Polymarket Builder Fees': feesText,
+        'Polymarket Builder Fees': revenueText,
       },
       ...(holdersRatio < 1 ? { ProtocolRevenue: { 'Polymarket Builder Fees': protocolRevenueText } } : {}),
       ...(holdersRatio ? { HoldersRevenue: { 'Polymarket Builder Fees': holdersRevenueText } } : {}),
+      ...(supplySideRatio ? { SupplySideRevenue: { 'Polymarket Builder Fees To Provider': supplySideText } } : {}),
     }
   }
 

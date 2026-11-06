@@ -44,14 +44,17 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   "sparkling-predict": { builder: "Sparkling", start: "2026-09-13", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a" },
 };
 
-const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number }> = {
+const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number; supplySideRevenueRatio?: number }> = {
   "polygun": { builderName: "Polygun", builderCode: "0xd625c78659cda77fc5e1b2c2657ec4ecc9187ec82fbc4a2300337269332c046b", start: "2026-04-28" },
   "bullpen": { builderName: "Bullpen", builderCode: "0x2a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", start: "2026-04-21" },
   "evplusai": { builderName: "EvplusAI", builderCode: "0xb8d6bf0c9ec3c806c30fcb0e8da931f2940a5141cf420394c4b1d82ae7c6d415", start: "2026-04-28" },
   "preddy-trade": { builderName: "Preddy.trade", builderCode: "0x25d56a25be81b183908e80ccc522e72d4187480a4aa29fa7e4dd1112546fabef", start: "2026-04-28" },
   "polytrader-app": { builderName: "Polytrader.app", builderCode: "0x6f5dfb79b61e701021143a9426b4188bda94da794068dec5454a0ac2ec82bc64", start: "2026-04-28" },
   "kiyotaka": { builderName: "Kiyotaka", builderCode: "0x2096c1dd5e4d0c660ce764ab20a3a95853d11e27724b3c73cad543352da1555f", start: "2026-04-28" },
-  "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28" },
+  // MetaMask's 4% builder fee is 3% MetaMask + 1% provider: predictFeeCollection.metamaskFee 0.03, providerFee 0.01 in
+  // https://client-config.api.cx.metamask.io/v1/flags?client=mobile&distribution=main&environment=prod
+  // Polymarket is the provider: https://support.metamask.io/trade/predict/how-to-trade-predictions/
+  "metamask-predictions": { builderName: "MetaMask", builderCode: "0x11a22276beb720e66a072cba8b8e74cded60afda510af535b947b81a1b81a883", start: "2026-04-28", supplySideRevenueRatio: 0.25 },
   "based-predict": { builderName: "Based", builderCode: "0x07aa1a8523160e8e9c2d07ac890d56d21c3fe0f11292558f941f69624788d1cf", start: "2026-04-28" },
   "traderline": { builderName: "traderline", builderCode: "0x6b0e773fada0a2ec67c956b25a737d353a534ea33db56c717ba7854346c67984", start: "2026-04-28" },
   "yeno": { builderName: "yeno-markets", builderCode: "0x5bffd61a6dbfca06f19a543cac4b9e433378ac9992d70b8a40824720e353498f", start: "2026-06-26" },
