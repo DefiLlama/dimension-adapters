@@ -79,6 +79,7 @@ export const JUPITER_METRICS = {
   InterestToLenders: 'JupLend Borrow Interests To Lenders',
   InterestToFluid: 'JupLend Borrow Interests To Fluid',
   InterestToJupiter: 'JupLend Borrow Interests To Jupiter',
+  InterestToLendersAndPartners: 'JupLend Borrow Interests To Lenders And Partners',
 
   // perps
   JupPerpsFees: 'JupPerps Trading Fees',
