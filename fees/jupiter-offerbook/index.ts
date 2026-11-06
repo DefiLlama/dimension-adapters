@@ -1,6 +1,10 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
+
+// Jupiter's stats API covers Offerbook from 2026-06-03.
+const STATS_API_START_TS = 1780444800 // 2026-06-03
 
 const labels: Record<string, string> = {
   origination: "Offerbook Loan Origination Fees",
@@ -8,7 +12,7 @@ const labels: Record<string, string> = {
   collateral_claim: "Offerbook Collateral Claim Fees"
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
   const start = `from_unixtime(${options.startTimestamp})`;
   const end = `from_unixtime(${options.endTimestamp})`;
 
@@ -72,6 +76,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
+// Program offerbkFMvVfpQhL8ZQ5iromnjct5rz3r52B9ewu3ie; fee wallet Edt83Aw3RAELsorwJkt4DDkczrTpHsNeFGzty83TQzuy.
+// The stats API counts interest as it accrues, not at repayment.
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
+    offerbook: {
+      fees: "Offerbook Interest And Fees",
+      revenue: "Offerbook Interest And Fees To Jupiter",
+      supplySide: "Offerbook Interest And Fees To Lenders And Referrers",
+    },
+  });
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailySupplySideRevenue };
+};
+
+const fetch = async (options: FetchOptions) =>
+  options.startOfDay >= STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options);
+
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
@@ -79,30 +99,35 @@ const adapter: SimpleAdapter = {
   start: '2026-04-24',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  allowNegativeValue: true, // a loss on a loan funded by Jupiter is booked on the day it is realized
   methodology: {
-    Fees: 'Borrow interest paid by borrowers on repaid loans, plus loan origination fees and collateral claim fees.',
-    Revenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
-    ProtocolRevenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
-    SupplySideRevenue: "90% of borrow interest is paid to lenders.",
+    Fees: 'Borrow interest paid by borrowers on repaid loans, plus loan origination fees and collateral claim fees. From 2026-06-03, from Jupiter\'s stats API, with interest counted as it accrues, including on loans funded by Jupiter.',
+    Revenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA). From 2026-06-03, from Jupiter's stats API: protocol fees and interest on loans funded by Jupiter, less losses on those loans.",
+    ProtocolRevenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA). From 2026-06-03, from Jupiter's stats API: protocol fees and interest on loans funded by Jupiter, less losses on those loans.",
+    SupplySideRevenue: "90% of borrow interest is paid to lenders. From 2026-06-03, interest paid to other lenders and fee rebates to referrers.",
   },
   breakdownMethodology: {
     Fees: {
       'Offerbook Borrow Interest': 'Total interest paid by borrowers over the full term of repaid loans.',
+      'Offerbook Interest And Fees': 'From 2026-06-03, borrow interest as it accrues, and origination, repayment and collateral claim fees.',
       [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
     Revenue: {
+      'Offerbook Interest And Fees To Jupiter': 'From 2026-06-03, protocol fees and interest on loans funded by Jupiter, less losses on those loans.',
       [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
       [labels.repayment]: "10% of interest, deducted from the lender's return when the loan is repaid.",
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
     ProtocolRevenue: {
+      'Offerbook Interest And Fees To Jupiter': 'From 2026-06-03, protocol fees and interest on loans funded by Jupiter, less losses on those loans.',
       [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
       [labels.repayment]: "10% of interest, deducted from the lender's return when the loan is repaid.",
       [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
     },
     SupplySideRevenue: {
-      'Offerbook Borrow Interest To Lenders': '90% of borrow interest is paid to lenders'
+      'Offerbook Borrow Interest To Lenders': '90% of borrow interest is paid to lenders',
+      'Offerbook Interest And Fees To Lenders And Referrers': 'From 2026-06-03, interest paid to other lenders and fee rebates to referrers.'
     }
   },
 };
