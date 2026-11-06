@@ -125,11 +125,16 @@ const prefetch = async (options: FetchOptions) => {
       AND tx_to IN (${robinhoodTradeContracts.join(', ')})
     ${Object.entries(otherEvmTradeContracts).map(([chain, contracts]) => `
     UNION ALL
-    SELECT '${chain}' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
-    FROM dex.trades
-    WHERE blockchain = '${chain}'
-      AND TIME_RANGE
-      AND tx_to IN (${contracts.join(', ')})`).join('')}
+    SELECT '${chain}' AS chain, COALESCE(SUM(swap_usd), 0) AS total_volume
+    FROM (
+      -- dex.trades has a row per pool hop; keep the largest row of each tx, one swap per trade contract call
+      SELECT tx_hash, MAX(amount_usd) AS swap_usd
+      FROM dex.trades
+      WHERE blockchain = '${chain}'
+        AND TIME_RANGE
+        AND tx_to IN (${contracts.join(', ')})
+      GROUP BY tx_hash
+    )`).join('')}
   `);
 };
 

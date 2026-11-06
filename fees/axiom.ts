@@ -296,6 +296,7 @@ async function fetchEvmTransfers(options: FetchOptions) {
 
   const tradeContracts = config.tradeContracts.join(',');
   const blockchain = duneChains[options.chain];
+  if (!blockchain) throw new Error(`axiom: no Dune chain name for ${options.chain}`);
 
   // Native transfers in tokens.transfers include internal calls, which is how the trade
   // contracts pay the distributor.
