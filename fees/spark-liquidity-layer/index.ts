@@ -57,10 +57,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultFees> {
 }
 
 const methodology = {
-  Fees: "Yield the Spark Liquidity Layer earns on the Sky capital it deploys into lending markets, vaults and pools, after each venue's own cut (for SparkLend, its reserve factor).",
-  Revenue: "That yield minus the Sky base rate Spark pays for the capital, plus the monthly rebate on idle USDS.",
-  ProtocolRevenue: "Yield on the deployed Sky capital minus the Sky base rate paid for it, plus the monthly rebate on idle USDS, all kept by Spark.",
-  SupplySideRevenue: "The Sky base rate paid to Sky for the deployed capital.",
+  Fees: "Yield the Spark Liquidity Layer earns on the USDS it borrows from Sky (its parent ecosystem) and deploys into lending markets, vaults and pools, after each venue's own cut (for SparkLend, its reserve factor).",
+  Revenue: "That yield minus the base rate Spark pays Sky for the borrowed USDS, plus the monthly rebate on idle USDS.",
+  ProtocolRevenue: "Yield on the USDS borrowed from Sky minus the base rate paid to Sky for it, plus the monthly rebate on idle USDS, all kept by Spark.",
+  SupplySideRevenue: "The base rate Spark pays Sky, its parent ecosystem, for the USDS it deploys.",
 }
 
 const breakdownMethodology = {
@@ -71,7 +71,7 @@ const breakdownMethodology = {
     'Morpho Yields': 'Yield on capital deployed in Morpho vaults.',
     'Curve Yields': 'Yield on capital deployed in Curve pools.',
     'Maple Yields': 'Yield on capital deployed in Maple.',
-    'Sparklend Yields': "Yield on capital deployed in SparkLend, after SparkLend's reserve factor (counted as revenue in the SparkLend listing).",
+    'Sparklend Yields': "Yield on capital deployed in SparkLend, after SparkLend's reserve factor.",
     'Others Yields': 'Yield on capital deployed elsewhere.',
   },
   Revenue: {
