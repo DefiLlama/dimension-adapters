@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { METRIC } from "../helpers/metrics"
+import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
 // JUP buybacks. Since 2025-02-17 Jupiter spends 50% of its revenue across all products on JUP, which is held in the
 // Litterbox Trust wallet (https://docs.jup.ag/user-docs/more/jup-token/faq). Holders revenue is the JUP received by
@@ -81,12 +82,15 @@ export const JUPITER_METRICS = {
   LimitOrderV2Fees: 'Limit Orders v2 Fees',
   AggSwapFeesToIntergators: 'Aggregator Swap Fees To Integrators',
   AggSwapFeesToJupiter: 'Aggregator Swap Fees To Jupiter',
+  LimitOrderFees: 'Limit Order Fees',
+  JupiterZFees: 'JupiterZ Fees',
 
   // JupLend
   BorrowInterest: 'JupLend Borrow Interests',
   InterestToLenders: 'JupLend Borrow Interests To Lenders',
   InterestToFluid: 'JupLend Borrow Interests To Fluid',
   InterestToJupiter: 'JupLend Borrow Interests To Jupiter',
+  InterestToLendersAndPartners: 'JupLend Borrow Interests To Lenders And Partners',
 
   // perps
   JupPerpsFees: 'JupPerps Trading Fees',
@@ -107,10 +111,15 @@ export const JUPITER_METRICS = {
   JupSOLStakingRewards: 'JupSOL Staking Rewards',
   JupSOLStakingRewardsToStakers: 'JupSOL Staking Rewards To Stakers',
   JupSOLDepositWithdrawFees: 'JupSOL Deposit/Withdraw Fees',
+  JupSOLPoolFees: 'JupSOL Pool Fees, Commission And MEV',
+  JupSOLPoolFeesToJupiter: 'JupSOL Pool Fees, Commission And MEV To Jupiter',
+  JupSOLPoolFeesToOthers: 'JupSOL Pool Fees, Commission And MEV To jupSOL Holders And Partners',
 
   // Prediction
   JupPredictionFees: 'Jup Prediction Fees',
   JupPredictionFeesToKalshi: 'Jup Prediction Fees to Kalshi',
+  JupPredictionFeesToJupiter: 'Jup Prediction Fees To Jupiter',
+  JupPredictionFeesToVenues: 'Jup Prediction Fees To Venues',
 
   // Ape
   JupApeFees: 'Jup Ape Trading And Launching Fees',
@@ -128,7 +137,7 @@ export const JUPITER_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetchOnchain = async (options: FetchOptions) => {
   const feeAuthorityRows = JUPITER_FEE_AUTHORITIES.map((address) => `('${address}')`).join(',\n        ')
   const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
@@ -174,22 +183,37 @@ const fetch = async (options: FetchOptions) => {
   }
 }
 
+// From 2026-01-01, Jupiter's stats API, including swaps made in Jupiter Mobile and the Jupiter Extension. Swap fees land
+// in the fee authorities above, except Jupiter Mobile swap fees from 2026-09-15, which land in the Mobile collector
+// 6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ.
+// Positive slippage fees land in sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o from 2026-08-17 and in the fee authorities
+// before that.
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
+  // Not subtracted from protocol revenue: the buybacks are funded by several Jupiter products, not this listing alone.
+  const dailyHoldersRevenue = await getLitterboxBuybacks(options)
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailyHoldersRevenue }
+}
+
+const fetch = async (options: FetchOptions) =>
+  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
+
 const methodology = {
-  Fees: 'Jupiter platform fees collected from Ultra mode swaps.',
-  Revenue: 'Jupiter platform fees from Ultra aggregation service.',
+  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
+  Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
   HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of revenue across all Jupiter products and reported once, on this listing.',
-  ProtocolRevenue: 'All Ultra platform fees, kept by Jupiter. JUP buybacks are not deducted here.',
+  ProtocolRevenue: 'All platform fees, kept by Jupiter. JUP buybacks are not deducted here.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees from swaps executed through Jupiter's /order endpoint in Ultra mode.",
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including its share of positive slippage.",
   },
   Revenue: {
-    [JUPITER_METRICS.AggSwapFees]: "100% of Jupiter platform fees from Ultra mode swaps.",
+    [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.AggSwapFees]: "All Ultra platform fees, kept by Jupiter.",
+    [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
   },
   HoldersRevenue: {
     [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of revenue across all Jupiter products.",

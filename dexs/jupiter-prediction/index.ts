@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../../fees/jupiter";
+import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
@@ -41,6 +42,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         from trade_data
     `;
 
+    if (options.startOfDay >= JUPITER_STATS_API_START_TS) await assertJupiterStatsPublished(options);
     const queryResult = await queryDuneSql(options, query);
 
     if (!queryResult[0] || !queryResult[0].total_volume || !queryResult[0].total_fees)
@@ -57,6 +59,25 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     dailyFees.addUSDValue(fees, JUPITER_METRICS.JupPredictionFees);
     dailySupplySideRevenue.addUSDValue(fees, JUPITER_METRICS.JupPredictionFeesToKalshi);
 
+    // From 2026-01-01, fees and revenue from Jupiter's stats API, including Arcade.
+    if (options.startOfDay >= JUPITER_STATS_API_START_TS) {
+        const api = await getJupiterStatsRevenue(options, {
+            prediction: {
+                fees: JUPITER_METRICS.JupPredictionFees,
+                revenue: JUPITER_METRICS.JupPredictionFeesToJupiter,
+                supplySide: JUPITER_METRICS.JupPredictionFeesToVenues,
+            },
+        });
+        return {
+            dailyVolume,
+            dailyFees: api.dailyFees,
+            dailyRevenue: api.dailyRevenue,
+            dailyProtocolRevenue: api.dailyRevenue.clone(1),
+            dailyHoldersRevenue: 0,
+            dailySupplySideRevenue: api.dailySupplySideRevenue,
+        }
+    }
+
     return {
         dailyVolume,
         dailyFees,
@@ -69,19 +90,26 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
 const methodology = {
     Volume: 'Volume of all trades through jupiter interface',
-    Fees: 'Venue fees paid by users',
-    Revenue: 'Jupiter doesnt keep any fees as of now, all the fees goes to kalshi',
-    SupplySideRevenue: 'All fees go to Kalshi',
+    Fees: 'Fees paid by users on prediction trades. From 2026-01-01, prediction and Arcade fees from Jupiter\'s stats API.',
+    Revenue: 'Before 2026-01-01, none is counted. From 2026-01-01, the fees Jupiter keeps, from Jupiter\'s stats API.',
+    SupplySideRevenue: 'Before 2026-01-01, all fees to Kalshi. From 2026-01-01, the venue\'s share of fees (Kalshi or Polymarket).',
     HoldersRevenue: 'No holders revenue',
-    ProtocolRevenue: 'No protocol revenue',
+    ProtocolRevenue: 'From 2026-01-01, all revenue goes to Jupiter.',
 }
 
 const breakdownMethodology = {
     Fees: {
-      [JUPITER_METRICS.JupPredictionFees]: 'Venue fees paid by users',
+      [JUPITER_METRICS.JupPredictionFees]: 'Fees paid by users on prediction trades, and from 2026-01-01 on Arcade.',
+    },
+    Revenue: {
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: 'From 2026-01-01, prediction and Arcade fees kept by Jupiter.',
+    },
+    ProtocolRevenue: {
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: 'From 2026-01-01, prediction and Arcade fees kept by Jupiter.',
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.JupPredictionFeesToKalshi]: 'All fees go to Kalshi',
+      [JUPITER_METRICS.JupPredictionFeesToKalshi]: 'Before 2026-01-01, all fees go to Kalshi.',
+      [JUPITER_METRICS.JupPredictionFeesToVenues]: 'From 2026-01-01, the venue\'s share of prediction fees.',
     },
 }
 
@@ -93,6 +121,7 @@ const adapter: SimpleAdapter = {
     methodology,
     isExpensiveAdapter: true,
     doublecounted: true,
+    allowNegativeValue: true, // the venue's share is measured from its settlements, which can fall on a different day from the fees
     dependencies: [Dependencies.DUNE],
     breakdownMethodology
 }
