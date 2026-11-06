@@ -1,4 +1,4 @@
-import { Balances } from "@defillama/sdk";
+import { Balances, ChainApi } from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -55,6 +55,14 @@ async function prefetch(_options: FetchOptions): Promise<any> {
     return { ...firstPage, data: { ...firstPage.data, list } };
 }
 
+// The market API only lists swap pools attached to smart-lending markets, so a standalone ListaV3Pool
+// (e.g. USDT/USDC 0x46eE...f568, fee 0.02bp) never shows up there. Read every pool the V3 factories created too.
+// Addresses: https://docs.bsc.lista.org/for-developer/dex/smart-contract.md and smart-contract-ethereum.md
+const V3_FACTORIES: Record<string, { factory: string; fromBlock: number }> = {
+    [CHAIN.BSC]: { factory: "0xcb010ed373523942706F730b89792aA1C1597b20", fromBlock: 105678407 },
+    [CHAIN.ETHEREUM]: { factory: "0x956920F97690Bdd76a6a10C7ba931DEC14f61169", fromBlock: 26254054 },
+};
+
 const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
     const chain = options.chain;
     const results: MarketResponse = options.preFetchedResults;
@@ -68,6 +76,9 @@ const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
         return await getConfig(`lsita-dex-marketList-${chain}-${market.marketId}`, `https://api.lista.org/api/moolah/market/${market.marketId}?chain=${chain}`).then((res) => res.data);
     });
 
+    // PromisePool swallows rejections: a dropped market would silently under-report on a refill.
+    if (marketDetails.errors?.length) throw new Error(`lista-dex: ${marketDetails.errors.length} market detail reads failed on ${chain}`);
+
     const poolsByAddress = new Map<string, PoolInfo>();
     for (const marketDetail of marketDetails.results) {
         if (!marketDetail.smartCollateralConfig) continue;
@@ -79,10 +90,21 @@ const getSwapPools = async (options: FetchOptions): Promise<PoolInfo[]> => {
             token1: marketDetail.smartCollateralConfig.token1,
         });
     }
+
+    const { factory, fromBlock } = V3_FACTORIES[chain];
+    if (fromBlock <= await options.getToBlock()) {
+        const created = await options.getLogs({ target: factory, eventAbi: abi.v3PoolCreated, fromBlock, cacheInCloud: true });
+        for (const { pool, token0, token1 } of created) {
+            const key = pool.toLowerCase();
+            if (!poolsByAddress.has(key)) poolsByAddress.set(key, { pool, token0, token1 });
+        }
+    }
     return Array.from(poolsByAddress.values());
 };
 
 const abi = {
+    v3PoolCreated:
+        "event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)",
     tokenExchange:
         "event TokenExchange (address indexed buyer, uint256 sold_id, uint256 tokens_sold, uint256 bought_id, uint256 tokens_bought, uint256 swap_fee, uint256 admin_fee)",
     v3Swap:
@@ -95,17 +117,23 @@ const abi = {
 // protocol keeps 1/feeProtocol of it, with one 4-bit denominator per token packed into slot0.feeProtocol.
 const addV3Swaps = async (options: FetchOptions, pools: string[], token0s: string[], balances: Record<string, Balances>) => {
     const { dailyVolume, dailyFees, dailyRevenue, dailySupplySideRevenue } = balances;
+    // token1 and fee never change, so read them at the latest block: on a back-fill a pool may not exist yet.
+    const latestApi = new ChainApi({ chain: options.chain });
     const [token1s, feeTiers, slot0s] = await Promise.all([
-        options.api.multiCall({ abi: "address:token1", calls: pools }),
-        options.api.multiCall({ abi: "uint24:fee", calls: pools }),
-        options.api.multiCall({ abi: abi.v3Slot0, calls: pools }),
+        latestApi.multiCall({ abi: "address:token1", calls: pools }),
+        latestApi.multiCall({ abi: "uint24:fee", calls: pools }),
+        options.api.multiCall({ abi: abi.v3Slot0, calls: pools, permitFailure: true }),
     ]);
     const logsByPool = await options.getLogs({ targets: pools, eventAbi: abi.v3Swap, flatten: false });
 
-    pools.forEach((_pool, i) => {
+    pools.forEach((pool, i) => {
+        const logs = logsByPool[i] || [];
+        if (!logs.length) return;
+        // A pool with swaps exists at this block, so a missing slot0 is a failed read, not a pool yet to deploy.
+        if (!slot0s[i]) throw new Error(`lista-dex: cannot read slot0 of ${pool}`);
         const feeTier = BigInt(feeTiers[i]);
         const feeProtocol = Number(slot0s[i].feeProtocol);
-        (logsByPool[i] || []).forEach((log: any) => {
+        logs.forEach((log: any) => {
             const zeroForOne = BigInt(log.amount0) > 0n;
             const tokenIn = zeroForOne ? token0s[i] : token1s[i];
             const amountIn = BigInt(zeroForOne ? log.amount0 : log.amount1);
@@ -132,11 +160,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
 
     // V3 pools expose token0(); StableSwap pools only have coins(i). A pool answering neither is a
-    // failed read, so throw rather than silently count it as a StableSwap pool with no swaps.
+    // failed read, so throw rather than silently count it as a StableSwap pool with no swaps. A pool's
+    // type never changes, so read at the latest block: on a back-fill a pool listed today may not exist yet.
+    const latestApi = new ChainApi({ chain: options.chain });
     const calls = pools.map((p) => p.pool);
     const [v3Token0s, stableCoins0] = await Promise.all([
-        options.api.multiCall({ abi: "address:token0", calls, permitFailure: true }),
-        options.api.multiCall({ abi: "function coins(uint256) view returns (address)", calls: calls.map((target) => ({ target, params: [0] })), permitFailure: true }),
+        latestApi.multiCall({ abi: "address:token0", calls, permitFailure: true }),
+        latestApi.multiCall({ abi: "function coins(uint256) view returns (address)", calls: calls.map((target) => ({ target, params: [0] })), permitFailure: true }),
     ]);
     pools.forEach((p, i) => {
         if (!v3Token0s[i] && !stableCoins0[i]) throw new Error(`lista-dex: cannot classify pool ${p.pool}`);
