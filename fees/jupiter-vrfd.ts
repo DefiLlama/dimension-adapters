@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
+import { JUP_TREASURY_SHARE } from "./jupiter";
 
 const VRFD_JUP_ACCOUNT = 'H9at42xAafMAYqWmL4sxX5EiUpECruvEsdsBc6uDJUtT'
 const JUP_BURN_MULTISIG = '8gMBNeKwXaoNi9bhbVUWFt4Uc5aobL9PeYMXfYDMePE2'
@@ -38,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   dailyHoldersRevenue.add(JUP_MINT, row.amount, BURN_LABEL)
   // Not subtracted from protocol revenue: the burned JUP is valued at the day's JUP price, not the price it was paid at.
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailyHoldersRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailyHoldersRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -51,13 +52,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Fees paid for token verification and metadata updates, retail and enterprise.",
     Revenue: "All verification fees, kept by Jupiter.",
-    ProtocolRevenue: "All verification fees, kept by Jupiter.",
+    ProtocolRevenue: "Half of verification fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     HoldersRevenue: "Retail verification fees, paid in JUP that is burned.",
   },
   breakdownMethodology: {
     Fees: { [LABEL]: "Fees paid for token verification and metadata updates." },
     Revenue: { [LABEL]: "Fees paid for token verification and metadata updates." },
-    ProtocolRevenue: { [LABEL]: "Fees paid for token verification and metadata updates." },
+    ProtocolRevenue: { [LABEL]: "Half of verification fees, kept by the treasury." },
     HoldersRevenue: { [BURN_LABEL]: "Retail verification fees, paid in JUP that is burned." },
   },
 }

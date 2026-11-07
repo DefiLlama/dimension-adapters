@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { JUPITER_METRICS } from "../jupiter";
+import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
@@ -16,8 +16,6 @@ const LST_MINT = ADDRESSES.solana.JupSOL;
 const STAKER_SHARE = 0.95;
 const SANCTUM_SHARE = 0.025;
 const JUPITER_SHARE = 0.025;
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5;
 // Jupiter validator identities (vote account CatzoSMUkTRidT5DwBxAC2pEtnwMBTpkCepHkFgZDiqb): once per epoch they send jupSOL's
 // share of priority fees to the pool reserve, e.g. tx 3AxJjFRrJdmXoarUNL3FKhDRhEF9ZLQ3qkECeH4owJuMAMPuMeZ5TGikPc9fjQvHuN9Bk8q4CXd8b2YUyrXLL3on.
 const JUPITER_VALIDATOR_IDENTITIES = ["JUPiTERrZqgf1jUyR7dSkhMx4Kn2qJyekWsg3LT1h4b", "JUPiTERkf97eKN222JwY7bkpWuJnwqKtT44fsbJfhkr"];
@@ -78,7 +76,7 @@ WHERE account_from IN (${JUPITER_VALIDATOR_IDENTITIES.map((a) => `'${a}'`).join(
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE),
+    dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE),
     dailySupplySideRevenue,
   };
 };

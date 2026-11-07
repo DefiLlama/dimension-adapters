@@ -1,11 +1,8 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { JUPITER_METRICS } from "./jupiter"
+import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "./jupiter"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
-
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5
 
 const fetchOnchain = async (options: FetchOptions) => {
   const data: { usd_amount: number; product: string }[] = await queryAllium(`
@@ -42,7 +39,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees.clone(TREASURY_SHARE),
+    dailyProtocolRevenue: dailyFees.clone(JUP_TREASURY_SHARE),
   }
 }
 
@@ -50,7 +47,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // above, and fees on orders settled as swaps signed by gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { limit_order: JUPITER_METRICS.LimitOrderV2Fees })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) }
 }
 
 const fetch = async (options: FetchOptions) =>

@@ -2,14 +2,12 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { queryAllium } from '../helpers/allium'
 import { assertYoloGuards, JUPUSD, YOLO_KIND, YOLO_START, yoloEventsCte, yoloGuardsCte } from '../helpers/jupiter-yolo'
+import { JUP_TREASURY_SHARE } from "../fees/jupiter";
 
 const LABELS = {
   profitFees: 'Profit Fees',
   profitFeesToJupiter: 'Profit Fees To Jupiter',
 }
-
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5
 
 // Profit fees are taken from winning payouts by the YOLO program yoLovHV5eT4DNPMG2Bu1NLmq8nVygEAPrNT1Rx6vWFA and held in
 // its fee balance, separate from the house bankroll. They are the win fee entries (YOLO_KIND.winFee in
@@ -37,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(JUPUSD, row.fees, LABELS.profitFees)
 
   const dailyRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
-  const dailyProtocolRevenue = dailyFees.clone(TREASURY_SHARE, LABELS.profitFeesToJupiter)
+  const dailyProtocolRevenue = dailyFees.clone(JUP_TREASURY_SHARE, LABELS.profitFeesToJupiter)
 
   return {
     //dailyVolume,

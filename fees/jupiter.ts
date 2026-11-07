@@ -20,6 +20,9 @@ const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Li
 // other Jupiter listings (perps, lend, DCA, limit, jupSOL, Studio, Ape, YOLO) report no holders revenue and keep all
 // of their revenue as protocol revenue. Kept exported because they still call it.
 export const jupBuybackRatioFromRevenue = (_timestamp: number) => 0;
+// Half of each Jupiter product's revenue goes to the treasury (protocol revenue); the other half buys back JUP, counted
+// once on this listing as holders revenue.
+export const JUP_TREASURY_SHARE = 0.5;
 
 async function getLitterboxBuybacks(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances()

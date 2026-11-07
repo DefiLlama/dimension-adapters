@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { JUPITER_METRICS } from "../jupiter";
+import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
@@ -21,9 +21,6 @@ const ETHENA_METRICS = {
 };
 
 const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCase().includes('ethena');
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5;
-
 const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
 export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> => {
@@ -76,7 +73,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     // share of interest to Jupiter, half of it to the treasury
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-    dailyProtocolRevenue.addUSDValue(dr * TREASURY_SHARE, metrics.InterestToJupiter);
+    dailyProtocolRevenue.addUSDValue(dr * JUP_TREASURY_SHARE, metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market

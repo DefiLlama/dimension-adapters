@@ -1,13 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
+import { JUP_TREASURY_SHARE } from "../jupiter";
 
 // Jupiter's stats API (subproduct "lend_dex"). Onchain alternative: Dune jupiter_lend_solana dex_call_swap_in/swap_out
 // (program jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd), fee = leg amount x fee / 1e6 with the fee and revenue_cut in force
 // from dex_call_init_dex / dex_call_update_fee_and_revenue_cut; protocol cut = fee x revenue_cut / 1e6, split with Fluid.
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5;
-
 const LABELS = {
   fees: "Jupiter Lend Dex Swap Fees",
   revenue: "Jupiter Lend Dex Swap Fees to Protocol",
@@ -16,7 +14,7 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { lend_dex: LABELS });
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE) };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) };
 };
 
 const adapter: SimpleAdapter = {

@@ -3,7 +3,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
-import { JUPITER_METRICS } from "../jupiter";
+import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
 
 // Studio's Meteora DBC configs, selected by fee claimer (fixed at config creation) like the other DBC launchpads. Studio
 // creates one config per token, in the pool's tx, and serves the token's metadata at static-create.jup.ag/metadata/<mint>.json.
@@ -26,9 +26,6 @@ const JUP_STUDIO_FEE_CLAIMERS = [
 // the #10652 refill), 2026-01-01 to 2026-11-04: fees $1.25M vs $519k (the API also counts swap fees of every LP in
 // graduated pools), revenue $400k vs $457k (the API books it only on claim days, $0 for Jan and Feb). The API also has no
 // creator / Meteora / referral split.
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5;
-
 const FEE_CLAIMERS_SQL = JUP_STUDIO_FEE_CLAIMERS.map((a) => `'${a}'`).join(', ')
 
 const LABELS = {
@@ -174,7 +171,7 @@ const fetch = async (options: FetchOptions) => {
         const revenue = options.createBalances();
         revenue.add(row.quote_mint, Number(row.total_trading_fees) - Number(row.total_creator_fees) + Number(row.damm_v2_fees))
         dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyProtocolRevenue.add(revenue.clone(TREASURY_SHARE), JUPITER_METRICS.JupStudioFeesToJupiter);
+        dailyProtocolRevenue.add(revenue.clone(JUP_TREASURY_SHARE), JUPITER_METRICS.JupStudioFeesToJupiter);
     });
 
     return {

@@ -2,15 +2,13 @@ import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
+import { JUP_TREASURY_SHARE } from "../jupiter";
 
 // Jupiter's stats API (subproduct "offerbook") from 2026-06-03, the onchain query below before that. The API counts interest
 // as it accrues. The onchain query stops working on 2026-08-06: Dune has decoded no LoanCreated/LoanRepaid/LoanDefaulted
 // events since that program upgrade, so it would miss interest and the fee stage.
 // Program offerbkFMvVfpQhL8ZQ5iromnjct5rz3r52B9ewu3ie; fee wallet Edt83Aw3RAELsorwJkt4DDkczrTpHsNeFGzty83TQzuy.
 const STATS_API_START_TS = 1780444800 // 2026-06-03
-// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
-const TREASURY_SHARE = 0.5;
-
 const LABELS = {
   fees: "Offerbook Interest And Fees",
   revenue: "Offerbook Interest And Fees To Jupiter",
@@ -79,12 +77,12 @@ const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
       dailyRevenue.add(row.mint, row.net, LABELS.revenue);
     }
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue };
 };
 
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { offerbook: LABELS });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue };
 };
 
 const fetch = async (options: FetchOptions) =>
