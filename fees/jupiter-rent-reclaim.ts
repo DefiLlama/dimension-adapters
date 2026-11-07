@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { JUP_TREASURY_SHARE } from "./jupiter";
+import { jupTreasuryShare } from "./jupiter";
 
 // Jupiter's stats API. Jupiter closes empty token accounts for users and keeps 2% of the rent returned; closes are
 // signed by the relayers gasTzr94Pmp4Gf8vknQnqxeYxdgwFjbgdJa4msYRpnB and gasRUwwGJ7cVCnL675tT51mHUVCQxbVdMX7PL326hPT.
@@ -9,7 +9,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, {
     rent_reclaim: "Rent Reclaim Fees",
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) }
 }
 
 const adapter: SimpleAdapter = {

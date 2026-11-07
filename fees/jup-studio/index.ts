@@ -3,7 +3,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
 
 // Studio's Meteora DBC configs, selected by fee claimer (fixed at config creation) like the other DBC launchpads. Studio
 // creates one config per token, in the pool's tx, and serves the token's metadata at static-create.jup.ag/metadata/<mint>.json.
@@ -171,7 +171,7 @@ const fetch = async (options: FetchOptions) => {
         const revenue = options.createBalances();
         revenue.add(row.quote_mint, Number(row.total_trading_fees) - Number(row.total_creator_fees) + Number(row.damm_v2_fees))
         dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyProtocolRevenue.add(revenue.clone(JUP_TREASURY_SHARE), JUPITER_METRICS.JupStudioFeesToJupiter);
+        dailyProtocolRevenue.add(revenue.clone(jupTreasuryShare(options.startOfDay)), JUPITER_METRICS.JupStudioFeesToJupiter);
     });
 
     return {

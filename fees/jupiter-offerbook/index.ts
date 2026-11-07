@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
-import { JUP_TREASURY_SHARE } from "../jupiter";
+import { jupTreasuryShare } from "../jupiter";
 
 // Jupiter's stats API (subproduct "offerbook") from 2026-06-03, the onchain query below before that. The API counts interest
 // as it accrues. The onchain query stops working on 2026-08-06: Dune has decoded no LoanCreated/LoanRepaid/LoanDefaulted
@@ -77,12 +77,12 @@ const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
       dailyRevenue.add(row.mint, row.net, LABELS.revenue);
     }
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue };
 };
 
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { offerbook: LABELS });
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue };
 };
 
 const fetch = async (options: FetchOptions) =>

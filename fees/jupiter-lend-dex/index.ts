@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
-import { JUP_TREASURY_SHARE } from "../jupiter";
+import { jupTreasuryShare } from "../jupiter";
 
 // Jupiter's stats API (subproduct "lend_dex"). Onchain alternative: Dune jupiter_lend_solana dex_call_swap_in/swap_out
 // (program jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd), fee = leg amount x fee / 1e6 with the fee and revenue_cut in force
@@ -14,7 +14,7 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { lend_dex: LABELS });
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) };
 };
 
 const adapter: SimpleAdapter = {

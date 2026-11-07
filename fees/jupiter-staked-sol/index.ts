@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
@@ -76,7 +76,7 @@ WHERE account_from IN (${JUPITER_VALIDATOR_IDENTITIES.map((a) => `'${a}'`).join(
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE),
+    dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
     dailySupplySideRevenue,
   };
 };

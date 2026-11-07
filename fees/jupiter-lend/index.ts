@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
@@ -73,7 +73,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     // share of interest to Jupiter, half of it to the treasury
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-    dailyProtocolRevenue.addUSDValue(dr * JUP_TREASURY_SHARE, metrics.InterestToJupiter);
+    dailyProtocolRevenue.addUSDValue(dr * jupTreasuryShare(options.startOfDay), metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market

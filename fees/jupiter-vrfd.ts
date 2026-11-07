@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { JUP_TREASURY_SHARE } from "./jupiter";
+import { jupTreasuryShare } from "./jupiter";
 
 const VRFD_JUP_ACCOUNT = 'H9at42xAafMAYqWmL4sxX5EiUpECruvEsdsBc6uDJUtT'
 const JUP_BURN_MULTISIG = '8gMBNeKwXaoNi9bhbVUWFt4Uc5aobL9PeYMXfYDMePE2'
@@ -43,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
   // which can differ slightly from the price the API booked it at on a retail-only day.
   const enterpriseUsd = Math.max(0, await dailyRevenue.getUSDValue() - await dailyHoldersRevenue.getUSDValue())
   const dailyProtocolRevenue = options.createBalances()
-  dailyProtocolRevenue.addUSDValue(enterpriseUsd * JUP_TREASURY_SHARE, LABEL)
+  dailyProtocolRevenue.addUSDValue(enterpriseUsd * jupTreasuryShare(options.startOfDay), LABEL)
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
 }
 

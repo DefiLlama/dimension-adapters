@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { JUP_TREASURY_SHARE } from "./jupiter";
+import { jupTreasuryShare } from "./jupiter";
 
 // Jupiter's stats API. Jupiter's share of JupUSD reserve yield is paid in USDtb to
 // DKu1jCcDj6cBJ7eVFgXg9LodP4MhGzHAeCVu25j5Bibp from B3q4P4XSmycvoHLaiEjchsGDafFPhKokvHvNRuW29N1y.
@@ -19,7 +19,7 @@ const fetch = async (options: FetchOptions) => {
       supplySide: LABELS.ReserveYieldToOthers,
     },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {

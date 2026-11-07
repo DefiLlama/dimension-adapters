@@ -16,13 +16,9 @@ import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/j
 const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
 const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Litterbox
-// Share of each product listing's revenue reported as holders revenue. The buybacks are measured here instead, so the
-// other Jupiter listings (perps, lend, DCA, limit, jupSOL, Studio, Ape, YOLO) report no holders revenue and keep all
-// of their revenue as protocol revenue. Kept exported because they still call it.
-export const jupBuybackRatioFromRevenue = (_timestamp: number) => 0;
-// Half of each Jupiter product's revenue goes to the treasury (protocol revenue); the other half buys back JUP, counted
-// once on this listing as holders revenue.
-export const JUP_TREASURY_SHARE = 0.5;
+// Share of each Jupiter product's revenue kept by the treasury (protocol revenue): all of it before 2025-02-17, half since,
+// when the other half started buying back JUP (counted once, on this listing, as holders revenue).
+export const jupTreasuryShare = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 1;
 
 async function getLitterboxBuybacks(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances()
@@ -168,17 +164,13 @@ const fetchOnchain = async (options: FetchOptions) => {
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(ultraRevenue, JUPITER_METRICS.AggSwapFees);
-  const dailyRevenue = dailyFees.clone(1);
-  const dailyProtocolRevenue = dailyRevenue.clone(1);
-  // Not deducted from this listing's protocol revenue: the buybacks are funded by 50% of the revenue of every Jupiter
-  // product, so deducting them here alone would turn this listing negative.
   const dailyHoldersRevenue = await getLitterboxBuybacks(options);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
     dailyHoldersRevenue,
-    dailyProtocolRevenue,
   }
 }
 
@@ -189,9 +181,8 @@ const fetchOnchain = async (options: FetchOptions) => {
 // before that.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
-  // Not subtracted from protocol revenue: the buybacks are funded by several Jupiter products, not this listing alone.
   const dailyHoldersRevenue = await getLitterboxBuybacks(options)
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailyHoldersRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue }
 }
 
 const fetch = async (options: FetchOptions) =>
@@ -201,7 +192,7 @@ const methodology = {
   Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
   Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
   HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of revenue across all Jupiter products and reported once, on this listing.',
-  ProtocolRevenue: 'All platform fees, kept by Jupiter. JUP buybacks are not deducted here.',
+  ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.',
 }
 
 const breakdownMethodology = {
@@ -212,7 +203,7 @@ const breakdownMethodology = {
     [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
+    [JUPITER_METRICS.AggSwapFees]: "Half of platform fees on swaps, kept by the treasury.",
   },
   HoldersRevenue: {
     [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of revenue across all Jupiter products.",

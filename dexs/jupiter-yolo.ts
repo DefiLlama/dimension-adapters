@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { queryAllium } from '../helpers/allium'
 import { assertYoloGuards, JUPUSD, YOLO_KIND, YOLO_START, yoloEventsCte, yoloGuardsCte } from '../helpers/jupiter-yolo'
-import { JUP_TREASURY_SHARE } from "../fees/jupiter";
+import { jupTreasuryShare } from "../fees/jupiter";
 
 const LABELS = {
   profitFees: 'Profit Fees',
@@ -35,7 +35,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(JUPUSD, row.fees, LABELS.profitFees)
 
   const dailyRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
-  const dailyProtocolRevenue = dailyFees.clone(JUP_TREASURY_SHARE, LABELS.profitFeesToJupiter)
+  const dailyProtocolRevenue = dailyFees.clone(jupTreasuryShare(options.startOfDay), LABELS.profitFeesToJupiter)
 
   return {
     //dailyVolume,

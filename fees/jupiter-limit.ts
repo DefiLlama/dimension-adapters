@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "./jupiter"
+import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
 const fetchOnchain = async (options: FetchOptions) => {
@@ -39,7 +39,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees.clone(JUP_TREASURY_SHARE),
+    dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
   }
 }
 
@@ -47,7 +47,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // above, and fees on orders settled as swaps signed by gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { limit_order: JUPITER_METRICS.LimitOrderV2Fees })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) }
 }
 
 const fetch = async (options: FetchOptions) =>

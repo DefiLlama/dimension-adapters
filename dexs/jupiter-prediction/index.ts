@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "../../fees/jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../../fees/jupiter";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -72,7 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyVolume,
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE),
+        dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
         dailySupplySideRevenue,
     }
 }

@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getSolanaReceived } from "../helpers/token"
-import { JUPITER_METRICS, JUP_TREASURY_SHARE } from "./jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter";
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats";
 
 const LEGACY_DCA_FEE_WALLET = 'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
@@ -12,7 +12,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees.clone(JUP_TREASURY_SHARE),
+    dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
   }
 }
 
@@ -20,7 +20,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // swaps signed by the keeper gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6. Limit order fees are on the Jupiter Limit listing.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { dca: JUPITER_METRICS.JupDCAFees })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) }
 }
 
 const fetchFeesSolana = async (options: FetchOptions) =>

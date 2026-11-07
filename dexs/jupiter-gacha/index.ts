@@ -3,7 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
-import { JUP_TREASURY_SHARE } from "../../fees/jupiter";
+import { jupTreasuryShare } from "../../fees/jupiter";
 
 // Jupiter Gacha settles through Collector Crypt's shared wallet; jupiter-* memos
 // isolate Jupiter activity. https://solscan.io/account/GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3
@@ -139,7 +139,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyUserFees: dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE),
+    dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
     dailySupplySideRevenue,
   };
 };

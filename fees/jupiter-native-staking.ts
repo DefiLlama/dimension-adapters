@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { JUP_TREASURY_SHARE } from "./jupiter";
+import { jupTreasuryShare } from "./jupiter";
 
 // Jupiter's stats API. Vote accounts CatzoSMUkTRidT5DwBxAC2pEtnwMBTpkCepHkFgZDiqb and E5Y8uSQ8SWHH7GynZqMGirckAybkWXH5QcxtZ6tLezbn;
 // priority fees land in FuRJUnsrqrp9yqnvn8wpKSMv8LbgpJME6g8R73T2Cz1C. Native stake only: JupSOL's stake is on the Jupiter
@@ -10,7 +10,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
     native_staking: { fees: "Native Staking Fees", revenue: "Native Staking Fees To Jupiter", supplySide: "Native Staking Fees To Stakers And Partners" },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(JUP_TREASURY_SHARE), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
