@@ -2,13 +2,17 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { queryAllium } from '../helpers/allium'
 import { assertYoloGuards, JUPUSD, YOLO_KIND, YOLO_START, yoloEventsCte, yoloGuardsCte } from '../helpers/jupiter-yolo'
-import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from '../fees/jupiter'
+import { jupTreasuryShare } from "../fees/jupiter";
 
 const LABELS = {
   profitFees: 'Profit Fees',
   profitFeesToJupiter: 'Profit Fees To Jupiter',
 }
 
+// Profit fees are taken from winning payouts by the YOLO program yoLovHV5eT4DNPMG2Bu1NLmq8nVygEAPrNT1Rx6vWFA and held in
+// its fee balance, separate from the house bankroll. They are the win fee entries (YOLO_KIND.winFee in
+// helpers/jupiter-yolo.ts) of the program's AccrueFee ledger events, in JupUSD; a close fee would appear there too.
+// Kept onchain instead of Jupiter's stats API (subproduct "yolo"): these events match the API to the dollar.
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp: start, endTimestamp: end } = options
   const [row] = await queryAllium(`
@@ -30,49 +34,38 @@ const fetch = async (options: FetchOptions) => {
   dailyVolume.add(JUPUSD, row.volume)
   dailyFees.add(JUPUSD, row.fees, LABELS.profitFees)
 
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay)
-  const dailyHoldersRevenue = dailyFees.clone(buybackRatio, JUPITER_METRICS.TokenBuyBack)
-  const dailyProtocolRevenue = dailyFees.clone(1 - buybackRatio, LABELS.profitFeesToJupiter)
-  const dailyRevenue = options.createBalances()
-  dailyRevenue.addBalances(dailyHoldersRevenue)
-  dailyRevenue.addBalances(dailyProtocolRevenue)
+  const dailyRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
+  const dailyProtocolRevenue = dailyFees.clone(jupTreasuryShare(options.startOfDay), LABELS.profitFeesToJupiter)
 
   return {
     //dailyVolume,
     dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
-    dailyHoldersRevenue,
   }
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: YOLO_START,
   dependencies: [Dependencies.ALLIUM],
   methodology: {
     //Volume: 'Notional (margin times leverage) of every position opened and every position closed by its owner. Liquidations are not counted.',
-    Fees: 'Profit fee of 2% on the gain of every winning trade, taken from the payout. Opening a position, losing trades and liquidations are free and there is no funding. The house bankroll\'s trading profit is not counted.',
-    Revenue: 'All profit fees, kept by Jupiter in a fee balance of the YOLO program separate from the house bankroll; there are no liquidity providers.',
-    ProtocolRevenue: 'Half of profit fees, kept by Jupiter.',
-    HoldersRevenue: 'Half of profit fees, used to buy back JUP under Jupiter\'s policy of spending 50% of revenue on JUP buybacks.',
+    Fees: "2% fee on the profit of every winning trade, taken from the payout. Opening, losing trades and liquidations are free. The house bankroll's trading profit is not counted.",
+    Revenue: 'All profit fees, kept by Jupiter. There are no liquidity providers.',
+    ProtocolRevenue: 'Half of profit fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.profitFees]: '2% of the gain on each winning trade, deducted from the payout the trader receives.',
+      [LABELS.profitFees]: '2% of the profit on each winning trade, deducted from the payout.',
     },
     Revenue: {
-      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by Jupiter.',
-      [JUPITER_METRICS.TokenBuyBack]: 'Half of profit fees, used to buy back JUP.',
+      [LABELS.profitFeesToJupiter]: 'All profit fees, kept by Jupiter.',
     },
     ProtocolRevenue: {
-      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by Jupiter.',
-    },
-    HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'Half of profit fees, used to buy back JUP.',
+      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by the treasury.',
     },
   },
 }

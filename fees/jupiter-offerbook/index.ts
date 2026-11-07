@@ -1,14 +1,21 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
+import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
+import { jupTreasuryShare } from "../jupiter";
 
-const labels: Record<string, string> = {
-  origination: "Offerbook Loan Origination Fees",
-  repayment: "Offerbook Loan Repayment Fees",
-  collateral_claim: "Offerbook Collateral Claim Fees"
+// Jupiter's stats API (subproduct "offerbook") from 2026-06-03, the onchain query below before that. The API counts interest
+// as it accrues. The onchain query stops working on 2026-08-06: Dune has decoded no LoanCreated/LoanRepaid/LoanDefaulted
+// events since that program upgrade, so it would miss interest and the fee stage.
+// Program offerbkFMvVfpQhL8ZQ5iromnjct5rz3r52B9ewu3ie; fee wallet Edt83Aw3RAELsorwJkt4DDkczrTpHsNeFGzty83TQzuy.
+const STATS_API_START_TS = 1780444800 // 2026-06-03
+const LABELS = {
+  fees: "Offerbook Interest And Fees",
+  revenue: "Offerbook Interest And Fees To Jupiter",
+  supplySide: "Offerbook Interest And Fees To Lenders And Referrers",
 }
 
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
   const start = `from_unixtime(${options.startTimestamp})`;
   const end = `from_unixtime(${options.endTimestamp})`;
 
@@ -59,18 +66,27 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const row of rows) {
     if (!row.mint) continue;
     if (row.kind === 'interest') {
-      dailyFees.add(row.mint, row.net, "Offerbook Borrow Interest");
-      dailySupplySideRevenue.add(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
+      dailyFees.add(row.mint, row.net, LABELS.fees);
+      dailySupplySideRevenue.add(row.mint, row.net, LABELS.supplySide);
     } else if (row.kind === 'repayment') {
-      dailyRevenue.add(row.mint, row.net, labels[row.kind]);
-      dailySupplySideRevenue.subtractToken(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
+      // the repayment fee is taken out of the lender's interest
+      dailyRevenue.add(row.mint, row.net, LABELS.revenue);
+      dailySupplySideRevenue.subtractToken(row.mint, row.net, LABELS.supplySide);
     } else {
-      dailyFees.add(row.mint, row.net, labels[row.kind]);
-      dailyRevenue.add(row.mint, row.net, labels[row.kind]);
+      dailyFees.add(row.mint, row.net, LABELS.fees);
+      dailyRevenue.add(row.mint, row.net, LABELS.revenue);
     }
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue };
 };
+
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { offerbook: LABELS });
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue };
+};
+
+const fetch = async (options: FetchOptions) =>
+  options.startOfDay >= STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options);
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -79,31 +95,26 @@ const adapter: SimpleAdapter = {
   start: '2026-04-24',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  allowNegativeValue: true, // a loss on a loan funded by Jupiter is booked on the day it is realized
   methodology: {
-    Fees: 'Borrow interest paid by borrowers on repaid loans, plus loan origination fees and collateral claim fees.',
-    Revenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
-    ProtocolRevenue: "The protocol's share: the repayment fee (10% of interest) it takes from borrow interest, plus all loan origination fees (25% of interest) and collateral claim fees (0.1% of collateral, excluding NFT/RWA).",
-    SupplySideRevenue: "90% of borrow interest is paid to lenders.",
+    Fees: "Borrow interest paid by borrowers as it accrues, plus loan origination, repayment and collateral claim fees.",
+    Revenue: "Jupiter's protocol fees, and interest on loans Jupiter funds, less losses on those loans.",
+    ProtocolRevenue: "Half of Jupiter's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    SupplySideRevenue: "Borrow interest paid to lenders, and fee rebates to referrers.",
   },
   breakdownMethodology: {
     Fees: {
-      'Offerbook Borrow Interest': 'Total interest paid by borrowers over the full term of repaid loans.',
-      [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
-      [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
+      [LABELS.fees]: "Borrow interest as it accrues, and loan origination, repayment and collateral claim fees.",
     },
     Revenue: {
-      [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
-      [labels.repayment]: "10% of interest, deducted from the lender's return when the loan is repaid.",
-      [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
+      [LABELS.revenue]: "Jupiter's protocol fees, and interest on loans Jupiter funds, less losses on those loans.",
     },
     ProtocolRevenue: {
-      [labels.origination]: '25% of estimated interest, charged to the borrower when the loan is created.',
-      [labels.repayment]: "10% of interest, deducted from the lender's return when the loan is repaid.",
-      [labels.collateral_claim]: '0.1% of collateral value, charged when a lender claims collateral after loan maturity (excludes NFT/RWA collateral).',
+      [LABELS.revenue]: "Half of Jupiter's revenue, kept by the treasury.",
     },
     SupplySideRevenue: {
-      'Offerbook Borrow Interest To Lenders': '90% of borrow interest is paid to lenders'
-    }
+      [LABELS.supplySide]: "Borrow interest paid to lenders, and fee rebates to referrers.",
+    },
   },
 };
 

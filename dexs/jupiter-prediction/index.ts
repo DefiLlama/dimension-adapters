@@ -1,7 +1,8 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../../fees/jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../../fees/jupiter";
+import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
@@ -41,6 +42,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         from trade_data
     `;
 
+    const useStatsApi = options.startOfDay >= JUPITER_STATS_API_START_TS;
+    if (useStatsApi) await assertJupiterStatsPublished(options);
     const queryResult = await queryDuneSql(options, query);
 
     if (!queryResult[0] || !queryResult[0].total_volume || !queryResult[0].total_fees)
@@ -48,40 +51,52 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const volume = queryResult[0].total_volume;
     const fees = queryResult[0].total_fees;
-    
+
+    // Jupiter's share of the fees is not visible onchain: from 2026-01-01 it comes from Jupiter's stats API, before that none is counted.
+    // The API's prediction total also includes Arcade.
+    const revenue = useStatsApi
+        ? await (await getJupiterStatsRevenue(options, { prediction: JUPITER_METRICS.JupPredictionFeesToJupiter })).dailyRevenue.getUSDValue()
+        : 0;
+
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
-  
+
     dailyVolume.addUSDValue(volume);
     dailyFees.addUSDValue(fees, JUPITER_METRICS.JupPredictionFees);
-    dailySupplySideRevenue.addUSDValue(fees, JUPITER_METRICS.JupPredictionFeesToKalshi);
+    dailyRevenue.addUSDValue(revenue, JUPITER_METRICS.JupPredictionFeesToJupiter);
+    dailySupplySideRevenue.addUSDValue(fees - revenue, JUPITER_METRICS.JupPredictionFeesToVenues);
 
     return {
         dailyVolume,
         dailyFees,
-        dailyRevenue: 0,
-        dailyHoldersRevenue: 0,
-        dailyProtocolRevenue: 0,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
         dailySupplySideRevenue,
     }
 }
 
 const methodology = {
-    Volume: 'Volume of all trades through jupiter interface',
-    Fees: 'Venue fees paid by users',
-    Revenue: 'Jupiter doesnt keep any fees as of now, all the fees goes to kalshi',
-    SupplySideRevenue: 'All fees go to Kalshi',
-    HoldersRevenue: 'No holders revenue',
-    ProtocolRevenue: 'No protocol revenue',
+    Volume: 'USDC value of prediction market buys and sells through Jupiter.',
+    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter.',
+    Revenue: "Jupiter's share of prediction fees, counted from 2026-01-01.",
+    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
 }
 
 const breakdownMethodology = {
     Fees: {
-      [JUPITER_METRICS.JupPredictionFees]: 'Venue fees paid by users',
+      [JUPITER_METRICS.JupPredictionFees]: 'Trading fees paid by users on prediction market buys and sells.',
+    },
+    Revenue: {
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Jupiter's share of prediction fees, since 2026-01-01.",
+    },
+    ProtocolRevenue: {
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Half of Jupiter's share of prediction fees, kept by the treasury.",
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.JupPredictionFeesToKalshi]: 'All fees go to Kalshi',
+      [JUPITER_METRICS.JupPredictionFeesToVenues]: "Prediction fees paid to the market venues after Jupiter's share.",
     },
 }
 
@@ -93,6 +108,7 @@ const adapter: SimpleAdapter = {
     methodology,
     isExpensiveAdapter: true,
     doublecounted: true,
+    allowNegativeValue: true, // Jupiter's share in the stats API follows venue settlements, so a day's share can exceed that day's fees
     dependencies: [Dependencies.DUNE],
     breakdownMethodology
 }
