@@ -10,6 +10,8 @@ type CDOConfig = {
   jrt: string;
   srt: string;
   start: string;
+  // strategies that price shares through a pausable Nest accountant
+  nest?: { accountant: string; share: string; quote: string };
 };
 
 const CDOS: CDOConfig[] = [
@@ -75,6 +77,12 @@ const CDOS: CDOConfig[] = [
     jrt: "0x1b2b8cFEF0b7B1Fad216b55fefeEb0c3349Da141",
     srt: "0x8a646Edc4633ADBA5Ec87DedaF3Af958e268FE96",
     start: "2026-07-09",
+    // strategy getters accountant(), nOPAL() and USDC()
+    nest: {
+      accountant: "0x2Ed2f77a961fc92F73D1087786099c39C894Ed1D",
+      share: "0x119Dd7dAFf816f29D7eE47596ae5E4bdC4299165",
+      quote: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    },
   },
 ];
 
@@ -89,6 +97,8 @@ const STRATEGY_TOTAL_ASSETS_ABI = "function totalAssets() view returns (uint256)
 const RESERVE_BPS_ABI = "function reserveBps() view returns (uint256)";
 const ASSET_ABI = "function asset() view returns (address)";
 const CONVERT_TO_ASSETS_ABI = "function convertToAssets(address token, uint256 amount, uint8 rounding) view returns (uint256)";
+const ACCOUNTANT_STATE_ABI = "function accountantState() view returns (address payoutAddress, uint128 feesOwedInBase, uint128 totalSharesLastUpdate, uint96 exchangeRate, uint16 allowedExchangeRateChangeUpper, uint16 allowedExchangeRateChangeLower, uint64 lastUpdateTimestamp, bool isPaused, uint32 minimumUpdateDelayInSeconds, uint16 managementFee)";
+const GET_RATE_IN_QUOTE_ABI = "function getRateInQuote(address quote) view returns (uint256)";
 
 const sumLogField = (logs: any[], field: string): bigint =>
   logs.reduce<bigint>((acc, l) => acc + BigInt(l[field]), 0n);
@@ -111,7 +121,24 @@ function isContractRevert(e: any): boolean {
   return /execution reverted/i.test(msg);
 }
 
-async function navAt(chain: string, strategy: string, block: number): Promise<bigint> {
+// NestOpalStrategy.totalAssets() is nOPAL.balanceOf(strategy) * getRateInQuoteSafe(USDC) / 1e6,
+// and the Safe getter reverts while the accountant is paused. a pause can outlast the
+// lookback (nOPAL's accountant auto-paused at block 26342482 on 2026-11-04), so while
+// paused we apply the same formula to the unchecked getRateInQuote.
+async function pausedNestNav(chain: string, cfg: CDOConfig, block: number): Promise<bigint | null> {
+  const nest = cfg.nest!;
+  const api = new ChainApi({ chain, block });
+  const state = await api.call({ target: nest.accountant, abi: ACCOUNTANT_STATE_ABI });
+  if (!state.isPaused) return null;
+  const [shares, rate] = await Promise.all([
+    api.call({ target: nest.share, abi: "erc20:balanceOf", params: [cfg.strategy] }),
+    api.call({ target: nest.accountant, abi: GET_RATE_IN_QUOTE_ABI, params: [nest.quote] }),
+  ]);
+  return (BigInt(shares) * BigInt(rate)) / 10n ** 6n;
+}
+
+async function navAt(chain: string, cfg: CDOConfig, block: number): Promise<bigint> {
+  const { strategy } = cfg;
   const read = async (b: number): Promise<bigint | null> => {
     try {
       return BigInt(await new ChainApi({ chain, block: b }).call({ target: strategy, abi: STRATEGY_TOTAL_ASSETS_ABI }));
@@ -124,6 +151,11 @@ async function navAt(chain: string, strategy: string, block: number): Promise<bi
 
   const nav = await read(block);
   if (nav !== null) return nav;
+
+  if (cfg.nest) {
+    const pausedNav = await pausedNestNav(chain, cfg, block);
+    if (pausedNav !== null) return pausedNav;
+  }
 
   // step back in growing steps until a block reads, then narrow down to the last good one
   let bad = block;
@@ -167,8 +199,8 @@ async function processCDO(
 
   const [baseAsset, navStart, navEnd, reserveBpsRaw] = await Promise.all([
     toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
-    navAt(chain, cfg.strategy, startBlock),
-    navAt(chain, cfg.strategy, toBlock),
+    navAt(chain, cfg, startBlock),
+    navAt(chain, cfg, toBlock),
     toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
   ]);
 
