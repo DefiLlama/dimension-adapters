@@ -13,14 +13,35 @@ import { routers } from "./kerberos/routers"
 // https://api.cow.fi/mainnet/api/v1/orders/0x665c5884a7404e227a1429ef3cf568384c7f8ff22152e78df42f5413e2195e2184ae2eb00ac2f75d308dca9cbd2ef7d633d602146adac349
 // CoW Protocol pays it out weekly, in the native token, from its "Solver payouts" Safe 0xa03be496...
 // (https://docs.cow.fi/governance/multisigs) and, on Arbitrum and Polygon, from 0x66331f0b..., a Safe that shares its
-// owners. First payout 2026-02-25, none on OP Mainnet. A payout lands about a week after its trades and is net of CoW's
-// cut, so this counts what the wallets receive, not the gross fee. The payouts are internal value transfers
-// (Safe.execTransaction), so they are read from Allium.
+// owners. The payer is set per chain: on Polygon 0xa03be496 is an unrelated Safe with other owners. First payout
+// 2026-02-25, none on OP Mainnet. A payout lands about a week after its trades and is net of CoW's cut, so this counts
+// what the wallets receive, not the gross fee. The payouts are internal value transfers (Safe.execTransaction), so they
+// are read from Allium, in one query for all chains.
 const COW_PARTNER_FEE_RECIPIENTS = ['0x147cf09e7373b8fda6f12021f1b0f98d6da1a566', '0x9c87bb379d5ff2fcbf2f83e619f9fccb95a40ad9']
-const COW_PARTNER_FEE_PAYERS = ['0xa03be496e67ec29bc62f01a428683d7f9c204930', '0x66331f0b9cb30d38779c786bda5a3d57d12fba50']
+const COW_PAYOUT_SAFE = '0xa03be496e67ec29bc62f01a428683d7f9c204930'
+const COW_PAYOUT_SAFE_ARBITRUM_POLYGON = '0x66331f0b9cb30d38779c786bda5a3d57d12fba50'
+const COW_PARTNER_FEE_PAYERS: Record<string, string> = {
+  [CHAIN.ETHEREUM]: COW_PAYOUT_SAFE,
+  [CHAIN.BASE]: COW_PAYOUT_SAFE,
+  [CHAIN.BSC]: COW_PAYOUT_SAFE,
+  [CHAIN.ARBITRUM]: COW_PAYOUT_SAFE_ARBITRUM_POLYGON,
+  [CHAIN.POLYGON]: COW_PAYOUT_SAFE_ARBITRUM_POLYGON,
+}
 const COW_PARTNER_FEES_FROM = 1771977600 // 2026-02-25, the first payout
 const COW_PARTNER_FEES = 'CoW Swap Partner Fees'
 const toSql = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ')
+
+const prefetch = async (options: FetchOptions) => {
+  if (options.endTimestamp <= COW_PARTNER_FEES_FROM) return []
+  return queryAllium(Object.entries(COW_PARTNER_FEE_PAYERS).map(([chain, payer]) => `
+    SELECT '${chain}' AS chain, COALESCE(SUM(raw_amount), 0) AS amount
+    FROM ${getAlliumChain(chain)}.assets.native_token_transfers
+    WHERE to_address IN (${toSql(COW_PARTNER_FEE_RECIPIENTS)})
+      AND from_address = '${payer}'
+      AND transfer_type = 'value_transfer'
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`).join('\n    UNION ALL'))
+}
 
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
@@ -36,17 +57,10 @@ const fetch: any = async (options: FetchOptions) => {
   })
   dailyFees.addBalances(swapFees, METRIC.SWAP_FEES)
 
-  if (options.chain !== CHAIN.OPTIMISM && options.endTimestamp > COW_PARTNER_FEES_FROM) {
-    const [{ amount }] = await queryAllium(`
-      SELECT COALESCE(SUM(raw_amount), 0) AS amount
-      FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
-      WHERE to_address IN (${toSql(COW_PARTNER_FEE_RECIPIENTS)})
-        AND from_address IN (${toSql(COW_PARTNER_FEE_PAYERS)})
-        AND transfer_type = 'value_transfer'
-        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-    `)
-    dailyFees.addGasToken(amount, COW_PARTNER_FEES)
+  if (COW_PARTNER_FEE_PAYERS[options.chain] && options.endTimestamp > COW_PARTNER_FEES_FROM) {
+    const row = options.preFetchedResults.find((r: any) => r.chain === options.chain)
+    if (!row) throw new Error(`pocket-universe: no CoW partner fee row for ${options.chain}`)
+    dailyFees.addGasToken(row.amount, COW_PARTNER_FEES)
   }
 
   return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
@@ -75,7 +89,7 @@ const info = {
 }
 
 const adapter: SimpleAdapter = {
-  fetch, methodology: info.methodology, breakdownMethodology: info.breakdownMethodology,
+  fetch, prefetch, methodology: info.methodology, breakdownMethodology: info.breakdownMethodology,
   start: '2024-04-10',
   version: 2,
   pullHourly: true,
