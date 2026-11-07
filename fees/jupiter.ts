@@ -193,7 +193,7 @@ const methodology = {
   Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
   Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
   HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of revenue across all Jupiter products and reported once, on this listing.',
-  ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.',
+  ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted here as holders revenue.',
 }
 
 const breakdownMethodology = {
