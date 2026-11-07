@@ -14,7 +14,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   dailyFees.add(legacyFees, JUPITER_METRICS.JupDCAFees);
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(1),
+    dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(TREASURY_SHARE),
   }
 }

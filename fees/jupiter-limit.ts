@@ -41,7 +41,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees.clone(1),
+    dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(TREASURY_SHARE),
   }
 }
