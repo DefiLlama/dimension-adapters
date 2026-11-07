@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
+import { getSqlFromFile, queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { JUPITER_METRICS } from "../jupiter";
 
@@ -31,10 +31,26 @@ const REWARD_LABELS: Record<string, string> = {
   jupsolPriorityFees: JUPITER_METRICS.JupSOLValidatorPriorityFees,
 };
 
-const fetch = async (options: FetchOptions) => {
+// Saved Dune query running helpers/queries/jupiter-staked-sol.sql: the same legs per day since 2024-06-09, so refills
+// skip the daily query below. Rerun it on Dune to extend the history; days not in its result use the daily query.
+const DUNE_HISTORY_QUERY_ID = '9088738';
+
+async function getCachedDay(options: FetchOptions) {
+  const [row] = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`);
+  if (!row) return;
+  return [
+    { metric_type: 'dailyFees', amount: row.staking_sol },
+    { metric_type: 'jupsolMevRewards', amount: row.mev_sol },
+    { metric_type: 'jupsolPriorityFees', amount: row.priority_sol },
+    { metric_type: 'jupsolJupiterValidatorRewards', amount: row.jupiter_validator_sol },
+    { metric_type: 'dailyRevenue', amount: row.deposit_withdraw_jupsol },
+  ];
+}
+
+const getDailyQuery = (options: FetchOptions) => {
   const start = `from_unixtime(${options.startTimestamp})`;
   const end = `from_unixtime(${options.endTimestamp})`;
-  const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
+  return getSqlFromFile("helpers/queries/sol-lst.sql", {
     start: options.startTimestamp,
     end: options.endTimestamp,
     stake_pool_reserve_account: STAKE_POOL_RESERVE_ACCOUNT,
@@ -62,8 +78,10 @@ WHERE reward_type = 'Staking'
     WHERE account_stakeAuthority = '${STAKE_POOL_WITHDRAW_AUTHORITY}' AND account_voteAccount = '${JUPITER_VOTE_ACCOUNT}')
   AND block_time >= ${start} AND block_time < ${end}
 `;
+}
 
-  const results = await queryDuneSql(options, query);
+const fetch = async (options: FetchOptions) => {
+  const results = await getCachedDay(options) ?? await queryDuneSql(options, getDailyQuery(options));
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
