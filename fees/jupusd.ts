@@ -18,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
       supplySide: LABELS.ReserveYieldToOthers,
     },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {

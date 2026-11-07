@@ -7,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, {
     developer_platform: "Developer Platform Fees",
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {

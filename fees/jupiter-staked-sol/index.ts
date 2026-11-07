@@ -93,7 +93,7 @@ WHERE reward_type = 'Staking'
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(1),
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   };
 };

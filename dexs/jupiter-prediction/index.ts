@@ -72,7 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyVolume,
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue.clone(1),
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
     }
 }

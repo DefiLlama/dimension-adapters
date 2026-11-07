@@ -34,13 +34,12 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(JUPUSD, row.fees, LABELS.profitFees)
 
   const dailyRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
-  const dailyProtocolRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
 
   return {
     //dailyVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
   }
 }
 

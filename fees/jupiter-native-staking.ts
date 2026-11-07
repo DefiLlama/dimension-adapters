@@ -9,7 +9,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
     native_staking: { fees: "Native Staking Fees", revenue: "Native Staking Fees To Jupiter", supplySide: "Native Staking Fees To Stakers And Partners" },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {

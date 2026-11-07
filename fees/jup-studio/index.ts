@@ -151,7 +151,6 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
 
     const accepted_quote_mints = [
         ADDRESSES.solana.SOL,
@@ -171,14 +170,13 @@ const fetch = async (options: FetchOptions) => {
         const revenue = options.createBalances();
         revenue.add(row.quote_mint, Number(row.total_trading_fees) - Number(row.total_creator_fees) + Number(row.damm_v2_fees))
         dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyProtocolRevenue.add(revenue.clone(1), JUPITER_METRICS.JupStudioFeesToJupiter);
     });
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
     };
 };

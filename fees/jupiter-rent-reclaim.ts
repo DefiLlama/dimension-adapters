@@ -8,7 +8,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, {
     rent_reclaim: "Rent Reclaim Fees",
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {

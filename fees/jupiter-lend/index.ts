@@ -53,7 +53,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
 
   const addInstance = (rows: any[], metrics: typeof JUPITER_METRICS | typeof ETHENA_METRICS) => {
     const df = sumUsd(rows, 'daily_fees_usd');
@@ -73,7 +72,6 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     // share of interest to Jupiter, all kept by Jupiter
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-    dailyProtocolRevenue.addUSDValue(dr, metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market
@@ -84,7 +82,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
   }
 };
