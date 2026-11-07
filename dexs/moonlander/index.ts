@@ -140,6 +140,7 @@ async function fetch({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: Object.fromEntries(
     Object.entries(CONFIG).map(([chain, config]) => [
       chain,

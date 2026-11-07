@@ -110,6 +110,7 @@ const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances,
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchSuilendStats,

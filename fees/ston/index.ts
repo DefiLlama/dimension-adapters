@@ -77,6 +77,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "2/3 of user fees are distributed among LPs and referral fees.",
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.TON]: {
       start: '2023-11-14',

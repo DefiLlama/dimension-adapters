@@ -28,6 +28,7 @@ const fetch: any = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: false, // Hyperliquid info API rate-limits, full ledger per call
     adapter: {
         [CHAIN.HYPERLIQUID]: {
             fetch,

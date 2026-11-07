@@ -6,7 +6,9 @@ import fetchURL from '../../utils/fetchURL';
 const cetusApiURL = 'https://api-sui.cetus.zone/v3/sui/dlmm/histogram?dateType=hour';
 
 const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp } = options;
+  const { startTimestamp } = options;
+  // API buckets by hour with both bounds inclusive; endTimestamp - 1 keeps the next window's first bucket out
+  const endTimestamp = options.endTimestamp - 1;
   const feeUrl = `${cetusApiURL}&dataType=fee&beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
   const protocolFeeUrl = `${cetusApiURL}&dataType=protocolFee&beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`;
   const feeList = (await fetchURL(feeUrl)).data.list;
@@ -54,6 +56,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SUI],
   start: '2025-09-30',

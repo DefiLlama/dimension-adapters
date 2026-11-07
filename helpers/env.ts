@@ -83,7 +83,7 @@ const DEFAULTS: any = {
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)
-  APTOS_RPC: 'https://aptos-mainnet.pontem.network',
+  APTOS_RPC: 'https://fullnode.mainnet.aptoslabs.com', // aptos-mainnet.pontem.network no longer resolves (2026-11)
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   NEAR_RPC: "https://free.rpc.fastnear.com,https://rpc.mainnet.near.org", // near.lava.build answers 410 (discontinued)
   STARKNET_RPC: "https://api.zan.top/public/starknet-mainnet",

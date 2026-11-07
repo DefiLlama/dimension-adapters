@@ -24,6 +24,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,

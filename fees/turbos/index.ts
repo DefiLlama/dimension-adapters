@@ -32,6 +32,7 @@ const methodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SUI],
   start: '2023-05-01',

@@ -117,13 +117,11 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true, // runAdapter now starts each window at the previous window's end block + 1, so hourly slots no longer share boundary blocks on MegaETH
   fetch,
   chains: [CHAIN.MEGAETH],
   start: "2026-04-15",
   methodology,
-  // No pullHourly: each hourly slot resolves its timestamps to blocks
-  // independently, and on MegaETH (~100k blocks/day) the boundary blocks
-  // overlap between slots, double-counting trades.
 };
 
 export default adapter;

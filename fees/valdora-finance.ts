@@ -109,7 +109,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true disabled: daily_rewards_and_fees is a cumulative daily snapshot, summing 24 hourly readings inflates the result ~24x
+  pullHourly: false, // daily cumulative snapshot, hourly would sum 24x
   methodology,
   breakdownMethodology,
   adapter: {
