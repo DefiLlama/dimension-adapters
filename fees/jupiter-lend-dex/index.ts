@@ -2,22 +2,21 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
 
-// Jupiter's stats API. Onchain method, using the decoded calls of program jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd
-// (jupiter_lend_solana in Dune):
-// - Fee per swap = leg amount x fee / 1e6: amount_in on dex_call_swap_in, amount_out on dex_call_swap_out, in that
-//   leg's token. The pool's tokens come from the swap calls (dex_call_init_dex only for pools that have not traded).
-// - The fee and revenue_cut in force at the swap come from dex_call_init_dex and every later
-//   dex_call_update_fee_and_revenue_cut, joined on block time.
-// - Protocol cut = fee x revenue_cut / 1e6; the LPs keep the rest. Jupiter keeps part of the protocol cut.
+// Jupiter's stats API (subproduct "lend_dex"). Onchain alternative: Dune jupiter_lend_solana dex_call_swap_in/swap_out
+// (program jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd), fee = leg amount x fee / 1e6 with the fee and revenue_cut in force
+// from dex_call_init_dex / dex_call_update_fee_and_revenue_cut; protocol cut = fee x revenue_cut / 1e6, split with Fluid.
+// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
+const TREASURY_SHARE = 0.5;
+
+const LABELS = {
+  fees: "Jupiter Lend Dex Swap Fees",
+  revenue: "Jupiter Lend Dex Swap Fees to Protocol",
+  supplySide: "Jupiter Lend Dex Swap Fees to LPs and Fluid",
+};
+
 const fetch = async (options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
-    lend_dex: {
-      fees: "Jupiter Lend Dex Swap Fees",
-      revenue: "Jupiter Lend Dex Swap Fees to Protocol",
-      supplySide: "Jupiter Lend Dex Swap Fees to LPs and Fluid",
-    },
-  });
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1) };
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { lend_dex: LABELS });
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE) };
 };
 
 const adapter: SimpleAdapter = {
@@ -26,23 +25,23 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SOLANA],
   start: '2026-06-22',
   methodology: {
-    Fees: "Total swap fees on Jupiter Lend DEX pools, from Jupiter's stats API.",
-    SupplySideRevenue: "Swap fees not kept by Jupiter: the LP share and Fluid's share of the protocol cut.",
-    Revenue: "Jupiter's share of the protocol cut, from Jupiter's stats API.",
-    ProtocolRevenue: "Jupiter's share of the protocol cut, from Jupiter's stats API.",
+    Fees: "Swap fees paid by traders on Jupiter Lend DEX pools.",
+    Revenue: "Jupiter's share of the protocol cut of swap fees.",
+    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    SupplySideRevenue: "Swap fees kept by liquidity providers, and Fluid's share of the protocol cut.",
   },
   breakdownMethodology: {
     Fees: {
-      "Jupiter Lend Dex Swap Fees": "Total swap fees on Jupiter Lend DEX pools.",
+      [LABELS.fees]: "Swap fees paid by traders on Jupiter Lend DEX pools.",
     },
     Revenue: {
-      "Jupiter Lend Dex Swap Fees to Protocol": "Jupiter's share of the protocol cut.",
+      [LABELS.revenue]: "Jupiter's share of the protocol cut of swap fees.",
     },
     ProtocolRevenue: {
-      "Jupiter Lend Dex Swap Fees to Protocol": "Jupiter's share of the protocol cut.",
+      [LABELS.revenue]: "Half of Jupiter's share, kept by the treasury.",
     },
     SupplySideRevenue: {
-      "Jupiter Lend Dex Swap Fees to LPs and Fluid": "Swap fees not kept by Jupiter: the LP share and Fluid's share of the protocol cut.",
+      [LABELS.supplySide]: "Swap fees kept by liquidity providers, and Fluid's share of the protocol cut.",
     },
   },
 };
