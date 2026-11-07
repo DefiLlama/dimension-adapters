@@ -40,7 +40,10 @@ const onchainData: Record<string, Record<string, string>> = {
 }
 
 const NASDAQ_API_URL = "https://api.nasdaq.com/api/quote";
-const STELLAR_API_URL = "https://api.stellar.expert/explorer/public/asset"
+//Stellar Expert started answering 402 Payment Required on every path in November 2026. Horizon serves the
+//same supply without a key, split into trustline balances by authorization state, claimable balances,
+//liquidity pools and Soroban contracts. Its amounts are decimal strings, not stroops.
+const STELLAR_HORIZON_ASSETS_URL = "https://horizon.stellar.org/assets"
 //Pyth's Hermes endpoint started requiring an API key on 2026-08-26 and now answers 401, which took
 //this adapter down with it. The rate it served is the US 1 month T-bill yield, which the Treasury
 //publishes itself without a key, in percent, in the daily yield curve.
@@ -158,8 +161,12 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
             const fundDetail = offChainData.get(onchainData.stellar[fundAddress]);
             if (!fundDetail) continue;
 
-            const tokenData = await httpGet(`${STELLAR_API_URL}/${fundAddress}`, { headers });
-            const aum = (fundDetail.nav || 0) * tokenData.supply / 1e7;
+            const [assetCode, assetIssuer] = fundAddress.split("-");
+            const assetData = (await httpGet(`${STELLAR_HORIZON_ASSETS_URL}?asset_code=${assetCode}&asset_issuer=${assetIssuer}`, { headers }))._embedded.records[0];
+            if (!assetData) throw new Error(`Horizon has no asset ${fundAddress}`);
+            const supply = Object.values(assetData.balances).reduce((sum: number, balance) => sum + Number(balance), 0)
+                + Number(assetData.claimable_balances_amount) + Number(assetData.liquidity_pools_amount) + Number(assetData.contracts_amount);
+            const aum = (fundDetail.nav || 0) * supply;
             calculateFeeAndRevenue(aum, fundDetail);
         }
     }
