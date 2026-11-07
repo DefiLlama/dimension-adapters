@@ -139,7 +139,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(1),
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE),
     dailySupplySideRevenue,
