@@ -4,6 +4,8 @@ import { queryDuneSql } from "../../helpers/dune";
 import { JUPITER_METRICS } from "../../fees/jupiter";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
+const ARCADE_FEES = 'Jupiter Arcade Fees';
+
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     // From 2026-10-28 16:47 UTC the program fills with fill_buy_order2 / fill_sell_order2, whose Anchor
@@ -50,10 +52,24 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         throw new Error('Jupiter prediction dune data not found');
 
     const volume = queryResult[0].total_volume;
-    const fees = queryResult[0].total_fees;
+
+    // Arcade runs on the Play program 2DeGBCAiEJd1MgMuPGDKh7svBikZa9izbnTn5p7ESzPt: it keeps 1% of winnings and sweeps it to
+    // the treasury token account in its PlayConfig, which only receives swept fees.
+    const arcadeQuery = `
+        select coalesce(sum(amount), 0) / 1e6 as arcade_fees
+        from tokens_solana.transfers
+        where block_date >= date(from_unixtime(${options.fromTimestamp}))
+            and block_time >= from_unixtime(${options.fromTimestamp})
+            and block_time < from_unixtime(${options.toTimestamp})
+            and to_token_account = 'ABMPgzzP8dLrzLVc8PZb2MTLadQCmTTsxNVsQHKrJx6r'
+            and token_mint_address = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+    `;
+    const arcadeFees = Number((await queryDuneSql(options, arcadeQuery))[0]?.arcade_fees ?? 0);
+    const predictionFees = queryResult[0].total_fees;
+    const fees = predictionFees + arcadeFees;
 
     // Jupiter's share of the fees is not visible onchain: from 2026-01-01 it comes from Jupiter's stats API, before that none is counted.
-    // The API's prediction total also includes Arcade.
+    // The API's prediction total includes Arcade, which is counted in fees above.
     const revenue = useStatsApi
         ? await (await getJupiterStatsRevenue(options, { prediction: JUPITER_METRICS.JupPredictionFeesToJupiter })).dailyRevenue.getUSDValue()
         : 0;
@@ -64,7 +80,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailySupplySideRevenue = options.createBalances();
 
     dailyVolume.addUSDValue(volume);
-    dailyFees.addUSDValue(fees, JUPITER_METRICS.JupPredictionFees);
+    dailyFees.addUSDValue(predictionFees, JUPITER_METRICS.JupPredictionFees);
+    dailyFees.addUSDValue(arcadeFees, ARCADE_FEES);
     dailyRevenue.addUSDValue(revenue, JUPITER_METRICS.JupPredictionFeesToJupiter);
     dailySupplySideRevenue.addUSDValue(fees - revenue, JUPITER_METRICS.JupPredictionFeesToVenues);
 
@@ -79,7 +96,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
 const methodology = {
     Volume: 'USDC value of prediction market buys and sells through Jupiter.',
-    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter.',
+    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter, plus the 1% Arcade fee on winnings.',
     Revenue: "Jupiter's share of prediction fees, counted from 2026-01-01.",
     ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
@@ -88,6 +105,7 @@ const methodology = {
 const breakdownMethodology = {
     Fees: {
       [JUPITER_METRICS.JupPredictionFees]: 'Trading fees paid by users on prediction market buys and sells.',
+      [ARCADE_FEES]: 'The 1% Arcade fee on winnings, swept to the Arcade treasury.',
     },
     Revenue: {
       [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Jupiter's share of prediction fees, since 2026-01-01.",
