@@ -46,8 +46,16 @@ const PRICE_IMPACT = 'Price Impact'
 const REFERRAL_REBATES = 'Referral Rebates'
 
 // Revenue is the fee receiver's share read from each event (feeReceiverAmount): 37% of fees, with position fees
-// counted after referral rebates. GMX splits it into 10% of fees for the treasury and 27% for GMX stakers:
+// counted after referral rebates (50% on MegaETH, see positionFeeReceiverFactor). GMX splits it into 10% of fees for the treasury and 27% for GMX token holders:
 // https://docs.gmx.io/docs/tokenomics/gmx-token and https://docs.gmx.io/docs/providing-liquidity (63% LPs / 37% protocol)
+// The 27% is holders revenue when the fees are earned (https://docs.gmx.io/docs/tokenomics/rewards):
+// - until 2026-03-04 it was distributed to GMX stakers, as ETH and AVAX until 2024-10-30 and then as GMX bought with it (FeeHandler BUYBACK_GMX_FACTOR 0.7297)
+// - Snapshot 0xfe665ac5665dd9238049be01de34ee047f8a1513e6b0e0fa25945248589d97f4 (2026-02-24) moved the rewards to the treasury until GMX trades above $90.
+//   BUYBACK_GMX_FACTOR is 0 since block 440628485 (2026-03-11, tx 0xb8e4d42d487e8d61ceff3e7b3f145199b8ed71a3ebb0c3a32743ec4cd37911a6) and the fee receiver paid 27/37 of its WETH
+//   to Safe 0x729d09932cc56934dbe4e3cb2ab8bbf657de1609, which buys GMX on a CEX and holds it in Safe 0x6e65fddfe4cecb227f22be98f05c031a21255f93 (treasuryGmxBalance of https://arbitrum.gmxapi.io/v1/staking/power)
+// - Avalanche fees take the same route through Arbitrum, e.g. the 2026-10-24 payout of the USDC bridged on 2026-09-24
+// - not traced: FEE_RECEIVER moved to Safe 0x028220b51343e065d3884780f9a5bd853278365e on 2026-10-29 (Arbitrum block 519269299) with no payout seen by 2026-11-07, and MegaETH fees have never been claimed
+// A later release of the held GMX to stakers distributes these buybacks and must not be counted again
 const PROTOCOL_OF_REVENUE = 10 / 37
 const HOLDERS_OF_REVENUE = 27 / 37
 
@@ -155,9 +163,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 const methodology = {
   Fees: "Fees from opening/closing perpetual positions, borrowing fees, swap fees, liquidation fees, and positive price impact distributed from the impact pool, decoded from EventEmitter logs",
   UserFees: "Fees from opening/closing perpetual positions, swap fees, and liquidation fees paid by traders",
-  Revenue: "37% of position fees (after referral rebates) and of borrowing, liquidation and swap fees, split between protocol treasury (10%) and GMX token holders (27%); distributed price impact goes to liquidity providers instead",
+  Revenue: "37% of position fees (after referral rebates; 50% on MegaETH) and of borrowing, liquidation and swap fees, split between protocol treasury (10%) and GMX token holders (27%); distributed price impact goes to liquidity providers instead",
   ProtocolRevenue: "10% of position fees (after referral rebates) and of borrowing, liquidation and swap fees goes to the protocol treasury",
-  HoldersRevenue: "27% of position fees (after referral rebates) and of borrowing, liquidation and swap fees goes to GMX token stakers",
+  HoldersRevenue: "27% of position fees (after referral rebates) and of borrowing, liquidation and swap fees went to GMX stakers until 4 March 2026; since then it buys GMX on the open market, held in the GMX treasury until GMX trades above $90",
   SupplySideRevenue: "63% of position fees (after referral rebates) and of borrowing, liquidation and swap fees, plus all distributed price impact, goes to GM token liquidity providers; referral discounts and affiliate rewards go to traders and affiliates",
 }
 
@@ -179,9 +187,9 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: "10% of liquidation fees to protocol treasury",
   },
   HoldersRevenue: {
-    [METRIC.MARGIN_FEES]: "27% of margin fees (after referral rebates) and borrowing fees distributed to GMX token stakers",
-    [METRIC.SWAP_FEES]: "27% of swap fees distributed to GMX token stakers",
-    [METRIC.LIQUIDATION_FEES]: "27% of liquidation fees distributed to GMX token stakers",
+    [METRIC.MARGIN_FEES]: "27% of margin fees (after referral rebates) and borrowing fees went to GMX stakers until 4 March 2026; since then it buys GMX held in the GMX treasury",
+    [METRIC.SWAP_FEES]: "27% of swap fees went to GMX stakers until 4 March 2026; since then it buys GMX held in the GMX treasury",
+    [METRIC.LIQUIDATION_FEES]: "27% of liquidation fees went to GMX stakers until 4 March 2026; since then it buys GMX held in the GMX treasury",
   },
   SupplySideRevenue: {
     [METRIC.MARGIN_FEES]: "63% of margin fees (after referral rebates) and borrowing fees distributed to GM token liquidity providers",
