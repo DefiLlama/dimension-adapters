@@ -1,5 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter, FetchResultFees } from "../adapters/types";
+import { toncenterPost } from "./ton";
 
 interface TonLstExportConfigs {
   poolAddress: string;
@@ -42,8 +43,22 @@ interface PoolSnapshot {
   governanceFeeFraction: number; // 0..1, e.g. 0.16 for Tonstakers
 }
 
+// Toncenter serves past state at any seqno except ~1-2 days old ones, where most of its liteservers
+// fail with "cannot load state ... gc'd" and ~1 call in 5 succeeds (2026-11-07). The sdk retries 4
+// times, so retry that error a few more rounds. Match the prefix, the sdk cuts the message short.
+const STATE_GC_ROUNDS = 6;
+
+async function runGetMethodAtSeqno(payload: any) {
+  for (let round = 1; ; round++) {
+    try {
+      return await toncenterPost({ path: 'runGetMethod', body: payload, version: 2 });
+    } catch (e: any) {
+      if (round >= STATE_GC_ROUNDS || !String(e?.message).includes('cannot load state')) throw e;
+    }
+  }
+}
+
 async function fetchPoolSnapshot(blockNumber: number, poolAddress: string): Promise<PoolSnapshot> {
-  const url = 'https://ton-mainnet.core.chainstack.com/f2a2411bce1e54a2658f2710cd7969c3/api/v2/runGetMethod';
   const payload = {
     address: poolAddress,
     method: "get_pool_full_data",
@@ -56,12 +71,7 @@ async function fetchPoolSnapshot(blockNumber: number, poolAddress: string): Prom
     seqno: blockNumber,
   };
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
+  const data = await runGetMethodAtSeqno(payload);
   const stack = data.result.stack;
   const layout = STACK_LAYOUTS[stack.length];
   if (!layout) {
