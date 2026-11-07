@@ -1,8 +1,12 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from "../../helpers/dune";
+import { queryDuneResult, queryDuneSql } from "../../helpers/dune";
 import { JUPITER_METRICS } from "../../fees/jupiter";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
+
+// Saved Dune query running helpers/queries/jupiter-prediction.sql: the same fills per day since 2025-10-21, so refills
+// skip the daily query below. Rerun it on Dune to extend the history; days not in its result use the daily query.
+const DUNE_HISTORY_QUERY_ID = '9088797';
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
@@ -44,7 +48,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const useStatsApi = options.startOfDay >= JUPITER_STATS_API_START_TS;
     if (useStatsApi) await assertJupiterStatsPublished(options);
-    const queryResult = await queryDuneSql(options, query);
+    const cached = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`);
+    const queryResult = cached.length ? cached : await queryDuneSql(options, query);
 
     if (!queryResult[0] || !queryResult[0].total_volume || !queryResult[0].total_fees)
         throw new Error('Jupiter prediction dune data not found');
