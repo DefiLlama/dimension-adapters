@@ -82,7 +82,6 @@ export const JUPITER_METRICS = {
   LimitOrderV2Fees: 'Limit Orders v2 Fees',
   AggSwapFeesToIntergators: 'Aggregator Swap Fees To Integrators',
   AggSwapFeesToJupiter: 'Aggregator Swap Fees To Jupiter',
-  LimitOrderFees: 'Limit Order Fees',
   JupiterZFees: 'JupiterZ Fees',
 
   // JupLend
@@ -124,7 +123,6 @@ export const JUPITER_METRICS = {
 
   // DCA
   JupDCAFees: 'Jup DCA Trading Fees',
-  JupTriggerV2Fees: 'Trigger V2 Fees',
 
   // Studio
   JupStudioFees: 'Jup Studio Trading Fees',

@@ -39,6 +39,8 @@ type Labels = string | { fees: string, revenue: string, supplySide: string }
 // Gross and net per subproduct for the day. A subproduct with no row on a published day had no revenue.
 // A plain label is used for fees, revenue and supply side; an object gives each its own destination label.
 export async function getJupiterStatsRevenue(options: FetchOptions, labels: Record<string, Labels>) {
+  // an undefined label would silently skip the subproduct and store a zero day
+  for (const [subproduct, label] of Object.entries(labels)) if (!label) throw new Error(`Jupiter stats API: no label for ${subproduct}`)
   const rows = await getDay(options.dateString)
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
