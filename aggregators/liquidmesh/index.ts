@@ -32,7 +32,7 @@ const chainsMap: Record<string, string> = {
 const ROUTER = '0x3d90f66b534dd8482b181e24655a9e8265316be9';
 const ORDER_RECORD_TOPIC = '0xe5b9f85c5caca875a8b78e5b2d88de86d7793cbff3d81ea4ecbec4c2b9ad7beb';
 const RAW_LOG_CHAINS = ['arbitrum', 'polygon', 'robinhood', 'monad', 'plasma'];
-const NATIVE = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+const NATIVE = ADDRESSES.GAS_TOKEN_2;
 
 const prefetch = async (options: FetchOptions): Promise<any> => {
 	// must exclude all blacklisted tokens
