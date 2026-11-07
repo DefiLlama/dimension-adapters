@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { ChainApi } from "@defillama/sdk";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { sleep } from "../utils/utils";
 
 const FETCH_RFQ_CUTOFF = 1766361600; //2025-12-22 00:00:00 UTC
 // 0x Settler deployer/registry - see: https://github.com/0xProject/0x-settler 
@@ -67,6 +68,18 @@ const fetchRFQ = async ({ getLogs, chain, createBalances }: FetchOptions): Promi
   return { dailyVolume }
 }
 
+// A feature can revert while paused, so a read may miss one feature. A read with nothing for all three features means
+// the RPC failed: permitFailure turns that into nulls, and the same block answers on a retry. A missing read would store
+// a low day, so it throws once the retries are used up.
+const readRegistry = async (api: ChainApi, abi: string, chain: string): Promise<string[]> => {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await sleep(2000);
+    const read = await api.multiCall({ target: SETTLER_DEPLOYER, abi, calls: [2, 3, 4], permitFailure: true });
+    if (read.some(Boolean)) return read;
+  }
+  throw new Error(`0x-rfq: Settler registry read failed on ${chain}`);
+};
+
 const prefetch = async (options: FetchOptions) => {
   if (options.startTimestamp < FETCH_RFQ_CUTOFF) return [];
 
@@ -78,15 +91,11 @@ const prefetch = async (options: FetchOptions) => {
       const endApi = new ChainApi({ chain, timestamp: options.toTimestamp });
       const ownerOf = "function ownerOf(uint256 tokenId) view returns (address)";
       const prev = "function prev(uint128 featureId) view returns (address)";
-      const calls = [2, 3, 4];
       const results = await Promise.all([
-        startApi.multiCall({ target: SETTLER_DEPLOYER, abi: ownerOf, calls, permitFailure: true }),
-        startApi.multiCall({ target: SETTLER_DEPLOYER, abi: prev, calls, permitFailure: true }),
-        endApi.multiCall({ target: SETTLER_DEPLOYER, abi: ownerOf, calls, permitFailure: true }),
+        readRegistry(startApi, ownerOf, chain),
+        readRegistry(startApi, prev, chain),
+        readRegistry(endApi, ownerOf, chain),
       ]);
-      // A feature can revert while paused, so a read may miss one feature. A read with nothing for all three features
-      // means the RPC failed, and a missing read would store a low day, so any such read throws.
-      if (results.some((read) => !read.some(Boolean))) throw new Error(`0x-rfq: Settler registry read failed on ${chain}`);
       const settlers = [...new Set(results.flat()
         .filter(Boolean)
         .map((settler: string) => settler.toLowerCase())
