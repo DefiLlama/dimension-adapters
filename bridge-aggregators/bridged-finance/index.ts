@@ -32,7 +32,7 @@ const adapter: SimpleAdapter = {
     CHAIN.SCROLL,
     CHAIN.ZKSYNC,
   ],
-  start: "2026-10-17",
+  start: "2026-01-01",
   doublecounted: true,
   methodology: {
     Volume:
