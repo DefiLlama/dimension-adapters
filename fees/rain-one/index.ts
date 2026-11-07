@@ -11,8 +11,8 @@ const poolTokenSetEvent =
   "event PoolTokenSet(address indexed poolAddress,address indexed tokenAddress,uint256 tokenDecimals,string tokenName,string tokenSymbol)";
 
 const rainFactories: { address: string; fromBlock: number; toBlock?: number }[] = [
-  // retired factory
-  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817, toBlock: 446061342 },
+  // factory 0xccCB... was NOT retired; remove toBlock cap so it picks up pools after block 446061342
+  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817 },
   // active factory
   { address: "0xA8640B62D755e42C9ed6A86d0fc65CE09e31F264", fromBlock: 446257605 },
 ];
