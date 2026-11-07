@@ -1,8 +1,11 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../../fees/jupiter";
+import { JUPITER_METRICS } from "../../fees/jupiter";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
+
+// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
+const TREASURY_SHARE = 0.5;
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
@@ -42,7 +45,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         from trade_data
     `;
 
-    if (options.startOfDay >= JUPITER_STATS_API_START_TS) await assertJupiterStatsPublished(options);
+    const useStatsApi = options.startOfDay >= JUPITER_STATS_API_START_TS;
+    if (useStatsApi) await assertJupiterStatsPublished(options);
     const queryResult = await queryDuneSql(options, query);
 
     if (!queryResult[0] || !queryResult[0].total_volume || !queryResult[0].total_fees)
@@ -50,66 +54,51 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     const volume = queryResult[0].total_volume;
     const fees = queryResult[0].total_fees;
-    
+
+    // Jupiter's share of the fees is not visible onchain: from 2026-01-01 it comes from Jupiter's stats API, before that none is counted.
+    const revenue = useStatsApi
+        ? await (await getJupiterStatsRevenue(options, { prediction: JUPITER_METRICS.JupPredictionFeesToJupiter })).dailyRevenue.getUSDValue()
+        : 0;
+
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
+    const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
-  
+
     dailyVolume.addUSDValue(volume);
     dailyFees.addUSDValue(fees, JUPITER_METRICS.JupPredictionFees);
-    dailySupplySideRevenue.addUSDValue(fees, JUPITER_METRICS.JupPredictionFeesToKalshi);
-
-    // From 2026-01-01, fees and revenue from Jupiter's stats API, including Arcade.
-    if (options.startOfDay >= JUPITER_STATS_API_START_TS) {
-        const api = await getJupiterStatsRevenue(options, {
-            prediction: {
-                fees: JUPITER_METRICS.JupPredictionFees,
-                revenue: JUPITER_METRICS.JupPredictionFeesToJupiter,
-                supplySide: JUPITER_METRICS.JupPredictionFeesToVenues,
-            },
-        });
-        return {
-            dailyVolume,
-            dailyFees: api.dailyFees,
-            dailyRevenue: api.dailyRevenue,
-            dailyProtocolRevenue: api.dailyRevenue.clone(1),
-            dailyHoldersRevenue: 0,
-            dailySupplySideRevenue: api.dailySupplySideRevenue,
-        }
-    }
+    dailyRevenue.addUSDValue(revenue, JUPITER_METRICS.JupPredictionFeesToJupiter);
+    dailySupplySideRevenue.addUSDValue(fees - revenue, JUPITER_METRICS.JupPredictionFeesToVenues);
 
     return {
         dailyVolume,
         dailyFees,
-        dailyRevenue: 0,
-        dailyHoldersRevenue: 0,
-        dailyProtocolRevenue: 0,
+        dailyRevenue,
+        dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE),
         dailySupplySideRevenue,
     }
 }
 
 const methodology = {
-    Volume: 'Volume of all trades through jupiter interface',
-    Fees: 'Fees paid by users on prediction trades. From 2026-01-01, prediction and Arcade fees from Jupiter\'s stats API.',
-    Revenue: 'Before 2026-01-01, none is counted. From 2026-01-01, the fees Jupiter keeps, from Jupiter\'s stats API.',
-    SupplySideRevenue: 'Before 2026-01-01, all fees to Kalshi. From 2026-01-01, the venue\'s share of fees (Kalshi or Polymarket).',
-    HoldersRevenue: 'No holders revenue',
-    ProtocolRevenue: 'From 2026-01-01, all revenue goes to Jupiter.',
+    Volume: 'USDC value of prediction market buys and sells through Jupiter.',
+    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter.',
+    Revenue: "Jupiter's share of prediction fees, from Jupiter's stats API since 2026-01-01. None is counted before.",
+    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
 }
 
 const breakdownMethodology = {
     Fees: {
-      [JUPITER_METRICS.JupPredictionFees]: 'Fees paid by users on prediction trades, and from 2026-01-01 on Arcade.',
+      [JUPITER_METRICS.JupPredictionFees]: 'Trading fees paid by users on prediction market buys and sells.',
     },
     Revenue: {
-      [JUPITER_METRICS.JupPredictionFeesToJupiter]: 'From 2026-01-01, prediction and Arcade fees kept by Jupiter.',
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Jupiter's share of prediction fees, since 2026-01-01.",
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupPredictionFeesToJupiter]: 'From 2026-01-01, prediction and Arcade fees kept by Jupiter.',
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Half of Jupiter's share of prediction fees, kept by the treasury.",
     },
     SupplySideRevenue: {
-      [JUPITER_METRICS.JupPredictionFeesToKalshi]: 'Before 2026-01-01, all fees go to Kalshi.',
-      [JUPITER_METRICS.JupPredictionFeesToVenues]: 'From 2026-01-01, the venue\'s share of prediction fees.',
+      [JUPITER_METRICS.JupPredictionFeesToVenues]: "Prediction fees paid to the market venues after Jupiter's share.",
     },
 }
 
@@ -121,7 +110,7 @@ const adapter: SimpleAdapter = {
     methodology,
     isExpensiveAdapter: true,
     doublecounted: true,
-    allowNegativeValue: true, // the venue's share is measured from its settlements, which can fall on a different day from the fees
+    allowNegativeValue: true, // Jupiter's share in the stats API follows venue settlements, so a day's share can exceed that day's fees
     dependencies: [Dependencies.DUNE],
     breakdownMethodology
 }
