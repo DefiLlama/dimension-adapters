@@ -30,8 +30,9 @@ const adapter: SimpleAdapter = {
     CHAIN.SOLANA,
     CHAIN.LINEA,
     CHAIN.SCROLL,
+    CHAIN.ZKSYNC,
   ],
-  start: "2026-01-01",
+  start: "2026-10-17",
   doublecounted: true,
   methodology: {
     Volume:
