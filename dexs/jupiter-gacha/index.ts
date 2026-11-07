@@ -18,8 +18,8 @@ const USDC_MINT = ADDRESSES.solana.USDC;
 // Listed Jupiter Gacha pack prices; future/non-standard prices remain visible
 // under Other Gacha Pack Sales. https://jup.ag/gacha
 const GACHA_TIERS = new Set([25, 50, 100, 250, 1000, 2500]);
-const REVENUE_LABEL = "Gacha Pack Sales To Jupiter";
-const SUPPLY_SIDE_LABEL = "Gacha Pack Sales To Collector Crypt";
+const REVENUE_LABEL = "Gacha Fees To Jupiter";
+const SUPPLY_SIDE_LABEL = "Gacha Fees To Collector Crypt";
 // Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
 const TREASURY_SHARE = 0.5;
 
@@ -150,9 +150,9 @@ const methodology = {
   Volume: "USDC spent on Jupiter Gacha packs, on Collector Crypt and Phygitals.",
   Fees: "Pack sales minus the USDC paid to users who sell their cards back.",
   UserFees: "Pack sales minus the USDC paid to users who sell their cards back.",
-  Revenue: "Jupiter's share of pack sales after buybacks, negative on days when buybacks exceed sales.",
+  Revenue: "Jupiter's share of gacha fees, negative on days when buybacks exceed sales.",
   ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
-  SupplySideRevenue: "The rest of pack sales after buybacks, kept by Collector Crypt.",
+  SupplySideRevenue: "Gacha fees not kept by Jupiter, kept by Collector Crypt.",
 };
 
 const financialBreakdown = {
@@ -177,9 +177,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: financialBreakdown,
     UserFees: financialBreakdown,
-    Revenue: { [REVENUE_LABEL]: "Jupiter's share of pack sales after buybacks." },
-    ProtocolRevenue: { [REVENUE_LABEL]: "Half of Jupiter's share of pack sales, kept by the treasury." },
-    SupplySideRevenue: { [SUPPLY_SIDE_LABEL]: "Pack sales after buybacks and Jupiter's share, kept by Collector Crypt." },
+    Revenue: { [REVENUE_LABEL]: "Jupiter's share of gacha fees (pack sales minus buybacks)." },
+    ProtocolRevenue: { [REVENUE_LABEL]: "Half of Jupiter's share of gacha fees, kept by the treasury." },
+    SupplySideRevenue: { [SUPPLY_SIDE_LABEL]: "Gacha fees not kept by Jupiter, kept by Collector Crypt." },
   },
   allowNegativeValue: true, // buyback payouts can exceed pack sales on a day
   doublecounted: true, // Jupiter Gacha activity overlaps with Collector Crypt
