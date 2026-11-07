@@ -16,7 +16,8 @@ import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/j
 const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
 const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Litterbox
-// Share of each Jupiter product's revenue kept by the treasury (protocol revenue): all of it before 2025-02-17, half since,
+// Share of revenue kept by the treasury (protocol revenue) on the products that fund the Litterbox (Aggregator, JupiterZ,
+// Limit, DCA, Perps): all of it before 2025-02-17, half since,
 // when the other half started buying back JUP (counted once, on this listing, as holders revenue).
 export const jupTreasuryShare = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 1;
 
@@ -192,7 +193,7 @@ const fetch = async (options: FetchOptions) =>
 const methodology = {
   Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
   Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
-  HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of revenue across all Jupiter products and reported once, on this listing.',
+  HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue and reported once, on this listing.',
   ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted here as holders revenue.',
 }
 
@@ -207,7 +208,7 @@ const breakdownMethodology = {
     [JUPITER_METRICS.AggSwapFees]: "Half of platform fees on swaps, kept by the treasury.",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of revenue across all Jupiter products.",
+    [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue.",
   }
 }
 

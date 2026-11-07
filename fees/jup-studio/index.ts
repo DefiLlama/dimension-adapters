@@ -3,7 +3,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
-import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
 
 // Studio's Meteora DBC configs, selected by fee claimer (fixed at config creation) like the other DBC launchpads. Studio
 // creates one config per token, in the pool's tx, and serves the token's metadata at static-create.jup.ag/metadata/<mint>.json.
@@ -171,7 +171,7 @@ const fetch = async (options: FetchOptions) => {
         const revenue = options.createBalances();
         revenue.add(row.quote_mint, Number(row.total_trading_fees) - Number(row.total_creator_fees) + Number(row.damm_v2_fees))
         dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyProtocolRevenue.add(revenue.clone(jupTreasuryShare(options.startOfDay)), JUPITER_METRICS.JupStudioFeesToJupiter);
+        dailyProtocolRevenue.add(revenue.clone(1), JUPITER_METRICS.JupStudioFeesToJupiter);
     });
 
     return {
@@ -195,7 +195,7 @@ const adapter: SimpleAdapter = {
         Fees: "Trading fees paid by users on Jup Studio bonding curves, and the fees Jupiter's LP position earns in graduated Meteora DAMM v2 pools, counted when claimed.",
         Revenue: "Jup Studio's share of bonding-curve trading fees (after the token creator's share) and its fees from migrated DAMM v2 pools.",
         SupplySideRevenue: "Fees paid to referrals, to token creators (their configured share of the trading fee) and to Meteora (its protocol fee).",
-        ProtocolRevenue: "Half of Jup Studio's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+        ProtocolRevenue: "All of Jup Studio's revenue, kept by Jupiter. Not used for JUP buybacks.",
     },
     breakdownMethodology: {
         Fees: {
@@ -205,7 +205,7 @@ const adapter: SimpleAdapter = {
             [JUPITER_METRICS.JupStudioFeesToJupiter]: "Jup Studio's share of trading fees, after the creator share, plus DAMM v2 position fees it claims.",
         },
         ProtocolRevenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: "Half of Jup Studio's revenue, kept by the treasury.",
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: "All of Jup Studio's revenue, kept by Jupiter.",
         },
         SupplySideRevenue: {
             [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',

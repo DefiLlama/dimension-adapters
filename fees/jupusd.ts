@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { jupTreasuryShare } from "./jupiter";
 
 // Jupiter's stats API. Jupiter's share of JupUSD reserve yield is paid in USDtb to
 // DKu1jCcDj6cBJ7eVFgXg9LodP4MhGzHAeCVu25j5Bibp from B3q4P4XSmycvoHLaiEjchsGDafFPhKokvHvNRuW29N1y.
@@ -19,7 +18,7 @@ const fetch = async (options: FetchOptions) => {
       supplySide: LABELS.ReserveYieldToOthers,
     },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -31,13 +30,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Yield earned on JupUSD reserves and fees paid to mint and redeem JupUSD.',
     Revenue: 'The share of JupUSD reserve yield kept by Jupiter.',
-    ProtocolRevenue: "Half of Jupiter's share of JupUSD reserve yield, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of Jupiter's share of JupUSD reserve yield, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: 'Reserve yield not kept by Jupiter, and mint and redeem fees, which stay in the reserves.',
   },
   breakdownMethodology: {
     Fees: { [LABELS.ReserveYield]: 'Yield earned on JupUSD reserves and fees paid to mint and redeem JupUSD.' },
     Revenue: { [LABELS.ReserveYieldToJupiter]: 'The share of JupUSD reserve yield kept by Jupiter.' },
-    ProtocolRevenue: { [LABELS.ReserveYieldToJupiter]: "Half of Jupiter's share of JupUSD reserve yield, kept by the treasury." },
+    ProtocolRevenue: { [LABELS.ReserveYieldToJupiter]: "All of Jupiter's share of JupUSD reserve yield, kept by Jupiter." },
     SupplySideRevenue: { [LABELS.ReserveYieldToOthers]: 'Reserve yield not kept by Jupiter, and mint and redeem fees, which stay in the reserves.' },
   },
 }

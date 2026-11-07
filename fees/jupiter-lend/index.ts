@@ -1,6 +1,6 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
@@ -71,9 +71,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // share of interest to Fluid
     dailySupplySideRevenue.addUSDValue(drFluidShare, metrics.InterestToFluid);
 
-    // share of interest to Jupiter, half of it to the treasury
+    // share of interest to Jupiter, all kept by Jupiter
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-    dailyProtocolRevenue.addUSDValue(dr * jupTreasuryShare(options.startOfDay), metrics.InterestToJupiter);
+    dailyProtocolRevenue.addUSDValue(dr, metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market
@@ -98,7 +98,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
     Revenue: "Jupiter's share of borrow interest, half of the reserve cut (the other half goes to Fluid).",
-    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
   },
   breakdownMethodology: {
@@ -117,8 +117,8 @@ const adapter: SimpleAdapter = {
       [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) market.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.InterestToJupiter]: "Half of Jupiter's interest cut, kept by the treasury.",
-      [ETHENA_METRICS.InterestToJupiter]: "Half of Jupiter's interest cut from the isolated Ethena (USDe) market, kept by the treasury.",
+      [JUPITER_METRICS.InterestToJupiter]: "All of Jupiter's interest cut, kept by Jupiter.",
+      [ETHENA_METRICS.InterestToJupiter]: "All of Jupiter's interest cut from the isolated Ethena (USDe) market, kept by Jupiter.",
     },
   },
   isExpensiveAdapter: true,

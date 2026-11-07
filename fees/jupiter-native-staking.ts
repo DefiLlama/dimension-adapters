@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { jupTreasuryShare } from "./jupiter";
 
 // Jupiter's stats API. Vote accounts CatzoSMUkTRidT5DwBxAC2pEtnwMBTpkCepHkFgZDiqb and E5Y8uSQ8SWHH7GynZqMGirckAybkWXH5QcxtZ6tLezbn;
 // priority fees land in FuRJUnsrqrp9yqnvn8wpKSMv8LbgpJME6g8R73T2Cz1C. Native stake only: JupSOL's stake is on the Jupiter
@@ -10,7 +9,7 @@ const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
     native_staking: { fees: "Native Staking Fees", revenue: "Native Staking Fees To Jupiter", supplySide: "Native Staking Fees To Stakers And Partners" },
   })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailySupplySideRevenue }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1), dailySupplySideRevenue }
 }
 
 const adapter: SimpleAdapter = {
@@ -21,13 +20,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Fees earned by Jupiter's validators on native stake: inflation commission, priority fees and MEV passed to stakers. Stakers' inflation rewards are not counted.",
     Revenue: "Commission and priority fees kept by Jupiter.",
-    ProtocolRevenue: "Half of the commission and priority fees Jupiter keeps, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "The commission and priority fees Jupiter keeps. Not used for JUP buybacks.",
     SupplySideRevenue: "MEV passed to stakers, and fees and commission paid to partners.",
   },
   breakdownMethodology: {
     Fees: { "Native Staking Fees": "Inflation commission and priority fees on native stake, and MEV passed to stakers." },
     Revenue: { "Native Staking Fees To Jupiter": "Commission and priority fees kept by Jupiter." },
-    ProtocolRevenue: { "Native Staking Fees To Jupiter": "Half of the commission and priority fees Jupiter keeps, kept by the treasury." },
+    ProtocolRevenue: { "Native Staking Fees To Jupiter": "The commission and priority fees Jupiter keeps." },
     SupplySideRevenue: { "Native Staking Fees To Stakers And Partners": "MEV passed to stakers, and fees and commission paid to partners." },
   },
 }

@@ -2,7 +2,6 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { queryAllium } from '../helpers/allium'
 import { assertYoloGuards, JUPUSD, YOLO_KIND, YOLO_START, yoloEventsCte, yoloGuardsCte } from '../helpers/jupiter-yolo'
-import { jupTreasuryShare } from "../fees/jupiter";
 
 const LABELS = {
   profitFees: 'Profit Fees',
@@ -35,7 +34,7 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(JUPUSD, row.fees, LABELS.profitFees)
 
   const dailyRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
-  const dailyProtocolRevenue = dailyFees.clone(jupTreasuryShare(options.startOfDay), LABELS.profitFeesToJupiter)
+  const dailyProtocolRevenue = dailyFees.clone(1, LABELS.profitFeesToJupiter)
 
   return {
     //dailyVolume,
@@ -55,7 +54,7 @@ const adapter: SimpleAdapter = {
     //Volume: 'Notional (margin times leverage) of every position opened and every position closed by its owner. Liquidations are not counted.',
     Fees: "2% fee on the profit of every winning trade, taken from the payout. Opening, losing trades and liquidations are free. The house bankroll's trading profit is not counted.",
     Revenue: 'All profit fees, kept by Jupiter. There are no liquidity providers.',
-    ProtocolRevenue: 'Half of profit fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.',
+    ProtocolRevenue: 'All of profit fees, kept by Jupiter. Not used for JUP buybacks.',
   },
   breakdownMethodology: {
     Fees: {
@@ -65,7 +64,7 @@ const adapter: SimpleAdapter = {
       [LABELS.profitFeesToJupiter]: 'All profit fees, kept by Jupiter.',
     },
     ProtocolRevenue: {
-      [LABELS.profitFeesToJupiter]: 'Half of profit fees, kept by the treasury.',
+      [LABELS.profitFeesToJupiter]: 'All of profit fees, kept by Jupiter.',
     },
   },
 }

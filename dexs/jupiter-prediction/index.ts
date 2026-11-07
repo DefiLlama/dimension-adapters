@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
-import { JUPITER_METRICS, jupTreasuryShare } from "../../fees/jupiter";
+import { JUPITER_METRICS } from "../../fees/jupiter";
 import { assertJupiterStatsPublished, getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
@@ -72,7 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
         dailyVolume,
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
+        dailyProtocolRevenue: dailyRevenue.clone(1),
         dailySupplySideRevenue,
     }
 }
@@ -81,7 +81,7 @@ const methodology = {
     Volume: 'USDC value of prediction market buys and sells through Jupiter.',
     Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter.',
     Revenue: "Jupiter's share of prediction fees, counted from 2026-01-01.",
-    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
 }
 
@@ -93,7 +93,7 @@ const breakdownMethodology = {
       [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Jupiter's share of prediction fees, since 2026-01-01.",
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Half of Jupiter's share of prediction fees, kept by the treasury.",
+      [JUPITER_METRICS.JupPredictionFeesToJupiter]: "All of Jupiter's share of prediction fees, kept by Jupiter.",
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupPredictionFeesToVenues]: "Prediction fees paid to the market venues after Jupiter's share.",

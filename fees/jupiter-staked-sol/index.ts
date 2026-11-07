@@ -2,7 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune";
 import ADDRESSES from "../../helpers/coreAssets.json";
-import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
 
 const STAKE_POOL_RESERVE_ACCOUNT = "FMAWbzuxsgbgndArunedwxXPA6sweaVUGGgadCpSxau2";
 const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQDNw";
@@ -93,7 +93,7 @@ WHERE reward_type = 'Staking'
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)),
+    dailyProtocolRevenue: dailyRevenue.clone(1),
     dailySupplySideRevenue,
   };
 };
@@ -108,7 +108,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Staking rewards, Jito MEV tips and Jupiter validator priority fees earned by the jupSOL pool, Jupiter's validator commission on the pool's stake, plus deposit and withdrawal fees.",
     Revenue: "Jupiter's 2.5% of pool rewards (half of the 5% pool fee), Jupiter's validator commission, plus deposit and withdrawal fees.",
-    ProtocolRevenue: "Half of Jupiter's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of Jupiter's revenue, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: "95% of pool rewards to jupSOL holders, and 2.5% to Sanctum.",
   },
   breakdownMethodology: {
@@ -127,11 +127,11 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupSOLValidatorCommission]: "Jupiter validator commission, all kept by Jupiter.",
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupSOLStakingRewards]: "Half of Jupiter's share of inflation rewards, kept by the treasury.",
-      [JUPITER_METRICS.JupSOLMevRewards]: "Half of Jupiter's share of MEV tips, kept by the treasury.",
-      [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "Half of Jupiter's share of priority fees, kept by the treasury.",
-      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "Half of deposit and withdrawal fees, kept by the treasury.",
-      [JUPITER_METRICS.JupSOLValidatorCommission]: "Half of the validator commission, kept by the treasury.",
+      [JUPITER_METRICS.JupSOLStakingRewards]: "All of Jupiter's share of inflation rewards, kept by Jupiter.",
+      [JUPITER_METRICS.JupSOLMevRewards]: "All of Jupiter's share of MEV tips, kept by Jupiter.",
+      [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "All of Jupiter's share of priority fees, kept by Jupiter.",
+      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "All of deposit and withdrawal fees, kept by Jupiter.",
+      [JUPITER_METRICS.JupSOLValidatorCommission]: "All of the validator commission, kept by Jupiter.",
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: "95% of pool rewards, to jupSOL holders.",

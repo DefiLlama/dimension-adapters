@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
-import { jupTreasuryShare } from "../jupiter";
 
 // Jupiter's stats API (subproduct "lend_dex"). Onchain alternative: Dune jupiter_lend_solana dex_call_swap_in/swap_out
 // (program jupZ4m2GqUCJ5iueMfzQf8khFfH31d4XAQt3RzCT9Vd), fee = leg amount x fee / 1e6 with the fee and revenue_cut in force
@@ -14,7 +13,7 @@ const LABELS = {
 
 const fetch = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { lend_dex: LABELS });
-  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) };
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(1) };
 };
 
 const adapter: SimpleAdapter = {
@@ -25,7 +24,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Swap fees paid by traders on Jupiter Lend DEX pools.",
     Revenue: "Jupiter's share of the protocol cut of swap fees.",
-    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: "Swap fees kept by liquidity providers, and Fluid's share of the protocol cut.",
   },
   breakdownMethodology: {
@@ -36,7 +35,7 @@ const adapter: SimpleAdapter = {
       [LABELS.revenue]: "Jupiter's share of the protocol cut of swap fees.",
     },
     ProtocolRevenue: {
-      [LABELS.revenue]: "Half of Jupiter's share, kept by the treasury.",
+      [LABELS.revenue]: "All of Jupiter's share, kept by Jupiter.",
     },
     SupplySideRevenue: {
       [LABELS.supplySide]: "Swap fees kept by liquidity providers, and Fluid's share of the protocol cut.",

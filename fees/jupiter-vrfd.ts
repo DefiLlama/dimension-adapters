@@ -2,7 +2,6 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
 import { getJupiterStatsRevenue } from "../helpers/jupiter-stats"
-import { jupTreasuryShare } from "./jupiter";
 
 const VRFD_JUP_ACCOUNT = 'H9at42xAafMAYqWmL4sxX5EiUpECruvEsdsBc6uDJUtT'
 const JUP_BURN_MULTISIG = '8gMBNeKwXaoNi9bhbVUWFt4Uc5aobL9PeYMXfYDMePE2'
@@ -43,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   // which can differ slightly from the price the API booked it at on a retail-only day.
   const enterpriseUsd = Math.max(0, await dailyRevenue.getUSDValue() - await dailyHoldersRevenue.getUSDValue())
   const dailyProtocolRevenue = options.createBalances()
-  dailyProtocolRevenue.addUSDValue(enterpriseUsd * jupTreasuryShare(options.startOfDay), LABEL)
+  dailyProtocolRevenue.addUSDValue(enterpriseUsd, LABEL)
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue }
 }
 
@@ -57,13 +56,13 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: "Fees paid for token verification and metadata updates, retail and enterprise.",
     Revenue: "All verification fees, kept by Jupiter.",
-    ProtocolRevenue: "Half of enterprise verification fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "All of enterprise verification fees, kept by Jupiter. Not used for JUP buybacks.",
     HoldersRevenue: "Retail verification fees, paid in JUP to a burn account and burned in batches.",
   },
   breakdownMethodology: {
     Fees: { [LABEL]: "Fees paid for token verification and metadata updates." },
     Revenue: { [LABEL]: "Fees paid for token verification and metadata updates." },
-    ProtocolRevenue: { [LABEL]: "Half of enterprise verification fees, kept by the treasury." },
+    ProtocolRevenue: { [LABEL]: "All of enterprise verification fees, kept by Jupiter." },
     HoldersRevenue: { [BURN_LABEL]: "Retail verification fees, paid in JUP to a burn account and burned in batches." },
   },
 }
