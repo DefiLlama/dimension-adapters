@@ -11,10 +11,10 @@ const STATS_API_START_TS = 1780444800 // 2026-06-03
 // Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
 const TREASURY_SHARE = 0.5;
 
-const labels: Record<string, string> = {
-  origination: "Offerbook Loan Origination Fees",
-  repayment: "Offerbook Loan Repayment Fees",
-  collateral_claim: "Offerbook Collateral Claim Fees"
+const LABELS = {
+  fees: "Offerbook Interest And Fees",
+  revenue: "Offerbook Interest And Fees To Jupiter",
+  supplySide: "Offerbook Interest And Fees To Lenders And Referrers",
 }
 
 const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
@@ -68,27 +68,22 @@ const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
   for (const row of rows) {
     if (!row.mint) continue;
     if (row.kind === 'interest') {
-      dailyFees.add(row.mint, row.net, "Offerbook Borrow Interest");
-      dailySupplySideRevenue.add(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
+      dailyFees.add(row.mint, row.net, LABELS.fees);
+      dailySupplySideRevenue.add(row.mint, row.net, LABELS.supplySide);
     } else if (row.kind === 'repayment') {
-      dailyRevenue.add(row.mint, row.net, labels[row.kind]);
-      dailySupplySideRevenue.subtractToken(row.mint, row.net, "Offerbook Borrow Interest To Lenders");
+      // the repayment fee is taken out of the lender's interest
+      dailyRevenue.add(row.mint, row.net, LABELS.revenue);
+      dailySupplySideRevenue.subtractToken(row.mint, row.net, LABELS.supplySide);
     } else {
-      dailyFees.add(row.mint, row.net, labels[row.kind]);
-      dailyRevenue.add(row.mint, row.net, labels[row.kind]);
+      dailyFees.add(row.mint, row.net, LABELS.fees);
+      dailyRevenue.add(row.mint, row.net, LABELS.revenue);
     }
   }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE), dailySupplySideRevenue };
 };
 
 const fetchStatsApi = async (options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
-    offerbook: {
-      fees: "Offerbook Interest And Fees",
-      revenue: "Offerbook Interest And Fees To Jupiter",
-      supplySide: "Offerbook Interest And Fees To Lenders And Referrers",
-    },
-  });
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, { offerbook: LABELS });
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(TREASURY_SHARE), dailySupplySideRevenue };
 };
 
@@ -105,32 +100,22 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true, // a loss on a loan funded by Jupiter is booked on the day it is realized
   methodology: {
     Fees: "Borrow interest paid by borrowers as it accrues, plus loan origination, repayment and collateral claim fees.",
-    Revenue: "Jupiter's protocol fees, and from 2026-06-03 the interest on loans Jupiter funds, less losses on those loans.",
+    Revenue: "Jupiter's protocol fees, and interest on loans Jupiter funds, less losses on those loans.",
     ProtocolRevenue: "Half of Jupiter's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: "Borrow interest paid to lenders, and fee rebates to referrers.",
   },
   breakdownMethodology: {
     Fees: {
-      'Offerbook Interest And Fees': 'From 2026-06-03, borrow interest as it accrues, and origination, repayment and collateral claim fees.',
-      'Offerbook Borrow Interest': 'Before 2026-06-03, interest paid by borrowers on repaid loans.',
-      [labels.origination]: 'Before 2026-06-03, 25% of estimated interest, charged when the loan is created.',
-      [labels.collateral_claim]: 'Before 2026-06-03, 0.1% of collateral, charged when a lender claims collateral after maturity.',
+      [LABELS.fees]: "Borrow interest as it accrues, and loan origination, repayment and collateral claim fees.",
     },
     Revenue: {
-      'Offerbook Interest And Fees To Jupiter': "From 2026-06-03, Jupiter's protocol fees and interest on loans it funds, less losses on those loans.",
-      [labels.origination]: 'Before 2026-06-03, loan origination fees.',
-      [labels.repayment]: "Before 2026-06-03, 10% of interest, taken from the lender's return at repayment.",
-      [labels.collateral_claim]: 'Before 2026-06-03, collateral claim fees.',
+      [LABELS.revenue]: "Jupiter's protocol fees, and interest on loans Jupiter funds, less losses on those loans.",
     },
     ProtocolRevenue: {
-      'Offerbook Interest And Fees To Jupiter': "From 2026-06-03, half of Jupiter's revenue, kept by the treasury.",
-      [labels.origination]: 'Before 2026-06-03, half of loan origination fees, kept by the treasury.',
-      [labels.repayment]: 'Before 2026-06-03, half of repayment fees, kept by the treasury.',
-      [labels.collateral_claim]: 'Before 2026-06-03, half of collateral claim fees, kept by the treasury.',
+      [LABELS.revenue]: "Half of Jupiter's revenue, kept by the treasury.",
     },
     SupplySideRevenue: {
-      'Offerbook Interest And Fees To Lenders And Referrers': 'From 2026-06-03, interest paid to lenders and fee rebates to referrers.',
-      'Offerbook Borrow Interest To Lenders': "Before 2026-06-03, interest paid to lenders after the 10% repayment fee.",
+      [LABELS.supplySide]: "Borrow interest paid to lenders, and fee rebates to referrers.",
     },
   },
 };
