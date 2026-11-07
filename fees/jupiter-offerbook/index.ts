@@ -104,7 +104,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   allowNegativeValue: true, // a loss on a loan funded by Jupiter is booked on the day it is realized
   methodology: {
-    Fees: "Borrow interest paid by borrowers, plus loan origination, repayment and collateral claim fees. Interest is counted as it accrues from 2026-06-03, at repayment before.",
+    Fees: "Borrow interest paid by borrowers as it accrues, plus loan origination, repayment and collateral claim fees.",
     Revenue: "Jupiter's protocol fees, and from 2026-06-03 the interest on loans Jupiter funds, less losses on those loans.",
     ProtocolRevenue: "Half of Jupiter's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: "Borrow interest paid to lenders, and fee rebates to referrers.",
