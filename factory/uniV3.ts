@@ -624,6 +624,9 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "rocketswap-anubis-v3": {
+    Volume: "Trading volume from RocketSwap V3 pools on Anubis, counting one token side of each pool swap and applying the shared Uniswap V3 pool filters. Excludes RocketSwap V2 pools.",
+  },
   "unitflow-finance-v3": {
     Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
     Fees: "Swap fees estimated from each pool's configured fee tier and one token side of each swap. Excludes V2.5 pools.",
