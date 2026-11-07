@@ -116,6 +116,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "syndicate-perps": {
+    // Syndicate (https://syndicate.trade), a trading app for Hyperliquid perps, Polymarket predictions and spot. Every
+    // Hyperliquid perps order it places carries this builder code at 10 bps (f = 100), listed at https://syndicate.trade/learn/custody-and-fees#onchain.
+    // Verifiable: the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0xba52350ec359a7fc25d538690569f8cd935a25d9"],
+    // first day with fills through this builder code
+    start: "2026-09-26",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perps trades placed through Syndicate, counted from its builder code.",
+      Fees: "Builder code fees (10 bps) paid by users on Hyperliquid perps trades placed through Syndicate; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees received by Syndicate from Hyperliquid perps trades.",
+      ProtocolRevenue: "Builder code fees received by Syndicate from Hyperliquid perps trades.",
+    },
+    breakdownFees: true,
+  },
   "wenlong": {
     // WenLong (https://wenlong.io), a Telegram Mini App on TON and a web terminal for Hyperliquid perps. Every order it
     // places carries this builder code, at 0.02% of filled notional (0.016% for its first 500 traders), published at
