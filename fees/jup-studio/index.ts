@@ -3,7 +3,7 @@ import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
-import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
 
 // Studio's Meteora DBC configs, selected by fee claimer (fixed at config creation) like the other DBC launchpads. Studio
 // creates one config per token, in the pool's tx, and serves the token's metadata at static-create.jup.ag/metadata/<mint>.json.
@@ -22,6 +22,10 @@ const JUP_STUDIO_FEE_CLAIMERS = [
 // dropped it on 2026-09-21, and other claimers' configs pass it, e.g. 8TPACXaKotSZ7WXktfmKDRhgoypyGXNzo1ctr2YBzxLc since
 // 2026-03-27 (creator share 0%, no Studio metadata), config
 // tx 4tfXw1yveD4GzfwnqAvTVLwqggP4NBbtxjdp2bE1rYpSHThETptq4pk59XoTqCvyPPNVnJ2Z5z75MiCM8LBhSEQK
+// Kept onchain instead of Jupiter's stats API (subproduct "studio"). Stats API vs stored DefiLlama numbers (stored before
+// the #10652 refill), 2026-01-01 to 2026-11-04: fees $1.25M vs $519k (the API also counts swap fees of every LP in
+// graduated pools), revenue $400k vs $457k (the API books it only on claim days, $0 for Jan and Feb). The API also has no
+// creator / Meteora / referral split.
 const FEE_CLAIMERS_SQL = JUP_STUDIO_FEE_CLAIMERS.map((a) => `'${a}'`).join(', ')
 
 const LABELS = {
@@ -147,8 +151,6 @@ const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
 
     const accepted_quote_mints = [
         ADDRESSES.solana.SOL,
@@ -168,21 +170,14 @@ const fetch = async (options: FetchOptions) => {
         const revenue = options.createBalances();
         revenue.add(row.quote_mint, Number(row.total_trading_fees) - Number(row.total_creator_fees) + Number(row.damm_v2_fees))
         dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-      
-        const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-        const revenueHolders = revenue.clone(buybackRatio);
-        const revenueProtocol = revenue.clone(1 - buybackRatio);
-        dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
     });
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
-        dailyHoldersRevenue,
     };
 };
 
@@ -193,12 +188,12 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE],
     start: '2025-07-02',
     isExpensiveAdapter: true,
+    doublecounted: true, // Studio pools are Meteora DBC curves and DAMM v2 pools, also counted on Meteora's listings
     methodology: {
         Fees: "Trading fees paid by users on Jup Studio bonding curves, and the fees Jupiter's LP position earns in graduated Meteora DAMM v2 pools, counted when claimed.",
         Revenue: "Jup Studio's share of bonding-curve trading fees (after the token creator's share) and its fees from migrated DAMM v2 pools.",
         SupplySideRevenue: "Fees paid to referrals, to token creators (their configured share of the trading fee) and to Meteora (its protocol fee).",
-        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-        HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+        ProtocolRevenue: "All of Jup Studio's revenue, kept by Jupiter. Not used for JUP buybacks.",
     },
     breakdownMethodology: {
         Fees: {
@@ -208,15 +203,12 @@ const adapter: SimpleAdapter = {
             [JUPITER_METRICS.JupStudioFeesToJupiter]: "Jup Studio's share of trading fees, after the creator share, plus DAMM v2 position fees it claims.",
         },
         ProtocolRevenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: "All of Jup Studio's revenue, kept by Jupiter.",
         },
         SupplySideRevenue: {
             [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',
             [LABELS.TRADING_FEES_TO_CREATORS]: "The token creator's configured share of the bonding-curve trading fee.",
             [LABELS.TRADING_FEES_TO_METEORA]: "Meteora's protocol fee on bonding-curve swaps.",
-        },
-        HoldersRevenue: {
-            [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
         },
     }
 }

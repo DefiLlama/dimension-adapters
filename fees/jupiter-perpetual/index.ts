@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
-import { JUPITER_METRICS } from "../jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
 
 const fetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
@@ -78,7 +78,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = dailyFees.clone(0.75);
   const dailyRevenue = dailyFees.clone(0.25);
   // JUP buybacks are reported once, on the Jupiter Aggregator listing (fees/jupiter.ts), so no holders revenue here
-  const dailyProtocolRevenue = dailyRevenue.clone(1);
+  const dailyProtocolRevenue = dailyRevenue.clone(jupTreasuryShare(options.startOfDay));
 
   return {
     dailyFees,
@@ -91,7 +91,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Trading, swap, borrow, liquidation and JLP mint/burn fees paid by users, plus staking rewards on the pool's SOL and JLP Loans interest.",
   Revenue: "25% of all fees, sent to Jupiter.",
-  ProtocolRevenue: "25% of all fees, sent to the Jupiter treasury.",
+  ProtocolRevenue: "Half of the 25% of fees sent to Jupiter, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
   SupplySideRevenue: "75% of all fees, kept by the JLP pool for liquidity providers.",
 }
 
@@ -121,16 +121,16 @@ const breakdownMethodology = {
     [JUPITER_METRICS.JupPerpsLoanInterest]: "25% of JLP Loans interest, sent to Jupiter.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of JLP mint fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of JLP burn fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "25% of swap fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "25% of open position fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "25% of close position fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "25% of liquidation fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "25% of borrow fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "25% of price impact fees, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsStakingRewards]: "25% of SOL staking rewards, sent to the Jupiter treasury.",
-    [JUPITER_METRICS.JupPerpsLoanInterest]: "25% of JLP Loans interest, sent to the Jupiter treasury.",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Half of the 25% of JLP mint fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Half of the 25% of JLP burn fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "Half of the 25% of swap fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "Half of the 25% of open position fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "Half of the 25% of close position fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "Half of the 25% of liquidation fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "Half of the 25% of borrow fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Half of the 25% of price impact fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsStakingRewards]: "Half of the 25% of SOL staking rewards sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsLoanInterest]: "Half of the 25% of JLP Loans interest sent to Jupiter, kept by the treasury.",
   },
   SupplySideRevenue: {
     [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of JLP mint fees, kept by the JLP pool.",
