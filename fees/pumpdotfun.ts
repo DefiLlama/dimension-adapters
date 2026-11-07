@@ -210,8 +210,13 @@ const BUYBACK_WALLETS = [
   '3vkpy5YHqnqJTnA5doWTpcgKyZiYsaXYzYM9wm8s3WTi', // 2025-07-15 to 2025-07-18
   '88uq8JNL6ANwmow1og7VQD4hte73Jpw8qsUP77BtF6iE', // 2025-07-20 to 2025-08-19
   '3YNxfRAEqKrGNCmx5JUfCD9er5djZToqSomzR2Yi8rqx', // 2025-08-20 to 2025-11-11
-  '99mRw3EzdJZWEUjgp1nrU4WeHsukUBjbh7gYE7pm4F3c', // from 2025-11-11, also burns
-  '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM', // from 2026-03-09, also burns
+  '99mRw3EzdJZWEUjgp1nrU4WeHsukUBjbh7gYE7pm4F3c', // 2025-11-11 to 2026-11-04, also burns
+  '9jHrTCwpDANHLNQz5cem6XLUBM8KiTWKe766Br6KVCXM', // 2026-03-09 to 2026-11-04, also burns
+  // Routing changed 2026-11-04 08:10 UTC (wallets supplied by the pump.fun team): fees are swept
+  // by the pump fee program (pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ, SweepBuyback) into the
+  // pump wallet, each wallet swaps to PUMP via Jupiter and burns it (burnChecked).
+  '2ifjKjqtETDeHXKsrRxeKWUuwUtXxNS4HepT6eftj6Qz', // from 2026-11-04, pump.fun + PumpSwap
+  '78hoB7emUo7zF5kdNf9TFxzpLRKCy8Jgft5cu69Byuax', // from 2026-11-04, Trading Terminal
 ]
 // Bought PUMP was parked here until the burn policy started, so moves from it are not buys.
 const PUMP_BUYBACK_HOLDING_WALLET = 'G8CcfRffqZWHSAQJXLDfwbAkGE95SddUqVXnTrL4kqjm'
