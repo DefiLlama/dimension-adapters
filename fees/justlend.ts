@@ -3,7 +3,7 @@ import { Adapter, ChainBlocks, FetchOptions, FetchResultFees } from "../adapters
 import { CHAIN } from "../helpers/chains";
 import * as sdk from "@defillama/sdk";
 import { BigNumberish } from "ethers";
-import { httpGet } from "../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 
 const { tronToEvmAddress, evmToTronAddress } = sdk.util;
 
@@ -36,9 +36,9 @@ const fetch = async ({ createBalances, fromTimestamp, toTimestamp, }: FetchOptio
   dailySupplySideRevenue.addBalances(tempBalance, 'Borrow Interest');
 
   // Energy Rental Market — JustLend's separate product where users rent
-  // Energy from staked TRX. Fees flow to sTRX stakers; we count them on the
-  // supply side and don't claim a protocol cut (split not published).
-  await getDailyEnergyRentalFees(context, { dailyProtocolFees, dailySupplySideRevenue });
+  // Energy from staked TRX. Income flows to sTRX, which keeps a fixed share as
+  // reserves; the rest goes to sTRX stakers.
+  await getDailyEnergyRentalFees(context, { dailyProtocolFees, dailyProtocolRevenue, dailySupplySideRevenue });
 
   return {
     dailyFees: dailyProtocolFees,
@@ -127,21 +127,22 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // TronGrid caps each events response at 200. On busy days a single market emits more than
 // 200 AccrueInterest events in a day (e.g. 398 on the USDT market on 2024-12-03), so a single
 // capped request silently drops the remainder and undercounts borrow interest. Paginate with
-// the fingerprint cursor, mirroring getDailyEnergyRentalFees below.
-const getLogs = async (address: string, min_block_timestamp: number, max_block_timestamp: number) => {
+// the fingerprint cursor.
+const getLogs = async (tronAddress: string, eventName: string, min_block_timestamp: number, max_block_timestamp: number) => {
   let logs: any[] = [];
   let fingerprint: string | undefined = undefined;
   for (let page = 0; page < 200; page++) {
     const params = [
-      'event_name=AccrueInterest',
+      `event_name=${eventName}`,
       `min_block_timestamp=${min_block_timestamp}`,
       `max_block_timestamp=${max_block_timestamp}`,
       'order_by=block_timestamp,asc',
       'limit=200',
     ];
     if (fingerprint) params.push(`fingerprint=${fingerprint}`);
-    const url = `${endpoint}/v1/contracts/${evmToTronAddress(address)}/events?${params.join('&')}`;
-    const res = await httpGet(url);
+    const url = `${endpoint}/v1/contracts/${tronAddress}/events?${params.join('&')}`;
+    const res = await fetchURLAutoHandleRateLimit(url);
+    if (res?.success === false) throw new Error(`justlend: TronGrid events request failed for ${eventName} on ${tronAddress}`);
     const events = res.data ?? [];
     logs = logs.concat(events);
     fingerprint = res.meta?.fingerprint;
@@ -162,7 +163,7 @@ const getDailyProtocolFees = async ({
   for (let i = 0; i < markets.length; i++) {
     const address = markets[i];
     await delay(2500)
-    const _logs = await getLogs(address, startBlock, endBlock);
+    const _logs = await getLogs(evmToTronAddress(address), 'AccrueInterest', startBlock, endBlock);
     logs = logs.concat(_logs);
     await delay(2500)
   }
@@ -187,41 +188,48 @@ const getDailyProtocolFees = async ({
   });
 };
 
-// Tagged on TronScan as `JustLend DAO: Energy Rental`. Each rental closes with
-// a `ReturnResource` event whose `usageRental` field is the fee retained from
-// the renter's security deposit (verified by tracing internal transfers — the
-// deposit refund equals `subedSecurityDeposit - usageRental`).
+// Tagged on TronScan as `JustLend DAO: Energy Rental`. Verified source:
+// https://tronscan.org/#/contract/TNoHbPuBQrVanVf9qxUsSvHdB2eDkeDAKD/code
+// Renters pay two charges out of their deposit, and `subedSecurityDeposit` on
+// `ReturnResource` is the refund of whatever is left:
+// - rent for the time the energy is held. `RentIndex.income` is what the market
+//   accrues over all open orders each time its index moves. `OrderIndex.rental`
+//   is the same rent per order, booked only when that order is next touched, so
+//   the two must never be added together.
+// - a usage charge when energy comes back used: `usageRental` on `ReturnResource`
+//   and on `Liquidate`. `liquidateFee` goes to the liquidator and isn't counted.
 const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
+
+// `reserveFactor().rentFactor` on sTRX (TU3kjFuhtEo42tsCBtfYUAZxoqQ4yuSLQ5), taken in `_settleIncome`:
+// https://tronscan.org/#/contract/TUAV6ZSCXtF8KVvDKSeVmAbJEovTBf4HtG/code
+// No `RentFactorUpdated` event has been emitted since the contract was created.
+const STRX_RENT_RESERVE_SHARE = 0.2;
+
+const getEventField = (event: any, field: string): number => {
+  const value = event.result?.[field];
+  if (value === undefined) throw new Error(`JustLend ${event.event_name} event ${event.transaction_id} has no ${field}`);
+  return Number(value);
+}
 
 const getDailyEnergyRentalFees = async (
   { startBlock, endBlock }: IContext,
-  { dailyProtocolFees, dailySupplySideRevenue }: { dailyProtocolFees: sdk.Balances, dailySupplySideRevenue: sdk.Balances },
+  { dailyProtocolFees, dailyProtocolRevenue, dailySupplySideRevenue }: { dailyProtocolFees: sdk.Balances, dailyProtocolRevenue: sdk.Balances, dailySupplySideRevenue: sdk.Balances },
 ) => {
   const trxToken = ADDRESSES.tron.WTRX.toLowerCase();
-  let fingerprint: string | undefined = undefined;
-  for (let page = 0; page < 200; page++) {
-    const params = [
-      'event_name=ReturnResource',
-      `min_block_timestamp=${startBlock}`,
-      `max_block_timestamp=${endBlock}`,
-      'order_by=block_timestamp,asc',
-      'limit=200',
-    ];
-    if (fingerprint) params.push(`fingerprint=${fingerprint}`);
-    const url = `${endpoint}/v1/contracts/${ENERGY_RENTAL_CONTRACT}/events?${params.join('&')}`;
-    const res = await httpGet(url);
-    const events = res.data ?? [];
-    for (const ev of events) {
-      const usageRental = ev.result?.usageRental;
-      if (!usageRental) continue;
-      const sun = Number(usageRental);
-      dailyProtocolFees.add(trxToken, sun, 'Energy Rental Fee');
-      dailySupplySideRevenue.add(trxToken, sun, 'Energy Rental Fee');
-    }
-    fingerprint = res.meta?.fingerprint;
-    if (!fingerprint) break;
-    await delay(2500);
+  const addRentalIncome = (sun: number, label: string) => {
+    dailyProtocolFees.add(trxToken, sun, label);
+    dailyProtocolRevenue.add(trxToken, sun * STRX_RENT_RESERVE_SHARE, 'Energy Rental Reserve Share');
+    dailySupplySideRevenue.add(trxToken, sun * (1 - STRX_RENT_RESERVE_SHARE), label);
   }
+
+  for (const event of await getLogs(ENERGY_RENTAL_CONTRACT, 'RentIndex', startBlock, endBlock))
+    addRentalIncome(getEventField(event, 'income'), 'Energy Rental Duration Fee');
+  await delay(2500);
+  for (const event of await getLogs(ENERGY_RENTAL_CONTRACT, 'ReturnResource', startBlock, endBlock))
+    addRentalIncome(getEventField(event, 'usageRental'), 'Energy Rental Fee');
+  await delay(2500);
+  for (const event of await getLogs(ENERGY_RENTAL_CONTRACT, 'Liquidate', startBlock, endBlock))
+    addRentalIncome(getEventField(event, 'usageRental'), 'Energy Rental Fee');
 };
 
 
@@ -233,26 +241,30 @@ const adapter: Adapter = {
   start: '2023-11-19',
   // runAtCurrTime: true,
   methodology: {
-    Fees: "Total interest paid by borrowers across all lending markets, plus usage fees paid by renters on the Energy Rental Market",
-    Revenue: "Protocol's share of interest based on each market's reserve factor",
-    ProtocolRevenue: "Protocol's share of interest based on each market's reserve factor",
+    Fees: "Total interest paid by borrowers across all lending markets, plus the rent and usage charges paid by renters on the Energy Rental Market",
+    Revenue: "Protocol's share of interest based on each market's reserve factor, plus the 20% of Energy Rental income that sTRX keeps as reserves",
+    ProtocolRevenue: "Protocol's share of interest based on each market's reserve factor, plus the 20% of Energy Rental income that sTRX keeps as reserves",
     HoldersRevenue: "No revenue distributed to JST holders",
-    SupplySideRevenue: "Interest paid to lenders in liquidity pools plus Energy Rental usage fees paid to sTRX stakers",
+    SupplySideRevenue: "Interest paid to lenders in liquidity pools plus the 80% of Energy Rental income that goes to sTRX stakers",
   },
   breakdownMethodology: {
     Fees: {
       'Borrow Interest': 'Interest accrued from borrowers across all lending markets, calculated from AccrueInterest events',
-      'Energy Rental Fee': 'Usage fees paid by renters on the JustLend Energy Rental Market, from the usageRental field of ReturnResource events',
+      'Energy Rental Fee': 'Usage charge paid by renters when rented energy comes back used, from the usageRental field of ReturnResource and Liquidate events',
+      'Energy Rental Duration Fee': 'Rent paid for the time energy is held, as accrued by the rental market, from the income field of RentIndex events',
     },
     Revenue: {
       'Protocol Reserve Share': 'Portion of borrow interest kept by the protocol based on each market\'s reserve factor',
+      'Energy Rental Reserve Share': '20% of Energy Rental income that sTRX keeps as reserves',
     },
     ProtocolRevenue: {
       'Protocol Reserve Share': 'Portion of borrow interest kept by the protocol based on each market\'s reserve factor',
+      'Energy Rental Reserve Share': '20% of Energy Rental income that sTRX keeps as reserves',
     },
     SupplySideRevenue: {
       'Borrow Interest': 'Borrow interest distributed to lenders (total interest minus protocol reserve share)',
-      'Energy Rental Fee': 'Energy Rental usage fees distributed to sTRX stakers who provide the delegated TRX',
+      'Energy Rental Fee': '80% of the Energy Rental usage charge, which goes to sTRX stakers who provide the delegated TRX',
+      'Energy Rental Duration Fee': '80% of the Energy Rental rent, which goes to sTRX stakers who provide the delegated TRX',
     },
   }
 };
