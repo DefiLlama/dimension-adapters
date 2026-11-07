@@ -29,14 +29,14 @@ const adapter: SimpleAdapter = {
   start: '2026-01-02',
   allowNegativeValue: true, // yield accrues daily and is settled with the partner weekly, so a settlement day can be negative
   methodology: {
-    Fees: 'Yield earned on JupUSD reserves and fees paid to mint and redeem JupUSD, from Jupiter\'s stats API.',
-    Revenue: 'Jupiter\'s share of JupUSD reserve yield, from Jupiter\'s stats API.',
+    Fees: 'Yield earned on JupUSD reserves and fees paid to mint and redeem JupUSD.',
+    Revenue: 'The share of JupUSD reserve yield kept by Jupiter.',
     ProtocolRevenue: "Half of Jupiter's share of JupUSD reserve yield, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: 'Reserve yield not kept by Jupiter, and mint and redeem fees, which stay in the reserves.',
   },
   breakdownMethodology: {
     Fees: { [LABELS.ReserveYield]: 'Yield earned on JupUSD reserves and fees paid to mint and redeem JupUSD.' },
-    Revenue: { [LABELS.ReserveYieldToJupiter]: 'Jupiter\'s share of JupUSD reserve yield.' },
+    Revenue: { [LABELS.ReserveYieldToJupiter]: 'The share of JupUSD reserve yield kept by Jupiter.' },
     ProtocolRevenue: { [LABELS.ReserveYieldToJupiter]: "Half of Jupiter's share of JupUSD reserve yield, kept by the treasury." },
     SupplySideRevenue: { [LABELS.ReserveYieldToOthers]: 'Reserve yield not kept by Jupiter, and mint and redeem fees, which stay in the reserves.' },
   },

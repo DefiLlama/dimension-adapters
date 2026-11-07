@@ -80,7 +80,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 const methodology = {
     Volume: 'USDC value of prediction market buys and sells through Jupiter.',
     Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter.',
-    Revenue: "Jupiter's share of prediction fees, from Jupiter's stats API since 2026-01-01. None is counted before.",
+    Revenue: "Jupiter's share of prediction fees, counted from 2026-01-01.",
     ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
 }
