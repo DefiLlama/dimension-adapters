@@ -74,6 +74,11 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "rocketswap-anubis-v3": {
+    // V3 factory on Anubis: https://v3.rocketswap.org/contracts
+    // Revenue allocation is unconfirmed, so only swap volume is exported.
+    [CHAIN.ANUBI]: { factory: '0xbf1b0e9878e782c799010454c1A65ACd334f666F', start: '2026-10-10', customLogic: volumeOnly },
+  },
   "bdex-v3": {
     // stock uniV3 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // fee tiers 500/3000/10000; slot0().feeProtocol = 0 on every pool (https://scan.botchain.ai/address/0x1C51c173323ec11BB4e3C4fD2314c225Dc4b5419, checked 2026-09-22) => 100% of swap fees to LPs
@@ -619,6 +624,9 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "rocketswap-anubis-v3": {
+    Volume: "Trading volume from RocketSwap V3 pools on Anubis, counting one token side of each pool swap and applying the shared Uniswap V3 pool filters. Excludes RocketSwap V2 pools.",
+  },
   "unitflow-finance-v3": {
     Volume: "Trading volume from Unitflow V3 pools on Arc, counting one token side of each swap and applying the shared Uniswap V3 pool filters. Excludes V2.5 pools.",
     Fees: "Swap fees estimated from each pool's configured fee tier and one token side of each swap. Excludes V2.5 pools.",
