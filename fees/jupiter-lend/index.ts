@@ -1,15 +1,18 @@
 import { Dependencies, FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
 import { queryDuneSql } from "../../helpers/dune";
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
-import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../../helpers/jupiter-stats";
 
 // Jupiter Lend runs on Fluid infra as two instances tagged by `instance_name`
 // in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) market
 // curated by Bitwise. Both share the same on-chain fee model (a reserve cut on
 // borrower interest) and the same 50/50 Jupiter/Fluid revenue share, so we apply
 // identical logic to each instance and only relabel for the breakdown.
+//
+// Kept on this Dune query rather than Jupiter's stats API (api.jup.ag/stats/v1/revenue, subproduct "lend"): from
+// 2026-01-01 to 2026-11-04 the API's fees match this query within $13 a day and its revenue within 1.2%, but the API
+// gives one total per product, which would drop the Ethena market and the lenders / Fluid / Jupiter split below.
 const ETHENA_METRICS = {
   BorrowInterest: 'JupLend Ethena Isolated Market Borrow Interests',
   InterestToLenders: 'JupLend Ethena Isolated Market Borrow Interests To Lenders',
@@ -44,16 +47,13 @@ export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> =>
   return dayRows;
 };
 
-const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
+const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const data = await queryJupLendRows(options);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
 
   const addInstance = (rows: any[], metrics: typeof JUPITER_METRICS | typeof ETHENA_METRICS) => {
     const df = sumUsd(rows, 'daily_fees_usd');
@@ -71,12 +71,9 @@ const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
     // share of interest to Fluid
     dailySupplySideRevenue.addUSDValue(drFluidShare, metrics.InterestToFluid);
 
-    // share of interest to Jupiter
+    // share of interest to Jupiter, all kept by Jupiter: JUP buybacks are reported once, on the Jupiter Aggregator listing
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-
-    dailyProtocolRevenue.addUSDValue(dr * (1 - buybackRatio), metrics.InterestToJupiter);
-
-    dailyHoldersRevenue.addUSDValue(dr * buybackRatio, JUPITER_METRICS.TokenBuyBack);
+    dailyProtocolRevenue.addUSDValue(dr, metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market
@@ -89,30 +86,8 @@ const fetchOnchain = async (options: FetchOptions): Promise<FetchResultV2> => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
-    dailyHoldersRevenue,
   }
 };
-
-// From 2026-01-01, Jupiter's stats API. Interest accrues in the liquidity program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC
-// and the lending program jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9.
-const fetchStatsApi = async (options: FetchOptions) => {
-  const { dailyFees, dailyRevenue, dailySupplySideRevenue } = await getJupiterStatsRevenue(options, {
-    lend: {
-      fees: JUPITER_METRICS.BorrowInterest,
-      revenue: JUPITER_METRICS.InterestToJupiter,
-      supplySide: JUPITER_METRICS.InterestToLendersAndPartners,
-    },
-  })
-  return {
-    dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(1),
-    dailySupplySideRevenue,
-  }
-}
-
-const fetch = async (options: FetchOptions) =>
-  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
 
 const adapter: SimpleAdapter = {
   version: 1,
@@ -122,10 +97,9 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
-    Revenue: 'Amount of interest share kept by Jupiter.',
-    ProtocolRevenue: 'All revenue goes to the Jupiter treasury.',
-    HoldersRevenue: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
-    SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market. From 2026-01-01, all interest not kept by Jupiter, from Jupiter\'s stats API.',
+    Revenue: "Jupiter's share of borrow interest, half of the reserve cut (the other half goes to Fluid).",
+    ProtocolRevenue: "Jupiter's share of borrow interest, all kept by Jupiter.",
+    SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
   },
   breakdownMethodology: {
     Fees: {
@@ -133,7 +107,7 @@ const adapter: SimpleAdapter = {
       [ETHENA_METRICS.BorrowInterest]: 'Interest paid by borrowers in the isolated Ethena (USDe) market curated by Bitwise.',
     },
     Revenue: {
-      [JUPITER_METRICS.InterestToJupiter]: 'Amount of interest cut collected by Jupiter. From 2026-01-01, from Jupiter\'s stats API.',
+      [JUPITER_METRICS.InterestToJupiter]: 'Amount of interest cut collected by Jupiter, (50% goes to jupiter, other 50% to Fluid).',
       [ETHENA_METRICS.InterestToJupiter]: 'Jupiter interest cut from the isolated Ethena (USDe) market (50% to Jupiter, 50% to Fluid).',
     },
     SupplySideRevenue: {
@@ -141,14 +115,10 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.InterestToFluid]: 'Interest distributed to Fluid from all markets.',
       [ETHENA_METRICS.InterestToLenders]: 'Interest distributed to lenders in the isolated Ethena (USDe) market.',
       [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) market.',
-      [JUPITER_METRICS.InterestToLendersAndPartners]: 'From 2026-01-01, all borrow interest not kept by Jupiter, across all markets.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.InterestToJupiter]: 'Jupiter\'s interest cut, all to the Jupiter treasury.',
-      [ETHENA_METRICS.InterestToJupiter]: 'Jupiter\'s interest cut from the isolated Ethena (USDe) market, all to the Jupiter treasury.',
-    },
-    HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'JUP buybacks are reported once, on the Jupiter Aggregator listing, from the JUP the Litterbox buys.',
+      [JUPITER_METRICS.InterestToJupiter]: "Jupiter's interest cut, all kept by Jupiter.",
+      [ETHENA_METRICS.InterestToJupiter]: "Jupiter's interest cut from the isolated Ethena (USDe) market, all kept by Jupiter.",
     },
   },
   isExpensiveAdapter: true,
