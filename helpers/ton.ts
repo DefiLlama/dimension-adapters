@@ -64,6 +64,8 @@ export async function getTonBlock(timestamp: number): Promise<number> {
 // get methods
 export const runGetMethod = ton.runGetMethod
 export const callGetMethod = ton.call
+// raw toncenter POST, e.g. v2 runGetMethod at a past seqno
+export const toncenterPost = ton.toncenterPost
 
 // address codec
 export const Address = ton.Address
