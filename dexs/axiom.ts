@@ -28,32 +28,33 @@ const feeWallets = [
 
 // Axiom rotates trade contracts and old ones keep trading for a while after a new one is live, so
 // match on all of them rather than switching by date. Same lists as fees/axiom.ts.
-const bscTradeContracts = [
-  '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
-  '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
-  '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
-  '0x9689992f5b5C09447f15906d8d11214944488341', // new trade contract
-];
-
-const robinhoodTradeContracts = [
-  '0xcda14e87628317e4f90077750fbe9634b896a24f',
-  '0x76a0e120631735845769e3de2606924af7716150',
-  '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc',
-  '0x105358a03c47706ad4697e227d5a8ddfacf85448',
-  '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38',
-  '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f',
-  '0x578980d6cac7ab262c40dfca650b1d2d259c1cca',
-  '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60',
-  '0x9689992f5b5c09447f15906d8d11214944488341',
-];
-
-// Same trade contract on each, see fees/axiom.ts. Ethereum also has its earlier one.
-const otherEvmTradeContracts: Record<string, string[]> = {
-  ethereum: ['0xe44f80d8b61762fdb03dc754247c0b2d3ddf456b', '0x9689992f5b5c09447f15906d8d11214944488341'],
-  base: ['0x9689992f5b5c09447f15906d8d11214944488341'],
-  hyperevm: ['0x9689992f5b5c09447f15906d8d11214944488341'],
-  arc: ['0x9689992f5b5c09447f15906d8d11214944488341'],
-  ink: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+const evmTradeContracts: Record<string, string[]> = {
+  [CHAIN.BSC]: [
+    '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
+    '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+    '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+    '0x9689992f5b5C09447f15906d8d11214944488341', // new trade contract
+  ],
+  [CHAIN.ROBINHOOD]: [
+    '0xcda14e87628317e4f90077750fbe9634b896a24f',
+    '0x76a0e120631735845769e3de2606924af7716150',
+    '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc',
+    '0x105358a03c47706ad4697e227d5a8ddfacf85448',
+    '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38',
+    '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f',
+    '0x578980d6cac7ab262c40dfca650b1d2d259c1cca',
+    '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60',
+    '0x9689992f5b5c09447f15906d8d11214944488341',
+  ],
+  // Same trade contract on each of these, see fees/axiom.ts. Ethereum also has its earlier one.
+  [CHAIN.ETHEREUM]: [
+    '0xe44f80d8b61762fdb03dc754247c0b2d3ddf456b', // 2026-04-28 to 2026-09-08
+    '0x9689992f5b5c09447f15906d8d11214944488341', // 2026-09-09
+  ],
+  [CHAIN.BASE]: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  [CHAIN.HYPERLIQUID]: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  [CHAIN.ARC]: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+  [CHAIN.INK]: ['0x9689992f5b5c09447f15906d8d11214944488341'],
 };
 
 const duneChain: Record<string, string> = {
@@ -111,26 +112,15 @@ const prefetch = async (options: FetchOptions) => {
     SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
+    ${Object.entries(evmTradeContracts).map(([chain, contracts]) => `
     UNION ALL
-    SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
-    FROM dex.trades
-    WHERE blockchain = 'bnb'
-      AND TIME_RANGE
-      AND tx_to IN (${bscTradeContracts.join(', ')})
-    UNION ALL
-    SELECT 'robinhood' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
-    FROM dex.trades
-    WHERE blockchain = 'robinhood'
-      AND TIME_RANGE
-      AND tx_to IN (${robinhoodTradeContracts.join(', ')})
-    ${Object.entries(otherEvmTradeContracts).map(([chain, contracts]) => `
-    UNION ALL
-    SELECT '${chain}' AS chain, COALESCE(SUM(swap_usd), 0) AS total_volume
+    SELECT '${duneChain[chain]}' AS chain, COALESCE(SUM(swap_usd), 0) AS total_volume
     FROM (
-      -- dex.trades has a row per pool hop; keep the largest row of each tx, one swap per trade contract call
+      -- dex.trades has a row per pool hop; keep the largest row of each tx. Users call the trade contract
+      -- directly (tx_to), so a tx is one user's swap: one trade event per tx on BSC and Robinhood, sampled 2026-11-05.
       SELECT tx_hash, MAX(amount_usd) AS swap_usd
       FROM dex.trades
-      WHERE blockchain = '${chain}'
+      WHERE blockchain = '${duneChain[chain]}'
         AND TIME_RANGE
         AND tx_to IN (${contracts.join(', ')})
       GROUP BY tx_hash
