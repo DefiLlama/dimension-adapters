@@ -99,7 +99,10 @@ const sumLogField = (logs: any[], field: string): bigint =>
 // when that happens we read the NAV at the last block that doesn't revert.
 // the search only depends on the block, so the window ending at a block and the
 // one starting at it get the same NAV and nothing is lost or counted twice.
-const MAX_NAV_LOOKBACK = 2 ** 14; // ~2 days of blocks
+// a revert can last for days: nOPAL's accountant auto-paused at block 26342482
+// (2026-11-04) with its rate frozen and nOPAL deposits/withdrawals disabled,
+// so the last good NAV holds until it is unpaused.
+const MAX_NAV_LOOKBACK = 2 ** 17; // ~18 days of blocks
 
 function isContractRevert(e: any): boolean {
   const msg = String(e?.message ?? e ?? "");
