@@ -325,14 +325,16 @@ async function getMorphoVaultFee(options: FetchOptions, balances: Balances, vaul
   for (let i = 0; i < vaultInfo.length; i++) {
     const vaultFeeRate = BigInt(vaultFeeRates[i] ? vaultFeeRates[i] : 0)
 
-    // morpho vault include fee directly to vault shares
-    // it mean that vault fees were added from vault token shares
+    // morpho vault mints its fee as new shares on every accrual, and those shares dilute depositors,
+    // so the share price growth in yieldEarned is what depositors keep AFTER the fee
+    const depositorYield = vaultInfo[i].yieldEarned
+
+    // interest earned by vault curator: fee = gross * rate and gross = net / (1 - rate), same as euler below
+    // no performance fee is taken on a loss (the depositors carry all of it)
+    const interestFee = depositorYield > BigInt(0) ? depositorYield * vaultFeeRate / (BigInt(1e18) - vaultFeeRate) : BigInt(0)
 
     // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
-    
-    // interest earned by vault curator, no performance fee is taken on a loss (the depositors carry all of it)
-    const interestFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultFeeRate / BigInt(1e18) : BigInt(0)
+    const interestEarnedIncludingFees = depositorYield + interestFee
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
@@ -531,18 +533,22 @@ async function getMorphoVaultV2Fee(options: FetchOptions, balances: Balances, va
     const vaultPerformanceFeeRate = BigInt(vaultPerformanceFeeRates[i] ? vaultPerformanceFeeRates[i] : 0)
     const vaultManagementFeeRate = BigInt(vaultManagementFeeRates[i] ? vaultManagementFeeRates[i] : 0)
     
-    // morpho vault include fee directly to vault shares
-    // it mean that vault fees were added from vault token shares
+    // morpho vault mints both fees as new shares on every accrual, and those shares dilute depositors,
+    // so the share price growth in yieldEarned is what depositors keep AFTER the fees
+    const depositorYield = vaultInfo[i].yieldEarned
 
-    // interest earned and distributed to vault deposited including fees
-    const interestEarnedIncludingFees = vaultInfo[i].yieldEarned
-    
-    // interest earned by vault curator - performance fee, none is taken on a loss (the depositors carry all of it)
-    const interestPerformanceFee = interestEarnedIncludingFees > BigInt(0) ? interestEarnedIncludingFees * vaultPerformanceFeeRate / BigInt(1e18) : BigInt(0)
-    
     // management fee earned by vault curator on principal
     const timeElapsed = options.toTimestamp - options.fromTimestamp
     const managementFeesEarned = vaultInfo[i].balance * vaultManagementFeeRate * BigInt(timeElapsed) / BigInt(1e18)
+
+    // interest earned by vault curator - performance fee: the contract charges rate * interest, and
+    // depositors keep interest - performance fee - management fee, so interest = (depositorYield + management fee) / (1 - rate)
+    // none is taken on a loss (the depositors carry all of it)
+    const yieldBeforePerformanceFee = depositorYield + managementFeesEarned
+    const interestPerformanceFee = yieldBeforePerformanceFee > BigInt(0) ? yieldBeforePerformanceFee * vaultPerformanceFeeRate / (BigInt(1e18) - vaultPerformanceFeeRate) : BigInt(0)
+
+    // interest earned and distributed to vault deposited including the performance fee
+    const interestEarnedIncludingFees = depositorYield + interestPerformanceFee
 
     if (breakdownFees) {
       balances.dailyFees.add(vaultInfo[i].asset, interestEarnedIncludingFees, METRICS.MorphoYields)
