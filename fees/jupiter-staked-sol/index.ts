@@ -20,6 +20,10 @@ const JUPITER_SHARE = 0.025;
 // share of priority fees to the pool reserve, e.g. tx 3AxJjFRrJdmXoarUNL3FKhDRhEF9ZLQ3qkECeH4owJuMAMPuMeZ5TGikPc9fjQvHuN9Bk8q4CXd8b2YUyrXLL3on.
 const JUPITER_VALIDATOR_IDENTITIES = ["JUPiTERrZqgf1jUyR7dSkhMx4Kn2qJyekWsg3LT1h4b", "JUPiTERkf97eKN222JwY7bkpWuJnwqKtT44fsbJfhkr"];
 // jupSOL's stake accounts are found by the pool's stake authority, so the JLP pool's stake (counted in jupiter-perpetual) is not included.
+const JUPITER_VOTE_ACCOUNT = "CatzoSMUkTRidT5DwBxAC2pEtnwMBTpkCepHkFgZDiqb";
+// Jupiter's validator takes a commission on inflation rewards (0% on MEV) before they reach the pool: 0% until 2026-05-25,
+// 5% since 2026-05-27 (commission on its Voting rewards in solana.rewards). Only the pool's stake on this validator pays it.
+const jupiterValidatorCommission = (timestamp: number) => timestamp >= 1779753600 ? 0.05 : 0; // 2026-05-26
 
 const REWARD_LABELS: Record<string, string> = {
   dailyFees: JUPITER_METRICS.JupSOLStakingRewards, // inflation rewards, from sol-lst.sql
@@ -50,6 +54,13 @@ FROM system_program_solana.system_program_call_transfer
 WHERE account_from IN (${JUPITER_VALIDATOR_IDENTITIES.map((a) => `'${a}'`).join(', ')})
   AND account_to = '${STAKE_POOL_RESERVE_ACCOUNT}'
   AND call_block_time >= ${start} AND call_block_time < ${end}
+UNION ALL
+SELECT 'jupsolJupiterValidatorRewards' AS metric_type, COALESCE(SUM(lamports), 0) / 1e9 AS amount
+FROM solana.rewards
+WHERE reward_type = 'Staking'
+  AND recipient IN (SELECT account_stakeAccount FROM stake_program_solana.stake_call_delegatestake
+    WHERE account_stakeAuthority = '${STAKE_POOL_WITHDRAW_AUTHORITY}' AND account_voteAccount = '${JUPITER_VOTE_ACCOUNT}')
+  AND block_time >= ${start} AND block_time < ${end}
 `;
 
   const results = await queryDuneSql(options, query);
@@ -70,6 +81,12 @@ WHERE account_from IN (${JUPITER_VALIDATOR_IDENTITIES.map((a) => `'${a}'`).join(
       // deposit and withdrawal fees paid into the fee account, in jupSOL
       dailyFees.addCGToken("jupiter-staked-sol", amount, JUPITER_METRICS.JupSOLDepositWithdrawFees);
       dailyRevenue.addCGToken("jupiter-staked-sol", amount, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+    } else if (row.metric_type === 'jupsolJupiterValidatorRewards') {
+      // the pool's reward is net of commission, so commission = reward * rate / (1 - rate), all kept by Jupiter
+      const rate = jupiterValidatorCommission(options.startOfDay);
+      const commission = amount * rate / (1 - rate);
+      dailyFees.addCGToken("solana", commission, JUPITER_METRICS.JupSOLValidatorCommission);
+      dailyRevenue.addCGToken("solana", commission, JUPITER_METRICS.JupSOLValidatorCommission);
     }
   });
 
@@ -89,8 +106,8 @@ const adapter: SimpleAdapter = {
   start: "2024-06-09",
   isExpensiveAdapter: true,
   methodology: {
-    Fees: "Staking rewards, Jito MEV tips and Jupiter validator priority fees earned by the jupSOL pool, plus deposit and withdrawal fees.",
-    Revenue: "Jupiter's 2.5% of pool rewards (half of the 5% pool fee), plus deposit and withdrawal fees.",
+    Fees: "Staking rewards, Jito MEV tips and Jupiter validator priority fees earned by the jupSOL pool, Jupiter's validator commission on the pool's stake, plus deposit and withdrawal fees.",
+    Revenue: "Jupiter's 2.5% of pool rewards (half of the 5% pool fee), Jupiter's validator commission, plus deposit and withdrawal fees.",
     ProtocolRevenue: "Half of Jupiter's revenue, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: "95% of pool rewards to jupSOL holders, and 2.5% to Sanctum.",
   },
@@ -100,18 +117,21 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupSOLMevRewards]: "Jito MEV tips claimed by the pool's stake accounts.",
       [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "Jupiter validator priority fees sent to the pool.",
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "Deposit and withdrawal fees.",
+      [JUPITER_METRICS.JupSOLValidatorCommission]: "Jupiter validator commission on inflation rewards of the pool's stake on that validator.",
     },
     Revenue: {
       [JUPITER_METRICS.JupSOLStakingRewards]: "Jupiter's 2.5% of inflation rewards.",
       [JUPITER_METRICS.JupSOLMevRewards]: "Jupiter's 2.5% of MEV tips.",
       [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "Jupiter's 2.5% of priority fees.",
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "Deposit and withdrawal fees.",
+      [JUPITER_METRICS.JupSOLValidatorCommission]: "Jupiter validator commission, all kept by Jupiter.",
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewards]: "Half of Jupiter's share of inflation rewards, kept by the treasury.",
       [JUPITER_METRICS.JupSOLMevRewards]: "Half of Jupiter's share of MEV tips, kept by the treasury.",
       [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "Half of Jupiter's share of priority fees, kept by the treasury.",
       [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "Half of deposit and withdrawal fees, kept by the treasury.",
+      [JUPITER_METRICS.JupSOLValidatorCommission]: "Half of the validator commission, kept by the treasury.",
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: "95% of pool rewards, to jupSOL holders.",
