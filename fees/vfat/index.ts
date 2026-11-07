@@ -56,6 +56,7 @@ const fetchFees = async (options: FetchOptions) => {
     maxBlockRange: chainConfig[chain].maxBlockRange,
     entireLog: true,
     parseLog: true,
+    allowParseFailure: true,
     noTarget: true,
     eventAbi: 'event FeeCharged(bytes32 feesHash, uint256 amount, address token)',
   });
@@ -64,6 +65,7 @@ const fetchFees = async (options: FetchOptions) => {
     maxBlockRange: chainConfig[chain].maxBlockRange,
     entireLog: true,
     parseLog: true,
+    allowParseFailure: true,
     noTarget: true,
     eventAbi: 'event FeeCharged(address strategy, bytes4 feeDescriptor, uint256 amount, address token)',
   });
