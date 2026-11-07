@@ -10,9 +10,7 @@ import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 // borrower interest) and the same 50/50 Jupiter/Fluid revenue share, so we apply
 // identical logic to each instance and only relabel for the breakdown.
 //
-// Kept on this Dune query rather than Jupiter's stats API (api.jup.ag/stats/v1/revenue, subproduct "lend"): from
-// 2026-01-01 to 2026-11-04 the API's fees match this query within $13 a day and its revenue within 1.2%, but the API
-// gives one total per product, which would drop the Ethena market and the lenders / Fluid / Jupiter split below.
+// Kept onchain instead of Jupiter's stats API: the numbers match, and the API has no per-market or per-party breakdown.
 const ETHENA_METRICS = {
   BorrowInterest: 'JupLend Ethena Isolated Market Borrow Interests',
   InterestToLenders: 'JupLend Ethena Isolated Market Borrow Interests To Lenders',
@@ -21,6 +19,9 @@ const ETHENA_METRICS = {
 };
 
 const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCase().includes('ethena');
+// Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
+const TREASURY_SHARE = 0.5;
+
 const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
 export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> => {
@@ -71,9 +72,9 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     // share of interest to Fluid
     dailySupplySideRevenue.addUSDValue(drFluidShare, metrics.InterestToFluid);
 
-    // share of interest to Jupiter, all kept by Jupiter: JUP buybacks are reported once, on the Jupiter Aggregator listing
+    // share of interest to Jupiter, half of it to the treasury
     dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
-    dailyProtocolRevenue.addUSDValue(dr, metrics.InterestToJupiter);
+    dailyProtocolRevenue.addUSDValue(dr * TREASURY_SHARE, metrics.InterestToJupiter);
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market
@@ -98,7 +99,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
     Revenue: "Jupiter's share of borrow interest, half of the reserve cut (the other half goes to Fluid).",
-    ProtocolRevenue: "Jupiter's share of borrow interest, all kept by Jupiter.",
+    ProtocolRevenue: "Half of Jupiter's share, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
     SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
   },
   breakdownMethodology: {
@@ -117,8 +118,8 @@ const adapter: SimpleAdapter = {
       [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) market.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.InterestToJupiter]: "Jupiter's interest cut, all kept by Jupiter.",
-      [ETHENA_METRICS.InterestToJupiter]: "Jupiter's interest cut from the isolated Ethena (USDe) market, all kept by Jupiter.",
+      [JUPITER_METRICS.InterestToJupiter]: "Half of Jupiter's interest cut, kept by the treasury.",
+      [ETHENA_METRICS.InterestToJupiter]: "Half of Jupiter's interest cut from the isolated Ethena (USDe) market, kept by the treasury.",
     },
   },
   isExpensiveAdapter: true,
