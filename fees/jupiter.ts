@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
+import { queryDuneResult } from "../helpers/dune"
 import { METRIC } from "../helpers/metrics"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
@@ -21,9 +22,24 @@ const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Li
 // when the other half started buying back JUP (counted once, on this listing, as holders revenue).
 export const jupTreasuryShare = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 1;
 
-async function getLitterboxBuybacks(options: FetchOptions) {
+// Saved Dune query running helpers/queries/jupiter-aggregator.sql: fees and Litterbox buybacks per day since 2025-02-17,
+// so refills skip the Allium queries below. Rerun it on Dune to extend the history; days not in its result use Allium.
+const DUNE_HISTORY_QUERY_ID = '9087823'
+
+type CachedDay = { fees_usd: number, buyback_jup: string }
+async function getCachedDay(options: FetchOptions): Promise<CachedDay | undefined> {
+  if (options.startOfDay < JUP_BUY_BACK_START_TIME) return
+  const [row] = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`)
+  return row
+}
+
+async function getLitterboxBuybacks(options: FetchOptions, cached?: CachedDay) {
   const dailyHoldersRevenue = options.createBalances()
   if (options.endTimestamp <= JUP_BUY_BACK_START_TIME) return dailyHoldersRevenue
+  if (cached) {
+    dailyHoldersRevenue.add(JUP_MINT, cached.buyback_jup, METRIC.TOKEN_BUY_BACK)
+    return dailyHoldersRevenue
+  }
   const [row] = await queryAllium(`
     SELECT
       (SELECT COALESCE(SUM(t.raw_amount), 0)
@@ -135,6 +151,17 @@ export const JUPITER_METRICS = {
 }
 
 const fetchOnchain = async (options: FetchOptions) => {
+  const cached = await getCachedDay(options)
+  if (cached) {
+    const dailyFees = options.createBalances()
+    dailyFees.addUSDValue(cached.fees_usd, JUPITER_METRICS.AggSwapFees)
+    return {
+      dailyFees,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+      dailyHoldersRevenue: await getLitterboxBuybacks(options, cached),
+    }
+  }
   const feeAuthorityRows = JUPITER_FEE_AUTHORITIES.map((address) => `('${address}')`).join(',\n        ')
   const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
@@ -183,7 +210,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // before that.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
-  const dailyHoldersRevenue = await getLitterboxBuybacks(options)
+  const dailyHoldersRevenue = await getLitterboxBuybacks(options, await getCachedDay(options))
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue }
 }
 
@@ -217,7 +244,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2023-01-03',
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology
