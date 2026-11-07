@@ -1,38 +1,60 @@
-import ADDRESSES from '../../helpers/coreAssets.json'
-import { CHAIN } from "../../helpers/chains";
-import { Adapter, FetchOptions, FetchResultFees } from "../../adapters/types";
-import { addTokensReceived } from "../../helpers/token";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { addFees, getChainStats, adapterChains } from "../../helpers/aggregators/thorchain";
 
-const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
-  const dailyFees = await addTokensReceived({
-    targets: [
-      '0x546e7b1f4b4Df6CDb19fbDdFF325133EBFE04BA7',
-      '0x6Ee1f539DDf1515eE49B58A5E9ae84C2E7643490',
-      '0x6d1eff1aFF1dc9978d851D09d9d15f2938Da7BD7',
-      '0x335Fd459eADf098f8B2f26692936Ee3D5Bb425A2',
-    ], // v3, v4, v5 and v5.1 fee collectors
-    tokens: [ADDRESSES.ethereum.USDC],
-    options
-  })
-  const dailyRevenue = dailyFees.clone();
-  const dailyProtocolRevenue = dailyRevenue.clone(0.25); // 25% of revenue goes to protocol
-  const dailyHoldersRevenue = dailyRevenue.clone(0.75); // 75% of revenue goes to holders
-  return { dailyFees, dailyRevenue: dailyRevenue, dailyProtocolRevenue: dailyProtocolRevenue, dailyHoldersRevenue: dailyHoldersRevenue, }
-}
+const fetch = async (options: FetchOptions) => {
+  const chain = await getChainStats(options);
+  // the API sends fee lists only where swaps recorded a fee; without them the fee is unknown, not zero
+  if (!chain?.fees) return {};
 
+  const dailyFees = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  addFees(dailyFees, chain.fees);
+  addFees(dailyProtocolRevenue, chain.protocolRevenue ?? []);
+  addFees(dailyHoldersRevenue, chain.holdersRevenue ?? []);
 
-const adapter: Adapter = {
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addBalances(dailyProtocolRevenue);
+  dailyRevenue.addBalances(dailyHoldersRevenue);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+  };
+};
+
+const methodology = {
+  Fees: "Swap fees users pay the protocol on top of the route, counted in the hour the swap was created on the chain it sold from. The protocol started charging swap fees on 2022-04-24, so fees before that date are zero.",
+  Revenue: "All swap fees, split between the treasury and THOR stakers and buyback.",
+  ProtocolRevenue: "25% of swap fees, paid to the treasury.",
+  HoldersRevenue: "75% of swap fees, which goes to THOR stakers and THOR buyback.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    "Swap Fees": "Fees users pay the protocol on swaps.",
+  },
+  Revenue: {
+    "Swap Fees To Treasury": "25% of swap fees, paid to the treasury.",
+    "Swap Fees To THOR Stakers And Buyback": "75% of swap fees, which goes to THOR stakers and THOR buyback.",
+  },
+  ProtocolRevenue: {
+    "Swap Fees To Treasury": "25% of swap fees, paid to the treasury.",
+  },
+  HoldersRevenue: {
+    "Swap Fees To THOR Stakers And Buyback": "75% of swap fees, which goes to THOR stakers and THOR buyback.",
+  },
+};
+
+const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.ETHEREUM],
-  start: '2025-02-19',
-  methodology: {
-    Fees: 'Swap fees paid by users.',
-    Revenue: 'Swap fees paid by users.',
-    ProtocolRevenue: '25% of revenue goes to protocol treasury.',
-    HoldersRevenue: '75% of revenue goes to THOR holders. 20% goes to buy THOR from market and burn. Rest is going to stakers. Stakers can choose in which token they want to receive their rewards either THOR or USDC.',
-  }
-}
+  adapter: adapterChains(),
+  methodology,
+  breakdownMethodology,
+};
 
 export default adapter;
