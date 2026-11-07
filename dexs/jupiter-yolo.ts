@@ -48,8 +48,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: YOLO_START,
