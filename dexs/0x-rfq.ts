@@ -84,7 +84,8 @@ const prefetch = async (options: FetchOptions) => {
         startApi.multiCall({ target: SETTLER_DEPLOYER, abi: prev, calls, permitFailure: true }),
         endApi.multiCall({ target: SETTLER_DEPLOYER, abi: ownerOf, calls, permitFailure: true }),
       ]);
-      // One feature can revert (paused). All three empty means the RPC read failed, which would store a low day.
+      // A feature can revert while paused, so a read may miss one feature. A read with nothing for all three features
+      // means the RPC failed, and a missing read would store a low day, so any such read throws.
       if (results.some((read) => !read.some(Boolean))) throw new Error(`0x-rfq: Settler registry read failed on ${chain}`);
       const settlers = [...new Set(results.flat()
         .filter(Boolean)
