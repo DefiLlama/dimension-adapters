@@ -3,7 +3,7 @@ import ADDRESSES from '../helpers/coreAssets.json'
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { duneBlockchain, queryDuneSql } from "../helpers/dune";
 import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from '../helpers/metrics';
 
@@ -284,22 +284,31 @@ async function fetchEVM(options: FetchOptions) {
     dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
   })
 
-  const [{ payouts }] = await queryDuneSql(options, `
-    SELECT SUM(value) AS payouts
-    FROM CHAIN.transactions
-    WHERE "from" = ${EVM_REWARD_RELAYER}
-      AND success
-      AND value > uint256 '0'
-      AND TIME_RANGE
-  `);
   // Payouts lag the fees that fund them, so a day's revenue can be negative, as on Solana (allowNegativeValue below).
-  const referralCashbackRewards = Number(payouts ?? 0);
+  // A chain where the relayer sent nothing in the window has no row in the prefetch.
+  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneBlockchain(options.chain));
+  const referralCashbackRewards = Number(payoutRow?.payouts ?? 0);
   dailySupplySideRevenue.addGasToken(referralCashbackRewards, LABELS.REFERRAL_CASHBACK_PAYOUT);
   dailyRevenue.addGasToken(-referralCashbackRewards, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
+
+const EVM_CHAINS = Object.keys(chainConfig).filter((chain) => chain !== CHAIN.SOLANA);
+
+async function prefetch(options: FetchOptions) {
+  return queryDuneSql(options, `
+    SELECT blockchain, SUM(value) AS payouts
+    FROM evms.transactions
+    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneBlockchain(chain)}'`).join(', ')})
+      AND "from" = ${EVM_REWARD_RELAYER}
+      AND success
+      AND value > uint256 '0'
+      AND TIME_RANGE
+    GROUP BY blockchain
+  `);
+}
 
 async function fetch(options: FetchOptions) {
   return options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEVM(options);
@@ -326,6 +335,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
+  prefetch,
   adapter: chainConfig,
   isExpensiveAdapter: true,
   // Solana daily revenue (fees - referral/cashback payouts) can be negative on days where payouts
