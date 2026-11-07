@@ -142,6 +142,7 @@ const getLogs = async (tronAddress: string, eventName: string, min_block_timesta
     if (fingerprint) params.push(`fingerprint=${fingerprint}`);
     const url = `${endpoint}/v1/contracts/${tronAddress}/events?${params.join('&')}`;
     const res = await fetchURLAutoHandleRateLimit(url);
+    if (res?.success === false) throw new Error(`justlend: TronGrid events request failed for ${eventName} on ${tronAddress}`);
     const events = res.data ?? [];
     logs = logs.concat(events);
     fingerprint = res.meta?.fingerprint;
