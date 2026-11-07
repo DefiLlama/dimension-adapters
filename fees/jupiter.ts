@@ -30,7 +30,7 @@ type CachedDay = { fees_usd: number, buyback_jup: string }
 async function getCachedDay(options: FetchOptions): Promise<CachedDay | undefined> {
   if (options.startOfDay < JUP_BUY_BACK_START_TIME) return
   const [row] = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`)
-  return row
+  return row as CachedDay | undefined
 }
 
 async function getLitterboxBuybacks(options: FetchOptions, cached?: CachedDay) {
