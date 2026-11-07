@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const SUBGRAPH = 'https://api.subgraph.ormilabs.com/api/public/717cf785-de57-4761-94dd-9ac51b019902/subgraphs/v3-vault-sonic-smol/latest/gn'
+const SUBGRAPH = 'https://api.subgraph.ormilabs.com/api/public/15f57ff4-2566-4e3f-93f2-7a10504120f0/subgraphs/v3-vault-sonic-smol/latest/gn'
 const V3_VAULT = '0xbA1333333333a1BA1108E8412f11850A5C319bA9'
 const DEFAULT_PROTOCOL_YIELD_FEE = 0.1
 const MAX_DAILY_YIELD_RATE = 0.01
