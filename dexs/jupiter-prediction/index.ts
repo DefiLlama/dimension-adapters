@@ -56,6 +56,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const fees = queryResult[0].total_fees;
 
     // Jupiter's share of the fees is not visible onchain: from 2026-01-01 it comes from Jupiter's stats API, before that none is counted.
+    // The API's prediction total also includes Arcade.
     const revenue = useStatsApi
         ? await (await getJupiterStatsRevenue(options, { prediction: JUPITER_METRICS.JupPredictionFeesToJupiter })).dailyRevenue.getUSDValue()
         : 0;

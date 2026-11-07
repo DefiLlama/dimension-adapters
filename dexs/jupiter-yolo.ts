@@ -11,7 +11,10 @@ const LABELS = {
 // Half of Jupiter's revenue goes to the treasury, the other half buys back JUP (counted on the Jupiter Aggregator listing).
 const TREASURY_SHARE = 0.5
 
-// Kept onchain instead of Jupiter's stats API: the program's win fee events match the API to the dollar.
+// Profit fees are taken from winning payouts by the YOLO program yoLovHV5eT4DNPMG2Bu1NLmq8nVygEAPrNT1Rx6vWFA and held in
+// its fee balance, separate from the house bankroll. They are the win fee entries (YOLO_KIND.winFee in
+// helpers/jupiter-yolo.ts) of the program's AccrueFee ledger events, in JupUSD; a close fee would appear there too.
+// Kept onchain instead of Jupiter's stats API (subproduct "yolo"): these events match the API to the dollar.
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp: start, endTimestamp: end } = options
   const [row] = await queryAllium(`

@@ -10,6 +10,8 @@ import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 // borrower interest) and the same 50/50 Jupiter/Fluid revenue share, so we apply
 // identical logic to each instance and only relabel for the breakdown.
 //
+// Interest accrues in the liquidity program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC and the lending program
+// jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9.
 // Kept onchain instead of Jupiter's stats API: the numbers match, and the API has no per-market or per-party breakdown.
 const ETHENA_METRICS = {
   BorrowInterest: 'JupLend Ethena Isolated Market Borrow Interests',
