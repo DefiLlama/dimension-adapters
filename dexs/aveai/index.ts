@@ -2,13 +2,12 @@ import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../ad
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
+import { isCoreAsset } from "../../helpers/prices";
 
 const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?: string }> = {
   [CHAIN.BASE]: {
     start: "2025-07-03",
-    // The first router stopped emitting and Base has published 0 since 2026-07-24. The other two
-    // are byte-identical redeployments of it under the same owner, 0x31781b4E7FB61756BD0a0Ef7850d5e7bf6270FC4,
-    // which also owns the router on every other chain here.
+    // The first router stopped emitting around 2026-07-24; the others are its redeployments.
     routers: [
       "0x282970F452371454332Ca522cE59F318a2C81484",
       "0x8a33650bbBd7622D7bF1b98d4ae851c134126C18",
@@ -17,7 +16,6 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
     ],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
   },
-  // Same ProxyAdmin and owner as fees/aveai. This lists the routers that emit Swap; fees/aveai also lists fee-only ones.
   [CHAIN.BSC]: {
     start: "2025-07-03",
     routers: [
@@ -73,12 +71,15 @@ const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
     flatten: true,
   });
 
+  const isNative = (token: string) => token.toLowerCase() === ADDRESSES.GAS_TOKEN_2;
+  const addSide = (token: string, amount: any) => {
+    if (isNative(token)) dailyVolume.addGasToken(amount);
+    else dailyVolume.add(token, amount);
+  };
+
   logs.forEach((log) => {
-    if (log.tokenIn.toLowerCase() === ADDRESSES.GAS_TOKEN_2) {
-      dailyVolume.addGasToken(log.amountIn);
-    } else {
-      dailyVolume.add(log.tokenIn, log.amountIn);
-    }
+    if (isNative(log.tokenIn) || isCoreAsset(options.chain, log.tokenIn)) addSide(log.tokenIn, log.amountIn);
+    else addSide(log.tokenOut, log.amountOut);
   });
 
   return { dailyVolume };
@@ -131,7 +132,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Total USD value of the swaps ave.ai routes through underlying DEXs. Double-counted, since those same swaps are also reported by the DEXs that actually execute them.",
+  Volume: "Total USD value of the swaps ave.ai routes through underlying DEXs, valued on EVM chains by the native-token, stablecoin or major-token side of each swap. Double-counted, since those same swaps are also reported by the DEXs that actually execute them.",
 };
 
 const adapter: SimpleAdapter = {
