@@ -37,9 +37,13 @@ const chainConfig = {
 
   The active Settler contracts are discovered from the official cross-chain
   Settler deployer/registry. ownerOf(2), ownerOf(3), and ownerOf(4) resolve the
-  current taker-submitted, metatxn/gasless, and intent Settler deployments at the
-  requested historical start timestamp. A revert/zero result is ignored, which
-  covers paused or unavailable features.
+  current taker-submitted, metatxn/gasless, and intent Settler deployments.
+  After a rotation ownerOf() returns the new deployment at once, while 0x API
+  keeps routing to the previous one (the "dwell time" in the 0x-settler README),
+  so reading ownerOf() alone misses those fills. For each window we read ownerOf()
+  and prev() at the start, and ownerOf() at the end for a rotation inside the
+  window. A revert/zero result is ignored, which covers paused or unavailable
+  features.
 
   To price a Settler RFQ fill we need to bind that marker amount to a token. We
   do that by reading only transactions that already have a candidate marker log,
@@ -69,13 +73,20 @@ const prefetch = async (options: FetchOptions) => {
   const chainQueries = (await Promise.all(Object.entries(chainConfig)
     .filter(([, { duneChain, start }]) => duneChain && options.startTimestamp >= Date.parse(`${start}T00:00:00Z`) / 1e3)
     .map(async ([chain, { duneChain }]) => {
-      // Resolve only the active Settler addresses for this historical window.
-      const settlers = [...new Set((await new ChainApi({ chain, timestamp: options.startTimestamp }).multiCall({
-        target: SETTLER_DEPLOYER,
-        abi: "function ownerOf(uint256 tokenId) view returns (address)",
-        calls: [2, 3, 4],
-        permitFailure: true,
-      }))
+      // Resolve every Settler that can fill in this historical window.
+      const startApi = new ChainApi({ chain, timestamp: options.startTimestamp });
+      const endApi = new ChainApi({ chain, timestamp: options.toTimestamp });
+      const ownerOf = "function ownerOf(uint256 tokenId) view returns (address)";
+      const prev = "function prev(uint128 featureId) view returns (address)";
+      const calls = [2, 3, 4];
+      const results = await Promise.all([
+        startApi.multiCall({ target: SETTLER_DEPLOYER, abi: ownerOf, calls, permitFailure: true }),
+        startApi.multiCall({ target: SETTLER_DEPLOYER, abi: prev, calls, permitFailure: true }),
+        endApi.multiCall({ target: SETTLER_DEPLOYER, abi: ownerOf, calls, permitFailure: true }),
+      ]);
+      // One feature can revert (paused). All three empty means the RPC read failed, which would store a low day.
+      if (results.some((read) => !read.some(Boolean))) throw new Error(`0x-rfq: Settler registry read failed on ${chain}`);
+      const settlers = [...new Set(results.flat()
         .filter(Boolean)
         .map((settler: string) => settler.toLowerCase())
         .filter((settler: string) => settler !== ADDRESSES.null)
