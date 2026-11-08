@@ -9,14 +9,8 @@ const VARA_RPC = "https://rpc.vara.network";
 // Vara Mainnet program IDs from `deploy-state.json` in https://github.com/Satyam-10124/growstreams-v3
 // StreamCore (`stream-core`): continuous per-second token streaming engine
 const STREAM_CORE = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
-// TokenVault (`token-vault`): native VARA & VFT collateral custody vault
-const TOKEN_VAULT = "0x657cf9c4f929aeac97092037826c1117f9e6cd0e3c4edc44e49decc17b840aa9";
-// SplitsRouter (`splits-router`): multi-recipient 60/15/15/10 agent squad revenue router
-const SPLITS_ROUTER = "0x68b9fd8f53f6557db2c26b5b9a7c63061bb7f36d379dc843b8a53e78f5692f45";
-// BountyAdapter (`bounty-adapter`): AI-verified streaming bounties & protocol pillar settlements
+// BountyAdapter (`bounty-adapter`): AI-verified streaming bounties, Agent Society ACP splits & StonkBase desk settlements
 const BOUNTY_ADAPTER = "0x7697bb2e8655e6cd7294389a0289355f48fd5459914d2a735c9966dad548bd4f";
-// PermissionManager (`permission-manager`): autonomous agent execution & delegation permissions
-const PERMISSION_MANAGER = "0x52f4299e964dab5e97c91cdd10e2d6e635b19696ab8389889aabceba3de9e581";
 
 // Supported VARA-pegged & protocol VFT token ActorIds (32-byte hex without 0x prefix) from `deploy-state.json`
 // wVARA (`wvara`): 1:1 wrapped native VARA token (`0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d`)
@@ -61,11 +55,6 @@ const ROUTE_CONFIG = route("StreamService", "GetConfig");
 const ROUTE_GETSTREAM = route("StreamService", "GetStream");
 const ROUTE_TOTAL_BOUNTIES = route("BountyService", "TotalBounties");
 const ROUTE_GET_BOUNTY = route("BountyService", "GetBounty");
-const ROUTE_TOTAL_GROUPS = route("SplitsService", "TotalGroups");
-const ROUTE_GET_GROUP = route("SplitsService", "GetSplitGroup");
-const ROUTE_GET_DISTRIBUTED = route("SplitsService", "GetTotalDistributed");
-const ROUTE_VAULT_CONFIG = route("VaultService", "GetConfig");
-const ROUTE_TOTAL_PERMS = route("PermissionService", "TotalPermissions");
 
 /**
  * Reads an unsigned 64-bit little-endian integer as a JS number.
@@ -160,12 +149,6 @@ type BountyRecord = {
   status: number;
   createdAt: number;
 };
-type SplitGroupRecord = {
-  id: number;
-  createdAt: number;
-  updatedAt: number;
-  totalDistributed: bigint;
-};
 
 /**
  * Decodes `StreamService::GetConfig` reply to extract `nextStreamId` and `feeBps`.
@@ -250,39 +233,6 @@ function decodeBounty(buf: Buffer): BountyRecord | null {
   return { id, title, token, maxFlowRate, minScore, totalBudget, spent, activeStream, status, createdAt };
 }
 
-/**
- * Sequentially decodes `SplitsService::GetSplitGroup(id)` and `SplitsService::GetTotalDistributed(id)` replies
- * matching `struct SplitGroup` in `contracts/splits-router/src/lib.rs`.
- */
-function decodeSplitGroup(grpBuf: Buffer, distBuf: Buffer): SplitGroupRecord | null {
-  if (!grpBuf.subarray(0, ROUTE_GET_GROUP.length).equals(ROUTE_GET_GROUP)) throw new Error("malformed GetSplitGroup");
-  if (!distBuf.subarray(0, ROUTE_GET_DISTRIBUTED.length).equals(ROUTE_GET_DISTRIBUTED)) {
-    throw new Error("malformed GetTotalDistributed");
-  }
-
-  const grpRest = grpBuf.subarray(ROUTE_GET_GROUP.length);
-  if (grpRest.length === 0 || grpRest[0] === 0) return null;
-  if (grpRest[0] !== 1 || grpRest.length < 42) throw new Error(`unexpected GetSplitGroup opt ${grpRest[0]}`);
-
-  // 1. opt(1) + id: u64 (8) + owner: ActorId (32) + recipients: Vec<SplitRecipient> (compact len + N * 36 bytes)
-  const id = u64LE(grpRest, 1);
-  const { value: recipientCount, nextOffset: afterCount } = decodeScaleCompactU32(grpRest, 41);
-  let pos = afterCount + recipientCount * 36;
-
-  // 2. total_weight: u32 (4) + created_at: u64 (8, ms) + updated_at: u64 (8, ms)
-  if (pos + 20 > grpRest.length) throw new Error("malformed GetSplitGroup trailing fields");
-  pos += 4; // skip total_weight
-  const createdAt = Math.floor(u64LE(grpRest, pos) / MS_PER_SECOND);
-  pos += 8;
-  const updatedAt = Math.floor(u64LE(grpRest, pos) / MS_PER_SECOND);
-
-  const distRest = distBuf.subarray(ROUTE_GET_DISTRIBUTED.length);
-  if (distRest.length < 16) throw new Error("short GetTotalDistributed payload");
-  const totalDistributed = u128LE(distRest, 0);
-
-  return { id, createdAt, updatedAt, totalDistributed };
-}
-
 let configCache: Promise<{ nextStreamId: number; feeBps: number }> | undefined;
 /**
  * Fetches and caches `StreamCore` configuration (`nextStreamId` and `feeBps`).
@@ -331,22 +281,14 @@ async function firstStreamAtOrAfter(ts: number, lastId: number): Promise<number>
   return lo;
 }
 
-let multiContractCache:
-  | Promise<{
-      bounties: BountyRecord[];
-      splitGroups: SplitGroupRecord[];
-      vaultTokensHeld: bigint;
-      totalPermissions: number;
-    }>
-  | undefined;
+let bountiesCache: Promise<BountyRecord[]> | undefined;
 
 /**
- * Fetches and caches on-chain state from `BountyAdapter`, `SplitsRouter`, `TokenVault`, and `PermissionManager`.
+ * Fetches and caches all `BountyRecord` entries from `BountyAdapter`.
  */
-function getMultiContractSnapshot() {
-  if (!multiContractCache) {
-    multiContractCache = (async () => {
-      // 1. BountyAdapter: read TotalBounties & all Bounty records
+function getBountiesSnapshot(): Promise<BountyRecord[]> {
+  if (!bountiesCache) {
+    bountiesCache = (async () => {
       const totalBountiesBuf = await rpcCall(BOUNTY_ADAPTER, "0x" + ROUTE_TOTAL_BOUNTIES.toString("hex"));
       if (!totalBountiesBuf.subarray(0, ROUTE_TOTAL_BOUNTIES.length).equals(ROUTE_TOTAL_BOUNTIES)) {
         throw new Error("malformed TotalBounties");
@@ -362,64 +304,25 @@ function getMultiContractSnapshot() {
           return decodeBounty(reply);
         });
       if (bountyErrors.length) throw new Error(`${bountyErrors.length}/${bountyIds.length} GetBounty calls failed`);
-      const bounties = bountyResults.filter((b): b is BountyRecord => Boolean(b));
-
-      // 2. SplitsRouter: read TotalGroups, GetSplitGroup & GetTotalDistributed
-      const totalGroupsBuf = await rpcCall(SPLITS_ROUTER, "0x" + ROUTE_TOTAL_GROUPS.toString("hex"));
-      if (!totalGroupsBuf.subarray(0, ROUTE_TOTAL_GROUPS.length).equals(ROUTE_TOTAL_GROUPS)) {
-        throw new Error("malformed TotalGroups");
-      }
-      const totalGroups = u64LE(totalGroupsBuf, ROUTE_TOTAL_GROUPS.length);
-      const groupIds = Array.from({ length: totalGroups }, (_, i) => i + 1);
-      const { results: splitResults, errors: splitErrors } = await PromisePool.withConcurrency(6)
-        .for(groupIds)
-        .process(async (id) => {
-          const idBuf = Buffer.alloc(8);
-          idBuf.writeBigUInt64LE(BigInt(id), 0);
-          const [grpReply, distReply] = await Promise.all([
-            rpcCall(SPLITS_ROUTER, "0x" + Buffer.concat([ROUTE_GET_GROUP, idBuf]).toString("hex")),
-            rpcCall(SPLITS_ROUTER, "0x" + Buffer.concat([ROUTE_GET_DISTRIBUTED, idBuf]).toString("hex")),
-          ]);
-          return decodeSplitGroup(grpReply, distReply);
-        });
-      if (splitErrors.length) throw new Error(`${splitErrors.length}/${groupIds.length} split group calls failed`);
-      const splitGroups = splitResults.filter((g): g is SplitGroupRecord => Boolean(g));
-
-      // 3. TokenVault & PermissionManager state verification
-      const [vaultCfgBuf, permsBuf] = await Promise.all([
-        rpcCall(TOKEN_VAULT, "0x" + ROUTE_VAULT_CONFIG.toString("hex")),
-        rpcCall(PERMISSION_MANAGER, "0x" + ROUTE_TOTAL_PERMS.toString("hex")),
-      ]);
-      if (!vaultCfgBuf.subarray(0, ROUTE_VAULT_CONFIG.length).equals(ROUTE_VAULT_CONFIG)) {
-        throw new Error("malformed VaultService::GetConfig");
-      }
-      if (!permsBuf.subarray(0, ROUTE_TOTAL_PERMS.length).equals(ROUTE_TOTAL_PERMS)) {
-        throw new Error("malformed PermissionService::TotalPermissions");
-      }
-      const vaultRest = vaultCfgBuf.subarray(ROUTE_VAULT_CONFIG.length);
-      const vaultTokensHeld = vaultRest.length >= 81 ? u128LE(vaultRest, 65) : 0n;
-      const totalPermissions = u64LE(permsBuf, ROUTE_TOTAL_PERMS.length);
-
-      return { bounties, splitGroups, vaultTokensHeld, totalPermissions };
+      return bountyResults.filter((b): b is BountyRecord => Boolean(b));
     })().catch((e) => {
-      multiContractCache = undefined;
+      bountiesCache = undefined;
       throw e;
     });
   }
-  return multiContractCache;
+  return bountiesCache;
 }
 
 /**
- * Computes GrowStreams daily volume, fees, and protocol revenue across `StreamCore`, `BountyAdapter` (including StonkBase 1x spot margin & Agent Society ACP streams), `SplitsRouter`, and `TokenVault`.
+ * Computes GrowStreams daily volume, fees, and protocol revenue across `StreamCore` and `BountyAdapter` (including StonkBase 1x spot margin & Agent Society ACP streams).
  */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
-  const [{ nextStreamId, feeBps }, { bounties }] = await Promise.all([
+  const [{ nextStreamId, feeBps }, bounties] = await Promise.all([
     getConfig(),
-    getMultiContractSnapshot(),
+    getBountiesSnapshot(),
   ]);
   const lastId = nextStreamId - 1;
 
@@ -446,22 +349,30 @@ const fetch = async (options: FetchOptions) => {
   // 2. BountyAdapter AI-verified active streaming bounties, Agent Society ACP splits & StonkBase 1x spot collateral in [fromTimestamp, toTimestamp)
   for (const b of bounties) {
     if (!SUPPORTED_TOKENS.has(b.token.toLowerCase())) continue;
-    // Only accrue for verified active streaming bounties (`status === Streaming` and `active_stream !== null`)
     if (b.status !== BOUNTY_STATUS_STREAMING || b.activeStream === null) continue;
 
     // Matches `flow_rate = (bounty.max_flow_rate * score as u128) / 100` in `contracts/adapters/bounty-adapter/src/lib.rs`
     const rawVerifiedFlowRate = (b.maxFlowRate * BigInt(b.minScore)) / SCORE_DENOMINATOR;
-    const rawRemainingBudget = b.totalBudget > b.spent ? b.totalBudget - b.spent : 0n;
-    if (rawVerifiedFlowRate <= 0n || rawRemainingBudget <= 0n) continue;
+    if (rawVerifiedFlowRate <= 0n || b.totalBudget <= 0n) continue;
 
     // Normalize 5x leveraged StonkBase synthetic equity flows by STONKBASE_MAX_LEVERAGE (5x) so only 1x unleveraged spot margin collateral is counted
     const isLeveragedDesk = b.title.includes("5X_LEVERAGED");
     const effectiveFlowRate = isLeveragedDesk ? rawVerifiedFlowRate / STONKBASE_MAX_LEVERAGE : rawVerifiedFlowRate;
-    const effectiveBudgetCap = isLeveragedDesk ? rawRemainingBudget / STONKBASE_MAX_LEVERAGE : rawRemainingBudget;
+    const effectiveBudgetCap = isLeveragedDesk ? b.totalBudget / STONKBASE_MAX_LEVERAGE : b.totalBudget;
+    if (effectiveFlowRate <= 0n || effectiveBudgetCap <= 0n) continue;
 
-    // Compute bounded per-window delta `accruedUntilEnd - accruedBefore` capped at `effectiveBudgetCap` so total accrual across all periods never exceeds the bounty budget
-    const elapsedBefore = BigInt(Math.max(0, options.fromTimestamp - b.createdAt));
-    const elapsedUntilEnd = BigInt(Math.max(0, options.toTimestamp - b.createdAt));
+    // Resolve stream start timestamp from StreamCore via `b.activeStream` when created at or after `b.createdAt`, falling back to `b.createdAt`
+    const linkedStream = await getStream(b.activeStream);
+    const streamStart = linkedStream && linkedStream.startTime >= b.createdAt ? linkedStream.startTime : b.createdAt;
+    const durationSeconds = Number(effectiveBudgetCap / effectiveFlowRate);
+    const streamEnd = streamStart + durationSeconds;
+
+    // Stop accrual once the bounded settlement period `[streamStart, streamEnd]` completes
+    if (options.toTimestamp <= streamStart || options.fromTimestamp >= streamEnd) continue;
+
+    // Compute per-window delta `accruedUntilEnd - accruedBefore` using the same `streamStart` and full `effectiveBudgetCap` basis
+    const elapsedBefore = BigInt(Math.max(0, options.fromTimestamp - streamStart));
+    const elapsedUntilEnd = BigInt(Math.max(0, options.toTimestamp - streamStart));
     const uncappedBefore = elapsedBefore * effectiveFlowRate;
     const uncappedUntilEnd = elapsedUntilEnd * effectiveFlowRate;
     const accruedBefore = uncappedBefore < effectiveBudgetCap ? uncappedBefore : effectiveBudgetCap;
@@ -473,6 +384,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (volumePlancks > 0n) {
+    // 100% of protocol service fees (`fee_bps = 250` = 2.5%) go to the GrowStreams treasury; there is no supply-side share.
     const feesVara = Number((volumePlancks * BigInt(feeBps)) / BPS_DENOMINATOR) / VARA_DECIMALS;
     const volumeVara = Number(volumePlancks) / VARA_DECIMALS;
     dailyFees.addCGToken("vara-network", feesVara, METRIC.SERVICE_FEES);
@@ -480,22 +392,13 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume.addCGToken("vara-network", volumeVara);
   }
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue,
-    dailyVolume,
-  };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailyVolume };
 };
 
 const methodology = {
-  Fees: "fee_bps (StreamService::GetConfig, currently 250 = 2.5%) applied to StreamCore deposits and bounded per-window settlements across BountyAdapter (including Agent Society ACP splits and StonkBase 1x spot margin flows).",
-  UserFees: "Users and autonomous agents pay the 2.5% (250 bps) protocol fee on streamed and settled volume.",
+  Fees: "Users and autonomous agents pay fee_bps (StreamService::GetConfig, currently 250 = 2.5%) on StreamCore deposits and bounded per-window settlements across BountyAdapter (including Agent Society ACP splits and StonkBase 1x spot margin flows).",
   Revenue: "100% of the 2.5% streaming and settlement fee is routed to the GrowStreams protocol treasury.",
   ProtocolRevenue: "100% of the 2.5% streaming and settlement fee is routed to the GrowStreams protocol treasury.",
-  SupplySideRevenue: "No fee share is distributed to external liquidity providers (0%).",
   Volume: "VARA-denominated value deposited and streamed within the window across StreamCore and verified active BountyAdapter streams (including Agent Society ACP splits and StonkBase 1x spot margin collateral, strictly bounded by each bounty's total_budget cap).",
 };
 
@@ -503,14 +406,11 @@ export const breakdownMethodology = {
   Fees: {
     [METRIC.SERVICE_FEES]: "Per-window streamed and deposited volume * fee_bps / 10_000 across StreamCore and BountyAdapter.",
   },
-  UserFees: {
-    [METRIC.SERVICE_FEES]: "2.5% protocol service fee paid by stream creators and trading agents.",
-  },
   Revenue: {
-    [METRIC.SERVICE_FEES]: "Full 2.5% protocol fee routed to the GrowStreams treasury; 0% supply-side cut.",
+    [METRIC.SERVICE_FEES]: "Full 2.5% protocol fee routed to the GrowStreams treasury; no supply-side cut.",
   },
   ProtocolRevenue: {
-    [METRIC.SERVICE_FEES]: "Full 2.5% protocol fee routed to the GrowStreams treasury; 0% supply-side cut.",
+    [METRIC.SERVICE_FEES]: "Full 2.5% protocol fee routed to the GrowStreams treasury; no supply-side cut.",
   },
 };
 
