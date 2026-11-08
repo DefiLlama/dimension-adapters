@@ -6,6 +6,8 @@ import { METRIC } from "../helpers/metrics";
 const GRID_MINING = '0x50518bfb43d526F0342459cF92CB0AeC25D38Fd9';
 const AUTO_MINER = '0x0a570E5Ac33118f36c9B0AC7bFFCAB6bde57c308';
 const TREASURY = '0x427992090a24122Df5b77b5cC259804af7Ad8844';
+const MING = '0x35771285a60B2aA5d4f5AcB917cc019Ee1DF7777';
+const MING_WBNB = '0x14BaCB4C10578c6D561b22244b3f5bF0dF1764c8'; // PancakeSwap V2 pair, prices MING
 
 // Constants in GridMining (ADMIN_FEE_BPS, VAULT_FEE_BPS, GOLDPOT_SHARE_BPS), fixed since launch
 const BPS = 10000n;
@@ -22,6 +24,8 @@ const LABELS = {
   ROUND_FEES_TO_GOLDPOT: 'Round Fees To Goldpot',
   AUTOMINER_FEES_TO_PROTOCOL: 'AutoMiner Fees To Protocol',
   GOLD_TO_STAKERS: 'Gold To MING Stakers',
+  PROCESSING_FEES: 'Processing Fees',
+  PROCESSING_FEES_TO_PLAYERS: 'Processing Fees To Players',
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -74,6 +78,27 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addGasToken(log.fee, LABELS.AUTOMINER_FEES_TO_PROTOCOL);
   }
 
+  // The processing fee is taken in MING when a player claims mined MING, and is shared in the same call among the
+  // players still holding unprocessed MING. MING has no DefiLlama price, so the fee is valued in BNB at the
+  // MING/WBNB pool's price at the end of the period.
+  const claims = await options.getLogs({
+    target: GRID_MINING,
+    eventAbi: 'event ClaimedMING(address indexed user, uint256 minedMing, uint256 processedMing, uint256 fee, uint256 net)',
+  });
+  const processingFee = claims.reduce((sum: bigint, log: any) => sum + BigInt(log.fee), 0n);
+  if (processingFee > 0n) {
+    const [token0, reserves] = await Promise.all([
+      options.api.call({ target: MING_WBNB, abi: 'address:token0' }),
+      options.api.call({ target: MING_WBNB, abi: 'function getReserves() view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast)' }),
+    ]);
+    const mingIsToken0 = token0.toLowerCase() === MING.toLowerCase();
+    const mingReserve = BigInt(mingIsToken0 ? reserves.reserve0 : reserves.reserve1);
+    const bnbReserve = BigInt(mingIsToken0 ? reserves.reserve1 : reserves.reserve0);
+    const feeInBnb = processingFee * bnbReserve / mingReserve;
+    dailyFees.addGasToken(feeInBnb, LABELS.PROCESSING_FEES);
+    dailySupplySideRevenue.addGasToken(feeInBnb, LABELS.PROCESSING_FEES_TO_PLAYERS);
+  }
+
   // The Treasury's share is dedicated to MING holders as it arrives: the Treasury splits it at once into
   // its buyback bucket (all MING bought is burned) and the stakers' gold, and neither moves into the other
   const received = await options.getLogs({
@@ -96,10 +121,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "BNB paid by players each round: 1% of all BNB deployed, 10% of the BNB on tiles not drawn, and AutoMiner fees.",
-  UserFees: "All fees are paid by players: the 1% deploy fee, the round fee on tiles not drawn, and AutoMiner fees.",
-  Revenue: "Player fees kept by the protocol: everything except the 10% of the round fee that buys gold for the Goldpot.",
-  SupplySideRevenue: "10% of the round fee, which buys gold (XAUt) paid to players through the Goldpot.",
+  Fees: "Paid by players: 1% of all BNB deployed each round, 10% of the BNB on tiles not drawn, AutoMiner fees, and the 10% processing fee on mined MING when it is claimed.",
+  UserFees: "All fees are paid by players: the 1% deploy fee, the round fee on tiles not drawn, AutoMiner fees and the processing fee.",
+  Revenue: "Player fees kept by the protocol: everything except the Goldpot's 10% of the round fee and the processing fee, which go to players.",
+  SupplySideRevenue: "10% of the round fee, which buys gold (XAUt) paid to players through the Goldpot, and the processing fee, paid to players holding unprocessed MING.",
   ProtocolRevenue: "The 1% deploy fee and AutoMiner fees, kept by the protocol.",
   HoldersRevenue: "90% of the round fee, which the Treasury spends on MING buybacks and burns, and gold for MING stakers.",
 };
@@ -109,6 +134,7 @@ const breakdownMethodology = {
     [LABELS.DEPLOY_FEES]: '1% of all BNB deployed each round.',
     [LABELS.ROUND_FEES]: "10% of the BNB on tiles not drawn, after the deploy fee (all of it when no one is on the drawn tile).",
     [LABELS.AUTOMINER_FEES]: 'Fee paid each round by players who let the AutoMiner deploy for them.',
+    [LABELS.PROCESSING_FEES]: '10% of mined MING, taken when a player claims it. Valued in BNB at the MING/WBNB PancakeSwap price.',
   },
   Revenue: {
     [LABELS.DEPLOY_FEES_TO_PROTOCOL]: 'The 1% deploy fee, kept by the protocol.',
@@ -117,6 +143,7 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [LABELS.ROUND_FEES_TO_GOLDPOT]: '10% of the round fee, which buys gold paid to players through the Goldpot.',
+    [LABELS.PROCESSING_FEES_TO_PLAYERS]: 'The processing fee, shared at once among the players holding unprocessed MING.',
   },
   ProtocolRevenue: {
     [LABELS.DEPLOY_FEES_TO_PROTOCOL]: 'The 1% deploy fee, sent to the protocol after topping up the BNB that pays for round triggers.',
