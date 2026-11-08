@@ -9,7 +9,9 @@ export const OPHIS_START = "2026-05-14";
 // https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/scan/chains.ts
 export const ophisChainConfig: Record<string, { id: number; start: string }> = {
   [CHAIN.ETHEREUM]: { id: 1, start: OPHIS_START },
-  [CHAIN.OPTIMISM]: { id: 10, start: OPHIS_START },
+  // Temporarily excluded: Ophis /defillama returns 503 "settlement history backfill in progress" for chain 10 on every date
+  // as of 2026-11-08 (whole-chain readiness gate in apps/rebate-indexer/src/api.ts); restore and refill once it serves 200.
+  // [CHAIN.OPTIMISM]: { id: 10, start: OPHIS_START },
   [CHAIN.BSC]: { id: 56, start: OPHIS_START },
   [CHAIN.XDAI]: { id: 100, start: OPHIS_START },
   // Temporarily excluded while its sovereign source/audits are unavailable; restore after recovery.

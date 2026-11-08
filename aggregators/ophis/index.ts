@@ -15,7 +15,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: ophisChainConfig,
   methodology: {
-    Volume: "USD notional of successfully settled swaps routed through Ophis. Each GPv2Settlement Trade fill is counted once at settlement time, including partial fills, and underlying DEX hops are not double-counted. Unichain is temporarily excluded while its reporting source is unavailable.",
+    Volume: "USD notional of successfully settled swaps routed through Ophis. Each GPv2Settlement Trade fill is counted once at settlement time, including partial fills, and underlying DEX hops are not double-counted. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
   },
   breakdownMethodology: {
     Volume: {

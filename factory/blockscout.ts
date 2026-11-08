@@ -15,7 +15,7 @@ const protocolChainMap: Record<string, string> = {
   // "celo": CHAIN.CELO, moved to fees/celo.ts to price gas paid in fee currencies
   "chiliz": CHAIN.CHILIZ,
   "corn": CHAIN.CORN,
-  "cronos": CHAIN.CRONOS,
+  // "cronos": CHAIN.CRONOS, moved to fees/cronos.ts: cronos.org/explorer redirects to the Crypto.com explorer (404 on the Blockscout api), fees now come from RPC receipts
   "ethereumclassic": CHAIN.ETHEREUM_CLASSIC,
   "etherlink": CHAIN.ETHERLINK,
   "flare": CHAIN.FLARE,
@@ -49,7 +49,7 @@ const protocolChainMap: Record<string, string> = {
   "velas": CHAIN.VELAS,
   "winr": CHAIN.WINR,
   "worldchain": CHAIN.WC,
-  "xdai": CHAIN.XDAI,
+  // "xdai": CHAIN.XDAI, moved to fees/xdai.ts: gnosis.blockscout.com now redirects to gnosisscan.io (403 without a key), fees now come from RPC receipts
   "zeta": CHAIN.ZETA,
   "astar": CHAIN.ASTAR,
   "plume": CHAIN.PLUME,
@@ -84,8 +84,8 @@ const protocolChainMap: Record<string, string> = {
   "sx-network": CHAIN.SX,
   "tac": CHAIN.TAC,
   "unit-zero": CHAIN.UNIT0,
-  "viction": CHAIN.TOMOCHAIN,
-  "vinu": CHAIN.VINUCHAIN,
+  // "viction": CHAIN.TOMOCHAIN, moved to fees/viction.ts: viction.blockscout.com returns 404 on every path, fees now come from RPC receipts
+  // "vinu": CHAIN.VINUCHAIN, moved to fees/vinu.ts: vinuexplorer.org stopped serving https after 2026-11-03, fees now come from RPC receipts
   "zilliqa": CHAIN.ZILLIQA,
   "matchain": CHAIN.MATCHAIN,
   "neon": CHAIN.NEON,

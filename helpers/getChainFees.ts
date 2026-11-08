@@ -54,6 +54,10 @@ export const fetchTransactionFees = async (options: FetchOptions): Promise<Balan
 
   const dailyFees = options.createBalances();
   const res = await queryAllium(query);
+  // SUM over no rows is NULL: Allium has not indexed this window (lag or a stalled chain feed), never a real zero
+  if (res[0]?.tx_fees == null) {
+    throw new Error(`[Pull fees transactions] Allium ${chainKey}.raw.transactions has no rows in the window`);
+  }
   dailyFees.addGasToken(res[0].tx_fees, METRIC.TRANSACTION_GAS_FEES);
   return dailyFees;
 };

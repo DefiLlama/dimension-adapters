@@ -36,15 +36,15 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
   const token1s = await latestApi.multiCall({ abi: 'address:token1', calls: pools })
 
 
-  await Promise.all(pools.map(async (pool, idx) => {
+  const logsByPool = await getLogs({ targets: pools, eventAbi: event_swap, flatten: false })
+
+  logsByPool.forEach((logs: any[], idx: number) => {
     const token0 = token0s[idx]
     const token1 = token1s[idx]
-    const logs = await getLogs({ target: pool, eventAbi: event_swap, })
-
     logs.forEach(log => {
       addOneToken({ balances: dailyVolume, chain, token0, token1, amount0: log.amount0, amount1: log.amount1, });
     })
-  }))
+  })
 
   return { dailyVolume, };
 }

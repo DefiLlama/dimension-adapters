@@ -78,6 +78,7 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-09-24',
   version: 2,
   fetch,
   chains: [CHAIN.SOLANA],

@@ -43,6 +43,7 @@ const adapters: SimpleAdapter = {
     },
   },
   allowNegativeValue: true, // House reimbursed fees
+  deadFrom: '2026-09-24',
   version: 2,
   methodology: {
     Fees: "Trading fees paid by users.",

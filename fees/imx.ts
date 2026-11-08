@@ -3,10 +3,8 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { httpGet } from "../utils/fetchURL";
 
 const IMX_CG_TOKEN = 'immutable-x';
-const EXPLORER_API = 'https://explorer.immutable.com/api';
 const FEE_HISTORY_BLOCKS = 1024;
 const GAS_LIMIT = 30_000_000;
 
@@ -36,14 +34,22 @@ const getBlockHeader = async (block: number) => {
   return { timestamp: Number(header.timestamp), gasLimit: Number(header.gasLimit) };
 };
 
+// binary search over block headers; block 0 is skipped because the genesis block has timestamp 0
+const searchFirstBlockAtOrAfter = async (timestamp: number) => {
+  let lo = 1;
+  let hi = Number(await rpcSend('eth_blockNumber', []));
+  if ((await getBlockHeader(hi)).timestamp < timestamp) throw new Error(`Immutable zkEVM: no block found for timestamp ${timestamp}`);
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if ((await getBlockHeader(mid)).timestamp < timestamp) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+};
+
 const firstBlockAtOrAfter = async (options: FetchOptions, timestamp: number) => {
   let block = await options.getBlock(timestamp, options.chain, {});
-  if (!block) {
-    // the block-by-time lookup fails for the launch days because the genesis block has timestamp 0
-    const { result } = await httpGet(`${EXPLORER_API}?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=after`);
-    block = Number(result?.blockNumber);
-    if (!block) throw new Error(`Immutable zkEVM: no block found for timestamp ${timestamp}`);
-  }
+  if (!block) block = await searchFirstBlockAtOrAfter(timestamp);
   while ((await getBlockHeader(block)).timestamp < timestamp) block++;
   while (block > 0 && (await getBlockHeader(block - 1)).timestamp >= timestamp) block--;
   return block;

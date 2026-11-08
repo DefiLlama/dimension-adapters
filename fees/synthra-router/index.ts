@@ -3,10 +3,15 @@ import { CHAIN } from '../../helpers/chains'
 import fetchURL from '../../utils/fetchURL'
 
 // Synthra routes swaps and bridges through Relay and LI.FI and charges an application /
-// integrator fee on them. The Synthra API publishes one immutable aggregate per UTC day built
-// from per-trade settlement evidence (see methodology); a day is served only once every
-// completed trade of that day has conclusive fee evidence.
+// integrator fee on them. The Synthra API aggregates per-trade settlement evidence for one UTC
+// day (see methodology) and reports how many trades still lack conclusive fee evidence
+// (`incompleteRequests`); those trades are left out of the total.
 const SYNTHRA_STATS_API = 'https://api-mainnet.synthra.org/api/v1/trade/platform-fees'
+// Trades normally verify within minutes (the running current day shows 0 incomplete). Trades still
+// incomplete after this window never resolve: every day from 2026-09-30 to 2026-11-07 that had
+// incomplete trades still had them on 2026-11-08 (09-30 still showed 1 after 39 days), so
+// throwing on them forever left 26 of those 39 days as permanent gaps.
+const INCOMPLETE_GRACE_HOURS = 6
 const RELAY_APP_FEES = 'Relay app fees'
 const LIFI_INTEGRATOR_FEES = 'LI.FI integrator fees'
 
@@ -26,8 +31,15 @@ async function fetch(options: FetchOptions) {
   if (!response.success || !data || data.date !== options.dateString || !data.breakdown) {
     throw new Error(`Synthra router fee data is unavailable for ${options.dateString}`)
   }
+  if (typeof data.incompleteRequests !== 'number' || !Number.isFinite(data.incompleteRequests) || data.incompleteRequests < 0) {
+    throw new Error(`Synthra router fee data for ${options.dateString} has an invalid incompleteRequests count`)
+  }
   if (data.incompleteRequests > 0) {
-    throw new Error(`Synthra router fee data for ${options.dateString} is not final: ${data.incompleteRequests} trade(s) still lack conclusive fee evidence`)
+    const dayEndMs = (options.startOfDay + 86400) * 1000
+    if (Date.now() < dayEndMs + INCOMPLETE_GRACE_HOURS * 3600 * 1000) {
+      throw new Error(`Synthra router fee data for ${options.dateString} is not final: ${data.incompleteRequests} trade(s) still lack conclusive fee evidence`)
+    }
+    console.log(`Synthra router ${options.dateString}: ${data.incompleteRequests} trade(s) never reached conclusive fee evidence and are excluded`)
   }
 
   const { relayAppFeesUsd, lifiIntegratorFeesUsd } = data.breakdown
@@ -55,8 +67,8 @@ const adapter: SimpleAdapter = {
   start: '2026-07-01',
   fetch,
   methodology: {
-    Fees: 'Application fees paid on successful Synthra router trades: Relay paidAppFees and LI.FI integrator fees.',
-    UserFees: 'Same as Fees: router application fees are paid by users.',
+    Fees: 'Application fees paid on successful Synthra router trades: Relay paidAppFees and LI.FI integrator fees. Trades whose fee could not be verified are excluded.',
+    UserFees: 'Application fees paid by users on successful Synthra router trades routed through Relay and LI.FI.',
     Revenue: 'All router application fees are collected by Synthra.',
     ProtocolRevenue: 'All router application fees are collected by the Synthra fee recipient.',
   },
