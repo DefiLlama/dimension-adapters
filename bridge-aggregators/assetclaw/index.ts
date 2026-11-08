@@ -4,7 +4,7 @@
 // 1. RWA Native - Asset Chain's native token bridges. ON-CHAIN, volume and fees.
 //    The bridge contracts are shared with every Asset Chain app, so a deposit is only
 //    counted when the same wallet pays AssetClaw's fee (1%, 0.5% for Genesis holders)
-//    to the AssetClaw treasury, in the same token, in the same or a later tx that day.
+//    to the AssetClaw treasury, in the same token, in the same tx or up to 20 minutes later.
 //    Native-coin routes (RWA, Bitlayer BTC) pay the fee as a plain value transfer that
 //    leaves no log, so they are not counted here: a lower bound.
 //
@@ -81,35 +81,69 @@ const pad = (a: string) => "0x" + a.toLowerCase().replace(/^0x/, "").padStart(64
 const fits = (fee: bigint, amount: bigint) =>
   amount > 0n && fee * 10000n >= amount * FEE_MIN_BPS && fee * 10000n <= amount * FEE_MAX_BPS;
 
-const fetch = async ({ chain, getLogs, createBalances, startTimestamp, endTimestamp }: FetchOptions) => {
+// Whole UTC hours, as the API requires (pullHourly windows already are; this
+// only matters for ad-hoc runs such as the CLI test).
+const HOUR = 3600;
+const hourFloor = (t: number) => Math.floor(t / HOUR) * HOUR;
+
+// A step-by-step wallet pays the fee in its next tx, a few minutes after the
+// deposit (the AssetClaw backend allows 20 minutes).
+const FEE_WINDOW_SEC = 20 * 60;
+
+const fetch = async (options: FetchOptions) => {
+  const { chain, getLogs, createBalances, startTimestamp, endTimestamp } = options;
   const dailyBridgeVolume = createBalances();
   const dailyFees = createBalances();
 
   // Privacy + Standard volume that started on this chain (USD, from the API).
-  const w = await apiWindow(startTimestamp, endTimestamp);
+  const s = hourFloor(startTimestamp);
+  const e = Math.max(hourFloor(endTimestamp), s + HOUR);
+  const w = await apiWindow(s, e);
   for (const route of ["privacy", "standard"]) {
     const usd = Number(w.routes[route]?.byChain?.[String(CHAIN_IDS[chain])] || 0);
     if (usd > 0) dailyBridgeVolume.addUSDValue(usd);
   }
 
-  for (const [token, bridge] of ROUTES[chain] || []) {
+  const routes = ROUTES[chain] || [];
+  if (!routes.length) return { dailyBridgeVolume, dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+
+  // Anchored on the FEE: every fee paid to the treasury in this window is looked
+  // up against deposits by the same wallet in the 20 minutes up to it. So each
+  // fee counts once, in the window it was paid, and a deposit whose fee lands in
+  // the next window is counted there rather than lost.
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  const secsPerBlock = Math.max((endTimestamp - startTimestamp) / Math.max(toBlock - fromBlock, 1), 0.05);
+  const lookback = Math.ceil(FEE_WINDOW_SEC / secsPerBlock);
+
+  for (const [token, bridge] of routes) {
     const [deposits, fees]: any[][] = await Promise.all([
-      getLogs({ target: bridge, eventAbi: SENT_TOKENS, onlyArgs: false }),
+      getLogs({ target: bridge, eventAbi: SENT_TOKENS, onlyArgs: false, fromBlock: Math.max(fromBlock - lookback, 0), toBlock }),
       getLogs({ target: token, eventAbi: TRANSFER, topics: [TRANSFER_TOPIC, null, pad(TREASURY)], onlyArgs: false }),
     ]);
-    const used = new Set<number>();
+    // Deposits by sender, newest first.
+    const bySender = new Map<string, any[]>();
     for (const d of deposits) {
-      const user = String(d.args.fromUser).toLowerCase();
-      const amount = BigInt(d.args.amount);
-      // The fee comes in the same tx (one-signature wallets) or shortly after.
-      const i = fees.findIndex((f, k) => !used.has(k)
-        && String(f.args.from).toLowerCase() === user
-        && Number(f.blockNumber) >= Number(d.blockNumber)
-        && fits(BigInt(f.args.value), amount));
-      if (i < 0) continue; // not an AssetClaw transfer
-      used.add(i);
-      dailyBridgeVolume.add(token, amount);
-      dailyFees.add(token, BigInt(fees[i].args.value));
+      const k = String(d.args.fromUser).toLowerCase();
+      if (!bySender.has(k)) bySender.set(k, []);
+      bySender.get(k)!.push(d);
+    }
+    for (const list of bySender.values()) list.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
+
+    const used = new Set<any>();
+    for (const f of fees) {
+      const list = bySender.get(String(f.args.from).toLowerCase());
+      if (!list) continue; // not paid by a bridge user
+      const fee = BigInt(f.args.value);
+      const fb = Number(f.blockNumber);
+      const ok = (d: any) => !used.has(d)
+        && Number(d.blockNumber) <= fb && Number(d.blockNumber) >= fb - lookback
+        && fits(fee, BigInt(d.args.amount));
+      // Same transaction first (one-signature wallets), else the latest deposit before the fee.
+      const d = list.find((x) => ok(x) && x.transactionHash === f.transactionHash) || list.find(ok);
+      if (!d) continue; // not an AssetClaw transfer
+      used.add(d);
+      dailyBridgeVolume.add(token, BigInt(d.args.amount));
+      dailyFees.add(token, fee);
     }
   }
 
@@ -125,8 +159,12 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology,
-  adapter: Object.fromEntries(Object.keys(CHAIN_IDS).map((chain) => [chain, { fetch, start: "2026-11-09" }])),
+  fetch,
+  chains: Object.keys(CHAIN_IDS),
+  start: "2026-11-09", // public launch day
 };
 
-export default adapter;
+export 
+                     default adapter;
