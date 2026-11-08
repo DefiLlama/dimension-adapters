@@ -26,7 +26,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   // Unique miners over a day cannot be summed from hourly counts, so the day is read whole
-  version: 1,
+  version: 2,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.BSC],
   start: '2026-11-05',

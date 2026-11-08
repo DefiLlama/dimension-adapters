@@ -6,7 +6,6 @@ import { METRIC } from "../helpers/metrics";
 const GRID_MINING = '0x50518bfb43d526F0342459cF92CB0AeC25D38Fd9';
 const AUTO_MINER = '0x0a570E5Ac33118f36c9B0AC7bFFCAB6bde57c308';
 const TREASURY = '0x427992090a24122Df5b77b5cC259804af7Ad8844';
-const XAUT = '0x21cAef8A43163Eea865baeE23b9C2E327696A3bf';
 
 // Constants in GridMining (ADMIN_FEE_BPS, VAULT_FEE_BPS, GOLDPOT_SHARE_BPS), fixed since launch
 const BPS = 10000n;
@@ -75,18 +74,16 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.addGasToken(log.fee, LABELS.AUTOMINER_FEES_TO_PROTOCOL);
   }
 
-  // The Treasury spends its share on MING buybacks, burned, and on gold for MING stakers, on its own schedule
-  const buybacks = await options.getLogs({
+  // The Treasury's share is dedicated to MING holders as it arrives: the Treasury splits it at once into
+  // its buyback bucket (all MING bought is burned) and the stakers' gold, and neither moves into the other
+  const received = await options.getLogs({
     target: TREASURY,
-    eventAbi: 'event BuybackExecuted(uint256 bnbSpent, uint256 mingBurned, bool viaPortal)',
+    eventAbi: 'event VaultReceived(uint256 amount, uint256 toBuyback, uint256 toStakerGold, uint256 buybackBnb)',
   });
-  for (const log of buybacks) dailyHoldersRevenue.addGasToken(log.bnbSpent, METRIC.TOKEN_BUY_BACK);
-
-  const stakerGold = await options.getLogs({
-    target: TREASURY,
-    eventAbi: 'event StakerGoldPushed(uint256 goldOut, uint256 totalSoFar)',
-  });
-  for (const log of stakerGold) dailyHoldersRevenue.add(XAUT, log.goldOut, LABELS.GOLD_TO_STAKERS);
+  for (const log of received) {
+    dailyHoldersRevenue.addGasToken(log.toBuyback, METRIC.TOKEN_BUY_BACK);
+    dailyHoldersRevenue.addGasToken(log.toStakerGold, LABELS.GOLD_TO_STAKERS);
+  }
 
   return {
     dailyFees,
@@ -104,7 +101,7 @@ const methodology = {
   Revenue: "Player fees kept by the protocol: everything except the 10% of the round fee that buys gold for the Goldpot.",
   SupplySideRevenue: "10% of the round fee, which buys gold (XAUt) paid to players through the Goldpot.",
   ProtocolRevenue: "The 1% deploy fee and AutoMiner fees, kept by the protocol.",
-  HoldersRevenue: "BNB spent buying back and burning MING, and gold (XAUt) sent to MING stakers.",
+  HoldersRevenue: "90% of the round fee, which the Treasury spends on MING buybacks and burns, and gold for MING stakers.",
 };
 
 const breakdownMethodology = {
@@ -126,8 +123,8 @@ const breakdownMethodology = {
     [LABELS.AUTOMINER_FEES_TO_PROTOCOL]: 'AutoMiner fees, sent to the protocol after topping up the BNB that pays for AutoMiner triggers.',
   },
   HoldersRevenue: {
-    [METRIC.TOKEN_BUY_BACK]: 'BNB spent buying MING on PancakeSwap. All MING bought is burned.',
-    [LABELS.GOLD_TO_STAKERS]: "Gold (XAUt) bought with 1.11% of the Treasury's share and sent to the Staking contract for MING stakers.",
+    [METRIC.TOKEN_BUY_BACK]: 'BNB the Treasury sets aside to buy MING on PancakeSwap. All MING bought is burned.',
+    [LABELS.GOLD_TO_STAKERS]: "1.11% of the Treasury's share, set aside to buy gold (XAUt) for MING stakers.",
   },
 };
 
