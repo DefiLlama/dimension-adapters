@@ -2,6 +2,13 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+const LABELS = {
+  PLATFORM: 'Platform Fees',
+  CREATOR: 'Creator Fees',
+  REFERRER: 'Referrer Fees',
+  RESOLVER: 'Resolver Fees',
+} as const;
+
 // Claim amounts are denominated in the pool's token: RAIN for most pools, USDT for the rest.
 const PlatformFeeClaimEvent = "event PlatformClaim(address indexed wallet, uint256 amount)"; // burnt as fees
 const CreatorFeeClaimEvent = "event CreatorClaim(address indexed wallet, uint256 amount)"; // paid to pool creators
@@ -66,7 +73,7 @@ const fetch = async (options: FetchOptions) => {
     };
   });
 
-  const addLogFees = (logs: any[]) => {
+  const addLogFees = (label: string) => (logs: any[]) => {
     if (!logs || logs.length === 0) return;
     logs.forEach((log: any) => {
       const pool = log.address.toLowerCase();
@@ -75,8 +82,8 @@ const fetch = async (options: FetchOptions) => {
         console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
         return;
       }
-      dailyFees.add(tokenInfo.token, log.args.amount);
-      dailySupplySideRevenue.add(tokenInfo.token, log.args.amount);
+      dailyFees.add(tokenInfo.token, log.args.amount, label);
+      dailySupplySideRevenue.add(tokenInfo.token, log.args.amount, label);
     })
   }
 
@@ -90,15 +97,15 @@ const fetch = async (options: FetchOptions) => {
           console.warn(`Token info not found for pool ${pool}, skipping log with amount ${log.args.amount}`);
           return;
         }
-        dailyFees.add(tokenInfo.token, log.args.amount);
-        dailyRevenue.add(tokenInfo.token, log.args.amount); 
+        dailyFees.add(tokenInfo.token, log.args.amount, LABELS.PLATFORM);
+        dailyRevenue.add(tokenInfo.token, log.args.amount, LABELS.PLATFORM); 
       })
     }
   })
 
-  await processLogs({ options, pools, eventAbi: CreatorFeeClaimEvent, processor: addLogFees })
-  await processLogs({ options, pools, eventAbi: ReferrerFeeClaimEvent, processor: addLogFees })
-  await processLogs({ options, pools, eventAbi: ResolverFeeClaimEvent, processor: addLogFees })
+  await processLogs({ options, pools, eventAbi: CreatorFeeClaimEvent, processor: addLogFees(LABELS.CREATOR) })
+  await processLogs({ options, pools, eventAbi: ReferrerFeeClaimEvent, processor: addLogFees(LABELS.REFERRER) })
+  await processLogs({ options, pools, eventAbi: ResolverFeeClaimEvent, processor: addLogFees(LABELS.RESOLVER) })
   // await processLogs({ options, pools, eventAbi: ClaimEvent, processor: addLogFees })
 
   return {
@@ -131,12 +138,39 @@ const methodology = {
   SupplySideRevenue: 'Creator, referrer and resolver shares paid out of pool fees.',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [LABELS.PLATFORM]: 'PlatformClaim fees paid on each Rain pool and burned by the protocol.',
+    [LABELS.CREATOR]: 'CreatorClaim amounts paid to pool creators.',
+    [LABELS.REFERRER]: 'RefererClaim amounts paid to referrers.',
+    [LABELS.RESOLVER]: 'ResolverClaim amounts paid to resolvers.',
+  },
+  UserFees: {
+    [LABELS.PLATFORM]: 'PlatformClaim fees paid by users on each Rain pool.',
+    [LABELS.CREATOR]: 'CreatorClaim amounts funded from user fees.',
+    [LABELS.REFERRER]: 'RefererClaim amounts funded from user fees.',
+    [LABELS.RESOLVER]: 'ResolverClaim amounts funded from user fees.',
+  },
+  Revenue: {
+    [LABELS.PLATFORM]: 'PlatformClaim fees only; burned directly when denominated in RAIN, used for RAIN buybacks when in USDT.',
+  },
+  HoldersRevenue: {
+    [LABELS.PLATFORM]: 'PlatformClaim fees only; burned directly when denominated in RAIN, used for RAIN buybacks when in USDT.',
+  },
+  SupplySideRevenue: {
+    [LABELS.CREATOR]: 'CreatorClaim amounts paid to pool creators.',
+    [LABELS.REFERRER]: 'RefererClaim amounts paid to referrers.',
+    [LABELS.RESOLVER]: 'ResolverClaim amounts paid to resolvers.',
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ARBITRUM],
   start: "2025-02-17",
   methodology,
+  breakdownMethodology,
   pullHourly: true,
 }
 
