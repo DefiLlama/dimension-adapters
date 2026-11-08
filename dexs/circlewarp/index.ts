@@ -1,4 +1,3 @@
-import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -21,9 +20,15 @@ const WARPDEX_FACTORY = "0x32330C2400a6e0830D56661169eBB6C147E3577a";
 // 0x3600..0000 is the 6-decimal ERC-20 view of Arc's native USDC.
 const USDC = ADDRESSES.arc.USDC;
 const USDC_LOWER = String(USDC).toLowerCase();
-// Arc has no working Multicall3, so the registry is read with individual view calls - a few at
-// a time, because it grows by one pair per graduated token.
-const PAIR_READ_CONCURRENCY = 5;
+// A pair's token0/token1 are immutable, so each pair's USDC side is remembered for the life of
+// the process: after the first run only newly registered pairs are read and classified.
+const usdcSideCache = new Map<string, 0 | 1 | null>();
+
+const BPS = 10000n;
+// WarpDex pools charge a flat 1% swap fee, taken from the input side and split 40% LP / 30%
+// creator / 30% protocol (the split and its on-chain check are documented in fees/circlewarp).
+// A sell's USDC payout is therefore net of that fee.
+const POOL_FEE_BPS = 100n;
 
 const TOKEN_CREATED_EVENT =
   "event TokenCreated(address indexed token, address indexed curve, address indexed creator, string name, string symbol, string metadataURI)";
@@ -75,41 +80,40 @@ async function fetchGraduatedPools(options: FetchOptions) {
   );
   if (!pairCount) return { dailyVolume };
 
-  const { results: pairs } = await PromisePool.withConcurrency(PAIR_READ_CONCURRENCY)
-    .for(Array.from({ length: pairCount }, (_, i) => i))
-    // PromisePool collects task failures instead of throwing, and a dropped pair would publish
-    // a silent zero, so rethrow.
-    .handleError((e) => {
-      throw e;
-    })
-    .process((i) =>
-      options.api.call({
-        target: WARPDEX_FACTORY,
-        abi: "function allPairs(uint256) view returns (address)",
-        params: i,
-      }),
-    );
+  const pairs: string[] = await options.api.multiCall({
+    target: WARPDEX_FACTORY,
+    abi: "function allPairs(uint256) view returns (address)",
+    calls: Array.from({ length: pairCount }, (_, i) => i),
+  });
 
   // Which side of each pool is USDC: 0, 1, or null for a pool not quoted in USDC. Both
   // orientations occur in the deployed pools, so this cannot be assumed per factory.
-  const { results: pairTokens } = await PromisePool.withConcurrency(PAIR_READ_CONCURRENCY)
-    .for(pairs)
-    .handleError((e) => {
-      throw e;
-    })
-    .process(async (pair: string) => {
-      const token0 = await options.api.call({ target: pair, abi: "address:token0" });
-      const token1 = await options.api.call({ target: pair, abi: "address:token1" });
-      return { pair, token0, token1 };
+  const usdcSideOfPair = new Map<string, 0 | 1 | null>(usdcSideCache);
+  const unclassified = pairs.filter((pair: string) => !usdcSideCache.has(String(pair).toLowerCase()));
+  // Both orientations are read for a pair, in one batched call per slot. Pairs classified by an
+  // earlier run in this process are skipped, and an empty batch is never sent.
+  if (unclassified.length) {
+    const [token0s, token1s]: [string[], string[]] = await Promise.all([
+      options.api.multiCall({ abi: "address:token0", calls: unclassified }),
+      options.api.multiCall({ abi: "address:token1", calls: unclassified }),
+    ]);
+    unclassified.forEach((pair: string, i: number) => {
+      const key = String(pair).toLowerCase();
+      const side =
+        String(token0s[i]).toLowerCase() === USDC_LOWER
+          ? 0
+          : String(token1s[i]).toLowerCase() === USDC_LOWER
+            ? 1
+            : null;
+      usdcSideCache.set(key, side);
+      usdcSideOfPair.set(key, side);
     });
+  }
 
-  const usdcSideOfPair = new Map<string, 0 | 1 | null>();
   let usdcQuoted = 0;
-  for (const { pair, token0, token1 } of pairTokens) {
-    const side =
-      String(token0).toLowerCase() === USDC_LOWER ? 0 : String(token1).toLowerCase() === USDC_LOWER ? 1 : null;
-    if (side !== null) usdcQuoted++;
-    usdcSideOfPair.set(String(pair).toLowerCase(), side);
+  for (const pair of pairs) {
+    const side = usdcSideOfPair.get(String(pair).toLowerCase());
+    if (side === 0 || side === 1) usdcQuoted++;
   }
   // Every graduated token is paired against USDC. If that ever stops being true, the adapter
   // must be taught the new quote asset instead of reporting a silent zero.
@@ -128,10 +132,12 @@ async function fetchGraduatedPools(options: FetchOptions) {
     const args = log.args ?? log;
     // A normal swap moves one side in and the other out, but a flash swap can carry both an in
     // and an out on the same side. Adding the two would count the same dollars twice, so take
-    // the input amount when there is one and fall back to the payout (a sell).
+    // the input when there is one. A buy's USDC input is already gross of the fee; a sell's
+    // USDC payout is net of the 1% pool fee, and volume is reported gross of fees, so gross
+    // that payout back up.
     const amountIn = side === 0 ? BigInt(args.amount0In) : BigInt(args.amount1In);
     const amountOut = side === 0 ? BigInt(args.amount0Out) : BigInt(args.amount1Out);
-    const usdcAmount = amountIn || amountOut;
+    const usdcAmount = amountIn || (amountOut * BPS) / (BPS - POOL_FEE_BPS);
     if (usdcAmount > 0n) dailyVolume.add(USDC, usdcAmount);
   }
 
@@ -158,7 +164,7 @@ const adapter: SimpleAdapter = {
   start: "2026-09-16",
   methodology: {
     Volume:
-      "USDC value of every buy and sell, in both venues: bonding-curve trades (the Trade event's pre-fee usdcGross) and, for graduated tokens, swaps in their WarpDex pool (the USDC side of the pool's Swap event; on a sell that side is paid out after the 1% pool fee, so those swaps are counted at most 1% low).",
+      "USDC value of every buy and sell, in both venues: bonding-curve trades (the Trade event's pre-fee usdcGross) and, for graduated tokens, swaps in their WarpDex pool (the USDC side of the pool's Swap event; a sell's payout is net of the 1% pool fee, so it is grossed back up over that fee).",
   },
 };
 
