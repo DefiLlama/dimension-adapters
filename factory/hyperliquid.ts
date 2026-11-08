@@ -32,6 +32,25 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "afterbell": {
+    // Afterbell (https://afterbell.pro, https://x.com/Afterbell_pro), a Hyperliquid trading front-end for stock, index
+    // and commodity perps (HIP-3) and crypto perps, each stock perp read against its home exchange's session. Its orders
+    // carry this builder code at the rate the trader's tier gives, published at https://afterbell.pro/fees: 0.03%
+    // standard, lower by 30-day volume, 0.04% on copied fills, 0.001% on every order until 2026-12-31. Afterbell places
+    // no spot or outcome orders.
+    // Verifiable: VITE_BUILDER_ADDRESS in the live site bundle; the address's Hyperliquid `referral` state (referrer code
+    // AFTERBELL, builderRewards).
+    addresses: ["0xda5584eb1dff6ee2ae383b077b4dca9c0df1d4f6"],
+    // the first fill carrying the code, 2026-11-03 20:16 UTC, the evening Afterbell opened
+    start: "2026-11-03",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Afterbell with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Afterbell; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees received by Afterbell's builder account, before the referral, weekly race and season rewards it pays out of them.",
+      ProtocolRevenue: "Builder code fees received by Afterbell's builder account, before the referral, weekly race and season rewards it pays out of them.",
+    },
+    breakdownFees: true,
+  },
   "pumpfun-perps": {
     // Pump.fun wallet label: https://www.flowscan.xyz/builders/pumpfun
     // Attribution is label-based; official fees: https://pump.fun/docs/fees.
