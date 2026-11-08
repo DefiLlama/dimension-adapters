@@ -160,11 +160,12 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // Privacy and Standard orders are also counted in SilentSwap's own volume.
+  doublecounted: true,
   methodology,
   fetch,
   chains: Object.keys(CHAIN_IDS),
   start: "2026-11-09", // public launch day
 };
 
-export 
-                     default adapter;
+export default adapter;
