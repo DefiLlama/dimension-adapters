@@ -36,8 +36,12 @@ const SCORE_DENOMINATOR = 100n;
 const STONKBASE_MAX_LEVERAGE = 5n;
 // Milliseconds per second for converting Gear `exec::block_timestamp()` (`u64` ms) into UNIX seconds.
 const MS_PER_SECOND = 1000;
-// BountyStatus enum variant index for `Streaming` (2) in `contracts/adapters/bounty-adapter/src/lib.rs`.
+// StreamStatus enum variant indices in `contracts/stream-core/stream-core.idl` (`0 = Active`, `1 = Paused`, `2 = Stopped`).
+const STREAM_STATUS_ACTIVE = 0;
+const STREAM_STATUS_STOPPED = 2;
+// BountyStatus enum variant indices for `Streaming` (2) and `Completed` (3) in `contracts/adapters/bounty-adapter/src/lib.rs`.
 const BOUNTY_STATUS_STREAMING = 2;
+const BOUNTY_STATUS_COMPLETED = 3;
 
 /**
  * Encodes a short UTF-8 string (< 64 bytes) with its single-byte SCALE compact length prefix.
@@ -139,7 +143,14 @@ async function rpcCall(program: string, payloadHex: string): Promise<Buffer> {
   throw lastErr;
 }
 
-type Stream = { token: string; startTime: number; deposited: bigint };
+type Stream = {
+  token: string;
+  startTime: number;
+  lastUpdate: number;
+  deposited: bigint;
+  streamed: bigint;
+  status: number;
+};
 type BountyRecord = {
   id: number;
   title: string;
@@ -165,18 +176,21 @@ function decodeConfig(buf: Buffer): { nextStreamId: number; feeBps: number } {
 }
 
 /**
- * Decodes `StreamService::GetStream(id)` reply into a `Stream` record.
+ * Decodes `StreamService::GetStream(id)` reply into a `Stream` record including settlement timestamps, caps, and status.
  */
 function decodeStream(buf: Buffer): Stream | null {
   if (!buf.subarray(0, ROUTE_GETSTREAM.length).equals(ROUTE_GETSTREAM)) throw new Error("malformed GetStream");
   const rest = buf.subarray(ROUTE_GETSTREAM.length);
   if (rest.length === 0 || rest[0] === 0) return null;
-  if (rest[0] !== 1 || rest.length < 153) throw new Error(`unexpected GetStream payload (opt=${rest[0]}, len=${rest.length})`);
-  // opt(1) id(8) sender(32) receiver(32) token(32) flowRate(16) startTime(8) lastUpdate(8) deposited(16)
+  if (rest[0] !== 1 || rest.length < 186) throw new Error(`unexpected GetStream payload (opt=${rest[0]}, len=${rest.length})`);
+  // opt(1) id(8) sender(32) receiver(32) token(32) flowRate(16) startTime(8) lastUpdate(8) deposited(16) withdrawn(16) streamed(16) status(1)
   const token = rest.subarray(73, 105).toString("hex");
   const startTime = u64LE(rest, 121);
+  const lastUpdate = u64LE(rest, 129);
   const deposited = u128LE(rest, 137);
-  return { token, startTime, deposited };
+  const streamed = u128LE(rest, 169);
+  const status = rest[185];
+  return { token, startTime, lastUpdate, deposited, streamed, status };
 }
 
 /**
@@ -238,16 +252,15 @@ function decodeBounty(buf: Buffer): BountyRecord | null {
 
 const configCache = new Map<string, Promise<{ nextStreamId: number; feeBps: number }>>();
 /**
- * Fetches and caches `StreamCore` configuration (`nextStreamId` and `feeBps`) for a given `program`.
+ * Fetches `StreamCore` configuration (`nextStreamId` and `feeBps`) for a given `program`, sharing only concurrent in-flight requests and evicting once settled.
  */
 function getConfig(program: string) {
   let p = configCache.get(program);
   if (!p) {
     p = rpcCall(program, "0x" + ROUTE_CONFIG.toString("hex"))
       .then(decodeConfig)
-      .catch((e) => {
+      .finally(() => {
         configCache.delete(program);
-        throw e;
       });
     configCache.set(program, p);
   }
@@ -256,7 +269,7 @@ function getConfig(program: string) {
 
 const streamCache = new Map<string, Promise<Stream | null>>();
 /**
- * Fetches and caches an individual stream from `StreamCore` (`program`) by ID.
+ * Fetches an individual stream from `StreamCore` (`program`) by ID, retaining only terminal stopped streams in cache and evicting active/paused or failed reads once settled.
  */
 function getStream(program: string, id: number) {
   const key = `${program}:${id}`;
@@ -264,8 +277,18 @@ function getStream(program: string, id: number) {
   if (!p) {
     const idBuf = Buffer.alloc(8);
     idBuf.writeBigUInt64LE(BigInt(id), 0);
-    p = rpcCall(program, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex")).then(decodeStream);
-    p.catch(() => streamCache.delete(key));
+    p = rpcCall(program, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex"))
+      .then((buf) => {
+        const decoded = decodeStream(buf);
+        if (!decoded || decoded.status !== STREAM_STATUS_STOPPED) {
+          streamCache.delete(key);
+        }
+        return decoded;
+      })
+      .catch((e) => {
+        streamCache.delete(key);
+        throw e;
+      });
     streamCache.set(key, p);
   }
   return p;
@@ -290,7 +313,7 @@ async function firstStreamAtOrAfter(program: string, ts: number, lastId: number)
 let bountiesCache: Promise<BountyRecord[]> | undefined;
 
 /**
- * Fetches and caches all `BountyRecord` entries from `BountyAdapter`.
+ * Fetches all `BountyRecord` entries from `BountyAdapter`, sharing only concurrent in-flight requests and evicting once settled so subsequent fetches observe new or updated bounty state.
  */
 function getBountiesSnapshot(): Promise<BountyRecord[]> {
   if (!bountiesCache) {
@@ -311,9 +334,8 @@ function getBountiesSnapshot(): Promise<BountyRecord[]> {
         });
       if (bountyErrors.length) throw new Error(`${bountyErrors.length}/${bountyIds.length} GetBounty calls failed`);
       return bountyResults.filter((b): b is BountyRecord => Boolean(b));
-    })().catch((e) => {
+    })().finally(() => {
       bountiesCache = undefined;
-      throw e;
     });
   }
   return bountiesCache;
@@ -330,7 +352,11 @@ const fetch = async (options: FetchOptions) => {
     Promise.all(STREAM_CORE_PROGRAMS.map((program) => getConfig(program).then((cfg) => ({ program, ...cfg })))),
     getBountiesSnapshot(),
   ]);
-  const legacyFeeBps = configs.find((c) => c.program === STREAM_CORE_LEGACY)?.feeBps ?? 0;
+  const legacyConfig = configs.find((c) => c.program === STREAM_CORE_LEGACY);
+  if (!legacyConfig) {
+    throw new Error("missing STREAM_CORE_LEGACY configuration");
+  }
+  const legacyFeeBps = legacyConfig.feeBps;
 
   // 1. StreamCore streams created in [fromTimestamp, toTimestamp) across V2 & V3 StreamCore programs
   let volumePlancks = 0n;
@@ -360,17 +386,22 @@ const fetch = async (options: FetchOptions) => {
     feesPlancks += (programVolumePlancks * BigInt(feeBps)) / BPS_DENOMINATOR;
   }
 
-  // 2. BountyAdapter AI-verified active streaming bounties, Agent Society ACP splits & StonkBase 1x spot collateral in [fromTimestamp, toTimestamp)
+  // 2. BountyAdapter AI-verified streaming & completed bounties, Agent Society ACP splits & StonkBase 1x spot collateral in [fromTimestamp, toTimestamp)
+  // `verify_and_start_stream` maps `pseudo_stream_id = bounty_id` 1:1 in `contracts/adapters/bounty-adapter/src/lib.rs`, so completed bounties (which clear `active_stream = None`) still resolve their historical StreamCore settlement record via `b.activeStream ?? b.id`.
   const eligibleBounties = bounties.filter(
-    (b): b is BountyRecord & { activeStream: number } =>
+    (b) =>
       SUPPORTED_TOKENS.has(b.token.toLowerCase()) &&
-      b.status === BOUNTY_STATUS_STREAMING &&
-      b.activeStream !== null,
+      (b.status === BOUNTY_STATUS_STREAMING || b.status === BOUNTY_STATUS_COMPLETED),
   );
-  const linkedStreamIds = Array.from(new Set(eligibleBounties.map((b) => b.activeStream)));
+  const linkedStreamIds = Array.from(new Set(eligibleBounties.map((b) => b.activeStream ?? b.id)));
+  const linkedStreamsById = new Map<number, Stream | null>();
   const { errors: linkedErrors } = await PromisePool.withConcurrency(6)
     .for(linkedStreamIds)
-    .process((id) => getStream(STREAM_CORE_LEGACY, id));
+    .process(async (id) => {
+      const s = await getStream(STREAM_CORE_LEGACY, id);
+      linkedStreamsById.set(id, s);
+      return s;
+    });
   if (linkedErrors.length) throw new Error(`${linkedErrors.length}/${linkedStreamIds.length} linked GetStream calls failed`);
 
   let bountyVolumePlancks = 0n;
@@ -379,26 +410,48 @@ const fetch = async (options: FetchOptions) => {
     const rawVerifiedFlowRate = (b.maxFlowRate * BigInt(b.minScore)) / SCORE_DENOMINATOR;
     if (rawVerifiedFlowRate <= 0n || b.totalBudget <= 0n) continue;
 
+    // Enforce cumulative budget cap across periods (using `b.spent` if recorded on completion and `< b.totalBudget`)
+    const rawBudgetCap = b.spent > 0n && b.spent < b.totalBudget ? b.spent : b.totalBudget;
+
     // Normalize 5x leveraged StonkBase synthetic equity flows by STONKBASE_MAX_LEVERAGE (5x) so only 1x unleveraged spot margin collateral is counted
     const isLeveragedDesk = b.title.includes("5X_LEVERAGED");
     const effectiveFlowRate = isLeveragedDesk ? rawVerifiedFlowRate / STONKBASE_MAX_LEVERAGE : rawVerifiedFlowRate;
-    const effectiveBudgetCap = isLeveragedDesk ? b.totalBudget / STONKBASE_MAX_LEVERAGE : b.totalBudget;
+    let effectiveBudgetCap = isLeveragedDesk ? rawBudgetCap / STONKBASE_MAX_LEVERAGE : rawBudgetCap;
     if (effectiveFlowRate <= 0n || effectiveBudgetCap <= 0n) continue;
 
-    // Resolve stream start timestamp from StreamCore via `b.activeStream`, skipping if the stream record is absent
-    const linkedStream = await getStream(STREAM_CORE_LEGACY, b.activeStream);
+    // Resolve the linked StreamCore settlement record (`b.activeStream ?? b.id`), skipping if absent
+    const linkedStream = linkedStreamsById.get(b.activeStream ?? b.id) ?? null;
     if (!linkedStream) continue;
+
+    // If the underlying StreamCore stream has settled/stopped, enforce its on-chain settled cap (`streamed`) across periods
+    const isStreamEnded = linkedStream.status !== STREAM_STATUS_ACTIVE || b.status === BOUNTY_STATUS_COMPLETED;
+    if (isStreamEnded && linkedStream.streamed > 0n) {
+      const settledCap = isLeveragedDesk ? linkedStream.streamed / STONKBASE_MAX_LEVERAGE : linkedStream.streamed;
+      if (settledCap > 0n && settledCap < effectiveBudgetCap) {
+        effectiveBudgetCap = settledCap;
+      }
+    }
+
     const streamStart = Math.max(linkedStream.startTime, b.createdAt);
     const durationSecondsBig = (effectiveBudgetCap + effectiveFlowRate - 1n) / effectiveFlowRate;
     const streamStartBig = BigInt(streamStart);
-    const streamEndBig = streamStartBig + durationSecondsBig;
+    const budgetEndBig = streamStartBig + durationSecondsBig;
 
-    // Stop accrual once the bounded settlement period `[streamStart, streamEnd)` completes
-    if (BigInt(options.toTimestamp) <= streamStartBig || BigInt(options.fromTimestamp) >= streamEndBig) continue;
+    // Stop accrual at the actual on-chain completion/settlement timestamp (`linkedStream.lastUpdate`) when the stream or bounty has ended early
+    if (isStreamEnded && linkedStream.lastUpdate <= streamStart) continue;
+    const actualEndBig =
+      isStreamEnded && BigInt(linkedStream.lastUpdate) < budgetEndBig
+        ? BigInt(linkedStream.lastUpdate)
+        : budgetEndBig;
 
-    // Compute per-window delta `accruedUntilEnd - accruedBefore` using the same `streamStart` and full `effectiveBudgetCap` basis
-    const elapsedBefore = BigInt(Math.max(0, options.fromTimestamp - streamStart));
-    const elapsedUntilEnd = BigInt(Math.max(0, options.toTimestamp - streamStart));
+    // Skip if `[fromTimestamp, toTimestamp)` does not overlap the active settlement period `[streamStartBig, actualEndBig)`
+    if (BigInt(options.toTimestamp) <= streamStartBig || BigInt(options.fromTimestamp) >= actualEndBig) continue;
+
+    // Clamp window boundaries to `actualEndBig` and enforce `effectiveBudgetCap` across all settlement periods
+    const clampedFromBig = BigInt(options.fromTimestamp) < actualEndBig ? BigInt(options.fromTimestamp) : actualEndBig;
+    const clampedToBig = BigInt(options.toTimestamp) < actualEndBig ? BigInt(options.toTimestamp) : actualEndBig;
+    const elapsedBefore = clampedFromBig > streamStartBig ? clampedFromBig - streamStartBig : 0n;
+    const elapsedUntilEnd = clampedToBig > streamStartBig ? clampedToBig - streamStartBig : 0n;
     const uncappedBefore = elapsedBefore * effectiveFlowRate;
     const uncappedUntilEnd = elapsedUntilEnd * effectiveFlowRate;
     const accruedBefore = uncappedBefore < effectiveBudgetCap ? uncappedBefore : effectiveBudgetCap;
@@ -412,7 +465,8 @@ const fetch = async (options: FetchOptions) => {
   feesPlancks += (bountyVolumePlancks * BigInt(legacyFeeBps)) / BPS_DENOMINATOR;
 
   if (volumePlancks > 0n) {
-    // 100% of protocol service fees (`fee_bps = 250` = 2.5%) go to the GrowStreams treasury; there is no supply-side share.
+    // Fee routing verified in `contracts/stream-core/stream-core.idl` (`Config.fee_bps = 250`, `Config.treasury`) and `contracts/super-token/src/lib.rs` (`SuperTokenService::collect_fee` lines 682-701):
+    // `state.debit(from, amount); state.credit(treasury, amount);` — 100% of protocol service fees go directly to the GrowStreams protocol treasury (`Config.treasury`) with 0% supply-side or token-holder share.
     const feesVara = Number(feesPlancks) / VARA_DECIMALS;
     const volumeVara = Number(volumePlancks) / VARA_DECIMALS;
     dailyFees.addCGToken("vara-network", feesVara, METRIC.SERVICE_FEES);
