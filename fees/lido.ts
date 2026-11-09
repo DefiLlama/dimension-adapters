@@ -108,8 +108,9 @@ async function getV2Reports(options: FetchOptions): Promise<OracleReport[]> {
 
 // Payouts through the Rewards Share registry, booked on payment day: the registry emits SpendableAmountChanged only from
 // updateSpentAmount, which every Easy Track top-up through it calls (lidofinance/easy-track LimitsChecker.sol). In those
-// txs only the Agent's transfers to recipients the registry allows are the top-up, so a payment from another motion enacted
-// in the same tx is not counted
+// txs only the Agent's stETH transfers to recipients the registry allows are the top-up, so a payment from another motion
+// enacted in the same tx is not counted. Every top-up so far paid stETH only. The token check matters because a recipient
+// can sit on other Easy Track registries too: 0x6DC9657C2D90D57cADfFB64239242d06e6103E43 is also on one that paid it DAI
 async function getRewardsSharePayouts(options: FetchOptions) {
   const rewardsShare = options.createBalances()
   const tierRebates = options.createBalances()
@@ -131,6 +132,7 @@ async function getRewardsSharePayouts(options: FetchOptions) {
   const rebatesStarted = options.dateString >= TIER_REBATES_START
   for (const log of transfers) {
     const to = log.args.to.toLowerCase()
+    if (log.args.token.toLowerCase() !== STETH.toLowerCase()) continue
     if (!allowedByTx[log.transactionHash.toLowerCase()]?.has(to)) continue
     if (to === REWARDS_SHARE_COMMITTEE_MULTISIG.toLowerCase()) continue
     const payouts = rebatesStarted && TIER_REBATE_RECIPIENTS.has(to) ? tierRebates : rewardsShare
