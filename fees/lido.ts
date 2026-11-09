@@ -55,6 +55,7 @@ const EL_REWARDS_RECEIVED_EVENT = 'event ELRewardsReceived(uint256 amount)'
 const STAKING_ROUTER_FEE_DISTRIBUTION_ABI = 'function getStakingFeeAggregateDistributionE4Precision() view returns (uint16 modulesFee, uint16 treasuryFee)';
 const VAULT_TRANSFER_EVENT = 'event VaultTransfer(address indexed token, address indexed to, uint256 amount)'
 const SPENDABLE_AMOUNT_CHANGED_EVENT = 'event SpendableAmountChanged(uint256 _alreadySpentAmount, uint256 _spendableBalance, uint256 indexed _periodStartTimestamp, uint256 _periodEndTimestamp)'
+const GET_ALLOWED_RECIPIENTS_ABI = 'function getAllowedRecipients() view returns (address[])'
 
 type OracleReport = {
   clRewards: bigint
@@ -106,8 +107,9 @@ async function getV2Reports(options: FetchOptions): Promise<OracleReport[]> {
 }
 
 // Payouts through the Rewards Share registry, booked on payment day: the registry emits SpendableAmountChanged only from
-// updateSpentAmount, which every Easy Track top-up through it calls (lidofinance/easy-track LimitsChecker.sol), so the
-// Agent's transfers in those txs are the top-up
+// updateSpentAmount, which every Easy Track top-up through it calls (lidofinance/easy-track LimitsChecker.sol). In those
+// txs only the Agent's transfers to recipients the registry allows are the top-up, so a payment from another motion enacted
+// in the same tx is not counted
 async function getRewardsSharePayouts(options: FetchOptions) {
   const rewardsShare = options.createBalances()
   const tierRebates = options.createBalances()
@@ -115,12 +117,21 @@ async function getRewardsSharePayouts(options: FetchOptions) {
   // most days have no top-up, so the Agent's logs are only read when there is one
   if (!topUps.length) return { rewardsShare, tierRebates }
 
-  const topUpTxs = new Set(topUps.map((log: any) => log.transactionHash.toLowerCase()))
+  // recipients allowed just before the top-up's block: Easy Track checks them when the motion is created and enacted
+  const allowedByTx: Record<string, Set<string>> = {}
+  for (const log of topUps) {
+    const block = Number(log.blockNumber)
+    if (!Number.isFinite(block)) throw new Error(`Lido: Rewards Share top-up ${log.transactionHash} has no block number`)
+    const registryApi = new sdk.ChainApi({ chain: options.chain, block: block - 1 })
+    const allowed: string[] = await registryApi.call({ target: REWARDS_SHARE_REGISTRY, abi: GET_ALLOWED_RECIPIENTS_ABI })
+    allowedByTx[log.transactionHash.toLowerCase()] = new Set(allowed.map((address) => address.toLowerCase()))
+  }
+
   const transfers = await options.getLogs({ target: LIDO_AGENT, eventAbi: VAULT_TRANSFER_EVENT, onlyArgs: false })
   const rebatesStarted = options.dateString >= TIER_REBATES_START
   for (const log of transfers) {
-    if (!topUpTxs.has(log.transactionHash.toLowerCase())) continue
     const to = log.args.to.toLowerCase()
+    if (!allowedByTx[log.transactionHash.toLowerCase()]?.has(to)) continue
     if (to === REWARDS_SHARE_COMMITTEE_MULTISIG.toLowerCase()) continue
     const payouts = rebatesStarted && TIER_REBATE_RECIPIENTS.has(to) ? tierRebates : rewardsShare
     payouts.add(log.args.token, log.args.amount)
