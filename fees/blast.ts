@@ -78,7 +78,7 @@ async function fetch(options: FetchOptions) {
     for (const item of page.items) {
       if (!item.included_in_totals || item.underlying_venue_overlap) continue;
       const component = item.component;
-      if (component !== "frontend_router_fees" && !Object.hasOwn(sources, component)) {
+      if (component !== "frontend_router_fees" && !Object.prototype.hasOwnProperty.call(sources, component)) {
         throw new Error(`Unrecognized Blast fee component ${component}`);
       }
       if (!coinType.test(item.coin_type)) throw new Error("Invalid Blast fee coin type");
