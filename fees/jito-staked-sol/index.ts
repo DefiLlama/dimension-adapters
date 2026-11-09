@@ -29,6 +29,8 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   results.forEach((row: any) => {
+    // The dailyMevRewards row is left out on purpose: this listing and Jito MEV Tips (fees/jito-mev-tips) share the Jito
+    // parent, and that listing already counts the tips, so adding them here would count them twice on the parent.
     if (row.metric_type === 'dailyFees') {
       dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
       dailySupplySideRevenue.addCGToken("solana", Number(row.amount) * 0.96 || 0, METRIC.STAKING_REWARDS);
@@ -47,7 +49,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on jito staked solana',
+  Fees: 'Staking rewards from staked SOL on jito staked solana. Jito MEV tips claimed by the pool are counted in Jito MEV Tips, under the same parent.',
   Revenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
   ProtocolRevenue: 'The protocol takes 4% of the staking rewards as revenue, but we count them in the Jito DAO adapter to avoid double counting on the parent protocol.',
   HoldersRevenue: 'No revenue share to JTO token holders.',

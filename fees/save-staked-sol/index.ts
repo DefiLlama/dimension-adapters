@@ -57,6 +57,10 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addCGToken("solana", row.amount || 0, METRIC.STAKING_REWARDS);
       dailyRevenue.addCGToken("solana", (row.amount || 0) * STAKE_FEE_SHARE, METRIC.STAKING_REWARDS);
       dailySupplySideRevenue.addCGToken("solana", (row.amount || 0) * (1 - STAKE_FEE_SHARE), METRIC.STAKING_REWARDS);
+    } else if (row.metric_type === "dailyMevRewards") {
+      // Jito MEV tips claimed by the pool's stake accounts; with the 0% epoch fee they all go to saveSOL holders
+      dailyFees.addCGToken("solana", row.amount || 0, METRIC.MEV_REWARDS);
+      dailySupplySideRevenue.addCGToken("solana", row.amount || 0, METRIC.MEV_REWARDS);
     } else if (row.metric_type === "dailyRevenue") {
       const feesInSol = (row.amount || 0) * exchangeRate;
       dailyFees.addCGToken("solana", feesInSol, METRIC.DEPOSIT_WITHDRAW_FEES);
@@ -73,10 +77,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Staking rewards from staked SOL and withdrawal fees on save staked solana",
+  Fees: "Staking rewards (inflation and Jito MEV tips) from staked SOL and withdrawal fees on save staked solana",
   Revenue: "0.1% withdrawal fee collected by the stake pool fee account. The pool charges no epoch fee.",
   ProtocolRevenue: "All revenue goes to the protocol.",
-  SupplySideRevenue: "All SOL staking rewards go to stakers.",
+  SupplySideRevenue: "All SOL staking rewards and MEV tips go to stakers.",
 };
 
 const adapter: SimpleAdapter = {
@@ -90,6 +94,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: {
       [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Save.",
+      [METRIC.MEV_REWARDS]: "Jito MEV tips claimed by the pool's stake accounts.",
       [METRIC.DEPOSIT_WITHDRAW_FEES]: "0.1% withdrawal fee, paid in saveSOL and converted to SOL at the pool exchange rate.",
     },
     Revenue: {
@@ -100,6 +105,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [METRIC.STAKING_REWARDS]: "100% of the staking rewards are distributed to saveSOL holders.",
+      [METRIC.MEV_REWARDS]: "100% of the MEV tips are distributed to saveSOL holders.",
     },
   },
 };
