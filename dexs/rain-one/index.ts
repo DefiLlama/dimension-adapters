@@ -3,8 +3,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const rainFactories: { address: string; fromBlock: number; toBlock?: number }[] = [
-  // retired factory
-  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817, toBlock: 446061342 },
+  // 0xccCB was never retired: it kept creating pools after block 446061342, alongside 0xA864
+  { address: "0xccCB3C03D9355B01883779EF15C1Be09cf3623F1", fromBlock: 307026817 },
   // active factory
   { address: "0xA8640B62D755e42C9ed6A86d0fc65CE09e31F264", fromBlock: 446257605 },
 ];
