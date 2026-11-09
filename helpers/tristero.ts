@@ -148,9 +148,9 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
 
 export const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// The six chains where the router is deployed and taking orders. Volume starts at the router's
+// The chains where the router is deployed and taking orders. Volume starts at the router's
 // 2026-06-18 rollout because no earlier contract generation is referenced any more.
-export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM];
+export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.UNICHAIN];
 
 const TRISTERO_ROUTER = '0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1';
 
@@ -173,6 +173,7 @@ const WRAPPED_NATIVE_TOKENS: Record<string, string> = {
   [CHAIN.POLYGON]: ADDRESSES.polygon.WMATIC_2,
   [CHAIN.AVAX]: ADDRESSES.avax.WAVAX,
   [CHAIN.OPTIMISM]: ADDRESSES.optimism.WETH_1,
+  [CHAIN.UNICHAIN]: ADDRESSES.unichain.WETH,
 };
 
 const ORDER_ROUTER_INTERFACE = new Interface([
