@@ -225,6 +225,55 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   return Object.fromEntries(sortedPairs)
 }
 
+const v2SyncEvent = 'event Sync(uint112 reserve0, uint112 reserve1)'
+
+// filterPools for chains whose public RPCs serve logs but have pruned past state, so the
+// balanceOf calls at the window's block fail. A pair's reserves after its last Sync in the
+// window are its balances at the window end, the same point-in-time value filterPools reads.
+// Every UniV2 swap emits Sync, so a pair with no Sync in the window had no swap to count.
+async function filterPoolsBySyncReserves({ fetchOptions, pairs, maxPairSize = 42, minUSDValue = 200 }: { fetchOptions: FetchOptions, pairs: IJSON<string[]>, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
+  const { chain, createBalances, getLogs } = fetchOptions
+  const pairIds = Object.keys(pairs)
+  if (!pairIds.length) return {}
+
+  const coreTokens = new Set<string>()
+  Object.values(pairs).forEach(tokens => tokens.forEach(t => { if (isCoreAsset(chain, t)) coreTokens.add(t.toLowerCase()) }))
+  const pricedCoreTokens = await getPricedCoreTokens(chain, [...coreTokens])
+
+  const syncLogs = await getLogs({ targets: pairIds, eventAbi: v2SyncEvent, flatten: false, onlyArgs: false })
+  const balances: Balances = createBalances()
+  const pairBalances: IJSON<Balances> = {}
+  const pairHasPricedCore: IJSON<boolean> = {}
+  syncLogs.forEach((logs: any[], i: number) => {
+    if (!logs?.length) return
+    const pair = pairIds[i]
+    const last = logs.map(toPositionedLogArgs).sort((a, b) => b.blockNumber - a.blockNumber || b.logIndex - a.logIndex)[0]
+    const reserves = [last.reserve0, last.reserve1]
+    const tokens = pairs[pair]
+    // valued like filterPools: 2x the priced core side when the pair has one, else both sides
+    const coreIndex = tokens.findIndex(t => pricedCoreTokens.has(t.toLowerCase()))
+    pairHasPricedCore[pair] = coreIndex > -1
+    pairBalances[pair] = createBalances()
+    tokens.forEach((token, j) => {
+      if (coreIndex > -1 && j !== coreIndex) return
+      balances.add(token, reserves[j])
+      pairBalances[pair].add(token, reserves[j])
+    })
+  })
+  // we do this to cache price results
+  await balances.getUSDValue()
+  const filteredPairs: IJSON<number> = {}
+  for (const pair of Object.keys(pairBalances)) {
+    let pooledValue = await pairBalances[pair].getUSDValue()
+    if (pairHasPricedCore[pair]) pooledValue *= 2
+    if (pooledValue < minUSDValue) continue
+    filteredPairs[pair] = pooledValue
+  }
+
+  const sortedPairs = Object.entries(filteredPairs).sort((a, b) => b[1] - a[1]).slice(0, maxPairSize)
+  return Object.fromEntries(sortedPairs)
+}
+
 // drop pairs where either side is a blacklisted token (see helpers/lists.ts)
 function filterBlacklistedTokens(pairObject: IJSON<string[]>, blacklistTokens?: string[]): IJSON<string[]> {
   if (!blacklistTokens?.length) return pairObject
@@ -252,7 +301,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -292,7 +341,9 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const swapFees = createBalances()
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
-    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
+    const filteredPairs = useSyncReserves
+      ? await filterPoolsBySyncReserves({ fetchOptions, pairs: pairsToFilter, maxPairSize })
+      : await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
@@ -376,7 +427,9 @@ const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false }: UniV3Config): FetchV2 => {
+  if (noStateReads && (!factory || isAlgebraV3 || isAlgebraV2 || algebraCommunityFee || dynamicProtocolFees || feeFromSlot0))
+    throw new Error('noStateReads needs factory pools whose fee tier is in the PoolCreated log, every other option reads pool state')
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
@@ -447,7 +500,24 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
-    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
+    let filteredPairs: IJSON<number>
+    let poolSwapLogs: IJSON<any[]> | undefined
+    if (noStateReads) {
+      // No balanceOf filter: scan the window's swaps by topic and keep the factory's own pools (PoolCreated cache) that
+      // hold a core asset. addOneToken then prices only that core leg, so no long-tail token is ever priced.
+      const corePools: IJSON<string> = {}
+      for (const [pool, tokens] of Object.entries(pairsToFilter))
+        if (tokens.some(t => isCoreAsset(chain, t))) corePools[pool.toLowerCase()] = pool
+      const swapLogs = await getLogs({ noTarget: true, eventAbi: swapEvent, onlyArgs: false })
+      poolSwapLogs = {}
+      for (const log of swapLogs) {
+        const pool = corePools[String(log.address).toLowerCase()]
+        if (pool) (poolSwapLogs[pool] ??= []).push(log.args)
+      }
+      filteredPairs = Object.fromEntries(Object.keys(poolSwapLogs).map(pool => [pool, 0]))
+    } else {
+      filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
+    }
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const revenue = createBalances()
@@ -548,7 +618,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       return fee
     }
 
-    const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines ? { onlyArgs: false } : {}) })
+    const allLogs = poolSwapLogs ? pairs.map(pair => poolSwapLogs![pair]) : await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines ? { onlyArgs: false } : {}) })
 
     allLogs.map((rawLogs: any, index) => {
       if (!rawLogs.length) return;
@@ -639,6 +709,8 @@ type UniV2Config = {
   blacklistTokens?: Array<string>, // pairs holding any of these tokens are skipped
   allowReadPairs?: boolean;
   enforceBalanceFailureRatio?: boolean;
+  // value pairs from their Sync reserves instead of balanceOf at the window's block, for chains whose RPCs have no archive state
+  useSyncReserves?: boolean;
 }
 
 export interface UniGetRevenueRatioProps {
@@ -671,6 +743,9 @@ type UniV3Config = {
   dynamicProtocolFees?: boolean,
   // read each Algebra pool's community fee and pass it to getRevenueRatio
   algebraCommunityFee?: boolean,
+  // for chains whose public RPCs keep no historical state, so no eth_call at the window block works: skips the pooled-balance
+  // filter and counts the core-asset leg of swaps in every factory pool holding a core asset (pool list + swap logs only)
+  noStateReads?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };

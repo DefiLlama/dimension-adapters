@@ -90,6 +90,8 @@ const fetch = async (options: FetchOptions) => {
 
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
+  if (typeof fromBlock !== 'number' || typeof toBlock !== 'number')
+    throw new Error(`strato block lookup failed for window ${options.startTimestamp}-${options.endTimestamp}: fromBlock ${fromBlock}, toBlock ${toBlock}`);
 
   const logs: any[] = [];
   for (let chunkFrom = fromBlock; chunkFrom <= toBlock; chunkFrom += MAX_BLOCK_RANGE) {

@@ -114,7 +114,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "piperx-v2": {
     // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09
-    [CHAIN.STORY]: { factory: '0x6D3e2f58954bf4E1d0C4bA26a85a1b49b2e244C6', start: '2025-02-12', fees: 0.003, userFeesRatio: 1 },
+    // useSyncReserves: since ~2026-11-03 no public Story RPC serves past state (ankr wants a key, thirdweb,
+    // storyrpc.io, datarpc.io prune; the datanetscan.io explorer proxy allows 10 requests/hour), but logs are full history
+    [CHAIN.STORY]: { factory: '0x6D3e2f58954bf4E1d0C4bA26a85a1b49b2e244C6', start: '2025-02-12', fees: 0.003, userFeesRatio: 1, useSyncReserves: true },
   },
   "flowswap-v2": {
     [CHAIN.FLOW]: { factory: '0x681D1bFE03522e0727730Ba02a05CD3C0a08fa30' },
@@ -1696,15 +1698,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
     },
     start: '2022-09-15',
   },
-  "aktionariat": {
-    endpoints: {
-      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('2ZoJCp4S7YP7gbYN2ndsYNjPeZBV1PMti7BBoPRRscNq'),
-      [CHAIN.OPTIMISM]: sdk.graph.modifyEndpoint('3QfEXbPfP23o3AUzcmjTfRtUUd4bfrFj3cJ4jET57CTX'),
-      [CHAIN.POLYGON]: sdk.graph.modifyEndpoint('7camBLZckE5TLKha372tqawpDs8Lkez6yYiri7PykRak'),
-    },
-    factoriesName: "registries",
-    totalVolume: "totalVolumeUSD",
-  },
   "canary": {
     endpoints: {
       [CHAIN.AVAX]: sdk.graph.modifyEndpoint('An3x5Mz4YXEERomXYC4AhGgNhRthPFXNYDnrMCjrAJe'),
@@ -2097,6 +2090,24 @@ protocols['reddex'].adapter[CHAIN.REDBELLY].fetch = async (options: FetchOptions
     getLogs: async ({ targets, flatten = true, ...params }: any) => {
       const results = []
       for (const target of targets) results.push(await options.getLogs({ ...params, target, maxBlockRange: 80 }))
+      return flatten ? results.flat() : results
+    },
+  })
+
+// ENI RPCs allow about 10 eth_getLogs per 10 s per IP, shared across hosts, so one call per pool (~42 per hourly
+// window) 429s. They also answer a range with only the logs of its first 2,000 blocks and no error (a 3,500-block
+// hourly window lost about half its swaps). Instead, scan the window once by Swap topic in 1,800-block chunks
+// (the SDK pads each with 10 blocks per side) and hand each pair its own logs. In a 4,000-block sample (2026-11-08)
+// only 8 contracts emitted this Swap topic chain-wide, so the scan returns little beyond the factory's pairs.
+const ENI_LOG_CHUNK_BLOCKS = 1800
+protocols['daoaas-swap'].adapter[CHAIN.ENI].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['daoaas-swap'][CHAIN.ENI])({
+    ...options,
+    getLogs: async ({ targets, flatten = true, onlyArgs = true, ...params }: any) => {
+      const logs = await options.getLogs({ ...params, noTarget: true, onlyArgs: false, maxBlockRange: ENI_LOG_CHUNK_BLOCKS })
+      const byPair: Record<string, any[]> = {}
+      for (const log of logs) (byPair[log.address.toLowerCase()] ??= []).push(onlyArgs ? log.args : log)
+      const results = targets.map((pair: string) => byPair[pair.toLowerCase()] ?? [])
       return flatten ? results.flat() : results
     },
   })

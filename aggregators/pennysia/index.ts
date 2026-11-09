@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { httpPost } from "../../utils/fetchURL";
+import asyncRetry from "async-retry";
 
 // PennysiaSettlement on Ethereum Mainnet
 // https://etherscan.io/address/0x3Aad97E5a91b8e43b7Dc830aCEb004307678795E
@@ -190,32 +191,38 @@ function toOrderUid(value: any): string {
   return "";
 }
 
+const COW_ORDERS_BY_UIDS = "https://api.cow.fi/mainnet/api/v1/orders/by_uids";
+// by_uids body cap: 128 UIDs pass, 256 return HTTP 413 (checked 2026-11-08).
+const COW_UID_BATCH = 128;
+// api.cow.fi answers HTTP 429 to the server only (6, later 12, of 24 hourly slices on 2026-11-08; a 40-request
+// burst from elsewhere got no 429), at ~2 requests per slice, so the limit is on the server's IP. Back off and
+// retry; once a request exhausts its retries, later calls fail immediately for a few minutes so the hourly job
+// (up to 24 slices back-to-back in one 20-minute child) does not time out. Failed slices are re-run next hour.
+const COW_OUTAGE_COOLDOWN_MS = 5 * 60 * 1000;
+let cowOutage: { error: unknown; until: number } | undefined;
+
 async function cowOrdersByUids(uids: string[]): Promise<any[]> {
-  let lastError: unknown;
+  if (cowOutage && Date.now() < cowOutage.until) throw cowOutage.error;
   try {
-    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", uids);
-    if (Array.isArray(rows)) return rows;
-    lastError = new Error("Unexpected CoW orders response");
+    return await asyncRetry(
+      async () => {
+        const rows = await httpPost(COW_ORDERS_BY_UIDS, uids, { timeout: 30_000 });
+        if (!Array.isArray(rows)) throw new Error("Unexpected CoW orders response");
+        return rows;
+      },
+      { retries: 4, minTimeout: 2000, maxTimeout: 15_000, factor: 2, randomize: true },
+    );
   } catch (error) {
-    lastError = error;
+    cowOutage = { error, until: Date.now() + COW_OUTAGE_COOLDOWN_MS };
+    throw error;
   }
-  try {
-    const rows = await httpPost("https://api.cow.fi/mainnet/api/v1/orders/by_uids", {
-      uids,
-    });
-    if (Array.isArray(rows)) return rows;
-    lastError = new Error("Unexpected CoW orders response");
-  } catch (error) {
-    lastError = error;
-  }
-  throw lastError;
 }
 
 async function cowPartnersByUid(uids: string[]): Promise<Map<string, CowPartner>> {
   const unique = [...new Set(uids.filter((uid) => uid.length >= 114))];
   const out = new Map<string, CowPartner>();
-  for (let i = 0; i < unique.length; i += 128) {
-    const rows = await cowOrdersByUids(unique.slice(i, i + 128));
+  for (let i = 0; i < unique.length; i += COW_UID_BATCH) {
+    const rows = await cowOrdersByUids(unique.slice(i, i + COW_UID_BATCH));
     for (const row of rows) {
       const order = row?.order || row;
       const uid = toOrderUid(order?.uid || row?.uid);
@@ -353,7 +360,8 @@ const methodology = {
     "Settlement FeeCollected plus partner fees on tagged CoW, UniswapX, and Velora fills.",
   Revenue:
     "100% of Settlement, UniswapX, and Velora fees. 75% of CoW partner fees (CIP-75).",
-  ProtocolRevenue: "Same as revenue.",
+  ProtocolRevenue:
+    "100% of Settlement, UniswapX, and Velora fees and 75% of CoW partner fees, paid to the Settlement fee recipient.",
   SupplySideRevenue: "CoW's 25% CIP-75 share of tagged partner fees.",
 };
 

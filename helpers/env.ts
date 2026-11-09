@@ -22,6 +22,8 @@ const DEFAULTS: any = {
   // tatum allows 5 req/min (100-block getLogs), so both are dropped. rpc.plasma.to: archive, 25 req/s, 10,000-block getLogs;
   // tenderly: archive, getLogs has no block cap (20k results); thirdweb: archive, 1,000-block getLogs; swiftnodes: 2 req/s demo plan
   PLASMA_WHITELISTED_RPC: 'https://rpc.plasma.to,https://plasma.gateway.tenderly.co,https://9745.rpc.thirdweb.com,https://rpc.swiftnodes.io/rpc/plasma',
+  PLASMA_RPC_MAX_PARALLEL: '5',
+  PLASMA_RPC_GET_LOGS_CONCURRENCY_LIMIT: '2',
   ZETA_RPC: "https://zetachain-evm.blockpi.network/v1/rpc/public,https://zetachain-mainnet-archive.allthatnode.com:8545",
   SOMNIA_ARCHIVAL_RPC: 'https://explorer.somnia.network/api/eth-rpc',
   CAMP_RPC: 'https://rpc-mainnet.campnetwork.xyz',
@@ -57,6 +59,11 @@ const DEFAULTS: any = {
   ENI_RPC: 'https://rpc2.eniac.network,https://rpc1.eniac.network',
   IOTEX_WHITELISTED_RPC: 'https://archive-mainnet.iotex.io,https://babel-api.mainnet.iotex.io,https://babel-api.mainnet.iotex.one',
   SHIBARIUM_WHITELISTED_RPC: 'https://rpc.shibarium.shib.io,https://shibariumscan.io/api/eth-rpc',
+  LUKSO_WHITELISTED_RPC: 'https://rpc.mainnet.lukso.network,https://explorer.execution.mainnet.lukso.network/api/eth-rpc',
+  VECHAIN_WHITELISTED_RPC: 'https://mainnet.rpc.vechain.org,https://rpc-mainnet.vechain.energy',
+  DOMA_ARCHIVAL_RPC: 'https://rpc.doma.xyz',
+  DOMA_RPC_GET_LOGS_CONCURRENCY_LIMIT: '2',
+  WEMIX_ARCHIVAL_RPC: 'https://api.wemix.com',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and

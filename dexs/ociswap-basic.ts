@@ -1,28 +1,12 @@
-import { SimpleAdapter, FetchResultVolume } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { getOciswapXrdTotals } from "../helpers/ociswap";
 
-interface PoolStatistics {
-  pool_type: string;
-  volume: {
-    xrd: {
-      '24h': string;
-      total: string;
-    };
-    usd: {
-      '24h': string;
-      total: string;
-    };
-  };
-}
-
-const fetch = async (): Promise<FetchResultVolume> => {
-  const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
-  const index = response.findIndex(pool => pool.pool_type === 'basic');
-  const dailyVolume = Number(response[index].volume.usd["24h"]);
-  return {
-    dailyVolume: dailyVolume,
-  };
+const fetch = async (options: FetchOptions) => {
+  const { volume } = await getOciswapXrdTotals('basic')
+  const dailyVolume = options.createBalances()
+  dailyVolume.addCGToken('radix', volume)
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
@@ -33,6 +17,9 @@ const adapter: SimpleAdapter = {
       start: '2023-10-01',
       runAtCurrTime: true,
     }
-  }
+  },
+  methodology: {
+    Volume: "Trailing 24h swap volume of Ociswap Basic pools from the Ociswap API, valued by the XRD side of each pool.",
+  },
 }
 export default adapter;

@@ -27,10 +27,10 @@ const fetch = async (options: FetchOptions) => {
 // https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/stats-page.ts
 // https://github.com/ophis-fi/ophis/blob/main/apps/rebate-indexer/src/earnings.ts
 const methodology = {
-  Fees: "Ophis fees assessed on successfully settled Ophis-attributed fills, including the 1 bp base fee and capped price-improvement capture. Values come from Ophis' settlement-fill ledger, are bucketed by settlement date, and are valued in USD by the reporting indexer. Unichain is temporarily excluded while its reporting source is unavailable.",
-  Revenue: "Fees retained by Ophis. Ophis-operated chains retain the full fee; on CoW-hosted chains this is net of CoW Protocol's 25% partner-fee share. Unichain is temporarily excluded while its reporting source is unavailable.",
-  ProtocolRevenue: "Revenue retained by Ophis after CoW Protocol's hosted-chain share. Unichain is temporarily excluded while its reporting source is unavailable.",
-  SupplySideRevenue: "CoW Protocol's 25% share of Ophis fees on CoW-hosted chains; zero on Ophis-operated chains. Unichain is temporarily excluded while its reporting source is unavailable.",
+  Fees: "Ophis fees assessed on successfully settled Ophis-attributed fills, including the 1 bp base fee and capped price-improvement capture. Values come from Ophis' settlement-fill ledger, are bucketed by settlement date, and are valued in USD by the reporting indexer. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
+  Revenue: "Fees retained by Ophis. Ophis-operated chains retain the full fee; on CoW-hosted chains this is net of CoW Protocol's 25% partner-fee share. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
+  ProtocolRevenue: "Revenue retained by Ophis after CoW Protocol's hosted-chain share. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
+  SupplySideRevenue: "CoW Protocol's 25% share of Ophis fees on CoW-hosted chains; zero on Ophis-operated chains. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
 };
 
 const breakdownMethodology = {

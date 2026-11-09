@@ -18,7 +18,7 @@ const subscanStatsChains: Record<string, ChainConfig> = {
   // karura: { chain: CHAIN.KARURA, subscanName: "karura" }, // network dropped from subscan
   kusama: { chain: CHAIN.KUSAMA, subscanName: "kusama" },
   // hydration: { chain: CHAIN.HYDRADX, subscanName: "hydration" }, // network dropped from subscan
-  robonomics: { chain: CHAIN.ROBONOMICS, subscanName: "robonomics" },
+  // robonomics: { chain: CHAIN.ROBONOMICS, subscanName: "robonomics" }, // network dropped from subscan (robonomics.api.subscan.io returns 404, checked 2026-11-08)
   darwinia: { chain: CHAIN.DARWINIA, subscanName: "darwinia" },
   bifrost: { chain: CHAIN.BIFROST, subscanName: "bifrost" },
   moonriver: { chain: CHAIN.MOONRIVER, subscanName: "moonriver" },

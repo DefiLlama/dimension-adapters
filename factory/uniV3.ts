@@ -102,7 +102,9 @@ const configs: Record<string, Record<string, any>> = {
   },
   "piperx-v3": {
     // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09
-    [CHAIN.STORY]: { factory: '0xb8c21e89983B5EcCD841846eA294c4c8a89718f1', start: '2025-02-12' },
+    // noStateReads: no keyless Story RPC serves past state since ~2026-11-03 (see storyhunt-v3), so filterPools' balanceOf
+    // at the window block failed on all 73 calls; swap logs and the PoolCreated fee tiers need no state reads
+    [CHAIN.STORY]: { factory: '0xb8c21e89983B5EcCD841846eA294c4c8a89718f1', start: '2025-02-12', noStateReads: true },
   },
   "mintswap": {
     [CHAIN.MINT]: { factory: '0x1f88BB455E02646224A0a65f3eb4B2FCb4fb8e49' },
@@ -567,7 +569,10 @@ const configs: Record<string, Record<string, any>> = {
   "storyhunt-v3": {
     // on-chain swap logs; the app.storyhunt.xyz/api/graph subgraph proxy returns 404. Factory from DefiLlama-Adapters registries/uniswapV3.js
     // volume only: per-pool feeProtocol differs (0, 1/4, 1/5) so fees/revenue need their own review
-    [CHAIN.STORY]: { factory: '0xa111dDbE973094F949D78Ad755cd560F8737B7e2', customLogic: volumeOnly },
+    // noStateReads: since ~2026-11-03 every keyless Story/Data Network RPC (storyrpc.io, datarpc.io, thirdweb, publicnode, itrocket,
+    // stakely, originstake, swiftnodes) keeps ~128 blocks (~5 min) of state and ankr needs a key, so filterPools' balanceOf at the
+    // window block failed on all 5152 calls; swap logs stay available. 2026-11-07/08: core-leg volume of all pools $97 vs $96 top-42
+    [CHAIN.STORY]: { factory: '0xa111dDbE973094F949D78Ad755cd560F8737B7e2', customLogic: volumeOnly, noStateReads: true },
   },
   "somnex-v3": {
     // uniV3 fork on Somnia; the api.subgraph.somnia.network subgraph no longer resolves. Factory = factory() of the Somnex V3 pools.

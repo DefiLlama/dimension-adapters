@@ -1,5 +1,6 @@
 import { fetchChainTransactionFeesExport, fetchTransactionFees, getOneDayFees } from "../helpers/getChainFees";
 import { CHAIN } from "../helpers/chains";
+import { fetchEvmChainMetricsFromOptions } from "../helpers/evmChainFees";
 import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
@@ -20,6 +21,7 @@ const alliumFeesConfigs: Record<string, { chain: CHAIN; start: string }> = {
 type ValidatorFeesConfig = {
   chain: CHAIN;
   start: string;
+  rpcFrom?: string; // windows starting on or after this date sum RPC receipts instead of Allium
   supplySideLabel: string;
   methodology: Record<string, string>;
   breakdownMethodology: Record<string, Record<string, string>>;
@@ -28,6 +30,9 @@ type ValidatorFeesConfig = {
 const alliumValidatorFeesConfigs: Record<string, ValidatorFeesConfig> = {
   "fantom": {
     chain: CHAIN.FANTOM, start: '2020-09-02',
+    // Allium fantom.raw.transactions stopped at 2026-10-21 17:59 UTC (block 123771716) while the chain kept producing blocks.
+    // RPC receipts matched Allium to the wei on 2026-10-20 10:00-11:00 UTC (459 txs).
+    rpcFrom: '2026-10-21',
     supplySideLabel: 'Transaction Gas Fees To Validators',
     methodology: {
       Fees: 'Transaction fees paid by users for executing transactions on Fantom Opera.',
@@ -54,7 +59,17 @@ const alliumValidatorFeesConfigs: Record<string, ValidatorFeesConfig> = {
   },
 };
 
-function validatorFeesExport({ chain, start, supplySideLabel, methodology, breakdownMethodology }: ValidatorFeesConfig): SimpleAdapter {
+function validatorFeesExport({ chain, start, rpcFrom, supplySideLabel, methodology, breakdownMethodology }: ValidatorFeesConfig): SimpleAdapter {
+  const rpcFromTimestamp = rpcFrom ? Date.parse(rpcFrom) / 1000 : Infinity;
+
+  const fetchFees = async (options: FetchOptions) => {
+    if (options.startTimestamp < rpcFromTimestamp) return fetchTransactionFees(options);
+    const { totalFeesWei } = await fetchEvmChainMetricsFromOptions(options, { chain, blockChunkSize: 500 });
+    const dailyFees = options.createBalances();
+    dailyFees.addGasToken(totalFeesWei.toString(), METRIC.TRANSACTION_GAS_FEES);
+    return dailyFees;
+  };
+
   return {
     version: 2,
     pullHourly: true,
@@ -66,7 +81,7 @@ function validatorFeesExport({ chain, start, supplySideLabel, methodology, break
     methodology,
     breakdownMethodology,
     fetch: async (options: FetchOptions) => {
-      const dailyFees = await fetchTransactionFees(options);
+      const dailyFees = await fetchFees(options);
       return { dailyFees, dailySupplySideRevenue: dailyFees.clone(1, supplySideLabel) };
     },
   };

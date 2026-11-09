@@ -53,6 +53,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   chains: [CHAIN.XLAYER],
   start: "2026-06-12",
+  deadFrom: "2026-07-20",
   fetch,
   methodology: {
     Volume:

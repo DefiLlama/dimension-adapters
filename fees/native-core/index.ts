@@ -1,4 +1,5 @@
 import type { Balances } from "@defillama/sdk";
+import axios from "axios";
 import type { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { fetchURLAutoHandleRateLimit, httpPost } from "../../utils/fetchURL";
@@ -105,6 +106,31 @@ function hourWindow(endTimestamp: number): { from: number; to: number } {
   // request the previous hour; Native rejects any from/to not on an hour mark.
   const to = Math.ceil(endTimestamp / HOUR) * HOUR;
   return { from: to - HOUR, to };
+}
+
+async function getStatsWindow(from: number, to: number): Promise<StatsWindow> {
+  const url = `${STATS_WINDOW_URL}?from=${from}&to=${to}`;
+  let lastError = "no response";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await sleep(5000);
+    let res;
+    try {
+      res = await axios.get(url, { timeout: 30_000, validateStatus: () => true });
+    } catch (e: any) {
+      lastError = e?.message ?? String(e);
+      continue;
+    }
+    if (res.status === 200 && res.data) return res.data;
+    // Native publishes an hour only after its stats job closes it (the job can lag
+    // several hours, e.g. 2026-11-08). Until then the window is 404 out_of_coverage:
+    // fail the slice at once so the server retries it next run, never store a zero.
+    if (res.status === 404 && res.data?.error === "out_of_coverage") {
+      const range = `${new Date(from * 1e3).toISOString()} - ${new Date(to * 1e3).toISOString()}`;
+      throw new Error(`Native Core stats for ${range} not published yet: ${res.data.message}`);
+    }
+    lastError = `${res.status} ${JSON.stringify(res.data ?? "").slice(0, 200)}`;
+  }
+  throw new Error(`Native Core stats window ${url} failed: ${lastError}`);
 }
 
 function parseAmount(raw: string, symbol: string, side: string): number {
@@ -366,9 +392,7 @@ async function addPoolDistribution(
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const { from, to } = hourWindow(options.endTimestamp);
-  const snap: StatsWindow = await fetchURLAutoHandleRateLimit(
-    `${STATS_WINDOW_URL}?from=${from}&to=${to}`,
-  );
+  const snap = await getStatsWindow(from, to);
 
   if (snap.unpriced_trades) {
     options.api.log(

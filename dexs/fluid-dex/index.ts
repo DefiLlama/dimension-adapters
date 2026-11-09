@@ -93,22 +93,22 @@ export const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Pro
   });
   const pools = rawPools.map(({ pool, token0, token1, fee }, index: number) => ({ pool, token0, token1, fee: BigInt(fee), revenueCut: BigInt(rawPoolConfigs[index].revenueCut) }));
 
-  const logsByPool: SwapEventArgs[][]= await Promise.all(
-    pools.map(async pool => {
-      const logs: SwapEventArgs[] = await getLogs({
-        targets: [pool.pool],
-        onlyArgs: true,
-        eventAbi: abi.swap,
-      });
-      
-      return logs.map((log: any) => ({
-        swap0to1: log[0] as boolean,
-        amountIn: log[1] as bigint,
-        amountOut: log[2] as bigint,
-        to: log[3] as string,
-        ...pool
-      }));
-    })
+  // one targets call: the indexer serves every pool in one request, and on RPC-only chains (plasma) the sdk runs at most
+  // 5 pool queries at a time. A Promise.all over every pool burst past plasma's RPC rate limits and failed fees/fluid with 429s
+  const poolLogs: any[][] = !pools.length ? [] : await getLogs({
+    targets: pools.map((pool) => pool.pool),
+    onlyArgs: true,
+    flatten: false,
+    eventAbi: abi.swap,
+  });
+  const logsByPool: SwapEventArgs[][] = pools.map((pool, index) =>
+    poolLogs[index].map((log: any) => ({
+      swap0to1: log[0] as boolean,
+      amountIn: log[1] as bigint,
+      amountOut: log[2] as bigint,
+      to: log[3] as string,
+      ...pool
+    }))
   );
 
   const allSwapEvents = logsByPool.flat();

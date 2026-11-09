@@ -28,8 +28,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.CHAIN_GLOBAL]: { start: OPHIS_START },
   },
   methodology: {
-    ActiveUsers: "Unique Ophis-attributed user wallets with at least one successfully settled fill during the UTC day, deduplicated across configured reporting chains and sourced from Ophis' validated settlement-fill ledger. Unichain is temporarily excluded while its reporting source is unavailable.",
-    Transactions: "Distinct onchain settlement transaction hashes containing successfully settled Ophis-attributed fills during the UTC day. Unichain is temporarily excluded while its reporting source is unavailable.",
+    ActiveUsers: "Unique Ophis-attributed user wallets with at least one successfully settled fill during the UTC day, deduplicated across configured reporting chains and sourced from Ophis' validated settlement-fill ledger. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
+    Transactions: "Distinct onchain settlement transaction hashes containing successfully settled Ophis-attributed fills during the UTC day. Unichain and OP Mainnet are temporarily excluded while their reporting sources are unavailable.",
   },
   breakdownMethodology: {
     ActiveUsers: {

@@ -14,22 +14,25 @@ const endpoints: Record<string, string> = {
     sdk.graph.modifyEndpoint('CCaEZU1PJyNaFmEjpyc4AXUiANB6M6DGDCJuWa48JWTo'),
 };
 
-const fetch = async ({ startOfDay, chain, api, createBalances }: FetchOptions) => {
+const fetch = async ({ startOfDay, endTimestamp, chain, api, createBalances }: FetchOptions) => {
   const dateId = Math.floor(startOfDay);
   const graphQuery = gql`{
       dailyRevenueSnapshot(id: ${dateId}) {
           aCRVRevenue
       }
+      _meta { block { timestamp } }
   }`;
 
-  const { dailyRevenueSnapshot: snapshot } = await request(
+  const { dailyRevenueSnapshot: snapshot, _meta } = await request(
     endpoints[chain],
     graphQuery
   );
-  if (!snapshot) throw new Error("No data found");
+  // The subgraph only writes a snapshot on days with a tracked CVX/FRAX/aCRV/wstETH transfer into a fee receiver,
+  // so a missing snapshot on a fully indexed day means no aCRV reached the veCTR distributor (0xa5d9358c60fc9bd2b508eda17c78c67a43a4458c).
+  if (!snapshot && Number(_meta?.block?.timestamp ?? 0) < endTimestamp) throw new Error("Subgraph not yet indexed past the end of the day");
 
   // The subgraph reports aCRV shares received by the veCTR distributor, in 18-decimal token units.
-  const shares = parseUnits(snapshot.aCRVRevenue, 18);
+  const shares = snapshot ? parseUnits(snapshot.aCRVRevenue, 18) : 0n;
   if (shares < 0n) throw new Error("Negative aCRV revenue");
   const dailyFees = createBalances();
   const dailyHoldersRevenue = createBalances();

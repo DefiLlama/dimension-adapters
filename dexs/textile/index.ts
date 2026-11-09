@@ -1,5 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
+import asyncRetry from "async-retry";
 import { ethers } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -94,13 +95,27 @@ const CELO_QUERY = `
   }
 `;
 
+// The API load-balances each request across several Celo subgraph indexers that are not in sync. On 2026-11-08
+// one was stuck at Nov 7 14:52 UTC, another was ~3h behind, and about half of all calls answered "Trade volumes
+// incomplete, retry later: Celo trades could not be read", so the same past window failed on one call and
+// passed on the next. Re-ask a few times (~1s per call); a window no indexer has reached yet still throws
+// after the last attempt, and the run retries it later. Worst case ~15s per hourly slice.
+const INCOMPLETE = "Trade volumes incomplete";
+
 async function fetchCelo(options: FetchOptions): Promise<FetchResultV2> {
-  const res = await httpPost(API, { query: CELO_QUERY, variables: { from: options.fromTimestamp, to: options.toTimestamp } });
-  // GraphQL errors come back with HTTP 200: fail the run so the window is retried.
-  if (res?.errors?.length) throw new Error(`Textile API: ${res.errors.map((e: any) => e.message).join("; ")}`);
-  const rows = res?.data?.settlementTradeVolumes;
-  if (!Array.isArray(rows)) throw new Error("Textile API: settlementTradeVolumes missing from response");
-  return { dailyVolume: rows.reduce((sum: number, row: any) => sum + row.volumeUsd, 0) };
+  const rows = await asyncRetry(async (bail) => {
+    const res = await httpPost(API, { query: CELO_QUERY, variables: { from: options.fromTimestamp, to: options.toTimestamp } }, { timeout: 20_000 });
+    // GraphQL errors come back with HTTP 200: fail the run so the window is retried.
+    if (res?.errors?.length) {
+      const error = new Error(`Textile API: ${res.errors.map((e: any) => e.message).join("; ")}`);
+      if (res.errors.some((e: any) => !e.message?.startsWith(INCOMPLETE))) { bail(error); return; }
+      throw error;
+    }
+    const rows = res?.data?.settlementTradeVolumes;
+    if (!Array.isArray(rows)) { bail(new Error("Textile API: settlementTradeVolumes missing from response")); return; }
+    return rows;
+  }, { retries: 7, minTimeout: 1000, maxTimeout: 1000, factor: 1 });
+  return { dailyVolume: rows!.reduce((sum: number, row: any) => sum + row.volumeUsd, 0) };
 }
 
 const adapter: SimpleAdapter = {

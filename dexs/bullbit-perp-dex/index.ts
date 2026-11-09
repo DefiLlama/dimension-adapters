@@ -14,6 +14,9 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`No data found for date ${options.startOfDay}`);
   }
 
+  if (todaysData.totalVolume < 0 || todaysData.totalFee < 0)
+    throw new Error(`Bullbit API returned negative values for ${options.dateString}: volume ${todaysData.totalVolume}, fee ${todaysData.totalFee}`);
+
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();
 

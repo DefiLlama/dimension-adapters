@@ -2,7 +2,7 @@ import { Adapter, FetchOptions, ProtocolType } from '../adapters/types';
 import { httpGet } from '../utils/fetchURL';
 import { CHAIN } from './chains';
 import { getEnv } from './env';
-import { getFees } from './ethereum-l2';
+import { getFees, getFeesFromVaultCounters } from './ethereum-l2';
 
 // OP-stack SequencerFeeVault, L1FeeVault, BaseFeeVault predeploys
 const OP_STACK_FEE_VAULTS = [
@@ -21,7 +21,7 @@ export const chainConfigMap: any = {
   [CHAIN.MIXIN]: { explorer: 'https://scan.mvm.dev', CGToken: 'mixin' },
   [CHAIN.ENERGYWEB]: { explorer: 'https://explorer.energyweb.org', CGToken: 'energy-web-token', burnRatio: 0 },
   [CHAIN.FLOW]: { explorer: 'https://evm.flow.com', CGToken: 'flow', allStatsApi: 'https://evm.flow.com:8080' },
-  [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://explorer.immutable.com/stats-service' },
+  [CHAIN.IMX]: { explorer: 'https://explorer.immutable.com', CGToken: 'immutable-x', allStatsApi: 'https://explorer.immutable.com/stats-service', statsApiOnly: true }, // explorer /api sits behind a Cloudflare challenge (403) since 2026-11-03; the stats service still answers
   [CHAIN.ZETA]: { explorer: 'https://zetachain.blockscout.com', CGToken: 'zetachain' },
   [CHAIN.ETHERLINK]: { explorer: 'https://explorer.etherlink.com', CGToken: 'tezos', allStatsApi: 'https://explorer.etherlink.com/stats-service' },
   [CHAIN.REDSTONE]: { explorer: 'https://explorer.redstone.xyz', CGToken: 'ethereum', allStatsApi: 'https://stats-redstone.k8s.blockscout.com' },
@@ -75,7 +75,7 @@ export const chainConfigMap: any = {
   [CHAIN.LIGHTLINK_PHOENIX]: { explorer: 'https://phoenix.lightlink.io', CGToken: 'lightlink', allStatsApi: 'https://stats-lightlink-phoenix.k8s.blockscout.com' },
   [CHAIN.IOTAEVM]: { CGToken: 'iota', explorer: 'https://explorer.evm.iota.org', allStatsApi: 'https://stats-iota-evm.k8s.blockscout.com' },
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
-  [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network' },
+  [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network', deadFrom: '2026-09-18' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
   [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', url: 'https://mainnet.somnia.w3us.site/api?module=stats&action=totalfees', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
@@ -98,7 +98,7 @@ export const chainConfigMap: any = {
   [CHAIN.EVERCLEAR]: { CGToken: 'ethereum', explorer: 'https://scan.everclear.org/', deadFrom: '2026-05-21' },
   [CHAIN.HPP]: { CGToken: 'ethereum', explorer: 'https://explorer.hpp.io/' },
   [CHAIN.MIND_NETWORK]: { CGToken: 'ethereum', explorer: 'https://explorer.mindnetwork.xyz/' },
-  [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/' },
+  [CHAIN.MOLTEN_NETWORK]: { CGToken: 'molten-2', explorer: 'https://molten.calderaexplorer.xyz/', deadFrom: '2026-05-12' }, // L3 shut down: last batch to its Arbitrum SequencerInbox 0x0fFe9ACC296ddd4De5F616Aa482C99fA4b41A3E2 at 2026-05-11 19:47 UTC (block 461809700, batchCount frozen at 104873), L2BEAT archived it 2026-05-18; Caldera explorer and RPC now 404 and moltennetwork.com is squatted
   [CHAIN.SYNDICATE]: { CGToken: 'syndicate-3', explorer: 'https://explorer.syndicate.io/', deadFrom: '2026-05-21' },
   [CHAIN.XCHAIN]: { CGToken: 'ethereum', explorer: 'https://xchain-explorer.kuma.bid/', deadFrom: '2026-01-24' },
   [CHAIN.SHIBARIUM]: { CGToken: 'bone-shibaswap', explorer: 'https://shibariumscan.io/' },
@@ -125,7 +125,10 @@ export const chainConfigMap: any = {
   [CHAIN.SVM]: { CGToken: 'bitcoin', explorer: 'https://www.svmscan.io/' },
   [CHAIN.ACALA]: { CGToken: 'acala', explorer: 'https://blockscout.acala.network/', burnRatio: 0.2, deadFrom: '2025-09-22' }, // legacy totalfees endpoint returns null for every date; last nonzero fees 2025-09-21
   //[CHAIN.KARURA]: { CGToken: 'karura', explorer: 'https://blockscout.karura.network/' },
-  [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/' },
+  // matchscan.io dropped Blockscout in Oct 2026 (stats api 503, last row 2026-10-15) and rpc.matchain.io rejects getLogs
+  // over even 10k blocks (~40 min of 250ms blocks), so fees come from the OP-stack vault counters; the operator fee vault
+  // 0x420...1b is an uninitialized proxy here
+  [CHAIN.MATCHAIN]: { CGToken: 'binancecoin', explorer: 'https://matchscan.io/', opStackFeeVaults: true, readVaultCounters: true },
   [CHAIN.SAAKURU]: { CGToken: 'oasys', explorer: 'https://explorer.saakuru.network/' },
   [CHAIN.GENESYS]: { CGToken: 'genesys', explorer: 'https://gchainexplorer.genesys.network/' },
   [CHAIN.ROLLUX]: { CGToken: 'rollux', explorer: 'https://explorer.rollux.com/', allStatsApi: 'https://stats-api-explorer.rollux.com' }, // legacy totalfees returns null
@@ -153,7 +156,7 @@ export const chainConfigMap: any = {
   [CHAIN.GATE_LAYER]: { CGToken: 'gatechain-token', explorer: 'https://www.gatescan.org/gatelayer' },
   [CHAIN.IGRA]: { CGToken: 'kaspa', explorer: 'https://explorer.igralabs.com', start: '2026-03-03' },
   [CHAIN.SHIDO]: { CGToken: 'shido-2', explorer: 'https://shidoscan.net', start: '2024-04-22' },
-  [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', start: '2024-07-30', opStackFeeVaults: true }, // blockscout.b3.fun 404s and the caldera stats host no longer resolves
+  [CHAIN.B3]: { explorer: 'https://blockscout.b3.fun', CGToken: 'ethereum', start: '2024-07-30', opStackFeeVaults: true, deadFrom: '2026-09-24' },
   [CHAIN.DEGEN]: { explorer: 'https://explorer.degen.tips', CGToken: 'degen-base', allStatsApi: 'https://explorer.degen.tips/stats-service', start: '2025-06-16' },
   [CHAIN.EDEN]: { explorer: 'https://eden.blockscout.com', CGToken: 'celestia', allStatsApi: 'https://eden.blockscout.com/stats-service', start: '2026-01-16', burnRatio: 0 },
 }
@@ -180,7 +183,9 @@ export function blockscoutFeeAdapter2(chain: string) {
       pullHourly: true,
       deadFrom,
       fetch: async (options: FetchOptions) => {
-        const dailyFees = await getFees(options, { feeVaults: OP_STACK_FEE_VAULTS })
+        const dailyFees = config.readVaultCounters
+          ? await getFeesFromVaultCounters(options, { feeVaults: OP_STACK_FEE_VAULTS, CGToken })
+          : await getFees(options, { feeVaults: OP_STACK_FEE_VAULTS })
         if (config.burnRatio !== undefined && config.burnRatio !== null) {
           const dailyRevenue = dailyFees.clone(config.burnRatio)
           return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue }
@@ -265,7 +270,8 @@ export function blockscoutFeeAdapter2(chain: string) {
 
 
           const dailyFees = createBalances()
-          const fees = await httpGet(`${url}&date=${dateString}`)
+          // statsApiOnly: the legacy endpoint is unreachable, read the stats service txnsFee line directly
+          const fees = config.statsApiOnly ? undefined : await httpGet(`${url}&date=${dateString}`)
           let feesWei: number | undefined = fees?.result ?? undefined
           if (config.verifyEmptyDays && fees?.status === '1' && fees?.result === null) {
             const indexing = await httpGet(`${explorer}/api/v2/main-page/indexing-status`, requestConfig)
@@ -286,11 +292,19 @@ export function blockscoutFeeAdapter2(chain: string) {
             const rowIndex = chart?.findIndex((c: any) => c.date === dateString) ?? -1
             const row = rowIndex >= 0 ? chart[rowIndex] : undefined
             if (row) {
-              // the stats service writes a 0 placeholder for days its indexer has not processed yet;
-              // a chain that paid fees in the previous week does not go to exactly 0 - throw so the refill heals it
-              const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some((c: any) => Number(c.value) > 0)
-              if (Number(row.value) === 0 && recentNonZero)
-                throw new Error(`${chain}: stats service has not computed fees for ${dateString} yet`)
+              if (Number(row.value) === 0) {
+                // the stats service writes a 0 placeholder for days it has not processed, and keeps writing them when the
+                // explorer stops indexing (grx: explorer node reset, nothing indexed after 2026-11-01 20:10 UTC), so after a
+                // week the look-back below runs out of nonzero days; only trust a 0 when it counted blocks for that day
+                const { chart: blocksChart } = await httpGet(`${allStatsApi}/api/v1/lines/newBlocks?resolution=DAY`, requestConfig)
+                const dayBlocks = Number(blocksChart?.find((c: any) => c.date === dateString)?.value ?? 0)
+                if (!(dayBlocks > 0))
+                  throw new Error(`${chain}: stats service counted no blocks on ${dateString}, its 0 fees row is a placeholder`)
+                // a chain that paid fees in the previous week does not go to exactly 0 - throw so the refill heals it
+                const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some((c: any) => Number(c.value) > 0)
+                if (recentNonZero)
+                  throw new Error(`${chain}: stats service has not computed fees for ${dateString} yet`)
+              }
               feesWei = Number(row.value) * 1e18
             }
           }

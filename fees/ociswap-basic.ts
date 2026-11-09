@@ -1,28 +1,12 @@
-import { SimpleAdapter, FetchResultFees, FetchOptions } from "../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { getOciswapXrdTotals } from "../helpers/ociswap";
 
-interface PoolStatistics {
-  pool_type: string;
-  fees: {
-    xrd: {
-      '24h': string;
-      total: string;
-    };
-    usd: {
-      '24h': string;
-      total: string;
-    };
-  };
-}
-
-const fetch = async (_a: FetchOptions): Promise<FetchResultFees> => {
-  const response: Array<PoolStatistics> = await fetchURL('http://api.ociswap.com/statistics/pool-types');
-  const index = response.findIndex(pool => pool.pool_type === 'basic');
-  const dailyFees = Number(response[index].fees.usd["24h"]);
-  return {
-    dailyFees,
-  };
+const fetch = async (options: FetchOptions) => {
+  const { fees } = await getOciswapXrdTotals('basic')
+  const dailyFees = options.createBalances()
+  dailyFees.addCGToken('radix', fees)
+  return { dailyFees };
 };
 
 const adapter: SimpleAdapter = {
@@ -33,6 +17,9 @@ const adapter: SimpleAdapter = {
       start: '2023-10-01',
       runAtCurrTime: true,
     }
-  }
+  },
+  methodology: {
+    Fees: "Trailing 24h swap fees of Ociswap Basic pools as reported by the Ociswap API, converted to XRD at each pool's own exchange rate.",
+  },
 }
 export default adapter;
