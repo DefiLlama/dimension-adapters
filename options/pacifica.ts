@@ -7,10 +7,11 @@ import { httpGet } from "../utils/fetchURL";
 const API_URL = "https://api.pacifica.fi/api/v1/game/trades";
 const HEADERS = { "User-Agent": "Mozilla/5.0", Origin: "https://app.pacifica.fi" };
 const PAGE_SIZE = 1000; // Maximum page size supported by the API.
+const LABEL = "Pacifica Options";
 
 function decimal(value: unknown): BigNumber {
   if (typeof value !== "string" || !/^\d+(\.\d+)?$/.test(value)) {
-    throw new Error("Pacifica Print: invalid trade amount");
+    throw new Error("Pacifica Options: invalid trade amount");
   }
   return new BigNumber(value);
 }
@@ -32,28 +33,28 @@ const fetch = async (options: FetchOptions) => {
       timeout: 20_000,
     }), { retries: 3, minTimeout: 10_000, maxTimeout: 40_000, randomize: false });
     if (response.success !== true || !Array.isArray(response.data) || typeof response.has_more !== "boolean") {
-      throw new Error("Pacifica Print: trades are unavailable");
+      throw new Error("Pacifica Options: trades are unavailable");
     }
 
     for (const trade of response.data) {
       if (!Number.isSafeInteger(trade.history_id) || trade.history_id <= 0 || trade.history_id >= previousId
         || !Number.isSafeInteger(trade.created_at) || trade.created_at < start_time || trade.created_at >= end_time) {
-        throw new Error("Pacifica Print: unordered, duplicate or out-of-window trade");
+        throw new Error("Pacifica Options: unordered, duplicate or out-of-window trade");
       }
       previousId = trade.history_id;
-      if (typeof trade.symbol !== "string" || !trade.symbol) throw new Error("Pacifica Print: missing underlying");
+      if (typeof trade.symbol !== "string" || !trade.symbol) throw new Error("Pacifica Options: missing underlying");
       premium = premium.plus(decimal(trade.premium));
       // Trades without quantity contribute only to premium volume.
       if (trade.quantity === null) continue;
       const quantity = decimal(trade.quantity);
       const mark = decimal(trade.mark_price);
-      if (!quantity.gt(0) || !mark.gt(0)) throw new Error("Pacifica Print: invalid opening price or quantity");
+      if (!quantity.gt(0) || !mark.gt(0)) throw new Error("Pacifica Options: invalid opening price or quantity");
       notional = notional.plus(quantity.times(mark));
     }
     if (!response.has_more) break;
     if (!response.data.length || typeof response.next_cursor !== "string" || !response.next_cursor
       || cursors.has(response.next_cursor)) {
-      throw new Error("Pacifica Print: incomplete or repeated pagination");
+      throw new Error("Pacifica Options: incomplete or repeated pagination");
     }
     cursor = response.next_cursor;
     cursors.add(response.next_cursor);
@@ -62,16 +63,16 @@ const fetch = async (options: FetchOptions) => {
   const dailyPremiumVolume = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
   if (!Number.isFinite(premium.toNumber()) || !Number.isFinite(notional.toNumber())) {
-    throw new Error("Pacifica Print: invalid volume");
+    throw new Error("Pacifica Options: invalid volume");
   }
-  dailyPremiumVolume.addUSDValue(premium.toNumber());
-  dailyNotionalVolume.addUSDValue(notional.toNumber());
+  dailyPremiumVolume.addUSDValue(premium.toNumber(), LABEL);
+  dailyNotionalVolume.addUSDValue(notional.toNumber(), LABEL);
   return { dailyPremiumVolume, dailyNotionalVolume };
 };
 
 const methodology = {
-  PremiumVolume: "Premium paid on Print options.",
-  NotionalVolume: "Notional value of options traded on Print.",
+  PremiumVolume: "Premium paid on options traded on Pacifica.",
+  NotionalVolume: "Notional value of options traded on Pacifica, excluding trades with unavailable quantity.",
 };
 
 const adapter: SimpleAdapter = {
@@ -81,6 +82,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.OFF_CHAIN],
   start: "2026-06-25",
   methodology,
+  breakdownMethodology: {
+    PremiumVolume: { [LABEL]: methodology.PremiumVolume },
+    NotionalVolume: { [LABEL]: methodology.NotionalVolume },
+  },
 };
 
 export default adapter;
