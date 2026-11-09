@@ -4,7 +4,7 @@
   "version": "4.2.0",
   "scripts": {
     "test": "ts-node --transpile-only cli/testAdapter.ts",
-    "build": "ts-node --transpile-only cli/buildModules.ts",
+    "build": "node init && ts-node --transpile-only cli/buildModules.ts",
     "migrate-dead": "ts-node --transpile-only cli/migrateDeadProjects.ts",
     "ts-check": "tsc --project tsconfig.json",
     "ts-check-cli": "tsc --project tsconfig.cli.json",

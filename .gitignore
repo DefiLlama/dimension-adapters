@@ -1,11 +1,11 @@
 node_modules
-.vscode
 .DS_store
 .env
 .idea
 yarn.lock
 test.py
 test.js
+temp_auto_push.bat
 
 cli/dimensionModules.json
 wash/
@@ -13,4 +13,5 @@ wash/
 
 .claude
 CLAUDE.md
-skills/dimension-failure-fixer/
+skills/dimension-failure-fixer/.gitignore
+branch_structure.json

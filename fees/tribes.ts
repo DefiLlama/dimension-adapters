@@ -7,11 +7,12 @@ import { httpGet } from "../utils/fetchURL";
 // chats; every trade is routed and settled through Relay (relay.link), and Tribes adds an app fee
 // to the Relay quote.
 //
-// Fee: 0.5% of the trade.
-//   - Until 2026-10-26 (and still on older app builds) Relay collects the whole 0.5% as the app fee:
+// Fee: set on each trade when it is quoted, and the adapter sums what was recorded on each trade,
+// never a rate applied to volume. The fee has two parts, under one of two arrangements:
+//   - Until 2026-10-26 (and still on older app builds) Relay collects the whole fee as the app fee:
 //     half is Tribes' commission, half is set aside to buy TRIBES back.
-//   - Since 2026-10-26, current builds have Relay collect 0.25% (the commission), and the trader
-//     pays the other 0.25% from their own wallet, which is swapped into TRIBES and burned
+//   - Since 2026-10-26, current builds have Relay collect the commission alone, and the trader
+//     pays the buyback part from their own wallet, which is swapped into TRIBES and burned
 //     (TRIBES on Robinhood Chain: 0x56fcb5cC32D8ddA466dCC5FE4300576E67fcf20E).
 // The commission pays the trader's cashback, the referrer's share and in-app rewards.
 //
@@ -79,8 +80,17 @@ async function prefetch(options: FetchOptions): Promise<any> {
       throw new Error(`Tribes endpoint ${endpoint} returned no trades array: ${JSON.stringify(data)?.slice(0, 200)}`);
     }
     for (const trade of data.trades as Trade[]) {
-      if (!trade.txHash || NUMERIC_FIELDS.some((field) => typeof trade[field] !== "number")) {
+      const malformed =
+        !trade.txHash ||
+        NUMERIC_FIELDS.some((field) => typeof trade[field] !== "number" || !Number.isFinite(trade[field]) || (trade[field] as number) < 0);
+      if (malformed) {
         throw new Error(`Tribes endpoint ${endpoint} returned a malformed trade: ${JSON.stringify(trade)}`);
+      }
+      // The buyback share and the payouts all come out of the app fee; more than it would be a bad record,
+      // and would show as negative treasury revenue. Allow a micro-dollar of rounding.
+      const outOfFee = trade.buybackUsd + trade.cashbackUsd + trade.referralUsd + trade.rewardsUsd;
+      if (outOfFee > trade.appFeeUsd + 1e-6) {
+        throw new Error(`Tribes trade ${trade.txHash} pays out more than its app fee: ${JSON.stringify(trade)}`);
       }
       if (!CHAINS[trade.chain]) throw new Error(`Tribes trade on an unmapped chain: ${trade.chain}`);
       trades.set(trade.txHash, trade);
@@ -127,32 +137,32 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "The 0.5% fee Tribes users pay on every completed buy, sell or swap: the app fee Relay charges on the trade, plus (on trades since 2026-10-26) the 0.25% the trader pays to burn TRIBES. Withdrawals and deposits carry no fee and are not counted.",
+  Fees: "The fees Tribes users pay on every completed buy, sell or swap, as recorded on each trade: the app fee Relay charged, plus (on trades since 2026-10-26) the TRIBES burn the trader paid, counted only once it is burned. Withdrawals and deposits carry no fee and are not counted.",
   UserFees: "Same as Fees: all of it is paid by traders.",
   Revenue: "Fees minus the cashback, referral and in-app rewards paid back to users.",
-  ProtocolRevenue: "Tribes' commission (0.25% of each trade) minus the cashback, referral and in-app rewards it pays.",
-  HoldersRevenue: "The 0.25% of each trade that goes to TRIBES: set aside to buy TRIBES back (trades priced before 2026-10-26 and on older builds), or swapped into TRIBES and burned (current builds).",
+  ProtocolRevenue: "Tribes' commission (the app fee less its buyback share) minus the cashback, referral and in-app rewards it pays.",
+  HoldersRevenue: "The part of each trade's fee that goes to TRIBES, as recorded on the trade: the app fee's share set aside to buy TRIBES back (trades priced before 2026-10-26 and on older builds), or the burn the trader paid, swapped into TRIBES and burned (current builds).",
   SupplySideRevenue: "Cashback to traders, the referrer's share of their referrals' fees, and in-app rewards for calls, shared trades, theses and tribe activity.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABELS.TRADING_FEES]: "0.5% fee on every completed trade: the app fee collected by Relay, plus the 0.25% burn paid by the trader on trades since 2026-10-26.",
+    [LABELS.TRADING_FEES]: "Fees recorded on every completed trade: the app fee collected by Relay, plus the TRIBES burn paid by the trader on trades since 2026-10-26, once burned.",
   },
   UserFees: {
-    [LABELS.TRADING_FEES]: "0.5% fee on every completed trade, all paid by traders.",
+    [LABELS.TRADING_FEES]: "Fees recorded on every completed trade (app fee plus any burn paid), all paid by traders.",
   },
   Revenue: {
-    [LABELS.TRADING_FEES_TO_TREASURY]: "Tribes' 0.25% commission after cashback, referral and reward payouts.",
-    [LABELS.TOKEN_BUY_BACK]: "The 0.25% of the app fee set aside to buy TRIBES back, on trades priced before 2026-10-26 and on older builds.",
-    [LABELS.TOKEN_BURN]: "The 0.25% the trader pays to buy TRIBES and send it to the dead address, on trades since 2026-10-26.",
+    [LABELS.TRADING_FEES_TO_TREASURY]: "Tribes' commission (the app fee less its buyback share) after cashback, referral and reward payouts.",
+    [LABELS.TOKEN_BUY_BACK]: "The share of the app fee set aside to buy TRIBES back, as recorded on each trade priced before 2026-10-26 or on an older build.",
+    [LABELS.TOKEN_BURN]: "The amount the trader paid to buy TRIBES and send it to the dead address, as recorded once burned, on trades since 2026-10-26.",
   },
   ProtocolRevenue: {
-    [LABELS.TRADING_FEES_TO_TREASURY]: "Tribes' 0.25% commission after cashback, referral and reward payouts.",
+    [LABELS.TRADING_FEES_TO_TREASURY]: "Tribes' commission (the app fee less its buyback share) after cashback, referral and reward payouts.",
   },
   HoldersRevenue: {
-    [LABELS.TOKEN_BUY_BACK]: "The 0.25% of the app fee set aside to buy TRIBES back, on trades priced before 2026-10-26 and on older builds.",
-    [LABELS.TOKEN_BURN]: "The 0.25% the trader pays to buy TRIBES and send it to the dead address, on trades since 2026-10-26.",
+    [LABELS.TOKEN_BUY_BACK]: "The share of the app fee set aside to buy TRIBES back, as recorded on each trade priced before 2026-10-26 or on an older build.",
+    [LABELS.TOKEN_BURN]: "The amount the trader paid to buy TRIBES and send it to the dead address, as recorded once burned, on trades since 2026-10-26.",
   },
   SupplySideRevenue: {
     [LABELS.CASHBACK_PAYOUTS]: "Cashback credited to traders from the commission.",
