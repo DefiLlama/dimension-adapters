@@ -33,7 +33,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     ]);
 
     // Count index-driven growth, excluding deposits, withdrawals and donations.
-    // On Linea, yield is recognized when a new M index reaches the chain.
+    // On Linea and Monad, yield is recognized when a new M index reaches the chain.
     let dailyYield = BigInt(closingBalance) - BigInt(openingBalance);
     const account = MUSD_TOKEN.toLowerCase();
     let transferCount = 0n;
@@ -72,7 +72,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-    Fees: "Yield accrued by M backing MetaMask USD (mUSD), recognized on Linea when its M index updates.",
+    Fees: "Yield accrued by M backing MetaMask USD (mUSD), recognized on Linea and Monad when their M index updates.",
     Revenue: "All accrued M yield is allocated to the mUSD yield recipient.",
     ProtocolRevenue: "Yield allocated to the mUSD yield recipient.",
 };
@@ -93,8 +93,11 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
-    chains: [CHAIN.ETHEREUM, CHAIN.LINEA],
-    start: '2025-08-12',
+    adapter: {
+        [CHAIN.ETHEREUM]: { start: '2025-08-12' },
+        [CHAIN.LINEA]: { start: '2025-08-12' },
+        [CHAIN.MONAD]: { start: '2026-04-16' },
+    },
     methodology,
     breakdownMethodology,
 };
