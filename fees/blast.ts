@@ -16,24 +16,16 @@ const frontendLabels = {
 
 const labels = new Map(Object.entries({ ...launchpadLabels, ...frontendLabels }));
 
-type Breakdown = Record<string, Record<string, string>>;
-
-type DailyFees = {
-  date: string;
-  dailyFees: Breakdown;
-  dailyRevenue: Breakdown;
-  dailySupplySideRevenue: Breakdown;
-};
-
+/** Read Blast's published fees and revenue for one complete UTC day. */
 async function fetch({ dateString, createBalances }: FetchOptions) {
-  const summary: DailyFees = await httpGet("https://www.blast.fun/api/v1/defillama/fees", {
+  const summary: unknown = await httpGet("https://www.blast.fun/api/v1/defillama/fees", {
     params: { date: dateString },
-    // The endpoint reads a stored summary. Fail stalled requests so the runner can retry.
+    // Blast's relay allows 5s for its backend. Allow 10s more for cold starts and transit.
     timeout: 15_000,
     maxRedirects: 0,
   });
 
-  if (summary?.date !== dateString) {
+  if (!isRecord(summary) || summary.date !== dateString) {
     throw new Error(`Invalid Blast fee summary for ${dateString}`);
   }
 
@@ -50,16 +42,39 @@ async function fetch({ dateString, createBalances }: FetchOptions) {
   };
 }
 
-function toBalances(breakdown: Breakdown, createBalances: FetchOptions["createBalances"]) {
+/** Convert a published fee breakdown into labeled token balances. */
+function toBalances(breakdown: unknown, createBalances: FetchOptions["createBalances"]) {
+  if (!isRecord(breakdown)) {
+    throw new Error("Invalid Blast fee breakdown");
+  }
+
   const balances = createBalances();
   for (const [source, amounts] of Object.entries(breakdown)) {
     const label = labels.get(source);
     if (!label) {
       throw new Error(`Unrecognized Blast fee source: ${source}`);
     }
+    if (!isTokenAmounts(amounts)) {
+      throw new Error(`Invalid Blast fee amounts for ${source}`);
+    }
     balances.addBalances(amounts, label);
   }
   return balances;
+}
+
+/** Check the JSON object shape used for fee breakdowns and token maps. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Check that amounts are exact strings in the smallest token unit. */
+function isTokenAmounts(value: unknown): value is Record<string, string> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      (amount) => typeof amount === "string" && /^(0|[1-9][0-9]*)$/.test(amount),
+    )
+  );
 }
 
 const feeDescriptions = {
