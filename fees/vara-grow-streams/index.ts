@@ -7,19 +7,22 @@ import { postURL } from "../../utils/fetchURL";
 const VARA_RPC = "https://rpc.vara.network";
 
 // Vara Mainnet program IDs from `deploy-state.json` in https://github.com/Satyam-10124/growstreams-v3
-// StreamCore (`stream-core`): continuous per-second token streaming engine
-const STREAM_CORE = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
+// StreamCore (`stream-core`): continuous per-second token streaming engines (V2 legacy + V3 rotated treasury deployment)
+const STREAM_CORE_LEGACY = "0x8298c2eea5c6bbe55a9cfe72283b5399098fd6a54d9a2a14c2bedba8eea50659";
+const STREAM_CORE_V3 = "0x4ae03ca006e92fe188d3c61d3d39a1d05c9fdf1c0a16c750b103269deccfa784";
+const STREAM_CORE_PROGRAMS = [STREAM_CORE_LEGACY, STREAM_CORE_V3] as const;
 // BountyAdapter (`bounty-adapter`): AI-verified streaming bounties, Agent Society ACP splits & StonkBase desk settlements
 const BOUNTY_ADAPTER = "0x7697bb2e8655e6cd7294389a0289355f48fd5459914d2a735c9966dad548bd4f";
 
 // Supported VARA-pegged & protocol VFT token ActorIds (32-byte hex without 0x prefix) from `deploy-state.json`
 // wVARA (`wvara`): 1:1 wrapped native VARA token (`0xf5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d`)
 const WVARA = "f5e9cb1d1e46b0cda6578dd1684b30f281a45dfaa390e4945b7bfc8ab3e27f3d";
-// gVARA (`gvara-token`): 1:1 VARA-backed streaming SuperToken (`0x04314af41b7dbac322e3e66920211d2f799719e1cdc3122a99752f72b6ae84ee`)
-const GVARA = "04314af41b7dbac322e3e66920211d2f799719e1cdc3122a99752f72b6ae84ee";
+// gVARA (`gvara-token` V2 & V3): 1:1 VARA-backed streaming SuperTokens
+const GVARA_LEGACY = "04314af41b7dbac322e3e66920211d2f799719e1cdc3122a99752f72b6ae84ee";
+const GVARA_V3 = "086c7257f39302f9346ed8b7d2839ef1c728fc04997b6056581c0b3f396710ee";
 // GROW (`grow-token`): GrowStreams protocol reward & staking token (`0x728d04df91561c66938053a4f5178f749da004ebd219ca05f7c090609a6f7163`)
 const GROW = "728d04df91561c66938053a4f5178f749da004ebd219ca05f7c090609a6f7163";
-const SUPPORTED_TOKENS = new Set([WVARA, GVARA, GROW]);
+const SUPPORTED_TOKENS = new Set([WVARA, GVARA_LEGACY, GVARA_V3, GROW]);
 
 const ZERO_ACCOUNT = "0x" + "0".repeat(64);
 const GAS_LIMIT = 750000000000;
@@ -233,48 +236,51 @@ function decodeBounty(buf: Buffer): BountyRecord | null {
   return { id, title, token, maxFlowRate, minScore, totalBudget, spent, activeStream, status, createdAt };
 }
 
-let configCache: Promise<{ nextStreamId: number; feeBps: number }> | undefined;
+const configCache = new Map<string, Promise<{ nextStreamId: number; feeBps: number }>>();
 /**
- * Fetches and caches `StreamCore` configuration (`nextStreamId` and `feeBps`).
+ * Fetches and caches `StreamCore` configuration (`nextStreamId` and `feeBps`) for a given `program`.
  */
-function getConfig() {
-  if (!configCache) {
-    configCache = rpcCall(STREAM_CORE, "0x" + ROUTE_CONFIG.toString("hex"))
+function getConfig(program: string) {
+  let p = configCache.get(program);
+  if (!p) {
+    p = rpcCall(program, "0x" + ROUTE_CONFIG.toString("hex"))
       .then(decodeConfig)
       .catch((e) => {
-        configCache = undefined;
+        configCache.delete(program);
         throw e;
       });
+    configCache.set(program, p);
   }
-  return configCache;
+  return p;
 }
 
-const streamCache = new Map<number, Promise<Stream | null>>();
+const streamCache = new Map<string, Promise<Stream | null>>();
 /**
- * Fetches and caches an individual stream from `StreamCore` by ID.
+ * Fetches and caches an individual stream from `StreamCore` (`program`) by ID.
  */
-function getStream(id: number) {
-  let p = streamCache.get(id);
+function getStream(program: string, id: number) {
+  const key = `${program}:${id}`;
+  let p = streamCache.get(key);
   if (!p) {
     const idBuf = Buffer.alloc(8);
     idBuf.writeBigUInt64LE(BigInt(id), 0);
-    p = rpcCall(STREAM_CORE, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex")).then(decodeStream);
-    p.catch(() => streamCache.delete(id));
-    streamCache.set(id, p);
+    p = rpcCall(program, "0x" + Buffer.concat([ROUTE_GETSTREAM, idBuf]).toString("hex")).then(decodeStream);
+    p.catch(() => streamCache.delete(key));
+    streamCache.set(key, p);
   }
   return p;
 }
 
 /**
- * Binary-searches `StreamCore` stream IDs to find the first stream with `startTime >= ts`.
+ * Binary-searches `StreamCore` (`program`) stream IDs to find the first stream with `startTime >= ts`.
  */
-async function firstStreamAtOrAfter(ts: number, lastId: number): Promise<number> {
+async function firstStreamAtOrAfter(program: string, ts: number, lastId: number): Promise<number> {
   let lo = 1;
   let hi = lastId + 1;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
     let start: number | undefined;
-    for (let id = mid; id < hi && start === undefined; id++) start = (await getStream(id))?.startTime;
+    for (let id = mid; id < hi && start === undefined; id++) start = (await getStream(program, id))?.startTime;
     if (start === undefined || start >= ts) hi = mid;
     else lo = mid + 1;
   }
@@ -314,35 +320,39 @@ function getBountiesSnapshot(): Promise<BountyRecord[]> {
 }
 
 /**
- * Computes GrowStreams daily volume, fees, and protocol revenue across `StreamCore` and `BountyAdapter` (including StonkBase 1x spot margin & Agent Society ACP streams).
+ * Computes GrowStreams daily volume, fees, and protocol revenue across `StreamCore` deployments and `BountyAdapter` (including StonkBase 1x spot margin & Agent Society ACP streams).
  */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyVolume = options.createBalances();
-  const [{ nextStreamId, feeBps }, bounties] = await Promise.all([
-    getConfig(),
+  const [configs, bounties] = await Promise.all([
+    Promise.all(STREAM_CORE_PROGRAMS.map((program) => getConfig(program).then((cfg) => ({ program, ...cfg })))),
     getBountiesSnapshot(),
   ]);
-  const lastId = nextStreamId - 1;
+  const feeBps = configs[0]?.feeBps ?? 250;
 
-  // 1. StreamCore streams created in [fromTimestamp, toTimestamp)
-  const fromId = await firstStreamAtOrAfter(options.fromTimestamp, lastId);
-  const toId = await firstStreamAtOrAfter(options.toTimestamp, lastId);
-  const ids = Array.from({ length: Math.max(0, toId - fromId) }, (_, i) => fromId + i);
-  const { results, errors } = await PromisePool.withConcurrency(10)
-    .for(ids)
-    .process(async (id) => {
-      await new Promise((r) => setTimeout(r, 40 + Math.random() * 80));
-      return getStream(id);
-    });
-  if (errors.length) throw new Error(`${errors.length}/${ids.length} GetStream calls failed`);
-
+  // 1. StreamCore streams created in [fromTimestamp, toTimestamp) across V2 & V3 StreamCore programs
   let volumePlancks = 0n;
-  for (const s of results) {
-    if (!s || !SUPPORTED_TOKENS.has(s.token.toLowerCase())) continue;
-    if (s.startTime >= options.fromTimestamp && s.startTime < options.toTimestamp) {
-      volumePlancks += s.deposited;
+  for (const { program, nextStreamId } of configs) {
+    const lastId = nextStreamId - 1;
+    if (lastId < 1) continue;
+    const fromId = await firstStreamAtOrAfter(program, options.fromTimestamp, lastId);
+    const toId = await firstStreamAtOrAfter(program, options.toTimestamp, lastId);
+    const ids = Array.from({ length: Math.max(0, toId - fromId) }, (_, i) => fromId + i);
+    const { results, errors } = await PromisePool.withConcurrency(10)
+      .for(ids)
+      .process(async (id) => {
+        await new Promise((r) => setTimeout(r, 40 + Math.random() * 80));
+        return getStream(program, id);
+      });
+    if (errors.length) throw new Error(`${errors.length}/${ids.length} GetStream calls failed on ${program}`);
+
+    for (const s of results) {
+      if (!s || !SUPPORTED_TOKENS.has(s.token.toLowerCase())) continue;
+      if (s.startTime >= options.fromTimestamp && s.startTime < options.toTimestamp) {
+        volumePlancks += s.deposited;
+      }
     }
   }
 
@@ -356,7 +366,7 @@ const fetch = async (options: FetchOptions) => {
   const linkedStreamIds = Array.from(new Set(eligibleBounties.map((b) => b.activeStream)));
   const { errors: linkedErrors } = await PromisePool.withConcurrency(6)
     .for(linkedStreamIds)
-    .process((id) => getStream(id));
+    .process((id) => getStream(STREAM_CORE_LEGACY, id));
   if (linkedErrors.length) throw new Error(`${linkedErrors.length}/${linkedStreamIds.length} linked GetStream calls failed`);
 
   for (const b of eligibleBounties) {
@@ -371,7 +381,7 @@ const fetch = async (options: FetchOptions) => {
     if (effectiveFlowRate <= 0n || effectiveBudgetCap <= 0n) continue;
 
     // Resolve stream start timestamp from StreamCore via `b.activeStream`, skipping if the stream record is absent
-    const linkedStream = await getStream(b.activeStream);
+    const linkedStream = await getStream(STREAM_CORE_LEGACY, b.activeStream);
     if (!linkedStream) continue;
     const streamStart = Math.max(linkedStream.startTime, b.createdAt);
     const durationSecondsBig = (effectiveBudgetCap + effectiveFlowRate - 1n) / effectiveFlowRate;
