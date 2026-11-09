@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 // cro.trade (https://cro.trade) charges a flat 0.9% on every spot trade it routes on Cronos.
 // It is a compile-time constant in every router below (FEE_NUMERATOR = 90 / FEE_DENOMINATOR = 10000,
@@ -77,9 +78,56 @@ const LABELS = {
   RevShare: 'CRONUS Holders Revenue Share',
 }
 
+// Robinhood Chain (since 2026-11-01): cro.trade's own routers. Every trade emits one Traded event; the fee is taken
+// on the ETH/WETH/USDG side (the input of a buy, the output of a sell) and swept to the RH revenue wallet, which
+// sends it to the CronusBurner on Cronos (buyback and burn).
+const RH_ROUTERS = [
+  '0x91e2e94bfc604836e208fe8ded09bd863d8a15e4', // CroTradeRouterRH, 2026-11-01
+  '0x67703604015fecced592788923877f50e8f675d4', // CroTradeRouterRH2, 2026-11-04
+]
+const RH_NATIVE = ADDRESSES.null
+const RH_BASES = new Set([
+  RH_NATIVE,
+  ADDRESSES.robinhood.WETH,
+  ADDRESSES.robinhood.USDG,
+])
+const RH_TRADED = 'event Traded(address indexed trader, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)'
+
 const toTs = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
 
+const fetchRobinhood = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const logs = await options.getLogs({ targets: RH_ROUTERS, eventAbi: RH_TRADED })
+  for (const l of logs) {
+    const tokenIn = String(l.tokenIn).toLowerCase()
+    const tokenOut = String(l.tokenOut).toLowerCase()
+    // volume is the ETH/WETH/USDG side before our fee: what a buy paid in, what a sell got out
+    const inIsBase = RH_BASES.has(tokenIn)
+    const base = inIsBase ? tokenIn : tokenOut
+    if (!RH_BASES.has(base)) continue
+    const fee = BigInt(l.fee)
+    const volume = inIsBase ? BigInt(l.amountIn) : BigInt(l.amountOut) + fee
+    const add = (b: any, value: bigint, label?: string) => base === RH_NATIVE ? b.addGasToken(value, label) : b.add(base, value, label)
+    add(dailyVolume, volume)
+    add(dailyFees, fee, LABELS.Fees)
+  }
+  const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+  dailyRevenue.add(dailyFees.clone(), LABELS.ToBuyback)
+  dailyHoldersRevenue.add(dailyFees.clone(), LABELS.Buyback)
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailyProtocolRevenue: options.createBalances(),
+    dailyHoldersRevenue,
+  }
+}
+
 const fetch = async (options: FetchOptions) => {
+  if (options.chain === CHAIN.ROBINHOOD) return fetchRobinhood(options)
   const { createBalances, getLogs, endTimestamp } = options
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -206,8 +254,10 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [CHAIN.CRONOS],
-  start: '2026-03-04',
+  adapter: {
+    [CHAIN.CRONOS]: { start: '2026-03-04' },
+    [CHAIN.ROBINHOOD]: { start: '2026-11-01' },
+  },
   methodology,
   breakdownMethodology,
 }
