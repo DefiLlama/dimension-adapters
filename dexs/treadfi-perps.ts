@@ -251,12 +251,18 @@ const adapter: SimpleAdapter = {
       fetch: volumeOnly("aftermath"),
       start: "2026-04-16",
     },
+    // TxFlow is a perps exchange on its own chain (matches the native txflow-perps adapter);
+    // Tread added TxFlow order routing on 2026-10-23, no Tread fills exist before that
+    [CHAIN.TXFLOW]: {
+      fetch: volumeOnly("txflow"),
+      start: "2026-10-23",
+    },
   },
   methodology,
   breakdownMethodology,
   // Same fills are counted by the native venue adapters (hyperliquid, extended,
   // paradex, nado, pacifica, perpl, risex-perps, ondo-perps, arcus-perps, orderly,
-  // aftermath-fi-perp)
+  // aftermath-fi-perp, txflow-perps)
   doublecounted: true,
 };
 
