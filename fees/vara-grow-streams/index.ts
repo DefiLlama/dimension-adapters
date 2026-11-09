@@ -347,10 +347,19 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // 2. BountyAdapter AI-verified active streaming bounties, Agent Society ACP splits & StonkBase 1x spot collateral in [fromTimestamp, toTimestamp)
-  for (const b of bounties) {
-    if (!SUPPORTED_TOKENS.has(b.token.toLowerCase())) continue;
-    if (b.status !== BOUNTY_STATUS_STREAMING || b.activeStream === null) continue;
+  const eligibleBounties = bounties.filter(
+    (b): b is BountyRecord & { activeStream: number } =>
+      SUPPORTED_TOKENS.has(b.token.toLowerCase()) &&
+      b.status === BOUNTY_STATUS_STREAMING &&
+      b.activeStream !== null,
+  );
+  const linkedStreamIds = Array.from(new Set(eligibleBounties.map((b) => b.activeStream)));
+  const { errors: linkedErrors } = await PromisePool.withConcurrency(6)
+    .for(linkedStreamIds)
+    .process((id) => getStream(id));
+  if (linkedErrors.length) throw new Error(`${linkedErrors.length}/${linkedStreamIds.length} linked GetStream calls failed`);
 
+  for (const b of eligibleBounties) {
     // Matches `flow_rate = (bounty.max_flow_rate * score as u128) / 100` in `contracts/adapters/bounty-adapter/src/lib.rs`
     const rawVerifiedFlowRate = (b.maxFlowRate * BigInt(b.minScore)) / SCORE_DENOMINATOR;
     if (rawVerifiedFlowRate <= 0n || b.totalBudget <= 0n) continue;
@@ -361,14 +370,16 @@ const fetch = async (options: FetchOptions) => {
     const effectiveBudgetCap = isLeveragedDesk ? b.totalBudget / STONKBASE_MAX_LEVERAGE : b.totalBudget;
     if (effectiveFlowRate <= 0n || effectiveBudgetCap <= 0n) continue;
 
-    // Resolve stream start timestamp from StreamCore via `b.activeStream` when created at or after `b.createdAt`, falling back to `b.createdAt`
+    // Resolve stream start timestamp from StreamCore via `b.activeStream`, skipping if the stream record is absent
     const linkedStream = await getStream(b.activeStream);
-    const streamStart = linkedStream && linkedStream.startTime >= b.createdAt ? linkedStream.startTime : b.createdAt;
-    const durationSeconds = Number(effectiveBudgetCap / effectiveFlowRate);
-    const streamEnd = streamStart + durationSeconds;
+    if (!linkedStream) continue;
+    const streamStart = Math.max(linkedStream.startTime, b.createdAt);
+    const durationSecondsBig = (effectiveBudgetCap + effectiveFlowRate - 1n) / effectiveFlowRate;
+    const streamStartBig = BigInt(streamStart);
+    const streamEndBig = streamStartBig + durationSecondsBig;
 
-    // Stop accrual once the bounded settlement period `[streamStart, streamEnd]` completes
-    if (options.toTimestamp <= streamStart || options.fromTimestamp >= streamEnd) continue;
+    // Stop accrual once the bounded settlement period `[streamStart, streamEnd)` completes
+    if (BigInt(options.toTimestamp) <= streamStartBig || BigInt(options.fromTimestamp) >= streamEndBig) continue;
 
     // Compute per-window delta `accruedUntilEnd - accruedBefore` using the same `streamStart` and full `effectiveBudgetCap` basis
     const elapsedBefore = BigInt(Math.max(0, options.fromTimestamp - streamStart));
