@@ -330,11 +330,12 @@ const fetch = async (options: FetchOptions) => {
     Promise.all(STREAM_CORE_PROGRAMS.map((program) => getConfig(program).then((cfg) => ({ program, ...cfg })))),
     getBountiesSnapshot(),
   ]);
-  const feeBps = configs[0]?.feeBps ?? 250;
+  const legacyFeeBps = configs.find((c) => c.program === STREAM_CORE_LEGACY)?.feeBps ?? 0;
 
   // 1. StreamCore streams created in [fromTimestamp, toTimestamp) across V2 & V3 StreamCore programs
   let volumePlancks = 0n;
-  for (const { program, nextStreamId } of configs) {
+  let feesPlancks = 0n;
+  for (const { program, nextStreamId, feeBps } of configs) {
     const lastId = nextStreamId - 1;
     if (lastId < 1) continue;
     const fromId = await firstStreamAtOrAfter(program, options.fromTimestamp, lastId);
@@ -348,12 +349,15 @@ const fetch = async (options: FetchOptions) => {
       });
     if (errors.length) throw new Error(`${errors.length}/${ids.length} GetStream calls failed on ${program}`);
 
+    let programVolumePlancks = 0n;
     for (const s of results) {
       if (!s || !SUPPORTED_TOKENS.has(s.token.toLowerCase())) continue;
       if (s.startTime >= options.fromTimestamp && s.startTime < options.toTimestamp) {
-        volumePlancks += s.deposited;
+        programVolumePlancks += s.deposited;
       }
     }
+    volumePlancks += programVolumePlancks;
+    feesPlancks += (programVolumePlancks * BigInt(feeBps)) / BPS_DENOMINATOR;
   }
 
   // 2. BountyAdapter AI-verified active streaming bounties, Agent Society ACP splits & StonkBase 1x spot collateral in [fromTimestamp, toTimestamp)
@@ -369,6 +373,7 @@ const fetch = async (options: FetchOptions) => {
     .process((id) => getStream(STREAM_CORE_LEGACY, id));
   if (linkedErrors.length) throw new Error(`${linkedErrors.length}/${linkedStreamIds.length} linked GetStream calls failed`);
 
+  let bountyVolumePlancks = 0n;
   for (const b of eligibleBounties) {
     // Matches `flow_rate = (bounty.max_flow_rate * score as u128) / 100` in `contracts/adapters/bounty-adapter/src/lib.rs`
     const rawVerifiedFlowRate = (b.maxFlowRate * BigInt(b.minScore)) / SCORE_DENOMINATOR;
@@ -400,13 +405,15 @@ const fetch = async (options: FetchOptions) => {
     const accruedUntilEnd = uncappedUntilEnd < effectiveBudgetCap ? uncappedUntilEnd : effectiveBudgetCap;
 
     if (accruedUntilEnd > accruedBefore) {
-      volumePlancks += accruedUntilEnd - accruedBefore;
+      bountyVolumePlancks += accruedUntilEnd - accruedBefore;
     }
   }
+  volumePlancks += bountyVolumePlancks;
+  feesPlancks += (bountyVolumePlancks * BigInt(legacyFeeBps)) / BPS_DENOMINATOR;
 
   if (volumePlancks > 0n) {
     // 100% of protocol service fees (`fee_bps = 250` = 2.5%) go to the GrowStreams treasury; there is no supply-side share.
-    const feesVara = Number((volumePlancks * BigInt(feeBps)) / BPS_DENOMINATOR) / VARA_DECIMALS;
+    const feesVara = Number(feesPlancks) / VARA_DECIMALS;
     const volumeVara = Number(volumePlancks) / VARA_DECIMALS;
     dailyFees.addCGToken("vara-network", feesVara, METRIC.SERVICE_FEES);
     dailyRevenue.addCGToken("vara-network", feesVara, METRIC.SERVICE_FEES);
