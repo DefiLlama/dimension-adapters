@@ -32,6 +32,24 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "eyed": {
+    // EYED (https://eyed.cc, https://x.com/EyedTrade), a trading app for Hyperliquid perps (HIP-3 included) with copy
+    // trading and public trader records; sign-in is a Solana wallet. Its Hyperliquid orders carry this builder code on
+    // top of Hyperliquid's own fees: 0.015% from 2026-08-27, 0.03% from 2026-09-04, and since 2026-10-07 holders of the
+    // $EYED token pay 20-60% less of it (0.024% down to 0.012%). No spot or outcome fills carry the code so far.
+    // Verifiable: the builder field (b, f) of EYED orders on the Hyperliquid explorer; the address's Hyperliquid
+    // `referral` state (referrer code GHOZ, EYED's former name; builderRewards).
+    addresses: ["0x9f069bc939babb43cbe389f88a0c3f5199030faf"],
+    // first day with fills carrying the code
+    start: "2026-08-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through EYED with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through EYED; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees received by EYED's builder account, before the referral commissions it pays out of them.",
+      ProtocolRevenue: "Builder code fees received by EYED's builder account, before the referral commissions it pays out of them.",
+    },
+    breakdownFees: true,
+  },
   "afterbell": {
     // Afterbell (https://afterbell.pro, https://x.com/Afterbell_pro), a Hyperliquid trading front-end for stock, index
     // and commodity perps (HIP-3) and crypto perps, each stock perp read against its home exchange's session. Its orders
