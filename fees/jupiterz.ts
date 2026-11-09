@@ -19,8 +19,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Fees on JupiterZ RFQ fills, charged to market makers and, on v2, to takers.',
     Revenue: 'All JupiterZ fees, kept by Jupiter.',
-    ProtocolRevenue: "Half of JupiterZ fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
-    HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of JupiterZ fees is counted on the Jupiter Aggregator listing.",
+    ProtocolRevenue: "Half of JupiterZ fees, kept by the treasury. JUP buybacks are funded with 50% of onchain revenue and counted on the Jupiter Aggregator listing; JupiterZ market-maker fees are settled offchain.",
+    HoldersRevenue: "No holders revenue on this listing: JUP buybacks, funded with 50% of onchain revenue, are counted once, on the Jupiter Aggregator listing. JupiterZ market-maker fees are settled offchain.",
   },
   breakdownMethodology: {
     Fees: { [JUPITER_METRICS.JupiterZFees]: 'Fees on JupiterZ RFQ fills, charged to market makers and, on v2, to takers.' },
