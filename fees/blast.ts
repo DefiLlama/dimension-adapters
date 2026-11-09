@@ -52,9 +52,6 @@ type Page = {
 };
 
 async function fetch(options: FetchOptions) {
-  const apiKey = process.env.BLAST_DEFILLAMA_API_KEY;
-  if (!apiKey) throw new Error("BLAST_DEFILLAMA_API_KEY is required");
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
@@ -68,7 +65,6 @@ async function fetch(options: FetchOptions) {
 
   while (true) {
     const page: Page = await httpGet(url.toString(), {
-      headers: { "X-Blast-Partner-Key": apiKey },
       timeout: 15_000,
       maxRedirects: 0,
     });
