@@ -148,9 +148,9 @@ const TRISTERO_V3_MARGIN_CONFIGS: Record<string, TristeroV3MarginChainConfig> = 
 
 export const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// The six chains where the router is deployed and taking orders. Volume starts at the router's
+// The chains where the router is deployed and taking orders. Volume starts at the router's
 // 2026-06-18 rollout because no earlier contract generation is referenced any more.
-export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM];
+export const TRISTERO_CHAINS = [CHAIN.ETHEREUM, CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.POLYGON, CHAIN.AVAX, CHAIN.OPTIMISM, CHAIN.UNICHAIN];
 
 const TRISTERO_ROUTER = '0x3341F2d46441118e3FB819E5b0166E25cFC4b3A1';
 
@@ -173,6 +173,7 @@ const WRAPPED_NATIVE_TOKENS: Record<string, string> = {
   [CHAIN.POLYGON]: ADDRESSES.polygon.WMATIC_2,
   [CHAIN.AVAX]: ADDRESSES.avax.WAVAX,
   [CHAIN.OPTIMISM]: ADDRESSES.optimism.WETH_1,
+  [CHAIN.UNICHAIN]: ADDRESSES.unichain.WETH,
 };
 
 const ORDER_ROUTER_INTERFACE = new Interface([
@@ -933,13 +934,25 @@ function isSelfFilledDarkpoolOrder(order: { isDarkpool: boolean; sender: string;
   return order.isDarkpool && !!order.sender && order.sender === order.filler;
 }
 
+// Tristero confirmed this Base activity as test/common-control trading on 2026-11-09.
+// Limit the exclusion to the reviewed UTC day, directed pair and internal TAKER fills.
+// Do not suppress unrelated trades or gas-abstraction fees paid to real parties.
+function isConfirmedTestOrder(options: FetchOptions, order: DecodedV3SendOrder): boolean {
+  return options.chain === CHAIN.BASE
+    && options.dateString === '2026-08-28'
+    && order.orderType.toUpperCase() === 'TAKER'
+    && order.isDarkpool
+    && order.sender === '0xa02fb9638c16723310b6b57fed85cb2c03b86c19'
+    && order.filler === '0xe3d2b0c14ab8ebf5d9cd0130a0bc1188f737412f';
+}
+
 function addDecodedV3SendOrderVolume(
   options: FetchOptions,
   buckets: TristeroVolumeBuckets,
   decodedOrder: DecodedV3SendOrder,
   txHash: string,
 ) {
-  if (isSelfFilledDarkpoolOrder(decodedOrder)) return;
+  if (isSelfFilledDarkpoolOrder(decodedOrder) || isConfirmedTestOrder(options, decodedOrder)) return;
 
   const dailyVolume = decodedOrder.isDarkpool ? buckets.darkpool : buckets.aggregation;
 
