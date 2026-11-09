@@ -413,6 +413,7 @@ export enum CHAIN {
   REDBELLY = "rbn",
   MORPH_TACHYON = "morph_tachyon",
   RAYLS = "rls",
+  ELYSIUM = "elysium",
   DYDX = "dydx",
   SECRET = "secret",
   AXELAR = "axelar",
