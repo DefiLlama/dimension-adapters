@@ -88,8 +88,8 @@ const RH_ROUTERS = [
 const RH_NATIVE = ADDRESSES.null
 const RH_BASES = new Set([
   RH_NATIVE,
-  '0x0bd7d308f8e1639fab988df18a8011f41eacad73', // WETH
-  '0x5fc5360d0400a0fd4f2af552add042d716f1d168', // USDG
+  ADDRESSES.robinhood.WETH,
+  ADDRESSES.robinhood.USDG,
 ])
 const RH_TRADED = 'event Traded(address indexed trader, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)'
 
