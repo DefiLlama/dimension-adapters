@@ -42,6 +42,9 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   // Sparkling (https://sparkl.ing): builder name and code as listed in https://data-api.polymarket.com/v2/builders/volume
   // and set in the public code of https://app.sparkl.ing; first attributed trade 2026-09-13
   "sparkling-predict": { builder: "Sparkling", start: "2026-09-13", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a" },
+  // Syndicate (https://syndicate.trade): builder code listed at https://syndicate.trade/learn/custody-and-fees#onchain; first attributed trade 2026-09-25.
+  // The v2 Data API leaderboard has no row for it, so the builder name below is the app's name, not a leaderboard name
+  "syndicate-predictions": { builder: "Syndicate", start: "2026-09-25", builderCode: "0x629f43fadac903c36ff0310552bbc73749c96c939f0c85142f666c03282603d1" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number; supplySideRevenueRatio?: number }> = {
@@ -68,6 +71,8 @@ const feesConfigs: Record<string, { builderName: string; builderCode: string; st
   "wallet-v-predictions": { builderName: "Wallet V", builderCode: "0x569d18dd9e5cc8758e66ed53f6ad41172997cd10317f4e07d67fe4e3ac6a2a04", start: "2026-09-09" },
   // first trade with a builder fee in https://clob.polymarket.com/builder/trades for this code: 2026-09-13
   "sparkling-predict": { builderName: "Sparkling", builderCode: "0xc31925c98db2b5eef3e1516f67115e3220a65b13c21eabd5e6244f997d08827a", start: "2026-09-13" },
+  // first trade with a builder fee in https://clob.polymarket.com/builder/trades for this code: 2026-09-25
+  "syndicate-predictions": { builderName: "Syndicate", builderCode: "0x629f43fadac903c36ff0310552bbc73749c96c939f0c85142f666c03282603d1", start: "2026-09-25" },
 }
 
 // Polymarket-style CTF exchanges on other chains: OrderFilled logs of the listed exchange contracts, the collateral
