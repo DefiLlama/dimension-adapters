@@ -52,7 +52,7 @@ const adapter: SimpleAdapter = {
   start: "2023-06-15",
   doublecounted: true,
   methodology: {
-    Volume:
+    BridgeVolume:
       "USD value of cross-chain swaps and bridge transfers initiated through Bridged Finance interface across supported networks, verified and indexed on-chain.",
   },
 };
