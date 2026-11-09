@@ -118,14 +118,19 @@ async function getRewardsSharePayouts(options: FetchOptions) {
   // most days have no top-up, so the Agent's logs are only read when there is one
   if (!topUps.length) return { rewardsShare, tierRebates }
 
-  // recipients allowed just before the top-up's block: Easy Track checks them when the motion is created and enacted
+  // recipients allowed just before the top-up's block: Easy Track checks them when the motion is created and enacted.
+  // Read once per block, since top-ups in the same block see the same list
+  const allowedByBlock: Record<number, Set<string>> = {}
   const allowedByTx: Record<string, Set<string>> = {}
   for (const log of topUps) {
     const block = Number(log.blockNumber)
     if (!Number.isFinite(block)) throw new Error(`Lido: Rewards Share top-up ${log.transactionHash} has no block number`)
-    const registryApi = new sdk.ChainApi({ chain: options.chain, block: block - 1 })
-    const allowed: string[] = await registryApi.call({ target: REWARDS_SHARE_REGISTRY, abi: GET_ALLOWED_RECIPIENTS_ABI })
-    allowedByTx[log.transactionHash.toLowerCase()] = new Set(allowed.map((address) => address.toLowerCase()))
+    if (!allowedByBlock[block]) {
+      const registryApi = new sdk.ChainApi({ chain: options.chain, block: block - 1 })
+      const allowed: string[] = await registryApi.call({ target: REWARDS_SHARE_REGISTRY, abi: GET_ALLOWED_RECIPIENTS_ABI })
+      allowedByBlock[block] = new Set(allowed.map((address) => address.toLowerCase()))
+    }
+    allowedByTx[log.transactionHash.toLowerCase()] = allowedByBlock[block]
   }
 
   const transfers = await options.getLogs({ target: LIDO_AGENT, eventAbi: VAULT_TRANSFER_EVENT, onlyArgs: false })
