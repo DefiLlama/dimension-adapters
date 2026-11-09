@@ -40,6 +40,7 @@ const fetchOnchain = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+    dailyHoldersRevenue: 0, // JUP buybacks are counted on the Jupiter Aggregator listing
   }
 }
 
@@ -47,7 +48,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // above, and fees on orders settled as swaps signed by gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { limit_order: JUPITER_METRICS.LimitOrderV2Fees })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue: 0 }
 }
 
 const fetch = async (options: FetchOptions) =>
@@ -57,6 +58,7 @@ const methodology = {
   Fees: 'Fees paid by users on limit orders.',
   Revenue: 'All limit order fees, kept by Jupiter.',
   ProtocolRevenue: "Half of limit order fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+  HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of limit order fees is counted on the Jupiter Aggregator listing.",
 }
 
 const breakdownMethodology = {

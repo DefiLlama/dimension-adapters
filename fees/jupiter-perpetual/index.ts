@@ -85,6 +85,7 @@ const fetch = async (options: FetchOptions) => {
     dailyRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
@@ -92,6 +93,7 @@ const methodology = {
   Fees: "Trading, swap, borrow, liquidation and JLP mint/burn fees paid by users, plus staking rewards on the pool's SOL and JLP Loans interest.",
   Revenue: "25% of all fees, sent to Jupiter.",
   ProtocolRevenue: "Half of the 25% of fees sent to Jupiter, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+  HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of the 25% of fees sent to Jupiter is counted on the Jupiter Aggregator listing.",
   SupplySideRevenue: "75% of all fees, kept by the JLP pool for liquidity providers.",
 }
 

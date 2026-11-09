@@ -13,6 +13,7 @@ const fetchOnchain = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+    dailyHoldersRevenue: 0, // JUP buybacks are counted on the Jupiter Aggregator listing
   }
 }
 
@@ -20,7 +21,7 @@ const fetchOnchain = async (options: FetchOptions) => {
 // swaps signed by the keeper gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6. Limit order fees are on the Jupiter Limit listing.
 const fetchStatsApi = async (options: FetchOptions) => {
   const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { dca: JUPITER_METRICS.JupDCAFees })
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)) }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue: 0 }
 }
 
 const fetchFeesSolana = async (options: FetchOptions) =>
@@ -40,6 +41,7 @@ const adapter: SimpleAdapter = {
     Fees: 'Fees paid by users on DCA (recurring) orders.',
     Revenue: 'All DCA fees, kept by Jupiter.',
     ProtocolRevenue: "Half of DCA fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of DCA fees is counted on the Jupiter Aggregator listing.",
   },
   breakdownMethodology: {
     Fees: {

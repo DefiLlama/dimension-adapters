@@ -24,6 +24,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+    dailyHoldersRevenue: 0, // JUP buybacks are counted on the Jupiter Aggregator listing
   }
 }
 
@@ -38,6 +39,7 @@ const adapter: SimpleAdapter = {
     Fees: 'Token trading and launching fees.',
     Revenue: 'All fees collected by protocol.',
     ProtocolRevenue: 'Half of fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.',
+    HoldersRevenue: 'No holders revenue on this listing: JUP buybacks are counted once, on the Jupiter Aggregator listing.',
   },
   breakdownMethodology: {
     Fees: {
